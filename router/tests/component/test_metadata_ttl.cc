@@ -192,6 +192,14 @@ std::ostream &operator<<(std::ostream &os, const MetadataTTLTestParams &param) {
             << param.ttl_expected_max.count() << "ms])";
 }
 
+template <class T, class R>
+std::ostream &operator<<(std::ostream &os,
+                         const std::chrono::duration<T, R> &duration) {
+  return os << std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+                   .count()
+            << "ms";
+}
+
 class MetadataChacheTTLTestParam
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};
@@ -318,6 +326,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       "// Check if the time passed in between falls into expected range");
   const auto ttl = second_refresh_start_timestamp.value() -
                    first_refresh_stop_timestamp.value();
+
   EXPECT_THAT(ttl, IsBetween(test_params.ttl_expected_min,
                              test_params.ttl_expected_max));
 }
@@ -326,34 +335,34 @@ INSTANTIATE_TEST_SUITE_P(
     CheckTTLIsUsedCorrectly, MetadataChacheTTLTestParam,
     ::testing::Values(
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "0_gr_v2",
-                              ClusterType::GR_V2, "0.2", 150ms, 400ms),
+                              ClusterType::GR_V2, "0.2", 150ms, 490ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "0_gr",
-                              ClusterType::GR_V1, "0.2", 150ms, 400ms),
+                              ClusterType::GR_V1, "0.2", 150ms, 490ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "0_ar_v2",
-                              ClusterType::RS_V2, "0.2", 150ms, 400ms),
+                              ClusterType::RS_V2, "0.2", 150ms, 490ms),
 
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "1_gr_v2",
-                              ClusterType::GR_V2, "1", 700ms, 1300ms),
+                              ClusterType::GR_V2, "1", 700ms, 1800ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "1_gr",
-                              ClusterType::GR_V1, "1", 700ms, 1300ms),
+                              ClusterType::GR_V1, "1", 700ms, 1800ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "1_ar_v2",
-                              ClusterType::RS_V2, "1", 700ms, 1300ms),
+                              ClusterType::RS_V2, "1", 700ms, 1800ms),
 
         // check that default is 0.5 if not provided:
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "2_gr_v2",
-                              ClusterType::GR_V2, "", 450ms, 700ms),
+                              ClusterType::GR_V2, "", 450ms, 900ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "2_gr",
-                              ClusterType::GR_V1, "", 450ms, 700ms),
+                              ClusterType::GR_V1, "", 450ms, 900ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "2_ar_v2",
-                              ClusterType::RS_V2, "", 450ms, 700ms),
+                              ClusterType::RS_V2, "", 450ms, 900ms),
 
         // check that for 0 the delay between the refresh is very short
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "3_gr_v2",
-                              ClusterType::GR_V2, "0", 0ms, 200ms),
+                              ClusterType::GR_V2, "0", 0ms, 450ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "3_gr",
-                              ClusterType::GR_V1, "0", 0ms, 200ms),
+                              ClusterType::GR_V1, "0", 0ms, 450ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "3_ar_v2",
-                              ClusterType::RS_V2, "0", 0ms, 200ms)),
+                              ClusterType::RS_V2, "0", 0ms, 450ms)),
     get_test_description);
 
 class MetadataChacheTTLTestParamInvalid

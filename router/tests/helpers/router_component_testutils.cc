@@ -236,7 +236,12 @@ bool wait_for_transaction_count_increase(const uint16_t http_port,
 
 bool wait_connection_dropped(mysqlrouter::MySQLSession &session,
                              std::chrono::milliseconds timeout) {
-  const auto kStep = 50ms;
+  auto kStep = 50ms;
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+    kStep *= 5;
+  }
+
   do {
     try {
       session.query_one("select @@@port");

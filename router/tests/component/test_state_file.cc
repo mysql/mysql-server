@@ -522,7 +522,7 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
   SCOPED_TRACE("// We expect an error in the logfile");
   EXPECT_TRUE(wait_log_file_contains(
       router, "Failed fetching metadata from any of the 1 metadata servers",
-      10 * kTTL));
+      5s));
 
   // now try to connect to the router port, we expect error 2003
   std::string out_port_unused;
