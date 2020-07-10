@@ -48,7 +48,7 @@ sub process
         "\n";
 
   my $output;
-  open(my $fh, '-|', $NDB_PRINT_BACKUP_FILE, $File::Find::name)
+  open(my $fh, '-|', "$NDB_PRINT_BACKUP_FILE ${File::Find::name}")
     or die("Unable to open $File::Find::name: $!\n");
   {
     local $/;
