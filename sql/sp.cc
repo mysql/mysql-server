@@ -540,7 +540,7 @@ enum_sp_return_code db_load_routine(
   }
   thd->pop_internal_handler();
   if (db_not_exists_handler.error_caught()) {
-    ret = SP_INTERNAL_ERROR;
+    ret = SP_NO_DB_ERROR;
     my_error(ER_BAD_DB_ERROR, MYF(0), sp_db);
 
     goto end;
