@@ -3211,3 +3211,32 @@ WHERE FALSE AND
               FROM (SELECT 8 AS a UNION SELECT 3) AS tt);
 
 DROP TABLE t1;
+
+--echo # Bug#31401637: Asan heap-buffer-overflow Handler::index_only_read_time
+
+CREATE TABLE t(
+  w INTEGER NOT NULL,
+  h INTEGER NOT NULL,
+  u SMALLINT NOT NULL,
+  PRIMARY KEY (u)
+);
+INSERT INTO t VALUES(1,2,3),(3,4,5),(6,6,7);
+PREPARE s FROM "
+SELECT dtaa.c AS c
+FROM (SELECT 1 AS c
+      FROM (SELECT 1 AS c
+            FROM t AS ta RIGHT JOIN t AS tb ON ta.u  <= ?
+            WHERE 1 OR ?
+            GROUP BY ta.u
+           ) AS dta
+           INNER JOIN t AS tbb
+           ON dta.c = tbb.h
+     ) AS dtaa
+     RIGHT JOIN t AS tbbb
+     ON dtaa.c or w";
+SET @a:='77777';
+EXECUTE s USING @a,@a;
+SET @a:='-77777';
+EXECUTE s USING @a,@a;
+DEALLOCATE PREPARE s;
+DROP TABLE t;

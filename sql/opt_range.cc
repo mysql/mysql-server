@@ -3297,6 +3297,9 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     /* Calculate cost of full index read for the shortest covering index */
     if (!head->covering_keys.is_clear_all()) {
       int key_for_use = find_shortest_key(head, &head->covering_keys);
+      // find_shortest_key() should return a valid key:
+      assert(key_for_use != MAX_KEY);
+
       Cost_estimate key_read_time = param.table->file->index_scan_cost(
           key_for_use, 1, static_cast<double>(records));
       key_read_time.add_cpu(
