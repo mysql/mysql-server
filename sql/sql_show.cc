@@ -558,6 +558,16 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
         errors due to missing underlying objects are converted to warnings.
       */
       open_error = table_list->resolve_derived(thd, true);
+
+      /*
+        If a suppressed error occurred, the query expression may not be
+        marked as prepared. Mark it as prepared nevertheless, this is
+        good enough for the SHOW CREATE command, as we only need the
+        preparation for errors against referenced objects.
+      */
+      if (!table_list->derived_unit()->is_prepared()) {
+        table_list->derived_unit()->set_prepared();
+      }
     }
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error())) goto exit;
