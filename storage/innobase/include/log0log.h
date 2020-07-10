@@ -150,6 +150,9 @@ static_assert(LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE < LOG_BLOCK_DATA_SIZE,
 /** Maximum possible sn value. */
 constexpr sn_t SN_MAX = (1ULL << 62) - 1;
 
+/** The sn bit to express locked state. */
+constexpr sn_t SN_LOCKED = 1ULL << 63;
+
 /** Maximum possible lsn value is slightly higher than the maximum sn value,
 because lsn sequence enumerates also bytes used for headers and footers of
 all log blocks. However, still 64-bits are enough to represent the maximum
@@ -950,16 +953,6 @@ initialized to correspond to some lsn, for instance, a checkpoint lsn.
 @param[in]	lsn	log sequence number to set files_start_lsn at */
 void log_files_update_offsets(log_t &log, lsn_t lsn);
 
-/** Acquires the log buffer s-lock.
-@param[in,out]	log	redo log
-@return lock no, must be passed to s_lock_exit() */
-size_t log_buffer_s_lock_enter(log_t &log);
-
-/** Releases the log buffer s-lock.
-@param[in,out]	log	redo log
-@param[in]	lock_no	lock no received from s_lock_enter() */
-void log_buffer_s_lock_exit(log_t &log, size_t lock_no);
-
 /** Acquires the log buffer x-lock.
 @param[in,out]	log	redo log */
 void log_buffer_x_lock_enter(log_t &log);
@@ -1190,8 +1183,6 @@ MY_COMPILER_DIAGNOSTIC_POP()
 /**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_checkpointer(log_t *log_ptr);
-
-#define log_buffer_x_lock_own(log) log.sn_lock.x_own()
 
 #define log_checkpointer_mutex_enter(log) \
   mutex_enter(&((log).checkpointer_mutex))
