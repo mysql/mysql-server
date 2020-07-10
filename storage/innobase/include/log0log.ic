@@ -164,9 +164,18 @@ inline void log_block_store_checksum(byte *log_block) {
 /* @} */
 
 #ifndef UNIV_HOTBACKUP
+/** @return consistent sn value for locked state */
+static inline sn_t log_get_sn(const log_t &log) {
+  const sn_t sn = log.sn.load();
+  if ((sn & SN_LOCKED) != 0) {
+    return log.sn_locked.load();
+  } else {
+    return sn;
+  }
+}
 
 inline bool log_needs_free_check(const log_t &log) {
-  const sn_t sn = log.sn.load();
+  const sn_t sn = log_get_sn(log);
   return (sn > log.free_check_limit_sn.load());
 }
 
@@ -277,7 +286,7 @@ inline uint64_t log_get_file_capacity(const log_t &log) {
 }
 
 inline lsn_t log_get_lsn(const log_t &log) {
-  return (log_translate_sn_to_lsn(log.sn.load()));
+  return log_translate_sn_to_lsn(log_get_sn(log));
 }
 
 inline lsn_t log_get_checkpoint_lsn(const log_t &log) {

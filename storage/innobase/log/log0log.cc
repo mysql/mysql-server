@@ -531,6 +531,8 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   os_event_set(log.old_flush_event);
   log.writer_threads_resume_event = os_event_create();
   os_event_set(log.writer_threads_resume_event);
+  log.sn_lock_event = os_event_create();
+  os_event_set(log.sn_lock_event);
 
   mutex_create(LATCH_ID_LOG_CHECKPOINTER, &log.checkpointer_mutex);
   mutex_create(LATCH_ID_LOG_CLOSER, &log.closer_mutex);
@@ -539,12 +541,22 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   mutex_create(LATCH_ID_LOG_WRITE_NOTIFIER, &log.write_notifier_mutex);
   mutex_create(LATCH_ID_LOG_FLUSH_NOTIFIER, &log.flush_notifier_mutex);
   mutex_create(LATCH_ID_LOG_LIMITS, &log.limits_mutex);
+  mutex_create(LATCH_ID_LOG_SN_MUTEX, &log.sn_x_lock_mutex);
 
-  log.sn_lock.create(
 #ifdef UNIV_PFS_RWLOCK
-      log_sn_lock_key,
-#endif
-      SYNC_LOG_SN, 64);
+  /* pfs_psi is separated from sn_lock_inst,
+  because not needed for non debug build. */
+  log.pfs_psi =
+      PSI_RWLOCK_CALL(init_rwlock)(log_sn_lock_key.m_value, &log.pfs_psi);
+#endif /* UNIV_PFS_RWLOCK */
+#ifdef UNIV_DEBUG
+  /* initialize rw_lock without pfs_psi */
+  log.sn_lock_inst =
+      static_cast<rw_lock_t *>(ut_zalloc_nokey(sizeof(*log.sn_lock_inst)));
+  new (log.sn_lock_inst) rw_lock_t;
+  rw_lock_create_func(log.sn_lock_inst, SYNC_LOG_SN, "log.sn_lock_inst",
+                      __FILE__, __LINE__);
+#endif /* UNIV_DEBUG */
 
   /* Allocate buffers. */
   log_allocate_buffer(log);
@@ -596,7 +608,9 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
   log.next_checkpoint_no = checkpoint_no;
   log.available_for_checkpoint_lsn = checkpoint_lsn;
 
+  ut_a((log.sn.load(std::memory_order_acquire) & SN_LOCKED) == 0);
   log.sn = log_translate_lsn_to_sn(log.recovered_lsn);
+  log.sn_locked = log_translate_lsn_to_sn(log.recovered_lsn);
 
   if ((start_lsn + LOG_BLOCK_TRL_SIZE) % OS_FILE_LOG_BLOCK_SIZE == 0) {
     start_lsn += LOG_BLOCK_TRL_SIZE + LOG_BLOCK_HDR_SIZE;
@@ -664,8 +678,19 @@ void log_sys_close() {
   log_deallocate_write_ahead_buffer(log);
   log_deallocate_buffer(log);
 
-  log.sn_lock.free();
+#ifdef UNIV_DEBUG
+  rw_lock_free_func(log.sn_lock_inst);
+  ut_free(log.sn_lock_inst);
+  log.sn_lock_inst = nullptr;
+#endif /* UNIV_DEBUG */
+#ifdef UNIV_PFS_RWLOCK
+  if (log.pfs_psi != nullptr) {
+    PSI_RWLOCK_CALL(destroy_rwlock)(log.pfs_psi);
+    log.pfs_psi = nullptr;
+  }
+#endif /* UNIV_PFS_RWLOCK */
 
+  mutex_free(&log.sn_x_lock_mutex);
   mutex_free(&log.limits_mutex);
   mutex_free(&log.write_notifier_mutex);
   mutex_free(&log.flush_notifier_mutex);
@@ -682,6 +707,7 @@ void log_sys_close() {
   os_event_destroy(log.flusher_event);
   os_event_destroy(log.old_flush_event);
   os_event_destroy(log.writer_threads_resume_event);
+  os_event_destroy(log.sn_lock_event);
 
   log_sys_object->destroy();
 
@@ -773,12 +799,12 @@ void log_stop_background_threads(log_t &log) {
           * log_checkpointer starts log_checkpoint()
           * log_checkpoint() asks to persist dd dynamic metadata
           * dict_persist_dd_table_buffer() tries to write to redo
-          * but cannot acquire shared lock on log.sn_lock
+          * but cannot lock on log.sn
           * so log_checkpointer thread waits for this thread
             until the x-lock is released
           * but this thread waits until log background threads
             have been stopped - log_checkpointer is not stopped. */
-  ut_ad(!log.sn_lock.x_own());
+  ut_ad(!rw_lock_own(log.sn_lock_inst, RW_LOCK_X));
 
   ib::info(ER_IB_MSG_1259) << "Log background threads are being closed...";
 
@@ -1235,7 +1261,7 @@ void log_position_unlock(log_t &log) {
 
 void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
                                    lsn_t *checkpoint_lsn) {
-  ut_ad(log_buffer_x_lock_own(log));
+  ut_ad(rw_lock_own(log.sn_lock_inst, RW_LOCK_X));
   ut_ad(log_checkpointer_mutex_own(log));
 
   *checkpoint_lsn = log.last_checkpoint_lsn.load();

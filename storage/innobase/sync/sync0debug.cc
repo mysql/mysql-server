@@ -436,6 +436,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_RECV);
   LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
   LEVEL_MAP_INSERT(SYNC_LOG_SN);
+  LEVEL_MAP_INSERT(SYNC_LOG_SN_MUTEX);
   LEVEL_MAP_INSERT(SYNC_LOG_LIMITS);
   LEVEL_MAP_INSERT(SYNC_LOG_WRITER);
   LEVEL_MAP_INSERT(SYNC_LOG_WRITE_NOTIFIER);
@@ -682,6 +683,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       break;
 
     case SYNC_LOG_SN:
+    case SYNC_LOG_SN_MUTEX:
     case SYNC_TRX_SYS_HEADER:
     case SYNC_LOCK_FREE_HASH:
     case SYNC_MONITOR_MUTEX:
@@ -1305,6 +1307,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(LOG_LIMITS, SYNC_LOG_LIMITS, log_limits_mutex_key);
 
   LATCH_ADD_RWLOCK(LOG_SN, SYNC_LOG_SN, log_sn_lock_key);
+
+  LATCH_ADD_MUTEX(LOG_SN_MUTEX, SYNC_LOG_SN_MUTEX, log_sn_mutex_key);
 
   LATCH_ADD_MUTEX(LOG_ARCH, SYNC_LOG_ARCH, log_sys_arch_mutex_key);
 

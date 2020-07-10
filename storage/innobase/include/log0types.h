@@ -51,7 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_compiler.h"
 #include "os0event.h"
 #include "os0file.h"
-#include "sync0sharded_rw.h"
+#include "sync0rw.h"
 #include "univ.i"
 #include "ut0link_buf.h"
 #include "ut0mutex.h"
@@ -122,11 +122,7 @@ enum class log_state_t {
 /** The recovery implementation. */
 struct redo_recover_t;
 
-typedef size_t log_lock_no_t;
-
 struct Log_handle {
-  log_lock_no_t lock_no;
-
   lsn_t start_lsn;
 
   lsn_t end_lsn;
@@ -144,22 +140,37 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** @{ */
 
 #ifndef UNIV_HOTBACKUP
-  /** Sharded rw-lock which can be used to freeze redo log lsn.
-  When user thread reserves space in log, s-lock is acquired.
-  Log archiver (Clone plugin) acquires x-lock. */
-  mutable Sharded_rw_lock sn_lock;
+  /** Event used for locking sn */
+  os_event_t sn_lock_event;
+
+#ifdef UNIV_PFS_RWLOCK
+  /** The instrumentation hook */
+  struct PSI_rwlock *pfs_psi;
+#endif /* UNIV_PFS_RWLOCK */
+#ifdef UNIV_DEBUG
+  /** The rw_lock instance only for the debug info list */
+  /* NOTE: Just "rw_lock_t sn_lock_inst;" and direct minimum initialization
+  seem to hit the bug of Sun Studio of Solaris. */
+  rw_lock_t *sn_lock_inst;
+#endif /* UNIV_DEBUG */
 
   /** Current sn value. Used to reserve space in the redo log,
   and used to acquire an exclusive access to the log buffer.
   Represents number of data bytes that have ever been reserved.
   Bytes of headers and footers of log blocks are not included.
-  Protected by: sn_lock. */
+  Its highest bit is used for locking the access to the log buffer. */
   MY_COMPILER_DIAGNOSTIC_PUSH()
   MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
   /**
   @see @ref subsect_redo_log_sn */
   MY_COMPILER_DIAGNOSTIC_PUSH()
   alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_sn_t sn;
+
+  /** Intended sn value while x-locked. */
+  atomic_sn_t sn_locked;
+
+  /** Mutex which can be used for x-lock sn value */
+  mutable ib_mutex_t sn_x_lock_mutex;
 
   /** Padding after the _sn to avoid false sharing issues for
   constants below (due to changes of sn). */
@@ -169,7 +180,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       The alignment is to ensure that buffer parts specified for file IO write
       operations will be aligned to sector size, which is required e.g. on
       Windows when doing unbuffered file access.
-      Protected by: sn_lock. */
+      Protected by: locking sn not to add. */
       aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
 
   /** Size of the log buffer expressed in number of data bytes,
@@ -183,7 +194,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** The recent written buffer.
-      Protected by: sn_lock or writer_mutex. */
+      Protected by: locking sn not to add. */
       Link_buf<lsn_t> recent_written;
 
   /** Used for pausing the log writer threads.
@@ -199,7 +210,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** The recent closed buffer.
-      Protected by: sn_lock or closer_mutex. */
+      Protected by: locking sn not to add. */
       Link_buf<lsn_t> recent_closed;
 
   alignas(ut::INNODB_CACHE_LINE_SIZE)
