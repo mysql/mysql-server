@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,8 @@
 
 class NdbConfig : public NdbRestarter {
 public:
-  NdbConfig(const char* addr = 0)
-    : NdbRestarter(addr)
+  NdbConfig(const char* address = 0)
+    : NdbRestarter(address)
   {}
 
   bool getProperty(unsigned nodeid, unsigned type, unsigned key, Uint32 * val);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -883,11 +883,11 @@ HugoOperations::wait_async(Ndb* pNdb, int timeout)
   return -1;
 }
 
-HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
-			       const NdbDictionary::Index* idx):
-  UtilTransactions(_tab, idx),
+HugoOperations::HugoOperations(const NdbDictionary::Table& table,
+                               const NdbDictionary::Index* index):
+  UtilTransactions(table, index),
   pIndexScanOp(NULL),
-  calc(_tab),
+  calc(table),
   m_quiet(false),
   avCallback(NULL)
 {
