@@ -3449,7 +3449,7 @@ void QEP_TAB::cleanup() {
 
   TABLE *const t = table();
 
-  if (t) {
+  if (t != nullptr) {
     t->reginfo.qep_tab = nullptr;
     t->const_table = false;  // Note: Also done in TABLE::init()
   }
@@ -3462,7 +3462,7 @@ void QEP_TAB::cleanup() {
       op_type == QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE ||
       op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE ||
       op_type == QEP_TAB::OT_WINDOWING_FUNCTION) {
-    if (t)  // Check tmp table is not yet freed.
+    if (t != nullptr)  // Check tmp table is not yet freed.
     {
       close_tmp_table(current_thd, t);
       free_tmp_table(t);
@@ -3470,8 +3470,15 @@ void QEP_TAB::cleanup() {
     destroy(tmp_table_param);
     tmp_table_param = nullptr;
   }
-  if (table_ref != nullptr && table_ref->uses_materialization())
-    close_tmp_table(current_thd, table_ref->table);
+  if (table_ref != nullptr && table_ref->uses_materialization()) {
+    assert(t == table_ref->table);
+    t->merge_keys.clear_all();
+    t->quick_keys.clear_all();
+    t->covering_keys.clear_all();
+    t->possible_quick_keys.clear_all();
+
+    close_tmp_table(current_thd, t);
+  }
 }
 
 void QEP_shared_owner::qs_cleanup() {
