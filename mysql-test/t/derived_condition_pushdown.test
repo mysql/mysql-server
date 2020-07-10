@@ -23,8 +23,8 @@ INSERT INTO t1 VALUES (NULL, 1, 3);
 SET optimizer_switch="derived_merge=off,derived_condition_pushdown=on";
 # Test with simple WHERE condition that needs to be pushed
 let query = SELECT * FROM (SELECT f1, f2 FROM t1) as dt WHERE f1 > 2;
-# Masking all cost and rows output as it makes the test unstable - most likely
-# because they differ with innodb_page_size
+# Masking all cost and rows output as it makes the test unstable -
+# most likely because they differ with innodb_page_size
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
@@ -58,7 +58,9 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 # Test for pushing condition down partially
-let query = SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt, t0
+# Fix test instability with join order hint
+let query = SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
+            (SELECT f1, f2, f3 FROM t1) as dt, t0
             WHERE f1 > 3 and f2 < 50 and i0 > 3;
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
@@ -520,6 +522,7 @@ WHERE dt2.f1 > 3;
 # Test with const conditions: shouldn't be pushed down (no benefit)
 let query= SELECT /*+ no_merge(dt,dt1) */ * FROM
 ((SELECT f1, f2 FROM t1) as dt, (SELECT f1, f2 FROM t1) as dt1) WHERE FALSE;
+--replace_column 10 #
 eval EXPLAIN $query;
 eval $query;
 

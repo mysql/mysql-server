@@ -826,8 +826,9 @@ let $query =
                  FROM t1 GROUP BY f1) as dt
   WHERE median != 1;
 
---eval $query
+--replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 --eval EXPLAIN FORMAT=tree $query
+--eval $query
 
 DROP TABLE t1;
 DROP FUNCTION my_median;
