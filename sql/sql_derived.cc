@@ -917,7 +917,7 @@ bool Condition_pushdown::make_cond_for_derived() {
 
 Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
   cond->marker = Item::MARKER_NONE;
-  if (cond->const_item() && (m_checking_purpose == CHECK_FOR_DERIVED)) {
+  if ((m_checking_purpose == CHECK_FOR_DERIVED) && cond->const_item()) {
     // There is no benefit in pushing a constant condition, we can as well
     // evaluate it at the top query's level.
     return nullptr;
