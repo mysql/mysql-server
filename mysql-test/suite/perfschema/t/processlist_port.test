@@ -3,6 +3,9 @@
 --echo ##
 --echo ## Verify the Host field (hostname:port) against the legacy implementation.
 --echo ##
+
+--source include/no_protocol.inc
+
 --echo
 --echo ### Setup ###
 --echo
