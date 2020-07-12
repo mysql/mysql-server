@@ -256,19 +256,17 @@ to run and administer a MySQL server.
 Summary:        MySQL database client applications and tools
 Group:          Applications/Databases
 Requires:       %{name}-libs >= %{min}
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Conflicts:      mysql-commercial-server < 8.0.21
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-advanced = %{version}-%{release}
 Obsoletes:      MySQL-Cluster-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-client < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-client < %{version}-%{release}
 %endif
-%else
-Conflicts:      mysql-community-server < 8.0.21
 %endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-gpl = %{version}-%{release}
@@ -391,6 +389,7 @@ to develop MySQL client applications.
 Summary:        Shared libraries for MySQL database client applications
 Group:          Applications/Databases
 Requires:       %{name}-common >= %{min}
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-shared-advanced = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
@@ -418,6 +417,20 @@ Provides:       libmysqlclient21 = %{version}-%{release}
 %description    libs
 This package contains the shared libraries for MySQL client
 applications.
+
+%package        client-plugins
+Summary:        Shared plugins for MySQL client applications
+Group:          Applications/Databases
+%if 0%{?commercial}
+Conflicts:      mysql-commercial-server < 8.0.21
+Conflicts:      mysql-commercial-client < 8.0.22
+%else
+Conflicts:      mysql-community-server < 8.0.21
+Conflicts:      mysql-community-client < 8.0.22
+%endif
+
+%description    client-plugins
+This package contains the client-plugins libraries used by MySQL client applications.
 
 %if 0%{?cluster}
 %package        management-server
@@ -992,7 +1005,6 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 
 %if 0%{?cluster}
 %attr(755, root, root) %{_bindir}/ndb_blob_tool
@@ -1076,6 +1088,11 @@ rm -r $(readlink var) var
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
+
+%files client-plugins
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -1357,6 +1374,9 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Sun Jul 12 2020 Sreedhar S <sreedhar.sreedhargadda@oracle.com> - 8.0.22-1
+- Add a new subpackage client-plugins
+
 * Mon May 11 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.15-1
 - Added component_test_component_deinit.so test component
 

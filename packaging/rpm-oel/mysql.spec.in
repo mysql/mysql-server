@@ -321,19 +321,17 @@ This packages contains the special debug build of MySQL server.
 Summary:        MySQL database client applications and tools
 Group:          Applications/Databases
 Requires:       %{name}-libs%{?_isa} >= %{min}
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-client-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
-Conflicts:      mysql-commercial-server < 8.0.21
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-Cluster-client-advanced%{?_isa} < %{version}-%{release}
 Obsoletes:      mysql-commercial-client < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-client < %{version}-%{release}
 %endif
-%else
-Conflicts:      mysql-community-server < 8.0.21
 %endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-gpl%{?_isa} = %{version}-%{release}
@@ -466,6 +464,7 @@ to develop MySQL client applications.
 Summary:        Shared libraries for MySQL database client applications
 Group:          Applications/Databases
 Requires:       %{name}-common%{?_isa} >= %{min}
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Provides:       MySQL-shared-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
@@ -492,6 +491,21 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 %description    libs
 This package contains the shared libraries for MySQL client
 applications.
+
+%package        client-plugins
+Summary:        Shared plugins for MySQL client applications
+Group:          Applications/Databases
+%if 0%{?commercial}
+Conflicts:      mysql-commercial-server < 8.0.21
+Conflicts:      mysql-commercial-client < 8.0.22
+%else
+Conflicts:      mysql-community-server < 8.0.21
+Conflicts:      mysql-community-client < 8.0.22
+%endif
+
+%description    client-plugins
+This package contains the client-plugins libraries used by MySQL client applications.
+
 
 %if 0%{?compatlib}
 %package        libs-compat
@@ -1274,7 +1288,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 
 %if 0%{?cluster}
 %attr(755, root, root) %{_bindir}/ndb_blob_tool
@@ -1367,6 +1380,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so
 %attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so.1.1
 %endif # ssl_bundled
+
+%files client-plugins
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -1690,6 +1708,9 @@ fi
 %endif # with_router
 
 %changelog
+* Sun Jul 12 2020 Sreedhar S <sreedhar.sreedhargadda@oracle.com> - 8.0.22-1
+- Add a new subpackage client-plugins
+
 * Tue Feb 04 2020 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.20-1
 - Again add back support for alternative with_ssl, now with bundled openssl
 
