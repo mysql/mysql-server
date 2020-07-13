@@ -1890,6 +1890,17 @@ class Item_func_lineinterpolate : public Item_geometry_func {
   }
 };
 
+class Item_func_lineinterpolatepoint final : public Item_func_lineinterpolate {
+ public:
+  Item_func_lineinterpolatepoint(const POS &pos, Item *a, Item *b)
+      : Item_func_lineinterpolate(pos, a, b) {}
+
+ protected:
+  const char *func_name() const override { return "st_lineinterpolatepoint"; }
+  bool isFractionalDistance() const override { return true; }
+  bool returnMultiplePoints() const override { return false; }
+};
+
 class Item_func_st_pointatdistance final : public Item_func_lineinterpolate {
  public:
   Item_func_st_pointatdistance(const POS &pos, Item *a, Item *b)
