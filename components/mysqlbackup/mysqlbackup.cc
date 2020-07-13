@@ -125,7 +125,7 @@ static bool register_status_variables() {
       my_strdup(PSI_NOT_INSTRUMENTED, MYSQL_SERVER_VERSION, MYF(MY_WME));
 
   if (mysqlbackup_component_version == nullptr) {
-    std::string msg{"Cannot register status variable '" +
+    std::string msg{std::string("Cannot register status variable '") +
                     mysqlbackup_status_variables[0].name +
                     "' due to insufficient memory."};
     LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
