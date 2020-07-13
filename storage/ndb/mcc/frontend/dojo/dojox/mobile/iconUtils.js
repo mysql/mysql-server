@@ -11,7 +11,7 @@ var t=_e[0];
 var r=_e[1]+_e[2];
 var b=_e[0]+_e[3];
 var l=_e[1];
-_9.set(_c,{clip:"rect("+t+"px "+r+"px "+b+"px "+l+"px)",top:(_c.parentNode?_9.get(_c,"top"):0)-t+"px",left:-l+"px"});
+_9.set(_c,{position:"absolute",clip:"rect("+t+"px "+r+"px "+b+"px "+l+"px)",top:(_c.parentNode?_9.get(_c,"top"):0)-t+"px",left:-l+"px"});
 _7.add(_c,"mblSpriteIcon");
 }
 };
@@ -69,7 +69,7 @@ _1b=this._domButtons[_1a];
 }
 }
 var _1c=null;
-if(_a("bb")&&_2["mblBBBoxShadowWorkaround"]!==false){
+if(_a("bb")&&_2.mblBBBoxShadowWorkaround!==false){
 _1c={style:"-webkit-box-shadow:none"};
 }
 for(var i=0,p=_19;i<_1b;i++){
@@ -114,7 +114,7 @@ _1f.src=(_1d||"").replace("${theme}",dm.currentTheme);
 this.setupSpriteIcon(_1f,_1e);
 if(_1e&&_21){
 var arr=_1e.split(/[ ,]/);
-_9.set(_21,{width:arr[2]+"px",height:arr[3]+"px"});
+_9.set(_21,{position:"relative",width:arr[2]+"px",height:arr[3]+"px"});
 _7.add(_21,"mblSpriteIconParent");
 }
 _3.connect(_1f,"ondragstart",_4,"stop");

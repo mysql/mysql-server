@@ -130,7 +130,7 @@ return _23;
 },addRowsDef:function(_29){
 var _2a=[];
 if(_5.isArray(_29)){
-if(_5.isArray(_29[0])){
+if(_5.isArrayLike(_29[0])){
 for(var i=0,row;_29&&(row=_29[i]);i++){
 _2a.push(this.addRowDef(i,row));
 }
@@ -183,7 +183,7 @@ return false;
 var _30=function(def){
 return (def!==null&&_5.isObject(def)&&("cells" in def||"rows" in def||("type" in def&&!_2e(def))));
 };
-if(_5.isArray(_2c)){
+if(_5.isArrayLike(_2c)){
 var _31=false;
 for(var i=0,st;(st=_2c[i]);i++){
 if(_30(st)){

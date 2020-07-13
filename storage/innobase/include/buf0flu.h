@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -252,6 +252,10 @@ void buf_flush_sync_all_buf_pools(void);
 @param[in]	lsn_limit	upper limit of LSN to be flushed
 @return true if we requested higher lsn than ever requested so far */
 bool buf_flush_request_force(lsn_t lsn_limit);
+
+/** Reset sync LSN if beyond current log sys LSN. Currently used when
+redo logging is disabled. */
+void reset_buf_flush_sync_lsn();
 
 /** Checks if all flush lists are empty. It is supposed to be used in
 single thread, during startup or shutdown. Hence it does not acquire

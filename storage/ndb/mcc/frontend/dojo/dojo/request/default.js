@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -7,7 +7,7 @@
 //>>built
 define("dojo/request/default",["exports","require","../has"],function(_1,_2,_3){
 var _4=_3("config-requestProvider"),_5;
-if(1){
+if(1||_3("host-webworker")){
 _5="./xhr";
 }else{
 if(0){

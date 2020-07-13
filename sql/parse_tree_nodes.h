@@ -61,11 +61,10 @@
 #include "sql/sql_load.h"  // Sql_cmd_load_table
 #include "sql/sql_partition_admin.h"
 #include "sql/sql_restart_server.h"  // Sql_cmd_restart_server
-#include "sql/sql_show.h"
-#include "sql/sql_tablespace.h"  // Tablespace_options
-#include "sql/sql_truncate.h"    // Sql_cmd_truncate_table
-#include "sql/table.h"           // Common_table_expr
-#include "sql/window.h"          // Window
+#include "sql/sql_tablespace.h"      // Tablespace_options
+#include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
+#include "sql/table.h"               // Common_table_expr
+#include "sql/window.h"              // Window
 #include "sql/window_lex.h"
 #include "thr_lock.h"
 
@@ -84,8 +83,6 @@ class sp_name;
 class Sql_cmd;
 class String;
 class THD;
-enum class enum_jt_column;
-enum class enum_jtc_on : uint16;
 struct CHARSET_INFO;
 
 /**
@@ -407,12 +404,12 @@ class PT_table_reference : public Parse_tree_node {
   /**
     Lets us build a parse tree top-down, which is necessary due to the
     context-dependent nature of the join syntax. This function adds
-    the `<table_ref>` cross join as the left-most leaf in this join tree
+    the @<table_ref@> cross join as the left-most leaf in this join tree
     rooted at this node.
 
     @todo: comment on non-join PT_table_reference objects
 
-    @param cj This `<table ref>` will be added if it represents a cross join.
+    @param cj This @<table ref@> will be added if it represents a cross join.
 
     @return The new top-level join.
   */
@@ -1525,7 +1522,7 @@ class PT_table_value_constructor : public PT_query_primary {
 
   bool is_union() const override { return false; }
 
-  bool can_absorb_order_and_limit(bool, bool) const override { return false; }
+  bool can_absorb_order_and_limit(bool, bool) const override { return true; }
 
   bool is_table_value_constructor() const override { return true; }
 
@@ -2065,8 +2062,9 @@ class PT_alter_instance final : public Parse_tree_root {
 
  public:
   explicit PT_alter_instance(
-      enum alter_instance_action_enum alter_instance_action)
-      : sql_cmd(alter_instance_action) {}
+      enum alter_instance_action_enum alter_instance_action,
+      const LEX_CSTRING &channel)
+      : sql_cmd(alter_instance_action, channel) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 };
@@ -2509,6 +2507,11 @@ typedef PT_traceable_create_table_option<
 typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::key_block_size), HA_CREATE_USED_KEY_BLOCK_SIZE>
     PT_create_key_block_size_option;
+
+typedef PT_traceable_create_table_option<
+    TYPE_AND_REF(HA_CREATE_INFO::m_transactional_ddl),
+    HA_CREATE_USED_START_TRANSACTION>
+    PT_create_start_transaction_option;
 
 typedef decltype(HA_CREATE_INFO::table_options) table_options_t;
 
@@ -4597,4 +4600,18 @@ class PT_restart_server final : public Parse_tree_root {
   Sql_cmd_restart_server sql_cmd;
 };
 
+PT_alter_tablespace_option_base *make_tablespace_engine_attribute(MEM_ROOT *,
+                                                                  LEX_CSTRING);
+
+PT_create_table_option *make_table_engine_attribute(MEM_ROOT *, LEX_CSTRING);
+PT_create_table_option *make_table_secondary_engine_attribute(MEM_ROOT *,
+                                                              LEX_CSTRING);
+
+PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *, LEX_CSTRING);
+PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *,
+                                                            LEX_CSTRING);
+
+PT_base_index_option *make_index_engine_attribute(MEM_ROOT *, LEX_CSTRING);
+PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *,
+                                                            LEX_CSTRING);
 #endif /* PARSE_TREE_NODES_INCLUDED */

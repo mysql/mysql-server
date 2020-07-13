@@ -1,4 +1,9 @@
 
+.dijitRtl .dijitOffScreen {
+	
+	left: auto !important;
+	right: -10000px !important;
+}
 .dijitRtl .dijitPlaceHolder {
 	left: auto;
 	right: 0;
@@ -34,6 +39,12 @@
 }
 div.dijitNumberTextBoxRtl {
 	text-align: right;
+}
+.dijitCalendarRtl .dijitCalendarDecrementArrow {
+	float: right;
+}
+.dijitCalendarRtl .dijitCalendarIncrementArrow {
+	float: left;
 }
 .dijitCalendarRtl .dijitCalendarNextYear {
 	margin:0 0.55em 0 0;
@@ -108,6 +119,9 @@ div.dijitNumberTextBoxRtl {
 .dijitSelectRtl .dijitButtonContents {
 	border-style: none none none solid;
 	text-align: right;
+}
+.dijitTreeRtl .dijitTreeContainer {
+	float: right;	
 }
 .dijitRtl .dojoDndHorizontal .dojoDndItemBefore {
     border-width: 0 2px 0 0;
@@ -206,10 +220,7 @@ div.dijitNumberTextBoxRtl {
 	
 	background-image: url("images/spriteTree_rtl.gif");
 }
-.dijitRtl .nihilo .dijitTitlePane .dijitClosed .dijitArrowNode {
-	background-position: 0 top;
-}
-.dj_ie6-rtl .nihilo .dijitTitlePane .dijitClosed .dijitArrowNode {
+.nihilo .dijitTitlePaneRtl .dijitClosed .dijitArrowNode, .nihilo .dijitFieldsetRtl .dijitFieldsetTitleClosed .dijitArrowNode {
 	background-position: 0 top;
 }
 .dijitRtl .nihilo .dijitCalendarDecrease {
@@ -225,6 +236,18 @@ div.dijitNumberTextBoxRtl {
 .dijitRtl .nihilo .dijitDialogTitleBar .dijitDialogCloseIcon {
 	right: auto;
 	left: 5px;
+}
+.nihilo .dijitProgressBarRtl .dijitProgressBarFull {
+	border-left-width: 1px;
+	border-right: 0px;
+}
+.nihilo .dijitProgressBarIndeterminateRtl .dijitProgressBarTile {
+	-moz-transform: scaleX(-1);
+	-o-transform: scaleX(-1);
+	-webkit-transform: scaleX(-1);
+	transform: scaleX(-1);
+	filter: FlipH;
+	-ms-filter: "FlipH";
 }
 .dijitRtl .nihilo .dijitMenuItem .dijitMenuItemIcon {
 	padding-left: 3px;

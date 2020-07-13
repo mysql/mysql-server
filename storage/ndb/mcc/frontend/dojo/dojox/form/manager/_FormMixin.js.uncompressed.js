@@ -129,6 +129,11 @@ define("dojox/form/manager/_FormMixin", [
 			return true;
 		},
 		validate: function(){
+			// summary:
+			//		validate() returns if the form is valid - same as isValid - 
+			//		but provides a few additional (ui-specific) features: it 
+			//		will highlight any sub-widgets that are not valid it will 
+			//		call focus() on the first invalid sub-widget
 			var isValid = true,
 				formWidgets = this.formWidgets,
 				didFocus = false, name;

@@ -9,7 +9,12 @@ dojox.grid.cells.TreeCell = {
 	formatAggregate: function(inItem, level, inRowIndexes){
 		var f, g=this.grid, i=g.edit.info,
 			d=g.aggregator ? g.aggregator.getForCell(this, level, inItem, level === this.level ? "cnt" : this.parentCell.aggregate) : (this.value || this.defaultValue);
-		return this._defaultFormat(d, [d, level - this.level, inRowIndexes, this]);
+		var ret = this._defaultFormat(d, [d, level - this.level, inRowIndexes, this]);
+		var dir = this.textDir || this.grid.textDir;
+		if(dir && this._enforceTextDirWithUcc){
+		    ret = this._enforceTextDirWithUcc(dir, ret);
+		}
+		return ret;
 	},
 	formatIndexes: function(inRowIndexes, inItem){
 		var f, g=this.grid, i=g.edit.info,
@@ -17,7 +22,12 @@ dojox.grid.cells.TreeCell = {
 		if(this.editable && (this.alwaysEditing || (i.rowIndex==inRowIndexes[0] && i.cell==this))){
 			return this.formatEditing(d, inRowIndexes[0], inRowIndexes);
 		}else{
-			return this._defaultFormat(d, [d, inRowIndexes[0], inRowIndexes, this]);
+			var ret = this._defaultFormat(d, [d, inRowIndexes[0], inRowIndexes, this]);
+			var dir = this.textDir || this.grid.textDir;
+			if(dir && this._enforceTextDirWithUcc){
+			    ret = this._enforceTextDirWithUcc(dir, ret);
+			}
+			return ret;
 		}
 	},
 	getOpenState: function(itemId){

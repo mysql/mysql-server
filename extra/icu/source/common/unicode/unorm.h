@@ -131,6 +131,8 @@
 
 // Do not conditionalize the following enum with #ifndef U_HIDE_DEPRECATED_API,
 // it is needed for layout of Normalizer object.
+#ifndef U_FORCE_HIDE_DEPRECATED_API
+
 /**
  * Constants for normalization modes.
  * @deprecated ICU 56 Use unorm2.h instead.
@@ -154,6 +156,8 @@ typedef enum {
   /** One more than the highest normalization mode constant. @deprecated ICU 56 Use unorm2.h instead. */
   UNORM_MODE_COUNT
 } UNormalizationMode;
+
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
 #ifndef U_HIDE_DEPRECATED_API
 
@@ -210,7 +214,7 @@ enum {
  *         the output was truncated, and the error code is set to U_BUFFER_OVERFLOW_ERROR.
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_normalize(const UChar *source, int32_t sourceLength,
                 UNormalizationMode mode, int32_t options,
                 UChar *result, int32_t resultLength,
@@ -236,7 +240,7 @@ unorm_normalize(const UChar *source, int32_t sourceLength,
  * @see unorm_isNormalized
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UNormalizationCheckResult U_EXPORT2
+U_DEPRECATED UNormalizationCheckResult U_EXPORT2
 unorm_quickCheck(const UChar *source, int32_t sourcelength,
                  UNormalizationMode mode,
                  UErrorCode *status);
@@ -257,7 +261,7 @@ unorm_quickCheck(const UChar *source, int32_t sourcelength,
  * @see unorm_isNormalized
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UNormalizationCheckResult U_EXPORT2
+U_DEPRECATED UNormalizationCheckResult U_EXPORT2
 unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength,
                             UNormalizationMode mode, int32_t options,
                             UErrorCode *pErrorCode);
@@ -283,7 +287,7 @@ unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength,
  * @see unorm_quickCheck
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UBool U_EXPORT2
+U_DEPRECATED UBool U_EXPORT2
 unorm_isNormalized(const UChar *src, int32_t srcLength,
                    UNormalizationMode mode,
                    UErrorCode *pErrorCode);
@@ -305,7 +309,7 @@ unorm_isNormalized(const UChar *src, int32_t srcLength,
  * @see unorm_isNormalized
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UBool U_EXPORT2
+U_DEPRECATED UBool U_EXPORT2
 unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
                               UNormalizationMode mode, int32_t options,
                               UErrorCode *pErrorCode);
@@ -383,7 +387,7 @@ unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
  *
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_next(UCharIterator *src,
            UChar *dest, int32_t destCapacity,
            UNormalizationMode mode, int32_t options,
@@ -416,7 +420,7 @@ unorm_next(UCharIterator *src,
  *
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_previous(UCharIterator *src,
                UChar *dest, int32_t destCapacity,
                UNormalizationMode mode, int32_t options,
@@ -460,7 +464,7 @@ unorm_previous(UCharIterator *src,
  *
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_concatenate(const UChar *left, int32_t leftLength,
                   const UChar *right, int32_t rightLength,
                   UChar *dest, int32_t destCapacity,

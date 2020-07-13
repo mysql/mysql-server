@@ -242,6 +242,10 @@ class Arg_comparator {
 
   Item_result get_compare_type() const { return m_compare_type; }
 
+  uint get_child_comparator_count() const { return comparator_count; }
+
+  Arg_comparator *get_child_comparators() const { return comparators; }
+
   /// @returns true if the class has decided that values should be extracted
   ///   from the Items using function pointers set up by this class.
   bool use_custom_value_extractors() const {
@@ -626,6 +630,8 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     return cmp.set_max_str_length(max_str_length);
   }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_OP; }
+  /// @returns an operator REV_OP so that "B REV_OP A" is equivalent to
+  /// "A this_operator B".
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const override { return rev_functype() != UNKNOWN_FUNC; }
 
@@ -646,7 +652,7 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     Item_bool_func::cleanup();
     cmp.cleanup();
   }
-  bool cast_incompatible_args(uchar *) override;
+  const Arg_comparator *get_comparator() const { return &cmp; }
   Item *replace_scalar_subquery(uchar *) override;
   friend class Arg_comparator;
 };
@@ -672,6 +678,7 @@ class Item_func_comparison : public Item_bool_func2 {
   bool subst_argument_checker(uchar **) override { return true; }
   bool is_null() override;
 
+  bool cast_incompatible_args(uchar *) override;
   bool contains_only_equi_join_condition() const override;
 };
 
@@ -699,7 +706,6 @@ class Item_func_xor final : public Item_bool_func2 {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_not : public Item_bool_func {
@@ -1151,6 +1157,7 @@ class Item_func_ne final : public Item_func_comparison {
   Item_func_ne(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return NE_FUNC; }
+  enum Functype rev_functype() const override { return NE_FUNC; }
   cond_result eq_cmp_result() const override { return COND_FALSE; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   const char *func_name() const override { return "<>"; }
@@ -1441,7 +1448,6 @@ class Item_func_nullif final : public Item_bool_func2 {
     inherit from Item_func instead of Item_bool_func2
   */
   bool is_bool_func() const override { return false; }
-  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 /* Functions to handle the optimized IN */
@@ -2241,7 +2247,6 @@ class Item_func_like final : public Item_bool_func2 {
   bool resolve_type(THD *) override;
   void cleanup() override;
   Item *replace_scalar_subquery(uchar *) override;
-  bool cast_incompatible_args(uchar *) override { return false; }
   void update_used_tables() override;
   /**
     @retval true non default escape char specified

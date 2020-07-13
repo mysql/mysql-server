@@ -104,6 +104,17 @@ define("dojo/promise/Promise", [
 			return this.then(callbackOrErrback, callbackOrErrback);
 		},
 
+		"catch": function(errback){
+		    // summary:
+		    //		Add new errbacks to the promise. Follows ECMA specification naming.
+		    // errback: Function?
+		    //		Callback to be invoked when the promise is rejected.
+		    // returns: dojo/promise/Promise
+		    //		Returns a new promise for the result of the errback.
+
+		    return this.then(null, errback);
+		},
+
 		otherwise: function(errback){
 			// summary:
 			//		Add new errbacks to the promise.

@@ -1,9 +1,9 @@
 drop table if exists t1;
 set binlog_format=mixed;
 set session transaction isolation level repeatable read;
+set autocommit=0;
 create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
 insert into t1 values (1),(2),(3),(4),(5),(6),(7);
-set autocommit=0;
 select * from t1 where a=3 lock in share mode;
 a
 3
@@ -38,7 +38,84 @@ a
 10
 11
 7
-drop table t1;
+delete from t1;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+create table t2 as select 1 as col;
+commit;
+select * from t1 where a=3 lock in share mode;
+a
+3
+update t1 straight_join t2 set a=10 where a=5;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+flush status;
+set session transaction isolation level read committed;
+update t1 straight_join t2 set a=10 where a=5;
+select * from t1 where a=2 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select * from t1 where a=2 limit 1 for update;
+a
+2
+update t1 straight_join t2 set a=11 where a=6;
+update t1 straight_join t2 set a=12 where a=2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+update t1 straight_join t2 set a=13 where a=1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+update t1 straight_join t2 set a=14 where a=1;
+commit;
+show status like "created_tmp_tables";
+Variable_name	Value
+Created_tmp_tables	0
+select * from t1;
+a
+14
+2
+3
+4
+10
+11
+7
+delete from t1;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+commit;
+select * from t1 where a=3 lock in share mode;
+a
+3
+update t1 straight_join t2 set a=10,t2.col=t2.col+1 where a+1=5+1 and t2.col>0*a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+flush status;
+set session transaction isolation level read committed;
+update t1 straight_join t2 set a=10,t2.col=t2.col+1 where a+1=5+1 and t2.col>0*a;
+select * from t1 where a=2 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+select * from t1 where a=2 limit 1 for update;
+a
+2
+update t1 straight_join t2 set a=11,t2.col=t2.col+1 where a+1=6+1 and t2.col>0*a;
+update t1 straight_join t2 set a=12,t2.col=t2.col+1 where a+1=2+1 and t2.col>0*a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+update t1 straight_join t2 set a=13,t2.col=t2.col+1 where a+1=1+1 and t2.col>0*a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+update t1 straight_join t2 set a=14,t2.col=t2.col+1 where a+1=1+1 and t2.col>0*a;
+commit;
+show status like "created_tmp_tables";
+Variable_name	Value
+Created_tmp_tables	10
+select * from t1;
+a
+14
+2
+3
+4
+10
+11
+7
+drop table t1,t2;
 create table t1 (a int, b int) engine=myisam;
 create table t2 (c int, d int, key (c)) engine=innodb;
 insert into t1 values (1,1);

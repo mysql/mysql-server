@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -207,15 +207,6 @@ Sasl_client::~Sasl_client() {
   }
   delete m_sasl_mechanism;
   m_sasl_mechanism = nullptr;
-}
-
-void Sasl_client::sasl_client_done_wrapper() {
-#if (SASL_VERSION_MAJOR >= 2) && (SASL_VERSION_MINOR >= 1) && \
-    (SASL_VERSION_STEP >= 24) && (!defined __APPLE__) && (!defined __sun)
-  sasl_client_done();
-#else
-  sasl_done();
-#endif
 }
 
 int Sasl_client::send_sasl_request_to_server(const unsigned char *request,
@@ -580,8 +571,6 @@ static int initialize_plugin(char *, size_t, int, va_list) {
 }
 
 static int deinitialize_plugin() {
-  Sasl_client::sasl_client_done_wrapper();
-
   delete g_logger_client;
   g_logger_client = nullptr;
 

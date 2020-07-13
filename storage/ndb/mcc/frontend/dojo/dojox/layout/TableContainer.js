@@ -28,8 +28,8 @@ if(!_f.started&&!_f._started){
 _f.startup();
 }
 });
-this.resize();
 this.layout();
+this.resize();
 },resize:function(){
 _6.forEach(this.getChildren(),function(_10){
 if(typeof _10.resize=="function"){

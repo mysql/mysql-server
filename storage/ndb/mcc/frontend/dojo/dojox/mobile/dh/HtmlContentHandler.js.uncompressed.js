@@ -41,7 +41,7 @@ define("dojox/mobile/dh/HtmlContentHandler", [
 			return Deferred.when(lazyLoadUtils.instantiateLazyWidgets(container), function(){
 				// allows multiple root nodes in the fragment,
 				// but transition will be performed to the 1st view.
-				var view;
+				var view, i, len;
 				for(i = 0, len = container.childNodes.length; i < len; i++){
 					var n = container.firstChild;
 					if(!view && n.nodeType === 1){

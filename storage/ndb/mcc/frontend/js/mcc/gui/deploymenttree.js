@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -461,7 +461,7 @@ function deploymentTreeViewSetup (clusterName) {
             function expand (node) {
                 var def = new dojo.Deferred();
                 // Expand the node
-                _this._expandNode(node).addCallback(function () {
+                _this._expandNode(node).then(function () {
                     // When expanded, expand() non-leaf children recursively
                     var childBranches = dojo.filter(
                         node.getChildren() || [], function (node) {
@@ -469,8 +469,8 @@ function deploymentTreeViewSetup (clusterName) {
                         });
                     var defs = dojo.map(childBranches, expand);
                     // When recursive calls finish, signal that I'm finished
-                    new dojo.DeferredList(defs).addCallback(function () {
-                        def.callback();
+                    new dojo.DeferredList(defs).then(function () {
+                        def.resolve();
                     });
                 });
                 return def;

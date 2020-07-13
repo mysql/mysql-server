@@ -43,8 +43,8 @@ class Listener_factory {
       const std::string &unix_socket_path, Socket_events *event,
       const uint32_t backlog) const = 0;
   virtual std::unique_ptr<Listener> create_tcp_socket_listener(
-      std::string *bind_address, const std::string &network_namespace,
-      const unsigned short port, const uint32_t port_open_timeout,
+      const std::string &bind_address, const std::string &network_namespace,
+      const uint16_t port, const uint32_t port_open_timeout,
       Socket_events *event, const uint32_t backlog) const = 0;
 };
 

@@ -1,5 +1,3 @@
-require({cache:{
-'url:dijit/templates/TimePicker.html':"<div id=\"widget_${id}\" class=\"dijitMenu\"\n    ><div data-dojo-attach-point=\"upArrow\" class=\"dijitButtonNode dijitUpArrowButton\" data-dojo-attach-event=\"onmouseenter:_buttonMouse,onmouseleave:_buttonMouse\"\n\t\t><div class=\"dijitReset dijitInline dijitArrowButtonInner\" role=\"presentation\">&#160;</div\n\t\t><div class=\"dijitArrowButtonChar\">&#9650;</div></div\n    ><div data-dojo-attach-point=\"timeMenu,focusNode\" data-dojo-attach-event=\"onclick:_onOptionSelected,onmouseover,onmouseout\"></div\n    ><div data-dojo-attach-point=\"downArrow\" class=\"dijitButtonNode dijitDownArrowButton\" data-dojo-attach-event=\"onmouseenter:_buttonMouse,onmouseleave:_buttonMouse\"\n\t\t><div class=\"dijitReset dijitInline dijitArrowButtonInner\" role=\"presentation\">&#160;</div\n\t\t><div class=\"dijitArrowButtonChar\">&#9660;</div></div\n></div>\n"}});
 define("dijit/_TimePicker", [
 	"dojo/_base/array", // array.forEach
 	"dojo/date", // date.compare
@@ -8,61 +6,60 @@ define("dijit/_TimePicker", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-class", // domClass.add domClass.contains domClass.toggle
 	"dojo/dom-construct", // domConstruct.create
-	"dojo/_base/event", // event.stop
 	"dojo/_base/kernel", // deprecated
 	"dojo/keys", // keys
 	"dojo/_base/lang", // lang.mixin
 	"dojo/sniff", // has(...)
 	"dojo/query", // query
 	"dojo/mouse", // mouse.wheel
-	"./typematic",
-	"./_Widget",
-	"./_TemplatedMixin",
-	"./form/_FormValueWidget",
-	"dojo/text!./templates/TimePicker.html"
-], function(array, ddate, locale, stamp, declare, domClass, domConstruct, event, kernel, keys, lang, has, query, mouse,
-			typematic, _Widget, _TemplatedMixin, _FormValueWidget, template){
+	"dojo/on",
+	"./_WidgetBase",
+	"./form/_ListMouseMixin"
+], function(array, ddate, locale, stamp, declare, domClass, domConstruct, kernel, keys, lang, has, query, mouse, on,
+			_WidgetBase, _ListMouseMixin){
 
 	// module:
 	//		dijit/_TimePicker
 
 
-	var TimePicker = declare("dijit._TimePicker", [_Widget, _TemplatedMixin], {
+	var TimePicker = declare("dijit._TimePicker", [_WidgetBase, _ListMouseMixin], {
 		// summary:
-		//		A graphical time picker.
-		//		This widget is used internally by other widgets and is not available
-		//		as a standalone widget due to lack of accessibility support.
-
-		templateString: template,
+		//		A time picker dropdown, used by dijit/form/TimeTextBox.
+		//		This widget is not available as a standalone widget due to lack of accessibility support.
 
 		// baseClass: [protected] String
 		//		The root className to use for the various states of this widget
 		baseClass: "dijitTimePicker",
 
+		// pickerMin: String
+		//		ISO-8601 string representing the time of the first
+		//		visible element in the time picker.
+		//		Set in local time, without a time zone.
+		pickerMin: "T00:00:00",
+
+		// pickerMax: String
+		//		ISO-8601 string representing the last (possible) time
+		//		added to the time picker.
+		//		Set in local time, without a time zone.
+		pickerMax: "T23:59:59",
+
 		// clickableIncrement: String
-		//		ISO-8601 string representing the amount by which
-		//		every clickable element in the time picker increases.
+		//		ISO-8601 string representing the interval between choices in the time picker.
 		//		Set in local time, without a time zone.
 		//		Example: `T00:15:00` creates 15 minute increments
 		//		Must divide dijit/_TimePicker.visibleIncrement evenly
 		clickableIncrement: "T00:15:00",
 
 		// visibleIncrement: String
-		//		ISO-8601 string representing the amount by which
-		//		every element with a visible time in the time picker increases.
+		//		ISO-8601 string representing the interval between "major" choices in the time picker.
+		//		Each theme will highlight the major choices with a larger font / different color / etc.
 		//		Set in local time, without a time zone.
 		//		Example: `T01:00:00` creates text in every 1 hour increment
 		visibleIncrement: "T01:00:00",
 
-		// visibleRange: String
-		//		ISO-8601 string representing the range of this TimePicker.
-		//		The TimePicker will only display times in this range.
-		//		Example: `T05:00:00` displays 5 hours of options
-		visibleRange: "T05:00:00",
-
 		// value: String
-		//		Date to display.
-		//		Defaults to current time and date.
+		//		Time to display.
+		//		Defaults to current time.
 		//		Can be a Date object or an ISO-8601 string.
 		//		If you specify the GMT time zone (`-01:00`),
 		//		the time will be converted to the local time in the local time zone.
@@ -76,32 +73,39 @@ define("dijit/_TimePicker", [
 		//		Example: `2007-06-01T09:00:00`
 		value: new Date(),
 
-		_visibleIncrement:2,
-		_clickableIncrement:1,
-		_totalIncrements:10,
+		_visibleIncrement: 2,
+		_clickableIncrement: 1,
+		_totalIncrements: 10,
 
 		// constraints: TimePicker.__Constraints
-		//		Specifies valid range of times (start time, end time)
-		constraints:{},
+		//		Specifies valid range of times (start time, end time), and also used by TimeTextBox to pass other
+		//		options to the TimePicker: pickerMin, pickerMax, clickableIncrement, and visibleIncrement.
+		constraints: {},
 
-/*=====
-		serialize: function(val, options){
-			// summary:
-			//		User overridable function used to convert the attr('value') result to a String
-			// val: Date
-			//		The current value
-			// options: Object?
-			// tags:
-			//		protected
-		},
-=====*/
+		/*=====
+		 serialize: function(val, options){
+			 // summary:
+			 //		User overridable function used to convert the attr('value') result to a String
+			 // val: Date
+			 //		The current value
+			 // options: Object?
+			 // tags:
+			 //		protected
+		 },
+		 =====*/
 		serialize: stamp.toISOString,
 
-/*=====
-		// filterString: string
-		//		The string to filter by
-		filterString: "",
-=====*/
+		/*=====
+		 // filterString: string
+		 //		The string to filter by
+		 filterString: "",
+		 =====*/
+
+		buildRendering: function(){
+			this.inherited(arguments);
+			this.containerNode = this.domNode;	// expected by _ListBase
+			this.timeMenu = this.domNode;	// for back-compat
+		},
 
 		setValue: function(/*Date*/ value){
 			// summary:
@@ -141,35 +145,24 @@ define("dijit/_TimePicker", [
 			return false; // Boolean
 		},
 
-		_getFilteredNodes: function(/*number*/ start, /*number*/ maxNum, /*Boolean*/ before, /*DOMnode*/ lastNode){
+		_getFilteredNodes: function(/*number*/ start, /*number*/ maxNum, /*Boolean*/ before, /*DOMNode*/ lastNode){
 			// summary:
-			//		Returns an array of nodes with the filter applied.  At most maxNum nodes
+			//		Returns a DocumentFragment of nodes with the filter applied.  At most maxNum nodes
 			//		will be returned - but fewer may be returned as well.  If the
 			//		before parameter is set to true, then it will return the elements
 			//		before the given index
 			// tags:
 			//		private
-			var
-				nodes = [],
-				lastValue = lastNode ? lastNode.date : this._refDate,
-				n,
-				i = start,
-				max = this._maxIncrement + Math.abs(i),
-				chk = before ? -1 : 1,
-				dec = before ? 1 : 0,
-				inc = 1 - dec;
-			do{
-				i -= dec;
-				n = this._createOption(i);
+
+			var nodes = this.ownerDocument.createDocumentFragment();
+
+			for(var i = 0 ; i < this._maxIncrement; i++){
+				var n = this._createOption(i);
 				if(n){
-					if((before && n.date > lastValue) || (!before && n.date < lastValue)){
-						break; // don't wrap
-					}
-					nodes[before ? "unshift" : "push"](n);
-					lastValue = n.date;
+					nodes.appendChild(n);
 				}
-				i += inc;
-			}while(nodes.length < maxNum && (i*chk) < max);
+			}
+
 			return nodes;
 		},
 
@@ -179,52 +172,44 @@ define("dijit/_TimePicker", [
 			// tags:
 			//		private
 			var fromIso = stamp.fromISOString;
-			this.timeMenu.innerHTML = "";
-			this._clickableIncrementDate=fromIso(this.clickableIncrement);
-			this._visibleIncrementDate=fromIso(this.visibleIncrement);
-			this._visibleRangeDate=fromIso(this.visibleRange);
-			// get the value of the increments and the range in seconds (since 00:00:00) to find out how many divs to create
+			this.domNode.innerHTML = "";
+			this._clickableIncrementDate = fromIso(this.clickableIncrement);
+			this._visibleIncrementDate = fromIso(this.visibleIncrement);
+			// get the value of the increments to find out how many divs to create
 			var
 				sinceMidnight = function(/*Date*/ date){
 					return date.getHours() * 60 * 60 + date.getMinutes() * 60 + date.getSeconds();
 				},
 				clickableIncrementSeconds = sinceMidnight(this._clickableIncrementDate),
 				visibleIncrementSeconds = sinceMidnight(this._visibleIncrementDate),
-				visibleRangeSeconds = sinceMidnight(this._visibleRangeDate),
 				// round reference date to previous visible increment
 				time = (this.value || this.currentFocus).getTime();
 
-			this._refDate = new Date(time - time % (clickableIncrementSeconds*1000));
-			this._refDate.setFullYear(1970,0,1); // match parse defaults
+			this._refDate = fromIso(this.pickerMin);
+			this._refDate.setFullYear(1970, 0, 1); // match parse defaults
 
 			// assume clickable increment is the smallest unit
 			this._clickableIncrement = 1;
 			// divide the visible range by the clickable increment to get the number of divs to create
 			// example: 10:00:00/00:15:00 -> display 40 divs
-			this._totalIncrements = visibleRangeSeconds / clickableIncrementSeconds;
 			// divide the visible increments by the clickable increments to get how often to display the time inline
 			// example: 01:00:00/00:15:00 -> display the time every 4 divs
 			this._visibleIncrement = visibleIncrementSeconds / clickableIncrementSeconds;
-			// divide the number of seconds in a day by the clickable increment in seconds to get the
-			// absolute max number of increments.
-			this._maxIncrement = (60 * 60 * 24) / clickableIncrementSeconds;
 
-			var
-				// Find the nodes we should display based on our filter.
-				// Limit to 10 nodes displayed as a half-hearted attempt to stop drop down from overlapping <input>.
-				count = Math.min(this._totalIncrements, 10),
-				after = this._getFilteredNodes(0, (count >> 1) + 1, false),
-				moreAfter = [],
-				estBeforeLength = count - after.length,
-				before = this._getFilteredNodes(0, estBeforeLength, true, after[0]);
-			if(before.length < estBeforeLength && after.length > 0){
-				moreAfter = this._getFilteredNodes(after[after.length-1].idx + 1, estBeforeLength - before.length, false, after[after.length-1]);
-			}
-			array.forEach(before.concat(after, moreAfter), function(n){ this.timeMenu.appendChild(n); }, this);
+			// get the number of increments (i.e. number of entries in the picker)
+			var endDate = fromIso(this.pickerMax);
+			endDate.setFullYear(1970, 0, 1);
+			var visibleRange = (endDate.getTime() - this._refDate.getTime()) * 0.001;
+			this._maxIncrement = Math.ceil((visibleRange + 1) / clickableIncrementSeconds);
+
+			var nodes = this._getFilteredNodes();
+
 			// never show empty due to a bad filter
-			if(!before.length && !after.length && !moreAfter.length && this.filterString){
+			if(!nodes.firstChild && this.filterString){
 				this.filterString = '';
 				this._showText();
+			}else{
+				this.domNode.appendChild(nodes);
 			}
 		},
 
@@ -246,9 +231,10 @@ define("dijit/_TimePicker", [
 			this._setConstraintsAttr(this.constraints); // this needs to happen now (and later) due to codependency on _set*Attr calls
 		},
 
+		// For historical reasons TimeTextBox sends all the options for the _TimePicker inside of a constraints{} object
 		_setConstraintsAttr: function(/* Object */ constraints){
-			// brings in visibleRange, increments, etc.
-			for (var key in { clickableIncrement: 1, visibleIncrement: 1, visibleRange: 1 }) {
+			// brings in increments, etc.
+			for (var key in { clickableIncrement: 1, visibleIncrement: 1, pickerMin: 1, pickerMax: 1 }) {
 				if (key in constraints) {
 					this[key] = constraints[key];
 				}
@@ -260,42 +246,18 @@ define("dijit/_TimePicker", [
 			}
 		},
 
-		postCreate: function(){
-			// assign typematic mouse listeners to the arrow buttons
-			this.connect(this.timeMenu, mouse.wheel, "_mouseWheeled");
-			this.own(
-				typematic.addMouseListener(this.upArrow, this, "_onArrowUp", 33, 250),
-				typematic.addMouseListener(this.downArrow, this, "_onArrowDown", 33, 250)
-			);
-
-			this.inherited(arguments);
-		},
-
-		_buttonMouse: function(/*Event*/ e){
-			// summary:
-			//		Handler for hover (and unhover) on up/down arrows
-			// tags:
-			//		private
-
-			// in non-IE browser the "mouseenter" event will become "mouseover",
-			// but in IE it's still "mouseenter"
-			domClass.toggle(e.currentTarget, e.currentTarget == this.upArrow ? "dijitUpArrowHover" : "dijitDownArrowHover",
-				e.type == "mouseenter" || e.type == "mouseover");
-		},
-
 		_createOption: function(/*Number*/ index){
 			// summary:
-			//		Creates a clickable time option
+			//		Creates a clickable time option, or returns null if the specified index doesn't match the filter
 			// tags:
 			//		private
 			var date = new Date(this._refDate);
 			var incrementDate = this._clickableIncrementDate;
-			date.setTime(date.getTime()
-				+ incrementDate.getHours() * index * 3600000
-				+ incrementDate.getMinutes() * index * 60000
-				+ incrementDate.getSeconds() * index * 1000);
+			date.setHours(date.getHours() + incrementDate.getHours() * index,
+				date.getMinutes() + incrementDate.getMinutes() * index,
+				date.getSeconds() + incrementDate.getSeconds() * index);
 			if(this.constraints.selector == "time"){
-				date.setFullYear(1970,0,1); // make sure each time is for the same date
+				date.setFullYear(1970, 0, 1); // make sure each time is for the same date
 			}
 			var dateString = locale.format(date, this.constraints);
 			if(this.filterString && dateString.toLowerCase().indexOf(this.filterString) !== 0){
@@ -304,31 +266,34 @@ define("dijit/_TimePicker", [
 			}
 
 			var div = this.ownerDocument.createElement("div");
-			div.className = this.baseClass+"Item";
+			div.className = this.baseClass + "Item";
 			div.date = date;
 			div.idx = index;
-			domConstruct.create('div',{
+			domConstruct.create('div', {
 				"class": this.baseClass + "ItemInner",
 				innerHTML: dateString
 			}, div);
 
-			if(index%this._visibleIncrement<1 && index%this._visibleIncrement>-1){
-				domClass.add(div, this.baseClass+"Marker");
-			}else if(!(index%this._clickableIncrement)){
-				domClass.add(div, this.baseClass+"Tick");
+			var marker = index % this._visibleIncrement < 1 && index % this._visibleIncrement > -1,
+				tick = !marker && !(index % this._clickableIncrement);
+			if(marker){
+				div.className += " " + this.baseClass + "Marker";
+			}else if(tick){
+				div.className += " " + this.baseClass + "Tick";
 			}
 
 			if(this.isDisabledDate(date)){
 				// set disabled
-				domClass.add(div, this.baseClass+"ItemDisabled");
+				div.className += " " + this.baseClass + "ItemDisabled";
 			}
 			if(this.value && !ddate.compare(this.value, date, this.constraints.selector)){
 				div.selected = true;
-				domClass.add(div, this.baseClass+"ItemSelected");
-				if(domClass.contains(div, this.baseClass+"Marker")){
-					domClass.add(div, this.baseClass+"MarkerSelected");
-				}else{
-					domClass.add(div, this.baseClass+"TickSelected");
+				div.className += " " + this.baseClass + "ItemSelected";
+				this._selectedDiv = div;
+				if(marker){
+					div.className += " " + this.baseClass + "MarkerSelected";
+				}else if(tick){
+					div.className += " " + this.baseClass + "TickSelected";
 				}
 
 				// Initially highlight the current value.   User can change highlight by up/down arrow keys
@@ -338,16 +303,33 @@ define("dijit/_TimePicker", [
 			return div;
 		},
 
-		_onOptionSelected: function(/*Object*/ tgt){
+		onOpen: function(){
+			this.inherited(arguments);
+
+			// Since _ListBase::_setSelectedAttr() calls scrollIntoView(), shouldn't call it until list is visible.
+			this.set("selected", this._selectedDiv);
+		},
+
+		_onOptionSelected: function(/*Object*/ tgt, /*Boolean*/ change){
 			// summary:
-			//		Called when user clicks an option in the drop down list
+			//		Called when user clicks or keys to an option in the drop down list
+			// tgt: Object
+			//		tgt.target specifies the node that was clicked
+			// change: Boolean
+			//		If true, fire "change" event, otherwise just fire "input" event.
 			// tags:
 			//		private
 			var tdate = tgt.target.date || tgt.target.parentNode.date;
-			if(!tdate || this.isDisabledDate(tdate)){ return; }
-			this._highlighted_option = null;
-			this.set('value', tdate);
-			this.onChange(tdate);
+			if(!tdate || this.isDisabledDate(tdate)){
+				return;
+			}
+			this._set('value', tdate);
+			this.emit("input");
+			if(change) {
+				this._highlighted_option = null;
+				this.set('value', tdate);
+				this.onChange(tdate);
+			}
 		},
 
 		onChange: function(/*Date*/ /*===== time =====*/){
@@ -362,7 +344,9 @@ define("dijit/_TimePicker", [
 			//		Turns on/off highlight effect on a node based on mouse out/over event
 			// tags:
 			//		private
-			if(!node){return;}
+			if(!node){
+				return;
+			}
 			if(highlight){
 				if(this._highlighted_option){
 					this._highlightOption(this._highlighted_option, false);
@@ -373,89 +357,11 @@ define("dijit/_TimePicker", [
 			}else{
 				this._highlighted_option = null;
 			}
-			domClass.toggle(node, this.baseClass+"ItemHover", highlight);
-			if(domClass.contains(node, this.baseClass+"Marker")){
-				domClass.toggle(node, this.baseClass+"MarkerHover", highlight);
+			domClass.toggle(node, this.baseClass + "ItemHover", highlight);
+			if(domClass.contains(node, this.baseClass + "Marker")){
+				domClass.toggle(node, this.baseClass + "MarkerHover", highlight);
 			}else{
-				domClass.toggle(node, this.baseClass+"TickHover", highlight);
-			}
-		},
-
-		onmouseover: function(/*Event*/ e){
-			// summary:
-			//		Handler for onmouseover event
-			// tags:
-			//		private
-			this._keyboardSelected = null;
-			var tgr = (e.target.parentNode === this.timeMenu) ? e.target : e.target.parentNode;
-			// if we aren't targeting an item, then we return
-			if(!domClass.contains(tgr, this.baseClass+"Item")){return;}
-			this._highlightOption(tgr, true);
-		},
-
-		onmouseout: function(/*Event*/ e){
-			// summary:
-			//		Handler for onmouseout event
-			// tags:
-			//		private
-			this._keyboardSelected = null;
-			var tgr = (e.target.parentNode === this.timeMenu) ? e.target : e.target.parentNode;
-			this._highlightOption(tgr, false);
-		},
-
-		_mouseWheeled: function(/*Event*/ e){
-			// summary:
-			//		Handle the mouse wheel events
-			// tags:
-			//		private
-			this._keyboardSelected = null;
-			event.stop(e);
-			// we're not _measuring_ the scroll amount, just direction
-			this[(e.wheelDelta>0 ? "_onArrowUp" : "_onArrowDown")](); // yes, we're making a new dom node every time you mousewheel, or click
-		},
-
-		_onArrowUp: function(count){
-			// summary:
-			//		Handler for up arrow key.
-			// description:
-			//		Removes the bottom time and add one to the top
-			// tags:
-			//		private
-			if(count === -1){
-				domClass.remove(this.upArrow, "dijitUpArrowActive");
-				return;
-			}else if(count === 0){
-				domClass.add(this.upArrow, "dijitUpArrowActive");
-
-			} // typematic end
-			if(!this.timeMenu.childNodes.length){ return; }
-			var index = this.timeMenu.childNodes[0].idx;
-			var divs = this._getFilteredNodes(index, 1, true, this.timeMenu.childNodes[0]);
-			if(divs.length){
-				this.timeMenu.removeChild(this.timeMenu.childNodes[this.timeMenu.childNodes.length - 1]);
-				this.timeMenu.insertBefore(divs[0], this.timeMenu.childNodes[0]);
-			}
-		},
-
-		_onArrowDown: function(count){
-			// summary:
-			//		Handler for up arrow key.
-			// description:
-			//		Remove the top time and add one to the bottom
-			// tags:
-			//		private
-			if(count === -1){
-				domClass.remove(this.downArrow, "dijitDownArrowActive");
-				return;
-			}else if(count === 0){
-				domClass.add(this.downArrow, "dijitDownArrowActive");
-			} // typematic end
-			if(!this.timeMenu.childNodes.length){ return; }
-			var index = this.timeMenu.childNodes[this.timeMenu.childNodes.length - 1].idx + 1;
-			var divs = this._getFilteredNodes(index, 1, false, this.timeMenu.childNodes[this.timeMenu.childNodes.length - 1]);
-			if(divs.length){
-				this.timeMenu.removeChild(this.timeMenu.childNodes[0]);
-				this.timeMenu.appendChild(divs[0]);
+				domClass.toggle(node, this.baseClass + "TickHover", highlight);
 			}
 		},
 
@@ -465,30 +371,17 @@ define("dijit/_TimePicker", [
 			//		from the `dijit/form/TimeTextBox` to be handled in this widget
 			// tags:
 			//		protected
-			if(e.keyCode == keys.DOWN_ARROW || e.keyCode == keys.UP_ARROW){
-				event.stop(e);
-				// Figure out which option to highlight now and then highlight it
-				if(this._highlighted_option && !this._highlighted_option.parentNode){
-					this._highlighted_option = null;
-				}
-				var timeMenu = this.timeMenu,
-					tgt = this._highlighted_option || query("." + this.baseClass + "ItemSelected", timeMenu)[0];
-				if(!tgt){
-					tgt = timeMenu.childNodes[0];
-				}else if(timeMenu.childNodes.length){
-					if(e.keyCode == keys.DOWN_ARROW && !tgt.nextSibling){
-						this._onArrowDown();
-					}else if(e.keyCode == keys.UP_ARROW && !tgt.previousSibling){
-						this._onArrowUp();
-					}
-					if(e.keyCode == keys.DOWN_ARROW){
-						tgt = tgt.nextSibling;
-					}else{
-						tgt = tgt.previousSibling;
-					}
-				}
-				this._highlightOption(tgt, true);
-				this._keyboardSelected = tgt;
+			if(e.keyCode == keys.DOWN_ARROW){
+				this.selectNextNode();
+				this._onOptionSelected({target: this._highlighted_option}, false);
+				e.stopPropagation();
+				e.preventDefault();
+				return false;
+			}else if(e.keyCode == keys.UP_ARROW){
+				this.selectPreviousNode();
+				this._onOptionSelected({target: this._highlighted_option}, false);
+				e.stopPropagation();
+				e.preventDefault();
 				return false;
 			}else if(e.keyCode == keys.ENTER || e.keyCode === keys.TAB){
 				// mouse hover followed by TAB is NO selection
@@ -498,7 +391,7 @@ define("dijit/_TimePicker", [
 
 				// Accept the currently-highlighted option as the value
 				if(this._highlighted_option){
-					this._onOptionSelected({target: this._highlighted_option});
+					this._onOptionSelected({target: this._highlighted_option}, true);
 				}
 
 				// Call stopEvent() for ENTER key so that form doesn't submit,
@@ -506,6 +399,27 @@ define("dijit/_TimePicker", [
 				return e.keyCode === keys.TAB;
 			}
 			return undefined;
+		},
+
+		// Implement abstract methods for _ListBase
+		onHover: function(/*DomNode*/ node){
+			this._highlightOption(node, true);
+		},
+
+		onUnhover: function(/*DomNode*/ node){
+			this._highlightOption(node, false);
+		},
+
+		onSelect: function(/*DomNode*/ node){
+			this._highlightOption(node, true);
+		},
+
+		onDeselect: function(/*DomNode*/ node){
+			this._highlightOption(node, false);
+		},
+
+		onClick: function(/*DomNode*/ node){
+			this._onOptionSelected({target: node}, true);
 		}
 	});
 
@@ -513,15 +427,7 @@ define("dijit/_TimePicker", [
 	 TimePicker.__Constraints = declare(locale.__FormatOptions, {
 		 // clickableIncrement: String
 		 //		See `dijit/_TimePicker.clickableIncrement`
-		 clickableIncrement: "T00:15:00",
-
-		 // visibleIncrement: String
-		 //		See `dijit/_TimePicker.visibleIncrement`
-		 visibleIncrement: "T01:00:00",
-
-		 // visibleRange: String
-		 //		See `dijit/_TimePicker.visibleRange`
-		 visibleRange: "T05:00:00"
+		 clickableIncrement: "T00:15:00"
 	 });
 	 =====*/
 

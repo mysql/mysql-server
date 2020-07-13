@@ -4,9 +4,9 @@ _2.experimental("dijit._editor.plugins.TabIndent");
 var _5=_1("dijit._editor.plugins.TabIndent",_3,{useDefaultCommand:false,buttonClass:_4,command:"tabIndent",_initButton:function(){
 this.inherited(arguments);
 var e=this.editor;
-this.connect(this.button,"onChange",function(_6){
+this.own(this.button.on("change",function(_6){
 e.set("isTabIndent",_6);
-});
+}));
 this.updateState();
 },updateState:function(){
 var _7=this.get("disabled");

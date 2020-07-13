@@ -261,7 +261,12 @@ var LazyTreeCell = lang.mixin(lang.clone(TreeCell), {
 		if(this.editable && (this.alwaysEditing || (info.rowIndex === rowIndex && info.cell === this))){
 			return this.formatEditing(d, rowIndex);
 		}else{
-			return this._defaultFormat(d, [d, rowIndex, level, this]);
+			var dir = this.textDir || this.grid.textDir;
+			var ret = this._defaultFormat(d, [d, rowIndex, level, this]);
+			if(dir && this._enforceTextDirWithUcc){
+			    ret = this._enforceTextDirWithUcc(dir, ret);
+			}
+			return ret;
 		}
 	}
 });

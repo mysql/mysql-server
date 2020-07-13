@@ -22,11 +22,9 @@ if (`SELECT LOCATE('illegal option', LOAD_FILE('$_have_sed_outfile')) > 0`) {
   --let $SED= sed
 }
 --remove_file $_have_sed_outfile
-
+--enable_query_log
+--enable_result_log
 # Skip the test case if sed not found
 if ($SED == '') {
   --skip utility 'sed' not found
 }
-
---enable_query_log
---enable_result_log

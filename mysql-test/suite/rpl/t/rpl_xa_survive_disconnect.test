@@ -16,6 +16,7 @@
 # has completed a necessary part of its cleanup.
 # Selecting from P_S.threads provides a method to learn that.
 #
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 --connection master

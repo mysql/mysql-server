@@ -928,3 +928,45 @@ UNLOCK TABLES;
 DROP TABLE t1;
 DROP USER test@localhost;
 SET GLOBAL read_only= @save_read_only;
+#
+# BUG#30274240: ALTER INSTANCE ROTATE INNODB MASTER KEY NOT
+#               BLOCKED IN READ_ONLY/SUPER_READ_ONLY
+SET @save_read_only= @@global.read_only;
+SET @save_super_read_only= @@global.super_read_only;
+connection default;
+CREATE USER user1@localhost;
+GRANT ENCRYPTION_KEY_ADMIN ON *.* TO user1@localhost;
+connect (con1,localhost,user1,,test);
+# This is used by read_only_bug28438114.inc
+connect  con1,localhost,user1,,test;
+connect (con2,localhost,root,,test);
+connect  con2,localhost,root,,test;
+# Test ALTER INSTANCE ROTATE INNODB MATER KEY in READ_ONLY mode.
+# Reports error with patch.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER INSTANCE ROTATE INNODB MATER KEY in SUPER_READ_ONLY mode
+SET GLOBAL SUPER_READ_ONLY= ON;
+# Reports error with patch.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+# Clean up.
+SET GLOBAL read_only= @save_read_only;
+SET GLOBAL super_read_only= @save_super_read_only;
+DROP USER user1@localhost;

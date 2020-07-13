@@ -678,12 +678,12 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
         }
 
         case (MYSQL_TYPE_LONG): {
-          memcpy(field->ptr, record->ptr(), sizeof(Uint32));
+          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint32));
           break;
         }
 
         case (MYSQL_TYPE_LONGLONG): {
-          memcpy(field->ptr, record->ptr(), sizeof(Uint64));
+          memcpy(field->field_ptr(), record->ptr(), sizeof(Uint64));
           break;
         }
 

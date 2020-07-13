@@ -1,5 +1,5 @@
-define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/window", "./dom", "./dom-attr", "./on"],
-		function(exports, dojo, has, win, dom, attr, on){
+define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/window", "./dom", "./dom-attr"],
+		function(exports, dojo, has, win, dom, attr){
 	// module:
 	//		dojo/dom-construct
 	// summary:
@@ -38,6 +38,23 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 		}
 	}
 
+	var html5domfix;
+	if(has("ie") <= 8){
+		html5domfix = function(doc){
+			doc.__dojo_html5_tested = "yes";
+			var div = create('div', {innerHTML: "<nav>a</nav>", style: {visibility: "hidden"}}, doc.body);
+			if(div.childNodes.length !== 1){
+				('abbr article aside audio canvas details figcaption figure footer header ' +
+				'hgroup mark meter nav output progress section summary time video').replace(
+					/\b\w+\b/g, function(n){
+						doc.createElement(n);
+					}
+				);
+			}
+			destroy(div);
+		}
+	}
+
 	function _insertBefore(/*DomNode*/ node, /*DomNode*/ ref){
 		var parent = ref.parentNode;
 		if(parent){
@@ -65,18 +82,26 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 		//		the HTML fragment
 		// doc: DocumentNode?
 		//		optional document to use when creating DOM nodes, defaults to
-		//		dojo.doc if not specified.
+		//		dojo/_base/window.doc if not specified.
 		// returns:
 		//		Document fragment, unless it's a single node in which case it returns the node itself
 		// example:
 		//		Create a table row:
-		//	|	var tr = dojo.toDom("<tr><td>First!</td></tr>");
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		var tr = domConstruct.toDom("<tr><td>First!</td></tr>");
+		//	|	});
 
 		doc = doc || win.doc;
 		var masterId = doc[masterName];
 		if(!masterId){
 			doc[masterName] = masterId = ++masterNum + "";
 			masterNode[masterId] = doc.createElement("div");
+		}
+
+		if(has("ie") <= 8){
+			if(!doc.__dojo_html5_tested && doc.body){
+				html5domfix(doc);
+			}
 		}
 
 		// make sure the frag is a string.
@@ -110,11 +135,11 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 		return df; // DocumentFragment
 	};
 
-	exports.place = function place(/*DOMNode|String*/ node, /*DOMNode|String*/ refNode, /*String|Number?*/ position){
+	exports.place = function place(node, refNode, position){
 		// summary:
 		//		Attempt to insert node into the DOM, choosing from various positioning options.
 		//		Returns the first argument resolved to a DOM node.
-		// node: DOMNode|String
+		// node: DOMNode|DocumentFragment|String
 		//		id or node reference, or HTML fragment starting with "<" to place relative to refNode
 		// refNode: DOMNode|String
 		//		id or node reference to use as basis for placement
@@ -135,19 +160,28 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 		// returns: DOMNode
 		//		Returned values is the first argument resolved to a DOM node.
 		//
-		//		.place() is also a method of `dojo/NodeList`, allowing `dojo.query` node lookups.
+		//		.place() is also a method of `dojo/NodeList`, allowing `dojo/query` node lookups.
 		// example:
 		//		Place a node by string id as the last child of another node by string id:
-		//	|	dojo.place("someNode", "anotherNode");
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		domConstruct.place("someNode", "anotherNode");
+		//	|	});
 		// example:
 		//		Place a node by string id before another node by string id
-		//	|	dojo.place("someNode", "anotherNode", "before");
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		domConstruct.place("someNode", "anotherNode", "before");
+		//	|	});
 		// example:
 		//		Create a Node, and place it in the body element (last child):
-		//	|	dojo.place("<div></div>", dojo.body());
+		//	|	require(["dojo/dom-construct", "dojo/_base/window"
+		//	|	], function(domConstruct, win){
+		//	|		domConstruct.place("<div></div>", win.body());
+		//	|	});
 		// example:
 		//		Put a new LI as the first child of a list by id:
-		//	|	dojo.place("<li></li>", "someUl", "first");
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		domConstruct.place("<li></li>", "someUl", "first");
+		//	|	});
 
 		refNode = dom.byId(refNode);
 		if(typeof node == "string"){ // inline'd type check
@@ -188,7 +222,7 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 		return node; // DomNode
 	};
 
-	exports.create = function create(/*DOMNode|String*/ tag, /*Object*/ attrs, /*DOMNode|String?*/ refNode, /*String?*/ pos){
+	var create = exports.create = function create(/*DOMNode|String*/ tag, /*Object*/ attrs, /*DOMNode|String?*/ refNode, /*String?*/ pos){
 		// summary:
 		//		Create an element, allowing for optional attribute decoration
 		//		and placement.
@@ -197,58 +231,62 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 		//		a fragment, and allowing for a convenient optional attribute setting step,
 		//		as well as an optional DOM placement reference.
 		//
-		//		Attributes are set by passing the optional object through `dojo.setAttr`.
-		//		See `dojo.setAttr` for noted caveats and nuances, and API if applicable.
+		//		Attributes are set by passing the optional object through `dojo/dom-attr.set`.
+		//		See `dojo/dom-attr.set` for noted caveats and nuances, and API if applicable.
 		//
-		//		Placement is done via `dojo.place`, assuming the new node to be the action
-		//		node, passing along the optional reference node and position.
+		//		Placement is done via `dojo/dom-construct.place`, assuming the new node to be
+		//		the action node, passing along the optional reference node and position.
 		// tag: DOMNode|String
 		//		A string of the element to create (eg: "div", "a", "p", "li", "script", "br"),
 		//		or an existing DOM node to process.
 		// attrs: Object
 		//		An object-hash of attributes to set on the newly created node.
 		//		Can be null, if you don't want to set any attributes/styles.
-		//		See: `dojo.setAttr` for a description of available attributes.
+		//		See: `dojo/dom-attr.set` for a description of available attributes.
 		// refNode: DOMNode|String?
-		//		Optional reference node. Used by `dojo.place` to place the newly created
+		//		Optional reference node. Used by `dojo/dom-construct.place` to place the newly created
 		//		node somewhere in the dom relative to refNode. Can be a DomNode reference
 		//		or String ID of a node.
 		// pos: String?
-		//		Optional positional reference. Defaults to "last" by way of `dojo.place`,
+		//		Optional positional reference. Defaults to "last" by way of `dojo/domConstruct.place`,
 		//		though can be set to "first","after","before","last", "replace" or "only"
 		//		to further control the placement of the new node relative to the refNode.
 		//		'refNode' is required if a 'pos' is specified.
 		// example:
 		//		Create a DIV:
-		//	|	var n = dojo.create("div");
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		var n = domConstruct.create("div");
+		//	|	});
 		//
 		// example:
 		//		Create a DIV with content:
-		//	|	var n = dojo.create("div", { innerHTML:"<p>hi</p>" });
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		var n = domConstruct.create("div", { innerHTML:"<p>hi</p>" });
+		//	|	});
 		//
 		// example:
 		//		Place a new DIV in the BODY, with no attributes set
-		//	|	var n = dojo.create("div", null, dojo.body());
+		//	|	require(["dojo/dom-construct", "dojo/_base/window"], function(domConstruct, win){
+		//	|		var n = domConstruct.create("div", null, win.body());
+		//	|	});
 		//
 		// example:
 		//		Create an UL, and populate it with LI's. Place the list as the first-child of a
 		//		node with id="someId":
-		//	|	var ul = dojo.create("ul", null, "someId", "first");
-		//	|	var items = ["one", "two", "three", "four"];
-		//	|	dojo.forEach(items, function(data){
-		//	|		dojo.create("li", { innerHTML: data }, ul);
+		//	|	require(["dojo/dom-construct", "dojo/_base/array"],
+		//	|	function(domConstruct, arrayUtil){
+		//	|		var ul = domConstruct.create("ul", null, "someId", "first");
+		//	|		var items = ["one", "two", "three", "four"];
+		//	|		arrayUtil.forEach(items, function(data){
+		//	|			domConstruct.create("li", { innerHTML: data }, ul);
+		//	|		});
 		//	|	});
 		//
 		// example:
 		//		Create an anchor, with an href. Place in BODY:
-		//	|	dojo.create("a", { href:"foo.html", title:"Goto FOO!" }, dojo.body());
-		//
-		// example:
-		//		Create a `dojo/NodeList()` from a new element (for syntactic sugar):
-		//	|	dojo.query(dojo.create('div'))
-		//	|		.addClass("newDiv")
-		//	|		.onclick(function(e){ console.log('clicked', e.target) })
-		//	|		.place("#someNode"); // redundant, but cleaner.
+		//	|	require(["dojo/dom-construct", "dojo/_base/window"], function(domConstruct, win){
+		//	|		domConstruct.create("a", { href:"foo.html", title:"Goto FOO!" }, win.body());
+		//	|	});
 
 		var doc = win.doc;
 		if(refNode){
@@ -264,7 +302,11 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 	};
 
 	function _empty(/*DomNode*/ node){
-		if(node.canHaveChildren){
+		// TODO: remove this if() block in 2.0 when we no longer have to worry about IE memory leaks,
+		// and then uncomment the emptyGrandchildren() test case from html.html.
+		// Note that besides fixing #16957, using removeChild() is actually faster than setting node.innerHTML,
+		// see http://jsperf.com/clear-dom-node.
+		if("innerHTML" in node){
 			try{
 				// fast path
 				node.innerHTML = "";
@@ -274,24 +316,23 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 				// Fall through (saves bytes)
 			}
 		}
-		// SVG/strict elements don't support innerHTML/canHaveChildren, and OBJECT/APPLET elements in quirks node have canHaveChildren=false
+
+		// SVG/strict elements don't support innerHTML
 		for(var c; c = node.lastChild;){ // intentional assignment
-			_destroy(c, node); // destroy is better than removeChild so TABLE subelements are removed in proper order
+			node.removeChild(c);
 		}
 	}
 
 	exports.empty = function empty(/*DOMNode|String*/ node){
-		 // summary:
-		 //		safely removes all children of the node.
-		 // node: DOMNode|String
-		 //		a reference to a DOM node or an id.
-		 // example:
-		 //		Destroy node's children byId:
-		 //	|	dojo.empty("someId");
-		 //
-		 // example:
-		 //		Destroy all nodes' children in a list by reference:
-		 //	|	dojo.query(".someNode").forEach(dojo.empty);
+		// summary:
+		//		safely removes all children of the node.
+		// node: DOMNode|String
+		//		a reference to a DOM node or an id.
+		// example:
+		//		Destroy node's children byId:
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		domConstruct.empty("someId");
+		//	|	});
 
 		_empty(dom.byId(node));
 	};
@@ -310,7 +351,7 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 			has("ie") && parent.canHaveChildren && "removeNode" in node ? node.removeNode(false) : parent.removeChild(node);
 		}
 	}
-	exports.destroy = function destroy(/*DOMNode|String*/ node){
+	var destroy = exports.destroy = function destroy(/*DOMNode|String*/ node){
 		// summary:
 		//		Removes a node from its parent, clobbering it and all of its
 		//		children.
@@ -324,11 +365,9 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/w
 		//
 		// example:
 		//		Destroy a node byId:
-		//	|	dojo.destroy("someId");
-		//
-		// example:
-		//		Destroy all nodes in a list by reference:
-		//	|	dojo.query(".someNode").forEach(dojo.destroy);
+		//	|	require(["dojo/dom-construct"], function(domConstruct){
+		//	|		domConstruct.destroy("someId");
+		//	|	});
 
 		node = dom.byId(node);
 		if(!node){ return; }

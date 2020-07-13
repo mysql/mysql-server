@@ -1,4 +1,4 @@
-define("dojox/date/buddhist", ["..", "dojo/_base/lang", "dojo/date", "./buddhist/Date"], function(dojox, lang, dd, BDate){
+define("dojox/date/buddhist", ["dojox/main", "dojo/_base/lang", "dojo/date", "./buddhist/Date"], function(dojox, lang, dd, BDate){
 	var dbuddhist = lang.getObject("date.buddhist", true, dojox);
 
 // Utility methods to do arithmetic calculations with buddhist.Dates

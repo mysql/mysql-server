@@ -590,7 +590,7 @@ a	b	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	284
+Handler_read_key	283
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -664,7 +664,7 @@ a	b	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	399
+Handler_read_key	398
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -713,7 +713,7 @@ a	b	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	156
+Handler_read_key	155
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -791,7 +791,7 @@ a	b	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	82
+Handler_read_key	81
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -820,7 +820,7 @@ a	b	MIN(d)	MAX(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	87
+Handler_read_key	86
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -849,7 +849,7 @@ a	b	MIN(d)	MAX(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	81
+Handler_read_key	80
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -932,7 +932,7 @@ a	b	min(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	78
+Handler_read_key	77
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -1196,7 +1196,7 @@ a	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	65
+Handler_read_key	64
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -2643,7 +2643,7 @@ a	b	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	229
+Handler_read_key	228
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -3608,7 +3608,7 @@ a	b	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	282
+Handler_read_key	281
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -3682,7 +3682,7 @@ a	b	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	397
+Handler_read_key	396
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -3731,7 +3731,7 @@ a	b	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	155
+Handler_read_key	154
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -3809,7 +3809,7 @@ a	b	MAX(d)	MIN(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	81
+Handler_read_key	80
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -3838,7 +3838,7 @@ a	b	MIN(d)	MAX(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	86
+Handler_read_key	85
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -3867,7 +3867,7 @@ a	b	MIN(d)	MAX(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	80
+Handler_read_key	79
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0
@@ -3950,7 +3950,7 @@ a	b	min(d)
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	77
+Handler_read_key	76
 Handler_read_last	1
 Handler_read_next	0
 Handler_read_prev	0

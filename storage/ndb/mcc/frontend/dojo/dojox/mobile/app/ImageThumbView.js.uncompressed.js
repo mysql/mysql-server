@@ -18,7 +18,7 @@ dojo.declare("dojox.mobile.app.ImageThumbView", dijit._WidgetBase, {
 	items: [],
 
 	// urlParam: String
-	//		The paramter name used to retrieve an image url from a JSON object
+	//		The parameter name used to retrieve an image url from a JSON object
 	urlParam: "url",
 
 	labelParam: null,

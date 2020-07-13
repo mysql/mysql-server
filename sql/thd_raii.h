@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"  // thd->lex
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
 
@@ -71,10 +72,14 @@ class Disable_autocommit_guard {
     if (m_thd) {
       /*
         Both session and statement transactions need to be finished by the
-        time when we enable auto-commit mode back.
+        time when we enable auto-commit mode back OR there must be a
+        transactional DDL being executed.
       */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+      DBUG_ASSERT(
+          ((m_thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+            m_thd->lex->create_info->m_transactional_ddl) ||
+           (m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+            m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION))));
       m_thd->variables.option_bits = m_save_option_bits;
     }
   }
@@ -374,6 +379,31 @@ class Column_privilege_tracker {
  private:
   THD *const m_thd;
   const ulong m_saved_privilege;
+};
+
+/**
+  RAII class to temporarily enable derived_merge optimizer_switch for SHOW
+  commands that are based on INFORMATION_SCHEMA system views.
+*/
+class Enable_derived_merge_guard {
+ public:
+  explicit Enable_derived_merge_guard(THD *thd, bool enable_derived_merge)
+      : m_thd(thd), m_derived_merge(enable_derived_merge) {
+    if (m_derived_merge) {
+      m_save_optimizer_switch = m_thd->variables.optimizer_switch;
+      m_thd->variables.optimizer_switch |= OPTIMIZER_SWITCH_DERIVED_MERGE;
+    }
+  }
+
+  ~Enable_derived_merge_guard() {
+    if (m_derived_merge)
+      m_thd->variables.optimizer_switch = m_save_optimizer_switch;
+  }
+
+ private:
+  THD *const m_thd{nullptr};
+  bool m_derived_merge{false};
+  ulonglong m_save_optimizer_switch{0};
 };
 
 #endif  // THD_RAII_INCLUDED

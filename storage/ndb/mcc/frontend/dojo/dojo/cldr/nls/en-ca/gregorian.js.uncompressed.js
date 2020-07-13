@@ -1,10 +1,12 @@
 define(
 "dojo/cldr/nls/en-ca/gregorian", //begin v1.x content
 {
-	"dateFormatItem-MMMMEd": "E, MMMM d",
-	"dateFormatItem-MMdd": "MM/dd",
-	"dateFormatItem-yyMMM": "MMM yy",
-	"dateFormatItem-MMMMd": "MMMM d"
+	"dateFormatItem-yMEd": "E, y-MM-dd",
+	"dateFormatItem-yMd": "y-MM-dd",
+	"dateFormat-short": "y-MM-dd",
+	"dateFormatItem-MEd": "E, MM-dd",
+	"dateFormatItem-yM": "y-MM",
+	"dateFormatItem-Md": "MM-dd"
 }
 //end v1.x content
 );

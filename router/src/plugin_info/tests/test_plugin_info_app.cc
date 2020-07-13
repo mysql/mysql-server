@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -175,8 +175,8 @@ void PluginInfoAppTest::verify_plugin_info(const string &brief,
 }
 
 TEST_F(PluginInfoAppTest, NoParametersPassed) {
-  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, {}, out_stream_,
-                                     out_stream_err_);
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, {},
+                                     out_stream_);
 
   EXPECT_THROW(plugin_info_app.run(), UsageError);
 }
@@ -188,7 +188,7 @@ TEST_F(PluginInfoAppTest, NoParametersPassed) {
 TEST_F(PluginInfoAppTest, HelpRequested_plain) {
   std::vector<std::string> args{"--help"};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     filtered_out_stream_, out_stream_err_);
+                                     filtered_out_stream_);
 
   int res = plugin_info_app.run();
 
@@ -203,7 +203,7 @@ TEST_F(PluginInfoAppTest, HelpRequested_plain) {
 TEST_F(PluginInfoAppTest, HelpRequested_vt100) {
   std::vector<std::string> args{"--help"};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     out_stream_, out_stream_err_);
+                                     out_stream_);
 
   int res = plugin_info_app.run();
 
@@ -218,7 +218,7 @@ TEST_F(PluginInfoAppTest, HelpRequested_vt100) {
 TEST_F(PluginInfoAppTest, VersionRequested) {
   std::vector<std::string> args{"--version"};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     out_stream_, out_stream_err_);
+                                     out_stream_);
 
   int res = plugin_info_app.run();
 
@@ -229,7 +229,7 @@ TEST_F(PluginInfoAppTest, VersionRequested) {
 TEST_F(PluginInfoAppTest, WrongNumberOfParams) {
   std::vector<std::string> args{"one", "two", "three"};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     out_stream_, out_stream_err_);
+                                     out_stream_);
 
   EXPECT_THROW(plugin_info_app.run(), UsageError);
 }
@@ -239,7 +239,7 @@ TEST_F(PluginInfoAppTest, NonExistingLibrary) {
   std::string lib_path = get_plugin_file_path(plugin_name);
   std::vector<std::string> args{lib_path.c_str(), plugin_name};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     out_stream_, out_stream_err_);
+                                     out_stream_);
 
   const std::string expected_error = "Could not load plugin file: ";
   EXPECT_THROW_LIKE(plugin_info_app.run(), FrontendError, expected_error);
@@ -257,7 +257,7 @@ TEST_F(PluginInfoAppTest, NonPluginExistingLibrary) {
 
   std::vector<std::string> args{lib_path.c_str(), plugin_name};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     out_stream_, out_stream_err_);
+                                     out_stream_);
 
   const std::string expected_error = "Loading plugin information for ";
   EXPECT_THROW_LIKE(plugin_info_app.run(), FrontendError, expected_error);
@@ -289,7 +289,7 @@ TEST_P(PluginInfoAppTestReadInfo, ReadInfo) {
   std::vector<std::string> args{plugin_file_path.c_str(), plugin_name.c_str()};
 
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     out_stream_, out_stream_err_);
+                                     out_stream_);
 
   int res = plugin_info_app.run();
 
@@ -302,16 +302,24 @@ const Plugin_data router_plugins[]{
     Plugin_data{"routing",
                 "Routing MySQL connections between MySQL clients/connectors "
                 "and servers",
-                "0.0.1", "", ""},
+                "0.0.1", R"(
+        "logger",
+        "router_protobuf"
+    )",
+                ""},
     Plugin_data{
         "metadata_cache",
         "Metadata Cache, managing information fetched from the Metadata Server",
-        "0.0.1", "", ""},
+        "0.0.1", R"(
+        "logger",
+        "router_protobuf"
+    )",
+        ""},
     Plugin_data{"keepalive", "Keepalive Plugin", "0.0.1", "", ""},
 };
 
-INSTANTIATE_TEST_CASE_P(CheckReadInfo, PluginInfoAppTestReadInfo,
-                        ValuesIn(router_plugins));
+INSTANTIATE_TEST_SUITE_P(CheckReadInfo, PluginInfoAppTestReadInfo,
+                         ValuesIn(router_plugins));
 
 int main(int argc, char *argv[]) {
   g_origin_path = Path(argv[0]).dirname();

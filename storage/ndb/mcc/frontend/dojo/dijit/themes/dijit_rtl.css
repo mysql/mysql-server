@@ -1,3 +1,8 @@
+.dijitRtl .dijitOffScreen {
+	
+	left: auto !important;
+	right: -10000px !important;
+}
 .dijitRtl .dijitPlaceHolder {
 	left: auto;
 	right: 0;
@@ -33,6 +38,12 @@
 }
 div.dijitNumberTextBoxRtl {
 	text-align: right;
+}
+.dijitCalendarRtl .dijitCalendarDecrementArrow {
+	float: right;
+}
+.dijitCalendarRtl .dijitCalendarIncrementArrow {
+	float: left;
 }
 .dijitCalendarRtl .dijitCalendarNextYear {
 	margin:0 0.55em 0 0;
@@ -107,6 +118,9 @@ div.dijitNumberTextBoxRtl {
 .dijitSelectRtl .dijitButtonContents {
 	border-style: none none none solid;
 	text-align: right;
+}
+.dijitTreeRtl .dijitTreeContainer {
+	float: right;	
 }
 .dijitRtl .dojoDndHorizontal .dojoDndItemBefore {
     border-width: 0 2px 0 0;

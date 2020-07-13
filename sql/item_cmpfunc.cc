@@ -48,6 +48,7 @@
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
@@ -244,7 +245,7 @@ static bool get_histogram_selectivity(THD *thd, const Field *field, Item **args,
                                       const TABLE_SHARE *table_share,
                                       double *selectivity) {
   const histograms::Histogram *histogram =
-      table_share->find_histogram(field->field_index);
+      table_share->find_histogram(field->field_index());
   if (histogram != nullptr) {
     if (!histogram->get_selectivity(args, arg_count, op, selectivity)) {
       if (unlikely(thd->opt_trace.is_started()))
@@ -464,7 +465,7 @@ longlong Item_func_nop_all::val_int() {
 static Item *make_year_constant(Field *field) {
   Item_int *year = new Item_int(field->val_int());
   if (year == nullptr) return nullptr;
-  year->unsigned_flag = field->flags & UNSIGNED_FLAG;
+  year->unsigned_flag = field->is_flag_set(UNSIGNED_FLAG);
   year->set_data_type(MYSQL_TYPE_YEAR);
   return year;
 }
@@ -586,9 +587,9 @@ static bool convert_constant_item(THD *thd, Item_field *field_item, Item **item,
 #endif
                     field->type() == MYSQL_TYPE_YEAR
                         ? make_year_constant(field)
-                        : new Item_int_with_ref(field->type(), field->val_int(),
-                                                *item,
-                                                field->flags & UNSIGNED_FLAG);
+                        : new Item_int_with_ref(
+                              field->type(), field->val_int(), *item,
+                              field->is_flag_set(UNSIGNED_FLAG));
         if (tmp == nullptr) return true;
 
         thd->change_item_tree(item, tmp);
@@ -672,6 +673,15 @@ bool Item_bool_func2::resolve_type(THD *thd) {
       return true;
     if (cvt1 || cvt2) return false;
   }
+
+  if (marker == MARKER_IMPLICIT_NE_ZERO) {  // Results may surprise
+    if (args[1]->result_type() == STRING_RESULT &&
+        args[1]->data_type() == MYSQL_TYPE_JSON)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_IMPLICIT_COMPARISON_FOR_JSON,
+                   ER_THD(thd, ER_IMPLICIT_COMPARISON_FOR_JSON));
+  }
+
   return (thd->lex->sql_command != SQLCOM_SHOW_CREATE) ? set_cmp_func() : false;
 }
 
@@ -705,10 +715,6 @@ Item *Item_func_like::replace_scalar_subquery(uchar *) { return this; }
 Item *Item_bool_func2::replace_scalar_subquery(uchar *) {
   (void)set_cmp_func();
   return this;
-}
-
-bool Item_bool_func2::cast_incompatible_args(uchar *) {
-  return cmp.inject_cast_nodes();
 }
 
 void Arg_comparator::cleanup() {
@@ -776,18 +782,23 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
         */
         if (func == &Arg_comparator::compare_string)
           func = &Arg_comparator::compare_binary_string;
-
-        /*
-          As this is binary compassion, mark all fields that they can't be
-          transformed. Otherwise we would get into trouble with comparisons
-          like:
-          WHERE col= 'j' AND col LIKE BINARY 'j'
-          which would be transformed to:
-          WHERE col= 'j'
-        */
-        (*left)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, nullptr);
-        (*right)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, nullptr);
       }
+      /*
+        If the comparison's and arguments' collations differ, prevent column
+        substitution. Otherwise we would get into trouble with comparisons
+        like:
+        WHERE col = 'j' AND col = BINARY 'j'
+        which would be transformed to:
+        WHERE col = 'j' AND 'j' = BINARY 'j', then to:
+        WHERE col = 'j'. That would be wrong, if col contains 'J'.
+      */
+      if ((*left)->collation.collation != cmp_collation.collation)
+        (*left)->walk(&Item::disable_constant_propagation, enum_walk::POSTFIX,
+                      nullptr);
+      if ((*right)->collation.collation != cmp_collation.collation)
+        (*right)->walk(&Item::disable_constant_propagation, enum_walk::POSTFIX,
+                       nullptr);
+
       break;
     }
     case INT_RESULT: {
@@ -1223,30 +1234,36 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
 }
 
 /**
- * Wraps the item into a CAST node to DATETIME
- * @param item - the item to be wrapped
- * @returns true if error (OOM), false otherwise.
+   Wraps the item into a CAST function to the type provided as argument
+   @param item - the item to be wrapped
+   @param type - the type to wrap the item to
+   @returns true if error (OOM), false otherwise.
  */
-inline bool wrap_in_cast_to_datetime(Item **item) {
+inline bool wrap_in_cast(Item **item, enum_field_types type) {
   THD *thd = current_thd;
   Item *cast;
-  if (!(cast = new Item_typecast_datetime(*item))) return true;
-
-  cast->fix_fields(thd, item);
-  thd->change_item_tree(item, cast);
-
-  return false;
-}
-
-/**
- * Wraps the item into a CAST node to DOUBLE
- * @param item - the item to be wrapped
- * @returns true if error (OOM), false otherwise.
- */
-inline bool wrap_in_cast_to_double(Item **item) {
-  THD *thd = current_thd;
-  Item *cast;
-  if (!(cast = new Item_typecast_real(*item))) return true;
+  switch (type) {
+    case MYSQL_TYPE_DATETIME: {
+      if (!(cast = new Item_typecast_datetime(*item, false))) return true;
+      break;
+    }
+    case MYSQL_TYPE_DATE: {
+      if (!(cast = new Item_typecast_date(*item, false))) return true;
+      break;
+    }
+    case MYSQL_TYPE_TIME: {
+      if (!(cast = new Item_typecast_time(*item))) return true;
+      break;
+    }
+    case MYSQL_TYPE_DOUBLE: {
+      if (!(cast = new Item_typecast_real(*item))) return true;
+      break;
+    }
+    default: {
+      DBUG_ASSERT(false);
+      return true;
+    }
+  }
 
   cast->fix_fields(thd, item);
   thd->change_item_tree(item, cast);
@@ -1277,13 +1294,25 @@ bool Arg_comparator::inject_cast_nodes() {
     Item *aa = (*left)->real_item();
     Item *bb = (*right)->real_item();
 
-    // Check if one of the arguments is temporal and the other one is numeric
-    if (!((aa->is_temporal() && (bb->result_type() == INT_RESULT ||
-                                 bb->result_type() == REAL_RESULT ||
-                                 bb->result_type() == DECIMAL_RESULT)) ||
-          (bb->is_temporal() && (aa->result_type() == INT_RESULT ||
-                                 aa->result_type() == REAL_RESULT ||
-                                 aa->result_type() == DECIMAL_RESULT))))
+    // No cast nodes are injected if both arguments are numeric
+    // (that includes YEAR data type)
+    if (!((aa->result_type() == STRING_RESULT &&
+           (bb->result_type() == INT_RESULT ||
+            bb->result_type() == REAL_RESULT ||
+            bb->result_type() == DECIMAL_RESULT)) ||
+          (bb->result_type() == STRING_RESULT &&
+           (aa->result_type() == INT_RESULT ||
+            aa->result_type() == REAL_RESULT ||
+            aa->result_type() == DECIMAL_RESULT))))
+      return false;
+
+    // No CAST nodes are injected in comparisons with YEAR
+    if ((aa->data_type() == MYSQL_TYPE_YEAR &&
+         (bb->data_type() == MYSQL_TYPE_TIME ||
+          bb->data_type() == MYSQL_TYPE_TIME2)) ||
+        (bb->data_type() == MYSQL_TYPE_YEAR &&
+         (aa->data_type() == MYSQL_TYPE_TIME ||
+          aa->data_type() == MYSQL_TYPE_TIME2)))
       return false;
 
     // Check that both arguments are fields or functions
@@ -1292,17 +1321,17 @@ bool Arg_comparator::inject_cast_nodes() {
       return false;
 
     // If any of the arguments is not floating point number, wrap it in a CAST
-    if (aa->result_type() != REAL_RESULT && wrap_in_cast_to_double(left))
+    if (aa->result_type() != REAL_RESULT &&
+        wrap_in_cast(left, MYSQL_TYPE_DOUBLE))
       return true; /* purecov: inspected */
-    if (bb->result_type() != REAL_RESULT && wrap_in_cast_to_double(right))
+    if (bb->result_type() != REAL_RESULT &&
+        wrap_in_cast(right, MYSQL_TYPE_DOUBLE))
       return true; /* purecov: inspected */
   } else if (func == &Arg_comparator::compare_datetime) {
     Item *aa = (*left)->real_item();
     Item *bb = (*right)->real_item();
-    // Check that both arguments are of temporal types, but not of type YEAR
-    if (!(aa->is_temporal() || aa->result_type() != STRING_RESULT) ||
-        !(bb->is_temporal() || bb->result_type() != STRING_RESULT) ||
-        aa->data_type() == MYSQL_TYPE_YEAR ||
+    // Check that none of the arguments are of type YEAR
+    if (aa->data_type() == MYSQL_TYPE_YEAR ||
         bb->data_type() == MYSQL_TYPE_YEAR)
       return false;
 
@@ -1313,12 +1342,38 @@ bool Arg_comparator::inject_cast_nodes() {
         aa->data_type() == bb->data_type())
       return false;
 
-    // If any of the arguments is not DATETIME, wrap it in a CAST
-    if (!aa->is_temporal_with_date_and_time() && wrap_in_cast_to_datetime(left))
-      return true; /* purecov: inspected */
-    if (!bb->is_temporal_with_date_and_time() &&
-        wrap_in_cast_to_datetime(right))
-      return true; /* purecov: inspected */
+    bool left_is_datetime = aa->is_temporal_with_date_and_time();
+    bool left_is_date = aa->is_temporal_with_date();
+    bool left_is_time = aa->is_temporal_with_time();
+
+    bool right_is_datetime = bb->is_temporal_with_date_and_time();
+    bool right_is_date = bb->is_temporal_with_date();
+    bool right_is_time = bb->is_temporal_with_time();
+
+    // When one of the arguments is_temporal_with_date_and_time() or one
+    // argument is DATE and the other one is TIME
+    if (left_is_datetime || right_is_datetime ||
+        (left_is_date && right_is_time) || (left_is_time && right_is_date)) {
+      if (!left_is_datetime && !right_is_datetime) {
+        // one is DATE, the other one is TIME so wrap both in CAST to DATETIME
+        return wrap_in_cast(left, MYSQL_TYPE_DATETIME) ||
+               wrap_in_cast(right, MYSQL_TYPE_DATETIME);
+      }
+      // one is DATETIME the other one is not
+      return left_is_datetime ? wrap_in_cast(right, MYSQL_TYPE_DATETIME)
+                              : wrap_in_cast(left, MYSQL_TYPE_DATETIME);
+    }
+
+    // One of the arguments is DATE, wrap the other in CAST to DATE
+    if (left_is_date || right_is_date) {
+      return left_is_date ? wrap_in_cast(right, MYSQL_TYPE_DATE)
+                          : wrap_in_cast(left, MYSQL_TYPE_DATE);
+    }
+
+    DBUG_ASSERT(left_is_time || right_is_time);
+    // one of the arguments is TIME, wrap the other one in CAST to TIME
+    return left_is_time ? wrap_in_cast(right, MYSQL_TYPE_TIME)
+                        : wrap_in_cast(left, MYSQL_TYPE_TIME);
   }
 
   return false;
@@ -2115,16 +2170,12 @@ void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
 
-  /*
-    No need to call fix_after_pullout() on args[0] (ie left expression),
-    as Item_in_subselect::fix_after_pullout() will do this.
-    So, just forward the call to the Item_in_subselect object.
-  */
-
+  args[0]->fix_after_pullout(parent_select, removed_select);
   args[1]->fix_after_pullout(parent_select, removed_select);
 
-  used_tables_cache |= args[1]->used_tables();
-  not_null_tables_cache |= args[1]->not_null_tables();
+  used_tables_cache |= args[0]->used_tables() | args[1]->used_tables();
+  not_null_tables_cache |=
+      args[0]->not_null_tables() | args[1]->not_null_tables();
 }
 
 /**
@@ -4435,7 +4486,7 @@ float Item_func_in::get_single_col_filtering_effect(
   if ((fieldref->used_tables() != filter_for_table) ||  // 1)
       bitmap_is_set(fields_to_ignore,
                     static_cast<Item_field *>(fieldref->real_item())
-                        ->field->field_index))  // 2)
+                        ->field->field_index()))  // 2)
     return COND_FILTER_ALLPASS;
 
   const Item_field *fld = (Item_field *)fieldref->real_item();
@@ -4990,6 +5041,7 @@ Item *make_condition(Parse_context *pc, Item *item) {
     Item *const item_zero = new (pc->mem_root) Item_int(0);
     if (item_zero == nullptr) return nullptr;
     predicate = new (pc->mem_root) Item_func_ne(item_zero, item);
+    predicate->marker = Item::MARKER_IMPLICIT_NE_ZERO;
   } else {
     predicate = new (pc->mem_root) Item_func_match_predicate(item);
   }
@@ -5036,16 +5088,17 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   Item *item;
   SELECT_LEX *select = thd->lex->current_select();
 
-  /*
-    Semi-join flattening should only be performed for predicates on
-    the AND-top-level. Disable it if this condition is not an AND.
-  */
-  Disable_semijoin_flattening DSF(select, functype() != COND_AND_FUNC);
+  auto func_type = functype();
+  DBUG_ASSERT(func_type == COND_AND_FUNC || func_type == COND_OR_FUNC);
+  // For semi-join flattening, indicate that we're traversing an AND, or an OR:
+  Condition_context CCT(select, func_type == COND_AND_FUNC
+                                    ? enum_condition_context::ANDS
+                                    : enum_condition_context::ANDS_ORS);
 
   uchar buff[sizeof(char *)];  // Max local vars in function
   used_tables_cache = 0;
 
-  if (functype() == COND_AND_FUNC && ignore_unknown())
+  if (func_type == COND_AND_FUNC && ignore_unknown())
     not_null_tables_cache = 0;
   else
     not_null_tables_cache = ~(table_map)0;
@@ -5074,7 +5127,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     Item_cond *cond;
     while (item->type() == Item::COND_ITEM &&
            (cond = down_cast<Item_cond *>(item)) &&
-           cond->functype() == functype() &&
+           cond->functype() == func_type &&
            !cond->list.is_empty()) {  // Identical function
       li.replace(cond->list);
       cond->list.empty();
@@ -5144,7 +5197,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     }
     used_tables_cache |= item->used_tables();
 
-    if (functype() == COND_AND_FUNC && ignore_unknown())
+    if (func_type == COND_AND_FUNC && ignore_unknown())
       not_null_tables_cache |= item->not_null_tables();
     else
       not_null_tables_cache &= item->not_null_tables();
@@ -5160,7 +5213,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   if (remove_condition) {
     new_item->fix_fields(thd, ref);
     used_tables_cache = 0;
-    if (functype() == COND_AND_FUNC && ignore_unknown())
+    if (func_type == COND_AND_FUNC && ignore_unknown())
       not_null_tables_cache = 0;
     else
       not_null_tables_cache = ~(table_map)0;
@@ -5631,11 +5684,12 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
     */
     if (thd->lex->current_select()->resolve_place ==
             SELECT_LEX::RESOLVE_CONDITION &&
-        !thd->lex->current_select()->semijoin_disallowed &&
+        thd->lex->current_select()->condition_context ==
+            enum_condition_context::ANDS &&
         thd->lex->current_select()->first_execution &&
         (field->type() == MYSQL_TYPE_DATE ||
          field->type() == MYSQL_TYPE_DATETIME) &&
-        (field->flags & NOT_NULL_FLAG)) {
+        field->is_flag_set(NOT_NULL_FLAG)) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       Item *item0 = new Item_int(0);
       if (item0 == nullptr) return true;
@@ -5667,7 +5721,7 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
     */
     if (thd->lex->current_select()->where_cond() == this &&
         (thd->variables.option_bits & OPTION_AUTO_IS_NULL) != 0 &&
-        (field->flags & AUTO_INCREMENT_FLAG) != 0 &&
+        field->is_flag_set(AUTO_INCREMENT_FLAG) &&
         !field->table->is_nullable()) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       const auto last_insert_id_func = new Item_func_last_insert_id();
@@ -5905,7 +5959,7 @@ bool Item_func_like::check_covering_prefix_keys(THD *thd) {
 bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
 
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   args[0]->real_item()->set_can_use_prefix_key();
 
@@ -6193,12 +6247,16 @@ Item *Item_func_not_all::truth_transformer(THD *, Bool_test test) {
 
 Item *Item_func_eq::negated_item() /* a = b  ->  a != b */
 {
-  return new Item_func_ne(args[0], args[1]);
+  auto *i = new Item_func_ne(args[0], args[1]);
+  if (i != nullptr) i->marker = marker;  // forward MARKER_IMPLICIT_NE_ZERO
+  return i;
 }
 
 Item *Item_func_ne::negated_item() /* a != b  ->  a = b */
 {
-  return new Item_func_eq(args[0], args[1]);
+  auto *i = new Item_func_eq(args[0], args[1]);
+  if (i != nullptr) i->marker = marker;  // forward MARKER_IMPLICIT_NE_ZERO
+  return i;
 }
 
 Item *Item_func_lt::negated_item() /* a < b  ->  a >= b */
@@ -6240,6 +6298,10 @@ bool Item_func_comparison::is_null() {
   // find out if it is NULL. Fall back to the implementation in Item_func, which
   // calls update_null_value() to evaluate the operator.
   return Item_func::is_null();
+}
+
+bool Item_func_comparison::cast_incompatible_args(uchar *) {
+  return cmp.inject_cast_nodes();
 }
 
 Item_equal::Item_equal(Item_field *f1, Item_field *f2)
@@ -6464,7 +6526,7 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
       // cur_field is a field in a table earlier in the join sequence.
       found_comparable = true;
     } else if (cur_field->used_tables() == filter_for_table) {
-      if (bitmap_is_set(fields_to_ignore, cur_field->field->field_index)) {
+      if (bitmap_is_set(fields_to_ignore, cur_field->field->field_index())) {
         /*
           cur_field is a field in 'filter_for_table', but it is a
           field which already contributes to the filtering effect.
@@ -6508,7 +6570,7 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
           */
           const histograms::Histogram *histogram =
               cur_field->field->orig_table->s->find_histogram(
-                  cur_field->field->field_index);
+                  cur_field->field->field_index());
           if (histogram != nullptr) {
             std::array<Item *, 2> items{{cur_field, const_item}};
             double selectivity;
@@ -7114,6 +7176,22 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
                                         size_t max_char_length,
                                         bool store_full_sort_key,
                                         String *join_key_buffer) {
+  if (comparator->get_compare_type() == ROW_RESULT) {
+    // If the comparand returns a row via a subquery or a row value expression,
+    // the comparator will be set up with child comparators (one for each column
+    // in the row value). For hash join, we currently allow row values with only
+    // one column.
+    assert(comparator->get_child_comparator_count() == 1);
+    comparator = comparator->get_child_comparators();
+  }
+
+  if (comparand->type() == Item::ROW_ITEM) {
+    // In case of row value, get hold of the first column in the row. Note that
+    // this is not needed for subqueries; val_* will execute and return the
+    // value for scalar subqueries.
+    comparand = comparand->element_index(0);
+  }
+
   if (comparator->use_custom_value_extractors()) {
     // The Arg_comparator has decided that the values should be extracted using
     // the function pointer given by "get_value_[a|b]_func", so let us do the
@@ -7144,7 +7222,8 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
       }
     }
     case REAL_RESULT: {
-      const double value = comparand->val_real();
+      double value = comparand->val_real();
+      if (value == 0.0) value = 0.0;  // Ensure that -0.0 hashes as +0.0.
       return append_double_or_int_value(pointer_cast<const char *>(&value),
                                         sizeof(value), comparand->null_value,
                                         join_key_buffer);

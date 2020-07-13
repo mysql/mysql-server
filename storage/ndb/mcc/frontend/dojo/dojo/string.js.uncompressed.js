@@ -5,12 +5,31 @@ define("dojo/string", [
 
 // module:
 //		dojo/string
-
+var ESCAPE_REGEXP = /[&<>'"\/]/g;
+var ESCAPE_MAP = {
+	'&': '&amp;',
+	'<': '&lt;',
+	'>': '&gt;',
+	'"': '&quot;',
+	"'": '&#x27;',
+	'/': '&#x2F;'
+};
 var string = {
 	// summary:
 	//		String utilities for Dojo
 };
 lang.setObject("dojo.string", string);
+
+string.escape = function(/*String*/str){
+	// summary:
+	//		Efficiently escape a string for insertion into HTML (innerHTML or attributes), replacing &, <, >, ", ', and / characters.
+	// str:
+	//		the string to escape
+	if(!str){ return ""; }
+	return str.replace(ESCAPE_REGEXP, function(c) {
+		return ESCAPE_MAP[c];
+	});
+};
 
 string.rep = function(/*String*/str, /*Integer*/num){
 	// summary:
@@ -68,6 +87,7 @@ string.substitute = function(	/*String*/		template,
 	// template:
 	//		a string with expressions in the form `${key}` to be replaced or
 	//		`${key:format}` which specifies a format function. keys are case-sensitive.
+	//		The special sequence `${}` can be used escape `$`.
 	// map:
 	//		hash to search for substitutions
 	// transform:
@@ -119,13 +139,22 @@ string.substitute = function(	/*String*/		template,
 	transform = transform ?
 		lang.hitch(thisObject, transform) : function(v){ return v; };
 
-	return template.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,
+	return template.replace(/\$\{([^\s\:\}]*)(?:\:([^\s\:\}]+))?\}/g,
 		function(match, key, format){
+			if (key == ''){
+				return '$';
+			}
 			var value = lang.getObject(key, false, map);
 			if(format){
 				value = lang.getObject(format, false, thisObject).call(thisObject, value, key);
 			}
-			return transform(value, key).toString();
+			var result = transform(value, key);
+
+			if (typeof result === 'undefined') {
+				throw new Error('string.substitute could not find key "' + key + '" in template');
+			}
+
+			return result.toString();
 		}); // String
 };
 
@@ -152,7 +181,7 @@ string.trim = String.prototype.trim ?
 	 //		Returns the trimmed string
 	 // description:
 	 //		This version of trim() was taken from [Steven Levithan's blog](http://blog.stevenlevithan.com/archives/faster-trim-javascript).
-	 //		The short yet performant version of this function is dojo.trim(),
+	 //		The short yet performant version of this function is dojo/_base/lang.trim(),
 	 //		which is part of Dojo base.  Uses String.prototype.trim instead, if available.
 	 return "";	// String
  };

@@ -5,12 +5,18 @@ define(
 	"CHF_displayName": "Швейцарский франк",
 	"JPY_symbol": "¥",
 	"CAD_displayName": "Канадский доллар",
-	"CNY_displayName": "Юань Ренминби",
+	"HKD_symbol": "HK$",
+	"CNY_displayName": "Китайский юань",
 	"USD_symbol": "$",
 	"AUD_displayName": "Австралийский доллар",
 	"JPY_displayName": "Японская иена",
+	"CAD_symbol": "CA$",
 	"USD_displayName": "Доллар США",
-	"GBP_displayName": "Английский фунт стерлингов",
+	"EUR_symbol": "€",
+	"CNY_symbol": "CN¥",
+	"GBP_displayName": "Английский фунт",
+	"GBP_symbol": "£",
+	"AUD_symbol": "A$",
 	"EUR_displayName": "Евро"
 }
 //end v1.x content

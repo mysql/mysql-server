@@ -12,6 +12,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET DEBUG='+d,ib_create_table_fail_too_many_trx';
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
-ERROR HY000: Failed to delete SDI 'test.t1' in tablespace 'test/t1'.
+ERROR HY000: Too many active concurrent transactions
 SET DEBUG='-d,ib_create_table_fail_too_many_trx';
 drop table t1;

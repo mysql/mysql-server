@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -104,18 +104,29 @@ void Expression_generator::generate(
     const Mysqlx::Expr::ColumnIdentifier &arg) const {
   bool has_schema_name = arg.has_schema_name() && !arg.schema_name().empty();
 
-  if (has_schema_name && arg.has_table_name() == false)
+  if (has_schema_name && !arg.has_table_name())
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Table name is required if schema name is specified in "
                 "ColumnIdentifier.");
 
   const bool has_docpath = arg.document_path_size() > 0;
 
-  if (arg.has_table_name() && arg.has_name() == false &&
+  if (arg.has_table_name() && !arg.has_name() &&
       (m_is_relational || !has_docpath))
     throw Error(ER_X_EXPR_MISSING_ARG,
                 "Column name is required if table name is specified in "
                 "ColumnIdentifier.");
+
+  if (!has_docpath && !arg.has_name() && !arg.has_table_name() &&
+      !arg.has_schema_name()) {
+    if (m_is_relational) {
+      throw Error(ER_X_EXPR_MISSING_ARG,
+                  "Column name is required in ColumnIdentifier.");
+    } else {
+      m_qb->put("JSON_EXTRACT(doc,'$')");
+      return;
+    }
+  }
 
   if (has_docpath) m_qb->put("JSON_EXTRACT(");
 
@@ -126,7 +137,7 @@ void Expression_generator::generate(
   if (arg.has_name()) m_qb->quote_identifier(arg.name());
 
   if (has_docpath) {
-    if (arg.has_name() == false) m_qb->put("doc");
+    if (!arg.has_name()) m_qb->put("doc");
 
     m_qb->put(",");
     generate(arg.document_path());

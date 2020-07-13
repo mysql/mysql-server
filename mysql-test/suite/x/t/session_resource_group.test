@@ -60,8 +60,7 @@ exec $MYSQLXTEST
   -v%WORKER_RESOURCE_GROUP%=my_group
   --file=$MYSQL_TMP_DIR/session_resource_group.xpl 2>&1;
 
-
 ## Cleanup
-DROP RESOURCE GROUP my_group;
+DROP RESOURCE GROUP my_group FORCE;
  --remove_files_wildcard $MYSQL_TMP_DIR *.xpl
 --source include/xplugin_drop_user.inc

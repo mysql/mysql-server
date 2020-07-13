@@ -1,4 +1,4 @@
-define({
+{
 	"description":"A representation of an Application",
 	"type": "object",
 	"properties":{
@@ -21,7 +21,7 @@ define({
 
 
 		"defaultScene": {
-			"type": "string"
+			"type": "string",
 			"description": "id of scene to load for this application at startup"
 		},
 
@@ -52,4 +52,4 @@ define({
 			"default": {}
 		}
 	}
-});
+}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
@@ -50,6 +51,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/table.h"
+#include "sql_string.h"
 #include "thr_lock.h"
 
 class THD;
@@ -237,15 +239,31 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
           &tmp_mem,
           roles_edges_table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]);
 
-      acl_role = find_acl_user(from_host, from_user, true);
-      acl_user = find_acl_user(to_host, to_user, true);
-      if (acl_user == nullptr || acl_role == nullptr) {
-        my_printf_error(ER_UNKNOWN_ERROR,
-                        "Unknown authorization identifier `%s`@`%s`", MYF(0),
-                        to_user, to_host);
-        rebuild_vertex_index(thd);
-        return true;
+      int from_user_len = from_user ? strlen(from_user) : 0;
+      int to_user_len = to_user ? strlen(to_user) : 0;
+      if (from_user_len == 0 || to_user_len == 0) {
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_EDGES_IGNORED_EMPTY_NAME);
+        continue;
       }
+
+      acl_role = find_acl_user(from_host, from_user, true);
+      if (acl_role == nullptr) {
+        Auth_id_ref auth_id = create_authid_from(to_lex_cstring(from_user),
+                                                 to_lex_cstring(from_host));
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_EDGES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
+      acl_user = find_acl_user(to_host, to_user, true);
+      if (acl_user == nullptr) {
+        Auth_id_ref auth_id = create_authid_from(to_lex_cstring(to_user),
+                                                 to_lex_cstring(to_host));
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_EDGES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
       grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? true : false);
     }
     iterator.reset();
@@ -278,6 +296,32 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
       int host_len = (host ? strlen(host) : 0);
       int role_user_len = (role_user ? strlen(role_user) : 0);
       int role_host_len = (role_host ? strlen(role_host) : 0);
+
+      if (user_len == 0 || role_user_len == 0) {
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_DEFAULT_ROLES_IGNORED_EMPTY_NAME);
+        continue;
+      }
+
+      acl_user = find_acl_user(host, user, true);
+      if (acl_user == nullptr) {
+        Auth_id_ref auth_id =
+            create_authid_from(to_lex_cstring(user), to_lex_cstring(host));
+        LogErr(WARNING_LEVEL,
+               ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
+      acl_user = find_acl_user(role_host, role_user, true);
+      if (acl_user == nullptr) {
+        Auth_id_ref auth_id = create_authid_from(to_lex_cstring(role_user),
+                                                 to_lex_cstring(role_host));
+        LogErr(WARNING_LEVEL,
+               ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID,
+               create_authid_str_from(auth_id).c_str());
+        continue;
+      }
+
       Role_id user_id(user, user_len, host, host_len);
       Role_id role_id(role_user, role_user_len, role_host, role_host_len);
       g_default_roles->emplace(user_id, role_id);

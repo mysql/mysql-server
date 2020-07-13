@@ -5,8 +5,12 @@ html.mobile, .mobile body {
 }
 .mobile body {
 	overflow-x: hidden;
-	-webkit-text-size-adjust: none;
+	.text-size-adjust(none);
 	.mobile-body-styles;
+}
+
+.mblBackground {
+	.mblBackground-styles;
 }
 
 /* Button Colors */
@@ -15,7 +19,7 @@ html.mobile, .mobile body {
 }
 
 .mblColorBlue45 {
-  background-image: @mbl-color-blue-45;
+  .mbl-color-blue-45();
 }
 
 /* Default Button Colors */
@@ -24,7 +28,7 @@ html.mobile, .mobile body {
 }
 
 .mblColorDefault45 {
-  background-image: @mbl-color-default-45;
+  .mbl-color-default-45();
 }
 
 .mblColorDefaultSel {
@@ -32,7 +36,7 @@ html.mobile, .mobile body {
 }
 
 .mblColorDefaultSel45 {
-  background-image: @mbl-color-default-sel-45;
+  .mbl-color-default-sel-45();
 }
 
 .mblSpriteIcon {
@@ -45,3 +49,10 @@ html.mobile, .mobile body {
 .mblImageIcon {
 	vertical-align: top;
 }
+
+.unselectable {
+	-ms-user-select: none;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+}
+

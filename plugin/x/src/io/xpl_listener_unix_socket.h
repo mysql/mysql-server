@@ -49,10 +49,11 @@ class Listener_unix_socket : public iface::Listener {
   ~Listener_unix_socket() override;
 
   void report_properties(On_report_properties on_prop) override;
-  Sync_variable_state &get_state() override;
-  std::string get_name_and_configuration() const override;
-  std::string get_last_error() const override;
-  std::vector<std::string> get_configuration_variables() const override;
+  void set_state(const State state) override;
+  const Sync_variable_state &get_state() const override;
+  std::string get_configuration_variable() const override;
+
+  bool report_status() const override;
 
   bool setup_listener(On_connection on_connection) override;
   void close_listener() override;

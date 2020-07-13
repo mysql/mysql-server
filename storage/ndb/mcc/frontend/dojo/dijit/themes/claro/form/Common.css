@@ -1,5 +1,6 @@
 
-.claro .dijitTextBox, .claro .dijitInputInner {
+.claro .dijitTextBox,
+.claro .dijitInputInner {
   color: #000000;
 }
 .claro .dijitValidationTextBoxError .dijitValidationContainer {
@@ -14,17 +15,21 @@
 }
 .claro .dijitValidationTextBoxError .dijitValidationIcon {
   width: 0;
-  background-color: transparent !important;
+  background-color: transparent;
   
 }
-.claro .dijitTextArea, .claro .dijitInputField .dijitPlaceHolder {
+.claro .dijitTextArea,
+.claro .dijitInputField .dijitPlaceHolder {
   padding: 2px;
 }
-.claro .dijitSelect .dijitInputField, .claro .dijitTextBox .dijitInputField {
+.claro .dijitSelect .dijitInputField,
+.claro .dijitTextBox .dijitInputField {
   padding: 1px 2px;
 }
-.dj_gecko .claro .dijitTextBox .dijitInputInner, .dj_webkit .claro .dijitTextBox .dijitInputInner {
-  padding: 1px;
+.dj_gecko .claro .dijitTextBox .dijitInputInner,
+.dj_webkit .claro .dijitTextBox .dijitInputInner {
+  padding-left: 1px;
+  padding-right: 1px;
 }
 .claro .dijitSelect,
 .claro .dijitSelect .dijitButtonContents,
@@ -39,7 +44,8 @@
   -moz-transition-duration: 0.35s;
   transition-duration: 0.35s;
 }
-.claro .dijitSelect, .claro .dijitTextBox {
+.claro .dijitSelect,
+.claro .dijitTextBox {
   background-color: #ffffff;
 }
 .claro .dijitSelectHover,
@@ -95,11 +101,15 @@
 .claro .dijitTextBoxDisabled .dijitButtonNode {
   border-color: #d3d3d3;
 }
-.claro .dijitSelectDisabled, .claro .dijitTextBoxDisabled, .claro .dijitTextBoxDisabled .dijitInputContainer {
+.claro .dijitSelectDisabled,
+.claro .dijitTextBoxDisabled,
+.claro .dijitTextBoxDisabled .dijitInputContainer {
   background-color: #efefef;
   background-image: none;
 }
-.claro .dijitSelectDisabled, .claro .dijitTextBoxDisabled, .claro .dijitTextBoxDisabled .dijitInputInner {
+.claro .dijitSelectDisabled,
+.claro .dijitTextBoxDisabled,
+.claro .dijitTextBoxDisabled .dijitInputInner {
   color: #818181;
 }
 .dj_webkit .claro .dijitDisabled input {
@@ -110,7 +120,8 @@
   
   color: #1b1b1b;
 }
-.claro .dijitSelect .dijitArrowButtonInner, .claro .dijitComboBox .dijitArrowButtonInner {
+.claro .dijitSelect .dijitArrowButtonInner,
+.claro .dijitComboBox .dijitArrowButtonInner {
   background-image: url("../form/images/commonFormArrows.png");
   background-position: -35px 53%;
   background-repeat: no-repeat;
@@ -126,7 +137,9 @@
 .claro .dijitToolbar .dijitComboBox .dijitArrowButtonInner {
   border: none;
 }
-.claro .dijitSelectLabel, .claro .dijitTextBox .dijitInputInner, .claro .dijitValidationTextBox .dijitValidationContainer {
+.claro .dijitSelectLabel,
+.claro .dijitTextBox .dijitInputInner,
+.claro .dijitValidationTextBox .dijitValidationContainer {
   padding: 1px 0;
 }
 .claro .dijitComboBox .dijitButtonNode {
@@ -139,10 +152,13 @@
   background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
   _background-image: none;
 }
-.claro .dijitComboBoxOpenOnClickHover .dijitButtonNode, .claro .dijitComboBox .dijitDownArrowButtonHover {
+.claro .dijitComboBoxOpenOnClickHover .dijitButtonNode,
+.claro .dijitComboBox .dijitDownArrowButtonHover,
+.claro .dijitComboBoxFocused .dijitArrowButton {
   background-color: #abd6ff;
 }
-.claro .dijitComboBoxOpenOnClickHover .dijitArrowButtonInner, .claro .dijitComboBox .dijitDownArrowButtonHover .dijitArrowButtonInner {
+.claro .dijitComboBoxOpenOnClickHover .dijitArrowButtonInner,
+.claro .dijitComboBox .dijitDownArrowButtonHover .dijitArrowButtonInner {
   background-position: -70px 53%;
 }
 .claro .dijitComboBox .dijitHasDropDownOpen {

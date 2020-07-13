@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -54,9 +54,13 @@ trace. */
 @param[in]	page_id	page id
 @param[in]	mode	latch mode
 @param[in]	file	file name
-@param[in]	line	line where called
+@param[in]	line	line where called */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	index	index tree, may be NULL if it is not an insert buffer
-tree
+tree */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	mtr	mini-transaction
 @return block */
 UNIV_INLINE

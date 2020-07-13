@@ -32,18 +32,9 @@
 #include "cmemory.h"
 #include "unicode/uloc.h"
 
-#if U_PLATFORM == U_PF_WINDOWS && defined(_MSC_VER) && (_MSC_VER >= 1500)
-/*
- * TODO: It seems like we should widen this to
- * either U_PLATFORM_USES_ONLY_WIN32_API (includes MinGW)
- * or U_PLATFORM_HAS_WIN32_API (includes MinGW and Cygwin)
- * but those use gcc and won't have defined(_MSC_VER).
- * We might need to #include some Windows header and test for some version macro from there.
- * Or call some Windows function and see what it returns.
- */
-#define USE_WINDOWS_LCID_MAPPING_API
+#if U_PLATFORM_HAS_WIN32_API && UCONFIG_USE_WINDOWS_LCID_MAPPING_API
 #include <windows.h>
-#include <winnls.h>
+#include <winnls.h> // LCIDToLocaleName and LocaleNameToLCID
 #endif
 
 /*
@@ -190,7 +181,10 @@ ILCID_POSIX_ELEMENT_ARRAY(0x0423, be, be_BY)
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0402, bg, bg_BG)
 
-ILCID_POSIX_ELEMENT_ARRAY(0x0466, bin, bin_NG)
+ILCID_POSIX_SUBTABLE(bin) {
+    {0x66, "bin"},
+    {0x0466, "bin_NG"}
+};
 
 ILCID_POSIX_SUBTABLE(bn) {
     {0x45,   "bn"},
@@ -214,7 +208,13 @@ ILCID_POSIX_SUBTABLE(ca) {
 };
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0483, co, co_FR)
-ILCID_POSIX_ELEMENT_ARRAY(0x045c, chr,chr_US)
+
+ILCID_POSIX_SUBTABLE(chr) {
+    {0x05c,  "chr"},
+    {0x7c5c, "chr_Cher"},
+    {0x045c, "chr_Cher_US"},
+    {0x045c, "chr_US"}
+};
 
 // ICU has chosen different names for these.
 ILCID_POSIX_SUBTABLE(ckb) {
@@ -263,10 +263,10 @@ ILCID_POSIX_SUBTABLE(en) {
     {0x2C09, "en_TT"},
     {0x0409, "en_US"},
     {0x007f, "en_US_POSIX"}, /* duplicate for round-tripping */
-    {0x2409, "en_VI"},  /* Virgin Islands AKA Caribbean Islands (en_CB). On Windows8+ This is 0x1000 or dynamically assigned */
+    {0x2409, "en_029"},
     {0x1c09, "en_ZA"},
     {0x3009, "en_ZW"},
-    {0x2409, "en_029"},
+    {0x2409, "en_VI"},  /* Virgin Islands AKA Caribbean Islands (en_CB). On Windows8+ This is 0x1000 or dynamically assigned */
     {0x0409, "en_AS"},  /* Alias for en_US. Leave last.  On Windows8+ This is 0x1000 or dynamically assigned */
     {0x0409, "en_GU"},  /* Alias for en_US. Leave last.  On Windows8+ This is 0x1000 or dynamically assigned */
     {0x0409, "en_MH"},  /* Alias for en_US. Leave last.  On Windows8+ This is 0x1000 or dynamically assigned */
@@ -419,7 +419,12 @@ ILCID_POSIX_SUBTABLE(hsb) {
 
 ILCID_POSIX_ELEMENT_ARRAY(0x040e, hu, hu_HU)
 ILCID_POSIX_ELEMENT_ARRAY(0x042b, hy, hy_AM)
-ILCID_POSIX_ELEMENT_ARRAY(0x0469, ibb, ibb_NG)
+
+ILCID_POSIX_SUBTABLE(ibb) {
+    {0x69, "ibb"},
+    {0x0469, "ibb_NG"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x0421, id, id_ID)
 ILCID_POSIX_ELEMENT_ARRAY(0x0470, ig, ig_NG)
 ILCID_POSIX_ELEMENT_ARRAY(0x0478, ii, ii_CN)
@@ -458,13 +463,18 @@ ILCID_POSIX_ELEMENT_ARRAY(0x0471, kr,  kr_NG)
 
 ILCID_POSIX_SUBTABLE(ks) {         /* We could add PK and CN too */
     {0x60,   "ks"},
-    {0x0860, "ks_IN"},              /* Documentation doesn't mention script */
     {0x0460, "ks_Arab_IN"},
     {0x0860, "ks_Deva_IN"}
 };
 
 ILCID_POSIX_ELEMENT_ARRAY(0x0440, ky, ky_KG)   /* Kyrgyz is spoken in Kyrgyzstan */
-ILCID_POSIX_ELEMENT_ARRAY(0x0476, la, la_IT)   /* TODO: Verify the country */
+
+ILCID_POSIX_SUBTABLE(la) {
+    {0x76,   "la"},
+    {0x0476, "la_001"},
+    {0x0476, "la_IT"}       /*Left in for compatibility*/
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x046e, lb, lb_LU)
 ILCID_POSIX_ELEMENT_ARRAY(0x0454, lo, lo_LA)
 ILCID_POSIX_ELEMENT_ARRAY(0x0427, lt, lt_LT)
@@ -535,15 +545,19 @@ ILCID_POSIX_SUBTABLE(or_IN) {
     {0x0448, "or_IN"},
 };
 
-
 ILCID_POSIX_SUBTABLE(pa) {
     {0x46,   "pa"},
     {0x0446, "pa_IN"},
-    {0x0846, "pa_PK"},
-    {0x0846, "pa_Arab_PK"}
+    {0x0846, "pa_Arab_PK"},
+    {0x0846, "pa_PK"}
 };
 
-ILCID_POSIX_ELEMENT_ARRAY(0x0479, pap, pap_AN)
+ILCID_POSIX_SUBTABLE(pap) {
+    {0x79, "pap"},
+    {0x0479, "pap_029"},
+    {0x0479, "pap_AN"}     /*Left in for compatibility*/
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x0415, pl, pl_PL)
 ILCID_POSIX_ELEMENT_ARRAY(0x0463, ps, ps_AF)
 
@@ -619,9 +633,11 @@ ILCID_POSIX_ELEMENT_ARRAY(0x0485, sah,sah_RU)
 
 ILCID_POSIX_SUBTABLE(sd) {
     {0x59,   "sd"},
-    {0x0459, "sd_IN"},
     {0x0459, "sd_Deva_IN"},
-    {0x0859, "sd_PK"}
+    {0x0459, "sd_IN"},
+    {0x0859, "sd_Arab_PK"},
+    {0x0859, "sd_PK"},
+    {0x7c59, "sd_Arab"}
 };
 
 ILCID_POSIX_SUBTABLE(se) {
@@ -645,9 +661,8 @@ ILCID_POSIX_ELEMENT_ARRAY(0x045b, si, si_LK)
 ILCID_POSIX_ELEMENT_ARRAY(0x041b, sk, sk_SK)
 ILCID_POSIX_ELEMENT_ARRAY(0x0424, sl, sl_SI)
 
-ILCID_POSIX_SUBTABLE(so) { /* TODO: Verify the country */
+ILCID_POSIX_SUBTABLE(so) {
     {0x77,   "so"},
-    {0x0477, "so_ET"},
     {0x0477, "so_SO"}
 };
 
@@ -739,7 +754,12 @@ ILCID_POSIX_SUBTABLE(ve) { /* TODO: Verify the country */
 ILCID_POSIX_ELEMENT_ARRAY(0x042a, vi, vi_VN)
 ILCID_POSIX_ELEMENT_ARRAY(0x0488, wo, wo_SN)
 ILCID_POSIX_ELEMENT_ARRAY(0x0434, xh, xh_ZA)
-ILCID_POSIX_ELEMENT_ARRAY(0x043d, yi, yi)
+
+ILCID_POSIX_SUBTABLE(yi) {
+    {0x003d, "yi"},
+    {0x043d, "yi_001"}
+};
+
 ILCID_POSIX_ELEMENT_ARRAY(0x046a, yo, yo_NG)
 
 // Windows & ICU tend to different names for some of these
@@ -944,7 +964,7 @@ idCmp(const char* id1, const char* id2)
 /**
  * Searches for a Windows LCID
  *
- * @param posixid the Posix style locale id.
+ * @param posixID the Posix style locale id.
  * @param status gets set to U_ILLEGAL_ARGUMENT_ERROR when the Posix ID has
  *               no equivalent Windows LCID.
  * @return the LCID
@@ -986,7 +1006,7 @@ static const char*
 getPosixID(const ILcidPosixMap *this_0, uint32_t hostID)
 {
     uint32_t i;
-    for (i = 0; i <= this_0->numRegions; i++)
+    for (i = 0; i < this_0->numRegions; i++)
     {
         if (this_0->regionMaps[i].hostID == hostID)
         {
@@ -1006,7 +1026,7 @@ getPosixID(const ILcidPosixMap *this_0, uint32_t hostID)
 //
 /////////////////////////////////////
 */
-#ifdef USE_WINDOWS_LCID_MAPPING_API
+#if U_PLATFORM_HAS_WIN32_API && UCONFIG_USE_WINDOWS_LCID_MAPPING_API
 /*
  * Various language tags needs to be changed:
  * quz -> qu
@@ -1024,6 +1044,7 @@ getPosixID(const ILcidPosixMap *this_0, uint32_t hostID)
     }
 
 #endif
+
 U_CAPI int32_t
 uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UErrorCode* status)
 {
@@ -1032,15 +1053,18 @@ uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UEr
     UBool bLookup = TRUE;
     const char *pPosixID = NULL;
 
-#ifdef USE_WINDOWS_LCID_MAPPING_API
+#if U_PLATFORM_HAS_WIN32_API && UCONFIG_USE_WINDOWS_LCID_MAPPING_API
+    static_assert(ULOC_FULLNAME_CAPACITY > LOCALE_NAME_MAX_LENGTH, "Windows locale names have smaller length than ICU locale names.");
+
+    char locName[LOCALE_NAME_MAX_LENGTH] = {};
+
     // Note: Windows primary lang ID 0x92 in LCID is used for Central Kurdish and
     // GetLocaleInfo() maps such LCID to "ku". However, CLDR uses "ku" for
     // Northern Kurdish and "ckb" for Central Kurdish. For this reason, we cannot
     // use the Windows API to resolve locale ID for this specific case.
     if ((hostid & 0x3FF) != 0x92) {
         int32_t tmpLen = 0;
-        UChar windowsLocaleName[LOCALE_NAME_MAX_LENGTH];  // ULOC_FULLNAME_CAPACITY > LOCALE_NAME_MAX_LENGTH
-        char locName[LOCALE_NAME_MAX_LENGTH];             // ICU name can't be longer than Windows name
+        char16_t windowsLocaleName[LOCALE_NAME_MAX_LENGTH] = {};
 
         // Note: LOCALE_ALLOW_NEUTRAL_NAMES was enabled in Windows7+, prior versions did not handle neutral (no-region) locale names.
         tmpLen = LCIDToLocaleName(hostid, (PWSTR)windowsLocaleName, UPRV_LENGTHOF(windowsLocaleName), LOCALE_ALLOW_NEUTRAL_NAMES);
@@ -1080,7 +1104,7 @@ uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UEr
             pPosixID = locName;
         }
     }
-#endif // USE_WINDOWS_LCID_MAPPING_API
+#endif
 
     if (bLookup) {
         const char *pCandidate = NULL;
@@ -1102,7 +1126,7 @@ uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UEr
     }
 
     if (pPosixID) {
-        int32_t resLen = uprv_strlen(pPosixID);
+        int32_t resLen = static_cast<int32_t>(uprv_strlen(pPosixID));
         int32_t copyLen = resLen <= posixIDCapacity ? resLen : posixIDCapacity;
         uprv_memcpy(posixID, pPosixID, copyLen);
         if (resLen < posixIDCapacity) {
@@ -1133,20 +1157,15 @@ uprv_convertToPosix(uint32_t hostid, char *posixID, int32_t posixIDCapacity, UEr
 /////////////////////////////////////
 */
 U_CAPI uint32_t
-uprv_convertToLCIDPlatform(const char* localeID)
+uprv_convertToLCIDPlatform(const char* localeID, UErrorCode* status)
 {
-    // The purpose of this function is to leverage native platform name->lcid
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+
+    // The purpose of this function is to leverage the Windows platform name->lcid
     // conversion functionality when available.
-#ifdef USE_WINDOWS_LCID_MAPPING_API
-    DWORD nameLCIDFlags = 0;
-    UErrorCode myStatus = U_ZERO_ERROR;
-
-    // First check for a Windows name->LCID match, fall through to catch
-    // ICU special cases, but Windows may know it already.
-#if LOCALE_ALLOW_NEUTRAL_NAMES
-    nameLCIDFlags = LOCALE_ALLOW_NEUTRAL_NAMES;
-#endif /* LOCALE_ALLOW_NEUTRAL_NAMES */
-
+#if U_PLATFORM_HAS_WIN32_API && UCONFIG_USE_WINDOWS_LCID_MAPPING_API
     int32_t len;
     char collVal[ULOC_KEYWORDS_CAPACITY] = {};
     char baseName[ULOC_FULLNAME_CAPACITY] = {};
@@ -1155,8 +1174,8 @@ uprv_convertToLCIDPlatform(const char* localeID)
     // Check any for keywords.
     if (uprv_strchr(localeID, '@'))
     {
-        len = uloc_getKeywordValue(localeID, "collation", collVal, UPRV_LENGTHOF(collVal) - 1, &myStatus);
-        if (U_SUCCESS(myStatus) && len > 0)
+        len = uloc_getKeywordValue(localeID, "collation", collVal, UPRV_LENGTHOF(collVal) - 1, status);
+        if (U_SUCCESS(*status) && len > 0)
         {
             // If it contains the keyword collation, return 0 so that the LCID lookup table will be used.
             return 0;
@@ -1164,9 +1183,9 @@ uprv_convertToLCIDPlatform(const char* localeID)
         else
         {
             // If the locale ID contains keywords other than collation, just use the base name.
-            len = uloc_getBaseName(localeID, baseName, UPRV_LENGTHOF(baseName) - 1, &myStatus);
+            len = uloc_getBaseName(localeID, baseName, UPRV_LENGTHOF(baseName) - 1, status);
 
-            if (U_SUCCESS(myStatus) && len > 0)
+            if (U_SUCCESS(*status) && len > 0)
             {
                 baseName[len] = 0;
                 mylocaleID = baseName;
@@ -1176,9 +1195,9 @@ uprv_convertToLCIDPlatform(const char* localeID)
 
     char asciiBCP47Tag[LOCALE_NAME_MAX_LENGTH] = {};
     // this will change it from de_DE@collation=phonebook to de-DE-u-co-phonebk form
-    int32_t bcp47Len = uloc_toLanguageTag(mylocaleID, asciiBCP47Tag, UPRV_LENGTHOF(asciiBCP47Tag), FALSE, &myStatus);
+    (void)uloc_toLanguageTag(mylocaleID, asciiBCP47Tag, UPRV_LENGTHOF(asciiBCP47Tag), FALSE, status);
 
-    if (U_SUCCESS(myStatus))
+    if (U_SUCCESS(*status))
     {
         // Need it to be UTF-16, not 8-bit
         wchar_t bcp47Tag[LOCALE_NAME_MAX_LENGTH] = {};
@@ -1200,7 +1219,7 @@ uprv_convertToLCIDPlatform(const char* localeID)
         {
             // Ensure it's null terminated
             bcp47Tag[i] = L'\0';
-            LCID lcid = LocaleNameToLCID(bcp47Tag, nameLCIDFlags);
+            LCID lcid = LocaleNameToLCID(bcp47Tag, LOCALE_ALLOW_NEUTRAL_NAMES);
             if (lcid > 0)
             {
                 // Found LCID from windows, return that one, unless its completely ambiguous
@@ -1213,9 +1232,11 @@ uprv_convertToLCIDPlatform(const char* localeID)
             }
         }
     }
-#endif /* USE_WINDOWS_LCID_MAPPING_API */
+#else
+    (void) localeID; // Suppress unused variable warning.
+#endif
 
-    // No found, or not implemented on platforms without native name->lcid conversion
+    // Nothing found, or not implemented.
     return 0;
 }
 

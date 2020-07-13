@@ -7,6 +7,8 @@
 # Some parts of the test require enabled binary log.
 --source include/have_log_bin.inc
 
+SET @saved_binlog_format= @@SESSION.binlog_format;
+
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SET @@foreign_key_checks= DEFAULT;
 
@@ -170,8 +172,10 @@ CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
   UNIQUE KEY my_key(j));
 INSERT INTO parent VALUES (2, 1);
 
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child(pk INTEGER PRIMARY KEY, fk INTEGER,
   FOREIGN KEY (fk) REFERENCES parent(j)) AS SELECT pk, j AS fk FROM source;
+SET SESSION binlog_format= @saved_binlog_format;
 SELECT * FROM child;
 
 --echo ## An index is created for the FK, and the unique constraint name is updated.
@@ -199,8 +203,10 @@ SELECT name FROM mysql.indexes
 SELECT unique_constraint_name FROM mysql.foreign_keys
   WHERE referenced_table_name LIKE 'parent';
 
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
   UNIQUE KEY my_key(j)) AS SELECT * FROM source;
+SET SESSION binlog_format= @saved_binlog_format;
 SELECT * FROM child;
 SET @@foreign_key_checks= 1;
 

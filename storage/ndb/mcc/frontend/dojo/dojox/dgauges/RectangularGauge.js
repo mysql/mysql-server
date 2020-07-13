@@ -57,33 +57,26 @@ this.inherited(arguments);
 if(_a.length==0){
 return {x:0,y:0,w:0,h:0};
 }
-var _b={x:-Infinity,y:-Infinity,w:0,h:0};
-var _c=null;
+var _b=null;
+var _c,_d,_e,_f;
+_c=_d=+Infinity;
+_e=_f=-Infinity;
 for(var i=0;i<_a.length;i++){
-_c=this._computeBoundingBox(_a[i]._gfxGroup);
-if(!_c){
-continue;
+_b=this._computeBoundingBox(_a[i]._gfxGroup);
+if(_c>_b.x){
+_c=_b.x;
 }
-if(_b.x<_c.x){
-_b.x=_c.x;
+if(_d>_b.y){
+_d=_b.y;
 }
-if(_b.w<_c.width){
-_b.w=_c.width;
+if(_e<_b.x+_b.width){
+_e=_b.x+_b.width;
 }
-if(_b.y<_c.y){
-_b.y=_c.y;
-}
-if(_b.h<_c.height){
-_b.h=_c.height;
+if(_f<_b.y+_b.height){
+_f=_b.y+_b.height;
 }
 }
-if(_b.x==-Infinity){
-_b.x=0;
-}
-if(_b.y==-Infinity){
-_b.y=0;
-}
-return _b;
+return {x:_c,y:_d,w:_e-_c,h:_f-_d};
 },refreshRendering:function(){
 if(this._widgetBox.w<=0||this._widgetBox.h<=0){
 return;
@@ -106,27 +99,27 @@ for(i=0;i<this._trailingParts.length;i++){
 this._elementsRenderers[this._trailingParts[i]._name]=this._trailingParts[i].refreshRendering();
 }
 }
-var _d=this._computeArrayBoundingBox(this._leadingParts);
-var _e=this._computeArrayBoundingBox(this._trailingParts);
-var _f={};
+var _10=this._computeArrayBoundingBox(this._leadingParts);
+var _11=this._computeArrayBoundingBox(this._trailingParts);
+var _12={};
 if(this.orientation=="horizontal"){
-_f.x=_d.x+_d.w;
-_f.y=0;
-_f.w=this._widgetBox.w-_d.w-_e.w;
-_f.h=this._widgetBox.h;
+_12.x=_10.x+_10.w;
+_12.y=0;
+_12.w=this._widgetBox.w-_10.w-_11.w;
+_12.h=this._widgetBox.h;
 }else{
-_f.x=0;
-_f.y=_d.y+_d.h;
-_f.w=this._widgetBox.w;
-_f.h=this._widgetBox.h-_d.h-_e.h;
+_12.x=0;
+_12.y=_10.y+_10.h;
+_12.w=this._widgetBox.w;
+_12.h=this._widgetBox.h-_10.h-_11.h;
 }
-this._layoutInfos={leading:_d,middle:_f,trailing:_e};
+this._layoutInfos={leading:_10,middle:_12,trailing:_11};
 for(i=0;i<this._middleParts.length;i++){
-this._middleParts[i]._gfxGroup.setTransform([_3.translate(_f.x,_f.y)]);
+this._middleParts[i]._gfxGroup.setTransform([_3.translate(_12.x,_12.y)]);
 }
 if(this._trailingParts){
 for(i=0;i<this._trailingParts.length;i++){
-this._trailingParts[i]._gfxGroup.setTransform(_3.translate(this._widgetBox.w-_e.w,0));
+this._trailingParts[i]._gfxGroup.setTransform(_3.translate(this._widgetBox.w-_11.w,0));
 }
 }
 for(i=0;i<this._classParts.length;i++){

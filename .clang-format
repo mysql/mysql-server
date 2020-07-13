@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# This is the output of clang-format-8 --style=google --dump-config,
+# We currently use clang-format version 10.
+# This is the output of clang-format-10 --style=google --dump-config,
 # except for changes mentioned below. We lock the style so that any newer
 # version of clang-format will give the same result; as time goes, we may
 # update this list, requiring newer versions of clang-format.
@@ -30,16 +31,20 @@ Language:        Cpp
 # BasedOnStyle:  Google
 AccessModifierOffset: -1
 AlignAfterOpenBracket: Align
+AlignConsecutiveMacros: false
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: Left
 AlignOperands:   true
 AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: true
+AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortBlocksOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: true
+AllowShortLambdasOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
@@ -47,7 +52,8 @@ AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
 BinPackParameters: true
-BraceWrapping:   
+BraceWrapping:
+  AfterCaseLabel:  false
   AfterClass:      false
   AfterControlStatement: false
   AfterEnum:       false
@@ -79,25 +85,33 @@ ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
+DeriveLineEnding: true
+DerivePointerAlignment: true
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
-ForEachMacros:   
+ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
-IncludeBlocks:   Preserve
-IncludeCategories: 
+IncludeBlocks:   Regroup
+IncludeCategories:
   - Regex:           '^<ext/.*\.h>'
     Priority:        2
+    SortPriority:    0
   - Regex:           '^<.*\.h>'
     Priority:        1
+    SortPriority:    0
   - Regex:           '^<.*'
     Priority:        2
+    SortPriority:    0
   - Regex:           '.*'
     Priority:        3
+    SortPriority:    0
 IncludeIsMainRegex: '([-_](test|unittest))?$'
+IncludeIsMainSourceRegex: ''
 IndentCaseLabels: true
+IndentGotoLabels: true
 IndentPPDirectives: None
 IndentWidth:     2
 IndentWrappedFunctionNames: false
@@ -120,9 +134,10 @@ PenaltyBreakString: 1000
 PenaltyBreakTemplateDeclaration: 10
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 200
-RawStringFormats: 
+PointerAlignment: Left
+RawStringFormats:
   - Language:        Cpp
-    Delimiters:      
+    Delimiters:
       - cc
       - CC
       - cpp
@@ -133,12 +148,12 @@ RawStringFormats:
     CanonicalDelimiter: ''
     BasedOnStyle:    google
   - Language:        TextProto
-    Delimiters:      
+    Delimiters:
       - pb
       - PB
       - proto
       - PROTO
-    EnclosingFunctions: 
+    EnclosingFunctions:
       - EqualsProto
       - EquivToProto
       - PARSE_PARTIAL_TEXT_PROTO
@@ -152,6 +167,7 @@ ReflowComments:  true
 SortIncludes:    true
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: true
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeCpp11BracedList: false
@@ -159,17 +175,22 @@ SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
 SpaceBeforeParens: ControlStatements
 SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyBlock: false
 SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 2
 SpacesInAngles:  false
+SpacesInConditionalStatement: false
 SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-StatementMacros: 
+SpaceBeforeSquareBrackets: false
+Standard:        Auto
+StatementMacros:
   - Q_UNUSED
   - QT_REQUIRE_VERSION
 TabWidth:        8
+UseCRLF:         false
 UseTab:          Never
 
 # We declare one specific pointer style since right alignment is dominant in
@@ -179,3 +200,8 @@ PointerAlignment: Right
 
 # MySQL source code is allowed to use C++11 (and C++14) features.
 Standard:        Cpp11
+
+# MySQL includes frequently are not order-independent (e.g. my_config.h needs
+# to go on top). This is unfortunate, but not something we can change easily,
+# so we keep the clang-format 8 behavior of preserving blocks.
+IncludeBlocks:   Preserve

@@ -29,6 +29,20 @@ The following options may be given as the first argument:
  socket creation.
  --admin-port=#      Port number to use for service connection, built-in
  default (33062)
+ --admin-ssl         Enable SSL for admin interface (automatically enabled
+ with other flags).
+ (Defaults to on; use --skip-admin-ssl to disable.)
+ --admin-ssl-capath=name 
+ --admin-ssl-cert=name 
+ --admin-ssl-cipher=name 
+ --admin-ssl-crl=name 
+ CRL file in PEM format (check OpenSSL docs, implies
+ --admin-ssl-crlpath=name 
+ --admin-ssl-key=name 
+ --admin-tls-ciphersuites=name 
+ --admin-tls-version=name 
+ TLS version for --admin-port, permitted values are TLSv1,
+ TLSv1.1, TLSv1.2, TLSv1.3
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -743,7 +757,8 @@ The following options may be given as the first argument:
  subquery_materialization_cost_based, skip_scan,
  block_nested_loop, batched_key_access,
  use_index_extensions, condition_fanout_filter,
- derived_merge, hash_join} and val is one of {on, off,
+ derived_merge, hash_join, subquery_to_derived,
+ prefer_ordering_index} and val is one of {on, off,
  default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
@@ -1413,6 +1428,15 @@ abort-slave-event-count 0
 activate-all-roles-on-login FALSE
 admin-address (No default value)
 admin-port 33062
+admin-ssl TRUE
+admin-ssl-ca (No default value)
+admin-ssl-capath (No default value)
+admin-ssl-cert (No default value)
+admin-ssl-cipher (No default value)
+admin-ssl-crl (No default value)
+admin-ssl-crlpath (No default value)
+admin-ssl-key (No default value)
+admin-tls-ciphersuites (No default value)
 allow-suspicious-udfs FALSE
 auto-increment-increment 1
 auto-increment-offset 1
@@ -1602,7 +1626,7 @@ old-alter-table FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1

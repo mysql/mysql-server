@@ -6,13 +6,18 @@ define("dojox/dtl/render/dom", [
 	"../_base"
 ], function(lang,dom,ddc,dddom,dd){
 
-	lang.getObject("dojox.dtl.render.dom", true);
+	var ddrd = lang.getObject("render.dom", true, dd);
+	/*=====
+	 ddrd = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
-	dd.render.dom.Render = function(/*DOMNode?*/ attachPoint, /*dojox/dtl/DomTemplate?*/ tpl){
+	ddrd.Render = function(/*DOMNode?*/ attachPoint, /*dojox/dtl/DomTemplate?*/ tpl){
 		this._tpl = tpl;
 		this.domNode = dom.byId(attachPoint);
 	};
-	lang.extend(dd.render.dom.Render, {
+	lang.extend(ddrd.Render, {
 		setAttachPoint: function(/*Node*/ node){
 			this.domNode = node;
 		},
@@ -38,5 +43,6 @@ define("dojox/dtl/render/dom", [
 			}
 		}
 	});
-	return dojox.dtl.render.dom;
+
+	return ddrd;
 });

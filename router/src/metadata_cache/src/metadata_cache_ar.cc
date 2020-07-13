@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,9 @@ bool ARMetadataCache::refresh() {
       log_info("view_id = %u, (%i members)", view_id,
                (int)cluster_data.members.size());
       for (auto &mi : cluster_data.members) {
-        log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(), mi.port,
-                 mi.xport, mi.role.c_str(), to_string(mi.mode).c_str());
+        log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+                 mi.xport, to_string(mi.mode).c_str(),
+                 get_hidden_info(mi).c_str());
 
         if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
           std::lock_guard<std::mutex> lock(

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -184,6 +184,15 @@ struct mtr_t {
     /** true if the mini-transaction modified buffer pool pages */
     bool m_modifications;
 
+    /** true if mtr is forced to NO_LOG mode because redo logging is
+    disabled globally. In this case, mtr increments the global counter
+    at ::start and must decrement it back at ::commit. */
+    bool m_marked_nolog;
+
+    /** Shard index used for incrementing global counter at ::start. We need
+    to use the same shard while decrementing counter at ::commit. */
+    size_t m_shard_index;
+
     /** Count of how many page initial log records have been
     written to the mtr log */
     ib_uint32_t m_n_log_recs;
@@ -201,13 +210,143 @@ struct mtr_t {
 #ifdef UNIV_DEBUG
     /** For checking corruption. */
     ulint m_magic_n;
+
 #endif /* UNIV_DEBUG */
 
     /** Owning mini-transaction */
     mtr_t *m_mtr;
   };
 
-  mtr_t() { m_impl.m_state = MTR_STATE_INIT; }
+#ifndef UNIV_HOTBACKUP
+  /** mtr global logging */
+  class Logging {
+   public:
+    /** mtr global redo logging state.
+    Enable Logging  :
+    [ENABLED] -> [ENABLED_RESTRICT] -> [DISABLED]
+
+    Disable Logging :
+    [DISABLED] -> [ENABLED_RESTRICT] -> [ENABLED_DBLWR] -> [ENABLED] */
+
+    enum State : uint32_t {
+      /* Redo Logging is enabled. Server is crash safe. */
+      ENABLED,
+      /* Redo logging is enabled. All non-logging mtr are finished with the
+      pages flushed to disk. Double write is enabled. Some pages could be
+      still getting written to disk without double-write. Not safe to crash. */
+      ENABLED_DBLWR,
+      /* Redo logging is enabled but there could be some mtrs still running
+      in no logging mode. Redo archiving and clone are not allowed to start.
+      No double-write */
+      ENABLED_RESTRICT,
+      /* Redo logging is disabled and all new mtrs would not generate any redo.
+      Redo archiving and clone are not allowed. */
+      DISABLED
+    };
+
+    /** Initialize logging state at server start up. */
+    void init() {
+      m_state.store(ENABLED);
+      /* We use sharded counter and force sequentially consistent counting
+      which is the general default for c++ atomic operation. If we try to
+      optimize it further specific to current operations, we could use
+      Release-Acquire ordering i.e. std::memory_order_release during counting
+      and std::memory_order_acquire while checking for the count. However,
+      sharding looks to be good enough for now and we should go for non default
+      memory ordering only with some visible proof for improvement. */
+      m_count_nologging_mtr.set_order(std::memory_order_seq_cst);
+      Counter::clear(m_count_nologging_mtr);
+    }
+
+    /** Disable mtr redo logging. Server is crash unsafe without logging.
+    @param[in]	thd	server connection THD
+    @return mysql error code. */
+    int disable(THD *thd);
+
+    /** Enable mtr redo logging. Ensure that the server is crash safe
+    before returning.
+    @param[in]	thd	server connection THD
+    @return mysql error code. */
+    int enable(THD *thd);
+
+    /** Mark a no-logging mtr to indicate that it would not generate redo log
+    and system is crash unsafe.
+    @return true iff logging is disabled and mtr is marked. */
+    bool mark_mtr(size_t index) {
+      /* Have initial check to avoid incrementing global counter for regular
+      case when redo logging is enabled. */
+      if (is_disabled()) {
+        /* Increment counter to restrict state change DISABLED to ENABLED. */
+        Counter::inc(m_count_nologging_mtr, index);
+
+        /* Check if the no-logging is still disabled. At this point, if we
+        find the state disabled, it is no longer possible for the state move
+        back to enabled till the mtr finishes and we unmark the mtr. */
+        if (is_disabled()) {
+          return (true);
+        }
+        Counter::dec(m_count_nologging_mtr, index);
+      }
+      return (false);
+    }
+
+    /** unmark a no logging mtr. */
+    void unmark_mtr(size_t index) {
+      ut_ad(!is_enabled());
+      ut_ad(Counter::total(m_count_nologging_mtr) > 0);
+      Counter::dec(m_count_nologging_mtr, index);
+    }
+
+    /* @return flush loop count for faster response when logging is disabled. */
+    uint32_t get_nolog_flush_loop() const { return (NOLOG_MAX_FLUSH_LOOP); }
+
+    /** @return true iff redo logging is enabled and server is crash safe. */
+    bool is_enabled() const { return (m_state.load() == ENABLED); }
+
+    /** @return true iff redo logging is disabled and new mtrs are not going
+    to generate redo log. */
+    bool is_disabled() const { return (m_state.load() == DISABLED); }
+
+    /** @return true iff we can skip data page double write. */
+    bool dblwr_disabled() const {
+      auto state = m_state.load();
+      return (state == DISABLED || state == ENABLED_RESTRICT);
+    }
+
+    /* Force faster flush loop for quicker adaptive flush response when logging
+    is disabled. When redo logging is disabled the system operates faster with
+    dirty pages generated at much faster rate. */
+    static constexpr uint32_t NOLOG_MAX_FLUSH_LOOP = 5;
+
+   private:
+    /** Wait till all no-logging mtrs are finished.
+    @return mysql error code. */
+    int wait_no_log_mtr(THD *thd);
+
+   private:
+    /** Global redo logging state. */
+    std::atomic<State> m_state;
+
+    using Shards = Counter::Shards<128>;
+
+    /** Number of no logging mtrs currently running. */
+    Shards m_count_nologging_mtr;
+  };
+
+  /** Check if redo logging is disabled globally and mark
+  the global counter till mtr ends. */
+  void check_nolog_and_mark();
+
+  /** Check if the mtr has marked the global no log counter and
+  unmark it. */
+  void check_nolog_and_unmark();
+#endif /* !UNIV_HOTBACKUP */
+
+  mtr_t() {
+    m_impl.m_state = MTR_STATE_INIT;
+    m_impl.m_marked_nolog = false;
+    m_impl.m_shard_index = 0;
+  }
 
   ~mtr_t() {
 #ifdef UNIV_DEBUG
@@ -222,6 +361,12 @@ struct mtr_t {
         ut_error;
     }
 #endif /* UNIV_DEBUG */
+#ifndef UNIV_HOTBACKUP
+    /* Safety check in case mtr is not committed. */
+    if (m_impl.m_state != MTR_STATE_INIT) {
+      check_nolog_and_unmark();
+    }
+#endif /* !UNIV_HOTBACKUP */
   }
 
   /** Start a mini-transaction.
@@ -269,7 +414,7 @@ struct mtr_t {
   /** Change the logging mode.
   @param mode	 logging mode
   @return	old mode */
-  inline mtr_log_t set_log_mode(mtr_log_t mode);
+  mtr_log_t set_log_mode(mtr_log_t mode);
 
   /** Read 1 - 4 bytes from a file page buffered in the buffer pool.
   @param ptr	pointer from where to read
@@ -326,7 +471,8 @@ struct mtr_t {
 
   /** Get the LSN of commit().
   @return the commit LSN
-  @retval 0 if the transaction only modified temporary tablespaces */
+  @retval 0 if the transaction only modified temporary tablespaces or logging
+  is disabled globally. */
   lsn_t commit_lsn() const MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(has_committed());
     ut_ad(m_impl.m_log_mode == MTR_LOG_ALL);
@@ -467,6 +613,19 @@ struct mtr_t {
   @return true if the mtr is dirtying a clean page. */
   static bool is_block_dirtied(const buf_block_t *block)
       MY_ATTRIBUTE((warn_unused_result));
+
+  /** Matrix to check if a mode update request should be ignored. */
+  static bool s_mode_update[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX];
+
+#ifdef UNIV_DEBUG
+  /** For checking invalid mode update requests. */
+  static bool s_mode_update_valid[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX];
+#endif /* UNIV_DEBUG */
+
+#ifndef UNIV_HOTBACKUP
+  /** Instance level logging information for all mtrs. */
+  static Logging s_logging;
+#endif /* !UNIV_HOTBACKUP */
 
  private:
   Impl m_impl;

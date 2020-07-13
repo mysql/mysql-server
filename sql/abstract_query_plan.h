@@ -218,6 +218,8 @@ namespace AQP
     // Get the upper-table we skip out to upon a firstMatch
     int get_firstmatch_return() const;
 
+    bool is_antijoin() const;
+
     /**
       Getter and setters for an opaque object for each table.
       Used by the handler's to persist 'pushability-flags' to avoid

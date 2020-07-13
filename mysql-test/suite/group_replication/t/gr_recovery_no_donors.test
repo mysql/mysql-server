@@ -15,6 +15,7 @@
 # 6. Clean up.
 ################################################################################
 --source include/big_test.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 
 
@@ -163,6 +164,7 @@ SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 # Remove all M1 data and force a RESET MASTER to allow server1 to
 # join, despite intentionally has more transactions than the group.
 ALTER EVENT e1 DISABLE;
+--let $wait_timeout= 300
 --let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="e1"
 --source include/wait_condition_or_abort.inc
 SET GLOBAL EVENT_SCHEDULER= @old_event_scheduler;

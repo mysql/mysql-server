@@ -1,0 +1,37 @@
+#
+# Bug#31191361 - TTS RESTORE FAILURE WITH ERROR 1810 (HY000):
+#                IO READ ERROR: (140055463421456, (NULL))
+#                IO READ ERROR: (140055463421456, (NULL))
+#
+
+# Must be 1 for this to work.
+SELECT @@innodb_file_per_table;
+
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+CREATE TABLE t (id INT PRIMARY KEY);
+# The column must be added by the INSTANT algorithm, and must be VARCHAR
+# (not CHAR), so that the default value is ineed 0 length.
+# @see doxygen comment for instant_default:
+#  /** Default value when this column was added instantly.
+#  If this is not a instantly added column then this is nullptr. */
+ALTER TABLE t ADD COLUMN (val varchar(2) NOT NULL DEFAULT ''),
+                         ALGORITHM = INSTANT;
+
+FLUSH TABLES test.t FOR EXPORT;
+# Backup
+--copy_file $MYSQLD_DATADIR/test/t.cfg $MYSQLD_DATADIR/test/t.cfg_back
+--copy_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t.ibd_back
+UNLOCK TABLES;
+
+# Remove the tablespace and its files.
+ALTER TABLE test.t DISCARD TABLESPACE;
+
+# Restore
+--move_file $MYSQLD_DATADIR/test/t.cfg_back $MYSQLD_DATADIR/test/t.cfg
+--move_file $MYSQLD_DATADIR/test/t.ibd_back $MYSQLD_DATADIR/test/t.ibd
+
+# This is the place, where the bug showed up.
+ALTER TABLE test.t IMPORT TABLESPACE;
+
+DROP TABLE t;

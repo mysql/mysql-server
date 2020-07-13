@@ -1,7 +1,7 @@
 set @@global.optimizer_switch='batched_key_access=on';
 select @@session.optimizer_switch;
 @@session.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on
 create temporary table server_counts_at_startup
 select * from performance_schema.global_status 
 where variable_name in 
@@ -4770,7 +4770,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.x.b	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`b`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`a` = `test`.`x`.`b`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`x`.`a`), true)))) xor (`test`.`t1`.`c` > 5))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`b`,<exists>(/* select#2 */ select `test`.`x`.`a` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`a` = `test`.`x`.`b`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`x`.`a`), true)))) xor (`test`.`t1`.`c` > 5))
 select *
 from t1 where b in 
 (select x.a from t1 as x join t1 as y on (y.a = x.b))

@@ -1,50 +1,45 @@
-define("dojox/app/controllers/History", ["dojo/_base/lang", "dojo/_base/declare", "dojo/on", "../Controller"],
-function(lang, declare, on, Controller){
+define("dojox/app/controllers/History", ["dojo/_base/lang", "dojo/_base/declare", "dojo/on", "../Controller", "../utils/hash", "dojo/topic"],
+function(lang, declare, on, Controller, hash, topic){
 	// module:
 	//		dojox/app/controllers/History
 	// summary:
-	//		Bind "startTransition" event on dojox/app application's domNode,
+	//		Bind "app-domNode" event on dojox/app application instance.
+	//		Bind "startTransition" event on dojox/app application domNode.
 	//		Bind "popstate" event on window object.
 	//		Maintain history by HTML5 "pushState" method and "popstate" event.
 
 	return declare("dojox.app.controllers.History", Controller, {
-		constructor: function(app){
+		// _currentPosition:     Integer
+		//              Persistent variable which indicates the current position/index in the history
+		//              (so as to be able to figure out whether the popState event was triggerd by
+		//              a backward or forward action).
+		_currentPosition: 0,
+
+		// currentState: Object
+		//              Current state
+		currentState: {},
+
+		constructor: function(){
 			// summary:
-			//		Bind "startTransition" event on dojox/app application's domNode,
+			//		Bind "app-domNode" event on dojox/app application instance.
+			//		Bind "startTransition" event on dojox/app application domNode.
 			//		Bind "popstate" event on window object.
 			//
-			// app:
-			//		dojox/app application instance.
 
 			this.events = {
-				"startTransition": this.onStartTransition
+				"app-domNode": this.onDomNodeChange
 			};
-			this.inherited(arguments);
-
+			if(this.app.domNode){
+				this.onDomNodeChange({oldNode: null, newNode: this.app.domNode});
+			}
 			this.bind(window, "popstate", lang.hitch(this, this.onPopState));
 		},
-		
-		_buildHashWithParams: function(hash, params){
-			// summary:
-			//		build up the url hash adding the params
-			// hash: String
-			//		the url hash
-			// params: Object
-			//		the params object
-			//
-			// returns:
-	 		//		the params object
-			//
-			if(hash.charAt(0) !== "#"){
-				hash = "#"+hash;
+
+		onDomNodeChange: function(evt){
+			if(evt.oldNode != null){
+				this.unbind(evt.oldNode, "startTransition");
 			}
-			for(var item in params){
-				var value = params[item];
-				if(item && value != null){
-					hash = hash+"&"+item+"="+params[item];
-				}
-			}
-			return hash; // String			
+			this.bind(evt.newNode, "startTransition", lang.hitch(this, this.onStartTransition));
 		},
 
 		onStartTransition: function(evt){
@@ -62,24 +57,42 @@ function(lang, declare, on, Controller){
 			//		|	new TransitionEvent(domNode, transOpts, e).dispatch();
 			//
 			// evt: Object
-			//		transition options parameter
+			//		Transition options parameter
+			var currentHash = window.location.hash;
+			var currentView = hash.getTarget(currentHash, this.app.defaultView);
+			var currentParams =  hash.getParams(currentHash);
+			var _detail = lang.clone(evt.detail);
+			_detail.target = _detail.title = currentView;
+			_detail.url = currentHash;
+			_detail.params = currentParams;
+			_detail.id = this._currentPosition;
 
-			// bubbling "startTransition", so Transition controller can response to it.
-
-			var target = evt.detail.target;
-			var regex = /#(.+)/;
-			if(!target && regex.test(evt.detail.href)){
-				target = evt.detail.href.match(regex)[1];
+			// Create initial state if necessary
+			if(history.length == 1){
+				history.pushState(_detail, _detail.href, currentHash);
 			}
-			
-			// create url hash from target if it is not set
-			var hash = evt.detail.url || "#"+evt.detail.target;
+
+			// Update the current state
+			_detail.bwdTransition = _detail.transition;
+			lang.mixin(this.currentState, _detail);
+			history.replaceState(this.currentState, this.currentState.href, currentHash);
+
+			// Create a new "current state" history entry
+			this._currentPosition += 1;
+			evt.detail.id = this._currentPosition;
+
+			var newHash = evt.detail.url || "#" + evt.detail.target;
+
 			if(evt.detail.params){
-				hash = this._buildHashWithParams(hash, evt.detail.params);
+				newHash = hash.buildWithParams(newHash, evt.detail.params);
 			}
 
-			// push states to history list
-			history.pushState(evt.detail,evt.detail.href, hash);
+			evt.detail.fwdTransition = evt.detail.transition;
+			history.pushState(evt.detail, evt.detail.href, newHash);
+			this.currentState = lang.clone(evt.detail);
+
+			// Finally: Publish pushState topic
+			topic.publish("/app/history/pushState", evt.detail.target);
 		},
 
 		onPopState: function(evt){
@@ -87,46 +100,28 @@ function(lang, declare, on, Controller){
 			//		Response to dojox/app "popstate" event.
 			//
 			// evt: Object
-			//		transition options parameter
+			//		Transition options parameter
 
 			// Clean browser's cache and refresh the current page will trigger popState event,
-			// but in this situation the application not start and throw an error.
-			// so we need to check application status, if application not STARTED, do nothing.
-			if(this.app.getStatus() !== this.app.lifecycle.STARTED){
+			// but in this situation the application has not started and throws an error.
+			// So we need to check application status, if application not STARTED, do nothing.
+			if((this.app.getStatus() !== this.app.lifecycle.STARTED) || !evt.state ){
 				return;
 			}
 
-			var state = evt.state;
-			if(!state){
-				if(!this.app._startView && window.location.hash){
-					state = {
-						target: ((location.hash && location.hash.charAt(0) == "#") ? location.hash.substr(1) : location.hash).split('&')[0],
-						url: location.hash,
-						params: this.app.getParamsFromHash(location.hash) || this.defaultParams || {}
-					}
-				}else{
-					state = {};
-				}
-			}
+			// Get direction of navigation and update _currentPosition accordingly
+			var backward = evt.state.id < this._currentPosition;
+			backward ? this._currentPosition -= 1 : this._currentPosition += 1;
 
-			var target = state.target || this.app._startView || this.app.defaultView;
-			var params = state.params || this.app._startParams || this.app.defaultParams || {};
-
-			if(this.app._startView){
-				this.app._startView = null;
-			}
-			var title = state.title || null;
-			var href = state.url || null;
-
-			if(evt._sim){
-				history.replaceState(state, title, href);
-			}
-
-			// transition to the target view
-			this.app.trigger("transition", {
-				"viewId": target,
-				"opts": lang.mixin({reverse: true}, evt.detail, {"params": params})
+			// Publish popState topic and transition to the target view. Important: Use correct transition.
+			// Reverse transitionDir only if the user navigates backwards.
+			var opts = lang.mixin({reverse: backward ? true : false}, evt.state);
+			opts.transition = backward ? opts.bwdTransition : opts.fwdTransition;
+			this.app.emit("app-transition", {
+				viewId: evt.state.target,
+				opts: opts
 			});
+			topic.publish("/app/history/popState", evt.state.target);
 		}
 	});
 });

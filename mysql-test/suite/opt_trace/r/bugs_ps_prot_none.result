@@ -153,28 +153,12 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "steps": [
                       {
                         "expanded_query": "/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where ((`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `sq2_alias1`.`col_varchar_nokey`))"
-                      },
-                      {
-                        "transformation": {
-                          "select#": 4,
-                          "from": "IN (SELECT)",
-                          "to": "semijoin",
-                          "chosen": false
-                        } /* transformation */
                       }
                     ] /* steps */
                   } /* join_preparation */
                 },
                 {
                   "expanded_query": "/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` join `t2` `alias2` join `t2` `alias3` where (<in_optimizer>(`alias2`.`col_varchar_key`,<exists>(/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where ((`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `sq2_alias1`.`col_varchar_nokey`)))) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or ((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or (`alias1`.`col_varchar_nokey` is null)), true) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -331,14 +315,6 @@ FROM t1
                 },
                 {
                   "expanded_query": "/* select#2 */ select (/* select#3 */ select `t2`.`col_int_key` from `t2`) from `t1` where (<cache>(`where_subselect_19033`.`field1`) = (/* select#3 */ select `t2`.`col_int_key` from `t2`))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -748,14 +724,6 @@ ON table2 .col_int_key = table1 .col_int_key
                 },
                 {
                   "expanded_query": "/* select#3 */ select `table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`t1`.`col_int_key`) from `t1`) from `t1` `table1` join `t1` `table2` where ((<cache>(`where_subselect_20070`.`field1`) = `table2`.`col_int_key`) and (<cache>((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) = (/* select#4 */ select count(`t1`.`col_int_key`) from `t1`)) and (`table2`.`col_int_key` = `table1`.`col_int_key`))"
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */

@@ -1,44 +1,45 @@
 //>>built
-define("dijit/form/_ListMouseMixin",["dojo/_base/declare","dojo/mouse","dojo/on","dojo/touch","./_ListBase"],function(_1,_2,on,_3,_4){
-return _1("dijit.form._ListMouseMixin",_4,{postCreate:function(){
+define("dijit/form/_ListMouseMixin",["dojo/_base/declare","dojo/on","dojo/touch","./_ListBase"],function(_1,on,_2,_3){
+return _1("dijit.form._ListMouseMixin",_3,{postCreate:function(){
 this.inherited(arguments);
+this.domNode.dojoClick=true;
 this._listConnect("click","_onClick");
 this._listConnect("mousedown","_onMouseDown");
 this._listConnect("mouseup","_onMouseUp");
 this._listConnect("mouseover","_onMouseOver");
 this._listConnect("mouseout","_onMouseOut");
-},_onClick:function(_5,_6){
-this._setSelectedAttr(_6,false);
+},_onClick:function(_4,_5){
+this._setSelectedAttr(_5,false);
 if(this._deferredClick){
 this._deferredClick.remove();
 }
 this._deferredClick=this.defer(function(){
 this._deferredClick=null;
-this.onClick(_6);
+this.onClick(_5);
 });
-},_onMouseDown:function(_7,_8){
+},_onMouseDown:function(_6,_7){
 if(this._hoveredNode){
 this.onUnhover(this._hoveredNode);
 this._hoveredNode=null;
 }
 this._isDragging=true;
-this._setSelectedAttr(_8,false);
-},_onMouseUp:function(_9,_a){
+this._setSelectedAttr(_7,false);
+},_onMouseUp:function(_8,_9){
 this._isDragging=false;
-var _b=this.selected;
-var _c=this._hoveredNode;
-if(_b&&_a==_b){
+var _a=this.selected;
+var _b=this._hoveredNode;
+if(_a&&_9==_a){
 this.defer(function(){
-this._onClick(_9,_b);
+this._onClick(_8,_a);
 });
 }else{
-if(_c){
+if(_b){
 this.defer(function(){
-this._onClick(_9,_c);
+this._onClick(_8,_b);
 });
 }
 }
-},_onMouseOut:function(_d,_e){
+},_onMouseOut:function(_c,_d){
 if(this._hoveredNode){
 this.onUnhover(this._hoveredNode);
 this._hoveredNode=null;
@@ -46,18 +47,18 @@ this._hoveredNode=null;
 if(this._isDragging){
 this._cancelDrag=(new Date()).getTime()+1000;
 }
-},_onMouseOver:function(_f,_10){
+},_onMouseOver:function(_e,_f){
 if(this._cancelDrag){
-var _11=(new Date()).getTime();
-if(_11>this._cancelDrag){
+var _10=(new Date()).getTime();
+if(_10>this._cancelDrag){
 this._isDragging=false;
 }
 this._cancelDrag=null;
 }
-this._hoveredNode=_10;
-this.onHover(_10);
+this._hoveredNode=_f;
+this.onHover(_f);
 if(this._isDragging){
-this._setSelectedAttr(_10,false);
+this._setSelectedAttr(_f,false);
 }
 }});
 });

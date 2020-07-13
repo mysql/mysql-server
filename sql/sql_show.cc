@@ -1013,7 +1013,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   Print "ON UPDATE" clause of a field into a string.
 
   @param field             The field to generate ON UPDATE clause for.
-  @param val
+  @param val               String to write ON UPDATE clause to to
   @param lcase             Whether to print in lower case.
   @return                  false on success, true on error.
 */
@@ -1035,7 +1035,7 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase) {
 static bool print_default_clause(THD *thd, Field *field, String *def_value,
                                  bool quoted) {
   enum enum_field_types field_type = field->type();
-  const bool has_default = (!(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+  const bool has_default = (!field->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
                             !(field->auto_flags & Field::NEXT_NUMBER));
 
   if (field->gcol_info) return false;
@@ -1331,7 +1331,6 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     // Skip fields that are hidden from the user.
     if (field->is_hidden_from_user()) continue;
 
-    uint flags = field->flags;
     enum_field_types field_type = field->real_type();
 
     if (ptr != table->field) packet->append(STRING_WITH_LEN(",\n"));
@@ -1401,7 +1400,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         packet->append(STRING_WITH_LEN(" VIRTUAL"));
     }
 
-    if (flags & NOT_NULL_FLAG)
+    if (field->is_flag_set(NOT_NULL_FLAG))
       packet->append(STRING_WITH_LEN(" NOT NULL"));
     else if (field->type() == MYSQL_TYPE_TIMESTAMP) {
       /*
@@ -1411,7 +1410,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
-    if (flags & NOT_SECONDARY_FLAG)
+    if (field->is_flag_set(NOT_SECONDARY_FLAG))
       packet->append(STRING_WITH_LEN(" NOT SECONDARY"));
 
     if (field->type() == MYSQL_TYPE_GEOMETRY) {
@@ -1466,6 +1465,18 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (field->comment.length) {
       packet->append(STRING_WITH_LEN(" COMMENT "));
       append_unescaped(packet, field->comment.str, field->comment.length);
+    }
+
+    // Storage engine specific json attributes
+    if (field->m_engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
+      packet->append(field->m_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
+    if (field->m_secondary_engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
+      packet->append(field->m_secondary_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
     }
   }
 
@@ -1573,6 +1584,15 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   bool show_tablespace = false;
   if (!foreign_db_mode) {
     show_table_options = true;
+
+    /**
+      Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
+      This is done only while binlogging CREATE TABLE AS SELECT.
+    */
+    if (thd->lex->select_lex->get_fields_list()->elements &&
+        (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+      packet->append(STRING_WITH_LEN(" START TRANSACTION"));
+    }
 
     // Show tablespace name only if it is explicitly provided by user.
     if (share->tmp_table) {
@@ -1769,6 +1789,17 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(share->secondary_engine.str,
                      share->secondary_engine.length);
     }
+
+    if (share->engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE='"));
+      packet->append(share->engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
+    if (share->secondary_engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE='"));
+      packet->append(share->secondary_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
     append_directory(thd, packet, "DATA", create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
@@ -1838,6 +1869,18 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
 
     if (!key_info->is_visible)
       packet->append(STRING_WITH_LEN(" /*!80000 INVISIBLE */"));
+
+    if (key_info->engine_attribute.length > 0) {
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
+      packet->append(key_info->engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
+
+    if (key_info->secondary_engine_attribute.length > 0) {
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
+      packet->append(key_info->secondary_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
   }
 }
 
@@ -3086,18 +3129,18 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     }
 
     // IS_NULLABLE
-    pos = pointer_cast<const uchar *>((field->flags & NOT_NULL_FLAG) ? "NO"
-                                                                     : "YES");
+    pos = pointer_cast<const uchar *>(
+        field->is_flag_set(NOT_NULL_FLAG) ? "NO" : "YES");
     table->field[TMP_TABLE_COLUMNS_IS_NULLABLE]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 
     // COLUMN_KEY
     pos = pointer_cast<const uchar *>(
-        (field->flags & PRI_KEY_FLAG)
+        field->is_flag_set(PRI_KEY_FLAG)
             ? "PRI"
-            : (field->flags & UNIQUE_KEY_FLAG)
+            : field->is_flag_set(UNIQUE_KEY_FLAG)
                   ? "UNI"
-                  : (field->flags & MULTIPLE_KEY_FLAG) ? "MUL" : "");
+                  : field->is_flag_set(MULTIPLE_KEY_FLAG) ? "MUL" : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 
@@ -3368,8 +3411,11 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       }
 
       // NULLABLE
-      uint flags = key_part->field ? key_part->field->flags : 0;
-      const char *pos = ((flags & NOT_NULL_FLAG) ? "" : "YES");
+      const char *pos;
+      if (key_part->field && key_part->field->is_flag_set(NOT_NULL_FLAG))
+        pos = "";
+      else
+        pos = "YES";
       table->field[TMP_TABLE_KEYS_IS_NULLABLE]->store(pos, strlen(pos), cs);
 
       // COMMENT
@@ -3786,9 +3832,9 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
 
       return false;
     }
-    List_iterator_fast<Item> it(sel->item_list);
+    List_iterator_fast<Item> it(sel->fields_list);
     if (!(transl = (Field_translator *)(thd->stmt_arena->alloc(
-              sel->item_list.elements * sizeof(Field_translator))))) {
+              sel->fields_list.elements * sizeof(Field_translator))))) {
       return true;
     }
     for (org_transl = transl; (item = it++); transl++) {

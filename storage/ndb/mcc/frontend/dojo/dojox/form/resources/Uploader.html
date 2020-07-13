@@ -1,18 +1,17 @@
 <span class="dijit dijitReset dijitInline"
 	><span class="dijitReset dijitInline dijitButtonNode"
-		dojoAttachEvent="ondijitclick:_onClick"
+		data-dojo-attach-event="ondijitclick:_onClick"
 		><span class="dijitReset dijitStretch dijitButtonContents"
-			dojoAttachPoint="titleNode,focusNode"
+			data-dojo-attach-point="titleNode,focusNode"
 			role="button" aria-labelledby="${id}_label"
-			><span class="dijitReset dijitInline dijitIcon" dojoAttachPoint="iconNode"></span
+			><span class="dijitReset dijitInline dijitIcon" data-dojo-attach-point="iconNode"></span
 			><span class="dijitReset dijitToggleButtonIconChar">&#x25CF;</span
 			><span class="dijitReset dijitInline dijitButtonText"
 				id="${id}_label"
-				dojoAttachPoint="containerNode"
+				data-dojo-attach-point="containerNode"
 			></span
 		></span
 	></span
-	><!--no need to have this for Uploader 
-	<input ${!nameAttrSetting} type="${type}" value="${value}" class="dijitOffScreen" tabIndex="-1"
-		dojoAttachPoint="valueNode"
-/--></span>
+	> 
+	<input ${!nameAttrSetting} type="${type}" value="${value}" class="dijitOffScreen" tabIndex="-1" data-dojo-attach-point="valueNode" />
+</span>

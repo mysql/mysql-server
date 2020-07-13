@@ -8,15 +8,16 @@ define(
 	"percentFormat": "#,##0 %",
 	"list": ";",
 	"infinity": "∞",
-	"minusSign": "-",
+	"minusSign": "−",
 	"decimal": ",",
+	"superscriptingExponent": "×",
 	"nan": "epäluku",
 	"perMille": "‰",
 	"decimalFormat": "#,##0.###",
 	"currencyFormat": "#,##0.00 ¤",
 	"plusSign": "+",
 	"decimalFormat-long": "000 biljoonaa",
-	"decimalFormat-short": "000 bilj'.'"
+	"decimalFormat-short": "000 bilj'.'"
 }
 //end v1.x content
 );

@@ -1,29 +1,32 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/_base/config",["../has","require"],function(_1,_2){
-var _3={};
+define("dojo/_base/config",["../global","../has","require"],function(_1,_2,_3){
+var _4={};
 if(1){
-var _4=_2.rawConfig,p;
-for(p in _4){
-_3[p]=_4[p];
+var _5=_3.rawConfig,p;
+for(p in _5){
+_4[p]=_5[p];
 }
 }else{
-var _5=function(_6,_7,_8){
-for(p in _6){
-p!="has"&&_1.add(_7+p,_6[p],0,_8);
+var _6=function(_7,_8,_9){
+for(p in _7){
+p!="has"&&_2.add(_8+p,_7[p],0,_9);
 }
 };
-var _9=(function(){
-return this;
-})();
-_3=1?_2.rawConfig:_9.dojoConfig||_9.djConfig||{};
-_5(_3,"config",1);
-_5(_3.has,"",1);
+_4=1?_3.rawConfig:_1.dojoConfig||_1.djConfig||{};
+_6(_4,"config",1);
+_6(_4.has,"",1);
 }
-return _3;
+if(!_4.locale&&typeof navigator!="undefined"){
+var _a=(navigator.languages&&navigator.languages.length)?navigator.languages[0]:(navigator.language||navigator.userLanguage);
+if(_a){
+_4.locale=_a.toLowerCase();
+}
+}
+return _4;
 });

@@ -113,21 +113,21 @@ _1.connect(document,"keypress",this,function(evt){
 if(!_4){
 return;
 }
-var inc=this.shift?this.arrowIncrement*this.arrowShiftIncrement:this.arrowIncrement;
+var inc=this.shift?this.arrowIncrement*this.arrowShiftIncrement:this.arrowIncrement,_13=evt.alt||this.cmmd;
 var x=0,y=0;
 if(evt.keyCode==32&&!_3){
 _1.stopEvent(evt);
 }
-if(evt.keyCode==37){
+if(evt.keyCode==37&&!_13){
 x=-inc;
 }
-if(evt.keyCode==38){
+if(evt.keyCode==38&&!_13){
 y=-inc;
 }
-if(evt.keyCode==39){
+if(evt.keyCode==39&&!_13){
 x=inc;
 }
-if(evt.keyCode==40){
+if(evt.keyCode==40&&!_13){
 y=inc;
 }
 if(x||y){

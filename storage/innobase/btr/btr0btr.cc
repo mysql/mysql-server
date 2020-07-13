@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -622,19 +622,16 @@ void btr_node_ptr_set_child_page_no(
   }
 }
 
-buf_block_t *btr_node_ptr_get_child(
-    const rec_t *node_ptr, /*!< in: node pointer */
-    dict_index_t *index,   /*!< in: index */
-    const ulint *offsets,  /*!< in: array returned by rec_get_offsets() */
-    mtr_t *mtr)            /*!< in: mtr */
-{
+buf_block_t *btr_node_ptr_get_child(const rec_t *node_ptr, dict_index_t *index,
+                                    const ulint *offsets, mtr_t *mtr,
+                                    rw_lock_type_t type) {
   ut_ad(rec_offs_validate(node_ptr, index, offsets));
 
   const page_id_t page_id(page_get_space_id(page_align(node_ptr)),
                           btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
-  return (btr_block_get(page_id, dict_table_page_size(index->table),
-                        RW_SX_LATCH, index, mtr));
+  return (btr_block_get(page_id, dict_table_page_size(index->table), type,
+                        index, mtr));
 }
 
 /** Returns the upper level node pointer to a page. It is assumed that mtr holds
@@ -1323,7 +1320,7 @@ func_exit:
 #ifndef UNIV_HOTBACKUP
   if (success) {
     mlog_id_t type;
-    byte *log_ptr;
+    byte *log_ptr = nullptr;
 
     /* Write the log record */
     if (page_zip) {
@@ -1335,12 +1332,15 @@ func_exit:
       type = MLOG_PAGE_REORGANIZE;
     }
 
-    log_ptr = log_compressed ? nullptr
-                             : mlog_open_and_write_index(mtr, page, index, type,
-                                                         page_zip ? 1 : 0);
+    bool opened = false;
+
+    if (!log_compressed) {
+      opened = mlog_open_and_write_index(mtr, page, index, type,
+                                         page_zip ? 1 : 0, log_ptr);
+    }
 
     /* For compressed pages write the compression level. */
-    if (log_ptr && page_zip) {
+    if (opened && page_zip) {
       mach_write_to_1(log_ptr, z_level);
       mlog_close(mtr, log_ptr + 1);
     }
@@ -2951,9 +2951,8 @@ static buf_block_t *btr_lift_page_up(
   if (!dict_table_is_locking_disabled(index->table)) {
     /* Free predicate page locks on the block */
     if (dict_index_is_spatial(index)) {
-      lock_mutex_enter();
+      locksys::Shard_latch_guard guard{block->get_page_id()};
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
-      lock_mutex_exit();
     }
     lock_update_copy_and_discard(father_block, block);
   }
@@ -3220,10 +3219,9 @@ retry:
       }
 
       /* No GAP lock needs to be worrying about */
-      lock_mutex_enter();
+      locksys::Shard_latch_guard guard{block->get_page_id()};
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
       lock_rec_free_all_from_discard_page(block);
-      lock_mutex_exit();
     } else {
       btr_node_ptr_delete(index, block, mtr);
       if (!dict_table_is_locking_disabled(index->table)) {
@@ -3355,10 +3353,9 @@ retry:
         rtr_merge_and_update_mbr(&cursor2, &father_cursor, offsets2, offsets,
                                  merge_page, merge_block, block, index, mtr);
       }
-      lock_mutex_enter();
+      locksys::Shard_latch_guard guard{block->get_page_id()};
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
       lock_rec_free_all_from_discard_page(block);
-      lock_mutex_exit();
     } else {
       compressed = btr_cur_pessimistic_delete(
           &err, TRUE, &cursor2, BTR_CREATE_FLAG, false, 0, 0, 0, mtr);

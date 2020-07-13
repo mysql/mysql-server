@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_system_table_check.h"  // System_table_intact
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -111,6 +112,36 @@ enum enum_servers_table_field {
   SERVERS_FIELD_SCHEME,
   SERVERS_FIELD_OWNER
 };
+
+// mysql.servers table definition.
+static const int MYSQL_SERVERS_TABLE_FIELD_COUNT = 9;
+static const TABLE_FIELD_TYPE
+    mysql_servers_table_fields[MYSQL_SERVERS_TABLE_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("Server_name")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Host")},
+         {STRING_WITH_LEN("char(255)")},
+         {STRING_WITH_LEN("ascii")}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("Username")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Password")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Port")}, {STRING_WITH_LEN("int")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("Socket")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Wrapper")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("Owner")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}}};
+static const TABLE_FIELD_DEF mysql_servers_table_def = {
+    MYSQL_SERVERS_TABLE_FIELD_COUNT, mysql_servers_table_fields};
 
 static bool get_server_from_table_to_cache(TABLE *table);
 
@@ -619,7 +650,31 @@ bool Sql_cmd_common_server::check_and_open_table(THD *thd) {
   TABLE_LIST tables("mysql", "servers", TL_WRITE);
 
   table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
-  return (table == nullptr);
+  if (table == nullptr) return true;
+
+  /*
+    System table mysql.servers is supported by only InnoDB engine. Changing
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. CREATE, ALTER and DROP SERVER
+    operations are not allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return true;
+  }
+
+  /*
+    CREATE, ALTER and DROP SERVER operations are *not* allowed if table
+    structure is changed.
+  */
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_servers_table_def)) return true;
+
+  return false;
 }
 
 bool Sql_cmd_create_server::execute(THD *thd) {
@@ -653,7 +708,7 @@ bool Sql_cmd_create_server::execute(THD *thd) {
 
     /* read index until record is that specified in server_name */
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         HA_WHOLE_KEY, HA_READ_KEY_EXACT);
 
     if (!error) {
@@ -721,7 +776,7 @@ bool Sql_cmd_alter_server::execute(THD *thd) {
         m_server_options->m_server_name.length, system_charset_info);
 
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         ~(longlong)0, HA_READ_KEY_EXACT);
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -783,7 +838,7 @@ bool Sql_cmd_drop_server::execute(THD *thd) {
         m_server_name.str, m_server_name.length, system_charset_info);
 
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         HA_WHOLE_KEY, HA_READ_KEY_EXACT);
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)

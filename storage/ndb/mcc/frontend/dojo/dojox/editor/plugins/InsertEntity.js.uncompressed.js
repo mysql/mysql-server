@@ -13,7 +13,7 @@ define("dojox/editor/plugins/InsertEntity", [
 	"dojo/i18n!dojox/editor/plugins/nls/InsertEntity"
 ], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.InsertEntity", _Plugin,{
+var InsertEntity = dojo.declare("dojox.editor.plugins.InsertEntity", _Plugin,{
 	// summary:
 	//		This plugin allows the user to select from standard Symbols (HTML Entities)
 	//		to insert at the current cursor position.  It binds to the key pattern:
@@ -96,12 +96,12 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name? o.args.name.toLowerCase() : "";
 	if(name === "insertentity"){
-		o.plugin = new dojox.editor.plugins.InsertEntity({
+		o.plugin = new InsertEntity({
 			showCode: ("showCode" in o.args)?o.args.showCode:false,
 			showEntityName: ("showEntityName" in o.args)?o.args.showEntityName:false
 		});
 	}
 });
 
-return dojox.editor.plugins.InsertEntity;
+return InsertEntity;
 });

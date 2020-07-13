@@ -224,14 +224,14 @@ t1_ndb	CREATE TABLE `t1_ndb` (
   `a` int NOT NULL,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2_ndb;
 Table	Create Table
 t2_ndb	CREATE TABLE `t2_ndb` (
   `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 USE db2;
 SHOW TABLES;
 Tables_in_db2
@@ -253,15 +253,67 @@ t1_ndb	CREATE TABLE `t1_ndb` (
   `a` int NOT NULL,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2_ndb;
 Table	Create Table
 t2_ndb	CREATE TABLE `t2_ndb` (
   `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db4;
+USE test;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT NOT NULL,
+c INT NOT NULL,
+UNIQUE ib(b),
+INDEX ic(c)
+) ENGINE NDB;
+INSERT INTO t1 VALUES (1,2,3),(2,3,5),(3,4,6),(4,5,8),(5,6,2),(6,7,2);
+CREATE TABLE parent (
+c1 INT PRIMARY KEY
+) ENGINE NDB;
+INSERT INTO parent VALUES (1),(2);
+CREATE TABLE child (
+c1 INT PRIMARY KEY,
+c2 INT,
+INDEX xc2(c2),
+FOREIGN KEY(c2)
+REFERENCES parent(c1)
+ON DELETE CASCADE
+) ENGINE NDB;
+INSERT INTO child VALUES (1,1),(2,2);
+Backup
+DROP TABLE t1,child,parent;
+Restore with --disable-indexes
+SET GLOBAL ndb_metadata_sync = true;
+SELECT schema_name, name, type FROM performance_schema.ndb_sync_excluded_objects;
+schema_name	name	type
+test	child	TABLE
+test	parent	TABLE
+test	t1	TABLE
+Rebuild indexes in NDB
+SELECT * FROM t1;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+SELECT * FROM parent;
+c1
+1
+2
+SELECT * FROM child;
+c1	c2
+1	1
+2	2
+SELECT COUNT(*) FROM performance_schema.ndb_sync_excluded_objects;
+COUNT(*)
+0
+DROP TABLE t1,child,parent;

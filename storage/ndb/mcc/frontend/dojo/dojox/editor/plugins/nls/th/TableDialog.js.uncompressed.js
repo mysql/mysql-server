@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "เพิ่มคอลัมน์ก่อน",
 	insertTableColumnAfterLabel: "เพิ่มคอลัมน์หลังจาก",
 	deleteTableRowLabel: "ลบแถว",
-	deleteTableColumnLabel: "ลบคอลัมน์"
+	deleteTableColumnLabel: "ลบคอลัมน์",
+	colorTableCellTitle: "เซลล์ตารางสีพื้นหลัง",
+	tableContextMenuTitle: "เมนูบริบทตาราง"
 })
 );

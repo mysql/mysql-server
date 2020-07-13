@@ -12,14 +12,15 @@ if (!$using_innodb)
 }
 
 connection server2;
+# Create table mysql.ndb_binlog_index table in MyISAM engine.
 disable_query_log;
 disable_result_log;
-if ($using_innodb)
-{
-  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
-}
+RENAME TABLE mysql.ndb_binlog_index TO mysql.ndb_binlog_index_bkp;
+CREATE TABLE mysql.ndb_binlog_index ENGINE='MyISAM' AS SELECT * FROM mysql.ndb_binlog_index_bkp;
+ALTER TABLE mysql.ndb_binlog_index ADD PRIMARY KEY (epoch, orig_server_id, orig_epoch);
 enable_query_log;
 enable_result_log;
+
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_2_upgrade.log
 --let $restart_parameters= restart:--upgrade=FORCE --log-error=$MYSQLD_LOG
@@ -29,14 +30,15 @@ call mtr.add_suppression("Can't create database 'performance_schema'; database e
 --source include/restart_mysqld.inc
 
 connection server1;
+# Create table mysql.ndb_binlog_index table in MyISAM engine.
 disable_query_log;
 disable_result_log;
-if ($using_innodb)
-{
-  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
-}
+RENAME TABLE mysql.ndb_binlog_index TO mysql.ndb_binlog_index_bkp;
+CREATE TABLE mysql.ndb_binlog_index ENGINE='MyISAM' AS SELECT * FROM mysql.ndb_binlog_index_bkp;
+ALTER TABLE mysql.ndb_binlog_index ADD PRIMARY KEY (epoch, orig_server_id, orig_epoch);
 enable_query_log;
 enable_result_log;
+
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_1_upgrade.log
 --let $restart_parameters= restart:--upgrade=FORCE --log-error=$MYSQLD_LOG
@@ -49,18 +51,18 @@ disconnect default;
 connect (default,127.0.0.1,root,,test,$MASTER_MYPORT,);
 --source suite/ndb_binlog/t/ndb_binlog_purge_lock.inc
 
+connection server2;
 disable_query_log;
 disable_result_log;
-connection server2;
-if (!$using_innodb)
-{
-  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
-}
+DROP TABLE mysql.ndb_binlog_index;
+RENAME TABLE mysql.ndb_binlog_index_bkp TO mysql.ndb_binlog_index;
+enable_query_log;
+enable_result_log;
 
 connection server1;
-if (!$using_innodb)
-{
-  ALTER TABLE mysql.ndb_binlog_index engine = myisam;
-}
+disable_query_log;
+disable_result_log;
+DROP TABLE mysql.ndb_binlog_index;
+RENAME TABLE mysql.ndb_binlog_index_bkp TO mysql.ndb_binlog_index;
 enable_query_log;
 enable_result_log;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,9 +109,9 @@ bool Column_type_element_impl::store_attributes(Raw_record *r) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(
-    Column_type_elements::FIELD_NAME == 2,
-    "Column_type_elements definition has changed, review (de)ser memfuns!");
+static_assert(Column_type_elements::NUMBER_OF_FIELDS == 3,
+              "Column_type_elements definition has changed, check if "
+              "serialize() and deserialize() need to be updated!");
 void Column_type_element_impl::serialize(Sdi_wcontext *wctx,
                                          Sdi_writer *w) const {
   w->StartObject();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,7 @@ struct PSI_system_bootstrap;
 struct PSI_table_bootstrap;
 struct PSI_thread_bootstrap;
 struct PSI_transaction_bootstrap;
+struct PSI_tls_channel_bootstrap;
 struct MEM_ROOT;
 
 #define MY_INIT(name)   \
@@ -954,6 +955,8 @@ extern MYSQL_PLUGIN_IMPORT PSI_thread_bootstrap *psi_thread_hook;
 extern void set_psi_thread_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_transaction_bootstrap *psi_transaction_hook;
 extern void set_psi_transaction_service(void *psi);
+extern MYSQL_PLUGIN_IMPORT PSI_tls_channel_bootstrap *psi_tls_channel_hook;
+extern void set_psi_tls_channel_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
 /**

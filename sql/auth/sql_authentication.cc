@@ -36,7 +36,8 @@
 #include "include/compression.h"
 
 #include <mysql/components/my_service.h>
-#include <sql/ssl_acceptor_context.h>
+#include <sql/ssl_acceptor_context_operator.h>
+#include <sql/ssl_init_callback.h>
 #include "crypt_genhash_impl.h"  // generate_user_salt
 #include "m_string.h"
 #include "map_helpers.h"
@@ -1349,7 +1350,16 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 
   protocol->add_client_capability(CAN_CLIENT_COMPRESS);
 
-  if (SslAcceptorContext::have_ssl()) {
+  bool have_ssl = false;
+  if (current_thd->is_admin_connection() && g_admin_ssl_configured == true) {
+    Lock_and_access_ssl_acceptor_context context(mysql_admin);
+    have_ssl = context.have_ssl();
+  } else {
+    Lock_and_access_ssl_acceptor_context context(mysql_main);
+    have_ssl = context.have_ssl();
+  }
+
+  if (have_ssl) {
     protocol->add_client_capability(CLIENT_SSL);
     protocol->add_client_capability(CLIENT_SSL_VERIFY_SERVER_CERT);
   }
@@ -2496,13 +2506,22 @@ skip_to_ssl:
     uint ssl_charset_code = 0;
 #endif
 
-    SslAcceptorContext::AutoLock c;
+    /*
+      We need to make sure that reference count for
+      SSL context is kept till the end of function
+    */
+    std::unique_ptr<Lock_and_access_ssl_acceptor_context> context;
+    if (thd->is_admin_connection() && g_admin_ssl_configured == true)
+      context =
+          std::make_unique<Lock_and_access_ssl_acceptor_context>(mysql_admin);
+    else
+      context =
+          std::make_unique<Lock_and_access_ssl_acceptor_context>(mysql_main);
     /* Do the SSL layering. */
-    if (c.empty()) return packet_error;
-
+    if (!context.get()->have_ssl()) return packet_error;
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(c, protocol->get_vio(), protocol->get_net()->read_timeout,
-                  &errptr)) {
+    if (sslaccept(*(context.get()), protocol->get_vio(),
+                  protocol->get_net()->read_timeout, &errptr)) {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
     }
@@ -2919,6 +2938,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
     pkt_len = protocol->get_packet_length();
   }
 
+  DBUG_EXECUTE_IF("simulate_packet_error", pkt_len = packet_error;);
   if (pkt_len == packet_error) goto err;
 
   mpvio->packets_read++;
@@ -3274,7 +3294,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   /* acl_authenticate() takes the data from net->read_pos */
   thd->get_protocol_classic()->get_net()->read_pos =
       thd->get_protocol_classic()->get_raw_packet();
-  DBUG_PRINT("info", ("com_change_user_pkt_len=%u",
+  DBUG_PRINT("info", ("com_change_user_pkt_len=%lu",
                       mpvio.protocol->get_packet_length()));
 
   if (command == COM_CHANGE_USER) {

@@ -8,11 +8,13 @@ var win = window;
 var unload = {
 	// summary:
 	//		This module contains the document and window unload detection API.
+	//		This module is deprecated.  Use on(window, "unload", func)
+	//		and on(window, "beforeunload", func) instead.
 
 	addOnWindowUnload: function(/*Object|Function?*/ obj, /*String|Function?*/ functionName){
 		// summary:
-		//		registers a function to be triggered when window.onunload
-		//		fires.
+		//		Registers a function to be triggered when window.onunload fires.
+		//		Deprecated, use on(window, "unload", lang.hitch(obj, functionName)) instead.
 		// description:
 		//		The first time that addOnWindowUnload is called Dojo
 		//		will register a page listener to trigger your unload
@@ -25,9 +27,14 @@ var unload = {
 		//		heavy JavaScript work since it fires at the equivalent of
 		//		the page's "onbeforeunload" event.
 		// example:
-		//	|	unload.addOnWindowUnload(functionPointer)
-		//	|	unload.addOnWindowUnload(object, "functionName");
-		//	|	unload.addOnWindowUnload(object, function(){ /* ... */});
+		//	|	var afunc = function() {console.log("global function");};
+		//	|	require(["dojo/_base/unload"], function(unload) {
+		//	|		var foo = {bar: function(){ console.log("bar unloading...");}, 
+		//	|		           data: "mydata"};
+		//	|		unload.addOnWindowUnload(afunc);
+		//	|		unload.addOnWindowUnload(foo, "bar");
+		//	|		unload.addOnWindowUnload(foo, function(){console.log("", this.data);});
+		//	|	});
 
 		if (!dojo.windowUnloaded){
 			on(win, "unload", (dojo.windowUnloaded = function(){
@@ -47,7 +54,8 @@ var unload = {
 
 	addOnUnload: function(/*Object?|Function?*/ obj, /*String|Function?*/ functionName){
 		// summary:
-		//		registers a function to be triggered when the page unloads.
+		//		Registers a function to be triggered when the page unloads.
+		//		Deprecated, use on(window, "beforeunload", lang.hitch(obj, functionName)) instead.
 		// description:
 		//		The first time that addOnUnload is called Dojo will
 		//		register a page listener to trigger your unload handler
@@ -66,9 +74,14 @@ var unload = {
 		//		browsers from using a "fast back" cache to make page
 		//		loading via back button instantaneous.
 		// example:
-		//	|	dojo.addOnUnload(functionPointer)
-		//	|	dojo.addOnUnload(object, "functionName")
-		//	|	dojo.addOnUnload(object, function(){ /* ... */});
+		//	|	var afunc = function() {console.log("global function");};
+		//	|	require(["dojo/_base/unload"], function(unload) {
+		//	|		var foo = {bar: function(){ console.log("bar unloading...");}, 
+		//	|		           data: "mydata"};
+		//	|		unload.addOnUnload(afunc);
+		//	|		unload.addOnUnload(foo, "bar");
+		//	|		unload.addOnUnload(foo, function(){console.log("", this.data);});
+		//	|	});
 
 		on(win, "beforeunload", lang.hitch(obj, functionName));
 	}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -25,27 +25,10 @@ TempTable custom allocator implementation. */
 
 #include <atomic>  /* std::atomic */
 #include <cstddef> /* size_t */
-#include <cstdint> /* uint8_t */
 
 #include "storage/temptable/include/temptable/allocator.h"
 
 namespace temptable {
-
-/** RAII-managed Allocator thread-resources cleanup class */
-struct End_thread {
-  ~End_thread() {
-    if (!shared_block.is_empty()) {
-      shared_block.destroy();
-    }
-  }
-};
-
-/** Thread-local variable whose destruction will make sure that
- *  shared memory-block will be destroyed. */
-static thread_local End_thread end_thread;
-
-/* Global shared memory-block. */
-thread_local Block shared_block;
 
 /* Initialization of MemoryMonitor static variables. */
 std::atomic<size_t> MemoryMonitor::ram(0);

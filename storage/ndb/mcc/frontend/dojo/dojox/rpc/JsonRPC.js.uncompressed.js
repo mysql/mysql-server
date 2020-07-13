@@ -42,7 +42,7 @@ define("dojox/rpc/JsonRPC", ["dojo", "dojox", "dojox/rpc/Service", "dojo/errors/
 		function(str){
 			return str == "JSON-RPC-1.0";
 		},
-		dojo.mixin({namedParams:false},jsonRpcEnvelope()) // 1.0 will only work with ordered params
+		dojo.mixin({namedParams:false}, jsonRpcEnvelope()) // 1.0 will only work with ordered params
 	);
 
 	dojox.rpc.envelopeRegistry.register(
@@ -50,7 +50,7 @@ define("dojox/rpc/JsonRPC", ["dojo", "dojox", "dojox/rpc/Service", "dojo/errors/
 		function(str){
 			return str == "JSON-RPC-2.0";
 		},
-		jsonRpcEnvelope("2.0")
+		dojo.mixin({namedParams:true }, jsonRpcEnvelope("2.0")) // 2.0 supports named params
 	);
 
 });

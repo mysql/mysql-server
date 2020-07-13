@@ -38,6 +38,7 @@
 #
 ################################################################################
 --source include/have_debug_sync.inc
+--source include/not_have_privilege_checks_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 

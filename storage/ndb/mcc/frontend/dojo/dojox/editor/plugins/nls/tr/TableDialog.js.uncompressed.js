@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Sütunu Önüne Ekle",
 	insertTableColumnAfterLabel: "Sütunu Arkasına Ekle",
 	deleteTableRowLabel: "Satırı Sil",
-	deleteTableColumnLabel: "Sütunu Sil"
+	deleteTableColumnLabel: "Sütunu Sil",
+	colorTableCellTitle: "Arka Plan Rengi Tablo Hücresi",
+	tableContextMenuTitle: "Tablo Bağlam Menüsü"
 })
 );

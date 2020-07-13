@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,7 @@ TEST_F(FieldTest, FieldTimef) {
   EXPECT_DOUBLE_EQ(field->val_real(), copy->val_real());
   EXPECT_EQ(field->val_int(), copy->val_int());
   EXPECT_EQ(field->val_time_temporal(), copy->val_time_temporal());
-  EXPECT_EQ(0, field->cmp(field->ptr, copy->ptr));
+  EXPECT_EQ(0, field->cmp(field->field_ptr(), copy->field_ptr()));
 
   // Test reset
   EXPECT_EQ(0, field->reset());
@@ -333,7 +333,8 @@ TEST_F(FieldTest, FieldTimefCompare) {
             0, memcmp(sortStrings[i], sortStrings[j], fields[i]->pack_length()))
             << fields[i]->val_str(&tmp)->c_ptr() << " < "
             << fields[j]->val_str(&tmp)->c_ptr();
-        EXPECT_GT(0, fields[i]->cmp(fields[i]->ptr, fields[j]->ptr))
+        EXPECT_GT(
+            0, fields[i]->cmp(fields[i]->field_ptr(), fields[j]->field_ptr()))
             << fields[i]->val_str(&tmp)->c_ptr() << " < "
             << fields[j]->val_str(&tmp)->c_ptr();
       } else if (i > j) {
@@ -341,7 +342,8 @@ TEST_F(FieldTest, FieldTimefCompare) {
             0, memcmp(sortStrings[i], sortStrings[j], fields[i]->pack_length()))
             << fields[i]->val_str(&tmp)->c_ptr() << " > "
             << fields[j]->val_str(&tmp)->c_ptr();
-        EXPECT_LT(0, fields[i]->cmp(fields[i]->ptr, fields[j]->ptr))
+        EXPECT_LT(
+            0, fields[i]->cmp(fields[i]->field_ptr(), fields[j]->field_ptr()))
             << fields[i]->val_str(&tmp)->c_ptr() << " > "
             << fields[j]->val_str(&tmp)->c_ptr();
       } else {
@@ -349,7 +351,8 @@ TEST_F(FieldTest, FieldTimefCompare) {
             0, memcmp(sortStrings[i], sortStrings[j], fields[i]->pack_length()))
             << fields[i]->val_str(&tmp)->c_ptr() << " = "
             << fields[j]->val_str(&tmp)->c_ptr();
-        EXPECT_EQ(0, fields[i]->cmp(fields[i]->ptr, fields[j]->ptr))
+        EXPECT_EQ(
+            0, fields[i]->cmp(fields[i]->field_ptr(), fields[j]->field_ptr()))
             << fields[i]->val_str(&tmp)->c_ptr() << " = "
             << fields[j]->val_str(&tmp)->c_ptr();
       }
@@ -402,13 +405,13 @@ TEST_F(FieldTest, CopyFieldSet) {
   Field_set *f_to = create_field_set(&tl3);
   bitmap_set_all(f_to->table->write_set);
   uchar to_fieldval = 0;
-  f_to->ptr = &to_fieldval;
+  f_to->set_field_ptr(&to_fieldval);
 
   Field_set *f_from = create_field_set(&tl4);
   bitmap_set_all(f_from->table->write_set);
   bitmap_set_all(f_from->table->read_set);
   uchar from_fieldval = static_cast<uchar>(typeset);
-  f_from->ptr = &from_fieldval;
+  f_from->set_field_ptr(&from_fieldval);
 
   Copy_field *cf = new (thd()->mem_root) Copy_field;
   cf->set(f_to, f_from, false);
@@ -442,7 +445,7 @@ void test_make_sort_key(Field *field, uchar *from, const uchar *expected,
   const uint pack_length = field->pack_length();
   Fake_TABLE table(field);
   table.s->db_low_byte_first = false;
-  field->ptr = from;
+  field->set_field_ptr(from);
 
   for (uint key_length = min_key_length; key_length <= pack_length;
        ++key_length) {

@@ -23,12 +23,8 @@
 #ifndef SITE_DEF_H
 #define SITE_DEF_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/node_no.h"
+#include "xcom/site_struct.h"
 
 site_def *new_site_def();
 site_def *clone_site_def(site_def const *site);
@@ -45,28 +41,25 @@ void garbage_collect_site_defs(synode_no x);
 site_def const *get_site_def();
 site_def *get_site_def_rw();
 site_def const *get_prev_site_def();
-synode_no get_boot_key();
-void set_boot_key(synode_no const x);
 uint32_t get_group_id(site_def const *site);
 static uint32_t const null_id = 0;
 node_no get_maxnodes(site_def const *site);
 node_no get_nodeno(site_def const *site);
 node_no find_nodeno(site_def const *site, const char *name);
-node_no get_prev_maxnodes();
 node_no get_prev_nodeno();
 site_def const *find_site_def(synode_no synode);
 site_def *find_site_def_rw(synode_no synode);
 site_def const *find_next_site_def(synode_no synode);
 node_set detector_node_set(site_def const *site);
-int enough_live_nodes(site_def const *site);
-site_def *begin_site_def(site_def *s);
-site_def *end_site_def(synode_no start);
+int enough_live_nodes(site_def *site);
 void import_config(gcs_snapshot *gcs_snap);
 gcs_snapshot *export_config();
 void get_all_site_defs(site_def ***s, uint32_t *n);
 synode_no get_min_delivered_msg(site_def const *s);
 void update_delivered(site_def *s, node_no node, synode_no msgno);
 synode_no config_max_boot_key(gcs_snapshot const *gcs_snap);
+synode_no get_highest_boot_key(gcs_snapshot *gcs_snap);
+synode_no get_lowest_boot_key(gcs_snapshot *gcs_snap);
 
 static inline bool_t node_no_exists(node_no n, site_def const *site) {
   return n < get_maxnodes(site);
@@ -90,9 +83,5 @@ static inline server *get_server(site_def const *s, node_no i) {
   else
     return 0;
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

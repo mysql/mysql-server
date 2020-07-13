@@ -918,7 +918,7 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3);
 ANALYZE TABLE t1;
 let $query = SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
-eval EXPLAIN FORMAT=tree $query;  # Verify that we have a final sort, with DESC.
+eval EXPLAIN FORMAT=tree $query;  # Verify that we have a sort, with DESC. Note that we currently have two, which is redundant.
 eval $query;
 DROP TABLE t1;
 

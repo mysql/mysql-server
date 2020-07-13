@@ -462,7 +462,6 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
     // All query blocks get their options in this phase
     sl->set_query_result(tmp_result);
     sl->make_active_options(added_options | SELECT_NO_UNLOCK, removed_options);
-    sl->fields_list = sl->item_list;
     /*
       setup_tables_done_option should be set only for very first SELECT,
       because it protect from second setup_tables call for select-like non
@@ -496,10 +495,10 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
       information about fields lengths and exact types
     */
     if (!is_union())
-      types = first_select()->item_list;
+      types = first_select()->fields_list;
     else if (sl == first_select()) {
       types.empty();
-      List_iterator_fast<Item> it(sl->item_list);
+      List_iterator_fast<Item> it(sl->fields_list);
       Item *item_tmp;
       while ((item_tmp = it++)) {
         /*
@@ -529,7 +528,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
         types.push_back(holder);
       }
     } else {
-      if (types.elements != sl->item_list.elements) {
+      if (types.elements != sl->fields_list.elements) {
         my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
         goto err;
       }
@@ -544,7 +543,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
           needed here.
         */
       } else {
-        List_iterator_fast<Item> it(sl->item_list);
+        List_iterator_fast<Item> it(sl->fields_list);
         List_iterator_fast<Item> tp(types);
         Item *type, *item_tmp;
         while ((type = tp++, item_tmp = it++)) {
@@ -790,7 +789,7 @@ SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
     DBUG_ASSERT(join && join->is_optimized());
     DBUG_ASSERT(join->root_iterator() != nullptr);
     ConvertItemsToCopy(join->fields, dst_table->visible_field_ptr(),
-                       &join->tmp_table_param, join);
+                       &join->tmp_table_param);
 
     query_block.subquery_iterator = join->release_root_iterator();
     query_block.select_number = select->select_number;
@@ -924,7 +923,7 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
       JOIN *join = select->join;
       DBUG_ASSERT(join && join->is_optimized());
       ConvertItemsToCopy(join->fields, tmp_table->visible_field_ptr(),
-                         &join->tmp_table_param, join);
+                         &join->tmp_table_param);
       bool copy_fields_and_items = !join->streaming_aggregation ||
                                    join->tmp_table_param.precomputed_group_by;
       union_all_sub_iterators.emplace_back(NewIterator<StreamingIterator>(
@@ -999,6 +998,35 @@ bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
   return false;
 }
 
+bool Common_table_expr::clear_all_references() {
+  bool reset_tables = false;
+  for (TABLE_LIST *tl : references) {
+    if (tl->table && tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
+      reset_tables = true;
+      if (tl->derived_unit()->query_result()->reset()) return true;
+    }
+    /*
+      This loop has found all non-recursive clones; one writer and N
+      readers.
+    */
+  }
+  if (!reset_tables) return false;
+  for (TABLE_LIST *tl : tmp_tables) {
+    if (tl->is_derived()) continue;  // handled above
+    if (tl->table->empty_result_table()) return true;
+    // This loop has found all recursive clones (only readers).
+  }
+  /*
+    Above, emptying all clones is necessary, to rewind every handler (cursor) to
+    the table's start. Setting materialized=false on all is also important or
+    the writer would skip materialization, see loop at start of
+    TABLE_LIST::materialize_derived()). There is one "recursive table" which we
+    don't find here: it's the UNION DISTINCT tmp table. It's reset in
+    unit::execute() of the unit which is the body of the CTE.
+  */
+  return false;
+}
+
 /**
   Empties all correlated query blocks defined within the query expression;
   that is, correlated CTEs defined in the expression's WITH clause, and
@@ -1012,33 +1040,7 @@ bool SELECT_LEX_UNIT::clear_correlated_query_blocks() {
   if (!m_with_clause) return false;
   for (auto el : m_with_clause->m_list->elements()) {
     Common_table_expr &cte = el->m_postparse;
-    bool reset_tables = false;
-    for (auto tl : cte.references) {
-      if (tl->table &&
-          tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
-        reset_tables = true;
-        if (tl->derived_unit()->query_result()->reset()) return true;
-      }
-      /*
-        This loop has found all non-recursive clones; one writer and N
-        readers.
-      */
-    }
-    if (!reset_tables) continue;
-    for (auto tl : cte.tmp_tables) {
-      if (tl->is_derived()) continue;  // handled above
-      if (tl->table->empty_result_table()) return true;
-      // This loop has found all recursive clones (only readers).
-    }
-    /*
-      Doing delete_all_rows on all clones is good as it makes every
-      'file' up to date. Setting materialized=false on all is also important
-      or the writer would skip materialization, see loop at start of
-      TABLE_LIST::materialize_derived()).
-      There is one "recursive table" which we don't find here: it's the
-      UNION DISTINCT tmp table. It's reset in unit::execute() of the unit
-      which is the body of the CTE.
-    */
+    if (cte.clear_all_references()) return true;
   }
   return false;
 }
@@ -1377,7 +1379,7 @@ bool SELECT_LEX_UNIT::change_query_result(
 List<Item> *SELECT_LEX_UNIT::get_unit_column_types() {
   DBUG_ASSERT(is_prepared());
 
-  return is_union() ? &types : &first_select()->item_list;
+  return is_union() ? &types : &first_select()->fields_list;
 }
 
 /**
@@ -1476,6 +1478,13 @@ bool SELECT_LEX::cleanup(THD *thd, bool full) {
     Window *w;
     while ((w = li++)) w->cleanup(thd);
   }
+
+  // Our destructor is not called, so we need to make sure
+  // all the memory for these arrays is freed.
+  rollup_group_items.clear();
+  rollup_group_items.shrink_to_fit();
+  rollup_sums.clear();
+  rollup_sums.shrink_to_fit();
 
   return error;
 }

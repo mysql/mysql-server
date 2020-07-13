@@ -5,14 +5,14 @@ define("dojox/charting/scaler/common", ["dojo/_base/lang"], function(lang){
 		//		compare two FP numbers for equality
 		return Math.abs(a - b) <= 1e-6 * (Math.abs(a) + Math.abs(b));	// Boolean
 	};
-	
+
 	var common = lang.getObject("dojox.charting.scaler.common", true);
-	
+
 	var testedModules = {};
 
 	return lang.mixin(common, {
 		doIfLoaded: function(moduleName, ifloaded, ifnotloaded){
-			if(testedModules[moduleName] == undefined){
+			if(testedModules[moduleName] === undefined){
 				try{
 					testedModules[moduleName] = require(moduleName);
 				}catch(e){

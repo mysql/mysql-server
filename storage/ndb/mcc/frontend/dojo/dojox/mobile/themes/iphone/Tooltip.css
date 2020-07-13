@@ -12,6 +12,7 @@
   border-radius: 8px;
   background-color: #121b2f;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#656872), to(#121b2f), color-stop(0.1, #2c3345), color-stop(0.1, #161f32));
+  background-image: linear-gradient(to bottom, #656872 0%, #2c3345 10%, #161f32 10%, #121b2f 100%);
 }
 .mblTooltipBubble {
   overflow: visible;
@@ -133,7 +134,8 @@
   border-bottom-width: 0;
   border-top-color: #172035;
 }
-.mblTooltipHidden, .mblTooltipHidden * {
+.mblTooltipHidden,
+.mblTooltipHidden * {
   visibility: hidden !important;
 }
 .mblTooltipHidden {
@@ -147,10 +149,12 @@
   border-radius: 3px 3px 0 0;
   background-color: #889bb3;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#5e6167), to(#1a1d24), color-stop(0.5, #2e322b));
+  background-image: linear-gradient(to bottom, #5e6167 0%, #2e322b 50%, #1a1d24 100%);
   font-weight: normal;
 }
 .mblTooltip .mblHeading .mblToolBarButton {
   border: 1px inset #434450;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#686f80), to(#000924), color-stop(0.5, #000b29));
+  background-image: linear-gradient(to bottom, #686f80 0%, #000b29 50%, #000924 100%);
   font-weight: normal;
 }

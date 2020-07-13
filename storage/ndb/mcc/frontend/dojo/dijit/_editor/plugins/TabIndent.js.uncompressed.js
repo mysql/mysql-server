@@ -30,9 +30,9 @@ define("dijit/_editor/plugins/TabIndent", [
 			this.inherited(arguments);
 
 			var e = this.editor;
-			this.connect(this.button, "onChange", function(val){
+			this.own(this.button.on("change", function(val){
 				e.set("isTabIndent", val);
-			});
+			}));
 
 			// Set initial checked state of button based on Editor.isTabIndent
 			this.updateState();

@@ -1,7 +1,7 @@
 //>>built
 define("dojox/mdnd/adapter/DndFromDojo",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/connect","dojo/_base/array","dojo/dom-class","dojo/_base/window","dojox/mdnd/AreaManager","dojo/dnd/Manager"],function(_1,_2,_3,_4,_5,_6,_7,_8){
-var _9=_2("dojox.mdnd.adapter.DndFromDojo",null,{dropIndicatorSize:{"w":0,"h":50},dropIndicatorSize:{"w":0,"h":50},_areaManager:null,_dojoManager:null,_currentArea:null,_oldArea:null,_moveHandler:null,_subscribeHandler:null,constructor:function(){
-this._areaManager=dojox.mdnd.areaManager();
+var _9=_2("dojox.mdnd.adapter.DndFromDojo",null,{dropIndicatorSize:{"w":0,"h":50},_areaManager:null,_dojoManager:null,_currentArea:null,_oldArea:null,_moveHandler:null,_subscribeHandler:null,constructor:function(){
+this._areaManager=_7.areaManager();
 this._dojoManager=_8.manager();
 this._currentArea=null;
 this._moveHandler=null;

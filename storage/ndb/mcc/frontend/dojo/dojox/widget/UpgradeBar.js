@@ -1,7 +1,8 @@
 //>>built
-define("dojox/widget/UpgradeBar",["dojo/_base/kernel","dojo/_base/array","dojo/_base/connect","dojo/_base/declare","dojo/_base/fx","dojo/_base/lang","dojo/_base/sniff","dojo/_base/window","dojo/dom-attr","dojo/dom-class","dojo/dom-construct","dojo/dom-geometry","dojo/dom-style","dojo/cache","dojo/cookie","dojo/domReady","dojo/fx","dojo/window","dijit/_WidgetBase","dijit/_TemplatedMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,_10,fx,win,_11,_12){
+require({cache:{"url:dojox/widget/UpgradeBar/UpgradeBar.html":"<div class=\"dojoxUpgradeBar\">\n\t<div class=\"dojoxUpgradeBarMessage\" dojoAttachPoint=\"messageNode\">message</div>\n\t<div class=\"dojoxUpgradeBarReminderButton\" dojoAttachPoint=\"dontRemindButtonNode\" dojoAttachEvent=\"onclick:_onDontRemindClick\">${noRemindButton}</div>\n\t<span dojoAttachPoint=\"closeButtonNode\" class=\"dojoxUpgradeBarCloseIcon\" dojoAttachEvent=\"onclick: hide, onmouseenter: _onCloseEnter, onmouseleave: _onCloseLeave\" title=\"${buttonCancel}\"></span>\n</div>"}});
+define("dojox/widget/UpgradeBar",["dojo/_base/kernel","dojo/_base/array","dojo/_base/connect","dojo/_base/declare","dojo/_base/fx","dojo/_base/lang","dojo/_base/sniff","dojo/_base/window","dojo/dom-attr","dojo/dom-class","dojo/dom-construct","dojo/dom-geometry","dojo/dom-style","dojo/cookie","dojo/domReady","dojo/fx","dojo/window","dijit/_WidgetBase","dijit/_TemplatedMixin","dojo/text!./UpgradeBar/UpgradeBar.html"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,fx,win,_10,_11,_12){
 _1.experimental("dojox.widget.UpgradeBar");
-var _13=_4("dojox.widget.UpgradeBar",[_11,_12],{notifications:[],buttonCancel:"Close for now",noRemindButton:"Don't Remind Me Again",templateString:_e("dojox.widget","UpgradeBar/UpgradeBar.html"),constructor:function(_14,_15){
+var _13=_4("dojox.widget.UpgradeBar",[_10,_11],{notifications:[],buttonCancel:"Close for now",noRemindButton:"Don't Remind Me Again",templateString:_12,constructor:function(_14,_15){
 if(!_14.notifications&&_15){
 _2.forEach(_15.childNodes,function(n){
 if(n.nodeType==1){
@@ -49,9 +50,9 @@ _19();
 });
 _19();
 }
-_10(_6.hitch(this,"checkNotifications"));
+_f(_6.hitch(this,"checkNotifications"));
 },notify:function(msg){
-if(_f("disableUpgradeReminders")){
+if(_e("disableUpgradeReminders")){
 return;
 }
 if(!this.domNode.parentNode||!this.domNode.parentNode.innerHTML){
@@ -78,7 +79,7 @@ _d.set(this.domNode,{display:"none",opacity:1});
 }
 this._hideAnim.play();
 },_onDontRemindClick:function(){
-_f("disableUpgradeReminders",true,{expires:3650});
+_e("disableUpgradeReminders",true,{expires:3650});
 this.hide();
 },_onCloseEnter:function(){
 _a.add(this.closeButtonNode,"dojoxUpgradeBarCloseIcon-hover");

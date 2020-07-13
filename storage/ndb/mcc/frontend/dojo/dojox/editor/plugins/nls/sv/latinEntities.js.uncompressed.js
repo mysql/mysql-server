@@ -1,17 +1,17 @@
 define(
 "dojox/editor/plugins/nls/sv/latinEntities", ({
 	/* These are already handled in the default RTE
-		amp:"ampersand",lt:"less-than sign",
-		gt:"greater-than sign",
-		nbsp:"no-break space\nnon-breaking space",
-		quot:"quote",
+	amp:"ampersand",lt:"less-than sign",
+	gt:"greater-than sign",
+	nbsp:"no-break space\nnon-breaking space",
+	quot:"quote",
 	*/
 	iexcl:"omvänt utropstecken",
 	cent:"cent",
 	pound:"pund",
 	curren:"valuta",
 	yen:"yen\nyuan",
-	brvbar:"brutet lodstreck\n",
+	brvbar:"brutet lodstreck",
 	sect:"stycketecken",
 	uml:"trema\nblanktecken med trema",
 	copy:"copyright",
@@ -171,7 +171,7 @@ define(
 	rarr:"högerpil",
 	darr:"nedåtpil",
 	harr:"dubbelpil",
-	crarr:"nedåtpil med vänsterhörn\nvagnetur",
+	crarr:"nedåtpil med vänsterhörn\nvagnretur",
 	lArr:"dubbel vänsterpil",
 	uArr:"dubbel uppåtpil",
 	rArr:"dubbel högerpil",

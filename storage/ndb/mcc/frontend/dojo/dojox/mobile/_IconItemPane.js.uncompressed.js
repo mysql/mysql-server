@@ -2,8 +2,9 @@ define("dojox/mobile/_IconItemPane", [
 	"dojo/_base/declare",
 	"dojo/dom-construct",
 	"./Pane",
-	"./iconUtils"
-], function(declare, domConstruct, Pane, iconUtils){
+	"./iconUtils",
+	"./sniff"
+], function(declare, domConstruct, Pane, iconUtils, has){
 
 	// module:
 	//		dojox/mobile/_IconItemPane
@@ -88,6 +89,11 @@ define("dojox/mobile/_IconItemPane", [
 			//		private
 			this._set("closeIcon", icon);
 			this.closeIconNode = iconUtils.setIcon(icon, this.iconPos, this.closeIconNode, null, this.closeHeaderNode);
+
+			if(has("windows-theme") && this.closeIconTitle !== ""){
+				this.closeButtonNode = domConstruct.create("span", {className:"mblButton mblCloseButton", innerHTML:this.closeIconTitle,
+					style: {display: "none"}}, this.closeIconNode);
+			}
 		}
 	});
 });

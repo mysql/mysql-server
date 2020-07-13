@@ -1,37 +1,43 @@
 
-.mblDomButtonGrayArrow, .mblDomButtonArrow {
-	position: relative;
-	width: 20px;
-	height: 29px;
+.mblDomButtonGrayArrow,
+.mblDomButtonArrow {
+  position: relative;
+  width: 20px;
+  height: 29px;
 }
-.mblDomButtonGrayArrow > div, .mblDomButtonArrow > div {
-	position: absolute;
-	top: 10px;
-	left: 6px;
-	width: 6px;
-	height: 6px;
-	font-size: 1px;
-	-webkit-transform: rotate(45deg);
-	border-width: 3px 3px 0px 0px;
-	border-style: solid;
-	border-color: #808080;
+.mblDomButtonGrayArrow > div,
+.mblDomButtonArrow > div {
+  position: absolute;
+  top: 10px;
+  left: 6px;
+  width: 6px;
+  height: 6px;
+  font-size: 1px;
+  -webkit-transform: rotate(45deg);
+  transform: rotate(45deg);
+  border-width: 3px 3px 0px 0px;
+  border-style: solid;
+  border-color: #808080;
 }
-.mblDomButtonDarkBlueCheck, .mblDomButtonCheck {
-	position: relative;
-	width: 20px;
-	height: 29px;
+.mblDomButtonDarkBlueCheck,
+.mblDomButtonCheck {
+  position: relative;
+  width: 20px;
+  height: 29px;
 }
-.mblDomButtonDarkBlueCheck > div, .mblDomButtonCheck > div {
-	position: absolute;
-	left: 0px;
-	top: 8px;
-	width: 16px;
-	height: 6px;
-	font-size: 1px;
-	-webkit-transform: scaleX(0.7) rotate(135deg);
-	border-width: 3px 4px 0px 0px;
-	border-style: solid;
-	border-color: #314e84;
+.mblDomButtonDarkBlueCheck > div,
+.mblDomButtonCheck > div {
+  position: absolute;
+  left: 0px;
+  top: 8px;
+  width: 16px;
+  height: 6px;
+  font-size: 1px;
+  -webkit-transform: scaleX(0.7) rotate(135deg);
+  transform: scaleX(0.7) rotate(135deg);
+  border-width: 3px 4px 0px 0px;
+  border-style: solid;
+  border-color: #314e84;
 }
 .mblListItem {
   position: relative;
@@ -42,9 +48,9 @@
   list-style-type: none;
   line-height: 43px;
   -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-  border-bottom: 1px solid #cccccc;
+  border-bottom: 1px solid #c0c0c0;
   background-color: #ffffff;
-  color: black;
+  color: #000000;
   font-weight: bold;
 }
 .mblListItem.mblVariableHeight {
@@ -53,17 +59,18 @@
   line-height: normal;
 }
 .mblListItemSelected {
-  color: white;
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#bbbbbb), to(#666666));
+  color: #ffffff;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#f6f6f6), to(#dedede));
+  background-image: linear-gradient(to bottom, #f6f6f6 0%, #dedede 100%);
 }
 .mblListItemSelected .mblDomButton div {
   border-color: white;
 }
 .mblListItemLabelSelected {
-  background-color: #048bf4;
+  background-color: #ffffff;
 }
 .mblListItemChecked {
-  color: #314e84;
+  color: #404040;
 }
 .mblListItemChecked .mblListItemRightIcon {
   visibility: visible;
@@ -94,7 +101,9 @@
   margin-bottom: -7px;
   margin-right: 11px;
 }
-.mblListItemRightIcon, .mblListItemRightIcon2, .mblListItemUncheckIcon {
+.mblListItemRightIcon,
+.mblListItemRightIcon2,
+.mblListItemUncheckIcon {
   position: relative;
   float: right;
   line-height: normal;
@@ -106,7 +115,7 @@
   float: right;
   line-height: normal;
   margin-right: 4px;
-  color: black;
+  color: #000000;
   margin-top: 12px;
 }
 .mblListItemLabel {
@@ -121,7 +130,7 @@
 }
 .mblListItemSubText {
   font-size: 14px;
-  color: gray;
+  color: #2d2d2d;
 }
 .mblListItemLayoutLeft {
   position: relative;
@@ -142,6 +151,7 @@
   border: 1px solid gray;
   opacity: 0.5;
   -webkit-box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
-  -webkit-border-radius: 0px !important;
+  box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+  border-radius: 0px !important;
   -moz-border-radius: 0px !important;
 }

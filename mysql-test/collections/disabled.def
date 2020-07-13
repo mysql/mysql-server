@@ -39,6 +39,9 @@ innodb.innodb_bug14676111                         : BUG#18200831 The test has ne
 innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
 innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten 
 
+# keyring tests
+keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
+
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
 
@@ -62,10 +65,14 @@ max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test 
 # perfschema suite test
 perfschema.threads_history      : BUG#27712231
 perfschema.ssl                  : BUG#30910698
+perfschema.idx_compare_events_waits_current : BUG#27865960
+perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040
 rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
+rpl_gtid.rpl_xa_prepare : BUG#31006095 Disabled due to crash during shutdown.
+rpl_gtid.rpl_xa_with_filters_error_msg : BUG#31006095 Disabled due to crash during shutdown.
 
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
@@ -73,6 +80,10 @@ rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
+rpl.rpl_xa_with_filters_binlogless_slave : BUG#31006095 Disabled due to crash during shutdown.
+
+# sys_vars tests
+sys_vars.max_execution_time_basic @freebsd : BUG#31041720
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.

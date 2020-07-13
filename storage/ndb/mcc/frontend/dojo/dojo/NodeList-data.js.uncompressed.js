@@ -48,7 +48,7 @@ define("dojo/NodeList-data", [
 		if(!dataCache[pid]){ dataCache[pid] = {}; }
 
 		// API discrepency: calling with only a node returns the whole object. $.data throws
-		if(arguments.length == 1){ r = dataCache[pid]; }
+		if(arguments.length == 1){ return dataCache[pid]; }
 		if(typeof key == "string"){
 			// either getter or setter, based on `value` presence
 			if(arguments.length > 2){
@@ -83,7 +83,7 @@ define("dojo/NodeList-data", [
 		}
 	};
 
-	dojo._gcNodeData = function(){
+	NodeList._gcNodeData = dojo._gcNodeData = function(){
 		// summary:
 		//		super expensive: GC all data in the data for nodes that no longer exist in the dom.
 		// description:
@@ -110,66 +110,72 @@ define("dojo/NodeList-data", [
 	/*=====
 	 lang.extend(NodeList, {
 		 data: function(key, value){
-			 // summary:
-			 //		stash or get some arbitrary data on/from these nodes.
-			 //
-			 // description:
-			 //		Stash or get some arbitrary data on/from these nodes. This private _data function is
-			 //		exposed publicly on `dojo/NodeList`, eg: as the result of a `dojo.query` call.
-			 //		DIFFERS from jQuery.data in that when used as a getter, the entire list is ALWAYS
-			 //		returned. EVEN WHEN THE LIST IS length == 1.
-			 //
-			 //		A single-node version of this function is provided as `dojo._nodeData`, which follows
-			 //		the same signature, though expects a String ID or DomNode reference in the first
-			 //		position, before key/value arguments.
-			 //
-			 // node: String|DomNode
-			 //		The node to associate data with
-			 //
-			 // key: Object|String?
-			 //		If an object, act as a setter and iterate over said object setting data items as defined.
-			 //		If a string, and `value` present, set the data for defined `key` to `value`
-			 //		If a string, and `value` absent, act as a getter, returning the data associated with said `key`
-			 //
-			 // value: Anything?
-			 //		The value to set for said `key`, provided `key` is a string (and not an object)
-			 //
-			 // example:
-			 //		Set a key `bar` to some data, then retrieve it.
-			 //	|	dojo.query(".foo").data("bar", "touched");
-			 //	|	var touched = dojo.query(".foo").data("bar");
-			 //	|	if(touched[0] == "touched"){ alert('win'); }
-			 //
-			 // example:
-			 //		Get all the data items for a given node.
-			 //	|	var list = dojo.query(".foo").data();
-			 //	|	var first = list[0];
-			 //
-			 // example:
-			 //		Set the data to a complex hash. Overwrites existing keys with new value
-			 //	|	dojo.query(".foo").data({ bar:"baz", foo:"bar" });
-			 //		Then get some random key:
-			 //	|	dojo.query(".foo").data("foo"); // returns [`bar`]
-			 //
-			 // returns: Object|Anything|Nothing
-			 //		When used as a setter via `dojo/NodeList`, a NodeList instance is returned
-			 //		for further chaining. When used as a getter via `dojo/NodeList` an ARRAY
-			 //		of items is returned. The items in the array correspond to the elements
-			 //		in the original list. This is true even when the list length is 1, eg:
-			 //		when looking up a node by ID (#foo)
+			// summary:
+			//		stash or get some arbitrary data on/from these nodes.
+			//
+			// description:
+			//		Stash or get some arbitrary data on/from these nodes. This private _data function is
+			//		exposed publicly on `dojo/NodeList`, eg: as the result of a `dojo/query` call.
+			//		DIFFERS from jQuery.data in that when used as a getter, the entire list is ALWAYS
+			//		returned. EVEN WHEN THE LIST IS length == 1.
+			//
+			//		A single-node version of this function is provided as `dojo._nodeData`, which follows
+			//		the same signature, though expects a String ID or DomNode reference in the first
+			//		position, before key/value arguments.
+			//
+			// node: String|DomNode
+			//		The node to associate data with
+			//
+			// key: Object|String?
+			//		If an object, act as a setter and iterate over said object setting data items as defined.
+			//		If a string, and `value` present, set the data for defined `key` to `value`
+			//		If a string, and `value` absent, act as a getter, returning the data associated with said `key`
+			//
+			// value: Anything?
+			//		The value to set for said `key`, provided `key` is a string (and not an object)
+			//
+			// example:
+			//		Set a key `bar` to some data, then retrieve it.
+			//	|	require(["dojo/query", "dojo/NodeList-data"], function(query){
+			//	|		query(".foo").data("bar", "touched");
+			//	|		var touched = query(".foo").data("bar");
+			//	|		if(touched[0] == "touched"){ alert('win'); }
+			//	|	});
+			//
+			// example:
+			//		Get all the data items for a given node.
+			//	|	require(["dojo/query", "dojo/NodeList-data"], function(query){
+			//	|		var list = query(".foo").data();
+			//	|		var first = list[0];
+			//	|	});
+			//
+			// example:
+			//		Set the data to a complex hash. Overwrites existing keys with new value
+			//	|	require(["dojo/query", "dojo/NodeList-data"], function(query){
+			//	|		query(".foo").data({ bar:"baz", foo:"bar" });
+			//		Then get some random key:
+			//	|		query(".foo").data("foo"); // returns [`bar`]
+			//	|	});
+			//
+			// returns: Object|Anything|Nothing
+			//		When used as a setter via `dojo/NodeList`, a NodeList instance is returned
+			//		for further chaining. When used as a getter via `dojo/NodeList` an ARRAY
+			//		of items is returned. The items in the array correspond to the elements
+			//		in the original list. This is true even when the list length is 1, eg:
+			//		when looking up a node by ID (#foo)
 		 },
 
 		 removeData: function(key){
-			 // summary:
-			 //		Remove the data associated with these nodes.
-			 // key: String?
-			 //		If omitted, clean all data for this node.
-			 //		If passed, remove the data item found at `key`
+			// summary:
+			//		Remove the data associated with these nodes.
+			// key: String?
+			//		If omitted, clean all data for this node.
+			//		If passed, remove the data item found at `key`
 		 }
 	 });
 	 =====*/
 
-// TODO: this is the basic implementation of adaptWithCondtionAndWhenMappedConsiderLength, for lack of a better API name
+// TODO: this is the basic implementation of adaptWithConditionAndWhenMappedConsiderLength, for lack of a better API name
 // it conflicts with the the `dojo/NodeList` way: always always return an arrayLike thinger. Consider for 2.0:
 //
 //	NodeList.prototype.data = function(key, value){

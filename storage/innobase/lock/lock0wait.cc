@@ -72,10 +72,10 @@ static void lock_wait_table_release_slot(
 #endif /* UNIV_DEBUG */
 
   lock_wait_mutex_enter();
-  /* We omit trx_mutex_enter and lock_mutex_enter here, because we are only
+  /* We omit trx_mutex_enter and a lock_sys latches here, because we are only
   going to touch thr->slot, which is a member used only by lock0wait.cc and is
   sufficiently protected by lock_wait_mutex. Yes, there are readers who read
-  the thr->slot holding only trx->mutex and lock_sys->mutex, but they do so,
+  the thr->slot holding only trx->mutex and a lock_sys latch, but they do so,
   when they are sure that we were not woken up yet, so our thread can't be here.
   See comments in lock_wait_release_thread_if_suspended() for more details. */
 
@@ -143,7 +143,7 @@ static srv_slot_t *lock_wait_table_reserve_slot(
       slot->thr->slot = slot;
 
       if (slot->event == nullptr) {
-        slot->event = os_event_create(nullptr);
+        slot->event = os_event_create();
         ut_a(slot->event);
       }
 
@@ -379,15 +379,22 @@ static void lock_wait_release_thread_if_suspended(que_thr_t *thr) {
     2. the only call to os_event_set is in lock_wait_release_thread_if_suspended
     3. calls to lock_wait_release_thread_if_suspended are always performed after
     a call to lock_reset_lock_and_trx_wait(lock), and the sequence of the two is
-    in a critical section guarded by lock_mutex_enter
+    in a critical section guarded by lock_sys latch for the shard containing the
+    waiting lock
     4. the lock_reset_lock_and_trx_wait(lock) asserts that
     lock->trx->lock.wait_lock == lock and sets lock->trx->lock.wait_lock = NULL
   Together all this facts imply, that it is impossible for a single trx to be
   woken up twice (unless it got to sleep again) because doing so requires
   reseting wait_lock to NULL.
 
-  We now hold exclusive lock_sys latch. */
-  ut_ad(lock_mutex_own());
+  We now hold either an exclusive lock_sys latch, or just for the shard which
+  contains the lock which used to be trx->lock.wait_lock, but we can not assert
+  that because trx->lock.wait_lock is now NULL so we don't know for which shard
+  we hold the latch here. So, please imagine something like:
+
+    ut_ad(locksys::owns_lock_shard(lock->trx->lock.wait_lock));
+  */
+
   ut_ad(trx_mutex_own(trx));
 
   /* We don't need the lock_wait_mutex here, because we know that the thread
@@ -419,13 +426,9 @@ static void lock_wait_release_thread_if_suspended(que_thr_t *thr) {
 }
 
 void lock_reset_wait_and_release_thread_if_suspended(lock_t *lock) {
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_lock_shard(lock));
   ut_ad(trx_mutex_own(lock->trx));
   ut_ad(lock->trx->lock.wait_lock == lock);
-
-  /* Reset the wait flag and the back pointer to lock in trx */
-
-  lock_reset_lock_and_trx_wait(lock);
 
   /* We clear blocking_trx here and not in lock_reset_lock_and_trx_wait(), as
   lock_reset_lock_and_trx_wait() is called also when the wait_lock is being
@@ -434,23 +437,29 @@ void lock_reset_wait_and_release_thread_if_suspended(lock_t *lock) {
   and assigned to trx->lock.wait_lock, but the information about blocking trx
   is not so easy to restore, so it is easier to simply not clear blocking_trx
   until we are 100% sure that we want to wake up the trx, which is now.
-  Actually, clearing blocking_trx is not strictly required from correctness
-  perspective, it rather serves for:
+  Clearing blocking_trx helps with:
   1. performance optimization, as lock_wait_snapshot_waiting_threads() can omit
      this trx when building wait-for-graph
   2. debugging, as reseting blocking_trx makes it easier to spot it was not
-     properly set on subsequent waits. */
+     properly set on subsequent waits.
+  3. helping lock_make_trx_hit_list() notice that HP trx is no longer waiting
+     for a lock, so it can take a fast path */
   lock->trx->lock.blocking_trx.store(nullptr);
 
-  /* We only release locks for which someone is waiting, and the trx which
-  decided to wait for the lock should have already set trx->lock.que_state to
-  TRX_QUE_LOCK_WAIT and called que_thr_stop() before releasing the lock-sys
-  latch. */
+  /* We only release locks for which someone is waiting, and we posses a latch
+  on the shard in which the lock is stored, and the trx which decided to wait
+  for the lock should have already set trx->lock.que_state to TRX_QUE_LOCK_WAIT
+  and called que_thr_stop() before releasing the latch on this shard. */
   ut_ad(lock->trx_que_state() == TRX_QUE_LOCK_WAIT);
 
   /* The following function releases the trx from lock wait */
 
   que_thr_t *thr = que_thr_end_lock_wait(lock->trx);
+
+  /* Reset the wait flag and the back pointer to lock in trx.
+  It is important to call it only after we obtain lock->trx->mutex, because
+  trx_mutex_enter makes some assertions based on trx->lock.wait_lock value */
+  lock_reset_lock_and_trx_wait(lock);
 
   if (thr != nullptr) {
     lock_wait_release_thread_if_suspended(thr);
@@ -480,14 +489,14 @@ static void lock_wait_check_and_cancel(
   if (trx_is_interrupted(trx) ||
       (slot->wait_timeout < 100000000 &&
        (wait_time > (int64_t)slot->wait_timeout || wait_time < 0))) {
-    /* Timeout exceeded or a wrap-around in system
-    time counter: cancel the lock request queued
-    by the transaction and release possible
-    other transactions waiting behind; it is
-    possible that the lock has already been
-    granted: in that case do nothing */
-
-    lock_mutex_enter();
+    /* Timeout exceeded or a wrap-around in system time counter: cancel the lock
+    request queued by the transaction and release possible other transactions
+    waiting behind; it is possible that the lock has already been granted: in
+    that case do nothing.
+    The lock_cancel_waiting_and_release() needs exclusive global latch.
+    Also, we need to latch the shard containing wait_lock to read the field and
+    access the lock itself. */
+    locksys::Global_exclusive_latch_guard guard{};
 
     trx_mutex_enter(trx);
 
@@ -496,8 +505,6 @@ static void lock_wait_check_and_cancel(
 
       lock_cancel_waiting_and_release(trx->lock.wait_lock);
     }
-
-    lock_mutex_exit();
 
     trx_mutex_exit(trx);
   }
@@ -520,7 +527,7 @@ struct waiting_trx_info_t {
 sorting criterion which is based on trx only. We use the pointer address, as
 any deterministic rule without ties will do. */
 bool operator<(const waiting_trx_info_t &a, const waiting_trx_info_t &b) {
-  return a.trx < b.trx;
+  return std::less<trx_t *>{}(a.trx, b.trx);
 }
 
 /** Check all slots for user threads that are waiting on locks, and if they have
@@ -531,8 +538,9 @@ static void lock_wait_check_slots_for_timeouts() {
 
   for (auto slot = lock_sys->waiting_threads; slot < lock_sys->last_slot;
        ++slot) {
-    /* We are doing a read without the lock mutex and/or the trx mutex. This is
-    OK because a slot can't be freed or reserved without the lock wait mutex. */
+    /* We are doing a read without latching the lock_sys or the trx mutex.
+    This is OK, because a slot can't be freed or reserved without the lock wait
+    mutex. */
     if (slot->in_use) {
       lock_wait_check_and_cancel(slot);
     }
@@ -657,7 +665,10 @@ static void lock_wait_build_wait_for_graph(
   sort(infos.begin(), infos.end());
   waiting_trx_info_t needle{};
   for (uint from = 0; from < n; ++from) {
-    ut_ad(from == 0 || infos[from - 1].trx < infos[from].trx);
+    /* Assert that the order used by sort and lower_bound depends only on the
+    trx field, as this is the only one we will initialize in the needle. */
+    ut_ad(from == 0 ||
+          std::less<trx_t *>{}(infos[from - 1].trx, infos[from].trx));
     needle.trx = infos[from].waits_for;
     auto it = std::lower_bound(infos.begin(), infos.end(), needle);
 
@@ -675,11 +686,13 @@ static void lock_wait_build_wait_for_graph(
 static void lock_wait_rollback_deadlock_victim(trx_t *chosen_victim) {
   ut_ad(!trx_mutex_own(chosen_victim));
   /* The call to lock_cancel_waiting_and_release requires exclusive latch on
-  whole lock_sys in case of table locks.*/
-  ut_ad(lock_mutex_own());
+  whole lock_sys.
+  Also, we need to latch the shard containing wait_lock to read it and access
+  the lock itself.*/
+  ut_ad(locksys::owns_exclusive_global_latch());
   trx_mutex_enter(chosen_victim);
   chosen_victim->lock.was_chosen_as_deadlock_victim = true;
-  ut_a(chosen_victim->lock.wait_lock);
+  ut_a(chosen_victim->lock.wait_lock != nullptr);
   ut_a(chosen_victim->lock.que_state == TRX_QUE_LOCK_WAIT);
   lock_cancel_waiting_and_release(chosen_victim->lock.wait_lock);
   trx_mutex_exit(chosen_victim);
@@ -905,7 +918,7 @@ static trx_t *lock_wait_choose_victim(
   on the whole lock_sys. In theory number of locks should not change while the
   transaction is waiting, but instead of proving that they can not wake up, it
   is easier to assert that we hold the mutex */
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(!cycle_ids.empty());
   trx_t *chosen_victim = nullptr;
   auto sorted_trxs = lock_wait_order_for_choosing_victim(cycle_ids, infos);
@@ -969,7 +982,8 @@ static bool lock_wait_trxs_are_still_in_slots(
 in it which form a deadlock cycle, checks if the transactions allegedly forming
 the deadlock have actually still wait for a lock, as opposed to being already
 notified about lock being granted or timeout, but still being present in the
-slot. This is done by checking trx->lock.wait_lock under lock_sys mutex.
+slot. This is done by checking trx->lock.wait_lock under exclusive global
+lock_sys latch.
 @param[in]    cycle_ids   indexes in `infos` array, of transactions forming the
                           deadlock cycle
 @param[in]    infos       information about all waiting transactions
@@ -980,8 +994,9 @@ static bool lock_wait_trxs_are_still_waiting(
   ut_ad(lock_wait_mutex_own());
   /* We are iterating over various transaction which may have locks in different
   tables/rows, thus we need exclusive latch on the whole lock_sys to make sure
-  no one will wake them up (say, a high priority trx could abort them) */
-  ut_ad(lock_mutex_own());
+  no one will wake them up (say, a high priority trx could abort them) or change
+  the wait_lock to NULL temporarily during B-tree page reorganization. */
+  ut_ad(locksys::owns_exclusive_global_latch());
 
   for (auto id : cycle_ids) {
     const auto trx = infos[id].trx;
@@ -1146,7 +1161,7 @@ static bool lock_wait_check_candidate_cycle(
     ut::vector<uint> &cycle_ids, const ut::vector<waiting_trx_info_t> &infos,
     ut::vector<trx_schedule_weight_t> &new_weights) {
   ut_ad(!lock_wait_mutex_own());
-  ut_ad(!lock_mutex_own());
+  ut_ad(!locksys::owns_exclusive_global_latch());
   lock_wait_mutex_enter();
   /*
   We have released all mutexes after we have built the `infos` snapshot and
@@ -1160,8 +1175,8 @@ static bool lock_wait_check_candidate_cycle(
   If it has not changed, then we know that the trx's pointer still points to the
   same trx as the trx is sleeping, and thus has not finished and wasn't freed.
   So, we start by first checking that the slots still contain the trxs we are
-  interested in. This requires lock_wait_mutex, but not lock_mutex.
-  */
+  interested in. This requires lock_wait_mutex, but does not require the
+  exclusive global latch. */
   if (!lock_wait_trxs_are_still_in_slots(cycle_ids, infos)) {
     lock_wait_mutex_exit();
     return false;
@@ -1182,11 +1197,10 @@ static bool lock_wait_check_candidate_cycle(
   situation by looking at trx->lock.wait_lock, as each call to
   lock_wait_release_thread_if_suspended() is performed only after
   lock_reset_lock_and_trx_wait() resets trx->lock.wait_lock to NULL.
-  Checking trx->lock.wait_lock must be done under lock_mutex.
+  Checking trx->lock.wait_lock in reliable way requires global exclusive latch.
   */
-  lock_mutex_enter();
+  locksys::Global_exclusive_latch_guard gurad{};
   if (!lock_wait_trxs_are_still_waiting(cycle_ids, infos)) {
-    lock_mutex_exit();
     lock_wait_mutex_exit();
     return false;
   }
@@ -1195,11 +1209,11 @@ static bool lock_wait_check_candidate_cycle(
   We can now release lock_wait_mutex, because:
 
   1. we have verified that trx->lock.wait_lock is not NULL for cycle_ids
-  2. we hold lock_sys->mutex
-  3. lock_sys->mutex is required to change trx->lock.wait_lock to NULL
+  2. we hold exclusive global lock_sys latch
+  3. lock_sys latch is required to change trx->lock.wait_lock to NULL
   4. only after changing trx->lock.wait_lock to NULL a trx can finish
 
-  So as long as we hold lock_sys->mutex we can access trxs.
+  So as long as we hold exclusive global lock_sys latch we can access trxs.
   */
 
   lock_wait_mutex_exit();
@@ -1209,7 +1223,6 @@ static bool lock_wait_check_candidate_cycle(
 
   lock_wait_handle_deadlock(chosen_victim, cycle_ids, infos, new_weights);
 
-  lock_mutex_exit();
   return true;
 }
 
@@ -1434,5 +1447,5 @@ void lock_wait_timeout_thread() {
     os_event_wait_time_low(event, 1000000, sig_count);
     sig_count = os_event_reset(event);
 
-  } while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE);
+  } while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP);
 }

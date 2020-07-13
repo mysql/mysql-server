@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1651,8 +1651,6 @@ inline Uint8 Dbacc::Page32Lists::least_free_list(Uint16 list_id_set)
  *
  * Return the 8KiB sub pages that are free for 32KiB pages in a given
  * list.
- *
- * @param[in] list_id
  *
  * @returns A bitmask of four bits, with bit set for 8KiB page free.
  */

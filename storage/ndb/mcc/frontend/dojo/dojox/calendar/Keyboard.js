@@ -48,7 +48,7 @@ if(!_10&&_a==0){
 _10=true;
 }
 var _11=_b[_a];
-if(this.itemToRenderer[_11.id]!=null){
+if(this.rendererManager.itemToRenderer[_11.id]!=null){
 this.set("focusedItem",_11);
 return;
 }
@@ -78,28 +78,59 @@ this.set("selectedItem",_13);
 if(_13){
 this.ensureVisibility(_13.startTime,_13.endTime,"both",undefined,this.maxScrollAnimationDuration);
 }
+},_checkDir:function(dir,_14){
+return this.isLeftToRight()&&dir==_14||!this.isLeftToRight()&&dir==(_14=="left"?"right":"left");
 },_keyboardItemEditing:function(e,dir){
 _4.stop(e);
 var p=this._edProps;
-var _14,_15;
+var _15,_16;
 if(p.editedItem.allDay||this.roundToDay||p.rendererKind=="label"){
-_14=dir=="up"||dir=="down"?this.allDayKeyboardUpDownUnit:this.allDayKeyboardLeftRightUnit;
-_15=dir=="up"||dir=="down"?this.allDayKeyboardUpDownSteps:this.allDayKeyboardLeftRightSteps;
+_15=dir=="up"||dir=="down"?this.allDayKeyboardUpDownUnit:this.allDayKeyboardLeftRightUnit;
+_16=dir=="up"||dir=="down"?this.allDayKeyboardUpDownSteps:this.allDayKeyboardLeftRightSteps;
 }else{
-_14=dir=="up"||dir=="down"?this.keyboardUpDownUnit:this.keyboardLeftRightUnit;
-_15=dir=="up"||dir=="down"?this.keyboardUpDownSteps:this.keyboardLeftRightSteps;
+_15=dir=="up"||dir=="down"?this.keyboardUpDownUnit:this.keyboardLeftRightUnit;
+_16=dir=="up"||dir=="down"?this.keyboardUpDownSteps:this.keyboardLeftRightSteps;
 }
-if(dir=="up"||!this.isLeftToRight()&&dir=="right"||this.isLeftToRight()&&dir=="left"){
-_15=-_15;
+if(dir=="up"||this._checkDir(dir,"left")){
+_16=-_16;
 }
-var _16=e[this.resizeModifier+"Key"]?"resizeEnd":"move";
-var d=_16=="resizeEnd"?p.editedItem.endTime:p.editedItem.startTime;
-var _17=this.renderData.dateModule.add(d,_14,_15);
-this._startItemEditingGesture([d],_16,"keyboard",e);
-this._moveOrResizeItemGesture([_17],"keyboard",e);
-this._endItemEditingGesture(_16,"keyboard",e,false);
-if(_16=="move"){
-if(this.renderData.dateModule.compare(_17,d)==-1){
+var _17=e[this.resizeModifier+"Key"]?"resizeEnd":"move";
+var d=_17=="resizeEnd"?p.editedItem.endTime:p.editedItem.startTime;
+var _18=d;
+var _19=p.editedItem.subColumn;
+if(_17=="move"&&this.subColumns&&this.subColumns.length>1){
+var idx=this.getSubColumnIndex(_19);
+var _1a=true;
+if(idx!=-1){
+if(this._checkDir(dir,"left")){
+if(idx==0){
+_19=this.subColumns[this.subColumns.length-1];
+}else{
+_1a=false;
+_19=this.subColumns[idx-1];
+}
+}else{
+if(this._checkDir(dir,"right")){
+if(idx==this.subColumns.length-1){
+_19=this.subColumns[0];
+}else{
+_1a=false;
+_19=this.subColumns[idx+1];
+}
+}
+}
+if(_1a){
+_18=this.renderData.dateModule.add(d,_15,_16);
+}
+}
+}else{
+_18=this.renderData.dateModule.add(d,_15,_16);
+}
+this._startItemEditingGesture([d],_17,"keyboard",e);
+this._moveOrResizeItemGesture([_18],"keyboard",e,_19);
+this._endItemEditingGesture(_17,"keyboard",e,false);
+if(_17=="move"){
+if(this.renderData.dateModule.compare(_18,d)==-1){
 this.ensureVisibility(p.editedItem.startTime,p.editedItem.endTime,"start");
 }else{
 this.ensureVisibility(p.editedItem.startTime,p.editedItem.endTime,"end");
@@ -108,7 +139,7 @@ this.ensureVisibility(p.editedItem.startTime,p.editedItem.endTime,"end");
 this.ensureVisibility(p.editedItem.startTime,p.editedItem.endTime,"end");
 }
 },_onKeyDown:function(e){
-var _18=this.get("focusedItem");
+var _1b=this.get("focusedItem");
 switch(e.keyCode){
 case _5.ESCAPE:
 if(this._isEditing){
@@ -121,21 +152,21 @@ this._edProps=null;
 break;
 case _5.SPACE:
 _4.stop(e);
-if(_18!=null){
-this.setItemSelected(_18,e.ctrlKey?!this.isItemSelected(_18):true);
+if(_1b!=null){
+this.setItemSelected(_1b,e.ctrlKey?!this.isItemSelected(_1b):true);
 }
 break;
 case _5.ENTER:
 _4.stop(e);
-if(_18!=null){
+if(_1b!=null){
 if(this._isEditing){
 this._endItemEditing("keyboard",false);
 }else{
-var _19=this.itemToRenderer[_18.id];
-if(_19&&_19.length>0&&this.isItemEditable(_18,_19[0].kind)){
-this._edProps={renderer:_19[0],rendererKind:_19[0].kind,tempEditedItem:_18,liveLayout:this.liveLayout};
-this.set("selectedItem",_18);
-this._startItemEditing(_18,"keyboard");
+var _1c=this.rendererManager.itemToRenderer[_1b.id];
+if(_1c&&_1c.length>0&&this.isItemEditable(_1b,_1c[0].kind)){
+this._edProps={renderer:_1c[0],rendererKind:_1c[0].kind,tempEditedItem:_1b,liveLayout:this.liveLayout};
+this.set("selectedItem",_1b);
+this._startItemEditing(_1b,"keyboard");
 }
 }
 }

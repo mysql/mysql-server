@@ -1,6 +1,3 @@
-.dijitRtl .soria .dijitTitlePane .dijitClosed .dijitArrowNode {
-	background-position: 0 top;
-}
-.dj_ie6-rtl .soria .dijitTitlePane .dijitClosed .dijitArrowNode {
+.soria .dijitTitlePaneRtl .dijitClosed .dijitArrowNode, .soria .dijitFieldsetRtl .dijitFieldsetTitleClosed .dijitArrowNode {
 	background-position: 0 top;
 }

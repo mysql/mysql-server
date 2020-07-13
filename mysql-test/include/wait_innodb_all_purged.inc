@@ -57,7 +57,7 @@ WHERE VARIABLE_NAME = 'INNODB_PURGE_VIEW_TRX_ID_AGE';`;
     if (!$success)
     {
         set global innodb_purge_run_now=ON;
-        real_sleep 0.1;
+        sleep 0.1;
         dec $wait_counter;
     }
 }

@@ -145,7 +145,7 @@
 .dijitIconFolderClosed, .dijitFolderClosed { background-position: -464px; }
 .dijitIconFolderOpen, .dijitFolderOpened { background-position: -480px; }
 .dijitIconLoading {
-	background:url('images/loadingAnimation_rtl.gif') no-repeat;
+	background: url('images/loadingAnimation.gif') no-repeat;
 	height: 20px;
 	width: 20px;
 }

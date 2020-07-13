@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class Server_side_cursor {
 
   static void operator delete(void *ptr, size_t size);
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* never called */
   }
 };
 

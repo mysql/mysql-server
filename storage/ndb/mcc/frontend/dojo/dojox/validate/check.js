@@ -175,25 +175,37 @@ continue;
 if(!_b("tagName",_e)&&(_e.tagName.toLowerCase().indexOf("input")>=0||_e.tagName.toLowerCase().indexOf("textarea")>=0)&&/^\s*$/.test(_e.value)){
 continue;
 }
-var _15=true;
+var _15;
 if(_2.isFunction(_5.constraints[_12])){
 _15=_5.constraints[_12](_e.value);
+}else{
+if(_2.isFunction(_2.getObject(_12,false,_5.constraints))){
+_15=_2.getObject(_12,false,_5.constraints)(_e.value);
 }else{
 if(_2.isArray(_5.constraints[_12])){
 if(_2.isArray(_5.constraints[_12][0])){
 for(var i=0;i<_5.constraints[_12].length;i++){
 _15=_3.evaluateConstraint(_5,_5.constraints[_12][i],_12,_e);
-if(!_15){
+if(!_15.isValid){
 break;
 }
 }
+}else{
+if(_2.isFunction(_2.getObject(_12,false,_5.constraints))){
+_15=_3.evaluateConstraint(_5,_5.constraints[_5.constraints[_12]],_12,_e);
 }else{
 _15=_3.evaluateConstraint(_5,_5.constraints[_12],_12,_e);
 }
 }
 }
+}
+}
 if(!_15){
 _7[_7.length]=_e.name;
+}else{
+if(typeof _15!=="boolean"&&!_15.isValid){
+_7[_7.length]={field:_e.name,message:_15.message};
+}
 }
 }
 }
@@ -213,8 +225,14 @@ _3.evaluateConstraint=function(_16,_17,_18,_19){
 var _1a=_17[0];
 var _1b=_17.slice(1);
 _1b.unshift(_19.value);
-if(typeof _1a!="undefined"){
+if(typeof _1a!="undefined"&&typeof _1a!="string"){
 return _1a.apply(null,_1b);
+}else{
+if(typeof _1a!="undefined"&&typeof _1a=="string"){
+if(_2.isFunction(_2.getObject(_1a))){
+return _2.getObject(_1a).apply(null,_1b);
+}
+}
 }
 return false;
 };

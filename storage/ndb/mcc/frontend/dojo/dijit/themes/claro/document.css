@@ -122,12 +122,14 @@ table {  font-size:100%; }
 .claro p {
   line-height: 1.3em;
 }
-.claro pre, .claro code {
+.claro pre,
+.claro code {
   font-family: inherit;
   background-color: #efefef;
   border: 1px solid #d3d3d3;
 }
-.claro table.dojoTabular thead, .claro table.dojoTabular tfoot {
+.claro table.dojoTabular thead,
+.claro table.dojoTabular tfoot {
   background-color: #efefef;
   border: 1px solid #d3d3d3;
 }

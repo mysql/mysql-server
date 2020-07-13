@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,6 @@ void ndb_unpack_varchar(const NdbDictionary::Column *column, size_t offset,
 /**
    @brief ndb_get_extra_metadata_version, returns the version of the
           extra metadata attached to the table in NDB.
-   @param ndbtab
    @return version of extra metadata or 0 if none
  */
 Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab);
@@ -92,7 +91,7 @@ Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab);
    table in NDB.
 
    @param ndbtab The NDB table
-   @param serialized_metadata[out] variabel to receive the serialized metadata
+   @param[out] serialized_metadata variable to receive the serialized metadata
 
    @return true if table has extra metadata version 2
 */
@@ -101,7 +100,6 @@ bool ndb_table_get_serialized_metadata(const NdbDictionary::Table *ndbtab,
 
 /**
  * @brief ndb_table_has_blobs, check if the NDB table has blobs
- * @param ndbtab
  * @return true if the table have blobs
  */
 bool ndb_table_has_blobs(const NdbDictionary::Table *ndbtab);
@@ -110,14 +108,12 @@ bool ndb_table_has_blobs(const NdbDictionary::Table *ndbtab);
  * @brief ndb_table_has_hidden_pk, check if the NDB table has a hidden
  *        primary key(as created by ndbcluster to support having table
  *        without primary key in NDB)
- * @param ndbtab
  * @return true if the table has a hidden primary key
  */
 bool ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab);
 
 /**
  * @brief check if the NDB table has tablespace
- * @param ndbtab
  * @return true if the table has a tablespace
  *
  * @note This is indicated either by the table having a tablespace name
@@ -128,7 +124,6 @@ bool ndb_table_has_tablespace(const NdbDictionary::Table *ndbtab);
 /**
  * @brief check if the NDB table has tablespace name indicating
  *        that is has a tablespace
- * @param ndbtab
  * @return nullptr or tablespace name
  *
  * @note The NdbApi function getTablespaceName() is peculiar as it

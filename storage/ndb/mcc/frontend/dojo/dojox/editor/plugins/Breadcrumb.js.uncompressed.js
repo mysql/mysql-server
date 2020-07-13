@@ -9,8 +9,6 @@ define("dojox/editor/plugins/Breadcrumb", [
 	"dijit/Menu",
 	"dijit/MenuItem",
 	"dijit/MenuSeparator",
-	"dijit/_editor/range",
-	"dijit/_editor/selection",
 	"dijit/_editor/_Plugin",
 	"dijit/form/Button",
 	"dijit/form/ComboButton",
@@ -20,11 +18,11 @@ define("dojox/editor/plugins/Breadcrumb", [
 	"dojo/string",
 	"dojo/i18n!dojox/editor/plugins/nls/Breadcrumb"
 ], function(dojo, dijit, dojox, _Widget, _TemplatedMixin, _Contained, Toolbar, Menu, MenuItem,
-	MenuSeparator, range, selection, _Plugin) {
+	MenuSeparator, _Plugin) {
 
 dojo.experimental("dojox.editor.plugins.Breadcrumb");
 
-dojo.declare("dojox.editor.plugins._BreadcrumbMenuTitle",[_Widget, _TemplatedMixin, _Contained],{
+var BreadcrumbMenuTitle = dojo.declare("dojox.editor.plugins._BreadcrumbMenuTitle",[_Widget, _TemplatedMixin, _Contained],{
 	// summary:
 	//		Simple internal, non-clickable, menu entry to act as a menu title bar.
 	templateString: "<tr><td dojoAttachPoint=\"title\" colspan=\"4\" class=\"dijitToolbar\" style=\"font-weight: bold; padding: 3px;\"></td></tr>",
@@ -46,7 +44,7 @@ dojo.declare("dojox.editor.plugins._BreadcrumbMenuTitle",[_Widget, _TemplatedMix
 });
 
 
-dojo.declare("dojox.editor.plugins.Breadcrumb", _Plugin,{
+var Breadcrumb = dojo.declare("dojox.editor.plugins.Breadcrumb", _Plugin,{
 	// summary:
 	//		This plugin provides Breadcrumb capability to the editor. As you move
 	//		around the editor, it updates with your current indention depth.
@@ -88,7 +86,7 @@ dojo.declare("dojox.editor.plugins.Breadcrumb", _Plugin,{
 			});
 			
 			// Build the menu
-			this._menuTitle = new dojox.editor.plugins._BreadcrumbMenuTitle({menuTitle: strings.nodeActions});
+			this._menuTitle = new BreadcrumbMenuTitle({menuTitle: strings.nodeActions});
 			this._selCMenu = new dijit.MenuItem({label: strings.selectContents, onClick: dojo.hitch(this, this._selectContents)});
 			this._delCMenu = new dijit.MenuItem({label: strings.deleteContents, onClick: dojo.hitch(this, this._deleteContents)});
 			this._selEMenu = new dijit.MenuItem({label: strings.selectElement, onClick: dojo.hitch(this, this._selectElement)});
@@ -340,15 +338,18 @@ dojo.declare("dojox.editor.plugins.Breadcrumb", _Plugin,{
 	}
 });
 
+// For monkey patching
+Breadcrumb._BreadcrumbMenuTitle = BreadcrumbMenuTitle;
+
 // Register this plugin.
 dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "breadcrumb"){
-		o.plugin = new dojox.editor.plugins.Breadcrumb({});
+		o.plugin = new Breadcrumb({});
 	}
 });
 
-return dojox.editor.plugins.Breadcrumb;
+return Breadcrumb;
 
 });

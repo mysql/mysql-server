@@ -12,7 +12,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 
 	var magicGuard = function(a){
 		// summary:
-		//		the guard function for dojo.attr() and dojo.style()
+		//		the guard function for dojo/dom-attr() and dojo/dom-style()
 		return a.length == 1 && (typeof a[0] == "string"); // inline'd type check
 	};
 
@@ -24,7 +24,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			p.removeChild(node);
 		}
 	};
-	// FIXME: should we move orphan() to dojo.html?
+	// FIXME: should we move orphan() to dojo/_base/html?
 
 	var NodeList = query.NodeList,
 		awc = NodeList._adaptWithCondition,
@@ -48,12 +48,12 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			// description:
 			//		If content is an object, it can have special properties "template" and
 			//		"parse". If "template" is defined, then the template value is run through
-			//		dojo.string.substitute (if dojo/string.substitute() has been dojo.required elsewhere),
+			//		dojo/string.substitute (if dojo/string.substitute() has been required elsewhere),
 			//		or if templateFunc is a function on the content, that function will be used to
 			//		transform the template into a final string to be used for for passing to dojo/dom-construct.toDom().
 			//		If content.parse is true, then it is remembered for later, for when the content
 			//		nodes are inserted into the DOM. At that point, the nodes will be parsed for widgets
-			//		(if dojo.parser has been dojo.required elsewhere).
+			//		(if dojo/parser has been required elsewhere).
 
 			//Wanted to just use a DocumentFragment, but for the array/NodeList
 			//case that meant using cloneNode, but we may not want that.
@@ -150,7 +150,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 		position: function(){
 			// summary:
 			//		Returns border-box objects (x/y/w/h) of all elements in a node list
-			//		as an Array (*not* a NodeList). Acts like `dojo.position`, though
+			//		as an Array (*not* a NodeList). Acts like `dojo/dom-geometry-position`, though
 			//		assumes the node passed is each node in this list.
 
 			return dojo.map(this, dojo.position); // Array
@@ -162,7 +162,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 		attr: function(property, value){
 			// summary:
 			//		gets or sets the DOM attribute for every element in the
-			//		NodeList. See also `dojo.attr`
+			//		NodeList. See also `dojo/dom-attr`
 			// property: String
 			//		the attribute to get/set
 			// value: String?
@@ -172,14 +172,20 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		If a value is passed, the return is this NodeList
 			// example:
 			//		Make all nodes with a particular class focusable:
-			//	|	dojo.query(".focusable").attr("tabIndex", -1);
+			//	|	require(["dojo/query", "dojo/NodeList-dom"], function(query){
+			//	|		query(".focusable").attr("tabIndex", -1);
+			//	|	});
 			// example:
 			//		Disable a group of buttons:
-			//	|	dojo.query("button.group").attr("disabled", true);
+			//	|	require(["dojo/query", "dojo/NodeList-dom"], function(query){
+			//	|		query("button.group").attr("disabled", true);
+			//	|	});
 			// example:
 			//		innerHTML can be assigned or retrieved as well:
 			//	|	// get the innerHTML (as an array) for each list item
-			//	|	var ih = dojo.query("li.replaceable").attr("innerHTML");
+			//	|	require(["dojo/query", "dojo/NodeList-dom"], function(query){
+			//	|		var ih = query("li.replaceable").attr("innerHTML");
+			//	|	});
 			return; // dojo/NodeList|Array
 		},
 		=====*/
@@ -305,7 +311,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 		place: function(/*String||Node*/ queryOrNode, /*String*/ position){
 			// summary:
 			//		places elements of this node list relative to the first element matched
-			//		by queryOrNode. Returns the original NodeList. See: `dojo.place`
+			//		by queryOrNode. Returns the original NodeList. See: `dojo/dom-construct.place`
 			// queryOrNode:
 			//		may be a string representing any valid CSS3 selector or a DOM node.
 			//		In the selector case, only the first matching element will be used
@@ -376,10 +382,13 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//	|		<p>great comedians may not be funny <span>in person</span></p>
 			//	|	</div>
 			//		If we are presented with the following definition for a NodeList:
-			//	|	var l = new NodeList(dojo.byId("foo"), dojo.byId("bar"));
+			//	|	require(["dojo/dom", "dojo/query", "dojo/NodeList-dom"
+			//	|	], function(dom, query){
+			//	|		var l = new NodeList(dom.byId("foo"), dom.byId("bar"));
 			//		it's possible to find all span elements under paragraphs
 			//		contained by these elements with this sub-query:
-			//	|	var spans = l.query("p span");
+			//	|		var spans = l.query("p span");
+			//	|	});
 
 			// FIXME: probably slow
 			if(!queryStr){ return this; }
@@ -405,14 +414,19 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		If a string, a CSS rule like ".thinger" or "div > span".
 			// example:
 			//		"regular" JS filter syntax as exposed in dojo.filter:
-			//		|	dojo.query("*").filter(function(item){
-			//		|		// highlight every paragraph
-			//		|		return (item.nodeName == "p");
-			//		|	}).style("backgroundColor", "yellow");
+			//	|	require(["dojo/query", "dojo/NodeList-dom"
+			//	|	], function(query){
+			//	|		query("*").filter(function(item){
+			//	|			// highlight every paragraph
+			//	|			return (item.nodeName == "p");
+			//	|		}).style("backgroundColor", "yellow");
+			//	|	});
 			// example:
-			//		the same filtering using a CSS selector
-			//		|	dojo.query("*").filter("p").styles("backgroundColor", "yellow");
-
+			//	the same filtering using a CSS selector
+			//	|	require(["dojo/query", "dojo/NodeList-dom"
+			//	|	], function(query){
+			//	|		query("*").filter("p").styles("backgroundColor", "yellow");
+			//	|	});
 			var a = arguments, items = this, start = 0;
 			if(typeof filter == "string"){ // inline'd type check
 				items = query._filterResult(this, a[0]);
@@ -468,38 +482,58 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		or an offset in the childNodes property
 			// example:
 			//		appends content to the end if the position is omitted
-			//	|	dojo.query("h3 > p").addContent("hey there!");
+			//	|	require(["dojo/query", "dojo/NodeList-dom"
+			//	|	], function(query){
+			//	|		query("h3 > p").addContent("hey there!");
+			//	|	});
 			// example:
 			//		add something to the front of each element that has a
 			//		"thinger" property:
-			//	|	dojo.query("[thinger]").addContent("...", "first");
+			//	|	require(["dojo/query", "dojo/NodeList-dom"
+			//	|	], function(query){
+			//	|		query("[thinger]").addContent("...", "first");
+			//	|	});
 			// example:
 			//		adds a header before each element of the list
-			//	|	dojo.query(".note").addContent("<h4>NOTE:</h4>", "before");
+			//	|	require(["dojo/query", "dojo/NodeList-dom"
+			//	|	], function(query){
+			//	|		query(".note").addContent("<h4>NOTE:</h4>", "before");
+			//	|	});
 			// example:
 			//		add a clone of a DOM node to the end of every element in
 			//		the list, removing it from its existing parent.
-			//	|	dojo.query(".note").addContent(dojo.byId("foo"));
+			//	|	require(["dojo/dom", "dojo/query", "dojo/NodeList-dom"
+			//	|	], function(dom, query){
+			//	|		query(".note").addContent(dom.byId("foo"));
+			//	|	});
 			// example:
 			//		Append nodes from a templatized string.
-			// |	dojo.require("dojo.string");
-			// |	dojo.query(".note").addContent({
-			// |		template: '<b>${id}: </b><span>${name}</span>',
-			// |		id: "user332",
-			// |		name: "Mr. Anderson"
-			// |	});
+			//	|	require(["dojo/string", "dojo/query", "dojo/NodeList-dom"
+			//	|	], function(string, query){
+			//	|		query(".note").addContent({
+			//	|			template: '<b>${id}: </b><span>${name}</span>',
+			//	|			id: "user332",
+			//	|			name: "Mr. Anderson"
+			//	|		});
+			//	|	});
 			// example:
 			//		Append nodes from a templatized string that also has widgets parsed.
-			// |	dojo.require("dojo.string");
-			// |	dojo.require("dojo.parser");
-			// |	var notes = dojo.query(".note").addContent({
-			// |		template: '<button dojoType="dijit/form/Button">${text}</button>',
-			// |		parse: true,
-			// |		text: "Send"
-			// |	});
+			//	|	require(["dojo/string", "dojo/parser", "dojo/query", "dojo/NodeList-dom"
+			//	|	], function(string, parser, query){
+			//	|		var notes = query(".note").addContent({
+			//	|			template: '<button dojoType="dijit/form/Button">${text}</button>',
+			//	|			parse: true,
+			//	|			text: "Send"
+			//	|		});
+			//	|	});
 			content = this._normalize(content, this[0]);
 			for(var i = 0, node; (node = this[i]); i++){
-				this._place(content, node, position, i > 0);
+				if(content.length){
+					this._place(content, node, position, i > 0);
+				}else{
+					// if it is an empty array, we empty the target node
+					domCtr.empty(node);
+				}
 			}
 			return this; // dojo/NodeList
 		}

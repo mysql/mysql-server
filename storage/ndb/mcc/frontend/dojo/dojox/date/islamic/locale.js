@@ -1,5 +1,5 @@
 //>>built
-define("dojox/date/islamic/locale",["../..","dojo/_base/lang","dojo/_base/array","dojo/date","dojo/i18n","dojo/regexp","dojo/string","./Date","dojo/i18n!dojo/cldr/nls/islamic"],function(_1,_2,_3,dd,_4,_5,_6,_7,_8){
+define("dojox/date/islamic/locale",["dojox/main","dojo/_base/lang","dojo/_base/array","dojo/date","dojo/i18n","dojo/regexp","dojo/string","./Date","dojo/i18n!dojo/cldr/nls/islamic"],function(_1,_2,_3,dd,_4,_5,_6,_7,_8){
 var _9=_2.getObject("date.islamic.locale",true,_1);
 function _a(_b,_c,_d,_e,_f){
 return _f.replace(/([a-z])\1*/ig,function(_10){

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -648,7 +648,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data) {
   if (m_table->found_next_number_field && new_data == m_table->record[0] &&
       !m_table->s->next_number_keypart &&
       bitmap_is_set(m_table->write_set,
-                    m_table->found_next_number_field->field_index)) {
+                    m_table->found_next_number_field->field_index())) {
     set_auto_increment_if_higher();
   }
   return error;
@@ -803,7 +803,7 @@ void Partition_helper ::get_auto_increment_first_field(
 inline void Partition_helper::set_auto_increment_if_higher() {
   Field_num *field = static_cast<Field_num *>(m_table->found_next_number_field);
   ulonglong nr =
-      (field->unsigned_flag || field->val_int() > 0) ? field->val_int() : 0;
+      (field->is_unsigned() || field->val_int() > 0) ? field->val_int() : 0;
   lock_auto_increment();
   if (!m_part_share->auto_inc_initialized) {
     initialize_auto_increment(false);
@@ -883,8 +883,8 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
           uint64 tmp1 = nr1;
           uint64 tmp2 = nr2;
 
-          my_charset_bin.coll->hash_sort(&my_charset_bin, field->ptr, len,
-                                         &tmp1, &tmp2);
+          my_charset_bin.coll->hash_sort(&my_charset_bin, field->field_ptr(),
+                                         len, &tmp1, &tmp2);
 
           // NOTE: This truncates to 32-bit on Windows, to keep on-disk
           // stability.
@@ -914,8 +914,8 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
           uint64 tmp1 = nr1;
           uint64 tmp2 = nr2;
 
-          my_charset_latin1.coll->hash_sort(&my_charset_latin1, field->ptr, len,
-                                            &tmp1, &tmp2);
+          my_charset_latin1.coll->hash_sort(
+              &my_charset_latin1, field->field_ptr(), len, &tmp1, &tmp2);
 
           // NOTE: This truncates to 32-bit on Windows, to keep on-disk
           // stability.
@@ -1444,8 +1444,8 @@ inline void Partition_helper::set_partition_read_set() {
     // with the one in update_generated_read_fields().
     for (Field **vf = m_table->vfield; vf && *vf; vf++) {
       if ((*vf)->is_virtual_gcol() &&
-          bitmap_is_set(m_table->read_set, (*vf)->field_index))
-        bitmap_set_bit(m_table->write_set, (*vf)->field_index);
+          bitmap_is_set(m_table->read_set, (*vf)->field_index()))
+        bitmap_set_bit(m_table->write_set, (*vf)->field_index());
     }
   }
 }

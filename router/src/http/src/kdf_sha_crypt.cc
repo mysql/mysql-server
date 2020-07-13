@@ -25,13 +25,15 @@
 #include "kdf_sha_crypt.h"
 
 #include <algorithm>
+#include <cstddef>  // size_t
+#include <cstdlib>  // std::strtol
 #include <cstring>
+#include <iterator>  // std::distance
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>  // std::tie
 #include <vector>
-
-#include <iostream>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>

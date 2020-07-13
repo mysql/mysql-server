@@ -135,7 +135,6 @@ RESTART;
 
 # Verify in the log file that the applier thread failed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_on_server_start
 --let $assert_text = The applier thread for channel ch3_2 failed to start
 --let $assert_select = The 'slave applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
 --let $assert_count = 1
@@ -143,7 +142,6 @@ RESTART;
 
 # Verify in the log file that the IO thread failed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_on_server_start
 --let $assert_text = The IO thread for channel ch3_2 failed to start
 --let $assert_select = The 'slave IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
 --let $assert_count = 1
@@ -167,7 +165,7 @@ DROP TABLE t1;
 --source include/rpl_sync.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("The 'slave IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
 call mtr.add_suppression("The 'slave applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");

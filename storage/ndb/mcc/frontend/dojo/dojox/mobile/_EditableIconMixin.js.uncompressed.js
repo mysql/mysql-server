@@ -4,14 +4,16 @@ define("dojox/mobile/_EditableIconMixin", [
 	"dojo/_base/declare",
 	"dojo/_base/event",
 	"dojo/_base/lang",
+	"dojo/_base/window",
 	"dojo/dom-geometry",
 	"dojo/dom-style",
 	"dojo/touch",
 	"dijit/registry",
 	"./IconItem",
 	"./sniff",
-	"./viewRegistry"
-], function(array, connect, declare, event, lang, domGeometry, domStyle, touch, registry, IconItem, has, viewRegistry){
+	"./viewRegistry",
+	"./_css3"
+], function(array, connect, declare, event, lang, win, domGeometry, domStyle, touch, registry, IconItem, has, viewRegistry, css3){
 
 	// module:
 	//		dojox/mobile/_EditableIconMixin
@@ -40,20 +42,20 @@ define("dojox/mobile/_EditableIconMixin", [
 			this.isEditing = true;
 			if(!this._handles){
 				this._handles = [
-					this.connect(this.domNode, "webkitTransitionStart", "_onTransitionStart"),
-					this.connect(this.domNode, "webkitTransitionEnd", "_onTransitionEnd")
+					this.connect(this.domNode, css3.name("transitionStart"), "_onTransitionStart"),
+					this.connect(this.domNode, css3.name("transitionEnd"), "_onTransitionEnd")
 				];
 			}
 
 			var count = 0;
 			array.forEach(this.getChildren(), function(w){
-				setTimeout(lang.hitch(this, function(){
+				this.defer(function(){
 					w.set("deleteIcon", this.deleteIconForEdit);
 					if(w.deleteIconNode){
 						w._deleteHandle = this.connect(w.deleteIconNode, "onclick", "_deleteIconClicked");
 					}
 					w.highlight(0);
-				}), 15*count++);
+				}, 15*count++);
 			}, this);
 
 			connect.publish("/dojox/mobile/startEdit", [this]); // pubsub
@@ -88,10 +90,10 @@ define("dojox/mobile/_EditableIconMixin", [
 		scaleItem: function(/*Widget*/widget, /*Number*/ratio){
 			// summary:
 			//		Scales an item according to the specified ratio.
-			domStyle.set(widget.domNode, {
-				webkitTransition: has("android") ? "" : "-webkit-transform .1s ease-in-out",
-				webkitTransform: ratio == 1 ? "" : "scale(" + ratio + ")"
-			});			
+			domStyle.set(widget.domNode, css3.add({}, {
+				transition: has("android") ? "" : css3.name("transform", true) + " .1s ease-in-out",
+				transform: ratio == 1 ? "" : "scale(" + ratio + ")"
+			}));			
 		},
 
 		_onTransitionStart: function(e){
@@ -106,7 +108,7 @@ define("dojox/mobile/_EditableIconMixin", [
 			event.stop(e);
 			var w = registry.getEnclosingWidget(e.target);
 			w._moving = false;
-			domStyle.set(w.domNode, "webkitTransition", "");
+			domStyle.set(w.domNode, css3.name("transition"), "");
 		},
 
 		_onTouchStart: function(e){
@@ -119,7 +121,8 @@ define("dojox/mobile/_EditableIconMixin", [
 			}
 			var item = this._movingItem = registry.getEnclosingWidget(e.target);
 			var iconPressed = false;
-			for(var n = e.target; n !== item.domNode; n = n.parentNode){
+			var n;
+			for(n = e.target; n !== item.domNode; n = n.parentNode){
 				if(n === item.iconNode){
 					iconPressed = true;
 					break;
@@ -128,11 +131,9 @@ define("dojox/mobile/_EditableIconMixin", [
 			if(!iconPressed){ return; }
 
 			if(!this._conn){
-				// don't use touch.move since this is actually an event listened to on the document,
-				// so we can't stop it when we are in a ScrollableView (to prevent the view from scrolling while dragging icons).
 				this._conn = [
-					this.connect(this.domNode, has("touch") ? "ontouchmove" : "onmousemove", "_onTouchMove"),
-					this.connect(this.domNode, has("touch") ? "ontouchend" : "onmouseup", "_onTouchEnd")
+					this.connect(this.domNode, touch.move, "_onTouchMove"),
+					this.connect(win.doc, touch.release, "_onTouchEnd")
 				];
 			}
 			this._touchStartPosX = e.touches ? e.touches[0].pageX : e.pageX;
@@ -141,10 +142,10 @@ define("dojox/mobile/_EditableIconMixin", [
 				this._onDragStart(e);
 			}else{
 				// set timer to detect long press
-				this._pressTimer = setTimeout(lang.hitch(this, function(){
+				this._pressTimer = this.defer(function(){
 					this.startEdit();
 					this._onDragStart(e);
-				}), 1000);
+				}, 1000);
 			}
 		},
 
@@ -243,7 +244,7 @@ define("dojox/mobile/_EditableIconMixin", [
 			// tags:
 			//		private
 			if(this._pressTimer){
-				clearTimeout(this._pressTimer);
+				this._pressTimer.remove();
 				this._pressTimer = null;
 			}
 		},
@@ -255,20 +256,21 @@ define("dojox/mobile/_EditableIconMixin", [
 				blankItem = this._blankItem,
 				blankPos = domGeometry.position(blankItem.domNode, true),
 				blankIndex = this.getIndexOfChild(blankItem),
-				dir = 1;
+				dir = 1,
+				i, w, pos;
 			if(this._contains(point, blankPos)){
 				return;
 			}else if(point.y < blankPos.y || (point.y <= blankPos.y + blankPos.h && point.x < blankPos.x)){
 				dir = -1;
 			}
-			for(var i = blankIndex + dir; i>=0 && i<children.length-1; i += dir){
-				var w = children[i];
+			for(i = blankIndex + dir; i>=0 && i<children.length-1; i += dir){
+				w = children[i];
 				if(w._moving){ continue; }
-				var pos = domGeometry.position(w.domNode, true);
+				pos = domGeometry.position(w.domNode, true);
 				if(this._contains(point, pos)){
-					setTimeout(lang.hitch(this, function(){
+					this.defer(function(){
 						this.moveChildWithAnimation(blankItem, dir == 1 ? i+1 : i);
-					}),0);
+					});
 					break;
 				}else if((dir == 1 && pos.y > point.y) || (dir == -1 && pos.y + pos.h < point.y)){
 					break;
@@ -289,7 +291,7 @@ define("dojox/mobile/_EditableIconMixin", [
 			var dir = from < to ? 1 : -1;
 			var children = this.getChildren();
 			var posArray = [];
-			var i;
+			var i, j;
 			for(i=from; i!=to; i+=dir){
 				posArray.push({
 					t: (children[i+dir].domNode.offsetTop - children[i].domNode.offsetTop) + "px",
@@ -303,12 +305,13 @@ define("dojox/mobile/_EditableIconMixin", [
 					top: posArray[j].t,
 					left: posArray[j].l
 				});
-				setTimeout(lang.hitch(w, function(){
-					domStyle.set(this.domNode, {
-						webkitTransition: "top .3s ease-in-out, left .3s ease-in-out",
+				this.defer(lang.hitch(w, function(){
+					domStyle.set(this.domNode, css3.add({
 						top: "0px",
 						left: "0px"
-					});
+					}, {
+						transition: "top .3s ease-in-out, left .3s ease-in-out"
+					}));
 				}), j*10);
 			}
 		},
@@ -320,9 +323,15 @@ define("dojox/mobile/_EditableIconMixin", [
 			this.removeChild(widget);
 
 			// Show remove animation
-			this.addChild(this._blankItem);
+			if(this._blankItem){
+				// #16868 - no _blankItem if calling deleteItem() programmatically, that is
+				// without _onTouchStart() being called.
+				this.addChild(this._blankItem);
+			}
 			this._animate(index, this.getChildren().length - 1);
-			this.removeChild(this._blankItem);
+			if(this._blankItem){
+				this.removeChild(this._blankItem);
+			}
 		},
 
 		moveChild: function(/*Widget|Number*/widget, /*Number?*/insertIndex){

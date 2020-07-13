@@ -1,0 +1,892 @@
+use test;
+More complex example
+create table idx_tbl (entry_key bigint unsigned not null auto_increment,
+k1 varchar(100), 
+k2 varchar(100), 
+data int,
+primary key (k1, k2),
+unique(entry_key)) engine=ndb;
+create table type1_1 (entry_key bigint unsigned not null primary key,
+data int) engine=ndb;
+create table type1_2 (entry_key bigint unsigned not null primary key,
+data int) engine=ndb;
+create table type2_1 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data int,
+primary key (entry_key, mv_idx)) engine=ndb;
+create table type2_2 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data text,
+primary key (entry_key, mv_idx)) engine=ndb;
+Populate a number of entities, each with
+a couple of type_1 rows and 2 sets of type_2 rows
+insert into idx_tbl (k1,k2,data) values ('Edinburgh', 'UK', 1);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 11);
+insert into type1_2 values (@ek, 12);
+insert into type2_1 (entry_key, data) values (@ek, 110);
+insert into type2_1 (entry_key, data) values (@ek, 111);
+insert into type2_1 (entry_key, data) values (@ek, 112);
+insert into type2_1 (entry_key, data) values (@ek, 113);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0121", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0122", 10000));
+insert into idx_tbl (k1,k2,data) values ('Bristol', 'UK', 2);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 21);
+insert into type1_2 values (@ek, 22);
+insert into type2_1 (entry_key, data) values (@ek, 210);
+insert into type2_1 (entry_key, data) values (@ek, 211);
+insert into type2_1 (entry_key, data) values (@ek, 212);
+insert into type2_1 (entry_key, data) values (@ek, 213);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0221", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0222", 10000));
+insert into idx_tbl (k1,k2,data) values ('Glasgow', 'UK', 3);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 31);
+insert into type1_2 values (@ek, 32);
+insert into type2_1 (entry_key, data) values (@ek, 310);
+insert into type2_1 (entry_key, data) values (@ek, 311);
+insert into type2_1 (entry_key, data) values (@ek, 312);
+insert into type2_1 (entry_key, data) values (@ek, 313);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0321", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0322", 10000));
+insert into idx_tbl (k1,k2,data) values ('London', 'UK', 4);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 41);
+insert into type1_2 values (@ek, 42);
+insert into type2_1 (entry_key, data) values (@ek, 410);
+insert into type2_1 (entry_key, data) values (@ek, 411);
+insert into type2_1 (entry_key, data) values (@ek, 412);
+insert into type2_1 (entry_key, data) values (@ek, 413);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0421", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0422", 10000));
+insert into idx_tbl (k1,k2,data) values ('Paris', 'France', 5);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 51);
+insert into type1_2 values (@ek, 52);
+insert into type2_1 (entry_key, data) values (@ek, 510);
+insert into type2_1 (entry_key, data) values (@ek, 511);
+insert into type2_1 (entry_key, data) values (@ek, 512);
+insert into type2_1 (entry_key, data) values (@ek, 513);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0521", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0522", 10000));
+insert into idx_tbl (k1,k2,data) values ('Heidelberg', 'Germany', 6);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 61);
+insert into type1_2 values (@ek, 62);
+insert into type2_1 (entry_key, data) values (@ek, 610);
+insert into type2_1 (entry_key, data) values (@ek, 611);
+insert into type2_1 (entry_key, data) values (@ek, 612);
+insert into type2_1 (entry_key, data) values (@ek, 613);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0621", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0622", 10000));
+insert into idx_tbl (k1,k2,data) values ('Riga', 'Latvia', 7);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 71);
+insert into type1_2 values (@ek, 72);
+insert into type2_1 (entry_key, data) values (@ek, 710);
+insert into type2_1 (entry_key, data) values (@ek, 711);
+insert into type2_1 (entry_key, data) values (@ek, 712);
+insert into type2_1 (entry_key, data) values (@ek, 713);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0721", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0722", 10000));
+insert into idx_tbl (k1,k2,data) values ('Orlando', 'USA', 8);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 81);
+insert into type1_2 values (@ek, 82);
+insert into type2_1 (entry_key, data) values (@ek, 810);
+insert into type2_1 (entry_key, data) values (@ek, 811);
+insert into type2_1 (entry_key, data) values (@ek, 812);
+insert into type2_1 (entry_key, data) values (@ek, 813);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0821", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0822", 10000));
+select * from idx_tbl order by entry_key;
+entry_key	k1	k2	data
+1	Edinburgh	UK	1
+2	Bristol	UK	2
+3	Glasgow	UK	3
+4	London	UK	4
+5	Paris	France	5
+6	Heidelberg	Germany	6
+7	Riga	Latvia	7
+8	Orlando	USA	8
+select * from type1_1 order by entry_key;
+entry_key	data
+1	11
+2	21
+3	31
+4	41
+5	51
+6	61
+7	71
+8	81
+select * from type1_2 order by entry_key;
+entry_key	data
+1	12
+2	22
+3	32
+4	42
+5	52
+6	62
+7	72
+8	82
+select * from type2_1 order by entry_key, mv_idx;
+entry_key	mv_idx	data
+1	1	110
+1	2	111
+1	3	112
+1	4	113
+2	5	210
+2	6	211
+2	7	212
+2	8	213
+3	9	310
+3	10	311
+3	11	312
+3	12	313
+4	13	410
+4	14	411
+4	15	412
+4	16	413
+5	17	510
+5	18	511
+5	19	512
+5	20	513
+6	21	610
+6	22	611
+6	23	612
+6	24	613
+7	25	710
+7	26	711
+7	27	712
+7	28	713
+8	29	810
+8	30	811
+8	31	812
+8	32	813
+select entry_key, mv_idx, right(data, 4) from type2_2 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	0121
+1	2	0122
+2	3	0221
+2	4	0222
+3	5	0321
+3	6	0322
+4	7	0421
+4	8	0422
+5	9	0521
+5	10	0522
+6	11	0621
+6	12	0622
+7	13	0721
+7	14	0722
+8	15	0821
+8	16	0822
+First set of content
+--------------------
+select idx_tbl.entry_key,
+idx_tbl.k1,
+idx_tbl.k2,
+idx_tbl.data,
+type1_1.data,
+type1_2.data,
+type2_1.mv_idx,
+type2_1.data,
+type2_2.mv_idx,
+right(type2_2.data, 4),
+length(type2_2.data)
+from
+idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+on
+idx_tbl.entry_key = type1_1.entry_key
+and
+idx_tbl.entry_key = type1_2.entry_key
+and
+idx_tbl.entry_key = type2_1.entry_key
+and
+idx_tbl.entry_key = type2_2.entry_key
+order by idx_tbl.entry_key, type2_1.data, right(type2_2.data, 4);
+entry_key	k1	k2	data	data	data	mv_idx	data	mv_idx	right(type2_2.data, 4)	length(type2_2.data)
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000
+2	Bristol	UK	2	21	22	5	210	3	0221	40000
+2	Bristol	UK	2	21	22	5	210	4	0222	40000
+2	Bristol	UK	2	21	22	6	211	3	0221	40000
+2	Bristol	UK	2	21	22	6	211	4	0222	40000
+2	Bristol	UK	2	21	22	7	212	3	0221	40000
+2	Bristol	UK	2	21	22	7	212	4	0222	40000
+2	Bristol	UK	2	21	22	8	213	3	0221	40000
+2	Bristol	UK	2	21	22	8	213	4	0222	40000
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000
+4	London	UK	4	41	42	13	410	7	0421	40000
+4	London	UK	4	41	42	13	410	8	0422	40000
+4	London	UK	4	41	42	14	411	7	0421	40000
+4	London	UK	4	41	42	14	411	8	0422	40000
+4	London	UK	4	41	42	15	412	7	0421	40000
+4	London	UK	4	41	42	15	412	8	0422	40000
+4	London	UK	4	41	42	16	413	7	0421	40000
+4	London	UK	4	41	42	16	413	8	0422	40000
+5	Paris	France	5	51	52	17	510	9	0521	40000
+5	Paris	France	5	51	52	17	510	10	0522	40000
+5	Paris	France	5	51	52	18	511	9	0521	40000
+5	Paris	France	5	51	52	18	511	10	0522	40000
+5	Paris	France	5	51	52	19	512	9	0521	40000
+5	Paris	France	5	51	52	19	512	10	0522	40000
+5	Paris	France	5	51	52	20	513	9	0521	40000
+5	Paris	France	5	51	52	20	513	10	0522	40000
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000
+8	Orlando	USA	8	81	82	29	810	15	0821	40000
+8	Orlando	USA	8	81	82	29	810	16	0822	40000
+8	Orlando	USA	8	81	82	30	811	15	0821	40000
+8	Orlando	USA	8	81	82	30	811	16	0822	40000
+8	Orlando	USA	8	81	82	31	812	15	0821	40000
+8	Orlando	USA	8	81	82	31	812	16	0822	40000
+8	Orlando	USA	8	81	82	32	813	15	0821	40000
+8	Orlando	USA	8	81	82	32	813	16	0822	40000
+Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+count(1)	max(entry_key)
+8	8
+show create table idx_tbl;
+Table	Create Table
+idx_tbl	CREATE TABLE `idx_tbl` (
+  `entry_key` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `k1` varchar(100) NOT NULL,
+  `k2` varchar(100) NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`k1`,`k2`),
+  UNIQUE KEY `entry_key` (`entry_key`)
+) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+32	32
+show create table type2_1;
+Table	Create Table
+type2_1	CREATE TABLE `type2_1` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+16	16
+show create table type2_2;
+Table	Create Table
+type2_2	CREATE TABLE `type2_2` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+Run backup
+Create a different set of entities, with the same auto-inc
+keys for entry_key and mv_idx
+update idx_tbl set k1="Stockholm", k2="Sweden" where entry_key = 1;
+update idx_tbl set k1="Trondheim", k2="Norway" where entry_key = 2;
+update idx_tbl set k1="Portland", k2="USA" where entry_key=3;
+update idx_tbl set k1="Bangalore", k2="India" where entry_key=4;
+update idx_tbl set k1="Helsinki", k2="Finland" where entry_key=5;
+update idx_tbl set k1="Lisbon", k2="Portugal" where entry_key=6;
+update idx_tbl set k1="Norrwaste", k2="Sweden" where entry_key=7;
+update idx_tbl set k1="ROW", k2="Earth" where entry_key=8;
+Modify data to be distinct
+update idx_tbl set data = data+10;
+update type1_1 set data = data+100;
+update type1_2 set data = data+100;
+update type2_1 set data = data+1000;
+update type2_2 set data = repeat(right(data, 4)+1000, 10000);
+Second set of content
+---------------------
+select idx_tbl.entry_key,
+idx_tbl.k1,
+idx_tbl.k2,
+idx_tbl.data,
+type1_1.data,
+type1_2.data,
+type2_1.mv_idx,
+type2_1.data,
+type2_2.mv_idx,
+right(type2_2.data,4),
+length(type2_2.data)
+from
+idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+on
+idx_tbl.entry_key = type1_1.entry_key
+and
+idx_tbl.entry_key = type1_2.entry_key
+and
+idx_tbl.entry_key = type2_1.entry_key
+and
+idx_tbl.entry_key = type2_2.entry_key
+order by idx_tbl.entry_key, type2_1.data, right(type2_2.data,4);
+entry_key	k1	k2	data	data	data	mv_idx	data	mv_idx	right(type2_2.data,4)	length(type2_2.data)
+1	Stockholm	Sweden	11	111	112	1	1110	1	1121	40000
+1	Stockholm	Sweden	11	111	112	1	1110	2	1122	40000
+1	Stockholm	Sweden	11	111	112	2	1111	1	1121	40000
+1	Stockholm	Sweden	11	111	112	2	1111	2	1122	40000
+1	Stockholm	Sweden	11	111	112	3	1112	1	1121	40000
+1	Stockholm	Sweden	11	111	112	3	1112	2	1122	40000
+1	Stockholm	Sweden	11	111	112	4	1113	1	1121	40000
+1	Stockholm	Sweden	11	111	112	4	1113	2	1122	40000
+2	Trondheim	Norway	12	121	122	5	1210	3	1221	40000
+2	Trondheim	Norway	12	121	122	5	1210	4	1222	40000
+2	Trondheim	Norway	12	121	122	6	1211	3	1221	40000
+2	Trondheim	Norway	12	121	122	6	1211	4	1222	40000
+2	Trondheim	Norway	12	121	122	7	1212	3	1221	40000
+2	Trondheim	Norway	12	121	122	7	1212	4	1222	40000
+2	Trondheim	Norway	12	121	122	8	1213	3	1221	40000
+2	Trondheim	Norway	12	121	122	8	1213	4	1222	40000
+3	Portland	USA	13	131	132	9	1310	5	1321	40000
+3	Portland	USA	13	131	132	9	1310	6	1322	40000
+3	Portland	USA	13	131	132	10	1311	5	1321	40000
+3	Portland	USA	13	131	132	10	1311	6	1322	40000
+3	Portland	USA	13	131	132	11	1312	5	1321	40000
+3	Portland	USA	13	131	132	11	1312	6	1322	40000
+3	Portland	USA	13	131	132	12	1313	5	1321	40000
+3	Portland	USA	13	131	132	12	1313	6	1322	40000
+4	Bangalore	India	14	141	142	13	1410	7	1421	40000
+4	Bangalore	India	14	141	142	13	1410	8	1422	40000
+4	Bangalore	India	14	141	142	14	1411	7	1421	40000
+4	Bangalore	India	14	141	142	14	1411	8	1422	40000
+4	Bangalore	India	14	141	142	15	1412	7	1421	40000
+4	Bangalore	India	14	141	142	15	1412	8	1422	40000
+4	Bangalore	India	14	141	142	16	1413	7	1421	40000
+4	Bangalore	India	14	141	142	16	1413	8	1422	40000
+5	Helsinki	Finland	15	151	152	17	1510	9	1521	40000
+5	Helsinki	Finland	15	151	152	17	1510	10	1522	40000
+5	Helsinki	Finland	15	151	152	18	1511	9	1521	40000
+5	Helsinki	Finland	15	151	152	18	1511	10	1522	40000
+5	Helsinki	Finland	15	151	152	19	1512	9	1521	40000
+5	Helsinki	Finland	15	151	152	19	1512	10	1522	40000
+5	Helsinki	Finland	15	151	152	20	1513	9	1521	40000
+5	Helsinki	Finland	15	151	152	20	1513	10	1522	40000
+6	Lisbon	Portugal	16	161	162	21	1610	11	1621	40000
+6	Lisbon	Portugal	16	161	162	21	1610	12	1622	40000
+6	Lisbon	Portugal	16	161	162	22	1611	11	1621	40000
+6	Lisbon	Portugal	16	161	162	22	1611	12	1622	40000
+6	Lisbon	Portugal	16	161	162	23	1612	11	1621	40000
+6	Lisbon	Portugal	16	161	162	23	1612	12	1622	40000
+6	Lisbon	Portugal	16	161	162	24	1613	11	1621	40000
+6	Lisbon	Portugal	16	161	162	24	1613	12	1622	40000
+7	Norrwaste	Sweden	17	171	172	25	1710	13	1721	40000
+7	Norrwaste	Sweden	17	171	172	25	1710	14	1722	40000
+7	Norrwaste	Sweden	17	171	172	26	1711	13	1721	40000
+7	Norrwaste	Sweden	17	171	172	26	1711	14	1722	40000
+7	Norrwaste	Sweden	17	171	172	27	1712	13	1721	40000
+7	Norrwaste	Sweden	17	171	172	27	1712	14	1722	40000
+7	Norrwaste	Sweden	17	171	172	28	1713	13	1721	40000
+7	Norrwaste	Sweden	17	171	172	28	1713	14	1722	40000
+8	ROW	Earth	18	181	182	29	1810	15	1821	40000
+8	ROW	Earth	18	181	182	29	1810	16	1822	40000
+8	ROW	Earth	18	181	182	30	1811	15	1821	40000
+8	ROW	Earth	18	181	182	30	1811	16	1822	40000
+8	ROW	Earth	18	181	182	31	1812	15	1821	40000
+8	ROW	Earth	18	181	182	31	1812	16	1822	40000
+8	ROW	Earth	18	181	182	32	1813	15	1821	40000
+8	ROW	Earth	18	181	182	32	1813	16	1822	40000
+Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+count(1)	max(entry_key)
+8	8
+show create table idx_tbl;
+Table	Create Table
+idx_tbl	CREATE TABLE `idx_tbl` (
+  `entry_key` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `k1` varchar(100) NOT NULL,
+  `k2` varchar(100) NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`k1`,`k2`),
+  UNIQUE KEY `entry_key` (`entry_key`)
+) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+32	32
+show create table type2_1;
+Table	Create Table
+type2_1	CREATE TABLE `type2_1` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+16	16
+show create table type2_2;
+Table	Create Table
+type2_2	CREATE TABLE `type2_2` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+Run backup
+drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;
+Run normal restore for first set of content
+Waiting for metadata sync
+Metadata synchronised
+Remap args : -x test.idx_tbl.entry_key:offset:9 -x test.type1_1.entry_key:offset:9 -x test.type1_2.entry_key:offset:9 -x test.type2_1.entry_key:offset:9 -x test.type2_1.mv_idx:offset:33 -x test.type2_2.entry_key:offset:9 -x test.type2_2.mv_idx:offset:17
+Run offset restore for second set of content
+Combined dataset
+-----------------
+select idx_tbl.entry_key,
+idx_tbl.k1,
+idx_tbl.k2,
+idx_tbl.data,
+type1_1.data,
+type1_2.data,
+type2_1.mv_idx,
+type2_1.data,
+type2_2.mv_idx,
+right(type2_2.data,4),
+length(type2_2.data)
+from
+idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+on
+idx_tbl.entry_key = type1_1.entry_key
+and
+idx_tbl.entry_key = type1_2.entry_key
+and
+idx_tbl.entry_key = type2_1.entry_key
+and
+idx_tbl.entry_key = type2_2.entry_key
+order by idx_tbl.entry_key, type2_1.data, right(type2_2.data,4);
+entry_key	k1	k2	data	data	data	mv_idx	data	mv_idx	right(type2_2.data,4)	length(type2_2.data)
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000
+2	Bristol	UK	2	21	22	5	210	3	0221	40000
+2	Bristol	UK	2	21	22	5	210	4	0222	40000
+2	Bristol	UK	2	21	22	6	211	3	0221	40000
+2	Bristol	UK	2	21	22	6	211	4	0222	40000
+2	Bristol	UK	2	21	22	7	212	3	0221	40000
+2	Bristol	UK	2	21	22	7	212	4	0222	40000
+2	Bristol	UK	2	21	22	8	213	3	0221	40000
+2	Bristol	UK	2	21	22	8	213	4	0222	40000
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000
+4	London	UK	4	41	42	13	410	7	0421	40000
+4	London	UK	4	41	42	13	410	8	0422	40000
+4	London	UK	4	41	42	14	411	7	0421	40000
+4	London	UK	4	41	42	14	411	8	0422	40000
+4	London	UK	4	41	42	15	412	7	0421	40000
+4	London	UK	4	41	42	15	412	8	0422	40000
+4	London	UK	4	41	42	16	413	7	0421	40000
+4	London	UK	4	41	42	16	413	8	0422	40000
+5	Paris	France	5	51	52	17	510	9	0521	40000
+5	Paris	France	5	51	52	17	510	10	0522	40000
+5	Paris	France	5	51	52	18	511	9	0521	40000
+5	Paris	France	5	51	52	18	511	10	0522	40000
+5	Paris	France	5	51	52	19	512	9	0521	40000
+5	Paris	France	5	51	52	19	512	10	0522	40000
+5	Paris	France	5	51	52	20	513	9	0521	40000
+5	Paris	France	5	51	52	20	513	10	0522	40000
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000
+8	Orlando	USA	8	81	82	29	810	15	0821	40000
+8	Orlando	USA	8	81	82	29	810	16	0822	40000
+8	Orlando	USA	8	81	82	30	811	15	0821	40000
+8	Orlando	USA	8	81	82	30	811	16	0822	40000
+8	Orlando	USA	8	81	82	31	812	15	0821	40000
+8	Orlando	USA	8	81	82	31	812	16	0822	40000
+8	Orlando	USA	8	81	82	32	813	15	0821	40000
+8	Orlando	USA	8	81	82	32	813	16	0822	40000
+10	Stockholm	Sweden	11	111	112	34	1110	18	1121	40000
+10	Stockholm	Sweden	11	111	112	34	1110	19	1122	40000
+10	Stockholm	Sweden	11	111	112	35	1111	18	1121	40000
+10	Stockholm	Sweden	11	111	112	35	1111	19	1122	40000
+10	Stockholm	Sweden	11	111	112	36	1112	18	1121	40000
+10	Stockholm	Sweden	11	111	112	36	1112	19	1122	40000
+10	Stockholm	Sweden	11	111	112	37	1113	18	1121	40000
+10	Stockholm	Sweden	11	111	112	37	1113	19	1122	40000
+11	Trondheim	Norway	12	121	122	38	1210	20	1221	40000
+11	Trondheim	Norway	12	121	122	38	1210	21	1222	40000
+11	Trondheim	Norway	12	121	122	39	1211	20	1221	40000
+11	Trondheim	Norway	12	121	122	39	1211	21	1222	40000
+11	Trondheim	Norway	12	121	122	40	1212	20	1221	40000
+11	Trondheim	Norway	12	121	122	40	1212	21	1222	40000
+11	Trondheim	Norway	12	121	122	41	1213	20	1221	40000
+11	Trondheim	Norway	12	121	122	41	1213	21	1222	40000
+12	Portland	USA	13	131	132	42	1310	22	1321	40000
+12	Portland	USA	13	131	132	42	1310	23	1322	40000
+12	Portland	USA	13	131	132	43	1311	22	1321	40000
+12	Portland	USA	13	131	132	43	1311	23	1322	40000
+12	Portland	USA	13	131	132	44	1312	22	1321	40000
+12	Portland	USA	13	131	132	44	1312	23	1322	40000
+12	Portland	USA	13	131	132	45	1313	22	1321	40000
+12	Portland	USA	13	131	132	45	1313	23	1322	40000
+13	Bangalore	India	14	141	142	46	1410	24	1421	40000
+13	Bangalore	India	14	141	142	46	1410	25	1422	40000
+13	Bangalore	India	14	141	142	47	1411	24	1421	40000
+13	Bangalore	India	14	141	142	47	1411	25	1422	40000
+13	Bangalore	India	14	141	142	48	1412	24	1421	40000
+13	Bangalore	India	14	141	142	48	1412	25	1422	40000
+13	Bangalore	India	14	141	142	49	1413	24	1421	40000
+13	Bangalore	India	14	141	142	49	1413	25	1422	40000
+14	Helsinki	Finland	15	151	152	50	1510	26	1521	40000
+14	Helsinki	Finland	15	151	152	50	1510	27	1522	40000
+14	Helsinki	Finland	15	151	152	51	1511	26	1521	40000
+14	Helsinki	Finland	15	151	152	51	1511	27	1522	40000
+14	Helsinki	Finland	15	151	152	52	1512	26	1521	40000
+14	Helsinki	Finland	15	151	152	52	1512	27	1522	40000
+14	Helsinki	Finland	15	151	152	53	1513	26	1521	40000
+14	Helsinki	Finland	15	151	152	53	1513	27	1522	40000
+15	Lisbon	Portugal	16	161	162	54	1610	28	1621	40000
+15	Lisbon	Portugal	16	161	162	54	1610	29	1622	40000
+15	Lisbon	Portugal	16	161	162	55	1611	28	1621	40000
+15	Lisbon	Portugal	16	161	162	55	1611	29	1622	40000
+15	Lisbon	Portugal	16	161	162	56	1612	28	1621	40000
+15	Lisbon	Portugal	16	161	162	56	1612	29	1622	40000
+15	Lisbon	Portugal	16	161	162	57	1613	28	1621	40000
+15	Lisbon	Portugal	16	161	162	57	1613	29	1622	40000
+16	Norrwaste	Sweden	17	171	172	58	1710	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	58	1710	31	1722	40000
+16	Norrwaste	Sweden	17	171	172	59	1711	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	59	1711	31	1722	40000
+16	Norrwaste	Sweden	17	171	172	60	1712	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	60	1712	31	1722	40000
+16	Norrwaste	Sweden	17	171	172	61	1713	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	61	1713	31	1722	40000
+17	ROW	Earth	18	181	182	62	1810	32	1821	40000
+17	ROW	Earth	18	181	182	62	1810	33	1822	40000
+17	ROW	Earth	18	181	182	63	1811	32	1821	40000
+17	ROW	Earth	18	181	182	63	1811	33	1822	40000
+17	ROW	Earth	18	181	182	64	1812	32	1821	40000
+17	ROW	Earth	18	181	182	64	1812	33	1822	40000
+17	ROW	Earth	18	181	182	65	1813	32	1821	40000
+17	ROW	Earth	18	181	182	65	1813	33	1822	40000
+Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+count(1)	max(entry_key)
+16	17
+show create table idx_tbl;
+Table	Create Table
+idx_tbl	CREATE TABLE `idx_tbl` (
+  `entry_key` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `k1` varchar(100) NOT NULL,
+  `k2` varchar(100) NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`k1`,`k2`),
+  UNIQUE KEY `entry_key` (`entry_key`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+64	65
+show create table type2_1;
+Table	Create Table
+type2_1	CREATE TABLE `type2_1` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+32	33
+show create table type2_2;
+Table	Create Table
+type2_2	CREATE TABLE `type2_2` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+Verify the insert of further entity succeeds
+insert into idx_tbl (k1,k2,data) values ('Sancerre', 'France', 9);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 91);
+insert into type1_2 values (@ek, 92);
+insert into type2_1 (entry_key, data) values (@ek, 910);
+insert into type2_1 (entry_key, data) values (@ek, 911);
+insert into type2_1 (entry_key, data) values (@ek, 912);
+insert into type2_1 (entry_key, data) values (@ek, 913);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0921", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0922", 10000));
+Modified content
+----------------
+select idx_tbl.entry_key,
+idx_tbl.k1,
+idx_tbl.k2,
+idx_tbl.data,
+type1_1.data,
+type1_2.data,
+type2_1.mv_idx,
+type2_1.data,
+type2_2.mv_idx,
+right(type2_2.data,4),
+length(type2_2.data)
+from
+idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+on
+idx_tbl.entry_key = type1_1.entry_key
+and
+idx_tbl.entry_key = type1_2.entry_key
+and
+idx_tbl.entry_key = type2_1.entry_key
+and
+idx_tbl.entry_key = type2_2.entry_key
+order by idx_tbl.entry_key, type2_1.data, right(type2_2.data,4);
+entry_key	k1	k2	data	data	data	mv_idx	data	mv_idx	right(type2_2.data,4)	length(type2_2.data)
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000
+2	Bristol	UK	2	21	22	5	210	3	0221	40000
+2	Bristol	UK	2	21	22	5	210	4	0222	40000
+2	Bristol	UK	2	21	22	6	211	3	0221	40000
+2	Bristol	UK	2	21	22	6	211	4	0222	40000
+2	Bristol	UK	2	21	22	7	212	3	0221	40000
+2	Bristol	UK	2	21	22	7	212	4	0222	40000
+2	Bristol	UK	2	21	22	8	213	3	0221	40000
+2	Bristol	UK	2	21	22	8	213	4	0222	40000
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000
+4	London	UK	4	41	42	13	410	7	0421	40000
+4	London	UK	4	41	42	13	410	8	0422	40000
+4	London	UK	4	41	42	14	411	7	0421	40000
+4	London	UK	4	41	42	14	411	8	0422	40000
+4	London	UK	4	41	42	15	412	7	0421	40000
+4	London	UK	4	41	42	15	412	8	0422	40000
+4	London	UK	4	41	42	16	413	7	0421	40000
+4	London	UK	4	41	42	16	413	8	0422	40000
+5	Paris	France	5	51	52	17	510	9	0521	40000
+5	Paris	France	5	51	52	17	510	10	0522	40000
+5	Paris	France	5	51	52	18	511	9	0521	40000
+5	Paris	France	5	51	52	18	511	10	0522	40000
+5	Paris	France	5	51	52	19	512	9	0521	40000
+5	Paris	France	5	51	52	19	512	10	0522	40000
+5	Paris	France	5	51	52	20	513	9	0521	40000
+5	Paris	France	5	51	52	20	513	10	0522	40000
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000
+8	Orlando	USA	8	81	82	29	810	15	0821	40000
+8	Orlando	USA	8	81	82	29	810	16	0822	40000
+8	Orlando	USA	8	81	82	30	811	15	0821	40000
+8	Orlando	USA	8	81	82	30	811	16	0822	40000
+8	Orlando	USA	8	81	82	31	812	15	0821	40000
+8	Orlando	USA	8	81	82	31	812	16	0822	40000
+8	Orlando	USA	8	81	82	32	813	15	0821	40000
+8	Orlando	USA	8	81	82	32	813	16	0822	40000
+10	Stockholm	Sweden	11	111	112	34	1110	18	1121	40000
+10	Stockholm	Sweden	11	111	112	34	1110	19	1122	40000
+10	Stockholm	Sweden	11	111	112	35	1111	18	1121	40000
+10	Stockholm	Sweden	11	111	112	35	1111	19	1122	40000
+10	Stockholm	Sweden	11	111	112	36	1112	18	1121	40000
+10	Stockholm	Sweden	11	111	112	36	1112	19	1122	40000
+10	Stockholm	Sweden	11	111	112	37	1113	18	1121	40000
+10	Stockholm	Sweden	11	111	112	37	1113	19	1122	40000
+11	Trondheim	Norway	12	121	122	38	1210	20	1221	40000
+11	Trondheim	Norway	12	121	122	38	1210	21	1222	40000
+11	Trondheim	Norway	12	121	122	39	1211	20	1221	40000
+11	Trondheim	Norway	12	121	122	39	1211	21	1222	40000
+11	Trondheim	Norway	12	121	122	40	1212	20	1221	40000
+11	Trondheim	Norway	12	121	122	40	1212	21	1222	40000
+11	Trondheim	Norway	12	121	122	41	1213	20	1221	40000
+11	Trondheim	Norway	12	121	122	41	1213	21	1222	40000
+12	Portland	USA	13	131	132	42	1310	22	1321	40000
+12	Portland	USA	13	131	132	42	1310	23	1322	40000
+12	Portland	USA	13	131	132	43	1311	22	1321	40000
+12	Portland	USA	13	131	132	43	1311	23	1322	40000
+12	Portland	USA	13	131	132	44	1312	22	1321	40000
+12	Portland	USA	13	131	132	44	1312	23	1322	40000
+12	Portland	USA	13	131	132	45	1313	22	1321	40000
+12	Portland	USA	13	131	132	45	1313	23	1322	40000
+13	Bangalore	India	14	141	142	46	1410	24	1421	40000
+13	Bangalore	India	14	141	142	46	1410	25	1422	40000
+13	Bangalore	India	14	141	142	47	1411	24	1421	40000
+13	Bangalore	India	14	141	142	47	1411	25	1422	40000
+13	Bangalore	India	14	141	142	48	1412	24	1421	40000
+13	Bangalore	India	14	141	142	48	1412	25	1422	40000
+13	Bangalore	India	14	141	142	49	1413	24	1421	40000
+13	Bangalore	India	14	141	142	49	1413	25	1422	40000
+14	Helsinki	Finland	15	151	152	50	1510	26	1521	40000
+14	Helsinki	Finland	15	151	152	50	1510	27	1522	40000
+14	Helsinki	Finland	15	151	152	51	1511	26	1521	40000
+14	Helsinki	Finland	15	151	152	51	1511	27	1522	40000
+14	Helsinki	Finland	15	151	152	52	1512	26	1521	40000
+14	Helsinki	Finland	15	151	152	52	1512	27	1522	40000
+14	Helsinki	Finland	15	151	152	53	1513	26	1521	40000
+14	Helsinki	Finland	15	151	152	53	1513	27	1522	40000
+15	Lisbon	Portugal	16	161	162	54	1610	28	1621	40000
+15	Lisbon	Portugal	16	161	162	54	1610	29	1622	40000
+15	Lisbon	Portugal	16	161	162	55	1611	28	1621	40000
+15	Lisbon	Portugal	16	161	162	55	1611	29	1622	40000
+15	Lisbon	Portugal	16	161	162	56	1612	28	1621	40000
+15	Lisbon	Portugal	16	161	162	56	1612	29	1622	40000
+15	Lisbon	Portugal	16	161	162	57	1613	28	1621	40000
+15	Lisbon	Portugal	16	161	162	57	1613	29	1622	40000
+16	Norrwaste	Sweden	17	171	172	58	1710	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	58	1710	31	1722	40000
+16	Norrwaste	Sweden	17	171	172	59	1711	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	59	1711	31	1722	40000
+16	Norrwaste	Sweden	17	171	172	60	1712	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	60	1712	31	1722	40000
+16	Norrwaste	Sweden	17	171	172	61	1713	30	1721	40000
+16	Norrwaste	Sweden	17	171	172	61	1713	31	1722	40000
+17	ROW	Earth	18	181	182	62	1810	32	1821	40000
+17	ROW	Earth	18	181	182	62	1810	33	1822	40000
+17	ROW	Earth	18	181	182	63	1811	32	1821	40000
+17	ROW	Earth	18	181	182	63	1811	33	1822	40000
+17	ROW	Earth	18	181	182	64	1812	32	1821	40000
+17	ROW	Earth	18	181	182	64	1812	33	1822	40000
+17	ROW	Earth	18	181	182	65	1813	32	1821	40000
+17	ROW	Earth	18	181	182	65	1813	33	1822	40000
+18	Sancerre	France	9	91	92	66	910	34	0921	40000
+18	Sancerre	France	9	91	92	66	910	35	0922	40000
+18	Sancerre	France	9	91	92	67	911	34	0921	40000
+18	Sancerre	France	9	91	92	67	911	35	0922	40000
+18	Sancerre	France	9	91	92	68	912	34	0921	40000
+18	Sancerre	France	9	91	92	68	912	35	0922	40000
+18	Sancerre	France	9	91	92	69	913	34	0921	40000
+18	Sancerre	France	9	91	92	69	913	35	0922	40000
+Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+count(1)	max(entry_key)
+17	18
+show create table idx_tbl;
+Table	Create Table
+idx_tbl	CREATE TABLE `idx_tbl` (
+  `entry_key` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `k1` varchar(100) NOT NULL,
+  `k2` varchar(100) NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`k1`,`k2`),
+  UNIQUE KEY `entry_key` (`entry_key`)
+) ENGINE=ndbcluster AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+68	69
+show create table type2_1;
+Table	Create Table
+type2_1	CREATE TABLE `type2_1` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+34	35
+show create table type2_2;
+Table	Create Table
+type2_2	CREATE TABLE `type2_2` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;

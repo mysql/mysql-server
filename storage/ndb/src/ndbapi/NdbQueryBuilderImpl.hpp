@@ -52,7 +52,7 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 #define QRY_OJ_NOT_SUPPORTED 4827
-#define QRY_NEST_NOT_SPECIFIED 4828
+//#define QRY_NEST_NOT_SPECIFIED 4828  <<== DEPRECATED
 #define QRY_NEST_NOT_SUPPORTED 4829
 
 
@@ -365,6 +365,19 @@ public:
 
   const char* getName() const
   { return m_ident; }
+
+  // Does an ancestor specify a MatchType requiring only a 'firstMatch'?
+  // Both 'MatchFirst' and 'MatchNullOnly' are a firstMatch type as it
+  // allows us to conclude as soon as a single qualifying row has been found.
+  bool hasFirstMatchAncestor() const
+  {
+    if (m_parent == nullptr)
+      return false;
+    if (m_parent->getMatchType() &
+	(NdbQueryOptions::MatchFirst | NdbQueryOptions::MatchNullOnly))
+      return true;
+    return m_parent->hasFirstMatchAncestor();
+  }
 
   enum NdbQueryOptions::MatchType getMatchType() const
   { return m_options.m_matchType; }
@@ -722,12 +735,13 @@ private:
   /**
    * Take ownership of specified object: From now on it is the
    * responsibility of this NdbQueryBuilderImpl to manage the
-   * lifetime of the object. If takeOwnership() fails, the 
+   * lifetime of the object. If takeOwnership() fails, the
    * specified object is deleted before it returns.
-   * @param[in] operand to take ownership for (may be NULL).
+   *
+   * @param[in] operand operand to take ownership for (may be NULL).
    * @return 0 if ok, else there has been an 'Err_MemoryAlloc'
    */
-  int takeOwnership(NdbQueryOperandImpl*);
+  int takeOwnership(NdbQueryOperandImpl* operand);
   int takeOwnership(NdbQueryOperationDefImpl*);
 
   bool contains(const NdbQueryOperationDefImpl*);

@@ -212,7 +212,15 @@ enum Copy_func_type {
     _not_ aggregates are replaced by Item_refs that point into a slice.
     See AggregateIterator::Read() for more details.
    */
-  CFT_DEPENDING_ON_AGGREGATE
+  CFT_DEPENDING_ON_AGGREGATE,
+  /**
+    Copies all items that depend on rollup group items that are NULL at the
+    current rollup level. These are necessary to copy when we decrease the
+    rollup level. (Other rollup group items may not be safe to copy in all
+    cases, as they may have been overwritten with the elements from the next
+    group.)
+   */
+  CFT_ROLLUP_NULLS
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
@@ -245,17 +253,18 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
-bool change_to_use_tmp_fields(List<Item> &all_fields,
+bool change_to_use_tmp_fields(List<Item> *all_fields,
                               size_t num_select_elements, THD *thd,
                               Ref_item_array ref_item_array,
                               List<Item> *res_selected_fields,
                               List<Item> *res_all_fields);
 // Create list for using with tempory table
-bool change_refs_to_tmp_fields(List<Item> &all_fields,
-                               size_t num_select_elements, THD *thd,
-                               Ref_item_array ref_item_array,
-                               List<Item> *res_selected_fields,
-                               List<Item> *res_all_fields);
+bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
+                                          size_t num_select_elements, THD *thd,
+                                          SELECT_LEX *select,
+                                          Ref_item_array ref_item_array,
+                                          List<Item> *res_selected_fields,
+                                          List<Item> *res_all_fields);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
@@ -654,13 +663,13 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
-void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 bool set_record_buffer(const QEP_TAB *tab);
-bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
 void init_tmptable_sum_functions(Item_sum **func_ptr);
-bool update_sum_func(Item_sum **func_ptr);
 void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
 bool has_rollup_result(Item *item);
+bool is_rollup_group_wrapper(Item *item);
+bool is_rollup_sum_wrapper(Item *item);
+Item *unwrap_rollup_group(Item *item);
 
 /*
   If a condition cannot be applied right away, for instance because it is a
@@ -694,7 +703,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
     THD *thd, QEP_TAB *qep_tab);
 void ConvertItemsToCopy(List<Item> *items, Field **fields,
-                        Temp_table_param *param, JOIN *join);
+                        Temp_table_param *param);
 std::string RefToString(const TABLE_REF &ref, const KEY *key,
                         bool include_nulls);
 

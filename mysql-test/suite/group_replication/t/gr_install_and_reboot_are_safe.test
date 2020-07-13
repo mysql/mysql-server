@@ -51,7 +51,6 @@ SET SESSION sql_log_bin=1;
 --echo
 --echo # 3. Verify no ERROR is logged.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_install_and_reboot_are_safe
 --let $assert_count = 0
 --let $assert_select = Function 'group_replication' already exists
 --let $assert_text = Did not find the text Function 'group_replication' already exists
@@ -78,7 +77,6 @@ SET SESSION sql_log_bin=1;
 --echo
 --echo # 6. Verify ERROR is logged.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_install_and_reboot_are_safe
 --let $assert_count = 1
 --let $assert_select = Function 'group_replication' already exists
 --let $assert_text = Found the text Function 'group_replication' already exists

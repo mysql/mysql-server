@@ -87,8 +87,8 @@ var TableContainer = declare("dojox.layout.TableContainer", _LayoutWidget, {
 				child.startup();
 			}
 		});
-		this.resize();
 		this.layout();
+		this.resize();
 	},
 
 	resize: function(){

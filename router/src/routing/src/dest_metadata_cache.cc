@@ -29,6 +29,9 @@
 #include <iostream>
 #include <set>
 #include <stdexcept>
+#include <system_error>
+#include "mysql/harness/stdx/expected.h"
+#include "socket_operations.h"
 #ifndef _WIN32
 #include <netdb.h>
 #include <netinet/tcp.h>
@@ -237,9 +240,16 @@ DestMetadataCacheGroup::get_available(
   }
 
   for (const auto &it : managed_servers_vec) {
-    if (!(it.role == "HA")) {
-      continue;
+    if (for_new_connections) {
+      // for new connections skip (do not include) the node if it is hidden - it
+      // is not allowed
+      if (it.hidden) continue;
+    } else {
+      // for the existing connections skip (do not include) the node if it is
+      // hidden and disconnect_existing_sessions_when_hidden is true
+      if (it.hidden && it.disconnect_existing_sessions_when_hidden) continue;
     }
+
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? it.xport : it.port;
 
     // role=PRIMARY_AND_SECONDARY
@@ -278,9 +288,6 @@ DestMetadataCacheGroup::get_available_primaries(
   const auto &managed_servers_vec = managed_servers.instance_vector;
 
   for (const auto &it : managed_servers_vec) {
-    if (!(it.role == "HA")) {
-      continue;
-    }
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? it.xport : it.port;
 
     if (it.mode == metadata_cache::ServerMode::ReadWrite) {
@@ -414,18 +421,22 @@ size_t DestMetadataCacheGroup::get_next_server(
   return result;
 }
 
-int DestMetadataCacheGroup::get_server_socket(
-    std::chrono::milliseconds connect_timeout, int *error,
+stdx::expected<mysql_harness::socket_t, std::error_code>
+DestMetadataCacheGroup::get_server_socket(
+    std::chrono::milliseconds connect_timeout,
     mysql_harness::TCPAddress *address) noexcept {
   if (cache_api_->cluster_type() == mysqlrouter::ClusterType::RS_V2)
-    return get_server_socket_rs(connect_timeout, error, address);
+    return get_server_socket_rs(connect_timeout, address);
   else
-    return get_server_socket_gr(connect_timeout, error, address);
+    return get_server_socket_gr(connect_timeout, address);
 }
 
-int DestMetadataCacheGroup::get_server_socket_gr(
-    std::chrono::milliseconds connect_timeout, int *error,
+stdx::expected<mysql_harness::socket_t, std::error_code>
+DestMetadataCacheGroup::get_server_socket_gr(
+    std::chrono::milliseconds connect_timeout,
     mysql_harness::TCPAddress *address) noexcept {
+  std::error_code last_ec{};
+
   while (true) {
     try {
       auto available =
@@ -437,12 +448,13 @@ int DestMetadataCacheGroup::get_server_socket_gr(
             "No available servers found for '%s' %s routing",
             ha_replicaset_.c_str(),
             server_role_ == ServerRole::Primary ? "PRIMARY" : "SECONDARY");
-        return -1;
+        return stdx::make_unexpected(last_ec);
       }
 
       size_t next_up = get_next_server(available);
-      int fd = get_mysql_socket(available.address.at(next_up), connect_timeout);
-      if (fd < 0) {
+      auto sock_res =
+          get_mysql_socket(available.address.at(next_up), connect_timeout);
+      if (!sock_res) {
         // Signal that we can't connect to the instance
         cache_api_->mark_instance_reachability(
             available.id.at(next_up),
@@ -456,9 +468,10 @@ int DestMetadataCacheGroup::get_server_socket_gr(
                    ha_replicaset_.c_str());
           continue;  // retry
         }
+        return stdx::make_unexpected(sock_res.error());
       }
       if (address) *address = available.address.at(next_up);
-      return fd;
+      return sock_res;
     } catch (std::runtime_error &re) {
       log_error("Failed getting managed servers from the Metadata server: %s",
                 re.what());
@@ -466,28 +479,31 @@ int DestMetadataCacheGroup::get_server_socket_gr(
     }
   }
 
-  *error = errno;
-  return -1;
+  return stdx::make_unexpected(last_ec);
 }
 
-int DestMetadataCacheGroup::get_server_socket_rs(
-    std::chrono::milliseconds connect_timeout, int *error,
+stdx::expected<mysql_harness::socket_t, std::error_code>
+DestMetadataCacheGroup::get_server_socket_rs(
+    std::chrono::milliseconds connect_timeout,
     mysql_harness::TCPAddress *address) noexcept {
   auto get_alive_node =
       [&](const DestMetadataCacheGroup::AvailableDestinations &candidate_nodes)
-      -> int {
+      -> stdx::expected<mysql_harness::socket_t, std::error_code> {
     size_t first_available{0};
+    std::error_code last_ec{};
 
     const size_t first_tried = get_next_server(candidate_nodes);
     size_t current_tried{first_tried};
     do {
-      int fd = get_mysql_socket(candidate_nodes.address.at(current_tried),
-                                connect_timeout);
+      auto sock_res = get_mysql_socket(
+          candidate_nodes.address.at(current_tried), connect_timeout);
 
-      if (fd >= 0) {
+      if (sock_res) {
         if (address) *address = candidate_nodes.address.at(current_tried);
-        return fd;
+        return sock_res;
       }
+
+      last_ec = sock_res.error();
 
       if (routing_strategy_ == routing::RoutingStrategy::kFirstAvailable) {
         if (first_available == candidate_nodes.address.size() - 1)
@@ -501,8 +517,7 @@ int DestMetadataCacheGroup::get_server_socket_rs(
              first_tried);  // stop when we tried all available servers, could
                             // not connect to any of them
 
-    *error = errno;
-    return -1;
+    return stdx::make_unexpected(last_ec);
   };
 
   DestMetadataCacheGroup::AvailableDestinations available;
@@ -515,21 +530,21 @@ int DestMetadataCacheGroup::get_server_socket_rs(
   } catch (std::runtime_error &re) {
     log_error("Failed getting managed servers from the Metadata server: %s",
               re.what());
-    return -1;
+    return stdx::make_unexpected(std::error_code{});
   }
 
   if (available.address.empty()) {
     log_warning("No available servers found for '%s' %s routing",
                 ha_replicaset_.c_str(),
                 server_role_ == ServerRole::Primary ? "PRIMARY" : "SECONDARY");
-    return -1;
+    return stdx::make_unexpected(std::error_code{});
   }
 
-  const int result = get_alive_node(available);
-  if (result != -1 ||
+  const auto alive_res = get_alive_node(available);
+  if (alive_res ||
       routing_strategy_ != routing::RoutingStrategy::kRoundRobinWithFallback ||
       primary_failover) {
-    return result;
+    return alive_res;
   }
 
   // the routing strategy is round-robin-with-fallback, we could not connect to
@@ -537,7 +552,7 @@ int DestMetadataCacheGroup::get_server_socket_rs(
   // (primary_failover==false). now we try to connect to one of the primaries
   // then.
   available = get_available_primaries(all_replicaset_nodes);
-  if (available.address.empty()) return result;
+  if (available.address.empty()) return alive_res;
 
   return get_alive_node(available);
 }

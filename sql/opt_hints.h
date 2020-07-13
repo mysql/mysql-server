@@ -42,7 +42,7 @@
 #include "sql/sql_show.h"        // append_identifier
 #include "sql_string.h"          // String
 
-enum class SubqueryExecMethod : int;
+enum class Subquery_strategy : int;
 class Item;
 class JOIN;
 class Opt_hints_table;
@@ -448,7 +448,7 @@ class Opt_hints_qb : public Opt_hints {
 
     @return true if semijoin is enabled
   */
-  bool semijoin_enabled(THD *thd) const;
+  bool semijoin_enabled(const THD *thd) const;
 
   /**
     Returns bit mask of which semi-join strategies are enabled for this query
@@ -464,11 +464,11 @@ class Opt_hints_qb : public Opt_hints {
     Returns which subquery execution strategy has been specified by hints
     for this query block.
 
-    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
-    @retval EXEC_EXISTS In-to-exists execution should be used
-    @retval EXEC_UNSPECIFIED No SUBQUERY hint for this query block
+    @retval SUBQ_MATERIALIZATION  Subquery Materialization should be used
+    @retval SUBQ_EXISTS           In-to-exists execution should be used
+    @retval UNSPECIFIED           No SUBQUERY hint for this query block
   */
-  SubqueryExecMethod subquery_strategy() const;
+  Subquery_strategy subquery_strategy() const;
 
   void print_irregular_hints(const THD *thd, String *str) override;
 

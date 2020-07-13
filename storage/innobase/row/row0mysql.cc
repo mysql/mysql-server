@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -76,7 +76,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include "ut0mpmcbq.h"
+#include "ut0cpu_cache.h"
 #include "ut0new.h"
 
 #include "current_thd.h"
@@ -1153,8 +1153,11 @@ dberr_t row_lock_table_autoinc_for_mysql(
   ibool was_lock_wait;
 
   /* If we already hold an AUTOINC lock on the table then do nothing.
-  Note: We peek at the value of the current owner without acquiring
-  the lock mutex. */
+  Note: We peek at the value of the current owner without acquiring any latch,
+  which is OK, because if the equality holds, it means we were granted the lock,
+  and the only way table->autoinc_trx can subsequently change is by releasing
+  the lock, which can not happen concurrently with the thread running the trx.*/
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
   if (trx == table->autoinc_trx) {
     return (DB_SUCCESS);
   }
@@ -1299,10 +1302,9 @@ static dberr_t row_explicit_rollback(dict_index_t *index, const dtuple_t *entry,
 
   /* Void call just to set mtr modification flag
   to true failing which block is not scheduled for flush*/
-  byte *log_ptr = mlog_open(mtr, 0);
-  ut_ad(log_ptr == nullptr);
-  if (log_ptr != nullptr) {
-    /* To keep complier happy. */
+  byte *log_ptr = nullptr;
+  if (mlog_open(mtr, 0, log_ptr)) {
+    ut_ad(false);
     mlog_close(mtr, log_ptr);
   }
 
@@ -2013,10 +2015,9 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
 
       /* Void call just to set mtr modification flag
       to true failing which block is not scheduled for flush*/
-      byte *log_ptr = mlog_open(&mtr, 0);
-      ut_ad(log_ptr == nullptr);
-      if (log_ptr != nullptr) {
-        /* To keep complier happy. */
+      byte *log_ptr = nullptr;
+      if (mlog_open(&mtr, 0, log_ptr)) {
+        ut_ad(false);
         mlog_close(&mtr, log_ptr);
       }
 
@@ -2047,10 +2048,9 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
         /* Void call just to set mtr modification flag
         to true failing which block is not scheduled for
         flush. */
-        byte *log_ptr = mlog_open(&mtr, 0);
-        ut_ad(log_ptr == nullptr);
-        if (log_ptr != nullptr) {
-          /* To keep complier happy. */
+        byte *log_ptr = nullptr;
+        if (mlog_open(&mtr, 0, log_ptr)) {
+          ut_ad(false);
           mlog_close(&mtr, log_ptr);
         }
       }
@@ -3832,9 +3832,14 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     /* If it's called from server, then it should exist in cache */
     if (table == nullptr) {
       /* MDL should already be held by server */
+      int error = 0;
       table = dd_table_open_on_name(
           thd, nullptr, name, true,
-          DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
+          DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT, &error);
+      if (table == nullptr && error == HA_ERR_GENERIC) {
+        err = DB_ERROR;
+        goto funct_exit;
+      }
     } else {
       table->acquire();
     }
@@ -3990,8 +3995,8 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     if (!table->is_intrinsic()) {
       lock_remove_all_on_table(table, TRUE);
     }
-    ut_a(table->n_rec_locks == 0);
-  } else if (table->get_ref_count() > 0 || table->n_rec_locks > 0) {
+    ut_a(table->n_rec_locks.load() == 0);
+  } else if (table->get_ref_count() > 0 || table->n_rec_locks.load() > 0) {
     ibool added;
 
     ut_ad(0);
@@ -4405,8 +4410,7 @@ dberr_t row_mysql_parallel_select_count_star(
   Shards n_recs;
   Counter::clear(n_recs);
 
-  struct Check_interrupt {
-    byte m_pad[INNOBASE_CACHE_LINE_SIZE - (sizeof(size_t) + sizeof(void *))];
+  struct alignas(ut::INNODB_CACHE_LINE_SIZE) Check_interrupt {
     size_t m_count{};
     const buf_block_t *m_prev_block{};
   };
@@ -4425,9 +4429,9 @@ dberr_t row_mysql_parallel_select_count_star(
 
     success =
       reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
-      Counter::inc(n_recs, ctx->m_thread_id);
+      Counter::inc(n_recs, ctx->thread_id());
 
-      auto &check = checker[ctx->m_thread_id];
+      auto &check = checker[ctx->thread_id()];
 
       if (ctx->m_block != check.m_prev_block) {
         check.m_prev_block = ctx->m_block;
@@ -4516,7 +4520,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
     const auto rec = ctx->m_rec;
     const auto block = ctx->m_block;
-    const auto id = ctx->m_thread_id;
+    const auto id = ctx->thread_id();
 
     Counter::inc(n_recs, id);
 
@@ -4566,18 +4570,20 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
       if (cmp > 0) {
         Counter::inc(n_corrupt, id);
 
-        ib::error() << "Index records in a wrong order in " << index->name
-                    << " of table " << index->table->name << ": " << *prev_tuple
-                    << ", " << rec_offsets_print(rec, offsets);
+        ib::error(ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER)
+          << "Index records in a wrong order in " << index->name
+          << " of table " << index->table->name << ": " << *prev_tuple
+          << ", " << rec_offsets_print(rec, offsets);
         /* Continue reading */
       } else if (dict_index_is_unique(index) && !contains_null &&
                  matched_fields >=
                      dict_index_get_n_ordering_defined_by_user(index)) {
         Counter::inc(n_dups, id);
 
-        ib::error() << "Duplicate key in " << index->name << " of table "
-                    << index->table->name << ": " << *prev_tuple << ", "
-                    << rec_offsets_print(rec, offsets);
+        ib::error(ER_IB_ERR_INDEX_DUPLICATE_KEY)
+          << "Duplicate key in " << index->name << " of table "
+          << index->table->name << ": " << *prev_tuple << ", "
+          << rec_offsets_print(rec, offsets);
       }
     }
 
@@ -4616,14 +4622,15 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
   }
 
   if (Counter::total(n_dups) > 0) {
-    ib::error() << "Found " << Counter::total(n_dups) << " duplicate rows in "
-                << index->name;
+    ib::error(ER_IB_ERR_FOUND_N_DUPLICATE_KEYS)
+      << "Found " << Counter::total(n_dups) << " duplicate rows in "
+      << index->name;
 
     err = DB_DUPLICATE_KEY;
   }
 
   if (Counter::total(n_corrupt) > 0) {
-    ib::error() << "Found " << Counter::total(n_corrupt)
+    ib::error(ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER) << "Found " << Counter::total(n_corrupt)
                 << " rows in the wrong order in " << index->name;
 
     err = DB_INDEX_CORRUPT;
@@ -4871,7 +4878,7 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
   The reads, updates as part of DDLs should be exempt for concurrency
   tickets. */
   if (table->is_intrinsic() || table->is_dd_table) {
-    return (true);
+    return true;
   }
 
   /* Skip concurrency ticket while implicitly updating GTID table. This is to
@@ -4883,8 +4890,15 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
     thd = current_thd;
   }
 
-  if (thd != nullptr &&  thd->is_operating_gtid_table_implicitly) {
-    return (true);
+  if (thd != nullptr) {
+    /* Skip concurrency ticket for attachable transactions opened for
+    operating within innodb implicitly. Since it is an independent transaction
+    apart from the regular transaction owned by this THD in same thread, we
+    could end up in deadlock. */
+    if (thd->is_attachable_transaction_active() ||
+        thd->is_operating_gtid_table_implicitly) {
+      return true;
+    }
   }
-  return (false);
+  return false;
 }

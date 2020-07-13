@@ -1,7 +1,7 @@
 #ifndef SQL_HASH_JOIN_BUFFER_H_
 #define SQL_HASH_JOIN_BUFFER_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -235,10 +235,14 @@ class KeyHasher {
   explicit KeyHasher(uint32_t seed) : m_seed(seed) {}
 
   size_t operator()(hash_join_buffer::Key key) const {
+    if (key.size() == 0) return kZeroKeyLengthHash;
     return MY_XXH64(key.data(), key.size(), m_seed);
   }
 
  private:
+  // An arbitrary hash value for the empty string, to avoid the hash function
+  // from doing arithmetic on nullptr, which is undefined behavior.
+  static constexpr size_t kZeroKeyLengthHash = 2669509769;
   const uint32_t m_seed;
 };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1934,5 +1934,15 @@ NdbThread_SetHighPrioProperties(const char * spec)
   return 0;
 #else
   return 0;
+#endif
+}
+
+void
+NdbThread_ClearSigMask()
+{
+#ifdef HAVE_PTHREAD_SIGMASK
+  sigset_t mask;
+  sigfillset(&mask);
+  pthread_sigmask(SIG_UNBLOCK, &mask, 0);
 #endif
 }

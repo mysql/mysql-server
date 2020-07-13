@@ -679,7 +679,7 @@ void KEY_PART_INFO::init_flags() {
 
 void KEY_PART_INFO::init_from_field(Field *fld) {
   field = fld;
-  fieldnr = field->field_index + 1;
+  fieldnr = field->field_index() + 1;
   null_bit = field->null_bit;
   null_offset = field->null_offset();
   offset = field->offset(field->table->record[0]);
@@ -725,15 +725,15 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
 
   /* Flag field as unique if it is the only keypart in a unique index */
   if (key_part_n == 0 && key_n != primary_key_n)
-    field->flags |= (((keyinfo->flags & HA_NOSAME) &&
-                      (keyinfo->user_defined_key_parts == 1))
-                         ? UNIQUE_KEY_FLAG
-                         : MULTIPLE_KEY_FLAG);
+    field->set_flag(
+        ((keyinfo->flags & HA_NOSAME) && (keyinfo->user_defined_key_parts == 1))
+            ? UNIQUE_KEY_FLAG
+            : MULTIPLE_KEY_FLAG);
   if (key_part_n == 0) field->key_start.set_bit(key_n);
   field->m_indexed = true;
 
   const bool full_length_key_part =
-      (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG));
+      field->key_length() == key_part->length && !field->is_flag_set(BLOB_FLAG);
   /*
     part_of_key contains all non-prefix keys, part_of_prefixkey
     contains prefix keys.
@@ -1316,7 +1316,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
     return 4;
   }
 
-  reg_field->field_index = field_idx;
+  reg_field->set_field_index(field_idx);
   reg_field->comment = comment;
   reg_field->gcol_info = gcol_info;
   reg_field->stored_in_db = fld_stored_in_db;
@@ -1326,10 +1326,10 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
       (*null_bit_pos) -= 8;
     }
   }
-  if (!(reg_field->flags & NOT_NULL_FLAG)) {
+  if (!reg_field->is_flag_set(NOT_NULL_FLAG)) {
     if (!(*null_bit_pos = (*null_bit_pos + 1) & 7)) (*null_pos)++;
   }
-  if (f_no_default(pack_flag)) reg_field->flags |= NO_DEFAULT_VALUE_FLAG;
+  if (f_no_default(pack_flag)) reg_field->set_flag(NO_DEFAULT_VALUE_FLAG);
 
   if (unireg == FRM_context::NEXT_NUMBER)
     share->found_next_number_field = share->field + field_idx;
@@ -2081,16 +2081,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         setup_key_part_field(share, handler_file, primary_key, keyinfo, key, i,
                              &usable_parts, true);
 
-        field->flags |= PART_KEY_FLAG;
+        field->set_flag(PART_KEY_FLAG);
         if (key == primary_key) {
-          field->flags |= PRI_KEY_FLAG;
+          field->set_flag(PRI_KEY_FLAG);
           /*
             If this field is part of the primary key and all keys contains
             the primary key, then we can use any key to find this column
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX) {
             if (field->key_length() == key_part->length &&
-                !(field->flags & BLOB_FLAG))
+                !field->is_flag_set(BLOB_FLAG))
               field->part_of_key = share->keys_in_use;
             if (field->part_of_sortkey.is_set(key))
               field->part_of_sortkey = share->keys_in_use;
@@ -2184,7 +2184,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       error = 4;
       goto err;
     } else
-      reg_field->flags |= AUTO_INCREMENT_FLAG;
+      reg_field->set_flag(AUTO_INCREMENT_FLAG);
   }
 
   if (share->blob_fields) {
@@ -2196,7 +2196,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
               (uint)(share->blob_fields * sizeof(uint)))))
       goto err;
     for (k = 0, ptr = share->field; *ptr; ptr++, k++) {
-      if ((*ptr)->flags & BLOB_FLAG) (*save++) = k;
+      if ((*ptr)->is_flag_set(BLOB_FLAG)) (*save++) = k;
     }
   }
 
@@ -2473,7 +2473,7 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
     Checking if all items are valid to be part of the expression.
   */
   if (validate_value_generator_expr(func_expr, source, source_name,
-                                    field ? field->field_index : 0))
+                                    field ? field->field_index() : 0))
     goto end;
 
   result = false;
@@ -2513,7 +2513,7 @@ bool Value_generator::register_base_columns(TABLE *table) {
   /* Calculate the number of non-virtual base columns */
   for (uint i = 0; i < table->s->fields; i++) {
     Field *field = table->field[i];
-    if (bitmap_is_set(&base_columns_map, field->field_index) &&
+    if (bitmap_is_set(&base_columns_map, field->field_index()) &&
         field->stored_in_db)
       num_non_virtual_base_cols++;
   }
@@ -2821,7 +2821,7 @@ bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
       Field *field = key_part->field = table->field[key_part->fieldnr - 1];
 
       if (field->key_length() != key_part->length &&
-          !(field->flags & BLOB_FLAG)) {
+          !field->is_flag_set(BLOB_FLAG)) {
         /*
           We are using only a prefix of the column as a key:
           Create a new field for the key part that matches the index
@@ -2981,8 +2981,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
        Initialize Field::pack_length() number of bytes for new_field->ptr
        only if there are no default values for the field.
     */
-    if (!has_default_values)
-      memset(new_field->ptr, 0, new_field->pack_length());
+    if (!has_default_values) new_field->reset();
     /* Check if FTS_DOC_ID column is present in the table */
     if (outparam->file &&
         (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
@@ -3079,7 +3078,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         // Mark hidden generated columns for functional indexes.
         if ((*field_ptr)->is_field_for_functional_index()) {
           bitmap_set_bit(&outparam->fields_for_functional_indexes,
-                         (*field_ptr)->field_index);
+                         (*field_ptr)->field_index());
         }
         *(vfield_ptr++) = *field_ptr;
       }
@@ -4505,7 +4504,7 @@ bool TABLE_LIST::merge_where(THD *thd) {
 bool TABLE_LIST::create_field_translation(THD *thd) {
   Item *item;
   SELECT_LEX *select = derived->first_select();
-  List_iterator_fast<Item> it(select->item_list);
+  List_iterator_fast<Item> it(select->fields_list);
   uint field_count = 0;
 
   DBUG_ASSERT(derived->is_prepared());
@@ -4516,7 +4515,7 @@ bool TABLE_LIST::create_field_translation(THD *thd) {
 
   // Create view fields translation table
   Field_translator *transl = (Field_translator *)thd->stmt_arena->alloc(
-      select->item_list.elements * sizeof(Field_translator));
+      select->fields_list.elements * sizeof(Field_translator));
   if (!transl) return true; /* purecov: inspected */
 
   while ((item = it++)) {
@@ -5473,29 +5472,29 @@ void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
 
   switch (mark) {
     case MARK_COLUMNS_NONE:
-      if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
+      if (get_fields_in_item_tree) field->set_flag(GET_FIXED_FIELDS_FLAG);
       break;
 
     case MARK_COLUMNS_READ: {
       Key_map part_of_key = field->part_of_key;
-      bitmap_set_bit(read_set, field->field_index);
+      bitmap_set_bit(read_set, field->field_index());
 
       part_of_key.merge(field->part_of_prefixkey);
       covering_keys.intersect(part_of_key);
       merge_keys.merge(field->part_of_key);
-      if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
+      if (get_fields_in_item_tree) field->set_flag(GET_FIXED_FIELDS_FLAG);
       if (field->is_virtual_gcol()) mark_gcol_in_maps(field);
       break;
     }
     case MARK_COLUMNS_WRITE:
-      bitmap_set_bit(write_set, field->field_index);
+      bitmap_set_bit(write_set, field->field_index());
       DBUG_ASSERT(!get_fields_in_item_tree);
 
       if (field->is_gcol()) mark_gcol_in_maps(field);
       break;
 
     case MARK_COLUMNS_TEMP:
-      bitmap_set_bit(read_set, field->field_index);
+      bitmap_set_bit(read_set, field->field_index());
       if (field->is_virtual_gcol()) mark_gcol_in_maps(field);
       break;
   }
@@ -5520,7 +5519,7 @@ void TABLE::mark_columns_used_by_index(uint index) {
   column_bitmaps_set(bitmap, bitmap);
 }
 
-/*
+/**
   mark columns used by key, but don't reset other fields
 
   The parameter key_parts is used for controlling how many of the
@@ -5576,8 +5575,8 @@ void TABLE::mark_auto_increment_column() {
     We must set bit in read set as update_auto_increment() is using the
     store() to check overflow of auto_increment values
   */
-  bitmap_set_bit(read_set, found_next_number_field->field_index);
-  bitmap_set_bit(write_set, found_next_number_field->field_index);
+  bitmap_set_bit(read_set, found_next_number_field->field_index());
+  bitmap_set_bit(write_set, found_next_number_field->field_index());
   if (s->next_number_keypart)
     mark_columns_used_by_index_no_reset(s->next_number_index, read_set);
   file->column_bitmaps_signal();
@@ -5609,8 +5608,8 @@ void TABLE::mark_columns_needed_for_delete(THD *thd) {
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE) {
     Field **reg_field;
     for (reg_field = field; *reg_field; reg_field++) {
-      if ((*reg_field)->flags & PART_KEY_FLAG)
-        bitmap_set_bit(read_set, (*reg_field)->field_index);
+      if ((*reg_field)->is_flag_set(PART_KEY_FLAG))
+        bitmap_set_bit(read_set, (*reg_field)->field_index());
     }
     file->column_bitmaps_signal();
   }
@@ -5687,7 +5686,7 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
     for (reg_field = field; *reg_field; reg_field++) {
       /* Merge keys is all keys that had a column refered to in the query */
       if (merge_keys.is_overlapping((*reg_field)->part_of_key))
-        bitmap_set_bit(read_set, (*reg_field)->field_index);
+        bitmap_set_bit(read_set, (*reg_field)->field_index());
     }
     file->column_bitmaps_signal();
   }
@@ -5783,12 +5782,12 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
             nothing we can do about it.
            */
           if ((s->primary_key < MAX_KEY) &&
-              ((my_field->flags & PRI_KEY_FLAG) ||
+              (my_field->is_flag_set(PRI_KEY_FLAG) ||
                (my_field->type() != MYSQL_TYPE_BLOB)))
-            bitmap_set_bit(read_set, my_field->field_index);
+            bitmap_set_bit(read_set, my_field->field_index());
 
           if (my_field->type() != MYSQL_TYPE_BLOB)
-            bitmap_set_bit(write_set, my_field->field_index);
+            bitmap_set_bit(write_set, my_field->field_index());
         }
         break;
       case BINLOG_ROW_IMAGE_MINIMAL:
@@ -5808,7 +5807,7 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
   Allocate space for keys, for a materialized derived table.
 
   @param key_count     Number of keys to allocate.
-  @param modify_share  Do modificationts to TABLE_SHARE.
+  @param modify_share  Do modifications to TABLE_SHARE.
 
   When modifying TABLE, modifications to TABLE_SHARE are needed, so that both
   objects remain consistent. Even if several TABLEs point to the same
@@ -5859,7 +5858,7 @@ bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share) {
   @param key_name       name of the key
   @param invisible      If true, set up bitmaps so the key is never used by
                         this TABLE
-  @param modify_share   @see alloc_tmp_keys
+  @param modify_share   Do modifications to TABLE_SHARE.  @see alloc_tmp_keys
 
   @details
   Creates a key for this table from fields which corresponds the bits set to 1
@@ -5888,7 +5887,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name, bool invisible,
     if (key_parts->is_set(i)) {
       KEY_PART_INFO tkp;
       // Ensure that we're not creating a key over a blob field.
-      DBUG_ASSERT(!((*reg_field)->flags & BLOB_FLAG));
+      DBUG_ASSERT(!(*reg_field)->is_flag_set(BLOB_FLAG));
       /*
         Check if possible key is too long, ignore it if so.
         The reason to use MI_MAX_KEY_LENGTH (myisam's default) is that it is
@@ -5963,7 +5962,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name, bool invisible,
     key_start = false;
     (*reg_field)->part_of_key.set_bit(keyno);
     (*reg_field)->part_of_sortkey.set_bit(keyno);
-    (*reg_field)->flags |= PART_KEY_FLAG;
+    (*reg_field)->set_flag(PART_KEY_FLAG);
     key_part_info->init_from_field(*reg_field);
     key_part_info++;
   }
@@ -6004,7 +6003,7 @@ uint TABLE_SHARE::find_first_unused_tmp_key(const Key_map &k) {
   the first not-yet-used position (which is lower).
 
   @param old_idx        source position
-  @param modify_share   @see alloc_tmp_keys
+  @param modify_share   Do modifications to TABLE_SHARE. @see alloc_tmp_keys
 */
 void TABLE::copy_tmp_key(int old_idx, bool modify_share) {
   if (modify_share)
@@ -6036,7 +6035,8 @@ void TABLE::copy_tmp_key(int old_idx, bool modify_share) {
   For a materialized derived table: after copy_tmp_key() has copied all
   definitions of used KEYs, in TABLE::key_info we have a head of used keys
   followed by a tail of unused keys; this function chops the tail.
-  @param modify_share   @see alloc_tmp_keys
+
+  @param modify_share   Do modifications to TABLE_SHARE. @see alloc_tmp_keys
 */
 void TABLE::drop_unused_tmp_keys(bool modify_share) {
   if (modify_share) {
@@ -6053,7 +6053,7 @@ void TABLE::drop_unused_tmp_keys(bool modify_share) {
     auto f = *reg_field;
     f->key_start.intersect(keys_to_keep);
     f->part_of_key.intersect(keys_to_keep);
-    if (f->part_of_key.is_clear_all()) f->flags &= ~PART_KEY_FLAG;
+    if (f->part_of_key.is_clear_all()) f->clear_flag(PART_KEY_FLAG);
     f->part_of_sortkey.intersect(keys_to_keep);
   }
 
@@ -6101,16 +6101,13 @@ void TABLE::mark_columns_needed_for_insert(THD *thd) {
     mark_check_constraint_columns(false);
 }
 
-/*
+/**
   @brief Update the write/read_set for generated columns
          when doing update and insert operation.
 
   @param        is_update  true means the operation is UPDATE.
                            false means it's INSERT.
 
-  @return       void
-
-  @detail
 
   Prerequisites for INSERT:
 
@@ -6197,7 +6194,7 @@ void TABLE::mark_generated_columns(bool is_update) {
   if (bitmap_updated) file->column_bitmaps_signal();
 }
 
-/*
+/**
   Update the read_map with columns needed for check constraint evaluation when
   doing update and insert operations.
 
@@ -6208,8 +6205,6 @@ void TABLE::mark_generated_columns(bool is_update) {
 
   @param        is_update  true means the operation is UPDATE.
                            false means it's INSERT.
-
-  @return       void
 */
 void TABLE::mark_check_constraint_columns(bool is_update) {
   DBUG_ASSERT(table_check_constraint_list != nullptr);
@@ -6580,16 +6575,20 @@ int TABLE_LIST::fetch_number_of_rows() {
   Each generated key consists of fields of derived table used in equi-join.
   Example:
 
+  @code
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=t1.f3 and tt.f2=t1.f4;
+  @endcode
 
   In this case for the derived table tt one key will be generated. It will
   consist of two parts f1 and f2.
   Example:
 
+  @code
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=t1.f3 JOIN
                   t2 ON tt.f2=t2.f4;
+  @endcode
 
   In this case for the derived table tt two keys will be generated.
   One key over f1 field, and another key over f2 field.
@@ -6598,8 +6597,10 @@ int TABLE_LIST::fetch_number_of_rows() {
   See also JOIN::finalize_derived_keys function.
   Example:
 
+  @code
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=a_function(t1.f3);
+  @endcode
 
   In this case for the derived table tt one key will be generated. It will
   consist of one field - f1.
@@ -6607,31 +6608,33 @@ int TABLE_LIST::fetch_number_of_rows() {
   It includes all fields referenced by other tables.
 
   Implementation is split in three steps:
-    gather information on all used fields of derived tables/view and
+
+  1.  gather information on all used fields of derived tables/view and
       store it in lists of possible keys, one per a derived table/view.
-    add keys to result tables of derived tables/view using info from above
+  2.  add keys to result tables of derived tables/view using info from above
       lists.
-    (...Planner selects best key...)
-    drop unused keys from the table.
+      (...Planner selects best key...)
+  3. drop unused keys from the table.
 
   The above procedure is implemented in 4 functions:
-    TABLE_LIST::update_derived_keys
+  1. TABLE_LIST::update_derived_keys()
                           Create/extend list of possible keys for one derived
                           table/view based on given field/used tables info.
                           (Step one)
-    JOIN::generate_derived_keys
+  2. JOIN::generate_derived_keys()
                           This function is called from update_ref_and_keys
                           when all possible info on keys is gathered and it's
                           safe to add keys - no keys or key parts would be
                           missed.  Walk over list of derived tables/views and
                           call to TABLE_LIST::generate_keys to actually
                           generate keys. (Step two)
-    TABLE_LIST::generate_keys
+  3. TABLE_LIST::generate_keys()
                           Walks over list of possible keys for this derived
                           table/view to add keys to the result table.
-                          Calls to TABLE::add_tmp_key to actually add
-                          keys (i.e. KEY objects in TABLE::key_info). (Step two)
-    TABLE::add_tmp_key    Creates one index description according to given
+                          Calls to TABLE::add_tmp_key() to actually add
+                          keys (i.e. KEY objects in TABLE::key_info). (Step
+  two)
+  4. TABLE::add_tmp_key()   Creates one index description according to given
                           bitmap of used fields. (Step two)
     [ Planner runs and possibly chooses one key, stored in Key_use->key ]
     JOIN::finalize_derived_keys Walk over list of derived tables/views to
@@ -6640,21 +6643,21 @@ int TABLE_LIST::fetch_number_of_rows() {
   This design is used for derived tables, views and CTEs. As a CTE
   can be multi-referenced, some points are worth noting:
 
-  1) Definitions
+  ## Definitions
 
   - let's call the CTE 'X'
   - Key creation/deletion happens in a window between the start of
   update_derived_keys() and the end of finalize_derived_keys().
 
-  2) Key array locking
+  ## Key array locking
 
   - Evaluation of constant subqueries (and thus their optimization)
   may happen either before, inside, or after the window above:
-    * an example of "before": WHERE 1=(subq)), due to optimize_cond()
-    * an example of "inside": WHERE col<>(subq), as make_join_plan()
+    * an example of "before": `WHERE 1=(subq))`, due to optimize_cond()
+    * an example of "inside": `WHERE col<>(subq)`, as make_join_plan()
   calls estimate_rowcount() which calls the range optimizer for <>, which
   evaluates subq
-    * an example of "after": WHERE key_col=(subq), due to
+    * an example of "after": `WHERE key_col=(subq)`, due to
   create_ref_for_key().
   - let's say that a being-optimized query block 'QB1' is entering that
   window; other query blocks are QB2, etc; let's say (subq) above is QB2, a
@@ -6667,18 +6670,22 @@ int TABLE_LIST::fetch_number_of_rows() {
   it yet; only that query block is allowed to read/write possible keys for
   this table.
 
-  3) Key array growth
+  ## Key array growth
 
   - let's say that a being-optimized query block 'QB1' is entering the
   window; other query blocks are QB2 (not necessarily the same QB2 as in
   previous paragraph), etc.
   - let's call "local" the references to X in QB1, let's call "nonlocal" the
   ones in other query blocks. For example,
+
+  @code
   with X(n) as (select 1)
   select /+ QB_NAME(QB2) *_/ n from X as X2
   where X2.n = (select /+* QB_NAME(QB1) *_/ X1.n from X as X1)
   union
   select n+2 from X as X3;
+  @endcode
+
   QB1 owns the window, then X1 is local, X2 and X3 are nonlocal.
   - when QB1 enters the window, update_derived_keys() starts for the local
   reference X1, other references to X may already have keys,
@@ -6692,9 +6699,11 @@ int TABLE_LIST::fetch_number_of_rows() {
   to the left, "E" meaning "an existing key, created by previous
   optimizations", "-" meaning "an empty cell created by alloc_keys()".
 
+  @verbatim
   EEEEEEEEEE-----------
             ^ s->first_unused_keys
             ^ s->keys
+  @endverbatim
 
   - generate_keys() extends the key_info array and adds "possible" keys to the
   end. "Possible" is defined as "not yet existing", "might be dropped in the
@@ -6706,9 +6715,12 @@ int TABLE_LIST::fetch_number_of_rows() {
   can be left to the window's owner. Key_info array now is ("P" means
   "possible key"):
 
+  @verbatim
   EEEEEEEEEEPPPPPPP---
             ^ s->first_unused_keys
                    ^ s->keys
+  @endverbatim
+
 
   - All possible keys are unused, at this stage.
   - Planner selects the best key for each local reference, among existing and
@@ -6717,27 +6729,34 @@ int TABLE_LIST::fetch_number_of_rows() {
   of (existing and possible) keys which the Planner has chosen for them. We
   call this list the list of locally-used keys, marked below with "!":
 
+  @verbatim
       !       !  !
   EEEEEEEEEEPPPPPPP---
             ^ s->first_unused_keys
                    ^ s->keys
+  @endverbatim
 
   - Any possible key which isn't locally-used is unnecessary.
 
   - finalize_derived_keys() re-organizes the possible locally-used keys and
   unnecessary keys, and does needed updates to TABLEs' bitmaps.
 
+  @verbatim
       !     !!
   EEEEEEEEEEPPPPPPP---
               ^ s->first_unused_keys
                    ^ s->keys
+  @endverbatim
 
   The locally-used keys become existing keys and are made visible to nonlocal
   references. The unnecessary keys are chopped.
+
+  @verbatim
       !     !!
   EEEEEEEEEEEE-----
               ^ s->first_unused_keys
               ^ s->keys
+  @endverbatim
 
   - After that, another query block can be optimized.
   - So, query block after query block, optimization phases grow the key_info
@@ -6747,8 +6766,8 @@ int TABLE_LIST::fetch_number_of_rows() {
   which freezes the key definition: other query blocks will not be allowed to
   add keys.
 
-  @return true  OOM
-  @return false otherwise
+  @retval true  OOM
+  @retval false otherwise
 */
 
 static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
@@ -6784,13 +6803,13 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   /* Don't create keys longer than REF access can use. */
   if (entry->used_fields.bits_set() < MAX_REF_PARTS) {
     field->part_of_key.set_bit(key - 1);
-    field->flags |= PART_KEY_FLAG;
-    entry->used_fields.set_bit(field->field_index);
+    field->set_flag(PART_KEY_FLAG);
+    entry->used_fields.set_bit(field->field_index());
   }
   return false;
 }
 
-/*
+/**
   @brief
   Update derived table's list of possible keys
 
@@ -6819,8 +6838,8 @@ bool TABLE_LIST::update_derived_keys(THD *thd, Field *field, Item **values,
     Don't bother with keys for CREATE VIEW, BLOB fields and fields with
     zero length.
   */
-  if (thd->lex->is_ps_or_view_context_analysis() || field->flags & BLOB_FLAG ||
-      field->field_length == 0)
+  if (thd->lex->is_ps_or_view_context_analysis() ||
+      field->is_flag_set(BLOB_FLAG) || field->field_length == 0)
     return false;
 
   const Sql_cmd *const cmd = thd->lex->m_sql_cmd;
@@ -7090,7 +7109,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
       read_set bitmap.
     */
     if (vfield->is_virtual_gcol() &&
-        bitmap_is_set(table->read_set, vfield->field_index)) {
+        bitmap_is_set(table->read_set, vfield->field_index())) {
       if (vfield->handle_old_value()) {
         (down_cast<Field_blob *>(vfield))->keep_old_value();
         (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
@@ -7155,7 +7174,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
       DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
 
       /* Only update those fields that are marked in the bitmap */
-      if (bitmap_is_set(bitmap, vfield->field_index)) {
+      if (bitmap_is_set(bitmap, vfield->field_index())) {
         /*
           For a virtual generated column of blob type, we have to keep
           the current blob value since this might be needed by the
@@ -7173,7 +7192,8 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
         DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
         if (error && !table->in_use->is_error()) error = 0;
         if (table->fields_set_during_insert)
-          bitmap_set_bit(table->fields_set_during_insert, vfield->field_index);
+          bitmap_set_bit(table->fields_set_during_insert,
+                         vfield->field_index());
       } else {
         DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
       }
@@ -7199,13 +7219,13 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   covering index on it.
 */
 void TABLE::mark_gcol_in_maps(const Field *field) {
-  bitmap_set_bit(write_set, field->field_index);
+  bitmap_set_bit(write_set, field->field_index());
 
   /*
     Typed array fields internally are using a conversion field, it needs to
     marked as readable in order to do conversions.
   */
-  if (field->is_array()) bitmap_set_bit(read_set, field->field_index);
+  if (field->is_array()) bitmap_set_bit(read_set, field->field_index());
 
   /*
     Note that underlying base columns are here added to read_set but not added
@@ -7421,7 +7441,7 @@ bool TABLE::mark_column_for_partial_update(const Field *field) {
     m_partial_update_columns = map;
   }
 
-  bitmap_set_bit(m_partial_update_columns, field->field_index);
+  bitmap_set_bit(m_partial_update_columns, field->field_index());
   return false;
 }
 
@@ -7430,17 +7450,17 @@ void TABLE::disable_binary_diffs_for_current_row(const Field *field) {
   DBUG_ASSERT(is_binary_diff_enabled(field));
 
   // Remove the diffs collected for the column.
-  m_partial_update_info->m_binary_diff_vectors[field->field_index]->clear();
+  m_partial_update_info->m_binary_diff_vectors[field->field_index()]->clear();
 
   // Mark the column as disabled.
   bitmap_clear_bit(&m_partial_update_info->m_enabled_binary_diff_columns,
-                   field->field_index);
+                   field->field_index());
 }
 
 bool TABLE::is_marked_for_partial_update(const Field *field) const {
   DBUG_ASSERT(field->table == this);
   return m_partial_update_columns != nullptr &&
-         bitmap_is_set(m_partial_update_columns, field->field_index);
+         bitmap_is_set(m_partial_update_columns, field->field_index());
 }
 
 bool TABLE::has_binary_diff_columns() const {
@@ -7534,14 +7554,14 @@ void TABLE::clear_partial_update_diffs() {
 
 const Binary_diff_vector *TABLE::get_binary_diffs(const Field *field) const {
   if (!is_binary_diff_enabled(field)) return nullptr;
-  return m_partial_update_info->m_binary_diff_vectors[field->field_index];
+  return m_partial_update_info->m_binary_diff_vectors[field->field_index()];
 }
 
 bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length) {
   DBUG_ASSERT(is_binary_diff_enabled(field));
 
   Binary_diff_vector *diffs =
-      m_partial_update_info->m_binary_diff_vectors[field->field_index];
+      m_partial_update_info->m_binary_diff_vectors[field->field_index()];
 
   /*
     Find the first diff that does not end before the diff we want to insert.
@@ -7597,21 +7617,19 @@ bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length) {
   return false;
 }
 
-const char *Binary_diff::new_data(Field *field) const {
+const char *Binary_diff::new_data(const Field *field) const {
   /*
     Currently, partial update is only supported for JSON columns, so it's
     safe to assume that the Field is in fact a Field_json.
   */
-  auto fld = down_cast<Field_json *>(field);
+  auto fld = down_cast<const Field_json *>(field);
   return fld->get_binary() + m_offset;
 }
 
-const char *Binary_diff::old_data(Field *field) const {
+const char *Binary_diff::old_data(const Field *field) const {
   ptrdiff_t ptrdiff = field->table->record[1] - field->table->record[0];
-  field->move_field_offset(ptrdiff);
-  const char *data = new_data(field);
-  field->move_field_offset(-ptrdiff);
-  return data;
+  auto fld = down_cast<const Field_json *>(field);
+  return fld->get_binary(ptrdiff) + m_offset;
 }
 
 void TABLE::add_logical_diff(const Field_json *field,
@@ -7620,7 +7638,7 @@ void TABLE::add_logical_diff(const Field_json *field,
                              const Json_wrapper *new_value) {
   DBUG_ASSERT(is_logical_diff_enabled(field));
   Json_diff_vector *diffs =
-      m_partial_update_info->m_logical_diff_vectors[field->field_index];
+      m_partial_update_info->m_logical_diff_vectors[field->field_index()];
   if (new_value == nullptr)
     diffs->add_diff(path, operation);
   else {
@@ -7647,13 +7665,13 @@ void TABLE::add_logical_diff(const Field_json *field,
 const Json_diff_vector *TABLE::get_logical_diffs(
     const Field_json *field) const {
   if (!is_logical_diff_enabled(field)) return nullptr;
-  return m_partial_update_info->m_logical_diff_vectors[field->field_index];
+  return m_partial_update_info->m_logical_diff_vectors[field->field_index()];
 }
 
 bool TABLE::is_binary_diff_enabled(const Field *field) const {
   return m_partial_update_info != nullptr &&
          bitmap_is_set(&m_partial_update_info->m_enabled_binary_diff_columns,
-                       field->field_index);
+                       field->field_index());
 }
 
 bool TABLE::is_logical_diff_enabled(const Field *field) const {
@@ -7661,7 +7679,7 @@ bool TABLE::is_logical_diff_enabled(const Field *field) const {
   bool ret =
       m_partial_update_info != nullptr &&
       bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
-                    field->field_index);
+                    field->field_index());
   DBUG_PRINT("info",
              ("field=%s "
               "is_logical_diff_enabled returns=%d "
@@ -7671,7 +7689,7 @@ bool TABLE::is_logical_diff_enabled(const Field *field) const {
               m_partial_update_info != nullptr
                   ? (bitmap_is_set(
                          &m_partial_update_info->m_enabled_logical_diff_columns,
-                         field->field_index)
+                         field->field_index())
                          ? "1"
                          : "0")
                   : "unknown"));
@@ -7683,11 +7701,11 @@ void TABLE::disable_logical_diffs_for_current_row(const Field *field) const {
   DBUG_ASSERT(is_logical_diff_enabled(field));
 
   // Remove the diffs collected for the column.
-  m_partial_update_info->m_logical_diff_vectors[field->field_index]->clear();
+  m_partial_update_info->m_logical_diff_vectors[field->field_index()]->clear();
 
   // Mark the column as disabled.
   bitmap_clear_bit(&m_partial_update_info->m_enabled_logical_diff_columns,
-                   field->field_index);
+                   field->field_index());
 }
 
 //////////////////////////////////////////////////////////////////////////

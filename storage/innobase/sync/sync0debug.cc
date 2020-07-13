@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -138,7 +138,7 @@ struct LatchDebug {
   @return	pointer to a thread's acquired latches. */
   Latches *thread_latches(bool add = false) UNIV_NOTHROW;
 
-  /** Check that all the latches already owned by a thread have a lower
+  /** Check that all the latches already owned by a thread have a higher
   level than limit.
   @param[in]	latches		the thread's existing (acquired) latches
   @param[in]	limit		to check against
@@ -202,7 +202,11 @@ struct LatchDebug {
         latch_level_t back_latch_level = latches->back().m_latch->get_level();
         latch_level_t back_level = latches->back().m_latch->get_level();
 
+#ifdef UNIV_NO_ERR_MSGS
         ib::error()
+#else
+        ib::error(ER_IB_LOCK_VALIDATE_LATCH_ORDER_VIOLATION)
+#endif
             << "LatchDebug::lock_validate() latch order violation. level="
             << level << ", back_latch_level=" << back_latch_level
             << ", back_level=" << back_level << ".";
@@ -251,9 +255,14 @@ struct LatchDebug {
         latch_level_t back_latch_level = latches->back().m_latch->get_level();
         latch_level_t back_level = latches->back().m_latch->get_level();
 
-        ib::error() << "LatchDebug::relock() latch order violation. level="
-                    << level << ", back_latch_level=" << back_latch_level
-                    << ", back_level=" << back_level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+        ib::error()
+#else
+        ib::error(ER_IB_RELOCK_LATCH_ORDER_VIOLATION)
+#endif
+            << "LatchDebug::relock() latch order violation. level=" << level
+            << ", back_latch_level=" << back_latch_level
+            << ", back_level=" << back_level << ".";
         ut_error;
       }
 
@@ -441,11 +450,11 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_PAGE_CLEANER);
   LEVEL_MAP_INSERT(SYNC_PURGE_QUEUE);
   LEVEL_MAP_INSERT(SYNC_TRX_SYS_HEADER);
-  LEVEL_MAP_INSERT(SYNC_REC_LOCK);
   LEVEL_MAP_INSERT(SYNC_THREADS);
   LEVEL_MAP_INSERT(SYNC_TRX);
   LEVEL_MAP_INSERT(SYNC_TRX_SYS);
-  LEVEL_MAP_INSERT(SYNC_LOCK_SYS);
+  LEVEL_MAP_INSERT(SYNC_LOCK_SYS_GLOBAL);
+  LEVEL_MAP_INSERT(SYNC_LOCK_SYS_SHARDED);
   LEVEL_MAP_INSERT(SYNC_LOCK_WAIT_SYS);
   LEVEL_MAP_INSERT(SYNC_INDEX_ONLINE_LOG);
   LEVEL_MAP_INSERT(SYNC_IBUF_BITMAP);
@@ -546,11 +555,6 @@ void LatchDebug::crash(const Latches *latches, const Latched *latched,
   ut_error;
 }
 
-/** Check that all the latches already owned by a thread have a lower
-level than limit.
-@param[in]	latches		the thread's existing (acquired) latches
-@param[in]	limit		to check against
-@return latched info if there is one with a level <= limit . */
 const Latched *LatchDebug::less(const Latches *latches,
                                 latch_level_t limit) const UNIV_NOTHROW {
   Latches::const_iterator end = latches->end();
@@ -565,6 +569,7 @@ const Latched *LatchDebug::less(const Latches *latches,
 }
 
 /** Do a basic ordering check.
+Asserts that all the existing latches have a level higher than the in_level.
 @param[in]	latches		thread's existing latches
 @param[in]	requested_level	Level requested by latch
 @param[in]	in_level	declared ulint so that we can do level - 1.
@@ -702,7 +707,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_PAGE_ARCH_CLIENT:
     case SYNC_SEARCH_SYS:
     case SYNC_THREADS:
-    case SYNC_LOCK_SYS:
+    case SYNC_LOCK_SYS_GLOBAL:
     case SYNC_LOCK_WAIT_SYS:
     case SYNC_TRX_SYS:
     case SYNC_IBUF_BITMAP_MUTEX:
@@ -755,12 +760,13 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 
     case SYNC_TRX:
 
-      /* Either the thread must own the lock_sys->mutex, or
-      it is allowed to own only ONE trx_t::mutex. */
+      /* Either the thread must own the lock_sys global latch, or
+      it is allowed to own only ONE trx_t::mutex. There are additional rules
+      for holding more than one trx_t::mutex @see trx_before_mutex_enter(). */
 
       if (less(latches, level) != nullptr) {
         basic_check(latches, level, level - 1);
-        ut_a(find(latches, SYNC_LOCK_SYS) != nullptr);
+        ut_a(find(latches, SYNC_LOCK_SYS_GLOBAL) != nullptr);
       }
       break;
 
@@ -774,29 +780,14 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_BUF_ZIP_HASH:
     case SYNC_BUF_FLUSH_STATE:
     case SYNC_RSEG_ARRAY_HEADER:
+    case SYNC_LOCK_SYS_SHARDED:
+    case SYNC_BUF_PAGE_HASH:
+    case SYNC_BUF_BLOCK:
 
       /* We can have multiple mutexes of this type therefore we
       can only check whether the greater than condition holds. */
 
       basic_check(latches, level, level - 1);
-      break;
-
-    case SYNC_BUF_PAGE_HASH:
-      /* Fall through */
-    case SYNC_BUF_BLOCK:
-
-      if (less(latches, level) != nullptr) {
-        basic_check(latches, level, level - 1);
-      }
-      break;
-
-    case SYNC_REC_LOCK:
-
-      if (find(latches, SYNC_LOCK_SYS) != nullptr) {
-        basic_check(latches, level, SYNC_REC_LOCK - 1);
-      } else {
-        basic_check(latches, level, SYNC_REC_LOCK);
-      }
       break;
 
     case SYNC_IBUF_BITMAP:
@@ -939,10 +930,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 }
 
 /** Removes a latch from the thread level array if it is found there.
-@param[in]	latch		that was released/unlocked
-@return true if found in the array; it is not an error if the latch is
-not found, as we presently are not able to determine the level for
-every latch reservation the program does */
+@param[in]	latch		that was released/unlocked */
 void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
   if (latch->get_level() == SYNC_LEVEL_VARYING) {
     // We don't have varying level mutexes
@@ -1135,7 +1123,7 @@ void LatchDebug::init() UNIV_NOTHROW {
 
   mutex_create(LATCH_ID_RW_LOCK_DEBUG, &rw_lock_debug_mutex);
 
-  rw_lock_debug_event = os_event_create("rw_lock_debug_event");
+  rw_lock_debug_event = os_event_create();
 
   rw_lock_debug_waiters.store(false, std::memory_order_relaxed);
 }
@@ -1391,7 +1379,11 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(TRX, SYNC_TRX, trx_mutex_key);
 
-  LATCH_ADD_MUTEX(LOCK_SYS, SYNC_LOCK_SYS, lock_mutex_key);
+  LATCH_ADD_MUTEX(LOCK_SYS_PAGE, SYNC_LOCK_SYS_SHARDED,
+                  lock_sys_page_mutex_key);
+
+  LATCH_ADD_MUTEX(LOCK_SYS_TABLE, SYNC_LOCK_SYS_SHARDED,
+                  lock_sys_table_mutex_key);
 
   LATCH_ADD_MUTEX(LOCK_SYS_WAIT, SYNC_LOCK_WAIT_SYS, lock_wait_mutex_key);
 
@@ -1454,6 +1446,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
                    dict_operation_lock_key);
 
   LATCH_ADD_RWLOCK(RSEGS, SYNC_RSEGS, rsegs_lock_key);
+
+  LATCH_ADD_RWLOCK(LOCK_SYS_GLOBAL, SYNC_LOCK_SYS_GLOBAL,
+                   lock_sys_global_rw_lock_key);
 
   LATCH_ADD_RWLOCK(UNDO_SPACES, SYNC_UNDO_SPACES, undo_spaces_lock_key);
 

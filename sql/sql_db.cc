@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -876,7 +876,7 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
                                                                   &sch_tables))
     return true;
 
-  for (const dd::String_type table_name : sch_tables) {
+  for (const dd::String_type &table_name : sch_tables) {
     TABLE_LIST *table_list = new (thd->mem_root) TABLE_LIST;
     if (table_list == nullptr) return true; /* purecov: inspected */
 
@@ -1370,7 +1370,8 @@ done:
                                   and "length" is updated accordingly.
                                   Otherwise "str" is set to NULL and
                                   "length" is set to 0.
-  @param          force_switch    @see mysql_change_db()
+  @param          force_switch    if the change of the current database shall be
+  forced @see mysql_change_db()
   @param[out]     cur_db_changed  out-flag to indicate whether the current
                                   database has been changed (valid only if
                                   the function suceeded)

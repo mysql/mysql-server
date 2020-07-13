@@ -2,7 +2,7 @@
 define("dojox/image/Badge",["dojo","dijit","dojox/main","dijit/_Widget","dijit/_TemplatedMixin","dojo/fx/easing"],function(_1,_2,_3,_4,_5){
 _1.experimental("dojox.image.Badge");
 _1.getObject("image",true,_3);
-_1.declare("dojox.image.Badge",[_4,_5],{baseClass:"dojoxBadge",templateString:"<div class=\"dojoxBadge\" dojoAttachPoint=\"containerNode\"></div>",children:"div.dojoxBadgeImage",rows:4,cols:5,cellSize:50,cellMargin:1,delay:2000,threads:1,easing:"dojo.fx.easing.backOut",startup:function(){
+return _1.declare("dojox.image.Badge",[_4,_5],{baseClass:"dojoxBadge",templateString:"<div class=\"dojoxBadge\" dojoAttachPoint=\"containerNode\"></div>",children:"div.dojoxBadgeImage",rows:4,cols:5,cellSize:50,cellMargin:1,delay:2000,threads:1,easing:"dojo.fx.easing.backOut",startup:function(){
 if(this._started){
 return;
 }
@@ -89,5 +89,4 @@ return !_1.hasClass(n,bc+"Seen");
 var c=ns[Math.floor(Math.random()*ns.length)];
 setTimeout(_1.hitch(this,"_enbiggen",{target:c}),this.delay/2);
 }});
-return _3.image.Badge;
 });

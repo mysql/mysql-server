@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,59 +177,25 @@ bool setup_files(atrt_config&, int setup, int sshx);
 
 bool deploy(int, atrt_config&);
 bool sshx(atrt_config&, unsigned procmask);
-bool start(atrt_config&, unsigned procmask);
 
 bool remove_dir(const char*, bool incl = true);
 bool exists_file(const char* path);
 bool connect_hosts(atrt_config&);
-bool connect_ndb_mgm(atrt_config&);
-bool wait_ndb(atrt_config&, int ndb_mgm_node_status);
-bool start_processes(atrt_config&, int);
-bool stop_processes(atrt_config&, int);
-bool update_status(atrt_config&, int types, bool check_for_missing = true);
-bool wait_for_processes_to_stop(atrt_config& config,
-                                int types = atrt_process::AP_ALL,
-                                int retries = 60,
-                                int wait_between_retries_s = 5);
-bool wait_for_process_to_stop(atrt_config& config, atrt_process& proc,
-                              int retries = 60, int wait_between_retries_s = 5);
-bool shutdown_processes(atrt_config &config, int types);
 const char* get_test_status(int result);
-bool check_cluster_status(atrt_config &config, int types);
-bool start_clusters(atrt_config &config);
-bool setup_hosts_filesystem(atrt_config &config);
 int atrt_exit(int return_code);
-const char* get_process_type_name(int types);
-TestResult run_test_case(const atrt_testcase& testcase);
 void update_atrt_result_code(const TestResult& test_result,
                              AtrtExitCodes* return_code);
 
-int check_ndb_or_servers_failures(atrt_config& config);
 bool is_client_running(atrt_config&);
 bool gather_result(atrt_config&, int* result);
 
 int read_test_case(FILE*, int& line, atrt_testcase&);
 bool read_test_cases(FILE*, std::vector<atrt_testcase>*);
-bool setup_test_case(atrt_config&, const atrt_testcase&);
 
 bool setup_hosts(atrt_config&);
 
-bool do_command(atrt_config& config);
-
-bool start_process(atrt_process& proc, bool run_setup = true);
-bool stop_process(atrt_process& proc);
-
 bool connect_mysqld(atrt_process& proc);
 bool disconnect_mysqld(atrt_process& proc);
-
-/**
- * check configuration if any changes has been
- *   done for the duration of the latest running test
- *   if so, return true, and reset those changes
- *   (true, indicates that a restart is needed to actually
- *    reset the running processes)
- */
-bool reset_config(atrt_config&);
 
 NdbOut& operator<<(NdbOut& out, const atrt_process& proc);
 

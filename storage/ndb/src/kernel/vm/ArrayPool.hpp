@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,7 +238,7 @@ protected:
   Uint32 seizeN(Uint32 n);
 
   /**
-   * Deallocate <b>n<b> consecutive object to pool
+   * Deallocate <b>n</b> consecutive object to pool
    *  starting from base
    */
   void releaseN(Uint32 base, Uint32 n);

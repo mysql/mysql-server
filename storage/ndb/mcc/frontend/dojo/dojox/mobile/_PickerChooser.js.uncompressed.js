@@ -16,7 +16,7 @@ define("dojox/mobile/_PickerChooser", [
 			// summary:
 			//		Imports a picker class according to the current theme.
 			var dm = win.global._no_dojo_dm || lang.getObject("dojox.mobile", true);
-			parentRequire([(dm.currentTheme === "android" ? "./ValuePicker" : "./SpinWheel") + id], loaded);
+			parentRequire([(dm.currentTheme === "android" || dm.currentTheme === "holodark" ? "./ValuePicker" : "./SpinWheel") + id], loaded);
 		}
 	};
 });

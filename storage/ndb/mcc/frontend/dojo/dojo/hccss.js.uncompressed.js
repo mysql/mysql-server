@@ -1,12 +1,12 @@
 define("dojo/hccss", [
-	"require",			// require.toUrl
+	"require",			// require, require.toUrl
 	"./_base/config", // config.blankGif
 	"./dom-class", // domClass.add
 	"./dom-style", // domStyle.getComputedStyle
 	"./has",
-	"./ready", // ready
+	"./domReady",
 	"./_base/window" // win.body
-], function(require, config, domClass, domStyle, has, ready, win){
+], function(require, config, domClass, domStyle, has, domReady, win){
 
 	// module:
 	//		dojo/hccss
@@ -24,27 +24,28 @@ define("dojo/hccss", [
 	has.add("highcontrast", function(){
 		// note: if multiple documents, doesn't matter which one we use
 		var div = win.doc.createElement("div");
-		div.style.cssText = "border: 1px solid; border-color:red green; position: absolute; height: 5px; top: -999px;" +
-			"background-image: url(" + (config.blankGif || require.toUrl("./resources/blank.gif")) + ");";
-		win.body().appendChild(div);
+		try{
+			div.style.cssText = "border: 1px solid; border-color:red green; position: absolute; height: 5px; top: -999px;" +
+				"background-image: url(\"" + (config.blankGif || require.toUrl("./resources/blank.gif")) + "\");";
+			win.body().appendChild(div);
 
-		var cs = domStyle.getComputedStyle(div),
-			bkImg = cs.backgroundImage,
-			hc = (cs.borderTopColor == cs.borderRightColor) ||
+			var cs = domStyle.getComputedStyle(div),
+				bkImg = cs.backgroundImage;
+			return cs.borderTopColor == cs.borderRightColor ||
 				(bkImg && (bkImg == "none" || bkImg == "url(invalid-url:)" ));
-
-		if(has("ie") <= 8){
-			div.outerHTML = "";		// prevent mixed-content warning, see http://support.microsoft.com/kb/925014
-		}else{
-			win.body().removeChild(div);
+		}catch(e){
+			console.warn("hccss: exception detecting high-contrast mode, document is likely hidden: " + e.toString());
+			return false;
+		}finally{
+			if(has("ie") <= 8){
+				div.outerHTML = "";		// prevent mixed-content warning, see http://support.microsoft.com/kb/925014
+			}else{
+				win.body().removeChild(div);
+			}
 		}
-
-		return hc;
 	});
 
-	// Priority is 90 to run ahead of parser priority of 100.   For 2.0, remove the ready() call and instead
-	// change this module to depend on dojo/domReady!
-	ready(90, function(){
+	domReady(function(){
 		if(has("highcontrast")){
 			domClass.add(win.body(), "dj_a11y");
 		}

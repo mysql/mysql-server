@@ -1,4 +1,4 @@
-define("dojox/calendar/time", ["dojo/_base/lang", "dojo/date", "dojo/cldr/supplemental", "dojo/date/stamp"], function(lang, date, cldr, stamp) {
+define("dojox/calendar/time", ["dojo/_base/lang", "dojo/date", "dojo/cldr/supplemental","dojo/date/stamp"], function(lang, date, cldr, stamp) {
 
 // summary: Advanced date manipulation utilities.
 
@@ -21,7 +21,7 @@ time.newDate = function(obj, dateClassObj){
 	var d;
 	
 	if(typeof(obj) == "number"){
-		return new dateClassObj(time);
+		return new dateClassObj(obj);
 	}else if(obj.getTime){
 		return new dateClassObj(obj.getTime());
 	}else if(obj.toGregorian){
@@ -33,13 +33,13 @@ time.newDate = function(obj, dateClassObj){
 	}else if(typeof obj == "string"){
 		d = stamp.fromISOString(obj);
 		if(d === null){
-			d = new dateClassObj(obj); // kept for backward compat, will throw error in dojo 1.9
+			throw new Error("Cannot parse date string ("+obj+"), specify a \"decodeDate\" function that translates this string into a Date object"); // cannot build date
 		}else if(dateClassObj !== Date){ // from Date to dateClassObj
 			d = new dateClassObj(d.getTime());
 		}
 		return d;
 	}
-	
+
 };
 
 time.floorToDay = function(d, reuse, dateClassObj){
@@ -108,7 +108,7 @@ time.floorToWeek = function(d, dateClassObj, dateModule, firstDayOfWeek, locale)
 		return d;
 	}
 	return time.floorToDay(
-		dateModule.add(d, "day", day > fd ? -day+fd : fd-day),
+		dateModule.add(d, "day", day > fd ? -day+fd : -day+fd-7),
 		true, dateClassObj);
 };
 
@@ -170,6 +170,39 @@ time.isToday = function(d, dateClassObj){
 	return d.getFullYear() == today.getFullYear() &&
 				 d.getMonth() == today.getMonth() && 
 				 d.getDate() == today.getDate();
+};
+
+time.isOverlapping = function(renderData, start1, end1, start2, end2, includeLimits){
+	// summary:
+	//		Computes if the first time range defined by the start1 and end1 parameters 
+	//		is overlapping the second time range defined by the start2 and end2 parameters.
+	// renderData: Object
+	//		The render data.
+	// start1: Date
+	//		The start time of the first time range.
+	// end1: Date
+	//		The end time of the first time range.
+	// start2: Date
+	//		The start time of the second time range.
+	// end2: Date
+	//		The end time of the second time range.
+	// includeLimits: Boolean
+	//		Whether include the end time or not.
+	// returns: Boolean
+	if(start1 == null || start2 == null || end1 == null || end2 == null){
+		return false;
+	}
+	
+	var cal = renderData.dateModule;
+	
+	if(includeLimits){
+		if(cal.compare(start1, end2) == 1 || cal.compare(start2, end1) == 1){
+			return false;
+		}					
+	}else if(cal.compare(start1, end2) != -1 || cal.compare(start2, end1) != -1){
+		return false;
+	}
+	return true; 
 };
 
 return time;

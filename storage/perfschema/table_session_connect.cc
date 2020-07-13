@@ -314,8 +314,8 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case FO_PROCESS_ID:
           if (m_row.m_process_id != 0) {
             set_field_ulonglong(f, m_row.m_process_id);

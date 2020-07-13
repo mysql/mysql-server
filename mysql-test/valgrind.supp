@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@
    Memcheck:Leak
    fun:memalign
    ...
-   fun:tls_get_addr_tail
+   fun:tls_get_addr_tail*
 }
 
 {
@@ -120,6 +120,16 @@
    fun:allocate_dtv
    fun:_dl_allocate_tls
    fun:pthread_create*
+}
+
+{
+   pthread allocate_dtv memory loss third
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:allocate_dtv_entry
+   ...
+   fun:exit
 }
 
 {
@@ -775,7 +785,8 @@
    write(buf)
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
-   fun:_Z8filesortP3THDP8Filesort*
+   ...
+   fun:_Z8filesortP3THDP8FilesortP11RowIteratorP13Filesort_infoP11Sort_resultPy
 }
 
 # http://www.openldap.org/its/index.cgi/Software%20Bugs?id=9081;page=23
@@ -796,7 +807,6 @@
 
 # sasl_client_init will load all available plugins with _sasl_load_plugins().
 # It seems some of the SASL plugin have leaks.
-# We *do* call sasl_client_done, which calls _sasl_done_with_plugins
 # Both LSAN and Valgrind report leaks.
 {
    Loading SASL plugins 1
@@ -851,6 +861,15 @@
    fun:malloc
    ...
    fun:sasl_set_path
+}
+
+{
+   cyrus libsasl2 still reachable four
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:_sasl_build_mechlist
 }
 
 {
@@ -1922,15 +1941,9 @@
 {
    LDAP_TLS_workaround3
    Memcheck:Leak
-   fun:calloc
+   match-leak-kinds: reachable
+   ...
    fun:PR_LoadLibraryWithFlags
-   ...
-   ...
-   ...
-   fun:PR_CallOnce
-   ...
-   ...
-   fun:_dl_init
 }
 {
    LDAP_TLS_workaround4
@@ -1975,6 +1988,7 @@
 {
    LDAP_TLS_workaround6
    Memcheck:Leak
+   match-leak-kinds: reachable
    fun:malloc
    fun:ber_memalloc_x
    fun:ber_strdup_x
@@ -1982,7 +1996,6 @@
    fun:ldap_int_initialize
    fun:ldap_create
    fun:ldap_initialize
-   fun:*create*
 }
 {
    LDAP_TLS_workaround7
@@ -1990,16 +2003,11 @@
    fun:malloc
    fun:*dl_close_worker*
    fun:*dl_close*
-   fun:*dl_catch_error*
    ...
    fun:*free_mem*
    fun:*libc_freeres*
    fun:*vgnU_freeres*
    fun:*run_exit_handlers*
-   fun:exit*
-   fun:*mysqld_exit*
-   fun:*mysqld_main*
-   fun:*main*
 }
 {
    LDAP_TLS_workaround8
@@ -2010,25 +2018,21 @@
    ...
    fun:ldap_int_initialize
    fun:ldap_set_option
-   fun:*configure_tls*
 }
 {
    LDAP_TLS_workaround9
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
-   fun:PR_ErrorInstallTable
    ...
-   ...
-   ...
-   ...
-   ...
-   ...  
-   ...
-   ...
-   ...
-   ...
-   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+}
+{
+   LDAP_TLS_workaround10
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
    ...
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
@@ -2067,12 +2071,10 @@
    match-leak-kinds: reachable
    fun:malloc
    fun:PORT_Alloc_Util
-   obj:/usr/lib64/libnss3.so
-   obj:/usr/lib64/libnss3.so
+   ...
    fun:SECMOD_LoadModule
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
    ...
 }
 
@@ -2129,13 +2131,7 @@
    fun:calloc
    fun:PR_LoadLibraryWithFlags
    ...
-   obj:/usr/lib64/libnss3.so
-   ...
    fun:tlsmc_open_nssdb
-   fun:tlsmc_convert
-   fun:tlsmc_intercept_initialization
-   obj:/usr/lib64/libldap-2.4.so.2.10.7
-   ...
 }
 
 {
@@ -2188,16 +2184,10 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:calloc
-   fun:NSSRWLock_New_Util
-   fun:SECOID_Init
    ...
    fun:dl_open_worker
-   fun:_dl_catch_error
+   ...
    fun:_dl_open
-   ...
-   fun:PR_LoadLibraryWithFlags
-   obj:/usr/lib64/libnssutil3.so
-   ...
 }
 
 {
@@ -2222,12 +2212,6 @@
    match-leak-kinds: reachable
    fun:calloc
    fun:PORT_ZAlloc_Util
-   obj:/usr/lib64/libfreeblpriv3.so
-   ...
-   fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
-   fun:PR_LoadLibraryWithFlags
-   ...
 }
 
 {
@@ -2281,8 +2265,6 @@
    fun:PORT_ArenaAlloc_Util
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
-   ...
 }
 
 {
@@ -2310,11 +2292,8 @@
    fun:PR_NewLock
    ...
    fun:SECMOD_LoadModule
-   obj:/usr/lib64/libnss3.so
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
-   ...
 }
 
 {
@@ -2361,8 +2340,6 @@
    fun:SECMOD_LoadModule
    ...
    fun:ldap_int_tls_start
-   fun:ldap_start_tls_s
-   ...
 }
 
 {
@@ -2420,8 +2397,6 @@
    ...
    fun:tlsmc_convert
    fun:tlsmc_intercept_initialization
-   obj:/usr/lib64/libldap-2.4.so.2.10.7
-   ...
 }
 
 {
@@ -2429,8 +2404,9 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
-   fun:_dl_close_worker
+   ...
    fun:_dl_close
+   ...
    fun:_dl_catch_error
    fun:_dlerror_run
    fun:dlclose
@@ -2456,6 +2432,15 @@
    obj:/usr/lib64/libnssutil3.so
    fun:PORT_LoadLibraryFromOrigin
    ...
+}
+
+{
+   LDAP_27
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dlopen@@GLIBC_2.2.5
 }
 
 # Suppress all issues related to libcrypto library

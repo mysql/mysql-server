@@ -5,6 +5,14 @@
 
 --source include/have_innodb_max_16k.inc
 
+--echo #
+--echo # Restart with innodb-directories set to MYSQL_TMP_DIR.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+
 # Create a table with FTS columns and make sure the auxilliary
 # table are created in the same tablespace.
 
@@ -116,7 +124,7 @@ CREATE TEMPORARY TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT(a,b))
 TABLESPACE=innodb_temporary ROW_FORMAT=compact;
 
 --echo # Test with FTS TABLES in remote DATA DIRECTORY
---let $REMOTE_DIR = $MYSQLTEST_VARDIR/tmp/fts_remote
+--let $REMOTE_DIR = $MYSQL_TMP_DIR/fts_remote
 --mkdir $REMOTE_DIR
 
 --replace_result $REMOTE_DIR REMOTE_DIR
@@ -132,6 +140,7 @@ TABLESPACE=innodb_temporary ROW_FORMAT=compact;
 TRUNCATE TABLE t1;
 
 # Truncate after restart
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 TRUNCATE TABLE t1;
 

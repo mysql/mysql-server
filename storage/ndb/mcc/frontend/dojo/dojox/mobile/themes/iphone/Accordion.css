@@ -14,7 +14,8 @@
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
 }
-.mblAccordionRoundRect .mblAccordionTitleLast, .mblAccordionRoundRect .mblAccordionPane:last-child {
+.mblAccordionRoundRect .mblAccordionTitleLast,
+.mblAccordionRoundRect .mblAccordionPane:last-child {
   border-bottom-width: 0;
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
@@ -31,6 +32,7 @@
   white-space: nowrap;
   border-top: 1px solid #8c8f91;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#fcfcfc), to(#e1e5e8), color-stop(0.2, #f0f2f3));
+  background-image: linear-gradient(to bottom, #fcfcfc 0%, #f0f2f3 20%, #e1e5e8 100%);
 }
 .mblAccordionTitle:first-child {
   border-top: none;
@@ -41,6 +43,7 @@
   text-decoration: none;
   white-space: nowrap;
   color: black;
+  cursor: pointer;
 }
 .mblAccordionIconParent {
   float: left;
@@ -56,6 +59,7 @@
 .mblAccordionTitleSelected {
   border-bottom: 1px solid #8c8f91;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#97afc0), to(#46708e), color-stop(0.2, #7796ac));
+  background-image: linear-gradient(to bottom, #97afc0 0%, #7796ac 20%, #46708e 100%);
   color: white;
 }
 .mblAccordionTitleSelected .mblAccordionTitleAnchor {

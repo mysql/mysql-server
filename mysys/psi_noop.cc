@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@
 #define HAVE_PSI_METADATA_INTERFACE
 #define HAVE_PSI_DATA_LOCK_INTERFACE
 #define HAVE_PSI_SYSTEM_INTERFACE
+#define HAVE_PSI_TLS_CHANNEL_INTERFACE
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -78,6 +79,7 @@
 #include "mysql/psi/psi_system.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_tls_channel.h"
 #include "mysql/psi/psi_transaction.h"
 
 class THD;
@@ -945,4 +947,23 @@ PSI_system_service_t *psi_system_service = &psi_system_noop;
 
 void set_psi_system_service(void *psi) {
   psi_system_service = (PSI_system_service_t *)psi;
+}
+
+// ===========================================================================
+
+static void register_tls_channel_noop(TLS_channel_property_iterator *) {
+  return;
+}
+
+static void unregister_tls_channel_noop(TLS_channel_property_iterator *) {
+  return;
+}
+static PSI_tls_channel_service_t psi_tls_channel_noop = {
+    register_tls_channel_noop, unregister_tls_channel_noop};
+
+struct PSI_tls_channel_bootstrap *psi_tls_channel_hook = nullptr;
+PSI_tls_channel_service_t *psi_tls_channel_service = &psi_tls_channel_noop;
+
+void set_psi_tls_channel_service(void *psi) {
+  psi_tls_channel_service = (PSI_tls_channel_service_t *)psi;
 }

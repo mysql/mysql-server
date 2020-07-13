@@ -30,6 +30,7 @@ define("dojox/mobile/iconUtils", [
 				var b = arr[0] + arr[3]; // bottom
 				var l = arr[1]; // left
 				domStyle.set(iconNode, {
+					position: "absolute",
 					clip: "rect("+t+"px "+r+"px "+b+"px "+l+"px)",
 					top: (iconNode.parentNode ? domStyle.get(iconNode, "top") : 0) - t + "px",
 					left: -l + "px"
@@ -96,7 +97,7 @@ define("dojox/mobile/iconUtils", [
 							}
 						}
 						return dic;
-					}
+					};
 					this._domButtons = findDomButtons();
 				}else{
 					this._domButtons = {};
@@ -114,7 +115,7 @@ define("dojox/mobile/iconUtils", [
 					nDiv = this._domButtons[btnClass];
 				}
 				var props = null;
-				if(has("bb") && config["mblBBBoxShadowWorkaround"] !== false){
+				if(has("bb") && config.mblBBBoxShadowWorkaround !== false){
 					// Removes box-shadow because BlackBerry incorrectly renders it.
 					props = {style:"-webkit-box-shadow:none"};
 				}
@@ -169,6 +170,7 @@ define("dojox/mobile/iconUtils", [
 				if(iconPos && parent){
 					var arr = iconPos.split(/[ ,]/);
 					domStyle.set(parent, {
+						position: "relative",
 						width: arr[2] + "px",
 						height: arr[3] + "px"
 					});

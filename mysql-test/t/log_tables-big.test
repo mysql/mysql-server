@@ -32,4 +32,6 @@ connection default;
 disconnect con1;
 disconnect con2;
 
+TRUNCATE mysql.slow_log;
+
 set @@global.log_output=default;

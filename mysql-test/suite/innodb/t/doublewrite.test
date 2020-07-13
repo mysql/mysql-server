@@ -4,6 +4,7 @@
 --echo # PAGE OF SYSTEM TABLESPACE
 --echo #
 
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 
 # Slow shutdown and restart to make sure ibuf merge is finished

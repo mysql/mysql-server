@@ -8,10 +8,12 @@ define("dojox/mobile/Tooltip", [
 	"dojo/dom-geometry",
 	"dojo/dom-style",
 	"dijit/place",
-	"dijit/_WidgetBase"
-], function(array, registry, declare, lang, domClass, domConstruct, domGeometry, domStyle, place, WidgetBase){
+	"dijit/_WidgetBase",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/Tooltip"
+], function(array, registry, declare, lang, domClass, domConstruct, domGeometry, domStyle, place, WidgetBase, has, BidiTooltip){
 
-	return declare("dojox.mobile.Tooltip", WidgetBase, {
+	var Tooltip = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiTooltip" : "dojox.mobile.Tooltip", WidgetBase, {
 		// summary:
 		//		A non-templated popup bubble widget
 
@@ -23,6 +25,10 @@ define("dojox/mobile/Tooltip", [
 			this.anchor = domConstruct.create("div", {"class":"mblTooltipAnchor"}, this.domNode, "first");
 			this.arrow = domConstruct.create("div", {"class":"mblTooltipArrow"}, this.anchor);
 			this.innerArrow = domConstruct.create("div", {"class":"mblTooltipInnerArrow"}, this.anchor);
+			if(!this.containerNode){
+				// set containerNode so that getChildren() works
+				this.containerNode = this.domNode;
+			}
 		},
 
 		show: function(/*DomNode*/ aroundNode, /*Array*/positions){
@@ -54,8 +60,8 @@ define("dojox/mobile/Tooltip", [
 			domClass.remove(domNode, ["mblTooltipAfter","mblTooltipBefore","mblTooltipBelow","mblTooltipAbove"]);
 			array.forEach(registry.findWidgets(domNode), function(widget){
 				if(widget.height == "auto" && typeof widget.resize == "function"){
-					if(!widget.fixedFooterHeight){
-						widget.fixedFooterHeight = domGeometry.getPadBorderExtents(domNode).b;
+					if(!widget._parentPadBorderExtentsBottom){
+						widget._parentPadBorderExtentsBottom = domGeometry.getPadBorderExtents(domNode).b;
 					}
 					widget.resize();
 				}
@@ -101,4 +107,6 @@ define("dojox/mobile/Tooltip", [
 			this.inherited(arguments);
 		}
 	});
+	
+	return has("dojo-bidi") ? declare("dojox.mobile.Tooltip", [Tooltip, BidiTooltip]) : Tooltip;		
 });

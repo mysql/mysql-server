@@ -23,10 +23,9 @@
 	font-size: 100%;
 	border-spacing: 0;
 	border-collapse: separate;
-	border: 1px solid #ccc;
 	margin: 0;
 }
-.nihilo .dijitCalendarMonthContainer th {
+.nihilo .dijitCalendarMonthContainer {
 	
 	background:#d3d3d3 url("images/titleBar.png") repeat-x top;
 	padding-top:.3em;

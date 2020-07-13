@@ -1,7 +1,7 @@
 //>>built
 define("dojox/av/FLVideo",["dojo","dijit","dijit/_Widget","dojox/embed/Flash","dojox/av/_Media"],function(_1,_2,_3,_4,_5){
 _1.experimental("dojox.av.FLVideo");
-_1.declare("dojox.av.FLVideo",[_3,_5],{_swfPath:_1.moduleUrl("dojox.av","resources/video.swf"),constructor:function(_6){
+return _1.declare("dojox.av.FLVideo",[_3,_5],{_swfPath:_1.moduleUrl("dojox.av","resources/video.swf"),constructor:function(_6){
 _1.global.swfIsInHTML=function(){
 return true;
 };
@@ -93,5 +93,4 @@ clearTimeout(this._updateHandle);
 _1.disconnect(this._positionHandle);
 this.inherited(arguments);
 }});
-return dojox.av.FLVideo;
 });

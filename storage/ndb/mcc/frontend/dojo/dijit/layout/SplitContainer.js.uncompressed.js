@@ -201,9 +201,16 @@ var SplitContainer = declare("dijit.layout.SplitContainer", _LayoutWidget, {
 		// child:
 		//		a widget to add
 		// insertIndex:
-		//		postion in the "stack" to add the child widget
+		//		position in the "stack" to add the child widget
 
-		this.inherited(arguments);
+		// SplitContainer puts all the child widgets first, and all the splitters at the end.
+		// (This is not ideal for accessibility but not going to fix because the widget is deprecated.)
+		// So, just need to maintain that order so that _Container.addChild() puts the widgets where expected.
+		if(typeof insertIndex == "undefined" || insertIndex == "last"){
+			insertIndex = this.getChildren().length;
+		}
+
+		this.inherited(arguments, [child, insertIndex]);
 
 		if(this._started){
 			// Do the stuff that startup() does for each widget

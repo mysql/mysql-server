@@ -1,112 +1,97 @@
 //>>built
-define("dojox/charting/action2d/_IndicatorElement",["dojo/_base/lang","dojo/_base/declare","../plot2d/Base","../plot2d/common","../axis2d/common","dojox/gfx"],function(_1,_2,_3,_4,_5,_6){
-var _7=function(_8){
-return _9(_8,_8.getShape().text);
+define("dojox/charting/action2d/_IndicatorElement",["dojo/_base/lang","dojo/_base/array","dojo/_base/declare","../plot2d/Indicator","dojo/has","../plot2d/common","../axis2d/common","dojox/gfx"],function(_1,_2,_3,_4,_5){
+var _6=function(v,_7,_8){
+var c2,c1=v?{x:_7[0],y:_8[0][0]}:{x:_8[0][0],y:_7[0]};
+if(_7.length>1){
+c2=v?{x:_7[1],y:_8[1][0]}:{x:_8[1][0],y:_7[1]};
+}
+return [c1,c2];
 };
-var _9=function(s,t){
-var c=s.declaredClass;
-var w,h;
-if(c.indexOf("svg")!=-1){
-try{
-return _1.mixin({},s.rawNode.getBBox());
+var _9=_3("dojox.charting.action2d._IndicatorElement",_4,{constructor:function(_a,_b){
+if(!_b){
+_b={};
 }
-catch(e){
-return null;
-}
-}else{
-if(c.indexOf("vml")!=-1){
-var _a=s.rawNode,_b=_a.style.display;
-_a.style.display="inline";
-w=_6.pt2px(parseFloat(_a.currentStyle.width));
-h=_6.pt2px(parseFloat(_a.currentStyle.height));
-var sz={x:0,y:0,width:w,height:h};
-_c(s,sz);
-_a.style.display=_b;
-return sz;
-}else{
-if(c.indexOf("silverlight")!=-1){
-var bb={width:s.rawNode.actualWidth,height:s.rawNode.actualHeight};
-return _c(s,bb,0.75);
-}else{
-if(s.getTextWidth){
-w=s.getTextWidth();
-var _d=s.getFont();
-var fz=_d?_d.size:_6.defaultFont.size;
-h=_6.normalizedLength(fz);
-sz={width:w,height:h};
-_c(s,sz,0.75);
-return sz;
-}
-}
-}
-}
-return null;
-};
-var _c=function(s,sz,_e){
-var _f=sz.width,_10=sz.height,sh=s.getShape(),_11=sh.align;
-switch(_11){
-case "end":
-sz.x=sh.x-_f;
-break;
-case "middle":
-sz.x=sh.x-_f/2;
-break;
-case "start":
-default:
-sz.x=sh.x;
-break;
-}
-_e=_e||1;
-sz.y=sh.y-_10*_e;
-return sz;
-};
-return _2(_3,{constructor:function(_12,_13){
-if(!_13){
-_13={};
-}
-this.inter=_13.inter;
-},_updateVisibility:function(cp,_14,_15){
-var _16=_15=="x"?this.inter.plot._hAxis:this.inter.plot._vAxis;
-var _17=_16.getWindowScale();
-this.chart.setAxisWindow(_16.name,_17,_16.getWindowOffset()+(cp[_15]-_14[_15])/_17);
+this.inter=_b.inter;
+},_updateVisibility:function(cp,_c,_d){
+var _e=_d=="x"?this._hAxis:this._vAxis;
+var _f=_e.getWindowScale();
+this.chart.setAxisWindow(_e.name,_f,_e.getWindowOffset()+(cp[_d]-_c[_d])/_f);
 this._noDirty=true;
 this.chart.render();
 this._noDirty=false;
-if(!this._tracker){
-this.initTrack();
-}
+this._initTrack();
 },_trackMove:function(){
 this._updateIndicator(this.pageCoord);
-if(this._initTrackPhase){
-this._initTrackPhase=false;
-this._tracker=setInterval(_1.hitch(this,this._trackMove),100);
-}
-},initTrack:function(){
-this._initTrackPhase=true;
+this._tracker=setTimeout(_1.hitch(this,this._trackMove),100);
+},_initTrack:function(){
+if(!this._tracker){
 this._tracker=setTimeout(_1.hitch(this,this._trackMove),500);
+}
 },stopTrack:function(){
 if(this._tracker){
-if(this._initTrackPhase){
 clearTimeout(this._tracker);
-}else{
-clearInterval(this._tracker);
-}
 this._tracker=null;
 }
 },render:function(){
 if(!this.isDirty()){
 return;
 }
-this.cleanGroup();
+var _10=this.inter,_11=_10.plot,v=_10.opt.vertical;
+this.opt.offset=_10.opt.offset||(v?{x:0,y:5}:{x:5,y:0});
+if(_10.opt.labelFunc){
+this.opt.labelFunc=function(_12,_13,_14,_15,_16){
+var _17=_6(v,_13,_14);
+return _10.opt.labelFunc(_17[0],_17[1],_15,_16);
+};
+}
+if(_10.opt.fillFunc){
+this.opt.fillFunc=function(_18,_19,_1a){
+var _1b=_6(v,_19,_1a);
+return _10.opt.fillFunc(_1b[0],_1b[1]);
+};
+}
+this.opt=_1.delegate(_10.opt,this.opt);
 if(!this.pageCoord){
+this.opt.values=null;
+this.inter.onChange({});
+}else{
+this.opt.values=[];
+this.opt.labels=this.secondCoord?"trend":"markers";
+}
+this.hAxis=_11.hAxis;
+this.vAxis=_11.vAxis;
+this.inherited(arguments);
+},_updateIndicator:function(){
+var _1c=this._updateCoordinates(this.pageCoord,this.secondCoord);
+if(_1c.length>1){
+var v=this.opt.vertical;
+this._data=[];
+this.opt.values=[];
+_2.forEach(_1c,function(_1d){
+if(_1d){
+this.opt.values.push(v?_1d.x:_1d.y);
+this._data.push([v?_1d.y:_1d.x]);
+}
+},this);
+}else{
+this.inter.onChange({});
 return;
 }
-this._updateIndicator(this.pageCoord,this.secondCoord);
-},_updateIndicator:function(cp1,cp2){
-var _18=this.inter,_19=_18.plot,v=_18.opt.vertical;
-var _1a=this.chart.getAxis(_19.hAxis),_1b=this.chart.getAxis(_19.vAxis);
-var hn=_1a.name,vn=_1b.name,hb=_1a.getScaler().bounds,vb=_1b.getScaler().bounds;
-var _1c=v?"x":"y",n=v?hn:vn,_1d=v?hb:vb;
+this.inherited(arguments);
+},_renderText:function(g,_1e,t,x,y,_1f,_20,_21){
+if(this.inter.opt.labels){
+this.inherited(arguments);
+}
+var _22=_6(this.opt.vertical,_20,_21);
+this.inter.onChange({start:_22[0],end:_22[1],label:_1e});
+},_updateCoordinates:function(cp1,cp2){
+if(_5("dojo-bidi")){
+this._checkXCoords(cp1,cp2);
+}
+var _23=this.inter,_24=_23.plot,v=_23.opt.vertical;
+var _25=this.chart.getAxis(_24.hAxis),_26=this.chart.getAxis(_24.vAxis);
+var hn=_25.name,vn=_26.name,hb=_25.getScaler().bounds,vb=_26.getScaler().bounds;
+var _27=v?"x":"y",n=v?hn:vn,_28=v?hb:vb;
 if(cp2){
 var tmp;
 if(v){
@@ -123,134 +108,75 @@ cp1=tmp;
 }
 }
 }
-var cd1=_19.toData(cp1),cd2;
+var cd1=_24.toData(cp1),cd2;
 if(cp2){
-cd2=_19.toData(cp2);
+cd2=_24.toData(cp2);
 }
 var o={};
 o[hn]=hb.from;
 o[vn]=vb.from;
-var min=_19.toPage(o);
+var min=_24.toPage(o);
 o[hn]=hb.to;
 o[vn]=vb.to;
-var max=_19.toPage(o);
-if(cd1[n]<_1d.from){
-if(!cd2&&_18.opt.autoScroll){
-this._updateVisibility(cp1,min,_1c);
-return;
+var max=_24.toPage(o);
+if(cd1[n]<_28.from){
+if(!cd2&&_23.opt.autoScroll&&!_23.opt.mouseOver){
+this._updateVisibility(cp1,min,_27);
+return [];
 }else{
-cp1[_1c]=min[_1c];
+if(_23.opt.mouseOver){
+return [];
 }
-cd1=_19.toData(cp1);
+cp1[_27]=min[_27];
+}
+cd1=_24.toData(cp1);
 }else{
-if(cd1[n]>_1d.to){
-if(!cd2&&_18.opt.autoScroll){
-this._updateVisibility(cp1,max,_1c);
-return;
+if(cd1[n]>_28.to){
+if(!cd2&&_23.opt.autoScroll&&!_23.opt.mouseOver){
+this._updateVisibility(cp1,max,_27);
+return [];
 }else{
-cp1[_1c]=max[_1c];
+if(_23.opt.mouseOver){
+return [];
 }
-cd1=_19.toData(cp1);
+cp1[_27]=max[_27];
+}
+cd1=_24.toData(cp1);
 }
 }
-var c1=this._getData(cd1,_1c,v),c2;
+var c1=this._snapData(cd1,_27,v),c2;
 if(c1.y==null){
-return;
+return [];
 }
 if(cp2){
-if(cd2[n]<_1d.from){
-cp2[_1c]=min[_1c];
-cd2=_19.toData(cp2);
+if(cd2[n]<_28.from){
+cp2[_27]=min[_27];
+cd2=_24.toData(cp2);
 }else{
-if(cd2[n]>_1d.to){
-cp2[_1c]=max[_1c];
-cd2=_19.toData(cp2);
+if(cd2[n]>_28.to){
+cp2[_27]=max[_27];
+cd2=_24.toData(cp2);
 }
 }
-c2=this._getData(cd2,_1c,v);
+c2=this._snapData(cd2,_27,v);
 if(c2.y==null){
-cp2=null;
+c2=null;
 }
 }
-var t1=this._renderIndicator(c1,cp2?1:0,hn,vn,min,max);
-if(cp2){
-var t2=this._renderIndicator(c2,2,hn,vn,min,max);
-var _1e=v?c2.y-c1.y:c2.x-c1.y;
-var _1f=_18.opt.labelFunc?_18.opt.labelFunc(c1,c2,_18.opt.fixed,_18.opt.precision):(_4.getLabel(_1e,_18.opt.fixed,_18.opt.precision)+" ("+_4.getLabel(100*_1e/(v?c1.y:c1.x),true,2)+"%)");
-this._renderText(_1f,_18,this.chart.theme,v?(t1.x+t2.x)/2:t1.x,v?t1.y:(t1.y+t2.y)/2,c1,c2);
-}
-},_renderIndicator:function(_20,_21,hn,vn,min,max){
-var t=this.chart.theme,c=this.chart.getCoords(),_22=this.inter,_23=_22.plot,v=_22.opt.vertical;
-var _24={};
-_24[hn]=_20.x;
-_24[vn]=_20.y;
-_24=_23.toPage(_24);
-var cx=_24.x-c.x,cy=_24.y-c.y;
-var x1=v?cx:min.x-c.x,y1=v?min.y-c.y:cy,x2=v?x1:max.x-c.x,y2=v?max.y-c.y:y1;
-var sh=_22.opt.lineShadow?_22.opt.lineShadow:t.indicator.lineShadow,ls=_22.opt.lineStroke?_22.opt.lineStroke:t.indicator.lineStroke,ol=_22.opt.lineOutline?_22.opt.lineOutline:t.indicator.lineOutline;
-if(sh){
-this.group.createLine({x1:x1+sh.dx,y1:y1+sh.dy,x2:x2+sh.dx,y2:y2+sh.dy}).setStroke(sh);
-}
-if(ol){
-ol=_4.makeStroke(ol);
-ol.width=2*ol.width+ls.width;
-this.group.createLine({x1:x1,y1:y1,x2:x2,y2:y2}).setStroke(ol);
-}
-this.group.createLine({x1:x1,y1:y1,x2:x2,y2:y2}).setStroke(ls);
-var ms=_22.opt.markerSymbol?_22.opt.markerSymbol:t.indicator.markerSymbol,_25="M"+cx+" "+cy+" "+ms;
-sh=_22.opt.markerShadow?_22.opt.markerShadow:t.indicator.markerShadow;
-ls=_22.opt.markerStroke?_22.opt.markerStroke:t.indicator.markerStroke;
-ol=_22.opt.markerOutline?_22.opt.markerOutline:t.indicator.markerOutline;
-if(sh){
-var sp="M"+(cx+sh.dx)+" "+(cy+sh.dy)+" "+ms;
-this.group.createPath(sp).setFill(sh.color).setStroke(sh);
-}
-if(ol){
-ol=_4.makeStroke(ol);
-ol.width=2*ol.width+ls.width;
-this.group.createPath(_25).setStroke(ol);
-}
-var _26=this.group.createPath(_25);
-var sf=this._shapeFill(_22.opt.markerFill?_22.opt.markerFill:t.indicator.markerFill,_26.getBoundingBox());
-_26.setFill(sf).setStroke(ls);
-if(_21==0){
-var _27=_22.opt.labelFunc?_22.opt.labelFunc(_20,null,_22.opt.fixed,_22.opt.precision):_4.getLabel(v?_20.y:_20.x,_22.opt.fixed,_22.opt.precision);
-this._renderText(_27,_22,t,v?x1:x2+5,v?y2+5:y1,_20);
-}
-return v?{x:x1,y:y2+5}:{x:x2+5,y:y1};
-},_renderText:function(_28,_29,t,x,y,c1,c2){
-var _2a=_5.createText.gfx(this.chart,this.group,x,y,"middle",_28,_29.opt.font?_29.opt.font:t.indicator.font,_29.opt.fontColor?_29.opt.fontColor:t.indicator.fontColor);
-var b=_7(_2a);
-b.x-=2;
-b.y-=1;
-b.width+=4;
-b.height+=2;
-b.r=_29.opt.radius?_29.opt.radius:t.indicator.radius;
-var sh=_29.opt.shadow?_29.opt.shadow:t.indicator.shadow,ls=_29.opt.stroke?_29.opt.stroke:t.indicator.stroke,ol=_29.opt.outline?_29.opt.outline:t.indicator.outline;
-if(sh){
-this.group.createRect(b).setFill(sh.color).setStroke(sh);
-}
-if(ol){
-ol=_4.makeStroke(ol);
-ol.width=2*ol.width+ls.width;
-this.group.createRect(b).setStroke(ol);
-}
-var f=_29.opt.fillFunc?_29.opt.fillFunc(c1,c2):(_29.opt.fill?_29.opt.fill:t.indicator.fill);
-this.group.createRect(b).setFill(this._shapeFill(f,b)).setStroke(ls);
-_2a.moveToFront();
-},_getData:function(cd,_2b,v){
-var _2c=this.chart.getSeries(this.inter.opt.series).data;
-var i,r,l=_2c.length;
+return [c1,c2];
+},_snapData:function(cd,_29,v){
+var _2a=this.chart.getSeries(this.inter.opt.series).data;
+var i,r,l=_2a.length;
 for(i=0;i<l;++i){
-r=_2c[i];
+r=_2a[i];
 if(r==null){
 }else{
 if(typeof r=="number"){
-if(i+1>cd[_2b]){
+if(i+1>cd[_29]){
 break;
 }
 }else{
-if(r[_2b]>cd[_2b]){
+if(r[_29]>cd[_29]){
 break;
 }
 }
@@ -262,31 +188,49 @@ x=i+1;
 y=r;
 if(i>0){
 px=i;
-py=_2c[i-1];
+py=_2a[i-1];
 }
 }else{
 x=r.x;
 y=r.y;
 if(i>0){
-px=_2c[i-1].x;
-py=_2c[i-1].y;
+px=_2a[i-1].x;
+py=_2a[i-1].y;
 }
 }
 if(i>0){
 var m=v?(x+px)/2:(y+py)/2;
-if(cd[_2b]<=m){
+if(cd[_29]<=m){
 x=px;
 y=py;
 }
 }
 return {x:x,y:y};
-},cleanGroup:function(_2d){
+},cleanGroup:function(_2b){
 this.inherited(arguments);
 this.group.moveToFront();
 return this;
-},getSeriesStats:function(){
-return _1.delegate(_4.defaultStats);
 },isDirty:function(){
 return !this._noDirty&&(this.dirty||this.inter.plot.isDirty());
 }});
+if(_5("dojo-bidi")){
+_9.extend({_checkXCoords:function(cp1,cp2){
+if(this.chart.isRightToLeft()&&this.isDirty()){
+var _2c=this.chart.node.offsetLeft;
+function _2d(_2e,cp){
+var x=cp.x-_2c;
+var _2f=(_2e.chart.offsets.l-_2e.chart.offsets.r);
+var _30=_2e.chart.dim.width+_2f-x;
+return _30+_2c;
+};
+if(cp1){
+cp1.x=_2d(this,cp1);
+}
+if(cp2){
+cp2.x=_2d(this,cp2);
+}
+}
+}});
+}
+return _9;
 });

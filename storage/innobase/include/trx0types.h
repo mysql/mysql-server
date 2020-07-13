@@ -223,27 +223,27 @@ struct trx_rseg_t {
   /*--------------------------------------------------------*/
   /** rollback segment id == the index of its slot in the trx
   system file copy */
-  ulint id;
+  size_t id{};
 
   /** mutex protecting the fields in this struct except id,space,page_no
   which are constant */
   RsegMutex mutex;
 
   /** space ID where the rollback segment header is placed */
-  space_id_t space_id;
+  space_id_t space_id{};
 
   /** page number of the rollback segment header */
-  page_no_t page_no;
+  page_no_t page_no{};
 
   /** page size of the relevant tablespace */
   page_size_t page_size;
 
   /** maximum allowed size in pages */
-  ulint max_size;
+  page_no_t max_size{};
 
  private:
   /** current size in pages */
-  page_no_t curr_size;
+  page_no_t curr_size{};
 
  public:
   /*--------------------------------------------------------*/
@@ -266,19 +266,19 @@ struct trx_rseg_t {
 
   /** Page number of the last not yet purged log header in the history
   list; FIL_NULL if all list purged */
-  page_no_t last_page_no;
+  page_no_t last_page_no{};
 
   /** Byte offset of the last not yet purged log header */
-  ulint last_offset;
+  size_t last_offset{};
 
   /** Transaction number of the last not yet purged log */
   trx_id_t last_trx_no;
 
-  /** TRUE if the last not yet purged log needs purging */
-  ibool last_del_marks;
+  /** true if the last not yet purged log needs purging */
+  bool last_del_marks{};
 
   /** Reference counter to track rseg allocated transactions. */
-  std::atomic<ulint> trx_ref_count;
+  std::atomic<size_t> trx_ref_count{};
 
   std::ostream &print(std::ostream &out) const {
     out << "[trx_rseg_t: this=" << (void *)this << ", id=" << id
@@ -511,7 +511,7 @@ class Rsegs {
   };
 
   /** The current state of this undo tablespace. */
-  enum undo_space_states m_state;
+  undo_space_states m_state;
 };
 
 /** Rollback segements from a given transaction with trx-no

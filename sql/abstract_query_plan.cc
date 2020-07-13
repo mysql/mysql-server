@@ -456,5 +456,10 @@ Join_plan::Join_plan(const JOIN *join)
         m_join_plan->get_qep_tab(last_sj_inner);
     return last_sj_inner_tab->firstmatch_return;
   }
+
+  bool Table_access::is_antijoin() const
+  {
+    return get_table()->reginfo.not_exists_optimize;
+  }
 }
 // namespace AQP

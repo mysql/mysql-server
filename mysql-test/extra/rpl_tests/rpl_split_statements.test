@@ -123,6 +123,7 @@
 --source include/have_binlog_format_statement.inc
 
 --let $rpl_gtid_utils= 1
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');

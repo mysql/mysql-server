@@ -285,7 +285,14 @@ define("dojox/html/styles", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/
 				//linked or embedded
 				pageStyleSheets[name] = s;
 				pageStyleSheets[name].id = s.ownerNode.id;
-				ArrayUtil.forEach(s.cssRules, function(r){
+				var rules = [];
+				try {
+					rules = s[s.cssRules?"cssRules":"rules"];
+				} catch(err) {
+					// issue a warning that stylesheet couldn't be loaded, but continue
+					console.warn("Reading css rules from stylesheet "+s.href+" is forbidden due to same-origin policy. See http://www.w3.org/TR/CSP/#cascading-style-sheet-css-parsing",s);
+				}
+				ArrayUtil.forEach(rules, function(r){
 					if(r.href){
 						// imported
 						pageStyleSheets[r.href] = r.styleSheet;

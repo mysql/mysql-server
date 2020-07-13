@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,20 @@ class HARNESS_EXPORT Registry {
   Logger get_logger(const std::string &name) const;
 
   /**
+   * Return logger for particular module.
+   *
+   * if it doesn't exist, get the default logger.
+   *
+   * @param name Logger id (log domain it services)
+   * @param default_name name of the default logger
+   *
+   * @throws std::logic_error if neither logger is registered for given module
+   * name
+   */
+  Logger get_logger_or_default(const std::string &name,
+                               const std::string &default_name) const;
+
+  /**
    * Update logger for particular module
    *
    * This function provides a thread-safe way of updating the Logger object in
@@ -175,9 +189,11 @@ class HARNESS_EXPORT Registry {
   bool is_ready() const noexcept { return ready_; }
 
   /**
-   * Force the flush (reopen) on all registered logger handlers
+   * Force the flush (reopen) on all registered logger handlers, while moving
+   * old logger file to dst.
+   * @param dst destination filename for old log
    */
-  void flush_all_loggers();
+  void flush_all_loggers(const std::string dst = "");
 
  private:
   mutable std::mutex mtx_;
@@ -216,6 +232,16 @@ LogLevel log_level_from_string(std::string name);
  */
 HARNESS_EXPORT
 LogLevel get_default_log_level(const Config &config, bool raw_mode = false);
+
+/**
+ * Get default log filename
+ *
+ * Fetches default log filename set in the configuration file
+ *
+ * @param config   Configuration items from configuration file
+ */
+HARNESS_EXPORT
+std::string get_default_log_filename(const Config &config);
 
 /**
  * Attach handler to all loggers

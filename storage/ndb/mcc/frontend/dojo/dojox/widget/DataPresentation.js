@@ -352,7 +352,7 @@ this.query=_72||this.query;
 this.queryOptions=_73||this.queryOptions;
 if(this.preparedstore){
 if(this.chartNode){
-this.chartWidget=_1c(this.chartNode,this.chartWidget,this.chartType,this.reverse,this.animate,this.labelMod,this.theme,this.tooltip,this.preparedstore,this.query,this,_73);
+this.chartWidget=_1c(this.chartNode,this.chartWidget,this.chartType,this.reverse,this.animate,this.labelMod,this.theme,this.tooltip,this.preparedstore,this.query,this.queryOptions);
 this.renderChartWidget();
 }
 if(this.legendNode){

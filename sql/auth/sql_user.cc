@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -67,6 +67,7 @@
 #include "sql/log_event.h" /* append_query_string */
 #include "sql/protocol.h"
 #include "sql/sql_audit.h"
+#include "sql/sql_base.h"  // open table
 #include "sql/sql_class.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
@@ -146,10 +147,9 @@ bool check_change_password(THD *thd, const char *host, const char *user,
     }
     if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), nullptr, nullptr,
                      true, false))
-      return (true);
+      return true;
 
-    if (sctx->can_operate_with({user, host}, consts::system_user))
-      return (true);
+    if (sctx->can_operate_with({user, host}, consts::system_user)) return true;
   }
 
   if (retain_current_password) {
@@ -205,10 +205,22 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   bool hide_password_hash = false;
 
   DBUG_TRACE;
+  TABLE_LIST table_list("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY);
   if (are_both_users_same) {
-    TABLE_LIST t1("mysql", "user", TL_READ);
     hide_password_hash =
-        check_table_access(thd, SELECT_ACL, &t1, false, UINT_MAX, true);
+        check_table_access(thd, SELECT_ACL, &table_list, false, UINT_MAX, true);
+  }
+
+  /*
+     Open user table so we later can read the JSON data in the user_attribute
+     field. All tables must be opened before the acl_cache_lock
+  */
+  if (open_and_lock_tables(thd, &table_list, MYSQL_LOCK_IGNORE_TIMEOUT)) {
+    if (!is_expected_or_transient_error(thd)) {
+      LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
+             thd->get_stmt_da()->message_text());
+    }
+    return true;
   }
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
@@ -341,8 +353,17 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
   lex->users_list.push_back(user_name);
   {
+    /* Read and extract JSON comments */
+    String metadata_str;
+    if (read_user_application_user_metadata_from_table(
+            user_name->user, user_name->host, &metadata_str, table_list.table,
+            thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)) {
+      error = 1;
+      goto err;
+    }
     Show_user_params show_user_params(
-        hide_password_hash, thd->variables.print_identified_with_as_hex);
+        hide_password_hash, thd->variables.print_identified_with_as_hex,
+        &metadata_str);
     /*
       By disabling instrumentation, we're requesting a rewrite to our
       local buffer, sql_text. The value on the THD and those seen in
@@ -361,6 +382,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
 
 err:
+  commit_and_close_mysql_tables(thd);
   lex->default_roles = old_default_roles;
   /* restore user resources, ssl and password expire attributes */
   lex->mqh = tmp_user_resource;
@@ -370,7 +392,7 @@ err:
   lex->x509_subject = x509_subject;
 
   lex->alter_password = alter_info;
-  my_eof(thd);
+  if (!thd->get_stmt_da()->is_error()) my_eof(thd);
   return error;
 }
 
@@ -1401,6 +1423,14 @@ bool set_and_validate_user_attributes(
     what_to_set.m_user_attributes |=
         acl_table::USER_ATTRIBUTE_PASSWORD_LOCK_TIME;
   }
+  /*
+    We issued a ALTER USER x ATTRIBUTE or COMMENT statement and need
+    to update the user attributes.
+  */
+  if (thd->lex->alter_user_attribute !=
+      enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
+    what_to_set.m_what |= USER_ATTRIBUTES;
+  }
   plugin_unlock(nullptr, plugin);
   return (false);
 }
@@ -1548,6 +1578,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
     thd->lex->contains_plaintext_password = false;
     authentication_plugin.assign(combo->plugin.str);
     thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+
     ret = replace_user_table(thd, table, combo, 0, false, false, what_to_set);
     thd->variables.sql_mode = old_sql_mode;
 
@@ -1723,9 +1754,12 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
            */
           idx--;
         } else if (user_to) {
-          acl_user->user = strdup_root(&global_acl_memory, user_to->user.str);
-          acl_user->host.update_hostname(
-              strdup_root(&global_acl_memory, user_to->host.str));
+          auto restrictions = acl_restrictions->find_restrictions(acl_user);
+          acl_restrictions->remove_restrictions(acl_user);
+          acl_user->set_user(&global_acl_memory, user_to->user.str);
+          acl_user->set_host(&global_acl_memory, user_to->host.str);
+          acl_restrictions->upsert_restrictions(acl_user, restrictions);
+
           rebuild_cached_acl_users_for_name();
         } else {
           /* If search is requested, we do not need to search further. */
@@ -1743,9 +1777,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           acl_dbs->erase(idx);
           idx--;
         } else if (user_to) {
-          acl_db->user = strdup_root(&global_acl_memory, user_to->user.str);
-          acl_db->host.update_hostname(
-              strdup_root(&global_acl_memory, user_to->host.str));
+          acl_db->set_user(&global_acl_memory, user_to->user.str);
+          acl_db->set_host(&global_acl_memory, user_to->host.str);
         } else {
           /* If search is requested, we do not need to search further. */
           break;
@@ -1795,10 +1828,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           idx--;
         } else if (user_to) {
           acl_proxy_user->set_user(&global_acl_memory, user_to->user.str);
-          acl_proxy_user->host.update_hostname(
-              (user_to->host.str && *user_to->host.str)
-                  ? strdup_root(&global_acl_memory, user_to->host.str)
-                  : nullptr);
+          acl_proxy_user->set_host(&global_acl_memory, user_to->host.str);
         } else {
           /* If search is requested, we do not need to search further. */
           break;
@@ -2168,27 +2198,68 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       */
       if (thd->lex->default_roles != nullptr &&
           thd->lex->sql_command == SQLCOM_CREATE_USER) {
+        /* Grantee can not be an anonymous user */
+        if (tmp_user_name->user.length == 0 ||
+            *(tmp_user_name->user.str) == '\0') {
+          my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
+          result = 1;
+        }
+
         List_of_auth_id_refs default_roles;
         List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
         LEX_USER *role;
+
+        /* Check for anonymous user in roles' list */
         while ((role = role_it++) && result == 0) {
+          Auth_id role_id(role);
+          if (role->user.length == 0 || *(role->user.str) == '\0') {
+            std::string to_user = create_authid_str_from(tmp_user_name);
+            my_error(ER_FAILED_ROLE_GRANT, MYF(0), role_id.auth_str().c_str(),
+                     to_user.c_str());
+            break;
+          }
+        }
+
+        /* Check administrative access over roles */
+        if (result == 0) {
+          if (!has_grant_role_privilege(thd, thd->lex->default_roles)) {
+            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                     "WITH ADMIN, ROLE_ADMIN, SUPER");
+            result = 1;
+          }
+        }
+
+        /* SYSTEM_USER requirement */
+        role_it.rewind();
+        while ((role = role_it++) && result == 0) {
+          Auth_id role_id(role);
+          if (thd->security_context()->can_operate_with(role_id,
+                                                        consts::system_user)) {
+            result = 1;
+          }
+        }
+
+        ACL_USER *acl_user = nullptr;
+        if (result == 0)
+          acl_user = find_acl_user(tmp_user_name->host.str,
+                                   tmp_user_name->user.str, true);
+        if (acl_user == nullptr) {
+          std::string authid = create_authid_str_from(tmp_user_name);
+          my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
+          result = 1;
+        }
+
+        /* Perform role grants */
+        role_it.rewind();
+        while ((role = role_it++) && result == 0) {
+          Auth_id role_id(role);
           if (!is_granted_role(tmp_user_name->user, tmp_user_name->host,
                                role->user, role->host)) {
             ACL_USER *acl_role =
                 find_acl_user(role->host.str, role->user.str, true);
-            const ACL_USER *acl_user = find_acl_user(
-                tmp_user_name->host.str, tmp_user_name->user.str, true);
             if (acl_role == nullptr) {
               std::string authid = create_authid_str_from(role);
               my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
-              result = 1;
-            } else if (acl_user == nullptr) {
-              std::string authid = create_authid_str_from(tmp_user_name);
-              my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
-              result = 1;
-            } else if (!has_grant_role_privilege(thd, role->user, role->host)) {
-              my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                       "WITH ADMIN, ROLE_ADMIN, SUPER");
               result = 1;
             } else {
               DBUG_ASSERT(result == 0);
@@ -2204,6 +2275,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
           default_roles.push_back(create_authid_from(role));
         }
 
+        /* Make granted roles default */
         if (result == 0)
           result = alter_user_set_default_roles(
               thd, tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table, tmp_user_name,
@@ -2483,6 +2555,19 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
         continue;
       }
       DBUG_ASSERT(user_to != nullptr); /* Syntax enforces pairs of users. */
+
+      /*
+        If we are renaming to anonymous user, make sure no roles are granted.
+      */
+      if (user_to->user.length == 0 || *(user_to->user.str) == '\0') {
+        List_of_granted_roles granted_roles;
+        get_granted_roles(user_from, &granted_roles);
+        if (!granted_roles.empty()) {
+          log_user(thd, &wrong_users, user_from, wrong_users.length() > 0);
+          result = 1;
+          continue;
+        }
+      }
 
       /*
         Search all in-memory structures and grant tables

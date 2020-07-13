@@ -510,6 +510,8 @@ col_4 (50),col_5 (50),col_6 (50),
 col_7 (50),col_8 (50),col_9 (50),
 col_10 (50),col_11 (50),col_12 (50),
 col_13(50));
+Warnings:
+Warning	1681	Column 'test.t1.col_1' having prefix key part 'col_1(50)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 INSERT INTO t1  VALUES (
 REPEAT("col1_00001",10),REPEAT("col2_00001",10),REPEAT("col3_00001",10),
 REPEAT("col4_00001",10),REPEAT("col5_00001",10),REPEAT("col6_00001",10),
@@ -556,6 +558,8 @@ col_4 (50),col_5 (50),col_6 (50),
 col_7 (50),col_8 (50),col_9 (50),
 col_10 (50),col_11 (50),col_12 (50),
 col_13(50));
+Warnings:
+Warning	1681	Column 'test.t1.col_1' having prefix key part 'col_1(50)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 ALTER TABLE t1 DISCARD TABLESPACE;
 restore: t1#p#p0 .ibd and .cfg files
 restore: t1#p#p1 .ibd and .cfg files

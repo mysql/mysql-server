@@ -51,7 +51,7 @@ while ($wait_counter)
     }
     if (!$success)
     {
-        real_sleep 0.1;
+        sleep 0.1;
         dec $retry_counter;
     }
   }

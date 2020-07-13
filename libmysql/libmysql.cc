@@ -88,6 +88,7 @@
 
 #include <memory>
 
+#include "../sql-common/client_extensions_macros.h"
 #include "client_settings.h"
 #include "mysql_trace.h"
 #include "sql_common.h"
@@ -362,6 +363,44 @@ void read_user_name(char *name) {
 
 #endif
 
+/**
+  Checks if the file name supplied by the server is a valid name.
+
+  Name is valid if it's either equal to or starts with the value stored
+  in the mysql options.
+  If the value in the options is NULL then no name is valid.
+
+  Note that we rely that the options name, if supplied, is normalized before
+  being stored.
+
+  @note Will allocate the extension if not already allocated
+
+  @param options the options to read the load_data_file_from.
+  @param net_filename the path to check
+  @retval true the name is valid
+  @retval false the name is invalid
+*/
+static bool is_valid_local_infile_name(st_mysql_options *options,
+                                       const char *net_filename) {
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+
+  ENSURE_EXTENSIONS_PRESENT(options);
+
+  // null load_data_dir means no exceptions (compatibility)
+  if (options->extension->load_data_dir == nullptr) return false;
+
+  // make fully qualified name
+  if (my_realpath(buff1, net_filename, 0)) return false;
+
+  // with uniform directory separators
+  convert_dirname(buff2, buff1, NullS);
+
+  /* if the name supplied starts with load_data_dir accept it */
+  int ret = strncmp(options->extension->load_data_dir, buff2,
+                    strlen(options->extension->load_data_dir));
+  return ret == 0;
+}
+
 bool handle_local_infile(MYSQL *mysql, const char *net_filename) {
   bool result = true;
   uint packet_length = MY_ALIGN(mysql->net.max_packet - 16, IO_SIZE);
@@ -371,6 +410,23 @@ bool handle_local_infile(MYSQL *mysql, const char *net_filename) {
   char *buf;    /* buffer to be filled by local_infile_read */
   struct st_mysql_options *options = &mysql->options;
   DBUG_TRACE;
+
+  /*
+    Throw an error if --local-infile is not specified and the
+    file requested is not "safe" (i.e. within the supplied directory
+    to MYSQL_OPT_LOAD_DATA_LOCAL_DIR.
+    If --local-infile is specified then no need to check the file name.
+  */
+  if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES) &&
+      !is_valid_local_infile_name(&(mysql->options), net_filename)) {
+    MYSQL_TRACE(SEND_FILE, mysql, (0, nullptr));
+    (void)my_net_write(net, (const uchar *)"", 0); /* Server needs one packet */
+    net_flush(net);
+    MYSQL_TRACE(PACKET_SENT, mysql, (0));
+    set_mysql_error(mysql, CR_LOAD_DATA_LOCAL_INFILE_REJECTED,
+                    unknown_sqlstate);
+    return true;
+  }
 
   /* check that we've got valid callback functions */
   if (!(options->local_infile_init && options->local_infile_read &&
@@ -1584,7 +1640,8 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
 
 static void update_stmt_fields(MYSQL_STMT *stmt) {
   MYSQL_FIELD *field = stmt->mysql->fields;
-  MYSQL_FIELD *field_end = field + stmt->field_count;
+  MYSQL_FIELD *field_end =
+      field != nullptr ? field + stmt->field_count : nullptr;
   MYSQL_FIELD *stmt_field = stmt->fields;
   MYSQL_BIND *my_bind = stmt->bind_result_done ? stmt->bind : nullptr;
 
@@ -3063,6 +3120,41 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
 }
 
+// Convert an integer (signed or unsigned) to float/double, with checking
+// for loss of precision in the conversion. (double can represent all integers
+// up to 2^53 exactly, but only certain integers above this limit. For instance,
+// 2^53 + 1 is rounded off, while 2^53 + 2 is exact.)
+template <class Int, class Float>
+static inline Float convert_with_inexact_check(Int i, bool *is_inexact) {
+  /*
+    We need to mark the local variable volatile to
+    workaround Intel FPU executive precision feature.
+    (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
+   */
+  volatile Float f = static_cast<Float>(i);
+
+  // If i is positive, it is possible for it to have been rounded outside
+  // Int's range. If so, converting back to check is undefined behavior,
+  // and UBSan will complain. Thus, we need to check before we convert.
+  // Rounding of 2^64 - 1 (and similarly for int64_t) to float/double is
+  // platform-dependent, so we need a bit of trickery to get the right
+  // value in a safe manner.
+  //
+  // For both int64_t and uint64_t, the minimum possible value is a
+  // (negative) power of two, which is exact, so the test is applicable
+  // for max() only.
+  constexpr Float out_of_range =
+      static_cast<Float>(1ULL << (std::numeric_limits<Int>::digits - 1)) *
+      (std::numeric_limits<Int>::is_signed ? 1.0 : 2.0);
+  if (f >= out_of_range) {
+    // Obviously inexact.
+    *is_inexact = true;
+  } else {
+    *is_inexact = static_cast<Int>(f) != i;
+  }
+  return f;
+}
+
 /*
   Convert integer value to client buffer of any type.
 
@@ -3100,31 +3192,24 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       *param->error = param->is_unsigned != is_unsigned && value < 0;
       break;
     case MYSQL_TYPE_FLOAT: {
-      /*
-        We need to mark the local variable volatile to
-        workaround Intel FPU executive precision feature.
-        (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
-      */
-      volatile float data;
+      float data;
       if (is_unsigned) {
-        data = (float)ulonglong2double(value);
-        *param->error = ((ulonglong)value) != ((ulonglong)data);
+        data =
+            convert_with_inexact_check<ulonglong, float>(value, param->error);
       } else {
-        data = (float)value;
-        *param->error = value != ((longlong)data);
+        data = convert_with_inexact_check<longlong, float>(value, param->error);
       }
       floatstore(buffer, data);
       break;
     }
     case MYSQL_TYPE_DOUBLE: {
-      volatile double data;
+      double data;
       if (is_unsigned) {
-        data = ulonglong2double(value);
-        *param->error =
-            data >= ULLONG_MAX || ((ulonglong)value) != ((ulonglong)data);
+        data =
+            convert_with_inexact_check<ulonglong, double>(value, param->error);
       } else {
-        data = (double)value;
-        *param->error = value != ((longlong)data);
+        data =
+            convert_with_inexact_check<longlong, double>(value, param->error);
       }
       doublestore(buffer, data);
       break;

@@ -1,5 +1,6 @@
 define("dojox/data/CouchDBRestStore", ["dojo", "dojox", "dojox/data/JsonRestStore"], function(dojo, dojox) {
-dojo.declare("dojox.data.CouchDBRestStore",
+
+var CouchDBRestStore = dojo.declare("dojox.data.CouchDBRestStore",
 	dojox.data.JsonRestStore,
 	{
 	// summary:
@@ -60,7 +61,7 @@ dojo.declare("dojox.data.CouchDBRestStore",
 );
 
 // create a set of stores
-dojox.data.CouchDBRestStore.getStores = function(couchServerUrl){
+CouchDBRestStore.getStores = function(couchServerUrl){
 	var dfd = dojo.xhrGet({
 		url: couchServerUrl+"_all_dbs",
 		handleAs: "json",
@@ -76,6 +77,6 @@ dojox.data.CouchDBRestStore.getStores = function(couchServerUrl){
 	return stores;
 };
 
-return dojox.data.CouchDBRestStore;
+return CouchDBRestStore;
 
 });

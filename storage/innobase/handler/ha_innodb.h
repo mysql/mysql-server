@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -329,6 +329,9 @@ class ha_innobase : public handler {
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values) override;
 
+  /** Do cleanup for auto increment calculation. */
+  virtual void release_auto_increment() override;
+
   virtual bool get_error_message(int error, String *buf) override;
 
   virtual bool get_foreign_dup_key(char *, uint, char *, uint) override;
@@ -462,43 +465,24 @@ class ha_innobase : public handler {
  private:
   /** @name Multi Range Read interface @{ */
 
-  /** Initialize multi range read @see DsMrr_impl::dsmrr_init
-  @param seq
-  @param seq_init_param
-  @param n_ranges
-  @param mode
-  @param buf */
+  /** Initialize multi range read @see DsMrr_impl::dsmrr_init */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                             uint n_ranges, uint mode,
                             HANDLER_BUFFER *buf) override;
 
-  /** Process next multi range read @see DsMrr_impl::dsmrr_next
-  @param range_info */
+  /** Process next multi range read @see DsMrr_impl::dsmrr_next */
   int multi_range_read_next(char **range_info) override;
 
   /** Initialize multi range read and get information.
   @see ha_myisam::multi_range_read_info_const
-  @see DsMrr_impl::dsmrr_info_const
-  @param keyno
-  @param seq
-  @param seq_init_param
-  @param n_ranges
-  @param bufsz
-  @param flags
-  @param cost */
+  @see DsMrr_impl::dsmrr_info_const */
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, uint n_ranges,
                                       uint *bufsz, uint *flags,
                                       Cost_estimate *cost) override;
 
   /** Initialize multi range read and get information.
-  @see DsMrr_impl::dsmrr_info
-  @param keyno
-  @param n_ranges
-  @param keys
-  @param bufsz
-  @param flags
-  @param cost */
+  @see DsMrr_impl::dsmrr_info */
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint *bufsz, uint *flags,
                                 Cost_estimate *cost) override;
@@ -550,8 +534,9 @@ class ha_innobase : public handler {
   int truncate_impl(const char *name, TABLE *form, dd::Table *table_def);
 
  protected:
-  /** Enter InnoDB engine after checking max allowed threads */
-  void srv_concurrency_enter();
+  /** Enter InnoDB engine after checking max allowed threads.
+  @return mysql error code. */
+  int srv_concurrency_enter();
 
   /** Leave Innodb, if no more tickets are left */
   void srv_concurrency_exit();
@@ -808,7 +793,7 @@ class create_table_info_t {
   create_table_info_t(THD *thd, TABLE *form, HA_CREATE_INFO *create_info,
                       char *table_name, char *remote_path, char *tablespace,
                       bool file_per_table, bool skip_strict, uint32_t old_flags,
-                      uint32_t old_flags2)
+                      uint32_t old_flags2, bool is_partition)
       : m_thd(thd),
         m_trx(thd_to_trx(thd)),
         m_form(form),
@@ -819,7 +804,8 @@ class create_table_info_t {
         m_innodb_file_per_table(file_per_table),
         m_flags(old_flags),
         m_flags2(old_flags2),
-        m_skip_strict(skip_strict) {}
+        m_skip_strict(skip_strict),
+        m_partition(is_partition) {}
 
   /** Initialize the object. */
   int initialize();
@@ -852,8 +838,19 @@ class create_table_info_t {
   @return NULL if valid, string name of bad option if not. */
   const char *create_options_are_invalid();
 
+ private:
+  /** Put a warning or error message to the error log for the
+  DATA DIRECTORY option.
+  @param[in]  msg     The reason that data directory is wrong.
+  @param[in]  ignore  If true, append a message about ignoring
+                      the data directory location.
+  @return true if valid, false if not. */
+  void log_error_invalid_location(std::string &msg, bool ignore);
+
+ public:
   /** Validate DATA DIRECTORY option. */
-  bool create_option_data_directory_is_valid();
+  bool create_option_data_directory_is_valid(bool ignore = false);
+
   /** Validate TABLESPACE option. */
   bool create_option_tablespace_is_valid();
 
@@ -980,6 +977,9 @@ class create_table_info_t {
 
   /** Skip strict check */
   bool m_skip_strict;
+
+  /** True if this table is a partition */
+  bool m_partition;
 };
 
 /** Class of basic DDL implementation, for CREATE/DROP/RENAME TABLE */

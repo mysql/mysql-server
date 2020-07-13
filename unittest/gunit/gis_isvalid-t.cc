@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ class IsvalidTest : public ::testing::Test {
 
 typedef ::testing::Types<Cartesian_types, Geographic_types> Types;
 
-TYPED_TEST_CASE(IsvalidTest, Types);
+TYPED_TEST_SUITE(IsvalidTest, Types);
 
 TYPED_TEST(IsvalidTest, Point) {
   typename TypeParam::Point pt0{0, 0};

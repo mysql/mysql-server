@@ -152,7 +152,7 @@ DROP TABLE t1;
 --source include/rpl_sync.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

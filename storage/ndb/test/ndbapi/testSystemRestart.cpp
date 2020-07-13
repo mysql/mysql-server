@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3053,6 +3053,28 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int createCopy(NDBT_Context* ctx,
+               NDBT_Step* step,
+               NdbDictionary::Object::PartitionBalance bal)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+
+  NdbDictionary::Table copy(* NDBT_Tables::getTable(ctx->getTableName(0)));
+
+  // Create table with disk storage and a particular balance
+  copy.setName("BUG_45154");
+  copy.setDefaultNoPartitionsFlag(true);
+  copy.setFragmentType(NdbDictionary::Object::HashMapPartition);
+  copy.setPartitionBalance(bal);
+  if (pDict->createTable(copy) != 0)
+  {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -3066,6 +3088,26 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     ndb_mgm_create_logevent_handle(restarter.handle, filter);
   struct ndb_logevent event;
 
+  /**
+   * Start by creating and dropping both table types so
+   * that all necessary hashmaps are created before
+   * testing further, and tableids are stable
+   */
+  if (createCopy(ctx,
+                 step,
+                 NdbDictionary::Object::PartitionBalance_ForRAByLDMx4) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+  pDict->dropTable("BUG_45154");
+
+  if (createCopy(ctx,
+                 step,
+                 NdbDictionary::Object::PartitionBalance_ForRAByLDM) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+
   for(int i = 0; i < ctx->getNumLoops(); i++)
   {
     /* Create a table with disk storage and a fairly large number of fragments.
@@ -3075,22 +3117,19 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     */
     ndbout_c("loop %u", i);
     pDict->dropTable("BUG_45154");
-    NdbDictionary::Table copy1(* NDBT_Tables::getTable(ctx->getTableName(0)));
-    NdbDictionary::Table copy2(* NDBT_Tables::getTable(ctx->getTableName(0)));
+
+    // Create table with disk storage and a fairly large number of fragments
+    if (createCopy(ctx,
+                   step,
+                   NdbDictionary::Object::PartitionBalance_ForRAByLDMx4) != NDBT_OK)
+    {
+      return NDBT_FAILED;
+    }
+
     const NdbDictionary::Table* actualTable;
     int tableId;
     unsigned int nFragments;
 
-    // Create table with disk storage and a fairly large number of fragments
-    copy1.setName("BUG_45154");
-    copy1.setDefaultNoPartitionsFlag(true);
-    copy1.setFragmentType(NdbDictionary::Object::HashMapPartition);
-    copy1.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDMx4);
-    if (pDict->createTable(copy1) != 0)
-    {
-      ndbout << pDict->getNdbError() << endl;
-      return NDBT_FAILED;
-    }
     actualTable= pDict->getTable("BUG_45154");
     tableId = actualTable->getTableId();
     nFragments = actualTable->getPartitionCount();
@@ -3121,16 +3160,14 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     // Drop the table
     pDict->dropTable("BUG_45154");
 
-   // Recreate the table with the same id, but fewer fragments.
-    copy2.setName("BUG_45154");
-    copy2.setDefaultNoPartitionsFlag(true);
-    copy2.setFragmentType(NdbDictionary::Object::HashMapPartition);
-    copy2.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDM);
-    if (pDict->createTable(copy2) != 0)
+    // Recreate the table with the same id, but fewer fragments.
+    if (createCopy(ctx,
+                   step,
+                   NdbDictionary::Object::PartitionBalance_ForRAByLDM) != NDBT_OK)
     {
-      ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
+
     actualTable= pDict->getTable("BUG_45154");
 
     ndbout_c("[2nd table] Id: %u  Fragments: %u (%s)",
@@ -4114,11 +4151,13 @@ runLoad(NDBT_Context* ctx, NDBT_Step* step)
   int retries = 0;
   while (!ctx->isTestStopped() && myDict->createTable(*copy)!= 0)
   {
-    /* '4009 - Cluster Failure' is acceptable since SR is in progress.
+    /* '4009 - Cluster Failure' or '4035 - Cluster temporarily unavailable'
+     * are acceptable since SR is in progress.
      * '711 - System busy with node restart, schema operations not allowed'
      * is acceptable since the stale node performs an NR during SR.
      */
     CHK((myDict->getNdbError().code == 4009 ||
+         myDict->getNdbError().code == 4035 ||
          myDict->getNdbError().code == 711),
         myDict->getNdbError().message);
     retries++;
@@ -4194,6 +4233,59 @@ runCheckStaleNodeTakeoverDuringSR(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }
+
+int
+runCheckLaggardShutdown(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  /**
+   * Perform system restart, but with error
+   * insert which causes 1 node to be slow to shutdown.
+   * Check that the others wait for it, to ensure a clean
+   * shutdown
+   *  Error     Subcase
+   *   1022     Slow node
+   *   1023     Slow node which fails
+   *   1024     Slow node, and master fails
+   */
+  if (restarter.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  int errorCodes[] = {1022, 1023, 1024};
+
+  for (Uint32 e=0; e < 3; e++)
+  {
+    const Uint32 laggard = restarter.getRandomNotMasterNodeId(rand());
+
+    ndbout_c("Configuring all nodes to restart -n on CRASH_INSERTION");
+    int dumpCodes[2] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+    CHK((restarter.dumpStateAllNodes(&dumpCodes[0], 2) == 0),
+        "Failed to set crash restarttype");
+
+    ndbout_c("Inserting error %u in node %u", errorCodes[e], laggard);
+
+    CHK((restarter.insertErrorInNode(laggard, errorCodes[e]) == 0),
+        "Failed to insert error");
+
+    ndbout_c("Performing system restart");
+
+    CHK((restarter.restartNodes(NULL,
+                                0,
+                                0) == 0),
+        "System restart failed.");
+
+    CHK((restarter.waitClusterStarted() == 0),
+        "Failed waiting for cluster to start again");
+  }
+
+  /* System restart will have cleared error insert state */
+
+  return NDBT_OK;
+}
+
 /**************************************************************************/
 
 NDBT_TESTSUITE(testSystemRestart);
@@ -4723,6 +4815,11 @@ TESTCASE("StaleNodeTakeoverDuringSR",
 {
   STEP(runCheckStaleNodeTakeoverDuringSR);
   STEP(runLoad);
+}
+TESTCASE("LaggardShutdown",
+         "One node is slow during a shutdown")
+{
+  STEP(runCheckLaggardShutdown);
 }
 NDBT_TESTSUITE_END(testSystemRestart)
 

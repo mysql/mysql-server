@@ -6,7 +6,7 @@ define("dojo/NodeList-html", ["./query", "./_base/lang", "./html"], function(que
 /*=====
 return function(){
 	// summary:
-	//		Adds a chainable html method to dojo.query() / NodeList instances for setting/replacing node content
+	//		Adds a chainable html method to dojo/query() / NodeList instances for setting/replacing node content
 };
 =====*/
 
@@ -30,14 +30,17 @@ lang.extend(NodeList, {
 		//		to further tune the set content behavior.
 		//
 		// example:
-		//	| query(".thingList").html("<li data-dojo-type='dojo/dnd/Moveable'>1</li><li data-dojo-type='dojo/dnd/Moveable'>2</li><li data-dojo-type='dojo/dnd/Moveable'>3</li>",
-		//	| {
-		//	| 	parseContent: true,
-		//	| 	onBegin: function(){
-		//	| 		this.content = this.content.replace(/([0-9])/g, this.id + ": $1");
-		//	| 		this.inherited("onBegin", arguments);
-		//	| 	}
-		//	| }).removeClass("notdone").addClass("done");
+		//	|	require(["dojo/query", "dojo/NodeList-html"
+		//	|	], function(query){
+		//	| 		query(".thingList").html("<li data-dojo-type='dojo/dnd/Moveable'>1</li><li data-dojo-type='dojo/dnd/Moveable'>2</li><li data-dojo-type='dojo/dnd/Moveable'>3</li>",
+		//	| 		{
+		//	| 			parseContent: true,
+		//	| 			onBegin: function(){
+		//	| 				this.content = this.content.replace(/([0-9])/g, this.id + ": $1");
+		//	| 				this.inherited("onBegin", arguments);
+		//	| 			}
+		//	|		}).removeClass("notdone").addClass("done");
+		//	| 	});
 
 		var dhs = new html._ContentSetter(params || {});
 		this.forEach(function(elm){

@@ -1,11 +1,11 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/behavior",["./_base/kernel","./_base/lang","./_base/array","./_base/connect","./query","./ready"],function(_1,_2,_3,_4,_5,_6){
+define("dojo/behavior",["./_base/kernel","./_base/lang","./_base/array","./_base/connect","./query","./domReady"],function(_1,_2,_3,_4,_5,_6){
 _1.deprecated("dojo.behavior","Use dojo/on with event delegation (on.selector())");
 var _7=function(){
 function _8(_9,_a){
@@ -89,6 +89,8 @@ _1d[bid]=_1c.length;
 };
 };
 _1.behavior=new _7();
-_6(_1.behavior,"apply");
+_6(function(){
+_1.behavior.apply();
+});
 return _1.behavior;
 });

@@ -1,6 +1,6 @@
 //>>built
 define("dijit/layout/_LayoutWidget",["dojo/_base/lang","../_Widget","../_Container","../_Contained","../Viewport","dojo/_base/declare","dojo/dom-class","dojo/dom-geometry","dojo/dom-style"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
-return _6("dijit.layout._LayoutWidget",[_2,_3,_4],{baseClass:"dijitLayoutContainer",isLayoutContainer:true,buildRendering:function(){
+return _6("dijit.layout._LayoutWidget",[_2,_3,_4],{baseClass:"dijitLayoutContainer",isLayoutContainer:true,_setTitleAttr:null,buildRendering:function(){
 this.inherited(arguments);
 _7.add(this.domNode,"dijitContainer");
 },startup:function(){

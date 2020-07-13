@@ -30,13 +30,14 @@ usr/lib/mysqlrouter/plugin/http_server.so
 usr/lib/mysqlrouter/plugin/keepalive.so
 usr/lib/mysqlrouter/plugin/mysql_protocol.so
 usr/lib/mysqlrouter/plugin/routing.so
+usr/lib/mysqlrouter/plugin/router_protobuf.so
 usr/lib/mysqlrouter/plugin/metadata_cache.so
 usr/lib/mysqlrouter/plugin/rest_api.so
 usr/lib/mysqlrouter/plugin/rest_router.so
 usr/lib/mysqlrouter/plugin/rest_routing.so
 usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 # private shared libraries
-usr/lib/mysqlrouter/private/libprotobuf-lite.so.3.6.1
+usr/lib/mysqlrouter/private/libprotobuf-lite.so.3.11.4
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1

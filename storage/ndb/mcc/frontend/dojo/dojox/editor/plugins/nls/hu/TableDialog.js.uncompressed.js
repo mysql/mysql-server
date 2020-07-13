@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Oszlop hozzáadása előtte",
 	insertTableColumnAfterLabel: "Oszlop hozzáadása utána",
 	deleteTableRowLabel: "Sor törlése",
-	deleteTableColumnLabel: "Oszlop törlése"
+	deleteTableColumnLabel: "Oszlop törlése",
+	colorTableCellTitle: "Háttérszín táblázatcella",
+	tableContextMenuTitle: "Táblázat előugró menü"
 })
 );

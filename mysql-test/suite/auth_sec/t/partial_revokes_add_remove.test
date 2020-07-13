@@ -76,6 +76,36 @@ DROP USER foo;
 --echo #    partial revokes in the user_attributes table
 SET GLOBAL partial_revokes = OFF;
 --echo --------Toggling the system variable tests end --------------------------
+
+--echo -------------------------------------------------------------------------
+--echo # Start the server with --skip-grant-tables option
+--echo -------------------------------------------------------------------------
+--let $restart_parameters = "restart:--skip-grant-tables"
+--let $wait_for_tcpsocket_status = no_wait
+--source include/restart_mysqld.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+SET GLOBAL partial_revokes = ON;
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo #
+--echo # Make the variable persitent this time
+--echo #
+SET PERSIST partial_revokes = ON;
+--let $restart_parameters = "restart:--skip-grant-tables"
+--let $wait_for_tcpsocket_status = no_wait
+--source include/restart_mysqld.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+RESET PERSIST;
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo ------------ End test with --skip-grant-tables option -------------------
+
 --disable_query_log
 --disable_warnings
 eval SET GLOBAL partial_revokes = $saved_partial_revokes;

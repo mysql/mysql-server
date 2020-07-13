@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Dodaj stupac prije",
 	insertTableColumnAfterLabel: "Dodaj stupac nakon",
 	deleteTableRowLabel: "Izbriši red",
-	deleteTableColumnLabel: "Izbriši stupac"
+	deleteTableColumnLabel: "Izbriši stupac",
+	colorTableCellTitle: "pozadinska boja ćelije tablice",
+	tableContextMenuTitle: "Kontekstni izbornik tablice"
 })
 );

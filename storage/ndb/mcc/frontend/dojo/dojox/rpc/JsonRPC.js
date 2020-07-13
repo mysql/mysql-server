@@ -24,5 +24,5 @@ return _c=="JSON-RPC-1.0";
 },_1.mixin({namedParams:false},_5()));
 _2.rpc.envelopeRegistry.register("JSON-RPC-2.0",function(_d){
 return _d=="JSON-RPC-2.0";
-},_5("2.0"));
+},_1.mixin({namedParams:true},_5("2.0")));
 });

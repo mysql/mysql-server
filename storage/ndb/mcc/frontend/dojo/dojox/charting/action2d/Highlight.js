@@ -1,64 +1,77 @@
 //>>built
-define("dojox/charting/action2d/Highlight",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/declare","dojo/_base/Color","dojo/_base/connect","dojox/color/_base","./PlotAction","dojo/fx/easing","dojox/gfx/fx"],function(_1,_2,_3,_4,_5,c,_6,_7,_8){
-var _9=100,_a=75,_b=50,cc=function(_c){
+define("dojox/charting/action2d/Highlight",["dojo/_base/lang","dojo/_base/declare","dojo/_base/Color","dojo/_base/connect","dojox/color/_base","./PlotAction","dojo/fx/easing","dojox/gfx/fx"],function(_1,_2,_3,_4,c,_5,_6,_7){
+var _8=100,_9=75,_a=50,cc=function(_b){
 return function(){
-return _c;
+return _b;
 };
-},hl=function(_d){
-var a=new c.Color(_d),x=a.toHsl();
+},hl=function(_c){
+var a=new c.Color(_c),x=a.toHsl();
 if(x.s==0){
 x.l=x.l<50?100:0;
 }else{
-x.s=_9;
-if(x.l<_b){
+x.s=_8;
+if(x.l<_a){
+x.l=_9;
+}else{
+if(x.l>_9){
 x.l=_a;
 }else{
-if(x.l>_a){
-x.l=_b;
-}else{
-x.l=x.l-_b>_a-x.l?_b:_a;
+x.l=x.l-_a>_9-x.l?_a:_9;
 }
 }
 }
-return c.fromHsl(x);
+var _d=c.fromHsl(x);
+_d.a=a.a;
+return _d;
+},_e=function(_f){
+var r=hl(_f);
+r.a=0.7;
+return r;
 };
-return _3("dojox.charting.action2d.Highlight",_6,{defaultParams:{duration:400,easing:_7.backOut},optionalParams:{highlight:"red"},constructor:function(_e,_f,_10){
-var a=_10&&_10.highlight;
-this.colorFun=a?(_2.isFunction(a)?a:cc(a)):hl;
+return _2("dojox.charting.action2d.Highlight",_5,{defaultParams:{duration:400,easing:_6.backOut},optionalParams:{highlight:"red"},constructor:function(_10,_11,_12){
+var a=_12&&_12.highlight;
+this.colorFunc=a?(_1.isFunction(a)?a:cc(a)):hl;
 this.connect();
 },process:function(o){
 if(!o.shape||!(o.type in this.overOutEvents)){
 return;
 }
-var _11=o.run.name,_12=o.index,_13,_14,_15;
-if(_11 in this.anim){
-_13=this.anim[_11][_12];
+if(o.element=="spider_circle"||o.element=="spider_plot"){
+return;
 }else{
-this.anim[_11]={};
+if(o.element=="spider_poly"&&this.colorFunc==hl){
+this.colorFunc=_e;
 }
-if(_13){
-_13.action.stop(true);
+}
+var _13=o.run.name,_14=o.index,_15;
+if(_13 in this.anim){
+_15=this.anim[_13][_14];
+}else{
+this.anim[_13]={};
+}
+if(_15){
+_15.action.stop(true);
 }else{
 var _16=o.shape.getFill();
-if(!_16||!(_16 instanceof _4)){
+if(!_16||!(_16 instanceof _3)){
 return;
 }
-this.anim[_11][_12]=_13={start:_16,end:this.colorFun(_16)};
+this.anim[_13][_14]=_15={start:_16,end:this.colorFunc(_16)};
 }
-var _17=_13.start,end=_13.end;
+var _17=_15.start,end=_15.end;
 if(o.type=="onmouseout"){
 var t=_17;
 _17=end;
 end=t;
 }
-_13.action=_8.animateFill({shape:o.shape,duration:this.duration,easing:this.easing,color:{start:_17,end:end}});
+_15.action=_7.animateFill({shape:o.shape,duration:this.duration,easing:this.easing,color:{start:_17,end:end}});
 if(o.type=="onmouseout"){
-_5.connect(_13.action,"onEnd",this,function(){
-if(this.anim[_11]){
-delete this.anim[_11][_12];
+_4.connect(_15.action,"onEnd",this,function(){
+if(this.anim[_13]){
+delete this.anim[_13][_14];
 }
 });
 }
-_13.action.play();
+_15.action.play();
 }});
 });

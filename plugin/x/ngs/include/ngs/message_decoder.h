@@ -82,7 +82,8 @@ class Message_decoder {
     /**
      * Constructor that marks that user disconnected
      *
-     * @param disconnected
+     * @param disconnected if set to true, then it mark that client disconnected
+     * unexpectedly
      */
     explicit Decode_error(const bool disconnected = false);
 

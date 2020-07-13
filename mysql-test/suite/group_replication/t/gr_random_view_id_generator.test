@@ -39,7 +39,7 @@ while ($iteration_count < $iterations_expected)
 }
 --let $include_silent=0
 
---let $grep_file=$MYSQLTEST_VARDIR/tmp/random_view_id_generator.err
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 --let _GP_GREP_FILE= $grep_file
 --let _ITERATIONS_EXPECTED= $iterations_expected
 
@@ -57,6 +57,12 @@ while ($iteration_count < $iterations_expected)
   while(<FILE>)
   {
     my $line = $_;
+    if ($line =~ /CURRENT_TEST: /)
+    {
+      @view_id = ();
+      $count= 0;
+      $count_occurence= 0;
+    }
     if ($line =~ /$pattern/)
     {
       my $result = index($line, $pattern);

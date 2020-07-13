@@ -234,7 +234,7 @@ Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE_LIST *tr) {
   return tab;
 }
 
-bool Opt_hints_qb::semijoin_enabled(THD *thd) const {
+bool Opt_hints_qb::semijoin_enabled(const THD *thd) const {
   if (subquery_hint)  // SUBQUERY hint disables semi-join
     return false;
 
@@ -265,11 +265,11 @@ uint Opt_hints_qb::sj_enabled_strategies(uint opt_switches) const {
   return opt_switches;
 }
 
-SubqueryExecMethod Opt_hints_qb::subquery_strategy() const {
+Subquery_strategy Opt_hints_qb::subquery_strategy() const {
   if (subquery_hint)
-    return static_cast<SubqueryExecMethod>(subquery_hint->get_args());
+    return static_cast<Subquery_strategy>(subquery_hint->get_args());
 
-  return SubqueryExecMethod::EXEC_UNSPECIFIED;
+  return Subquery_strategy::UNSPECIFIED;
 }
 
 void Opt_hints_qb::print_irregular_hints(const THD *thd, String *str) {

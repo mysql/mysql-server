@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,7 @@
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/current_thd.h"
+#include "sql/dd/string_type.h"      // dd::string_type
 #include "sql/discrete_interval.h"   // Discrete_interval
 #include "sql/locked_tables_list.h"  // enum_locked_tables_mode
 #include "sql/mdl.h"
@@ -177,9 +178,6 @@ extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
   (thd)->enter_stage(&stage, NULL, __func__, __FILE__, __LINE__)
 
 extern char empty_c_string[1];
-extern LEX_STRING NULL_STR;
-extern LEX_CSTRING EMPTY_CSTR;
-extern LEX_CSTRING NULL_CSTR;
 
 /*
   We preallocate data for several storage engine plugins.
@@ -755,6 +753,42 @@ class Global_read_lock {
 };
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
+
+/**
+  This class keeps the context of transactional DDL statements. Currently only
+  CREATE TABLE with START TRANSACTION uses this context.
+*/
+class Transactional_ddl_context {
+ public:
+  explicit Transactional_ddl_context(THD *thd) : m_thd(thd) {
+    DBUG_ASSERT(m_thd != nullptr);
+  }
+
+  ~Transactional_ddl_context() {
+    DBUG_ASSERT(!m_hton);
+    post_ddl();
+  }
+
+  void init(dd::String_type db, dd::String_type tablename,
+            const handlerton *hton);
+
+  bool inited() { return m_hton != nullptr; }
+
+  void rollback();
+
+  void post_ddl();
+
+ private:
+  // The current thread.
+  THD *m_thd{nullptr};
+
+  // Handlerton pointer to table's engine begin created.
+  const handlerton *m_hton{nullptr};
+
+  // Schema and table name being created.
+  dd::String_type m_db{};
+  dd::String_type m_tablename{};
+};
 
 /**
   @class THD
@@ -2524,6 +2558,14 @@ class THD : public MDL_context_owner,
     ~Permanent_transform() { m_thd->m_permanent_transform = m_old_value; }
   };
 
+  /*
+    Audit API events are generated, when this flag is true. The flag
+    is initially true, but it can be set false in some cases, e.g.
+    Session Service's THDs are created with auditing disabled. Auditing
+    is enabled on MYSQL_AUDIT_CONNECTION_CONNECT event.
+  */
+  bool m_audited;
+
   THD(bool enable_plugins = true);
 
   /*
@@ -3838,8 +3880,10 @@ class THD : public MDL_context_owner,
     Reset thd->m_rewritten_query. Protected with the LOCK_thd_query mutex.
  */
   void reset_rewritten_query() {
-    String empty;
-    swap_rewritten_query(empty);
+    if (rewritten_query().length()) {
+      String empty;
+      swap_rewritten_query(empty);
+    }
   }
 
   /**
@@ -4281,6 +4325,9 @@ class THD : public MDL_context_owner,
  public:
   bool is_system_user();
   void set_system_user(bool system_user_flag);
+
+ public:
+  Transactional_ddl_context m_transactional_ddl{this};
 };
 
 /**

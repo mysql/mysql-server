@@ -105,7 +105,7 @@ var _OldPWBox = declare("dojox.form._OldPWBox", _ChildTextBox, {
 
 	_setBlurValue: function(){
 		// TextBox._setBlurValue calls this._setValueAttr(this.get('value'), ...)
-		// Because we are overridding _getValueAttr to return "" when the containerWidget
+		// Because we are overriding _getValueAttr to return "" when the containerWidget
 		// is not valid, TextBox._setBlurValue will cause OldPWBox's value to be set to ""
 		//
 		// So, we directly call ValidationTextBox._getValueAttr to bypass our _getValueAttr

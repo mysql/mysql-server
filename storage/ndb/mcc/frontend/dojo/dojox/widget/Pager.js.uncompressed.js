@@ -1,5 +1,5 @@
 require({cache:{
-'url:dojox/widget/Pager/Pager.html':"<div dojoAttachPoint=\"pagerContainer\" tabIndex=\"0\" dojoAttachEvent=\"onkeypress: _handleKey, onfocus: _a11yStyle, onblur:_a11yStyle\" class=\"${orientation}PagerContainer\">\n    <div class=\"pagerContainer\">\n\t\t<div dojoAttachPoint=\"pagerContainerStatus\" class=\"${orientation}PagerStatus\"></div>\n\t\t<div dojoAttachPoint=\"pagerContainerView\" class=\"${orientation}PagerView\">\n\t\t    <div dojoAttachPoint=\"pagerItemContainer\"><ul dojoAttachPoint=\"pagerItems\" class=\"pagerItems\"></ul></div>\n\t\t</div>\n\t\t<div dojoAttachPoint=\"pagerContainerPager\" class=\"${orientation}PagerPager\">\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerNext\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerNext\"><img dojoAttachPoint=\"pagerIconNext\" src=\"${iconNext}\" alt=\"Next\" /></div>\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerPrevious\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerPrevious\"><img dojoAttachPoint=\"pagerIconPrevious\" src=\"${iconPrevious}\" alt=\"Previous\" /></div>\n\t\t</div>\n    </div>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none\"></div>\n</div>"}});
+'url:dojox/widget/Pager/Pager.html':"<div dojoAttachPoint=\"pagerContainer\" tabIndex=\"0\" dojoAttachEvent=\"onkeypress: _handleKey, onfocus: _a11yStyle, onblur:_a11yStyle\" class=\"${orientation}PagerContainer\">\n    <div class=\"pagerContainer\">\n\t\t<div dojoAttachPoint=\"pagerContainerStatus\" class=\"${orientation}PagerStatus\"></div>\n\t\t<div dojoAttachPoint=\"pagerContainerView\" class=\"${orientation}PagerView\">\n\t\t    <div dojoAttachPoint=\"pagerItemContainer\"><ul dojoAttachPoint=\"pagerItems\" class=\"pagerItems\"></ul></div>\n\t\t</div>\n\t\t<div dojoAttachPoint=\"pagerContainerPager\" class=\"${orientation}PagerPager\">\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerNext\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _next\"><img dojoAttachPoint=\"pagerIconNext\" src=\"${iconNext}\" alt=\"Next\" /></div>\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerPrevious\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _previous\"><img dojoAttachPoint=\"pagerIconPrevious\" src=\"${iconPrevious}\" alt=\"Previous\" /></div>\n\t\t</div>\n    </div>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none\"></div>\n</div>"}});
 define("dojox/widget/Pager", ["dojo/aspect", "dojo/_base/array", "dojo/_base/declare", "dojo/dom", "dojo/dom-attr", "dojo/dom-class", "dojo/dom-construct", "dojo/dom-geometry", "dojo/dom-style", "dojo/fx", "dojo/_base/kernel", "dojo/keys",
 	"dojo/_base/lang", "dojo/on", "dijit/_WidgetBase", "dijit/_TemplatedMixin", "./PagerItem", "dojo/text!./Pager/Pager.html"],
 	function(aspect, array, declare, dom, attr, domClass, domConstruct, geometry, style, fx, kernel, keys, lang, on, _WidgetBase, _TemplatedMixin, PagerItem, template){
@@ -76,6 +76,28 @@ return declare("dojox.widget.Pager",
 		});
 	},
 
+	// Bidi Support
+	_next: function(){
+		// summary:
+		//		Handle next behavior depends on widget direction
+		if(!this.isLeftToRight()){
+			this._pagerPrevious();
+		}else{
+			this._pagerNext();
+		}
+	},
+	
+	// Bidi Support
+	_previous: function(){
+		// summary:
+		//		Handle previous behavior depends on widget direction
+		if(!this.isLeftToRight()){
+			this._pagerNext();
+		}else{
+			this._pagerPrevious();
+		}
+	},
+
 	postCreate: function(){
 		this.inherited(arguments);
 		this.store.fetch({
@@ -103,21 +125,19 @@ return declare("dojox.widget.Pager",
 			case 110:
 			case 78: // key "n"
 				e.preventDefault();
-				this._pagerNext();
+				this._next();
 				break;
-
 			case keys.DOWN_ARROW:
 			case keys.LEFT_ARROW:
 			case 112:
 			case 80: // key "p"
 				e.preventDefault();
-				this._pagerPrevious();
+				this._previous();
 				break;
-
 			case keys.ENTER:
 				switch(e.target){
-					case this.pagerNext : this._pagerNext(); break;
-					case this.pagerPrevious : this._pagerPrevious(); break;
+					case this.pagerNext : this._next(); break;
+					case this.pagerPrevious : this._previous(); break;
 				}
 				break;
 		}
@@ -331,7 +351,8 @@ return declare("dojox.widget.Pager",
 						}
 
 						var position = (style.get(this.pagerContainer, 'width')/2)-(this.iconWidth/2);
-						style.set(this.pagerContainerStatus, 'paddingLeft', position+'px');
+						// Bidi Support
+						style.set(this.pagerContainerStatus, this.isLeftToRight()?'paddingLeft':'paddingRight', position+'px');
 					}else{
 						if (this.statusPos == 'trailing'){
 							if (this.pagerPos == 'center'){

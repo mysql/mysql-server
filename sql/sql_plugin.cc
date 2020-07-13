@@ -102,7 +102,8 @@
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // check_string_char_length
 #include "sql/sql_plugin_var.h"
-#include "sql/sql_show.h"  // add_status_vars
+#include "sql/sql_show.h"                // add_status_vars
+#include "sql/sql_system_table_check.h"  // System_table_intact
 #include "sql/sql_table.h"
 #include "sql/sys_vars_resource_mgr.h"
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
@@ -485,6 +486,19 @@ static void restore_pluginvar_names(sys_var *first);
 static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin);
 static void intern_plugin_unlock(LEX *lex, plugin_ref plugin);
 static void reap_plugins(void);
+
+// mysql.plugin table definition.
+static const int MYSQL_PLUGIN_TABLE_FIELD_COUNT = 2;
+static const TABLE_FIELD_TYPE
+    mysql_plugin_table_fields[MYSQL_PLUGIN_TABLE_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("name")},
+         {STRING_WITH_LEN("varchar(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("dl")},
+         {STRING_WITH_LEN("varchar(128)")},
+         {nullptr, 0}}};
+static const TABLE_FIELD_DEF mysql_plugin_table_def = {
+    MYSQL_PLUGIN_TABLE_FIELD_COUNT, mysql_plugin_table_fields};
 
 malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash(void) {
   return bookmark_hash;
@@ -2208,6 +2222,26 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
     return true;
 
   /*
+    System table mysql.plugin is supported by only InnoDB engine. Changing
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. INSTALL PLUGIN operation is
+    *not* allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return end_transaction(thd, error);
+  }
+
+  // INSTALL PLUGIN operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_plugin_table_def))
+    return end_transaction(thd, error);
+
+  /*
     Pre-acquire audit plugins for events that may potentially occur
     during [UN]INSTALL PLUGIN.
 
@@ -2401,6 +2435,26 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
     DBUG_ASSERT(thd->is_error());
     return true;
   }
+
+  /*
+    System table mysql.plugin is supported by only InnoDB engine. Changing
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. UNINSTALL PLUGIN operation is
+    *not* allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return end_transaction(thd, error);
+  }
+
+  // UNINSTALL PLUGIN operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_plugin_table_def))
+    return end_transaction(thd, error);
 
   mysql_mutex_lock(&LOCK_plugin_install);
   if (!table->key_info) {

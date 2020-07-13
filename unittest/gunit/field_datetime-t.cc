@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,8 @@ class Mock_field_datetime : public Field_datetime {
                        "field_name")               // field_name_arg
   {}
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 };
 
 class Mock_field_datetimef : public Field_datetimef {
@@ -71,8 +71,8 @@ class Mock_field_datetimef : public Field_datetimef {
                         "field_name",               // field_name_arg
                         scale) {}
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 };
 
 TEST_F(FieldDatetimeTest, StoreLegalStringValues) {

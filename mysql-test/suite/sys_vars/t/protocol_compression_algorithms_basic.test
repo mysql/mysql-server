@@ -40,6 +40,8 @@ SET PERSIST protocol_compression_algorithms= 1;
 SET GLOBAL protocol_compression_algorithms= "xyz";
 --Error ER_WRONG_VALUE_FOR_VAR 
 SET GLOBAL protocol_compression_algorithms= "uncompressed,xyz";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL protocol_compression_algorithms= "";
 
 #cleanup
 RESET PERSIST;

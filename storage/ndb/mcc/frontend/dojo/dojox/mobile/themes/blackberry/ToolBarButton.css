@@ -14,7 +14,8 @@
   font-weight: bold;
   vertical-align: middle;
 }
-.mblToolBarButtonHasIcon, .mblToolBarButtonLightIcon {
+.mblToolBarButtonHasIcon,
+.mblToolBarButtonLightIcon {
   padding: 0;
 }
 .mblHeading .mblToolBarButton {
@@ -38,6 +39,7 @@
   height: 19px;
   border-radius: 1px;
   -webkit-transform: scale(0.7, 1) rotate(45deg);
+  transform: scale(0.7, 1) rotate(45deg);
   border: 1px solid #9cacc0;
 }
 .mblToolBarButtonHasLeftArrow .mblToolBarButtonArrow {

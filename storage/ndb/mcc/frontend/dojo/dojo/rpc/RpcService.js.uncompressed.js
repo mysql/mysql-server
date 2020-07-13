@@ -59,7 +59,7 @@ return declare("dojo.rpc.RpcService", null, {
 					this.serviceUrl = args.serviceUrl;
 				}
 
-				this.timeout = args.timeout || 3000;
+				this.timeout = args.timeout || 0;
 
 				if("strictArgChecks" in args){
 					this.strictArgChecks = args.strictArgChecks;
@@ -89,7 +89,7 @@ return declare("dojo.rpc.RpcService", null, {
 		// deferredRequestHandler: Deferred
 		//		The deferred object handling a request.
 		return function(data){
-			deferredRequestHandler.errback(data.message);
+			deferredRequestHandler.errback(data);
 		};
 	},
 

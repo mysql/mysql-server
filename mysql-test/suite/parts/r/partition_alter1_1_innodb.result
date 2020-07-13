@@ -59,7 +59,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -74,7 +74,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -97,7 +97,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -118,7 +118,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -137,7 +137,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -160,7 +160,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -183,7 +183,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -202,7 +202,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD PRIMARY KEY(f_int2);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
@@ -218,7 +218,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -233,7 +233,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -256,7 +256,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -277,7 +277,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -296,7 +296,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -319,7 +319,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -342,7 +342,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 CREATE TABLE t1 (
 f_int1 INTEGER,
@@ -361,7 +361,7 @@ INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
 SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template
 WHERE f_int1 BETWEEN 1 AND @max_row_div2 - 1;
 ALTER TABLE t1 ADD UNIQUE INDEX uidx1 (f_int2);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 DROP TABLE t1;
 #  1.1.3 PRIMARY KEY consisting of two columns
 DROP TABLE IF EXISTS t1;

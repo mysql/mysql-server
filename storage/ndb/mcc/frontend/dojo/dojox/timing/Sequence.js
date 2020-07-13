@@ -1,7 +1,7 @@
 //>>built
 define("dojox/timing/Sequence",["dojo/_base/kernel","dojo/_base/array","dojo/_base/declare","dojo/_base/lang","./_base"],function(_1){
 _1.experimental("dojox.timing.Sequence");
-_1.declare("dojox.timing.Sequence",null,{_goOnPause:0,_running:false,constructor:function(){
+return _1.declare("dojox.timing.Sequence",null,{_goOnPause:0,_running:false,constructor:function(){
 this._defsResolved=[];
 },go:function(_2,_3){
 this._running=true;
@@ -76,5 +76,4 @@ this._go();
 },stop:function(){
 this._running=false;
 }});
-return dojox.timing.Sequence;
 });

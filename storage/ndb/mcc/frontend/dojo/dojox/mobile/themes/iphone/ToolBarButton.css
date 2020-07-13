@@ -14,7 +14,8 @@
   font-weight: bold;
   vertical-align: middle;
 }
-.mblToolBarButtonHasIcon, .mblToolBarButtonLightIcon {
+.mblToolBarButtonHasIcon,
+.mblToolBarButtonLightIcon {
   padding: 0;
 }
 .mblHeading .mblToolBarButton {
@@ -36,9 +37,11 @@
   top: 5px;
   width: 20px;
   height: 19px;
-  border-radius: 1px;
   -webkit-transform: scale(0.75, 1) rotate(45deg);
+  transform: scale(0.75, 1) rotate(45deg);
   border: 1px solid #9cacc0;
+  border-top-left-radius: 1px;
+  border-bottom-right-radius: 1px;
 }
 .mblToolBarButtonHasLeftArrow .mblToolBarButtonArrow {
   left: 1px;
@@ -53,9 +56,11 @@
 }
 .mblHeading .mblToolBarButtonHasLeftArrow .mblToolBarButtonArrow {
   -webkit-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.305);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.305);
 }
 .mblHeading .mblToolBarButtonHasRightArrow .mblToolBarButtonArrow {
   -webkit-box-shadow: 1px 0 0 rgba(255, 255, 255, 0.305);
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.305);
 }
 .mblToolBarButtonBody {
   display: inline-block;
@@ -72,6 +77,7 @@
   border-style: solid;
   border-color: #2f3740 #405a7e #375073 #3a4755;
   -webkit-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.305);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.305);
 }
 .mblToolBarButtonBody table {
   margin: 0 auto;
@@ -97,4 +103,7 @@
 }
 .mblToolBarButtonIcon > div {
   height: 29px;
+}
+.dj_ios6.dj_phone .mblHeading .mblToolBarButtonBody {
+  border-color: #343a42 #425167 #2f4769 #415066;
 }

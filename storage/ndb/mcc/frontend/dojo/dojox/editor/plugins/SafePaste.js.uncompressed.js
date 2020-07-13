@@ -13,7 +13,7 @@ define("dojox/editor/plugins/SafePaste", [
 	"dojo/i18n!dijit/_editor/nls/commands"
 ], function(dojo, dijit, dojox, PasteFromWord) {
 
-dojo.declare("dojox.editor.plugins.SafePaste", [PasteFromWord],{
+var SafePaste = dojo.declare("dojox.editor.plugins.SafePaste", [PasteFromWord],{
 	// summary:
 	//		This plugin extends from the PasteFromWord plugin and provides
 	//		'safe pasting', meaning that it will not allow keyboard/menu pasting
@@ -102,7 +102,7 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "safepaste"){
-		o.plugin = new dojox.editor.plugins.SafePaste({
+		o.plugin = new SafePaste({
 			width: (o.args.hasOwnProperty("width"))?o.args.width:"400px",
 			height: (o.args.hasOwnProperty("height"))?o.args.width:"300px",
 			stripTags: (o.args.hasOwnProperty("stripTags"))?o.args.stripTags:null 
@@ -110,6 +110,6 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	}
 });
 
-return dojox.editor.plugins.SafePaste;
+return SafePaste;
 
 });

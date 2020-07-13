@@ -487,9 +487,6 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
       "SELECT "
       "R.replicaset_name, "
       "I.mysql_server_uuid, "
-      "I.role, "
-      "I.weight, "
-      "I.version_token, "
       "I.addresses->>'$.mysqlClassic', "
       "I.addresses->>'$.mysqlX' "
       "FROM "
@@ -503,13 +500,13 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
 
   // example response
   // clang-format off
-  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
-  // | replicaset_name | mysql_server_uuid                    | role | weight | version_token | I.addresses->>'$.mysqlClassic' | I.addresses->>'$.mysqlX' |
-  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
-  // | default         | 30ec658e-861d-11e6-9988-08002741aeb6 | HA   | NULL   | NULL          | localhost:3310                 | NULL                     |
-  // | default         | 3acfe4ca-861d-11e6-9e56-08002741aeb6 | HA   | NULL   | NULL          | localhost:3320                 | NULL                     |
-  // | default         | 4c08b4a2-861d-11e6-a256-08002741aeb6 | HA   | NULL   | NULL          | localhost:3330                 | NULL                     |
-  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
+  // +-----------------+--------------------------------------+--------------------------------+--------------------------+
+  // | replicaset_name | mysql_server_uuid                    | I.addresses->>'$.mysqlClassic' | I.addresses->>'$.mysqlX' |
+  // +-----------------+--------------------------------------+--------------------------------+--------------------------+
+  // | default         | 30ec658e-861d-11e6-9988-08002741aeb6 | localhost:3310                 | NULL                     |
+  // | default         | 3acfe4ca-861d-11e6-9e56-08002741aeb6 | localhost:3320                 | NULL                     |
+  // | default         | 4c08b4a2-861d-11e6-a256-08002741aeb6 | localhost:3330                 | NULL                     |
+  // +-----------------+--------------------------------------+--------------------------------+--------------------------+
   // clang-format on
   //
   // The following instance map stores a list of servers mapped to every
@@ -526,21 +523,17 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
   // instance objects mapped to each replicaset.
   auto result_processor =
       [&replicaset_map](const MySQLSession::Row &row) -> bool {
-    if (row.size() != 7) {
+    if (row.size() != 4) {
       throw metadata_cache::metadata_error(
           "Unexpected number of fields in the resultset. "
-          "Expected = 7, got = " +
+          "Expected = 4, got = " +
           std::to_string(row.size()));
     }
 
     metadata_cache::ManagedInstance s;
     s.replicaset_name = get_string(row[0]);
     s.mysql_server_uuid = get_string(row[1]);
-    s.role = get_string(row[2]);
-    s.weight = row[3] ? std::strtof(row[3], nullptr) : 0;
-    s.version_token =
-        row[4] ? static_cast<unsigned int>(strtoi_checked(row[4])) : 0;
-    if (!set_instance_ports(s, row, 5, 6)) {
+    if (!set_instance_ports(s, row, 2, 3)) {
       return true;  // next row
     }
 
@@ -584,7 +577,7 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
   // GR, as serving metadata and being part of replicaset are two orthogonal
   // ideas.
   std::string query(
-      "select I.mysql_server_uuid, I.endpoint, I.xendpoint from "
+      "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes from "
       "mysql_innodb_cluster_metadata.v2_instances I join "
       "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
       "C.cluster_id where C.cluster_name = " +
@@ -592,13 +585,13 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
 
   // example response
   // clang-format off
-  //  +--------------------------------------+----------------+-----------------+
-  //  | mysql_server_uuid                    | endpoint       | xendpoint       |
-  //  +--------------------------------------+----------------+-----------------+
-  //  | 201eabcf-adfa-11e9-8205-0800276c00e7 | 127.0.0.1:5000 | 127.0.0.1:50000 |
-  //  | 351ea0ec-adfa-11e9-b348-0800276c00e7 | 127.0.0.1:5001 | 127.0.0.1:50010 |
-  //  | 559bd763-adfa-11e9-b2c3-0800276c00e7 | 127.0.0.1:5002 | 127.0.0.1:50020 |
-  //  +--------------------------------------+----------------+-----------------+
+  //  +--------------------------------------+----------------+-----------------+--------------------------------------------------------------------+
+  //  | mysql_server_uuid                    | endpoint       | xendpoint       | attributes                                                         |
+  //  +--------------------------------------+----------------+-----------------+--------------------------------------------------------------------+
+  //  | 201eabcf-adfa-11e9-8205-0800276c00e7 | 127.0.0.1:5000 | 127.0.0.1:50000 | {"tags": {"_hidden": true}, "joinTime": "2020-03-18 09:36:50.416"} |
+  //  | 351ea0ec-adfa-11e9-b348-0800276c00e7 | 127.0.0.1:5001 | 127.0.0.1:50010 | {"joinTime": "2020-03-18 09:36:51.000"}                            |
+  //  | 559bd763-adfa-11e9-b2c3-0800276c00e7 | 127.0.0.1:5002 | 127.0.0.1:50020 | {"joinTime": "2020-03-18 09:36:53.456"}                            |
+  //  +--------------------------------------+----------------+-----------------+--------------------------------------------------------------------+
   // clang-format on
   //
   // The following instance map stores a list of servers mapped to every
@@ -615,26 +608,25 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
   // instance objects mapped to each replicaset.
   auto result_processor =
       [&replicaset_map](const MySQLSession::Row &row) -> bool {
-    if (row.size() != 3) {
+    if (row.size() != 4) {
       throw metadata_cache::metadata_error(
           "Unexpected number of fields in the resultset. "
-          "Expected = 3, got = " +
+          "Expected = 4, got = " +
           std::to_string(row.size()));
     }
 
-    metadata_cache::ManagedInstance s;
-    s.mysql_server_uuid = get_string(row[0]);
-    if (!set_instance_ports(s, row, 1, 2)) {
+    metadata_cache::ManagedInstance instance;
+    instance.mysql_server_uuid = get_string(row[0]);
+    if (!set_instance_ports(instance, row, 1, 2)) {
       return true;  // next row
     }
-    s.replicaset_name = "default";
-    s.role = "HA";
-    s.weight = 0.0;
-    s.version_token = 0;
+    set_instance_attributes(instance, get_string(row[3]));
 
-    auto &rset(replicaset_map[s.replicaset_name]);
-    rset.members.push_back(s);
-    rset.name = s.replicaset_name;
+    instance.replicaset_name = "default";
+
+    auto &rset(replicaset_map[instance.replicaset_name]);
+    rset.members.push_back(instance);
+    rset.name = instance.replicaset_name;
     rset.single_primary_mode =
         true;  // actual value set elsewhere from GR metadata
 

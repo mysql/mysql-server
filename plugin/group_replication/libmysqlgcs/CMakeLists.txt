@@ -20,61 +20,79 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET (XCOM_BASEDIR
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/)
+SET(XCOM_BASEDIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/)
+
+SET(XCOM_INCLUDE_DIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
+
+SET (XCOM_INCLUDE_DIR
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
 
 ### DEFINITIONS ###
 
-INCLUDE(configure.cmake)
+INCLUDE(cmake/configure.cmake)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_gcs.h.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)
+CONFIGURE_FILE(cmake/mysql_gcs.h.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/xcom.h.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom.h)
+CONFIGURE_FILE(cmake/xcom.h.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom.h)
+
+CONFIGURE_FILE(cmake/xcom_debug.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/task_debug.h COPYONLY)
+
+CONFIGURE_FILE(cmake/gcs_debug.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/gcs_debug.h COPYONLY)
+
+CONFIGURE_FILE(cmake/gcs_profile.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom_profile.h COPYONLY)
 
 ### RPC GEN ###
 
-INCLUDE(rpcgen.cmake)
+INCLUDE(cmake/rpcgen.cmake)
 
 ### INCLUDE FILES ###
 
 INCLUDE_DIRECTORIES(
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
-)
+  ${XCOM_INCLUDE_DIR}                            # xcom include files
+  ${CMAKE_CURRENT_BINARY_DIR}/include/        # generated xcom include files
+  )
 
 ### SOURCES ###
 
 SET(XCOM_SOURCES
   # XCom
-  src/bindings/xcom/xcom/pax_msg.c
-  src/bindings/xcom/xcom/xcom_base.c
-  src/bindings/xcom/xcom/xcom_memory.c
-  src/bindings/xcom/xcom/xcom_vp_str.c
-  src/bindings/xcom/xcom/xcom_cfg.c
-  src/bindings/xcom/xcom/xcom_cache.c
-  src/bindings/xcom/xcom/xcom_transport.c
-  src/bindings/xcom/xcom/node_address.c
-  src/bindings/xcom/xcom/xcom_msg_queue.c
-  src/bindings/xcom/xcom/xcom_statistics.c
-  src/bindings/xcom/xcom/app_data.c
-  src/bindings/xcom/xcom/site_def.c
-  src/bindings/xcom/xcom/xcom_ssl_transport.c
-  src/bindings/xcom/xcom/xcom_recover.c
-  src/bindings/xcom/xcom/task.c
-  src/bindings/xcom/xcom/bitset.c
-  src/bindings/xcom/xcom/simset.c
-  src/bindings/xcom/xcom/node_set.c
-  src/bindings/xcom/xcom/xcom_interface.c
-  src/bindings/xcom/xcom/node_list.c
-  src/bindings/xcom/xcom/task_debug.c
-  src/bindings/xcom/xcom/sock_probe.c
-  src/bindings/xcom/xcom/task_net.c
-  src/bindings/xcom/xcom/synode_no.c
-  src/bindings/xcom/xcom/xcom_detector.c
-  src/bindings/xcom/xcom/xcom_input_request.c
-  src/bindings/xcom/xcom/get_synode_app_data.c
-  src/bindings/xcom/xcom/checked_data.c
+  src/bindings/xcom/xcom/pax_msg.cc
+  src/bindings/xcom/xcom/xcom_base.cc
+  src/bindings/xcom/xcom/xcom_memory.cc
+  src/bindings/xcom/xcom/xcom_vp_str.cc
+  src/bindings/xcom/xcom/xcom_cfg.cc
+  src/bindings/xcom/xcom/xcom_cache.cc
+  src/bindings/xcom/xcom/xcom_transport.cc
+  src/bindings/xcom/xcom/node_address.cc
+  src/bindings/xcom/xcom/xcom_msg_queue.cc
+  src/bindings/xcom/xcom/xcom_statistics.cc
+  src/bindings/xcom/xcom/app_data.cc
+  src/bindings/xcom/xcom/site_def.cc
+  src/bindings/xcom/xcom/xcom_ssl_transport.cc
+  src/bindings/xcom/xcom/xcom_recover.cc
+  src/bindings/xcom/xcom/task.cc
+  src/bindings/xcom/xcom/bitset.cc
+  src/bindings/xcom/xcom/simset.cc
+  src/bindings/xcom/xcom/node_set.cc
+  src/bindings/xcom/xcom/xcom_interface.cc
+  src/bindings/xcom/xcom/node_list.cc
+  src/bindings/xcom/xcom/task_debug.cc
+  src/bindings/xcom/xcom/sock_probe.cc
+  src/bindings/xcom/xcom/task_net.cc
+  src/bindings/xcom/xcom/synode_no.cc
+  src/bindings/xcom/xcom/xcom_detector.cc
+  src/bindings/xcom/xcom/xcom_input_request.cc
+  src/bindings/xcom/xcom/get_synode_app_data.cc
+  src/bindings/xcom/xcom/checked_data.cc
+  src/bindings/xcom/xcom/xdr_checked_data.c
   ${XCOM_SUNRPC_SOURCES}
   ${XCOM_RPCGEN_SOURCES})
 
@@ -119,19 +137,13 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_synode.cc
   src/bindings/xcom/gcs_xcom_expels_in_progress.cc)
 
-MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
-IF(HAVE_CAST_FUNCTION_TYPE)
-  ADD_COMPILE_FLAGS(src/bindings/xcom/xcom/xcom_transport.c
-                    COMPILE_FLAGS "-Wno-cast-function-type")
-ENDIF()
-
 ### Configuration ###
 
 # Used to inhibit false posives on CLang 3.8/8.0
 IF(MY_COMPILER_IS_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES}
-                    COMPILE_FLAGS
-                    "-Wno-conditional-uninitialized")
+    COMPILE_FLAGS
+    "-Wno-conditional-uninitialized")
 ENDIF()
 
 # disabling warnings for generated code
@@ -140,16 +152,21 @@ IF(MSVC)
   # This disables signed/unsigned mismatch warnings
   # Compiler warning C4018.
   IF(WIN32_CLANG)
-    ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+    ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "-Wno-sign-compare")
   ELSE()
-    ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+    ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
   ENDIF()
 ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
-  ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+  ADD_COMPILE_FLAGS(
+    src/bindings/xcom/xcom/xcom_base.cc
+    src/bindings/xcom/xcom/sock_probe.cc
     COMPILE_FLAGS
-    "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
+    "-Wno-unused-function")
+  ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
+    COMPILE_FLAGS
+    "-Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-incompatible-pointer-types -Wno-unused-local-typedef")
   IF(SOLARIS)
     # rpcgen generates 'void bzero();'
     ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}

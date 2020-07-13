@@ -1,0 +1,17 @@
+--source include/have_ndb.inc
+
+#
+# Basic test for Performance Schema tables added by the ndbcluster plugin
+# - Check table definitions
+# - Check if tables are readable/writable as per design
+#
+
+SHOW TABLES IN performance_schema LIKE 'ndb%';
+SHOW CREATE TABLE performance_schema.ndb_sync_pending_objects;
+SHOW CREATE TABLE performance_schema.ndb_sync_excluded_objects;
+SELECT * FROM performance_schema.ndb_sync_pending_objects;
+SELECT * FROM performance_schema.ndb_sync_excluded_objects;
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.ndb_sync_pending_objects VALUES('test','t1','TABLE');
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.ndb_sync_excluded_objects VALUES('test','t1','TABLE','Excluded');

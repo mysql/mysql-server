@@ -55,7 +55,7 @@ define("dojox/charting/themes/gradientGenerator", ["dojo/_base/lang", "dojo/_bas
 			return {
 				fill:   Theme.generateHslGradient(c, fillPattern, lumFrom, lumTo),
 				stroke: {color: Theme.generateHslColor(c, lumStroke)}
-			}
+			};
 		});
 	};
 	
@@ -75,7 +75,7 @@ define("dojox/charting/themes/gradientGenerator", ["dojo/_base/lang", "dojo/_bas
 				color:  new Color([color.r * s, color.g * s, color.b * s, color.a])
 			};
 		});
-	}
+	};
 	
 	return gg;
 });

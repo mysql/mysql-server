@@ -12,6 +12,7 @@
   border-radius: 6px;
   background-color: #424142;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#4a4d52), to(#292c31));
+  background-image: linear-gradient(to bottom, #4a4d52 0%, #292c31 100%);
 }
 .mblTooltipBubble {
   overflow: visible;
@@ -134,7 +135,8 @@
   border-bottom-width: 0;
   border-top-color: #292c31;
 }
-.mblTooltipHidden, .mblTooltipHidden * {
+.mblTooltipHidden,
+.mblTooltipHidden * {
   visibility: hidden !important;
 }
 .mblTooltipHidden {

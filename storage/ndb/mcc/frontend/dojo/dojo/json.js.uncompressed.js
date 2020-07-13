@@ -65,7 +65,7 @@ define("dojo/json", ["./has"], function(has){
 		};
 		return {
 			parse: has("json-parse") ? JSON.parse : function(str, strict){
-				if(strict && !/^([\s\[\{]*(?:"(?:\\.|[^"])+"|-?\d[\d\.]*(?:[Ee][+-]?\d+)?|null|true|false|)[\s\]\}]*(?:,|:|$))+$/.test(str)){
+				if(strict && !/^([\s\[\{]*(?:"(?:\\.|[^"])*"|-?\d[\d\.]*(?:[Ee][+-]?\d+)?|null|true|false|)[\s\]\}]*(?:,|:|$))+$/.test(str)){
 					throw new SyntaxError("Invalid characters in JSON");
 				}
 				return eval('(' + str + ')');

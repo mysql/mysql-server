@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -189,7 +189,8 @@ std::string ProcessManager::make_DEFAULT_section(
 std::string ProcessManager::create_config_file(
     const std::string &directory, const std::string &sections,
     const std::map<std::string, std::string> *default_section,
-    const std::string &name, const std::string &extra_defaults) const {
+    const std::string &name, const std::string &extra_defaults,
+    bool enable_debug_logging) const {
   Path file_path = Path(directory).join(name);
   std::ofstream ofs_config(file_path.str());
 
@@ -201,6 +202,10 @@ std::string ProcessManager::create_config_file(
   ofs_config << make_DEFAULT_section(default_section);
   ofs_config << extra_defaults << std::endl;
   ofs_config << sections << std::endl;
+  if (enable_debug_logging) {
+    ofs_config
+        << "[logger]\nlevel = DEBUG\ntimestamp_precision=millisecond\n\n";
+  }
   ofs_config.close();
 
   return file_path.str();
@@ -246,15 +251,26 @@ void ProcessManager::dump_all() {
 
 void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
-    check_exit_code(std::get<0>(proc), std::get<1>(proc));
+    try {
+      check_exit_code(std::get<0>(proc), std::get<1>(proc));
+    } catch (const std::exception &e) {
+      FAIL() << "PID: " << std::get<0>(proc).get_pid()
+             << " didn't exit as expected";
+    }
   }
 }
 
 void ProcessManager::check_exit_code(ProcessWrapper &process,
                                      int expected_exit_code,
                                      std::chrono::milliseconds timeout) {
-  ASSERT_NO_FATAL_FAILURE(
-      ASSERT_EQ(expected_exit_code, process.wait_for_exit(timeout)));
+  int result{0};
+  try {
+    result = process.wait_for_exit(timeout);
+  } catch (const std::exception &e) {
+    FAIL() << "Process wait for exit failed. " << e.what();
+  }
+
+  ASSERT_EQ(expected_exit_code, result);
 }
 
 void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,

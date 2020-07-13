@@ -1,0 +1,329 @@
+--echo #
+--echo # Show that datafiles are restricted to known directories.
+--echo # Rules:
+--echo # 1. Known Directories are the unique subsets from the combination of:
+--echo #    --datadir, --innobd-directories, --innodb-data-home-dir, --innodb-undo-directory
+--echo # 2. If --innodb-undo-directory is unique, new IBD files are not allowed there.
+--echo # 3. Any location referenced in DATA DIRECTORY must be a Known Directory other than a unique undo dir.
+--echo # 4. CREATE TABLESPACE ... ADD DATAFILE must be a Known Directory other than a unique undo dir.
+--echo # 5. CREATE UNDO TABLESPACE ... ADD DATAFILE must be any Known Directory.
+--echo # 6. At startup, since previous engines did not restrict locations to known directories,
+--echo #    anything found will be used as before.  But a warning message will be put into the error log.
+--echo #
+
+SET default_storage_engine=InnoDB;
+
+--disable_query_log
+
+LET $MYSQLD_DATADIR=`select @@datadir`;
+LET $UNDO_DIR=$MYSQL_TMP_DIR/undo_dir;
+LET $KNOWN_DIR=$MYSQL_TMP_DIR/known_dir;
+LET $UNKNOWN_DIR=$MYSQL_TMP_DIR/unknown_dir;
+LET $INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+
+--mkdir $KNOWN_DIR
+--mkdir $UNKNOWN_DIR
+
+--enable_query_log
+
+--echo #
+--echo # Create a table in a known directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1(c1 INT) DATA DIRECTORY='$KNOWN_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+--echo #
+--echo # Attempt to create a table in an unknown directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE bad_1 (c1 INT) DATA DIRECTORY='$UNKNOWN_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to create a table in the datadir.
+--echo #
+CREATE DATABASE data;
+USE data;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE bad_2 (c1 INT) DATA DIRECTORY='$MYSQLTEST_VARDIR/mysqld.1';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR \\ /
+SHOW WARNINGS;
+USE test;
+DROP DATABASE data;
+
+--echo #
+--echo # Attempt to create a table in a unique undo directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE bad_3 (c1 INT) DATA DIRECTORY='$UNDO_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
+
+--echo #
+--echo # Create a general tablespace in a known directories.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts1 ADD DATAFILE '$KNOWN_DIR/ts1.ibd';
+
+--echo #
+--echo # Attempt to create a general tablespace in an unknown directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLESPACE bad_4 ADD DATAFILE '$UNKNOWN_DIR/bad_4.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to create a general tablespace in a unique undo directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLESPACE bad_5 ADD DATAFILE '$UNDO_DIR/bad_5.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to create a general tablespace in a subdirectory of the datadir.
+--echo #
+--mkdir $MYSQLD_DATADIR/general
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLESPACE bad_6 ADD DATAFILE 'general/bad_6.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
+--force-rmdir $MYSQLD_DATADIR/general
+
+--echo #
+--echo # Create an undo tablespace in the unique undo directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE UNDO TABLESPACE undo_003 ADD DATAFILE '$UNDO_DIR/undo_003.ibu';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+
+--echo #
+--echo # Create an undo tablespace in a known dir other than the unique undo directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE UNDO TABLESPACE undo_004 ADD DATAFILE '$KNOWN_DIR/undo_004.ibu';
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+--echo #
+--echo # Attempt to create an undo tablespace in an unknown directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE UNDO TABLESPACE bad_7 ADD DATAFILE '$UNKNOWN_DIR/bad_7.ibu';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Create a table with a partitions in known directories.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE tp1(c1 INT)
+       PARTITION BY HASH(c1) (
+         PARTITION p1  DATA DIRECTORY='$KNOWN_DIR',
+         PARTITION p2  DATA DIRECTORY='$KNOWN_DIR',
+         PARTITION p3  DATA DIRECTORY='$KNOWN_DIR');
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp1;
+
+--echo #
+--echo # Attempt to create a table with a partition in an unknown directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE bad_8(c1 INT)
+       PARTITION BY HASH(c1) (
+         PARTITION p1  DATA DIRECTORY='$KNOWN_DIR',
+         PARTITION p2  DATA DIRECTORY='$UNKNOWN_DIR',
+         PARTITION p3  DATA DIRECTORY='$KNOWN_DIR');
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to create a table with a partition in the undo directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE bad_9(c1 INT)
+       PARTITION BY HASH(c1) (
+         PARTITION p1  DATA DIRECTORY='$KNOWN_DIR',
+         PARTITION p2  DATA DIRECTORY='$UNDO_DIR',
+         PARTITION p3  DATA DIRECTORY='$KNOWN_DIR');
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
+
+--echo #
+--echo # Create a table with a sub-partitions in known directories.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE tp3(c1 INT, c2 INT)
+       PARTITION BY RANGE(c1) SUBPARTITION BY HASH(c2) (
+         PARTITION p1 VALUES LESS THAN (10) (
+	   SUBPARTITION s1 DATA DIRECTORY='$KNOWN_DIR',
+	   SUBPARTITION s2 DATA DIRECTORY='$KNOWN_DIR'),
+	 PARTITION p2 VALUES LESS THAN (20) (
+	   SUBPARTITION s3 DATA DIRECTORY='$KNOWN_DIR',
+	   SUBPARTITION s4 DATA DIRECTORY='$KNOWN_DIR'));
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp3;
+
+--echo #
+--echo # Attempt to create a table with a sub-partition in an unknown directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE bad_10(c1 INT, c2 INT)
+       PARTITION BY RANGE(c1) SUBPARTITION BY HASH(c2) (
+         PARTITION p1 VALUES LESS THAN (10) (
+	   SUBPARTITION s1 DATA DIRECTORY='$KNOWN_DIR',
+	   SUBPARTITION s2 DATA DIRECTORY='$KNOWN_DIR'),
+	 PARTITION p2 VALUES LESS THAN (20) (
+	   SUBPARTITION s3 DATA DIRECTORY='$UNKNOWN_DIR',
+	   SUBPARTITION s4 DATA DIRECTORY='$KNOWN_DIR'));
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to create a table with a sub-partition in the undo directory
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE bad_11(c1 INT, c2 INT)
+       PARTITION BY RANGE(c1) SUBPARTITION BY HASH(c2) (
+         PARTITION p1 VALUES LESS THAN (10) (
+	   SUBPARTITION s1 DATA DIRECTORY='$KNOWN_DIR',
+	   SUBPARTITION s2 DATA DIRECTORY='$KNOWN_DIR'),
+	 PARTITION p2 VALUES LESS THAN (20) (
+	   SUBPARTITION s3 DATA DIRECTORY='$UNDO_DIR',
+	   SUBPARTITION s4 DATA DIRECTORY='$KNOWN_DIR'));
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to add a partition using an unknown directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval ALTER TABLE tp3 ADD PARTITION (
+       PARTITION p3 VALUES LESS THAN (30) (
+         SUBPARTITION s5 DATA DIRECTORY '$KNOWN_DIR',
+	 SUBPARTITION s6 DATA DIRECTORY '$UNKNOWN_DIR'));
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
+
+--echo #
+--echo # Successfully add a partition using a known directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval ALTER TABLE tp3 ADD PARTITION (
+       PARTITION p3 VALUES LESS THAN (30) (
+         SUBPARTITION s5 DATA DIRECTORY '$KNOWN_DIR',
+	 SUBPARTITION s6 DATA DIRECTORY '$KNOWN_DIR'));
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp3;
+
+--echo #
+--echo # Attempt to reorganize a partition using an unknown directory.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_FILE_NAME
+eval ALTER TABLE tp3 REORGANIZE PARTITION p3 INTO (
+       PARTITION p3 VALUES LESS THAN(40) (
+         SUBPARTITION s5 DATA DIRECTORY '$UNKNOWN_DIR',
+	 SUBPARTITION s6 DATA DIRECTORY '$KNOWN_DIR'));
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#  \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Show CREATE TABLE for all three tables.
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  #P# #p#  #SP# #sp#
+SHOW CREATE TABLE tp3;
+
+--echo #
+--echo # Show these tables in information_schema.
+--echo #
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo #
+--echo # Validate the messages that should have been put into the error log.
+--echo #
+# include/search_pattern.inc uses the environment variable SEARCH_FILE.
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table data/bad_2 because the directory is not a valid location. The DATA DIRECTORY location cannot be the datadir;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_3 because the directory is not a valid location. The DATA DIRECTORY location cannot be the undo directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create tablespace bad_4 because the directory is not a valid location. The DATAFILE location must be in a known directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create tablespace bad_5 because the directory is not a valid location. The DATAFILE location cannot be the undo directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create tablespace bad_6 because the directory is not a valid location. The DATAFILE location cannot be under the datadir;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create tablespace bad_7 because the directory is not a valid location. The UNDO DATAFILE location must be in a known directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_8.*p2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_9.*p2 because the directory is not a valid location. The DATA DIRECTORY location cannot be the undo directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_10.*p2.*s3 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_11.*p2.*s3 because the directory is not a valid location. The DATA DIRECTORY location cannot be the undo directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tp3.*p3.*s6 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tp3.*p3.*s5#tmp because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
+--source include/search_pattern.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+DROP TABLE tp1;
+DROP TABLE tp3;
+DROP TABLESPACE ts1;
+
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+
+--force-rmdir $KNOWN_DIR
+--force-rmdir $UNKNOWN_DIR
+
+--disable_query_log
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location cannot be the undo directory");
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location cannot be the datadir");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location cannot be the undo directory");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location cannot be under the datadir");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The UNDO DATAFILE location must be in a known directory");
+call mtr.add_suppression("MySQL is freeing a thd though trx->n_mysql_tables_in_use is 0 and trx->mysql_n_tables_locked is 1.");
+call mtr.add_suppression("The directory for tablespace .* does not exist or is incorrect");
+--enable_query_log
+

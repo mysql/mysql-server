@@ -42,22 +42,22 @@ class Listener_tcp : public iface::Listener {
   using Socket_ptr = std::shared_ptr<iface::Socket>;
   using Factory_ptr = std::shared_ptr<iface::Operations_factory>;
 
-  Listener_tcp(Factory_ptr operations_factory, std::string &bind_address,
+  Listener_tcp(Factory_ptr operations_factory, const std::string &bind_address,
                const std::string &network_namespace, const uint16_t port,
                const uint32_t port_open_timeout, iface::Socket_events &event,
                const uint32_t backlog);
   ~Listener_tcp() override;
 
-  Sync_variable_state &get_state() override;
-  std::string get_last_error() const override;
-  std::string get_name_and_configuration() const override;
-  std::vector<std::string> get_configuration_variables() const override;
+  void set_state(const State state) override;
+  const Sync_variable_state &get_state() const override;
+  std::string get_configuration_variable() const override;
 
   bool setup_listener(On_connection on_connection) override;
   void close_listener() override;
   void pre_loop() override;
   void loop() override;
   void report_properties(On_report_properties on_status) override;
+  bool report_status() const override;
 
  private:
   std::string choose_property_value(const std::string &value) const;
@@ -67,7 +67,7 @@ class Listener_tcp : public iface::Listener {
   Sync_variable_state m_state;
   std::string m_bind_address;
   std::string m_network_namespace;
-  const unsigned short m_port;
+  const uint16_t m_port;
   const uint32_t m_port_open_timeout;
   const uint32_t m_backlog;
   Socket_ptr m_tcp_socket;

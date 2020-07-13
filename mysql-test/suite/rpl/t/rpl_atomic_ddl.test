@@ -40,6 +40,8 @@
 --source include/have_binlog_format_mixed.inc
 --source include/have_udf.inc
 --let $rpl_gtid_utils= 1
+--let $rpl_privilege_checks_user_grant_option = 1
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc

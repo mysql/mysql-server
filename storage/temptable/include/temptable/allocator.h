@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,9 +42,6 @@ TempTable custom allocator. */
 #include "storage/temptable/include/temptable/memutils.h"
 
 namespace temptable {
-
-/** Block that is shared between different tables within a given OS thread. */
-extern thread_local Block shared_block;
 
 /* Thin abstraction which enables logging of memory operations.
  *
@@ -214,7 +211,7 @@ class Allocator : private MemoryMonitor {
   };
 
   /** Constructor. */
-  Allocator();
+  explicit Allocator(Block *shared_block);
 
   /** Constructor from allocator of another type. The state is copied into the
    * new object. */
@@ -293,23 +290,31 @@ class Allocator : private MemoryMonitor {
     See AllocatorState for details.
    */
   std::shared_ptr<AllocatorState> m_state;
+
+  /** A block of memory which is a state external to this allocator and can be
+   * shared among different instances of the allocator (not simultaneously). In
+   * order to speed up its operations, allocator may decide to consume the
+   * memory of this shared block.
+   */
+  Block *m_shared_block;
 };
 
 /* Implementation of inlined methods. */
 
 template <class T, class AllocationScheme>
-inline Allocator<T, AllocationScheme>::Allocator()
-    : m_state(std::make_shared<AllocatorState>()) {}
+inline Allocator<T, AllocationScheme>::Allocator(Block *shared_block)
+    : m_state(std::make_shared<AllocatorState>()),
+      m_shared_block(shared_block) {}
 
 template <class T, class AllocationScheme>
 template <class U>
 inline Allocator<T, AllocationScheme>::Allocator(const Allocator<U> &other)
-    : m_state(other.m_state) {}
+    : m_state(other.m_state), m_shared_block(other.m_shared_block) {}
 
 template <class T, class AllocationScheme>
 template <class U>
 inline Allocator<T, AllocationScheme>::Allocator(Allocator<U> &&other) noexcept
-    : m_state(std::move(other.m_state)) {}
+    : m_state(std::move(other.m_state)), m_shared_block(other.m_shared_block) {}
 
 template <class T, class AllocationScheme>
 inline Allocator<T, AllocationScheme>::~Allocator() {}
@@ -342,14 +347,15 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
 
   Block *block;
 
-  if (shared_block.is_empty()) {
-    shared_block = Block(AllocationScheme::block_size(m_state->number_of_blocks,
-                                                      n_bytes_requested),
-                         Source::RAM);
-    block = &shared_block;
+  if (m_shared_block && m_shared_block->is_empty()) {
+    *m_shared_block = Block(AllocationScheme::block_size(
+                                m_state->number_of_blocks, n_bytes_requested),
+                            Source::RAM);
+    block = m_shared_block;
     ++m_state->number_of_blocks;
-  } else if (shared_block.can_accommodate(n_bytes_requested)) {
-    block = &shared_block;
+  } else if (m_shared_block &&
+             m_shared_block->can_accommodate(n_bytes_requested)) {
+    block = m_shared_block;
   } else if (m_state->current_block.is_empty() ||
              !m_state->current_block.can_accommodate(n_bytes_requested)) {
     const size_t block_size = AllocationScheme::block_size(
@@ -396,7 +402,7 @@ inline void Allocator<T, AllocationScheme>::deallocate(T *chunk_data,
   const auto remaining_chunks =
       block.deallocate(Chunk(chunk_data), n_bytes_requested);
   if (remaining_chunks == 0) {
-    if (block == shared_block) {
+    if (m_shared_block && (block == *m_shared_block)) {
       // Do nothing. Keep the last block alive.
     } else {
       DBUG_ASSERT(m_state->number_of_blocks > 0);

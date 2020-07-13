@@ -1,11 +1,11 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/NodeList-fx",["./query","./_base/lang","./_base/connect","./_base/fx","./fx"],function(_1,_2,_3,_4,_5){
+define("dojo/NodeList-fx",["./query","./_base/lang","./aspect","./_base/fx","./fx"],function(_1,_2,_3,_4,_5){
 var _6=_1.NodeList;
 _2.extend(_6,{_anim:function(_7,_8,_9){
 _9=_9||{};
@@ -32,7 +32,7 @@ var _17=_5.combine(this.map(function(_18){
 return _4.animateProperty({node:_18,properties:_12,duration:_13||350,easing:_14});
 }));
 if(_15){
-_3.connect(_17,"onEnd",_15);
+_3.after(_17,"onEnd",_15,true);
 }
 return _17.play(_16||0);
 }});

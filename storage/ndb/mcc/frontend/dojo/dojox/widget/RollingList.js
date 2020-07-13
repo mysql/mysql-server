@@ -739,7 +739,7 @@ _78.attr("disabled",true);
 _78.store=this.store;
 _78.item=_73;
 if(!_78.label){
-_78.attr("label",this.store.getLabel(_73).replace(/</,"&lt;"));
+_78.attr("label",this.store.getLabel(_73).replace(/</g,"&lt;"));
 }
 if(_78.focusNode){
 var _79=this;

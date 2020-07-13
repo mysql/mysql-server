@@ -5,8 +5,9 @@ define("dojox/mobile/pageTurningUtils", [
 	"dojo/_base/event",
 	"dojo/dom-class",
 	"dojo/dom-construct",
-	"dojo/dom-style"
-], function(kernel, array, connect, event, domClass, domConstruct, domStyle){
+	"dojo/dom-style",
+	"./_css3"
+], function(kernel, array, connect, event, domClass, domConstruct, domStyle, css3){
 	// module:
 	//		dojox/mobile/pageTurningUtils
 	
@@ -100,7 +101,7 @@ define("dojox/mobile/pageTurningUtils", [
 			this.page = page ? page : this.page;
 			this.dogear = typeof dogear !== 'undefined' ? dogear : this.dogear;
 			this.duration = typeof duration !== 'undefined' ? duration : this.duration;
-			this.alwaysDogeared = typeof alwaysDogeared !== 'undefined' ? alwaysDogeared : this.alwaysDogeared
+			this.alwaysDogeared = typeof alwaysDogeared !== 'undefined' ? alwaysDogeared : this.alwaysDogeared;
 			
 			if(this.turnfrom === "bottom"){ // dog-ear is not supported if using "bottom"
 				this.alwaysDogeared = true;
@@ -125,7 +126,8 @@ define("dojox/mobile/pageTurningUtils", [
 			// Calculate each div size and position based on the page turning algorithm
 			//	 fw: frontWidth, fh: frontHeight, dw: dogear, cx: posX, cy: posY,
 			//	 dx: dogearX, dy: dogearY, fy:actualPagePos
-			var Q = fold = w * tan58,
+			var fold = w * tan58,
+				Q = fold,
 				fw = Q * sin32 + Q * cos32 * tan58,
 				fh = fold + w + w/tan58,
 				dw = w * 0.11 * this.dogear,
@@ -142,23 +144,26 @@ define("dojox/mobile/pageTurningUtils", [
 				fy = cy/cos32;
 				
 				params.init = {
-					page: {
+					page: css3.add({
 						top: -fy + "px",
 						left: (-fw + (page === 2 ? w : 0)) + "px",
 						width: fw + "px",
-						height: fh + "px",
-						webkitTransformOrigin: "100% 0%"
-					},
-					front: {
+						height: fh + "px"
+					}, {
+						transformOrigin: "100% 0%"
+					}),
+					front: css3.add({
 						width: w + "px",
-						height: h + "px",
-						webkitBoxShadow: "0 0"
-					},
-					back: {
+						height: h + "px"
+					}, {
+						boxShadow: "0 0"
+					}),
+					back: css3.add({
 						width: w + "px",
-						height: h + "px",
-						webkitBoxShadow: "0 0"
-					},
+						height: h + "px"
+					}, {
+						boxShadow: "0 0"
+					}),
 					shadow: {
 						display: "",
 						left: fw + "px",
@@ -166,30 +171,30 @@ define("dojox/mobile/pageTurningUtils", [
 					}
 				};
 				params.turnForward = {
-					page: {
-						webkitTransform: "rotate(0deg)"
-					},
-					front: {
-						webkitTransform: "translate("+ fw + "px," + fy +"px) rotate(0deg)",
-						webkitTransformOrigin: "-110px -18px"
-					},
-					back: {
-						webkitTransform: "translate("+ (fw - w) + "px," + fy +"px) rotate(0deg)",
-						webkitTransformOrigin: "0px 0px"
-					}
+					page: css3.add({}, {
+						transform: "rotate(0deg)"
+					}),
+					front: css3.add({}, {
+						transform: "translate("+ fw + "px," + fy +"px) rotate(0deg)",
+						transformOrigin: "-110px -18px"
+					}),
+					back: css3.add({}, {
+						transform: "translate("+ (fw - w) + "px," + fy +"px) rotate(0deg)",
+						transformOrigin: "0px 0px"
+					})
 				};
 				params.turnBackward = {
-					page: {
-						webkitTransform: "rotate(-32deg)"
-					},
-					front: {
-						webkitTransform: "translate("+ cx + "px," + cy +"px) rotate(32deg)",
-						webkitTransformOrigin: "0px 0px"
-					},
-					back: {
-						webkitTransform: "translate("+ dx + "px," + dy +"px) rotate(-32deg)",
-						webkitTransformOrigin: "0px 0px"
-					}
+					page: css3.add({}, {
+						transform: "rotate(-32deg)"
+					}),
+					front: css3.add({}, {
+						transform: "translate("+ cx + "px," + cy +"px) rotate(32deg)",
+						transformOrigin: "0px 0px"
+					}),
+					back: css3.add({}, {
+						transform: "translate("+ dx + "px," + dy +"px) rotate(-32deg)",
+						transformOrigin: "0px 0px"
+					})
 				};
 				break;
 				
@@ -201,52 +206,55 @@ define("dojox/mobile/pageTurningUtils", [
 				fy = fh - w/tan32 - h;
 				
 				params.init = {
-					page: {
+					page: css3.add({
 						top: (-fy + 50) + "px",
 						left: (-fw + (page === 2 ? w : 0)) + "px",
 						width: fw + "px",
-						height: fh + "px",
-						webkitTransformOrigin: "100% 100%"
-					},
-					front: {
+						height: fh + "px"
+					}, {
+						transformOrigin: "100% 100%"
+					}),
+					front: css3.add({
 						width: w + "px",
-						height: h + "px",
-						webkitBoxShadow: "0 0"
-					},
-					back: {
+						height: h + "px"
+					}, {
+						boxShadow: "0 0"
+					}),
+					back: css3.add({
 						width: w + "px",
-						height: h + "px",
-						webkitBoxShadow: "0 0"
-					},
+						height: h + "px"
+					}, {
+						boxShadow: "0 0"
+					}),
 					shadow: {
 						display: "none"
 					}
 				};
 				params.turnForward = {
-					page: {
-						webkitTransform: "rotate(0deg)"
-					},
-					front: {
-						webkitTransform: "translate("+ fw + "px," + fy +"px) rotate(0deg)",
-						webkitTransformOrigin: "-220px 35px"
-					},
-					back: {
-						webkitTransform: "translate("+ (w * 2) + "px," + fy +"px) rotate(0deg)",
-						webkitTransformOrigin: "0px 0px"
-					}
+					page: css3.add({}, {
+						transform: "rotate(0deg)"
+					}),
+					front: css3.add({}, {
+						transform: "translate("+ fw + "px," + fy +"px) rotate(0deg)",
+						transformOrigin: "-220px 35px"
+					}),
+					back: css3.add({}, {
+						transform: "translate("+ (w * 2) + "px," + fy +"px) rotate(0deg)",
+						transformOrigin: "0px 0px"
+					})
 				};
 				params.turnBackward = {
-					page: {
-						webkitTransform: "rotate(32deg)"
-					},
-					front: {
-						webkitTransform: "translate("+ cx + "px," + cy +"px) rotate(-32deg)",
-						webkitTransformOrigin: "0px 0px"
-					},
-					back: {
-						webkitTransform: "translate("+ dx + "px," + dy +"px) rotate(0deg)",
-						webkitTransformOrigin: "0px 0px"
-					}
+					page: css3.add({}, {
+						transform: "rotate(32deg)"
+					}),
+					front: css3.add({}, {
+						transform: "translate("+ cx + "px," + cy +"px) rotate(-32deg)",
+						transformOrigin: "0px 0px"
+					}),
+					back: css3.add({}, {
+						transform: "translate("+ dx + "px," + dy +"px) rotate(0deg)",
+						transformOrigin: "0px 0px"
+					})
 				};
 				break;
 				
@@ -257,23 +265,26 @@ define("dojox/mobile/pageTurningUtils", [
 				dy = fy = pw/sin32 + dw * sin32;
 				
 				params.init = {
-					page: {
+					page: css3.add({
 						top: -cy + "px",
 						left: w + "px",
 						width: fw + "px",
-						height: fh + "px",
-						webkitTransformOrigin: "0% 0%"
-					},
-					front: {
+						height: fh + "px"
+					}, {
+						transformOrigin: "0% 0%"
+					}),
+					front: css3.add({
 						width: w + "px",
-						height: h + "px",
-						webkitBoxShadow: "0 0"
-					},
-					back: {
+						height: h + "px"
+					}, {
+						boxShadow: "0 0"
+					}),
+					back: css3.add({
 						width: w + "px",
-						height: h + "px",
-						webkitBoxShadow: "0 0"
-					},
+						height: h + "px"
+					}, {
+						boxShadow: "0 0"
+					}),
 					shadow: {
 						display: "",
 						left: "-4px",
@@ -281,30 +292,30 @@ define("dojox/mobile/pageTurningUtils", [
 					}
 				};
 				params.turnForward = {
-					page: {
-						webkitTransform: "rotate(0deg)"
-					},
-					front: {
-						webkitTransform: "translate("+ cx + "px," + cy +"px) rotate(0deg)",
-						webkitTransformOrigin: "160px 68px"
-					},
-					back: {
-						webkitTransform: "translate(0px," + cy +"px) rotate(0deg)",
-						webkitTransformOrigin: "0px 0px"
-					}
+					page: css3.add({}, {
+						transform: "rotate(0deg)"
+					}),
+					front: css3.add({}, {
+						transform: "translate("+ cx + "px," + cy +"px) rotate(0deg)",
+						transformOrigin: "160px 68px"
+					}),
+					back: css3.add({}, {
+						transform: "translate(0px," + cy +"px) rotate(0deg)",
+						transformOrigin: "0px 0px"
+					})
 				};
 				params.turnBackward = {
-					page: {
-						webkitTransform: "rotate(32deg)"
-					},
-					front: {
-						webkitTransform: "translate("+ (-dw) + "px," + dy +"px) rotate(-32deg)",
-						webkitTransformOrigin: "0px 0px"
-					},
-					back: {
-						webkitTransform: "translate("+ dx + "px," + dy +"px) rotate(32deg)",
-						webkitTransformOrigin: "top right"
-					}
+					page: css3.add({}, {
+						transform: "rotate(32deg)"
+					}),
+					front: css3.add({}, {
+						transform: "translate("+ (-dw) + "px," + dy +"px) rotate(-32deg)",
+						transformOrigin: "0px 0px"
+					}),
+					back: css3.add({}, {
+						transform: "translate("+ dx + "px," + dy +"px) rotate(32deg)",
+						transformOrigin: "top right"
+					})
 				};
 				break;
 			}
@@ -356,7 +367,7 @@ define("dojox/mobile/pageTurningUtils", [
 		};
 
 		this.isPageTurned = function(/*DomNode*/pageNode){
-			return pageNode.style.webkitTransform == "rotate(0deg)";
+			return pageNode.style[css3.name("transform")] == "rotate(0deg)";
 		};
 
 		this._onPageTurned = function(e){
@@ -389,7 +400,7 @@ define("dojox/mobile/pageTurningUtils", [
 				if(this._transitionEndHandle){
 					connect.disconnect(this._transitionEndHandle);
 				}
-				this._transitionEndHandle = connect.connect(catalogNode, "webkitTransitionEnd", this, "_onPageTurned")
+				this._transitionEndHandle = connect.connect(catalogNode, css3.name("transitionEnd"), this, "_onPageTurned");
 				this._catalogNode = catalogNode;
 			}
 			
@@ -540,13 +551,13 @@ define("dojox/mobile/pageTurningUtils", [
 				p = (dir === 1) ? this._styleParams.turnForward : this._styleParams.turnBackward;
 			
 			// Apply styles for page turning animations
-			p.page.webkitTransitionDuration = d;
+			p.page[css3.name("transitionDuration")] = d;
 			domStyle.set(pageNode, p.page);
 			
-			p.front.webkitTransitionDuration = d;
+			p.front[css3.name("transitionDuration")] = d;
 			domStyle.set(childNodes[0], p.front); // frontNode
 			
-			p.back.webkitTransitionDuration = d;
+			p.back[css3.name("transitionDuration")] = d;
 			domStyle.set(childNodes[1], p.back); // backNode
 			
 			// Adjust z-index and dog-ear

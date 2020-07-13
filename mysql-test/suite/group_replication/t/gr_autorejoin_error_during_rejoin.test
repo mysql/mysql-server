@@ -42,6 +42,7 @@ call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communic
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 't1.PRIMARY'.*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*; Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 't1.PRIMARY'.*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");

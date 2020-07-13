@@ -1,4 +1,9 @@
 
+.dijitRtl .dijitOffScreen {
+	
+	left: auto !important;
+	right: -10000px !important;
+}
 .dijitRtl .dijitPlaceHolder {
 	left: auto;
 	right: 0;
@@ -34,6 +39,12 @@
 }
 div.dijitNumberTextBoxRtl {
 	text-align: right;
+}
+.dijitCalendarRtl .dijitCalendarDecrementArrow {
+	float: right;
+}
+.dijitCalendarRtl .dijitCalendarIncrementArrow {
+	float: left;
 }
 .dijitCalendarRtl .dijitCalendarNextYear {
 	margin:0 0.55em 0 0;
@@ -109,6 +120,9 @@ div.dijitNumberTextBoxRtl {
 	border-style: none none none solid;
 	text-align: right;
 }
+.dijitTreeRtl .dijitTreeContainer {
+	float: right;	
+}
 .dijitRtl .dojoDndHorizontal .dojoDndItemBefore {
     border-width: 0 2px 0 0;
     padding: 2px 0 2px 2px;
@@ -123,7 +137,7 @@ div.dijitNumberTextBoxRtl {
 .tundra .dijitCalendarRtl .dijitCalendarIncrease {
 	background-position: 0 top;
 }
- .dj_ie6 .tundra .dijitTimePickerRtl .dijitTimePickerMarkerHover,
+.dj_ie6 .tundra .dijitTimePickerRtl .dijitTimePickerMarkerHover,
 .dj_ie7 .tundra .dijitTimePickerRtl .dijitTimePickerMarkerHover {
         border-top: 0; 
 }
@@ -161,7 +175,19 @@ div.dijitNumberTextBoxRtl {
 .tundra .dijitTreeNodeRtl .dijitTreeExpandoClosed {
 	background-image: url("images/treeExpand_plus_rtl.gif");
 }
-.tundra .dijitTitlePaneRtl .dijitClosed .dijitArrowNode {
+.tundra .dijitProgressBarRtl .dijitProgressBarFull {
+	border-left-width: 1px;
+	border-right: 0px;
+}
+.tundra .dijitProgressBarIndeterminateRtl .dijitProgressBarTile {
+	-moz-transform: scaleX(-1);
+	-o-transform: scaleX(-1);
+	-webkit-transform: scaleX(-1);
+	transform: scaleX(-1);
+	filter: FlipH;
+	-ms-filter: "FlipH";
+}
+.tundra .dijitTitlePaneRtl .dijitClosed .dijitArrowNode, .tundra .dijitFieldsetRtl .dijitFieldsetTitleClosed .dijitArrowNode {
 	background-position: -7px 0;
 }
 .tundra .dijitTabRtl {

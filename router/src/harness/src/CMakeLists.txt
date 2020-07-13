@@ -212,3 +212,17 @@ ELSE()
     RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
     COMPONENT Router)
 ENDIF()
+
+ADD_LIBRARY(harness_stdx_filesystem STATIC
+  stdx/filesystem.cc
+)
+TARGET_INCLUDE_DIRECTORIES(harness_stdx_filesystem
+  PUBLIC
+  ../include)
+
+ADD_LIBRARY(harness_stdx_io STATIC
+  stdx/io/file_handle.cc
+)
+TARGET_INCLUDE_DIRECTORIES(harness_stdx_io
+  PUBLIC
+  ../include)

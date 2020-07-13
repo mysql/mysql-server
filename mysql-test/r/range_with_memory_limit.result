@@ -3088,7 +3088,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`b`) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = cast(`test`.`t2`.`b` as datetime(6))) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
 2001-01-01 00:00:00	2001#01#01
@@ -3106,7 +3106,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`b` = `test`.`t1`.`a`) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (cast(`test`.`t2`.`b` as datetime(6)) = `test`.`t1`.`a`) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
 SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 a	b
 2001-01-01 00:00:00	2001#01#01

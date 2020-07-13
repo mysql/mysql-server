@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ bool Ndb_table_map::have_physical_blobs(const TABLE *table) {
       continue;
     }
 
-    if (field->flags & BLOB_FLAG) {
+    if (field->is_flag_set(BLOB_FLAG)) {
       // Double check that TABLE_SHARE thinks that table had some
       // blobs(physical or not)
       DBUG_ASSERT(table->s->blob_fields > 0);
@@ -157,7 +157,7 @@ void Ndb_table_map::print_record(const TABLE *table, const uchar *record) {
     char buf[40];
     int pos = 0;
     Field *field = table->field[j];
-    const uchar *field_ptr = field->ptr - table->record[0] + record;
+    const uchar *field_ptr = field->field_ptr() - table->record[0] + record;
     int pack_len = field->pack_length();
     int n = pack_len < 10 ? pack_len : 10;
 
@@ -184,19 +184,19 @@ void Ndb_table_map::print_table(const char *info, const TABLE *table) {
 
   for (unsigned int i = 0; i < table->s->fields; i++) {
     Field *f = table->field[i];
-    DBUG_PRINT(
-        "info",
-        ("[%d] \"%s\"(0x%lx:%s%s%s%s%s%s) type: %d  pack_length: %d  "
-         "ptr: 0x%lx[+%d]  null_bit: %u  null_ptr: 0x%lx[+%d]",
-         i, f->field_name, (long)f->flags,
-         (f->flags & PRI_KEY_FLAG) ? "pri" : "attr",
-         (f->flags & NOT_NULL_FLAG) ? "" : ",nullable",
-         (f->flags & UNSIGNED_FLAG) ? ",unsigned" : ",signed",
-         (f->flags & ZEROFILL_FLAG) ? ",zerofill" : "",
-         (f->flags & BLOB_FLAG) ? ",blob" : "",
-         (f->flags & BINARY_FLAG) ? ",binary" : "", f->real_type(),
-         f->pack_length(), (long)f->ptr, (int)(f->ptr - table->record[0]),
-         f->null_bit, (long)f->null_offset(0), (int)f->null_offset()));
+    DBUG_PRINT("info",
+               ("[%d] \"%s\"(0x%lx:%s%s%s%s%s%s) type: %d  pack_length: %d  "
+                "ptr: 0x%lx[+%d]  null_bit: %u  null_ptr: 0x%lx[+%d]",
+                i, f->field_name, (long)f->all_flags(),
+                f->is_flag_set(PRI_KEY_FLAG) ? "pri" : "attr",
+                f->is_flag_set(NOT_NULL_FLAG) ? "" : ",nullable",
+                f->is_flag_set(UNSIGNED_FLAG) ? ",unsigned" : ",signed",
+                f->is_flag_set(ZEROFILL_FLAG) ? ",zerofill" : "",
+                f->is_flag_set(BLOB_FLAG) ? ",blob" : "",
+                f->is_flag_set(BINARY_FLAG) ? ",binary" : "", f->real_type(),
+                f->pack_length(), (long)f->field_ptr(),
+                (int)(f->offset(table->record[0])), f->null_bit,
+                (long)f->null_offset(nullptr), (int)f->null_offset()));
     if (f->type() == MYSQL_TYPE_BIT) {
       Field_bit *g = (Field_bit *)f;
       DBUG_PRINT("MYSQL_TYPE_BIT",

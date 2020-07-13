@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -800,8 +800,7 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                         const List<LEX_USER> *users,
                                         const List<LEX_USER> *roles);
 void roles_graphml(THD *thd, String *);
-bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
-                              const LEX_CSTRING &role_host);
+bool has_grant_role_privilege(THD *thd, const List<LEX_USER> *roles);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 std::string create_authid_str_from(const LEX_USER *user);
 std::pair<std::string, std::string> get_authid_from_quoted_string(
@@ -1043,4 +1042,6 @@ typedef std::list<std::vector<std::string>> Userhostpassword_list;
 bool send_password_result_set(THD *thd,
                               const Userhostpassword_list &generated_passwords);
 bool lock_and_get_mandatory_roles(std::vector<Role_id> *mandatory_roles);
+bool mysql_alter_user_comment(THD *thd, const List<LEX_USER> *users,
+                              const std::string &json_blob, bool expect_text);
 #endif /* AUTH_COMMON_INCLUDED */

@@ -679,14 +679,15 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
       dict_mem_table_create(table_name, space, 5, 0, 0, table_flags, 0);
 
   dict_mem_table_add_col(table, heap, "type", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 4);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
   dict_mem_table_add_col(table, heap, "id", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 8);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 8, true);
   dict_mem_table_add_col(table, heap, "compressed_len", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 4);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
   dict_mem_table_add_col(table, heap, "uncompressed_len", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED, 4);
-  dict_mem_table_add_col(table, heap, "data", DATA_BLOB, DATA_NOT_NULL, 0);
+                         DATA_NOT_NULL | DATA_UNSIGNED, 4, true);
+  dict_mem_table_add_col(table, heap, "data", DATA_BLOB, DATA_NOT_NULL, 0,
+                         true);
 
   table->id = dict_sdi_get_table_id(space);
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,7 @@ public:
 
   /**
    *   Start DB process by sending START_ORD to it.
-   *   @param   processId: Id of the DB process to start
+   *   @param   processId  Id of the DB process to start
    *   @return 0 if succeeded, otherwise: as stated above, plus:
    */
  int sendSTART_ORD(int processId);
@@ -237,8 +237,8 @@ public:
 
   /**
    *   Insert an error in a DB process.
-   *   @param   processId: Id of the DB process
-   *   @param   errorNo: The error number. > 0.
+   *   @param   processId  Id of the DB process
+   *   @param   errorNo    The error number. > 0.
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    *            INVALID_ERROR_NUMBER
    */
@@ -313,8 +313,8 @@ public:
 
   /**
    *   Get error text
-   * 
-   *   @param   errorCode: Error code to get a match error text for.
+   *
+   *   @param   errorCode  Error code to get a match error text for.
    *   @return  The error text.
    */
   const char* getErrorText(int errorCode, char *buf, int buf_sz);
@@ -413,11 +413,11 @@ private:
 		   bool nostart,
 		   bool initialStart,
                    int *stopSelf);
- 
+
   /**
    *   Check if it is possible to send a signal to a (DB) process
    *
-   *   @param   processId: Id of the process to send to
+   *   @param   nodeId  Id of the node to send to
    *   @return  0 OK, 1 process dead, 2 API or MGMT process, 3 not configured
    */
   int okToSendTo(NodeId nodeId, bool unCond = false);

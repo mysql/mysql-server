@@ -13,7 +13,7 @@ define(
 	borderThickness: "Espessura da Borda:",
 	percent: "percentual",
 	pixels: "pixels",
-	"default": "padrão",
+	"default": "default",
 	left: "esquerda",
 	center: "centro",
 	right: "direita",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Incluir Coluna Antes",
 	insertTableColumnAfterLabel: "Incluir Coluna Depois",
 	deleteTableRowLabel: "Excluir Linha",
-	deleteTableColumnLabel: "Excluir Coluna"
+	deleteTableColumnLabel: "Excluir Coluna",
+	colorTableCellTitle: "Célula de Tabela de Cor do Segundo Plano",
+	tableContextMenuTitle: "Menu de Contexto da Tabela"
 })
 );

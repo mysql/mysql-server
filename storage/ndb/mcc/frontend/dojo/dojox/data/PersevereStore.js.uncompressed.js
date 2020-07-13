@@ -4,12 +4,12 @@ define("dojox/data/PersevereStore", ["dojo", "dojox", "require", "dojox/data/Jso
 
 dojox.json.ref.serializeFunctions = true; // Persevere supports persisted functions
 
-dojo.declare("dojox.data.PersevereStore", dojox.data.JsonQueryRestStore,{
+var PersevereStore = dojo.declare("dojox.data.PersevereStore", dojox.data.JsonQueryRestStore, {
 	useFullIdInQueries: true, // in JSONQuerys use the full id
 	jsonQueryPagination: false // use the Range headers instead
 });
 
-dojox.data.PersevereStore.getStores = function(/*String?*/ path,/*Boolean?*/ sync){
+PersevereStore.getStores = function(/*String?*/ path,/*Boolean?*/ sync){
 	// summary:
 	//		Creates Dojo data stores for all the table/classes on a Persevere server
 	// path:
@@ -100,13 +100,13 @@ dojox.data.PersevereStore.getStores = function(/*String?*/ path,/*Boolean?*/ syn
 	dojo.xhr = plainXhr;
 	return sync ? results : dfd;
 };
-dojox.data.PersevereStore.addProxy = function(){
+PersevereStore.addProxy = function(){
 	// summary:
 	//		Invokes the XHR proxy plugin. Call this if you will be using x-site data.
 	require("dojox/io/xhrPlugins"); // also not necessary, but we can register that Persevere supports proxying
 	dojox.io.xhrPlugins.addProxy("/proxy/");
 };
 
-return dojox.data.PersevereStore;
+return PersevereStore;
 
 });

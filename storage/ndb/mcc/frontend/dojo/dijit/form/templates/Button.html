@@ -1,6 +1,6 @@
 <span class="dijit dijitReset dijitInline" role="presentation"
 	><span class="dijitReset dijitInline dijitButtonNode"
-		data-dojo-attach-event="ondijitclick:_onClick" role="presentation"
+		data-dojo-attach-event="ondijitclick:__onClick" role="presentation"
 		><span class="dijitReset dijitStretch dijitButtonContents"
 			data-dojo-attach-point="titleNode,focusNode"
 			role="button" aria-labelledby="${id}_label"
@@ -13,5 +13,6 @@
 		></span
 	></span
 	><input ${!nameAttrSetting} type="${type}" value="${value}" class="dijitOffScreen"
+		data-dojo-attach-event="onclick:_onClick"
 		tabIndex="-1" aria-hidden="true" data-dojo-attach-point="valueNode"
 /></span>

@@ -1,1 +1,2 @@
 --binlog-ignore-db=master_db
+--force-restart

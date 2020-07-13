@@ -1,5 +1,5 @@
-define("dojox/charting/plot3d/Bars", ["dojox/gfx3d", "dojo/_base/kernel", "dojo/_base/declare", "dojo/_base/Color", "./Base"],
-	function(gfx3d, kernel, declare, Color, Base) {
+define("dojox/charting/plot3d/Bars", ["dojo/_base/kernel", "dojo/_base/declare", "dojo/_base/Color", "dojo/has", "./Base"],
+	function(kernel, declare, Color, has, Base) {
 
 	// reduce function borrowed from dojox.fun
 	var reduce = function(/*Array*/ a, /*Function|String|Array*/ f, /*Object?*/ o){
@@ -54,6 +54,9 @@ define("dojox/charting/plot3d/Bars", ["dojox/gfx3d", "dojo/_base/kernel", "dojo/
 						top:    {x: org + step - this.gap, y: this.data[i] * scale, z: depth}
 					})
 					.setFill(this.material);
+			}
+			if(has("dojo-bidi")){
+				this._checkOrientation(chart);
 			}
 		}
 	});

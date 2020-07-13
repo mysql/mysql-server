@@ -16,7 +16,7 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 			index: Rest._index,
 			timeStamps: timeStamp && Rest._timeStamps,
 			time: timeStamp,
-			idPrefix: service.servicePath.replace(/[^\/]*$/,''),
+			idPrefix: service._store.allowNoTrailingSlash ? service.servicePath + '/' : service.servicePath.replace(/[^\/]*$/,''),
 			idAttribute: jr.getIdAttribute(service),
 			schemas: jr.schemas,
 			loader:	jr._loader,
@@ -107,7 +107,7 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 				if(kwArgs.revertOnError !== false){
 					var postCommitDirtyObjects = dirtyObjects;
 					dirtyObjects = savingObjects;
-					var numDirty = 0; // make sure this does't do anything if it is called again
+					var numDirty = 0; // make sure this doesn't do anything if it is called again
 					jr.revert(); // revert if there was an error
 					dirtyObjects = postCommitDirtyObjects;
 				}

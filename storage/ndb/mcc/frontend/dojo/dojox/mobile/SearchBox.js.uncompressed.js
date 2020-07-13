@@ -1,12 +1,15 @@
 define("dojox/mobile/SearchBox", [
 	"dojo/_base/declare",
 	"dojo/_base/lang",
+	"dojo/_base/window",
 	"dijit/form/_SearchMixin",
 	"dojox/mobile/TextBox",
 	"dojo/dom-class",
 	"dojo/keys",
+	"dojo/touch",
+	"dojo/on",
 	"./sniff"
-], function(declare, lang, SearchMixin, TextBox, domClass, keys, has){
+], function(declare, lang, win, SearchMixin, TextBox, domClass, keys, touch, on, has){
 
 	return declare("dojox.mobile.SearchBox", [TextBox, SearchMixin], {
 		// summary:
@@ -53,18 +56,17 @@ define("dojox/mobile/SearchBox", [
 			if(!this.textbox.hasAttribute('results')){
 				this.textbox.setAttribute('results', '0'); // enables webkit search decoration
 			}
-			if(has('iphone') < 5){
+			if(has("ios") < 5){
 				domClass.add(this.domNode, 'iphone4'); // cannot click cancel button after focus so just remove it
 				this.connect(this.textbox, "onfocus", // if value changes between start of onfocus to end, then it was a cancel
 					function(){
 						if(this.textbox.value !== ''){
-							setTimeout(lang.hitch(this,
+							this.defer(
 								function(){
 									if(this.textbox.value === ''){
 										this._onInput({ charOrCode: keys.ENTER }); // emulate onsearch
 									}
-								}), 
-								0
+								}
 							);
 						}
 					}
@@ -75,6 +77,48 @@ define("dojox/mobile/SearchBox", [
 					this._onInput({ charOrCode: keys.ENTER });
 				}
 			);
+			
+			// Clear action for the close button (iOS specific)
+			var _this = this;
+			var touchStartX, touchStartY;
+			var handleRelease;
+			if(has("ios")){
+				this.on(touch.press, function(evt){
+					var rect;
+					touchStartX = evt.touches ? evt.touches[0].pageX : evt.pageX;
+					touchStartY = evt.touches ? evt.touches[0].pageY : evt.pageY;
+					// As the native searchbox on iOS, clear on release, not on start.
+					handleRelease = on(win.doc, touch.release,
+						function(evt){
+							var rect, dx, dy;
+							if(_this.get("value") != ""){
+								dx = evt.pageX - touchStartX;
+								dy = evt.pageY - touchStartY;
+								// Mimic the behavior of native iOS searchbox: 
+								// if location of release event close to the location of start event:
+								if(Math.abs(dx) <= 4 && Math.abs(dy) <= 4){
+									evt.preventDefault();
+									_this.set("value", "");
+									_this._onInput({ charOrCode: keys.ENTER });
+								}
+							}
+							if(handleRelease){ // possibly already cancelled/cleared on touch.press
+								handleRelease.remove();
+								handleRelease = null;
+							}
+						}
+					);
+					rect = _this.domNode.getBoundingClientRect();
+					// if touched in the right-most 30 pixels of the search box
+					if(rect.right - (evt.touches ? evt.touches[0].pageX : evt.pageX) >= 30){
+						// cancel
+						if(handleRelease){
+							handleRelease.remove();
+							handleRelease = null;
+						} 
+					}
+				});
+			}
 		}
 	});
 });

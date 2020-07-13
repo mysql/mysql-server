@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6620,6 +6620,12 @@ Dbspj::scanFrag_build(Build_context& ctx,
       {
         // Can only push firstMatch elimination to data nodes if results does
         // not depends of finding matches from children -> has to be a leaf
+        ScanFragReq::setFirstMatchFlag(requestInfo, 1);
+      }
+      if (treeBits & DABits::NI_ANTI_JOIN && treeNodePtr.p->isLeaf())
+      {
+        // ANTI_JOIN's cares about whether a match was found or not
+        // Thus, returning only the first match is sufficient here as well
         ScanFragReq::setFirstMatchFlag(requestInfo, 1);
       }
       dst->requestInfo = requestInfo;

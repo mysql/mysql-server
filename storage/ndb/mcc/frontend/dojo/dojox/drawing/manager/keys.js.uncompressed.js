@@ -231,22 +231,23 @@ function(dojo, utilCommon){
 			
 			dojo.connect(document, "keypress", this, function(evt){
 				if(!enabled){ return; }
-				var inc = this.shift ? this.arrowIncrement*this.arrowShiftIncrement : this.arrowIncrement;
+				var inc = this.shift ? this.arrowIncrement*this.arrowShiftIncrement : this.arrowIncrement,
+					altOrOption = evt.alt || this.cmmd;
 				
 				var x =0, y =0;
 				if(evt.keyCode==32 && !isEdit){ //space
 					dojo.stopEvent(evt);
 				}
-				if(evt.keyCode==37){ //left
+				if(evt.keyCode==37 && !altOrOption){ //left
 					x = -inc;
 				}
-				if(evt.keyCode==38){ //up
+				if(evt.keyCode==38 && !altOrOption){ //up
 					y = -inc;
 				}
-				if(evt.keyCode==39){ //right
+				if(evt.keyCode==39 && !altOrOption){ //right
 					x = inc;
 				}
-				if(evt.keyCode==40){ //down
+				if(evt.keyCode==40 && !altOrOption){ //down
 					y = inc;
 				}
 				if(x || y){

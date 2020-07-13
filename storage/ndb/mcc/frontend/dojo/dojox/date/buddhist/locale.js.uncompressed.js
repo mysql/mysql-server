@@ -1,4 +1,4 @@
-define("dojox/date/buddhist/locale", ["../..", "dojo/_base/lang", "dojo/_base/array", "dojo/date", "dojo/i18n", "dojo/regexp", "dojo/string", "./Date", "dojo/i18n!dojo/cldr/nls/buddhist"],
+define("dojox/date/buddhist/locale", ["dojox/main", "dojo/_base/lang", "dojo/_base/array", "dojo/date", "dojo/i18n", "dojo/regexp", "dojo/string", "./Date", "dojo/i18n!dojo/cldr/nls/buddhist"],
 	function(dojox, lang, arr, dd, i18n, regexp, string, BDate){
 
 	var blocale = lang.getObject("date.buddhist.locale", true, dojox);

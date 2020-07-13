@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,9 +91,9 @@ bool is_zstd_compression_level_valid(uint level) {
   @retval 0  success
   @retval 1  error or warnings
 */
-bool validate_compression_attributes(std::string algorithm_names,
-                                     std::string channel_name,
-                                     bool ignore_errors) {
+bool validate_compression_attributes(
+    std::string algorithm_names,
+    std::string channel_name MY_ATTRIBUTE((unused)), bool ignore_errors) {
   DBUG_TRACE;
   DBUG_ASSERT(algorithm_names.length() <
               COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE);
@@ -102,10 +102,22 @@ bool validate_compression_attributes(std::string algorithm_names,
   parse_compression_algorithms_list(algorithm_names, algorithm_name_list);
   unsigned int total_names = algorithm_name_list.size();
 
+  if (!total_names) {
+    if (!ignore_errors) {
+#ifdef MYSQL_SERVER
+      my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
+               algorithm_names.c_str(), channel_name.c_str());
+#endif
+    }
+    return true;
+  }
   if (total_names > COMPRESSION_ALGORITHM_COUNT_MAX) {
-    if (!ignore_errors)
+    if (!ignore_errors) {
+#ifdef MYSQL_SERVER
       my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT, MYF(0),
                algorithm_names.c_str(), channel_name.c_str());
+#endif
+    }
     return true;
   }
   /* validate compression algorithm names */
@@ -116,9 +128,12 @@ bool validate_compression_attributes(std::string algorithm_names,
     /* validate algorithm name */
     method = get_compression_algorithm(algorithm_name);
     if (method == enum_compression_algorithm::MYSQL_INVALID) {
-      if (!ignore_errors)
+      if (!ignore_errors) {
+#ifdef MYSQL_SERVER
         my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
                  algorithm_name.c_str(), channel_name.c_str());
+#endif
+      }
       return true;
     }
     name_it++;

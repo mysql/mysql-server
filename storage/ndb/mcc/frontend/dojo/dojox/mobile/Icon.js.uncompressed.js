@@ -3,20 +3,22 @@ define("dojox/mobile/Icon", [
 	"dojo/_base/lang",
 	"dojo/dom-class",
 	"dojo/dom-construct",
-	"./iconUtils"
-], function(declare, lang, domClass, domConstruct, iconUtils){
+	"./iconUtils",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/Icon"
+], function(declare, lang, domClass, domConstruct, iconUtils, has, BidiIcon){
 
 	// module:
 	//		dojox/mobile/Icon
 
-	return declare("dojox.mobile.Icon", null, {
+	var Icon = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiIcon" : "dojox.mobile.Icon", null, {
 		// summary:
 		//		A wrapper for image icon, CSS sprite icon, or DOM Button.
 		// description:
-		//		Icon is an utility for creating an image icon, a CSS sprite icon,
-		//		or a DOM Button. It calls iconUtils.createIcon() with given
-		//		parameters to create an icon.
-		//		Note that this module is not a widget, i.e., it does not inherit
+		//		Icon is a simple utility class for creating an image icon, a CSS sprite icon, 
+		//		or a DOM Button. It calls dojox/mobile/iconUtils.createIcon() with the 
+		//		appropriate parameters to create an icon. 
+		//		Note that this module is not a widget, that is it does not inherit 
 		//		from dijit/_WidgetBase.
 		// example:
 		//		Image icon:
@@ -31,22 +33,28 @@ define("dojox/mobile/Icon", [
 		//	|	<div data-dojo-type="dojox.mobile.Icon"
 		//	|		data-dojo-props='icon:"mblDomButtonBlueCircleArrow"'></div>
 
-		// icon: String
+		// icon: [const] String
 		//		An icon to display. The value can be either a path for an image
 		//		file or a class name of a DOM button.
+		//		Note that changing the value of the property after the icon
+		//		creation has no effect.
 		icon: "",
 
-		// icon: String
+		// iconPos: [const] String
 		//		The position of an aggregated icon. IconPos is comma separated
 		//		values like top,left,width,height (ex. "0,0,29,29").
+		//		Note that changing the value of the property after the icon
+		//		creation has no effect.
 		iconPos: "",
 
-		// icon: String
+		// alt: [const] String
 		//		An alt text for the icon image.
+		//		Note that changing the value of the property after the icon
+		//		creation has no effect.
 		alt: "",
 
-		// icon: String
-		//		A name of html tag to create as this.domNode.
+		// tag: String
+		//		The name of the HTML tag to create as this.domNode.
 		tag: "div",
 
 		constructor: function(/*Object?*/args, /*DomNode?*/node){
@@ -61,6 +69,12 @@ define("dojox/mobile/Icon", [
 			}
 			this.domNode = node || domConstruct.create(this.tag);
 			iconUtils.createIcon(this.icon, this.iconPos, null, this.alt, this.domNode);
+			this._setCustomTransform();
+		},
+		_setCustomTransform: function(){
+			// summary:
+			//		To be implemented in bidi/Icon.js.
 		}
 	});
+	return has("dojo-bidi") ? declare("dojox.mobile.Icon", [Icon, BidiIcon]) : Icon;
 });

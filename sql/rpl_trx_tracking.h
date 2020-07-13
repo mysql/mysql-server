@@ -1,5 +1,5 @@
 #ifndef RPL_TRX_TRACKING_INCLUDED
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -230,7 +230,10 @@ class Transaction_dependency_tracker {
 
  public:
   /* option opt_binlog_transaction_dependency_tracking */
-  long m_opt_tracking_mode;
+  std::atomic<long> m_opt_tracking_mode;
+
+  /* option opt_binlog_transaction_dependency_tracking associated with sysvar */
+  long m_opt_tracking_mode_value;
 
   Writeset_trx_dependency_tracker *get_writeset() { return &m_writeset; }
 

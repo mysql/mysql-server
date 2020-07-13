@@ -119,6 +119,10 @@ case _8.BaseLayerType.OSM:
 _1e.transitionEffect="resize";
 _1b=new _a(_1d,{olLayer:new OpenLayers.Layer.OSM(_1d,url,_1e)});
 break;
+case _8.BaseLayerType.Transport:
+_1e.transitionEffect="resize";
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.OSM.TransportMap(_1d,url,_1e)});
+break;
 case _8.BaseLayerType.WMS:
 if(!url){
 url="http://labs.metacarta.com/wms/vmap0";

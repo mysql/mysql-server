@@ -7,17 +7,17 @@
 .tundra .dijitTitlePaneTitleHover  {
 	background: #f8fafd url("images/accordionItemHover.gif") bottom repeat-x;
 }
-.tundra .dijitTitlePane .dijitArrowNode {
+.tundra .dijitTitlePane .dijitArrowNode, .tundra .dijitFieldset .dijitArrowNode {
 	background-image: url('images/spriteArrows.png');
 	background-repeat: no-repeat;
 	background-position: 0 0;
 	height: 7px;
 	width: 7px;
 }
-.dj_ie6 .tundra .dijitTitlePane .dijitArrowNode {
+.dj_ie6 .tundra .dijitTitlePane .dijitArrowNode, .dj_ie6 .tundra .dijitFieldset .dijitArrowNode {
 	background-image: url('images/spriteArrows.gif');
 }
-.tundra .dijitTitlePane .dijitClosed .dijitArrowNode {
+.tundra .dijitTitlePane .dijitClosed .dijitArrowNode, .tundra .dijitFieldset .dijitClosed .dijitArrowNode {
 	background-position: -14px 0;
 }
 .tundra .dijitTitlePaneContentOuter {
@@ -28,7 +28,7 @@
 .tundra .dijitTitlePaneContentInner {
 	padding:10px;
 }
-.tundra .dijitTitlePaneTextNode {
+.tundra .dijitTitlePaneTextNode, .tundra .dijitFieldsetLegendNode {
 	margin-left: 4px;
 	margin-right: 4px;
 }

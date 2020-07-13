@@ -1,5 +1,5 @@
 require({cache:{
-'url:dijit/templates/MenuItem.html':"<tr class=\"dijitReset dijitMenuItem\" data-dojo-attach-point=\"focusNode\" role=\"menuitem\" tabIndex=\"-1\">\n\t<td class=\"dijitReset dijitMenuItemIconCell\" role=\"presentation\">\n\t\t<img src=\"${_blankGif}\" alt=\"\" class=\"dijitIcon dijitMenuItemIcon\" data-dojo-attach-point=\"iconNode\"/>\n\t</td>\n\t<td class=\"dijitReset dijitMenuItemLabel\" colspan=\"2\" data-dojo-attach-point=\"containerNode\"></td>\n\t<td class=\"dijitReset dijitMenuItemAccelKey\" style=\"display: none\" data-dojo-attach-point=\"accelKeyNode\"></td>\n\t<td class=\"dijitReset dijitMenuArrowCell\" role=\"presentation\">\n\t\t<div data-dojo-attach-point=\"arrowWrapper\" style=\"visibility: hidden\">\n\t\t\t<img src=\"${_blankGif}\" alt=\"\" class=\"dijitMenuExpand\"/>\n\t\t\t<span class=\"dijitMenuExpandA11y\">+</span>\n\t\t</div>\n\t</td>\n</tr>\n"}});
+'url:dijit/templates/MenuItem.html':"<tr class=\"dijitReset\" data-dojo-attach-point=\"focusNode\" role=\"menuitem\" tabIndex=\"-1\">\n\t<td class=\"dijitReset dijitMenuItemIconCell\" role=\"presentation\">\n\t\t<span role=\"presentation\" class=\"dijitInline dijitIcon dijitMenuItemIcon\" data-dojo-attach-point=\"iconNode\"></span>\n\t</td>\n\t<td class=\"dijitReset dijitMenuItemLabel\" colspan=\"2\" data-dojo-attach-point=\"containerNode,textDirNode\"\n\t\trole=\"presentation\"></td>\n\t<td class=\"dijitReset dijitMenuItemAccelKey\" style=\"display: none\" data-dojo-attach-point=\"accelKeyNode\"></td>\n\t<td class=\"dijitReset dijitMenuArrowCell\" role=\"presentation\">\n\t\t<span data-dojo-attach-point=\"arrowWrapper\" style=\"visibility: hidden\">\n\t\t\t<span class=\"dijitInline dijitIcon dijitMenuExpand\"></span>\n\t\t\t<span class=\"dijitMenuExpandA11y\">+</span>\n\t\t</span>\n\t</td>\n</tr>\n"}});
 define("dijit/MenuItem", [
 	"dojo/_base/declare", // declare
 	"dojo/dom", // dom.setSelectable
@@ -7,20 +7,20 @@ define("dijit/MenuItem", [
 	"dojo/dom-class", // domClass.toggle
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/sniff", // has("ie")
+	"dojo/_base/lang", // lang.hitch
 	"./_Widget",
 	"./_TemplatedMixin",
 	"./_Contained",
 	"./_CssStateMixin",
 	"dojo/text!./templates/MenuItem.html"
-], function(declare, dom, domAttr, domClass, kernel, has,
+], function(declare, dom, domAttr, domClass, kernel, has, lang,
 			_Widget, _TemplatedMixin, _Contained, _CssStateMixin, template){
 
 	// module:
 	//		dijit/MenuItem
 
-	return declare("dijit.MenuItem",
-		[_Widget, _TemplatedMixin, _Contained, _CssStateMixin],
-		{
+	var MenuItem = declare("dijit.MenuItem" + (has("dojo-bidi") ? "_NoBidi" : ""),
+		[_Widget, _TemplatedMixin, _Contained, _CssStateMixin], {
 		// summary:
 		//		A line item in a Menu Widget
 
@@ -31,15 +31,35 @@ define("dijit/MenuItem", [
 		baseClass: "dijitMenuItem",
 
 		// label: String
-		//		Menu text
+		//		Menu text as HTML
 		label: "",
 		_setLabelAttr: function(val){
-			this.containerNode.innerHTML = 	val;
 			this._set("label", val);
-			if(this.textDir === "auto"){
-				this.applyTextDir(this.focusNode, this.label);
+			var shortcutKey = "";
+			var text;
+			var ndx = val.search(/{\S}/);
+			if(ndx >= 0){
+				shortcutKey = val.charAt(ndx + 1);
+				var prefix = val.substr(0, ndx);
+				var suffix = val.substr(ndx + 3);
+				text = prefix + shortcutKey + suffix;
+				val = prefix + '<span class="dijitMenuItemShortcutKey">' + shortcutKey + '</span>' + suffix;
+			}else{
+				text = val;
 			}
+			this.domNode.setAttribute("aria-label", text + " " + this.accelKey);
+			this.containerNode.innerHTML = val;
+			this._set('shortcutKey', shortcutKey);
 		},
+
+		/*=====
+		// shortcutKey: [readonly] String
+		//		Single character (underlined when the parent Menu is focused) used to navigate directly to this widget,
+		//		also known as [a mnemonic](http://en.wikipedia.org/wiki/Mnemonics_(keyboard%29).
+		//		This is denoted in the label by surrounding the single character with {}.
+		//		For example, if label="{F}ile", then shortcutKey="F".
+		shortcutKey: "",
+		=====*/
 
 		// iconClass: String
 		//		Class to apply to DOMNode to make it display an icon.
@@ -47,10 +67,11 @@ define("dijit/MenuItem", [
 		_setIconClassAttr: { node: "iconNode", type: "class" },
 
 		// accelKey: String
-		//		Text for the accelerator (shortcut) key combination.
-		//		Note that although Menu can display accelerator keys there
-		//		is no infrastructure to actually catch and execute these
-		//		accelerators.
+		//		Text for the accelerator (shortcut) key combination, a control, alt, etc. modified keystroke meant to
+		//		execute the menu item regardless of where the focus is on the page.
+		//
+		//		Note that although Menu can display accelerator keys, there is no infrastructure to actually catch and
+		//		execute those accelerators.
 		accelKey: "",
 
 		// disabled: Boolean
@@ -62,19 +83,17 @@ define("dijit/MenuItem", [
 			// If button label is specified as srcNodeRef.innerHTML rather than
 			// this.params.label, handle it here.
 			if(source && !("label" in this.params)){
-				this.set('label', source.innerHTML);
+				this._set('label', source.innerHTML);
 			}
 		},
 
 		buildRendering: function(){
 			this.inherited(arguments);
-			var label = this.id+"_text";
-			domAttr.set(this.containerNode, "id", label);
+			var label = this.id + "_text";
+			domAttr.set(this.containerNode, "id", label); // only needed for backward compat
 			if(this.accelKeyNode){
-				domAttr.set(this.accelKeyNode, "id", this.id + "_accel");
-				label += " " + this.id + "_accel";
+				domAttr.set(this.accelKeyNode, "id", this.id + "_accel"); // only needed for backward compat
 			}
-			this.domNode.setAttribute("aria-labelledby", label);
 			dom.setSelectable(this.domNode, false);
 		},
 
@@ -99,33 +118,11 @@ define("dijit/MenuItem", [
 			}
 		},
 
-		_onFocus: function(){
-			// summary:
-			//		This is called by the focus manager when focus
-			//		goes to this MenuItem or a child menu.
-			// tags:
-			//		protected
-			this._setSelected(true);
-			this.getParent()._onItemFocus(this);
-
-			this.inherited(arguments);
-		},
-
 		_setSelected: function(selected){
 			// summary:
 			//		Indicate that this node is the currently selected one
 			// tags:
 			//		private
-
-			/***
-			 * TODO: remove this method and calls to it, when _onBlur() is working for MenuItem.
-			 * Currently _onBlur() gets called when focus is moved from the MenuItem to a child menu.
-			 * That's not supposed to happen, but the problem is:
-			 * In order to allow dijit.popup's getTopPopup() to work,a sub menu's popupParent
-			 * points to the parent Menu, bypassing the parent MenuItem... thus the
-			 * MenuItem is not in the chain of active widgets and gets a premature call to
-			 * _onBlur()
-			 */
 
 			domClass.toggle(this.domNode, "dijitMenuItemSelected", selected);
 		},
@@ -147,6 +144,7 @@ define("dijit/MenuItem", [
 			kernel.deprecated("dijit.Menu.setDisabled() is deprecated.  Use set('disabled', bool) instead.", "", "2.0");
 			this.set('disabled', disabled);
 		},
+
 		_setDisabledAttr: function(/*Boolean*/ value){
 			// summary:
 			//		Hook for attr('disabled', ...) to work.
@@ -155,33 +153,32 @@ define("dijit/MenuItem", [
 			this.focusNode.setAttribute('aria-disabled', value ? 'true' : 'false');
 			this._set("disabled", value);
 		},
+
 		_setAccelKeyAttr: function(/*String*/ value){
 			// summary:
 			//		Hook for attr('accelKey', ...) to work.
 			//		Set accelKey on this menu item.
 
-			this.accelKeyNode.style.display=value?"":"none";
-			this.accelKeyNode.innerHTML=value;
-			//have to use colSpan to make it work in IE
-			domAttr.set(this.containerNode,'colSpan',value?"1":"2");
-
-			this._set("accelKey", value);
-		},
-		_setTextDirAttr: function(/*String*/ textDir){
-			// summary:
-			//		Setter for textDir.
-			// description:
-			//		Users shouldn't call this function; they should be calling
-			//		set('textDir', value)
-			// tags:
-			//		private
-
-			// only if new textDir is different from the old one
-			// and on widgets creation.
-			if(!this._created || this.textDir != textDir){
-				this._set("textDir", textDir);
-				this.applyTextDir(this.focusNode, this.label);
+			if(this.accelKeyNode){
+				this.accelKeyNode.style.display = value ? "" : "none";
+				this.accelKeyNode.innerHTML = value;
+				//have to use colSpan to make it work in IE
+				domAttr.set(this.containerNode, 'colSpan', value ? "1" : "2");
 			}
-		}		
+			this._set("accelKey", value);
+		}
 	});
+
+	if(has("dojo-bidi")){
+		MenuItem = declare("dijit.MenuItem", MenuItem, {
+			_setLabelAttr: function(val){
+				this.inherited(arguments);
+				if(this.textDir === "auto"){
+					this.applyTextDir(this.textDirNode);
+				}
+			}
+		});
+	}
+
+	return MenuItem;
 });

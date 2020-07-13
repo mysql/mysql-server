@@ -1,7 +1,6 @@
 //>>built
 define("dojox/dtl/tag/misc",["dojo/_base/lang","dojo/_base/array","dojo/_base/connect","../_base"],function(_1,_2,_3,dd){
-_1.getObject("dojox.dtl.tag.misc",true);
-var _4=dd.tag.misc;
+var _4=_1.getObject("tag.misc",true,dd);
 _4.DebugNode=_1.extend(function(_5){
 this.text=_5;
 },{render:function(_6,_7){
@@ -208,5 +207,5 @@ var _66=_63.parse(["endwith"]);
 _63.next_token();
 return new _4.WithNode(_65[1],_65[3],_66);
 }});
-return dojox.dtl.tag.misc;
+return _4;
 });

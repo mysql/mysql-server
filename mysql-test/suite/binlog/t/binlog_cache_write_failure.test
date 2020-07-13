@@ -116,7 +116,6 @@ SET SESSION debug = "-d,fault_injection_reinit_io_cache_while_flushing_to_file";
 
 # Check that error is present in error log
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: binlog.binlog_cache_write_failure
 --let $assert_count = 1
 --let $assert_select = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.
 --let $assert_text = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.

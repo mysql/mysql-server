@@ -2,7 +2,7 @@
 define("dojox/data/CdfStore",["dojo","dojox","dojo/data/util/sorter"],function(_1,_2){
 _2.data.ASYNC_MODE=0;
 _2.data.SYNC_MODE=1;
-_1.declare("dojox.data.CdfStore",null,{identity:"jsxid",url:"",xmlStr:"",data:null,label:"",mode:_2.data.ASYNC_MODE,constructor:function(_3){
+return _1.declare("dojox.data.CdfStore",null,{identity:"jsxid",url:"",xmlStr:"",data:null,label:"",mode:_2.data.ASYNC_MODE,constructor:function(_3){
 if(_3){
 this.url=_3.url;
 this.xmlStr=_3.xmlStr||_3.str;
@@ -306,5 +306,4 @@ _42.byId=true;
 return this.fetch(_42);
 },byId:function(_43){
 }});
-return _2.data.CdfStore;
 });

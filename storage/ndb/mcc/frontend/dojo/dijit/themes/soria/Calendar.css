@@ -23,10 +23,9 @@
 	font-size: 100%;
 	border-spacing: 0;
 	border-collapse: separate;
-	border: 1px solid #b1badf;
 	margin: 0;
 }
-.soria .dijitCalendarMonthContainer th {
+.soria .dijitCalendarMonthContainer {
 	
 	background:#bed7f0 url("images/titleBar.png") repeat-x top;
 	padding-top:.3em;

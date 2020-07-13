@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,8 @@ int Multi_primary_migration_action::process_action_message(
 
 Group_action::enum_action_execution_result
 Multi_primary_migration_action::execute_action(
-    bool, Plugin_stage_monitor_handler *stage_handler) {
+    bool, Plugin_stage_monitor_handler *stage_handler,
+    Notification_context *ctx) {
   bool mode_is_set = false;
   bool action_terminated = false;
   int error = 0;
@@ -165,6 +166,7 @@ Multi_primary_migration_action::execute_action(
 
   set_single_primary_mode_var(false);
   group_member_mgr->update_primary_member_flag(false);
+  ctx->set_member_role_changed();
   mode_is_set = true;
 
   if (!multi_primary_switch_aborted) {

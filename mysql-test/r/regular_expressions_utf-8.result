@@ -320,7 +320,7 @@ regexp_substr( 'ab ac ad', 'A.', 3, 3 )
 NULL
 SELECT regexp_substr( 'ab ac ad', 'A.', 3, 3 ) IS NULL;
 regexp_substr( 'ab ac ad', 'A.', 3, 3 ) IS NULL
-0
+1
 # REGEXP_SUBSTR(), four arguments.
 SELECT regexp_substr( 'ab ac ad', 'A.', 1, 1, 'c' );
 regexp_substr( 'ab ac ad', 'A.', 1, 1, 'c' )
@@ -915,7 +915,7 @@ t1	CREATE TABLE `t1` (
   `a` bigint NOT NULL DEFAULT '0',
   `b` int NOT NULL DEFAULT '0',
   `c` longtext CHARACTER SET latin1,
-  `d` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `d` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
   `e` varchar(512) CHARACTER SET latin1 DEFAULT NULL,
   `f` text CHARACTER SET latin1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

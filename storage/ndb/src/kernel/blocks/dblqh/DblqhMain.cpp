@@ -7086,7 +7086,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
   Uint32 fragPtr = fragptr.p->tupFragptr;
   Uint32 op = regTcPtr.p->operation;
 
-  const bool copy = LqhKeyReq::getNrCopyFlag(regTcPtr.p->reqinfo);
+  const bool nrCopyFlag = LqhKeyReq::getNrCopyFlag(regTcPtr.p->reqinfo);
 
   if (!LqhKeyReq::getRowidFlag(regTcPtr.p->reqinfo))
   {
@@ -7138,7 +7138,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
    * restoring changes in an LCP. In this we set the NrCopyFlag.
    */
   TcConnectionrecPtr tcConnectptr = regTcPtr;
-  if (copy)
+  if (nrCopyFlag)
   {
     /**
      * This is a copy row sent from live node to starting node.
@@ -7282,10 +7282,58 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
   else
   {
     /**
+     * nrCopyFlag == false
      * This is a normal operation in a starting node which is currently being
      * synchronised with the live node.
      */
-    if (!match && op != ZINSERT)
+
+    /**
+     * match used for NrCopy operations above is based on a binary
+     * comparison, but char keys with certain collations can be
+     * equivalent but not binary equal.
+     * We check for this case now if no match found so far
+     * This assumes that there is no case where
+     * binary equality does not imply collation equality.
+     */
+    bool xfrmMatch = match;
+    const Uint32 tableId = regTcPtr.p->tableref;
+    if (!match &&
+        g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
+    {
+      Uint64 reqKey[ MAX_KEY_SIZE_IN_WORDS >> 1 ];
+      Uint64 dbXfrmKey[ (MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1 ];
+      Uint64 reqXfrmKey[ (MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1 ];
+      Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
+
+      jam();
+
+      /* Transform db table key read from DB above into dbXfrmKey */
+      const int dbXfrmKeyLen = xfrm_key_hash(tableId,
+                                             &signal->theData[24],
+                                             (Uint32*)dbXfrmKey,
+                                             sizeof(dbXfrmKey) >> 2,
+                                             keyPartLen);
+
+      /* Copy request key into linear space */
+      copy((Uint32*) reqKey, regTcPtr.p->keyInfoIVal);
+
+      /* Transform request key */
+      const int reqXfrmKeyLen = xfrm_key_hash(tableId,
+                                              (Uint32*)reqKey,
+                                              (Uint32*)reqXfrmKey,
+                                              sizeof(reqXfrmKey) >> 2,
+                                              keyPartLen);
+      /* Check for a match between the xfrmd keys */
+      if (dbXfrmKeyLen > 0 &&
+          dbXfrmKeyLen == reqXfrmKeyLen)
+      {
+        jam();
+        /* Binary compare xfrm'd representations */
+        xfrmMatch = (memcmp(dbXfrmKey, reqXfrmKey, dbXfrmKeyLen << 2) == 0);
+      }
+    }
+
+    if (!xfrmMatch && op != ZINSERT)
     {
       /**
        * We are performing an UPDATE or a DELETE and the row id position
@@ -7300,7 +7348,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
 	TRACENR(" IGNORE " << endl); 
       goto ignore;
     }
-    if (match)
+    if (xfrmMatch)
     {
       /**
        * An INSERT/UPDATE/DELETE/REFRESH on a record where we have the correct
@@ -7330,7 +7378,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
      * same manner as if it was a copy row coming. It might be redone later
      * but this is not a problem with consistency.
      */
-    ndbassert(!match && op == ZINSERT);
+    ndbassert(!xfrmMatch && op == ZINSERT);
 
     /**
      * Perform the following action (same as above for copy row case)
@@ -10337,6 +10385,17 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
     return;
   case TcConnectionrec::COPY_CONNECTED:
     jam();
+    if (ERROR_INSERTED(5106) &&
+        signal->getSendersBlockRef() != reference())
+    {
+      g_eventLogger->info("LQH %u delaying copy LQHKEYCONF", instance());
+      sendSignalWithDelay(reference(),
+                          GSN_LQHKEYCONF,
+                          signal,
+                          500,
+                          7);
+      return;
+    }
     setup_scan_pointers_from_tc_con(tcConnectptr);
     copyCompletedLab(signal, tcConnectptr);
     return;

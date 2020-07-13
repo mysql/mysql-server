@@ -462,7 +462,7 @@ define("dojox/geo/charting/Map", [
 	
 			var currentTransform = this.mapObj.getTransform();
 	
-			// can animate only if specified AND curentTransform exists
+			// can animate only if specified AND currentTransform exists
 			if(!animate || !currentTransform){
 				this.mapObj.setTransform(newTransform);
 			}else{
@@ -527,7 +527,7 @@ define("dojox/geo/charting/Map", [
 	
 			var currentTransform = this.mapObj.getTransform();
 	
-			// can animate only if specified AND curentTransform exists
+			// can animate only if specified AND currentTransform exists
 			if(!animate || !currentTransform){
 				this.mapObj.setTransform(newTransform);
 			}else{
@@ -554,7 +554,7 @@ define("dojox/geo/charting/Map", [
 			// mapY: Number
 			//		the y coordinate of the point to convert.
 			// returns: {x:,y:}
-			//		the screen coordinates correspondig to the specified map coordinates.
+			//		the screen coordinates corresponding to the specified map coordinates.
 			var matrix = this.mapObj.getTransform();
 			var screenPoint = gfx.matrix.multiplyPoint(matrix, mapX, mapY);
 			return screenPoint; // point

@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -8,6 +8,9 @@
 define("dojo/promise/instrumentation",["./tracer","../has","../_base/lang","../_base/array"],function(_1,_2,_3,_4){
 _2.add("config-useDeferredInstrumentation","report-unhandled-rejections");
 function _5(_6,_7,_8){
+if(_6&&_6.log===false){
+return;
+}
 var _9="";
 if(_6&&_6.stack){
 _9+=_6.stack;

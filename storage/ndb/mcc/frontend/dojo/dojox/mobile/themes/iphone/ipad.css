@@ -37,6 +37,10 @@
 .dj_tablet .mblHeading + .mblRoundRectList {
 	margin-top: 30px;
 }
+.dj_tablet .mblFilteredRoundRectListSearchBox {
+  padding-left: 30px;
+  padding-right: 30px;
+}
 .dj_tablet .mblTabBar {
 	color: #70777f;
 	text-shadow: rgba(255,255,255,0.6) 0px 1px 0px;

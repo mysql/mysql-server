@@ -10,9 +10,9 @@
 }
 .mblSimpleDialogDecoration {
   border-radius: 0;
-  background-color: white;
-  border: 1px solid #869cbf;
-  color: black;
+  background-color: #ffffff;
+  border: 1px solid #000000;
+  color: #000000;
 }
 .mblSimpleDialogContainer {
   position: relative;
@@ -36,7 +36,7 @@
   margin: 7px 0 7px -5px;
   padding: 0 14px 7px;
   width: 244px;
-  border-bottom: 1px solid #bfbfbf;
+  border-bottom: 1px solid #c0c0c0;
   font-size: 20px;
   font-weight: bold;
   text-align: left;

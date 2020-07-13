@@ -24,6 +24,8 @@ define("dojox/mobile/_ScrollableMixin", [
 		//		Id of the fixed footer.
 		fixedFooter: "",
 
+		_fixedAppFooter: "",
+
 		// scrollableParams: Object
 		//		Parameters for dojox/mobile/scrollable.init().
 		scrollableParams: null,
@@ -51,6 +53,9 @@ define("dojox/mobile/_ScrollableMixin", [
 
 		startup: function(){
 			if(this._started){ return; }
+			if(this._fixedAppFooter){
+				this._fixedAppFooter = dom.byId(this._fixedAppFooter);
+			}
 			this.findAppBars();
 			var node, params = this.scrollableParams;
 			if(this.fixedHeader){
@@ -68,7 +73,7 @@ define("dojox/mobile/_ScrollableMixin", [
 				}
 				params.fixedFooterHeight = node.offsetHeight;
 			}
-			this.scrollType = this.scrollType || config["mblScrollableScrollType"] || 0;
+			this.scrollType = this.scrollType || config.mblScrollableScrollType || 0;
 			this.init(params);
 			if(this.allowNestedScrolls){
 				for(var p = this.getParent(); p; p = p.getParent()){
@@ -113,7 +118,8 @@ define("dojox/mobile/_ScrollableMixin", [
 			// summary:
 			//		Checks if the given node is a fixed bar or not.
 			if(node.nodeType === 1){
-				var fixed = node.getAttribute("fixed")
+				var fixed = node.getAttribute("fixed") // TODO: Remove the non-HTML5-compliant attribute in 2.0
+					|| node.getAttribute("data-mobile-fixed")
 					|| (registry.byNode(node) && registry.byNode(node).fixed);
 				if(fixed === "top"){
 					domClass.add(node, "mblFixedHeaderBar");
@@ -124,7 +130,11 @@ define("dojox/mobile/_ScrollableMixin", [
 					return fixed;
 				}else if(fixed === "bottom"){
 					domClass.add(node, "mblFixedBottomBar");
-					this.fixedFooter = node;
+					if(local){
+						this.fixedFooter = node;
+					}else{
+						this._fixedAppFooter = node;
+					}
 					return fixed;
 				}
 			}

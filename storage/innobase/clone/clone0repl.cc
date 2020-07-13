@@ -175,10 +175,12 @@ bool Clone_persist_gtid::check_gtid_prepare(THD *thd, trx_t *trx,
   auto thd_trx = thd->get_transaction();
   auto xid_state = thd_trx->xid_state();
   /* In permissive mode GTID could be assigned during XA commit/rollback. */
-  if (xid_state->has_state(XID_STATE::XA_IDLE) &&
-      (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON_PERMISSIVE ||
-       get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF_PERMISSIVE)) {
-    alloc = true;
+  if (xid_state->has_state(XID_STATE::XA_IDLE)) {
+    auto gtid_mode = global_gtid_mode.get();
+    if (gtid_mode == Gtid_mode::ON_PERMISSIVE ||
+        gtid_mode == Gtid_mode::OFF_PERMISSIVE) {
+      alloc = true;
+    }
   }
   /* Skip GTID if not set */
   if (!found_gtid) {
@@ -503,7 +505,7 @@ void Clone_persist_gtid::periodic_write() {
 
   for (;;) {
     /* Exit if last phase of shutdown */
-    auto is_shutdown = (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
+    auto is_shutdown = (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP);
 
     if (is_shutdown || m_close_thread.load()) {
       /* Stop accepting any more GTID */

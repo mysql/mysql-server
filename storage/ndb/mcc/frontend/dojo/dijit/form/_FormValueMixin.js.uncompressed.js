@@ -2,9 +2,11 @@ define("dijit/form/_FormValueMixin", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.set
 	"dojo/keys", // keys.ESCAPE
-	"dojo/sniff", // has("ie"), has("quirks")
+	"dojo/_base/lang",
+	"dojo/on",
+	"dojo/sniff", // has("webkit")
 	"./_FormWidgetMixin"
-], function(declare, domAttr, keys, has, _FormWidgetMixin){
+], function(declare, domAttr, keys, lang, on, has, _FormWidgetMixin){
 
 	// module:
 	//		dijit/form/_FormValueMixin
@@ -25,16 +27,19 @@ define("dijit/form/_FormValueMixin", [
 		readOnly: false,
 
 		_setReadOnlyAttr: function(/*Boolean*/ value){
-			domAttr.set(this.focusNode, 'readOnly', value);
+			// IE has a Caret Browsing mode (hit F7 to activate) where disabled textboxes can be modified
+			// focusNode enforced readonly if currently disabled to avoid this issue.
+			if (has('trident') && 'disabled' in this) {
+				domAttr.set(this.focusNode, 'readOnly', value || this.disabled);
+			} else {
+				domAttr.set(this.focusNode, 'readOnly', value);
+			}
 			this._set("readOnly", value);
 		},
 
 		postCreate: function(){
 			this.inherited(arguments);
 
-			if(has("ie")){ // IE won't stop the event with keypress
-				this.connect(this.focusNode || this.domNode, "onkeydown", this._onKeyDown);
-			}
 			// Update our reset value if it hasn't yet been set (because this.set()
 			// is only called when there *is* a value)
 			if(this._resetValue === undefined){
@@ -71,19 +76,6 @@ define("dijit/form/_FormValueMixin", [
 			//		Reset the widget's value to what it was at initialization time
 			this._hasBeenBlurred = false;
 			this._setValueAttr(this._resetValue, true);
-		},
-
-		_onKeyDown: function(e){
-			if(e.keyCode == keys.ESCAPE && !(e.ctrlKey || e.altKey || e.metaKey)){
-				if(has("ie") < 9 || (has("ie") && has("quirks"))){
-					e.preventDefault(); // default behavior needs to be stopped here since keypress is too late
-					var node = e.srcElement,
-						te = node.ownerDocument.createEventObject();
-					te.keyCode = keys.ESCAPE;
-					te.shiftKey = e.shiftKey;
-					node.fireEvent('onkeypress', te);
-				}
-			}
 		}
 	});
 });

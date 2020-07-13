@@ -8,7 +8,12 @@ define("dojox/dtl/contrib/dom", [
 	"../dom"
 ], function(kernel,lang,connect,domStyle,domConstruct,dd,dddom){
 
-	var ddch = lang.getObject("dojox.dtl.contrib.dom", true);
+	var ddch = lang.getObject("contrib.dom", true, dd);
+/*=====
+	ddch = {
+		// TODO: summary
+	};
+=====*/
 
 	var simple = {render: function(){ return this.contents; }};
 
@@ -170,5 +175,6 @@ define("dojox/dtl/contrib/dom", [
 	dd.register.tags("dojox.dtl.contrib", {
 		"dom": ["html", "attr:style", "buffer"]
 	});
-	return dojox.dtl.contrib.dom;
+
+	return ddch;
 });

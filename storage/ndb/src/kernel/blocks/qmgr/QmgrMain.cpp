@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -621,9 +621,9 @@ void Qmgr::sendSttorryLab(Signal* signal, bool first_phase)
     g_eventLogger->info("Include node protocol completed, phase 1 in QMGR"
                         " completed");
   }
-/****************************<*/
-/*< STTORRY                  <*/
-/****************************<*/
+/*****************************/
+/*  STTORRY                  */
+/*****************************/
   signal->theData[3] = 3;
   signal->theData[4] = 7;
   signal->theData[5] = 9;
@@ -4595,6 +4595,7 @@ Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
   }
   NodeVersionInfo info = getNodeVersionInfo();
   apiRegConf->minDbVersion = info.m_type[NodeInfo::DB].m_min_version;
+  apiRegConf->minApiVersion = info.m_type[NodeInfo::API].m_min_version;
   apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 }

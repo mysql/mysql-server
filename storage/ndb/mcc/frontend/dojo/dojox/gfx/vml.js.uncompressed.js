@@ -56,11 +56,6 @@ function(lang, declare, arr, Color, has, config, dom, domGeom, kernel, g, gs, pa
 		// summary:
 		//		VML-specific implementation of dojox/gfx/shape.Shape methods
 
-		destroy: function(){
-			this.rawNode = null;
-			gs.Shape.prototype.destroy.apply(this, arguments);
-		},
-
 		setFill: function(fill){
 			// summary:
 			//		sets a fill object (VML)
@@ -305,7 +300,7 @@ function(lang, declare, arr, Color, has, config, dom, domGeom, kernel, g, gs, pa
 			rawNode.stroked = "f";
 			rawNode.filled  = "f";
 			this.rawNode = rawNode;
-			this.rawNode.__gfxObject__ = this.getUID();
+			this.rawNode.__gfxObject__ = this;
 		},
 
 		// move family
@@ -481,7 +476,7 @@ function(lang, declare, arr, Color, has, config, dom, domGeom, kernel, g, gs, pa
 				node.style.display = "inline-block";
 				vml._reparentEvents(node, this.rawNode);
 				this.rawNode = node;
-				this.rawNode.__gfxObject__ = this.getUID();						
+				this.rawNode.__gfxObject__ = this;
 			}else{
 				this.rawNode.arcsize = r;
 			}
@@ -1435,7 +1430,7 @@ function(lang, declare, arr, Color, has, config, dom, domGeom, kernel, g, gs, pa
 		// gfxElement: Object
 		//		The GFX target element
 		if (!event.gfxTarget) {
-			event.gfxTarget = gs.byId(event.target.__gfxObject__);
+			event.gfxTarget = event.target.__gfxObject__;
 		}
 		return true;
 	};

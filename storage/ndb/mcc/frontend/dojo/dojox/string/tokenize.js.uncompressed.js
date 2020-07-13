@@ -6,7 +6,7 @@ define("dojox/string/tokenize", [
 
 	tokenize = function(/*String*/ str, /*RegExp*/ re, /*Function?*/ parseDelim, /*Object?*/ instance){
 		// summary:
-		//		Split a string by a regular expression with the ability to capture the delimeters
+		//		Split a string by a regular expression with the ability to capture the delimiters
 		// parseDelim:
 		//		Each group (excluding the 0 group) is passed as a parameter. If the function returns
 		//		a value, it's added to the list of tokens.

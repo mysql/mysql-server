@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,24 +44,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "trx0trx.h"
 
-/** Calculates the fold value of a page file address: used in inserting or
- searching for a lock in the hash table.
- @return folded value */
 UNIV_INLINE
-ulint lock_rec_fold(space_id_t space,  /*!< in: space */
-                    page_no_t page_no) /*!< in: page number */
-{
-  return (ut_fold_ulint_pair(space, page_no));
+ulint lock_rec_fold(const page_id_t page_id) {
+  return (ut_fold_ulint_pair(page_id.space(), page_id.page_no()));
 }
 
-/** Calculates the hash value of a page file address: used in inserting or
- searching for a lock in the hash table.
- @return hashed value */
 UNIV_INLINE
-ulint lock_rec_hash(space_id_t space,  /*!< in: space */
-                    page_no_t page_no) /*!< in: page number */
-{
-  return (hash_calc_hash(lock_rec_fold(space, page_no), lock_sys->rec_hash));
+ulint lock_rec_hash(const page_id_t &page_id) {
+  return (hash_calc_hash(lock_rec_fold(page_id), lock_sys->rec_hash));
 }
 
 /** Gets the heap_no of the smallest user record on a page.

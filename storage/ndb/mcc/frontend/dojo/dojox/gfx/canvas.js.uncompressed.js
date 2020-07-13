@@ -1,6 +1,6 @@
-define("dojox/gfx/canvas", ["./_base", "dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/_base/window", "dojo/dom-geometry", 
-		"dojo/dom", "./_base", "./shape", "./path", "./arc", "./matrix", "./decompose"], 
-function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, decompose ){
+define("dojox/gfx/canvas", ["./_base", "dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/_base/window", "dojo/dom-geometry",
+		"dojo/dom", "./shape", "./path", "./arc", "./matrix", "./decompose", "./bezierutils"],
+function(g, lang, arr, declare, win, domGeom, dom, gs, pathLib, ga, m, decompose, bezierUtils ){
 	var canvas = g.canvas = {
 		// summary:
 		//		This the graphics rendering bridge for W3C Canvas compliant browsers.
@@ -15,11 +15,144 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		//		API.
 	};
 	var pattrnbuffer = null,
-		mp = m.multiplyPoint, 
-		pi = Math.PI, 
-		twoPI = 2 * pi, 
+		mp = m.multiplyPoint,
+		pi = Math.PI,
+		twoPI = 2 * pi,
 		halfPI = pi /2,
 		extend = lang.extend;
+
+	if(win.global.CanvasRenderingContext2D){
+		var ctx2d = win.doc.createElement("canvas").getContext("2d");
+		var hasNativeDash = typeof ctx2d.setLineDash == "function";
+		var hasFillText = typeof ctx2d.fillText == "function";
+	}
+
+	var dasharray = {
+		solid:				"none",
+		shortdash:			[4, 1],
+		shortdot:			[1, 1],
+		shortdashdot:		[4, 1, 1, 1],
+		shortdashdotdot:	[4, 1, 1, 1, 1, 1],
+		dot:				[1, 3],
+		dash:				[4, 3],
+		longdash:			[8, 3],
+		dashdot:			[4, 3, 1, 3],
+		longdashdot:		[8, 3, 1, 3],
+		longdashdotdot:		[8, 3, 1, 3, 1, 3]
+	};
+
+	function drawDashedArc(/*CanvasRenderingContext2D*/ctx, /*Number[]*/dash,  /*int*/cx,  /*int*/cy,  /*int*/r, /*Number*/sa, /*Number*/ea, /*Boolean*/ccw, /*Boolean?*/apply, prevResidue){
+		var residue, angle, l = dash.length, i= 0;
+		// if there's a previous dash residue from the previous arc, start with it.
+		if(prevResidue){
+			angle = prevResidue.l/r;
+			i = prevResidue.i;
+		}else{
+			angle = dash[0]/r;
+		}
+		while(sa < ea){
+			// if the dash segment length is longer than what remains to stroke, keep it for next arc. (aka residue)
+			if(sa+angle > ea){
+				residue = {l: (sa+angle-ea)*r, i: i};
+				angle = ea-sa;
+			}
+			if(!(i%2)){
+				ctx.beginPath();
+				ctx.arc(cx, cy, r, sa, sa+angle, ccw);
+				if(apply) ctx.stroke();
+			}
+			sa += angle;
+			++i;
+			angle = dash[i%l]/r;
+		}
+		return residue;
+	}
+
+	function splitToDashedBezier(/*Number[]*/points, /*Number[]*/dashArray, /*Number[]*/newPoints, /*Object*/prevResidue){
+		var residue = 0, t = 0, dash, i = 0;
+		if(prevResidue){
+			dash = prevResidue.l;
+			i = prevResidue.i;
+		}else{
+			dash = dashArray[0];
+		}
+		while(t<1){
+			// get the 't' corresponding to the given dash value.
+			t = bezierUtils.tAtLength(points, dash);
+			if(t==1){
+				var rl = bezierUtils.computeLength(points);
+				residue = {l: dash-rl, i: i};
+			}
+			// split bezier at t: left part is the "dash" curve, right part is the remaining bezier points
+			var curves = bezierUtils.splitBezierAtT(points, t);
+			if(!(i%2)){
+				// only keep the "dash" curve
+				newPoints.push(curves[0]);
+			}
+			points = curves[1];
+			++i;
+			dash = dashArray[i%dashArray.length];
+		}
+		return residue;
+	}
+
+	function toDashedCurveTo(/*Array||CanvasRenderingContext2D*/ctx, /*shape.Path*/shape, /*Number[]*/points, /*Object*/prevResidue){
+		// summary:
+		//		Builds a set of bezier (cubic || quadratic)curveTo' canvas instructions that represents a dashed stroke of the specified bezier geometry.
+
+		var pts = [shape.last.x, shape.last.y].concat(points),
+			quadratic = points.length === 4, ctx2d = !(ctx instanceof Array),
+			api = quadratic ? "quadraticCurveTo" : "bezierCurveTo",
+			curves = [];
+		var residue = splitToDashedBezier(pts, shape.canvasDash, curves, prevResidue);
+		for(var c=0; c<curves.length;++c){
+			var curve = curves[c];
+			if(ctx2d){
+				ctx.moveTo(curve[0], curve[1]);
+				ctx[api].apply(ctx, curve.slice(2));
+			}else{
+				ctx.push("moveTo", [curve[0], curve[1]]);
+				ctx.push(api, curve.slice(2));
+			}
+		}
+		return residue;
+	}
+
+	function toDashedLineTo(/*Array||CanvasRenderingContext2D*/ctx, /*shape.Shape*/shape, /*int*/x1, /*int*/y1, /*int*/x2, /*int*/y2, /*Object*/prevResidue){
+		// summary:
+		//		Builds a set of moveTo/lineTo' canvas instructions that represents a dashed stroke of the specified line geometry.
+
+		var residue = 0, r = 0, dal = 0, tlength = bezierUtils.distance(x1, y1, x2, y2), i = 0, dash = shape.canvasDash,
+			prevx = x1, prevy = y1, x, y, ctx2d = !(ctx instanceof Array);
+		if(prevResidue){
+			dal=prevResidue.l;
+			i = prevResidue.i;
+		}else{
+			dal += dash[0];
+		}
+		while(Math.abs(1-r)>0.01){
+			if(dal>tlength){
+				residue = {l:dal-tlength,i:i};
+				dal=tlength;
+			}
+			r = dal/tlength;
+			x = x1 + (x2-x1)*r;
+			y = y1 + (y2-y1)*r;
+			if(!(i++%2)){
+				if(ctx2d){
+					ctx.moveTo(prevx, prevy);
+					ctx.lineTo(x, y);
+				}else{
+					ctx.push("moveTo", [prevx, prevy]);
+					ctx.push("lineTo", [x, y]);
+				}
+			}
+			prevx = x;
+			prevy = y;
+			dal += dash[i%dash.length];
+		}
+		return residue;
+	}
 
 	canvas.Shape = declare("dojox.gfx.canvas.Shape", gs.Shape, {
 		_render: function(/* Object */ ctx){
@@ -98,28 +231,39 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 				}else{
 					ctx.lineJoin = s.join;
 				}
-				if(apply){ ctx.stroke(); }
+				if(this.canvasDash){
+					if(hasNativeDash){
+						ctx.setLineDash(this.canvasDash);
+						if(apply){ ctx.stroke(); }
+					}else{
+						this._renderDashedStroke(ctx, apply);
+					}
+				}else{
+					if(apply){ ctx.stroke(); }
+				}
 			}else if(!apply){
 				ctx.strokeStyle = "rgba(0,0,0,0.0)";
 			}
 		},
+		_renderDashedStroke: function(ctx, apply){},
 
 		// events are not implemented
 		getEventSource: function(){ return null; },
+		on:				function(){},
 		connect:		function(){},
 		disconnect:		function(){},
-		
+
 		canvasClip:null,
 		setClip: function(/*Object*/clip){
 			this.inherited(arguments);
-			var clipType = clip ? "width" in clip ? "rect" : 
-							"cx" in clip ? "ellipse" : 
+			var clipType = clip ? "width" in clip ? "rect" :
+							"cx" in clip ? "ellipse" :
 							"points" in clip ? "polyline" : "d" in clip ? "path" : null : null;
 			if(clip && !clipType){
 				return this;
 			}
 			this.canvasClip = clip ? makeClip(clipType, clip) : null;
-			this.surface.makeDirty();
+			if(this.parent){this.parent._makeDirty();}
 			return this;
 		}
 	});
@@ -128,7 +272,7 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		switch(clipType){
 			case "ellipse":
 				return {
-					canvasEllipse: makeEllipse(geometry),
+					canvasEllipse: makeEllipse({shape:geometry}),
 					render: function(ctx){return canvas.Ellipse.prototype._renderShape.call(this, ctx);}
 				};
 			case "rect":
@@ -149,9 +293,9 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		}
 		return null;
 	};
-	
-	var makeClipPath = function(geo){	
-		var p = new dojox.gfx.canvas.Path();		
+
+	var makeClipPath = function(geo){
+		var p = new dojox.gfx.canvas.Path();
 		p.canvasPath = [];
 		p._setPath(geo.d);
 		return p;
@@ -161,13 +305,13 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		var old = shape.prototype[method];
 		shape.prototype[method] = extra ?
 			function(){
-				this.surface.makeDirty();
+				if(this.parent){this.parent._makeDirty();}
 				old.apply(this, arguments);
 				extra.call(this);
 				return this;
 			} :
 			function(){
-				this.surface.makeDirty();
+				if(this.parent){this.parent._makeDirty();}
 				return old.apply(this, arguments);
 			};
 	};
@@ -220,7 +364,39 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			}
 		});
 
-	modifyMethod(canvas.Shape, "setStroke");
+	modifyMethod(canvas.Shape, "setStroke",
+		function(){
+			var st = this.strokeStyle;
+			if(st){
+				var da = this.strokeStyle.style.toLowerCase();
+				if(da in dasharray){
+					da = dasharray[da];
+				}
+				if(da instanceof Array){
+					da = da.slice();
+					this.canvasDash = da;
+					var i;
+					for(i = 0; i < da.length; ++i){
+						da[i] *= st.width;
+					}
+					if(st.cap != "butt"){
+						for(i = 0; i < da.length; i += 2){
+							da[i] -= st.width;
+							if(da[i] < 1){ da[i] = 1; }
+						}
+						for(i = 1; i < da.length; i += 2){
+							da[i] += st.width;
+						}
+					}
+				}else{
+					delete this.canvasDash;
+				}
+			}else{
+				delete this.canvasDash;
+			}
+			this._needsDash = !hasNativeDash && !!this.canvasDash;
+		});
+
 	modifyMethod(canvas.Shape, "setShape");
 
 	canvas.Group = declare("dojox.gfx.canvas.Group", canvas.Shape, {
@@ -245,11 +421,15 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			// summary:
 			//		Releases all internal resources owned by this shape. Once this method has been called,
 			//		the instance is considered disposed and should not be used anymore.
-			this.clear(true);
+
+			// don't call canvas impl to avoid makeDirty'
+			gs.Container.clear.call(this, true);
 			// avoid this.inherited
 			canvas.Shape.prototype.destroy.apply(this, arguments);
-		}		
+		}
 	});
+
+
 
 	canvas.Rect = declare("dojox.gfx.canvas.Rect", [canvas.Shape, gs.Rect], {
 		// summary:
@@ -271,7 +451,37 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 				ctx.lineTo(xl2, yb);
 				ctx.lineTo(xl, yt2);
 			}
-	 		ctx.closePath();
+			ctx.closePath();
+		},
+		_renderDashedStroke: function(ctx, apply){
+			var s = this.shape, residue, r = Math.min(s.r, s.height / 2, s.width / 2),
+				xl = s.x, xr = xl + s.width, yt = s.y, yb = yt + s.height,
+				xl2 = xl + r, xr2 = xr - r, yt2 = yt + r, yb2 = yb - r;
+			if(r){
+				ctx.beginPath();
+				residue = toDashedLineTo(ctx, this, xl2, yt, xr2, yt);
+				if(apply) ctx.stroke();
+				residue = drawDashedArc(ctx, this.canvasDash, xr2, yt2, r, -halfPI, 0, false, apply, residue);
+				ctx.beginPath();
+				residue = toDashedLineTo(ctx, this, xr, yt2, xr, yb2, residue);
+				if(apply) ctx.stroke();
+				residue = drawDashedArc(ctx, this.canvasDash, xr2, yb2, r, 0, halfPI, false, apply, residue);
+				ctx.beginPath();
+				residue = toDashedLineTo(ctx, this, xr2, yb, xl2, yb, residue);
+				if(apply) ctx.stroke();
+				residue = drawDashedArc(ctx, this.canvasDash, xl2, yb2, r, halfPI, pi, false, apply, residue);
+				ctx.beginPath();
+				residue = toDashedLineTo(ctx, this, xl, yb2, xl, yt2,residue);
+				if(apply) ctx.stroke();
+				drawDashedArc(ctx, this.canvasDash, xl2, yt2, r, pi, pi + halfPI, false, apply, residue);
+			}else{
+				ctx.beginPath();
+				residue = toDashedLineTo(ctx, this, xl2, yt, xr2, yt);
+				residue = toDashedLineTo(ctx, this, xr2, yt, xr, yb2, residue);
+				residue = toDashedLineTo(ctx, this, xr, yb2, xl2, yb, residue);
+				toDashedLineTo(ctx, this, xl2, yb, xl, yt2, residue);
+				if(apply) ctx.stroke();
+			}
 		}
 	});
 
@@ -284,10 +494,10 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			bezierCircle.push(mp(r, u.c1), mp(r, u.c2), mp(r, u.e));
 		}
 	})();
-	
-	var makeEllipse = function(s){
+
+	var makeEllipse = function(shape){
 		// prepare Canvas-specific structures
-		var t, c1, c2, r = [],
+		var t, c1, c2, r = [], s = shape.shape,
 			M = m.normalize([m.translate(s.cx, s.cy), m.scale(s.rx, s.ry)]);
 		t = mp(M, bezierCircle[0]);
 		r.push([t.x, t.y]);
@@ -297,6 +507,16 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			t  = mp(M, bezierCircle[i + 2]);
 			r.push([c1.x, c1.y, c2.x, c2.y, t.x, t.y]);
 		}
+		if(shape._needsDash){
+			var points = [], p1 = r[0];
+			for(i = 1; i < r.length; ++i){
+				var curves = [];
+				splitToDashedBezier(p1.concat(r[i]), shape.canvasDash, curves);
+				p1 = [r[i][4],r[i][5]];
+				points.push(curves);
+			}
+			shape._dashedPoints = points;
+		}
 		return r;
 	};
 
@@ -305,17 +525,37 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		//		an ellipse shape (Canvas)
 		setShape: function(){
 			this.inherited(arguments);
-			this.canvasEllipse = makeEllipse(this.shape);
+			this.canvasEllipse = makeEllipse(this);
+			return this;
+		},
+		setStroke: function(){
+			this.inherited(arguments);
+			if(!hasNativeDash){
+				this.canvasEllipse = makeEllipse(this);
+			}
 			return this;
 		},
 		_renderShape: function(/* Object */ ctx){
-			var r = this.canvasEllipse;
+			var r = this.canvasEllipse, i;
 			ctx.beginPath();
 			ctx.moveTo.apply(ctx, r[0]);
-			for(var i = 1; i < r.length; ++i){
+			for(i = 1; i < r.length; ++i){
 				ctx.bezierCurveTo.apply(ctx, r[i]);
 			}
 			ctx.closePath();
+		},
+		_renderDashedStroke: function(ctx, apply){
+			var r = this._dashedPoints;
+			ctx.beginPath();
+			for(var i = 0; i < r.length; ++i){
+				var curves = r[i];
+				for(var j=0;j<curves.length;++j){
+					var curve = curves[j];
+					ctx.moveTo(curve[0], curve[1]);
+					ctx.bezierCurveTo(curve[2],curve[3],curve[4],curve[5],curve[6],curve[7]);
+				}
+			}
+			if(apply) ctx.stroke();
 		}
 	});
 
@@ -326,6 +566,20 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			var s = this.shape;
 			ctx.beginPath();
 			ctx.arc(s.cx, s.cy, s.r, 0, twoPI, 1);
+		},
+		_renderDashedStroke: function(ctx, apply){
+			var s = this.shape;
+			var startAngle = 0, angle, l = this.canvasDash.length; i=0;
+			while(startAngle < twoPI){
+				angle = this.canvasDash[i%l]/s.r;
+				if(!(i%2)){
+					ctx.beginPath();
+					ctx.arc(s.cx, s.cy, s.r, startAngle, startAngle+angle, 0);
+					if(apply) ctx.stroke();
+				}
+				startAngle+=angle;
+				++i;
+			}
 		}
 	});
 
@@ -337,6 +591,12 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			ctx.beginPath();
 			ctx.moveTo(s.x1, s.y1);
 			ctx.lineTo(s.x2, s.y2);
+		},
+		_renderDashedStroke: function(ctx, apply){
+			var s = this.shape;
+			ctx.beginPath();
+			toDashedLineTo(ctx, this, s.x1, s.y1, s.x2, s.y2);
+			if(apply) ctx.stroke();
 		}
 	});
 
@@ -348,13 +608,13 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			var p = this.shape.points, f = p[0], r, c, i;
 			this.bbox = null;
 			// normalize this.shape.points as array of points: [{x,y}, {x,y}, ...]
-			this._normalizePoints();			
-			// after _normalizePoints, if shape.points was [x1,y1,x2,y2,..], shape.points references a new array 
+			this._normalizePoints();
+			// after _normalizePoints, if shape.points was [x1,y1,x2,y2,..], shape.points references a new array
 			// and p references the original points array
 			// prepare Canvas-specific structures, if needed
-			if(p.length){  
+			if(p.length){
 				if(typeof f == "number"){ // already in the canvas format [x1,y1,x2,y2,...]
-					r = p; 
+					r = p;
 				}else{ // convert into canvas-specific format
 					r = [];
 					for(i=0; i < p.length; ++i){
@@ -377,6 +637,14 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 					ctx.lineTo(p[i], p[i + 1]);
 				}
 			}
+		},
+		_renderDashedStroke: function(ctx, apply){
+			var p = this.canvasPolyline, residue = 0;
+			ctx.beginPath();
+			for(var i = 0; i < p.length; i += 2){
+				residue = toDashedLineTo(ctx, this, p[i], p[i + 1], p[i + 2], p[i + 3], residue);
+			}
+			if(apply) ctx.stroke();
 		}
 	});
 
@@ -405,12 +673,12 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 				delete this.canvasFont;
 			}
 		},
-		
+
 		getTextWidth: function(){
 			// summary:
 			//		get the text width in pixels
 			var s = this.shape, w = 0, ctx;
-			if(s.text && s.text.length > 0){
+			if(s.text){
 				ctx = this.surface.rawNode.getContext("2d");
 				ctx.save();
 				this._renderTransform(ctx);
@@ -423,7 +691,7 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			}
 			return w;
 		},
-		
+
 		// override to apply first fill and stroke (
 		// the base implementation is for path-based shape that needs to first define the path then to fill/stroke it.
 		// Here, we need the fillstyle or strokestyle to be set before calling fillText/strokeText.
@@ -439,14 +707,14 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			this._renderShape(ctx);
 			ctx.restore();
 		},
-		
+
 		_renderShape: function(ctx){
 			// summary:
 			//		a text shape (Canvas)
 			// ctx: Object
 			//		the drawing context.
 			var ta, s = this.shape;
-			if(!s.text || s.text.length == 0){
+			if(!s.text){
 				return;
 			}
 			// text align
@@ -466,20 +734,18 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		}
 	});
 	modifyMethod(canvas.Text, "setFont");
-	
-	// the next test is from https://github.com/phiggins42/has.js
-	if(win.global.CanvasRenderingContext2D){
-		// need to doublecheck canvas is supported since module can be loaded if building layers (ticket 14288)
-		var ctx2d = win.doc.createElement("canvas").getContext("2d");
-		if(ctx2d && typeof ctx2d.fillText != "function"){
-			canvas.Text.extend({
-				getTextWidth: function(){
-					return 0;
-				},
-				_renderShape: function(){
-				}
-			});
-		}
+
+	if(!hasFillText){
+		canvas.Text.extend({
+			getTextWidth: function(){
+				return 0;
+			},
+			getBoundingBox: function(){
+				return null;
+			},
+			_renderShape: function(){
+			}
+		});
 	}
 
 	var pathRenderers = {
@@ -495,6 +761,7 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			Z: "_closePath", z: "_closePath"
 		};
 
+
 	canvas.Path = declare("dojox.gfx.canvas.Path", [canvas.Shape, pathLib.Path], {
 		// summary:
 		//		a path shape (Canvas)
@@ -503,11 +770,24 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		},
 		setShape: function(){
 			this.canvasPath = [];
+			this._dashedPath= [];
 			return this.inherited(arguments);
+		},
+		setStroke:function(){
+			this.inherited(arguments);
+			if(!hasNativeDash){
+				this.segmented = false;
+				this._confirmSegmented();
+			}
+			return this;
+		},
+		_setPath: function(){
+			this._dashResidue = null;
+			this.inherited(arguments);
 		},
 		_updateWithSegment: function(segment){
 			var last = lang.clone(this.last);
-			this[pathRenderers[segment.action]](this.canvasPath, segment.action, segment.args);
+			this[pathRenderers[segment.action]](this.canvasPath, segment.action, segment.args, this._needsDash ? this._dashedPath : null);
 			this.last = last;
 			this.inherited(arguments);
 		},
@@ -518,69 +798,101 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 				ctx[r[i]].apply(ctx, r[i + 1]);
 			}
 		},
-		_moveToA: function(result, action, args){
+		_renderDashedStroke: hasNativeDash ? function(){} : function(ctx, apply){
+			var r = this._dashedPath;
+			ctx.beginPath();
+			for(var i = 0; i < r.length; i += 2){
+				ctx[r[i]].apply(ctx, r[i + 1]);
+			}
+			if(apply) ctx.stroke();
+		},
+		_moveToA: function(result, action, args, doDash){
 			result.push("moveTo", [args[0], args[1]]);
+			if(doDash) doDash.push("moveTo", [args[0], args[1]]);
 			for(var i = 2; i < args.length; i += 2){
 				result.push("lineTo", [args[i], args[i + 1]]);
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, args[i - 2], args[i - 1], args[i], args[i + 1], this._dashResidue);
 			}
 			this.last.x = args[args.length - 2];
 			this.last.y = args[args.length - 1];
 			this.lastControl = {};
 		},
-		_moveToR: function(result, action, args){
+		_moveToR: function(result, action, args, doDash){
+			var pts;
 			if("x" in this.last){
-				result.push("moveTo", [this.last.x += args[0], this.last.y += args[1]]);
+				pts = [this.last.x += args[0], this.last.y += args[1]];
+				result.push("moveTo", pts);
+				if(doDash) doDash.push("moveTo", pts);
 			}else{
-				result.push("moveTo", [this.last.x = args[0], this.last.y = args[1]]);
+				pts = [this.last.x = args[0], this.last.y = args[1]];
+				result.push("moveTo", pts);
+				if(doDash) doDash.push("moveTo", pts);
 			}
 			for(var i = 2; i < args.length; i += 2){
 				result.push("lineTo", [this.last.x += args[i], this.last.y += args[i + 1]]);
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, doDash[doDash.length - 1][0], doDash[doDash.length - 1][1], this.last.x, this.last.y, this._dashResidue);
 			}
 			this.lastControl = {};
 		},
-		_lineToA: function(result, action, args){
+		_lineToA: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 2){
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, this.last.x, this.last.y, args[i], args[i + 1], this._dashResidue);
 				result.push("lineTo", [args[i], args[i + 1]]);
 			}
 			this.last.x = args[args.length - 2];
 			this.last.y = args[args.length - 1];
 			this.lastControl = {};
 		},
-		_lineToR: function(result, action, args){
+		_lineToR: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 2){
 				result.push("lineTo", [this.last.x += args[i], this.last.y += args[i + 1]]);
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, doDash[doDash.length - 1][0], doDash[doDash.length - 1][1], this.last.x, this.last.y, this._dashResidue);
 			}
 			this.lastControl = {};
 		},
-		_hLineToA: function(result, action, args){
+		_hLineToA: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; ++i){
 				result.push("lineTo", [args[i], this.last.y]);
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, doDash[doDash.length - 1][0], doDash[doDash.length - 1][1], args[i], this.last.y, this._dashResidue);
 			}
 			this.last.x = args[args.length - 1];
 			this.lastControl = {};
 		},
-		_hLineToR: function(result, action, args){
+		_hLineToR: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; ++i){
 				result.push("lineTo", [this.last.x += args[i], this.last.y]);
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, doDash[doDash.length - 1][0], doDash[doDash.length - 1][1], this.last.x, this.last.y, this._dashResidue);
 			}
 			this.lastControl = {};
 		},
-		_vLineToA: function(result, action, args){
+		_vLineToA: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; ++i){
 				result.push("lineTo", [this.last.x, args[i]]);
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, doDash[doDash.length - 1][0], doDash[doDash.length - 1][1], this.last.x, args[i], this._dashResidue);
 			}
 			this.last.y = args[args.length - 1];
 			this.lastControl = {};
 		},
-		_vLineToR: function(result, action, args){
+		_vLineToR: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; ++i){
 				result.push("lineTo", [this.last.x, this.last.y += args[i]]);
+				if(doDash)
+					this._dashResidue = toDashedLineTo(doDash, this, doDash[doDash.length - 1][0], doDash[doDash.length - 1][1], this.last.x, this.last.y, this._dashResidue);
 			}
 			this.lastControl = {};
 		},
-		_curveToA: function(result, action, args){
+		_curveToA: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 6){
 				result.push("bezierCurveTo", args.slice(i, i + 6));
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, result[result.length-1], this._dashResidue);
 			}
 			this.last.x = args[args.length - 2];
 			this.last.y = args[args.length - 1];
@@ -588,7 +900,7 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			this.lastControl.y = args[args.length - 3];
 			this.lastControl.type = "C";
 		},
-		_curveToR: function(result, action, args){
+		_curveToR: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 6){
 				result.push("bezierCurveTo", [
 					this.last.x + args[i],
@@ -598,12 +910,14 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 					this.last.x + args[i + 4],
 					this.last.y + args[i + 5]
 				]);
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, result[result.length-1], this._dashResidue);
 				this.last.x += args[i + 4];
 				this.last.y += args[i + 5];
 			}
 			this.lastControl.type = "C";
 		},
-		_smoothCurveToA: function(result, action, args){
+		_smoothCurveToA: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 4){
 				var valid = this.lastControl.type == "C";
 				result.push("bezierCurveTo", [
@@ -614,6 +928,8 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 					args[i + 2],
 					args[i + 3]
 				]);
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, result[result.length-1], this._dashResidue);
 				this.lastControl.x = args[i];
 				this.lastControl.y = args[i + 1];
 				this.lastControl.type = "C";
@@ -621,7 +937,7 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 			this.last.x = args[args.length - 2];
 			this.last.y = args[args.length - 1];
 		},
-		_smoothCurveToR: function(result, action, args){
+		_smoothCurveToR: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 4){
 				var valid = this.lastControl.type == "C";
 				result.push("bezierCurveTo", [
@@ -632,6 +948,8 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 					this.last.x + args[i + 2],
 					this.last.y + args[i + 3]
 				]);
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, result[result.length-1], this._dashResidue);
 				this.lastControl.x = this.last.x + args[i];
 				this.lastControl.y = this.last.y + args[i + 1];
 				this.lastControl.type = "C";
@@ -639,17 +957,19 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 				this.last.y += args[i + 3];
 			}
 		},
-		_qCurveToA: function(result, action, args){
+		_qCurveToA: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 4){
 				result.push("quadraticCurveTo", args.slice(i, i + 4));
 			}
+			if(doDash)
+				this._dashResidue = toDashedCurveTo(doDash, this, result[result.length - 1], this._dashResidue);
 			this.last.x = args[args.length - 2];
 			this.last.y = args[args.length - 1];
 			this.lastControl.x = args[args.length - 4];
 			this.lastControl.y = args[args.length - 3];
 			this.lastControl.type = "Q";
 		},
-		_qCurveToR: function(result, action, args){
+		_qCurveToR: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 4){
 				result.push("quadraticCurveTo", [
 					this.lastControl.x = this.last.x + args[i],
@@ -657,12 +977,14 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 					this.last.x + args[i + 2],
 					this.last.y + args[i + 3]
 				]);
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, result[result.length - 1], this._dashResidue);
 				this.last.x += args[i + 2];
 				this.last.y += args[i + 3];
 			}
 			this.lastControl.type = "Q";
 		},
-		_qSmoothCurveToA: function(result, action, args){
+		_qSmoothCurveToA: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 2){
 				var valid = this.lastControl.type == "Q";
 				result.push("quadraticCurveTo", [
@@ -671,12 +993,14 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 					args[i],
 					args[i + 1]
 				]);
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, result[result.length - 1], this._dashResidue);
 				this.lastControl.type = "Q";
 			}
 			this.last.x = args[args.length - 2];
 			this.last.y = args[args.length - 1];
 		},
-		_qSmoothCurveToR: function(result, action, args){
+		_qSmoothCurveToR: function(result, action, args, doDash){
 			for(var i = 0; i < args.length; i += 2){
 				var valid = this.lastControl.type == "Q";
 				result.push("quadraticCurveTo", [
@@ -685,12 +1009,14 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 					this.last.x + args[i],
 					this.last.y + args[i + 1]
 				]);
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, result[result.length - 1], this._dashResidue);
 				this.lastControl.type = "Q";
 				this.last.x += args[i];
 				this.last.y += args[i + 1];
 			}
 		},
-		_arcTo: function(result, action, args){
+		_arcTo: function(result, action, args, doDash){
 			var relative = action == "a";
 			for(var i = 0; i < args.length; i += 7){
 				var x1 = args[i + 5], y1 = args[i + 6];
@@ -706,13 +1032,17 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 				arr.forEach(arcs, function(p){
 					result.push("bezierCurveTo", p);
 				});
+				if(doDash)
+					this._dashResidue = toDashedCurveTo(doDash, this, p, this._dashResidue);
 				this.last.x = x1;
 				this.last.y = y1;
 			}
 			this.lastControl = {};
 		},
-		_closePath: function(result, action, args){
+		_closePath: function(result, action, args, doDash){
 			result.push("closePath", []);
+			if(doDash)
+				this._dashResidue = toDashedLineTo(doDash, this, this.last.x, this.last.y, doDash[1][0], doDash[1][1], this._dashResidue);
 			this.lastControl = {};
 		}
 	});
@@ -803,11 +1133,11 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 				this.children[i]._render(ctx);
 			}
 			ctx.restore();
-		},		
+		},
 		makeDirty: function(){
 			// summary:
 			//		internal method, which is called when we may need to redraw
-			if(!this.pendingImagesCount && !("pendingRender" in this)){
+			if(!this.pendingImagesCount && !("pendingRender" in this) && !this._batch){
 				this.pendingRender = setTimeout(lang.hitch(this, this._render), 0);
 			}
 		},
@@ -846,7 +1176,8 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 		// events are not implemented
 		getEventSource: function(){ return null; },
 		connect:		function(){},
-		disconnect:		function(){}
+		disconnect:		function(){},
+		on:				function(){}
 	});
 
 	canvas.createSurface = function(parentNode, width, height){
@@ -888,25 +1219,49 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 	// Extenders
 
 	var C = gs.Container, Container = {
+		openBatch: function() {
+			// summary:
+			//		starts a new batch, subsequent new child shapes will be held in
+			//		the batch instead of appending to the container directly.
+			// description:
+			//		Because the canvas renderer has no DOM hierarchy, the canvas implementation differs
+			//		such that it suspends the repaint requests for this container until the current batch is closed by a call to closeBatch().
+			++this._batch;
+			return this;
+		},
+		closeBatch: function() {
+			// summary:
+			//		submits the current batch.
+			// description:
+			//		On canvas, this method flushes the pending redraws queue.
+			this._batch = this._batch > 0 ? --this._batch : 0;
+			this._makeDirty();
+			return this;
+		},
+		_makeDirty: function(){
+			if(!this._batch){
+				this.surface.makeDirty();
+			}
+		},
 		add: function(shape){
-			this.surface.makeDirty();
+			this._makeDirty();
 			return C.add.apply(this, arguments);
 		},
 		remove: function(shape, silently){
-			this.surface.makeDirty();
+			this._makeDirty();
 			return C.remove.apply(this, arguments);
 		},
 		clear: function(){
-			this.surface.makeDirty();
+			this._makeDirty();
 			return C.clear.apply(this, arguments);
 		},
 		getBoundingBox: C.getBoundingBox,
 		_moveChildToFront: function(shape){
-			this.surface.makeDirty();
+			this._makeDirty();
 			return C._moveChildToFront.apply(this, arguments);
 		},
 		_moveChildToBack: function(shape){
-			this.surface.makeDirty();
+			this._makeDirty();
 			return C._moveChildToBack.apply(this, arguments);
 		}
 	};
@@ -938,13 +1293,13 @@ function(g, lang, arr, declare, win, domGeom, dom, gfxBase, gs, pathLib, ga, m, 
 	extend(canvas.Surface, Container);
 	extend(canvas.Surface, gs.Creator);
 	extend(canvas.Surface, Creator);
-	
-	// no event support -> nothing to fix. 
+
+	// no event support -> nothing to fix.
 	canvas.fixTarget = function(event, gfxElement){
 		// tags:
 		//		private
 		return true;
 	};
-	 
+
 	return canvas;
 });

@@ -269,7 +269,7 @@ return;
 }
 _5.empty(_4a);
 var g=this.grid;
-var _4b=_4a.appendChild(_5.create("div",{"aria-label":g._nls["selectAll"],"tabindex":-1,"id":g.id+"_rowSelector_-1","class":this.baseClass,"role":"Checkbox","innerHTML":"<span class = '"+this.statusTextClass+"'></span><span style='height: 0; width: 0; overflow: hidden; display: block;'>"+g._nls["selectAll"]+"</span>"}));
+var _4b=_4a.appendChild(_5.create("div",{"aria-label":g._nls["selectAll"],"tabindex":-1,"id":g.id+"_rowSelector_-1","class":this.baseClass,"role":"checkbox","innerHTML":"<span class = '"+this.statusTextClass+"'></span><span style='height: 0; width: 0; overflow: hidden; display: block;'>"+g._nls["selectAll"]+"</span>"}));
 this.map[-1]=_4b;
 var idx=this._headerSelectorConnectIdx;
 if(idx!==undefined){

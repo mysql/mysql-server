@@ -148,7 +148,6 @@ SET GLOBAL super_read_only= TRUE;
 --source include/rpl_connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
---let $assert_only_after= CURRENT_TEST: group_replication.gr_stop_gr_kills_binlog_dump
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
 --let $assert_count= 1
 --let $assert_text= Master connection is lost.
@@ -162,7 +161,6 @@ SET GLOBAL super_read_only= TRUE;
 --source include/rpl_connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_only_after= CURRENT_TEST: group_replication.gr_stop_gr_kills_binlog_dump
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
 --let $assert_count= 1
 --let $assert_text= Master connection is lost.
@@ -256,7 +254,6 @@ SET GLOBAL super_read_only= TRUE;
 --source include/rpl_connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
---let $assert_only_after= CURRENT_TEST: group_replication.gr_stop_gr_kills_binlog_dump
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
 --let $assert_count= 2
 --let $assert_text= Master connection is lost.
@@ -270,7 +267,6 @@ SET GLOBAL super_read_only= TRUE;
 --source include/rpl_connection.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_only_after= CURRENT_TEST: group_replication.gr_stop_gr_kills_binlog_dump
 --let $assert_select= Lost connection to MySQL server during query \(server_errno=2013\)
 --let $assert_count= 2
 --let $assert_text= Master connection is lost.

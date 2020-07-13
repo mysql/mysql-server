@@ -10,7 +10,7 @@ define("dojox/editor/plugins/Preview", [
 	"dojo/i18n!dojox/editor/plugins/nls/Preview"
 ], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.Preview", _Plugin, {
+var Preview = dojo.declare("dojox.editor.plugins.Preview", _Plugin, {
 	// summary:
 	//		This plugin provides Preview capability to the editor.  When
 	//		clicked, the document in the editor frame will displayed in a separate
@@ -94,13 +94,13 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "preview"){
-		o.plugin = new dojox.editor.plugins.Preview({
+		o.plugin = new Preview({
 			styles: ("styles" in o.args)?o.args.styles:"",
 			stylesheets: ("stylesheets" in o.args)? o.args.stylesheets:null
 		});
 	}
 });
 
-return dojox.editor.plugins.Preview;
+return Preview;
 
 });

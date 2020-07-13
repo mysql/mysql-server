@@ -5,7 +5,7 @@ define("dojox/mvc/WidgetList", [
 	"dojo/_base/declare",
 	"dijit/_Container",
 	"dijit/_WidgetBase",
-	"dojox/mvc/Templated"
+	"./Templated"
 ], function(require, array, lang, declare, _Container, _WidgetBase, Templated){
 	var childTypeAttr = "data-mvc-child-type",
 	 childMixinsAttr = "data-mvc-child-mixins",
@@ -20,6 +20,42 @@ define("dojox/mvc/WidgetList", [
 	function unwatchElements(/*dojox/mvc/WidgetList*/ w){
 		for(var h = null; h = (w._handles || []).pop();){
 			h.unwatch();
+		}
+	}
+
+	function flatten(/*String[][]*/ a){
+		var flattened = [];
+		array.forEach(a, function(item){
+			[].push.apply(flattened, item);
+		});
+		return flattened;
+	}
+
+	function loadModules(/*dojo/Stateful[]*/ items, /*Function*/ callback){
+		// summary:
+		//		Load modules associated with an array of data.
+		// items: dojo/Stateful[]
+		//		The array of data.
+		// callback: Function
+		//		Then callback called when the modules have been loaded.
+
+		if(this.childClz){
+			callback(this.childClz);
+		}else if(this.childType){
+			var typesForItems = !lang.isFunction(this.childType) && !lang.isFunction(this.childMixins) ? [[this.childType].concat(this.childMixins && this.childMixins.split(",") || [])] :
+			 array.map(items, function(item){
+				var type = lang.isFunction(this.childType) ? this.childType.call(item, this) : this.childType,
+				 mixins = lang.isFunction(this.childMixins) ? this.childMixins.call(item, this) : this.childMixins;
+				return type ? [type].concat(lang.isArray(mixins) ? mixins : mixins ? mixins.split(",") : []) : ["dojox/mvc/Templated"];
+			}, this);
+			require(array.filter(array.map(flatten(typesForItems), function(type){ return lang.getObject(type) ? undef : type; }), function(type){ return type !== undef; }), function(){
+				callback.apply(this, array.map(typesForItems, function(types){
+					var clzList = array.map(types, function(type){ return lang.getObject(type) || require(type); });
+					return clzList.length > 1 ? declare(clzList, {}) : clzList[0];
+				}));
+			});
+		}else{
+			callback(Templated);
 		}
 	}
 
@@ -88,17 +124,17 @@ define("dojox/mvc/WidgetList", [
 		//		The class of the child widget. Takes precedence over childType/childMixins.
 		childClz: null,
 
-		// childType: String
-		//		The module ID of child widget. childClz takes precedence over this/childMixins.
+		// childType: String|Function
+		//		The module ID of child widget, or a function that takes child data as the argument and returns the module ID of child widget. childClz takes precedence over this/childMixins.
 		//		Can be specified via data-mvc-child-type attribute of widget declaration.
 		childType: "",
 
-		// childMixins: String
-		//		The list of module IDs, separated by comma, of the classes that will be mixed into child widget. childClz takes precedence over childType/this.
+		// childMixins: String|String[]|Function
+		//		The list of module IDs (separated by comma), or a function that takes child data as the argument and returns it, of the classes that will be mixed into child widget. childClz takes precedence over childType/this.
 		//		Can be specified via data-mvc-child-mixins attribute of widget declaration.
 		childMixins: "",
 
-		// childParams: Object
+		// childParams: Object|Function
 		//		The mixin properties for child widget.
 		//		Can be specified via data-mvc-child-props attribute of widget declaration.
 		//		"this" in data-mvc-child-props will have the following properties:
@@ -107,7 +143,7 @@ define("dojox/mvc/WidgetList", [
 		//		- target - The data item in children.
 		childParams: null,
 
-		// childBindings: Object
+		// childBindings: Object|Function
 		//		Data bindings for child widget.
 		childBindings: null,
 
@@ -115,9 +151,11 @@ define("dojox/mvc/WidgetList", [
 		//		The array of data model that is used to render child nodes.
 		children: null,
 
+		/*=====
 		// templateString: String
 		//		The template string for each child items. templateString in child widgets take precedence over this.
 		templateString: "",
+		=====*/
 
 		// partialRebuild: Boolean
 		//		If true, only rebuild repeat items for changed elements. Otherwise, rebuild everything if there is a change in children.
@@ -149,14 +187,10 @@ define("dojox/mvc/WidgetList", [
 			var children = this.children;
 			this._set("children", value);
 			if(this._started && (!this._builtOnce || children != value)){
-				unwatchElements(this);
 				this._builtOnce = true;
 				this._buildChildren(value);
 				if(lang.isArray(value)){
 					var _self = this;
-					!this.partialRebuild && lang.isFunction(value.watchElements) && (this._handles = this._handles || []).push(value.watchElements(function(idx, removals, adds){
-						_self._buildChildren(value);
-					}));
 					value.watch !== {}.watch && (this._handles = this._handles || []).push(value.watch(function(name, old, current){
 						if(!isNaN(name)){
 							var w = _self.getChildren()[name - 0];
@@ -171,56 +205,74 @@ define("dojox/mvc/WidgetList", [
 			// summary:
 			//		Create child widgets upon children and inserts them into the container node.
 
+			unwatchElements(this);
 			for(var cw = this.getChildren(), w = null; w = cw.pop();){ this.removeChild(w); w.destroy(); }
 			if(!lang.isArray(children)){ return; }
 
-			var createAndWatch = lang.hitch(this, function(seq){
-				if(this._buildChildrenSeq > seq){ return; } // If newer _buildChildren call comes during lazy loading, bail
-				var clz = declare([].slice.call(arguments, 1), {}),
-				 _self = this;
-				function create(children, startIndex){
-					array.forEach(array.map(children, function(child, idx){
-						var params = {
-							ownerDocument: _self.ownerDocument,
-							parent: _self,
-							indexAtStartup: startIndex + idx // Won't be updated even if there are removals/adds of repeat items after startup
-						};
-						params[(_self.childParams || _self[childParamsAttr] && evalParams.call(params, _self[childParamsAttr]) || {})._relTargetProp || clz.prototype._relTargetProp || "target"] = child;
+			var _self = this,
+			 seq = this._buildChildrenSeq = (this._buildChildrenSeq || 0) + 1,
+			 initial = {idx: 0, removals: [], adds: [].concat(children)},
+			 changes = [initial];
 
-						var childParams = _self.childParams || _self[childParamsAttr] && evalParams.call(params, _self[childParamsAttr]),
-						 childBindings = _self.childBindings || _self[childBindingsAttr] && evalParams.call(params, _self[childBindingsAttr]);
-						if(_self.templateString && !params.templateString && !clz.prototype.templateString){ params.templateString = _self.templateString; }
-						if(childBindings && !params.bindings && !clz.prototype.bindings){ params.bindings = childBindings; }
-						return new clz(lang.mixin(params, childParams));
-					}), function(child, idx){
-						_self.addChild(child, startIndex + idx);
-					});
-				}
-				create(children, 0);
-				if(this.partialRebuild){
-					lang.isFunction(children.watchElements) && (this._handles = this._handles || []).push(children.watchElements(function(idx, removals, adds){
-						for(var i = 0, l = (removals || []).length; i < l; ++i){
-							_self.removeChild(idx);
-						}
-						create(adds, idx);
-					}));
-				}
-			}, this._buildChildrenSeq = (this._buildChildrenSeq || 0) + 1);
+			function loadedModule(/*Object*/ change){
+				// summary:
+				//		The callback function called when modules associated with an array splice have been loaded.
+				// description:
+				//		Looks through the queued array splices and process queue entries whose modules have been loaded, by removing/adding child widgets upon the array splice.
 
-			if(this.childClz){
-				createAndWatch(this.childClz);
-			}else if(this.childType){
-				var types = [this.childType].concat(this.childMixins && this.childMixins.split(",") || []),
-				 mids = array.filter(array.map(types, function(type){ return lang.getObject(type) ? undef : type; }), function(mid){ return mid !== undef; }),
-				 _self = this;
-				require(mids, function(){
-					if(!_self._beingDestroyed){
-						createAndWatch.apply(this, array.map(types, function(type){ return lang.getObject(type) || require(type); }));
+				if(this._beingDestroyed || this._buildChildrenSeq > seq){ return; } // If this _WidgetList is being destroyed, or newer _buildChildren call comes during lazy loading, bail
+
+				// Associate an object associated with an array splice with the module loaded
+				var list = [].slice.call(arguments, 1);
+				change.clz = lang.isFunction(this.childType) || lang.isFunction(this.childMixins) ? list : list[0];
+
+				// Looks through the queued array splices
+				for(var item = null; item = changes.shift();){
+					// The modules for the array splice have not been loaded, bail
+					if(!item.clz){
+						changes.unshift(item);
+						break;
 					}
-				});
-			}else{
-				createAndWatch(Templated);
+
+					// Remove child widgets upon the array removals
+					for(var i = 0, l = (item.removals || []).length; i < l; ++i){
+						this.removeChild(item.idx);
+					}
+
+					// Create/add child widgets upon the array adds
+					array.forEach(array.map(item.adds, function(child, idx){
+						var params = {
+							ownerDocument: this.ownerDocument,
+							parent: this,
+							indexAtStartup: item.idx + idx // Won't be updated even if there are removals/adds of repeat items after startup
+						}, childClz = lang.isArray(item.clz) ? item.clz[idx] : item.clz;
+						params[(lang.isFunction(this.childParams) && this.childParams.call(params, this) || this.childParams || this[childParamsAttr] && evalParams.call(params, this[childParamsAttr]) || {})._relTargetProp || childClz.prototype._relTargetProp || "target"] = child;
+
+						var childParams = this.childParams || this[childParamsAttr] && evalParams.call(params, this[childParamsAttr]),
+						 childBindings = this.childBindings || this[childBindingsAttr] && evalParams.call(params, this[childBindingsAttr]);
+						if(this.templateString && !params.templateString && !childClz.prototype.templateString){ params.templateString = this.templateString; }
+						if(childBindings && !params.bindings && !childClz.prototype.bindings){ params.bindings = childBindings; }
+						return new childClz(lang.delegate(lang.isFunction(childParams) ? childParams.call(params, this) : childParams, params));
+					}, this), function(child, idx){
+						this.addChild(child, item.idx + idx);
+					}, this);
+				}
 			}
+
+			lang.isFunction(children.watchElements) && (this._handles = this._handles || []).push(children.watchElements(function(idx, removals, adds){
+				if(!removals || !adds || !_self.partialRebuild){
+					// If the entire array is changed, or this WidgetList should rebuild the whole child widgets with every change in array, rebuild the whole
+					_self._buildChildren(children);
+				}else{
+					// Otherwise queue the array splice and load modules associated with the additions
+					var change = {idx: idx, removals: removals, adds: adds};
+					changes.push(change);
+					loadModules.call(_self, adds, lang.hitch(_self, loadedModule, change));
+				}
+			}));
+
+			// Load modules associated with the initial data
+			loadModules.call(this, children, lang.hitch(this, loadedModule, initial));
 		},
 
 		destroy: function(){

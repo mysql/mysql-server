@@ -3,11 +3,11 @@ require({cache:{"url:dojox/image/resources/Lightbox.html":"<div class=\"dojoxLig
 define("dojox/image/Lightbox",["require","dojo","dijit","dojox","dojo/text!./resources/Lightbox.html","dijit/Dialog","dojox/fx/_base"],function(_1,_2,_3,_4,_5){
 _2.experimental("dojox.image.Lightbox");
 _2.getObject("image",true,_4);
-_2.declare("dojox.image.Lightbox",_3._Widget,{group:"",title:"",href:"",duration:500,modal:false,_allowPassthru:false,_attachedDialog:null,startup:function(){
+var _6=_2.declare("dojox.image.Lightbox",_3._Widget,{group:"",title:"",href:"",duration:500,modal:false,_allowPassthru:false,_attachedDialog:null,startup:function(){
 this.inherited(arguments);
-var _6=_3.byId("dojoxLightboxDialog");
-if(_6){
-this._attachedDialog=_6;
+var _7=_3.byId("dojoxLightboxDialog");
+if(_7){
+this._attachedDialog=_7;
 }else{
 this._attachedDialog=new _4.image.LightboxDialog({id:"dojoxLightboxDialog"});
 this._attachedDialog.startup();
@@ -38,8 +38,8 @@ this._allowPassthru=false;
 this._attachedDialog.removeImage(this);
 this.inherited(arguments);
 }});
-_2.declare("dojox.image.LightboxDialog",_3.Dialog,{title:"",inGroup:null,imgUrl:_3._Widget.prototype._blankGif,errorMessage:"Image not found.",adjust:true,modal:false,imageClass:"dojoxLightboxImage",errorImg:_1.toUrl("./resources/images/warning.png"),templateString:_5,constructor:function(_7){
-this._groups=this._groups||(_7&&_7._groups)||{XnoGroupX:[]};
+_6.LightboxDialog=_2.declare("dojox.image.LightboxDialog",_3.Dialog,{title:"",inGroup:null,imgUrl:_3._Widget.prototype._blankGif,errorMessage:"Image not found.",adjust:true,modal:false,imageClass:"dojoxLightboxImage",errorImg:_1.toUrl("./resources/images/warning.png"),templateString:_5,constructor:function(_8){
+this._groups=this._groups||(_8&&_8._groups)||{XnoGroupX:[]};
 },startup:function(){
 this.inherited(arguments);
 this._animConnects=[];
@@ -49,67 +49,67 @@ this.connect(this.closeButtonNode,"onclick","hide");
 this._makeAnims();
 this._vp=_2.window.getBox();
 return this;
-},show:function(_8){
-var _9=this;
-this._lastGroup=_8;
-if(!_9.open){
-_9.inherited(arguments);
-_9._modalconnects.push(_2.connect(_2.global,"onscroll",this,"_position"),_2.connect(_2.global,"onresize",this,"_position"),_2.connect(_2.body(),"onkeypress",this,"_handleKey"));
-if(!_8.modal){
-_9._modalconnects.push(_2.connect(_3._underlay.domNode,"onclick",this,"onCancel"));
+},show:function(_9){
+var _a=this;
+this._lastGroup=_9;
+if(!_a.open){
+_a.inherited(arguments);
+_a._modalconnects.push(_2.connect(_2.global,"onscroll",this,"_position"),_2.connect(_2.global,"onresize",this,"_position"),_2.connect(_2.body(),"onkeypress",this,"_handleKey"));
+if(!_9.modal){
+_a._modalconnects.push(_2.connect(_3._underlay.domNode,"onclick",this,"onCancel"));
 }
 }
 if(this._wasStyled){
-var _a=_2.create("img",{className:_9.imageClass},_9.imgNode,"after");
-_2.destroy(_9.imgNode);
-_9.imgNode=_a;
-_9._makeAnims();
-_9._wasStyled=false;
+var _b=_2.create("img",{className:_a.imageClass},_a.imgNode,"after");
+_2.destroy(_a.imgNode);
+_a.imgNode=_b;
+_a._makeAnims();
+_a._wasStyled=false;
 }
-_2.style(_9.imgNode,"opacity","0");
-_2.style(_9.titleNode,"opacity","0");
-var _b=_8.href;
-if((_8.group&&_8!=="XnoGroupX")||_9.inGroup){
-if(!_9.inGroup){
-_9.inGroup=_9._groups[(_8.group)];
-_2.forEach(_9.inGroup,function(g,i){
-if(g.href==_8.href){
-_9._index=i;
+_2.style(_a.imgNode,"opacity","0");
+_2.style(_a.titleNode,"opacity","0");
+var _c=_9.href;
+if((_9.group&&_9!=="XnoGroupX")||_a.inGroup){
+if(!_a.inGroup){
+_a.inGroup=_a._groups[(_9.group)];
+_2.forEach(_a.inGroup,function(g,i){
+if(g.href==_9.href){
+_a._index=i;
 }
 });
 }
-if(!_9._index){
-_9._index=0;
-var sr=_9.inGroup[_9._index];
-_b=(sr&&sr.href)||_9.errorImg;
+if(!_a._index){
+_a._index=0;
+var sr=_a.inGroup[_a._index];
+_c=(sr&&sr.href)||_a.errorImg;
 }
-_9.groupCount.innerHTML=" ("+(_9._index+1)+" of "+Math.max(1,_9.inGroup.length)+")";
-_9.prevButtonNode.style.visibility="visible";
-_9.nextButtonNode.style.visibility="visible";
+_a.groupCount.innerHTML=" ("+(_a._index+1)+" of "+Math.max(1,_a.inGroup.length)+")";
+_a.prevButtonNode.style.visibility="visible";
+_a.nextButtonNode.style.visibility="visible";
 }else{
-_9.groupCount.innerHTML="";
-_9.prevButtonNode.style.visibility="hidden";
-_9.nextButtonNode.style.visibility="hidden";
+_a.groupCount.innerHTML="";
+_a.prevButtonNode.style.visibility="hidden";
+_a.nextButtonNode.style.visibility="hidden";
 }
-if(!_8.leaveTitle){
-_9.textNode.innerHTML=_8.title;
+if(!_9.leaveTitle){
+_a.textNode.innerHTML=_9.title;
 }
-_9._ready(_b);
-},_ready:function(_c){
-var _d=this;
-_d._imgError=_2.connect(_d.imgNode,"error",_d,function(){
-_2.disconnect(_d._imgError);
-_d.imgNode.src=_d.errorImg;
-_d.textNode.innerHTML=_d.errorMessage;
+_a._ready(_c);
+},_ready:function(_d){
+var _e=this;
+_e._imgError=_2.connect(_e.imgNode,"error",_e,function(){
+_2.disconnect(_e._imgError);
+_e.imgNode.src=_e.errorImg;
+_e.textNode.innerHTML=_e.errorMessage;
 });
-_d._imgConnect=_2.connect(_d.imgNode,"load",_d,function(e){
-_d.resizeTo({w:_d.imgNode.width,h:_d.imgNode.height,duration:_d.duration});
-_2.disconnect(_d._imgConnect);
-if(_d._imgError){
-_2.disconnect(_d._imgError);
+_e._imgConnect=_2.connect(_e.imgNode,"load",_e,function(e){
+_e.resizeTo({w:_e.imgNode.width,h:_e.imgNode.height,duration:_e.duration});
+_2.disconnect(_e._imgConnect);
+if(_e._imgError){
+_2.disconnect(_e._imgError);
 }
 });
-_d.imgNode.src=_c;
+_e.imgNode.src=_d;
 },_nextImage:function(){
 if(!this.inGroup){
 return;
@@ -139,39 +139,39 @@ this.show({href:this.inGroup[this._index].href,title:this.inGroup[this._index].t
 this.show({title:this.errorMessage,href:this.errorImg});
 }
 },_calcTitleSize:function(){
-var _e=_2.map(_2.query("> *",this.titleNode).position(),function(s){
+var _f=_2.map(_2.query("> *",this.titleNode).position(),function(s){
 return s.h;
 });
-return {h:Math.max.apply(Math,_e)};
-},resizeTo:function(_f,_10){
-var _11=_2.boxModel=="border-box"?_2._getBorderExtents(this.domNode).w:0,_12=_10||this._calcTitleSize();
-this._lastTitleSize=_12;
-if(this.adjust&&(_f.h+_12.h+_11+80>this._vp.h||_f.w+_11+60>this._vp.w)){
-this._lastSize=_f;
-_f=this._scaleToFit(_f);
+return {h:Math.max.apply(Math,_f)};
+},resizeTo:function(_10,_11){
+var _12=_2.boxModel=="border-box"?_2._getBorderExtents(this.domNode).w:0,_13=_11||this._calcTitleSize();
+this._lastTitleSize=_13;
+if(this.adjust&&(_10.h+_13.h+_12+80>this._vp.h||_10.w+_12+60>this._vp.w)){
+this._lastSize=_10;
+_10=this._scaleToFit(_10);
 }
-this._currentSize=_f;
-var _13=_4.fx.sizeTo({node:this.containerNode,duration:_f.duration||this.duration,width:_f.w+_11,height:_f.h+_12.h+_11});
-this.connect(_13,"onEnd","_showImage");
-_13.play(15);
-},_scaleToFit:function(_14){
+this._currentSize=_10;
+var _14=_4.fx.sizeTo({node:this.containerNode,duration:_10.duration||this.duration,width:_10.w+_12,height:_10.h+_13.h+_12});
+this.connect(_14,"onEnd","_showImage");
+_14.play(15);
+},_scaleToFit:function(_15){
 var ns={},nvp={w:this._vp.w-80,h:this._vp.h-60-this._lastTitleSize.h};
-var _15=nvp.w/nvp.h,_16=_14.w/_14.h;
-if(_16>=_15){
-ns.h=nvp.w/_16;
+var _16=nvp.w/nvp.h,_17=_15.w/_15.h;
+if(_17>=_16){
+ns.h=nvp.w/_17;
 ns.w=nvp.w;
 }else{
-ns.w=_16*nvp.h;
+ns.w=_17*nvp.h;
 ns.h=nvp.h;
 }
 this._wasStyled=true;
 this._setImageSize(ns);
-ns.duration=_14.duration;
+ns.duration=_15.duration;
 return ns;
-},_setImageSize:function(_17){
+},_setImageSize:function(_18){
 var s=this.imgNode;
-s.height=_17.h;
-s.width=_17.w;
+s.height=_18.h;
+s.width=_18.w;
 },_size:function(){
 },_position:function(e){
 this._vp=_2.window.getBox();
@@ -189,9 +189,9 @@ this.resizeTo({w:this.imgNode.width,h:this.imgNode.height});
 },_showImage:function(){
 this._showImageAnim.play(1);
 },_showNav:function(){
-var _18=_2.marginBox(this.titleNode);
-if(_18.h>this._lastTitleSize.h){
-this.resizeTo(this._wasStyled?this._lastSize:this._currentSize,_18);
+var _19=_2.marginBox(this.titleNode);
+if(_19.h>this._lastTitleSize.h){
+this.resizeTo(this._wasStyled?this._lastSize:this._currentSize,_19);
 }else{
 this._showNavAnim.play(1);
 }
@@ -202,31 +202,31 @@ this.imgNode.src=this._blankGif;
 this.inherited(arguments);
 this.inGroup=null;
 this._index=null;
-},addImage:function(_19,_1a){
-var g=_1a;
-if(!_19.href){
+},addImage:function(_1a,_1b){
+var g=_1b;
+if(!_1a.href){
 return;
 }
 if(g){
 if(!this._groups[g]){
 this._groups[g]=[];
 }
-this._groups[g].push(_19);
+this._groups[g].push(_1a);
 }else{
-this._groups["XnoGroupX"].push(_19);
+this._groups["XnoGroupX"].push(_1a);
 }
-},removeImage:function(_1b){
-var g=_1b.group||"XnoGroupX";
-_2.every(this._groups[g],function(_1c,i,ar){
-if(_1c.href==_1b.href){
+},removeImage:function(_1c){
+var g=_1c.group||"XnoGroupX";
+_2.every(this._groups[g],function(_1d,i,ar){
+if(_1d.href==_1c.href){
 ar.splice(i,1);
 return false;
 }
 return true;
 });
-},removeGroup:function(_1d){
-if(this._groups[_1d]){
-this._groups[_1d]=[];
+},removeGroup:function(_1e){
+if(this._groups[_1e]){
+this._groups[_1e]=[];
 }
 },_handleKey:function(e){
 if(!this.open){
@@ -256,7 +256,7 @@ this._animConnects.push(_2.connect(this._showImageAnim,"onEnd",this,"_showNav"))
 this._loadingAnim=_2.fx.combine([_2.fadeOut({node:this.imgNode,duration:175}),_2.fadeOut({node:this.titleNode,duration:175})]);
 this._animConnects.push(_2.connect(this._loadingAnim,"onEnd",this,"_prepNodes"));
 this._showNavAnim=_2.fadeIn({node:this.titleNode,duration:225});
-},onClick:function(_1e){
+},onClick:function(_1f){
 },_onImageClick:function(e){
 if(e&&e.target==this.imgNode){
 this.onClick(this._lastGroup);
@@ -265,5 +265,5 @@ this._lastGroup.onClick(this._lastGroup);
 }
 }
 }});
-return _4.image.Lightbox;
+return _6;
 });

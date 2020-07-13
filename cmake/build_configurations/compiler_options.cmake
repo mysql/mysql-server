@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,12 @@ IF(UNIX)
   IF(MY_COMPILER_IS_CLANG)
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
     SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
+  ENDIF()
+
+  # Faster TLS model
+  IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT SOLARIS AND NOT LINUX_RHEL6)
+    STRING_APPEND(COMMON_C_FLAGS     " -ftls-model=initial-exec")
+    STRING_APPEND(COMMON_CXX_FLAGS   " -ftls-model=initial-exec")
   ENDIF()
 
   # Solaris flags

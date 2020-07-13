@@ -25,6 +25,8 @@ WHERE VARIABLE_NAME LIKE '%group_replication%'
 [connection no_priv_user_con]
 
 # Expect ER_SPECIFIC_ACCESS_DENIED_ERROR for global variables.
+SET GLOBAL group_replication_advertise_recovery_endpoints = @@GLOBAL.group_replication_advertise_recovery_endpoints;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
@@ -131,6 +133,8 @@ SET GLOBAL group_replication_ssl_mode = @@GLOBAL.group_replication_ssl_mode;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_start_on_boot = @@GLOBAL.group_replication_start_on_boot;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_tls_source = @@GLOBAL.group_replication_tls_source;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
@@ -149,6 +153,7 @@ SET SESSION group_replication_consistency = @@SESSION.group_replication_consiste
 GRANT SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN ON *.* TO 'no_priv_user'@localhost;
 [connection no_priv_user_con]
 
+SET GLOBAL group_replication_advertise_recovery_endpoints = @@GLOBAL.group_replication_advertise_recovery_endpoints;
 SET GLOBAL group_replication_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET GLOBAL group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 SET GLOBAL group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
@@ -203,6 +208,7 @@ SET GLOBAL group_replication_recovery_zstd_compression_level = @@GLOBAL.group_re
 SET GLOBAL group_replication_single_primary_mode = @@GLOBAL.group_replication_single_primary_mode;
 SET GLOBAL group_replication_ssl_mode = @@GLOBAL.group_replication_ssl_mode;
 SET GLOBAL group_replication_start_on_boot = @@GLOBAL.group_replication_start_on_boot;
+SET GLOBAL group_replication_tls_source = @@GLOBAL.group_replication_tls_source;
 SET GLOBAL group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 

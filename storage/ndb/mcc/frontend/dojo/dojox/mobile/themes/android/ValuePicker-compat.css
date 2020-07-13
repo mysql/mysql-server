@@ -2,6 +2,9 @@
 .mblValuePickerSlotButton {
   background-image: url(compat/valuepicker-button-bg.png);
 }
+.mblValuePickerSlotButtonSelected {
+  background-color: #3578b1;
+}
 .mblValuePickerSlotInputArea {
   background-color: #f7f7f7;
 }

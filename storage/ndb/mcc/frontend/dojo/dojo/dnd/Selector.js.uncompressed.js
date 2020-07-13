@@ -1,7 +1,7 @@
 define("dojo/dnd/Selector", [
-	"../_base/array", "../_base/declare", "../_base/event", "../_base/kernel", "../_base/lang",
+	"../_base/array", "../_base/declare", "../_base/kernel", "../_base/lang",
 	"../dom", "../dom-construct", "../mouse", "../_base/NodeList", "../on", "../touch", "./common", "./Container"
-], function(array, declare, event, kernel, lang, dom, domConstruct, mouse, NodeList, on, touch, dnd, Container){
+], function(array, declare, kernel, lang, dom, domConstruct, mouse, NodeList, on, touch, dnd, Container){
 
 // module:
 //		dojo/dnd/Selector
@@ -195,7 +195,8 @@ var Selector = declare("dojo.dnd.Selector", Container, {
 				// dragging.   However, don't stop the event on mobile because that prevents a click event,
 				// and also prevents scroll (see #15838).
 				// For IE we don't stop event when multiple buttons are pressed.
-				event.stop(e);
+				e.stopPropagation();
+				e.preventDefault();
 			}
 			return;
 		}
@@ -267,7 +268,8 @@ var Selector = declare("dojo.dnd.Selector", Container, {
 				}
 			}
 		}
-		event.stop(e);
+		e.stopPropagation();
+		e.preventDefault();
 	},
 	onMouseUp: function(/*===== e =====*/){
 		// summary:

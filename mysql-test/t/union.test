@@ -1969,11 +1969,11 @@ CREATE TABLE t1(
 );
 
 CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
-`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+`1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
 -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
 
-CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
--(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1`,
+-(1) AS `-1`, -(1) AS `Name_exp_-1`, -(1) AS `Name_exp_1_-1`;
 
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 
@@ -2231,3 +2231,55 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo # Bug#29698617: UNION ALL signed and unsigned int display wrong result
+
+CREATE TABLE t1(id INTEGER SIGNED);
+CREATE TABLE t2(id INTEGER UNSIGNED);
+
+INSERT INTO t1(id) VALUES (2000000000);
+INSERT INTO t2(id) VALUES (4000000000);
+
+SELECT id FROM t2 UNION ALL SELECT id FROM t1;
+SELECT MAX(id) FROM t2 UNION ALL SELECT MAX(id) FROM t1;
+SELECT id FROM t1 UNION ALL SELECT id FROM t2;
+SELECT MAX(id) FROM t1 UNION ALL SELECT MAX(id) FROM t2;
+
+DROP TABLE t1, t2;
+
+CREATE TABLE t1(
+  ts TINYINT SIGNED,
+  tu TINYINT UNSIGNED,
+  ss SMALLINT SIGNED,
+  su SMALLINT UNSIGNED,
+  ms MEDIUMINT SIGNED,
+  mu MEDIUMINT UNSIGNED,
+  ls INTEGER SIGNED,
+  lu INTEGER UNSIGNED,
+  bs BIGINT SIGNED,
+  bu BIGINT UNSIGNED
+);
+
+INSERT INTO t1 VALUES
+ (-128, 0, -32768, 0, -8388608, 0, -2147483648, 0, -9223372036854775808, 0),
+ (127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295,
+  9223372036854775807, 18446744073709551615);
+
+let $query=
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+       ts AS a, ss AS b, ms AS c, ls AS d, bs AS e,
+       tu AS f, su AS g, mu AS h, lu AS i, bu AS j
+FROM t1
+UNION ALL
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+       tu, su, mu, lu, bu, ts, ss, ms, ls, bs
+FROM t1;
+
+eval $query;
+
+eval CREATE TABLE t2 AS $query;
+
+DESCRIBE t2;
+
+DROP TABLE t1, t2;
+

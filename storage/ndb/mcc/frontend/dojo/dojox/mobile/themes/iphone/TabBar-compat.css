@@ -16,13 +16,16 @@
 .dj_ff3 .mblTabBarTabBar .mblTabBarButtonSelected {
   -moz-border-radius: 3px;
 }
-.mblTabBarSegmentedControl, .mblTabBarStandardTab {
+.mblTabBarSegmentedControl,
+.mblTabBarStandardTab {
   background-image: url(compat/heading-bg.png);
 }
-.mblTabBarSegmentedControl .mblTabBarButton, .mblTabBarStandardTab .mblTabBarButton {
+.mblTabBarSegmentedControl .mblTabBarButton,
+.mblTabBarStandardTab .mblTabBarButton {
   background-image: url(compat/tab-seg-button-bg.png);
 }
-.mblTabBarSegmentedControl .mblTabBarButtonSelected, .mblTabBarStandardTab .mblTabBarButtonSelected {
+.mblTabBarSegmentedControl .mblTabBarButtonSelected,
+.mblTabBarStandardTab .mblTabBarButtonSelected {
   background-image: url(compat/tab-seg-sel-button-bg.png);
 }
 .dj_gecko .mblTabBarSegmentedControl .mblTabBarButton {

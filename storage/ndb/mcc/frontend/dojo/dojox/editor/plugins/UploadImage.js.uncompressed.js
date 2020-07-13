@@ -9,11 +9,9 @@ define("dojox/editor/plugins/UploadImage", [
 	"dijit/_editor/_Plugin"
 ], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.experimental("dojox.editor.plugins.UploadImage");
+	dojo.experimental("dojox.editor.plugins.UploadImage");
 
-dojo.declare("dojox.editor.plugins.UploadImage",
-	_Plugin,
-	{
+	var UploadImage = dojo.declare("dojox.editor.plugins.UploadImage", _Plugin, {
 		// summary:
 		// 		Adds an icon to the Editor toolbar that when clicked, opens a system dialog
 		//		Although the toolbar icon is a tiny "image" the uploader could be used for
@@ -97,18 +95,15 @@ dojo.declare("dojox.editor.plugins.UploadImage",
 			var iTxt = '<img id="'+this.currentImageId+'" src="'+this.tempImageUrl+'" width="32" height="32"/>';
 			this.editor.execCommand('inserthtml', iTxt);
 		}
-		
-	}
-);
+	});
 
-dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
-	if(o.plugin){ return; }
-	switch(o.args.name){
-	case "uploadImage":
-		o.plugin = new dojox.editor.plugins.UploadImage({url: o.args.url});
-	}
-});
+	dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
+		if(o.plugin){ return; }
+		switch(o.args.name){
+		case "uploadImage":
+			o.plugin = new UploadImage({url: o.args.url});
+		}
+	});
 
-return dojox.editor.plugins.UploadImage;
-
+	return UploadImage;
 });

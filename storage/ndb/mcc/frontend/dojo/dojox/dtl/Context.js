@@ -1,6 +1,6 @@
 //>>built
 define("dojox/dtl/Context",["dojo/_base/lang","./_base"],function(_1,dd){
-dd.Context=_1.extend(function(_2){
+return dd.Context=_1.extend(function(_2){
 this._this={};
 dd._Context.call(this,_2);
 },dd._Context.prototype,{getKeys:function(){
@@ -52,5 +52,4 @@ return true;
 }
 return false;
 }});
-return dd.Context;
 });

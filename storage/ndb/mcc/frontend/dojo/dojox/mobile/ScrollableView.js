@@ -17,6 +17,10 @@ this.containerNode.style.width="100%";
 if(this._started){
 return;
 }
+if(this.fixedFooter&&!this.isLocalFooter){
+this._fixedAppFooter=this.fixedFooter;
+this.fixedFooter="";
+}
 this.reparent();
 this.inherited(arguments);
 },resize:function(){
@@ -26,6 +30,10 @@ if(_8.resize){
 _8.resize();
 }
 });
+this._dim=this.getDim();
+if(this._conn){
+this.resetScrollBar();
+}
 },isTopLevel:function(e){
 var _9=this.getParent&&this.getParent();
 return (!_9||!_9.resize);
@@ -61,12 +69,25 @@ this.containerNode.appendChild(this.domNode.removeChild(c));
 this.flashScrollBar();
 },getChildren:function(){
 var _13=this.inherited(arguments);
+var _14;
 if(this.fixedHeader&&this.fixedHeader.parentNode===this.domNode){
-_13.push(_5.byNode(this.fixedHeader));
+_14=_5.byNode(this.fixedHeader);
+if(_14){
+_13.push(_14);
+}
 }
 if(this.fixedFooter&&this.fixedFooter.parentNode===this.domNode){
-_13.push(_5.byNode(this.fixedFooter));
+_14=_5.byNode(this.fixedFooter);
+if(_14){
+_13.push(_14);
+}
 }
 return _13;
+},_addTransitionPaddingTop:function(_15){
+this.domNode.style.paddingTop=_15+"px";
+this.containerNode.style.paddingTop=_15+"px";
+},_removeTransitionPaddingTop:function(){
+this.domNode.style.paddingTop="";
+this.containerNode.style.paddingTop="";
 }});
 });

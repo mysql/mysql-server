@@ -37,90 +37,106 @@ return !_11;
 if(_e.overflow&&_b){
 _b(_9,_e.aroundCorner,_e.corner,_e.spaceAvailable,_c);
 }
+var top=_e.y,_1e=_e.x,_1f=_5.body(_9.ownerDocument);
+if(/relative|absolute/.test(_3.get(_1f,"position"))){
+top-=_3.get(_1f,"marginTop");
+_1e-=_3.get(_1f,"marginLeft");
+}
 var s=_9.style;
-s.top=_e.y+"px";
-s.left=_e.x+"px";
+s.top=top+"px";
+s.left=_1e+"px";
 s.right="auto";
 return _e;
 };
-var _1e={at:function(_1f,pos,_20,_21){
-var _22=_1.map(_20,function(_23){
-var c={corner:_23,pos:{x:pos.x,y:pos.y}};
-if(_21){
-c.pos.x+=_23.charAt(1)=="L"?_21.x:-_21.x;
-c.pos.y+=_23.charAt(0)=="T"?_21.y:-_21.y;
+var _20={"TL":"BR","TR":"BL","BL":"TR","BR":"TL"};
+var _21={at:function(_22,pos,_23,_24,_25){
+var _26=_1.map(_23,function(_27){
+var c={corner:_27,aroundCorner:_20[_27],pos:{x:pos.x,y:pos.y}};
+if(_24){
+c.pos.x+=_27.charAt(1)=="L"?_24.x:-_24.x;
+c.pos.y+=_27.charAt(0)=="T"?_24.y:-_24.y;
 }
 return c;
 });
-return _8(_1f,_22);
-},around:function(_24,_25,_26,_27,_28){
-var _29=(typeof _25=="string"||"offsetWidth" in _25||"ownerSVGElement" in _25)?_2.position(_25,true):_25;
-if(_25.parentNode){
-var _2a=_3.getComputedStyle(_25).position=="absolute";
-var _2b=_25.parentNode;
-while(_2b&&_2b.nodeType==1&&_2b.nodeName!="BODY"){
-var _2c=_2.position(_2b,true),pcs=_3.getComputedStyle(_2b);
-if(/relative|absolute/.test(pcs.position)){
-_2a=false;
+return _8(_22,_26,_25);
+},around:function(_28,_29,_2a,_2b,_2c){
+var _2d;
+if(typeof _29=="string"||"offsetWidth" in _29||"ownerSVGElement" in _29){
+_2d=_2.position(_29,true);
+if(/^(above|below)/.test(_2a[0])){
+var _2e=_2.getBorderExtents(_29),_2f=_29.firstChild?_2.getBorderExtents(_29.firstChild):{t:0,l:0,b:0,r:0},_30=_2.getBorderExtents(_28),_31=_28.firstChild?_2.getBorderExtents(_28.firstChild):{t:0,l:0,b:0,r:0};
+_2d.y+=Math.min(_2e.t+_2f.t,_30.t+_31.t);
+_2d.h-=Math.min(_2e.t+_2f.t,_30.t+_31.t)+Math.min(_2e.b+_2f.b,_30.b+_31.b);
 }
-if(!_2a&&/hidden|auto|scroll/.test(pcs.overflow)){
-var _2d=Math.min(_29.y+_29.h,_2c.y+_2c.h);
-var _2e=Math.min(_29.x+_29.w,_2c.x+_2c.w);
-_29.x=Math.max(_29.x,_2c.x);
-_29.y=Math.max(_29.y,_2c.y);
-_29.h=_2d-_29.y;
-_29.w=_2e-_29.x;
+}else{
+_2d=_29;
+}
+if(_29.parentNode){
+var _32=_3.getComputedStyle(_29).position=="absolute";
+var _33=_29.parentNode;
+while(_33&&_33.nodeType==1&&_33.nodeName!="BODY"){
+var _34=_2.position(_33,true),pcs=_3.getComputedStyle(_33);
+if(/relative|absolute/.test(pcs.position)){
+_32=false;
+}
+if(!_32&&/hidden|auto|scroll/.test(pcs.overflow)){
+var _35=Math.min(_2d.y+_2d.h,_34.y+_34.h);
+var _36=Math.min(_2d.x+_2d.w,_34.x+_34.w);
+_2d.x=Math.max(_2d.x,_34.x);
+_2d.y=Math.max(_2d.y,_34.y);
+_2d.h=_35-_2d.y;
+_2d.w=_36-_2d.x;
 }
 if(pcs.position=="absolute"){
-_2a=true;
+_32=true;
 }
-_2b=_2b.parentNode;
+_33=_33.parentNode;
 }
 }
-var x=_29.x,y=_29.y,_2f="w" in _29?_29.w:(_29.w=_29.width),_30="h" in _29?_29.h:(_4.deprecated("place.around: dijit/place.__Rectangle: { x:"+x+", y:"+y+", height:"+_29.height+", width:"+_2f+" } has been deprecated.  Please use { x:"+x+", y:"+y+", h:"+_29.height+", w:"+_2f+" }","","2.0"),_29.h=_29.height);
-var _31=[];
-function _32(_33,_34){
-_31.push({aroundCorner:_33,corner:_34,pos:{x:{"L":x,"R":x+_2f,"M":x+(_2f>>1)}[_33.charAt(1)],y:{"T":y,"B":y+_30,"M":y+(_30>>1)}[_33.charAt(0)]}});
+var x=_2d.x,y=_2d.y,_37="w" in _2d?_2d.w:(_2d.w=_2d.width),_38="h" in _2d?_2d.h:(_4.deprecated("place.around: dijit/place.__Rectangle: { x:"+x+", y:"+y+", height:"+_2d.height+", width:"+_37+" } has been deprecated.  Please use { x:"+x+", y:"+y+", h:"+_2d.height+", w:"+_37+" }","","2.0"),_2d.h=_2d.height);
+var _39=[];
+function _3a(_3b,_3c){
+_39.push({aroundCorner:_3b,corner:_3c,pos:{x:{"L":x,"R":x+_37,"M":x+(_37>>1)}[_3b.charAt(1)],y:{"T":y,"B":y+_38,"M":y+(_38>>1)}[_3b.charAt(0)]}});
 };
-_1.forEach(_26,function(pos){
-var ltr=_27;
+_1.forEach(_2a,function(pos){
+var ltr=_2b;
 switch(pos){
 case "above-centered":
-_32("TM","BM");
+_3a("TM","BM");
 break;
 case "below-centered":
-_32("BM","TM");
+_3a("BM","TM");
 break;
 case "after-centered":
 ltr=!ltr;
 case "before-centered":
-_32(ltr?"ML":"MR",ltr?"MR":"ML");
+_3a(ltr?"ML":"MR",ltr?"MR":"ML");
 break;
 case "after":
 ltr=!ltr;
 case "before":
-_32(ltr?"TL":"TR",ltr?"TR":"TL");
-_32(ltr?"BL":"BR",ltr?"BR":"BL");
+_3a(ltr?"TL":"TR",ltr?"TR":"TL");
+_3a(ltr?"BL":"BR",ltr?"BR":"BL");
 break;
 case "below-alt":
 ltr=!ltr;
 case "below":
-_32(ltr?"BL":"BR",ltr?"TL":"TR");
-_32(ltr?"BR":"BL",ltr?"TR":"TL");
+_3a(ltr?"BL":"BR",ltr?"TL":"TR");
+_3a(ltr?"BR":"BL",ltr?"TR":"TL");
 break;
 case "above-alt":
 ltr=!ltr;
 case "above":
-_32(ltr?"TL":"TR",ltr?"BL":"BR");
-_32(ltr?"TR":"TL",ltr?"BR":"BL");
+_3a(ltr?"TL":"TR",ltr?"BL":"BR");
+_3a(ltr?"TR":"TL",ltr?"BR":"BL");
 break;
 default:
-_32(pos.aroundCorner,pos.corner);
+_3a(pos.aroundCorner,pos.corner);
 }
 });
-var _35=_8(_24,_31,_28,{w:_2f,h:_30});
-_35.aroundNodePos=_29;
-return _35;
+var _3d=_8(_28,_39,_2c,{w:_37,h:_38});
+_3d.aroundNodePos=_2d;
+return _3d;
 }};
-return _7.place=_1e;
+return _7.place=_21;
 });

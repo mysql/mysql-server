@@ -116,6 +116,8 @@ var ListInput = declare("dojox.form.ListInput", [FormValueWidget],
 
 	templateString: "<div dojoAttachPoint=\"focusNode\" class=\"dijit dijitReset dijitLeft dojoxListInput\"><select dojoAttachpoint=\"_selectNode\" multiple=\"multiple\" class=\"dijitHidden\" ${!nameAttrSetting}></select><ul dojoAttachPoint=\"_listInput\"><li dojoAttachEvent=\"onclick: _onClick\" class=\"dijitInputField dojoxListInputNode dijitHidden\" dojoAttachPoint=\"_inputNode\"></li></ul></div>",
 
+	_setNameAttr: "_selectNode",
+
 	// useAnim: Boolean
 	//		If true, then item will use an animation to show hide itself
 	useAnim: true,

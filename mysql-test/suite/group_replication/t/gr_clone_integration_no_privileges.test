@@ -18,6 +18,8 @@
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
 --source include/force_restart.inc
+--let $rpl_privilege_checks_user_grant_option = 1
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -118,7 +120,7 @@ DROP TABLE t1;
 --source include/rpl_sync.inc
 
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of 1, this member will start distributed recovery using clone.");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
 call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'recovery_user\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1227 : Access denied; you need \\(at least one of\\) the BACKUP_ADMIN privilege\\(s\\) for this operation.");
 call mtr.add_suppression("Due to some issue on the previous step distributed recovery is now executing: Incremental Recovery");

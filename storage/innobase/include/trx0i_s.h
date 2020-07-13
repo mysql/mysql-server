@@ -233,8 +233,10 @@ int trx_i_s_possibly_fetch_data_into_cache(
 
 /** Returns TRUE if the data in the cache is truncated due to the memory
  limit posed by TRX_I_S_MEM_LIMIT.
+ @param[in]   cache   The cache
  @return true if truncated */
-ibool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache); /*!< in: cache */
+bool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache);
+
 /** The maximum length of a resulting lock_id_size in
 trx_i_s_create_lock_id(), not including the terminating NUL.
 "%lu:%lu:%lu:%lu:%lu" -> 20*5+4 chars */

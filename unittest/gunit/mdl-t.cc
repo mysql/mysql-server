@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,16 @@ void thd_wait_end(THD *) {}
   A mock error handler.
 */
 static uint expected_error = 0;
+
+// This is needed to verify that an error was indeed reported. If
+// my_error() is NOT called as expected, test_error_handler_hook will
+// not be called, so the EXPECT_EQ below will not fire, even if
+// expected_error has been assigned a non-zero value.
+static uint reported_error = 0;
 extern "C" void test_error_handler_hook(uint err, const char *str, myf) {
+  // Record the error reported, so that it becomes possible to verify
+  // that an error was actually reported
+  reported_error = err;
   EXPECT_EQ(expected_error, err) << str;
 }
 
@@ -78,6 +87,8 @@ void debug_sync(THD *, const char *sync_point_name MY_ATTRIBUTE((unused)),
   name clashes with the code under test.
 */
 namespace mdl_unittest {
+
+bool test_drive_fix_pins(MDL_context *cp) { return cp->fix_pins(); }
 
 using thread::Notification;
 using thread::Thread;
@@ -106,6 +117,8 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
 
   void SetUp() {
     expected_error = 0;
+    reported_error = 0;
+
     mdl_locks_unused_locks_low_water = MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
     max_write_lock_count = ULONG_MAX;
     mdl_init();
@@ -120,6 +133,9 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
   }
 
   void TearDown() {
+    // Verify that the error handling hook has indeed been called if an error
+    // was expected.
+    EXPECT_TRUE((expected_error == 0 || reported_error > 0));
     system_charset_info = m_charset;
     m_mdl_context.destroy();
     mdl_destroy();
@@ -3757,6 +3773,20 @@ TEST_F(MDLTest, FindLockOwner) {
   MDLTestContextVisitor visitor4;
   EXPECT_FALSE(m_mdl_context.find_lock_owner(&mdl_key, &visitor4));
   EXPECT_EQ(null_context, visitor4.get_visited_ctx());
+}
+
+/**
+   Verify that correct error is reported when the MDL system exhausts the LF
+   Pinbox.
+*/
+TEST_F(MDLTest, ExhaustPinbox) {
+  for (int i = 0; i < 65535; ++i) {
+    MDL_context c;
+    EXPECT_FALSE(test_drive_fix_pins(&c));
+  }
+  MDL_context bad;
+  expected_error = ER_MDL_OUT_OF_RESOURCES;
+  EXPECT_TRUE(test_drive_fix_pins(&bad));
 }
 
 /** Test class for SE notification testing. */

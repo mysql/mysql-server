@@ -4,10 +4,7 @@ _1.provide("dojox.xmpp.util");
 _1.require("dojox.string.Builder");
 _1.require("dojox.encoding.base64");
 _3.xmpp.util.xmlEncode=function(_4){
-if(_4){
-_4=_4.replace("&","&amp;").replace(">","&gt;").replace("<","&lt;").replace("'","&apos;").replace("\"","&quot;");
-}
-return _4;
+return _1.string.escape(_4);
 };
 _3.xmpp.util.encodeJid=function(_5){
 var _6=new _3.string.Builder();

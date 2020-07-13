@@ -34,6 +34,8 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 
+using namespace std::string_literals;
+
 IMPORT_LOG_FUNCTIONS()
 
 MetadataCache::MetadataCache(
@@ -249,27 +251,20 @@ MetadataCache::metadata_servers_list_t MetadataCache::replicaset_lookup(
 bool metadata_cache::ManagedInstance::operator==(
     const ManagedInstance &other) const {
   return mysql_server_uuid == other.mysql_server_uuid &&
-         replicaset_name == other.replicaset_name && role == other.role &&
-         mode == other.mode &&
-         std::fabs(weight - other.weight) <
-             0.001 &&  // 0.001 = reasonable guess, change if needed
-         host == other.host &&
-         port == other.port && version_token == other.version_token &&
-         xport == other.xport;
+         replicaset_name == other.replicaset_name && mode == other.mode &&
+         host == other.host && port == other.port && xport == other.xport &&
+         hidden == other.hidden &&
+         disconnect_existing_sessions_when_hidden ==
+             other.disconnect_existing_sessions_when_hidden;
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
     const std::string &p_replicaset_name,
-    const std::string &p_mysql_server_uuid, const std::string &p_role,
-    const ServerMode p_mode, const float p_weight,
-    const unsigned int p_version_token, const std::string &p_host,
-    const uint16_t p_port, const uint16_t p_xport)
+    const std::string &p_mysql_server_uuid, const ServerMode p_mode,
+    const std::string &p_host, const uint16_t p_port, const uint16_t p_xport)
     : replicaset_name(p_replicaset_name),
       mysql_server_uuid(p_mysql_server_uuid),
-      role(p_role),
       mode(p_mode),
-      weight(p_weight),
-      version_token(p_version_token),
       host(p_host),
       port(p_port),
       xport(p_xport) {}
@@ -324,6 +319,19 @@ std::string to_string(metadata_cache::ServerMode mode) {
     default:
       return "?";
   }
+}
+
+std::string get_hidden_info(const metadata_cache::ManagedInstance &instance) {
+  std::string result;
+  // if both values are default return empty string
+  if (instance.hidden || !instance.disconnect_existing_sessions_when_hidden) {
+    result =
+        "hidden=" + (instance.hidden ? "yes"s : "no"s) +
+        " disconnect_when_hidden=" +
+        (instance.disconnect_existing_sessions_when_hidden ? "yes"s : "no"s);
+  }
+
+  return result;
 }
 
 void MetadataCache::on_refresh_failed(bool terminated) {

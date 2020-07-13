@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -66,10 +66,6 @@ struct dict_table_t;
 only one buffer pool instance is used. */
 #define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
 
-/** Parse temporary tablespace configuration.
- @return true if ok, false on parse error */
-bool srv_parse_temp_data_file_paths_and_sizes(
-    char *str); /*!< in/out: the data file path string */
 /** Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
  and srv_parse_log_group_home_dirs(). */
 void srv_free_paths_and_sizes(void);
@@ -80,6 +76,11 @@ void srv_free_paths_and_sizes(void);
 char *srv_add_path_separator_if_needed(
     char *str); /*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
+
+/** Open an undo tablespace.
+@param[in]  undo_space  Undo tablespace
+@return DB_SUCCESS or error code */
+dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space);
 
 /** Upgrade undo tablespaces by deleting the old undo tablespaces
 referenced by the TRX_SYS page.
@@ -120,9 +121,6 @@ void srv_pre_dd_shutdown();
 /** Shut down the InnoDB database. */
 void srv_shutdown();
 
-/** Shut down all InnoDB background threads. */
-void srv_shutdown_all_bg_threads();
-
 /** Start purge threads. During upgrade we start
 purge threads early to apply purge. */
 void srv_start_purge_threads();
@@ -157,10 +155,6 @@ extern bool srv_sys_tablespaces_open;
 /** true if the server is being started, before rolling back any
 incomplete transactions */
 extern bool srv_startup_is_before_trx_rollback_phase;
-#ifdef UNIV_DEBUG
-/** true if srv_pre_dd_shutdown() has been completed */
-extern bool srv_is_being_shutdown;
-#endif /* UNIV_DEBUG */
 
 /** TRUE if a raw partition is in use */
 extern ibool srv_start_raw_disk_in_use;
@@ -170,21 +164,55 @@ enum srv_shutdown_t {
   /** Database running normally. */
   SRV_SHUTDOWN_NONE = 0,
 
-  /** Stopping all extra background tasks. This includes the purge threads and
-  every other thread in Srv_threads except:
-    - master thread,
+  /** Shutdown has started. Stopping the thread responsible for rollback of
+  recovered transactions. In case of slow shutdown, this implies waiting
+  for completed rollback of all recovered transactions.
+  @remarks Note that user transactions are stopped earlier, when the
+  shutdown state is still equal to SRV_SHUTDOWN_NONE (user transactions
+  are closed when related connections are closed in close_connections()). */
+  SRV_SHUTDOWN_RECOVERY_ROLLBACK,
+
+  /** Stopping threads that might use system transactions or DD objects.
+  This is important because we need to ensure that in the next phase no
+  undo records could be produced (we will be stopping purge threads).
+  After next phase DD is shut down, so also no accesses to DD objects
+  are allowed then. List of threads being stopped within this phase:
+    - dict_stats thread,
+    - fts_optimize thread,
+    - ts_alter_encrypt thread.
+  The master thread exits its main loop and finishes its first phase
+  of shutdown (in which it was allowed to touch DD objects). */
+  SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS,
+
+  /** Stopping the purge threads. Before we enter this phase, we have
+  the guarantee that no new undo records could be produced. */
+  SRV_SHUTDOWN_PURGE,
+
+  /** Shutting down the DD. */
+  SRV_SHUTDOWN_DD,
+
+  /** Stopping remaining InnoDB background threads except:
+    - the master thread,
     - redo log threads,
     - page cleaner threads,
     - archiver threads.
-  At this phase the purge threads must be stopped. */
+  List of threads being stopped within this phase:
+    - lock_wait_timeout thread,
+    - error_monitor thread,
+    - monitor thread,
+    - buf_dump thread,
+    - buf_resize thread.
+  @remarks If your thread might touch DD objects or use system transactions
+  it must be stopped within SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS phase.
+*/
   SRV_SHUTDOWN_CLEANUP,
 
   /** Stopping the master thread. */
   SRV_SHUTDOWN_MASTER_STOP,
 
-  /** Once we enter this phase the page_cleaners can clean up the buffer pool
-  and exit. Redo log threads write and flush the log buffer and exit after
-  page cleaners (and within this phase). Then we switch to the LAST_PHASE. */
+  /** Once we enter this phase, the page cleaners can clean up the buffer pool
+  and exit. The redo log threads write and flush the log buffer and exit after
+  the page cleaners (and within this phase). */
   SRV_SHUTDOWN_FLUSH_PHASE,
 
   /** Last phase after ensuring that all data have been flushed to disk and
@@ -192,18 +220,42 @@ enum srv_shutdown_t {
   During this phase we close all files and ensure archiver has archived all. */
   SRV_SHUTDOWN_LAST_PHASE,
 
-  /** Exit all threads and free resources. */
+  /** Exit all threads and free resources. We might reach this phase in one
+  of two different ways:
+    - after visiting all previous states (usual shutdown),
+    - or during startup when we failed and we abort the startup. */
   SRV_SHUTDOWN_EXIT_THREADS
 };
 
-/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
-SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
+/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE
+to SRV_SHUTDOWN_EXIT_THREADS. */
 extern std::atomic<enum srv_shutdown_t> srv_shutdown_state;
 
-/** Call exit(3) */
+/** Call std::quick_exit(3) */
 void srv_fatal_error() MY_ATTRIBUTE((noreturn));
-/**
-Shutdown all background threads created by InnoDB. */
-void srv_shutdown_all_bg_threads();
+
+/** Attempt to shutdown all background threads created by InnoDB.
+NOTE: Does not guarantee they are actually shut down, only does
+the best effort. Changes state of shutdown to SHUTDOWN_EXIT_THREADS,
+wakes up the background threads and waits a little bit. It might be
+used within startup phase or when fatal error is discovered during
+some IO operation. Therefore you must not assume anything related
+to the state in which it might be used. */
+void srv_shutdown_exit_threads();
+
+/** Checks if all recovered transactions are supposed to be rolled back
+before shutdown is ended.
+@return value of the check */
+bool srv_shutdown_waits_for_rollback_of_recovered_transactions();
+
+/** Allows to safely check value of the current shutdown state.
+Note that the current shutdown state might be changed while the
+check is being executed, but the check is based on a single load
+of the srv_shutdown_state (atomic global variable). */
+template <typename F>
+bool srv_shutdown_state_matches(F &&f) {
+  const auto state = srv_shutdown_state.load();
+  return std::forward<F>(f)(state);
+}
 
 #endif

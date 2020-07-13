@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <cinttypes>  // std::strtoumax
 #include <cstdlib>
 #include <sstream>
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #ifndef _WIN32
 #include <netdb.h>
 #include <sys/socket.h>
@@ -54,9 +53,14 @@ static const unsigned int JOIN_ATTEMPTS = 0;
 static const uint64_t JOIN_SLEEP_TIME = 5;
 
 /*
-  Default and Min value for the maximum size of the XCom cache.
+  Default value for the maximum size of the XCom cache.
 */
 static const uint64_t DEFAULT_XCOM_MAX_CACHE_SIZE = 1073741824;
+
+/*
+  Min value for the maximum size of the XCom cache.
+*/
+static const uint64_t MIN_XCOM_MAX_CACHE_SIZE = 134217728;
 
 Gcs_xcom_utils::~Gcs_xcom_utils() {}
 
@@ -580,7 +584,7 @@ bool is_parameters_syntax_correct(
       (xcom_cache_size_str->size() == 0 || !is_number(*xcom_cache_size_str) ||
        // Check that it is not lower than the min value allowed for the var
        strtoull(xcom_cache_size_str->c_str(), nullptr, 10) <
-           DEFAULT_XCOM_MAX_CACHE_SIZE ||
+           MIN_XCOM_MAX_CACHE_SIZE ||
        // Check that it is not higher than the max value allowed
        strtoull(xcom_cache_size_str->c_str(), nullptr, 10) > ULONG_MAX ||
        // Check that it is within the range of values allowed for the var type.

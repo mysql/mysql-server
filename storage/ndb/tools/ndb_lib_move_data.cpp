@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -349,6 +349,15 @@ Ndb_move_data::check_tables()
         a1ColCopy.setDynamic(false);
         a2ColCopy.setDynamic(false);
         
+        if ((attr1.equal = attr2.equal = a1ColCopy.equal(a2ColCopy)))
+        {
+          continue;
+        }
+
+        /* OK if columns just differ by being part of the PK */
+        a1ColCopy.setPrimaryKey(false);
+        a2ColCopy.setPrimaryKey(false);
+
         if ((attr1.equal = attr2.equal = a1ColCopy.equal(a2ColCopy)))
         {
           continue;

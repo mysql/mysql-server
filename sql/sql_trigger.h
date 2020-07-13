@@ -2,7 +2,7 @@
 #define SQL_TRIGGER_INCLUDED
 
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,11 +126,8 @@ bool acquire_mdl_for_trigger(THD *thd, const char *db, const char *trg_name,
     @retval true  Failure
 */
 
-inline bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
-                                              const char *trg_name) {
-  return acquire_mdl_for_trigger(thd, db, trg_name, MDL_EXCLUSIVE);
-}
-
+bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
+                                       const char *trg_name);
 /**
   Acquire shared MDL lock for a trigger in specified schema.
 
@@ -193,7 +190,7 @@ class Sql_cmd_ddl_trigger_common : public Sql_cmd {
 
   void restore_original_mdl_state(THD *thd, MDL_ticket *mdl_ticket) const;
 
-  TABLE_LIST *m_trigger_table;
+  TABLE_LIST *m_trigger_table{nullptr};
 };
 
 /**
@@ -206,11 +203,11 @@ class Sql_cmd_create_trigger : public Sql_cmd_ddl_trigger_common {
     Return the command code for CREATE TRIGGER
   */
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override final {
     return SQLCOM_CREATE_TRIGGER;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override final;
 };
 
 /**
@@ -223,11 +220,11 @@ class Sql_cmd_drop_trigger : public Sql_cmd_ddl_trigger_common {
     Return the command code for DROP TRIGGER
   */
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override final {
     return SQLCOM_DROP_TRIGGER;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override final;
 };
 
 #endif /* SQL_TRIGGER_INCLUDED */

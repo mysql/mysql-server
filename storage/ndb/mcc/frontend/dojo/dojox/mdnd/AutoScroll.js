@@ -102,7 +102,7 @@ this._autoScrollActive=false;
 },destroy:function(){
 _4.disconnect(this.resizeHandler);
 }});
-dojox.mdnd.autoScroll=null;
-dojox.mdnd.autoScroll=new dojox.mdnd.AutoScroll();
+as.autoScroll=null;
+as.autoScroll=new as();
 return as;
 });

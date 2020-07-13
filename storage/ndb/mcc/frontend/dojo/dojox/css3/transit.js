@@ -1,47 +1,58 @@
 //>>built
-define("dojox/css3/transit",["dojo/_base/array","dojo/dom-style","dojo/DeferredList","./transition"],function(_1,_2,_3,_4){
-var _5=function(_6,to,_7){
-var _8=(_7&&_7.reverse)?-1:1;
-if(!_7||!_7.transition||!_4[_7.transition]){
-_2.set(_6,"display","none");
-_2.set(to,"display","");
-if(_7.transitionDefs){
-if(_7.transitionDefs[_6.id]){
-_7.transitionDefs[_6.id].resolve(_6);
+define("dojox/css3/transit",["dojo/_base/array","dojo/dom-style","dojo/promise/all","dojo/sniff","./transition"],function(_1,_2,_3,_4,_5){
+var _6=function(_7,to,_8){
+var _9=(_8&&_8.reverse)?-1:1;
+if(!_8||!_8.transition||!_5[_8.transition]||(_4("ie")&&_4("ie")<10)){
+if(_7){
+_2.set(_7,"display","none");
 }
-if(_7.transitionDefs[to.id]){
-_7.transitionDefs[to.id].resolve(to);
+if(to){
+_2.set(to,"display","");
+}
+if(_8.transitionDefs){
+if(_8.transitionDefs[_7.id]){
+_8.transitionDefs[_7.id].resolve(_7);
+}
+if(_8.transitionDefs[to.id]){
+_8.transitionDefs[to.id].resolve(to);
 }
 }
 return new _3([]);
 }else{
-var _9=[];
 var _a=[];
-var _b=250;
-if(_7.transition==="fade"){
-_b=600;
+var _b=[];
+var _c=2000;
+if(!_8.duration){
+_c=250;
+if(_8.transition==="fade"){
+_c=600;
 }else{
-if(_7.transition==="flip"){
-_b=200;
+if(_8.transition==="flip"){
+_c=200;
 }
 }
-_2.set(_6,"display","");
+}else{
+_c=_8.duration;
+}
+if(_7){
+_2.set(_7,"display","");
+var _d=_5[_8.transition](_7,{"in":false,direction:_9,duration:_c,deferred:(_8.transitionDefs&&_8.transitionDefs[_7.id])?_8.transitionDefs[_7.id]:null});
+_a.push(_d.deferred);
+_b.push(_d);
+}
+if(to){
 _2.set(to,"display","");
-if(_6){
-var _c=_4[_7.transition](_6,{"in":false,direction:_8,duration:_b,deferred:(_7.transitionDefs&&_7.transitionDefs[_6.id])?_7.transitionDefs[_6.id]:null});
-_9.push(_c.deferred);
-_a.push(_c);
+var _e=_5[_8.transition](to,{direction:_9,duration:_c,deferred:(_8.transitionDefs&&_8.transitionDefs[to.id])?_8.transitionDefs[to.id]:null});
+_a.push(_e.deferred);
+_b.push(_e);
 }
-var _d=_4[_7.transition](to,{direction:_8,duration:_b,deferred:(_7.transitionDefs&&_7.transitionDefs[to.id])?_7.transitionDefs[to.id]:null});
-_9.push(_d.deferred);
-_a.push(_d);
-if(_7.transition==="flip"){
-_4.chainedPlay(_a);
+if(_8.transition==="flip"){
+_5.chainedPlay(_b);
 }else{
-_4.groupedPlay(_a);
+_5.groupedPlay(_b);
 }
-return new _3(_9);
+return _3(_a);
 }
 };
-return _5;
+return _6;
 });

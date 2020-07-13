@@ -356,27 +356,42 @@
 	visibility: hidden !important;
 	width: 0px !important;
 }
+.dj_ie .dojoxGridRtl .dojoxGridHeader table {
+	float:none;
+}
+.dojoxGridRtl .dojoxGridCell {
+	text-align:right;
+}
+.dj_ie8 .dojoxGridRtl .dojoxGridCell {
+	border-left: none;
+}
+.dj_ie .dojoxGridRtl .dojoxGridMasterView .dojoxGridRowTable {
+	border-left: #e5dac8 1px solid
+}
+.dojoxGridRtl .dojoxGridArrowButtonNode {
+	float:left;
+}
 .claro .dojoxGrid {
 	margin:0px;
 	padding:0px;
-	border-collapse:collapse;	
+	border-collapse:collapse;
 	background-color: #fff;
 	border: 1px solid #DBDBDB;
 }
 .claro .dojoxGridMasterMessages {
 	background-color: #fefefe;
 }
-.claro .dojoxGridLoading, 
+.claro .dojoxGridLoading,
 .claro .dojoxGridError {
 	background-position:left center;
 	background-repeat: no-repeat;
 	padding-left:25px;
 }
 .claro .dojoxGridLoading {
-	background-image:url("../../../../dijit/themes/claro/images/loadingAnimation.gif");
+	background-image:url("../../../../dijit/icons/images/loadingAnimation.gif");
 }
 .claro .dojoxGridError {
-	background-image: url("../../../../dijit/icons/images/commonIconsObjActEnabled.png"); 
+	background-image: url("../../../../dijit/icons/images/commonIconsObjActEnabled.png");
 	background-position: -496px;
 	width: 16px;
 	height: 16px;
@@ -393,7 +408,7 @@
 	border-width:1px;
 	border-color: #FFFFFF #BCBCBC #BCBCBC #FFFFFF;
 }
-.dj_ie6 .claro .dojoxGridHeader .dojoxGridCell { 
+.dj_ie6 .claro .dojoxGridHeader .dojoxGridCell {
 	border-color:#BCBCBC #BCBCBC #BCBCBC #e5edf4;
 }
 .claro .dojoxGridHeader .dojoxGridCellOver {
@@ -445,7 +460,7 @@
 .dj_ie6 .claro .dojoxGridHeader .dojoxGridRowTable,
 .dj_ie7 .claro .dojoxGridHeader .dojoxGridRowTable {
 	border-collapse:collapse;
-	border-right: 0px;	
+	border-right: 0px;
 }
 .claro .dojoxGridHeader .dojoxGridRowTable tr {
 	background: none;
@@ -462,16 +477,16 @@
 .claro .dojoxGridScrollbox {
 	background-color: #fefefe;
 }
-.claro .dojoxGridRowbar { 
+.claro .dojoxGridRowbar {
 	background:url("../../resources/images/header.png") #e5edf4 repeat-x top;
 	border:none;
 	border-right:1px solid #BCBCBC;
 }
-.claro .dojoxGridRowbarTable { 
+.claro .dojoxGridRowbarTable {
 	background:transparent url("../../resources/images/header_shadow.png") repeat-x scroll center bottom;
 }
 .dj_ie6 .claro .dojoxGridRowbar,
-.dj_ie6 .claro .dojoxGridRowbarTable { 
+.dj_ie6 .claro .dojoxGridRowbarTable {
 	background-image:none;
 }
 .claro .dojoxGridRowbarInner {
@@ -549,17 +564,17 @@
 .dj_ie6 .claro .dojoxGridRowActive .dojoxGridCell,
 .dj_ie7 .claro .dojoxGridRowActive .dojoxGridCell {
 	border-left:1px solid #7DBEFA;
-	border-right:1px solid #7DBEFA;	
+	border-right:1px solid #7DBEFA;
 }
 .claro .dojoxGridDoubleAffordance .dojoxGridRowOver .dojoxGridCellOver {
 	border:solid 1px #769dc0;
 	background-color:#93cafe;
 	border-collapse:separate;
 }
-.claro .dojoxGridDoubleAffordance .dojoxGridRowActive .dojoxGridCell{	
+.claro .dojoxGridDoubleAffordance .dojoxGridRowActive .dojoxGridCell{
 	background-image:url("../../resources/images/row_back.png");
 }
-.claro .dojoxGridDoubleAffordance .dojoxGridRowActive .dojoxGridCellActive {	
+.claro .dojoxGridDoubleAffordance .dojoxGridRowActive .dojoxGridCellActive {
 	background:url("../../resources/images/td_button_down.png") #93cafe repeat-x;
 }
 .dj_ie6 .claro .dojoxGridCell {
@@ -567,7 +582,7 @@
 }
 .claro .dojoxGridRowEditing td {
 	
-	background-color: #cee6fa; 
+	background-color: #cee6fa;
 	
 }
 .claro .dojoxGridRow-inserting td {
@@ -619,7 +634,7 @@
 	background-position: -53px 0px;
 }
 .claro .dojoxGridExpandoLoading .dojoxGridExpandoNode {
-	background-image: url("../../../../dijit/themes/claro/images/loadingAnimation.gif");
+	background-image: url("../../../../dijit/icons/images/loadingAnimation.gif");
 }
 .claro .dojoxGridTreeModel .dojoxGridNoChildren .dojoxGridExpando {
 	visibility: visible !important;

@@ -363,7 +363,7 @@ var JsonRestStore = declare("dojox.data.JsonRestStore", ServiceStore,
 			//		- global:
 			//			This will cause the revert to undo all the changes for all
 			//			JsonRestStores in a single operation.
-			rpcJsonRest.revert(kwArgs && kwArgs.global && this.service);
+			rpcJsonRest.revert(!(kwArgs && kwArgs.global) && this.service);
 		},
 
 		isDirty: function(item){

@@ -188,6 +188,7 @@ MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
       sys_user_operations_(sys_user_operations)
 #endif
 {
+  set_log_reopen_complete_callback(default_log_reopen_complete_cb);
   set_signal_handlers();
   init(arguments);  // throws MySQLSession::Error, std::runtime_error,
                     // std::out_of_range, std::logic_error, ...?

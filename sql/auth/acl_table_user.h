@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #endif
 
 #include <sys/types.h>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -50,7 +51,9 @@ namespace acl_table {
 enum class User_attribute_type {
   ADDITIONAL_PASSWORD = 0,
   RESTRICTIONS,
-  PASSWORD_LOCKING
+  PASSWORD_LOCKING,
+  METADATA,
+  COMMENT
 };
 
 struct Password_lock {
@@ -111,7 +114,7 @@ class Acl_table_user_writer : public Acl_table {
   Acl_table_user_writer(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                         bool revoke_grant, bool can_create_user,
                         Pod_user_what_to_update what_to_update,
-                        Restrictions *restrictions = nullptr);
+                        Restrictions *restrictions);
   virtual ~Acl_table_user_writer();
   virtual Acl_table_op_status finish_operation(Table_op_error_code &error);
   Acl_table_user_writer_status driver();
@@ -131,10 +134,14 @@ class Acl_table_user_writer : public Acl_table {
   bool update_user_attributes(std::string &current_password,
                               Acl_table_user_writer_status &return_value);
 
+  void replace_user_application_user_metadata(
+      std::function<bool(TABLE *table)> const &update);
   ulong get_user_privileges();
   std::string get_current_credentials();
 
  private:
+  bool update_user_application_user_metadata();
+  bool m_has_user_application_user_metadata;
   LEX_USER *m_combo;
   ulong m_rights;
   bool m_revoke_grant;
@@ -142,6 +149,7 @@ class Acl_table_user_writer : public Acl_table {
   Pod_user_what_to_update m_what_to_update;
   User_table_schema *m_table_schema;
   Restrictions *m_restrictions;
+  std::function<bool(TABLE *table)> m_user_application_user_metadata;
 };
 
 /**
@@ -182,6 +190,7 @@ class Acl_table_user_reader : public Acl_table {
   unique_ptr_destroy_only<RowIterator> m_iterator;
   MEM_ROOT m_mem_root;
   Restrictions *m_restrictions;
+  Json_object *m_user_application_user_metadata_json;
 };
 
 }  // namespace acl_table

@@ -1,6 +1,7 @@
 define(
 "dojo/cldr/nls/da/gregorian", //begin v1.x content
 {
+	"dateFormatItem-Ehm": "E h.mm a",
 	"days-standAlone-short": [
 		"sø",
 		"ma",
@@ -24,20 +25,28 @@ define(
 		"N",
 		"D"
 	],
+	"field-second-relative+0": "nu",
 	"quarters-standAlone-narrow": [
 		"1",
 		"2",
 		"3",
 		"4"
 	],
-	"field-weekday": "ugedag",
+	"field-weekday": "Ugedag",
 	"dateFormatItem-yQQQ": "QQQ y",
 	"dateFormatItem-yMEd": "E d/M/y",
+	"field-wed-relative+0": "denne onsdag",
+	"dateFormatItem-GyMMMEd": "E d. MMM y G",
 	"dateFormatItem-MMMEd": "E d. MMM",
+	"field-wed-relative+1": "næste onsdag",
 	"eraNarrow": [
-		"f.Kr.",
-		"e.Kr."
+		"fKr",
+		"fvt",
+		"eKr",
+		"vt"
 	],
+	"dateFormatItem-yMM": "MM/y",
+	"field-tue-relative+-1": "sidste tirsdag",
 	"days-format-short": [
 		"sø",
 		"ma",
@@ -47,7 +56,9 @@ define(
 		"fr",
 		"lø"
 	],
-	"dateFormat-long": "d. MMM y",
+	"dateFormat-long": "d. MMMM y",
+	"field-fri-relative+-1": "sidste fredag",
+	"field-wed-relative+-1": "sidste onsdag",
 	"months-format-wide": [
 		"januar",
 		"februar",
@@ -65,11 +76,12 @@ define(
 	"dateTimeFormat-medium": "{1} {0}",
 	"dayPeriods-format-wide-pm": "PM",
 	"dateFormat-full": "EEEE 'den' d. MMMM y",
+	"field-thu-relative+-1": "sidste torsdag",
 	"dateFormatItem-Md": "d/M",
 	"dayPeriods-format-wide-noon": "middag",
 	"dateFormatItem-yMd": "d/M/y",
-	"field-era": "æra",
 	"dateFormatItem-yM": "M/y",
+	"field-era": "Æra",
 	"months-standAlone-wide": [
 		"januar",
 		"februar",
@@ -92,11 +104,11 @@ define(
 		"4. kvartal"
 	],
 	"timeFormat-long": "HH.mm.ss z",
-	"field-year": "år",
 	"dateFormatItem-yMMM": "MMM y",
-	"dateFormatItem-yQ": "Q yyyy",
-	"field-hour": "time",
+	"dateFormatItem-yQQQQ": "QQQQ y",
+	"field-year": "År",
 	"dateFormatItem-MMdd": "dd/MM",
+	"field-hour": "Time",
 	"months-format-abbr": [
 		"jan.",
 		"feb.",
@@ -111,11 +123,15 @@ define(
 		"nov.",
 		"dec."
 	],
-	"dateFormatItem-yyQ": "Q. 'kvartal' yy",
+	"field-sat-relative+0": "denne lørdag",
+	"field-sat-relative+1": "næste lørdag",
 	"timeFormat-full": "HH.mm.ss zzzz",
 	"field-day-relative+0": "i dag",
 	"field-day-relative+1": "i morgen",
+	"field-thu-relative+0": "denne torsdag",
+	"dateFormatItem-GyMMMd": "d. MMM y G",
 	"field-day-relative+2": "i overmorgen",
+	"field-thu-relative+1": "næste torsdag",
 	"dateFormatItem-H": "HH",
 	"months-standAlone-abbr": [
 		"jan",
@@ -132,10 +148,10 @@ define(
 		"dec"
 	],
 	"quarters-format-abbr": [
-		"K1",
-		"K2",
-		"K3",
-		"K4"
+		"1. kvt.",
+		"2. kvt.",
+		"3. kvt.",
+		"4. kvt."
 	],
 	"quarters-standAlone-wide": [
 		"1. kvartal",
@@ -143,6 +159,7 @@ define(
 		"3. kvartal",
 		"4. kvartal"
 	],
+	"dateFormatItem-Gy": "y G",
 	"dateFormatItem-M": "M",
 	"days-standAlone-wide": [
 		"søndag",
@@ -153,23 +170,23 @@ define(
 		"fredag",
 		"lørdag"
 	],
-	"dateFormatItem-yyyyMMM": "MMM y",
 	"dayPeriods-format-abbr-noon": "middag",
-	"dateFormatItem-yyMMM": "MMM yy",
 	"timeFormat-medium": "HH.mm.ss",
+	"field-sun-relative+0": "denne søndag",
 	"dateFormatItem-Hm": "HH.mm",
 	"quarters-standAlone-abbr": [
-		"K1",
-		"K2",
-		"K3",
-		"K4"
+		"1. kvt.",
+		"2. kvt.",
+		"3. kvt.",
+		"4. kvt."
 	],
+	"field-sun-relative+1": "næste søndag",
 	"eraAbbr": [
 		"f.Kr.",
 		"e.Kr."
 	],
-	"field-minute": "minut",
-	"field-dayperiod": "dagtid",
+	"field-minute": "Minut",
+	"field-dayperiod": "AM/PM",
 	"days-standAlone-abbr": [
 		"søn",
 		"man",
@@ -189,12 +206,14 @@ define(
 	],
 	"field-day-relative+-1": "i går",
 	"dateFormatItem-h": "h a",
-	"dateTimeFormat-long": "{1} {0}",
+	"dateTimeFormat-long": "{1} 'kl.' {0}",
 	"field-day-relative+-2": "i forgårs",
 	"dateFormatItem-MMMd": "d. MMM",
 	"dateFormatItem-MEd": "E d/M",
-	"dateTimeFormat-full": "{1} {0}",
-	"field-day": "dag",
+	"dateTimeFormat-full": "{1} 'kl.' {0}",
+	"field-fri-relative+0": "denne fredag",
+	"field-fri-relative+1": "næste fredag",
+	"field-day": "Dag",
 	"days-format-wide": [
 		"søndag",
 		"mandag",
@@ -204,8 +223,7 @@ define(
 		"fredag",
 		"lørdag"
 	],
-	"field-zone": "tidszone",
-	"dateFormatItem-yyyyMM": "MM/yyyy",
+	"field-zone": "Tidszone",
 	"dateFormatItem-y": "y",
 	"months-standAlone-narrow": [
 		"J",
@@ -223,7 +241,6 @@ define(
 	],
 	"field-year-relative+-1": "sidste år",
 	"field-month-relative+-1": "sidste måned",
-	"dateFormatItem-yyMM": "MM/yy",
 	"dateFormatItem-hm": "h.mm a",
 	"days-format-abbr": [
 		"søn.",
@@ -234,11 +251,11 @@ define(
 		"fre.",
 		"lør."
 	],
-	"dateFormatItem-yMMMd": "d. MMM y",
 	"eraNames": [
 		"f.Kr.",
 		"e.Kr."
 	],
+	"dateFormatItem-yMMMd": "d. MMM y",
 	"days-format-narrow": [
 		"S",
 		"M",
@@ -258,25 +275,36 @@ define(
 		"L"
 	],
 	"dateFormatItem-MMM": "MMM",
-	"field-month": "måned",
+	"field-month": "Måned",
+	"field-tue-relative+0": "denne tirsdag",
+	"field-tue-relative+1": "næste tirsdag",
 	"dayPeriods-format-wide-am": "AM",
 	"dateFormatItem-MMMMEd": "E d. MMMM",
-	"dateFormat-short": "dd/MM/yy",
+	"dateFormatItem-EHm": "E HH.mm",
+	"field-mon-relative+0": "denne mandag",
+	"field-mon-relative+1": "næste mandag",
+	"dateFormat-short": "dd/MM/y",
+	"dateFormatItem-EHms": "E HH.mm.ss",
+	"dateFormatItem-Ehms": "E h.mm.ss a",
 	"dayPeriods-format-narrow-noon": "middag",
-	"field-second": "sekund",
+	"field-second": "Sekund",
+	"field-sat-relative+-1": "sidste lørdag",
 	"dateFormatItem-yMMMEd": "E d. MMM y",
+	"field-sun-relative+-1": "sidste søndag",
 	"field-month-relative+0": "denne måned",
 	"field-month-relative+1": "næste måned",
-	"dateFormatItem-Ed": "E 'd'. d.",
-	"field-week": "uge",
-	"dateFormat-medium": "dd/MM/yyyy",
+	"dateFormatItem-Ed": "E 'den' d.",
+	"dateTimeFormats-appendItem-Timezone": "{0} {1}",
+	"field-week": "Uge",
+	"dateFormat-medium": "d. MMM y",
 	"field-year-relative+0": "i år",
 	"field-week-relative+-1": "sidste uge",
 	"field-year-relative+1": "næste år",
 	"dateTimeFormat-short": "{1} {0}",
 	"dateFormatItem-Hms": "HH.mm.ss",
 	"dateFormatItem-hms": "h.mm.ss a",
-	"dateFormatItem-yyyy": "y",
+	"dateFormatItem-GyMMM": "MMM y G",
+	"field-mon-relative+-1": "sidste mandag",
 	"field-week-relative+0": "denne uge",
 	"field-week-relative+1": "næste uge"
 }

@@ -1,7 +1,8 @@
 define("dijit/form/RangeBoundTextBox", [
 	"dojo/_base/declare", // declare
 	"dojo/i18n", // i18n.getLocalization
-	"./MappedTextBox"
+	"./MappedTextBox",
+	"dojo/i18n!./nls/validate"
 ], function(declare, i18n, MappedTextBox){
 
 	// module:
@@ -85,17 +86,6 @@ define("dijit/form/RangeBoundTextBox", [
 				this.messages = i18n.getLocalization("dijit.form", "validate", this.lang);
 				this.rangeMessage = this.messages.rangeMessage;
 			}
-		},
-
-		applyTextDir: function(/*===== element, text =====*/){
-			// summary:
-			//		The function overridden in the _BidiSupport module,
-			//		originally used for setting element.dir according to this.textDir.
-			//		In this case does nothing.
-			// element: Object
-			// text: String
-			// tags:
-			//		protected.
 		}
 	});
 	/*=====

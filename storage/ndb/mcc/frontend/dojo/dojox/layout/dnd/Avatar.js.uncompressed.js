@@ -33,7 +33,7 @@ dojo.declare("dojox.layout.dnd.Avatar", dojo.dnd.Avatar, {
 		node.style.margin = "0px"
 		node.style.width = dojo.marginBox(source.node).w + "px"
 		
-		// add contructor object params to define it
+		// add constructor object params to define it
 		dojo.style(node, "opacity", this.opacity);
 		this.node = node;
 	},

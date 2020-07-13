@@ -34,7 +34,7 @@ SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
 ROLLBACK;
 
 --echo # Verify that before the crash, we HAVE NOT reached 7-th iteration
-let SEARCH_FILE= $MYSQLTEST_VARDIR/log/lob_rollback_crash_4.err;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_PATTERN= Rolling back LOB for transaction \d+ undo number \d+ : current index length \d+\. \(iteration 7\);
 --source include/search_pattern.inc
 

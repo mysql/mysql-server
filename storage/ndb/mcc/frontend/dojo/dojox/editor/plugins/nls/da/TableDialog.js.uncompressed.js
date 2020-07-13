@@ -11,7 +11,7 @@ define(
 	backgroundColor: "Baggrundsfarve:",
 	borderColor: "Kantfarve:",
 	borderThickness: "Kanttykkelse:",
-	percent: "procent",
+	percent: "percent",
 	pixels: "pixel",
 	"default": "standard",
 	left: "venstre",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Tilføj kolonne før",
 	insertTableColumnAfterLabel: "Tilføj kolonne efter",
 	deleteTableRowLabel: "Slet række",
-	deleteTableColumnLabel: "Slet kolonne"
+	deleteTableColumnLabel: "Slet kolonne",
+	colorTableCellTitle: "Baggrundsfarve i tabelcelle:",
+	tableContextMenuTitle: "Tabel - kontekstmenu"
 })
 );

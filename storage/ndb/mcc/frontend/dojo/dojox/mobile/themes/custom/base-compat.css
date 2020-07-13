@@ -1,8 +1,8 @@
 .dj_gecko .mblColorBlue {
-  background-image: -moz-linear-gradient(top, #7a9de9 0%, #2362dd 100%);
+  background-image: -moz-linear-gradient(top, #48adfc 0%, #048bf4 100%);
 }
 .dj_gecko .mblColorBlue45 {
-  background-image: -moz-linear-gradient(top left, #7a9de9 0%, #2362dd 100%);
+  background-image: -moz-linear-gradient(top left, #048bf4 0%, #48adfc 100%);
 }
 .dj_gecko .mblColorDefault {
   background-image: -moz-linear-gradient(top, #e2e2e2 0%, #a4a4a4 100%);
@@ -11,10 +11,10 @@
   background-image: -moz-linear-gradient(top left, #e2e2e2 0%, #a4a4a4 100%);
 }
 .dj_gecko .mblColorDefaultSel {
-  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #666666 100%);
+  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #999999 100%);
 }
 .dj_gecko .mblColorDefaultSel45 {
-  background-image: -moz-linear-gradient(top left, #bbbbbb 0%, #666666 100%);
+  background-image: -moz-linear-gradient(top left, #bbbbbb 0%, #999999 100%);
 }
 .mblHeading {
   background-image: url("compat/heading-bg.png");
@@ -102,14 +102,14 @@
   font-size: 1px;
   overflow: hidden;
   border-style: solid;
-  border-color: #cccccc;
+  border-color: #c0c0c0;
   border-width: 0 1px;
 }
 .dj_ie .mblRoundRectContainer {
   padding: 3px 8px;
   background-color: #ffffff;
   border-style: solid;
-  border-color: #cccccc;
+  border-color: #c0c0c0;
   border-width: 0 1px;
 }
 .dj_ie .mblRoundRectList .mblRoundRectContainer {
@@ -120,7 +120,7 @@
   height: 0;
 }
 .dj_ie .mblRoundCorner1T {
-  background-color: #cccccc;
+  background-color: #c0c0c0;
   margin: 0 5px;
 }
 .dj_ie .mblRoundCorner2T {
@@ -155,7 +155,7 @@
   border-width: 0 3px;
 }
 .dj_ie .mblRoundCorner5B {
-  background-color: #cccccc;
+  background-color: #c0c0c0;
   margin: 0 5px;
 }
 .dj_ff3 .mblRoundRectList {
@@ -178,14 +178,14 @@
   font-size: 1px;
   overflow: hidden;
   border-style: solid;
-  border-color: #cccccc;
+  border-color: #c0c0c0;
   border-width: 0 1px;
 }
 .dj_ie .mblRoundRectContainer {
   padding: 3px 8px;
   background-color: #ffffff;
   border-style: solid;
-  border-color: #cccccc;
+  border-color: #c0c0c0;
   border-width: 0 1px;
 }
 .dj_ie .mblRoundRectList .mblRoundRectContainer {
@@ -196,7 +196,7 @@
   height: 0;
 }
 .dj_ie .mblRoundCorner1T {
-  background-color: #cccccc;
+  background-color: #c0c0c0;
   margin: 0 5px;
 }
 .dj_ie .mblRoundCorner2T {
@@ -231,7 +231,7 @@
   border-width: 0 3px;
 }
 .dj_ie .mblRoundCorner5B {
-  background-color: #cccccc;
+  background-color: #c0c0c0;
   margin: 0 5px;
 }
 .mblDomButtonGrayArrow, .mblDomButtonArrow {
@@ -249,10 +249,10 @@
 	display: none;
 }
 .mblListItemSelected {
-  background-color: #666666;
+  background-color: #999999;
 }
 .dj_gecko .mblListItemSelected {
-  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #666666 100%);
+  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #999999 100%);
 }
 .dj_ie6 .mblListItem {
   vertical-align: bottom;
@@ -264,7 +264,7 @@
   -moz-box-sizing: border-box;
 }
 .dj_gecko .mblSwitch .mblSwitchBgLeft {
-  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #666666 100%);
+  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #999999 100%);
 }
 .dj_gecko .mblSwitch .mblSwitchBgRight {
   background-image: -moz-linear-gradient(top, #ffffff 0%, #e2e2e2 100%);

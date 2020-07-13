@@ -1,0 +1,269 @@
+use test;
+********************************
+Autoincrement extend pk
+Prepare table + backup with log
+********************************
+create table test.autokey (
+ak   bigint unsigned not null auto_increment,
+ok   bigint unsigned not null,
+data varchar(200) not null,
+primary key(ak),
+key(ok))
+engine=ndb;
+insert into test.autokey (ok,data) values 
+(1, "1-1"),
+(1, "1-2"),
+(1, "1-3"),
+(1, "1-4"),
+(2, "2-1"),
+(2, "2-2"),
+(2, "2-3"),
+(3, "3-1"),
+(3, "3-2"),
+(3, "3-3");
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1
+2	1	1-2
+3	1	1-3
+4	1	1-4
+5	2	2-1
+6	2	2-2
+7	2	2-3
+8	3	3-1
+9	3	3-2
+10	3	3-3
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.autokey (ok,data) values
+(4, "4-1"),
+(4, "4-2"),
+(4, "4-3"),
+(5, "5-1"),
+(5, "5-2");
+update test.autokey set data = concat(data, "-mk2");
+update test.autokey set ok=ok, data=concat(data,"-1");
+delete from test.autokey where ok=2;
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1-mk2-1
+2	1	1-2-mk2-1
+3	1	1-3-mk2-1
+4	1	1-4-mk2-1
+8	3	3-1-mk2-1
+9	3	3-2-mk2-1
+10	3	3-3-mk2-1
+11	4	4-1-mk2-1
+12	4	4-2-mk2-1
+13	4	4-3-mk2-1
+14	5	5-1-mk2-1
+15	5	5-2-mk2-1
+Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+ak
+16
+drop table test.autokey;
+Primary key extended to include another column
+PK order changed
+Extra secondary index dropped
+**********************************************
+create table test.autokey (
+ak   bigint unsigned not null auto_increment,
+ok   bigint unsigned not null,
+data varchar(200) not null,
+primary key(ok,ak))
+engine=ndb partition by key(ok);
+Run restore
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1-mk2-1
+2	1	1-2-mk2-1
+3	1	1-3-mk2-1
+4	1	1-4-mk2-1
+8	3	3-1-mk2-1
+9	3	3-2-mk2-1
+10	3	3-3-mk2-1
+11	4	4-1-mk2-1
+12	4	4-2-mk2-1
+13	4	4-3-mk2-1
+14	5	5-1-mk2-1
+15	5	5-2-mk2-1
+Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+ak
+16
+drop table test.autokey;
+Primary key extended to include another column
+PK column demoted
+!PK column promoted
+PK order changed
+Extra secondary index dropped
+**********************************************
+create table test.autokey (
+ak   bigint unsigned not null auto_increment,
+ok   int unsigned not null,
+data varchar(250) not null,
+primary key(ok,ak))
+engine=ndb partition by key(ok);
+Run restore
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1-mk2-1
+2	1	1-2-mk2-1
+3	1	1-3-mk2-1
+4	1	1-4-mk2-1
+8	3	3-1-mk2-1
+9	3	3-2-mk2-1
+10	3	3-3-mk2-1
+11	4	4-1-mk2-1
+12	4	4-2-mk2-1
+13	4	4-3-mk2-1
+14	5	5-1-mk2-1
+15	5	5-2-mk2-1
+Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+ak
+16
+drop table test.autokey;
+********************************
+Autoincrement reduce pk
+Prepare table + backup with log
+********************************
+create table test.autokey (
+ak   bigint unsigned not null auto_increment,
+ok   bigint unsigned not null,
+data varchar(200) not null,
+primary key(ok,ak))
+engine=ndb partition by key(ok);
+insert into test.autokey (ok,data) values 
+(1, "1-1"),
+(1, "1-2"),
+(1, "1-3"),
+(1, "1-4"),
+(2, "2-1"),
+(2, "2-2"),
+(2, "2-3"),
+(3, "3-1"),
+(3, "3-2"),
+(3, "3-3");
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1
+2	1	1-2
+3	1	1-3
+4	1	1-4
+5	2	2-1
+6	2	2-2
+7	2	2-3
+8	3	3-1
+9	3	3-2
+10	3	3-3
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.autokey (ok,data) values
+(4, "4-1"),
+(4, "4-2"),
+(4, "4-3"),
+(5, "5-1"),
+(5, "5-2");
+update test.autokey set data = concat(data, "-mk2");
+delete from test.autokey where ok=2;
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1-mk2
+2	1	1-2-mk2
+3	1	1-3-mk2
+4	1	1-4-mk2
+8	3	3-1-mk2
+9	3	3-2-mk2
+10	3	3-3-mk2
+11	4	4-1-mk2
+12	4	4-2-mk2
+13	4	4-3-mk2
+14	5	5-1-mk2
+15	5	5-2-mk2
+Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+ak
+16
+drop table test.autokey;
+Primary key reduced down to autoincrement
+Extra secondary index
+**********************************************
+create table test.autokey (
+ak   bigint unsigned not null auto_increment,
+ok   bigint unsigned not null,
+data varchar(200) not null,
+primary key(ak),
+key(ok))
+engine=ndb;
+Run restore
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1-mk2
+2	1	1-2-mk2
+3	1	1-3-mk2
+4	1	1-4-mk2
+8	3	3-1-mk2
+9	3	3-2-mk2
+10	3	3-3-mk2
+11	4	4-1-mk2
+12	4	4-2-mk2
+13	4	4-3-mk2
+14	5	5-1-mk2
+15	5	5-2-mk2
+Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+ak
+16
+drop table test.autokey;
+Primary key reduced down to autoincrement
+Ex-PK demoted
+Non-PK demoted
+Extra secondary index
+**********************************************
+create table test.autokey (
+ak   bigint unsigned not null auto_increment,
+ok   int unsigned not null,
+data varchar(20) not null,
+primary key(ak),
+key(ok))
+engine=ndb;
+Run restore
+select * from test.autokey order by data;
+ak	ok	data
+1	1	1-1-mk2
+2	1	1-2-mk2
+3	1	1-3-mk2
+4	1	1-4-mk2
+8	3	3-1-mk2
+9	3	3-2-mk2
+10	3	3-3-mk2
+11	4	4-1-mk2
+12	4	4-2-mk2
+13	4	4-3-mk2
+14	5	5-1-mk2
+15	5	5-2-mk2
+Check next auto-inc value
+insert into test.autokey (ok,data) values (6, "6-1");
+select ak from test.autokey where ok=6;
+ak
+16
+drop table test.autokey;

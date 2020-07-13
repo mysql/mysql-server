@@ -294,63 +294,63 @@ boring	CREATE TABLE `boring` (
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table empty_default;
 Table	Create Table
 empty_default	CREATE TABLE `empty_default` (
   `a` mediumint NOT NULL AUTO_INCREMENT,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table empty_specific;
 Table	Create Table
 empty_specific	CREATE TABLE `empty_specific` (
   `a` mediumint NOT NULL AUTO_INCREMENT,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table big_varchars;
 Table	Create Table
 big_varchars	CREATE TABLE `big_varchars` (
   `a` bigint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bigsignedauto;
 Table	Create Table
 bigsignedauto	CREATE TABLE `bigsignedauto` (
   `a` bigint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table intsignedauto;
 Table	Create Table
 intsignedauto	CREATE TABLE `intsignedauto` (
   `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table medsignedauto;
 Table	Create Table
 medsignedauto	CREATE TABLE `medsignedauto` (
   `a` mediumint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table smallsignedauto;
 Table	Create Table
 smallsignedauto	CREATE TABLE `smallsignedauto` (
   `a` smallint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table tinysignedauto;
 Table	Create Table
 tinysignedauto	CREATE TABLE `tinysignedauto` (
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ----------------------------------------
 10.  Restore data
 ----------------------------------------
@@ -364,7 +364,7 @@ boring	CREATE TABLE `boring` (
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Expect 1 (So nothing shown)
 show create table empty_default;
 Table	Create Table
@@ -372,7 +372,7 @@ empty_default	CREATE TABLE `empty_default` (
   `a` mediumint NOT NULL AUTO_INCREMENT,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Expect 73
 show create table empty_specific;
 Table	Create Table
@@ -380,7 +380,7 @@ empty_specific	CREATE TABLE `empty_specific` (
   `a` mediumint NOT NULL AUTO_INCREMENT,
   `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Expect 6
 show create table big_varchars;
 Table	Create Table
@@ -388,7 +388,7 @@ big_varchars	CREATE TABLE `big_varchars` (
   `a` bigint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Expect 4
 show create table bigsignedauto;
 Table	Create Table
@@ -396,35 +396,35 @@ bigsignedauto	CREATE TABLE `bigsignedauto` (
   `a` bigint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table intsignedauto;
 Table	Create Table
 intsignedauto	CREATE TABLE `intsignedauto` (
   `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table medsignedauto;
 Table	Create Table
 medsignedauto	CREATE TABLE `medsignedauto` (
   `a` mediumint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table smallsignedauto;
 Table	Create Table
 smallsignedauto	CREATE TABLE `smallsignedauto` (
   `a` smallint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table tinysignedauto;
 Table	Create Table
 tinysignedauto	CREATE TABLE `tinysignedauto` (
   `a` tinyint NOT NULL AUTO_INCREMENT,
   `b` varchar(2000) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ----------------------------------------
 12.  Test via inserts
 ----------------------------------------

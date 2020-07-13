@@ -744,14 +744,6 @@ TRACE
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_having_conditions": [
@@ -883,14 +875,6 @@ TRACE
                                       "chosen": true
                                     }
                                   ] /* considered_execution_plans */
-                                },
-                                {
-                                  "transformation": {
-                                    "select#": 2,
-                                    "from": "IN (SELECT)",
-                                    "to": "EXISTS (CORRELATED SELECT)",
-                                    "put_1_in_SELECT_list": true
-                                  } /* transformation */
                                 },
                                 {
                                   "attaching_conditions_to_tables": {
@@ -1624,14 +1608,6 @@ jump_if_not 2(2) exists(select 1)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 1"
-          },
-          {
-            "transformation": {
-              "select#": 2,
-              "from": "EXISTS (SELECT)",
-              "to": "semijoin",
-              "chosen": false
-            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */
@@ -1671,14 +1647,6 @@ jump_if_not 4(4) exists(select 2)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 2"
-          },
-          {
-            "transformation": {
-              "select#": 2,
-              "from": "EXISTS (SELECT)",
-              "to": "semijoin",
-              "chosen": false
-            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */
@@ -2815,7 +2783,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t3	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (<cache>(`test`.`t0`.`a`) = (`test`.`t1`.`a` + `test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`a`,<exists>(/* select#2 */ select (`test`.`t1`.`a` + `test`.`t1`.`a`) from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (<cache>(`test`.`t0`.`a`) = (`test`.`t1`.`a` + `test`.`t1`.`a`)))))
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * 
@@ -2832,14 +2800,6 @@ from t0 where a in
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -3541,14 +3501,6 @@ from t0 where a in
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "transformation": {
-              "select#": 2,
-              "from": "IN (SELECT)",
-              "to": "EXISTS (CORRELATED SELECT)",
-              "put_1_in_SELECT_list": true
-            } /* transformation */
           },
           {
             "attaching_conditions_to_tables": {

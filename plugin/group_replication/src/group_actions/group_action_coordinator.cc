@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -635,7 +635,7 @@ void Group_action_coordinator::terminate_action() {
 
   // Log what was the result of the action
   LogPluginErr(
-      INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
+      SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION,
       current_executing_action->executing_action->get_action_name(),
       current_executing_action->execution_message_area->get_execution_message()
           .c_str());
@@ -796,6 +796,7 @@ int Group_action_coordinator::execute_group_action_handler() {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
   global_thd_manager_add_thd(thd);
+  Notification_context notification_ctx;
 
   mysql_mutex_lock(&group_thread_run_lock);
   action_handler_thd_state.set_running();
@@ -813,14 +814,20 @@ int Group_action_coordinator::execute_group_action_handler() {
   monitoring_stage_handler.initialize_stage_monitor();
   is_group_action_being_executed = true;
 
-  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_START,
                current_executing_action->executing_action->get_action_name());
   while (Group_action::GROUP_ACTION_RESULT_RESTART ==
          current_executing_action->action_result) {
     current_executing_action->action_result =
         current_executing_action->executing_action->execute_action(
-            is_sender, &monitoring_stage_handler);
+            is_sender, &monitoring_stage_handler, &notification_ctx);
   }
+  Gcs_view *view = gcs_module->get_current_view();
+  if (view != nullptr) {
+    notification_ctx.set_view_id(view->get_view_id().get_representation());
+    delete view;
+  }
+  notify_and_reset_ctx(notification_ctx);
   is_group_action_being_executed = false;
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
                current_executing_action->executing_action->get_action_name());

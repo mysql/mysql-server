@@ -1,6 +1,6 @@
-define("dojox/charting/widget/Sparkline", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/query",
-	"./Chart", "../themes/GreySkies", "../plot2d/Lines", "dojo/dom-prop"], 
-	function(lang, arrayUtil, declare, query, Chart, GreySkies, Lines, domProp){
+define("dojox/charting/widget/Sparkline", ["dojo/_base/array", "dojo/_base/declare", "dojo/query",
+	"./Chart", "../themes/GreySkies", "../plot2d/Lines", "dojo/dom-prop"],
+	function(arrayUtil, declare, query, Chart, GreySkies, Lines, domProp){
 
 	declare("dojox.charting.widget.Sparkline", Chart, {
 		theme: GreySkies,

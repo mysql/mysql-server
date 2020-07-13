@@ -70,7 +70,7 @@ SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 set session sql_log_bin=0;
 call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression(".*The member contains transactions not present *.*");
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

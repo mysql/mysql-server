@@ -67,28 +67,28 @@ define("dojox/charting/themes/Claro", ["../Theme", "dojox/gfx/gradutils", "./com
 	});
 	
 	themes.Claro.next = function(elementType, mixin, doPost){
-		var isLine = elementType == "line";
+		var isLine = elementType == "line",
+			s, theme;
 		if(isLine || elementType == "area"){
 			// custom processing for lines: substitute colors
-			var s = this.seriesThemes[this._current % this.seriesThemes.length],
-				m = this.markerThemes[this._current % this.markerThemes.length];
+			s = this.seriesThemes[this._current % this.seriesThemes.length];
+			var m = this.markerThemes[this._current % this.markerThemes.length];
 			s.fill.space = "plot";
 			if(isLine){
 				s.stroke  = { width: 4, color: s.fill.colors[0].color};
 			}
 			m.outline = { width: 1.25, color: m.fill };
-			var theme = Theme.prototype.next.apply(this, arguments);
+			theme = Theme.prototype.next.apply(this, arguments);
 			// cleanup
 			delete s.outline;
 			delete s.stroke;
 			s.fill.space = "shape";
 			return theme;
-		}
-		else if(elementType == "candlestick"){
-			var s = this.seriesThemes[this._current % this.seriesThemes.length];
+		}else if(elementType == "candlestick"){
+			s = this.seriesThemes[this._current % this.seriesThemes.length];
 			s.fill.space = "plot";
 			s.stroke  = { width: 1, color: s.fill.colors[0].color};
-			var theme = Theme.prototype.next.apply(this, arguments);
+			theme = Theme.prototype.next.apply(this, arguments);
 			return theme;
 		}
 		return Theme.prototype.next.apply(this, arguments);

@@ -5,7 +5,9 @@
 .claro .dijitSliderRtl .dijitSliderTopBumper {
   background-position: top right;
 }
-.claro .dijitSliderRtl .dijitSliderProgressBarV, .claro .dijitSliderRtl .dijitSliderRemainingBarV, .claro .dijitSliderRtl .dijitSliderBottomBumper {
+.claro .dijitSliderRtl .dijitSliderProgressBarV,
+.claro .dijitSliderRtl .dijitSliderRemainingBarV,
+.claro .dijitSliderRtl .dijitSliderBottomBumper {
   background-position: bottom right;
 }
 .claro .dijitSliderRtl .dijitSliderLeftBumper {

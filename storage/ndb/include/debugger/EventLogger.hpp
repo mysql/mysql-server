@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,9 +124,10 @@ public:
    * @param theData the event data.
    * @param nodeId the node id of event origin.
    */
-  virtual void log(int, const Uint32*, Uint32 len, NodeId = 0,const class LogLevel * = 0);
+  virtual void log(int eventType, const Uint32* theData, Uint32 len,
+		   NodeId nodeId = 0,const class LogLevel * = 0);
 
-  
+
   /**
    * Returns the event text for the specified event report type.
    *

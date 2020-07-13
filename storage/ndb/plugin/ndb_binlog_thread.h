@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,8 @@
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
 class Ndb;
+class Ndb_sync_pending_objects_table;
+class Ndb_sync_excluded_objects_table;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
@@ -65,6 +67,17 @@ class Ndb_binlog_thread : public Ndb_component {
     @return void
   */
   void validate_sync_blacklist(THD *thd);
+
+  /*
+    @brief Iterate through the retry list of objects and check the present
+           status of the objects. The object is removed if the mismatch no
+           longer exists or if the object has been blacklisted
+
+    @param thd  Thread handle
+
+    @return void
+  */
+  void validate_sync_retry_list(THD *thd);
 
   /*
     @brief Pass the logfile group object detected to the internal implementation
@@ -107,6 +120,39 @@ class Ndb_binlog_thread : public Ndb_component {
   */
   bool add_table_to_check(const std::string &db_name,
                           const std::string &table_name);
+
+  /*
+    @brief Retrieve information about objects currently in the sync blacklist
+
+    @param excluded_table  Pointer to excluded objects table object
+
+    @return void
+  */
+  void retrieve_sync_blacklist(Ndb_sync_excluded_objects_table *excluded_table);
+
+  /*
+    @brief Get the count of objects currently in the sync blacklist
+
+    @return number of blacklisted objects
+  */
+  unsigned int get_sync_blacklist_count();
+
+  /*
+    @brief Retrieve information about objects currently awaiting sync
+
+    @param pending_table  Pointer to pending objects table object
+
+    @return void
+  */
+  void retrieve_sync_pending_objects(
+      Ndb_sync_pending_objects_table *pending_table);
+
+  /*
+    @brief Get the count of objects currently awaiting sync
+
+    @return number pending objects
+  */
+  unsigned int get_sync_pending_objects_count();
 
  private:
   virtual int do_init();
@@ -166,8 +212,6 @@ class Ndb_binlog_thread : public Ndb_component {
      of objects detected for automatic synchronization
 
      @param thd Thread handle
-
-     @return void
   */
   void synchronize_detected_object(THD *thd);
 };

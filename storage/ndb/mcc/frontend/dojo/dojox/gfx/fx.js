@@ -1,24 +1,24 @@
 //>>built
-define("dojox/gfx/fx",["dojo/_base/lang","./_base","./matrix","dojo/_base/Color","dojo/_base/array","dojo/_base/fx","dojo/_base/connect"],function(_1,g,m,_2,_3,fx,_4){
-var _5=g.fx={};
-function _6(_7,_8){
-this.start=_7,this.end=_8;
+define("dojox/gfx/fx",["dojo/_base/lang","./_base","./matrix","dojo/_base/Color","dojo/_base/array","dojo/_base/fx","dojo/_base/connect","dojo/sniff"],function(_1,g,m,_2,_3,fx,_4,_5){
+var _6=g.fx={};
+function _7(_8,_9){
+this.start=_8,this.end=_9;
 };
-_6.prototype.getValue=function(r){
+_7.prototype.getValue=function(r){
 return (this.end-this.start)*r+this.start;
 };
-function _9(_a,_b,_c){
-this.start=_a,this.end=_b;
-this.units=_c;
+function _a(_b,_c,_d){
+this.start=_b,this.end=_c;
+this.units=_d;
 };
-_9.prototype.getValue=function(r){
+_a.prototype.getValue=function(r){
 return (this.end-this.start)*r+this.start+this.units;
 };
-function _d(_e,_f){
-this.start=_e,this.end=_f;
+function _e(_f,end){
+this.start=_f,this.end=end;
 this.temp=new _2();
 };
-_d.prototype.getValue=function(r){
+_e.prototype.getValue=function(r){
 return _2.blendColors(this.start,this.end,r,this.temp);
 };
 function _10(_11){
@@ -100,7 +100,7 @@ _1d=obj?(_1c?obj[_1c]:obj):def;
 }
 end=_1d;
 }
-return new _d(_1e,end);
+return new _e(_1e,end);
 };
 function _1f(_20,obj,_21,def){
 if(_20.values){
@@ -120,9 +120,9 @@ _22=obj?obj[_21]:def;
 }
 end=_22;
 }
-return new _6(_23,end);
+return new _7(_23,end);
 };
-_5.animateStroke=function(_24){
+_6.animateStroke=function(_24){
 if(!_24.easing){
 _24.easing=fx._defaultEasing;
 }
@@ -153,7 +153,7 @@ _29.join=new _10(_28.values);
 _2b=_28.start?_28.start:(_27&&_27.join||0);
 end=_28.end?_28.end:(_27&&_27.join||0);
 if(typeof _2b=="number"&&typeof end=="number"){
-_29.join=new _6(_2b,end);
+_29.join=new _7(_2b,end);
 }
 }
 }
@@ -162,7 +162,7 @@ this.curve=new _12(_29,_27);
 _4.connect(_25,"onAnimate",_26,"setStroke");
 return _25;
 };
-_5.animateFill=function(_2c){
+_6.animateFill=function(_2c){
 if(!_2c.easing){
 _2c.easing=fx._defaultEasing;
 }
@@ -177,7 +177,7 @@ this.curve=_1a(_30,_2f,"",_19);
 _4.connect(_2d,"onAnimate",_2e,"setFill");
 return _2d;
 };
-_5.animateFont=function(_32){
+_6.animateFont=function(_32){
 if(!_32.easing){
 _32.easing=fx._defaultEasing;
 }
@@ -204,14 +204,14 @@ _36=_32.size;
 if(_36&&_36.units){
 _39=parseFloat(_36.start?_36.start:(_34.font&&_34.font.size||"0"));
 end=parseFloat(_36.end?_36.end:(_34.font&&_34.font.size||"0"));
-_37.size=new _9(_39,end,_36.units);
+_37.size=new _a(_39,end,_36.units);
 }
 this.curve=new _12(_37,_35);
 });
 _4.connect(_33,"onAnimate",_34,"setFont");
 return _33;
 };
-_5.animateTransform=function(_3a){
+_6.animateTransform=function(_3a){
 if(!_3a.easing){
 _3a.easing=fx._defaultEasing;
 }
@@ -221,7 +221,77 @@ _3d=_3c.getTransform();
 this.curve=new _14(_3a.transform,_3d);
 });
 _4.connect(_3b,"onAnimate",_3c,"setTransform");
+if(g.renderer==="svg"&&(_5("ie")>=9||_5("ff"))){
+var _3e=[_4.connect(_3b,"onBegin",_3b,function(){
+var _3f=_3c.getParent();
+while(_3f&&_3f.getParent){
+_3f=_3f.getParent();
+}
+if(_3f){
+_3c.__svgContainer=_3f.rawNode.parentNode;
+_3c.__svgRoot=_3f.rawNode;
+if(_3c.__svgRoot&&_3c.__svgRoot.getAttribute){
+_3c.__svgWidth=parseInt(_3c.__svgRoot.getAttribute("width"),10);
+if(isNaN(_3c.__svgWidth)){
+delete _3c.__svgWidth;
+}
+}
+}
+}),_4.connect(_3b,"onAnimate",_3b,function(){
+try{
+if(_3c.__svgContainer){
+var ov=_3c.__svgContainer.style.visibility;
+_3c.__svgContainer.style.visibility="visible";
+var _40=_3c.__svgContainer.offsetHeight;
+_3c.__svgContainer.style.visibility=ov;
+var _41=_3c.__svgWidth;
+if(!isNaN(_41)){
+try{
+_3c.__svgRoot.setAttribute("width",_41-0.000005);
+_3c.__svgRoot.setAttribute("width",_41);
+}
+catch(ignore){
+}
+}
+}
+}
+catch(e){
+}
+}),_4.connect(_3b,"onEnd",_3b,function(){
+_3.forEach(_3e,_4.disconnect);
+if(_3c.__svgContainer){
+var sn=_3c.__svgContainer;
+if(sn.getAttribute("__gotVis")==null){
+sn.setAttribute("__gotVis",true);
+var ov=_3c.__svgContainer.style.visibility;
+var _42=_3c.__svgRoot;
+var _43=_3c.__svgWidth;
+sn.style.visibility="visible";
+setTimeout(function(){
+try{
+sn.style.visibility=ov;
+sn.removeAttribute("__gotVis");
+sn=null;
+try{
+if(!isNaN(_43)){
+_42.setAttribute("width",_43-0.000005);
+_42.setAttribute("width",_43);
+}
+}
+catch(ignore){
+}
+}
+catch(e){
+}
+},100);
+}
+}
+delete _3c.__svgContainer;
+delete _3c.__svgRoot;
+delete _3c.__svgWidth;
+})];
+}
 return _3b;
 };
-return _5;
+return _6;
 });

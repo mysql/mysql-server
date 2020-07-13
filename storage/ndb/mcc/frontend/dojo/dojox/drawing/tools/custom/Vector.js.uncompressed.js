@@ -1,5 +1,5 @@
-define("dojox/drawing/tools/custom/Vector", ["dojo", "../../util/oo", "../../manager/_registry", "../../util/positioning", "../Arrow"],
-function(dojo, oo, registry, positioning, Arrow){
+define("dojox/drawing/tools/custom/Vector", ["dojo", "../../util/oo", "../../manager/_registry", "../Arrow", "../../defaults"],
+function(dojo, oo, registry, Arrow, defaults){
 
 var Vector = oo.declare(
 	Arrow,
@@ -142,7 +142,7 @@ var Vector = oo.declare(
 			var test = x<0 ? x>-y : x<-y;
 			var dx = test ? x : -y/Math.tan(radians);
 			var dy = !test ? y : -Math.tan(radians)*x;
-			return {x:dx, y:dy}
+			return {x:dx, y:dy};
 		},
 		
 		zPoint: function(obj){
@@ -162,8 +162,8 @@ var Vector = oo.declare(
 				};
 			}
 			var radius = this.util.length(obj);
-			var angle = positioning.angle(obj);
-			angle<0 ? angle = 360 + angle : angle;
+			var angle = this.util.angle(obj);
+			angle = angle<0 ? 360 + angle : angle;
 			
 			angle = angle > 135 && angle < 315 ? this.style.zAngle : this.util.oppAngle(this.style.zAngle);
 			
@@ -178,8 +178,8 @@ var Vector = oo.declare(
 			var obj = {start:{x:p[0].x, y:p[0].y}, x:p[1].x, y:p[1].y};
 			if(this.style.zAxis && (this.util.length(obj)>this.minimumSize)){
 				
-				var angle = positioning.angle(obj);
-				angle<0 ? angle = 360 + angle : angle;
+				var angle = this.util.angle(obj);
+				angle = angle<0 ? 360 + angle : angle;
 				cosphi = angle > 135 && angle < 315 ? 1 : -1;
 			}
 			this.data = {
@@ -212,7 +212,7 @@ var Vector = oo.declare(
 					x2:pt.x,
 					y2:pt.y,
 					cosphi:cosphi
-				}
+				};
 				
 			}
 			this.points = [
@@ -291,9 +291,8 @@ Vector.setup = {
 	iconClass:"iconVector"
 };
 
-//TODO
-if(0 && dojox.drawing.defaults.zAxisEnabled){
-	dojox.drawing.tools.custom.Vector.setup.secondary = {
+if(defaults.zAxisEnabled){
+	Vector.setup.secondary = {
 		// summary:
 		//		Creates a secondary tool for the Vector Stencil.
 		// description:
@@ -313,7 +312,7 @@ if(0 && dojox.drawing.defaults.zAxisEnabled){
 			
 			var stencils = this.drawing.stencils.selectedStencils;
 			for(var nm in stencils){
-				if(stencils[nm].shortType == "vector" && (stencils[nm].style.zAxis != dojox.drawing.defaults.zAxis)){
+				if(stencils[nm].shortType == "vector" && (stencils[nm].style.zAxis != defaults.zAxis)){
 					var s = stencils[nm];
 					s.changeAxis();
 					//Reset anchors
@@ -328,11 +327,11 @@ if(0 && dojox.drawing.defaults.zAxisEnabled){
 			//		are treated as if they were added directly to toolbar.
 			//		They are included with the tool because secondary buttons
 			//		are tool specific.
-			var zAxis = dojox.drawing.defaults.zAxis;
+			var zAxis = defaults.zAxis;
 			this.zSelect = function(button){
 				if(!button.enabled){ return; }
 				zAxis = true;
-				dojox.drawing.defaults.zAxis = true;
+				defaults.zAxis = true;
 				button.select();
 				this.vectorTest();
 				this.zSelected = button;
@@ -340,7 +339,7 @@ if(0 && dojox.drawing.defaults.zAxisEnabled){
 			this.zDeselect = function(button){
 				if(!button.enabled){ return; }
 				zAxis = false;
-				dojox.drawing.defaults.zAxis = false;
+				defaults.zAxis = false;
 				button.deselect();
 				this.vectorTest();
 				this.zSelected = null;
@@ -352,7 +351,11 @@ if(0 && dojox.drawing.defaults.zAxisEnabled){
 					}
 				},this);
 			};
-			dojo.connect(this, "onRenderStencil", this, function(){ if(this.zSelected){ this.zDeselect(this.zSelected)}});
+			dojo.connect(this, "onRenderStencil", this, function(){ 
+			    if(this.zSelected){ 
+				this.zDeselect(this.zSelected);
+			    }
+			});
 			var c = dojo.connect(this.drawing, "onSurfaceReady", this, function(){
 				dojo.disconnect(c);
 				dojo.connect(this.drawing.stencils, "onSelect", this, function(stencil){
@@ -383,8 +386,8 @@ if(0 && dojox.drawing.defaults.zAxisEnabled){
 			//		extra functionality for some of the basic functions.
 			//		Post is passed the button so those connections can
 			//		be made.
-			dojo.connect(btn, "enable", function(){ dojox.drawing.defaults.zAxisEnabled = true; });
-			dojo.connect(btn, "disable", function(){ dojox.drawing.defaults.zAxisEnabled = false; });
+			dojo.connect(btn, "enable", function(){ defaults.zAxisEnabled = true; });
+			dojo.connect(btn, "disable", function(){ defaults.zAxisEnabled = false; });
 		}
 	};
 }

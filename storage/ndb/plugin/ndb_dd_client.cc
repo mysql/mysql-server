@@ -1231,7 +1231,7 @@ bool Ndb_dd_client::install_tablespace(
   tablespace->set_engine("ndbcluster");
 
   // Add data files
-  for (const auto data_file_name : data_file_names) {
+  for (const auto &data_file_name : data_file_names) {
     ndb_dd_disk_data_add_file(tablespace.get(), data_file_name.c_str());
   }
 
@@ -1385,7 +1385,7 @@ bool Ndb_dd_client::install_logfile_group(
   logfile_group->set_engine("ndbcluster");
 
   // Add undofiles
-  for (const auto undo_file_name : undo_file_names) {
+  for (const auto &undo_file_name : undo_file_names) {
     ndb_dd_disk_data_add_file(logfile_group.get(), undo_file_name.c_str());
   }
 

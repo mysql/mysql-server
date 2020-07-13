@@ -1140,7 +1140,7 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
   if (create_table_precheck(thd, query_expression_tables, create_table))
     return true;
 
-  if (select_lex->item_list.elements) {
+  if (select_lex->fields_list.elements) {
     /* Base table and temporary table are not in the same name space. */
     if (!(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type = OT_BASE_ONLY;
@@ -1349,6 +1349,20 @@ static bool check_prepared_statement(Prepared_statement *stmt) {
     case SQLCOM_ALTER_USER_DEFAULT_ROLE:
       break;
 
+    case SQLCOM_CREATE_TABLE:
+      /*
+        CREATE TABLE ... START TRANSACTION is not supported with
+        prepared statements
+      */
+      if (lex->create_info->m_transactional_ddl) {
+        my_error(ER_UNSUPPORTED_PS, MYF(0));
+        return true;
+      }
+#if defined(__has_cpp_attribute)
+#if __has_cpp_attribute(fallthrough)
+      [[fallthrough]];
+#endif
+#endif
     case SQLCOM_SELECT:
     case SQLCOM_DO:
     case SQLCOM_DELETE:
@@ -1362,7 +1376,6 @@ static bool check_prepared_statement(Prepared_statement *stmt) {
     case SQLCOM_CALL:
     case SQLCOM_SHOW_FIELDS:
     case SQLCOM_SHOW_KEYS:
-    case SQLCOM_CREATE_TABLE:
     case SQLCOM_SET_RESOURCE_GROUP:
       res = lex->m_sql_cmd->prepare(thd);
       // @todo Temporary solution: Unprepare after preparation to preserve
@@ -2878,11 +2891,12 @@ reexecute:
         error = reprepare();
       }
 
-      // If preparation or optimization failed and the statement used
+      // If (re-?)preparation or optimization failed and it was for
       // a secondary storage engine, disable the secondary storage
       // engine and try again without it.
       if (error && lex->m_sql_cmd != nullptr &&
-          lex->m_sql_cmd->using_secondary_storage_engine() &&
+          thd->secondary_engine_optimization() ==
+              Secondary_engine_optimization::SECONDARY &&
           !lex->unit->is_executed()) {
         thd->clear_error();
         thd->set_secondary_engine_optimization(
@@ -3054,8 +3068,8 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy) {
   */
   if (is_sql_prepare() || lex->is_explain()) return false;
 
-  if (lex->select_lex->item_list.elements !=
-      copy->lex->select_lex->item_list.elements) {
+  if (lex->select_lex->fields_list.elements !=
+      copy->lex->select_lex->fields_list.elements) {
     /** Column counts mismatch, update the client */
     thd->server_status |= SERVER_STATUS_METADATA_CHANGED;
   }

@@ -140,7 +140,7 @@ NULL	UNION RESULT	<union1,5>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; U
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #4 was resolved in SELECT #2
 Note	1276	Field or reference 'a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `<union temporary>`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `<union temporary>`.`a`)
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -2913,10 +2913,10 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
-`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+`1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
 -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
-CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
--(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1`,
+-(1) AS `-1`, -(1) AS `Name_exp_-1`, -(1) AS `Name_exp_1_-1`;
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
@@ -2924,16 +2924,16 @@ a	bigint	YES		NULL
 b	bigint	YES		NULL	
 c	bigint	YES		NULL	
 1	bigint	NO		0	
-My_exp_1	bigint	NO		0	
-My_exp_1_1	bigint	NO		0	
+Name_exp_1	bigint	NO		0	
+Name_exp_1_1	bigint	NO		0	
 DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
 1	int	NO		0	
-My_exp_1	int	NO		0	
-My_exp_1_1	int	NO		0	
+Name_exp_1	int	NO		0	
+Name_exp_1_1	int	NO		0	
 -1	int	NO		0	
-My_exp_-1	int	NO		0	
-My_exp_1_-1	int	NO		0	
+Name_exp_-1	int	NO		0	
+Name_exp_1_-1	int	NO		0	
 DESCRIBE v3;
 Field	Type	Null	Key	Default	Extra
 a	tinyint	YES		NULL	
@@ -3342,3 +3342,85 @@ SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE )
 pk	b
 1	
 DROP TABLE t1;
+# Bug#29698617: UNION ALL signed and unsigned int display wrong result
+CREATE TABLE t1(id INTEGER SIGNED);
+CREATE TABLE t2(id INTEGER UNSIGNED);
+INSERT INTO t1(id) VALUES (2000000000);
+INSERT INTO t2(id) VALUES (4000000000);
+SELECT id FROM t2 UNION ALL SELECT id FROM t1;
+id
+4000000000
+2000000000
+SELECT MAX(id) FROM t2 UNION ALL SELECT MAX(id) FROM t1;
+MAX(id)
+4000000000
+2000000000
+SELECT id FROM t1 UNION ALL SELECT id FROM t2;
+id
+2000000000
+4000000000
+SELECT MAX(id) FROM t1 UNION ALL SELECT MAX(id) FROM t2;
+MAX(id)
+2000000000
+4000000000
+DROP TABLE t1, t2;
+CREATE TABLE t1(
+ts TINYINT SIGNED,
+tu TINYINT UNSIGNED,
+ss SMALLINT SIGNED,
+su SMALLINT UNSIGNED,
+ms MEDIUMINT SIGNED,
+mu MEDIUMINT UNSIGNED,
+ls INTEGER SIGNED,
+lu INTEGER UNSIGNED,
+bs BIGINT SIGNED,
+bu BIGINT UNSIGNED
+);
+INSERT INTO t1 VALUES
+(-128, 0, -32768, 0, -8388608, 0, -2147483648, 0, -9223372036854775808, 0),
+(127, 255, 32767, 65535, 8388607, 16777215, 2147483647, 4294967295,
+9223372036854775807, 18446744073709551615);
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+ts AS a, ss AS b, ms AS c, ls AS d, bs AS e,
+tu AS f, su AS g, mu AS h, lu AS i, bu AS j
+FROM t1
+UNION ALL
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+tu, su, mu, lu, bu, ts, ss, ms, ls, bs
+FROM t1;
+ts	ss	ms	ls	bs	tu	su	mu	lu	bu	a	b	c	d	e	f	g	h	i	j
+-128	-32768	-8388608	-2147483648	-9223372036854775808	0	0	0	0	0	-128	-32768	-8388608	-2147483648	-9223372036854775808	0	0	0	0	0
+127	32767	8388607	2147483647	9223372036854775807	255	65535	16777215	4294967295	18446744073709551615	127	32767	8388607	2147483647	9223372036854775807	255	65535	16777215	4294967295	18446744073709551615
+-128	-32768	-8388608	-2147483648	-9223372036854775808	0	0	0	0	0	0	0	0	0	0	-128	-32768	-8388608	-2147483648	-9223372036854775808
+127	32767	8388607	2147483647	9223372036854775807	255	65535	16777215	4294967295	18446744073709551615	255	65535	16777215	4294967295	18446744073709551615	127	32767	8388607	2147483647	9223372036854775807
+CREATE TABLE t2 AS SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+ts AS a, ss AS b, ms AS c, ls AS d, bs AS e,
+tu AS f, su AS g, mu AS h, lu AS i, bu AS j
+FROM t1
+UNION ALL
+SELECT ts, ss, ms, ls, bs, tu, su, mu, lu, bu,
+tu, su, mu, lu, bu, ts, ss, ms, ls, bs
+FROM t1;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+ts	tinyint	YES		NULL	
+ss	smallint	YES		NULL	
+ms	mediumint	YES		NULL	
+ls	int	YES		NULL	
+bs	bigint	YES		NULL	
+tu	tinyint unsigned	YES		NULL	
+su	smallint unsigned	YES		NULL	
+mu	mediumint unsigned	YES		NULL	
+lu	int unsigned	YES		NULL	
+bu	bigint unsigned	YES		NULL	
+a	smallint	YES		NULL	
+b	mediumint	YES		NULL	
+c	int	YES		NULL	
+d	bigint	YES		NULL	
+e	decimal(20,0)	YES		NULL	
+f	smallint	YES		NULL	
+g	mediumint	YES		NULL	
+h	int	YES		NULL	
+i	bigint	YES		NULL	
+j	decimal(20,0)	YES		NULL	
+DROP TABLE t1, t2;

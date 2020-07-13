@@ -52,6 +52,7 @@
 .dojoxCalendarContainer table {
 	font-size: 11px;
 	border-bottom: 4px solid white;
+	border-collapse: separate;
 }
 .dojoxCalendarHeader {
 	height: 20px;

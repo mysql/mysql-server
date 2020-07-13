@@ -1,11 +1,10 @@
 define("dijit/form/FilteringSelect", [
-	"dojo/data/util/filter", // filter.patternToRegExp
 	"dojo/_base/declare", // declare
 	"dojo/_base/lang", // lang.mixin
 	"dojo/when",
 	"./MappedTextBox",
 	"./ComboBoxMixin"
-], function(filter, declare, lang, when, MappedTextBox, ComboBoxMixin){
+], function(declare, lang, when, MappedTextBox, ComboBoxMixin){
 
 	// module:
 	//		dijit/form/FilteringSelect
@@ -140,7 +139,7 @@ define("dijit/form/FilteringSelect", [
 				});
 			}else{
 				this.valueNode.value = value;
-				this.inherited(arguments);
+				this.inherited(arguments, [value, priorityChange, displayedValue, item]);
 			}
 		},
 
@@ -196,7 +195,7 @@ define("dijit/form/FilteringSelect", [
 					// Query on searchAttr is a regex for benefit of dojo/store/Memory,
 					// but with a toString() method to help dojo/store/JsonRest.
 					// Search string like "Co*" converted to regex like /^Co.*$/i.
-					q = filter.patternToRegExp(qs, this.ignoreCase);
+					q = this._patternToRegExp(qs);
 					q.toString = function(){ return qs; };
 				}
 				this._lastQuery = query[this.searchAttr] = q;

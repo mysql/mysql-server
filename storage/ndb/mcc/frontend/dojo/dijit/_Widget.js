@@ -40,15 +40,8 @@ this._set("focused",val);
 _6.deprecated(this.declaredClass+"::setAttribute(attr, value) is deprecated. Use set() instead.","","2.0");
 this.set(_1a,_1b);
 },attr:function(_1c,_1d){
-if(_2.isDebug){
-var _1e=arguments.callee._ach||(arguments.callee._ach={}),_1f=(arguments.callee.caller||"unknown caller").toString();
-if(!_1e[_1f]){
-_6.deprecated(this.declaredClass+"::attr() is deprecated. Use get() or set() instead, called from "+_1f,"","2.0");
-_1e[_1f]=true;
-}
-}
-var _20=arguments.length;
-if(_20>=2||typeof _1c==="object"){
+var _1e=arguments.length;
+if(_1e>=2||typeof _1c==="object"){
 return this.set.apply(this,arguments);
 }else{
 return this.get(_1c);
@@ -65,8 +58,8 @@ return true;
 }});
 if(_5("dijit-legacy-requires")){
 _9(0,function(){
-var _21=["dijit/_base"];
-require(_21);
+var _1f=["dijit/_base"];
+require(_1f);
 });
 }
 return _14;

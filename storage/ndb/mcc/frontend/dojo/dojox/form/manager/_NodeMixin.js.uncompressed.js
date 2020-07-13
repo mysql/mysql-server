@@ -1,7 +1,7 @@
 define("dojox/form/manager/_NodeMixin", [
 	"dojo/_base/lang",
 	"dojo/_base/array",
-	"dojo/_base/connect",
+	"dojo/on",
 	"dojo/dom",
 	"dojo/dom-attr",
 	"dojo/query",
@@ -9,7 +9,7 @@ define("dojox/form/manager/_NodeMixin", [
 	"dijit/form/_FormWidget",
 	"dijit/_base/manager",
 	"dojo/_base/declare"
-], function(lang, array, connect, dom, domAttr, query, _Mixin, _FormWidget, manager, declare){
+], function(lang, array, on, dom, domAttr, query, _Mixin, _FormWidget, manager, declare){
 	var fm = lang.getObject("dojox.form.manager", true),
 		aa = fm.actionAdapter,
 		keys = fm._keys,
@@ -20,19 +20,19 @@ define("dojox/form/manager/_NodeMixin", [
 			// node: Node
 			//		Form node.
 
-			var eventName = "onclick";
+			var eventName = "click";
 			switch(node.tagName.toLowerCase()){
 				case "textarea":
-					eventName = "onkeyup";
+					eventName = "keyup";
 					break;
 				case "select":
-					eventName = "onchange";
+					eventName = "change";
 					break;
 				case "input":
 					switch(node.type.toLowerCase()){
 						case "text":
 						case "password":
-							eventName = "onkeyup";
+							eventName = "keyup";
 							break;
 					}
 					break;
@@ -75,7 +75,7 @@ define("dojox/form/manager/_NodeMixin", [
 		getObserversFromNode = function(name){
 			var observers = {};
 			aa(function(_, n){
-				var o = domAttr.get(n, "observer");
+				var o = domAttr.get(n, "data-dojo-observer") || domAttr.get(n, "observer");
 				if(o && typeof o == "string"){
 					array.forEach(o.split(","), function(o){
 						o = lang.trim(o);
@@ -91,18 +91,18 @@ define("dojox/form/manager/_NodeMixin", [
 		connectNode = function(name, observers){
 			var t = this.formNodes[name], c = t.connections;
 			if(c.length){
-				array.forEach(c, connect.disconnect);
+				array.forEach(c, function(item){ item.remove(); });
 				c = t.connections = [];
 			}
 			aa(function(_, n){
 				// the next line is a crude workaround for Button that fires onClick instead of onChange
 				var eventName = ce(n);
 				array.forEach(observers, function(o){
-					c.push(connect.connect(n, eventName, this, function(evt){
+					c.push(on(n, eventName, lang.hitch(this, function(evt){
 						if(this.watching){
 							this[o](this.formNodeValue(name), name, n, evt);
 						}
-					}));
+					})));
 				}, this);
 			}).call(this, null, t.node);
 		};
@@ -113,8 +113,8 @@ define("dojox/form/manager/_NodeMixin", [
 		// description:
 		//		This mixin provides a foundation for an enhanced form
 		//		functionality: unified access to individual form elements,
-		//		unified "onchange" event processing, and general event
-		//		processing. It complements dojox.form.manager._Mixin
+		//		unified "change" event processing, and general event
+		//		processing. It complements dojox/form/manager/_Mixin
 		//		extending the functionality to DOM nodes.
 
 		destroy: function(){
@@ -122,7 +122,9 @@ define("dojox/form/manager/_NodeMixin", [
 			//		Called when the widget is being destroyed
 
 			for(var name in this.formNodes){
-				array.forEach(this.formNodes[name].connections, connect.disconnect);
+				array.forEach(this.formNodes[name].connections, function(item){
+					item.remove();
+				});
 			}
 			this.formNodes = {};
 
@@ -157,7 +159,9 @@ define("dojox/form/manager/_NodeMixin", [
 			// returns: Object
 			//		Returns self
 			if(name in this.formNodes){
-				array.forEach(this.formNodes[name].connections, this.disconnect, this);
+				array.forEach(this.formNodes[name].connections, function(item){
+					item.remove();
+				});
 				delete this.formNodes[name];
 			}
 			return this;
@@ -281,7 +285,7 @@ define("dojox/form/manager/_NodeMixin", [
 							return this;	// self
 						}
 						// getter
-						var result = query("> option", elem).filter(function(opt){
+						result = query("> option", elem).filter(function(opt){
 							return opt.selected;
 						}).map(function(opt){
 							return opt.value;

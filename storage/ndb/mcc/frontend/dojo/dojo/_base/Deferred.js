@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -11,118 +11,131 @@ var _8=function(){
 var _9=Object.freeze||function(){
 };
 var _a=_1.Deferred=function(_b){
-var _c,_d,_e,_f,_10;
-var _11=(this.promise=new _3());
-function _12(_13){
+var _c,_d,_e,_f,_10,_11,_12;
+var _13=(this.promise=new _3());
+function _14(_15){
 if(_d){
 throw new Error("This deferred has already been resolved");
 }
-_c=_13;
+_c=_15;
 _d=true;
-_14();
+_16();
 };
-function _14(){
-var _15;
-while(!_15&&_10){
-var _16=_10;
-_10=_10.next;
-if((_15=(_16.progress==_8))){
+function _16(){
+var _17;
+while(!_17&&_12){
+var _18=_12;
+_12=_12.next;
+if((_17=(_18.progress==_8))){
 _d=false;
 }
-var _17=(_e?_16.error:_16.resolved);
+var _19=(_10?_18.error:_18.resolved);
 if(_5("config-useDeferredInstrumentation")){
-if(_e&&_2.instrumentRejected){
-_2.instrumentRejected(_c,!!_17);
+if(_10&&_2.instrumentRejected){
+_2.instrumentRejected(_c,!!_19);
 }
 }
-if(_17){
+if(_19){
 try{
-var _18=_17(_c);
-if(_18&&typeof _18.then==="function"){
-_18.then(_6.hitch(_16.deferred,"resolve"),_6.hitch(_16.deferred,"reject"),_6.hitch(_16.deferred,"progress"));
+var _1a=_19(_c);
+if(_1a&&typeof _1a.then==="function"){
+_1a.then(_6.hitch(_18.deferred,"resolve"),_6.hitch(_18.deferred,"reject"),_6.hitch(_18.deferred,"progress"));
 continue;
 }
-var _19=_15&&_18===undefined;
-if(_15&&!_19){
-_e=_18 instanceof Error;
+var _1b=_17&&_1a===undefined;
+if(_17&&!_1b){
+_10=_1a instanceof Error;
 }
-_16.deferred[_19&&_e?"reject":"resolve"](_19?_c:_18);
+_18.deferred[_1b&&_10?"reject":"resolve"](_1b?_c:_1a);
 }
 catch(e){
-_16.deferred.reject(e);
+_18.deferred.reject(e);
 }
 }else{
-if(_e){
-_16.deferred.reject(_c);
+if(_10){
+_18.deferred.reject(_c);
 }else{
-_16.deferred.resolve(_c);
+_18.deferred.resolve(_c);
 }
 }
 }
 };
-this.resolve=this.callback=function(_1a){
-this.fired=0;
-this.results=[_1a,null];
-_12(_1a);
+this.isResolved=_13.isResolved=function(){
+return _f==0;
 };
-this.reject=this.errback=function(_1b){
-_e=true;
-this.fired=1;
+this.isRejected=_13.isRejected=function(){
+return _f==1;
+};
+this.isFulfilled=_13.isFulfilled=function(){
+return _f>=0;
+};
+this.isCanceled=_13.isCanceled=function(){
+return _e;
+};
+this.resolve=this.callback=function(_1c){
+this.fired=_f=0;
+this.results=[_1c,null];
+_14(_1c);
+};
+this.reject=this.errback=function(_1d){
+_10=true;
+this.fired=_f=1;
 if(_5("config-useDeferredInstrumentation")){
 if(_2.instrumentRejected){
-_2.instrumentRejected(_1b,!!_10);
+_2.instrumentRejected(_1d,!!_12);
 }
 }
-_12(_1b);
-this.results=[null,_1b];
+_14(_1d);
+this.results=[null,_1d];
 };
-this.progress=function(_1c){
-var _1d=_10;
-while(_1d){
-var _1e=_1d.progress;
-_1e&&_1e(_1c);
-_1d=_1d.next;
+this.progress=function(_1e){
+var _1f=_12;
+while(_1f){
+var _20=_1f.progress;
+_20&&_20(_1e);
+_1f=_1f.next;
 }
 };
-this.addCallbacks=function(_1f,_20){
-this.then(_1f,_20,_8);
+this.addCallbacks=function(_21,_22){
+this.then(_21,_22,_8);
 return this;
 };
-_11.then=this.then=function(_21,_22,_23){
-var _24=_23==_8?this:new _a(_11.cancel);
-var _25={resolved:_21,error:_22,progress:_23,deferred:_24};
-if(_10){
-_f=_f.next=_25;
+_13.then=this.then=function(_23,_24,_25){
+var _26=_25==_8?this:new _a(_13.cancel);
+var _27={resolved:_23,error:_24,progress:_25,deferred:_26};
+if(_12){
+_11=_11.next=_27;
 }else{
-_10=_f=_25;
+_12=_11=_27;
 }
 if(_d){
-_14();
+_16();
 }
-return _24.promise;
+return _26.promise;
 };
-var _26=this;
-_11.cancel=this.cancel=function(){
+var _28=this;
+_13.cancel=this.cancel=function(){
 if(!_d){
-var _27=_b&&_b(_26);
+var _29=_b&&_b(_28);
 if(!_d){
-if(!(_27 instanceof Error)){
-_27=new _4(_27);
+if(!(_29 instanceof Error)){
+_29=new _4(_29);
 }
-_27.log=false;
-_26.reject(_27);
+_29.log=false;
+_28.reject(_29);
 }
 }
+_e=true;
 };
-_9(_11);
+_9(_13);
 };
-_6.extend(_a,{addCallback:function(_28){
+_6.extend(_a,{addCallback:function(_2a){
 return this.addCallbacks(_6.hitch.apply(_1,arguments));
-},addErrback:function(_29){
+},addErrback:function(_2b){
 return this.addCallbacks(null,_6.hitch.apply(_1,arguments));
-},addBoth:function(_2a){
-var _2b=_6.hitch.apply(_1,arguments);
-return this.addCallbacks(_2b,_2b);
+},addBoth:function(_2c){
+var _2d=_6.hitch.apply(_1,arguments);
+return this.addCallbacks(_2d,_2d);
 },fired:-1});
 _a.when=_1.when=_7;
 return _a;

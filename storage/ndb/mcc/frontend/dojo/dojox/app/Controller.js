@@ -4,19 +4,20 @@ return _2("dojox.app.Controller",null,{constructor:function(_3,_4){
 this.events=this.events||_4;
 this._boundEvents=[];
 this.app=_3;
+},bind:function(_5,_6,_7){
+if(arguments.length==0){
 if(this.events){
-for(var _5 in this.events){
-if(_5.charAt(0)!=="_"){
-this.bind(this.app.domNode,_5,_1.hitch(this,this.events[_5]));
+for(var _8 in this.events){
+if(_8.charAt(0)!=="_"){
+this.bind(this.app,_8,_1.hitch(this,this.events[_8]));
 }
 }
 }
-},bind:function(_6,_7,_8){
-if(!_8){
-console.warn("bind event '"+_7+"' without callback function.");
+}else{
+var _9=on(_5,_6,_7);
+this._boundEvents.push({"event":_6,"evented":_5,"signal":_9});
 }
-var _9=on(_6,_7,_8);
-this._boundEvents.push({"event":_7,"evented":_6,"signal":_9});
+return this;
 },unbind:function(_a,_b){
 var _c=this._boundEvents.length;
 for(var i=0;i<_c;i++){
@@ -27,5 +28,6 @@ return;
 }
 }
 console.warn("event '"+_b+"' not bind on ",_a);
+return this;
 }});
 });

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ struct plugin_options_variables {
   bool bootstrap_group_var;
   ulong poll_spin_loops_var;
 
-#define DEFAULT_MEMBER_EXPEL_TIMEOUT 0
+#define DEFAULT_MEMBER_EXPEL_TIMEOUT 5
 #define MAX_MEMBER_EXPEL_TIMEOUT 3600
 #define MIN_MEMBER_EXPEL_TIMEOUT 0
   ulong member_expel_timeout_var;
@@ -215,7 +215,7 @@ struct plugin_options_variables {
   ulong communication_max_message_size_var;
 
 #define DEFAULT_MESSAGE_CACHE_SIZE 1073741824
-#define MIN_MESSAGE_CACHE_SIZE DEFAULT_MESSAGE_CACHE_SIZE
+#define MIN_MESSAGE_CACHE_SIZE 134217728
 #define MAX_MESSAGE_CACHE_SIZE ULONG_MAX
   ulong message_cache_size_var;
 
@@ -264,6 +264,14 @@ struct plugin_options_variables {
   int flow_control_release_percent_var;
 
   ulonglong clone_threshold_var;
+
+  char *advertise_recovery_endpoints_var;
+
+  const char *tls_source_values[3] = {"MYSQL_MAIN", "MYSQL_ADMIN",
+                                      (char *)nullptr};
+  TYPELIB tls_source_values_typelib_t = {2, "tls_source_typelib_t",
+                                         tls_source_values, nullptr};
+  ulong tls_source_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

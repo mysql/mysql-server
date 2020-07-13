@@ -27,7 +27,7 @@
 
 .claro .dijitValidationTextBoxError .dijitValidationIcon {
 	width: 0;
-	background-color: transparent !important; /* so the INPUT doesn't obscure the border in rtl+a11y */
+	background-color: transparent; /* so the INPUT doesn't obscure the border in rtl+a11y */
 }
 
 /* Padding for the input area of TextBox based widgets, and corresponding padding for the
@@ -52,7 +52,8 @@
 .dj_webkit .claro .dijitTextBox .dijitInputInner {
 	// Although we are theoretically only adding 1px to top/bottom, some browsers seem to pad inputs by 1px on left/right,
 	// so compensate for that too.
-	padding: @textbox-padding - 1px;
+	padding-left: @textbox-padding - 1px;
+	padding-right: @textbox-padding - 1px;
 }
 
 .claro .dijitSelect,
@@ -191,7 +192,8 @@
  * button, depending on the openOnClick setting for the widget.
  */
 .claro .dijitComboBoxOpenOnClickHover .dijitButtonNode,
-.claro .dijitComboBox .dijitDownArrowButtonHover {
+.claro .dijitComboBox .dijitDownArrowButtonHover,
+.claro .dijitComboBoxFocused .dijitArrowButton {
 	background-color:@arrowbutton-hovered-background-color;
 }
 

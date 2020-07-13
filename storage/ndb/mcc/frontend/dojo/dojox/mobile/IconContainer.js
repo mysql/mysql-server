@@ -50,6 +50,9 @@ w.close(true);
 },this);
 },addChild:function(_16,_17){
 this.inherited(arguments);
+if(this._started&&_16.paneWidget&&!_16.paneWidget.getParent()){
+this.paneContainerWidget.addChild(_16.paneWidget,_17);
+}
 this.domNode.appendChild(this._terminator);
 },removeChild:function(_18){
 var _19=(typeof _18=="number")?_18:_18.getIndexInParent();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,11 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(*query);
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
@@ -121,6 +126,11 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(*query);
 
   NdbRestarter restarter;
@@ -194,6 +204,11 @@ runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(* query);
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
@@ -221,6 +236,11 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
   const NdbQueryDef * query = qb.createQuery();
+  if (query == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans(* query);
 
   NdbRestarter restarter;
@@ -303,6 +323,11 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   qb2.setJoinLevel(joinlevel);
   const NdbQueryDef * q1 = qb1.createQuery();
   const NdbQueryDef * q2 = qb2.createQuery();
+  if (q1 == nullptr || q2 == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDefs" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans1(* q1, maxRetries);
   HugoQueries hugoTrans2(* q2, maxRetries);
   NdbRestarter restarter;
@@ -361,6 +386,11 @@ runAbortedJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb2(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb2.setJoinLevel(joinlevel);
   const NdbQueryDef * q2 = qb2.createQuery();
+  if (q2 == nullptr)
+  {
+    ndbout << "Failed to create NdbQueryDef" <<endl;
+    return NDBT_FAILED;
+  }
   HugoQueries hugoTrans2(* q2, 1); //maxRetry==1 -> Don't retry temp errors
   NdbRestarter restarter;
 

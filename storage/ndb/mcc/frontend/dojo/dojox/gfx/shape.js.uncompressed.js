@@ -1,6 +1,14 @@
 define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel", "dojo/_base/sniff",
-	"dojo/_base/connect", "dojo/_base/array", "dojo/dom-construct", "dojo/_base/Color", "./matrix" /*===== , "./path" =====*/ ], 
-	function(g, lang, declare, kernel, has, events, arr, domConstruct, Color, matrixLib){
+	"dojo/on", "dojo/_base/array", "dojo/dom-construct", "dojo/_base/Color", "./matrix" ],
+	function(g, lang, declare, kernel, has, on, arr, domConstruct, Color, matrixLib){
+
+	function removeItemAt(a, index) {
+		var len = (a.length - 1);
+		while (index < len) {
+			a[index] = a[++index];
+		}
+		a.length = len;
+	}
 
 	var shape = g.shape = {
 		// summary:
@@ -8,66 +16,7 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 		//		Different graphics renderer implementation modules (svg, canvas, vml, silverlight, etc.) extend this
 		//		basic api to provide renderer-specific implementations for each shape.
 	};
-	
-	// a set of ids (keys=type)
-	var _ids = {};
-	// a simple set impl to map shape<->id
-	var registry = {};
-	var disposeCount = 0, fixIELeak = has("ie") < 9;
 
-	function repack(oldRegistry){
-		var newRegistry = {};
-		for(var key in oldRegistry){
-			if(oldRegistry.hasOwnProperty(key)){
-				newRegistry[key] = oldRegistry[key]
-			}
-		}
-		return newRegistry;
-	}
-
-	shape.register = function(/*dojox/gfx/shape.Shape*/s){
-		// summary:
-		//		Register the specified shape into the graphics registry.
-		// s: dojox/gfx/shape.Shape
-		//		The shape to register.
-		// returns: Number
-		//		The unique id associated with this shape.
-		
-		// the id pattern : type+number (ex: Rect0,Rect1,etc)
-		var t = s.declaredClass.split('.').pop();
-		var i = t in _ids ? ++_ids[t] : ((_ids[t] = 0));
-		var uid = t+i;
-		registry[uid] = s;
-		return uid;
-	};
-	
-	shape.byId = function(/*String*/id){
-		// summary:
-		//		Returns the shape that matches the specified id.
-		// id: String
-		//		The unique identifier for this Shape.
-		// returns: dojox/gfx/shape.Shape
-		return registry[id]; //dojox/gfx/shape.Shape
-	};
-
-	shape.dispose = function(/*dojox/gfx/shape.Shape*/s, /*Boolean?*/recurse){
-		// summary:
-		//		Removes the specified shape from the registry.
-		// s: dojox/gfx/shape.Shape
-		//		The shape to unregister.
-		if(recurse && s.children){
-			for(var i=0; i< s.children.length; ++i){
-				shape.dispose(s.children[i], true);
-			}
-		}
-		delete registry[s.getUID()];
-		++disposeCount;
-		if(fixIELeak && disposeCount>10000){
-			registry = repack(registry);
-			disposeCount = 0;
-		}
-	};
-	
 	shape.Shape = declare("dojox.gfx.shape.Shape", null, {
 		// summary:
 		//		a Shape object, which knows how to apply
@@ -122,10 +71,12 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			// parentMatrix: dojox/gfx/matrix.Matrix2D
 			//		a transformation matrix inherited from the parent
 			this.parentMatrix = null;
-			
-			var uid = shape.register(this);
-			this.getUID = function(){
-				return uid;
+
+			if(has("gfxRegistry")){
+				var uid = shape.register(this);
+				this.getUID = function(){
+					return uid;
+				}
 			}
 		},
 		
@@ -133,7 +84,13 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			// summary:
 			//		Releases all internal resources owned by this shape. Once this method has been called,
 			//		the instance is considered destroyed and should not be used anymore.
-			shape.dispose(this);
+			if(has("gfxRegistry")){
+				shape.dispose(this);
+			}
+			if(this.rawNode && "__gfxObject__" in this.rawNode){
+				this.rawNode.__gfxObject__ = null;
+			}
+			this.rawNode = null;
 		},
 	
 		// trivial getters
@@ -480,6 +437,13 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 	});
 	
 	shape._eventsProcessing = {
+		on: function(type, listener){
+			//	summary:
+			//		Connects an event to this shape.
+
+			return on(this.getEventSource(), type, shape.fixCallback(this, g.fixTarget, listener));
+		},
+
 		connect: function(name, object, method){
 			// summary:
 			//		connects a handler to an event on this shape
@@ -487,16 +451,19 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			// COULD BE RE-IMPLEMENTED BY THE RENDERER!
 			// redirect to fixCallback to normalize events and add the gfxTarget to the event. The latter
 			// is done by dojox/gfx.fixTarget which is defined by each renderer
-			return events.connect(this.getEventSource(), name, shape.fixCallback(this, g.fixTarget, object, method));
-			
+			if(name.substring(0, 2) == "on"){
+				name = name.substring(2);
+			}
+			return this.on(name, method ? lang.hitch(object, method) : object);
 		},
+
 		disconnect: function(token){
 			// summary:
 			//		connects a handler by token from an event on this shape
 			
 			// COULD BE RE-IMPLEMENTED BY THE RENDERER!
 	
-			events.disconnect(token);
+			return token.remove();
 		}
 	};
 	
@@ -548,6 +515,7 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			// children: Array
 			//		a list of children
 			this.children = [];
+			this._batch = 0;
 		},
 	
 		// group management
@@ -555,11 +523,18 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 		openBatch: function() {
 			// summary:
 			//		starts a new batch, subsequent new child shapes will be held in
-			//		the batch instead of appending to the container directly
+			//		the batch instead of appending to the container directly.
+			// description:
+			//		Because the canvas renderer has no DOM hierarchy, the canvas implementation differs
+			//		such that it suspends the repaint requests for this container until the current batch is closed by a call to closeBatch().
+			return this;
 		},
 		closeBatch: function() {
 			// summary:
 			//		submits the current batch, append all pending child shapes to DOM
+			// description:
+			//		On canvas, this method flushes the pending redraws queue.
+			return this;
 		},
 		add: function(shape){
 			// summary:
@@ -588,7 +563,7 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 						shape.parent = null;
 						shape.parentMatrix = null;
 					}
-					this.children.splice(i, 1);
+					removeItemAt(this.children, i);
 					break;
 				}
 			}
@@ -658,7 +633,7 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			//		one of the child shapes to move to the front
 			for(var i = 0; i < this.children.length; ++i){
 				if(this.children[i] == shape){
-					this.children.splice(i, 1);
+					removeItemAt(this.children, i);
 					this.children.push(shape);
 					break;
 				}
@@ -672,7 +647,7 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			//		one of the child shapes to move to the front
 			for(var i = 0; i < this.children.length; ++i){
 				if(this.children[i] == shape){
-					this.children.splice(i, 1);
+					removeItemAt(this.children, i);
 					this.children.unshift(shape);
 					break;
 				}
@@ -700,7 +675,7 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			//		external references to make this object garbage-collectible
 			arr.forEach(this._nodes, domConstruct.destroy);
 			this._nodes = [];
-			arr.forEach(this._events, events.disconnect);
+			arr.forEach(this._events, function(h){ if(h){ h.remove(); } });
 			this._events = [];
 			this.rawNode = null;	// recycle it in _nodes, if it needs to be recycled
 			if(has("ie")){
@@ -751,8 +726,7 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 			if(this.isLoaded){
 				f(this);
 			}else{
-				var h = events.connect(this, "onLoad", function(surface){
-					events.disconnect(h);
+				on.once(this, "load", function(surface){
 					f(surface);
 				});
 			}
@@ -976,6 +950,13 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 				g.makeParameters(g.defaultFont, newFont);
 			this._setFont();
 			return this;	// self
+		},
+		getBoundingBox: function(){
+			var bbox = null, s = this.getShape();
+			if(s.text){
+				bbox = g._base._computeTextBoundingBox(this);
+			}
+			return bbox;
 		}
 	});
 	
@@ -1102,12 +1083,8 @@ define("dojox/gfx/shape", ["./_base", "dojo/_base/lang", "dojo/_base/declare", "
 	g.Ellipse  = shape.Ellipse;
 	g.Line     = shape.Line;
 	g.Polyline = shape.Polyline;
-	g.Path     = shape.Path;
 	g.Text     = shape.Text;
 	g.Surface  = shape.Surface;
-
-	g.Path = g.path.Path;
-	g.TextPath = g.path.TextPath;
 	=====*/
 
 	return shape;

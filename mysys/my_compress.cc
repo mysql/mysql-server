@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -263,18 +263,18 @@ static bool zlib_uncompress(uchar *packet, size_t len, size_t *complen) {
   return false;
 }
 
-/*
+/**
    This replaces the packet with a compressed packet
 
-   SYNOPSIS
-     my_compress()
-     packet   Data to compress. This is is replaced with the compressed data.
-     len      Length of data to compress at 'packet'
-     complen  out: 0 if packet was not compressed
-
-   RETURN
-     1   error. 'len' is not changed'
-     0   ok.  In this case 'len' contains the size of the compressed packet
+   @param [in] comp_ctx     Compress context
+   @param [in, out] packet  Data to compress. This is replaced with the
+                            compressed data.
+   @param [in] len          Length of data to compress at 'packet'
+   @param [out] complen     Compressed packet length. 0, if packet was not
+                            compressed
+   @return
+     @retval 1   error. 'len' is not changed
+     @retval 0   ok.    'len' contains the size of the compressed packet
 */
 
 bool my_compress(mysql_compress_context *comp_ctx, uchar *packet, size_t *len,
@@ -308,7 +308,7 @@ uchar *my_compress_alloc(mysql_compress_context *comp_ctx, const uchar *packet,
   return zlib_compress_alloc(&comp_ctx->u.zlib_ctx, packet, len, complen);
 }
 
-/*
+/**
   Uncompress packet
 
   @param comp_ctx      Pointer to compression context.

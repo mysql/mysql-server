@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -213,6 +213,8 @@ static bool fold_or_convert_dec(THD *thd, Item **const_val,
                         constant (at execution time). May be modified if
                         we replace or fold the constant.
   @param      ft        the function type of the comparison
+  @param      left_has_field
+                        the field is the left operand
   @param[out] place     the placement of the const_val relative to
                         the range of f
   @param[out] discount_equal
@@ -222,6 +224,7 @@ static bool fold_or_convert_dec(THD *thd, Item **const_val,
 */
 static bool analyze_int_field_constant(THD *thd, Item_field *f,
                                        Item **const_val, Item_func::Functype ft,
+                                       bool left_has_field,
                                        Range_placement *place,
                                        bool *discount_equal) {
   const bool field_unsigned = f->unsigned_flag;
@@ -300,20 +303,21 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       if (d == nullptr) d = (*const_val)->val_decimal(&d_buff);
       if (ft == Item_func::LT_FUNC || ft == Item_func::LE_FUNC) {
         /*
-          Round up the decimal to next integral value, then try to convert
-          that to a longlong, or short circuit
+          Round up (or down if field is the right operand) the decimal to next
+          integral value, then try to convert that to a longlong, or short
+          circuit
         */
-        if (round_fold_or_convert_dec(thd, const_val, place, f, d, true,
-                                      discount_equal))
+        if (round_fold_or_convert_dec(thd, const_val, place, f, d,
+                                      left_has_field, discount_equal))
           return true;
         if (*place != RP_INSIDE) return false;
       } else if (ft == Item_func::GT_FUNC || ft == Item_func::GE_FUNC) {
         /*
-          Round down the decimal to next integral value, then try to convert
-          that to a longlong
+          Round down (or up) the decimal to next integral value, then try to
+          convert that to a longlong
         */
-        if (round_fold_or_convert_dec(thd, const_val, place, f, d, false,
-                                      discount_equal))
+        if (round_fold_or_convert_dec(thd, const_val, place, f, d,
+                                      !left_has_field, discount_equal))
           return true;
         if (*place != RP_INSIDE) return false;
       } else {  // for =, <>
@@ -972,6 +976,8 @@ static bool analyze_time_field_constant(THD *thd, Item **const_val) {
                         constant (at execution time). May be modified if
                         we replace or fold the constant.
   @param      func      the function of the comparison
+  @param      left_has_field
+                        the field is the left operand
   @param[out] place     the placement of the const_val relative to
                         the range of f
   @param[out] discount_equal
@@ -981,8 +987,9 @@ static bool analyze_time_field_constant(THD *thd, Item **const_val) {
   @returns   true on error
 */
 static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
-                                   Item_func *func, Range_placement *place,
-                                   bool *discount_equal, bool *negative) {
+                                   Item_func *func, bool left_has_field,
+                                   Range_placement *place, bool *discount_equal,
+                                   bool *negative) {
   *place = RP_INSIDE;  // a priori
 
   if ((*const_val)->is_null()) return false;
@@ -995,8 +1002,8 @@ static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
-      return analyze_int_field_constant(thd, f, const_val, ft, place,
-                                        discount_equal);
+      return analyze_int_field_constant(thd, f, const_val, ft, left_has_field,
+                                        place, discount_equal);
     case MYSQL_TYPE_NEWDECIMAL:
       return analyze_decimal_field_constant(thd, f, const_val, ft, place,
                                             negative);
@@ -1369,7 +1376,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
   if (analyze_field_constant(
           thd, down_cast<Item_field *>(args[!left_has_field]->real_item()), c,
-          func, &place, &discount_eq, &negative))
+          func, left_has_field, &place, &discount_eq, &negative))
     return true; /* purecov: inspected */
 
   if (discount_eq &&

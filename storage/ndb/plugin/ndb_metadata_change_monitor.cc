@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
     return false;
   }
 
-  for (const auto logfile_group_name : lfg_in_NDB) {
+  for (const auto &logfile_group_name : lfg_in_NDB) {
     if (lfg_in_DD.find(logfile_group_name) == lfg_in_DD.end()) {
       // Exists in NDB but not in DD
       std::vector<std::string> undofile_names;
@@ -154,7 +154,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
     }
   }
 
-  for (const auto logfile_group_name : lfg_in_DD) {
+  for (const auto &logfile_group_name : lfg_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_logfile_group_async(logfile_group_name)) {
       increment_metadata_detected_count();
@@ -187,7 +187,7 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
     return false;
   }
 
-  for (const auto tablespace_name : tablespaces_in_NDB) {
+  for (const auto &tablespace_name : tablespaces_in_NDB) {
     if (tablespaces_in_DD.find(tablespace_name) == tablespaces_in_DD.end()) {
       // Exists in NDB but not in DD
       std::vector<std::string> datafile_names;
@@ -217,7 +217,7 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
     }
   }
 
-  for (const auto tablespace_name : tablespaces_in_DD) {
+  for (const auto &tablespace_name : tablespaces_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_tablespace_async(tablespace_name)) {
       increment_metadata_detected_count();
@@ -289,7 +289,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
   // Special case when all NDB tables belonging to a schema still exist in DD
   // but not in NDB
   if (ndb_tables_in_NDB.empty() && !ndb_tables_in_DD.empty()) {
-    for (const auto ndb_table_name : ndb_tables_in_DD) {
+    for (const auto &ndb_table_name : ndb_tables_in_DD) {
       // Exists in DD but not in NDB
       if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
         increment_metadata_detected_count();
@@ -305,7 +305,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
   // not in DD (as either NDB or shadow tables)
   if (!ndb_tables_in_NDB.empty() && ndb_tables_in_DD.empty() &&
       local_tables_in_DD.empty()) {
-    for (const auto ndb_table_name : ndb_tables_in_NDB) {
+    for (const auto &ndb_table_name : ndb_tables_in_NDB) {
       // Exists in NDB but not in DD
       if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
         increment_metadata_detected_count();
@@ -317,7 +317,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
     return true;
   }
 
-  for (const auto ndb_table_name : ndb_tables_in_NDB) {
+  for (const auto &ndb_table_name : ndb_tables_in_NDB) {
     if (ndb_tables_in_DD.find(ndb_table_name) == ndb_tables_in_DD.end() &&
         local_tables_in_DD.find(ndb_table_name) == local_tables_in_DD.end()) {
       // Exists in NDB but not in DD
@@ -333,7 +333,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
     }
   }
 
-  for (const auto ndb_table_name : ndb_tables_in_DD) {
+  for (const auto &ndb_table_name : ndb_tables_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
       increment_metadata_detected_count();
@@ -587,6 +587,8 @@ void Ndb_metadata_change_monitor::do_run() {
 
       ndbcluster_binlog_validate_sync_blacklist(thd);
 
+      ndbcluster_binlog_validate_sync_retry_list(thd);
+
       if (!detect_logfile_group_changes(thd, thd_ndb)) {
         log_info("Failed to detect logfile group metadata changes");
       }
@@ -611,36 +613,52 @@ void Ndb_metadata_change_monitor::do_run() {
       log_verbose(10, "Table metadata check completed");
       log_verbose(10, "Metadata check completed");
 
-      if (controller.get_metadata_sync() && controller.all_changes_detected()) {
-        // All changes at this point in time have been detected. Since the
-        // ndb_metadata_sync option has been set, we don't expect more changes.
-        // Stall the thread and prevent it from checking for further mismatches
-        // until the current queue has been synchronized by the binlog thread
-        mysql_mutex_lock(&m_sync_done_mutex);
-        mysql_cond_wait(&m_sync_done_cond, &m_sync_done_mutex);
-        mysql_mutex_unlock(&m_sync_done_mutex);
-        if (!m_mark_sync_complete) {
-          // This is the first instance of the binlog thread having synchronized
-          // all changes submitted to it. However, the change monitor thread
-          // has been stalled for a while so we opt for at least one more
-          // detection and sync cycle to ensure that all changes are synced.
-          // This is particularly relevant to synchronization of schema objects
-          // since they have to be installed in DD for their tables to be
-          // detected. This synchronization is dependent on the load on the
-          // binlog thread so an additional detection and sync run after we know
-          // for a fact that such schemata have been installed could be useful.
-          //
-          // The below flag denotes that the we've already detected an instance
-          // of all objects having been synchronized and that ndb_metadata_sync
-          // can be flipped the next time we detect the same condition
-          m_mark_sync_complete = true;
+      if (controller.get_metadata_sync()) {
+        if (controller.all_changes_detected()) {
+          /*
+            All changes at this point in time have been detected. Since the
+            ndb_metadata_sync option has been set, we don't expect more changes.
+            Stall the thread and prevent it from checking for further mismatches
+            until the current queue has been synchronized by the binlog thread
+          */
+          mysql_mutex_lock(&m_sync_done_mutex);
+          mysql_cond_wait(&m_sync_done_cond, &m_sync_done_mutex);
+          mysql_mutex_unlock(&m_sync_done_mutex);
+          if (!m_mark_sync_complete) {
+            /*
+              This is the first instance of the binlog thread having synced
+              all changes submitted to it. However, the change monitor thread
+              has been stalled for a while so we opt for at least one more
+              detection and sync cycle to ensure that all changes are synced.
+              This is particularly relevant to synchronization of schema objects
+              since they have to be installed in DD for their tables to be
+              detected. This synchronization is dependent on the load on the
+              binlog thread so an additional detection and sync run after we
+              know for a fact that such schemas have been installed could be
+              useful.
+
+              The below flag denotes that the we've already detected an instance
+              of all objects having been synchronized and that ndb_metadata_sync
+              can be flipped if the the same condition is detected in the
+              following run.
+            */
+            m_mark_sync_complete = true;
+          } else {
+            log_info("Metadata synchronization complete");
+            // Set ndb_metadata_sync to false to denote that all changes have
+            // been detected and synchronized
+            opt_ndb_metadata_sync = false;
+            // Reset the flag to its default value
+            m_mark_sync_complete = false;
+          }
         } else {
-          log_info("Metadata synchronization complete");
-          // Set ndb_metadata_sync to false to denote that all changes have been
-          // detected and synchronized
-          opt_ndb_metadata_sync = false;
-          // Reset the flag to its default value
-          m_mark_sync_complete = false;
+          /*
+            Changes detected in this run. The flag is checked to see if the
+            previous run had marked it as complete. It is only after consecutive
+            runs with no new changes detected that the ndb_metadata_sync is
+            flipped.
+          */
+          if (m_mark_sync_complete) m_mark_sync_complete = false;
         }
       }
     }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -74,12 +74,17 @@ enum buf_flush_t {
 /** Algorithm to remove the pages for a tablespace from the buffer pool.
 See buf_LRU_flush_or_remove_pages(). */
 enum buf_remove_t {
-  BUF_REMOVE_ALL_NO_WRITE,   /*!< Remove all pages from the buffer
-                             pool, don't write or sync to disk */
-  BUF_REMOVE_FLUSH_NO_WRITE, /*!< Remove only, from the flush list,
-                             don't write or sync to disk */
-  BUF_REMOVE_FLUSH_WRITE     /*!< Flush dirty pages to disk only
-                             don't remove from the buffer pool */
+  /** Don't remove any pages. */
+  BUF_REMOVE_NONE,
+
+  /** Remove all pages from the buffer pool, don't write or sync to disk */
+  BUF_REMOVE_ALL_NO_WRITE,
+
+  /** Remove only from the flush list, don't write or sync to disk */
+  BUF_REMOVE_FLUSH_NO_WRITE,
+
+  /** Flush dirty pages to disk only don't remove from the buffer pool */
+  BUF_REMOVE_FLUSH_WRITE
 };
 
 /** Flags for io_fix types */
@@ -152,16 +157,33 @@ typedef rw_lock_t BPageLock;
 /** Page identifier. */
 class page_id_t {
  public:
-  /** Default constructor */
-  page_id_t() : m_space(), m_page_no(), m_fold() {}
+  /**
+  This class does not have a default constructor, because there is no natural
+  choice for default values of m_space and m_page_no.
+
+  If 0,0 were used, then it's not good as it doesn't match UINT32_UNDEFINED
+  used to denote impossible page_no_t in several places, and 0 is a legal
+  value for both space_id_t and page_id_t of a real page!
+
+  If UINT32_UNDEFINED,UINT32_UNDEFINED were used, then it doesn't match the
+  most common usage where use use memset(parent,0,sizeof(parent_t)); on a
+  parent struct where one of the members has page_id_t type - which is ok
+  given that page_id_t is TriviallyCopyable, and that the field is not
+  used until it is assigned some real value. Such constructor would be
+  misleading to people reading the code, as they might expect UINT32_UNDEFINED
+  value, if they didn't notice the memset code burried somewhere in parent's
+  initialization routine.
+
+  Therefore, please either be explicit by using (space,page_no) overload,
+  or continue to use memset at your own risk.
+  */
+  page_id_t() = delete;
 
   /** Constructor from (space, page_no).
   @param[in]	space	tablespace id
   @param[in]	page_no	page number */
   page_id_t(space_id_t space, page_no_t page_no)
-      : m_space(space), m_page_no(page_no), m_fold(ULINT_UNDEFINED) {}
-
-  page_id_t(const page_id_t &) = default;
+      : m_space(space), m_page_no(page_no) {}
 
   /** Retrieve the tablespace id.
   @return tablespace id */
@@ -173,23 +195,7 @@ class page_id_t {
 
   /** Retrieve the fold value.
   @return fold value */
-  inline ulint fold() const {
-    /* Initialize m_fold if it has not been initialized yet. */
-    if (m_fold == ULINT_UNDEFINED) {
-      m_fold = (m_space << 20) + m_space + m_page_no;
-      ut_ad(m_fold != ULINT_UNDEFINED);
-    }
-
-    return (m_fold);
-  }
-
-  /** Copy the values from a given page_id_t object.
-  @param[in]	src	page id object whose values to fetch */
-  inline void copy_from(const page_id_t &src) {
-    m_space = src.space();
-    m_page_no = src.page_no();
-    m_fold = src.fold();
-  }
+  inline uint32_t fold() const { return (m_space << 20) + m_space + m_page_no; }
 
   /** Reset the values from a (space, page_no).
   @param[in]	space	tablespace id
@@ -197,21 +203,30 @@ class page_id_t {
   inline void reset(space_id_t space, page_no_t page_no) {
     m_space = space;
     m_page_no = page_no;
-    m_fold = ULINT_UNDEFINED;
   }
 
   /** Reset the page number only.
   @param[in]	page_no	page number */
-  inline void set_page_no(page_no_t page_no) {
-    m_page_no = page_no;
-    m_fold = ULINT_UNDEFINED;
-  }
+  inline void set_page_no(page_no_t page_no) { m_page_no = page_no; }
 
   /** Check if a given page_id_t object is equal to the current one.
   @param[in]	a	page_id_t object to compare
   @return true if equal */
-  inline bool equals_to(const page_id_t &a) const {
+  inline bool operator==(const page_id_t &a) const {
     return (a.space() == m_space && a.page_no() == m_page_no);
+  }
+
+  /** Check if a given page_id_t object is not equal to the current one.
+  @param[in]	a	page_id_t object to compare
+  @return true if not equal */
+  inline bool operator!=(const page_id_t &a) const { return !(*this == a); }
+
+  /** Provides a lexicographic ordering on <space_id,page_no> pairs
+  @param[in]	other	page_id_t object to compare
+  @return true if this is strictly smaller than other */
+  inline bool operator<(const page_id_t &other) const {
+    return m_space < other.space() ||
+           (m_space == other.space() && m_page_no < other.page_no());
   }
 
  private:
@@ -220,13 +235,6 @@ class page_id_t {
 
   /** Page number. */
   page_no_t m_page_no;
-
-  /** A fold value derived from m_space and m_page_no,
-  used in hashing. */
-  mutable ulint m_fold;
-
-  /* Disable implicit copying. */
-  void operator=(const page_id_t &) = delete;
 
   /** Declare the overloaded global operator<< as a friend of this
   class. Refer to the global declaration for further details.  Print

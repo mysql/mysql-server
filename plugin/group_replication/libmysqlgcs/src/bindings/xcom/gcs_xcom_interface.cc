@@ -132,7 +132,9 @@ void do_cb_xcom_expel();
 
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 int cb_xcom_get_should_exit();
-void cb_xcom_handle_app_snap(blob *gcs_snap);
+void cb_xcom_handle_app_snap(blob *store_snap MY_ATTRIBUTE((unused)),
+                             synode_no start MY_ATTRIBUTE((unused)),
+                             synode_no end MY_ATTRIBUTE((unused)));
 int cb_xcom_socket_accept(int fd, site_def const *xcom_config);
 
 xcom_input_request_ptr cb_xcom_input_try_pop();
@@ -192,8 +194,6 @@ Gcs_xcom_interface::Gcs_xcom_interface()
       m_wait_for_ssl_init_mutex() {
   // Initialize random seed
   srand(static_cast<unsigned int>(time(nullptr)));
-
-  My_xp_util::init_time();
 }
 
 Gcs_xcom_interface::~Gcs_xcom_interface() {}
@@ -887,7 +887,6 @@ bool Gcs_xcom_interface::initialize_xcom(
   ::set_port_matcher(cb_xcom_match_port);
   ::set_app_snap_handler(cb_xcom_handle_app_snap);
   ::set_should_exit_getter(cb_xcom_get_should_exit);
-  ::set_app_snap_getter(cb_xcom_get_app_snap);
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
   ::set_xcom_exit_cb(cb_xcom_exit);
@@ -1591,7 +1590,9 @@ end:
   delete xcom_nodes;
 }
 
-void cb_xcom_handle_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused))) {}
+void cb_xcom_handle_app_snap(blob *store_snap MY_ATTRIBUTE((unused)),
+                             synode_no start MY_ATTRIBUTE((unused)),
+                             synode_no end MY_ATTRIBUTE((unused))) {}
 
 synode_no cb_xcom_get_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused))) {
   return null_synode;

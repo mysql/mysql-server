@@ -156,7 +156,7 @@ define("dojo/_base/Deferred", [
 		//		Note that the caller doesn't have to change his code at all to
 		//		handle the asynchronous case.
 
-		var result, finished, isError, head, nextListener;
+		var result, finished, canceled, fired, isError, head, nextListener;
 		var promise = (this.promise = new Promise());
 
 		function complete(value){
@@ -206,11 +206,44 @@ define("dojo/_base/Deferred", [
 				}
 			}
 		}
+
+		this.isResolved = promise.isResolved = function(){
+			// summary:
+			//		Checks whether the deferred has been resolved.
+			// returns: Boolean
+
+			return fired == 0;
+		};
+
+		this.isRejected = promise.isRejected = function(){
+			// summary:
+			//		Checks whether the deferred has been rejected.
+			// returns: Boolean
+
+			return fired == 1;
+		};
+
+		this.isFulfilled = promise.isFulfilled = function(){
+			// summary:
+			//		Checks whether the deferred has been resolved or rejected.
+			// returns: Boolean
+
+			return fired >= 0;
+		};
+
+		this.isCanceled = promise.isCanceled = function(){
+			// summary:
+			//		Checks whether the deferred has been canceled.
+			// returns: Boolean
+
+			return canceled;
+		};
+
 		// calling resolve will resolve the promise
 		this.resolve = this.callback = function(value){
 			// summary:
 			//		Fulfills the Deferred instance successfully with the provide value
-			this.fired = 0;
+			this.fired = fired = 0;
 			this.results = [value, null];
 			complete(value);
 		};
@@ -221,7 +254,7 @@ define("dojo/_base/Deferred", [
 			// summary:
 			//		Fulfills the Deferred instance as an error with the provided error
 			isError = true;
-			this.fired = 1;
+			this.fired = fired = 1;
 			if(has("config-useDeferredInstrumentation")){
 				if(NewDeferred.instrumentRejected){
 					NewDeferred.instrumentRejected(error, !!nextListener);
@@ -312,6 +345,7 @@ define("dojo/_base/Deferred", [
 					deferred.reject(error);
 				}
 			}
+			canceled = true;
 		};
 		freeze(promise);
 	};

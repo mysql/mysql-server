@@ -1,5 +1,5 @@
 //>>built
-define("dojox/date/buddhist/locale",["../..","dojo/_base/lang","dojo/_base/array","dojo/date","dojo/i18n","dojo/regexp","dojo/string","./Date","dojo/i18n!dojo/cldr/nls/buddhist"],function(_1,_2,_3,dd,_4,_5,_6,_7){
+define("dojox/date/buddhist/locale",["dojox/main","dojo/_base/lang","dojo/_base/array","dojo/date","dojo/i18n","dojo/regexp","dojo/string","./Date","dojo/i18n!dojo/cldr/nls/buddhist"],function(_1,_2,_3,dd,_4,_5,_6,_7){
 var _8=_2.getObject("date.buddhist.locale",true,_1);
 function _9(_a,_b,_c,_d,_e){
 return _e.replace(/([a-z])\1*/ig,function(_f){

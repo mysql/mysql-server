@@ -7,11 +7,11 @@ define("dojox/dgauges/CircularValueIndicator", ["dojo/_base/declare", "dojox/gfx
 			// summary:
 			//		Draws the indicator. The rotation center is at (0, 0).
 			// group: dojox/gfx/Group
-			//		A GFX group for drawing. 
+			//		A GFX group for drawing.
 			// indicator: dojox/dgauges/IndicatorBase
 			//		A reference to this indicator.
 			// returns: dojox/gfx/shape.Shape
-			//		A GFX shape retrievable using the getIndicatorRenderer method of the associated scale. 
+			//		A GFX shape retrievable using the getIndicatorRenderer method of the associated scale.
 			return group.createLine({
 				x1: 0,
 				y1: 0,
@@ -22,18 +22,22 @@ define("dojox/dgauges/CircularValueIndicator", ["dojo/_base/declare", "dojox/gfx
 				width: 1
 			});
 		},
-		
+
 		refreshRendering: function(){
 			this.inherited(arguments);
-			var v = isNaN(this._transitionValue) ? this.value : this._transitionValue;
-			var angle = this.scale.positionForValue(v);
-			
-			this._gfxGroup.setTransform([{
-				dx: this.scale.originX,
-				dy: this.scale.originY
-			}, gfx.matrix.rotateg(angle)]);
+			if(this._gfxGroup === null || this.scale === null){
+				return;
+			}else{
+				var v = isNaN(this._transitionValue) ? this.value : this._transitionValue;
+				var angle = this.scale.positionForValue(v);
+
+				this._gfxGroup.setTransform([{
+					dx: this.scale.originX,
+					dy: this.scale.originY
+				}, gfx.matrix.rotateg(angle)]);
+			}
 		},
-		
+
 		_onMouseDown: function(event){
 			// summary:
 			//		Internal method.
@@ -47,7 +51,7 @@ define("dojox/dgauges/CircularValueIndicator", ["dojo/_base/declare", "dojox/gfx
 			// prevent the browser from selecting text
 			eventUtil.stop(event);
 		},
-		
+
 		_onMouseMove: function(event){
 			// summary:
 			//		Internal method.

@@ -2,11 +2,10 @@ define("dijit/form/_RadioButtonMixin", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.set
-	"dojo/_base/event", // event.stop
 	"dojo/_base/lang", // lang.hitch
-	"dojo/query", // query
-	"../registry"	// registry.getEnclosingWidget
-], function(array, declare, domAttr, event, lang, query, registry){
+	"dojo/query!css2", // query
+	"../registry"    // registry.getEnclosingWidget
+], function(array, declare, domAttr, lang, query, registry){
 
 	// module:
 	//		dijit/form/_RadioButtonMixin
@@ -23,7 +22,7 @@ define("dijit/form/_RadioButtonMixin", [
 		_getRelatedWidgets: function(){
 			// Private function needed to help iterate over all radio buttons in a group.
 			var ary = [];
-			query("input[type=radio]", this.focusNode.form || this.ownerDocument).forEach( // can't use name= since query doesn't support [] in the name
+			query("input[type=radio]", this.focusNode.form || this.ownerDocument).forEach(// can't use name= since query doesn't support [] in the name
 				lang.hitch(this, function(inputNode){
 					if(inputNode.name == this.name && inputNode.form == this.focusNode.form){
 						var widget = registry.getEnclosingWidget(inputNode);
@@ -39,7 +38,9 @@ define("dijit/form/_RadioButtonMixin", [
 		_setCheckedAttr: function(/*Boolean*/ value){
 			// If I am being checked then have to deselect currently checked radio button
 			this.inherited(arguments);
-			if(!this._created){ return; }
+			if(!this._created){
+				return;
+			}
 			if(value){
 				array.forEach(this._getRelatedWidgets(), lang.hitch(this, function(widget){
 					if(widget != this && widget.checked){
@@ -55,17 +56,57 @@ define("dijit/form/_RadioButtonMixin", [
 
 		_onClick: function(/*Event*/ e){
 			if(this.checked || this.disabled){ // nothing to do
-				event.stop(e);
+				e.stopPropagation();
+				e.preventDefault();
 				return false;
 			}
+
 			if(this.readOnly){ // ignored by some browsers so we have to resync the DOM elements with widget values
-				event.stop(e);
+				e.stopPropagation();
+				e.preventDefault();
 				array.forEach(this._getRelatedWidgets(), lang.hitch(this, function(widget){
 					domAttr.set(this.focusNode || this.domNode, 'checked', widget.checked);
 				}));
 				return false;
 			}
-			return this.inherited(arguments);
+
+			// RadioButton has some unique logic since it must enforce only a single button being checked at once
+			// For this reason the "_onClick" method does not call this.inherited
+
+			var canceled = false;
+			var previouslyCheckedButton;
+
+			array.some(this._getRelatedWidgets(), function(radioButton){
+				if(radioButton.checked){
+					previouslyCheckedButton = radioButton;
+					return true;
+				}
+				return false;
+			});
+
+			// We want to set the post-click values correctly for any event handlers, but since
+			// the event handlers could revert them, we don't want to fully update the widget state
+			// yet and trigger notifications
+			this.checked = true;
+			previouslyCheckedButton && (previouslyCheckedButton.checked = false);
+
+			// Call event handlers
+			// If event handler prevents it, the clicked radio button will not be checked
+			if(this.onClick(e) === false || e.defaultPrevented){
+				canceled = true;
+			}
+
+			// Reset internal state to how it was before the click
+			this.checked = false;
+			previouslyCheckedButton && (previouslyCheckedButton.checked = true);
+
+			if(canceled){
+				e.preventDefault();
+			}else{
+				this.set('checked', true);
+			}
+
+			return !canceled;
 		}
 	});
 });

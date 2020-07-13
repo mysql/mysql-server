@@ -56,55 +56,55 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 
   --let $mysqlbinlog_allow_error=1
   --let $mysqlbinlog_parameters= --require_row_format $MYSQLD_DATADIR/$binlog_file
-  --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out 2>&1
+  --let $mysqlbinlog_pipe= > $MYSQL_TMP_DIR/mysqlbinlog.out 2>&1
   --source include/mysqlbinlog.inc
 
   --let $assert_text = There was an error when executing mysqlbinlog
-  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog.out
   --let $assert_select = Event being written violates the --require-row-format parameter constraints
   --let $assert_count = 1
   --source include/assert_grep.inc
 
   --let $assert_text = $assert_text_event_not_present_mysqlbinlog
-  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog.out
   --let $assert_select = $assert_select_event_present_mysqlbinlog
   --let $assert_count = 0
   --source include/assert_grep.inc
 
   --let $mysqlbinlog_allow_error=1
   --let $mysqlbinlog_parameters= -R --host=127.0.0.1 -P $MASTER_MYPORT -u root --require_row_format $binlog_file
-  --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out 2>&1
+  --let $mysqlbinlog_pipe= > $MYSQL_TMP_DIR/mysqlbinlog_remote.out 2>&1
   --source include/mysqlbinlog.inc
 
   --let $assert_text = There was an error when executing mysqlbinlog remotely
-  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out
+  --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog_remote.out
   --let $assert_select = Event being written violates the --require-row-format parameter constraints
   --let $assert_count = 1
   --source include/assert_grep.inc
 
   --let $assert_text = $assert_text_event_not_present_mysqlbinlog
-  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out
+  --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog_remote.out
   --let $assert_select = $assert_select_event_present_mysqlbinlog
   --let $assert_count = 0
   --source include/assert_grep.inc
 
-  --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
-  --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out
+  --remove_file $MYSQL_TMP_DIR/mysqlbinlog.out
+  --remove_file $MYSQL_TMP_DIR/mysqlbinlog_remote.out
 
   --let $mysqlbinlog_allow_error=0
   --let $mysqlbinlog_parameters= $MYSQLD_DATADIR/$binlog_file
-  --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out 2>&1
+  --let $mysqlbinlog_pipe= > $MYSQL_TMP_DIR/mysqlbinlog.out 2>&1
   --source include/mysqlbinlog.inc
 
   --let $assert_text = $assert_text_event_present_mysqlbinlog
-  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --let $assert_file = $MYSQL_TMP_DIR/mysqlbinlog.out
   --let $assert_select = $assert_select_event_present_mysqlbinlog
   --let $assert_count = 1
   --source include/assert_grep.inc
 
   RESET MASTER;
 
-  --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --remove_file $MYSQL_TMP_DIR/mysqlbinlog.out
 
 END_OF_PROCEDURE
 
@@ -253,4 +253,4 @@ FLUSH LOGS;
 
 --remove_file $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
 
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ SQL_LOAD_MB*
+--remove_files_wildcard $MYSQL_TMP_DIR/ SQL_LOAD_MB*

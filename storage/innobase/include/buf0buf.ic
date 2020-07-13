@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -420,7 +420,7 @@ void buf_page_set_flush_type(buf_page_t *bpage,      /*!< in: buffer page */
 UNIV_INLINE
 void buf_block_set_file_page(buf_block_t *block, const page_id_t &page_id) {
   buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
-  block->page.id.copy_from(page_id);
+  block->page.id = page_id;
 }
 
 /** Gets the io_fix state of a block.
@@ -954,7 +954,7 @@ buf_page_t *buf_page_hash_get_low(buf_pool_t *buf_pool,
   HASH_SEARCH(hash, buf_pool->page_hash, page_id.fold(), buf_page_t *, bpage,
               ut_ad(bpage->in_page_hash && !bpage->in_zip_hash &&
                     buf_page_in_file(bpage)),
-              page_id.equals_to(bpage->id));
+              page_id == bpage->id);
   if (bpage) {
     ut_a(buf_page_in_file(bpage));
     ut_ad(bpage->in_page_hash);
@@ -1023,7 +1023,7 @@ buf_page_t *buf_page_hash_get_locked(buf_pool_t *buf_pool,
   }
 
   ut_ad(buf_page_in_file(bpage));
-  ut_ad(page_id.equals_to(bpage->id));
+  ut_ad(page_id == bpage->id);
 
   if (lock == nullptr) {
     /* The caller wants us to release the page_hash lock */

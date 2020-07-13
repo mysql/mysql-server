@@ -1,25 +1,30 @@
-.dojoxRangeSlider .dijitSliderLeftBumper, .dojoxRangeSlider .dijitSliderBottomBumper  {
-    background:#FFFFFF !important;
+.dijitSlider.dojoxRangeSlider .dijitSliderLeftBumper,
+.dijitSlider.dojoxRangeSlider .dijitSliderBottomBumper {
+	background:#FFFFFF;
+}
+.claro .dijitSliderDisabled.dojoxRangeSlider .dijitSliderLeftBumper,
+.claro .dijitSliderDisabled.dojoxRangeSlider .dijitSliderBottomBumper {
+	background:#EFEFEF;
 }
 .dojoxRangeSliderBarContainer {
-    position:relative;
+	position:relative;
 }
 .dojoxRangeSlider .dijitSliderProgressBarV {
-    position:relative !important;
+	position:relative !important;
 }
 .dojoxRangeSlider .dijitSliderProgressBar {
-    overflow:hidden;
-    cursor:pointer;
-    
+	overflow:hidden;
+	cursor:pointer;
+	
 }
 .dojoxRangeSlider .dijitSliderProgressBarV {
-    position:absolute !important;
-    border-width: 0px;
+	position:absolute !important;
+	border-width: 0px;
 }
 .dojoxRangeSlider .dijitSliderImageHandleH {
 	left: -50%;
 }
 .dijitSlider .dojoxRangeSliderBarContainer .dijitSliderProgressBarH,
 .dojoxRangeSlider .dijitSliderMoveableH {
-        right:auto !important;
+	right:auto !important;
 }

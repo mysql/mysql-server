@@ -1,7 +1,7 @@
 //>>built
 define("dojox/timing/Streamer",["./_base"],function(){
 dojo.experimental("dojox.timing.Streamer");
-dojox.timing.Streamer=function(_1,_2,_3,_4,_5){
+return dojox.timing.Streamer=function(_1,_2,_3,_4,_5){
 var _6=this;
 var _7=[];
 this.interval=_3||1000;
@@ -53,5 +53,4 @@ if(_5){
 _7.concat(_5);
 }
 };
-return dojox.timing.Streamer;
 });

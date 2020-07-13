@@ -1,5 +1,5 @@
-define("dojox/css3/transit", ["dojo/_base/array","dojo/dom-style","dojo/DeferredList","./transition"],
-	function(darray, domStyle, DeferredList, transition){
+define("dojox/css3/transit", ["dojo/_base/array", "dojo/dom-style", "dojo/promise/all", "dojo/sniff", "./transition"],
+	function(darray, domStyle, all, has, transition){
 	// module: 
 	//		dojox/css3/transit
 	
@@ -18,33 +18,42 @@ define("dojox/css3/transit", ["dojo/_base/array","dojo/dom-style","dojo/Deferred
 		//		valid values are 'slide', 'flip', 'fade', 'none'.
 		//		The direction can be specified in options.reverse. If it
 		//		is true, the transit effects will be conducted in the
-		//		reverse direction to the default direction.
+		//		reverse direction to the default direction. Finally the duration
+		//		of the transition can be overridden by setting the duration property.
 		var rev = (options && options.reverse) ? -1 : 1;
-		if(!options || !options.transition || !transition[options.transition]){
-			domStyle.set(from,"display","none");
-			domStyle.set(to, "display", "");
+		if(!options || !options.transition || !transition[options.transition] || (has("ie") && has("ie") < 10)){
+			if(from){
+				domStyle.set(from,"display","none");
+			}
+			if(to){
+				domStyle.set(to, "display", "");
+			}
 			if(options.transitionDefs){
 				if(options.transitionDefs[from.id]){
 					options.transitionDefs[from.id].resolve(from);
 				}
 				if(options.transitionDefs[to.id]){
-								options.transitionDefs[to.id].resolve(to);
+					options.transitionDefs[to.id].resolve(to);
 				}
 			}
-			// return a fired DeferredList if the options.transition="none"
-			return new DeferredList([]);
+			// return any empty promise/all if the options.transition="none"
+			return new all([]);
 		}else{
-			var defs=[];
-			var transit=[];
-			var duration = 250;
-			if(options.transition === "fade"){
-				duration = 600;
-			}else if (options.transition === "flip"){
-				duration = 200;
+			var defs = [];
+			var transit = [];
+			var duration = 2000;
+			if(!options.duration){
+				duration = 250;
+				if(options.transition === "fade"){
+					duration = 600;
+				}else if (options.transition === "flip"){
+					duration = 200;
+				}
+			}else{
+				duration = options.duration;
 			}
-			domStyle.set(from, "display", ""); 
-			domStyle.set(to, "display", "");
-			if (from){
+			if(from){
+				domStyle.set(from, "display", "");
 				//create transition to transit "from" out
 				var fromTransit = transition[options.transition](from, {
 					"in": false,
@@ -55,16 +64,17 @@ define("dojox/css3/transit", ["dojo/_base/array","dojo/dom-style","dojo/Deferred
 				defs.push(fromTransit.deferred);//every transition object should have a deferred.
 				transit.push(fromTransit);
 			}
-			
-			//create transition to transit "to" in					
-			var toTransit = transition[options.transition](to, {
-							direction: rev,
-							duration: duration,
-							deferred: (options.transitionDefs && options.transitionDefs[to.id]) ? options.transitionDefs[to.id] : null
-						});
-			defs.push(toTransit.deferred);//every transition object should have a deferred.
-			transit.push(toTransit);
-			
+			if(to){
+				domStyle.set(to, "display", "");
+				//create transition to transit "to" in
+				var toTransit = transition[options.transition](to, {
+								direction: rev,
+								duration: duration,
+								deferred: (options.transitionDefs && options.transitionDefs[to.id]) ? options.transitionDefs[to.id] : null
+							});
+				defs.push(toTransit.deferred);//every transition object should have a deferred.
+				transit.push(toTransit);
+			}
 			//If it is flip use the chainedPlay, otherwise
 			//play fromTransit and toTransit together
 			if(options.transition === "flip"){
@@ -73,7 +83,7 @@ define("dojox/css3/transit", ["dojo/_base/array","dojo/dom-style","dojo/Deferred
 				transition.groupedPlay(transit);
 			}
 
-			return new DeferredList(defs);
+			return all(defs);
 		}
 	};
 	

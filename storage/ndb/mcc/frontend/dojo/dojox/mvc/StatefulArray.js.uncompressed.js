@@ -10,7 +10,7 @@ define("dojox/mvc/StatefulArray", [
 
 		// Notify change of elements.
 		if(a._watchElementCallbacks){
-			a._watchElementCallbacks();
+			a._watchElementCallbacks(undefined, [], []);
 		}
 
 		return a; // dojox/mvc/StatefulArray
@@ -22,22 +22,21 @@ define("dojox/mvc/StatefulArray", [
 		// description:
 		//		Supported methods are:
 		//
-		//		- pop() - Stateful update is done for the removed element, as well as the length.
-		//		- push() - Stateful update is done for the added element, as well as the length.
-		//		- reverse() - Stateful update is done for the elements.
-		//		- shift() - Stateful update is done for the removed element, as well as the length.
-		//		- sort() - Stateful update is done for the elements.
-		//		- splice() - Stateful update is done for the removed/added elements, as well as the length. Returns an instance of StatefulArray instead of the native array.
-		//		- unshift() - Stateful update is done for the added element, as well as the length.
+		//		- pop() - watchElements() notification is done for the removed elements. watch() notification is done for the length.
+		//		- push() - watchElements() notification is done for the added elements. watch() notification is done for the length.
+		//		- reverse() - watchElements() notification is done, indicating that the change affects all elements.
+		//		- shift() - watchElements() notification is done for the removed elements. watch() notification is done for the length.
+		//		- sort() - watchElements() notification is done, indicating that the change affects all elements.
+		//		- splice() - watchElements() notification is done for the removed/added elements. watch() notification is done for the length. Returns an instance of StatefulArray instead of the native array.
+		//		- unshift() - watchElements() notification is done for the added elements. watch() notification is done for the length.
 		//		- concat() - Returns an instance of StatefulArray instead of the native Array.
 		//		- join() - The length as well as the elements are obtained via stateful getters, instead of direct access.
 		//		- slice() - The length as well as the elements are obtained via stateful getters, instead of direct access.
-		//		- Setting an element to this array via set() - Stateful update is done for the new element as well as the new length.
-		//		- Setting a length to this array via set() - Stateful update is done for the removed/added elements as well as the new length.
+		//		- Setting an element to this array via set() - watch() notification is done for the new element as well as the new length.
+		//		- Setting a length to this array via set() - watchElements() notification is done for the removed/added elements. watch() notification is done for the new length.
 
 		var array = lang._toArray(a || []);
 		var ctor = StatefulArray;
-		ctor._meta = {bases: [Stateful]}; // For isInstanceOf()
 		array.constructor = ctor;
 		return lang.mixin(array, {
 			pop: function(){
@@ -59,7 +58,9 @@ define("dojox/mvc/StatefulArray", [
 			splice: function(/*Number*/ idx, /*Number*/ n){
 				// summary:
 				//		Removes and then adds some elements to an array.
-				//		Updates the removed/added elements, as well as the length, as stateful.
+				//		watchElements() notification is done for the removed/added elements.
+				//		watch() notification is done for the length.
+				//		Returns an instance of StatefulArray instead of the native array.
 				// idx: Number
 				//		The index where removal/addition should be done.
 				// n: Number
@@ -82,7 +83,7 @@ define("dojox/mvc/StatefulArray", [
 
 				// Set additions in a stateful manner
 				for(var i = 0; i < adds.length; i++){
-					this.set(p + i, adds[i]);
+					this[p + i] = adds[i];
 				}
 
 				// Notify change of elements.
@@ -134,7 +135,7 @@ define("dojox/mvc/StatefulArray", [
 				for(var i = start || 0; i < Math.min(end, this.get("length")); i++){
 					slice.push(this.get(i));
 				}
-				return new StatefulArray(slice); // dojox/mvc/StatefuArray
+				return new StatefulArray(slice); // dojox/mvc/StatefulArray
 			},
 			watchElements: function(/*Function*/ callback){
 				// summary:
@@ -162,7 +163,7 @@ define("dojox/mvc/StatefulArray", [
 							break;
 						}
 					}
-				}; 
+				};
 				return h; // dojo/handle
 			}
 		}, Stateful.prototype, {
@@ -178,7 +179,7 @@ define("dojox/mvc/StatefulArray", [
 					var old = this.get("length");
 					if(old < value){
 						this.splice.apply(this, [old, 0].concat(new Array(value - old)));
-					}else if(value > old){
+					}else if(value < old){
 						this.splice.apply(this, [value, old - value]);
 					}
 					return this;
@@ -190,9 +191,13 @@ define("dojox/mvc/StatefulArray", [
 					}
 					return this;
 				}
+			},
+			isInstanceOf: function(cls){
+				return Stateful.prototype.isInstanceOf.apply(this, arguments) || cls == StatefulArray;
 			}
 		});
 	};
 
+	StatefulArray._meta = {bases: [Stateful]}; // For isInstanceOf()
 	return lang.setObject("dojox.mvc.StatefulArray", StatefulArray);
 });

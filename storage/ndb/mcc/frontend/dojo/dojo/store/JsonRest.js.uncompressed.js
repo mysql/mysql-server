@@ -45,10 +45,38 @@ return declare("dojo.store.JsonRest", base, {
 	//		property should be unique.
 	idProperty: "id",
 
+	// rangeParam: String
+	//		Use a query parameter for the requested range. If this is omitted, than the
+	//		Range header will be used. Independent of this, the X-Range header is always set.
+
 	// sortParam: String
 	//		The query parameter to used for holding sort information. If this is omitted, than
 	//		the sort information is included in a functional query token to avoid colliding
 	//		with the set of name/value pairs.
+
+	// ascendingPrefix: String
+	//		The prefix to apply to sort attribute names that are ascending
+	ascendingPrefix: "+",
+
+	// descendingPrefix: String
+	//		The prefix to apply to sort attribute names that are ascending
+	descendingPrefix: "-",
+
+	_getTarget: function(id){
+		// summary:
+		//		If the target has no trailing '/', then append it.
+		// id: Number
+		//		The identity of the requested target
+		var target = this.target;
+		if(typeof id != "undefined"){
+			if( (target.charAt(target.length-1) == '/') || (target.charAt(target.length-1) == '=')){
+				target += id;
+			}else{
+				target += '/' + id;
+			}
+		}
+		return target;
+	},
 
 	get: function(id, options){
 		// summary:
@@ -64,9 +92,10 @@ return declare("dojo.store.JsonRest", base, {
 		options = options || {};
 		var headers = lang.mixin({ Accept: this.accepts }, this.headers, options.headers || options);
 		return xhr("GET", {
-			url: this.target + id,
+			url: this._getTarget(id),
 			handleAs: "json",
-			headers: headers
+			headers: headers,
+			timeout: options && options.timeout
 		});
 	},
 
@@ -97,7 +126,7 @@ return declare("dojo.store.JsonRest", base, {
 		var id = ("id" in options) ? options.id : this.getIdentity(object);
 		var hasId = typeof id != "undefined";
 		return xhr(hasId && !options.incremental ? "PUT" : "POST", {
-				url: hasId ? this.target + id : this.target,
+				url: this._getTarget(id),
 				postData: JSON.stringify(object),
 				handleAs: "json",
 				headers: lang.mixin({
@@ -105,7 +134,8 @@ return declare("dojo.store.JsonRest", base, {
 					Accept: this.accepts,
 					"If-Match": options.overwrite === true ? "*" : null,
 					"If-None-Match": options.overwrite === false ? "*" : null
-				}, this.headers, options.headers)
+				}, this.headers, options.headers),
+				timeout: options && options.timeout
 			});
 	},
 
@@ -132,8 +162,9 @@ return declare("dojo.store.JsonRest", base, {
 		//		HTTP headers.
 		options = options || {};
 		return xhr("DELETE", {
-			url: this.target + id,
-			headers: lang.mixin({}, this.headers, options.headers)
+			url: this._getTarget(id),
+			headers: lang.mixin({}, this.headers, options.headers),
+			timeout: options && options.timeout
 		});
 	},
 
@@ -151,23 +182,29 @@ return declare("dojo.store.JsonRest", base, {
 
 		var headers = lang.mixin({ Accept: this.accepts }, this.headers, options.headers);
 
-		if(options.start >= 0 || options.count >= 0){
-			headers.Range = headers["X-Range"] //set X-Range for Opera since it blocks "Range" header
-				 = "items=" + (options.start || '0') + '-' +
-				(("count" in options && options.count != Infinity) ?
-					(options.count + (options.start || 0) - 1) : '');
-		}
 		var hasQuestionMark = this.target.indexOf("?") > -1;
+		query = query || ""; // https://bugs.dojotoolkit.org/ticket/17628
 		if(query && typeof query == "object"){
 			query = xhr.objectToQuery(query);
 			query = query ? (hasQuestionMark ? "&" : "?") + query: "";
+		}
+		if(options.start >= 0 || options.count >= 0){
+			headers["X-Range"] = "items=" + (options.start || '0') + '-' +
+				(("count" in options && options.count != Infinity) ?
+					(options.count + (options.start || 0) - 1) : '');
+			if(this.rangeParam){
+				query += (query || hasQuestionMark ? "&" : "?") + this.rangeParam + "=" + headers["X-Range"];
+				hasQuestionMark = true;
+			}else{
+				headers.Range = headers["X-Range"];
+			}
 		}
 		if(options && options.sort){
 			var sortParam = this.sortParam;
 			query += (query || hasQuestionMark ? "&" : "?") + (sortParam ? sortParam + '=' : "sort(");
 			for(var i = 0; i<options.sort.length; i++){
 				var sort = options.sort[i];
-				query += (i > 0 ? "," : "") + (sort.descending ? '-' : '+') + encodeURIComponent(sort.attribute);
+				query += (i > 0 ? "," : "") + (sort.descending ? this.descendingPrefix : this.ascendingPrefix) + encodeURIComponent(sort.attribute);
 			}
 			if(!sortParam){
 				query += ")";
@@ -176,10 +213,15 @@ return declare("dojo.store.JsonRest", base, {
 		var results = xhr("GET", {
 			url: this.target + (query || ""),
 			handleAs: "json",
-			headers: headers
+			headers: headers,
+			timeout: options && options.timeout
 		});
 		results.total = results.then(function(){
 			var range = results.ioArgs.xhr.getResponseHeader("Content-Range");
+			if (!range){
+				// At least Chrome drops the Content-Range header from cached replies.
+				range = results.ioArgs.xhr.getResponseHeader("X-Content-Range");
+			}
 			return range && (range = range.match(/\/(.*)/)) && +range[1];
 		});
 		return QueryResults(results);

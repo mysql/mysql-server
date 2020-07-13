@@ -142,9 +142,13 @@ direction they go alphabetically: FSP_DOWN, FSP_UP, FSP_NO_DIR
 @param[in,out]	mtr			mini-transaction
 @param[in,out]	init_mtr		mtr or another mini-transaction in
 which the page should be initialized. If init_mtr != mtr, but the page is
-already latched in mtr, do not initialize the page
+already latched in mtr, do not initialize the page */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	has_done_reservation	TRUE if the space has already been
-reserved, in this case we will never return NULL
+reserved, in this case we will never return NULL */
+#endif /* UNIV_DEBUG */
+/**
 @retval NULL	if no page could be allocated
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
@@ -702,15 +706,22 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
   ut_ad(mtr);
   switch (mtr->get_log_mode()) {
     case MTR_LOG_SHORT_INSERTS:
-    case MTR_LOG_NONE:
       /* These modes are only allowed within a non-bitmap page
       when there is a higher-level redo log record written. */
       break;
+
+    case MTR_LOG_NONE:
+      /* We allow MTR_LOG_NONE to be set over MTR_LOG_NO_REDO. */
+      if (!mtr_t::s_logging.is_enabled()) {
+        return;
+      }
+      break;
+
     case MTR_LOG_NO_REDO:
 #ifdef UNIV_DEBUG
     {
       const fil_type_t type = fil_space_get_type(id);
-      ut_a(fsp_is_system_temporary(id) ||
+      ut_a(fsp_is_system_temporary(id) || !mtr_t::s_logging.is_enabled() ||
            fil_space_get_flags(id) == UINT32_UNDEFINED ||
            type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_IMPORT ||
            fil_space_is_redo_skipped(id) || !undo::is_active(id, false));
@@ -724,6 +735,9 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
       /* If we write redo log, the tablespace must exist. */
       ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
       return;
+
+    default:
+      break;
   }
 
   ut_ad(0);
@@ -2674,9 +2688,13 @@ direction they go alphabetically: FSP_DOWN, FSP_UP, FSP_NO_DIR
 @param[in,out]	mtr			mini-transaction
 @param[in,out]	init_mtr		mtr or another mini-transaction in
 which the page should be initialized. If init_mtr != mtr, but the page is
-already latched in mtr, do not initialize the page
+already latched in mtr, do not initialize the page */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	has_done_reservation	TRUE if the space has already been
-reserved, in this case we will never return NULL
+reserved, in this case we will never return NULL */
+#endif /* UNIV_DEBUG */
+/**
 @retval NULL	if no page could be allocated
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)

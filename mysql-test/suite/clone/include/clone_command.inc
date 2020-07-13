@@ -29,6 +29,10 @@
 # --let clone_require_ssl_certificate = 1
 #
 
+if ($disabled_redo) {
+  ALTER INSTANCE ENABLE INNODB REDO_LOG;
+}
+
 --let $remote_dir_clause = DATA DIRECTORY = '$CLONE_DATADIR'
 
 if ($clone_remote_replace) {
@@ -204,4 +208,8 @@ if ($clone_err != ER_PLUGIN_IS_NOT_LOADED) {
     DROP TABLE dup_progress;
     --enable_query_log
   }
+}
+
+if ($disabled_redo) {
+  ALTER INSTANCE DISABLE INNODB REDO_LOG;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,6 +132,7 @@ private:
 
 public:
   Uint32 getMinDbNodeVersion() const;
+  Uint32 getMinApiNodeVersion() const;
 
   // My own processor id
   NodeId ownId() const;
@@ -653,6 +654,12 @@ unsigned Ndb_cluster_connection_impl::get_min_db_version() const
 }
 
 inline
+unsigned Ndb_cluster_connection_impl::get_min_api_version() const
+{
+  return m_transporter_facade->getMinApiNodeVersion();
+}
+
+inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
   if (theClusterMgr)
@@ -674,6 +681,16 @@ TransporterFacade::getMinDbNodeVersion() const
 {
   if (theClusterMgr)
     return theClusterMgr->minDbVersion;
+  else
+    return 0;
+}
+
+inline
+Uint32
+TransporterFacade::getMinApiNodeVersion() const
+{
+  if (theClusterMgr)
+    return theClusterMgr->minApiVersion;
   else
     return 0;
 }

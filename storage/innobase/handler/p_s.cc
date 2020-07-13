@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -382,7 +382,9 @@ static const trx_t *fetch_trx_in_trx_list(uint64_t filter_trx_immutable_id,
                                           trx_ut_list_t *trx_list) {
   const trx_t *trx;
 
-  ut_ad(lock_mutex_own());
+  /* It is not obvious if and why we need lock_sys exclusive access, but we do
+  own exclusive latch here, so treat this assert more as a documentation */
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
   for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
@@ -583,7 +585,8 @@ bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
     return true;
   }
 
-  lock_mutex_enter();
+  /* We want locks reported in a single scan to be a consistent snapshot. */
+  locksys::Global_exclusive_latch_guard guard{};
 
   trx_sys_mutex_enter();
 
@@ -602,8 +605,6 @@ bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
   }
 
   trx_sys_mutex_exit();
-
-  lock_mutex_exit();
 
   return false;
 }
@@ -629,7 +630,8 @@ bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
     return true;
   }
 
-  lock_mutex_enter();
+  /* scan_trx() requires exclusive global latch to iterate over locks of trx */
+  locksys::Global_exclusive_latch_guard guard{};
 
   trx_sys_mutex_enter();
 
@@ -645,8 +647,6 @@ bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
   }
 
   trx_sys_mutex_exit();
-
-  lock_mutex_exit();
 
   return true;
 }
@@ -666,7 +666,9 @@ size_t Innodb_data_lock_iterator::scan_trx_list(
   trx_id_t trx_id;
   size_t found = 0;
 
-  ut_ad(lock_mutex_own());
+  /* We are about to scan over various locks of multiple transactions not
+  limited to any particular shard thus we need an exclusive latch on lock_sys */
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
   for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
@@ -732,7 +734,7 @@ size_t Innodb_data_lock_iterator::scan_trx(
   ulint heap_no;
   int record_type;
   lock_t *wait_lock;
-
+  ut_ad(locksys::owns_exclusive_global_latch());
   wait_lock = trx->lock.wait_lock;
 
   trx_id = trx_get_id_for_print(trx);
@@ -856,7 +858,8 @@ bool Innodb_data_lock_wait_iterator::scan(
     return true;
   }
 
-  lock_mutex_enter();
+  /* We want locks reported in a single scan to be a consistent snapshot. */
+  locksys::Global_exclusive_latch_guard guard{};
 
   trx_sys_mutex_enter();
 
@@ -873,8 +876,6 @@ bool Innodb_data_lock_wait_iterator::scan(
   }
 
   trx_sys_mutex_exit();
-
-  lock_mutex_exit();
 
   return false;
 }
@@ -915,7 +916,8 @@ bool Innodb_data_lock_wait_iterator::fetch(
     return true;
   }
 
-  lock_mutex_enter();
+  /* scan_trx() requires exclusive global latch to iterate over locks of trx */
+  locksys::Global_exclusive_latch_guard guard{};
 
   trx_sys_mutex_enter();
 
@@ -934,8 +936,6 @@ bool Innodb_data_lock_wait_iterator::fetch(
 
   trx_sys_mutex_exit();
 
-  lock_mutex_exit();
-
   return true;
 }
 
@@ -952,7 +952,9 @@ size_t Innodb_data_lock_wait_iterator::scan_trx_list(
   trx_id_t trx_id;
   size_t found = 0;
 
-  ut_ad(lock_mutex_own());
+  /* We are about to scan over various locks of multiple transactions not
+  limited to any particular shard thus we need an exclusive latch on lock_sys */
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
   for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
@@ -1007,6 +1009,7 @@ size_t Innodb_data_lock_wait_iterator::scan_trx(
   const void *blocking_identity;
   char blocking_engine_lock_id[TRX_I_S_LOCK_ID_MAX_LEN + 1];
   size_t blocking_engine_lock_id_length;
+  ut_ad(locksys::owns_exclusive_global_latch());
   lock_t *wait_lock = trx->lock.wait_lock;
   const lock_t *curr_lock;
   int requesting_record_type;

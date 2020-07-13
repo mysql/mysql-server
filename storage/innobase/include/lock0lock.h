@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "gis0rtree.h"
 #endif /* UNIV_HOTBACKUP */
+#include "lock0latches.h"
 #include "lock0prdt.h"
 
 /**
@@ -389,9 +390,9 @@ void lock_rec_restore_from_page_infimum(
                                 the infimum */
 
 /** Determines if there are explicit record locks on a page.
- @return an explicit record lock on the page, or NULL if there are none */
-lock_t *lock_rec_expl_exist_on_page(space_id_t space,  /*!< in: space id */
-                                    page_no_t page_no) /*!< in: page number */
+@param[in]    page_id     space id and page number
+@return true iff an explicit record lock on the page exists */
+bool lock_rec_expl_exist_on_page(const page_id_t &page_id)
     MY_ATTRIBUTE((warn_unused_result));
 /** Checks if locks of other transactions prevent an immediate insert of
  a record. If they do, first tests if the query thread should anyway
@@ -608,7 +609,7 @@ void lock_rec_unlock(
  TRX_STATE_COMMITTED_IN_MEMORY. */
 void lock_trx_release_locks(trx_t *trx); /*!< in/out: transaction */
 
-/** Release read locks of a transacion. It is called during XA
+/** Release read locks of a transaction. It is called during XA
 prepare to release locks early.
 @param[in,out]	trx		transaction
 @param[in]	only_gap	release only GAP locks */
@@ -640,19 +641,17 @@ void lock_remove_all_on_table(
 
 /** Calculates the fold value of a page file address: used in inserting or
  searching for a lock in the hash table.
+ @param  page_id    specifies the page
  @return folded value */
 UNIV_INLINE
-ulint lock_rec_fold(space_id_t space,  /*!< in: space */
-                    page_no_t page_no) /*!< in: page number */
-    MY_ATTRIBUTE((const));
+ulint lock_rec_fold(const page_id_t page_id);
 
 /** Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table.
-@param[in]	space	space
-@param[in]	page_no	page number
+@param  page_id    specifies the page
 @return hashed value */
 UNIV_INLINE
-ulint lock_rec_hash(space_id_t space, page_no_t page_no);
+ulint lock_rec_hash(const page_id_t &page_id);
 
 /** Get the lock hash table */
 UNIV_INLINE
@@ -688,12 +687,8 @@ void lock_report_trx_id_insanity(
     trx_id_t max_trx_id);      /*!< in: trx_sys_get_max_trx_id() */
 
 /** Prints info of locks for all transactions.
-@return false if not able to obtain lock mutex and exits without
-printing info */
-bool lock_print_info_summary(
-    FILE *file,   /*!< in: file where to print */
-    ibool nowait) /*!< in: whether to wait for the lock mutex */
-    MY_ATTRIBUTE((warn_unused_result));
+@param[in]  file   file where to print */
+void lock_print_info_summary(FILE *file);
 
 /** Prints transaction lock wait and MVCC state.
 @param[in,out]	file	file where to print
@@ -701,16 +696,18 @@ bool lock_print_info_summary(
 void lock_trx_print_wait_and_mvcc_state(FILE *file, const trx_t *trx);
 
 /** Prints info of locks for each transaction. This function assumes that the
- caller holds the lock mutex and more importantly it will release the lock
- mutex on behalf of the caller. (This should be fixed in the future). */
-void lock_print_info_all_transactions(
-    FILE *file); /*!< in: file where to print */
+caller holds the exclusive global latch and more importantly it may release and
+reacquire it on behalf of the caller. (This should be fixed in the future).
+@param[in,out] file  the file where to print */
+void lock_print_info_all_transactions(FILE *file);
+
 /** Return approximate number or record locks (bits set in the bitmap) for
  this transaction. Since delete-marked records may be removed, the
  record count will not be precise.
- The caller must be holding lock_sys->mutex. */
-ulint lock_number_of_rows_locked(
-    const trx_lock_t *trx_lock) /*!< in: transaction locks */
+ The caller must be holding exclusive global lock_sys latch.
+ @param[in] trx_lock  transaction locks
+ */
+ulint lock_number_of_rows_locked(const trx_lock_t *trx_lock)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Return the number of table locks for a transaction.
@@ -788,19 +785,17 @@ const dict_index_t *lock_rec_get_index(const lock_t *lock); /*!< in: lock */
  @return name of the index */
 const char *lock_rec_get_index_name(const lock_t *lock); /*!< in: lock */
 
-/** For a record lock, gets the tablespace number on which the lock is.
+/** For a record lock, gets the tablespace number and page number on which the
+lock is.
  @return tablespace number */
-space_id_t lock_rec_get_space_id(const lock_t *lock); /*!< in: lock */
+page_id_t lock_rec_get_page_id(const lock_t *lock); /*!< in: lock */
 
-/** For a record lock, gets the page number on which the lock is.
- @return page number */
-page_no_t lock_rec_get_page_no(const lock_t *lock); /*!< in: lock */
 /** Check if there are any locks (table or rec) against table.
- @return true if locks exist */
-bool lock_table_has_locks(
-    const dict_table_t *table); /*!< in: check if there are any locks
-                                held on records in this table or on the
-                                table itself */
+Returned value might be obsolete.
+@param[in]  table   the table
+@return true if there were any locks held on records in this table or on the
+table itself at some point in time during the call */
+bool lock_table_has_locks(const dict_table_t *table);
 
 /** A thread which wakes up threads whose lock wait may have lasted too long. */
 void lock_wait_timeout_thread();
@@ -841,6 +836,7 @@ bool lock_check_trx_id_sanity(
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
     MY_ATTRIBUTE((warn_unused_result));
+
 /** Check if the transaction holds an exclusive lock on a record.
 @param[in]  thr     query thread of the transaction
 @param[in]  table   table to check
@@ -850,6 +846,10 @@ bool lock_check_trx_id_sanity(
 bool lock_trx_has_rec_x_lock(que_thr_t *thr, const dict_table_t *table,
                              const buf_block_t *block, ulint heap_no)
     MY_ATTRIBUTE((warn_unused_result));
+
+/** Validates the lock system.
+ @return true if ok */
+bool lock_validate();
 #endif /* UNIV_DEBUG */
 
 /**
@@ -930,52 +930,51 @@ struct lock_op_t {
   lock_mode mode;      /*!< lock mode */
 };
 
-typedef ib_mutex_t LockMutex;
+typedef ib_mutex_t Lock_mutex;
 
 /** The lock system struct */
 struct lock_sys_t {
-  char pad1[INNOBASE_CACHE_LINE_SIZE];
-  /*!< padding to prevent other
-  memory update hotspots from
-  residing on the same memory
-  cache line */
-  LockMutex mutex;              /*!< Mutex protecting the
-                                locks */
-  hash_table_t *rec_hash;       /*!< hash table of the record
-                                locks */
-  hash_table_t *prdt_hash;      /*!< hash table of the predicate
-                                lock */
-  hash_table_t *prdt_page_hash; /*!< hash table of the page
-                                lock */
+  /** The latches protecting queues of record and table locks */
+  locksys::Latches latches;
 
-  char pad2[INNOBASE_CACHE_LINE_SIZE]; /*!< Padding */
-  LockMutex wait_mutex;                /*!< Mutex protecting the
-                                       next two fields */
-  srv_slot_t *waiting_threads;         /*!< Array  of user threads
-                                       suspended while waiting for
-                                       locks within InnoDB, protected
-                                       by the lock_sys->wait_mutex */
-  srv_slot_t *last_slot;               /*!< highest slot ever used
-                                       in the waiting_threads array,
-                                       protected by
-                                       lock_sys->wait_mutex */
+  /** The hash table of the record (LOCK_REC) locks, except for predicate
+  (LOCK_PREDICATE) and predicate page (LOCK_PRDT_PAGE) locks */
+  hash_table_t *rec_hash;
 
-  ibool rollback_complete;
-  /*!< TRUE if rollback of all
-  recovered transactions is
-  complete. Protected by
-  lock_sys->mutex */
+  /** The hash table of predicate (LOCK_PREDICATE) locks */
+  hash_table_t *prdt_hash;
 
-  ulint n_lock_max_wait_time; /*!< Max wait time */
+  /** The hash table of the predicate page (LOCK_PRD_PAGE) locks */
+  hash_table_t *prdt_page_hash;
 
-  os_event_t timeout_event; /*!< Set to the event that is
-                            created in the lock wait monitor
-                            thread. A value of 0 means the
-                            thread is not active */
+  /** Padding to avoid false sharing of wait_mutex field */
+  char pad2[ut::INNODB_CACHE_LINE_SIZE];
+
+  /** The mutex protecting the next two fields */
+  Lock_mutex wait_mutex;
+
+  /** Array of user threads suspended while waiting for locks within InnoDB.
+  Protected by the lock_sys->wait_mutex. */
+  srv_slot_t *waiting_threads;
+
+  /** The highest slot ever used in the waiting_threads array.
+  Protected by lock_sys->wait_mutex. */
+  srv_slot_t *last_slot;
+
+  /** TRUE if rollback of all recovered transactions is complete.
+  Protected by exclusive global lock_sys latch. */
+  bool rollback_complete;
+
+  /** Max lock wait time observed, for innodb_row_lock_time_max reporting. */
+  ulint n_lock_max_wait_time;
+
+  /** Set to the event that is created in the lock wait monitor thread. A value
+  of 0 means the thread is not active */
+  os_event_t timeout_event;
 
 #ifdef UNIV_DEBUG
-  /** Lock timestamp counter */
-  uint64_t m_seq;
+  /** Lock timestamp counter, used to assign lock->m_seq on creation. */
+  std::atomic<uint64_t> m_seq;
 #endif /* UNIV_DEBUG */
 };
 
@@ -1023,26 +1022,11 @@ void lock_rec_trx_wait(lock_t *lock, ulint i, ulint type);
 /** The lock system */
 extern lock_sys_t *lock_sys;
 
-/** Test if lock_sys->mutex can be acquired without waiting. */
-#define lock_mutex_enter_nowait() (lock_sys->mutex.trylock(__FILE__, __LINE__))
-
-/** Test if lock_sys->mutex is owned by the current thread. */
-#define lock_mutex_own() (lock_sys->mutex.is_owned())
-
-/** Acquire the lock_sys->mutex. */
-#define lock_mutex_enter()         \
-  do {                             \
-    mutex_enter(&lock_sys->mutex); \
-  } while (0)
-
-/** Release the lock_sys->mutex. */
-#define lock_mutex_exit()   \
-  do {                      \
-    lock_sys->mutex.exit(); \
-  } while (0)
-
+#ifdef UNIV_DEBUG
 /** Test if lock_sys->wait_mutex is owned. */
 #define lock_wait_mutex_own() (lock_sys->wait_mutex.is_owned())
+
+#endif
 
 /** Acquire the lock_sys->wait_mutex. */
 #define lock_wait_mutex_enter()         \
@@ -1057,5 +1041,52 @@ extern lock_sys_t *lock_sys;
   } while (0)
 
 #include "lock0lock.ic"
+
+namespace locksys {
+
+/* OWNERSHIP TESTS */
+#ifdef UNIV_DEBUG
+
+/**
+Tests if lock_sys latch is exclusively owned by the current thread.
+@return true iff the current thread owns exclusive global lock_sys latch
+*/
+bool owns_exclusive_global_latch();
+
+/**
+Tests if lock_sys latch is owned in shared mode by the current thread.
+@return true iff the current thread owns shared global lock_sys latch
+*/
+bool owns_shared_global_latch();
+
+/**
+Tests if given page shard can be safely accessed by the current thread.
+@param  page_id    specifies the page
+@return true iff the current thread owns exclusive global lock_sys latch or both
+a shared global lock_sys latch and mutex protecting the page shard
+*/
+bool owns_page_shard(const page_id_t &page_id);
+
+/**
+Test if given table shard can be safely accessed by the current thread.
+@param  table   the table
+@return true iff the current thread owns exclusive global lock_sys latch or both
+        a shared global lock_sys latch and mutex protecting the table shard
+*/
+bool owns_table_shard(const dict_table_t &table);
+
+/** Checks if shard which contains lock is latched (or that an exclusive latch
+on whole lock_sys is held) by current thread
+@param[in]  lock   lock which belongs to a shard we want to check
+@return true iff the current thread owns exclusive global lock_sys latch or both
+        a shared global lock_sys latch and mutex protecting the shard containing
+        the specified lock */
+bool owns_lock_shard(const lock_t *lock);
+
+#endif /* UNIV_DEBUG */
+
+}  // namespace locksys
+
+#include "lock0guards.h"
 
 #endif

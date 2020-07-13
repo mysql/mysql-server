@@ -62,10 +62,13 @@
 .claro .dijitSpinner .dijitArrowButtonInner .dijitInputField {
   padding: 0;
 }
-.claro .dijitUpArrowButtonActive, .claro .dijitDownArrowButtonActive {
+.claro .dijitUpArrowButtonActive,
+.claro .dijitDownArrowButtonActive {
   background-color: #abd6ff;
 }
-.claro .dijitSpinner .dijitUpArrowButtonHover, .claro .dijitSpinner .dijitDownArrowButtonHover, .claro .dijitSpinnerFocused .dijitArrowButton {
+.claro .dijitSpinner .dijitUpArrowButtonHover,
+.claro .dijitSpinner .dijitDownArrowButtonHover,
+.claro .dijitSpinnerFocused .dijitArrowButton {
   background-color: #abd6ff;
 }
 .claro .dijitSpinner .dijitUpArrowButtonHover .dijitArrowButtonInner {
@@ -78,7 +81,8 @@
   background-color: #ffffff;
   background-image: none;
 }
-.claro .dijitSpinner .dijitDownArrowButtonActive, .claro .dijitSpinner .dijitUpArrowButtonActive {
+.claro .dijitSpinner .dijitDownArrowButtonActive,
+.claro .dijitSpinner .dijitUpArrowButtonActive {
   background-color: #7dbefa;
   background-image: url("../images/activeGradient.png");
   background-repeat: repeat-x;
@@ -88,7 +92,8 @@
   background-image: linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
   _background-image: none;
 }
-.claro .dijitSpinner .dijitUpArrowButtonActive .dijitArrowButtonInner, .claro .dijitSpinner .dijitDownArrowButtonActive .dijitArrowButtonInner {
+.claro .dijitSpinner .dijitUpArrowButtonActive .dijitArrowButtonInner,
+.claro .dijitSpinner .dijitDownArrowButtonActive .dijitArrowButtonInner {
   
   border: 0;
   padding: 1px;

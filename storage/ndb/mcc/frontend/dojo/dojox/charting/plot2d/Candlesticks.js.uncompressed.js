@@ -1,8 +1,6 @@
-define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "./CartesianBase", "./_PlotEvents", "./common",
-		"dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"], 
-	function(lang, declare, arr, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
-
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/has", "./CartesianBase", "./_PlotEvents", "./common",
+		"dojox/lang/functional", "dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, declare, arr, has, CartesianBase, _PlotEvents, dc, df, du, fx){
 
 	//	Candlesticks are based on the Bars plot type; we expect the following passed
 	//	as values in a series:
@@ -17,8 +15,6 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 		//		x and mid are optional parameters.  If x is not provided, the index of the
 		//		data array is used.
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			gap:	2,		// gap between columns in pixels
 			animate: null   // animate bars into place
 		},
@@ -44,9 +40,6 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 			this.opt = lang.clone(this.defaultParams);
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
 			this.animate = this.opt.animate;
 		},
 
@@ -69,14 +62,14 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 				var old_vmin = stats.vmin, old_vmax = stats.vmax;
 				if(!("ymin" in run) || !("ymax" in run)){
 					arr.forEach(run.data, function(val, idx){
-						if(val !== null){
+						if(!this.isNullValue(val)){
 							var x = val.x || idx + 1;
 							stats.hmin = Math.min(stats.hmin, x);
 							stats.hmax = Math.max(stats.hmax, x);
 							stats.vmin = Math.min(stats.vmin, val.open, val.close, val.high, val.low);
 							stats.vmax = Math.max(stats.vmax, val.open, val.close, val.high, val.low);
 						}
-					});
+					}, this);
 				}
 				if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
 				if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
@@ -109,18 +102,17 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 			}
 			this.resetEvents();
 			this.dirty = this.isDirty();
+			var s;
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				var s = this.group;
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 			var t = this.chart.theme, f, gap, width,
 				ht = this._hScaler.scaler.getTransformerFromModel(this._hScaler),
 				vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
-				baseline = Math.max(0, this._vScaler.bounds.lower),
-				baselineHeight = vt(baseline),
 				events = this.events();
 			f = dc.calculateBarSize(this._hScaler.bounds.scale, this.opt);
 			gap = f.gap;
@@ -133,11 +125,19 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 					continue;
 				}
 				run.cleanGroup();
-				var theme = t.next("candlestick", [this.opt, run]), s = run.group,
+				var theme = t.next("candlestick", [this.opt, run]),
 					eventSeries = new Array(run.data.length);
+
+				if(run.hidden){
+					run.dyn.fill = theme.series.fill;
+					run.dyn.stroke =  theme.series.stroke;
+					continue;
+				}
+				s = run.group;
+
 				for(var j = 0; j < run.data.length; ++j){
 					var v = run.data[j];
-					if(v !== null){
+					if(!this.isNullValue(v)){
 						var finalTheme = t.addMixin(theme, "candlestick", v, true);
 
 						//	calculate the points we need for OHLC
@@ -173,7 +173,7 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 							if("mid" in v){
 								//	add the mid line.
 								inner.createLine({
-									x1: (finalTheme.series.stroke.width||1), x2: width - (finalTheme.series.stroke.width || 1),
+										x1: (finalTheme.series.stroke ? finalTheme.series.stroke.width || 1 : 1), x2: width - (finalTheme.series.stroke ? finalTheme.series.stroke.width || 1 : 1),
 									y1: y - mid, y2: y - mid
 								}).setStroke(doFill ? "white" : finalTheme.series.stroke);
 							}
@@ -208,8 +208,24 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 				run.dirty = false;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/Candlesticks
 		},
+
+		tooltipFunc: function(o){
+			return '<table cellpadding="1" cellspacing="0" border="0" style="font-size:0.9em;">'
+						+ '<tr><td>Open:</td><td align="right"><strong>' + o.data.open + '</strong></td></tr>'
+						+ '<tr><td>High:</td><td align="right"><strong>' + o.data.high + '</strong></td></tr>'
+						+ '<tr><td>Low:</td><td align="right"><strong>' + o.data.low + '</strong></td></tr>'
+						+ '<tr><td>Close:</td><td align="right"><strong>' + o.data.close + '</strong></td></tr>'
+						+ (o.data.mid !== undefined ? '<tr><td>Mid:</td><td align="right"><strong>' + o.data.mid + '</strong></td></tr>' : '')
+						+ '</table>';
+		},
+
 		_animateCandlesticks: function(shape, voffset, vsize){
 			fx.animateTransform(lang.delegate({
 				shape: shape,

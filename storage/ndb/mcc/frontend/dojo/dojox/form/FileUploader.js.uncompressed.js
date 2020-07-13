@@ -1021,11 +1021,18 @@ return declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		}));
 		this._cons.push(connect.connect(this._fileInput, "change", this, function(){
 			this._checkHtmlCancel("change");
-			this._change([{
-				name: this._fileInput.value,
-				type: "",
-				size: 0
-			}]);
+			var name = this._fileInput.value;
+			if(name){
+				this._change([{
+					name: name,
+					type: "",
+					size: 0
+				}]);
+			}else{
+				// If input's value is empty it's been cleared so we emit an empty change record
+				this._change([]);
+			}
+			
 		}));
 		if(this.tabIndex>=0){
 			domAttr.set(this.domNode, "tabIndex", this.tabIndex);

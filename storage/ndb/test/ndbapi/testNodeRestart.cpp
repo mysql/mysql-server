@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1419,6 +1419,44 @@ int run_suma_handover_test(NDBT_Context *ctx, NDBT_Step *step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
   if (restarter.insertErrorInNode(delay_node_id, 0))
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
+int run_suma_handover_with_node_failure(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas < 3)
+  {
+    return NDBT_OK;
+  }
+  int restart_node = getFirstNodeInNodeGroup(restarter, 0);
+  int takeover_node = getNextNodeInNodeGroup(restarter, restart_node, 0);
+
+  // restart_node is shutdown and starts handing over buckets to takeover_node
+  // crash another node after starting takeover to interleave node-failure
+  // handling with shutdown takeover
+  if (restarter.insertErrorInNode(takeover_node, 13056))
+    return NDBT_FAILED;
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (restarter.dumpStateAllNodes(val2, 2))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(restart_node,
+				 /** initial */ false,
+				 /** nostart */ true,
+				 /** abort   */ false))
+    return NDBT_FAILED;
+
+  if (restarter.startAll())
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+  if (restarter.insertErrorInNode(takeover_node, 0))
     return NDBT_FAILED;
   return NDBT_OK;
 }
@@ -9536,6 +9574,621 @@ int runPauseGcpCommitUntilNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+static const char* NbTabName = "NBTAB";
+
+int runCreateCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  {
+    NdbDictionary::Table nbTab;
+
+    nbTab.setName(NbTabName);
+
+    const char* charsetName;
+    if (ctx->getProperty("CSCharset", Uint32(0)) == 0)
+    {
+      ndbout_c("Using non case-sensitive charset");
+      charsetName = "latin1_swedish_ci";
+//    charsetName = "utf8_unicode_ci";
+    }
+    else
+    {
+      ndbout_c("Using case-sensitive charset");
+      charsetName = "latin1_general_cs";
+    };
+
+    const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+    ndbout_c("Using %u data columns", numDataCols);
+
+    { NdbDictionary::Column c;
+      c.setName("Key");
+      c.setType(NdbDictionary::Column::Varchar);
+      c.setLength(40);
+      c.setCharset(get_charset_by_name(charsetName, MYF(0)));
+      /* Charset, length */
+      c.setPrimaryKey(true);
+      nbTab.addColumn(c);
+    }
+
+    for (Uint32 i=0; i < numDataCols; i++)
+    {
+      NdbDictionary::Column c;
+      BaseString name;
+      name.assfmt("Data_%u", i);
+      c.setName(name.c_str());
+      c.setType(NdbDictionary::Column::Unsigned);
+      nbTab.addColumn(c);
+    }
+
+    CHECK(pDict->createTable(nbTab) == 0, pDict->getNdbError());
+  }
+
+  CHECK(pDict->getTable(NbTabName) != NULL, pDict->getNdbError());
+
+  return NDBT_OK;
+}
+
+int runDropCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  CHECK(pDict->dropTable(NbTabName) == 0, pDict->getNdbError());
+
+  return NDBT_OK;
+}
+
+const Uint32 DataSetRows = 26;
+const Uint32 NumDataSets = 5;
+
+int runLoadCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  const NdbDictionary::Table* nbTab = pDict->getTable(NbTabName);
+
+  const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+
+  /* Load table with rows keyed lower case a to z 0|1|2... */
+  for (Uint32 p=0; p < NumDataSets; p++)  // a0, b0, ..z0, a1, .. z1, a2, ... z2, ...
+  {
+    for (Uint32 i=0; i < DataSetRows; i++)
+    {
+      NdbTransaction* trans = pNdb->startTransaction();
+      CHECK(trans != NULL, pNdb->getNdbError());
+
+      NdbOperation* op = trans->getNdbOperation(nbTab);
+      CHECK(op != NULL, trans->getNdbError());
+
+      CHECK((op->insertTuple() == 0), op->getNdbError());
+
+      char keyBuf[3];
+      keyBuf[0] = 2;
+      keyBuf[1] = 'a'+i;
+      keyBuf[2] = '0' + p;
+
+      CHECK(op->equal("Key", &keyBuf[0]) == 0, op->getNdbError());
+      for (Uint32 c=0; c < numDataCols; c++)
+      {
+        BaseString name;
+        name.assfmt("Data_%u", c);
+        CHECK(op->setValue(name.c_str(), i) == 0, op->getNdbError());
+      }
+
+      CHECK(trans->execute(Commit) == 0, trans->getNdbError());
+
+      trans->close();
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int runCheckCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Check that table has all the expected datasets, and nothing more */
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  const NdbDictionary::Table* nbTab = pDict->getTable(NbTabName);
+  const Uint32 totalRows = NumDataSets * DataSetRows;
+  Uint32 rows[totalRows];
+
+  bool unexpectedValue;
+  const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+  NdbRecAttr* ras[512];
+  Uint32 scanRetries = 20;
+
+  do
+  {
+    for (Uint32 i=0; i < totalRows; i++)
+    {
+      rows[i] = 0;
+    }
+
+    unexpectedValue = false;
+    NdbTransaction* trans = pNdb->startTransaction();
+    CHECK(trans != NULL, pNdb->getNdbError());
+
+    NdbScanOperation* sop = trans->getNdbScanOperation(nbTab);
+    CHECK(sop != NULL, trans->getNdbError());
+
+    CHECK((sop->readTuples(NdbOperation::LM_CommittedRead) == 0),
+          sop->getNdbError());
+
+    NdbRecAttr* key;
+
+    CHECK(((key = sop->getValue("Key")) != NULL), sop->getNdbError());
+    for (Uint32 c=0; c < numDataCols; c++)
+    {
+      BaseString name;
+      name.assfmt("Data_%u", c);
+      CHECK(((ras[c] = sop->getValue(name.c_str())) != NULL), sop->getNdbError());
+    }
+
+    CHECK(trans->execute(NoCommit) == 0, trans->getNdbError());
+      /* TODO : Temporary error handling */
+
+    int scanRc;
+    while ((scanRc = sop->nextResult()) == 0)
+    {
+      /* For each result, we check that the key is as
+       * expected, and that the data columns are as
+       * expected
+       */
+
+      /* Expect key of form xy
+       * x = a..z
+       * y = 0..NumDataSets-1
+       */
+      const char* keyData = (const char*) key->aRef();
+      const Uint32 keyLen = keyData[0];
+      const Uint32 keyChar = keyData[1];
+      const Uint32 keySetSym = keyData[2];
+      if (keyLen == 2 &&
+          (keyChar >= 'a' &&
+           keyChar <= 'z') &&
+          (keySetSym >= '0' &&
+           keySetSym <= ((char) ('0' + NumDataSets))))
+      {
+        /* Value in range, count */
+        const Uint32 dataSetNum = keySetSym - '0';
+        const Uint32 rowNum = keyChar - 'a';
+        const Uint32 index = (dataSetNum * DataSetRows) + rowNum;
+        rows[index] ++;
+      }
+      else
+      {
+        ndbout_c("Found unexpected key value in table : ");
+        unexpectedValue = true;
+
+        for (int i=0; i < keyData[0]; i++)
+        {
+          ndbout_c(" %u : %u %c", i, keyData[1+i], keyData[1+i]);
+        }
+      }
+
+      /* Check data */
+      /* Require that each data col key is at most 1 less than first
+       * and updates are in sequence
+       * e.g.
+       *  ok
+       *   33 ... 33
+       *   33 ... 32
+       *  not ok
+       *   33 ... 31
+       *   33 ... 32 ... 33
+       *   32 ... 33
+       */
+      Uint32 firstValue = 0;
+      Uint32 prevValue = 0;
+      for (Uint32 c=0; c < numDataCols; c++)
+      {
+        Uint32 val = ras[c]->u_32_value();
+
+        if (c == 0)
+        {
+          firstValue = prevValue = val;
+        }
+        else
+        {
+          if (val != prevValue)
+          {
+            if (val == (prevValue - 1) &&
+                prevValue == firstValue)
+            {
+              /* Step down, ok */
+              prevValue = val;
+            }
+            else
+            {
+              /* Something wrong */
+              ndbout_c("Row has incorrect sequences :");
+              ndbout_c("Key length %u : %c%c",
+                       keyLen,
+                       keyChar,
+                       keySetSym);
+
+              for (Uint32 k=0; k < numDataCols; k++)
+              {
+                ndbout_c(" %u : %u",
+                         k, ras[k]->u_32_value());
+              }
+              unexpectedValue = true;
+              break;
+            }
+          }
+        }
+      }
+    } // while nextResult()
+
+    if (scanRc != 1)
+    {
+      const bool retry = (sop->getNdbError().status ==
+                          NdbError::TemporaryError);
+      ndbout_c("Scan problem : %u : %s ",
+               sop->getNdbError().code,
+               sop->getNdbError().message);
+      trans->close();
+
+      if (retry &&
+          scanRetries--)
+      {
+        ndbout_c("Retrying scan, %u retries remain",
+                 scanRetries);
+        continue;
+      }
+      else
+      {
+        return NDBT_FAILED;
+      }
+    }
+
+    trans->close();
+
+    break;
+  } while (true);
+
+  /* Check results */
+  for (Uint32 i=0; i < totalRows; i++)
+  {
+    if (rows[i] != 1)
+    {
+      const char key = 'a' + (i % DataSetRows);
+      const Uint32 dataSet = i / DataSetRows;
+
+      unexpectedValue = true;
+
+      if (rows[i] < 1)
+      {
+        ndbout_c("Missing row %c%u", key, dataSet);
+      }
+      else
+      {
+        ndbout_c("Extra row %c%u", key, dataSet);
+      }
+    }
+  }
+
+  if (! unexpectedValue)
+  {
+    g_info << "Table content ok" << endl;
+    return NDBT_OK;
+  }
+
+  return NDBT_FAILED;
+}
+
+static
+int defineDeleteOp(NdbTransaction* trans,
+                   const NdbDictionary::Table* nbTab,
+                   char keyLen,
+                   char byte0,
+                   char byte1,
+                   char byte2)
+{
+  const char key[4] = {keyLen, byte0, byte1, byte2};
+
+  NdbOperation* delOp = trans->getNdbOperation(nbTab);
+  CHECK(delOp != NULL, trans->getNdbError());
+
+  CHECK(delOp->deleteTuple() == 0, delOp->getNdbError());
+  CHECK(delOp->equal("Key", &key[0]) == 0, delOp->getNdbError());
+
+  return NDBT_OK;
+}
+
+static
+int defineInsertOp(NdbTransaction* trans,
+                   const NdbDictionary::Table* nbTab,
+                   Uint32 numDataCols,
+                   char keyLen,
+                   char byte0,
+                   char byte1,
+                   char byte2,
+                   Uint32 i)
+{
+  const char key[4] = {keyLen, byte0, byte1, byte2};
+
+  NdbOperation* insOp = trans->getNdbOperation(nbTab);
+  CHECK(insOp != NULL, trans->getNdbError());
+
+  CHECK(insOp->insertTuple() == 0, insOp->getNdbError());
+  CHECK(insOp->equal("Key", &key[0]) == 0, insOp->getNdbError());
+
+  for (Uint32 c=0; c < numDataCols; c++)
+  {
+    BaseString name;
+    name.assfmt("Data_%u", c);
+    CHECK(insOp->setValue(name.c_str(), i) == 0, insOp->getNdbError());
+  }
+  return NDBT_OK;
+}
+
+static
+int defineUpdateOp(NdbTransaction* trans,
+                   const NdbDictionary::Table* nbTab,
+                   Uint32 numDataCols,
+                   char keyLen,
+                   char byte0,
+                   char byte1,
+                   char byte2,
+                   Uint32 i,
+                   Uint32 iterations,
+                   Uint32 offset)
+{
+  const char key[4] = {keyLen, byte0, byte1, byte2};
+
+  NdbOperation* insOp = trans->getNdbOperation(nbTab);
+  CHECK(insOp != NULL, trans->getNdbError());
+
+  CHECK(insOp->updateTuple() == 0, insOp->getNdbError());
+  CHECK(insOp->equal("Key", &key[0]) == 0, insOp->getNdbError());
+
+  /* We just update one column */
+  /* Updates retain invariant that col(n+1) = col(0) | col(0)+1 */
+
+  const Uint32 colnum = (iterations-1) % numDataCols; /* 0...numDataCols */
+  BaseString name;
+  name.assfmt("Data_%u", colnum);
+  CHECK(insOp->setValue(name.c_str(), (offset + i)) == 0, insOp->getNdbError());
+
+  return NDBT_OK;
+}
+
+int runChangePkCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+
+  const NdbDictionary::Table* nbTab = pDict->getTable(NbTabName);
+
+  const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
+  const bool case_sensitive_collation =
+    (ctx->getProperty("CSCharset", Uint32(0)) != 0);
+
+  bool cycle = false;
+  Uint32 iterations = 0;
+  Uint32 offset;
+
+  /**
+   * Run transactions until stopped which contain
+   *
+   *   BEGIN
+   *     # Same logical key, different actual key
+   *       Delete row where pk = 'a0'|'A0'
+   *       Insert row setting pk = 'A0' | 'a0'
+   *
+   *     # Different logical key, different actual key
+   *       Delete row where pk = 'a1'|'AQ'
+   *       Insert row setting pk = 'AQ'|'a1'
+   *
+   *     # Delete or Insert just to mix rowids a little
+   *       Delete row where pk = 'a2'
+   *       or
+   *       Insert row where pk = 'A2'
+   *
+   *     # Same logical key, different actual key
+   *        via trailing spaces
+   *       Delete row where pk = 'a3' |'A3 '
+   *       Insert row setting pk = 'A3 ' | 'a3'
+   *
+   *     # Same logical key, updating data in a pattern
+   *        over time
+   *       Update row where pk = 'a4' set col X = y
+   *
+   *   COMMIT
+   *
+   * As the table has a case-insensitive (non binary)
+   * collation, we need proper collation aware comparisons
+   * to be used as appropriate.
+   * We can describe the key of a row being looked up (for
+   * read, update, delete) using any case and trailing spaces,
+   * and expect it to be found.
+   * When we insert a row we expect :
+   *  - Trailing spaces and case are preserved
+   *
+   * Mix of different variants to help surface bugs.
+   */
+  while (!ctx->isTestStopped())
+  {
+    cycle = !cycle;
+    offset = 1 + (iterations / numDataCols);
+    iterations++;
+
+    /**
+     * Periodically check the table content on the
+     * true cycle, when data should be in its original
+     * state
+     */
+    if (cycle &&
+        (iterations % 33) == 0)
+    {
+      if (runCheckCharKeyTable(ctx, step) != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+    }
+
+    for (Uint32 i=0; i < DataSetRows; i++)
+    {
+      while(true) // Temp retry loop
+      {
+        /**
+         * For case-sensitive collations, we must use correct case
+         * when specifying keys.
+         * For case-insenstive collations, we do not need to, so use
+         * the 'to' case for the key, and the 'to' value.
+         */
+        const char toCaseKey = ((cycle? 'A' : 'a') + i);
+        const char fromCaseKey = case_sensitive_collation ?
+          ((cycle? 'a' : 'A') + i) :
+          toCaseKey;
+
+
+        NdbTransaction* trans = pNdb->startTransaction();
+        CHECK(trans != NULL, pNdb->getNdbError());
+
+        {
+          /* Case 1 */
+          /* Single transaction, Key changes only case */
+          /* a0..z0 */
+          /* a0 -> A0, A0 -> a0 */
+          CHECK(defineDeleteOp(trans, nbTab, 2, fromCaseKey, '0', 0) == NDBT_OK,
+                "Failed to define delete op 1");
+          CHECK(defineInsertOp(trans, nbTab, numDataCols, 2, toCaseKey, '0', 0, i) == NDBT_OK,
+                "Failed to define insert op 1");
+        }
+
+        {
+          /* Case 2 */
+          /* Single transaction, Key changes case and other value */
+          /* a1..z1 */
+          /* a1 -> AQ, AQ -> a1 */
+          const char fromKey = cycle ? '1' : 'Q';
+          const char toKey = cycle ? 'Q' : '1';
+
+          CHECK(defineDeleteOp(trans, nbTab, 2, fromCaseKey, fromKey, 0) == NDBT_OK,
+                "Failed to define delete op 2");
+          CHECK(defineInsertOp(trans, nbTab, numDataCols, 2, toCaseKey, toKey, 0, i) == NDBT_OK,
+                "Failed to define insert op 2");
+        }
+
+        {
+          /* Case 3 */
+          /* Separate transactions, Delete or Insert (of every second row) */
+          /* a2..z2 */
+          /* b2 -> -, - -> B2 */
+
+          if (i % 2 == 1)
+          {
+            if (cycle)
+            {
+              CHECK(defineDeleteOp(trans, nbTab, 2, fromCaseKey, '2', 0) == NDBT_OK,
+                    "Failed to define delete op 3");
+            }
+            else
+            {
+              CHECK(defineInsertOp(trans, nbTab, numDataCols, 2, toCaseKey, '2', 0,i) == NDBT_OK,
+                    "Failed to define insert op 3");
+            }
+          }
+        }
+
+        {
+          /* Case 4 */
+          /* Single transaction Same key, different data due to trailing space */
+          /* a3..z3 */
+          /* 'a3' -> 'a3 ', 'a3 ' -> 'a3' */
+
+          /* Length of key, without + with trailing data */
+          const char keyLen = (cycle? 3 : 2);
+          const char lowerCaseKey = 'a' + i;
+          const char caseKey = (case_sensitive_collation?
+                                lowerCaseKey : /* Stick with lower case */
+                                toCaseKey);    /* Also flip case */
+
+          CHECK(defineDeleteOp(trans, nbTab, keyLen, caseKey, '3', ' ') == NDBT_OK,
+                "Failed to define delete op 1");
+          CHECK(defineInsertOp(trans, nbTab, numDataCols, keyLen, caseKey, '3', ' ', i) == NDBT_OK,
+                "Failed to define insert op 1");
+
+        }
+
+        {
+          /* Case 5 */
+          /* Update column values inplace, using diff key */
+          /* a4..z4 */
+          /* UPDATE A4 set data_2 = <next> */
+          /* UPDATE A4 set data_3 = <next> */
+          /* e.g. :
+           *  Key  Col0  Col1  Col2  Col3 .. Coln
+           *  'a4'    0     0     0     0       0
+           *          1     0     0     0       0
+           *          1     1     0     0       0
+           *          ...
+           *          1     1     1     1       1
+           *          2     1     1     1       1
+           *          ...
+           *
+           * Intention is that missing updates on replicas
+           * become visible (as the pattern above is broken)
+           * This is checked in runCheckCharKeyTable()
+           */
+          const char lowerCaseKey = 'a' + i;
+          const char upperCaseKey = 'A' + i;
+          const char caseKey = (case_sensitive_collation?
+                                lowerCaseKey : /* Stick with lower case */
+                                upperCaseKey); /* Always use the 'wrong' case */
+
+          CHECK(defineUpdateOp(trans, nbTab, numDataCols, 2, caseKey, '4', 0, i, iterations, offset)
+                == NDBT_OK,
+                "Failed to define update op");
+        }
+
+        if (trans->execute(Commit) != 0)
+        {
+          char buf[2] = {toCaseKey, 0};
+          g_err << "Failed to execute transaction " << trans->getNdbError() << endl;
+          g_err << "Cycle " << cycle << " i " << i << " toCaseKey " << buf << endl;
+          if (trans->getNdbError().status == NdbError::TemporaryError)
+          {
+            /* Ignore temporary errors due to restarts etc */
+            trans->close();
+            continue;
+          }
+          return NDBT_FAILED;
+        }
+        trans->close();
+
+        break;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int runErrorInsertSlowCopyFrag(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Slow down CopyFrag, to give more time to find errors */
+  NdbRestarter restarter;
+
+  return restarter.insertErrorInAllNodes(5106);
+}
+
+int runClearErrorInsert(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  return restarter.insertErrorInAllNodes(0);
+}
+
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -10337,6 +10990,40 @@ TESTCASE("SumaHandover3rpl",
 {
   INITIALIZER(run_suma_handover_test);
 }
+TESTCASE("SumaHandoverNF",
+         "Test Suma handover with multiple GCIs and more than 2 replicas")
+{
+  INITIALIZER(run_suma_handover_with_node_failure);
+}
+TESTCASE("InplaceCharPkChangeCS",
+         "Check that pk changes which are binary different, but "
+         "collation-compare the same, are ok during restarts")
+{
+  TC_PROPERTY("CSCharset", Uint32(1));
+  TC_PROPERTY("NumDataColumns", Uint32(10));
+  INITIALIZER(runCreateCharKeyTable);
+  INITIALIZER(runLoadCharKeyTable);
+  INITIALIZER(runErrorInsertSlowCopyFrag);
+  STEP(runChangePkCharKeyTable);
+  STEP(runRestarter);
+  FINALIZER(runClearErrorInsert);
+  FINALIZER(runDropCharKeyTable);
+}
+TESTCASE("InplaceCharPkChangeCI",
+         "Check that pk changes which are binary different, but "
+         "collation-compare the same, are ok during restarts")
+{
+  TC_PROPERTY("CSCharset", Uint32(0));
+  TC_PROPERTY("NumDataColumns", Uint32(10));
+  INITIALIZER(runCreateCharKeyTable);
+  INITIALIZER(runLoadCharKeyTable);
+  INITIALIZER(runErrorInsertSlowCopyFrag);
+  STEP(runChangePkCharKeyTable);
+  STEP(runRestarter);
+  FINALIZER(runClearErrorInsert);
+  FINALIZER(runDropCharKeyTable);
+}
+
 
 NDBT_TESTSUITE_END(testNodeRestart)
 

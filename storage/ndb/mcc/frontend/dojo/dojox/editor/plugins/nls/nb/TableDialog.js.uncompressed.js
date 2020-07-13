@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Legg til kolonne foran",
 	insertTableColumnAfterLabel: "Legg til kolonne etter",
 	deleteTableRowLabel: "Slett rad",
-	deleteTableColumnLabel: "Slett kolonne"
+	deleteTableColumnLabel: "Slett kolonne",
+	colorTableCellTitle: "Tabellcelle for bakgrunnsfarge",
+	tableContextMenuTitle: "Tabellhurtigmeny"
 })
 );

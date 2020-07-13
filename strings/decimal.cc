@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2011,6 +2011,10 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
   return error;
 }
 
+/**
+  Returns the number of decimal digits before the decimal point in a decimal_t,
+  with any insignificant leading zeros removed.
+*/
 int decimal_intg(const decimal_t *from) {
   int res;
   remove_leading_zeroes(from, &res);

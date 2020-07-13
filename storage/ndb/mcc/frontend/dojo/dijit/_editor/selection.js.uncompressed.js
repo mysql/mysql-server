@@ -3,20 +3,16 @@ define("dijit/_editor/selection", [
 	"dojo/_base/lang",
 	"dojo/sniff", // has("ie") has("opera")
 	"dojo/_base/window", // win.body win.doc win.doc.createElement win.doc.selection win.doc.selection.createRange win.doc.selection.type.toLowerCase win.global win.global.getSelection
-	"../main"		// for exporting symbols to dijit._editor.selection (TODO: remove in 2.0)
+	"../main"		// for exporting symbols to dijit._editor.selection
 ], function(dom, lang, has, win, dijit){
 
 // module:
 //		dijit/_editor/selection
-// summary:
-//		Text selection API
-
-// FIXME:
-//		all of these methods branch internally for IE. This is probably
-//		sub-optimal in terms of runtime performance. We should investigate the
-//		size difference for differentiating at definition time.
 
 var selection = {
+	// summary:
+	//		Deprecated text selection API.  Will be removed in 2.0.  New code should use dijit/selection.
+
 	getType: function(){
 		// summary:
 		//		Get the selection type (like win.doc.select.type in IE).
@@ -354,9 +350,16 @@ var selection = {
 				// use IE specific crud.
 				range = doc.selection.createRange();
 				try{
+					newRange = node.ownerDocument.body.createControlRange();
+					if(newRange){
+						newRange.addElement(node);
+					}
+				}catch(e1){
+					try{
 						newRange = node.ownerDocument.body.createTextRange();
 						newRange.moveToElementText(node);
 					}catch(e2){/* squelch */}
+				}
 				if(range && newRange){
 					// We can finally compare similar to W3C
 					if(range.compareEndPoints("EndToStart", newRange) === 1){

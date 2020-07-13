@@ -101,14 +101,14 @@ var Axes = oo.declare(
 
 			// NOTE: Not passing style into text because it's changing it
 			var props = {align:"middle", valign:"middle", util:this.util, annotation:true, container:this.container, mouse:this.mouse, stencil:this};
-			this.labelX = new Label(lang.mixin(props,{
+			this.labelX = new Label.Label(lang.mixin(props,{
 				labelPosition:this.setLabelX
 			}));
-			this.labelY = new Label(lang.mixin(props,{
+			this.labelY = new Label.Label(lang.mixin(props,{
 				labelPosition:this.setLabelY
 			}));
 			if(this.style.zAxisEnabled){
-				this.labelZ = new Label(lang.mixin(props,{
+				this.labelZ = new Label.Label(lang.mixin(props,{
 					labelPosition:this.setLabelZ
 				}));
 			}

@@ -1,6 +1,6 @@
 //>>built
 define("dojox/data/RailsStore",["dojo","dojox","dojox/data/JsonRestStore"],function(_1,_2){
-_1.declare("dojox.data.RailsStore",_2.data.JsonRestStore,{constructor:function(){
+return _1.declare("dojox.data.RailsStore",_2.data.JsonRestStore,{constructor:function(){
 },preamble:function(_3){
 if(typeof _3.target=="string"&&!_3.service){
 var _4=_3.target.replace(/\/$/g,"");
@@ -107,5 +107,4 @@ _14=_12;
 var _17=_12.length;
 return {totalCount:_13.fullLength||(_13.request.count==_17?(_13.request.start||0)+_17*2:_17),items:_14};
 }});
-return _2.data.RailsStore;
 });

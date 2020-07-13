@@ -1,6 +1,6 @@
 //>>built
-define("dijit/form/FilteringSelect",["dojo/data/util/filter","dojo/_base/declare","dojo/_base/lang","dojo/when","./MappedTextBox","./ComboBoxMixin"],function(_1,_2,_3,_4,_5,_6){
-return _2("dijit.form.FilteringSelect",[_5,_6],{required:true,_lastDisplayedValue:"",_isValidSubset:function(){
+define("dijit/form/FilteringSelect",["dojo/_base/declare","dojo/_base/lang","dojo/when","./MappedTextBox","./ComboBoxMixin"],function(_1,_2,_3,_4,_5){
+return _1("dijit.form.FilteringSelect",[_4,_5],{required:true,_lastDisplayedValue:"",_isValidSubset:function(){
 return this._opened;
 },isValid:function(){
 return !!this.item||(!this.required&&this.get("displayedValue")=="");
@@ -8,17 +8,17 @@ return !!this.item||(!this.required&&this.get("displayedValue")=="");
 if(!this.searchTimer){
 this.inherited(arguments);
 }
-},_callbackSetLabel:function(_7,_8,_9,_a){
-if((_8&&_8[this.searchAttr]!==this._lastQuery)||(!_8&&_7.length&&this.store.getIdentity(_7[0])!=this._lastQuery)){
+},_callbackSetLabel:function(_6,_7,_8,_9){
+if((_7&&_7[this.searchAttr]!==this._lastQuery)||(!_7&&_6.length&&this.store.getIdentity(_6[0])!=this._lastQuery)){
 return;
 }
-if(!_7.length){
-this.set("value","",_a||(_a===undefined&&!this.focused),this.textbox.value,null);
+if(!_6.length){
+this.set("value","",_9||(_9===undefined&&!this.focused),this.textbox.value,null);
 }else{
-this.set("item",_7[0],_a);
+this.set("item",_6[0],_9);
 }
-},_openResultList:function(_b,_c,_d){
-if(_c[this.searchAttr]!==this._lastQuery){
+},_openResultList:function(_a,_b,_c){
+if(_b[this.searchAttr]!==this._lastQuery){
 return;
 }
 this.inherited(arguments);
@@ -29,68 +29,68 @@ this.validate(true);
 return this.valueNode.value;
 },_getValueField:function(){
 return "value";
-},_setValueAttr:function(_e,_f,_10,_11){
+},_setValueAttr:function(_d,_e,_f,_10){
 if(!this._onChangeActive){
-_f=null;
+_e=null;
 }
-if(_11===undefined){
-if(_e===null||_e===""){
-_e="";
-if(!_3.isString(_10)){
-this._setDisplayedValueAttr(_10||"",_f);
+if(_10===undefined){
+if(_d===null||_d===""){
+_d="";
+if(!_2.isString(_f)){
+this._setDisplayedValueAttr(_f||"",_e);
 return;
 }
 }
-var _12=this;
-this._lastQuery=_e;
-_4(this.store.get(_e),function(_13){
-_12._callbackSetLabel(_13?[_13]:[],undefined,undefined,_f);
+var _11=this;
+this._lastQuery=_d;
+_3(this.store.get(_d),function(_12){
+_11._callbackSetLabel(_12?[_12]:[],undefined,undefined,_e);
 });
 }else{
-this.valueNode.value=_e;
-this.inherited(arguments);
+this.valueNode.value=_d;
+this.inherited(arguments,[_d,_e,_f,_10]);
 }
-},_setItemAttr:function(_14,_15,_16){
+},_setItemAttr:function(_13,_14,_15){
 this.inherited(arguments);
 this._lastDisplayedValue=this.textbox.value;
-},_getDisplayQueryString:function(_17){
-return _17.replace(/([\\\*\?])/g,"\\$1");
-},_setDisplayedValueAttr:function(_18,_19){
-if(_18==null){
-_18="";
+},_getDisplayQueryString:function(_16){
+return _16.replace(/([\\\*\?])/g,"\\$1");
+},_setDisplayedValueAttr:function(_17,_18){
+if(_17==null){
+_17="";
 }
 if(!this._created){
 if(!("displayedValue" in this.params)){
 return;
 }
-_19=false;
+_18=false;
 }
 if(this.store){
 this.closeDropDown();
-var _1a=_3.clone(this.query);
-var qs=this._getDisplayQueryString(_18),q;
+var _19=_2.clone(this.query);
+var qs=this._getDisplayQueryString(_17),q;
 if(this.store._oldAPI){
 q=qs;
 }else{
-q=_1.patternToRegExp(qs,this.ignoreCase);
+q=this._patternToRegExp(qs);
 q.toString=function(){
 return qs;
 };
 }
-this._lastQuery=_1a[this.searchAttr]=q;
-this.textbox.value=_18;
-this._lastDisplayedValue=_18;
-this._set("displayedValue",_18);
-var _1b=this;
-var _1c={queryOptions:{ignoreCase:this.ignoreCase,deep:true}};
-_3.mixin(_1c,this.fetchProperties);
-this._fetchHandle=this.store.query(_1a,_1c);
-_4(this._fetchHandle,function(_1d){
-_1b._fetchHandle=null;
-_1b._callbackSetLabel(_1d||[],_1a,_1c,_19);
+this._lastQuery=_19[this.searchAttr]=q;
+this.textbox.value=_17;
+this._lastDisplayedValue=_17;
+this._set("displayedValue",_17);
+var _1a=this;
+var _1b={queryOptions:{ignoreCase:this.ignoreCase,deep:true}};
+_2.mixin(_1b,this.fetchProperties);
+this._fetchHandle=this.store.query(_19,_1b);
+_3(this._fetchHandle,function(_1c){
+_1a._fetchHandle=null;
+_1a._callbackSetLabel(_1c||[],_19,_1b,_18);
 },function(err){
-_1b._fetchHandle=null;
-if(!_1b._cancelingQuery){
+_1a._fetchHandle=null;
+if(!_1a._cancelingQuery){
 console.error("dijit.form.FilteringSelect: "+err.toString());
 }
 });

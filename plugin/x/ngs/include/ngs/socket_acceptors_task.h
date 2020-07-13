@@ -44,9 +44,9 @@ class Socket_acceptors_task : public xpl::iface::Server_task {
  public:
   Socket_acceptors_task(
       const xpl::iface::Listener_factory &listener_factory,
-      const std::string &tcp_bind_address, const std::string &network_namespace,
-      const uint16_t tcp_port, const uint32_t tcp_port_open_timeout,
-      const std::string &unix_socket_file, const uint32_t backlog,
+      const std::string &multi_bind_address, const uint16_t tcp_port,
+      const uint32_t tcp_port_open_timeout, const std::string &unix_socket_file,
+      const uint32_t backlog,
       const std::shared_ptr<xpl::iface::Socket_events> &event);
 
   bool prepare(Task_context *context) override;
@@ -62,21 +62,19 @@ class Socket_acceptors_task : public xpl::iface::Server_task {
   class Server_task_time_and_event;
 
   bool prepare_impl(Task_context *context);
+  void prepare_listeners();
   Listener_interfaces get_array_of_listeners();
-  void show_startup_log();
+  void show_startup_log(const Server_properties &properties) const;
 
-  static bool is_listener_configured(xpl::iface::Listener *listener);
-  static void log_listener_state(xpl::iface::Listener *listener);
-  static void mark_as_stopped(xpl::iface::Listener *listener);
-  static void wait_until_stopped(xpl::iface::Listener *listener);
-  static void close_listener(xpl::iface::Listener *listener);
-  static bool check_listener_status(xpl::iface::Listener *listener);
-
+  const xpl::iface::Listener_factory &m_listener_factory;
   std::shared_ptr<xpl::iface::Socket_events> m_event;
-  std::string m_bind_address;
+  std::string m_multi_bind_address;
+  const uint16_t m_tcp_port;
+  const uint32_t m_tcp_port_open_timeout;
   std::string m_unix_socket_file;
-  std::unique_ptr<xpl::iface::Listener> m_tcp_socket;
+  std::vector<std::unique_ptr<xpl::iface::Listener>> m_tcp_socket;
   std::unique_ptr<xpl::iface::Listener> m_unix_socket;
+  const uint32_t m_backlog;
 
   xpl::iface::Listener::Sync_variable_state m_time_and_event_state;
 };

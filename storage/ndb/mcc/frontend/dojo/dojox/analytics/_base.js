@@ -1,5 +1,5 @@
 //>>built
-define("dojox/analytics/_base",["dojo/_base/lang","dojo/_base/config","dojo/ready","dojo/_base/unload","dojo/_base/sniff","dojo/_base/xhr","dojo/_base/json","dojo/io-query","dojo/io/script"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+define("dojox/analytics/_base",["dojo/_base/lang","dojo/_base/config","dojo/ready","dojo/_base/unload","dojo/_base/sniff","dojo/request","dojo/json","dojo/io-query","dojo/request/script"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
 var _a=function(){
 this._data=[];
 this._id=1;
@@ -36,20 +36,20 @@ this._data=[];
 var _e;
 switch(this.sendMethod){
 case "script":
-_e=_9.get({url:this.getQueryPacket(),preventCache:1,callbackParamName:"callback"});
+_e=_9.get(this.getQueryPacket(),{preventCache:1,callbackParamName:"callback"});
 break;
 case "xhrPost":
 default:
-_e=_6.post({url:this.dataUrl,content:{id:this._id++,data:_7.toJson(this._inTransit)}});
+_e=_6.post(this.dataUrl,{data:{id:this._id++,data:_7.stringify(this._inTransit)}});
 break;
 }
-_e.addCallback(this,"onPushComplete");
+_e.then(_1.hitch(this,"onPushComplete"));
 return _e;
 }
 return false;
 },getQueryPacket:function(){
 while(true){
-var _f={id:this._id++,data:_7.toJson(this._inTransit)};
+var _f={id:this._id++,data:_7.stringify(this._inTransit)};
 var _10=this.dataUrl+"?"+_8.objectToQuery(_f);
 if(_10.length>this.maxRequestSize){
 this._data.unshift(this._inTransit.pop());

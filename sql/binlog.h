@@ -715,12 +715,14 @@ class MYSQL_BIN_LOG : public TC_LOG {
      any normal statement.
 
      @param[in] thd  the THD object of current thread.
-     @param[in] stmt the DELETE statement.
-     @param[in] stmt_len the length of DELETE statement.
+     @param[in] stmt the DML statement.
+     @param[in] stmt_len the length of the DML statement.
+     @param[in] sql_command the type of SQL command.
 
      @return Returns false if succeeds, otherwise true is returned.
   */
-  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len);
+  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len,
+                          enum enum_sql_command sql_command);
 
   void report_cache_write_error(THD *thd, bool is_transactional);
   bool check_write_error(const THD *thd);

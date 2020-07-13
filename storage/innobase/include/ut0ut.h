@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -216,9 +216,9 @@ UNIV_INLINE
 uint32_t ut_2_exp(uint32_t n);
 
 /** Calculates fast the number rounded up to the nearest power of 2.
- @return first power of 2 which is >= n */
-ulint ut_2_power_up(ulint n) /*!< in: number != 0 */
-    MY_ATTRIBUTE((const));
+@param[in]  n   number != 0
+@return first power of 2 which is >= n */
+ulint ut_2_power_up(ulint n);
 
 /** Determine how many bytes (groups of 8 bits) are needed to
 store the given number of bits.
@@ -836,6 +836,41 @@ class trace_3 : public logger {
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 #endif /* UNIV_HOTBACKUP */
+
+/** For measuring time elapsed. Since std::chrono::high_resolution_clock
+may be influenced by a change in system time, it might not be steady.
+So we use std::chrono::steady_clock for ellapsed time. */
+class Timer {
+ public:
+  using MS = std::chrono::milliseconds;
+  using SC = std::chrono::steady_clock;
+
+ public:
+  /** Constructor. Starts/resets the timer to the current time. */
+  Timer() { reset(); }
+
+  /** Reset the timer to the current time. */
+  void reset() { m_start = SC::now(); }
+
+  /** @return the time elapsed in milliseconds. */
+  int64_t elapsed() const {
+    return (std::chrono::duration_cast<MS>(SC::now() - m_start).count());
+  }
+
+  /** Print time elapsed since last reset (in milliseconds) to the stream.
+  @param[in,out] out  Stream to write to.
+  @param[in] timer Timer to write to the stream.
+  @return stream instance that was passed in. */
+  template <typename T, typename Traits>
+  friend std::basic_ostream<T, Traits> &operator<<(
+      std::basic_ostream<T, Traits> &out, const Timer &timer) {
+    return (out << timer.elapsed());
+  }
+
+ private:
+  /** High resolution timer instance used for timimg. */
+  SC::time_point m_start;
+};
 
 }  // namespace ib
 

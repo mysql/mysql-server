@@ -4,7 +4,7 @@ define("dojox/mobile/View", [
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/_base/lang",
-	"dojo/_base/sniff",
+	"dojo/sniff",
 	"dojo/_base/window",
 	"dojo/_base/Deferred",
 	"dojo/dom",
@@ -19,8 +19,9 @@ define("dojox/mobile/View", [
 	"./ViewController", // to load ViewController for you (no direct references)
 	"./common",
 	"./transition",
-	"./viewRegistry"
-], function(array, config, connect, declare, lang, has, win, Deferred, dom, domClass, domConstruct, domGeometry, domStyle, registry, Contained, Container, WidgetBase, ViewController, common, transitDeferred, viewRegistry){
+	"./viewRegistry",
+	"./_css3"
+], function(array, config, connect, declare, lang, has, win, Deferred, dom, domClass, domConstruct, domGeometry, domStyle, registry, Contained, Container, WidgetBase, ViewController, common, transitDeferred, viewRegistry, css3){
 
 	// module:
 	//		dojox/mobile/View
@@ -29,12 +30,19 @@ define("dojox/mobile/View", [
 
 	return declare("dojox.mobile.View", [WidgetBase, Container, Contained], {
 		// summary:
-		//		A widget that represents a view that occupies the full screen
+		//		A container widget for any HTML element and/or Dojo widgets
 		// description:
-		//		View acts as a container for any HTML and/or widgets. An entire
-		//		HTML page can have multiple View widgets and the user can
-		//		navigate through the views back and forth without page
-		//		transitions.
+		//		View is a container widget for any HTML element and/or Dojo widgets.
+		//		As a Dojo widget container it can itself contain View widgets
+		//		forming a set of nested views. A Dojo Mobile application is usually
+		//		made of multiple View widgets and the user can navigate through
+		//		the views back and forth with animated transition effects.
+		//		
+		//		When using several sibling views (direct children of the same
+		//		element), you can use the 'selected' attribute to define whether
+		//		the view should be displayed when the application is launched.
+		//		If no view has selected=true, the first sibling view is displayed
+		//		at startup time.
 
 		// selected: Boolean
 		//		If true, the view is displayed at startup time.
@@ -45,7 +53,7 @@ define("dojox/mobile/View", [
 		keepScrollPos: true,
 
 		// tag: String
-		//		A name of the HTML tag to create as domNode.
+		//		The name of the HTML tag to create as domNode. The default value is "div".
 		tag: "div",
 
 		/* internal properties */
@@ -69,18 +77,21 @@ define("dojox/mobile/View", [
 		},
 
 		buildRendering: function(){
-			this.domNode = this.containerNode = this.srcNodeRef || domConstruct.create(this.tag);
+			if(!this.templateString){
+				// Create root node if it wasn't created by _TemplatedMixin
+				this.domNode = this.containerNode = this.srcNodeRef || domConstruct.create(this.tag);
+			}
 
-			this._animEndHandle = this.connect(this.domNode, "webkitAnimationEnd", "onAnimationEnd");
-			this._animStartHandle = this.connect(this.domNode, "webkitAnimationStart", "onAnimationStart");
-			if(!config['mblCSS3Transition']){
-				this._transEndHandle = this.connect(this.domNode, "webkitTransitionEnd", "onAnimationEnd");
+			this._animEndHandle = this.connect(this.domNode, css3.name("animationEnd"), "onAnimationEnd");
+			this._animStartHandle = this.connect(this.domNode, css3.name("animationStart"), "onAnimationStart");
+			if(!config.mblCSS3Transition){
+				this._transEndHandle = this.connect(this.domNode, css3.name("transitionEnd"), "onAnimationEnd");
 			}
 			if(has('mblAndroid3Workaround')){
 				// workaround for the screen flicker issue on Android 3.x/4.0
 				// applying "-webkit-transform-style:preserve-3d" to domNode can avoid
 				// transition animation flicker
-				domStyle.set(this.domNode, "webkitTransformStyle", "preserve-3d");
+				domStyle.set(this.domNode, css3.name("transformStyle"), "preserve-3d");
 			}
 
 			viewRegistry.add(this);
@@ -120,8 +131,8 @@ define("dojox/mobile/View", [
 				});
 			}
 
-			if(this.domNode.style.visibility != "visible"){ // this check is to avoid screen flickers
-				this.domNode.style.visibility = "visible";
+			if(this.domNode.style.visibility === "hidden"){ // this check is to avoid screen flickers
+				this.domNode.style.visibility = "inherit";
 			}
 
 			// Need to call inherited first - so that child widgets get started
@@ -233,7 +244,7 @@ define("dojox/mobile/View", [
 		},
 
 		_isBookmarkable: function(detail){
-			return detail.moveTo && (config['mblForceBookmarkable'] || detail.moveTo.charAt(0) === '#') && !detail.hashchange;
+			return detail.moveTo && (config.mblForceBookmarkable || detail.moveTo.charAt(0) === '#') && !detail.hashchange;
 		},
 
 		performTransition: function(/*String*/moveTo, /*Number*/transitionDir, /*String*/transition,
@@ -339,27 +350,27 @@ define("dojox/mobile/View", [
 			var toWidget = registry.byNode(toNode);
 			if(toWidget){
 				// Now that the target view became visible, it's time to run resize()
-				if(config["mblAlwaysResizeOnTransition"] || !toWidget._resized){
+				if(config.mblAlwaysResizeOnTransition || !toWidget._resized){
 					common.resizeAll(null, toWidget);
 					toWidget._resized = true;
 				}
 
 				if(detail.transition && detail.transition != "none"){
 					// Temporarily add padding to align with the fromNode while transition
-					toWidget.containerNode.style.paddingTop = fromTop + "px";
+					toWidget._addTransitionPaddingTop(fromTop);
 				}
 
 				toWidget.load && toWidget.load(); // for ContentView
 
 				toWidget.movedFrom = fromNode.id;
 			}
-			if(has('mblAndroidWorkaround') && !config['mblCSS3Transition']
+			if(has('mblAndroidWorkaround') && !config.mblCSS3Transition
 					&& detail.transition && detail.transition != "none"){
 				// workaround for the screen flicker issue on Android 2.2/2.3
 				// apply "-webkit-transform-style:preserve-3d" to both toNode and fromNode
 				// to make them 3d-transition-ready state just before transition animation
-				domStyle.set(toNode, "webkitTransformStyle", "preserve-3d");
-				domStyle.set(fromNode, "webkitTransformStyle", "preserve-3d");
+				domStyle.set(toNode, css3.name("transformStyle"), "preserve-3d");
+				domStyle.set(fromNode, css3.name("transformStyle"), "preserve-3d");
 				// show toNode offscreen to avoid flicker when switching "display" and "visibility" styles
 				domClass.add(toNode, "mblAndroidWorkaround");
 			}
@@ -375,10 +386,11 @@ define("dojox/mobile/View", [
 					toNode.style.top = "0px";
 					if(scrollTop > 1 || toTop !== 0){
 						fromNode.style.top = toTop - scrollTop + "px";
-						if(config["mblHideAddressBar"] !== false){
-							setTimeout(function(){ // iPhone needs setTimeout
+						// address bar hiding does not work on iOS 7+.
+						if(!(has("ios") >= 7) && config.mblHideAddressBar !== false){
+							this.defer(function(){ // iPhone needs setTimeout (via defer)
 								win.global.scrollTo(0, (toTop || 1));
-							}, 0);
+							});
 						}
 					}
 				}else{
@@ -388,12 +400,22 @@ define("dojox/mobile/View", [
 				connect.publish("/dojox/mobile/beforeTransitionIn", [toWidget].concat(lang._toArray(this._arguments)));
 			}
 			toNode.style.display = "none";
-			toNode.style.visibility = "visible";
+			toNode.style.visibility = "inherit";
 
 			common.fromView = this;
 			common.toView = toWidget;
 
 			this._doTransition(fromNode, toNode, detail.transition, detail.transitionDir);
+		},
+
+		_addTransitionPaddingTop: function(/*String|Integer*/ value){
+			// add padding top to the view in order to get alignment during the transition
+			this.containerNode.style.paddingTop = value + "px";
+		},
+
+		_removeTransitionPaddingTop: function(){
+			// remove padding top from the view after the transition
+			this.containerNode.style.paddingTop = "";
 		},
 
 		_toCls: function(s){
@@ -408,7 +430,7 @@ define("dojox/mobile/View", [
 			if(!transition || transition == "none"){
 				this.domNode.style.display = "none";
 				this.invokeCallback();
-			}else if(config['mblCSS3Transition']){
+			}else if(config.mblCSS3Transition){
 				//get dojox/css3/transit first
 				Deferred.when(transitDeferred, lang.hitch(this, function(transit){
 					//follow the style of .mblView.mblIn in View.css
@@ -417,6 +439,8 @@ define("dojox/mobile/View", [
 					domStyle.set(toNode, "position", "absolute");
 					Deferred.when(transit(fromNode, toNode, {transition: transition, reverse: (transitionDir===-1)?true:false}),lang.hitch(this,function(){
 						domStyle.set(toNode, "position", toPosition);
+						// Reset the temporary padding on toNode
+						toNode.style.paddingTop = "";
 						this.invokeCallback();
 					}));
 				}));
@@ -424,7 +448,7 @@ define("dojox/mobile/View", [
 				if(transition.indexOf("cube") != -1){
 					if(has('ipad')){
 						domStyle.set(toNode.parentNode, {webkitPerspective:1600});
-					}else if(has('iphone')){
+					}else if(has("ios")){
 						domStyle.set(toNode.parentNode, {webkitPerspective:800});
 					}
 				}
@@ -432,12 +456,13 @@ define("dojox/mobile/View", [
 				if(has('mblAndroidWorkaround')){
 					// workaround for the screen flicker issue on Android 2.2
 					// applying transition css classes just after setting toNode.style.display = ""
-					// causes flicker, so wait for a while using setTimeout
-					setTimeout(function(){
+					// causes flicker, so wait for a while using setTimeout (via defer)
+					var _this = this;
+					_this.defer(function(){
 						domClass.add(fromNode, s + " mblOut" + rev);
 						domClass.add(toNode, s + " mblIn" + rev);
 						domClass.remove(toNode, "mblAndroidWorkaround"); // remove offscreen style
-						setTimeout(function(){
+						_this.defer(function(){
 							domClass.add(fromNode, "mblTransition");
 							domClass.add(toNode, "mblTransition");
 						}, 30); // 30 = 100 - 70, to make total delay equal to 100ms
@@ -445,7 +470,7 @@ define("dojox/mobile/View", [
 				}else{
 					domClass.add(fromNode, s + " mblOut" + rev);
 					domClass.add(toNode, s + " mblIn" + rev);
-					setTimeout(function(){
+					this.defer(function(){
 						domClass.add(fromNode, "mblTransition");
 						domClass.add(toNode, "mblTransition");
 					}, 100);
@@ -475,8 +500,8 @@ define("dojox/mobile/View", [
 					fromOrigin = posX + "px " + posY + "px";
 					toOrigin = posX + "px " + posY + "px";
 				}
-				domStyle.set(fromNode, {webkitTransformOrigin:fromOrigin});
-				domStyle.set(toNode, {webkitTransformOrigin:toOrigin});
+				domStyle.set(fromNode, css3.add({}, {transformOrigin:fromOrigin}));
+				domStyle.set(toNode, css3.add({}, {transformOrigin:toOrigin}));
 			}
 		},
 
@@ -499,9 +524,9 @@ define("dojox/mobile/View", [
 				domClass.remove(this.domNode, [this._toCls(this._detail.transition), "mblIn", "mblOut", "mblReverse"]);
 			}else{
 				// Reset the temporary padding
-				this.containerNode.style.paddingTop = "";
+				this._removeTransitionPaddingTop();
 			}
-			domStyle.set(this.domNode, {webkitTransformOrigin:""});
+			domStyle.set(this.domNode, css3.add({}, {transformOrigin:""}));
 			if(name.indexOf("Shrink") !== -1){
 				var li = e.target;
 				li.style.display = "none";
@@ -521,8 +546,8 @@ define("dojox/mobile/View", [
 			this.clickedPosX = this.clickedPosY = undefined;
 
 			if(name.indexOf("Cube") !== -1 &&
-				name.indexOf("In") !== -1 && has('iphone')){
-				this.domNode.parentNode.style.webkitPerspective = "";
+				name.indexOf("In") !== -1 && has("ios")){
+				this.domNode.parentNode.style[css3.name("perspective")] = "";
 			}
 		},
 
@@ -545,11 +570,11 @@ define("dojox/mobile/View", [
 				// workaround for the screen flicker issue on Android 2.2/2.3
 				// remove "-webkit-transform-style" style after transition finished
 				// to avoid side effects such as input field auto-scrolling issue
-				// use setTimeout to avoid flicker in case of ScrollableView
-				setTimeout(lang.hitch(this, function(){
-					if(toWidget){ domStyle.set(this.toNode, "webkitTransformStyle", ""); }
-					domStyle.set(this.domNode, "webkitTransformStyle", "");
-				}), 0);
+				// use setTimeout (via defer) to avoid flicker in case of ScrollableView
+				this.defer(function(){
+					if(toWidget){ domStyle.set(this.toNode, css3.name("transformStyle"), ""); }
+					domStyle.set(this.domNode, css3.name("transformStyle"), "");
+				});
 			}
 
 			var c = this._detail.context, m = this._detail.method;

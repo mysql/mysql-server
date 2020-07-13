@@ -1,6 +1,6 @@
 define("dojox/string/Builder", ["dojo/_base/lang"], 
   function(lang){
-	lang.getObject("string", true, dojox).Builder = 
+	var Builder = lang.getObject("string", true, dojox).Builder =
 	  function(/*String?*/str){
 		// summary:
 		//		A fast buffer for creating large strings.
@@ -130,5 +130,5 @@ define("dojox/string/Builder", ["dojo/_base/lang"],
 		//	initialize the buffer.
 		if(str){ this.append(str); }
 	};
-	return dojox.string.Builder;
+	return Builder;
 });

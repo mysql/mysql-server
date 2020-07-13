@@ -29,6 +29,7 @@
 --source include/big_test.inc
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
+--source include/not_have_privilege_checks_user.inc
 --source include/have_binlog_format_row.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc

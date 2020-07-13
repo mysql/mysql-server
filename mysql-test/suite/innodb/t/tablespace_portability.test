@@ -44,7 +44,9 @@ call mtr.add_suppression("\\[Warning\\] .* Converting backslash to forward slash
 call mtr.add_suppression("\\[Warning\\] .* '.*' permission error, can't delete!");
 call mtr.add_suppression("\\[ERROR\\] .* The error means mysqld does not have the access rights to the directory.");
 call mtr.add_suppression("\\[ERROR\\] .* Cannot create file");
-call mtr.add_suppression("\\[ERROR\\] .* The directory '.*' does not exist");
+call mtr.add_suppression("\\[ERROR\\] .* The directory for tablespace .* does not exist or is incorrect");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location cannot be under the datadir");
 --enable_query_log
 
 --source suite/innodb/include/tablespace_filenames.inc

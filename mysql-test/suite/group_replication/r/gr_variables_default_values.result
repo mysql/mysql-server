@@ -25,9 +25,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-# Curently there are 55 group replication variables.
+# Curently there are 57 group replication variables.
 #
-include/assert.inc [There are 55 GR variables at present.]
+include/assert.inc [There are 57 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -79,6 +79,7 @@ SET @@GLOBAL.group_replication_recovery_compression_algorithms= default;
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
 SET @@GLOBAL.group_replication_recovery_tls_version= default;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 SET @@SESSION.group_replication_consistency= default;
 #
 # Test Unit#2
@@ -115,16 +116,17 @@ include/assert.inc [Default group_replication_member_weight is 50]
 include/assert.inc [Default group_replication_recovery_public_key_path is ""(EMPTY)]
 include/assert.inc [Default group_replication_recovery_get_public_key is OFF/0]
 include/assert.inc [Default group_replication_exit_state_action is READ_ONLY]
-include/assert.inc [Default group_replication_member_expel_timeout is 0]
+include/assert.inc [Default group_replication_member_expel_timeout is 5]
 include/assert.inc [Default group_replication_consistency is EVENTUAL]
 include/assert.inc [Default group_replication_consistency is EVENTUAL]
 include/assert.inc [Default group_replication_communication_max_message_size is 10485760]
-include/assert.inc [Default group_replication_autorejoin_tries is 0]
+include/assert.inc [Default group_replication_autorejoin_tries is 3]
 include/assert.inc [Default group_replication_message_cache_size is 1073741824]
 include/assert.inc [Default group_replication_recovery_compression_algorithms is "uncompressed"]
 include/assert.inc [Default group_replication_recovery_zstd_compression_level is 3]
 include/assert.inc [Default group_replication_recovery_tls_version is "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"]
 include/assert.inc [Default group_replication_recovery_tls_ciphersuites is NULL]
+include/assert.inc [Default group_replication_advertise_recovery_endpoints is "DEFAULT"]
 #
 # Clean up
 #

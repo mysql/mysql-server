@@ -21,7 +21,9 @@
 }
 .mblSwitchAnimation .mblSwitchInner {
   -webkit-transition-property: left;
-  -webkit-transition-duration: .1s;
+  transition-property: left;
+  -webkit-transition-duration: 0.1s;
+  transition-duration: 0.1s;
 }
 .mblSwitchOn .mblSwitchInner {
   left: 0;
@@ -36,6 +38,7 @@
   font-weight: bold;
   line-height: 29px;
   -webkit-box-sizing: border-box;
+  box-sizing: border-box;
   border: rgba(176, 176, 176, 0.5) 1px inset;
 }
 .mblSwitchBgLeft {
@@ -43,18 +46,22 @@
   color: white;
   background-color: #3f84eb;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#088eef), to(#0851ad), color-stop(0.5, #0869c6));
+  background-image: linear-gradient(to bottom, #088eef 0%, #0869c6 50%, #0851ad 100%);
 }
 .mblSwitchBgRight {
   color: #7f7f7f;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#f7f3f7), to(#cec5d6), color-stop(0.5, #ced3ce));
+  background-image: linear-gradient(to bottom, #f7f3f7 0%, #ced3ce 50%, #cec5d6 100%);
 }
 .mblSwitchKnob {
   position: absolute;
   top: 0;
   height: 27px;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#fafafa), to(#999999), color-stop(0.5, #bbbbbb));
+  background-image: linear-gradient(to bottom, #fafafa 0%, #bbbbbb 50%, #999999 100%);
   font-size: 1px;
   -webkit-box-sizing: border-box;
+  box-sizing: border-box;
   border: rgba(156, 172, 192, 0.5) 1px outset;
 }
 .mblSwitchText {

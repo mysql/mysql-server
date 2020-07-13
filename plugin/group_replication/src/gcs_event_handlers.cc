@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -317,7 +317,7 @@ void Plugin_gcs_events_handler::handle_recovery_message(
       return;                           /* purecov: inspected */
     }
 
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_ONLINE);
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_ONLINE);
 
     /*
      The member is declared as online upon receiving this message
@@ -345,7 +345,7 @@ void Plugin_gcs_events_handler::handle_recovery_message(
     Group_member_info *member_info =
         group_member_mgr->get_group_member_info(member_uuid);
     if (member_info != nullptr) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEM_ONLINE,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_MEM_ONLINE,
                    member_info->get_hostname().c_str(),
                    member_info->get_port());
       delete member_info;
@@ -547,7 +547,7 @@ void Plugin_gcs_events_handler::log_members_leaving_message(
                members_leaving.c_str());
 
   if (!primary_member_host.empty())
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_PRIMARY_MEMBER_LEFT_GRP,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_PRIMARY_MEMBER_LEFT_GRP,
                  primary_member_host.c_str());
 }
 
@@ -718,11 +718,11 @@ void Plugin_gcs_events_handler::on_view_changed(
     }
     disable_read_mode_for_compatible_members();
     LogPluginErr(
-        INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
+        SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
         group_member_mgr->get_string_current_view_active_hosts().c_str(),
         view_id_representation.c_str());
   } else {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_LEFT_GRP);
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_LEFT_GRP);
   }
 
 end:
@@ -932,7 +932,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       recovery_strategy = remote_clone_handler->check_clone_preconditions();
 
     if (Remote_clone_handler::DO_CLONE == recovery_strategy) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
                    "Cloning from a remote group donor.");
       /*
        Launch the clone process. It will configure SSL options and the list
@@ -953,7 +953,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     }
 
     if (Remote_clone_handler::DO_RECOVERY == recovery_strategy) {
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CHOICE,
                    "Incremental recovery from a group donor");
       /*
        Launch the recovery thread so we can receive missing data and the

@@ -1,7 +1,6 @@
 define("dojo/dnd/Container", [
 	"../_base/array",
 	"../_base/declare",
-	"../_base/event",
 	"../_base/kernel",
 	"../_base/lang",
 	"../_base/window",
@@ -12,12 +11,11 @@ define("dojo/dnd/Container", [
 	"../has",
 	"../on",
 	"../query",
-	"../ready",
 	"../touch",
 	"./common"
 ], function(
-	array, declare, event, kernel, lang, win,
-	dom, domClass, domConstruct, Evented, has, on, query, ready, touch, dnd){
+	array, declare, kernel, lang, win,
+	dom, domClass, domConstruct, Evented, has, on, query, touch, dnd){
 
 // module:
 //		dojo/dnd/Container
@@ -280,8 +278,9 @@ var Container = declare("dojo.dnd.Container", Evented, {
 		//		event processor for onselectevent and ondragevent
 		// e: Event
 		//		mouse event
-		if(!this.skipForm || !dnd.isFormElement(e)){
-			event.stop(e);
+		if(!this.withHandles && (!this.skipForm || !dnd.isFormElement(e))){
+			e.stopPropagation();
+			e.preventDefault();
 		}
 	},
 

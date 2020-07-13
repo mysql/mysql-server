@@ -1,7 +1,6 @@
 //>>built
 define("dojox/dtl/tag/loop",["dojo/_base/lang","dojo/_base/array","dojo/_base/json","../_base","dojox/string/tokenize"],function(_1,_2,_3,dd,_4){
-_1.getObject("dojox.dtl.tag.loop",true);
-var _5=dd.tag.loop;
+var _5=_1.getObject("tag.loop",true,dd);
 _5.CycleNode=_1.extend(function(_6,_7,_8,_9){
 this.cyclevars=_6;
 this.name=_7;
@@ -149,5 +148,5 @@ var key=_37[_37.length-5];
 var _3a=_37[_37.length-1];
 return new _5.RegroupNode(_39,key,_3a);
 }});
-return dojox.dtl.tag.loop;
+return _5;
 });

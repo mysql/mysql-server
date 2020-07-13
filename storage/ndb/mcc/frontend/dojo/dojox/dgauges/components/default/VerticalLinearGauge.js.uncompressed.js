@@ -1,7 +1,6 @@
 define("dojox/dgauges/components/default/VerticalLinearGauge", [
 		"dojo/_base/lang", 
-		"dojo/_base/declare", 
-		"dojo/_base/connect", 
+		"dojo/_base/declare",
 		"dojo/_base/Color", 
 		"../utils",
 		"../../RectangularGauge", 
@@ -12,7 +11,7 @@ define("dojox/dgauges/components/default/VerticalLinearGauge", [
 		"../../TextIndicator",
 		"../DefaultPropertiesMixin"
 	], 
-	function(lang, declare, connect, Color, utils, RectangularGauge, LinearScaler, RectangularScale, RectangularValueIndicator, RectangularRangeIndicator, TextIndicator, DefaultPropertiesMixin){
+	function(lang, declare, Color, utils, RectangularGauge, LinearScaler, RectangularScale, RectangularValueIndicator, RectangularRangeIndicator, TextIndicator, DefaultPropertiesMixin){
 	return declare("dojox.dgauges.components.default.VerticalLinearGauge", [RectangularGauge, DefaultPropertiesMixin], {
 		// summary:
 		//		A vertical gauge widget.

@@ -13,6 +13,7 @@
   float: left;
   list-style-type: none;
   -webkit-box-sizing: border-box;
+  box-sizing: border-box;
   border-left: 1px solid rgba(96, 96, 96, 0.85);
   border-bottom: 1px solid rgba(96, 96, 96, 0.85);
 }
@@ -46,6 +47,7 @@
   text-decoration: none;
   font-size: 13px;
   color: white;
+  cursor: pointer;
 }
 .mblIconMenuItemTable {
   width: 100%;
@@ -56,5 +58,6 @@
 }
 .mblIconMenuItemSel {
   background-image: -webkit-gradient(linear, left top, left bottom, from(#306ea1), to(#266093), color-stop(0.06, #4090d3), color-stop(0.5, #306ea1));
+  background-image: linear-gradient(to bottom, #306ea1 0%, #4090d3 6%, #306ea1 50%, #266093 100%);
   color: white;
 }

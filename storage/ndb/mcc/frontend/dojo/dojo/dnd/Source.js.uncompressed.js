@@ -1,8 +1,8 @@
 define("dojo/dnd/Source", [
-	"../_base/array", "../_base/connect", "../_base/declare", "../_base/kernel", "../_base/lang",
+	"../_base/array", "../_base/declare", "../_base/kernel", "../_base/lang",
 	"../dom-class", "../dom-geometry", "../mouse", "../ready", "../topic",
 	"./common", "./Selector", "./Manager"
-], function(array, connect, declare, kernel, lang, domClass, domGeom, mouse, ready, topic,
+], function(array, declare, kernel, lang, domClass, domGeom, mouse, ready, topic,
 			dnd, Selector, Manager){
 
 // module:

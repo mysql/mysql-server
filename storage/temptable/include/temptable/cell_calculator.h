@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -150,7 +150,7 @@ inline const CHARSET_INFO *Cell_calculator::field_charset(const Field &field) {
     case HA_KEYTYPE_VARTEXT2:
     case HA_KEYTYPE_VARBINARY1:
     case HA_KEYTYPE_VARBINARY2:
-      if (field.flags & (ENUM_FLAG | SET_FLAG)) {
+      if (field.is_flag_set(ENUM_FLAG) || field.is_flag_set(SET_FLAG)) {
         return &my_charset_bin;
       } else {
         return field.charset_for_protocol();

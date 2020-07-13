@@ -424,7 +424,6 @@ void LEX::reset() {
   set_var_list.empty();
   param_list.empty();
   prepared_stmt_params.empty();
-  subqueries = false;
   context_analysis_only = 0;
   safe_to_cache_query = true;
   insert_table = nullptr;
@@ -476,6 +475,7 @@ void LEX::reset() {
 
   clear_privileges();
   grant_as.cleanup();
+  alter_user_attribute = enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
 }
 
 /**
@@ -2003,8 +2003,7 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
       m_with_clause(nullptr),
       derived_table(nullptr),
       first_recursive(nullptr),
-      m_lateral_deps(0),
-      got_all_recursive_rows(false) {
+      m_lateral_deps(0) {
   switch (parsing_context) {
     case CTX_ORDER_BY:
       explain_marker = CTX_ORDER_BY_SQ;  // A subquery in ORDER BY
@@ -2037,91 +2036,13 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
 */
 
 SELECT_LEX::SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having)
-    : next(nullptr),
-      prev(nullptr),
-      master(nullptr),
-      slave(nullptr),
-      link_next(nullptr),
-      link_prev(nullptr),
-      m_query_result(nullptr),
-      m_base_options(0),
-      m_active_options(0),
-      uncacheable(0),
-      skip_local_transforms(false),
-      linkage(UNSPECIFIED_TYPE),
-      no_table_names_allowed(false),
-      context(),
+    : ftfunc_list(&ftfunc_list_alloc),
+      sj_nests(mem_root),
       first_context(&context),
-      resolve_place(RESOLVE_NONE),
-      resolve_nest(nullptr),
-      semijoin_disallowed(false),
-      db(nullptr),
-      m_where_cond(where),
-      m_having_cond(having),
-      cond_value(Item::COND_UNDEF),
-      having_value(Item::COND_UNDEF),
-      parent_lex(nullptr),
-      olap(UNSPECIFIED_OLAP_TYPE),
-      table_list(),
-      group_list(),
-      group_list_ptrs(nullptr),
-      item_list(),
-      is_item_list_lookup(false),
-      fields_list(item_list),
-      all_fields(),
-      ftfunc_list(&ftfunc_list_alloc),
-      ftfunc_list_alloc(),
-      join(nullptr),
       top_join_list(mem_root),
       join_list(&top_join_list),
-      embedding(nullptr),
-      sj_nests(mem_root),
-      leaf_tables(nullptr),
-      leaf_table_count(0),
-      derived_table_count(0),
-      table_func_count(0),
-      materialized_derived_table_count(0),
-      has_sj_nests(false),
-      has_aj_nests(false),
-      partitioned_table_count(0),
-      order_list(),
-      order_list_ptrs(nullptr),
-      select_limit(nullptr),
-      offset_limit(nullptr),
-      select_n_having_items(0),
-      cond_count(0),
-      between_count(0),
-      max_equal_elems(0),
-      select_n_where_fields(0),
-      parsing_place(CTX_NONE),
-      in_sum_expr(0),
-      with_sum_func(false),
-      n_sum_items(0),
-      n_child_sum_items(0),
-      select_number(0),
-      nest_level(0),
-      inner_sum_func_list(nullptr),
-      with_wild(0),
-      having_fix_field(false),
-      group_fix_field(false),
-      explicit_limit(false),
-      subquery_in_having(false),
-      first_execution(true),
-      sj_pullout_done(false),
-      exclude_from_table_unique_test(false),
-      allow_merge_derived(true),
-      recursive_reference(nullptr),
-      recursive_dummy_unit(nullptr),
-      select_list_tables(0),
-      outer_join(0),
-      opt_hints_qb(nullptr),
-      m_agg_func_used(false),
-      m_json_agg_func_used(false),
-      m_empty_query(false),
-      sj_candidates(nullptr),
-      hidden_order_field_count(0) {
-  end_lateral_table = nullptr;
-}
+      m_where_cond(where),
+      m_having_cond(having) {}
 
 /**
   Set the name resolution context for the specified query block.
@@ -2453,7 +2374,7 @@ void SELECT_LEX::add_order_to_list(ORDER *order) {
 bool SELECT_LEX::add_item_to_list(Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Item: %p", item));
-  return item_list.push_back(item);
+  return fields_list.push_back(item);
 }
 
 bool SELECT_LEX::add_ftfunc_to_list(Item_func_match *func) {
@@ -2483,7 +2404,7 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
   if (is_distinct()) {
     uint bitcount = 0;
     Item *item;
-    List_iterator<Item> li(item_list);
+    List_iterator<Item> li(fields_list);
     while ((item = li++)) {
       /*
         Same test as in create_distinct_group, when it pushes new items to the
@@ -2502,13 +2423,48 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
     prepared statement
   */
   Query_arena *arena = thd->stmt_arena;
-  const uint n_elems = (n_sum_items + n_child_sum_items + item_list.elements +
-                        select_n_having_items + select_n_where_fields +
-                        order_group_num + n_scalar_subqueries);
+  uint n_elems = n_sum_items + n_child_sum_items + fields_list.elements +
+                 select_n_having_items + select_n_where_fields +
+                 order_group_num + n_scalar_subqueries;
+
+  /*
+    If it is possible that we transform IN(subquery) to a join to a derived
+    table, we will be adding DISTINCT (this possibly has the problem of BIT
+    columns as in the logic above), and we will also be adding one expression to
+    the SELECT list per decorrelated equality in WHERE. So we have to allocate
+    more space.
+
+    The number of decorrelatable equalities is bounded by
+    select_n_where_fields. Indeed an equality isn't counted in
+    select_n_where_fields if it's:
+    expr-without_Item_field = expr-without_Item_field;
+    but we decorrelate an equality if one member has OUTER_REF_TABLE_BIT, so
+    it has an Item_field inside.
+
+    Note that cond_count cannot be used, as setup_cond() hasn't run yet. So we
+    use select_n_where_fields instead.
+  */
+  if (master_unit()->item &&
+      (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED) ||
+       (thd->lex->m_sql_cmd != nullptr &&
+        thd->secondary_engine_optimization() ==
+            Secondary_engine_optimization::SECONDARY))) {
+    Item_subselect *subq_predicate = master_unit()->item;
+    if (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+        subq_predicate->substype() == Item_subselect::IN_SUBS) {
+      // might be transformed to derived table, so:
+      n_elems +=
+          // possible additions to SELECT list from decorrelation of WHERE
+          select_n_where_fields +
+          // add size of new SELECT list, for DISTINCT and BIT type
+          (select_n_where_fields + fields_list.elements);
+    }
+  }
+
   DBUG_PRINT("info",
              ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u %4u", this,
               n_elems,  // :
-              n_sum_items, n_child_sum_items, item_list.elements,
+              n_sum_items, n_child_sum_items, fields_list.elements,
               select_n_having_items, select_n_where_fields, order_group_num,
               n_scalar_subqueries));
   if (!base_ref_items.is_null()) {
@@ -2518,6 +2474,9 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
       MIN/MAX rewrite in Item_in_subselect::single_value_transformer.
       In the usual case we can reuse the array from the prepare phase.
       If we need a bigger array, we must allocate a new one.
+      It looks like this branch is used for a MIN/MAX transformed subquery
+      when we prepare it for the 2nd time (prepared statement), and could go
+      away after WL#6570.
      */
     if (base_ref_items.size() >= n_elems) return false;
   }
@@ -2940,7 +2899,7 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     auto *t = table_list.first;
     t->print(thd, str, query_type);  // table identifier
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(thd, str, query_type, item_list,
+    print_update_list(thd, str, query_type, fields_list,
                       *sql_cmd_update->update_value_list);
     /*
       Print join condition (may happen with a merged view's WHERE condition
@@ -2959,7 +2918,7 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     // Multi table update
     print_join(thd, str, &top_join_list, query_type);
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(thd, str, query_type, item_list,
+    print_update_list(thd, str, query_type, fields_list,
                       *sql_cmd_update->update_value_list);
     print_where_cond(thd, str, query_type);
   }
@@ -3175,7 +3134,7 @@ void SELECT_LEX::print_item_list(const THD *thd, String *str,
                                  enum_query_type query_type) {
   // Item List
   bool first = true;
-  List_iterator_fast<Item> it(item_list);
+  List_iterator_fast<Item> it(fields_list);
   Item *item;
   while ((item = it++)) {
     if (first)
@@ -3407,7 +3366,7 @@ bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
 
 bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
   // Select clause
-  List_iterator<Item> it(item_list);
+  List_iterator<Item> it(fields_list);
   Item *end = nullptr;
   for (Item *item = it++; item != end; item = it++)
     if (walk_item(item, visitor)) return true;
@@ -3502,6 +3461,7 @@ void Query_tables_list::reset_query_tables_list(bool init) {
   lock_tables_state = LTS_NOT_LOCKED;
   table_count = 0;
   using_match = false;
+  stmt_unsafe_with_mixed_mode = false;
 
   /* Check the max size of the enum to control new enum values definitions. */
   static_assert(BINLOG_STMT_UNSAFE_COUNT <= 32, "");
@@ -4410,7 +4370,7 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd, Item **new_where,
   return get_optimizable_join_conditions(thd, top_join_list);
 }
 
-SubqueryExecMethod SELECT_LEX::subquery_strategy(THD *thd) const {
+Subquery_strategy SELECT_LEX::subquery_strategy(const THD *thd) const {
   if (m_windows.elements > 0)
     /*
       A window function is in the SELECT list.
@@ -4420,23 +4380,23 @@ SubqueryExecMethod SELECT_LEX::subquery_strategy(THD *thd) const {
       rows over which the WF is supposed to be calculated.
       So, subquery materialization is imposed. Grep for (and read) WL#10431.
     */
-    return SubqueryExecMethod::EXEC_MATERIALIZATION;
+    return Subquery_strategy::SUBQ_MATERIALIZATION;
 
   if (opt_hints_qb) {
-    SubqueryExecMethod strategy = opt_hints_qb->subquery_strategy();
-    if (strategy != SubqueryExecMethod::EXEC_UNSPECIFIED) return strategy;
+    Subquery_strategy strategy = opt_hints_qb->subquery_strategy();
+    if (strategy != Subquery_strategy::UNSPECIFIED) return strategy;
   }
 
   // No SUBQUERY hint given, base possible strategies on optimizer_switch
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
     return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED)
-               ? SubqueryExecMethod::EXEC_EXISTS_OR_MAT
-               : SubqueryExecMethod::EXEC_MATERIALIZATION;
+               ? Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT
+               : Subquery_strategy::SUBQ_MATERIALIZATION;
 
-  return SubqueryExecMethod::EXEC_EXISTS;
+  return Subquery_strategy::SUBQ_EXISTS;
 }
 
-bool SELECT_LEX::semijoin_enabled(THD *thd) const {
+bool SELECT_LEX::semijoin_enabled(const THD *thd) const {
   return opt_hints_qb ? opt_hints_qb->semijoin_enabled(thd)
                       : thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN);
 }
@@ -4598,7 +4558,7 @@ enum_parsing_context SELECT_LEX_UNIT::place() const {
 }
 
 bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  List_iterator<Item> li(item_list);
+  List_iterator<Item> li(fields_list);
   Item *item;
 
   while ((item = li++)) {

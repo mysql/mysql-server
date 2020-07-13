@@ -329,7 +329,7 @@ define("dojox/date/islamic/Date", ["dojo/_base/lang", "dojo/_base/declare", "doj
 		var tjd2 = (this._GREGORIAN_EPOCH - 1) + (365 * (year - 1))
 					+ Math.floor((year - 1) / 4) - (Math.floor((year - 1) / 100))
 					+ Math.floor((year - 1) / 400) + Math.floor((((367 * month) - 362) / 12)
-					+ ((month <= 2) ? 0 : (dd.isLeapYear(new Date(year,month,1)) ? -1 : -2)) + 1);
+					+ ((month <= 2) ? 0 : (dd.isLeapYear(new Date(year,(month-1),1)) ? -1 : -2)) + 1);
 					
 		var day = (wjd - tjd2) + 1;
 

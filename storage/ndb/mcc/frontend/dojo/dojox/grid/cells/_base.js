@@ -44,10 +44,13 @@ return "<div class='dojoxGridStubNode' linkWidget='"+v.id+"' cellIdx='"+this.ind
 }
 return v;
 },format:function(_16,_17){
-var f,i=this.grid.edit.info,d=this.get?this.get(_16,_17):(this.value||this.defaultValue);
-d=(d&&d.replace&&this.grid.escapeHTMLInData)?d.replace(/&/g,"&amp;").replace(/</g,"&lt;"):d;
+var i=this.grid.edit.info;
+var d=this.get?this.get(_16,_17):(this.value||this.defaultValue);
+if(d&&d.replace&&this.grid.escapeHTMLInData){
+d=d.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+}
 if(this.editable&&(this.alwaysEditing||(i.rowIndex==_16&&i.cell==this))){
-return this.formatEditing(d,_16);
+return this.formatEditing(i.value?i.value:d,_16);
 }else{
 return this._defaultFormat(d,[d,_16,this]);
 }
@@ -163,10 +166,13 @@ _3c("classes",_34);
 _3c("headerClasses",_34);
 _3c("cellClasses",_34);
 };
-var _41=_2("dojox.grid.cells.Cell",_12,{constructor:function(){
+var _41=_12.Cell=_2("dojox.grid.cells.Cell",_12,{constructor:function(){
 this.keyFilter=this.keyFilter;
 },keyFilter:null,formatEditing:function(_42,_43){
 this.needFormatNode(_42,_43);
+if(_42&&_42.replace){
+_42=_42.replace(/"/g,"&quot;");
+}
 return "<input class=\"dojoxGridInput\" type=\"text\" value=\""+_42+"\">";
 },formatNode:function(_44,_45,_46){
 this.inherited(arguments);
@@ -194,7 +200,7 @@ if(_4a){
 _49.keyFilter=new RegExp(_4a);
 }
 };
-var _4b=_2("dojox.grid.cells.RowIndex",_41,{name:"Row",postscript:function(){
+var _4b=_12.RowIndex=_2("dojox.grid.cells.RowIndex",_41,{name:"Row",postscript:function(){
 this.editable=false;
 },get:function(_4c){
 return _4c+1;
@@ -202,7 +208,7 @@ return _4c+1;
 _4b.markupFactory=function(_4d,_4e){
 _41.markupFactory(_4d,_4e);
 };
-var _4f=_2("dojox.grid.cells.Select",_41,{options:null,values:null,returnIndex:-1,constructor:function(_50){
+var _4f=_12.Select=_2("dojox.grid.cells.Select",_41,{options:null,values:null,returnIndex:-1,constructor:function(_50){
 this.values=this.values||this.options;
 },formatEditing:function(_51,_52){
 this.needFormatNode(_51,_52);
@@ -247,7 +253,7 @@ _57.values=v;
 }
 }
 };
-var _5a=_2("dojox.grid.cells.AlwaysEdit",_41,{alwaysEditing:true,_formatNode:function(_5b,_5c){
+var _5a=_12.AlwaysEdit=_2("dojox.grid.cells.AlwaysEdit",_41,{alwaysEditing:true,_formatNode:function(_5b,_5c){
 this.formatNode(this.getEditNode(_5c),_5b,_5c);
 },applyStaticValue:function(_5d){
 var e=this.grid.edit;
@@ -257,7 +263,7 @@ e.start(this,_5d,true);
 _5a.markupFactory=function(_5e,_5f){
 _41.markupFactory(_5e,_5f);
 };
-var _60=_2("dojox.grid.cells.Bool",_5a,{_valueProp:"checked",formatEditing:function(_61,_62){
+var _60=_12.Bool=_2("dojox.grid.cells.Bool",_5a,{_valueProp:"checked",formatEditing:function(_61,_62){
 return "<input class=\"dojoxGridInput\" type=\"checkbox\""+(_61?" checked=\"checked\"":"")+" style=\"width: auto\" />";
 },doclick:function(e){
 if(e.target.tagName=="INPUT"){

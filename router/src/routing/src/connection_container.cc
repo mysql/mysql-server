@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,8 @@ void ConnectionContainer::disconnect_all() {
 
 void ConnectionContainer::remove_connection(
     MySQLRoutingConnection *connection) {
+  std::unique_lock<std::mutex> lk(connection_removed_cond_m_);
+
   connections_.erase(connection);
 
   connection_removed_cond_.notify_all();

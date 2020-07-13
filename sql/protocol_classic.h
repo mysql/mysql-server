@@ -194,7 +194,7 @@ class Protocol_classic : public Protocol {
   /* Return packet string */
   String *get_output_packet();
   /* return packet length */
-  uint get_packet_length() { return input_packet_length; }
+  ulong get_packet_length() { return input_packet_length; }
   /* Return raw packet buffer */
   uchar *get_raw_packet() { return input_raw_packet; }
   /* Set read timeout */

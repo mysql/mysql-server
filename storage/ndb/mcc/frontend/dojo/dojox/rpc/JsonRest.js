@@ -12,7 +12,7 @@ var _b=_6._schema&&_6._schema.hrefProperty;
 if(_b){
 _2.json.ref.refAttribute=_b;
 }
-_8=_8&&_2.json.ref.resolveJson(_8,{defaultId:_9,index:_4._index,timeStamps:_a&&_4._timeStamps,time:_a,idPrefix:_6.servicePath.replace(/[^\/]*$/,""),idAttribute:jr.getIdAttribute(_6),schemas:jr.schemas,loader:jr._loader,idAsRef:_6.idAsRef,assignAbsoluteIds:true});
+_8=_8&&_2.json.ref.resolveJson(_8,{defaultId:_9,index:_4._index,timeStamps:_a&&_4._timeStamps,time:_a,idPrefix:_6._store.allowNoTrailingSlash?_6.servicePath+"/":_6.servicePath.replace(/[^\/]*$/,""),idAttribute:jr.getIdAttribute(_6),schemas:jr.schemas,loader:jr._loader,idAsRef:_6.idAsRef,assignAbsoluteIds:true});
 _2.json.ref.refAttribute="$ref";
 return _8;
 };

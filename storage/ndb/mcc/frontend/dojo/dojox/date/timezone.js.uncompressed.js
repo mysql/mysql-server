@@ -10,41 +10,48 @@
  * parser, "XMLDate" by Philippe Goetz (philippe.goetz@wanadoo.fr)
  *****************************************************************************/
 
-define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_base/array", "dojo/_base/xhr"],
-	function(dojo, _dd, _ddl){
+define("dojox/date/timezone", [
+    "dojo/_base/array",
+    "dojo/_base/config",
+    "dojo/_base/declare",
+    "dojo/_base/kernel",
+    "dojo/_base/lang",
+    "dojo/date",
+    "dojo/date/locale",
+    "dojo/request",
+    "dojo/request/handlers"
+],
+function(arrayUtil, config, declare, kernel, lang, dateUtil, localeUtil, request, handlers){
+	kernel.experimental("dojox.date.timezone");
 
-	dojo.experimental("dojox.date.timezone");
-	dojo.getObject("date.timezone", true, dojox);
-
-	var cfg = dojo.config;
 	var _zoneFiles = [ "africa", "antarctica", "asia", "australasia", "backward",
 					"etcetera", "europe", "northamerica", "pacificnew",
 					"southamerica" ];
-					
+
 	// Our mins an maxes for years that we care about
 	var _minYear = 1835,
 		_maxYear = 2038;
-	
+
 	var _loadedZones = {},
 		_zones = {},
 		_loadedRanges = {},
 		_rules = {};
-	
+
 	// loadingScheme: String
-	//		One of "preloadAll", "lazyLoad" (Defaults "lazyLoad")
-	var loadingScheme = cfg.timezoneLoadingScheme || "preloadAll";
-		
+	//		One of "preloadAll", "lazyLoad" (Defaults "preloadAll")
+	var loadingScheme = config.timezoneLoadingScheme || "preloadAll";
+
 	// defaultZoneFile: String or String[]
 	//		The default file (or files) to load on startup - other files will
 	//		be lazily-loaded on-demand
-	var defaultZoneFile = cfg.defaultZoneFile ||
+	var defaultZoneFile = config.defaultZoneFile ||
 					((loadingScheme == "preloadAll") ? _zoneFiles : "northamerica");
 
-	// Set our olson-zoneinfo content handler
-	dojo._contentHandlers["olson-zoneinfo"] = function(xhr){
-		var str = dojo._contentHandlers["text"](xhr),
+	// Set our olson_zoneinfo content handler
+	handlers.register("olson_zoneinfo", function(response) {
+		var text = response.text,
 			s = "",
-			lines = str.split("\n"),
+			lines = text.split("\n"),
 			arr = [],
 			chunk = "",
 			zone = null,
@@ -91,18 +98,18 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 			}
 		}
 		return ret; // Object
-	};
-	
+	});
+
 	function loadZoneData(/* Object */ data){
 		// summary:
 		//		Loads the given data object into the zone database
 		// data: Object
 		//		The data to load - contains "zones" and "rules" parameters
 		data = data || {};
-		_zones = dojo.mixin(_zones, data.zones||{});
-		_rules = dojo.mixin(_rules, data.rules||{});
+		_zones = lang.mixin(_zones, data.zones||{});
+		_rules = lang.mixin(_rules, data.rules||{});
 	}
-	
+
 	function loadZoneFile(/* String */ fileName){
 		// summary:
 		//		Loads the given URL of the Olson zone information into the
@@ -110,22 +117,19 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 		//
 		// fileName: String
 		//		The zoneinfo file name to load
-		
+
 		// TODO: Maybe behave similar to requireLocalization - rather than
-		//		Using dojo.xhrGet?
+		//		Using request.get?
 		_loadedZones[fileName] = true;
-		dojo.xhrGet({
-			url: require.toUrl((cfg.timezoneFileBasePath || "dojox/date/zoneinfo") + "/" + fileName),
-			sync: true, // Needs to be synchronous so we can return values
-			handleAs: "olson-zoneinfo",
-			load: loadZoneData,
-			error: function(e){
-				console.error("Error loading zone file:", e);
-				throw e;
-			}
+		request.get(require.toUrl((config.timezoneFileBasePath || "dojox/date/zoneinfo") + "/" + fileName), {
+			handleAs: "olson_zoneinfo",
+			sync: true
+		}).then(loadZoneData, function(e){
+			console.error("Error loading zone file:", e);
+			throw e;
 		});
 	}
-	
+
 	var monthMap = { 'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3,'may': 4, 'jun': 5,
 				'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11 },
 		dayMap = {'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4,
@@ -223,12 +227,12 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 							'Menominee': "S", 'Mont': "S", 'Bahamas': "S",
 							'NYC': "S", 'Regina': "S", 'Resolute': "ES",
 							'DR': "S", 'Toronto': "S", 'Winn': "S" };
-	
+
 	function invalidTZError(t) {
 		throw new Error('Timezone "' + t +
 				'" is either incorrect, or not loaded in the timezone registry.');
 	}
-	
+
 	function getRegionForTimezone(/* String */ tz) {
 		// summary:
 		//		Returns the Olson region for the given timezone
@@ -258,7 +262,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 		}
 		return ret; // String
 	}
-	
+
 	function parseTimeString(/* String */ str) {
 		// summary:
 		//		Parses the given time string and returns it as an integer array
@@ -272,20 +276,20 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 		hms[3] = hms[3] ? parseInt(hms[3], 10) : 0;
 		return hms; // int[]
 	}
-	
+
 	function getUTCStamp(/* int */ y, /* int */ m, /* int */ d, /* int */ h,
 						/* int */ mn, /* int */ s, /* int? */ off){
 		// summary:
 		//		Returns the UTC timestamp, adjusted by the given (optional) offset
 		return Date.UTC(y, m, d, h, mn, s) + ((off||0) * 60 * 1000);
 	}
-	
+
 	function getMonthNumber(/* String */ m){
 		// summary:
 		//		Returns the javascript month number for the given string
 		return monthMap[m.substr(0, 3).toLowerCase()];
 	}
-	
+
 	function getOffsetInMins(/* String */ str){
 		// summary:
 		//		Returns the offset value represented by the string, in minutes
@@ -306,7 +310,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 			// We are UTC - so there is no offset to use
 			off = 0;
 		}
-		
+
 		var d, dtDay, incr;
 		if(isNaN(day)){
 			if(day.substr(0, 4) == "last"){
@@ -315,11 +319,11 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 				d = new Date(getUTCStamp(year, month + 1, 1,
 										time[1] - 24, time[2], time[3],
 										off));
-				dtDay = _dd.add(d, "minute", -off).getUTCDay();
+				dtDay = dateUtil.add(d, "minute", -off).getUTCDay();
 				// Set it to the final day of the correct weekday that month
 				incr = (day > dtDay) ? (day - dtDay - 7) : (day - dtDay);
 				if(incr !== 0){
-					d = _dd.add(d, "hour", incr * 24);
+					d = dateUtil.add(d, "hour", incr * 24);
 				}
 				return d;
 			}else{
@@ -329,22 +333,22 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 						// The stated date of the month
 						d = new Date(getUTCStamp(year, month, parseInt(rule[4].substr(5), 10),
 									time[1], time[2], time[3], off));
-						dtDay = _dd.add(d, "minute", -off).getUTCDay();
+						dtDay = dateUtil.add(d, "minute", -off).getUTCDay();
 						// Set to the first correct weekday after the stated date
 						incr = (day < dtDay) ? (day - dtDay + 7) : (day - dtDay);
 						if(incr !== 0){
-							d = _dd.add(d, "hour", incr * 24);
+							d = dateUtil.add(d, "hour", incr * 24);
 						}
 						return d;
 					}else if(day.substr(3, 2) == '<='){
 						// The stated date of the month
 						d = new Date(getUTCStamp(year, month, parseInt(rule[4].substr(5), 10),
 									time[1], time[2], time[3], off));
-						dtDay = _dd.add(d, "minute", -off).getUTCDay();
+						dtDay = dateUtil.add(d, "minute", -off).getUTCDay();
 						// Set to first correct weekday before the stated date
 						incr = (day > dtDay) ? (day - dtDay - 7) : (day - dtDay);
 						if(incr !== 0){
-							d = _dd.add(d, "hour", incr * 24);
+							d = dateUtil.add(d, "hour", incr * 24);
 						}
 						return d;
 					}
@@ -361,7 +365,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 
 	function _getRulesForYear(/* Zone */ zone, /* int */ year){
 		var rules = [];
-		dojo.forEach(_rules[zone[1]]||[], function(r){
+		arrayUtil.forEach(_rules[zone[1]]||[], function(r){
 			// Clean up rules as needed
 			for(var i = 0; i < 2; i++){
 				switch(r[i]){
@@ -385,7 +389,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 				// Change our offset to be an integer
 				r[6] = getOffsetInMins(r[6]);
 			}
-			
+
 			// Quick-filter to grab all rules that match my year
 			if((r[0] <= year && r[1] >= year) || // Matches my y
 				(r[0] == year && r[1] == "only")){ // Matches my only
@@ -399,7 +403,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 	function _loadZoneRanges(/* String */ tz, /* Object[] */ zoneList) {
 		// summary:
 		//		Loads the zone ranges for the given timezone
-		
+
 		var zr = _loadedRanges[tz] = [];
 		for(var i = 0; i < zoneList.length; i++){
 			var z = zoneList[i];
@@ -407,12 +411,12 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 			var prevZone = null;
 			var prevRange = null;
 			var prevRules = [];
-			
+
 			// Set up our zone offset to not be a string anymore
 			if(typeof z[0] == "string"){
 				z[0] = getOffsetInMins(z[0]);
 			}
-			
+
 			if(i === 0){
 				// The beginning of zoneinfo time - let's not worry about
 				// to-the-hour accuracy before Jan 1, 1835
@@ -433,7 +437,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 				rlz = rlz.concat(_getRulesForYear(z, j));
 			}
 			rlz.sort(function(a, b){
-				return _dd.compare(a.d, b.d);
+				return dateUtil.compare(a.d, b.d);
 			});
 			var rl;
 			for(j = 0, rl; (rl = rlz[j]); j++){
@@ -442,16 +446,16 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 					if(j === 0 && i > 0){
 						if(prevRules.length){
 							// We have a previous rule - so use it
-							rl.d = _dd.add(rl.d, "minute", prevRules[prevRules.length - 1].r[6]);
-						}else if(_dd.compare(new Date(prevRange[1]), rl.d, "date") === 0){
+							rl.d = dateUtil.add(rl.d, "minute", prevRules[prevRules.length - 1].r[6]);
+						}else if(dateUtil.compare(new Date(prevRange[1]), rl.d, "date") === 0){
 							// No previous rules - but our date is the same as the
 							// previous zone ended on - so use that.
 							rl.d = new Date(prevRange[1]);
 						}else{
-							rl.d = _dd.add(rl.d, "minute", getOffsetInMins(prevZone[1]));
+							rl.d = dateUtil.add(rl.d, "minute", getOffsetInMins(prevZone[1]));
 						}
 					}else if(j > 0){
-						rl.d = _dd.add(rl.d, "minute", prevRule.r[6]);
+						rl.d = dateUtil.add(rl.d, "minute", prevRule.r[6]);
 					}
 				}
 			}
@@ -473,7 +477,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 					utcStmp = r[1] = _getRuleStart([0,0,0,z[4],z[5],z[6]||"0"],
 											year, ((time[4] == "u") ? 0 : z[0])).getTime();
 				}
-				var matches = dojo.filter(rlz, function(rl, idx){
+				var matches = arrayUtil.filter(rlz, function(rl, idx){
 					var o = idx > 0 ? rlz[idx - 1].r[6] * 60 * 1000 : 0;
 					return (rl.d.getTime() < utcStmp + o);
 				});
@@ -487,7 +491,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 			}
 		}
 	}
-	
+
 	function getZoneInfo(/* String */ dt, /* String */ tz) {
 		// summary:
 		//		Returns the zone entry from the zoneinfo database for the given date
@@ -512,7 +516,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 			}
 			invalidTZError(t);
 		}
-		
+
 		if(!_loadedRanges[tz]){
 			_loadZoneRanges(tz, zoneList);
 		}
@@ -525,12 +529,12 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 		}
 		throw new Error('No Zone found for "' + tz + '" on ' + dt);
 	}
-	
+
 	function getRule(/* Date */ dt, /* ZoneInfo */ zoneInfo) {
  		// summary:
 		//		Returns the latest-matching rule entry from the zoneinfo
 		//		database for the given date and zone
-		
+
 		var lastMatch = -1;
 		var rules = zoneInfo.range[2]||[];
 		var tsp = dt.getTime();
@@ -545,7 +549,7 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 		}
 		return null;
 	}
-  
+
 	function getAbbreviation(/* String */ tz, /* Object */ zoneInfo, /* Object */ rule) {
 		// summary:
 		//		Returns the abbreviation for the given zone and rule
@@ -592,50 +596,27 @@ define("dojox/date/timezone", ["dojo", "dojo/date", "dojo/date/locale", "dojo/_b
 		}
 		return res; // String
 	}
-	
-/*=====
 
-// TODO: none of this is AMD friendly.   It's setting global variables in dojox,and not returning anything from the module.
-// Plus, the override of dojo/date/locale's format() and _getZone() below.   This needs to be refactored.
+	lang.setObject("dojox.date.timezone", {
+		// summary:
+		//		mix-in to dojo.date to provide timezones based on
+		//		the Olson timezone data
+		// description:
+		//		mix-in to dojo.date to provide timezones based on
+		//		the Olson timezone data.
+		//		If you pass "timezone" as a parameter to your format options,
+		//		then you get the date formatted (and offset) for that timezone
 
-dojox.date.timezone = function(){
-	// summary:
-	//		mix-in to dojo.date to provide timezones based on
-	//		the Olson timezone data
-	// description:
-	//		mix-in to dojo.date to provide timezones based on
-	//		the Olson timezone data.
-	//		If you pass "timezone" as a parameter to your format options,
-	//		then you get the date formatted (and offset) for that timezone
-
-//TODOC
-};
-
-dojox.date.timezone.getTzInfo = function(dt, tz){
-	// summary:
-	//		Returns the timezone information for the given date and
-	//		timezone string
-	// dt: Date
-	//		The Date - a "proxyDate"
-	// tz: String
-	//		String representation of the timezone you want to get info
-	//		for date
-};
-
-dojox.date.timezone.loadZoneData = function(data){
-	// summary:
-	//		Loads the given data object into the zone database
-	// data: Object
-	//		The data to load - contains "zones" and "rules" parameters
-};
-
-dojox.date.timezone.getAllZones = function(){
-	// summary:
-	//		Returns an array of zones that have been loaded
-};
-=====*/
-	dojo.setObject("dojox.date.timezone", {
 		getTzInfo: function(/* Date */ dt, /* String */ tz){
+			// summary:
+			//		Returns the timezone information for the given date and
+			//		timezone string
+			// dt: Date
+			//		The Date - a "proxyDate"
+			// tz: String
+			//		String representation of the timezone you want to get info
+			//		for date
+
 			// Lazy-load any zones not yet loaded
 			if(loadingScheme == "lazyLoad"){
 				// Get the correct region for the zone
@@ -666,31 +647,39 @@ dojox.date.timezone.getAllZones = function(){
 			var abbr = getAbbreviation(tz, zoneInfo, rule);
 			return { tzOffset: off, tzAbbr: abbr }; // Object
 		},
+
 		loadZoneData: function(data){
+			// summary:
+			//		Loads the given data object into the zone database
+			// data: Object
+			//		The data to load - contains "zones" and "rules" parameters
 			loadZoneData(data);
 		},
+
 		getAllZones: function(){
+			// summary:
+			//		Returns an array of zones that have been loaded
 			var arr = [];
 			for(var z in _zones){ arr.push(z); }
 			arr.sort();
 			return arr; // String[]
 		}
 	});
-	
+
 	// Now - initialize the stuff that we should have pre-loaded
 	if(typeof defaultZoneFile == "string" && defaultZoneFile){
 		defaultZoneFile = [defaultZoneFile];
 	}
-	if(dojo.isArray(defaultZoneFile)){
-		dojo.forEach(defaultZoneFile, loadZoneFile);
+	if(defaultZoneFile instanceof Array){
+		arrayUtil.forEach(defaultZoneFile, loadZoneFile);
 	}
-	
+
 	// And enhance the default formatting functions
 	// If you pass "timezone" as a parameter to your format options,
 	// then you get the date formatted (and offset) for that timezone
-	var oLocaleFmt = _ddl.format,
-		oGetZone = _ddl._getZone;
-	_ddl.format = function(dateObject, options){
+	var oLocaleFmt = localeUtil.format,
+		oGetZone = localeUtil._getZone;
+	localeUtil.format = function(dateObject, options){
 		options = options||{};
 		if(options.timezone && !options._tzInfo){
 			// Store it in our options so we can use it later
@@ -704,7 +693,7 @@ dojox.date.timezone.getAllZones = function(){
 		}
 		return oLocaleFmt.call(this, dateObject, options);
 	};
-	_ddl._getZone = function(dateObject, getName, options){
+	localeUtil._getZone = function(dateObject, getName, options){
 		if(options._tzInfo){
 			return getName ? options._tzInfo.tzAbbr : options._tzInfo.tzOffset;
 		}
@@ -714,7 +703,9 @@ dojox.date.timezone.getAllZones = function(){
 	/*=====
 	// Hide these enhancements from the doc parser because they obscure the original definition of _getZone() and
 	// format.   TODO: change above overrides to around() advice so that original definitions aren't changed.
-	 _ddl.format = oLocaleFmt;
-	 _ddl._getZone = oGetZone;
+	 localeUtil.format = oLocaleFmt;
+	 localeUtil._getZone = oGetZone;
 	=====*/
+
+	return dojox.date.timezone;
 });

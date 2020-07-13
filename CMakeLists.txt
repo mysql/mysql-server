@@ -25,6 +25,23 @@ MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 IF(WIN32)
   # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+  EXECUTE_PROCESS(COMMAND wmic os get version
+    OUTPUT_VARIABLE NT_RELEASE_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE WMIC_RESULT
+    )
+  IF(WMIC_RESULT EQUAL 0)
+    STRING(REPLACE "\r" "" NT_RELEASE_VERSION "${NT_RELEASE_VERSION}")
+    STRING(REPLACE "\n" "" NT_RELEASE_VERSION "${NT_RELEASE_VERSION}")
+    STRING(REGEX MATCH "Version[ ]+([0-9\.]+)" V_NUM "${NT_RELEASE_VERSION}")
+    MESSAGE(STATUS "NT_RELEASE_VERSION is ${NT_RELEASE_VERSION}")
+    IF(CMAKE_MATCH_1)
+      IF(CMAKE_MATCH_1 VERSION_LESS "10")
+        MESSAGE(FATAL_ERROR
+          "Need at least Windows Server 2016, or Windows 10, to build")
+      ENDIF()
+    ENDIF()
+  ENDIF()
   IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_GENERATOR MATCHES "2019")
     IF(CMAKE_VERSION MATCHES "MSVC")
       # It is the bundled version, ignore version check,
@@ -207,6 +224,7 @@ IF(UNIX)
       OUTPUT_STRIP_TRAILING_WHITESPACE
       RESULT_VARIABLE MY_UNAME_RESULT
       )
+    EXEC_PROGRAM(${MY_UNAME} ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
   ENDIF()
   FIND_PROGRAM(MY_RPM rpm /bin /usr/bin)
   IF(MY_RPM)
@@ -225,7 +243,6 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
   SET (ENV_CXX "$ENV{CXX}")
   IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
     IF(MY_UNAME)
-      EXEC_PROGRAM(${MY_UNAME} ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
       IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
           (MY_HOST_SYSTEM_VERSION MATCHES "\\.el[678](uek)?\\.")
           OR
@@ -506,6 +523,7 @@ INCLUDE(CMakePushCheckState)
 # Add macros
 INCLUDE(pkg-config)
 INCLUDE(character_sets)
+INCLUDE(cmake_parse_arguments)
 INCLUDE(compile_flags)
 INCLUDE(cpu_info)
 INCLUDE(fileutils)
@@ -783,6 +801,14 @@ IF(WITH_ASAN AND WITH_MSAN)
           "Cannot use AddressSanitizer and MemorySanitizer together")
 ENDIF()
 
+IF(WITH_ASAN OR WITH_LSAN OR WITH_UBSAN)
+  SET(HANDLE_FATAL_SIGNALS_DEFAULT 0)
+ELSE()
+  SET(HANDLE_FATAL_SIGNALS_DEFAULT 1)
+ENDIF()
+OPTION(HANDLE_FATAL_SIGNALS
+  "Handle fatal signals with internal signal handler"
+  ${HANDLE_FATAL_SIGNALS_DEFAULT})
 
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
 # See http://www.cmake.org/Wiki/CTest/Coverage

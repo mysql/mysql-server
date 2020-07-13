@@ -1,14 +1,16 @@
 define("dojox/app/widgets/Container", ["dojo/_base/declare", "dojo/_base/lang", "dijit/registry", "dojo/dom-attr", "dojo/dom-geometry",
-	"dojo/dom-style", "dijit/_WidgetBase", "dijit/_Container", "dijit/_Contained", "dojo/_base/array", "dojo/query", "../layout/utils", "./_ScrollableMixin"],
+	"dojo/dom-style", "dijit/_WidgetBase", "dijit/_Container", "dijit/_Contained", "dojo/_base/array", "dojo/query", "../utils/layout", "./_ScrollableMixin"],
 function(declare, lang, registry, domAttr, domGeom, domStyle, WidgetBase, Container, Contained, array, query, layoutUtils, ScrollableMixin){
 	return declare("dojox.app.widgets.Container", [WidgetBase, Container, Contained, ScrollableMixin], {
 		scrollable: false,
+		fixedFooter:"",
+		fixedHeader:"",
 
 		buildRendering: function(){
-			//set default region="center"
-			if(!this.region){
-				this.region = "center";
-				domAttr.set(this.srcNodeRef, "data-app-region", "center");
+			//set default _constraint="center"
+			if(!this._constraint){
+				this._constraint = "center";
+				domAttr.set(this.srcNodeRef, "data-app-constraint", "center");
 			}
 			this.inherited(arguments);
 
@@ -77,6 +79,12 @@ function(declare, lang, registry, domAttr, domGeom, domStyle, WidgetBase, Contai
 
 			var node = this.domNode;
 
+			if(this.scrollable){
+				this.inherited(arguments);
+				this.layout();
+				return;
+			}
+
 			// set margin box size, unless it wasn't specified, in which case use current size
 			if(changeSize){
 				domGeom.setMarginBox(node, changeSize);
@@ -116,17 +124,16 @@ function(declare, lang, registry, domAttr, domGeom, domStyle, WidgetBase, Contai
 			// summary:
 			//		layout container
 
-			// TODO: remove non HTML5 "region" in future versions
-			children = query("> [data-app-region], > [region]", this.domNode).map(function(node){
+			var children = query("> [data-app-constraint]", this.domNode).map(function(node){
 				var w = registry.getEnclosingWidget(node);
 				if(w){
-					w.region = domAttr.get(node, "data-app-region") || domAttr.get(node, "region");
+					w._constraint = domAttr.get(node, "data-app-constraint");
 					return w;
 				}
 
 				return {
 					domNode: node,
-					region: domAttr.get(node, "data-app-region") || dom.Attr.get(node, "region")
+					_constraint: domAttr.get(node, "data-app-constraint")
 				};
 			});
 

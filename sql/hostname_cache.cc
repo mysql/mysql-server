@@ -435,6 +435,7 @@ static inline bool is_hostname_valid(const char *hostname) {
   @return Error status
   @retval 0 Success
   @retval RC_BLOCKED_HOST The host is blocked.
+  @retval RC_LONG_HOSTNAME The hostname is longer than HOSTNAME_LENGTH.
 
   The function does not set/report MySQL server error in case of failure.
   It's caller's responsibility to handle failures of this function
@@ -556,7 +557,13 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
   });
 
   DBUG_EXECUTE_IF("getnameinfo_fake_max_length", {
-    std::string s(NI_MAXHOST - 1, 'a');
+    std::string s(HOSTNAME_LENGTH, 'a');
+    strcpy(hostname_buffer, s.c_str());
+    err_code = 0;
+  });
+
+  DBUG_EXECUTE_IF("getnameinfo_fake_max_length_plus_1", {
+    std::string s(HOSTNAME_LENGTH + 1, 'a');
     strcpy(hostname_buffer, s.c_str());
     err_code = 0;
   });
@@ -629,6 +636,11 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
     add_hostname(ip_string, hostname_buffer, false, &errors);
 
     return false;
+  }
+
+  /* Prevent hostnames longer than HOSTNAME_LENGTH from connecting */
+  if (strlen(hostname_buffer) > HOSTNAME_LENGTH) {
+    return RC_LONG_HOSTNAME;
   }
 
   /* Get IP-addresses for the resolved host name (FCrDNS technique). */

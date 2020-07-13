@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -157,12 +157,6 @@ IF(UNIX)
   EXECUTE_PROCESS(
     COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution
 )
-ENDIF()
-
-# TCMalloc hacks
-IF(MALLOC_LIB)
-  MESSAGE("Using tcmalloc '${MALLOC_LIB}'")
-  INSTALL(FILES ${MALLOC_LIB} DESTINATION ${INSTALL_LIBDIR} OPTIONAL)
 ENDIF()
 
 SET(COMPILE_DEFINITIONS_WHITELIST

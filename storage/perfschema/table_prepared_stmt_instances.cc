@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -343,8 +343,8 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_INSTANCE_BEGIN */
           set_field_ulonglong(f, (intptr)m_row.m_identity);
           break;
@@ -406,7 +406,7 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
           m_row.m_reprepare_stat.set_field(0, f);
           break;
         default: /* 14, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_execute_stat.set_field(f->field_index - 11, f);
+          m_row.m_execute_stat.set_field(f->field_index() - 11, f);
           break;
       }
     }

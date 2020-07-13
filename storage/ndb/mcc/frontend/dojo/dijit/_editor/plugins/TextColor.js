@@ -1,62 +1,70 @@
 //>>built
 define("dijit/_editor/plugins/TextColor",["require","dojo/colors","dojo/_base/declare","dojo/_base/lang","../_Plugin","../../form/DropDownButton"],function(_1,_2,_3,_4,_5,_6){
-var _7=_3("dijit._editor.plugins.TextColor",_5,{buttonClass:_6,useDefaultCommand:false,_initButton:function(){
+var _7=_3("dijit._editor.plugins.TextColor",_5,{buttonClass:_6,colorPicker:"dijit/ColorPalette",useDefaultCommand:false,_initButton:function(){
+this.command=this.name;
 this.inherited(arguments);
 var _8=this;
 this.button.loadDropDown=function(_9){
-_1(["../../ColorPalette"],_4.hitch(this,function(_a){
-this.dropDown=new _a({dir:_8.editor.dir,ownerDocument:_8.editor.ownerDocument,value:_8.value,onChange:function(_b){
-_8.editor.execCommand(_8.command,_b);
+function _a(_b){
+_8.button.dropDown=new _b({dir:_8.editor.dir,ownerDocument:_8.editor.ownerDocument,value:_8.value,onChange:function(_c){
+_8.editor.execCommand(_8.command,_c);
+},onExecute:function(){
+_8.editor.execCommand(_8.command,this.get("value"));
 }});
 _9();
-}));
+};
+if(typeof _8.colorPicker=="string"){
+_1([_8.colorPicker],_a);
+}else{
+_a(_8.colorPicker);
+}
 };
 },updateState:function(){
-var _c=this.editor;
-var _d=this.command;
-if(!_c||!_c.isLoaded||!_d.length){
+var _d=this.editor;
+var _e=this.command;
+if(!_d||!_d.isLoaded||!_e.length){
 return;
 }
 if(this.button){
-var _e=this.get("disabled");
-this.button.set("disabled",_e);
-if(_e){
+var _f=this.get("disabled");
+this.button.set("disabled",_f);
+if(_f){
 return;
 }
-var _f;
+var _10;
 try{
-_f=_c.queryCommandValue(_d)||"";
+_10=_d.queryCommandValue(_e)||"";
 }
 catch(e){
-_f="";
+_10="";
 }
 }
-if(_f==""){
-_f="#000000";
+if(_10==""){
+_10="#000000";
 }
-if(_f=="transparent"){
-_f="#ffffff";
+if(_10=="transparent"){
+_10="#ffffff";
 }
-if(typeof _f=="string"){
-if(_f.indexOf("rgb")>-1){
-_f=_2.fromRgb(_f).toHex();
+if(typeof _10=="string"){
+if(_10.indexOf("rgb")>-1){
+_10=_2.fromRgb(_10).toHex();
 }
 }else{
-_f=((_f&255)<<16)|(_f&65280)|((_f&16711680)>>>16);
-_f=_f.toString(16);
-_f="#000000".slice(0,7-_f.length)+_f;
+_10=((_10&255)<<16)|(_10&65280)|((_10&16711680)>>>16);
+_10=_10.toString(16);
+_10="#000000".slice(0,7-_10.length)+_10;
 }
-this.value=_f;
-var _10=this.button.dropDown;
-if(_10&&_f!==_10.get("value")){
-_10.set("value",_f,false);
+this.value=_10;
+var _11=this.button.dropDown;
+if(_11&&_11.get&&_10!==_11.get("value")){
+_11.set("value",_10,false);
 }
 }});
-_5.registry["foreColor"]=function(){
-return new _7({command:"foreColor"});
+_5.registry["foreColor"]=function(_12){
+return new _7(_12);
 };
-_5.registry["hiliteColor"]=function(){
-return new _7({command:"hiliteColor"});
+_5.registry["hiliteColor"]=function(_13){
+return new _7(_13);
 };
 return _7;
 });

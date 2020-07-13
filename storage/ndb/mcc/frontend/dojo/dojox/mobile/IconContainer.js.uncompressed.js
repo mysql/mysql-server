@@ -20,26 +20,29 @@ define("dojox/mobile/IconContainer", [
 		//		A container widget which can hold multiple icons.
 		// description:
 		//		IconContainer is a container widget which can hold multiple
-		//		icons. Each icon represents an application component.
+		//		icons. Each icon must be a subclass of dojox/mobile/IconItem
+		//		and can be associated with a panel which opens when touching
+		//		the icon.
 
 		// defaultIcon: String
 		//		The default fallback icon, which is displayed only when the
 		//		specified icon has failed to load.
 		defaultIcon: "",
 
-		// transition: String
+		// transition: [const] String
 		//		A type of animated transition effect. You can choose from the
-		//		standard transition types, "slide", "fade", "flip", or from the
-		//		extended transition types, "cover", "coverv", "dissolve",
+		//		standard transition types: "slide", "fade", "flip", or from the
+		//		extended transition types: "cover", "coverv", "dissolve",
 		//		"reveal", "revealv", "scaleIn", "scaleOut", "slidev",
 		//		"swirl", "zoomIn", "zoomOut", "cube", and "swap". If "none" is
-		//		specified, transition occurs immediately without animation. If
+		//		specified, the transition occurs immediately without animation. If
 		//		"below" is specified, the application contents are displayed
-		//		below the icons.
+		//		below the icons. The default value is "below". Note that changing 
+		//		the value of the property after the widget creation has no effect.
 		transition: "below",
 
 		// pressedIconOpacity: Number
-		//		The opacity of the pressed icon image.
+		//		The opacity of the pressed icon image. The default value is 0.4.
 		pressedIconOpacity: 0.4,
 
 		// iconBase: String
@@ -62,9 +65,11 @@ define("dojox/mobile/IconContainer", [
 		//		If true, only one icon content can be opened at a time.
 		single: false,
 
-		// editable: Boolean
-		//		If true, the icons can be removed or re-ordered. You can enter
+		// editable: [const] Boolean
+		//		If true, the icons can be removed or reordered. You can enter
 		//		into edit mode by pressing on a child IconItem until it starts shaking.
+		//		The default value is false. Note that changing the value of the property after
+		//		the widget creation has no effect.
 		editable: false,
 
 		// tag: String
@@ -145,6 +150,13 @@ define("dojox/mobile/IconContainer", [
 
 		addChild: function(widget, /*Number?*/insertIndex){
 			this.inherited(arguments);
+			// #16597: if removeChild(item) was called to remove the item, it also removes the paneWidget from its container,
+			// But then calling addChild(item) again does not re-add it as it should: it was added the first time through startup
+			// called by addChild, but startup is not called any more the subsequent times.
+			// So we add the pane explicitly if it is orphan.
+			if(this._started && widget.paneWidget && !widget.paneWidget.getParent()){
+				this.paneContainerWidget.addChild(widget.paneWidget, insertIndex);
+			}
 			this.domNode.appendChild(this._terminator); // to ensure that _terminator is always the last node
 		},
 

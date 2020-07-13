@@ -683,13 +683,13 @@ static std::vector<std::string> do_get_routing_mode_queries(
     const std::string &cluster_name) {
   const std::string fetch_instances_query =
       metadata_v2
-          ? "select I.mysql_server_uuid, I.endpoint, I.xendpoint from "
-            "mysql_innodb_cluster_metadata.v2_instances I join "
+          ? "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes "
+            "from mysql_innodb_cluster_metadata.v2_instances I join "
             "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
             "C.cluster_id where C.cluster_name = " +
                 mysql->quote(cluster_name)
-          : "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-            "I.version_token, I.addresses->>'$.mysqlClassic', "
+          : "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, "
+            "I.addresses->>'$.mysqlClassic', "
             "I.addresses->>'$.mysqlX' "
             "FROM mysql_innodb_cluster_metadata.clusters AS F "
             "JOIN mysql_innodb_cluster_metadata.replicasets AS R "
@@ -780,12 +780,13 @@ std::string ClusterMetadataAR::get_cluster_type_specific_id() {
 
 std::vector<std::string> ClusterMetadataAR::get_routing_mode_queries(
     const std::string &cluster_name) {
-  return {// source: ClusterMetadata::fetch_instances_from_metadata_server()
-          "select I.mysql_server_uuid, I.endpoint, I.xendpoint from "
-          "mysql_innodb_cluster_metadata.v2_instances I join "
-          "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
-          "C.cluster_id where C.cluster_name = " +
-          mysql_->quote(cluster_name) + ";"};
+  return {
+      // source: ClusterMetadata::fetch_instances_from_metadata_server()
+      "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes from "
+      "mysql_innodb_cluster_metadata.v2_instances I join "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
+      "C.cluster_id where C.cluster_name = " +
+      mysql_->quote(cluster_name) + ";"};
 }
 
 std::vector<std::tuple<std::string, unsigned long>>
@@ -953,23 +954,32 @@ constexpr const char *kDefaultSqlMode =
     "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,"
     "NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION";
 
-void setup_metadata_session(MySQLSession &session) {
-  session.execute(
-      "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
-      "@@SESSION.character_set_results=utf8, "
-      "@@SESSION.character_set_connection=utf8, @@SESSION.sql_mode='"s +
-      kDefaultSqlMode + "'");
-
+stdx::expected<void, std::string> setup_metadata_session(
+    MySQLSession &session) {
   try {
-    session.execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
-  } catch (const MySQLSession::Error &e) {
-    if (e.code() != ER_UNKNOWN_SYSTEM_VARIABLE) {
-      // ER_UNKNOWN_SYSTEM_VARIABLE is ok, means that this version does not
-      // support group_replication_consistency so we don't have to worry about
-      // it
-      throw;
+    session.execute(
+        "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+        "@@SESSION.character_set_results=utf8, "
+        "@@SESSION.character_set_connection=utf8, @@SESSION.sql_mode='"s +
+        kDefaultSqlMode + "', " +
+        "@@SESSION.optimizer_switch='derived_merge=on'");
+
+    try {
+      session.execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
+    } catch (const MySQLSession::Error &e) {
+      if (e.code() == ER_UNKNOWN_SYSTEM_VARIABLE) {
+        // ER_UNKNOWN_SYSTEM_VARIABLE is ok, means that this version does not
+        // support group_replication_consistency so we don't have to worry about
+        // it
+      } else {
+        throw e;
+      }
     }
+  } catch (const std::exception &e) {
+    return stdx::make_unexpected(std::string(e.what()));
   }
+
+  return {};
 }
 
 }  // namespace mysqlrouter

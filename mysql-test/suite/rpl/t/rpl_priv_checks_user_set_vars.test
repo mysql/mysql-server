@@ -90,12 +90,10 @@
 --echo #
 
 # 1) Create a table on the master and insert a record.
---source include/rpl_use_privilege_db.inc
 CREATE TABLE t_system (c1 INT);
 INSERT INTO t_system VALUES (1), (2);
 
 --source include/rpl_connection_slave.inc
---source include/rpl_use_privilege_db.inc
 CALL mtr.add_suppression(".*you need .at least one of. the SUPER.* SYSTEM_VARIABLES_ADMIN.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 

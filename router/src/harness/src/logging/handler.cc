@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -161,6 +161,18 @@ void StreamHandler::do_log(const Record &record) {
 }
 
 ////////////////////////////////////////////////////////////////
+// class NullHandler
+
+NullHandler::NullHandler(bool format_messages, LogLevel level,
+                         LogTimestampPrecision timestamp_precision)
+    : Handler(format_messages, level, timestamp_precision) {}
+
+void NullHandler::do_log(const Record & /*record*/) {}
+
+// satisfy ODR
+constexpr const char *NullHandler::kDefaultName;
+
+////////////////////////////////////////////////////////////////
 // class FileHandler
 
 FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level,
@@ -173,6 +185,11 @@ FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level,
     size_t pos;
     pos = log_path.find_last_of('/');
     if (pos != std::string::npos) log_path.erase(pos);  // log_path = /path/to
+
+    if (log_path.empty()) {
+      throw std::runtime_error("filelog sink configured but the filename '" +
+                               path.str() + "' is not a valid log filename");
+    }
 
     // mkdir if it doesn't exist
     if (mysql_harness::Path(log_path).exists() == false &&
@@ -193,7 +210,9 @@ FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level,
   reopen();  // not opened yet so it's just for open in this context
 }
 
-void FileHandler::reopen() {
+void FileHandler::reopen(const std::string dst) {  // namespace logging
+  std::exception_ptr eptr = nullptr;
+
   // here we need to lock the mutex that's used while logging
   // to prevent other threads from trying to log to invalid stream
   std::lock_guard<std::mutex> lock(stream_mutex_);
@@ -201,6 +220,38 @@ void FileHandler::reopen() {
   // if was open before, close first
   if (fstream_.is_open()) {
     fstream_.close();
+
+    // With closed stream we may rename file on any platform, windows included
+    if (!dst.empty()) {
+      if (rename(file_path_.str().c_str(), dst.c_str())) {
+        auto last_error =
+#ifdef _WIN32
+            GetLastError()
+#else
+            errno
+#endif
+            ;
+        if (last_error != 0) {
+          // Exceptions cannot be thrown directly here, but stashed until after
+          // reopening the logfile again. Otherwise all logging ends up on
+          // console due to closed logfile.
+          mysql_harness::Path dstpath(dst);
+          if (dstpath.exists()) {
+            eptr = make_exception_ptr(std::system_error(
+                last_error, std::system_category(),
+                "File exists. Cannot rename to " + dstpath.str()));
+          } else {
+            if (last_error != ENOENT) {
+              eptr = make_exception_ptr(
+                  std::system_error(last_error, std::system_category(),
+                                    "Cannot rename file in directory " +
+                                        dstpath.dirname().str()));
+            }
+          }
+        }
+      }
+    }
+
     fstream_.clear();
   }
 
@@ -239,6 +290,11 @@ void FileHandler::reopen() {
     make_file_readable_for_everyone(file_path_.str());
   }
 #endif
+
+  // After reopening the logfile, is it safe to throw earlier execptions
+  if (eptr) {
+    std::rethrow_exception(eptr);
+  }
 }  // namespace logging
 
 void FileHandler::do_log(const Record &record) {

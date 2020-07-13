@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -369,34 +370,25 @@ Sdi_type serialize(const Tablespace &tablespace) {
                            nullptr);
 }
 
-template <class Dd_type>
-bool generic_deserialize(
-    THD *thd, const Sdi_type &sdi,
-    const String_type &object_type_name MY_ATTRIBUTE((unused)), Dd_type *dst,
-    String_type *schema_name_from_sdi = nullptr) {
-  RJ_Document doc;
-  doc.Parse<0>(sdi.c_str());
-  if (doc.HasParseError()) {
-    my_error(ER_INVALID_JSON_DATA, MYF(0), "deserialize()",
-             rapidjson::GetParseError_En(doc.GetParseError()));
+/**
+   Default checker which implements the traditional (strict)
+   compatibility check: MYSQL_VERSION less than or equal, dd_version
+   equal, and sdi_version equal.
+*/
+bool CheckDefaultCompatibility(const RJ_Document &doc) {
+  DBUG_ASSERT(doc.HasMember("mysqld_version_id"));
+
+  const RJ_Value &mysqld_version_id = doc["mysqld_version_id"];
+  DBUG_ASSERT(mysqld_version_id.IsUint64());
+  if (mysqld_version_id.GetUint64() > std::uint64_t(MYSQL_VERSION_ID)) {
+    // Cannot deserialize SDIs from newer versions.
+    my_error(ER_IMP_INCOMPATIBLE_MYSQLD_VERSION, MYF(0),
+             mysqld_version_id.GetUint64(), std::uint64_t(MYSQL_VERSION_ID));
     return true;
   }
 
-  if (doc.HasMember("mysqld_version_id")) {
-    RJ_Value &mysqld_version_id = doc["mysqld_version_id"];
-    DBUG_ASSERT(mysqld_version_id.IsUint64());
-    if (mysqld_version_id.GetUint64() > std::uint64_t(MYSQL_VERSION_ID)) {
-      // Cannot deserialize SDIs from newer versions. Required?
-      my_error(ER_IMP_INCOMPATIBLE_MYSQLD_VERSION, MYF(0),
-               mysqld_version_id.GetUint64(), std::uint64_t(MYSQL_VERSION_ID));
-      return true;
-    }
-  } else {
-    DBUG_ASSERT(false);
-  }
-
   DBUG_ASSERT(doc.HasMember("dd_version"));
-  RJ_Value &dd_version_val = doc["dd_version"];
+  const RJ_Value &dd_version_val = doc["dd_version"];
   DBUG_ASSERT(dd_version_val.IsUint());
   uint dd_version = dd_version_val.GetUint();
   if (dd_version != Dictionary_impl::get_target_dd_version()) {
@@ -407,7 +399,7 @@ bool generic_deserialize(
   }
 
   DBUG_ASSERT(doc.HasMember("sdi_version"));
-  RJ_Value &sdi_version_val = doc["sdi_version"];
+  const RJ_Value &sdi_version_val = doc["sdi_version"];
   DBUG_ASSERT(sdi_version_val.IsUint64());
   std::uint64_t sdi_version_ = sdi_version_val.GetUint64();
   if (sdi_version_ != SDI_VERSION) {
@@ -415,6 +407,26 @@ bool generic_deserialize(
     my_error(ER_IMP_INCOMPATIBLE_SDI_VERSION, MYF(0), sdi_version_,
              SDI_VERSION);
     return true;
+  }
+  return false;
+}
+
+template <class Dd_type>
+bool generic_deserialize(
+    THD *thd, const Sdi_type &sdi,
+    const String_type &object_type_name MY_ATTRIBUTE((unused)), Dd_type *dst,
+    const SdiCompatibilityChecker &comp_checker,
+    String_type *schema_name_from_sdi) {
+  RJ_Document doc;
+  doc.Parse<0>(sdi.c_str());
+  if (doc.HasParseError()) {
+    my_error(ER_INVALID_JSON_DATA, MYF(0), "deserialize()",
+             rapidjson::GetParseError_En(doc.GetParseError()));
+    return true;
+  }
+
+  if (comp_checker(doc)) {
+    return checked_return(true);
   }
 
   DBUG_ASSERT(doc.HasMember("dd_object_type"));
@@ -427,7 +439,10 @@ bool generic_deserialize(
   RJ_Value &dd_object_val = doc["dd_object"];
   DBUG_ASSERT(dd_object_val.IsObject());
 
-  Sdi_rcontext rctx(thd, dd_version, sdi_version_);
+  DBUG_ASSERT(doc.HasMember("dd_version"));
+  DBUG_ASSERT(doc.HasMember("sdi_version"));
+  Sdi_rcontext rctx(thd, doc["dd_version"].GetUint(),
+                    doc["sdi_version"].GetUint());
   if (dst->deserialize(&rctx, dd_object_val)) {
     return checked_return(true);
   }
@@ -438,13 +453,52 @@ bool generic_deserialize(
   return false;
 }
 
+/**
+  Deserialize a dd::Table object.
+
+  Populates the dd::Table object provided with data from sdi string.
+  Note! Additional objects are dynamically allocated and added to the
+  top-level Schema object, which assumes ownership.
+
+  @param thd thread context
+  @param sdi  serialized representation of schema (as a json string)
+  @param dst_table empty top-level object
+  @param comp_checker callable which will be used to determine if the SDI is
+         compatible
+  @param deser_schema_name name of schema containing the table
+
+  @return error status
+    @retval false if successful
+    @retval true otherwise
+*/
 bool deserialize(THD *thd, const Sdi_type &sdi, Table *dst_table,
+                 SdiCompatibilityChecker comp_checker,
                  String_type *deser_schema_name) {
-  return generic_deserialize(thd, sdi, "Table", dst_table, deser_schema_name);
+  return generic_deserialize(thd, sdi, "Table", dst_table, comp_checker,
+                             deser_schema_name);
 }
 
-bool deserialize(THD *thd, const Sdi_type &sdi, Tablespace *dst_tablespace) {
-  return generic_deserialize(thd, sdi, "Tablespace", dst_tablespace);
+/**
+  Deserialize a dd::Tablespace object.
+
+  Populates the dd::Tablespace object provided with data from sdi string.
+  Note! Additional objects are dynamically allocated and added to the
+  top-level Tablespace object, which assumes ownership.
+
+  @param thd thread context
+  @param sdi  serialized representation of schema (as a json string)
+  @param dst_tablespace empty top-level object
+  @param comp_checker callable which will be used to determine if the SDI is
+         compatible.
+
+  @return error status
+    @retval false if successful
+    @retval true otherwise
+*/
+bool deserialize(THD *thd, const Sdi_type &sdi, Tablespace *dst_tablespace,
+                 SdiCompatibilityChecker comp_checker) {
+  return generic_deserialize(thd, sdi, "Tablespace", dst_tablespace,
+                             comp_checker, nullptr);
 }
 
 namespace {
@@ -452,7 +506,7 @@ namespace {
   Templated convenience wrapper which first attempts to resolve the
   handlerton using the data dictionary object's engine() string.
 
-  @param thd
+  @param thd    thread context
   @param ddt    Data dictionary object
 
   @return handlerton pointer for this object
@@ -473,7 +527,7 @@ static handlerton *resolve_hton(THD *thd, const DDT &ddt) {
   Covenience function for acquiring the schema and invoking a closure
   which uses the schema object.
 
-  @param thd
+  @param thd thread context
   @param key key to use when acquiring Schema object
   @param clos closure to invoke with the Schema object
   @return error status

@@ -417,8 +417,12 @@ void row_merge_buf_free(
 @param[out]	field		field to copy to
 @param[in]	len		length of the field data
 @param[in]	page_size	compressed BLOB page size,
-                                zero for uncompressed BLOBs
-@param[in]	is_sdi		true for SDI indexes
+                                zero for uncompressed BLOBs */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		memory heap where to allocate data when
                                 converting to ROW_FORMAT=REDUNDANT, or NULL
                                 when not to invoke
@@ -2001,8 +2005,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         err = DB_ERROR;
         trx->error_key_num = 0;
 
-        ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_AUTOINC_READ_FAILED,
-                "[NULL]");
+        ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_AUTOINC_READ_FAILED);
 
         goto func_exit;
       }
@@ -2920,8 +2923,12 @@ dberr_t row_merge_sort(trx_t *trx, const row_merge_dup_t *dup,
                                 or NULL to use tuple instead
 @param[in]	offsets		offsets of mrec
 @param[in]	page_size	compressed page size in bytes, or 0
-@param[in,out]	tuple		data tuple
-@param[in]	is_sdi		true for SDI Indexes
+@param[in,out]	tuple		data tuple */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		memory heap */
 static void row_merge_copy_blobs_func(trx_t *trx, const dict_index_t *index,
                                       const mrec_t *mrec, const ulint *offsets,
@@ -3589,15 +3596,16 @@ the flushing of such pages to the data files was completed.
 @param[in]	index	an index tree on which redo logging was disabled */
 static void row_merge_write_redo(const dict_index_t *index) {
   mtr_t mtr;
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
 
   ut_ad(!index->table->is_temporary());
   mtr.start();
-  log_ptr = mlog_open(&mtr, 11 + 8);
-  log_ptr = mlog_write_initial_log_record_low(MLOG_INDEX_LOAD, index->space,
-                                              index->page, log_ptr, &mtr);
-  mach_write_to_8(log_ptr, index->id);
-  mlog_close(&mtr, log_ptr + 8);
+  if (mlog_open(&mtr, 11 + 8, log_ptr)) {
+    log_ptr = mlog_write_initial_log_record_low(MLOG_INDEX_LOAD, index->space,
+                                                index->page, log_ptr, &mtr);
+    mach_write_to_8(log_ptr, index->id);
+    mlog_close(&mtr, log_ptr + 8);
+  }
   mtr.commit();
 }
 

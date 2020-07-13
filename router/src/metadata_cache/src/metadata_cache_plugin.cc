@@ -26,6 +26,7 @@
 #include <termios.h>
 #include <unistd.h>
 #endif
+#include <array>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -238,20 +239,24 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   metadata_cache::MetadataCacheAPI::instance()->cache_stop();
 }
 
+static const std::array<const char *, 2> required = {{
+    "logger",
+    "router_protobuf",
+}};
+
 extern "C" {
 
 mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Metadata Cache, managing information fetched from the Metadata Server",
     VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // Requires
-    0,
-    nullptr,  // Conflicts
-    init,
-    nullptr,
-    start,   // start
-    nullptr  // stop
+    // requires
+    required.size(), required.data(),
+    // conflicts
+    0, nullptr,
+    init,     // init
+    nullptr,  // deinit
+    start,    // start
+    nullptr   // stop
 };
 }

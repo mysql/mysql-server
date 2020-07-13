@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"  /* ER_THD */
 #include "sql/handler.h" /* ha_resolve_by_legacy_type */
+#include "sql/lock.h"    /* acquire_shared_global_read_lock */
 #include "sql/mysqld.h"
 #include "sql/rpl_log_encryption.h"
 #include "sql/sql_backup_lock.h" /* acquire_shared_backup_lock */
@@ -100,6 +101,18 @@ bool Rotate_innodb_master_key::execute() {
   }
 
   /*
+    Acquire protection against GRL and check for concurrent change of read_only
+    value since encryption key rotation is not allowed in read_only/
+    super_read_only mode.
+  */
+  if (acquire_shared_global_read_lock(m_thd,
+                                      m_thd->variables.lock_wait_timeout)) {
+    // MDL subsystem has to set an error in Diagnostics Area
+    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  /*
     Acquire shared backup lock to block concurrent backup. Acquire exclusive
     backup lock to block any concurrent DDL. The fact that we acquire both
     these locks also ensures that concurrent KEY rotation requests are blocked.
@@ -133,6 +146,52 @@ bool Rotate_innodb_master_key::execute() {
                  ER_MASTER_KEY_ROTATION_BINLOG_FAILED,
                  ER_THD(m_thd, ER_MASTER_KEY_ROTATION_BINLOG_FAILED));
   }
+
+  my_ok(m_thd);
+  return false;
+}
+
+bool Innodb_redo_log::execute() {
+  DBUG_TRACE;
+
+  const LEX_CSTRING storage_engine = {STRING_WITH_LEN("innodb")};
+
+  auto hton = plugin_data<handlerton *>(
+      ha_resolve_by_name(m_thd, &storage_engine, false));
+
+  if (hton == nullptr) {
+    /* Innodb engine is not loaded. Should never happen. */
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), storage_engine.str);
+  }
+
+  Security_context *sctx = m_thd->security_context();
+  if (!sctx->has_global_grant(STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"))
+           .first) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "INNODB_REDO_LOG_ENABLE");
+    return true;
+  }
+
+  /*
+    Acquire shared backup lock to block concurrent backup. Acquire exclusive
+    backup lock to block any concurrent DDL. This would also serialize any
+    concurrent key rotation and other redo log enable/disable calls.
+  */
+  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
+                                    true) ||
+      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
+    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  if (hton->redo_log_set_state(m_thd, m_enable)) {
+    /* SE should have raised error */
+    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  /* Right now, we don't log this command to binary log as redo logging
+  options are low level physical attribute which is not needed to replicate
+  to other instances. */
 
   my_ok(m_thd);
   return false;

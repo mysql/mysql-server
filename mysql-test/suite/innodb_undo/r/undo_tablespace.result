@@ -49,14 +49,14 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3655	Cannot set undo_004 inactive since there would be less than 2 undo tablespaces left active.
 Error	1533	Failed to alter: UNDO TABLESPACE undo_004
-Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_004 
+Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_004
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
 ERROR HY000: Cannot set undo_005 inactive since there would be less than 2 undo tablespaces left active.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3655	Cannot set undo_005 inactive since there would be less than 2 undo tablespaces left active.
 Error	1533	Failed to alter: UNDO TABLESPACE undo_005
-Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_005 
+Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_005
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE
@@ -155,11 +155,11 @@ Error	3121	The ADD DATAFILE filepath must end with '.ibu'.
 Error	1528	Failed to create UNDO TABLESPACE undo_99
 Error	3121	Incorrect File Name 'undo_99.ibd'.
 CREATE UNDO TABLESPACE undo_99 ADD DATAFILE '/dir_does_not_exist/undo_99.ibu';
-ERROR HY000: The directory does not exist.
+ERROR HY000: The directory does not exist or is incorrect.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	The directory does not exist.
-Error	3121	CREATE UNDO TABLESPACE data file must be in one of these directories './'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The UNDO DATAFILE location must be in a known directory.
 Error	1528	Failed to create UNDO TABLESPACE undo_99
 Error	3121	Incorrect File Name '/dir_does_not_exist/undo_99.ibu'.
 CREATE UNDO TABLESPACE undo_99 ADD DATAFILE '../undo_99.ibu';
@@ -167,7 +167,7 @@ ERROR HY000: The ADD DATAFILE filepath for an UNDO TABLESPACE cannot be a relati
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath for an UNDO TABLESPACE cannot be a relative path.
-Error	3121	CREATE UNDO TABLESPACE data file must be in one of these directories './'.
+Error	3121	The UNDO DATAFILE location must be in a known directory.
 Error	1528	Failed to create UNDO TABLESPACE undo_99
 Error	3121	Incorrect File Name '../undo_99.ibu'.
 #
@@ -191,21 +191,21 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3119	Cannot ALTER UNDO TABLESPACE `ts1` because it is a general tablespace.  Please use ALTER TABLESPACE.
 Error	1533	Failed to alter: UNDO TABLESPACE ts1
-Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on ts1 
+Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on ts1
 ALTER UNDO TABLESPACE `ts1` SET ACTIVE;
 ERROR 42000: Cannot ALTER UNDO TABLESPACE `ts1` because it is a general tablespace.  Please use ALTER TABLESPACE.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	Cannot ALTER UNDO TABLESPACE `ts1` because it is a general tablespace.  Please use ALTER TABLESPACE.
 Error	1533	Failed to alter: UNDO TABLESPACE ts1
-Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on ts1 
+Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on ts1
 ALTER TABLESPACE undo_005 RENAME TO undo_5;
 ERROR 42000: Cannot ALTER TABLESPACE `undo_005` because it is an undo tablespace.  Please use ALTER UNDO TABLESPACE.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	Cannot ALTER TABLESPACE `undo_005` because it is an undo tablespace.  Please use ALTER UNDO TABLESPACE.
 Error	1533	Failed to alter: TABLESPACE undo_005
-Error	3655	ALTER TABLESPACE ... RENAME TO operation is disallowed on undo_005 
+Error	3655	ALTER TABLESPACE ... RENAME TO operation is disallowed on undo_005
 ALTER UNDO TABLESPACE undo_005 SET EMPTY;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EMPTY' at line 1
 #
@@ -234,14 +234,14 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3119	Cannot DROP TABLESPACE `undo_005` because it is an undo tablespace.  Please use DROP UNDO TABLESPACE.
 Error	1529	Failed to drop TABLESPACE undo_005
-Error	3655	DROP TABLEPSPACE operation is disallowed on undo_005 
+Error	3655	DROP TABLEPSPACE operation is disallowed on undo_005
 DROP UNDO TABLESPACE ts1;
 ERROR 42000: Cannot DROP UNDO TABLESPACE `ts1` because it is a general tablespace.  Please use DROP TABLESPACE.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	Cannot DROP UNDO TABLESPACE `ts1` because it is a general tablespace.  Please use DROP TABLESPACE.
 Error	1529	Failed to drop UNDO TABLESPACE ts1
-Error	3655	DROP UNDO TABLEPSPACE operation is disallowed on ts1 
+Error	3655	DROP UNDO TABLEPSPACE operation is disallowed on ts1
 #
 # Show that tables cannot be added to an undo tablespace.
 #

@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -377,7 +377,7 @@ break;
 case "E":
 case "e":
 case "c":
-s="\\S+";
+s=".+?";
 break;
 case "h":
 s="1[0-2]|"+p2+"[1-9]";

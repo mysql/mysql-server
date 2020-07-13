@@ -6,13 +6,15 @@ define("dojox/mobile/_ComboBoxMenu", [
 	"dijit/form/_ComboBoxMenuMixin",
 	"dijit/_WidgetBase",
 	"./_ListTouchMixin",
-	"./scrollable"
+	"./scrollable",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/_ComboBoxMenu"
 ],
-	function(dojo, declare, domClass, domConstruct, ComboBoxMenuMixin, WidgetBase, ListTouchMixin, Scrollable){
+	function(dojo, declare, domClass, domConstruct, ComboBoxMenuMixin, WidgetBase, ListTouchMixin, Scrollable, has, BidiComboBoxMenu){
 	// module:
 	//		dojox/mobile/_ComboBoxMenu
 
-	return declare("dojox.mobile._ComboBoxMenu", [WidgetBase, ListTouchMixin, ComboBoxMenuMixin], {
+	var _ComboBoxMenu = declare(has("dojo-bidi") ? "dojox.mobile._NonBidiComboBoxMenu" : "dojox.mobile._ComboBoxMenu", [WidgetBase, ListTouchMixin, ComboBoxMenuMixin], {
 		// summary:
 		//		Focus-less menu for internal use in dojox/mobile/ComboBox.
 		//		Abstract methods that must be defined externally:
@@ -26,10 +28,6 @@ define("dojox/mobile/_ComboBoxMenu", [
 		//		The name of the CSS class of this widget.
 		baseClass: "mblComboBoxMenu",
 		
-		// bgIframe: [private] Boolean
-		//		Flag to prevent the creation of a background iframe, when appropriate. For internal usage. 
-		bgIframe: true, // so it's not created for IE and FF
-
 		buildRendering: function(){
 			this.domNode = this.focusNode = domConstruct.create("div", { "class":"mblReset" });
 			this.containerNode = domConstruct.create("div", { style: { position:"absolute", top:0, left:0 } }, this.domNode); // needed for scrollable
@@ -74,15 +72,16 @@ define("dojox/mobile/_ComboBoxMenu", [
 			this.scrollable.cleanup();
 		},
 
-		destroyRendering: function(){
-			this.bgIframe = false; // no iframe to destroy
-			this.inherited(arguments);
-		},
-
 		postCreate: function(){
 			this.inherited(arguments);
 			this.scrollable = new Scrollable();
 			this.scrollable.resize = function(){}; // resize changes the height rudely
+			// #18000
+			var self = this;
+			this.scrollable.isLeftToRight = function(){
+				return self.isLeftToRight();
+			};
 		}
 	});
+	return has("dojo-bidi") ? declare("dojox.mobile._ComboBoxMenu", [_ComboBoxMenu, BidiComboBoxMenu]) : _ComboBoxMenu;
 });

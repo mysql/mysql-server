@@ -55,6 +55,11 @@ define("dojox/mobile/ScrollableView", [
 
 		startup: function(){
 			if(this._started){ return; }
+			// user can initialize the app footers using a value for fixedFooter (we keep this value for non regression of existing apps)
+			if(this.fixedFooter && !this.isLocalFooter){
+				this._fixedAppFooter = this.fixedFooter;
+				this.fixedFooter = "";
+			}
 			this.reparent();
 			this.inherited(arguments);
 		},
@@ -66,6 +71,11 @@ define("dojox/mobile/ScrollableView", [
 			array.forEach(this.getChildren(), function(child){
 				if(child.resize){ child.resize(); }
 			});
+			this._dim = this.getDim(); // update dimension cache
+			if(this._conn){
+				// if a resize happens during a scroll, update the scrollbar
+				this.resetScrollBar();
+			}
 		},
 
 		isTopLevel: function(/*Event*/e){
@@ -128,13 +138,33 @@ define("dojox/mobile/ScrollableView", [
 			//		Overrides _WidgetBase.getChildren to add local fixed bars,
 			//		which are not under containerNode, to the children array.
 			var children = this.inherited(arguments);
+			var fixedWidget;
 			if(this.fixedHeader && this.fixedHeader.parentNode === this.domNode){
-				children.push(registry.byNode(this.fixedHeader));
+				fixedWidget = registry.byNode(this.fixedHeader);
+				if(fixedWidget){
+					children.push(fixedWidget);
+				}
 			}
 			if(this.fixedFooter && this.fixedFooter.parentNode === this.domNode){
-				children.push(registry.byNode(this.fixedFooter));
+				fixedWidget = registry.byNode(this.fixedFooter);
+				if(fixedWidget){
+					children.push(fixedWidget);
+				}
 			}
 			return children;
+		},
+
+		_addTransitionPaddingTop: function(/*String|Integer*/ value){
+			// add padding top to the view in order to get alignment during the transition
+			this.domNode.style.paddingTop = value + "px";
+			this.containerNode.style.paddingTop = value + "px";
+		},
+
+		_removeTransitionPaddingTop: function(){
+			// remove padding top from the view after the transition
+			this.domNode.style.paddingTop = "";
+			this.containerNode.style.paddingTop = "";
 		}
+
 	});
 });

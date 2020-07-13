@@ -1,6 +1,6 @@
 //>>built
 define("dijit/form/_TextBoxMixin",["dojo/_base/array","dojo/_base/declare","dojo/dom","dojo/sniff","dojo/keys","dojo/_base/lang","dojo/on","../main"],function(_1,_2,_3,_4,_5,_6,on,_7){
-var _8=_2("dijit.form._TextBoxMixin",null,{trim:false,uppercase:false,lowercase:false,propercase:false,maxLength:"",selectOnClick:false,placeHolder:"",_getValueAttr:function(){
+var _8=_2("dijit.form._TextBoxMixin"+(_4("dojo-bidi")?"_NoBidi":""),null,{trim:false,uppercase:false,lowercase:false,propercase:false,maxLength:"",selectOnClick:false,placeHolder:"",_getValueAttr:function(){
 return this.parse(this.get("displayedValue"),this.constraints);
 },_setValueAttr:function(_9,_a,_b){
 var _c;
@@ -12,14 +12,14 @@ _b=this.filter(this.format(_c,this.constraints));
 }else{
 _b="";
 }
+if(this.compare(_c,this.filter(this.parse(_b,this.constraints)))!=0){
+_b=null;
+}
 }
 }
 if(_b!=null&&((typeof _b)!="number"||!isNaN(_b))&&this.textbox.value!=_b){
 this.textbox.value=_b;
 this._set("displayedValue",this.get("displayedValue"));
-}
-if(this.textDir=="auto"){
-this.applyTextDir(this.focusNode,_b);
 }
 this.inherited(arguments,[_c,_a]);
 },displayedValue:"",_getDisplayedValueAttr:function(){
@@ -35,26 +35,20 @@ _d=String(_d);
 this.textbox.value=_d;
 this._setValueAttr(this.get("value"),undefined);
 this._set("displayedValue",this.get("displayedValue"));
-if(this.textDir=="auto"){
-this.applyTextDir(this.focusNode,_d);
-}
 },format:function(_e){
 return _e==null?"":(_e.toString?_e.toString():_e);
 },parse:function(_f){
 return _f;
 },_refreshState:function(){
-},onInput:function(evt){
+},onInput:function(){
 },_onInput:function(evt){
-if(this.textDir=="auto"){
-this.applyTextDir(this.focusNode,this.focusNode.value);
-}
 this._lastInputEventValue=this.textbox.value;
-this._processInput(this._lastInputProducingEvent);
+this._processInput(this._lastInputProducingEvent||evt);
 delete this._lastInputProducingEvent;
 if(this.intermediateChanges){
 this._handleOnChange(this.get("value"),false);
 }
-},_processInput:function(evt){
+},_processInput:function(){
 this._refreshState();
 this._set("displayedValue",this.get("displayedValue"));
 },postCreate:function(){
@@ -128,7 +122,7 @@ return;
 }
 var _13={faux:true},_14;
 for(_14 in e){
-if(_14!="layerX"&&_14!="layerY"){
+if(!/^(layer[XY]|returnValue|keyLocation)$/.test(_14)){
 var v=e[_14];
 if(typeof v!="function"&&typeof v!="undefined"){
 _13[_14]=v;
@@ -210,16 +204,15 @@ if(this.disabled||this.readOnly){
 return;
 }
 if(this.selectOnClick&&by=="mouse"){
-this._selectOnClickHandle=this.connect(this.domNode,"onmouseup",function(){
-this.disconnect(this._selectOnClickHandle);
-this._selectOnClickHandle=null;
+this._selectOnClickHandle=on.once(this.domNode,"mouseup, touchend",_6.hitch(this,function(evt){
 if(!this._isTextSelected()){
 _8.selectInputText(this.textbox);
 }
-});
+}));
+this.own(this._selectOnClickHandle);
 this.defer(function(){
 if(this._selectOnClickHandle){
-this.disconnect(this._selectOnClickHandle);
+this._selectOnClickHandle.remove();
 this._selectOnClickHandle=null;
 }
 },500);
@@ -229,28 +222,35 @@ this._refreshState();
 },reset:function(){
 this.textbox.value="";
 this.inherited(arguments);
-},_setTextDirAttr:function(_16){
-if(!this._created||this.textDir!=_16){
-this._set("textDir",_16);
-this.applyTextDir(this.focusNode,this.focusNode.value);
-}
 }});
-_8._setSelectionRange=_7._setSelectionRange=function(_17,_18,_19){
-if(_17.setSelectionRange){
-_17.setSelectionRange(_18,_19);
+if(_4("dojo-bidi")){
+_8=_2("dijit.form._TextBoxMixin",_8,{_setValueAttr:function(){
+this.inherited(arguments);
+this.applyTextDir(this.focusNode);
+},_setDisplayedValueAttr:function(){
+this.inherited(arguments);
+this.applyTextDir(this.focusNode);
+},_onInput:function(){
+this.applyTextDir(this.focusNode);
+this.inherited(arguments);
+}});
+}
+_8._setSelectionRange=_7._setSelectionRange=function(_16,_17,_18){
+if(_16.setSelectionRange){
+_16.setSelectionRange(_17,_18);
 }
 };
-_8.selectInputText=_7.selectInputText=function(_1a,_1b,_1c){
-_1a=_3.byId(_1a);
-if(isNaN(_1b)){
-_1b=0;
+_8.selectInputText=_7.selectInputText=function(_19,_1a,_1b){
+_19=_3.byId(_19);
+if(isNaN(_1a)){
+_1a=0;
 }
-if(isNaN(_1c)){
-_1c=_1a.value?_1a.value.length:0;
+if(isNaN(_1b)){
+_1b=_19.value?_19.value.length:0;
 }
 try{
-_1a.focus();
-_8._setSelectionRange(_1a,_1b,_1c);
+_19.focus();
+_8._setSelectionRange(_19,_1a,_1b);
 }
 catch(e){
 }

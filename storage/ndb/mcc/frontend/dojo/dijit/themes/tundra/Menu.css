@@ -5,6 +5,11 @@
 	padding: 0;
 	background-color: #f7f7f7;
 }
+.tundra .dijitMenuTable {
+  border-collapse: separate;
+  border-spacing: 0 0;
+  padding: 0;
+}
 .tundra .dijitBorderContainer .dijitMenuBar {
 	border:1px solid #ccc;
 }
@@ -47,16 +52,21 @@
 .tundra .dijitMenuSeparatorBottom {
 	border-top: 1px solid #e8e8e8;
 }
-.tundra .dijitCheckedMenuItemIconChar {
-	display: none;
-}
-.tundra .dijitCheckedMenuItemIcon {
+.tundra .dijitCheckedMenuItem .dijitMenuItemIcon,
+.tundra .dijitRadioMenuItem .dijitMenuItemIcon {
 	background-image: url('images/checkmark.png');
 	background-position: -80px;
 }
-.dj_ie6 .tundra .dijitCheckedMenuItemIcon {
+.dj_ie6 .tundra .dijitCheckedMenuItem .dijitMenuItemIcon,
+.dj_ie6 .tundra .dijitRadioMenuItem .dijitMenuItemIcon {
 	background-image: url('images/checkmark.gif');
 }
-.tundra .dijitCheckedMenuItemChecked .dijitCheckedMenuItemIcon {
+.tundra .dijitCheckedMenuItemChecked .dijitMenuItemIcon {
 	background-position: -64px;
+}
+.tundra .dijitRadioMenuItem .dijitMenuItemIcon {
+	background-position: -110px; 
+}
+.tundra .dijitRadioMenuItemChecked .dijitMenuItemIcon {
+	background-position: -95px;	
 }

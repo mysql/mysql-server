@@ -24,9 +24,6 @@
   background-image: linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
   background-repeat: repeat-x;
 }
-.claro .dijitSelectFocused, .claro .dijitSelectHover {
-  border-color: #759dc0;
-}
 .claro .dijitSelectHover .dijitArrowButton {
   background-color: #abd6ff;
 }
@@ -59,7 +56,8 @@
 .claro .dijitSelectDisabled .dijitArrowButton .dijitArrowButtonInner {
   background-position: 0 53%;
 }
-.claro .dijitSelectMenu td.dijitMenuItemIconCell, .claro .dijitSelectMenu td.dijitMenuArrowCell {
+.claro .dijitSelectMenu td.dijitMenuItemIconCell,
+.claro .dijitSelectMenu td.dijitMenuArrowCell {
   
   display: none;
 }

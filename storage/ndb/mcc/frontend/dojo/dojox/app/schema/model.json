@@ -5,7 +5,7 @@
 		"type": {
 			"type": "string",
 			"description": "Model Instance Type (Class)"
-		},
+		}
 	},
 	"additionalProperties": true
 }

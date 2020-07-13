@@ -1,6 +1,6 @@
-define("dojox/validate/check", ["dojo/_base/kernel", "dojo/_base/lang", "./_base"], 
- function(kernel, lang, validate){
-kernel.experimental("dojox.validate.check");
+define("dojox/validate/check", ["dojo/_base/kernel", "dojo/_base/lang", "./_base"
+], function(kernel, lang, validate){
+	kernel.experimental("dojox.validate.check");
 
 /**
 	FIXME: How much does this overlap with dojox.form.Manager and friends?
@@ -39,14 +39,17 @@ kernel.experimental("dojox.validate.check");
 			},
 
 			// Fields can be validated using any boolean valued function.
+			// Custom validation fields can also return custom error messages. 
+			// Function name may also be written as a string (useful when passing form profile via JSON) 
 			// Use arrays to specify parameters in addition to the field value.
 			constraints: {
 				field_name1: myValidationFunction,
-				field_name2: dojox.validate.isInteger,
-				field_name3: [myValidationFunction, additional parameters],
-				field_name4: [dojox.validate.isValidDate, "YYYY.MM.DD"],
-				field_name5: [dojox.validate.isEmailAddress, false, true]
-			},
+				field_name2: [myValidationFunction, additional parameters],
+				field_name3: "myValidationFunction",
+				field_name4: ["myValidationFunction", {"message" : "Value must be an integer. Please try again.", additional parameters}]
+				field_name5: dojox.validate.isInteger,
+				field_name6: [dojox.validate.isValidDate, "YYYY.MM.DD"],
+				field_name7: [dojox.validate.isEmailAddress, false, true]			},
 
 			// Confirm is a sort of conditional validation.
 			// It associates each field in its property list with another field whose value should be equal.
@@ -64,7 +67,7 @@ kernel.experimental("dojox.validate.check");
 		getMissing():  Returns a list of required fields that have values missing.
 		isMissing(field):  Returns true if the field is required and the value is missing.
 		hasInvalid():  Returns true if the results contain fields with invalid data.
-		getInvalid():  Returns a list of fields that have invalid values.
+		getInvalid():  Returns a list of fields that have invalid values and custom error messages (optional).
 		isInvalid(field):  Returns true if the field has an invalid value.
 
 */
@@ -235,11 +238,11 @@ validate.check = function(/*HTMLFormElement*/form, /*Object*/profile){
 
 	// Find invalid input fields.
 	if(lang.isObject(profile.constraints)){
-		// constraint properties are the names of fields to bevalidated
+		// constraint properties are the names of fields to be validated
 		for(name in profile.constraints){
 			var elem = form[name];
 			if(!elem) {continue;}
-			
+
 			// skip if blank - its optional unless required, in which case it
 			// is already listed as missing.
 			if(!_undef("tagName",elem)
@@ -248,28 +251,39 @@ validate.check = function(/*HTMLFormElement*/form, /*Object*/profile){
 				&& /^\s*$/.test(elem.value)){
 				continue;
 			}
-			
-			var isValid = true;
+
+			// constraintResponse should have two properties: isValid(bool), message(string)
+			var constraintResponse;
 			// case 1: constraint value is validation function
 			if(lang.isFunction(profile.constraints[name])){
-				isValid = profile.constraints[name](elem.value);
+				constraintResponse = profile.constraints[name](elem.value);
+			}else if(lang.isFunction(lang.getObject(name, false, profile.constraints))){
+				// case 2: constraint value is validation function name as string
+				constraintResponse = lang.getObject(name, false, profile.constraints)(elem.value);
 			}else if(lang.isArray(profile.constraints[name])){
-				
+
 				// handle nested arrays for multiple constraints
 				if(lang.isArray(profile.constraints[name][0])){
-					for (var i=0; i<profile.constraints[name].length; i++){
-						isValid = validate.evaluateConstraint(profile, profile.constraints[name][i], name, elem);
-						if(!isValid){ break; }
+					for(var i=0; i<profile.constraints[name].length; i++){
+						constraintResponse = validate.evaluateConstraint(profile, profile.constraints[name][i], name, elem);
+						if(!constraintResponse.isValid){ break; }
 					}
 				}else{
-					// case 2: constraint value is array, first elem is function,
+					// case 3: constraint value is array, first elem is function,
 					// tail is parameters
-					isValid = validate.evaluateConstraint(profile, profile.constraints[name], name, elem);
+					if(lang.isFunction(lang.getObject(name, false, profile.constraints))){
+							constraintResponse = validate.evaluateConstraint(profile, profile.constraints[profile.constraints[name]], name, elem);
+					}else{
+						constraintResponse = validate.evaluateConstraint(profile, profile.constraints[name], name, elem);
+					}
 				}
 			}
-			
-			if(!isValid){
+
+			// if constraintResponse is false (backwards compatibility with last version) or if property isValid is false, return the invalid field name and/or the constraintResponse message
+			if(!constraintResponse){
 				invalid[invalid.length] = elem.name;
+			}else if(typeof constraintResponse !== "boolean" && !constraintResponse.isValid){
+				invalid[invalid.length] = { field : elem.name, message : constraintResponse.message };
 			}
 		}
 	}
@@ -317,12 +331,16 @@ validate.evaluateConstraint=function(profile, /*Array*/constraint, fieldName, el
 	//		The form dom name of the field being validated.
 	// elem:
 	//		The form element field.
-	
+
  	var isValidSomething = constraint[0];
 	var params = constraint.slice(1);
 	params.unshift(elem.value);
-	if(typeof isValidSomething != "undefined"){
+	if(typeof isValidSomething != "undefined" && typeof isValidSomething != "string"){
 		return isValidSomething.apply(null, params);
+	}else if(typeof isValidSomething != "undefined" && typeof isValidSomething == "string"){
+		if(lang.isFunction(lang.getObject(isValidSomething))){
+			return lang.getObject(isValidSomething).apply(null, params);
+		}
 	}
 	return false; // Boolean
 };

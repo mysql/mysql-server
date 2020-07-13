@@ -1,3 +1,4 @@
+SET @saved_binlog_format= @@SESSION.binlog_format;
 drop table if exists t_34455;
 create table t_34455 (
 a int not null,
@@ -196,7 +197,7 @@ CONSTRAINT_NAME
 t2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 # Add FK
 ALTER TABLE t2 ADD FOREIGN KEY(b) REFERENCES t1(a);
@@ -207,7 +208,7 @@ t2_ibfk_1
 t2_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t2_ibfk_2
 # Remove first FK and add a new FK.
@@ -220,7 +221,7 @@ t2_ibfk_2
 t2_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_2
 t2_ibfk_3
 # Rename table in different ways.
@@ -232,7 +233,7 @@ t3_ibfk_2
 t3_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t3_ibfk_2
 t3_ibfk_3
 ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
@@ -243,7 +244,7 @@ t4_ibfk_2
 t4_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't4' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t4_ibfk_2
 t4_ibfk_3
 ALTER TABLE t4 RENAME TO t5;
@@ -254,7 +255,7 @@ t5_ibfk_2
 t5_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't5' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t5_ibfk_2
 t5_ibfk_3
 RENAME TABLE t5 TO t6;
@@ -265,7 +266,7 @@ t6_ibfk_2
 t6_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t6_ibfk_2
 t6_ibfk_3
 # Simulate dump+restore and test rename
@@ -288,7 +289,7 @@ t6_ibfk_2
 t6_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't6' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t6_ibfk_2
 t6_ibfk_3
 RENAME TABLE t6 TO t2;
@@ -299,7 +300,7 @@ t2_ibfk_2
 t2_ibfk_3
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_2
 t2_ibfk_3
 # Remove all FKs and add one back
@@ -311,7 +312,7 @@ CONSTRAINT_NAME
 t2_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 # Add a foreign key with close to generated name
 ALTER TABLE t2 ADD CONSTRAINT t3_ibfk_2 FOREIGN KEY(b) REFERENCES t1(a);
@@ -322,7 +323,7 @@ t2_ibfk_1
 t3_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t3_ibfk_2
 # Then rename so that the given name now matches a generated name
@@ -334,7 +335,7 @@ t3_ibfk_1
 t3_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't3' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t3_ibfk_1
 t3_ibfk_2
 # Finally rename it again. The given name is now seen as generated and renamed.
@@ -346,7 +347,7 @@ t4_ibfk_1
 t4_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't4' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t4_ibfk_1
 t4_ibfk_2
 DROP TABLE t4;
@@ -361,7 +362,7 @@ t2_ibfk_1
 t2_ibfk_2
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t2_ibfk_1
 t2_ibfk_2
 DROP TABLE t2;
@@ -374,7 +375,7 @@ CONSTRAINT_NAME
 FK
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't2' ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 FK
 ALTER TABLE t2 ADD CONSTRAINT fk FOREIGN KEY(b) REFERENCES t1(a);
 ERROR 42000: Duplicate key name 'fk'
@@ -398,7 +399,7 @@ t12345678901234567890123456789012345678901234567890123456_ibfk_1
 SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 't12345678901234567890123456789012345678901234567890123456'
   ORDER BY constraint_name;
-constraint_name
+CONSTRAINT_NAME
 t12345678901234567890123456789012345678901234567890123456_ibfk_1
 DROP TABLE t12345678901234567890123456789012345678901234567890123456;
 CREATE TABLE t123456789012345678901234567890123456789012345678901234567(
@@ -819,6 +820,8 @@ SELECT * FROM source FOR UPDATE;
 fk
 NULL
 connection default;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;;
 connection con1;
 # Wait until CREATE TABLE is blocked by con1 because of row locks.
@@ -835,6 +838,7 @@ connection con1;
 COMMIT;
 connection default;
 # Reap CREATE TABLE
+SET SESSION binlog_format= @saved_binlog_format;
 DROP TABLES child, source;
 # 3.2) CREATE TABLE ... SELECT should upgrade SU lock on parent to X
 #      before commit (i.e eventually X lock should be acquired).
@@ -844,21 +848,25 @@ SELECT * FROM parent;
 pk
 1
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;;
 connection con1;
 # Wait until CREATE TABLE is blocked by con1 and then resume it.
 COMMIT;
 connection default;
 # Reap CREATE TABLE
+SET SESSION binlog_format= @saved_binlog_format;
 # 3.3) CREATE TABLE ... SELECT for existing table should not acquire
 #      any locks on parent table.
 connection con1;
 CREATE TABLE parent2 (pk INT PRIMARY KEY);
 LOCK TABLE parent2 WRITE;
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
 Warnings:
 Note	1050	Table 'child' already exists
+SET SESSION binlog_format= @saved_binlog_format;
 connection con1;
 UNLOCK TABLES;
 connection default;
@@ -870,8 +878,10 @@ connection con1;
 LOCK TABLE parent WRITE;
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 connection con1;
 UNLOCK TABLES;
@@ -883,8 +893,10 @@ pk
 1
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 connection con1;
 COMMIT;
@@ -893,7 +905,9 @@ DROP TABLE parent;
 # 3.6) CREATE TABLE ... SELECT which adds parent to orphan child must
 #      acquire X on child table.
 SET FOREIGN_KEY_CHECKS=0;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET SESSION binlog_format= @saved_binlog_format;
 SET FOREIGN_KEY_CHECKS=1;
 connection con1;
 BEGIN;
@@ -943,7 +957,10 @@ CREATE TABLE parent (pk INT PRIMARY KEY);
 SELECT * FROM parent;
 pk
 connection con1;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 connection default;
 LOCK TABLE parent WRITE;
 connection con1;
@@ -1917,14 +1934,14 @@ FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
@@ -1933,21 +1950,21 @@ ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
@@ -1956,14 +1973,14 @@ ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 DROP TABLE t1;
@@ -1972,13 +1989,13 @@ CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
@@ -1986,19 +2003,19 @@ ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
@@ -2006,13 +2023,13 @@ ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 DROP TABLES t2, t1;
 # Coverage for cases with multiple foreign keys.
@@ -2023,7 +2040,7 @@ FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 u1	t1	u1	NULL
 u2	t1	u2	NULL
@@ -2033,7 +2050,7 @@ ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 u1	t1	u3	NULL
 u2	t1	u2	NULL
@@ -2043,7 +2060,7 @@ ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t1';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 u1	t1	u4	NULL
 u2	t1	u5	NULL
@@ -2057,21 +2074,21 @@ FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u1
 t2_ibfk_2	t2	fk2	u2
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u3
 t2_ibfk_2	t2	fk2	u2
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
 WHERE table_schema='test' AND table_name='t2';
-constraint_name	table_name	column_name	referenced_column_name
+CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u4
 t2_ibfk_2	t2	fk2	u5
 DROP TABLES t2, t1;
@@ -4286,7 +4303,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 DROP TABLE child;
 CREATE TABLE child (Fk VARCHAR(10));
@@ -4300,7 +4317,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 # Ditto for self-referencing tables.
 CREATE TABLE self (Pk VARCHAR(10) PRIMARY KEY, Fk VARCHAR(10),
@@ -4316,7 +4333,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 DROP TABLE self;
 CREATE TABLE self (Pk VARCHAR(10) PRIMARY KEY, Fk VARCHAR(10));
@@ -4332,7 +4349,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	Pk
 #
 # If column name is changed (even to equivalent one) then the name shown
@@ -4347,7 +4364,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	PK
 ALTER TABLE child CHANGE COLUMN Fk FK VARCHAR(20);
 SHOW CREATE TABLE child;
@@ -4359,7 +4376,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 # Ditto for self-referencing tables.
 ALTER TABLE self CHANGE COLUMN Pk PK VARCHAR(20);
@@ -4374,7 +4391,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	PK
 ALTER TABLE self CHANGE COLUMN Fk FK VARCHAR(20);
 SHOW CREATE TABLE self;
@@ -4388,7 +4405,7 @@ self	CREATE TABLE `self` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='self';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 DROP TABLE self;
 #
@@ -4405,7 +4422,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 #
 # Addition of parent doesn't change the referenced column names.
@@ -4419,7 +4436,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 FK	PK
 DROP TABLES child, parent;
 #
@@ -4442,7 +4459,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	pK
 DROP TABLE child;
 CREATE TABLE child (Fk VARCHAR(10));
@@ -4456,7 +4473,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	pK
 #
 # Addition of parent doesn't change the referenced column names.
@@ -4470,7 +4487,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-column_name	referenced_column_name
+COLUMN_NAME	REFERENCED_COLUMN_NAME
 Fk	pK
 SET FOREIGN_KEY_CHECKS=1;
 DROP TABLES child, parent;

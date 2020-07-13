@@ -247,9 +247,6 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
       "destinations=metadata-cache://test/default?role=PRIMARY\n"
       "protocol=classic\n"
       "routing_strategy=round-robin\n"
-      "\n"
-      "[logger]\n"
-      "level = DEBUG\n"
       "\n";
 
   // launch the Router

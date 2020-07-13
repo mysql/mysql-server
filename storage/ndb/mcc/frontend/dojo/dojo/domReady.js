@@ -1,14 +1,12 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/domReady",["./has"],function(_1){
-var _2=(function(){
-return this;
-})(),_3=document,_4={"loaded":1,"complete":1},_5=typeof _3.readyState!="string",_6=!!_4[_3.readyState],_7=[],_8;
+define("dojo/domReady",["./global","./has"],function(_1,_2){
+var _3=document,_4={"loaded":1,"complete":1},_5=typeof _3.readyState!="string",_6=!!_4[_3.readyState],_7=[],_8;
 function _9(_a){
 _7.push(_a);
 if(_6){
@@ -34,6 +32,7 @@ try{
 (_7.shift())(_3);
 }
 catch(err){
+console.error(err,"in domReady callback",err.stack);
 }
 }
 _8=false;
@@ -41,7 +40,7 @@ _9._onQEmpty();
 };
 if(!_6){
 var _e=[],_f=function(evt){
-evt=evt||_2.event;
+evt=evt||_1.event;
 if(_6||(evt.type=="readystatechange"&&!_4[_3.readyState])){
 return;
 }
@@ -56,7 +55,7 @@ _7.push(function(){
 _10.removeEventListener(_11,_f,false);
 });
 };
-if(!_1("dom-addeventlistener")){
+if(!_2("dom-addeventlistener")){
 on=function(_12,_13){
 _13="on"+_13;
 _12.attachEvent(_13,_f);
@@ -66,7 +65,7 @@ _12.detachEvent(_13,_f);
 };
 var div=_3.createElement("div");
 try{
-if(div.doScroll&&_2.frameElement===null){
+if(div.doScroll&&_1.frameElement===null){
 _e.push(function(){
 try{
 div.doScroll("left");
@@ -81,7 +80,7 @@ catch(e){
 }
 }
 on(_3,"DOMContentLoaded");
-on(_2,"load");
+on(_1,"load");
 if("onreadystatechange" in _3){
 on(_3,"readystatechange");
 }else{

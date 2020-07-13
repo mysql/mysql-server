@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -128,17 +128,13 @@ class GrNotificationsTest : public RouterComponentTest {
     mysql_harness::flush_keyring();
     mysql_harness::reset_keyring();
 
-    // enable debug logs for better diagnostics in case of failure
-    std::string logger_section = "[logger]\nlevel = DEBUG\n";
-
     // launch the router with metadata-cache configuration
     auto default_section = get_DEFAULT_defaults();
     default_section["keyring_path"] = keyring_file;
     default_section["master_key_path"] = masterkey_file;
     default_section["dynamic_state"] = state_file_path;
     const std::string conf_file = create_config_file(
-        temp_test_dir,
-        logger_section + metadata_cache_section + routing_section,
+        temp_test_dir, metadata_cache_section + routing_section,
         &default_section);
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_exit_code, /*catch_stderr=*/true,
@@ -304,16 +300,17 @@ struct GrNotificationsTestParams {
   // how long do we wait for the router to operate before checking the
   // metadata queries count
   std::chrono::milliseconds router_uptime;
-  // how many metadata queries we expect over this period
-  int expected_md_queries_count;
+  // how many metadata queries we expect over this period, range (min, max)
+  std::pair<int, int> expected_md_queries_count;
   // what Notices should be sent by the given cluster nodes at what
   // time offsets
   std::vector<AsyncGRNotice> notices;
 
-  GrNotificationsTestParams(const std::string tracefile_,
-                            const std::chrono::milliseconds router_uptime_,
-                            const int expected_md_queries_count_,
-                            const std::vector<AsyncGRNotice> notices_)
+  GrNotificationsTestParams(
+      const std::string tracefile_,
+      const std::chrono::milliseconds router_uptime_,
+      const std::pair<int, int> &expected_md_queries_count_,
+      const std::vector<AsyncGRNotice> notices_)
       : tracefile(tracefile_),
         router_uptime(router_uptime_),
         expected_md_queries_count(expected_md_queries_count_),
@@ -395,23 +392,28 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
 
   // +1 is for expected initial metadata read that the router does at the
   // beginning
-  const int expected_md_queries_count =
-      test_params.expected_md_queries_count + 1;
+  const int expected_md_queries_count_min =
+      test_params.expected_md_queries_count.first + 1;
+  const int expected_md_queries_count_max =
+      test_params.expected_md_queries_count.second + 1;
 
   // we only expect initial ttl read (hence 1), because x-port is not valid
   // there are not metadata refresh triggered by the notifications
   int md_queries_count =
-      wait_for_md_queries(expected_md_queries_count, cluster_http_ports[0]);
-  ASSERT_EQ(expected_md_queries_count, md_queries_count);
+      wait_for_md_queries(expected_md_queries_count_min, cluster_http_ports[0]);
+
+  EXPECT_THAT(md_queries_count,
+              ::testing::AllOf(::testing::Ge(expected_md_queries_count_min),
+                               ::testing::Le(expected_md_queries_count_max)));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CheckNoticesHandlingIsOk, GrNotificationsParamTest,
     ::testing::Values(
         // 0) single notification received from single (first) node
         // we expect 1 metadata cache update
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes_v2_gr.js", 500ms, 1,
+            "metadata_dynamic_nodes_v2_gr.js", 500ms, {1, 1},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -422,7 +424,7 @@ INSTANTIATE_TEST_CASE_P(
 
         // 1) the same thing with old metadata schema
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes.js", 500ms, 1,
+            "metadata_dynamic_nodes.js", 500ms, {1, 1},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -430,10 +432,9 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}}}),
-        // 2) 3 notifications with the same view id, again only 1
-        // mdc update expected
+        // 2) 3 notifications with the same view id, 2 mdc updates expected
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes_v2_gr.js", 500ms, 1,
+            "metadata_dynamic_nodes_v2_gr.js", 500ms, {2, 2},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -441,14 +442,7 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {200ms,
-              Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
-              true,
-              Mysqlx::Notice::
-                  GroupReplicationStateChanged_Type_MEMBER_STATE_CHANGE,
-              "abcdefg",
-              {0}},
-             {300ms,
+             {2000ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -458,7 +452,7 @@ INSTANTIATE_TEST_CASE_P(
 
         // 3) the same thing with old metadata schema
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes.js", 500ms, 1,
+            "metadata_dynamic_nodes.js", 500ms, {2, 2},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -466,14 +460,7 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {200ms,
-              Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
-              true,
-              Mysqlx::Notice::
-                  GroupReplicationStateChanged_Type_MEMBER_STATE_CHANGE,
-              "abcdefg",
-              {0}},
-             {300ms,
+             {2000ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -481,10 +468,10 @@ INSTANTIATE_TEST_CASE_P(
               "abcdefg",
               {0}}}),
 
-        // 4) 3 notifications; 2 have different view id this time so the
-        // refresh should be triggered twice
+        // 4) 3 notifications; 2 have different view id, we expect metadata
+        // refresh 3 times
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes_v2_gr.js", 1000ms, 2,
+            "metadata_dynamic_nodes_v2_gr.js", 1000ms, {3, 3},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -492,14 +479,14 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {300ms,
+             {1500ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
                   GroupReplicationStateChanged_Type_MEMBER_STATE_CHANGE,
               "abcdefg",
               {0}},
-             {2000ms,
+             {3000ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -509,22 +496,22 @@ INSTANTIATE_TEST_CASE_P(
 
         // 5) the same thing with old metadata schema
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes.js", 1000ms, 2,
-            {{100ms,
+            "metadata_dynamic_nodes.js", 1000ms, {3, 3},
+            {{1500ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {200ms,
+             {1000ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
                   GroupReplicationStateChanged_Type_MEMBER_STATE_CHANGE,
               "abcdefg",
               {0}},
-             {1500ms,
+             {3000ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -532,9 +519,12 @@ INSTANTIATE_TEST_CASE_P(
               "hijklmn",
               {0}}}),
 
-        // 6) 2 notifications on both nodes with the same view id
+        // 6) 2 notifications on both nodes with the same view id, there should
+        // be at least 1 notification, there can be 2 if the second node
+        // triggers the notification once we are already handling the
+        // notification from the first one
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes_v2_gr.js", 1500ms, 1,
+            "metadata_dynamic_nodes_v2_gr.js", 1500ms, {1, 2},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -545,7 +535,7 @@ INSTANTIATE_TEST_CASE_P(
 
         // 7) the same thing with old metadata schema
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes.js", 1500ms, 1,
+            "metadata_dynamic_nodes.js", 1500ms, {1, 2},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -556,7 +546,7 @@ INSTANTIATE_TEST_CASE_P(
 
         // 8) 2 notifications on both nodes with different view ids
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes_v2_gr.js", 700ms, 2,
+            "metadata_dynamic_nodes_v2_gr.js", 700ms, {2, 2},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -574,7 +564,7 @@ INSTANTIATE_TEST_CASE_P(
 
         // 9) the same thing with old metadata schema
         GrNotificationsTestParams(
-            "metadata_dynamic_nodes.js", 700ms, 2,
+            "metadata_dynamic_nodes.js", 700ms, {2, 2},
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -683,9 +673,9 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
   check_exit_code(router, EXIT_SUCCESS, 22000ms);
 }
 
-INSTANTIATE_TEST_CASE_P(GrNotificationNoXPort, GrNotificationNoXPortTest,
-                        ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
-                                          "metadata_dynamic_nodes.js"));
+INSTANTIATE_TEST_SUITE_P(GrNotificationNoXPort, GrNotificationNoXPortTest,
+                         ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
+                                           "metadata_dynamic_nodes.js"));
 
 class GrNotificationMysqlxWaitTimeoutUnsupportedTest
     : public GrNotificationsTest,
@@ -833,10 +823,10 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
   EXPECT_TRUE(found);
 }
 
-INSTANTIATE_TEST_CASE_P(GrNotificationNoticesUnsupported,
-                        GrNotificationNoticesUnsupportedTest,
-                        ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
-                                          "metadata_dynamic_nodes.js"));
+INSTANTIATE_TEST_SUITE_P(GrNotificationNoticesUnsupported,
+                         GrNotificationNoticesUnsupportedTest,
+                         ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
+                                           "metadata_dynamic_nodes.js"));
 
 class GrNotificationXPortConnectionFailureTest
     : public GrNotificationsTest,
@@ -909,10 +899,10 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
   ASSERT_EQ(2, md_queries_count);
 }
 
-INSTANTIATE_TEST_CASE_P(GrNotificationXPortConnectionFailure,
-                        GrNotificationXPortConnectionFailureTest,
-                        ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
-                                          "metadata_dynamic_nodes.js"));
+INSTANTIATE_TEST_SUITE_P(GrNotificationXPortConnectionFailure,
+                         GrNotificationXPortConnectionFailureTest,
+                         ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
+                                           "metadata_dynamic_nodes.js"));
 
 struct ConfErrorTestParams {
   std::string use_gr_notifications_option_value;
@@ -966,7 +956,7 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
       << log_content;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CheckNoticesConfError, GrNotificationsConfErrorTest,
     ::testing::Values(
         ConfErrorTestParams{"2",

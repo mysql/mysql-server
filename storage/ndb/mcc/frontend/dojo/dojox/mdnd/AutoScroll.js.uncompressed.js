@@ -195,8 +195,8 @@ define("dojox/mdnd/AutoScroll", ["dojo/_base/kernel",
 		}
 	});
 	
-	dojox.mdnd.autoScroll = null;
+	as.autoScroll = null;
 	
-	dojox.mdnd.autoScroll = new dojox.mdnd.AutoScroll();
+	as.autoScroll = new as();
 	return as;
 });

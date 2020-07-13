@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -410,6 +410,14 @@ NdbImportUtil::List::remove(ListEnt* ent)
   validate();
   if (m_stat_occup != 0)
     m_stat_occup->add(m_cnt);
+}
+
+NdbImportUtil::ListEnt*
+NdbImportUtil::List::pop_back()
+{
+  ListEnt *ent = m_back;
+  remove(ent);
+  return ent;
 }
 
 void

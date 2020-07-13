@@ -58,7 +58,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_supress_message_send_after_app
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
-call mtr.add_suppression("Plugin group_replication reported: 'Error on transaction '2:5' from session '.*' while waiting for being prepared on all group members.");
+call mtr.add_suppression("Plugin group_replication reported: 'Error on transaction '.*:5' from session '.*' while waiting for being prepared on all group members.");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 call mtr.add_suppression("Slave: Error on observer while running replication hook 'before_commit'. Error_code: MY-003100");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Error in Xid_log_event: Commit could not be completed, 'Error on observer while running replication hook 'before_commit'.', Error_code: MY-003100");

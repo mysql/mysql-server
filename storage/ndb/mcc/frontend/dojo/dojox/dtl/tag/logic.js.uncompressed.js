@@ -3,10 +3,14 @@ define("dojox/dtl/tag/logic", [
 	"../_base"
 ], function(lang, dd){
 
-	lang.getObject("dojox.dtl.tag.logic", true);
+	var ddtl = lang.getObject("tag.logic", true, dd);
+	/*=====
+	 ddtl = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
 	var ddt = dd.text;
-	var ddtl = dd.tag.logic;
 
 	ddtl.IfNode = lang.extend(function(bools, trues, falses, type){
 		this.bools = bools;
@@ -125,21 +129,22 @@ define("dojox/dtl/tag/logic", [
 			}
 
 			var items = this.loop.resolve(context) || [];
-			for(i = items.length; i < this.pool.length; i++){
-				this.pool[i].unrender(context, buffer, this);
-			}
-			if(this.reversed){
-				items = items.slice(0).reverse();
-			}
 
 			var isObject = lang.isObject(items) && !lang.isArrayLike(items);
 			var arred = [];
 			if(isObject){
 				for(var key in items){
-					arred.push(items[key]);
+					arred.push([key, items[key]]);
 				}
 			}else{
 				arred = items;
+			}
+
+			for(i = arred.length; i < this.pool.length; i++){
+				this.pool[i].unrender(context, buffer, this);
+			}
+			if(this.reversed){
+				arred = arred.slice(0).reverse();
 			}
 
 			var forloop = context.forloop = {
@@ -156,18 +161,24 @@ define("dojox/dtl/tag/logic", [
 				forloop.first = !j;
 				forloop.last = (j == arred.length - 1);
 
-				if(assign.length > 1 && lang.isArrayLike(item)){
-					if(!dirty){
-						dirty = true;
-						context = context.push();
+				if (lang.isArrayLike(item)) {
+					if(assign.length > 1){
+						if(!dirty){
+							dirty = true;
+							context = context.push();
+						}
+						var zipped = {};
+						for(k = 0; k < item.length && k < assign.length; k++){
+							zipped[assign[k]] = item[k];
+						}
+						lang.mixin(context, zipped);
+					}else{
+						// in single assignment scenarios, pick only the value
+						context[assign[0]] = item[1];
 					}
-					var zipped = {};
-					for(k = 0; k < item.length && k < assign.length; k++){
-						zipped[assign[k]] = item[k];
-					}
-					lang.mixin(context, zipped);
 				}else{
-					context[assign[0]] = item;
+				    // in single assignment scenarios, pick only the value
+				    context[assign[0]] = item;
 				}
 
 				if(j + 1 > this.pool.length){
@@ -274,5 +285,6 @@ define("dojox/dtl/tag/logic", [
 			return new ddtl.ForNode(loopvars, parts[parts.length + index + 1], reversed, nodelist);
 		}
 	});
-	return dojox.dtl.tag.logic;
+
+	return ddtl;
 });

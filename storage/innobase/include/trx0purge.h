@@ -364,34 +364,7 @@ struct Tablespace {
 
   /* Determine if this undo space needs to be truncated.
   @return true if it should be truncated, false if not. */
-  bool needs_truncation() {
-    /* If it is already inactive, even implicitly, then proceed. */
-    m_rsegs->s_lock();
-    if (m_rsegs->is_inactive_implicit() || m_rsegs->is_inactive_explicit()) {
-      m_rsegs->s_unlock();
-      return (true);
-    }
-
-    /* If implicit undo truncation is turned off, or if the rsegs don't exist
-    yet, don't bother checking the size. */
-    if (!srv_undo_log_truncate || m_rsegs == nullptr || m_rsegs->is_empty() ||
-        m_rsegs->is_init()) {
-      m_rsegs->s_unlock();
-      return (false);
-    }
-
-    ut_ad(m_rsegs->is_active());
-    m_rsegs->s_unlock();
-
-    page_no_t trunc_size = ut_max(
-        static_cast<page_no_t>(srv_max_undo_tablespace_size / srv_page_size),
-        static_cast<page_no_t>(SRV_UNDO_TABLESPACE_SIZE_IN_PAGES));
-    if (fil_space_get_size(id()) > trunc_size) {
-      return (true);
-    }
-
-    return (false);
-  }
+  bool needs_truncation();
 
   /** Change the space_id from its current value.
   @param[in]  space_id  The new undo tablespace ID */
@@ -775,6 +748,32 @@ extern ib_mutex_t ddl_mutex;
 /** A global object that contains a vector of undo::Tablespace structs. */
 extern Tablespaces *spaces;
 
+#ifdef UNIV_DEBUG
+/**  Inject a crash if a certain SET GLOBAL DEBUG has been set.
+Before DBUG_SUICIDE(), write an entry about this crash to the error log
+and flush the redo log. */
+void inject_crash(const char *injection_point_name);
+
+/** Inject a failure in the undo truncation debug compiled code at various
+places so that it fails the first time it hits and succeeds after that. */
+class Inject_failure_once {
+  bool m_already_failed;
+  const char *m_inject_name;
+
+ public:
+  Inject_failure_once(const char *inject_name)
+      : m_already_failed{false}, m_inject_name{inject_name} {}
+
+  /**  If a certain SET GLOBAL DEBUG has been set and this is the first time
+  this has been called for that injection point, write an entry to the
+  error log and return true so that the caller can cause the failure.
+  @return true iff compiled with debug and the debug point has been set
+          and this it the first call for this debug point. */
+  bool should_fail();
+};
+
+#endif /* UNIV_DEBUG */
+
 /** Create the truncate log file. Needed to track the state of truncate during
 a crash. An auxiliary redo log file undo_<space_id>_trunc.log will be created
 while the truncate of the UNDO is in progress. This file is required during
@@ -830,13 +829,16 @@ will not be under construction, so this function will return true.
 @return true if active (non-undo spaces are always active) */
 bool is_active(space_id_t space_id, bool get_latch = true);
 
+constexpr ulint TRUNCATE_FREQUENCY = 128;
+
 /** Track an UNDO tablespace marked for truncate. */
 class Truncate {
  public:
   Truncate()
       : m_space_id_marked(SPACE_UNKNOWN),
         m_purge_rseg_truncate_frequency(
-            static_cast<ulint>(srv_purge_rseg_truncate_frequency)) {
+            static_cast<ulint>(srv_purge_rseg_truncate_frequency)),
+        m_timer() {
     /* Do Nothing. */
   }
 
@@ -848,31 +850,13 @@ class Truncate {
   so that it will be truncated next. */
   void set_marked_space_empty() { m_marked_space_is_empty = true; }
 
-  /** Is tablespace selected for truncate empty of undo logs yet?
+  /** Is the tablespace selected for truncate empty of undo logs yet?
   @return true if the marked undo tablespace has no more undo logs */
   bool is_marked_space_empty() const { return (m_marked_space_is_empty); }
 
   /** Mark the tablespace for truncate.
   @param[in]  undo_space  undo tablespace to truncate. */
-  void mark(Tablespace *undo_space) {
-    /* Set the internal state of this undo space to inactive_implicit
-    so that its rsegs will not be allocated to any new transaction.
-    If the space is already in the inactive_explicit state, it will
-    stay there.
-    Note that the DD is not modified since in case of crash, the
-    action must be completed before the DD is available.
-    Set both the state and this marked id while this routine has
-    an x_lock on m_rsegs because a concurrent user thread might issue
-    undo_space->alter_active(). */
-    undo_space->set_inactive_implicit(&m_space_id_marked);
-
-    m_marked_space_is_empty = false;
-
-    /* We found an UNDO-tablespace to truncate so set the
-    local purge rseg truncate frequency to 3. This will help
-    accelerate the purge action and in turn truncate. */
-    set_rseg_truncate_frequency(3);
-  }
+  void mark(Tablespace *undo_space);
 
   /** Get the ID of the tablespace marked for truncate.
   @return tablespace ID marked for truncate. */
@@ -882,18 +866,18 @@ class Truncate {
 
   /** Reset for next rseg truncate. */
   void reset() {
-    /* Sync with global value as we are done with
-    truncate now. */
+    /* Sync with global value as we are done with truncate now. */
     set_rseg_truncate_frequency(
         static_cast<ulint>(srv_purge_rseg_truncate_frequency));
 
+    reset_timer();
     m_marked_space_is_empty = false;
     m_space_id_marked = SPACE_UNKNOWN;
   }
 
   /** Get the undo tablespace number to start a scan.
   Re-adjust in case the spaces::size() went down.
-  @return	UNDO space_num to start scanning. */
+  @return undo space_num to start scanning. */
   space_id_t get_scan_space_num() const {
     s_scan_pos = s_scan_pos % undo::spaces->size();
 
@@ -903,12 +887,11 @@ class Truncate {
   }
 
   /** Increment the scanning position in a round-robin fashion.
-  @return	UNDO space_num at incremented scanning position. */
+  @return undo space_num at incremented scanning position. */
   space_id_t increment_scan() const {
-    /** Round-robin way of selecting an undo tablespace
-    for the truncate operation. Once we reach the end of
-    the list of known undo tablespace IDs, move back to
-    the first undo tablespace ID. This will scan active
+    /** Round-robin way of selecting an undo tablespace for the truncate
+    operation. Once we reach the end of the list of known undo tablespace
+    IDs, move back to the first undo tablespace ID. This will scan active
     as well as inactive undo tablespaces. */
     s_scan_pos = (s_scan_pos + 1) % undo::spaces->size();
 
@@ -933,26 +916,33 @@ class Truncate {
     return (m_space_id_marked == space_id);
   }
 
+  /** @return the number of milliseconds since last reset. */
+  int64_t check_timer() const { return (m_timer.elapsed()); }
+
+  /** Reset the timer. */
+  void reset_timer() { m_timer.reset(); }
+
  private:
   /** UNDO space ID that is marked for truncate. */
   space_id_t m_space_id_marked;
 
-  /** This is true if the marked space is empty of undo logs
-  and ready to truncate.  We leave the rsegs object 'inactive'
-  until after it is truncated and rebuilt.  This allow the
-  code to do the check for undo logs only once. */
+  /** This is true if the marked space is empty of undo logs and ready
+  to truncate.  We leave the rsegs object 'inactive' until after it is
+  truncated and rebuilt.  This allow the code to do the check for undo
+  logs only once. */
   bool m_marked_space_is_empty;
 
-  /** Rollback segment(s) purge frequency. This is a local
-  value maintained along with the global value. It is set
-  to the global value in the before each truncate.  But when
-  a tablespace is marked for truncate it is updated to 1 and
-  then minimum value among 2 is used by the purge action. */
+  /** Rollback segment(s) purge frequency. This is a local value maintained
+  along with the global value. It is set to the global value before each
+  truncate.  But when a tablespace is marked for truncate it is updated
+  to 1 and then minimum value among 2 is used by the purge action. */
   ulint m_purge_rseg_truncate_frequency;
 
-  /** Start scanning for UNDO tablespace from this
-  vector position. This is to avoid bias selection
-  of one tablespace always. */
+  /** Elapsed time since last truncate check. */
+  ib::Timer m_timer;
+
+  /** Start scanning for UNDO tablespace from this vector position. This is
+  to avoid bias selection of one tablespace always. */
   static size_t s_scan_pos;
 
 }; /* class Truncate */
@@ -961,85 +951,100 @@ class Truncate {
 
 /** The control structure used in the purge operation */
 struct trx_purge_t {
-  sess_t *sess; /*!< System session running the purge
-                query */
-  trx_t *trx;   /*!< System transaction running the
-                purge query: this trx is not in the
-                trx list of the trx system and it
-                never ends */
-#ifndef UNIV_HOTBACKUP
-  rw_lock_t latch;              /*!< The latch protecting the purge
-                                view. A purge operation must acquire an
-                                x-latch here for the instant at which
-                                it changes the purge view: an undo
-                                log operation can prevent this by
-                                obtaining an s-latch here. It also
-                                protects state and running */
-#endif                          /* !UNIV_HOTBACKUP */
-  os_event_t event;             /*!< State signal event */
-  ulint n_stop;                 /*!< Counter to track number stops */
-  volatile bool running;        /*!< true, if purge is active,
-                                we check this without the latch too */
-  volatile purge_state_t state; /*!< Purge coordinator thread states,
-                                we check this in several places
-                                without holding the latch. */
-  que_t *query;                 /*!< The query graph which will do the
-                                parallelized purge operation */
-  ReadView view;                /*!< The purge will not remove undo logs
-                                which are >= this view (purge view) */
-  bool view_active;             /*!< true if view is active */
-  volatile ulint n_submitted;   /*!< Count of total tasks submitted
-                                to the task queue */
-  volatile ulint n_completed;   /*!< Count of total tasks completed */
+  /** System session running the purge query */
+  sess_t *sess;
 
-  /*------------------------------*/
+  /** System transaction running the purge query: this trx is not in the trx
+  list of the trx system and it never ends */
+  trx_t *trx;
+#ifndef UNIV_HOTBACKUP
+  /** The latch protecting the purge view. A purge operation must acquire an
+  x-latch here for the instant at which it changes the purge view: an undo
+  log operation can prevent this by obtaining an s-latch here. It also
+  protects state and running */
+  rw_lock_t latch;
+#endif /* !UNIV_HOTBACKUP */
+
+  /** State signal event */
+  os_event_t event;
+
+  /** Counter to track number stops */
+  ulint n_stop;
+
+  /** true, if purge is active, we check this without the latch too */
+  volatile bool running;
+
+  /** Purge coordinator thread states, we check this in several places without
+  holding the latch. */
+  volatile purge_state_t state;
+
+  /** The query graph which will do the parallelized purge operation */
+  que_t *query;
+
+  /** The purge will not remove undo logs which are >= this view (purge view) */
+  ReadView view;
+
+  /** true if view is active */
+  bool view_active;
+
+  /** Count of total tasks submitted to the task queue */
+  volatile ulint n_submitted;
+
+  /** Count of total tasks completed */
+  volatile ulint n_completed;
+
   /* The following two fields form the 'purge pointer' which advances
   during a purge, and which is used in history list truncation */
 
-  purge_iter_t iter;  /* Limit up to which we have read and
-                      parsed the UNDO log records.  Not
-                      necessarily purged from the indexes.
-                      Note that this can never be less than
-                      the limit below, we check for this
-                      invariant in trx0purge.cc */
-  purge_iter_t limit; /* The 'purge pointer' which advances
-                      during a purge, and which is used in
-                      history list truncation */
+  /** Limit up to which we have read and parsed the UNDO log records.  Not
+  necessarily purged from the indexes.  Note that this can never be less than
+  the limit below, we check for this invariant in trx0purge.cc */
+  purge_iter_t iter;
+
+  /** The 'purge pointer' which advances during a purge, and which is used in
+  history list truncation */
+  purge_iter_t limit;
 #ifdef UNIV_DEBUG
-  purge_iter_t done; /* Indicate 'purge pointer' which have
-                     purged already accurately. */
-#endif               /* UNIV_DEBUG */
-  /*-----------------------------*/
-  ibool next_stored;     /*!< TRUE if the info of the next record
-                         to purge is stored below: if yes, then
-                         the transaction number and the undo
-                         number of the record are stored in
-                         purge_trx_no and purge_undo_no above */
-  trx_rseg_t *rseg;      /*!< Rollback segment for the next undo
-                         record to purge */
-  page_no_t page_no;     /*!< Page number for the next undo
-                         record to purge, page number of the
-                         log header, if dummy record */
-  ulint offset;          /*!< Page offset for the next undo
-                         record to purge, 0 if the dummy
-                         record */
-  page_no_t hdr_page_no; /*!< Header page of the undo log where
-                         the next record to purge belongs */
-  ulint hdr_offset;      /*!< Header byte offset on the page */
+  /** Indicate 'purge pointer' which have purged already accurately. */
+  purge_iter_t done;
+#endif /* UNIV_DEBUG */
 
-  TrxUndoRsegsIterator *rseg_iter; /*!< Iterator to get the next rseg
-                                   to process */
+  /** true if the info of the next record to purge is stored below: if yes, then
+  the transaction number and the undo number of the record are stored in
+  purge_trx_no and purge_undo_no above */
+  bool next_stored;
 
-  purge_pq_t *purge_queue; /*!< Binary min-heap, ordered on
-                           TrxUndoRsegs::trx_no. It is protected
-                           by the pq_mutex */
-  PQMutex pq_mutex;        /*!< Mutex protecting purge_queue */
+  /** Rollback segment for the next undo record to purge */
+  trx_rseg_t *rseg;
 
-  undo::Truncate undo_trunc; /*!< Track UNDO tablespace marked
-                             for truncate. */
+  /** Page number for the next undo record to purge, page number of the log
+  header, if dummy record */
+  page_no_t page_no;
 
-  mem_heap_t *heap; /*!< Heap for reading the undo log
-                    records */
+  /** Page offset for the next undo record to purge, 0 if the dummy record */
+  ulint offset;
+
+  /** Header page of the undo log where the next record to purge belongs */
+  page_no_t hdr_page_no;
+
+  /** Header byte offset on the page */
+  ulint hdr_offset;
+
+  /** Iterator to get the next rseg to process */
+  TrxUndoRsegsIterator *rseg_iter;
+
+  /** Binary min-heap, ordered on TrxUndoRsegs::trx_no. It is protected
+  by the pq_mutex */
+  purge_pq_t *purge_queue;
+
+  /** Mutex protecting purge_queue */
+  PQMutex pq_mutex;
+
+  /** Track UNDO tablespace marked for truncate. */
+  undo::Truncate undo_trunc;
+
+  /** Heap for reading the undo log records */
+  mem_heap_t *heap;
 };
 
 /** Choose the rollback segment with the smallest trx_no. */

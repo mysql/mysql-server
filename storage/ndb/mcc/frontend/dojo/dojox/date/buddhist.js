@@ -1,5 +1,5 @@
 //>>built
-define("dojox/date/buddhist",["..","dojo/_base/lang","dojo/date","./buddhist/Date"],function(_1,_2,dd,_3){
+define("dojox/date/buddhist",["dojox/main","dojo/_base/lang","dojo/date","./buddhist/Date"],function(_1,_2,dd,_3){
 var _4=_2.getObject("date.buddhist",true,_1);
 _4.getDaysInMonth=function(_5){
 return dd.getDaysInMonth(_5.toGregorian());

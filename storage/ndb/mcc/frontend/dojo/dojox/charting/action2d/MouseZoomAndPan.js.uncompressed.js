@@ -1,6 +1,7 @@
 define("dojox/charting/action2d/MouseZoomAndPan", ["dojo/_base/declare", "dojo/_base/window", "dojo/_base/array", "dojo/_base/event",
-	"dojo/_base/connect", "dojo/mouse", "./ChartAction", "dojo/_base/sniff", "dojo/dom-prop", "dojo/keys"],
-	function(declare, win, arr, eventUtil, connect, mouse, ChartAction, has, domProp, keys){
+	"dojo/_base/connect", "dojo/mouse", "./ChartAction", "dojo/sniff", "dojo/dom-prop", "dojo/keys",
+	"dojo/has!dojo-bidi?../bidi/action2d/ZoomAndPan"],
+	function(declare, win, arr, eventUtil, connect, mouse, ChartAction, has, domProp, keys, BidiMouseZoomAndPan){
 
 	/*=====
 	var __MouseZoomAndPanCtorArgs = {
@@ -39,7 +40,7 @@ define("dojox/charting/action2d/MouseZoomAndPan", ["dojo/_base/declare", "dojo/_
 		}
 	};
 
-	return declare("dojox.charting.action2d.MouseZoomAndPan", ChartAction, {
+	var MouseZoomAndPan = declare(has("dojo-bidi")? "dojox.charting.action2d.NonBidiMouseZoomAndPan" : "dojox.charting.action2d.MouseZoomAndPan", ChartAction, {
 		// summary:
 		//		Create an mouse zoom and pan action.
 		//		You can zoom in or out the data window with mouse wheel. You can scroll using mouse drag gesture. 
@@ -149,13 +150,12 @@ define("dojox/charting/action2d/MouseZoomAndPan", ["dojo/_base/declare", "dojo/_
 			//		Called when mouse is moved on the chart.
 			if(this._isPanning){
 				var chart = this.chart, axis = chart.getAxis(this.axis);
-				var delta = axis.vertical?(this._startCoord- event.pageY):(event.pageX - this._startCoord);
+				var delta = this._getDelta(event);
 				
 				var bounds = axis.getScaler().bounds,
 					s = bounds.span / (bounds.upper - bounds.lower);
 		
 				var scale = axis.getWindowScale();
-		
 				chart.setAxisWindow(this.axis, scale, this._startOffset - delta / s / scale);
 				chart.render();
 			}
@@ -231,6 +231,11 @@ define("dojox/charting/action2d/MouseZoomAndPan", ["dojo/_base/declare", "dojo/_
 			chart.zoomIn(this.axis, [newStart, newEnd]);
 			// do not scroll browser
 			eventUtil.stop(event);
+		},
+		
+		_getDelta: function(event){
+			return this.chart.getAxis(this.axis).vertical?(this._startCoord- event.pageY):(event.pageX - this._startCoord);
 		}
-	});		
+	});
+	return has("dojo-bidi")? declare("dojox.charting.action2d.MouseZoomAndPan", [MouseZoomAndPan, BidiMouseZoomAndPan]) : MouseZoomAndPan;
 });

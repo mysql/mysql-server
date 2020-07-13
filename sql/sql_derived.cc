@@ -412,11 +412,45 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 
   /*
     Prepare the underlying query expression of the derived table.
-    The SELECT_STRAIGHT_JOIN option prevents semi-join transformation.
   */
   if (derived->prepare(thd, derived_result,
                        !apply_semijoin ? SELECT_NO_SEMI_JOIN : 0, 0))
     return true;
+
+  if (m_was_table_subquery) {
+    /*
+      When we converted the quantified subquery to a derived table, we gave
+      names to the SELECT list items. But if those were from a view, then
+      rollback_item_tree_changes restored original items, losing the names.
+      We have to re-establish our names. Likewise, if we replaced items with 1
+      (case of EXISTS), they may have been lost.
+      todo remove after WL#6570.
+    */
+    SELECT_LEX *subs_select = derived->first_select();
+    DBUG_ASSERT(!subs_select->first_execution);
+    char buff[NAME_LEN];
+    int i = -1;
+    Item *inner;
+    List_iterator<Item> it_fields_list(subs_select->fields_list);
+    List_iterator<Item> it_all_fields(subs_select->all_fields);
+    while ((i++, it_all_fields++, inner = it_fields_list++)) {
+      if (i < m_first_sj_inner_expr_of_subquery && !inner->basic_const_item()) {
+        // replace with 1; we do it before derived->prepare(), so this will
+        // propagate to all_fields and base_ref_items.
+        auto constant = new (thd->mem_root) Item_int(
+            NAME_STRING("Not_used"), (longlong)1, MY_INT64_NUM_DECIMAL_DIGITS);
+        if (constant == nullptr) return true;
+        it_fields_list.replace(constant);
+        it_all_fields.replace(constant);
+        subs_select->base_ref_items[i] = constant;
+        inner = constant;
+      }
+      uint name_len =
+          snprintf(buff, sizeof(buff), SYNTHETIC_FIELD_NAME "%d", i + 1);
+      inner->orig_name = inner->item_name;
+      inner->item_name.copy(buff, name_len);
+    }
+  }
 
   if (check_duplicate_names(m_derived_column_names, derived->types, false))
     return true;
@@ -477,6 +511,10 @@ static void swap_column_names_of_unit_and_tmp_table(
 
 /**
   Prepare a derived table or view for materialization.
+  The derived table must have been
+  - resolved by resolve_derived(),
+  - or resolved as a subquery (by Item_*_subselect_::fix_fields()) then
+  converted to a derived table.
 
   @param  thd   THD pointer
 

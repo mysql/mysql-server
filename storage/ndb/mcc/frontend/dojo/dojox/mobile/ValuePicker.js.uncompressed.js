@@ -9,11 +9,12 @@ define("dojox/mobile/ValuePicker", [
 
 	return declare("dojox.mobile.ValuePicker", PickerBase, {
 		// summary:
-		//		A value picker that has stepper.
+		//		A value picker that has a stepper.
 		// description:
-		//		ValuePicker is a widget for selecting some values. The values
-		//		can be selected by the Plus button, the Minus button, or the
-		//		input field.
+		//		ValuePicker is a widget for selecting values. The values
+		//		can be selected by using the Plus or Minus buttons, or by
+		//		entering the value directly into the input field.
+		//		This type of value picker is typically seen on Android devices.
 
 		/* internal properties */	
 		baseClass: "mblValuePicker",

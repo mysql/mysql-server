@@ -7,7 +7,9 @@
 }
 .mblProgressBarProgress {
   -webkit-transition-property: width;
+  transition-property: width;
   -webkit-transition-duration: 0.25s;
+  transition-duration: 0.25s;
   background-color: #298eff;
   height: 22px;
 }

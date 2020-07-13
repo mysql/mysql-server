@@ -12,8 +12,9 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel",
 	"dojo/dom-construct",
 	"dijit/registry",
 	"dijit/_Widget",
-	"./Moveable"
-],function(dojo, declare, connect, win, array, sniff, lang, query, topic, domClass, geom, domConstruct, registry, _Widget, Moveable){
+	"./Moveable",
+	"dojox/mdnd/AutoScroll"
+],function(dojo, declare, connect, win, array, sniff, lang, query, topic, domClass, geom, domConstruct, registry, _Widget, Moveable, AutoScroll){
 	var am = declare(
 		"dojox.mdnd.AreaManager",
 		null,
@@ -684,8 +685,8 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel",
 			connect.disconnect(this.resizeHandler);
 			this._dropIndicator.destroy();
 			this._dropMode.destroy();
-			if(dojox.mdnd.autoScroll){
-				dojox.mdnd.autoScroll.destroy();
+			if(AutoScroll.autoScroll){
+				AutoScroll.autoScroll.destroy();
 			}
 			if(this.refreshListener){
 				connect.unsubscribe(this.refreshListener);
@@ -708,15 +709,15 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel",
 			dndType : "text"
 		});
 	}
-	
-	dojox.mdnd._areaManager = null;
-	dojox.mdnd.areaManager = function(){
+
+	am._areaManager = null;
+	am.areaManager = function(){
 		// summary:
 		//		Returns the current areaManager, creates one if it is not created yet.
-		if(!dojox.mdnd._areaManager){
-			dojox.mdnd._areaManager = new dojox.mdnd.AreaManager();
+		if(!am._areaManager){
+			am._areaManager = new am();
 		}
-		return dojox.mdnd._areaManager;	// Object
+		return am._areaManager;	// Object
 	};
 	return am;
 });

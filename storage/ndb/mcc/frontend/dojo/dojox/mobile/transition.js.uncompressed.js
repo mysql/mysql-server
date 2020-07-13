@@ -11,10 +11,10 @@ define("dojox/mobile/transition", [
 		//		the module to conduct view transitions, otherwise this module returns null.
 	};
 	=====*/
-	if(config['mblCSS3Transition']){
+	if(config.mblCSS3Transition){
 		//require dojox/css3/transit and resolve it as the result of transitDeferred.
 		var transitDeferred = new Deferred();
-		require([config['mblCSS3Transition']], function(transit){
+		require([config.mblCSS3Transition], function(transit){
 			transitDeferred.resolve(transit);
 		});
 		return transitDeferred;

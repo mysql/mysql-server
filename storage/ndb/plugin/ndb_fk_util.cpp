@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ bool fetch_referenced_tables_from_ndb_dictionary(
 
   @param dict          The NDB Dictionary object
   @param table         The table whose foreign keys need to be retrieved
-  @param fk_list[out]  The output param that will have the list of foreign
+  @param[out] fk_list  The output param that will have the list of foreign
                        keys.
   @return true on success or, false on failure to retrieve all the foreign keys.
           On failure, the error can be retrieved from dict's NdbError object

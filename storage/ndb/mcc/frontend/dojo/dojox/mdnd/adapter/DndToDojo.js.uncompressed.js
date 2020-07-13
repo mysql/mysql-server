@@ -8,8 +8,9 @@ define("dojox/mdnd/adapter/DndToDojo", ["dojo/_base/kernel",
 	"dojo/topic", // topic.publish()
 	"dojo/_base/window",
 	"dojox/mdnd/PureSource",
-	"dojox/mdnd/LazyManager"
-],function(dojo, declare, connect, array, domClass, domStyle, geom, topic, win){
+	"dojox/mdnd/LazyManager",
+	"dojox/mdnd/AreaManager"
+],function(dojo, declare, connect, array, domClass, domStyle, geom, topic, win, PureSource, LazyManager, AreaManager){
 	var dtd = declare(
 		"dojox.mdnd.adapter.DndToDojo",
 		null,
@@ -52,7 +53,7 @@ define("dojox/mdnd/adapter/DndToDojo", ["dojo/_base/kernel",
 		constructor: function(){
 			this._dojoList = [];
 			this._currentDojoArea = null;
-			this._dojoxManager = dojox.mdnd.areaManager();
+			this._dojoxManager = AreaManager.areaManager();
 			this._dragStartHandler = connect.subscribe("/dojox/mdnd/drag/start", this, function(node, sourceArea, sourceDropIndex){
 				this._draggedNode = node;
 				this._moveHandler = connect.connect(dojo.doc, "onmousemove", this, "onMouseMove");

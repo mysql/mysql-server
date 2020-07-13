@@ -12,7 +12,7 @@ define("dojox/mvc/_Controller", [
 
 			// If there is dijit/_WidgetBase in upper class hierarchy (happens when this descendant is mixed into a widget), let _WidgetBase do all work
 			if(this._applyAttributes){
-				this.inherited(arguments);
+				return this.inherited(arguments);
 			}
 			// Look for dojox/mvc/at handles in the parameters
 			this._dbpostscript(params, srcNodeRef);

@@ -84,6 +84,7 @@
 # MTS does not allow row events outside transactions.
 --source include/not_mts_slave_parallel_workers.inc
 
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 --echo #### Initialize ####

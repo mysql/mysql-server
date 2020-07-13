@@ -2,9 +2,10 @@ define("dojox/mobile/CheckBox", [
 	"dojo/_base/declare",
 	"dojo/dom-construct",
 	"dijit/form/_CheckBoxMixin",
-	"./ToggleButton"
+	"./ToggleButton",
+	"./sniff"
 ],
-	function(declare, domConstruct, CheckBoxMixin, ToggleButton){
+	function(declare, domConstruct, CheckBoxMixin, ToggleButton, has){
 
 	return declare("dojox.mobile.CheckBox", [ToggleButton, CheckBoxMixin], {
 		// summary:
@@ -20,13 +21,24 @@ define("dojox/mobile/CheckBox", [
 		_setTypeAttr: function(){}, // cannot be changed: IE complains w/o this
 
 		buildRendering: function(){
-			if(!this.srcNodeRef){
+			if(!this.templateString && !this.srcNodeRef){
 				// The following doesn't work on IE < 8 if the default state is checked.
 				// You have to use "<input checked>" instead but it's not worth the bytes here.
 				this.srcNodeRef = domConstruct.create("input", {type: this.type});
 			}
 			this.inherited(arguments);
-			this.focusNode = this.domNode;
+			if(!this.templateString){
+				// if this widget is templated, let the template set the focusNode via an attach point
+				this.focusNode = this.domNode;
+			}
+
+			if(has("windows-theme")){
+				var rootNode = domConstruct.create("span", {className: "mblCheckableInputContainer"});
+				rootNode.appendChild(this.domNode.cloneNode());
+				this.labelNode = domConstruct.create("span", {className: "mblCheckableInputDecorator"}, rootNode);
+				this.domNode = rootNode;
+				this.focusNode = rootNode.firstChild;
+			}
 		},
 		
 		_getValueAttr: function(){

@@ -91,6 +91,12 @@ So we maintain a std::set, which is later used to register the
 tablespaces to dictionary table mysql.tablespaces */
 missing_sys_tblsp_t missing_spaces;
 
+/** This bool denotes if we found a Table or Partition with discarded Tablespace
+during load of SYS_TABLES (in dict_check_sys_tables).
+
+We use it to stop upgrade from 5.7 to 8.0 if there are discarded Tablespaces. */
+bool has_discarded_tablespaces = false;
+
 /** Loads a table definition and also all its index definitions.
 
 Loads those foreign key constraints whose referenced table is already in
@@ -594,14 +600,15 @@ static const char *dict_load_column_low(
       dict_v_col_t *vcol =
 #endif
           dict_mem_table_add_v_col(table, heap, name, mtype, prtype, col_len,
-                                   dict_get_v_col_mysql_pos(pos), num_base);
+                                   dict_get_v_col_mysql_pos(pos), num_base,
+                                   true);
       ut_ad(vcol->v_pos == dict_get_v_col_pos(pos));
     } else {
       ut_ad(num_base == 0);
-      dict_mem_table_add_col(table, heap, name, mtype, prtype, col_len);
+      dict_mem_table_add_col(table, heap, name, mtype, prtype, col_len, true);
     }
   } else {
-    dict_mem_fill_column_struct(column, pos, mtype, prtype, col_len);
+    dict_mem_fill_column_struct(column, pos, mtype, prtype, col_len, true);
   }
 
   /* Report the virtual column number */
@@ -1287,6 +1294,12 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
     opened. */
     char *filepath = dict_get_first_path(space_id);
 
+    /* Check that this ibd is in a known location. If not, allow this
+    but make some noise. */
+    if (!fil_path_is_known(filepath)) {
+      ib::warn(ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED, filepath, space_name);
+    }
+
     /* Check that the .ibd file exists. */
     dberr_t err =
         fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
@@ -1447,9 +1460,12 @@ space_id_t dict_check_sys_tables(bool validate) {
     }
 
     if (flags2 & DICT_TF2_DISCARDED) {
-      ib::info(ER_IB_MSG_193) << "Ignoring tablespace " << table_name
-                              << " because the DISCARD flag is set .";
+      ib::info(ER_IB_MSG_193)
+          << "Tablespace " << table_name
+          << " is set as DISCARDED. Upgrade will stop, please make sure "
+             "there are no discarded Tables/Partitions before upgrading.";
       ut_free(table_name.m_name);
+      has_discarded_tablespaces = true;
       continue;
     }
 
@@ -1536,6 +1552,12 @@ space_id_t dict_check_sys_tables(bool validate) {
                                   dict_path);
         filepath = mem_strdup(dict_path.c_str());
       }
+    }
+
+    /* Check that this ibd is in a known location. If not, allow this
+    but make some noise. */
+    if (!fil_path_is_known(filepath)) {
+      ib::warn(ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED, filepath, space_name);
     }
 
     /* Check that the .ibd file exists. */

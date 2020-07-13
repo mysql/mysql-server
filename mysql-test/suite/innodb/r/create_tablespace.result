@@ -5,7 +5,6 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-# restart:--innodb-directories=MYSQL_TMP_DIR
 SHOW VARIABLES LIKE 'innodb_directories';
 Variable_name	Value
 innodb_directories	MYSQL_TMP_DIR
@@ -42,10 +41,10 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd';
-ERROR HY000: CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+ERROR HY000: The DATAFILE location must be in a known directory.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE s_too_long_file_name
 Error	3121	Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
@@ -55,11 +54,11 @@ ERROR HY000: InnoDB does not support FILE_BLOCK_SIZE=3072
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=65k;
 ERROR HY000: InnoDB does not support FILE_BLOCK_SIZE=66560
 CREATE TABLESPACE `s_bad` ADD DATAFILE '../sub/dir/////s_bad.ibd';
-ERROR HY000: The directory does not exist.
+ERROR HY000: The directory does not exist or is incorrect.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	The directory does not exist.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	3121	Incorrect File Name '../sub/dir/////s_bad.ibd'.
 DROP TABLESPACE 's_bad';
@@ -280,8 +279,8 @@ ERROR HY000: The ADD DATAFILE filepath does not have a proper filename.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath does not have a proper filename.
-Error	3121	The directory does not exist.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	3121	Incorrect File Name '../s_dir/s_subdir/.ibd'.
 CREATE TABLESPACE s_bad ADD DATAFILE '../s_dir/s_bad.ibs';
@@ -289,8 +288,8 @@ ERROR HY000: The ADD DATAFILE filepath must end with '.ibd'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath must end with '.ibd'.
-Error	3121	The directory does not exist.
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The directory does not exist or is incorrect.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	3121	Incorrect File Name '../s_dir/s_bad.ibs'.
 CREATE TABLESPACE s_bad ADD DATAFILE 'c:s_bad.ibd';
@@ -1822,7 +1821,7 @@ Error	1874	Changes to undo tablespaces are not allowed in read_only mode
 Error	1529	Failed to drop TABLESPACE s1
 Error	1874	InnoDB is in read only mode.
 # Restart in normal mode for cleanup.
-# restart --innodb-directories=MYSQL_TMP_DIR
+# restart: --innodb-directories=MYSQL_TMP_DIR
 DROP TABLESPACE s1;
 #
 # Bug#26199233 create like ignores innodb_file_per_table

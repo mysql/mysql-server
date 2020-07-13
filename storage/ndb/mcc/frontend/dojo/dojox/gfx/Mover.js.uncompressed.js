@@ -1,5 +1,5 @@
-define("dojox/gfx/Mover", ["dojo/_base/lang","dojo/_base/array", "dojo/_base/declare", "dojo/on", "dojo/has", "dojo/_base/event"],
-  function(lang, arr, declare, on, has, event){
+define("dojox/gfx/Mover", ["dojo/_base/lang","dojo/_base/array", "dojo/_base/declare", "dojo/on", "dojo/touch", "dojo/_base/event"],
+  function(lang, arr, declare, on, touch, event){
 	return declare("dojox.gfx.Mover", null, {
 		constructor: function(shape, e, host){
 			// summary:
@@ -14,13 +14,13 @@ define("dojox/gfx/Mover", ["dojo/_base/lang","dojo/_base/array", "dojo/_base/dec
 			//		object which implements the functionality of the move,
 			//		 and defines proper events (onMoveStart and onMoveStop)
 			this.shape = shape;
-			this.lastX = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientX : e.clientX;
-			this.lastY = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientY : e.clientY;
+			this.lastX = e.clientX;
+			this.lastY = e.clientY;
 			var h = this.host = host, d = document,
-				firstEvent = on(d, has("touch") ? "touchmove" : "mousemove", lang.hitch(this, "onFirstMove"));
+				firstEvent = on(d, touch.move, lang.hitch(this, "onFirstMove"));
 			this.events = [
-				on(d, has("touch") ? "touchmove" : "mousemove",    lang.hitch(this, "onMouseMove")),
-				on(d, has("touch") ? "touchend" : "mouseup", lang.hitch(this, "destroy")),
+				on(d, touch.move, lang.hitch(this, "onMouseMove")),
+				on(d, touch.release, lang.hitch(this, "destroy")),
 				// cancel text selection and text dragging
 				on(d, "dragstart",   lang.hitch(event, "stop")),
 				on(d, "selectstart", lang.hitch(event, "stop")),
@@ -37,8 +37,8 @@ define("dojox/gfx/Mover", ["dojo/_base/lang","dojo/_base/array", "dojo/_base/dec
 			//		event processor for onmousemove
 			// e: Event
 			//		mouse event
-			var x = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientX : e.clientX;
-			var y = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientY : e.clientY;
+			var x = e.clientX;
+			var y = e.clientY;
 			this.host.onMove(this, {dx: x - this.lastX, dy: y - this.lastY});
 			this.lastX = x;
 			this.lastY = y;
@@ -54,7 +54,9 @@ define("dojox/gfx/Mover", ["dojo/_base/lang","dojo/_base/array", "dojo/_base/dec
 		destroy: function(){
 			// summary:
 			//		stops the move, deletes all references, so the object can be garbage-collected
-			arr.forEach(this.events, function(h){h.remove();});
+			arr.forEach(this.events, function(handle){
+				handle.remove();
+			});
 			// undo global settings
 			var h = this.host;
 			if(h && h.onMoveStop){

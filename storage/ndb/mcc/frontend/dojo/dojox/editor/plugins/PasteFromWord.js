@@ -26,6 +26,7 @@ this._dialog.show();
 if(!this._rte){
 setTimeout(_1.hitch(this,function(){
 this._rte=new _2._editor.RichText({height:this.height||"300px"},this._uId+"_rte");
+this._rte.startup();
 this._rte.onLoadDeferred.addCallback(_1.hitch(this,function(){
 _1.animateProperty({node:this._rte.domNode,properties:{opacity:{start:0.001,end:1}}}).play();
 }));

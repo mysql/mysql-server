@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,8 +62,8 @@ class Mock_field_new_decimal : public Field_new_decimal {
                           false)                      // unsigned_arg
   {}
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 
   void test_store_string(const char *store_value, const int length,
                          const char *expected_string_result,

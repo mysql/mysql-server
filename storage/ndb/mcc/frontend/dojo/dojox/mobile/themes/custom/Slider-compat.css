@@ -15,7 +15,7 @@
   background-image: none;
 }
 .mblSliderV .mblSliderProgressBar {
-  background-color: #bbc4d0;
+  background-color: #c0c0c0;
   background-image: none;
 }
 .dj_gecko .mblSlider {
@@ -24,7 +24,7 @@
   -moz-box-sizing: content-box;
 }
 .dj_gecko .mblSliderProgressBar {
-  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #666666 100%);
+  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #999999 100%);
 }
 .dj_gecko .mblSliderHandle {
   background-image: -moz-linear-gradient(top, #e2e2e2 0%, #a4a4a4 100%);

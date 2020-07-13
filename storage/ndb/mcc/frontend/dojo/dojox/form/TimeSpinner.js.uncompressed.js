@@ -44,16 +44,17 @@ return declare("dojox.form.TimeSpinner", Spinner,
 
 	value: "12:00 AM",
 
-   _onKeyPress: function(e){
-			if((e.charOrCode == keys.HOME || e.charOrCode == keys.END) && !(e.ctrlKey || e.altKey || e.metaKey)
-			&& typeof this.get('value') != 'undefined' /* gibberish, so HOME and END are default editing keys*/){
-					var value = this.constraints[(e.charOrCode == keys.HOME ? "min" : "max")];
-					if(value){
-							this._setValueAttr(value,true);
-					}
-					// eat home or end key whether we change the value or not
-					event.stop(e);
+   _onKeyDown: function(e){
+	   // TODO: this code is just copied from NumberSpinner
+		if((e.keyCode == keys.HOME || e.keyCode == keys.END) && !(e.ctrlKey || e.altKey || e.metaKey)
+		&& typeof this.get('value') != 'undefined' /* gibberish, so HOME and END are default editing keys*/){
+			var value = this.constraints[(e.keyCode == keys.HOME ? "min" : "max")];
+			if(value){
+				this._setValueAttr(value,true);
 			}
+			// eat home or end key whether we change the value or not
+			event.stop(e);
+		}
 	}
 });
 });

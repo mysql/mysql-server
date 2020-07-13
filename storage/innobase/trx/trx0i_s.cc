@@ -187,15 +187,16 @@ struct trx_i_s_cache_t {
 #define CACHE_STORAGE_INITIAL_SIZE 1024
 /** Number of hash cells in the cache storage */
 #define CACHE_STORAGE_HASH_CELLS 2048
-  ha_storage_t *storage; /*!< storage for external volatile
-                         data that may become unavailable
-                         when we release
-                         lock_sys->mutex or trx_sys->mutex */
-  ulint mem_allocd;      /*!< the amount of memory
-                         allocated with mem_alloc*() */
-  ibool is_truncated;    /*!< this is TRUE if the memory
-                         limit was hit and thus the data
-                         in the cache is truncated */
+  /** storage for external volatile data that may become unavailable when we
+  release exclusive global locksys latch or trx_sys->mutex */
+  ha_storage_t *storage;
+
+  /** the amount of memory allocated with mem_alloc*() */
+  ulint mem_allocd;
+
+  /** this is TRUE if the memory limit was hit and thus the data in the cache is
+  truncated */
+  bool is_truncated;
 };
 
 /** This is the intermediate buffer where data needed to fill the
@@ -435,7 +436,11 @@ static ibool fill_trx_row(
 
   /* We are going to read various trx->lock fields protected by trx->mutex */
   ut_ad(trx_mutex_own(trx));
-  ut_ad(lock_mutex_own());
+  /* We are going to read TRX_WEIGHT, lock_number_of_rows_locked() and
+  lock_number_of_tables_locked() which requires latching the lock_sys.
+  Also, we need it to avoid reading temporary NULL value set to wait_lock by a
+  B-tree page reorganization. */
+  ut_ad(locksys::owns_exclusive_global_latch());
 
   row->trx_id = trx_get_id_for_print(trx);
   row->trx_started = (ib_time_t)trx->start_time;
@@ -645,17 +650,14 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   const rec_t *rec;
   const dict_index_t *index;
   ulint n_fields;
-  mem_heap_t *heap;
-  ulint offsets_onstack[REC_OFFS_NORMAL_SIZE];
-  ulint *offsets;
   char buf[TRX_I_S_LOCK_DATA_MAX_LEN];
   ulint buf_used;
   ulint i;
+  Rec_offsets rec_offsets;
 
   mtr_start(&mtr);
 
-  block = buf_page_try_get(
-      page_id_t(lock_rec_get_space_id(lock), lock_rec_get_page_no(lock)), &mtr);
+  block = buf_page_try_get(lock_rec_get_page_id(lock), &mtr);
 
   if (block == nullptr) {
     *lock_data = nullptr;
@@ -667,9 +669,6 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   page = reinterpret_cast<const page_t *>(buf_block_get_frame(block));
 
-  rec_offs_init(offsets_onstack);
-  offsets = offsets_onstack;
-
   rec = page_find_rec_with_heap_no(page, heap_no);
 
   index = lock_rec_get_index(lock);
@@ -678,8 +677,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   ut_a(n_fields > 0);
 
-  heap = nullptr;
-  offsets = rec_get_offsets(rec, index, offsets, n_fields, &heap);
+  const ulint *offsets = rec_offsets.compute(rec, index);
 
   /* format and store the data */
 
@@ -692,14 +690,6 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   *lock_data = container->cache_string(buf);
 
-  if (heap != nullptr) {
-    /* this means that rec_get_offsets() has created a new
-    heap and has stored offsets in it; check that this is
-    really the case and free the heap */
-    ut_a(offsets != offsets_onstack);
-    mem_heap_free(heap);
-  }
-
   mtr_commit(&mtr);
 }
 
@@ -707,13 +697,14 @@ void fill_locks_row(i_s_locks_row_t *row, const lock_t *lock, ulint heap_no) {
   row->lock_immutable_id = lock_get_immutable_id(lock);
   row->lock_trx_immutable_id = lock_get_trx_immutable_id(lock);
   switch (lock_get_type(lock)) {
-    case LOCK_REC:
-
-      row->lock_space = lock_rec_get_space_id(lock);
-      row->lock_page = lock_rec_get_page_no(lock);
+    case LOCK_REC: {
+      const auto page_id = lock_rec_get_page_id(lock);
+      row->lock_space = page_id.space();
+      row->lock_page = page_id.page_no();
       row->lock_rec = heap_no;
 
       break;
+    }
     case LOCK_TABLE:
 
       row->lock_space = SPACE_UNKNOWN;
@@ -772,7 +763,11 @@ static ibool add_trx_relevant_locks_to_cache(
                                requested lock row, or NULL or
                                undefined */
 {
-  ut_ad(lock_mutex_own());
+  /* We are about to iterate over locks for various tables/rows so we can not
+  narrow the required latch to any specific shard, and thus require exclusive
+  access to lock_sys. This is also needed to avoid observing NULL temporarily
+  set to wait_lock during B-tree page reorganization. */
+  ut_ad(locksys::owns_exclusive_global_latch());
 
   /* If transaction is waiting we add the wait lock and all locks
   from another transactions that are blocking the wait lock. */
@@ -872,6 +867,9 @@ static void fetch_data_into_cache_low(
                              transactions */
     trx_ut_list_t *trx_list) /*!< in: trx list */
 {
+  /* We are going to iterate over many different shards of lock_sys so we need
+  exclusive access */
+  ut_ad(locksys::owns_exclusive_global_latch());
   trx_t *trx;
   bool rw_trx_list = trx_list == &trx_sys->rw_trx_list;
 
@@ -903,7 +901,7 @@ static void fetch_data_into_cache_low(
     ut_ad(trx->in_rw_trx_list == rw_trx_list);
 
     if (!add_trx_relevant_locks_to_cache(cache, trx, &requested_lock_row)) {
-      cache->is_truncated = TRUE;
+      cache->is_truncated = true;
       trx_mutex_exit(trx);
       return;
     }
@@ -913,7 +911,7 @@ static void fetch_data_into_cache_low(
 
     /* memory could not be allocated */
     if (trx_row == nullptr) {
-      cache->is_truncated = TRUE;
+      cache->is_truncated = true;
       trx_mutex_exit(trx);
       return;
     }
@@ -921,7 +919,7 @@ static void fetch_data_into_cache_low(
     if (!fill_trx_row(trx_row, trx, requested_lock_row, cache)) {
       /* memory could not be allocated */
       --cache->innodb_trx.rows_used;
-      cache->is_truncated = TRUE;
+      cache->is_truncated = true;
       trx_mutex_exit(trx);
       return;
     }
@@ -934,7 +932,9 @@ static void fetch_data_into_cache_low(
  table cache buffer. Cache must be locked for write. */
 static void fetch_data_into_cache(trx_i_s_cache_t *cache) /*!< in/out: cache */
 {
-  ut_ad(lock_mutex_own());
+  /* We are going to iterate over many different shards of lock_sys so we need
+  exclusive access */
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
   trx_i_s_cache_clear(cache);
@@ -946,7 +946,7 @@ static void fetch_data_into_cache(trx_i_s_cache_t *cache) /*!< in/out: cache */
   /* Capture the state of the read-only active transactions */
   fetch_data_into_cache_low(cache, false, &trx_sys->mysql_trx_list);
 
-  cache->is_truncated = FALSE;
+  cache->is_truncated = false;
 }
 
 /** Update the transactions cache if it has not been read for some time.
@@ -959,26 +959,21 @@ int trx_i_s_possibly_fetch_data_into_cache(
     return (1);
   }
 
-  /* We need to read trx_sys and record/table lock queues */
+  {
+    /* We need to read trx_sys and record/table lock queues */
+    locksys::Global_exclusive_latch_guard guard{};
 
-  lock_mutex_enter();
+    trx_sys_mutex_enter();
 
-  trx_sys_mutex_enter();
+    fetch_data_into_cache(cache);
 
-  fetch_data_into_cache(cache);
-
-  trx_sys_mutex_exit();
-
-  lock_mutex_exit();
+    trx_sys_mutex_exit();
+  }
 
   return (0);
 }
 
-/** Returns TRUE if the data in the cache is truncated due to the memory
- limit posed by TRX_I_S_MEM_LIMIT.
- @return true if truncated */
-ibool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache) /*!< in: cache */
-{
+bool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache) {
   return (cache->is_truncated);
 }
 
@@ -987,8 +982,10 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
 {
   /* The latching is done in the following order:
   acquire trx_i_s_cache_t::rw_lock, X
-  acquire lock mutex
-  release lock mutex
+  acquire locksys exclusive global latch
+  acquire trx_sys mutex
+  release trx_sys mutex
+  release locksys exclusive global latch
   release trx_i_s_cache_t::rw_lock
   acquire trx_i_s_cache_t::rw_lock, S
   acquire trx_i_s_cache_t::last_read_mutex
@@ -1014,7 +1011,7 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
 
   cache->mem_allocd = 0;
 
-  cache->is_truncated = FALSE;
+  cache->is_truncated = false;
 }
 
 /** Free the INFORMATION SCHEMA trx related cache. */

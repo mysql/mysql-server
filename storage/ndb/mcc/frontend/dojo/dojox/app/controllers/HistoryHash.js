@@ -1,13 +1,16 @@
 //>>built
-define("dojox/app/controllers/HistoryHash",["dojo/_base/lang","dojo/_base/declare","dojo/topic","dojo/on","../Controller","dojo/hash"],function(_1,_2,_3,on,_4){
-return _2("dojox.app.controllers.HistoryHash",_4,{constructor:function(_5){
-this.events={"startTransition":this.onStartTransition};
-this.inherited(arguments);
-_3.subscribe("/dojo/hashchange",_1.hitch(this,function(_6){
-this._onHashChange(_6);
+define("dojox/app/controllers/HistoryHash",["dojo/_base/lang","dojo/_base/declare","dojo/topic","dojo/on","../Controller","../utils/hash","dojo/hash"],function(_1,_2,_3,on,_4,_5){
+return _2("dojox.app.controllers.HistoryHash",_4,{constructor:function(_6){
+this.events={"app-domNode":this.onDomNodeChange};
+if(this.app.domNode){
+this.onDomNodeChange({oldNode:null,newNode:this.app.domNode});
+}
+_3.subscribe("/dojo/hashchange",_1.hitch(this,function(_7){
+this._onHashChange(_7);
 }));
 this._historyStack=[];
 this._historyLen=0;
+this._historyDiff=0;
 this._current=null;
 this._next=null;
 this._previous=null;
@@ -15,39 +18,45 @@ this._index=0;
 this._oldHistoryLen=0;
 this._newHistoryLen=0;
 this._addToHistoryStack=false;
-this._detail=null;
 this._startTransitionEvent=false;
-var _7=window.location.hash;
-if(_7&&(_7.length>1)){
-_7=_7.substr(1);
+var _8=window.location.hash;
+if(_8&&(_8.length>1)){
+_8=_8.substr(1);
 }
-this._historyStack.push({"hash":_7,"url":window.location.href,"detail":{target:_7}});
+this._historyStack.push({"hash":_8,"url":window.location.href,"detail":{target:_8}});
 this._historyLen=window.history.length;
 this._index=this._historyStack.length-1;
-this._current=_7;
+this._current=_8;
 this._historyDiff=window.history.length-this._historyStack.length;
-},onStartTransition:function(_8){
-var _9=_8.detail.target;
-var _a=/#(.+)/;
-if(!_9&&_a.test(_8.detail.href)){
-_9=_8.detail.href.match(_a)[1];
+},onDomNodeChange:function(_9){
+if(_9.oldNode!=null){
+this.unbind(_9.oldNode,"startTransition");
 }
-var _b=_8.detail.url||"#"+_9;
+this.bind(_9.newNode,"startTransition",_1.hitch(this,this.onStartTransition));
+},onStartTransition:function(_a){
+var _b=_a.detail.target;
+var _c=/#(.+)/;
+if(!_b&&_c.test(_a.detail.href)){
+_b=_a.detail.href.match(_c)[1];
+}
+var _d=_a.detail.url||"#"+_b;
+if(_a.detail.params){
+_d=_5.buildWithParams(_d,_a.detail.params);
+}
 this._oldHistoryLen=window.history.length;
-window.location.hash=_b;
+window.location.hash=_d;
 this._addToHistoryStack=true;
-this._detail=_8.detail;
 this._startTransitionEvent=true;
-},_addHistory:function(_c){
-this._historyStack.push({"hash":_c,"url":window.location.href,"detail":{target:_c}});
+},_addHistory:function(_e){
+this._historyStack.push({"hash":_e,"url":window.location.href,"detail":{target:_e}});
 this._historyLen=window.history.length;
 this._index=this._historyStack.length-1;
 this._previous=this._current;
-this._current=_c;
+this._current=_e;
 this._next=null;
 this._historyDiff=window.history.length-this._historyStack.length;
 this._addToHistoryStack=false;
-},_onHashChange:function(_d){
+},_onHashChange:function(_f){
 if(this._index<0||this._index>(window.history.length-1)){
 throw Error("Application history out of management.");
 }
@@ -59,48 +68,50 @@ this._oldHistoryLen=0;
 }
 if(this._addToHistoryStack&&(this._oldHistoryLen===this._newHistoryLen)){
 this._historyStack.splice((this._newHistoryLen-this._historyDiff-1),(this._historyStack.length-1));
-this._addHistory(_d);
+this._addHistory(_f);
 return;
 }
 if(this._historyLen<window.history.length){
-this._addHistory(_d);
+this._addHistory(_f);
 if(!this._startTransitionEvent){
-this.app.trigger("transition",{"viewId":_d});
+this.app.emit("app-transition",{viewId:_5.getTarget(_f),opts:{params:_5.getParams(_f)||{}}});
 }
 }else{
-if(_d==this._current){
+if(_f==this._current){
 }else{
-if(_d===this._previous){
-this._back(_d,this._historyStack[this._index]["detail"]);
+if(_f===this._previous){
+this._back(_f,this._historyStack[this._index]["detail"]);
 }else{
-if(_d===this._next){
-this._forward(_d,this._historyStack[this._index]["detail"]);
+if(_f===this._next){
+this._forward(_f,this._historyStack[this._index]["detail"]);
 }else{
-var _e=-1;
+var _10=-1;
 for(var i=this._index;i>0;i--){
-if(_d===this._historyStack[i]["hash"]){
-_e=i;
+if(_f===this._historyStack[i]["hash"]){
+_10=i;
 break;
 }
 }
-if(-1===_e){
+if(-1===_10){
 for(var i=this._index;i<this._historyStack.length;i++){
-if(_d===this._historyStack[i]["hash"]){
-_e=i;
+if(_f===this._historyStack[i]["hash"]){
+_10=i;
 break;
 }
 }
 }
-if(0<_e<this._historyStack.length){
-this._go(_e,(_e-this._index));
+if(0<_10<this._historyStack.length){
+this._go(_10,(_10-this._index));
 }else{
+this.app.log("go error. index out of history stack.");
 }
 }
 }
 }
 }
 this._startTransitionEvent=false;
-},_back:function(_f,_10){
+},_back:function(_11,_12){
+this.app.log("back");
 this._next=this._historyStack[this._index]["hash"];
 this._index--;
 if(this._index>0){
@@ -108,10 +119,12 @@ this._previous=this._historyStack[this._index-1]["hash"];
 }else{
 this._previous=null;
 }
-this._current=_f;
-_3.publish("/app/history/back",{"viewId":_f,"detail":_10});
-this.app.trigger("transition",{"viewId":_f,"opts":{reverse:true}});
-},_forward:function(_11,_12){
+this._current=_11;
+var _13=_5.getTarget(_11,this.app.defaultView);
+_3.publish("/app/history/back",{"viewId":_13,"detail":_12});
+this.app.emit("app-transition",{viewId:_13,opts:_1.mixin({reverse:true},_12,{"params":_5.getParams(_11)})});
+},_forward:function(_14,_15){
+this.app.log("forward");
 this._previous=this._historyStack[this._index]["hash"];
 this._index++;
 if(this._index<this._historyStack.length-1){
@@ -119,24 +132,20 @@ this._next=this._historyStack[this._index+1]["hash"];
 }else{
 this._next=null;
 }
-this._current=_11;
-_3.publish("/app/history/forward",{"viewId":_11,"detail":_12});
-this.app.trigger("transition",{"viewId":_11,"opts":{reverse:false}});
-},_go:function(_13,_14){
-if(_13<0||(_13>window.history.length-1)){
-throw Error("Application history.go steps out of management.");
+this._current=_14;
+var _16=_5.getTarget(_14,this.app.defaultView);
+_3.publish("/app/history/forward",{"viewId":_16,"detail":_15});
+this.app.emit("app-transition",{viewId:_16,opts:_1.mixin({reverse:false},_15,{"params":_5.getParams(_14)})});
+},_go:function(_17,_18){
+if(_17<0||(_17>window.history.length-1)){
+throw Error("Application history.go steps out of management, index: "+_17+" length: "+window.history.length);
 }
-this._index=_13;
-this._current=this._historyStack[_13]["hash"];
-this._previous=this._historyStack[_13-1]?this._historyStack[_13-1]["hash"]:null;
-this._next=this._historyStack[_13+1]?this._historyStack[_13+1]["hash"]:null;
-_3.publish("/app/history/go",{"viewId":this._current,"step":_14,"detail":this._historyStack[_13]["detail"]});
-var _15;
-if(_14>0){
-_15={"viewId":this._current,"opts":{reverse:false}};
-}else{
-_15={"viewId":this._current,"opts":{reverse:true}};
-}
-this.app.trigger("transition",_15);
+this._index=_17;
+this._current=this._historyStack[_17]["hash"];
+this._previous=this._historyStack[_17-1]?this._historyStack[_17-1]["hash"]:null;
+this._next=this._historyStack[_17+1]?this._historyStack[_17+1]["hash"]:null;
+var _19=_5.getTarget(this._current,this.app.defaultView);
+_3.publish("/app/history/go",{"viewId":_19,"step":_18,"detail":this._historyStack[_17]["detail"]});
+this.app.emit("app-transition",{viewId:_19,opts:_1.mixin({reverse:(_18<=0)},this._historyStack[_17]["detail"],{"params":_5.getParams(this._current)})});
 }});
 });

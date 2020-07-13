@@ -251,6 +251,7 @@
 --source include/not_master_info_file.inc
 --source include/have_binlog_format_row.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 # When relay-log-info-repository=FILE,
@@ -538,14 +539,12 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 
 --let $assert_text = Found 4 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel '': Invalid, corrupted PRIVILEGE_CHECKS_USER was found.*
 --let $assert_count = 4
 --source include/assert_grep.inc
 
 --let $assert_text = Found 1 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel '': PRIVILEGE_CHECKS_USER for replication channel '' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user
 --let $assert_count = 1
 --source include/assert_grep.inc
@@ -784,14 +783,12 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 
 --let $assert_text = Found 5 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel 'ch1': Invalid, corrupted PRIVILEGE_CHECKS_USER was found.*
 --let $assert_count = 5
 --source include/assert_grep.inc
 
 --let $assert_text = Found 1 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_log_info_repository_persistence
 --let $assert_select = \[Warning\] \[[^]]*\] \[Repl\] Slave SQL for channel 'ch1': PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user
 --let $assert_count = 1
 --source include/assert_grep.inc

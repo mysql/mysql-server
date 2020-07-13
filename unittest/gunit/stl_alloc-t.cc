@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,13 +43,11 @@ using std::vector;
   Tests of custom STL memory allocators.
 */
 
-#if defined(GTEST_HAS_TYPED_TEST)
-
 namespace stlalloc_unittest {
 
 /*
   Wrappers to overcome the issue that we need allocators with
-  default constructors for TYPED_TEST_CASE, which neither
+  default constructors for TYPED_TEST_SUITE, which neither
   Malloc_allocator nor Mem_root_allocator have.
 
   These wrappers need to inherit so that they are allocators themselves.
@@ -195,7 +193,7 @@ typedef ::testing::Types<
     Not_instr_allocator<int>, PSI_42_allocator<int>, Init_aa_allocator<int>>
     AllocatorTypesInt;
 
-TYPED_TEST_CASE(STLAllocTestInt, AllocatorTypesInt);
+TYPED_TEST_SUITE(STLAllocTestInt, AllocatorTypesInt);
 
 TYPED_TEST(STLAllocTestInt, SimpleVector) {
   vector<int, TypeParam> v1(this->allocator);
@@ -271,7 +269,7 @@ typedef ::testing::Types<Malloc_allocator_wrapper<Container_object>,
                          Init_aa_allocator<Container_object>>
     AllocatorTypesObject;
 
-TYPED_TEST_CASE(STLAllocTestObject, AllocatorTypesObject);
+TYPED_TEST_SUITE(STLAllocTestObject, AllocatorTypesObject);
 
 class Container_object {
   char *buffer;
@@ -309,7 +307,7 @@ typedef ::testing::Types<Malloc_allocator_wrapper<Container_container>,
                          Init_aa_allocator<Container_container>>
     AllocatorTypesNested;
 
-TYPED_TEST_CASE(STLAllocTestNested, AllocatorTypesNested);
+TYPED_TEST_SUITE(STLAllocTestNested, AllocatorTypesNested);
 
 class Container_container {
   deque<Container_object> d;
@@ -357,8 +355,8 @@ typedef ::testing::Types<Not_instr_allocator<char>, PSI_42_allocator<char>,
                          Init_aa_allocator<char>>
     AllocatorTypesBasicStringTemplate;
 
-TYPED_TEST_CASE(STLAllocTestBasicStringTemplate,
-                AllocatorTypesBasicStringTemplate);
+TYPED_TEST_SUITE(STLAllocTestBasicStringTemplate,
+                 AllocatorTypesBasicStringTemplate);
 
 //
 // Verify that a default_string can be created and extended with the
@@ -403,7 +401,7 @@ typedef ::testing::Types<Malloc_allocator_wrapper<std::unique_ptr<int>>,
                          Init_aa_allocator<std::unique_ptr<int>>>
     AllocatorTypesMoveOnly;
 
-TYPED_TEST_CASE(STLAllocTestMoveOnly, AllocatorTypesMoveOnly);
+TYPED_TEST_SUITE(STLAllocTestMoveOnly, AllocatorTypesMoveOnly);
 
 TYPED_TEST(STLAllocTestMoveOnly, MoveOnly) {
   vector<std::unique_ptr<int>, TypeParam> v(this->allocator);
@@ -414,5 +412,3 @@ TYPED_TEST(STLAllocTestMoveOnly, MoveOnly) {
 }
 
 }  // namespace stlalloc_unittest
-
-#endif  // GTEST_HAS_TYPED_TEST)

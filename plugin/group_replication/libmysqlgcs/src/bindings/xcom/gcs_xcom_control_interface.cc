@@ -2149,18 +2149,31 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
     }
   }
 
-  if (((m_is_killer_node && m_has_majority) || force_remove) &&
-      (nodes_to_remove.get_size() > 0)) {
-    MYSQL_GCS_LOG_TRACE(
-        "process_suspicions: Expelling suspects that timed out!");
-    bool const removed =
-        m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
-    if (removed) {
-      m_expels_in_progress.remember_expels_issued(m_config_id, nodes_to_remove);
-    }
-    if (force_remove && !removed) {
-      // Failed to remove myself from the group so will install leave view
-      m_control_if->install_leave_view(Gcs_view::MEMBER_EXPELLED);
+  /* We only act when we have something to do and think we have a majority at
+     the moment. */
+  if (!nodes_to_remove.empty() && m_has_majority) {
+    /* If I am the killer node, I remove the suspects.
+       Otherwise, I proactively remove myself if I suspect myself, i.e.
+       force_remove == true. I might have been partitioned away from the
+       majority of the group for too long, in which case I may not receive the
+       view where I am removed. (Why?) */
+    if (m_is_killer_node) {
+      MYSQL_GCS_LOG_TRACE(
+          "process_suspicions: Expelling suspects that timed out!");
+      bool const removed =
+          m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
+      if (removed) {
+        m_expels_in_progress.remember_expels_issued(m_config_id,
+                                                    nodes_to_remove);
+      }
+    } else if (force_remove) {
+      DBUG_ASSERT(!m_is_killer_node);
+      MYSQL_GCS_LOG_TRACE("process_suspicions: Expelling myself!");
+      bool const removed = m_proxy->xcom_remove_node(*m_my_info, m_gid_hash);
+      if (!removed) {
+        // Failed to remove myself from the group so will install leave view
+        m_control_if->install_leave_view(Gcs_view::MEMBER_EXPELLED);
+      }
     }
   }
 

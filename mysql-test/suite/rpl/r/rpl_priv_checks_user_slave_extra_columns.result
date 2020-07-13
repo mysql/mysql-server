@@ -30,6 +30,7 @@ include/start_slave.inc
 # 5) Make a DDL change on the master.
 #
 INSERT INTO test.t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
 #
 # 6) Check tables have the same data on master and slave.
 #
@@ -53,6 +54,7 @@ include/start_slave.inc
 # 3) Make a DDL change on the master.
 #
 INSERT INTO test.t2 VALUES (1,1,"a string of characters");
+include/sync_slave_sql_with_master.inc
 #
 # 4) Check tables have the same data on master and slave.
 #

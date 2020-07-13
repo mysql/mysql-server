@@ -13,6 +13,7 @@
   border-top: 1px solid #a4b0b9;
   border-bottom: 1px solid #979da3;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#8f9ea9), to(#b7c0c7));
+  background-image: linear-gradient(to bottom, #8f9ea9 0%, #b7c0c7 100%);
   color: white;
   line-height: 22px;
   text-shadow: rgba(0, 0, 0, 0.6) 0 -1px 0;

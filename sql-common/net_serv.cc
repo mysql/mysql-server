@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,6 +90,7 @@ extern void thd_increment_bytes_received(size_t length);
 #endif
 
 static bool net_write_buff(NET *, const uchar *, size_t);
+static uchar *compress_packet(NET *net, const uchar *packet, size_t *length);
 
 NET_EXTENSION *net_extension_init() {
   NET_EXTENSION *ext = static_cast<NET_EXTENSION *>(my_malloc(
@@ -113,6 +114,30 @@ void net_extension_free(NET *net) {
     net->extension = nullptr;
 #endif
   }
+}
+
+/**
+  Returns the appropiate compression_context based on caller.
+  If the caller is server then fetch is fromthe server extension
+  structure.
+
+  @param net  [in]    NET structure
+
+  @return
+    @retval  mysql_compress_context structure pointer
+*/
+static mysql_compress_context *compress_context(NET *net) {
+  mysql_compress_context *mysql_compress_ctx = nullptr;
+#ifdef MYSQL_SERVER
+  NET_SERVER *server_extension = static_cast<NET_SERVER *>(net->extension);
+  if (server_extension != nullptr) {
+    mysql_compress_ctx = &server_extension->compress_ctx;
+  }
+#else
+  NET_EXTENSION *ext = NET_EXTENSION_PTR(net);
+  if (ext != nullptr) mysql_compress_ctx = &ext->compress_ctx;
+#endif
+  return mysql_compress_ctx;
 }
 
 /** Init with packet info. */
@@ -432,7 +457,7 @@ bool my_net_write(NET *net, const uchar *packet, size_t len) {
   if (net_write_buff(net, buff, NET_HEADER_SIZE)) {
     return true;
   }
-#ifndef DEBUG_DATA_PACKETS
+#ifdef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
   return net_write_buff(net, packet, len);
@@ -458,6 +483,20 @@ static void reset_packet_write_state(NET *net) {
 
   net_async->async_write_vector_size = 0;
   net_async->async_write_vector_current = 0;
+  if (net_async->compressed_write_buffers) {
+    /*
+      There are two entries per packet, one for header and one for payload.
+      We only need to free payloads as headers have their own buffer. If the
+      last packet was size 0, the vector size will be 1 lower and due to int
+      truncation for odd numbers will be correctly accounted for.
+    */
+    for (size_t i = 0; i < net_async->compressed_buffers_size; ++i) {
+      my_free(net_async->compressed_write_buffers[i]);
+    }
+    my_free(net_async->compressed_write_buffers);
+    net_async->compressed_write_buffers = nullptr;
+    net_async->compressed_buffers_size = 0;
+  }
 }
 
 /*
@@ -480,6 +519,10 @@ static int begin_packet_write_state(NET *net, uchar command,
                                     const uchar *optional_prefix,
                                     size_t prefix_len) {
   DBUG_TRACE;
+  size_t header_len = NET_HEADER_SIZE;
+  if (net->compress) {
+    header_len += NET_HEADER_SIZE + COMP_HEADER_SIZE;
+  }
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   size_t total_len = packet_len + prefix_len;
   bool include_command = (command < COM_END);
@@ -491,6 +534,7 @@ static int begin_packet_write_state(NET *net, uchar command,
 
   struct io_vec *vec;
   uchar *headers;
+  uchar **compressed_buffers = nullptr;
   if (total_len < MAX_PACKET_LENGTH) {
     /*
       Most writes hit this case, ie, less than MAX_PACKET_LENGTH of
@@ -507,9 +551,9 @@ static int begin_packet_write_state(NET *net, uchar command,
       return 0;
     }
 
-    headers = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                 packet_count * (NET_HEADER_SIZE + 1),
-                                 MYF(MY_ZEROFILL));
+    headers =
+        (uchar *)my_malloc(PSI_NOT_INSTRUMENTED,
+                           packet_count * (header_len + 1), MYF(MY_ZEROFILL));
     if (!headers) {
       my_free(vec);
       return 0;
@@ -521,6 +565,17 @@ static int begin_packet_write_state(NET *net, uchar command,
   */
   net_async->async_write_vector = vec;
   net_async->async_write_headers = headers;
+  if (net->compress) {
+    // Will need to hand compress and manage at most 1 buffer per packet
+    compressed_buffers =
+        (uchar **)my_malloc(key_memory_NET_compress_packet,
+                            sizeof(uchar *) * packet_count, MYF(MY_ZEROFILL));
+    if (!compressed_buffers) {
+      reset_packet_write_state(net);
+      return 0;
+    }
+  }
+  net_async->compressed_write_buffers = compressed_buffers;
 
   /*
     We sneak the command into the first header, so the special casing
@@ -534,17 +589,38 @@ static int begin_packet_write_state(NET *net, uchar command,
     consume *three* iovec entries.
   */
   for (size_t packet_num = 0; packet_num < packet_count; ++packet_num) {
-    /* First packet, our header. */
-    uchar *buf = headers + packet_num * NET_HEADER_SIZE;
-    if (packet_num > 0) {
-      /*
-        First packet stole one extra byte from the header buffer for
-        the command number, so account for it here.
-      */
-      ++buf;
-    }
-    size_t header_len = NET_HEADER_SIZE;
+    /*
+      The first iovec contains the headers only and command if it is provided
+    */
+    uchar *buf = headers + packet_num * (header_len + 1);
     size_t bytes_queued = 0;
+    (*vec).iov_base = buf;
+    (*vec).iov_len = header_len;
+
+    /*
+     if using compression, add the compression header. Usually, we would rely on
+     compress_packet to add compression headers, but here we assume
+     that headers do not compress well due to their short length and send them
+     as is by constructing our own packat and incrementing compress_pkt_nr
+     manually.
+
+     We don't compress the headers together with the payload because that
+     would mean extra memcpy's to concatenate the buffers to pass into
+     compress_packet.
+    */
+    if (net->compress) {
+      size_t comp_packet_len = NET_HEADER_SIZE;
+      if (packet_num == 0) {
+        comp_packet_len += prefix_len + (include_command ? 1 : 0);
+      }
+      int3store(buf, comp_packet_len);
+      buf[3] = (uchar)net->compress_pkt_nr++;
+      /*
+       The bytes in COMP_HEADER_SIZE are implicitly zero because they were
+       zero filled. A zero length means that the contents are uncompressed.
+      */
+      buf += NET_HEADER_SIZE + COMP_HEADER_SIZE;
+    }
 
     size_t packet_size = min<size_t>(MAX_PACKET_LENGTH, total_len);
     int3store(buf, packet_size);
@@ -556,24 +632,22 @@ static int begin_packet_write_state(NET *net, uchar command,
     */
     if (packet_num == 0 && include_command) {
       buf[4] = command;
-      ++header_len;
+      (*vec).iov_len++;
       /* Our command byte counts against the packet size. */
       ++bytes_queued;
     }
 
-    (*vec).iov_base = buf;
-    (*vec).iov_len = header_len;
     ++vec;
 
-    /* Second packet, our optional prefix (if any). */
+    /* Second iovec (if any), our optional prefix. */
     if (packet_num == 0 && optional_prefix != nullptr) {
       (*vec).iov_base = const_cast<uchar *>(optional_prefix);
       (*vec).iov_len = prefix_len;
-      ++vec;
       bytes_queued += prefix_len;
+      ++vec;
     }
     /*
-      Final packet, the payload itself. Send however many bytes from
+      Final iovec, the payload itself. Send however many bytes from
       packet we have left, and advance our packet pointer.
     */
     size_t remaining_bytes = packet_size - bytes_queued;
@@ -584,7 +658,43 @@ static int begin_packet_write_state(NET *net, uchar command,
 
     packet += remaining_bytes;
     total_len -= bytes_queued;
+    /* clang-format off */
+    /*
+      If we have a payload to compress, then compress_packet will add
+      compression headers for us. This is what we have at this point where
+      each line is an iovec.
+      | len              |cpn|uncompress len| len                                    | pn | command |
+      | prefix + command | 0 |0             | total_len = command + prefix + payload | 0  |COM_*    |
 
+      | prefix |
+      |...     |
+
+      |payload |
+      |...     |
+
+      We want to transform into this:
+
+      | len             |cpn|uncompress len| len                                    | pn | command |
+      | prefix +command | 0 |0             | total_len = command + prefix + payload | 0  |COM_*    |
+
+      | prefix |
+      |...     |
+
+      | len                     |cpn|uncompress len| compressed payload |
+      | len(compressed payload) |  1|  len(payload)|  compress(payload) |
+    */
+    /* clang-format on */
+
+    if (net->compress && remaining_bytes) {
+      (*vec).iov_base =
+          compress_packet(net, (uchar *)(*vec).iov_base, &(*vec).iov_len);
+      if (!(*vec).iov_base) {
+        reset_packet_write_state(net);
+        return 0;
+      }
+      compressed_buffers[net_async->compressed_buffers_size++] =
+          (uchar *)(*vec).iov_base;
+    }
     ++vec;
 
     /* Make sure we sent entire packets. */
@@ -598,7 +708,11 @@ static int begin_packet_write_state(NET *net, uchar command,
 
   net_async->async_write_vector_size = (vec - net_async->async_write_vector);
   net_async->async_write_vector_current = 0;
-
+  /*
+   This is needed because the packet reading code in the net_read_packet_header
+   uses pkt_nr for verification.
+  */
+  if (net->compress) net->pkt_nr = net->compress_pkt_nr;
   return 1;
 }
 
@@ -616,8 +730,9 @@ static net_async_status net_write_vector_nonblocking(NET *net, ssize_t *res) {
     *res = vio_write(net->vio, (uchar *)vec->iov_base, vec->iov_len);
 
     if (*res < 0) {
-      if (errno == SOCKET_EAGAIN || (SOCKET_EAGAIN != SOCKET_EWOULDBLOCK &&
-                                     errno == SOCKET_EWOULDBLOCK)) {
+      if (socket_errno == SOCKET_EAGAIN ||
+          (SOCKET_EAGAIN != SOCKET_EWOULDBLOCK &&
+           socket_errno == SOCKET_EWOULDBLOCK)) {
         /*
           In the unlikely event that there is a renegotiation and
           SSL_ERROR_WANT_READ is returned, set blocking state to read.
@@ -693,11 +808,6 @@ net_async_status net_write_command_nonblocking(NET *net, uchar command,
         goto done;
       }
       return NET_ASYNC_NOT_READY;
-      net_async->async_operation = NET_ASYNC_OP_COMPLETE;
-      /* fallthrough */
-    case NET_ASYNC_OP_COMPLETE:
-      *res = false;
-      goto done;
     default:
       DBUG_ASSERT(false);
       *res = true;
@@ -813,6 +923,7 @@ bool net_write_command(NET *net, uchar command, const uchar *header,
 */
 
 static bool net_write_buff(NET *net, const uchar *packet, size_t len) {
+  DBUG_TRACE;
   ulong left_length;
   if (net->compress && net->max_packet > MAX_PACKET_LENGTH)
     left_length = (ulong)(MAX_PACKET_LENGTH - (net->write_pos - net->buff));
@@ -1122,16 +1233,8 @@ static uchar *compress_packet(NET *net, const uchar *packet, size_t *length) {
 
   memcpy(compr_packet + header_length, packet, *length);
 
-  mysql_compress_context *compress_ctx = nullptr;
-#ifdef MYSQL_SERVER
-  NET_SERVER *server_extension = static_cast<NET_SERVER *>(net->extension);
-  if (server_extension != nullptr) {
-    compress_ctx = &server_extension->compress_ctx;
-  }
-#else
-  NET_EXTENSION *ext = NET_EXTENSION_PTR(net);
-  if (ext != nullptr) compress_ctx = &ext->compress_ctx;
-#endif
+  mysql_compress_context *compress_ctx = compress_context(net);
+
   /* Compress the encapsulated packet. */
   if (my_compress(compress_ctx, compr_packet + header_length, length,
                   &compr_length)) {
@@ -1213,6 +1316,7 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
 */
 
 static bool net_read_raw_loop(NET *net, size_t count) {
+  DBUG_TRACE;
   bool eof = false;
   unsigned int retry_count = 0;
   uchar *buf = net->buff + net->where_b;
@@ -1420,15 +1524,16 @@ static net_async_status net_read_data_nonblocking(NET *net, size_t count,
     case NET_ASYNC_OP_READING:
       rc = net_read_available(net, net_async->async_bytes_wanted);
       if (rc == packet_error) {
-        *err_ptr = rc;
+        *err_ptr = true;
         net_async->async_operation = NET_ASYNC_OP_IDLE;
         return NET_ASYNC_COMPLETE;
       }
       bytes_read = (size_t)rc;
       net_async->async_bytes_wanted -= bytes_read;
       if (net_async->async_bytes_wanted != 0) {
-        DBUG_PRINT("partial read", ("wanted/remaining: %zu, %zu", count,
-                                    net_async->async_bytes_wanted));
+        DBUG_PRINT("partial read",
+                   ("wanted/remaining/read: %zu, %zu, %zu", count,
+                    net_async->async_bytes_wanted, bytes_read));
         return NET_ASYNC_NOT_READY;
       }
       net_async->async_operation = NET_ASYNC_OP_COMPLETE;
@@ -1453,7 +1558,9 @@ static net_async_status net_read_packet_header_nonblocking(NET *net,
                                                            bool *err_ptr) {
   DBUG_TRACE;
   uchar pkt_nr;
-  if (net_read_data_nonblocking(net, NET_HEADER_SIZE, err_ptr) ==
+  size_t bytes_wanted = NET_HEADER_SIZE;
+  if (net->compress) bytes_wanted += COMP_HEADER_SIZE;
+  if (net_read_data_nonblocking(net, bytes_wanted, err_ptr) ==
       NET_ASYNC_NOT_READY) {
     return NET_ASYNC_NOT_READY;
   }
@@ -1461,7 +1568,7 @@ static net_async_status net_read_packet_header_nonblocking(NET *net,
     return NET_ASYNC_COMPLETE;
   }
 
-  DBUG_DUMP("packet_header", net->buff + net->where_b, NET_HEADER_SIZE);
+  DBUG_DUMP("packet_header", net->buff + net->where_b, bytes_wanted);
 
   pkt_nr = net->buff[net->where_b + 3];
 
@@ -1497,14 +1604,12 @@ static net_async_status net_read_packet_header_nonblocking(NET *net,
 /*
   Read packet header followed by packet data in an asynchronous way.
 */
-static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret,
-                                                    ulong *complen) {
+static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret) {
   DBUG_TRACE;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   size_t pkt_data_len;
+  size_t async_packet_uncompressed_length = 0;
   bool err;
-
-  *complen = 0;
 
   switch (net_async->async_packet_read_state) {
     case NET_ASYNC_PACKET_READ_IDLE:
@@ -1526,12 +1631,28 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret,
       DBUG_PRINT("info",
                  ("async packet len: %zu", net_async->async_packet_length));
 
+      /*
+        If this is using the compressed protocol, the next 3 bytes contain
+        the length of the uncompressed contents of the payload.
+      */
+      if (net->compress) {
+        /*
+          The following uint3korr() may read 4 bytes, so make sure we don't
+          read unallocated or uninitialized memory. The right-hand expression
+          must match the size of the buffer allocated in net_realloc().
+        */
+        DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
+                    net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE + 1);
+        async_packet_uncompressed_length =
+            uint3korr(net->buff + net->where_b + NET_HEADER_SIZE);
+      }
+
       /* End of big multi-packet. */
       if (!net_async->async_packet_length) goto end;
 
-      pkt_data_len =
-          max(static_cast<ulong>(net_async->async_packet_length), *complen) +
-          net->where_b;
+      pkt_data_len = max(net_async->async_packet_length,
+                         async_packet_uncompressed_length) +
+                     net->where_b;
 
       /* Expand packet buffer if necessary. */
       if ((pkt_data_len >= net->max_packet) && net_realloc(net, pkt_data_len))
@@ -1564,12 +1685,296 @@ end:
 
   net->read_pos[*ret] = 0;
   net->reading_or_writing = 0;
+  if (net->compress) {
+    mysql_compress_context *mysql_compress_ctx = compress_context(net);
+    if (my_uncompress(mysql_compress_ctx, net->buff + net->where_b,
+                      net_async->async_packet_length,
+                      &(async_packet_uncompressed_length))) {
+#ifdef MYSQL_SERVER
+      my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
+#else
+      net->error = 2;  // caller will close socket
+      net->last_errno = ER_NET_UNCOMPRESS_ERROR;
+#endif
+      goto error;
+    }
+    *ret = async_packet_uncompressed_length;
+  }
   return NET_ASYNC_COMPLETE;
 
 error:
   *ret = packet_error;
   net->reading_or_writing = 0;
   return NET_ASYNC_COMPLETE;
+}
+
+/**
+  Initialize the offsets. If it is first packet then initialize the offsets
+  from the beginning else initialize the offsets after the data last read
+  in the old packet.
+
+  @param [in, out]  net              NET structure.
+  @param [in, out]  start_of_packet  Starting offset of the packet to be read.
+                                     In multipackets, points to the next header
+                                     that will be erased.
+  @param [in, out]  first_packet_offset Starting offset of the packet to read.
+  @param [in, out]  multi_byte_packet  Flag that indicate if packet is multibyte
+  @param [in, out]  buf_length       End of readable byte.
+*/
+static void net_read_init_offsets(NET *net, size_t &start_of_packet,
+                                  size_t &first_packet_offset,
+                                  uint &multi_byte_packet, size_t &buf_length) {
+  if (net->remain_in_buf) {
+    buf_length = net->buf_length; /* Data left in old packet */
+    first_packet_offset = start_of_packet =
+        static_cast<size_t>(net->buf_length - net->remain_in_buf);
+    /* Restore the character that was overwritten by the end 0 */
+    net->buff[start_of_packet] = net->save_char;
+  } else {
+    /* reuse buffer, as there is nothing in it that we need */
+    buf_length = start_of_packet = first_packet_offset = 0;
+  }
+  multi_byte_packet = 0;
+}
+
+/**
+  Read the payload length in the packet, if it is found to multipacket omit
+  the packet header of the subsequent packets.
+
+  @param [in, out]  net              NET structures
+  @param [in, out]  start_of_packet  In multipackets, points to the next header
+                                     that will be erased
+  @param [in, out]  buf_length       End of readable byte
+  @param [in, out]  multi_byte_packet Flag that indicate if packet is multibyte
+  @param [in, out]  first_packet_offset Starting offset of the packet to read
+
+  @returns
+   @retval true   The last packet read
+   @retval false  Otherwise
+*/
+static bool net_read_process_buffer(NET *net, size_t &start_of_packet,
+                                    size_t &buf_length, uint &multi_byte_packet,
+                                    size_t &first_packet_offset) {
+  DBUG_TRACE;
+begin:
+  DBUG_PRINT("info", ("async_buf_length : %zu, remaining_buf : %lu, "
+                      "first_packet_offset : %zu,  start_of_packet : %zu, "
+                      "net->where_b : %lu, multi_byte_packet : %u ",
+                      buf_length, net->remain_in_buf, first_packet_offset,
+                      start_of_packet, net->where_b, multi_byte_packet));
+  size_t remain_in_buf = buf_length - start_of_packet;
+  if (remain_in_buf >= NET_HEADER_SIZE) {
+    size_t read_length = uint3korr(net->buff + start_of_packet);
+    DBUG_PRINT("info", ("read_length : %zu", read_length));
+    if (!read_length) {
+      start_of_packet += NET_HEADER_SIZE; /* End of multi-byte packet */
+      return true;
+    }
+    if (read_length + NET_HEADER_SIZE <= remain_in_buf) {
+      if (multi_byte_packet) {
+        /*
+          It's never the buffer on the first loop iteration that will have
+          multi_byte_packet on. Thus there shall never be a non-zero
+          first_packet_offset here.
+        */
+        DBUG_ASSERT(first_packet_offset == 0);
+        /* Remove packet header for second packet */
+        memmove(net->buff + start_of_packet,
+                net->buff + start_of_packet + NET_HEADER_SIZE,
+                remain_in_buf - NET_HEADER_SIZE);
+        start_of_packet += read_length;
+        buf_length -= NET_HEADER_SIZE;
+      } else {
+        start_of_packet += read_length + NET_HEADER_SIZE;
+      }
+      /* last packet */
+      if (read_length < MAX_PACKET_LENGTH) {
+        multi_byte_packet = 0; /* No last zero len packet */
+        return true;
+      }
+      multi_byte_packet = NET_HEADER_SIZE;
+      /* Move data down to read next data packet after current one */
+      if (first_packet_offset) {
+        memmove(net->buff, net->buff + first_packet_offset,
+                buf_length - first_packet_offset);
+        buf_length -= first_packet_offset;
+        start_of_packet -= first_packet_offset;
+        first_packet_offset = 0;
+      }
+      goto begin; /* Process the next data packet*/
+    }
+  }
+
+  /*
+    If we reach here, we need to read off network.
+    Start by clearing the front of the buffer.
+  */
+  if (first_packet_offset) {
+    memmove(net->buff, net->buff + first_packet_offset,
+            buf_length - first_packet_offset);
+    buf_length -= first_packet_offset;
+    start_of_packet -= first_packet_offset;
+    first_packet_offset = 0;
+  }
+  net->where_b = buf_length;
+  return false;
+}
+
+/**
+  Update the offsets in the NET structure after reading the current packet.
+
+  @param [in, out]  net         NET structure.
+  @param [in]  start_of_packet  In multipackets, points to the next header
+                                that will be erased.
+  @param [in]  first_packet_offset Starting offset of the packet to read.
+  @param [in]  buf_length       End of readable byte.
+  @param [in]  multi_byte_packet Flag that indicate if packet is multibyte
+*/
+static ulong net_read_update_offsets(NET *net, size_t start_of_packet,
+                                     size_t first_packet_offset,
+                                     size_t buf_length,
+                                     uint multi_byte_packet) {
+  DBUG_TRACE;
+  DBUG_PRINT("info", ("multi_byte_packet: %u, first_packet_offset : %zu, "
+                      "start_of_packet : %zu",
+                      multi_byte_packet, first_packet_offset, start_of_packet));
+  net->read_pos = net->buff + first_packet_offset + NET_HEADER_SIZE;
+  net->buf_length = buf_length;
+  net->remain_in_buf = (ulong)(buf_length - start_of_packet);
+  ulong len = ((ulong)(start_of_packet - first_packet_offset) -
+               NET_HEADER_SIZE - multi_byte_packet);
+  if (net->remain_in_buf) {
+    /*
+      If multi byte packet is non-zero then there is a zero length
+      packet at read_pos[len]. Adding the size of one header
+      reads the correct byte that will later be replaced. Guarded
+      to avoid buffer overflow. If remain_buf = 0 then the char
+      wont be restored anyway
+    */
+    net->save_char = net->read_pos[len + multi_byte_packet];
+  }
+  net->read_pos[len] = '\0';  // Safeguard for mysql_use_result.
+  DBUG_PRINT("info", ("len :%lu, net->remain_in_buf : %lu, net->read_pos: %d",
+                      len, net->remain_in_buf, *(net->read_pos)));
+  return len;
+}
+
+/*
+  If packet is compressed, uncompress it and parse the next available packet
+  in the uncompressed packet.
+
+  NET_FIELDS
+  ----------
+  net->buff           the head of the buffer
+  net->buf_length     buff + buff_length is the buffer that contains data
+  net->remain_in_buf  the data in [remain_in_buf, buf_length]
+                      is data buffered to be read
+  net->whereb         Processed position in the buffer
+  first_packet_offset Points to the header of the packet to be returned
+  start_of_packet     In multipackets, points to the next header that will
+                      be erased.
+  Example that shows the position of NET_fields to return Packet 2
+  -------------------------------------------------------
+  |H1|P1|H2|P2|H3|P3|...
+  -------------------------------------------------------
+   ^     ^  ^        ^
+   ^     ^  ^        net->where_b (used for network writes)
+   ^     ^  ^        net->buf_length (end of readable bytes)
+   ^     ^  ^
+   ^     ^  net->read_pos (Return stripped packet)
+   ^     ^
+   ^     first_packet_offset
+   ^
+   net->buff
+*/
+static net_async_status net_read_compressed_nonblocking(NET *net,
+                                                        ulong *len_ptr) {
+  DBUG_TRACE;
+  DBUG_ASSERT(net->compress);
+  ulong &len = *len_ptr;
+
+  /* Maintain the local states to read the multipacket asynchronously */
+  static size_t start_of_packet;
+  static size_t first_packet_offset;
+  static size_t buf_length;
+  static uint multi_byte_packet = 0;
+  static net_async_status status = NET_ASYNC_COMPLETE;
+
+  if (status != NET_ASYNC_NOT_READY)
+    net_read_init_offsets(net, start_of_packet, first_packet_offset,
+                          multi_byte_packet, buf_length);
+
+  for (;;) {
+    /*  Read the current packet in net->buff */
+    if (net_read_process_buffer(net, start_of_packet, buf_length,
+                                multi_byte_packet, first_packet_offset))
+      break;
+
+    /*
+      Read the mysql packet from vio, uncompress it and make it accessable
+      through net->buff.
+    */
+    status = net_read_packet_nonblocking(net, &len);
+    if (status == NET_ASYNC_NOT_READY) {
+      net->save_char = net->buff[first_packet_offset];
+      net->buf_length = buf_length;
+      return status;
+    }
+
+    if (len == packet_error) {
+      status = NET_ASYNC_COMPLETE;
+      return status;
+    }
+    buf_length += len;
+  }
+  /*
+    Once the packets are read in the net->buff, adjust the tracking offsets to
+    the appropiate values
+  */
+  len = net_read_update_offsets(net, start_of_packet, first_packet_offset,
+                                buf_length, multi_byte_packet);
+  status = NET_ASYNC_COMPLETE;
+  return status;
+}
+
+/**
+  Read the usual packet that is not compressed asynchronously.
+
+  @param[in, out] net NET structure
+  @param[out] len_ptr  length of the packet read
+
+  @return status of the reads.
+*/
+static net_async_status net_read_uncompressed_nonblocking(NET *net,
+                                                          ulong *len_ptr) {
+  DBUG_TRACE;
+  DBUG_ASSERT(!net->compress);
+  ulong &len = *len_ptr;
+
+  // Maintain the local states
+  static net_async_status status = NET_ASYNC_COMPLETE;
+  static ulong save_pos;
+  static ulong total_length;
+
+  // Initialize the states
+  if (status == NET_ASYNC_COMPLETE) {
+    save_pos = net->where_b;
+    total_length = 0;
+  }
+
+  status = net_read_packet_nonblocking(net, &len);
+  total_length += len;
+  net->where_b += len;
+
+  if (len == MAX_PACKET_LENGTH) status = NET_ASYNC_NOT_READY;
+  if (status == NET_ASYNC_NOT_READY) return status;
+
+  // Update the offsets
+  net->where_b = save_pos;
+  len = total_length;
+  net->read_pos = net->buff + net->where_b;
+  status = NET_ASYNC_COMPLETE;
+  return status;
 }
 
 /**
@@ -1638,24 +2043,84 @@ error:
 /*
   Non blocking version of my_net_read().
 */
-net_async_status my_net_read_nonblocking(NET *net, ulong *len_ptr,
-                                         ulong *complen_ptr) {
-  if (net_read_packet_nonblocking(net, len_ptr, complen_ptr) ==
-      NET_ASYNC_NOT_READY) {
-    return NET_ASYNC_NOT_READY;
-  }
+net_async_status my_net_read_nonblocking(NET *net, ulong *len_ptr) {
+  net_async_status status;
+  if (net->compress)
+    status = net_read_compressed_nonblocking(net, len_ptr);
+  else
+    status = net_read_uncompressed_nonblocking(net, len_ptr);
 
-  if (*len_ptr == packet_error) {
-    return NET_ASYNC_COMPLETE;
-  }
+  if (status == NET_ASYNC_NOT_READY) return status;
+
+  status = NET_ASYNC_COMPLETE;
+  if (*len_ptr == packet_error) return status;
 
   DBUG_PRINT("info", ("chunk nb read: %lu", *len_ptr));
+  return status;
+}
 
-  if (*len_ptr == MAX_PACKET_LENGTH) {
-    return NET_ASYNC_NOT_READY;
-  } else {
-    return NET_ASYNC_COMPLETE;
+/**
+  Reads one packet to net->buff + net->where_b.
+  If the packet is the first packet of a multi-packet packet
+  (which is indicated by the length of the packet = 0xffffff) then
+  all sub packets are read and concatenated.
+
+  @param[in, out] net NET structure
+  @param[out] len  length of the packet read
+*/
+static void net_read_uncompressed_packet(NET *net, size_t &len) {
+  size_t complen;
+  DBUG_ASSERT(!net->compress);
+  len = net_read_packet(net, &complen);
+  if (len == MAX_PACKET_LENGTH) {
+    /* First packet of a multi-packet.  Concatenate the packets */
+    ulong save_pos = net->where_b;
+    size_t total_length = 0;
+    do {
+      net->where_b += len;
+      total_length += len;
+      len = net_read_packet(net, &complen);
+    } while (len == MAX_PACKET_LENGTH);
+    if (len != packet_error) len += total_length;
+    net->where_b = save_pos;
   }
+  net->read_pos = net->buff + net->where_b;
+  if (len != packet_error)
+    net->read_pos[len] = 0; /* Safeguard for mysql_use_result */
+}
+
+/* We are using the compressed protocol */
+static void net_read_compressed_packet(NET *net, size_t &len) {
+  size_t complen;
+  size_t start_of_packet;
+  size_t first_packet_offset;
+  size_t buf_length;
+  uint multi_byte_packet = 0;
+  DBUG_ASSERT(net->compress);
+  net_read_init_offsets(net, start_of_packet, first_packet_offset,
+                        multi_byte_packet, buf_length);
+  for (;;) {
+    if (net_read_process_buffer(net, start_of_packet, buf_length,
+                                multi_byte_packet, first_packet_offset))
+      break;
+
+    if ((len = net_read_packet(net, &complen)) == packet_error) return;
+
+    mysql_compress_context *mysql_compress_ctx = compress_context(net);
+    if (my_uncompress(mysql_compress_ctx, net->buff + net->where_b, len,
+                      &complen)) {
+      net->error = 2; /* caller will close socket */
+      net->last_errno = ER_NET_UNCOMPRESS_ERROR;
+#ifdef MYSQL_SERVER
+      my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
+#endif
+      len = packet_error;
+      return;
+    }
+    buf_length += complen;
+  }
+  len = net_read_update_offsets(net, start_of_packet, first_packet_offset,
+                                buf_length, multi_byte_packet);
 }
 
 /**
@@ -1675,139 +2140,15 @@ net_async_status my_net_read_nonblocking(NET *net, ulong *len_ptr,
 */
 
 ulong my_net_read(NET *net) {
-  size_t len, complen;
-
+  size_t len;
   /* turn off non blocking operations */
   if (!vio_is_blocking(net->vio)) vio_set_blocking_flag(net->vio, true);
 
-  if (!net->compress) {
-    len = net_read_packet(net, &complen);
-    if (len == MAX_PACKET_LENGTH) {
-      /* First packet of a multi-packet.  Concatenate the packets */
-      ulong save_pos = net->where_b;
-      size_t total_length = 0;
-      do {
-        net->where_b += len;
-        total_length += len;
-        len = net_read_packet(net, &complen);
-      } while (len == MAX_PACKET_LENGTH);
-      if (len != packet_error) len += total_length;
-      net->where_b = save_pos;
-    }
-    net->read_pos = net->buff + net->where_b;
-    if (len != packet_error)
-      net->read_pos[len] = 0; /* Safeguard for mysql_use_result */
-    return static_cast<ulong>(len);
-  } else {
-    /* We are using the compressed protocol */
+  if (net->compress)
+    net_read_compressed_packet(net, len);
+  else
+    net_read_uncompressed_packet(net, len);
 
-    size_t buf_length;
-    ulong start_of_packet;
-    ulong first_packet_offset;
-    uint read_length, multi_byte_packet = 0;
-
-    if (net->remain_in_buf) {
-      buf_length = net->buf_length; /* Data left in old packet */
-      first_packet_offset = start_of_packet =
-          (net->buf_length - net->remain_in_buf);
-      /* Restore the character that was overwritten by the end 0 */
-      net->buff[start_of_packet] = net->save_char;
-    } else {
-      /* reuse buffer, as there is nothing in it that we need */
-      buf_length = start_of_packet = first_packet_offset = 0;
-    }
-    for (;;) {
-      size_t packet_len;
-
-      if (buf_length - start_of_packet >= NET_HEADER_SIZE) {
-        read_length = uint3korr(net->buff + start_of_packet);
-        if (!read_length) {
-          /* End of multi-byte packet */
-          start_of_packet += NET_HEADER_SIZE;
-          break;
-        }
-        if (read_length + NET_HEADER_SIZE <= buf_length - start_of_packet) {
-          if (multi_byte_packet) {
-            /*
-              It's never the buffer on the first loop iteration that will have
-              multi_byte_packet on.
-              Thus there shall never be a non-zero first_packet_offset here.
-            */
-            DBUG_ASSERT(first_packet_offset == 0);
-            /* Remove packet header for second packet */
-            memmove(net->buff + start_of_packet,
-                    net->buff + start_of_packet + NET_HEADER_SIZE,
-                    buf_length - start_of_packet - NET_HEADER_SIZE);
-            start_of_packet += read_length;
-            buf_length -= NET_HEADER_SIZE;
-          } else
-            start_of_packet += read_length + NET_HEADER_SIZE;
-
-          if (read_length != MAX_PACKET_LENGTH) /* last package */
-          {
-            multi_byte_packet = 0; /* No last zero len packet */
-            break;
-          }
-          multi_byte_packet = NET_HEADER_SIZE;
-          /* Move data down to read next data packet after current one */
-          if (first_packet_offset) {
-            memmove(net->buff, net->buff + first_packet_offset,
-                    buf_length - first_packet_offset);
-            buf_length -= first_packet_offset;
-            start_of_packet -= first_packet_offset;
-            first_packet_offset = 0;
-          }
-          continue;
-        }
-      }
-      /* Move data down to read next data packet after current one */
-      if (first_packet_offset) {
-        memmove(net->buff, net->buff + first_packet_offset,
-                buf_length - first_packet_offset);
-        buf_length -= first_packet_offset;
-        start_of_packet -= first_packet_offset;
-        first_packet_offset = 0;
-      }
-
-      net->where_b = buf_length;
-      if ((packet_len = net_read_packet(net, &complen)) == packet_error) {
-        return packet_error;
-      }
-      mysql_compress_context *mysql_compress_ctx = nullptr;
-#ifdef MYSQL_SERVER
-      NET_SERVER *server_extension = static_cast<NET_SERVER *>(net->extension);
-      if (server_extension != nullptr) {
-        mysql_compress_ctx = &server_extension->compress_ctx;
-      }
-#else
-      NET_EXTENSION *ext = NET_EXTENSION_PTR(net);
-      if (ext != nullptr) mysql_compress_ctx = &ext->compress_ctx;
-#endif
-      if (my_uncompress(mysql_compress_ctx, net->buff + net->where_b,
-                        packet_len, &complen)) {
-        net->error = 2; /* caller will close socket */
-        net->last_errno = ER_NET_UNCOMPRESS_ERROR;
-#ifdef MYSQL_SERVER
-        my_error(ER_NET_UNCOMPRESS_ERROR, MYF(0));
-#endif
-        return packet_error;
-      }
-      buf_length += complen;
-    }
-
-    net->read_pos = net->buff + first_packet_offset + NET_HEADER_SIZE;
-    net->buf_length = buf_length;
-    net->remain_in_buf = (ulong)(buf_length - start_of_packet);
-    len = ((ulong)(start_of_packet - first_packet_offset) - NET_HEADER_SIZE -
-           multi_byte_packet);
-    /*
-      Save byte to restore when processing remaining buffer. Skip ahead when
-      the packet is a zero packet terminated (in case of multiple of 0xffffff).
-    */
-    if (net->remain_in_buf)
-      net->save_char = net->read_pos[len + multi_byte_packet];
-    net->read_pos[len] = '\0';  // Safeguard for mysql_use_result.
-  }
   return static_cast<ulong>(len);
 }
 

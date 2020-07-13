@@ -435,7 +435,7 @@ include/assert.inc [Assert that OCT is smaller than ICT on server2]
 include/assert.inc [Assert that OCT is smaller than ICT on server5]
 [connection server2]
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
-RESET SLAVE FOR CHANNEL 'channel_1';
+include/rpl_reset_slave.inc
 [connection server4]
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;

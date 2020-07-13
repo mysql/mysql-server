@@ -63,7 +63,7 @@ static int add_page_callback(void *context, byte *buff, uint num_pages) {
   uint index;
   Clone_Snapshot *snapshot;
 
-  ib_uint32_t space_id;
+  space_id_t space_id;
   ib_uint32_t page_num;
 
   snapshot = static_cast<Clone_Snapshot *>(context);
@@ -91,14 +91,10 @@ int Clone_Snapshot::add_buf_pool_file() {
   /* Generate the file name. */
   buf_dump_generate_path(path, sizeof(path));
 
-  os_file_type_t type;
-  bool exists = false;
-  os_file_status(path, &exists, &type);
-
   /* Add if the file is found. */
   int err = 0;
 
-  if (exists) {
+  if (os_file_exists(path)) {
     auto file_size = os_file_get_size(path);
     auto size_bytes = file_size.m_total_size;
 
@@ -641,6 +637,12 @@ dberr_t Clone_Snapshot::add_node(fil_node_t *node) {
 
   auto space = node->space;
 
+  /* Skip deleted tablespaces. Their pages may still be in
+  the buffer pool. */
+  if (space->is_deleted()) {
+    return (DB_SUCCESS);
+  }
+
   if (space->encryption_type != Encryption::NONE) {
     /* Add page 0 always for encrypted tablespace. */
     Clone_Page page_zero;
@@ -680,7 +682,7 @@ dberr_t Clone_Snapshot::add_node(fil_node_t *node) {
     return (DB_ERROR);
   }
 
-  /* Add to hash map only for first node of the tablesapce. */
+  /* Add to hash map only for first node of the tablespace. */
   if (m_data_file_map[space->id] == 0) {
     m_data_file_map[space->id] = m_num_data_files;
   }
@@ -688,17 +690,17 @@ dberr_t Clone_Snapshot::add_node(fil_node_t *node) {
   return (DB_SUCCESS);
 }
 
-int Clone_Snapshot::add_page(ib_uint32_t space_id, ib_uint32_t page_num) {
+int Clone_Snapshot::add_page(space_id_t space_id, ib_uint32_t page_num) {
   /* Skip pages belonging to tablespace not included for clone. This could
   be some left over pages from drop or truncate in buffer pool which
-  would eventually get removed. */
+  would eventually get removed. Or it may be a page for an undo tablespace
+  that was deleted with BUF_REMOVE_NONE. */
   auto count = m_data_file_map.count(space_id);
   if (count == 0) {
     return (0);
   }
 
   Clone_Page cur_page;
-
   cur_page.m_space_id = space_id;
   cur_page.m_page_no = page_num;
 

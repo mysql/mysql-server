@@ -63,6 +63,18 @@
 	padding: 9px;
 }
 
+/* Hover state for closed pane */
+
+.claro .dijitAccordionInnerContainerHover {
+	border:1px solid @hovered-border-color;
+	background-color:@hovered-background-color;
+	.transition-duration(.2s);
+}
+
+.claro .dijitAccordionInnerContainerHover .dijitAccordionTitle {
+	color:@hovered-text-color;
+}
+
 /* Active state for closed pane */
 
 .claro .dijitAccordionInnerContainerActive {
@@ -86,26 +98,3 @@
 	.standard-gradient("../");	/* avoid effect when clicking the title of the open pane */
 }
 
-/* Hovering open or closed pane */
-
-.claro .dijitAccordionInnerContainerHover .dijitAccordionTitle {
-	/* both open and closed */
-	color:@hovered-text-color;
-}
-
-// TODO: why do we have any hover effect on the selected pane?
-// Since you can't click it, there shouldn't be a hover effect.
-.claro .dijitAccordionInnerContainerHover,
-.claro .dijitAccordionInnerContainerSelectedActive {
-	/* note: clicking the currently selected Accordion pane should have no effect, so treating same as hover. */
-	border:1px solid @hovered-border-color;
-	background-color:@hovered-background-color;
-	.transition-duration(.2s);
-}
-
-.claro .dijitAccordionInnerContainerSelectedHover .dijitAccordionChildWrapper,
-.claro .dijitAccordionInnerContainerSelectedActive .dijitAccordionChildWrapper {
-	background-color:@pane-background-color;
-	border:1px solid @hovered-border-color;
-	.box-shadow(inset 0 0 3px rgba(0, 0, 0, .25));
-}

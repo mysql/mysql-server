@@ -1,5 +1,5 @@
-define("dojo/fx/Toggler", ["../_base/lang","../_base/declare","../_base/fx", "../_base/connect"], 
-  function(lang, declare, baseFx, connectUtil){
+define("dojo/fx/Toggler", ["../_base/lang","../_base/declare","../_base/fx", "../aspect"],
+  function(lang, declare, baseFx, aspect){
 	// module:
 	//		dojo/fx/Toggler
 
@@ -77,8 +77,8 @@ return declare("dojo.fx.Toggler", null, {
 		_t._hideArgs.duration = _t.hideDuration;
 		_t.hideAnim = _t.hideFunc(_t._hideArgs);
 
-		connectUtil.connect(_t.showAnim, "beforeBegin", lang.hitch(_t.hideAnim, "stop", true));
-		connectUtil.connect(_t.hideAnim, "beforeBegin", lang.hitch(_t.showAnim, "stop", true));
+		aspect.after(_t.showAnim, "beforeBegin", lang.hitch(_t.hideAnim, "stop", true), true);
+		aspect.after(_t.hideAnim, "beforeBegin", lang.hitch(_t.showAnim, "stop", true), true);
 	},
 
 	show: function(delay){

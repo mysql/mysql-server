@@ -2,14 +2,13 @@
 define("dojox/mvc/StatefulArray",["dojo/_base/lang","dojo/Stateful"],function(_1,_2){
 function _3(a){
 if(a._watchElementCallbacks){
-a._watchElementCallbacks();
+a._watchElementCallbacks(undefined,[],[]);
 }
 return a;
 };
 var _4=function(a){
 var _5=_1._toArray(a||[]);
 var _6=_4;
-_6._meta={bases:[_2]};
 _5.constructor=_6;
 return _1.mixin(_5,{pop:function(){
 return this.splice(this.get("length")-1,1)[0];
@@ -28,7 +27,7 @@ _7+=_7<0?l:0;
 var p=Math.min(_7,l),_8=this.slice(_7,_7+n),_9=_1._toArray(arguments).slice(2);
 [].splice.apply(this,[_7,n].concat(new Array(_9.length)));
 for(var i=0;i<_9.length;i++){
-this.set(p+i,_9[i]);
+this[p+i]=_9[i];
 }
 if(this._watchElementCallbacks){
 this._watchElementCallbacks(_7,_8,_9);
@@ -84,7 +83,7 @@ var old=this.get("length");
 if(old<_17){
 this.splice.apply(this,[old,0].concat(new Array(_17-old)));
 }else{
-if(_17>old){
+if(_17<old){
 this.splice.apply(this,[_17,old-_17]);
 }
 }
@@ -97,7 +96,10 @@ _2.prototype.set.call(this,"length",this.length);
 }
 return this;
 }
+},isInstanceOf:function(cls){
+return _2.prototype.isInstanceOf.apply(this,arguments)||cls==_4;
 }});
 };
+_4._meta={bases:[_2]};
 return _1.setObject("dojox.mvc.StatefulArray",_4);
 });

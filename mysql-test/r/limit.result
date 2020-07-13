@@ -676,3 +676,56 @@ i
 5
 4
 DROP TABLE t1;
+#
+# Bug#30204811 ASSERTION `SELECT_LIMIT > 0' FAILED AT
+#              TEST_IF_SKIP_SORT_ORDER
+#
+CREATE TABLE a (
+col_int int,
+col_varchar_255 varchar(255),
+pk integer auto_increment  primary key
+) ENGINE=myisam;
+CREATE TABLE b (
+col_varchar_10 varchar(10),
+pk integer primary key
+) ENGINE=myisam;
+INSERT INTO a(col_int,col_varchar_255) VALUES (0,""),(1,"");
+explain format=tree SELECT STRAIGHT_JOIN a.pk
+FROM a
+JOIN b ON a.col_varchar_255 = b.col_varchar_10
+WHERE b.pk <= a.col_int
+ORDER BY a.pk LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Nested loop inner join  (cost=1.21 rows=0)
+        -> Sort: a.pk  (cost=0.70 rows=2)
+            -> Table scan on a
+        -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=0.50 rows=0)
+            -> Index range scan on b (re-planned for each iteration)  (cost=0.50 rows=0)
+
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+explain format=tree SELECT STRAIGHT_JOIN a.pk
+FROM a
+JOIN b ON a.col_varchar_255 = b.col_varchar_10
+WHERE b.pk <= a.col_int
+ORDER BY a.pk LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Nested loop inner join  (cost=423.65 rows=0)
+        -> Sort: a.pk  (cost=415.10 rows=4096)
+            -> Table scan on a
+        -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=8.55 rows=0)
+            -> Index range scan on b (re-planned for each iteration)  (cost=8.55 rows=0)
+
+DROP TABLE a;
+DROP TABLE b;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 #include <boost/graph/properties.hpp>
 #include <new>
 
-#include <sql/ssl_acceptor_context.h>
 #include "m_ctype.h"
 #include "m_string.h"  // LEX_CSTRING
 #include "my_base.h"
@@ -73,6 +72,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // my_plugin_lock_by_name
 #include "sql/sql_plugin_ref.h"
+#include "sql/ssl_acceptor_context_operator.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE
 #include "sql/thd_raii.h"
@@ -164,6 +164,20 @@ bool validate_user_plugins = true;
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + 1 + USERNAME_LENGTH + 1)
+
+/** Helper: Set user name */
+static void set_username(char **user, const char *user_arg, MEM_ROOT *mem) {
+  DBUG_ASSERT(user != nullptr);
+  *user = (user_arg && *user_arg) ? strdup_root(mem, user_arg) : nullptr;
+}
+
+/** Helper: Set host name */
+static void set_hostname(ACL_HOST_AND_IP *host, const char *host_arg,
+                         MEM_ROOT *mem) {
+  DBUG_ASSERT(host != nullptr);
+  host->update_hostname((host_arg && *host_arg) ? strdup_root(mem, host_arg)
+                                                : nullptr);
+}
 
 /**
   Allocates the memory in the the global_acl_memory MEM_ROOT.
@@ -420,6 +434,14 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   return dst;
 }
 
+void ACL_USER::set_user(MEM_ROOT *mem, const char *user_arg) {
+  set_username(&user, user_arg, mem);
+}
+
+void ACL_USER::set_host(MEM_ROOT *mem, const char *host_arg) {
+  set_hostname(&host, host_arg, mem);
+}
+
 void ACL_PROXY_USER::init(const char *host_arg, const char *user_arg,
                           const char *proxied_host_arg,
                           const char *proxied_user_arg, bool with_grant_arg) {
@@ -581,6 +603,22 @@ int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
     return true;
 
   return false;
+}
+
+void ACL_PROXY_USER::set_user(MEM_ROOT *mem, const char *user_arg) {
+  set_username(const_cast<char **>(&user), user_arg, mem);
+}
+
+void ACL_PROXY_USER::set_host(MEM_ROOT *mem, const char *host_arg) {
+  set_hostname(&host, host_arg, mem);
+}
+
+void ACL_DB::set_user(MEM_ROOT *mem, const char *user_arg) {
+  set_username(&user, user_arg, mem);
+}
+
+void ACL_DB::set_host(MEM_ROOT *mem, const char *host_arg) {
+  set_hostname(&host, host_arg, mem);
 }
 
 /**
@@ -783,7 +821,7 @@ GRANT_COLUMN::GRANT_COLUMN(String &c, ulong y)
 void GRANT_NAME::set_user_details(const char *h, const char *d, const char *u,
                                   const char *t, bool is_routine) {
   /* Host given by user */
-  host.update_hostname(strdup_root(&memex, h));
+  set_hostname(&host, h, &memex);
   if (db != d) {
     db = strdup_root(&memex, d);
     if (lower_case_table_names) my_casedn_str(files_charset_info, db);
@@ -1201,7 +1239,7 @@ static void insert_entry_in_db_cache(THD *thd, acl_entry *entry) {
   @param ip    Ip
   @param user  user name
   @param db    We look for the ACL of this database
-  @param db_is_pattern
+  @param db_is_pattern true if @p db can be considered a pattern or false if not
 
   @return Database ACL
 */
@@ -1531,7 +1569,7 @@ static void validate_user_plugin_records() {
       }
       if (Cached_authentication_plugins::compare_plugin(PLUGIN_SHA256_PASSWORD,
                                                         acl_user->plugin) &&
-          sha256_rsa_auth_status() && !SslAcceptorContext::have_ssl()) {
+          sha256_rsa_auth_status() && !have_ssl()) {
         LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG, acl_user->plugin.str,
                acl_user->user, static_cast<int>(acl_user->host.get_host_len()),
                acl_user->host.get_host(), "but neither SSL nor RSA keys are");
@@ -1983,7 +2021,7 @@ bool check_acl_tables_intact(THD *thd, bool mdl_locked) {
   log (because this is expected or temporary condition).
 */
 
-static bool is_expected_or_transient_error(THD *thd) {
+bool is_expected_or_transient_error(THD *thd) {
   return !thd->get_stmt_da()->is_error() ||  // Interrupted/no error condition.
          thd->get_stmt_da()->mysql_errno() == ER_TABLE_NOT_LOCKED ||
          thd->get_stmt_da()->mysql_errno() == ER_LOCK_DEADLOCK;
@@ -2639,6 +2677,11 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                    ("Updates global privilege for %s@%s to %lu", acl_user->user,
                     acl_user->host.get_host(), privileges));
         acl_user->access = privileges;
+        if (what_to_update.m_what & USER_ATTRIBUTES &&
+            (what_to_update.m_user_attributes &
+             acl_table::USER_ATTRIBUTE_RESTRICTIONS))
+          acl_restrictions->upsert_restrictions(acl_user, restrictions);
+
         if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
           acl_user->user_resource.questions = mqh->questions;
         if (mqh->specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
@@ -2719,7 +2762,6 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
           acl_user->password_require_current =
               password_life.update_password_require_current;
         }
-        acl_restrictions->upsert_restrictions(acl_user, restrictions);
 
         /* search complete: */
         break;
@@ -2752,10 +2794,8 @@ void acl_users_add_one(const char *user, const char *host,
   */
   acl_user.can_authenticate = true;
 
-  acl_user.user =
-      user && *user ? strdup_root(&global_acl_memory, user) : nullptr;
-  acl_user.host.update_hostname(
-      host && *host ? strdup_root(&global_acl_memory, host) : nullptr);
+  acl_user.set_user(&global_acl_memory, user);
+  acl_user.set_host(&global_acl_memory, host);
   DBUG_ASSERT(plugin.str);
   if (plugin.str[0]) {
     acl_user.plugin = plugin;
@@ -2923,9 +2963,8 @@ void acl_insert_db(const char *user, const char *host, const char *db,
                    ulong privileges) {
   ACL_DB acl_db;
   DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
-  acl_db.user = strdup_root(&global_acl_memory, user);
-  acl_db.host.update_hostname(*host ? strdup_root(&global_acl_memory, host)
-                                    : nullptr);
+  acl_db.set_user(&global_acl_memory, user);
+  acl_db.set_host(&global_acl_memory, host);
   acl_db.db = strdup_root(&global_acl_memory, db);
   acl_db.access = privileges;
   acl_db.sort = get_sort(3, acl_db.host.get_host(), acl_db.db, acl_db.user);
@@ -3626,8 +3665,11 @@ bool is_partial_revoke_exists(THD *thd) {
     if (!acl_cache_lock.lock(false)) {
       return true;
     }
-    DBUG_ASSERT(acl_restrictions);
-    partial_revoke = (acl_restrictions->size() > 0);
+    /*
+      Check the restrictions only if server has initialized the acl caches
+      (i.e. Server is not started with --skip-grant-tables=1 option).
+    */
+    if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
   } else {
     /*
       We need to determine the number of partial revokes at the time of server

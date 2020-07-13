@@ -12,7 +12,14 @@ define([
 	function(kernel, lang, Tokenize, json, dom, xhr, StringBuilder, deferred){
 
 	kernel.experimental("dojox.dtl");
+
 	var dd = lang.getObject("dojox.dtl", true);
+/*=====
+	dd = {
+		// TODO: summary
+	};
+=====*/
+
 	dd._base = {};
 
 	dd.TOKEN_BLOCK = -1;
@@ -543,7 +550,10 @@ define([
 	},
 	{
 		render: function(context, buffer){
-			var str = this.contents.resolve(context) || "";
+			var str = this.contents.resolve(context);
+			if (str === undefined || str === null) {
+				str = '';
+			}
 			if(!str.safe){
 				str = dd._base.escape("" + str);
 			}
@@ -779,6 +789,7 @@ define([
 	dd.register.filters("dojox.dtl", {
 		"_base": ["escape", "safe"]
 	});
+
 	return dd;
 });
 
@@ -793,7 +804,7 @@ define([
 
 	tokenize = function(/*String*/ str, /*RegExp*/ re, /*Function?*/ parseDelim, /*Object?*/ instance){
 		// summary:
-		//		Split a string by a regular expression with the ability to capture the delimeters
+		//		Split a string by a regular expression with the ability to capture the delimiters
 		// parseDelim:
 		//		Each group (excluding the 0 group) is passed as a parameter. If the function returns
 		//		a value, it's added to the list of tokens.
@@ -834,7 +845,7 @@ define([
 'dojox/string/Builder':function(){
 define(["dojo/_base/lang"], 
   function(lang){
-	lang.getObject("string", true, dojox).Builder = 
+	var Builder = lang.getObject("string", true, dojox).Builder =
 	  function(/*String?*/str){
 		// summary:
 		//		A fast buffer for creating large strings.
@@ -964,7 +975,7 @@ define(["dojo/_base/lang"],
 		//	initialize the buffer.
 		if(str){ this.append(str); }
 	};
-	return dojox.string.Builder;
+	return Builder;
 });
 
 },
@@ -973,7 +984,7 @@ define([
 	"dojo/_base/lang",
 	"./_base"
 ], function(lang,dd){
-	dd.Context = lang.extend(function(/*Object*/dict){
+	return dd.Context = lang.extend(function(/*Object*/dict){
 	 	// summary:
 	 	//		Represents a runtime context used by DTL templates.
 		this._this = {};
@@ -1055,7 +1066,6 @@ define([
 		return false;
 		}
 	});
-return dd.Context; 
 });
 },
 'dojox/dtl/tag/logic':function(){
@@ -1064,10 +1074,14 @@ define([
 	"../_base"
 ], function(lang, dd){
 
-	lang.getObject("dojox.dtl.tag.logic", true);
+	var ddtl = lang.getObject("tag.logic", true, dd);
+	/*=====
+	 ddtl = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
 	var ddt = dd.text;
-	var ddtl = dd.tag.logic;
 
 	ddtl.IfNode = lang.extend(function(bools, trues, falses, type){
 		this.bools = bools;
@@ -1186,21 +1200,22 @@ define([
 			}
 
 			var items = this.loop.resolve(context) || [];
-			for(i = items.length; i < this.pool.length; i++){
-				this.pool[i].unrender(context, buffer, this);
-			}
-			if(this.reversed){
-				items = items.slice(0).reverse();
-			}
 
 			var isObject = lang.isObject(items) && !lang.isArrayLike(items);
 			var arred = [];
 			if(isObject){
 				for(var key in items){
-					arred.push(items[key]);
+					arred.push([key, items[key]]);
 				}
 			}else{
 				arred = items;
+			}
+
+			for(i = arred.length; i < this.pool.length; i++){
+				this.pool[i].unrender(context, buffer, this);
+			}
+			if(this.reversed){
+				arred = arred.slice(0).reverse();
 			}
 
 			var forloop = context.forloop = {
@@ -1217,18 +1232,24 @@ define([
 				forloop.first = !j;
 				forloop.last = (j == arred.length - 1);
 
-				if(assign.length > 1 && lang.isArrayLike(item)){
-					if(!dirty){
-						dirty = true;
-						context = context.push();
+				if (lang.isArrayLike(item)) {
+					if(assign.length > 1){
+						if(!dirty){
+							dirty = true;
+							context = context.push();
+						}
+						var zipped = {};
+						for(k = 0; k < item.length && k < assign.length; k++){
+							zipped[assign[k]] = item[k];
+						}
+						lang.mixin(context, zipped);
+					}else{
+						// in single assignment scenarios, pick only the value
+						context[assign[0]] = item[1];
 					}
-					var zipped = {};
-					for(k = 0; k < item.length && k < assign.length; k++){
-						zipped[assign[k]] = item[k];
-					}
-					lang.mixin(context, zipped);
 				}else{
-					context[assign[0]] = item;
+				    // in single assignment scenarios, pick only the value
+				    context[assign[0]] = item;
 				}
 
 				if(j + 1 > this.pool.length){
@@ -1335,8 +1356,10 @@ define([
 			return new ddtl.ForNode(loopvars, parts[parts.length + index + 1], reversed, nodelist);
 		}
 	});
-	return dojox.dtl.tag.logic;
+
+	return ddtl;
 });
+
 },
 'dojox/dtl/tag/loop':function(){
 define([
@@ -1347,9 +1370,12 @@ define([
 	"dojox/string/tokenize"
 ], function(lang,array,json,dd,Tokenize){
 
-	lang.getObject("dojox.dtl.tag.loop", true);
-
-	var ddtl = dd.tag.loop;
+	var ddtl = lang.getObject("tag.loop", true, dd);
+	/*=====
+	 ddtl = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
 	ddtl.CycleNode = lang.extend(function(cyclevars, name, text, shared){
 		this.cyclevars = cyclevars;
@@ -1536,7 +1562,8 @@ define([
 			return new ddtl.RegroupNode(expression, key, alias);
 		}
 	});
-	return dojox.dtl.tag.loop;
+
+	return ddtl;
 });
 },
 'dojox/dtl/tag/date':function(){
@@ -1546,14 +1573,19 @@ define([
 	"../utils/date"
 ], function(lang,dd,ddud){
 
-	lang.getObject("dojox.dtl.tag.date", true);
+	var date = lang.getObject("tag.date", true, dd);
+	/*=====
+	 date = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
-	dojox.dtl.tag.date.NowNode = function(format, node){
+	date.NowNode = function(format, node){
 		this._format = format;
 		this.format = new ddud.DateFormat(format);
 		this.contents = node;
 	};
-	lang.extend(dd.tag.date.NowNode, {
+	lang.extend(date.NowNode, {
 		render: function(context, buffer){
 			this.contents.set(this.format.format(new Date()));
 			return this.contents.render(context, buffer);
@@ -1566,15 +1598,16 @@ define([
 		}
 	});
 
-	dojox.dtl.tag.date.now = function(parser, token){
+	date.now = function(parser, token){
 		// Split by either :" or :'
 		var parts = token.split_contents();
 		if(parts.length != 2){
 			throw new Error("'now' statement takes one argument");
 		}
-		return new dojox.dtl.tag.date.NowNode(parts[1].slice(1, -1), parser.create_text_node());
+		return new date.NowNode(parts[1].slice(1, -1), parser.create_text_node());
 	};
-	return dojox.dtl.tag.date;
+
+	return date;
 });
 
 },
@@ -1584,10 +1617,16 @@ define([
 	"dojox/date/php",
 	"../_base"
 ], function(lang,ddp,dd){
-	lang.getObject("dojox.dtl.utils.date", true);
 
-	dd.utils.date.DateFormat = ddp.DateFormat;
-	lang.extend(dd.utils.date.DateFormat, ddp.DateFormat.prototype, {
+	var date = lang.getObject("utils.date", true, dd);
+	/*=====
+	 date = {
+	 	// TODO: summary
+	 };
+	 =====*/
+
+	date.DateFormat = ddp.DateFormat;
+	lang.extend(date.DateFormat, ddp.DateFormat.prototype, {
 		f: function(){
 			// summary:
 			//		Time, in 12-hour hours and minutes, with minutes left off if they're zero.
@@ -1599,7 +1638,7 @@ define([
 		N: function(){
 			// summary:
 			//		Month abbreviation in Associated Press style. Proprietary extension.
-			return dojox.dtl.utils.date._months_ap[this.date.getMonth()];
+			return date._months_ap[this.date.getMonth()];
 		},
 		P: function(){
 			// summary:
@@ -1653,22 +1692,29 @@ define([
 		],
 		_months_ap: ["Jan.", "Feb.", "March", "April", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."]
 	});
-	return dojox.dtl.utils.date;
+
+	return date;
 });
 
 },
 'dojox/date/php':function(){
 define(["dojo/_base/kernel", "dojo/_base/lang","dojo/date","dojox/string/tokenize"], function(dojo,dlang,ddate,dxst){
-dojo.getObject("date.php", true, dojox);
 
-dojox.date.php.format = function(/*Date*/ date, /*String*/ format){
+var php = dojo.getObject("date.php", true, dojox);
+/*=====
+var php = {
+	// TODO: summary
+};
+=====*/
+
+php.format = function(/*Date*/ date, /*String*/ format){
 	// summary:
 	//		Get a formatted string for a given date object
-	var df = new dojox.date.php.DateFormat(format);
+	var df = new php.DateFormat(format);
 	return df.format(date);
 };
 
-dojox.date.php.DateFormat = function(/*String*/ format){
+php.DateFormat = function(/*String*/ format){
 	// summary:
 	//		Format the internal date object
 	if(!this.regex){
@@ -1696,7 +1742,7 @@ dojox.date.php.DateFormat = function(/*String*/ format){
 	this.replacements = replacements;
 };
 
-dojo.extend(dojox.date.php.DateFormat, {
+dojo.extend(php.DateFormat, {
 	weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
 	weekdays_3: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
 	months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -2003,7 +2049,7 @@ dojo.extend(dojox.date.php.DateFormat, {
 	}
 
 });
-return dojox.date.php;
+return php;
 });
 },
 'dojo/date':function(){
@@ -2131,7 +2177,7 @@ date.add = function(/*Date*/date, /*String*/interval, /*int*/amount){
 	// amount:
 	//		How much to add to the date.
 
-	var sum = new Date(+date); // convert to Number before copying to accomodate IE (#3112)
+	var sum = new Date(+date); // convert to Number before copying to accommodate IE (#3112)
 	var fixOvershoot = false;
 	var property = "Date";
 
@@ -2363,9 +2409,12 @@ define([
 	"dojo/_base/connect"
 ], function(lang,dd,array,connect){
 
-	lang.getObject("dojox.dtl.tag.loader", true);
-
-	var ddtl = dd.tag.loader;
+	var ddtl = lang.getObject("tag.loader", true, dd);
+	/*=====
+	 ddtl = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
 	ddtl.BlockNode = lang.extend(function(name, nodelist){
 		this.name = name;
@@ -2655,7 +2704,8 @@ define([
 			return node;
 		}
 	});
-	return dojox.dtl.tag.loader;
+
+	return ddtl;
 });
 },
 'dojox/dtl/tag/misc':function(){
@@ -2666,9 +2716,12 @@ define([
 	"../_base"
 ], function(lang,array,connect,dd){
 
-	lang.getObject("dojox.dtl.tag.misc", true);
-
-	var ddtm = dd.tag.misc;
+	var ddtm = lang.getObject("tag.misc", true, dd);
+	/*=====
+	 ddtm = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
 	ddtm.DebugNode = lang.extend(function(text){
 		this.text = text;
@@ -2951,7 +3004,8 @@ define([
 			return new ddtm.WithNode(parts[1], parts[3], nodelist);
 		}
 	});
-	return dojox.dtl.tag.misc;
+
+	return ddtm;
 });
 },
 'dojox/dtl/ext-dojo/NodeList':function(){

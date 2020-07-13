@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -175,7 +175,15 @@ V
 lock_sys_wait_mutex			Mutex protecting lock timeout data
 |
 V
-lock_sys_mutex				Mutex protecting lock_sys_t
+lock_sys->global_sharded_latch		Sharded rw-latch protecting lock_sys_t
+|
+V
+lock_sys->table_mutexes			Mutexes protecting lock_sys_t table
+|					lock queues
+|
+V
+lock_sys->page_mutexes			Mutexes protecting lock_sys_t page
+|					lock queues
 |
 V
 trx_sys->mutex				Mutex protecting trx_sys_t
@@ -225,8 +233,6 @@ enum latch_level_t {
 
   SYNC_FIL_SHARD,
 
-  SYNC_DBLWR,
-
   SYNC_PAGE_ARCH_OPER,
 
   SYNC_BUF_FLUSH_LIST,
@@ -238,6 +244,8 @@ enum latch_level_t {
   SYNC_BUF_PAGE_HASH,
   SYNC_BUF_LRU_LIST,
   SYNC_BUF_CHUNKS,
+
+  SYNC_DBLWR,
 
   SYNC_SEARCH_SYS,
 
@@ -264,13 +272,13 @@ enum latch_level_t {
   SYNC_PAGE_CLEANER,
   SYNC_PURGE_QUEUE,
   SYNC_TRX_SYS_HEADER,
-  SYNC_REC_LOCK,
   SYNC_THREADS,
   SYNC_TRX,
   SYNC_POOL,
   SYNC_POOL_MANAGER,
   SYNC_TRX_SYS,
-  SYNC_LOCK_SYS,
+  SYNC_LOCK_SYS_SHARDED,
+  SYNC_LOCK_SYS_GLOBAL,
   SYNC_LOCK_WAIT_SYS,
 
   SYNC_INDEX_ONLINE_LOG,
@@ -369,6 +377,10 @@ enum latch_id_t {
   LATCH_ID_IBUF,
   LATCH_ID_IBUF_PESSIMISTIC_INSERT,
   LATCH_ID_LOCK_FREE_HASH,
+  LATCH_ID_LOCK_SYS_GLOBAL,
+  LATCH_ID_LOCK_SYS_PAGE,
+  LATCH_ID_LOCK_SYS_TABLE,
+  LATCH_ID_LOCK_SYS_WAIT,
   LATCH_ID_LOG_SN,
   LATCH_ID_LOG_CHECKPOINTER,
   LATCH_ID_LOG_CLOSER,
@@ -410,8 +422,6 @@ enum latch_id_t {
   LATCH_ID_TRX_POOL_MANAGER,
   LATCH_ID_TEMP_POOL_MANAGER,
   LATCH_ID_TRX,
-  LATCH_ID_LOCK_SYS,
-  LATCH_ID_LOCK_SYS_WAIT,
   LATCH_ID_TRX_SYS,
   LATCH_ID_SRV_SYS,
   LATCH_ID_SRV_SYS_TASKS,
@@ -498,8 +508,12 @@ struct OSMutex {
     ret = pthread_mutex_destroy(&m_mutex);
 
     if (ret != 0) {
-      ib::error() << "Return value " << ret
-                  << " when calling pthread_mutex_destroy().";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1372)
+#endif
+          << "Return value " << ret << " when calling pthread_mutex_destroy().";
     }
 #endif /* _WIN32 */
     ut_d(m_freed = true);
@@ -1052,7 +1066,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
       : m_result(), m_has_search_latch(has_search_latch) {}
 
   /** Destructor */
-  virtual ~btrsea_sync_check() {}
+  ~btrsea_sync_check() override {}
 
   /** Called for every latch owned by the calling thread.
   @param[in]	level		Level of the existing latch
@@ -1080,9 +1094,14 @@ struct btrsea_sync_check : public sync_check_functor_t {
          level != SYNC_DICT_OPERATION && level != SYNC_TRX_I_S_LAST_READ &&
          level != SYNC_TRX_I_S_RWLOCK)) {
       m_result = true;
-      ib::error() << "Debug: Calling thread does not hold search "
-                     "latch but does hold latch level "
-                  << level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1373)
+#endif
+          << "Debug: Calling thread does not hold search "
+             "latch but does hold latch level "
+          << level << ".";
 
       return (m_result);
     }
@@ -1110,7 +1129,7 @@ struct dict_sync_check : public sync_check_functor_t {
       : m_result(), m_dict_mutex_allowed(dict_mutex_allowed) {}
 
   /** Destructor */
-  virtual ~dict_sync_check() {}
+  ~dict_sync_check() override {}
 
   /** Check the latching constraints
   @param[in]	level		The level held by the thread */
@@ -1121,8 +1140,13 @@ struct dict_sync_check : public sync_check_functor_t {
          /* This only happens in recv_apply_hashed_log_recs. */
          level != SYNC_RECV_WRITER && level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
-      ib::error() << "Debug: Dictionary latch order violation for level "
-                  << level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1374)
+#endif
+          << "Debug: Dictionary latch order violation for level " << level
+          << ".";
 
       return (true);
     }
@@ -1167,7 +1191,12 @@ struct sync_allowed_latches : public sync_check_functor_t {
       }
     }
 
-    ib::error() << "Debug: sync_allowed_latches violation for level=" << level;
+#ifdef UNIV_NO_ERR_MSGS
+    ib::error()
+#else
+    ib::error(ER_IB_MSG_1375)
+#endif
+        << "Debug: sync_allowed_latches violation for level=" << level;
     m_result = true;
     return (m_result);
   }

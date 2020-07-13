@@ -59,8 +59,8 @@ struct rw_lock_t;
 /**
 Pass-through version of rw_lock_own(), which normally checks that the
 thread has locked the rw-lock in the specified mode.
-@param[in]	rw-lock		pointer to rw-lock
-@param[in]	lock type	lock type: RW_LOCK_S, RW_LOCK_X
+@param[in]	lock		pointer to rw-lock
+@param[in]	lock_type	lock type: RW_LOCK_S, RW_LOCK_X
 @return true if success */
 UNIV_INLINE
 bool rw_lock_own(rw_lock_t *lock, ulint lock_type) { return (lock != nullptr); }
@@ -373,10 +373,12 @@ UNIV_INLINE
 ibool rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
                                  ulint line);
 
-/** Releases a shared mode lock.
-@param[in]	pass	pass value; != 0, if the lock will be passed
-                        to another thread to unlock
-@param[in,out]	lock	rw-lock */
+/** Releases a shared mode lock. */
+#ifdef UNIV_DEBUG
+/** @param[in]	pass	pass value; != 0, if the lock will be passed
+                        to another thread to unlock */
+#endif
+/** @param[in,out]	lock	rw-lock */
 UNIV_INLINE
 void rw_lock_s_unlock_func(
 #ifdef UNIV_DEBUG
@@ -421,10 +423,12 @@ void rw_lock_sx_lock_func(
     const char *file_name, /*!< in: file name where lock requested */
     ulint line);           /*!< in: line where requested */
 
-/** Releases an exclusive mode lock.
-@param[in]	pass	pass value; != 0, if the lock will be passed
-                        to another thread to unlock
-@param[in,out]	lock	rw-lock */
+/** Releases an exclusive mode lock. */
+#ifdef UNIV_DEBUG
+/** @param[in]	pass	pass value; != 0, if the lock will be passed
+                        to another thread to unlock */
+#endif /* UNIV_DEBUG */
+/** @param[in,out]	lock	rw-lock */
 UNIV_INLINE
 void rw_lock_x_unlock_func(
 #ifdef UNIV_DEBUG
@@ -432,10 +436,12 @@ void rw_lock_x_unlock_func(
 #endif /* UNIV_DEBUG */
     rw_lock_t *lock);
 
-/** Releases an sx mode lock.
-@param[in]	pass	pass value; != 0, if the lock will be passed
-                        to another thread to unlock
-@param[in,out]	lock	rw-lock */
+/** Releases an sx mode lock. */
+#ifdef UNIV_DEBUG
+/** @param[in]	pass	pass value; != 0, if the lock will be passed
+                        to another thread to unlock */
+#endif /* UNIV_DEBUG */
+/** @param[in,out]	lock	rw-lock */
 UNIV_INLINE
 void rw_lock_sx_unlock_func(
 #ifdef UNIV_DEBUG
@@ -714,9 +720,13 @@ rw_lock_free()
 NOTE! Please use the corresponding macro rw_lock_create(), not directly this
 function!
 @param[in]	key		key registered with performance schema
-@param[in]	lock		rw lock
+@param[in]	lock		rw lock */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	level		level
-@param[in]	cmutex_name	mutex name
+@param[in]	cmutex_name	mutex name */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	cline		file line where created
 @param[in]	cfile_name	file name where created */
 UNIV_INLINE
@@ -788,10 +798,12 @@ void pfs_rw_lock_x_lock_func(rw_lock_t *lock, ulint pass, const char *file_name,
 
 /** Performance schema instrumented wrap function for rw_lock_s_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_s_unlock(), not directly this
-function!
-@param[in]	pass	pass value; != 0, if the lock may have been passed to
-                        another thread to unlock
-@param[in,out]	lock	rw-lock */
+function! */
+#ifdef UNIV_DEBUG
+/** @param[in]	pass	pass value; != 0, if the lock may have been passed to
+                        another thread to unlock */
+#endif /* UNIV_DEBUG */
+/** @param[in,out]	lock	rw-lock */
 UNIV_INLINE
 void pfs_rw_lock_s_unlock_func(
 #ifdef UNIV_DEBUG
@@ -801,10 +813,12 @@ void pfs_rw_lock_s_unlock_func(
 
 /** Performance schema instrumented wrap function for rw_lock_x_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly this
-function!
-@param[in]	pass	pass value; != 0, if the lock may have been passed to
-                        another thread to unlock
-@param[in,out]	lock	rw-lock */
+function! */
+#ifdef UNIV_DEBUG
+/** @param[in]	pass	pass value; != 0, if the lock may have been passed to
+                        another thread to unlock */
+#endif /* UNIV_DEBUG */
+/** @param[in,out]	lock	rw-lock */
 UNIV_INLINE
 void pfs_rw_lock_x_unlock_func(
 #ifdef UNIV_DEBUG
@@ -838,9 +852,11 @@ ibool pfs_rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass,
 /** Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_sx_unlock(), not directly this
 function!
-@param[in,out]	lock		pointer to rw-lock
-@param[in]	pass		pass value; != 0, if the lock will be passed
+@param[in,out]	lock		pointer to rw-lock */
+#ifdef UNIV_DEBUG
+/** @param[in]	pass		pass value; != 0, if the lock will be passed
                                 to another thread to unlock */
+#endif /* UNIV_DEBUG */
 UNIV_INLINE
 void pfs_rw_lock_sx_unlock_func(
 #ifdef UNIV_DEBUG

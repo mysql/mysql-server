@@ -4,8 +4,14 @@ define("dojox/dtl/render/html", [
 	"../_base"
 ], function(lang,ddrd,dd){
 
-	lang.getObject("dojox.dtl.render.html", true);
+	var ddrh = lang.getObject("render.html", true, dd);
+	/*=====
+	 ddrh = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
-	dd.render.html.Render = ddrd.Render;
-	return dojox.dtl.render.html;
+	ddrh.Render = ddrd.Render;
+
+	return ddrh;
 });

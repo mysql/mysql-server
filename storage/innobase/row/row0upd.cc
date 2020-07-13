@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -620,7 +620,8 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
     if (log_ptr + 30 > buf_end) {
       mlog_close(mtr, log_ptr);
 
-      log_ptr = mlog_open(mtr, MLOG_BUF_MARGIN);
+      bool success = mlog_open(mtr, MLOG_BUF_MARGIN, log_ptr);
+      ut_a(success);
       buf_end = log_ptr + MLOG_BUF_MARGIN;
     }
 
@@ -654,7 +655,8 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
         mlog_catenate_string(mtr, static_cast<byte *>(dfield_get_data(new_val)),
                              len);
 
-        log_ptr = mlog_open(mtr, MLOG_BUF_MARGIN);
+        bool success = mlog_open(mtr, MLOG_BUF_MARGIN, log_ptr);
+        ut_a(success);
         buf_end = log_ptr + MLOG_BUF_MARGIN;
       }
     }
@@ -985,8 +987,12 @@ containing also the reference to the external part
 @param[in]	local_len	length of data, in bytes
 @param[in]	page_size	BLOB page size
 @param[in,out]	len		input - length of prefix to
-fetch; output: fetched length of the prefix
-@param[in]	is_sdi		true for SDI indexes
+fetch; output: fetched length of the prefix */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		heap where to allocate
 @return BLOB prefix */
 static byte *row_upd_ext_fetch_func(dict_index_t *clust_index, const byte *data,
@@ -1015,8 +1021,12 @@ the given index entry field.
 @param[in]	col		field->col
 @param[in]	uf		update field
 @param[in,out]	heap		memory heap for allocating and copying
-the new value
-@param[in]	is_sdi		true for SDI indexes
+the new value */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	page_size	page size */
 static void row_upd_index_replace_new_col_val_func(
     const dict_index_t *index, dfield_t *dfield, const dict_field_t *field,
@@ -3368,7 +3378,7 @@ static std::ostream &print_binary_diff(std::ostream &out, upd_field_t *uf,
                                        const Field *field) {
   ulint field_no = 0;
   if (table != nullptr) {
-    dict_col_t *col = table->get_col(field->field_index);
+    dict_col_t *col = table->get_col(field->field_index());
     field_no = dict_col_get_clust_pos(col, table->first_index());
   }
 
@@ -3377,7 +3387,7 @@ static std::ostream &print_binary_diff(std::ostream &out, upd_field_t *uf,
 
   const char *from = bdiff->old_data(const_cast<Field *>(field));
 
-  out << "[Binary_diff: field_index=" << field->field_index
+  out << "[Binary_diff: field_index=" << field->field_index()
       << ", field_no=" << field_no << ", offset=" << bdiff->offset()
       << ", length=" << len << ", new_data=" << PrintBuffer(to, len)
       << ", old_data=" << PrintBuffer(from, len) << "]";
@@ -3395,14 +3405,14 @@ std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
                                 const dict_table_t *table, const Field *field) {
   ulint field_no = 0;
   if (table != nullptr) {
-    dict_col_t *col = table->get_col(field->field_index);
+    dict_col_t *col = table->get_col(field->field_index());
     field_no = dict_col_get_clust_pos(col, table->first_index());
   }
 
   const char *to = bdiff->new_data(const_cast<Field *>(field));
   size_t len = bdiff->length();
 
-  out << "[Binary_diff: field_index=" << field->field_index
+  out << "[Binary_diff: field_index=" << field->field_index()
       << ", field_no=" << field_no << ", offset=" << bdiff->offset()
       << ", length=" << len << ", new_data=" << PrintBuffer(to, len) << "]";
 
@@ -3414,7 +3424,7 @@ std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
   const char *to = bdiff->new_data(fld);
   size_t len = bdiff->length();
 
-  out << "[Binary_diff: field_index=" << fld->field_index
+  out << "[Binary_diff: field_index=" << fld->field_index()
       << ", offset=" << bdiff->offset() << ", length=" << bdiff->length()
       << ", new_data=" << PrintBuffer(to, len) << "]";
   return (out);

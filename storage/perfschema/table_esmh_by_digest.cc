@@ -274,11 +274,11 @@ int table_esmh_by_digest::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* SCHEMA_NAME */
         case 1: /* DIGEST */
-          m_materialized_histogram.m_digest.set_field(f->field_index, f);
+          m_materialized_histogram.m_digest.set_field(f->field_index(), f);
           break;
         case 2: /* BUCKET_NUMBER */
           set_field_ulong(f, m_row.m_bucket_number);

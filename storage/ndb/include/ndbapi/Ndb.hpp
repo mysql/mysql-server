@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1343,13 +1343,13 @@ public:
    *        maximum time to wait
    * aMillisecondNumber < 0 : returns -1
    *
-   * @param OUT highestQueuedEpoch: if highestQueuedEpoch is non-null and
+   * @param[OUT] highestQueuedEpoch if highestQueuedEpoch is non-null and
    * there is some new event data available in the event queue,
    * it will be set to the highest epoch among the available event data.
    *
    * @return > 0 if events available, 0 if no events available, < 0 on failure.
    *
-   * @pollEvents2 will also return >0 when there is an event data
+   * pollEvents2 will also return >0 when there is an event data
    * representing empty or error epoch available on the head of the event queue.
    */
   int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
@@ -1449,7 +1449,7 @@ public:
    * If node failure occurs during resource exaustion events
    * may be lost and the delivered event data might thus be incomplete.
    *
-   * @param OUT aGCI
+   * @param[OUT] gci
    *        any inconsistent GCI found
    *
    * @return true if all received events are consistent, false if possible
@@ -1462,7 +1462,7 @@ public:
    * If node failure occurs during resource exaustion events
    * may be lost and the delivered event data might thus be incomplete.
    *
-  * @param aGCI
+  * @param gci
    *        the GCI to check
    *
    * @return true if GCI is consistent, false if possible inconsistency
@@ -1727,7 +1727,7 @@ public:
    *         else - fail, return error code
    */
   static int computeHash(Uint32* hashvalueptr,
-                         const NdbDictionary::Table*, 
+                         const NdbDictionary::Table* table,
                          const struct Key_part_ptr * keyData,
                          void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1885,27 +1885,15 @@ public:
    * Different types of tampering with the NDB Cluster.
    * <b>Only for debugging purposes only.</b>
    */
-  enum TamperType	{ 
+  enum TamperType	{
     LockGlbChp = 1,           ///< Lock GCP
     UnlockGlbChp,             ///< Unlock GCP
     CrashNode,                ///< Crash an NDB node
     ReadRestartGCI,           ///< Request the restart GCI id from NDB Cluster
-    InsertError               ///< Execute an error in NDB Cluster 
+    InsertError               ///< Execute an error in NDB Cluster
                               ///< (may crash system)
   };
 
-  /**
-   * Return a unique tuple id for a table.  The id sequence is
-   * ascending but may contain gaps.  Methods which have no
-   * TupleIdRange argument use NDB API dict cache.  They may
-   * not be called from mysqld.
-   *
-   * @param aTableName table name
-   *
-   * @param cacheSize number of values to cache in this Ndb object
-   *
-   * @return 0 or -1 on error, and tupleId in out parameter
-   */
   struct TupleIdRange {
     TupleIdRange() {}
     Uint64 m_first_tuple_id;
@@ -1920,6 +1908,18 @@ public:
 
   int initAutoIncrement();
 
+  /**
+   * Return a unique tuple id for a table.  The id sequence is
+   * ascending but may contain gaps.  Methods which have no
+   * TupleIdRange argument use NDB API dict cache.  They may
+   * not be called from mysqld.
+   *
+   * @param aTableName table name
+   *
+   * @param cacheSize number of values to cache in this Ndb object
+   *
+   * @return 0 or -1 on error, and tupleId in out parameter
+   */
   int getAutoIncrementValue(const char* aTableName, 
                             Uint64 & autoValue, Uint32 cacheSize,
                             Uint64 step = 1, Uint64 start = 1);
@@ -1944,7 +1944,7 @@ public:
                             TupleIdRange & range, Uint64 autoValue,
                             bool modify);
 #ifdef NDBAPI_50_COMPAT
-  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable,
 			       Uint32 cacheSize = 1)
     {
       Uint64 val;

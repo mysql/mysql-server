@@ -14,7 +14,7 @@
 --source include/have_group_replication_plugin.inc
 
 SET SESSION sql_log_bin= 0;
-CALL mtr.add_suppression("The group name option is mandatory");
+CALL mtr.add_suppression("The group_replication_group_name option is mandatory");
 CALL mtr.add_suppression("Unable to start Group Replication on boot");
 SET SESSION sql_log_bin= 1;
 
@@ -23,11 +23,13 @@ SET SESSION sql_log_bin= 1;
 --echo # 1. Assert the failed startup messages on server error log
 
 # File to GREP
---let $assert_file=$MYSQLTEST_VARDIR/tmp/group_replication_start_on_boot.1.err
+# We need the log from the initialization phase, we set it to the exact path
+# in the opt file.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
 # Each test will log only one warning line
 --let $assert_count= 1
 
---let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Plugin group_replication reported: 'The group name option is mandatory'
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Plugin group_replication reported: 'The group_replication_group_name option is mandatory'
 --let $assert_text= The GR plug-in reported an error on group name option being mandatory
 --source include/assert_grep.inc
 

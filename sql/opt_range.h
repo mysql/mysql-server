@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -540,7 +540,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
   virtual void get_fields_used(MY_BITMAP *used_fields) {
     for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, key_parts[i].field->field_index);
+      bitmap_set_bit(used_fields, key_parts[i].field->field_index());
   }
 
  private:
@@ -976,7 +976,7 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
 
   virtual void get_fields_used(MY_BITMAP *used_fields) {
     for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index);
+      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
   }
   void add_info_string(String *str);
 };
@@ -1119,7 +1119,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
 #endif
   virtual void get_fields_used(MY_BITMAP *used_fields) {
     for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index);
+      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
   }
   void add_info_string(String *str);
 };

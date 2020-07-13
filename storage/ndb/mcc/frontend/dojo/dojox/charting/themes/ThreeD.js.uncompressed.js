@@ -1,5 +1,5 @@
-define("dojox/charting/themes/ThreeD", ["dojox","dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array", "../Theme", "./gradientGenerator", "./PrimaryColors", "dojo/colors" /* for sanitize */, "./common"], 
-	function(dojox, kernel, lang, ArrayUtil, Theme, gradientGenerator, PrimaryColors, themes){
+define("dojox/charting/themes/ThreeD", ["dojo/_base/lang", "dojo/_base/array", "../Theme", "./gradientGenerator", "./PrimaryColors", "dojo/colors" /* for sanitize */, "./common"],
+	function(lang, ArrayUtil, Theme, gradientGenerator, PrimaryColors, themes){
 
 	var colors = ["#f00", "#0f0", "#00f", "#ff0", "#0ff", "#f0f", "./common"],	// the same is in PrimaryColors
 		defaultFill = {type: "linear", space: "shape", x1: 0, y1: 0, x2: 100, y2: 0},
@@ -9,7 +9,7 @@ define("dojox/charting/themes/ThreeD", ["dojox","dojo/_base/kernel", "dojo/_base
 			{o: 0.39, i: 221}, {o: 0.49, i: 206}, {o: 0.58, i: 187}, {o: 0.68, i: 165},
 			{o: 0.80, i: 128}, {o: 0.90, i: 102}, {o: 1.00, i: 174}
 		],
-		hiliteIndex = 2, hiliteIntensity = 100, lumStroke = 50,
+		hiliteIndex = 2, hiliteIntensity = 100,
 		cyl3dFills = ArrayUtil.map(colors, function(c){
 			var fill = lang.delegate(defaultFill),
 				colors = fill.colors = gradientGenerator.generateGradientByIntensity(c, cyl3dMap),

@@ -2,7 +2,8 @@ define("dojox/av/FLVideo", ['dojo', 'dijit', 'dijit/_Widget', 'dojox/embed/Flash
 function(dojo, dijit, _Widget, Flash, _Media){
 
 dojo.experimental("dojox.av.FLVideo");
-dojo.declare("dojox.av.FLVideo", [_Widget, _Media], {
+
+return dojo.declare("dojox.av.FLVideo", [_Widget, _Media], {
 
 	// summary:
 	//		Inserts a Flash FLV video into the HTML page and provides methods
@@ -318,5 +319,4 @@ dojo.declare("dojox.av.FLVideo", [_Widget, _Media], {
 	}
 });
 
-return dojox.av.FLVideo;
 });

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -679,8 +679,10 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   to reflect mtr commit rate. */
   srv_stats.log_write_requests.inc();
 
-  ut_ad(srv_shutdown_state.load() <= SRV_SHUTDOWN_FLUSH_PHASE ||
-        srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
+  ut_ad(srv_shutdown_state_matches([](auto state) {
+    return state <= SRV_SHUTDOWN_FLUSH_PHASE ||
+           state == SRV_SHUTDOWN_EXIT_THREADS;
+  }));
 
   ut_a(len > 0);
 

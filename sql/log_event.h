@@ -2935,8 +2935,9 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     This this functions sets the m_rows_lookup_algorithm and also the
     m_key_index with the key index to be used if the algorithm is dependent on
     an index.
+    TODO(Bug#31173056): Remove SUPPRESS_UBSAN_CLANG10
    */
-  void decide_row_lookup_algorithm_and_key();
+  void decide_row_lookup_algorithm_and_key() SUPPRESS_UBSAN_CLANG10;
 
   /*
     Encapsulates the  operations to be done before applying

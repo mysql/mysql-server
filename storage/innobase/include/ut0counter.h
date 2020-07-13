@@ -39,18 +39,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 #include "os0thread.h"
+#include "ut0cpu_cache.h"
 #include "ut0dbg.h"
 
 #include <array>
 #include <atomic>
 #include <functional>
-
-/** CPU cache line size */
-#ifdef __powerpc__
-#define INNOBASE_CACHE_LINE_SIZE 128
-#else
-#define INNOBASE_CACHE_LINE_SIZE 64
-#endif /* __powerpc__ */
 
 /** Default number of slots to use in ib_counter_t */
 #define IB_N_SLOTS 64
@@ -62,7 +56,7 @@ struct generic_indexer_t {
 
   /** @return offset within m_counter */
   static size_t offset(size_t index) UNIV_NOTHROW {
-    return (((index % N) + 1) * (INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
+    return (((index % N) + 1) * (ut::INNODB_CACHE_LINE_SIZE / sizeof(Type)));
   }
 };
 
@@ -105,7 +99,7 @@ struct single_indexer_t {
   /** @return offset within m_counter */
   static size_t offset(size_t index) UNIV_NOTHROW {
     ut_ad(N == 1);
-    return ((INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
+    return ((ut::INNODB_CACHE_LINE_SIZE / sizeof(Type)));
   }
 
   /** @return 1 */
@@ -120,7 +114,7 @@ struct single_indexer_t {
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close
 enough. Creates an array of counters and separates each element by the
-INNOBASE_CACHE_LINE_SIZE bytes */
+ut::INNODB_CACHE_LINE_SIZE bytes */
 template <typename Type, int N = IB_N_SLOTS,
           template <typename, int> class Indexer = default_indexer_t>
 class ib_counter_t {
@@ -133,7 +127,7 @@ class ib_counter_t {
 
   bool validate() UNIV_NOTHROW {
 #ifdef UNIV_DEBUG
-    size_t n = (INNOBASE_CACHE_LINE_SIZE / sizeof(Type));
+    size_t n = (ut::INNODB_CACHE_LINE_SIZE / sizeof(Type));
 
     /* Check that we aren't writing outside our defined bounds. */
     for (size_t i = 0; i < UT_ARR_SIZE(m_counter); i += n) {
@@ -219,7 +213,7 @@ class ib_counter_t {
   Indexer<Type, N> m_policy;
 
   /** Slot 0 is unused. */
-  Type m_counter[(N + 1) * (INNOBASE_CACHE_LINE_SIZE / sizeof(Type))];
+  Type m_counter[(N + 1) * (ut::INNODB_CACHE_LINE_SIZE / sizeof(Type))];
 };
 
 /** Sharded atomic counter. */
@@ -229,10 +223,10 @@ using Type = uint64_t;
 
 using N = std::atomic<Type>;
 
-static_assert(INNOBASE_CACHE_LINE_SIZE >= sizeof(N),
-              "Atomic counter size > INNOBASE_CACHE_LINE_SIZE");
+static_assert(ut::INNODB_CACHE_LINE_SIZE >= sizeof(N),
+              "Atomic counter size > ut::INNODB_CACHE_LINE_SIZE");
 
-using Pad = byte[INNOBASE_CACHE_LINE_SIZE - sizeof(N)];
+using Pad = byte[ut::INNODB_CACHE_LINE_SIZE - sizeof(N)];
 
 /** Counter shard. */
 struct Shard {
@@ -243,12 +237,25 @@ struct Shard {
   N m_n{};
 };
 
-template <size_t COUNT = 128>
-using Shards = std::array<Shard, COUNT>;
-
 using Function = std::function<void(const Type)>;
 
+/** Relaxed order by default. */
 constexpr auto Memory_order = std::memory_order_relaxed;
+
+template <size_t COUNT = 128>
+struct Shards {
+  /* Shard array. */
+  std::array<Shard, COUNT> m_arr{};
+
+  /* Memory order for the shards. */
+  std::memory_order m_memory_order{Memory_order};
+
+  /** Override default memory order.
+  @param[in]	memory_order	memory order */
+  void set_order(std::memory_order memory_order) {
+    m_memory_order = memory_order;
+  }
+};
 
 /** Increment the counter for a shard by n.
 @param[in,out]  shards          Sharded counter to increment.
@@ -257,7 +264,10 @@ constexpr auto Memory_order = std::memory_order_relaxed;
 @return previous value. */
 template <size_t COUNT>
 inline Type add(Shards<COUNT> &shards, size_t id, size_t n) {
-  return (shards[id % shards.size()].m_n.fetch_add(n, Memory_order));
+  auto &shard_arr = shards.m_arr;
+  auto order = shards.m_memory_order;
+
+  return (shard_arr[id % shard_arr.size()].m_n.fetch_add(n, order));
 }
 
 /** Decrement the counter for a shard by n.
@@ -267,7 +277,11 @@ inline Type add(Shards<COUNT> &shards, size_t id, size_t n) {
 @return previous value. */
 template <size_t COUNT>
 inline Type sub(Shards<COUNT> &shards, size_t id, size_t n) {
-  return (shards[id % shards.size()].m_n.fetch_sub(n, Memory_order));
+  ut_ad(get(shards, id) >= n);
+
+  auto &shard_arr = shards.m_arr;
+  auto order = shards.m_memory_order;
+  return (shard_arr[id % shard_arr.size()].m_n.fetch_sub(n, order));
 }
 
 /** Increment the counter of a shard by 1.
@@ -294,7 +308,10 @@ inline Type dec(Shards<COUNT> &shards, size_t id) {
 @return current value. */
 template <size_t COUNT>
 inline Type get(const Shards<COUNT> &shards, size_t id) noexcept {
-  return (shards[id % shards.size()].m_n.load(Memory_order));
+  auto &shard_arr = shards.m_arr;
+  auto order = shards.m_memory_order;
+
+  return (shard_arr[id % shard_arr.size()].m_n.load(order));
 }
 
 /** Iterate over the shards.
@@ -303,7 +320,7 @@ inline Type get(const Shards<COUNT> &shards, size_t id) noexcept {
 */
 template <size_t COUNT>
 inline void for_each(const Shards<COUNT> &shards, Function &&f) noexcept {
-  for (const auto &shard : shards) {
+  for (const auto &shard : shards.m_arr) {
     f(shard.m_n);
   }
 }
@@ -324,8 +341,8 @@ inline Type total(const Shards<COUNT> &shards) noexcept {
 @param[in,out] shards          Shards to clear. */
 template <size_t COUNT>
 inline void clear(Shards<COUNT> &shards) noexcept {
-  for (auto &shard : shards) {
-    shard.m_n.store(0, Memory_order);
+  for (auto &shard : shards.m_arr) {
+    shard.m_n.store(0, shards.m_memory_order);
   }
 }
 
@@ -336,7 +353,7 @@ template <size_t COUNT>
 inline void copy(Shards<COUNT> &dst, const Shards<COUNT> &src) noexcept {
   size_t i{0};
   for_each(src, [&](const Type count) {
-    dst[i++].m_n.store(count, std::memory_order_relaxed);
+    dst.m_arr[i++].m_n.store(count, dst.m_memory_order);
   });
 }
 
@@ -347,7 +364,7 @@ template <size_t COUNT>
 inline void add(Shards<COUNT> &dst, const Shards<COUNT> &src) noexcept {
   size_t i{0};
   for_each(src, [&](const Type count) {
-    dst[i++].m_n.fetch_add(count, std::memory_order_relaxed);
+    dst.m_arr[i++].m_n.fetch_add(count, dst.m_memory_order);
   });
 }
 }  // namespace Counter

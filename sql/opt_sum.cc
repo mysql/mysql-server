@@ -518,7 +518,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
             table->mark_columns_used_by_index_no_reset(ref.key, table->read_set,
                                                        ref.key_parts);
             // The aggregated column may or not be included in ref.key_parts.
-            bitmap_set_bit(table->read_set, item_field->field->field_index);
+            bitmap_set_bit(table->read_set, item_field->field->field_index());
             error = is_max ? get_index_max_value(table, &ref, range_fl)
                            : get_index_min_value(table, &ref, item_field,
                                                  range_fl, prefix_len);
@@ -958,7 +958,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 uint *range_fl, uint *prefix_len) {
   Field *const field = item_field->field;
 
-  if (!(field->flags & PART_KEY_FLAG)) return false;  // Not key field
+  if (!field->is_flag_set(PART_KEY_FLAG)) return false;  // Not key field
 
   DBUG_TRACE;
 
@@ -987,7 +987,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 
       /* Check whether the index component is partial */
       Field *part_field = table->field[part->fieldnr - 1];
-      if ((part_field->flags & BLOB_FLAG) ||
+      if (part_field->is_flag_set(BLOB_FLAG) ||
           part->length < part_field->key_length())
         break;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -333,7 +333,7 @@ ulonglong innobase_next_autoinc(
     ulonglong step,      /*!< in: AUTOINC increment step */
     ulonglong offset,    /*!< in: AUTOINC offset */
     ulonglong max_value) /*!< in: max value for type */
-    MY_ATTRIBUTE((pure, warn_unused_result));
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**********************************************************************
 Check if the length of the identifier exceeds the maximum allowed.

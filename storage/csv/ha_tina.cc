@@ -61,8 +61,10 @@ TODO:
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "template_utils.h"
@@ -101,6 +103,11 @@ static unique_ptr<collation_unordered_multimap<string, TINA_SHARE *>>
     tina_open_tables;
 static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table,
                                     bool partitioned, MEM_ROOT *mem_root);
+
+/* Interface to mysqld, to check system tables supported by SE */
+static bool tina_is_supported_system_table(const char *db,
+                                           const char *table_name,
+                                           bool is_sql_layer_system_table);
 
 /*****************************************************************************
  ** TINA tables
@@ -176,6 +183,7 @@ static int tina_init_func(void *p) {
       (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | HTON_NO_PARTITION);
   tina_hton->file_extensions = ha_tina_exts;
   tina_hton->rm_tmp_tables = default_rm_tmp_tables;
+  tina_hton->is_supported_system_table = tina_is_supported_system_table;
   return 0;
 }
 
@@ -465,6 +473,39 @@ static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
   return new (mem_root) ha_tina(hton, table);
 }
 
+/**
+  @brief Check if the given db.tablename is a system table for this SE.
+
+  @param db                         database name.
+  @param table_name                 table name to check.
+  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                    layer system table.
+
+  @retval true   Given db.table_name is supported system table.
+  @retval false  Given db.table_name is not a supported system table.
+*/
+static bool tina_is_supported_system_table(const char *db,
+                                           const char *table_name,
+                                           bool is_sql_layer_system_table) {
+  /*
+   Currently CSV does not support any other SE specific system tables. If
+   in future it does, please see ha_example.cc for reference implementation
+  */
+  if (!is_sql_layer_system_table) return false;
+
+  // Creating system tables in this SE is allowed to support logical upgrade.
+  THD *thd = current_thd;
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNSUPPORTED_ENGINE,
+                        ER_THD(thd, ER_UNSUPPORTED_ENGINE), "CSV", db,
+                        table_name);
+    return true;
+  }
+
+  // Any other usage is not allowed.
+  return false;
+}
+
 ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
       /*
@@ -728,7 +769,7 @@ int ha_tina::find_current_row(uchar *buf) {
       }
     }
 
-    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index())) {
       bool is_enum = ((*field)->real_type() == MYSQL_TYPE_ENUM);
       /*
         Here CHECK_FIELD_WARN checks that all values in the csv file are valid
@@ -742,9 +783,9 @@ int ha_tina::find_current_row(uchar *buf) {
                           is_enum ? CHECK_FIELD_IGNORE : CHECK_FIELD_WARN)) {
         if (!is_enum) goto err;
       }
-      if ((*field)->flags & BLOB_FLAG) {
+      if ((*field)->is_flag_set(BLOB_FLAG)) {
         Field_blob *blob_field = down_cast<Field_blob *>(*field);
-        size_t length = blob_field->get_length(blob_field->ptr);
+        size_t length = blob_field->get_length();
         // BLOB data is not stored inside buffer. It only contains a
         // pointer to it. Copy the BLOB data into a separate memory
         // area so that it is not overwritten by subsequent calls to
@@ -752,7 +793,7 @@ int ha_tina::find_current_row(uchar *buf) {
         if (length > 0) {
           unsigned char *new_blob = new (&blobroot) unsigned char[length];
           if (new_blob == nullptr) return HA_ERR_OUT_OF_MEM;
-          memcpy(new_blob, blob_field->get_ptr(), length);
+          memcpy(new_blob, blob_field->get_blob_data(), length);
           blob_field->set_ptr(length, new_blob);
         }
       }

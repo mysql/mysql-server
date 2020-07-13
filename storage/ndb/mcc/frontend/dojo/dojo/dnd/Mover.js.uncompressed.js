@@ -1,7 +1,7 @@
 define("dojo/dnd/Mover", [
-	"../_base/array", "../_base/declare", "../_base/event", "../_base/lang", "../sniff", "../_base/window",
+	"../_base/array", "../_base/declare", "../_base/lang", "../sniff", "../_base/window",
 	"../dom", "../dom-geometry", "../dom-style", "../Evented", "../on", "../touch", "./common", "./autoscroll"
-], function(array, declare, event, lang, has, win, dom, domGeom, domStyle, Evented, on, touch, dnd, autoscroll){
+], function(array, declare, lang, has, win, dom, domGeom, domStyle, Evented, on, touch, dnd, autoscroll){
 
 // module:
 //		dojo/dnd/Mover
@@ -24,6 +24,12 @@ return declare("dojo.dnd.Mover", [Evented], {
 		this.marginBox = {l: e.pageX, t: e.pageY};
 		this.mouseButton = e.button;
 		var h = (this.host = host), d = node.ownerDocument;
+
+		function stopEvent(e){
+			e.preventDefault();
+			e.stopPropagation();
+		}
+
 		this.events = [
 			// At the start of a drag, onFirstMove is called, and then the following
 			// listener is disconnected.
@@ -36,8 +42,8 @@ return declare("dojo.dnd.Mover", [Evented], {
 			on(d, touch.release,  lang.hitch(this, "onMouseUp")),
 
 			// cancel text selection and text dragging
-			on(d, "dragstart",   event.stop),
-			on(d.body, "selectstart", event.stop)
+			on(d, "dragstart",   stopEvent),
+			on(d.body, "selectstart", stopEvent)
 		];
 
 		// Tell autoscroll that a drag is starting
@@ -57,14 +63,16 @@ return declare("dojo.dnd.Mover", [Evented], {
 		autoscroll.autoScroll(e);
 		var m = this.marginBox;
 		this.host.onMove(this, {l: m.l + e.pageX, t: m.t + e.pageY}, e);
-		event.stop(e);
+		e.preventDefault();
+		e.stopPropagation();
 	},
 	onMouseUp: function(e){
 		if(has("webkit") && has("mac") && this.mouseButton == 2 ?
 				e.button == 0 : this.mouseButton == e.button){ // TODO Should condition be met for touch devices, too?
 			this.destroy();
 		}
-		event.stop(e);
+		e.preventDefault();
+		e.stopPropagation();
 	},
 	// utilities
 	onFirstMove: function(e){

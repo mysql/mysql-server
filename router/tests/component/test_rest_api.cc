@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethods, RestOpenApiTest, ::testing::ValuesIn(rest_api_valid_methods),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
       return info.param.test_name;
@@ -232,7 +232,7 @@ static const RestApiTestParams rest_api_valid_methods_no_auth_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsNoAuth, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_no_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -270,7 +270,7 @@ static const RestApiTestParams rest_api_valid_methods_invalid_auth_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsInvalidAuth, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_invalid_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -297,7 +297,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethods, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -324,7 +324,7 @@ static const RestApiTestParams rest_api_invalid_methods_no_auth_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethodsNoAuth, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_no_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -353,32 +353,10 @@ TEST_F(RestOpenApiTest, invalid_realm) {
   check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(router_output.find("Configuration error: unknown authentication "
-                               "realm for [rest_api] '': invalidrealm, known "
-                               "realm(s): somerealm"),
-            router_output.npos)
-      << router_output;
-}
-
-/**
- * @test Start router with the REST API plugin [rest_api] enabled but not the
- * [http_server]
- */
-TEST_F(RestOpenApiTest, rest_api_no_http_server) {
-  const std::string userfile = create_password_file();
-  auto config_sections = ConfigBuilder::build_section("rest_api", {});
-
-  const std::string conf_file{
-      create_config_file(conf_dir_.name(), config_sections)};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
-
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
-
-  const std::string router_output = router.get_full_output();
-  EXPECT_NE(
-      router_output.find("Error: Section name 'http_server' does not exist"),
-      router_output.npos)
+  EXPECT_THAT(router_output, ::testing::HasSubstr(
+                                 "Configuration error: unknown authentication "
+                                 "realm for [rest_api] '': invalidrealm, known "
+                                 "realm(s): somerealm"))
       << router_output;
 }
 
@@ -401,10 +379,10 @@ TEST_F(RestOpenApiTest, duplicated_rest_api_section) {
   check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_output();
-  EXPECT_NE(
-      router_output.find(
-          "Error: Configuration error: Section 'rest_api' already exists."),
-      router_output.npos)
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr(
+          "Error: Configuration error: Section 'rest_api' already exists."))
       << router_output;
 }
 
@@ -425,9 +403,10 @@ TEST_F(RestOpenApiTest, rest_api_section_key) {
   check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(router_output.find(" Configuration error: [rest_api] section does "
-                               "not expect a key, found 'nosectionallowed'"),
-            router_output.npos)
+  EXPECT_THAT(
+      router_output,
+      ::testing::HasSubstr(" Configuration error: [rest_api] section does "
+                           "not expect a key, found 'nosectionallowed'"))
       << router_output;
 }
 

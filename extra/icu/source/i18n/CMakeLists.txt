@@ -10,7 +10,6 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/.
 ADD_DEFINITIONS(-DU_I18N_IMPLEMENTATION)
 
 SET(ICU_SOURCES
-  affixpatternparser.cpp
   alphaindex.cpp
   anytrans.cpp
   astro.cpp
@@ -64,27 +63,30 @@ SET(ICU_SOURCES
   dayperiodrules.cpp
   dcfmtsym.cpp
   decContext.cpp
-  decfmtst.cpp
-  decimalformatpattern.cpp
   decimfmt.cpp
-  decimfmtimpl.cpp
   decNumber.cpp
-  digitaffix.cpp
-  digitaffixesandpadding.cpp
-  digitformatter.cpp
-  digitgrouping.cpp
-  digitinterval.cpp
-  digitlst.cpp
+  double-conversion-bignum.cpp
+  double-conversion-bignum-dtoa.cpp
+  double-conversion-cached-powers.cpp
+  double-conversion-double-to-string.cpp
+  double-conversion-fast-dtoa.cpp
+  double-conversion-string-to-double.cpp
+  double-conversion-strtod.cpp
   dtfmtsym.cpp
   dtitvfmt.cpp
   dtitvinf.cpp
   dtptngen.cpp
   dtrule.cpp
+  erarules.cpp
   esctrn.cpp
   ethpccal.cpp
   fmtable_cnv.cpp
   fmtable.cpp
   format.cpp
+  formatted_string_builder.cpp
+  formattedval_iterimpl.cpp
+  formattedval_sbimpl.cpp
+  formattedvalue.cpp
   fphdlimp.cpp
   fpositer.cpp
   funcrepl.cpp
@@ -96,6 +98,7 @@ SET(ICU_SOURCES
   inputext.cpp
   islamcal.cpp
   japancal.cpp
+  listformatter.cpp
   measfmt.cpp
   measunit.cpp
   measure.cpp
@@ -105,15 +108,49 @@ SET(ICU_SOURCES
   nfrule.cpp
   nfsubs.cpp
   nortrans.cpp
+  nounit.cpp
   nultrans.cpp
+  number_affixutils.cpp
+  number_asformat.cpp
+  number_capi.cpp
+  number_compact.cpp
+  number_currencysymbols.cpp
+  number_decimalquantity.cpp
+  number_decimfmtprops.cpp
+  number_fluent.cpp
+  number_formatimpl.cpp
+  number_grouping.cpp
+  number_integerwidth.cpp
+  number_longnames.cpp
+  number_mapper.cpp
+  number_modifiers.cpp
+  number_multiplier.cpp
+  number_notation.cpp
+  number_output.cpp
+  number_padding.cpp
+  number_patternmodifier.cpp
+  number_patternstring.cpp
+  number_rounding.cpp
+  number_scientific.cpp
+  number_skeletons.cpp
+  number_utils.cpp
   numfmt.cpp
+  numparse_affixes.cpp
+  numparse_compositions.cpp
+  numparse_currency.cpp
+  numparse_decimal.cpp
+  numparse_impl.cpp
+  numparse_parsednumber.cpp
+  numparse_scientific.cpp
+  numparse_symbols.cpp
+  numparse_validators.cpp
+  numrange_fluent.cpp
+  numrange_impl.cpp
   numsys.cpp
   olsontz.cpp
   persncal.cpp
-  pluralaffix.cpp
   plurfmt.cpp
   plurrule.cpp
-  precision.cpp
   quant.cpp
   quantityformatter.cpp
   rbnf.cpp
@@ -140,11 +177,11 @@ SET(ICU_SOURCES
   selfmt.cpp
   sharedbreakiterator.cpp
   simpletz.cpp
-  smallintformatter.cpp
   smpdtfmt.cpp
   smpdtfst.cpp
   sortkey.cpp
   standardplural.cpp
+  string_segment.cpp
   strmatch.cpp
   strrepl.cpp
   stsearch.cpp
@@ -177,6 +214,7 @@ SET(ICU_SOURCES
   udatpg.cpp
   ufieldpositer.cpp
   uitercollationiterator.cpp
+  ulistformatter.cpp
   ulocdata.cpp
   umsg.cpp
   unesctrn.cpp
@@ -196,8 +234,6 @@ SET(ICU_SOURCES
   utf8collationiterator.cpp
   utmscale.cpp
   utrans.cpp
-  valueformatter.cpp
-  visibledigits.cpp
   vtzone.cpp
   vzone.cpp
   windtfmt.cpp

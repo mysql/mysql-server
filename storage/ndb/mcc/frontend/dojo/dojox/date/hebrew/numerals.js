@@ -1,5 +1,5 @@
 //>>built
-define("dojox/date/hebrew/numerals",["../..","dojo/_base/lang","dojo/_base/array"],function(_1,_2,_3){
+define("dojox/date/hebrew/numerals",["dojox/main","dojo/_base/lang","dojo/_base/array"],function(_1,_2,_3){
 var _4=_2.getObject("date.hebrew.numerals",true,_1);
 var _5="אבגדהוזחט";
 var _6="יכלמנסעפצ";

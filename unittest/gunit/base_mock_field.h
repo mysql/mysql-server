@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,8 @@ class Base_mock_field_longlong : public Field_longlong {
                        false)                      // unsigned_arg
   {}
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 };
 
 class Base_mock_field_varstring : public Field_varstring {
@@ -68,7 +68,7 @@ class Base_mock_field_varstring : public Field_varstring {
 class Base_mock_field_json : public Field_json {
  public:
   Base_mock_field_json() : Field_json(MAX_BLOB_WIDTH, true, "json_field") {}
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
 };
 
 #endif  // BASE_MOCK_FIELD_INCLUDED

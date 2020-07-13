@@ -20,7 +20,7 @@ define("dojo/router/RouterBase", [
 	// no clean way to expose this on the prototype since it's for the
 	// internal router objects.
 	function fireRoute(params, currentPath, newPath){
-		var queue, isStopped, isPrevented, eventObj, i, l;
+		var queue, isStopped, isPrevented, eventObj, callbackArgs, i, l;
 
 		queue = this.callbackQueue;
 		isStopped = false;
@@ -33,9 +33,19 @@ define("dojo/router/RouterBase", [
 			params: params
 		};
 
+		callbackArgs = [eventObj];
+
+		if(params instanceof Array){
+			callbackArgs = callbackArgs.concat(params);
+		}else{
+			for(var key in params){
+				callbackArgs.push(params[key]);
+			}
+		}
+
 		for(i=0, l=queue.length; i<l; ++i){
 			if(!isStopped){
-				queue[i](eventObj);
+				queue[i].apply(null, callbackArgs);
 			}
 		}
 
@@ -171,6 +181,8 @@ define("dojo/router/RouterBase", [
 
 			var applyChange;
 
+			if(typeof path !== "string"){return false;}
+
 			path = trim(path);
 			applyChange = this._handlePathChange(path);
 
@@ -181,7 +193,7 @@ define("dojo/router/RouterBase", [
 			return applyChange;
 		},
 
-		startup: function(){
+		startup: function(defaultPath){
 			// summary:
 			//		This method must be called to activate the router. Until
 			//		startup is called, no hash changes will trigger route
@@ -189,14 +201,30 @@ define("dojo/router/RouterBase", [
 
 			if(this._started){ return; }
 
-			var self = this;
+			var self = this,
+				startingPath = hash();
 
 			this._started = true;
-			this._handlePathChange(hash());
-			topic.subscribe("/dojo/hashchange", function(){
-				// No need to load all of lang for just this
+			this._hashchangeHandle = topic.subscribe("/dojo/hashchange", function(){
 				self._handlePathChange.apply(self, arguments);
 			});
+
+			if(!startingPath){
+				// If there is no initial starting point, push our defaultPath into our
+				// history as the starting point
+				this.go(defaultPath, true);
+			}else{
+				// Handle the starting path
+				this._handlePathChange(startingPath);
+			}
+		},
+
+		destroy: function(){
+			if(this._hashchangeHandle){
+				this._hashchangeHandle.remove();
+			} 			
+			this._routes = null;
+			this._routeIndex = null;
 		},
 
 		_handlePathChange: function(newPath){

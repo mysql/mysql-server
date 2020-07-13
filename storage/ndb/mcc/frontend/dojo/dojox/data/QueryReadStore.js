@@ -1,6 +1,6 @@
 //>>built
 define("dojox/data/QueryReadStore",["dojo","dojox","dojo/data/util/sorter","dojo/string"],function(_1,_2){
-_1.declare("dojox.data.QueryReadStore",null,{url:"",requestMethod:"get",_className:"dojox.data.QueryReadStore",_items:[],_lastServerQuery:null,_numRows:-1,lastRequestHash:null,doClientPaging:false,doClientSorting:false,_itemsByIdentity:null,_identifier:null,_features:{"dojo.data.api.Read":true,"dojo.data.api.Identity":true},_labelAttr:"label",constructor:function(_3){
+return _1.declare("dojox.data.QueryReadStore",null,{url:"",requestMethod:"get",_className:"dojox.data.QueryReadStore",_items:[],_lastServerQuery:null,_numRows:-1,lastRequestHash:null,doClientPaging:false,doClientSorting:false,_itemsByIdentity:null,_identifier:null,_features:{"dojo.data.api.Read":true,"dojo.data.api.Identity":true},_labelAttr:"label",constructor:function(_3){
 _1.mixin(this,_3);
 },getValue:function(_4,_5,_6){
 this._assertIsItem(_4);
@@ -241,5 +241,4 @@ return _4c;
 },getIdentityAttributes:function(_4d){
 return [this._identifier];
 }});
-return _2.data.QueryReadStore;
 });

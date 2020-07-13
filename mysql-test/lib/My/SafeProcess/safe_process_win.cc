@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -143,6 +143,26 @@ void handle_signal(int signal) {
   }
 }
 
+/** Sets the append flag (FILE_APPEND_DATA) so that the handle inherited by the
+ * child process will be in append mode. This is in contrast to the C runtime
+ * flag that is set by f(re)open methods and is not communicated to OS, i.e. is
+ * local to process and is lost in the context of the child process. This method
+ * allows several processes to append a common file concurrently, without the
+ * safe_process child overwriting what others append.
+ * A bug to MSVCRT was submitted:
+ https://developercommunity.visualstudio.com/content/problem/921279/createprocess-does-not-inherit-fappend-flags-set-b.html
+ */
+void fix_file_append_flag_inheritance(DWORD std_handle) {
+  HANDLE old_handle = GetStdHandle(std_handle);
+  HANDLE new_handle = ReOpenFile(old_handle, FILE_APPEND_DATA,
+                                 FILE_SHARE_WRITE | FILE_SHARE_READ, 0);
+  if (new_handle != INVALID_HANDLE_VALUE) {
+    SetHandleInformation(new_handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    SetStdHandle(std_handle, new_handle);
+    CloseHandle(old_handle);
+  }
+}
+
 int main(int argc, const char **argv) {
   DWORD pid = GetCurrentProcessId();
   sprintf(safe_process_name, "safe_process[%d]", pid);
@@ -257,6 +277,9 @@ int main(int argc, const char **argv) {
   if (nocore)
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
                  SEM_NOOPENFILEERRORBOX);
+
+  fix_file_append_flag_inheritance(STD_OUTPUT_HANDLE);
+  fix_file_append_flag_inheritance(STD_ERROR_HANDLE);
 
 #if 0
   // Setup stdin, stdout and stderr redirect

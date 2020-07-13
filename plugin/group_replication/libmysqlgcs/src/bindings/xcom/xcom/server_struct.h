@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,9 @@
 #ifndef SERVER_STRUCT_H
 #define SERVER_STRUCT_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_limits.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/task.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_limits.h"
 
 struct srv_buf {
   u_int start;
@@ -52,12 +48,10 @@ struct server {
   task_env *reply_handler;   /* The reply task */
   srv_buf out_buf;
   int invalid;
+  int number_of_pings_received; /* Number of pings received from this server */
+  double last_ping_received;    /* Last received ping timestamp */
 };
 
 typedef struct server server;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

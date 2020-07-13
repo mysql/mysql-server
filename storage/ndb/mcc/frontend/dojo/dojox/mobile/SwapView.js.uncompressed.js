@@ -7,24 +7,25 @@ define("dojox/mobile/SwapView", [
 	"dijit/registry",
 	"./View",
 	"./_ScrollableMixin",
-	"./sniff"
-], function(array, connect, declare, dom, domClass, registry, View, ScrollableMixin, has){
+	"./sniff",
+	"./_css3",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/SwapView"
+], function(array, connect, declare, dom, domClass, registry, View, ScrollableMixin, has, css3, BidiSwapView){
 
 	// module:
 	//		dojox/mobile/SwapView
 
-	return declare("dojox.mobile.SwapView", [View, ScrollableMixin], {
+	var SwapView = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiSwapView" : "dojox.mobile.SwapView", [View, ScrollableMixin], {
 		// summary:
 		//		A container that can be swiped horizontally.
 		// description:
-		//		SwapView is a container widget that represents entire mobile
-		//		device screen, and can be swiped horizontally. (In dojo-1.6, it
-		//		was called 'FlippableView'.) SwapView is a subclass of
-		//		dojox/mobile/View. SwapView allows the user to swipe the screen
-		//		left or right to move between the views. When SwapView is
-		//		swiped, it finds an adjacent SwapView to open.
-		//		When the transition is done, a topic "/dojox/mobile/viewChanged"
-		//		is published.
+		//		SwapView is a container widget which can be swiped horizontally. 
+		//		SwapView is a subclass of dojox/mobile/View. It allows the user to 
+		//		swipe the screen left or right to move between the views. When 
+		//		SwapView is swiped, it finds an adjacent SwapView to open. When 
+		//		the transition is done, a topic "/dojox/mobile/viewChanged" is 
+		//		published. Note that, to behave properly, the SwapView needs to 
+		//		occupy the entire width of the screen.
 
 		/* internal properties */	
 		// scrollDir: [private] String
@@ -33,6 +34,11 @@ define("dojox/mobile/SwapView", [
 		// weight: [private] Number
 		//		Frictional weight used to compute scrolling speed.
 		weight: 1.2,
+
+		// _endOfTransitionTimeoutHandle: [private] Object
+		//		The handle (returned by _WidgetBase.defer) for the timeout set on touchEnd in case
+		//      the end of transition event is not fired by the browser.
+		_endOfTransitionTimeoutHandle: null,
 
 		buildRendering: function(){
 			this.inherited(arguments);
@@ -61,6 +67,10 @@ define("dojox/mobile/SwapView", [
 		onTouchStart: function(/*Event*/e){
 			// summary:
 			//		Internal function to handle touchStart events.
+			if(this._siblingViewsInMotion()){  // Ignore touchstart if the views are already in motion
+				this.propagatable ? e.preventDefault() : event.stop(e);
+				return;
+			}
 			var fromTop = this.domNode.offsetTop;
 			var nextView = this.nextView(this.domNode);
 			if(nextView){
@@ -75,6 +85,22 @@ define("dojox/mobile/SwapView", [
 				domClass.add(prevView.domNode, "mblIn");
 				// Temporarily add padding to align with the fromNode while transition
 				prevView.containerNode.style.paddingTop = fromTop + "px";
+			}
+			this._setSiblingViewsInMotion(true);
+			this.inherited(arguments);
+		},
+
+		onTouchEnd: function(/*Event*/e){
+			if(e){
+				if(!this._moved){ // No transition / animation following touchend in this case
+					this._setSiblingViewsInMotion(false);
+				}else{ // There might be a transition / animation following touchend
+					// As the webkitTransitionEndEvent is not always fired, make sure we call this._setSiblingViewsInMotion(false) even
+					// if the event is not fired (and onFlickAnimationEnd is not called as a result)
+					this._endOfTransitionTimeoutHandle = this.defer(function(){
+						this._setSiblingViewsInMotion(false);
+					}, 1000);
+				}
 			}
 			this.inherited(arguments);
 		},
@@ -142,12 +168,14 @@ define("dojox/mobile/SwapView", [
 			//		Overrides dojox/mobile/scrollable.scrollTo().
 			if(!this._beingFlipped){
 				var newView, x;
-				if(to.x < 0){
-					newView = this.nextView(this.domNode);
-					x = to.x + this.domNode.offsetWidth;
-				}else{
-					newView = this.previousView(this.domNode);
-					x = to.x - this.domNode.offsetWidth;
+				if(to.x){
+					if(to.x < 0){
+						newView = this.nextView(this.domNode);
+						x = to.x + this.domNode.offsetWidth;
+					}else{
+						newView = this.previousView(this.domNode);
+						x = to.x - this.domNode.offsetWidth;
+					}
 				}
 				if(newView){
 					if(newView.domNode.style.display === "none"){
@@ -237,6 +265,9 @@ define("dojox/mobile/SwapView", [
 		},
 
 		onFlickAnimationEnd: function(/*Event*/e){
+			if(this._endOfTransitionTimeoutHandle){
+				this._endOfTransitionTimeoutHandle = this._endOfTransitionTimeoutHandle.remove();
+			}
 			// summary:
 			//		Overrides dojox/mobile/scrollable.onFlickAnimationEnd().
 			if(e && e.target && !domClass.contains(e.target, "mblScrollableScrollTo2")){ return; }
@@ -251,17 +282,38 @@ define("dojox/mobile/SwapView", [
 						domClass.remove(c, "mblIn");
 						if(!c._isShowing){
 							c.style.display = "none";
-							c.style.webkitTransform = "";
+							c.style[css3.name("transform")] = "";
 							c.style.left = "0px"; // top/left mode needs this
+							// reset the temporaty padding on the container node
+							c.style.paddingTop = "";
 						}
 					}
 				}, this);
 				connect.publish("/dojox/mobile/viewChanged", [this]);
 				// Reset the temporary padding
 				this.containerNode.style.paddingTop = "";
-			}else if(!has("webkit")){
+			}else if(!has("css3-animations")){
 				this.containerNode.style.left = "0px"; // compat mode needs this
+			}
+			this._setSiblingViewsInMotion(false);
+		},
+
+		_setSiblingViewsInMotion: function(/*Boolean*/inMotion){
+			var inMotionAttributeValue = inMotion ? "true" : false;
+			var parent = this.domNode.parentNode;
+			if(parent){
+				parent.setAttribute("data-dojox-mobile-swapview-inmotion", inMotionAttributeValue);
+			}
+		},
+
+		_siblingViewsInMotion: function(){
+			var parent = this.domNode.parentNode;
+			if(parent){
+				return parent.getAttribute("data-dojox-mobile-swapview-inmotion") == "true";
+			}else{
+				return false;
 			}
 		}
 	});
+	return has("dojo-bidi") ? declare("dojox.mobile.SwapView", [SwapView, BidiSwapView]) : SwapView;
 });

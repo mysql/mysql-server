@@ -112,7 +112,7 @@ return declare("dojox.data.ServiceStore",
 		//		If an ID isn't already provided when an object
 		//		is fetched or added to the store, the autoIdentity system
 		//		will generate an id for it and add it to the index.
-		
+
 		idAttribute: "id",
 		labelAttribute: "label",
 		

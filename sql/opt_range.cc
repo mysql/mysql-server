@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2573,7 +2573,7 @@ class TABLE_READ_PLAN {
     TRASH(ptr, size);
   }
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* Never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* Never called */
   }
   virtual ~TABLE_READ_PLAN() = default;
 
@@ -7343,9 +7343,8 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
              b) if field is unsigned and has a negative value (which, when
                 cast to unsigned, means some value higher than LLONG_MAX).
         */
-        if ((field->val_int() > 0) ||  // a)
-            (static_cast<Field_num *>(field)->unsigned_flag &&
-             field->val_int() < 0))  // b)
+        if ((field->val_int() > 0) ||                        // a)
+            (field->is_unsigned() && field->val_int() < 0))  // b)
         {
           if (comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC) {
             /*
@@ -7706,7 +7705,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
   */
   if (field->result_type() == INT_RESULT &&
       value->result_type() == INT_RESULT &&
-      ((field->type() == FIELD_TYPE_BIT || field->unsigned_flag) &&
+      ((field->type() == FIELD_TYPE_BIT || field->is_unsigned()) &&
        !(value)->unsigned_flag)) {
     longlong item_val = value->val_int();
     if (item_val < 0) {
@@ -11701,7 +11700,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
   is_agg_distinct = is_indexed_agg_distinct(join, &agg_distinct_flds);
 
-  if ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
+  if (join->group_list.empty() && /* Neither GROUP BY nor a DISTINCT query. */
       (!join->select_distinct) && !is_agg_distinct) {
     trace_group.add("chosen", false)
         .add_alnum("cause", "not_group_by_or_distinct");
@@ -11790,7 +11789,8 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
   }
 
   /* Check (GA4) - that there are no expressions among the group attributes. */
-  for (tmp_group = join->group_list; tmp_group; tmp_group = tmp_group->next) {
+  for (tmp_group = join->group_list.order; tmp_group;
+       tmp_group = tmp_group->next) {
     if ((*tmp_group->item)->real_item()->type() != Item::FIELD_ITEM) {
       trace_group.add("chosen", false)
           .add_alnum("cause", "group_field_is_expression");
@@ -11857,7 +11857,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
           If the field is used in the current query ensure that it's
           part of 'cur_index'
         */
-        if (bitmap_is_set(table->read_set, cur_field->field_index) &&
+        if (bitmap_is_set(table->read_set, cur_field->field_index()) &&
             !cur_field->is_part_of_actual_key(thd, cur_index, cur_index_info)) {
           cause = "not_covering";
           goto next_index;  // Field was not part of key
@@ -11869,11 +11869,12 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     /*
       Check (GA1) for GROUP BY queries.
     */
-    if (join->group_list) {
+    if (!join->group_list.empty()) {
       cur_part = cur_index_info->key_part;
       end_part = cur_part + actual_key_parts(cur_index_info);
       /* Iterate in parallel over the GROUP list and the index parts. */
-      for (tmp_group = join->group_list; tmp_group && (cur_part != end_part);
+      for (tmp_group = join->group_list.order;
+           tmp_group && (cur_part != end_part);
            tmp_group = tmp_group->next, cur_part++) {
         /*
           TODO:
@@ -11904,7 +11905,8 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
       Later group_fields_array of ORDER objects is used to convert the query
       to a GROUP query.
     */
-    if ((!join->group_list && join->select_distinct) || is_agg_distinct) {
+    if ((join->group_list.empty() && join->select_distinct) ||
+        is_agg_distinct) {
       if (!is_agg_distinct) {
         select_items_it.rewind();
       }
@@ -12052,7 +12054,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
       cur_part = first_non_infix_part +
                  (cur_min_max_arg_part && (cur_min_max_arg_part < last_part));
       for (; cur_part != last_part; cur_part++) {
-        if (bitmap_is_set(table->read_set, cur_part->field->field_index)) {
+        if (bitmap_is_set(table->read_set, cur_part->field->field_index())) {
           cause = "keypart_after_infix_in_query";
           goto next_index;
         }
@@ -13349,6 +13351,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
     Request ordered index access as usage of ::index_last(),
     ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
   */
+  if (head->file->inited) head->file->ha_index_or_rnd_end();
   if ((result = head->file->ha_index_init(index, true))) {
     head->file->print_error(result, MYF(0));
     return result;
@@ -13397,8 +13400,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
 */
 
 int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
-  int min_res = 0;
-  int max_res = 0;
   int result;
   int is_last_prefix = 0;
 
@@ -13433,55 +13434,63 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
     bool reset_min_value = true;
     bool reset_max_value = true;
     while (!append_next_infix()) {
+      DBUG_ASSERT(!result || !is_index_access_error(result));
       if (have_min || have_max) {
         if (min_max_keypart_asc) {
           if (have_min) {
-            if (!(min_res = next_min()))
+            if (!(result = next_min()))
               update_min_result(&reset_min_value);
-            else
+            else {
+              DBUG_EXECUTE_IF("bug30769515_QUERY_INTERRUPTED",
+                              result = HA_ERR_QUERY_INTERRUPTED;);
+              if (is_index_access_error(result)) return result;
               continue;  // Record is not found, no reason to call next_max()
+            }
           }
-          if (have_max && !(max_res = next_max()))
-            update_max_result(&reset_max_value);
+          if (have_max) {
+            if (!(result = next_max()))
+              update_max_result(&reset_max_value);
+            else if (is_index_access_error(result))
+              return result;
+          }
         } else {
           // Call next_max() first and then next_min() if
           // MIN/MAX key part is descending.
           if (have_max) {
-            if (!(max_res = next_max()))
+            if (!(result = next_max()))
               update_max_result(&reset_max_value);
-            else
+            else {
+              DBUG_EXECUTE_IF("bug30769515_QUERY_INTERRUPTED",
+                              result = HA_ERR_QUERY_INTERRUPTED;);
+              if (is_index_access_error(result)) return result;
               continue;  // Record is not found, no reason to call next_min()
+            }
           }
-          if (have_min && !(min_res = next_min()))
-            update_min_result(&reset_min_value);
+          if (have_min) {
+            if (!(result = next_min()))
+              update_min_result(&reset_min_value);
+            else if (is_index_access_error(result))
+              return result;
+          }
         }
+        if (!result) found_result = true;
+      } else if (key_infix_len > 0) {
+        /*
+          If this is just a GROUP BY or DISTINCT without MIN or MAX and there
+          are equality predicates for the key parts after the group, find the
+          first sub-group with the extended prefix. There is no need to iterate
+          through the whole group to accumulate the MIN/MAX and returning just
+          the one distinct record is enough.
+        */
+        if (!(result = head->file->ha_index_read_map(
+                  record, group_prefix, make_prev_keypart_map(real_key_parts),
+                  HA_READ_KEY_EXACT)) ||
+            is_index_access_error(result))
+          return result;
       }
-      /*
-        If this is just a GROUP BY or DISTINCT without MIN or MAX and there
-        are equality predicates for the key parts after the group, find the
-        first sub-group with the extended prefix.
-      */
-      if (!have_min && !have_max && key_infix_len > 0)
-        result = head->file->ha_index_read_map(
-            record, group_prefix, make_prev_keypart_map(real_key_parts),
-            HA_READ_KEY_EXACT);
-
-      result = have_min ? min_res : have_max ? max_res : result;
-      if (!result) found_result = true;
-      /*
-        If this is just a GROUP BY or DISTINCT without MIN or MAX, there is no
-        need to iterate through the whole group to accumulate the MIN/MAX and
-        returning just the one distinct record is enough.
-      */
-      if (!have_min && !have_max && result == 0) break;
-      /*
-        Reset result value at the last infix range if
-        at least one group is found.
-      */
-      if (seen_all_infix_ranges && found_result) result = 0;
     }
-  } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
-           is_last_prefix != 0);
+    if (seen_all_infix_ranges && found_result) return 0;
+  } while (!is_index_access_error(result) && is_last_prefix != 0);
 
   if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
 
@@ -14337,7 +14346,7 @@ static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
     cause = "not_single_table";
   else if (table->s->keys == 0) /* There are no indexes to use. */
     cause = "no_index";
-  else if (join->group_list)
+  else if (!join->group_list.empty())
     cause = "has_group_by";
   else if (!tree)
     cause = "disjuntive_predicate_present";
@@ -14633,7 +14642,7 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
     bitmap_set_all(&ignored_fields);
     bitmap_clear_bit(
         &ignored_fields,
-        index_info->key_part[distinct_key_parts].field->field_index);
+        index_info->key_part[distinct_key_parts].field->field_index());
 
     /* Compute the number of records per group for the range. */
     if (index_info->has_records_per_key(distinct_key_parts))
@@ -14752,7 +14761,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     */
     if (i + 1 < used_key_parts) {
       distinct_prefix_len += p->store_length;
-      bitmap_set_bit(&column_bitmap, p->field->field_index);
+      bitmap_set_bit(&column_bitmap, p->field->field_index());
     }
   }
   distinct_prefix_key_parts = used_key_parts - 1;
@@ -15322,7 +15331,7 @@ static void print_key_value(String *out, const KEY_PART_INFO *key_part,
                             const uchar *key) {
   Field *field = key_part->field;
 
-  if (field->flags & BLOB_FLAG) {
+  if (field->is_flag_set(BLOB_FLAG)) {
     // Byte 0 of a nullable key is the null-byte. If set, key is NULL.
     if (field->is_nullable() && *key)
       out->append(STRING_WITH_LEN("NULL"));
@@ -15354,7 +15363,7 @@ static void print_key_value(String *out, const KEY_PART_INFO *key_part,
     optimizer trace expects. If the column is binary, the hex
     representation is printed to the trace instead.
   */
-  if (field->flags & BINARY_FLAG) {
+  if (field->is_flag_set(BINARY_FLAG)) {
     out->append("0x");
     for (uint i = 0; i < store_length; i++) {
       out->append(_dig_vec_lower[*(key + i) >> 4]);

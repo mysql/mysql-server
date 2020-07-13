@@ -1,6 +1,6 @@
 require({cache:{
 'dijit/main':function(){
-define("dijit/main", [
+define([
 	"dojo/_base/kernel"
 ], function(dojo){
 	// module:
@@ -19,7 +19,7 @@ return {
 
 },
 'dojox/main':function(){
-define("dojox/main", ["dojo/_base/kernel"], function(dojo) {
+define(["dojo/_base/kernel"], function(dojo) {
 	// module:
 	//		dojox/main
 
@@ -45,15 +45,20 @@ define(["./_base/loader"], function(loader){
 
 },
 'dojox/mobile/compat':function(){
-define("dojox/mobile/compat", [
+define([
 	"dojo/_base/lang",
-	"dojo/_base/sniff"
+	"dojo/sniff"
 ], function(lang, has){
 	// module:
 	//		dojox/mobile/compat
 
 	var dm = lang.getObject("dojox.mobile", true);
-	if(!has("webkit")){
+	// TODO: Use feature detection instead, but this would require a major rewrite of _compat
+	// to detect each feature and plug the corresponding compat code if needed.
+	// Currently the compat code is a workaround for too many different things to be able to
+	// decide based on feature detection. So for now we just disable _compat on the mobile browsers
+	// that are known to support enough CSS3: all webkit-based browsers, IE10 (Windows [Phone] 8) and IE11+.
+	if(!(has("webkit") || has("ie") === 10) || (!has("ie") && has("trident") > 6)){
 		var s = "dojox/mobile/_compat"; // assign to a variable so as not to be picked up by the build tool
 		require([s]);
 	}

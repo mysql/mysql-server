@@ -517,10 +517,10 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`test`.`t2`.`b` < 3)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -529,46 +529,54 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "update": true,
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 3,
-      "filtered": "100.00",
-      "attached_subqueries": [
-        {
-          "dependent": false,
-          "cacheable": true,
-          "query_block": {
-            "select_id": 2,
-            "cost_info": {
-              "query_cost": "0.80"
-            } /* cost_info */,
-            "table": {
-              "table_name": "t2",
-              "access_type": "ALL",
-              "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 1,
-              "filtered": "33.33",
-              "cost_info": {
-                "read_cost": "0.70",
-                "eval_cost": "0.10",
-                "prefix_cost": "0.80",
-                "data_read_per_join": "8"
-              } /* cost_info */,
-              "used_columns": [
-                "b"
-              ] /* used_columns */,
-              "attached_condition": "(`test`.`t2`.`b` < 3)"
-            } /* table */
-          } /* query_block */
-        }
-      ] /* attached_subqueries */
-    } /* table */
+    "cost_info": {
+      "query_cost": "1.60"
+    } /* cost_info */,
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 1,
+          "filtered": "33.33",
+          "first_match": true,
+          "cost_info": {
+            "read_cost": "0.70",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.80",
+            "data_read_per_join": "8"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t2`.`b` < 3)"
+        } /* table */
+      },
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.30",
+            "prefix_cost": "1.60",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`test`.`t2`.`b` < 3)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -632,8 +640,10 @@ Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
-Handler_read_rnd_next	5
+Handler_read_rnd	3
+Handler_read_rnd_next	9
 Handler_update	3
+Handler_write	3
 
 DROP TABLE t1, t2;
 #7
@@ -647,11 +657,11 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -660,48 +670,56 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "update": true,
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 3,
-      "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))",
-      "attached_subqueries": [
-        {
-          "dependent": true,
-          "cacheable": false,
-          "query_block": {
-            "select_id": 2,
-            "cost_info": {
-              "query_cost": "0.80"
-            } /* cost_info */,
-            "table": {
-              "table_name": "t2",
-              "access_type": "ALL",
-              "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 1,
-              "filtered": "33.33",
-              "cost_info": {
-                "read_cost": "0.50",
-                "eval_cost": "0.10",
-                "prefix_cost": "0.80",
-                "data_read_per_join": "8"
-              } /* cost_info */,
-              "used_columns": [
-                "b"
-              ] /* used_columns */,
-              "attached_condition": "((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))"
-            } /* table */
-          } /* query_block */
-        }
-      ] /* attached_subqueries */
-    } /* table */
+    "cost_info": {
+      "query_cost": "1.60"
+    } /* cost_info */,
+    "nested_loop": [
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 1,
+          "filtered": "33.33",
+          "cost_info": {
+            "read_cost": "0.70",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.80",
+            "data_read_per_join": "8"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t1`.`a` < 3)"
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 1,
+          "filtered": "33.33",
+          "first_match": "t1",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.60",
+            "data_read_per_join": "8"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t2`.`b` = `test`.`t1`.`a`)"
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -767,7 +785,7 @@ Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
-Handler_read_rnd_next	11
+Handler_read_rnd_next	7
 Handler_update	2
 
 DROP TABLE t1, t2;
@@ -1220,13 +1238,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,'1' AS `1` from `test`.`t1` `t11`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd	3
 Handler_read_rnd_next	9
@@ -1782,7 +1798,6 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 0) order by NULL
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
@@ -2321,10 +2336,10 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2333,47 +2348,54 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "update": true,
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 3,
-      "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))",
-      "attached_subqueries": [
-        {
-          "dependent": true,
-          "cacheable": false,
-          "query_block": {
-            "select_id": 2,
-            "cost_info": {
-              "query_cost": "0.80"
-            } /* cost_info */,
-            "table": {
-              "table_name": "t2",
-              "access_type": "ALL",
-              "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 1,
-              "filtered": "33.33",
-              "cost_info": {
-                "read_cost": "0.50",
-                "eval_cost": "0.10",
-                "prefix_cost": "0.80",
-                "data_read_per_join": "8"
-              } /* cost_info */,
-              "used_columns": [
-                "a"
-              ] /* used_columns */,
-              "attached_condition": "(<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)"
-            } /* table */
-          } /* query_block */
-        }
-      ] /* attached_subqueries */
-    } /* table */
+    "cost_info": {
+      "query_cost": "2.20"
+    } /* cost_info */,
+    "nested_loop": [
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.30",
+            "prefix_cost": "0.80",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": "33.33",
+          "first_match": "t1",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.30",
+            "prefix_cost": "2.20",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t2`.`a` = `test`.`t1`.`a`)"
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2456,7 +2478,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2465,13 +2487,26 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.00"
+    } /* cost_info */,
     "table": {
       "delete": true,
       "table_name": "t1",
       "access_type": "ALL",
       "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
       "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
+      "cost_info": {
+        "read_cost": "0.50",
+        "eval_cost": "0.50",
+        "prefix_cost": "1.00",
+        "data_read_per_join": "40"
+      } /* cost_info */,
+      "used_columns": [
+        "a1"
+      ] /* used_columns */,
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2505,7 +2540,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2532,7 +2567,7 @@ EXPLAIN
       "used_columns": [
         "a1"
       ] /* used_columns */,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2566,7 +2601,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select `test`.`t2`.`a2` from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -2586,10 +2621,10 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 #
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where ((`test`.`t2`.`a2` > 2) and (cast(`test`.`t1`.`a1` as double) = cast(`test`.`t2`.`a2` as double)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2598,47 +2633,54 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "delete": true,
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 5,
-      "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))",
-      "attached_subqueries": [
-        {
-          "dependent": true,
-          "cacheable": false,
-          "query_block": {
-            "select_id": 2,
-            "cost_info": {
-              "query_cost": "1.01"
-            } /* cost_info */,
-            "table": {
-              "table_name": "t2",
-              "access_type": "ALL",
-              "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 1,
-              "filtered": "20.00",
-              "cost_info": {
-                "read_cost": "0.84",
-                "eval_cost": "0.10",
-                "prefix_cost": "1.01",
-                "data_read_per_join": "48"
-              } /* cost_info */,
-              "used_columns": [
-                "a2"
-              ] /* used_columns */,
-              "attached_condition": "((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))"
-            } /* table */
-          } /* query_block */
-        }
-      ] /* attached_subqueries */
-    } /* table */
+    "cost_info": {
+      "query_cost": "2.67"
+    } /* cost_info */,
+    "nested_loop": [
+      {
+        "table": {
+          "delete": true,
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 5,
+          "rows_produced_per_join": 5,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.50",
+            "prefix_cost": "1.00",
+            "data_read_per_join": "40"
+          } /* cost_info */,
+          "used_columns": [
+            "a1"
+          ] /* used_columns */
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 5,
+          "rows_produced_per_join": 5,
+          "filtered": "20.00",
+          "first_match": "t1",
+          "cost_info": {
+            "read_cost": "0.84",
+            "eval_cost": "0.50",
+            "prefix_cost": "2.67",
+            "data_read_per_join": "240"
+          } /* cost_info */,
+          "used_columns": [
+            "a2"
+          ] /* used_columns */,
+          "attached_condition": "((`test`.`t2`.`a2` > 2) and (cast(`test`.`t1`.`a1` as double) = cast(`test`.`t2`.`a2` as double)))"
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
+Note	1003	delete from `test`.`t1` where ((`test`.`t2`.`a2` > 2) and (cast(`test`.`t1`.`a1` as double) = cast(`test`.`t2`.`a2` as double)))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2687,14 +2729,14 @@ EXPLAIN
           "used_columns": [
             "a2"
           ] /* used_columns */,
-          "attached_condition": "((`test`.`t2`.`a2` > 2) and (`test`.`t1`.`a1` = `test`.`t2`.`a2`))"
+          "attached_condition": "((`test`.`t2`.`a2` > 2) and (cast(`test`.`t1`.`a1` as double) = cast(`test`.`t2`.`a2` as double)))"
         } /* table */
       }
     ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a2` > 2) and (`test`.`t1`.`a1` = `test`.`t2`.`a2`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a2` > 2) and (cast(`test`.`t1`.`a1` as double) = cast(`test`.`t2`.`a2` as double)))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
@@ -5830,12 +5872,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,NULL AS `c1`,NULL AS `c2` from `test`.`t1` where true
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -5967,12 +6007,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,NULL AS `c1`,NULL AS `c2` from `test`.`t1` where (`test`.`t1`.`c3` = 10)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -6998,12 +7036,10 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	1
 
@@ -7021,10 +7057,10 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -7033,91 +7069,99 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "table": {
-      "update": true,
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 3,
-      "filtered": "100.00",
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))",
-      "attached_subqueries": [
-        {
-          "dependent": true,
-          "cacheable": false,
-          "query_block": {
-            "select_id": 2,
-            "cost_info": {
-              "query_cost": "0.70"
-            } /* cost_info */,
-            "table": {
-              "table_name": "x",
-              "access_type": "index_subquery",
-              "possible_keys": [
-                "<auto_key0>"
-              ] /* possible_keys */,
-              "key": "<auto_key0>",
-              "used_key_parts": [
-                "b"
-              ] /* used_key_parts */,
-              "key_length": "5",
-              "ref": [
-                "func"
-              ] /* ref */,
-              "rows_examined_per_scan": 2,
-              "rows_produced_per_join": 2,
-              "filtered": "100.00",
-              "using_index": true,
+    "cost_info": {
+      "query_cost": "2.90"
+    } /* cost_info */,
+    "nested_loop": [
+      {
+        "table": {
+          "update": true,
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.50",
+            "eval_cost": "0.30",
+            "prefix_cost": "0.80",
+            "data_read_per_join": "24"
+          } /* cost_info */,
+          "used_columns": [
+            "a"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t1`.`a` is not null)"
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "x",
+          "access_type": "ref",
+          "possible_keys": [
+            "<auto_key0>"
+          ] /* possible_keys */,
+          "key": "<auto_key0>",
+          "used_key_parts": [
+            "b"
+          ] /* used_key_parts */,
+          "key_length": "5",
+          "ref": [
+            "test.t1.a"
+          ] /* ref */,
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 3,
+          "filtered": "100.00",
+          "using_index": true,
+          "first_match": "t1",
+          "cost_info": {
+            "read_cost": "1.50",
+            "eval_cost": "0.30",
+            "prefix_cost": "2.90",
+            "data_read_per_join": "48"
+          } /* cost_info */,
+          "used_columns": [
+            "b"
+          ] /* used_columns */,
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": false,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 3,
               "cost_info": {
-                "read_cost": "0.50",
-                "eval_cost": "0.20",
-                "prefix_cost": "0.70",
-                "data_read_per_join": "32"
+                "query_cost": "3.80"
               } /* cost_info */,
-              "used_columns": [
-                "b"
-              ] /* used_columns */,
-              "materialized_from_subquery": {
-                "using_temporary_table": true,
-                "dependent": false,
-                "cacheable": true,
-                "query_block": {
-                  "select_id": 3,
+              "ordering_operation": {
+                "using_filesort": true,
+                "cost_info": {
+                  "sort_cost": "3.00"
+                } /* cost_info */,
+                "table": {
+                  "table_name": "t2",
+                  "access_type": "ALL",
+                  "rows_examined_per_scan": 3,
+                  "rows_produced_per_join": 3,
+                  "filtered": "100.00",
                   "cost_info": {
-                    "query_cost": "3.80"
+                    "read_cost": "0.50",
+                    "eval_cost": "0.30",
+                    "prefix_cost": "0.80",
+                    "data_read_per_join": "24"
                   } /* cost_info */,
-                  "ordering_operation": {
-                    "using_filesort": true,
-                    "cost_info": {
-                      "sort_cost": "3.00"
-                    } /* cost_info */,
-                    "table": {
-                      "table_name": "t2",
-                      "access_type": "ALL",
-                      "rows_examined_per_scan": 3,
-                      "rows_produced_per_join": 3,
-                      "filtered": "100.00",
-                      "cost_info": {
-                        "read_cost": "0.50",
-                        "eval_cost": "0.30",
-                        "prefix_cost": "0.80",
-                        "data_read_per_join": "24"
-                      } /* cost_info */,
-                      "used_columns": [
-                        "b"
-                      ] /* used_columns */
-                    } /* table */
-                  } /* ordering_operation */
-                } /* query_block */
-              } /* materialized_from_subquery */
-            } /* table */
-          } /* query_block */
-        }
-      ] /* attached_subqueries */
-    } /* table */
+                  "used_columns": [
+                    "b"
+                  ] /* used_columns */
+                } /* table */
+              } /* ordering_operation */
+            } /* query_block */
+          } /* materialized_from_subquery */
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value

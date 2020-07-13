@@ -1,14 +1,13 @@
 define("dijit/form/Form", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.set
-	"dojo/_base/event", // event.stop
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/sniff", // has("ie")
 	"../_Widget",
 	"../_TemplatedMixin",
 	"./_FormMixin",
 	"../layout/_ContentPaneResizeMixin"
-], function(declare, domAttr, event, kernel, has, _Widget, _TemplatedMixin, _FormMixin, _ContentPaneResizeMixin){
+], function(declare, domAttr, kernel, has, _Widget, _TemplatedMixin, _FormMixin, _ContentPaneResizeMixin){
 
 	// module:
 	//		dijit/form/Form
@@ -22,10 +21,11 @@ define("dijit/form/Form", [
 		//	|	<form data-dojo-type="dijit/form/Form" id="myForm">
 		//	|		Name: <input type="text" name="name" />
 		//	|	</form>
+		//	|	// Example assumes you have required dijit/registry
 		//	|	myObj = {name: "John Doe"};
-		//	|	dijit.byId('myForm').set('value', myObj);
+		//	|	registry.byId('myForm').set('value', myObj);
 		//	|
-		//	|	myObj=dijit.byId('myForm').get('value');
+		//	|	myObj=registry.byId('myForm').get('value');
 
 		// HTML <FORM> attributes
 
@@ -81,9 +81,11 @@ define("dijit/form/Form", [
 		},
 
 		_setEncTypeAttr: function(/*String*/ value){
-			this.encType = value;
 			domAttr.set(this.domNode, "encType", value);
-			if(has("ie")){ this.domNode.encoding = value; }
+			if(has("ie")){
+				this.domNode.encoding = value;
+			}
+			this._set("encType", value);
 		},
 
 		reset: function(/*Event?*/ e){
@@ -95,9 +97,10 @@ define("dijit/form/Form", [
 			var faux = {
 				returnValue: true, // the IE way
 				preventDefault: function(){ // not IE
-							this.returnValue = false;
-						},
-				stopPropagation: function(){},
+					this.returnValue = false;
+				},
+				stopPropagation: function(){
+				},
 				currentTarget: e ? e.target : this.domNode,
 				target: e ? e.target : this.domNode
 			};
@@ -120,7 +123,8 @@ define("dijit/form/Form", [
 
 		_onReset: function(e){
 			this.reset(e);
-			event.stop(e);
+			e.stopPropagation();
+			e.preventDefault();
 			return false;
 		},
 
@@ -133,7 +137,8 @@ define("dijit/form/Form", [
 				this.execute(this.getValues());
 			}
 			if(this.onSubmit(e) === false){ // only exactly false stops submit
-				event.stop(e);
+				e.stopPropagation();
+				e.preventDefault();
 			}
 		},
 

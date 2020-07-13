@@ -1,120 +1,120 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/data/ObjectStore",["../_base/lang","../Evented","../_base/declare","../_base/Deferred","../_base/array","../_base/connect","../regexp"],function(_1,_2,_3,_4,_5,_6,_7){
-function _8(_9){
-return _9=="*"?".*":_9=="?"?".":_9;
+define("dojo/data/ObjectStore",["../_base/lang","../Evented","../_base/declare","../_base/Deferred","../promise/all","../_base/array","../_base/connect","../regexp"],function(_1,_2,_3,_4,_5,_6,_7,_8){
+function _9(_a){
+return _a=="*"?".*":_a=="?"?".":_a;
 };
-return _3("dojo.data.ObjectStore",[_2],{objectStore:null,constructor:function(_a){
+return _3("dojo.data.ObjectStore",[_2],{objectStore:null,constructor:function(_b){
 this._dirtyObjects=[];
-if(_a.labelAttribute){
-_a.labelProperty=_a.labelAttribute;
+if(_b.labelAttribute){
+_b.labelProperty=_b.labelAttribute;
 }
-_1.mixin(this,_a);
-},labelProperty:"label",getValue:function(_b,_c,_d){
-return typeof _b.get==="function"?_b.get(_c):_c in _b?_b[_c]:_d;
-},getValues:function(_e,_f){
-var val=this.getValue(_e,_f);
+_1.mixin(this,_b);
+},labelProperty:"label",getValue:function(_c,_d,_e){
+return typeof _c.get==="function"?_c.get(_d):_d in _c?_c[_d]:_e;
+},getValues:function(_f,_10){
+var val=this.getValue(_f,_10);
 return val instanceof Array?val:val===undefined?[]:[val];
-},getAttributes:function(_10){
+},getAttributes:function(_11){
 var res=[];
-for(var i in _10){
-if(_10.hasOwnProperty(i)&&!(i.charAt(0)=="_"&&i.charAt(1)=="_")){
+for(var i in _11){
+if(_11.hasOwnProperty(i)&&!(i.charAt(0)=="_"&&i.charAt(1)=="_")){
 res.push(i);
 }
 }
 return res;
-},hasAttribute:function(_11,_12){
-return _12 in _11;
-},containsValue:function(_13,_14,_15){
-return _5.indexOf(this.getValues(_13,_14),_15)>-1;
-},isItem:function(_16){
-return (typeof _16=="object")&&_16&&!(_16 instanceof Date);
-},isItemLoaded:function(_17){
-return _17&&typeof _17.load!=="function";
-},loadItem:function(_18){
-var _19;
-if(typeof _18.item.load==="function"){
-_4.when(_18.item.load(),function(_1a){
-_19=_1a;
-var _1b=_1a instanceof Error?_18.onError:_18.onItem;
-if(_1b){
-_1b.call(_18.scope,_1a);
+},hasAttribute:function(_12,_13){
+return _13 in _12;
+},containsValue:function(_14,_15,_16){
+return _6.indexOf(this.getValues(_14,_15),_16)>-1;
+},isItem:function(_17){
+return (typeof _17=="object")&&_17&&!(_17 instanceof Date);
+},isItemLoaded:function(_18){
+return _18&&typeof _18.load!=="function";
+},loadItem:function(_19){
+var _1a;
+if(typeof _19.item.load==="function"){
+_4.when(_19.item.load(),function(_1b){
+_1a=_1b;
+var _1c=_1b instanceof Error?_19.onError:_19.onItem;
+if(_1c){
+_1c.call(_19.scope,_1b);
 }
 });
 }else{
-if(_18.onItem){
-_18.onItem.call(_18.scope,_18.item);
+if(_19.onItem){
+_19.onItem.call(_19.scope,_19.item);
 }
 }
-return _19;
-},close:function(_1c){
-return _1c&&_1c.abort&&_1c.abort();
-},fetch:function(_1d){
-_1d=_1.delegate(_1d,_1d&&_1d.queryOptions);
-var _1e=this;
-var _1f=_1d.scope||_1e;
-var _20=_1d.query;
-if(typeof _20=="object"){
-_20=_1.delegate(_20);
-for(var i in _20){
-var _21=_20[i];
-if(typeof _21=="string"){
-_20[i]=RegExp("^"+_7.escapeString(_21,"*?\\").replace(/\\.|\*|\?/g,_8)+"$",_1d.ignoreCase?"mi":"m");
-_20[i].toString=(function(_22){
+return _1a;
+},close:function(_1d){
+return _1d&&_1d.abort&&_1d.abort();
+},fetch:function(_1e){
+_1e=_1.delegate(_1e,_1e&&_1e.queryOptions);
+var _1f=this;
+var _20=_1e.scope||_1f;
+var _21=_1e.query;
+if(typeof _21=="object"){
+_21=_1.delegate(_21);
+for(var i in _21){
+var _22=_21[i];
+if(typeof _22=="string"){
+_21[i]=RegExp("^"+_8.escapeString(_22,"*?\\").replace(/\\.|\*|\?/g,_9)+"$",_1e.ignoreCase?"mi":"m");
+_21[i].toString=(function(_23){
 return function(){
-return _22;
+return _23;
 };
-})(_21);
+})(_22);
 }
 }
 }
-var _23=this.objectStore.query(_20,_1d);
-_4.when(_23.total,function(_24){
-_4.when(_23,function(_25){
-if(_1d.onBegin){
-_1d.onBegin.call(_1f,_24||_25.length,_1d);
+var _24=this.objectStore.query(_21,_1e);
+_4.when(_24.total,function(_25){
+_4.when(_24,function(_26){
+if(_1e.onBegin){
+_1e.onBegin.call(_20,_25||_26.length,_1e);
 }
-if(_1d.onItem){
-for(var i=0;i<_25.length;i++){
-_1d.onItem.call(_1f,_25[i],_1d);
+if(_1e.onItem){
+for(var i=0;i<_26.length;i++){
+_1e.onItem.call(_20,_26[i],_1e);
 }
 }
-if(_1d.onComplete){
-_1d.onComplete.call(_1f,_1d.onItem?null:_25,_1d);
+if(_1e.onComplete){
+_1e.onComplete.call(_20,_1e.onItem?null:_26,_1e);
 }
-return _25;
-},_26);
-},_26);
-function _26(_27){
-if(_1d.onError){
-_1d.onError.call(_1f,_27,_1d);
-}
-};
-_1d.abort=function(){
-if(_23.cancel){
-_23.cancel();
+return _26;
+},_27);
+},_27);
+function _27(_28){
+if(_1e.onError){
+_1e.onError.call(_20,_28,_1e);
 }
 };
-if(_23.observe){
+_1e.abort=function(){
+if(_24.cancel){
+_24.cancel();
+}
+};
+if(_24.observe){
 if(this.observing){
 this.observing.cancel();
 }
-this.observing=_23.observe(function(_28,_29,_2a){
-if(_5.indexOf(_1e._dirtyObjects,_28)==-1){
-if(_29==-1){
-_1e.onNew(_28);
-}else{
+this.observing=_24.observe(function(_29,_2a,_2b){
+if(_6.indexOf(_1f._dirtyObjects,_29)==-1){
 if(_2a==-1){
-_1e.onDelete(_28);
+_1f.onNew(_29);
 }else{
-for(var i in _28){
-if(i!=_1e.objectStore.idProperty){
-_1e.onSet(_28,i,null,_28[i]);
+if(_2b==-1){
+_1f.onDelete(_29);
+}else{
+for(var i in _29){
+if(i!=_1f.objectStore.idProperty){
+_1f.onSet(_29,i,null,_29[i]);
 }
 }
 }
@@ -122,171 +122,173 @@ _1e.onSet(_28,i,null,_28[i]);
 }
 },true);
 }
-this.onFetch(_23);
-_1d.store=this;
-return _1d;
+this.onFetch(_24);
+_1e.store=this;
+return _1e;
 },getFeatures:function(){
 return {"dojo.data.api.Read":!!this.objectStore.get,"dojo.data.api.Identity":true,"dojo.data.api.Write":!!this.objectStore.put,"dojo.data.api.Notification":true};
-},getLabel:function(_2b){
-if(this.isItem(_2b)){
-return this.getValue(_2b,this.labelProperty);
+},getLabel:function(_2c){
+if(this.isItem(_2c)){
+return this.getValue(_2c,this.labelProperty);
 }
 return undefined;
-},getLabelAttributes:function(_2c){
+},getLabelAttributes:function(_2d){
 return [this.labelProperty];
-},getIdentity:function(_2d){
-return this.objectStore.getIdentity?this.objectStore.getIdentity(_2d):_2d[this.objectStore.idProperty||"id"];
-},getIdentityAttributes:function(_2e){
+},getIdentity:function(_2e){
+return this.objectStore.getIdentity?this.objectStore.getIdentity(_2e):_2e[this.objectStore.idProperty||"id"];
+},getIdentityAttributes:function(_2f){
 return [this.objectStore.idProperty];
-},fetchItemByIdentity:function(_2f){
-var _30;
-_4.when(this.objectStore.get(_2f.identity),function(_31){
-_30=_31;
-_2f.onItem.call(_2f.scope,_31);
-},function(_32){
-_2f.onError.call(_2f.scope,_32);
+},fetchItemByIdentity:function(_30){
+var _31;
+_4.when(this.objectStore.get(_30.identity),function(_32){
+_31=_32;
+_30.onItem.call(_30.scope,_32);
+},function(_33){
+_30.onError.call(_30.scope,_33);
 });
-return _30;
-},newItem:function(_33,_34){
-if(_34){
-var _35=this.getValue(_34.parent,_34.attribute,[]);
-_35=_35.concat([_33]);
-_33.__parent=_35;
-this.setValue(_34.parent,_34.attribute,_35);
+return _31;
+},newItem:function(_34,_35){
+if(_35){
+var _36=this.getValue(_35.parent,_35.attribute,[]);
+_36=_36.concat([_34]);
+_34.__parent=_36;
+this.setValue(_35.parent,_35.attribute,_36);
 }
-this._dirtyObjects.push({object:_33,save:true});
-this.onNew(_33);
-return _33;
-},deleteItem:function(_36){
-this.changing(_36,true);
-this.onDelete(_36);
-},setValue:function(_37,_38,_39){
-var old=_37[_38];
-this.changing(_37);
-_37[_38]=_39;
-this.onSet(_37,_38,old,_39);
-},setValues:function(_3a,_3b,_3c){
-if(!_1.isArray(_3c)){
+this._dirtyObjects.push({object:_34,save:true});
+this.onNew(_34);
+return _34;
+},deleteItem:function(_37){
+this.changing(_37,true);
+this.onDelete(_37);
+},setValue:function(_38,_39,_3a){
+var old=_38[_39];
+this.changing(_38);
+_38[_39]=_3a;
+this.onSet(_38,_39,old,_3a);
+},setValues:function(_3b,_3c,_3d){
+if(!_1.isArray(_3d)){
 throw new Error("setValues expects to be passed an Array object as its value");
 }
-this.setValue(_3a,_3b,_3c);
-},unsetAttribute:function(_3d,_3e){
-this.changing(_3d);
-var old=_3d[_3e];
-delete _3d[_3e];
-this.onSet(_3d,_3e,old,undefined);
-},changing:function(_3f,_40){
-_3f.__isDirty=true;
+this.setValue(_3b,_3c,_3d);
+},unsetAttribute:function(_3e,_3f){
+this.changing(_3e);
+var old=_3e[_3f];
+delete _3e[_3f];
+this.onSet(_3e,_3f,old,undefined);
+},changing:function(_40,_41){
+_40.__isDirty=true;
 for(var i=0;i<this._dirtyObjects.length;i++){
-var _41=this._dirtyObjects[i];
-if(_3f==_41.object){
-if(_40){
-_41.object=false;
+var _42=this._dirtyObjects[i];
+if(_40==_42.object){
+if(_41){
+_42.object=false;
 if(!this._saveNotNeeded){
-_41.save=true;
+_42.save=true;
 }
 }
 return;
 }
 }
-var old=_3f instanceof Array?[]:{};
-for(i in _3f){
-if(_3f.hasOwnProperty(i)){
-old[i]=_3f[i];
+var old=_40 instanceof Array?[]:{};
+for(i in _40){
+if(_40.hasOwnProperty(i)){
+old[i]=_40[i];
 }
 }
-this._dirtyObjects.push({object:!_40&&_3f,old:old,save:!this._saveNotNeeded});
-},save:function(_42){
-_42=_42||{};
-var _43,_44=[];
-var _45=[];
-var _46=this;
-var _47=this._dirtyObjects;
-var _48=_47.length;
+this._dirtyObjects.push({object:!_41&&_40,old:old,save:!this._saveNotNeeded});
+},save:function(_43){
+_43=_43||{};
+var _44,_45=[];
+var _46=[];
+var _47=this;
+var _48=this._dirtyObjects;
+var _49=_48.length;
 try{
-_6.connect(_42,"onError",function(){
-if(_42.revertOnError!==false){
-var _49=_47;
-_47=_45;
-_46.revert();
-_46._dirtyObjects=_49;
+_7.connect(_43,"onError",function(){
+if(_43.revertOnError!==false){
+var _4a=_48;
+_48=_46;
+_47.revert();
+_47._dirtyObjects=_4a;
 }else{
-_46._dirtyObjects=_47.concat(_45);
+_47._dirtyObjects=_48.concat(_46);
 }
 });
+var _4b;
 if(this.objectStore.transaction){
-var _4a=this.objectStore.transaction();
+_4b=this.objectStore.transaction();
 }
-for(var i=0;i<_47.length;i++){
-var _4b=_47[i];
-var _4c=_4b.object;
-var old=_4b.old;
-delete _4c.__isDirty;
-if(_4c){
-_43=this.objectStore.put(_4c,{overwrite:!!old});
+for(var i=0;i<_48.length;i++){
+var _4c=_48[i];
+var _4d=_4c.object;
+var old=_4c.old;
+delete _4d.__isDirty;
+if(_4d){
+_44=this.objectStore.put(_4d,{overwrite:!!old});
+_45.push(_44);
 }else{
 if(typeof old!="undefined"){
-_43=this.objectStore.remove(this.getIdentity(old));
+_44=this.objectStore.remove(this.getIdentity(old));
+_45.push(_44);
 }
 }
-_45.push(_4b);
-_47.splice(i--,1);
-_4.when(_43,function(_4d){
-if(!(--_48)){
-if(_42.onComplete){
-_42.onComplete.call(_42.scope,_44);
+_46.push(_4c);
+_48.splice(i--,1);
 }
+_5(_45).then(function(_4e){
+if(_43.onComplete){
+_43.onComplete.call(_43.scope,_4e);
 }
-},function(_4e){
-_48=-1;
-_42.onError.call(_42.scope,_4e);
+},function(_4f){
+if(_43.onError){
+_43.onError.call(_43.scope,_4f);
+}
 });
-}
-if(_4a){
-_4a.commit();
+if(_4b){
+_4b.commit();
 }
 }
 catch(e){
-_42.onError.call(_42.scope,value);
+_43.onError.call(_43.scope,value);
 }
 },revert:function(){
-var _4f=this._dirtyObjects;
-for(var i=_4f.length;i>0;){
+var _50=this._dirtyObjects;
+for(var i=_50.length;i>0;){
 i--;
-var _50=_4f[i];
-var _51=_50.object;
-var old=_50.old;
-if(_51&&old){
+var _51=_50[i];
+var _52=_51.object;
+var old=_51.old;
+if(_52&&old){
 for(var j in old){
-if(old.hasOwnProperty(j)&&_51[j]!==old[j]){
-this.onSet(_51,j,_51[j],old[j]);
-_51[j]=old[j];
+if(old.hasOwnProperty(j)&&_52[j]!==old[j]){
+this.onSet(_52,j,_52[j],old[j]);
+_52[j]=old[j];
 }
 }
-for(j in _51){
+for(j in _52){
 if(!old.hasOwnProperty(j)){
-this.onSet(_51,j,_51[j]);
-delete _51[j];
+this.onSet(_52,j,_52[j]);
+delete _52[j];
 }
 }
 }else{
 if(!old){
-this.onDelete(_51);
+this.onDelete(_52);
 }else{
 this.onNew(old);
 }
 }
-delete (_51||old).__isDirty;
-_4f.splice(i,1);
+delete (_52||old).__isDirty;
+_50.splice(i,1);
 }
-},isDirty:function(_52){
-if(!_52){
+},isDirty:function(_53){
+if(!_53){
 return !!this._dirtyObjects.length;
 }
-return _52.__isDirty;
+return _53.__isDirty;
 },onSet:function(){
 },onNew:function(){
 },onDelete:function(){
-},onFetch:function(_53){
+},onFetch:function(_54){
 }});
 });

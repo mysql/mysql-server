@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python -B
 
 # Copyright (C) 2016 and later: Unicode, Inc. and others.
 # License & terms of use: http://www.unicode.org/copyright.html
@@ -9,6 +9,8 @@
 #
 # Usage: 
 #   ( python as_is/bomlist.py > as_is/bomlist.txt ) || rm -f as_is/bomlist.txt
+
+from __future__ import print_function
 
 import os
 import codecs
@@ -36,5 +38,5 @@ for ent in tree:
         f = open(fp, 'rb')
         bytes=f.read(3)
         if bytes and (bytes == bom):
-            print 'icu/'+fp[2::]
+            print('icu/'+fp[2::])
         f.close()

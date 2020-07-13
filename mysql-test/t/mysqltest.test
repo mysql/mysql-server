@@ -1145,13 +1145,12 @@ source $x/tmp/sourced.inc;
 
 sleep 0.5;
 sleep 1;
-real_sleep 1;
 
 # Parameter from variable, legal and illegal
 let $sleep_var= 0.1;
 sleep $sleep_var;
 let $sleep_var= 1;
---real_sleep $sleep_var
+--sleep $sleep_var
 
 --write_file $MYSQL_TMP_DIR/sleep.inc
 let $sleep_var= xyz;
@@ -1161,25 +1160,13 @@ EOF
 --exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
 --remove_file $MYSQL_TMP_DIR/sleep.inc
 
---write_file $MYSQL_TMP_DIR/sleep.inc
-let $sleep_var= xyz;
-real_sleep $sleep_var;
-EOF
---error 1
---exec $MYSQL_TEST < $MYSQL_TMP_DIR/sleep.inc 2>&1
---remove_file $MYSQL_TMP_DIR/sleep.inc
-
 # Missing parameter
 --error 1
 --exec echo "sleep ;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "real_sleep ;" | $MYSQL_TEST 2>&1
 
 # Illegal parameter
 --error 1
 --exec echo "sleep abc;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "real_sleep abc;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test inc

@@ -366,7 +366,7 @@ inline size_t Block::deallocate(Chunk chunk, size_t chunk_size) noexcept {
 
   return Header::decrement_number_of_used_chunks(
       Chunk::size_hint(chunk_size_aligned),
-      is_rightmost_chunk(chunk, chunk_size_aligned));
+      is_rightmost_chunk(chunk, Chunk::size_hint(chunk_size_aligned)));
 }
 
 inline void Block::destroy() noexcept {

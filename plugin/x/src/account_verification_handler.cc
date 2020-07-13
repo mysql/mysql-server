@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include "plugin/x/src/account_verification_handler.h"
 
-#include "my_sys.h"
+#include "my_sys.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/query_string_builder.h"
@@ -195,6 +195,10 @@ ngs::Error_code Account_verification_handler::get_account_record(
              &record.user_required.ssl_type, &record.user_required.ssl_cipher,
              &record.user_required.ssl_x509_issuer,
              &record.user_required.ssl_x509_subject);
+
+  if (result.is_server_status_set(SERVER_STATUS_IN_TRANS))
+    result.query("COMMIT");
+
   return ngs::Success();
 } catch (const ngs::Error_code &e) {
   return e;
@@ -215,20 +219,21 @@ ngs::PFS_string Account_verification_handler::get_sql(
   // column `is_offline_mode_and_not_super_user` is set true if it
   //  - offline mode and user has not super priv
   qb.put(
-        "/* xplugin authentication */ SELECT @@require_secure_transport, "
-        "`authentication_string`, `plugin`,"
+        "/* xplugin authentication */ "
+        "SELECT /*+ SET_VAR(SQL_MODE = 'TRADITIONAL') */ "
+        "@@require_secure_transport, `authentication_string`, `plugin`, "
         "(`account_locked`='Y') as is_account_locked, "
         "(`password_expired`!='N') as `is_password_expired`, "
         "@@disconnect_on_expired_password as "
         "`disconnect_on_expired_password`, "
         "@@offline_mode and (`Super_priv`='N') as "
-        "`is_offline_mode_and_not_super_user`,"
+        "`is_offline_mode_and_not_super_user`, "
         "`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` "
         "FROM mysql.user WHERE ")
       .quote_string(user)
       .put(" = `user` AND ")
       .quote_string(host)
-      .put(" = `host` ");
+      .put(" = `host`");
 
   log_debug("Query user '%s'", qb.get().c_str());
   return qb.get();

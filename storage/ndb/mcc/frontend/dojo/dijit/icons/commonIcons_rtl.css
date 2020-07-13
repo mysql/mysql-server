@@ -112,3 +112,6 @@
 .dijitRtl .dijitDisabled .dijitIconError {
 	background-image: url('images/commonIconsObjActDisabled_rtl.png'); 
 }
+.dijitRtl .dijitIconLoading {
+	background-image: url('images/loadingAnimation_rtl.gif');
+}

@@ -76,7 +76,7 @@ void arch_remove_file(const char *file_path, const char *file_name) {
 
 #ifdef UNIV_DEBUG
   os_file_type_t type;
-  bool exists = false;
+  bool exists;
 
   os_file_status(path, &exists, &type);
   ut_a(exists);
@@ -102,7 +102,7 @@ void arch_remove_dir(const char *dir_path, const char *dir_name) {
 
 #ifdef UNIV_DEBUG
   os_file_type_t type;
-  bool exists = false;
+  bool exists;
 
   os_file_status(path, &exists, &type);
   ut_a(exists);
@@ -122,7 +122,7 @@ dberr_t arch_init() {
       return (DB_OUT_OF_MEMORY);
     }
 
-    log_archiver_thread_event = os_event_create(nullptr);
+    log_archiver_thread_event = os_event_create();
   }
 
   if (arch_page_sys == nullptr) {
@@ -132,7 +132,7 @@ dberr_t arch_init() {
       return (DB_OUT_OF_MEMORY);
     }
 
-    page_archiver_thread_event = os_event_create(nullptr);
+    page_archiver_thread_event = os_event_create();
   }
 
   if (srv_read_only_mode) {
@@ -254,7 +254,7 @@ bool Arch_File_Ctx::delete_file(uint file_index, lsn_t begin_lsn) {
   build_name(file_index, begin_lsn, file_name, MAX_ARCH_PAGE_FILE_NAME_LEN);
 
   os_file_type_t type;
-  bool exists = false;
+  bool exists;
 
   success = os_file_status(file_name, &exists, &type);
 
@@ -270,10 +270,9 @@ bool Arch_File_Ctx::delete_file(uint file_index, lsn_t begin_lsn) {
 }
 
 void Arch_File_Ctx::delete_files(lsn_t begin_lsn) {
-  bool exists = false;
-  char dir_name[MAX_ARCH_DIR_NAME_LEN];
-
+  bool exists;
   os_file_type_t type;
+  char dir_name[MAX_ARCH_DIR_NAME_LEN];
 
   build_dir_name(begin_lsn, dir_name, MAX_ARCH_DIR_NAME_LEN);
   os_file_status(dir_name, &exists, &type);

@@ -5,24 +5,22 @@ define("dojox/widget/Wizard", [
 	"dojo/_base/declare",
 	"dojo/_base/connect",
 	"dijit/layout/StackContainer",
-	"dijit/layout/ContentPane",
-	"dijit/form/Button",
 	"dijit/_TemplatedMixin",
 	"dijit/_WidgetsInTemplateMixin",
 	"dojo/i18n",
 	"dojo/text!./Wizard/Wizard.html",
 	"dojo/i18n!dijit/nls/common",
 	"dojo/i18n!./nls/Wizard",
-	"dojox/widget/WizardPane"
-], function (lang, declare, connect, StackContainer, ContentPane, Button, _TemplatedMixin, _WidgetsInTemplateMixin, i18n, template, wizardPane) {
-  
+	"dijit/form/Button"		// used by template
+], function (lang, declare, connect, StackContainer, _TemplatedMixin, _WidgetsInTemplateMixin, i18n, template) {
+
 var Wizard = declare("dojox.widget.Wizard", [StackContainer, _TemplatedMixin, _WidgetsInTemplateMixin], {
 	// summary:
 	//		A set of panels that display sequentially, typically notating a step-by-step
 	//		procedure like an install
-	
+
 	templateString: template,
-	
+
 	// nextButtonLabel: String
 	//		Label override for the "Next" button.
 	nextButtonLabel: "",
@@ -67,7 +65,7 @@ var Wizard = declare("dojox.widget.Wizard", [StackContainer, _TemplatedMixin, _W
 			return;
 		}
 		this.inherited(arguments);
-		
+
 		this.connect(this.nextButton, "onClick", "_forward");
 		this.connect(this.previousButton, "onClick", "back");
 
@@ -83,19 +81,18 @@ var Wizard = declare("dojox.widget.Wizard", [StackContainer, _TemplatedMixin, _W
 
 		this._subscription = connect.subscribe(this.id + "-selectChild", lang.hitch(this,"_checkButtons"));
 		this._started = true;
-		
+
 	},
-	
+
 	resize: function(){
 		this.inherited(arguments);
 		this._checkButtons();
 	},
 
 	_checkButtons: function(){
-		
 		var sw = this.selectedChildWidget;
-		
-		var lastStep = sw.isLastChild;
+
+		var lastStep = sw.isLastChild || this.nextButton.get("disabled");
 		this.nextButton.set("disabled", lastStep);
 		this._setButtonClass(this.nextButton);
 		if(sw.doneFunction){
@@ -123,18 +120,18 @@ var Wizard = declare("dojox.widget.Wizard", [StackContainer, _TemplatedMixin, _W
 			this.forward();
 		}
 	},
-	
+
 	done: function(){
 		// summary:
 		//		Finish the wizard's operation
 		this.selectedChildWidget.done();
 	},
-	
+
 	destroy: function(){
 		connect.unsubscribe(this._subscription);
 		this.inherited(arguments);
 	}
-	
+
 });
 
 return Wizard;

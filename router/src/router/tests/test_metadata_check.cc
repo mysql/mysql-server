@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -141,8 +141,8 @@ TEST_P(MetadataSchemaError, query_fails) {
                     "to contain the metadata of MySQL InnoDB Cluster");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataSchemaError,
-                        ::testing::Values(1049, 1146));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataSchemaError,
+                         ::testing::Values(1049, 1146));
 
 class MetadataSchemaVersionError
     : public ::testing::Test,
@@ -165,13 +165,13 @@ TEST_P(MetadataSchemaVersionError, version) {
       "provided MySQL InnoDB cluster metadata");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataSchemaVersionError,
-                        ::testing::Values(
-                            // too old
-                            std::make_tuple("0", "0", "1"),
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataSchemaVersionError,
+                         ::testing::Values(
+                             // too old
+                             std::make_tuple("0", "0", "1"),
 
-                            // too new
-                            std::make_tuple("3", "0", "0")));
+                             // too new
+                             std::make_tuple("3", "0", "0")));
 
 class MetadataGroupMembers_2_0_Throws
     : public ::testing::Test,
@@ -204,9 +204,9 @@ TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_2_0_3) {
                     "one cluster, found none.");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataGroupMembers_2_0_Throws,
-                        ::testing::Values(std::make_tuple("2"),
-                                          std::make_tuple("0")));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataGroupMembers_2_0_Throws,
+                         ::testing::Values(std::make_tuple("2"),
+                                           std::make_tuple("0")));
 
 class MetadataGroupMembers_2_0_3_Throws
     : public ::testing::Test,
@@ -238,8 +238,8 @@ TEST_P(MetadataMemberStateThrows, quorum_but_bad_memberstate) {
                     "a InnoDB cluster.");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataMemberStateThrows,
-                        ::testing::Values("OFFLINE", "RECOVERING"));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataMemberStateThrows,
+                         ::testing::Values("OFFLINE", "RECOVERING"));
 
 class MetadataAccessDeniedTest
     : public ::testing::Test,
@@ -318,8 +318,8 @@ TEST_P(MetadataAccessDeniedTest, missing_permissions_throws) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(Failure, MetadataAccessDeniedTest,
-                        ::testing::Values(0, 1, 2, 3, 4));
+INSTANTIATE_TEST_SUITE_P(Failure, MetadataAccessDeniedTest,
+                         ::testing::Values(0, 1, 2, 3, 4));
 
 class MetadataQuorumThrowsTest : public ::testing::Test,
                                  public ::testing::WithParamInterface<
@@ -347,11 +347,11 @@ TEST_P(MetadataQuorumThrowsTest, metadata_no_quorum_throws) {
       "quorum and thus may contain inaccurate or outdated data.");
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataQuorumThrowsTest,
-                        ::testing::Values(std::make_tuple("1", "3"),
-                                          std::make_tuple("0", "1"),
-                                          std::make_tuple("1", "2"),
-                                          std::make_tuple("2", "5")));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataQuorumThrowsTest,
+                         ::testing::Values(std::make_tuple("1", "3"),
+                                           std::make_tuple("0", "1"),
+                                           std::make_tuple("1", "2"),
+                                           std::make_tuple("2", "5")));
 
 class MetadataQuorumOkTest : public ::testing::Test,
                              public ::testing::WithParamInterface<
@@ -376,12 +376,12 @@ TEST_P(MetadataQuorumOkTest, metadata_has_quorum_ok) {
   ASSERT_NO_THROW(metadata->require_cluster_is_ok());
 }
 
-INSTANTIATE_TEST_CASE_P(Quorum, MetadataQuorumOkTest,
-                        ::testing::Values(std::make_tuple("1", "1"),
-                                          std::make_tuple("2", "3"),
-                                          std::make_tuple("3", "3"),
-                                          std::make_tuple("3", "5"),
-                                          std::make_tuple("2", "2")));
+INSTANTIATE_TEST_SUITE_P(Quorum, MetadataQuorumOkTest,
+                         ::testing::Values(std::make_tuple("1", "1"),
+                                           std::make_tuple("2", "3"),
+                                           std::make_tuple("3", "3"),
+                                           std::make_tuple("3", "5"),
+                                           std::make_tuple("2", "2")));
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

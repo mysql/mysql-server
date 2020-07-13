@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,25 +20,35 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# The files in protobuf-3.6.1/ are almost unmodified versions of google
-# source files taken from protobuf-cpp-3.6.1.tar.gz archive.
+# The files in protobuf-3.11.4/ are almost unmodified versions of google
+# source files taken from protobuf-cpp-3.11.4.tar.gz archive.
 # Changes:
 # - remove directories and files
-#    protobuf-3.6.1/benchmarks/
-#    protobuf-3.6.1/conformance/
-#    protobuf-3.6.1/editors/
-#    protobuf-3.6.1/examples/
-#    protobuf-3.6.1/objectivec/
-#    protobuf-3.6.1/third_party/
-#    protobuf-3.6.1/python/
-#    protobuf-3.6.1/util/
-#    protobuf-3.6.1/ar-lib
-#    protobuf-3.6.1/test-driver
+#    protobuf-3.11.4/benchmarks/
+#    protobuf-3.11.4/conformance/
+#    protobuf-3.11.4/editors/
+#    protobuf-3.11.4/examples/
+#    protobuf-3.11.4/m4/
+#    protobuf-3.11.4/objectivec/
+#    protobuf-3.11.4/python/
+#    protobuf-3.11.4/third_party/
+#    protobuf-3.11.4/util/
+#    protobuf-3.11.4/ar-lib
+#    protobuf-3.11.4/compile
+#    protobuf-3.11.4/config.guess
+#    protobuf-3.11.4/config.h.in
+#    protobuf-3.11.4/config.sub
+#    protobuf-3.11.4/configure
+#    protobuf-3.11.4/depcomp
+#    protobuf-3.11.4/install-sh
+#    protobuf-3.11.4/ltmain.sh
+#    protobuf-3.11.4/missing
+#    protobuf-3.11.4/test-driver
+#    protobuf-3.11.4/update_file_lists.sh
 # - disable configuration check of cmake's mimimum version
 # - disable configuration zlib check
 # - disable installation script
 # - fix minor compilation issues on SunPro 5.14.0
-# - fix minor issues to satisfy UBSAN
 
 # Inhibit warning messages
 IF(MSVC AND NOT WIN32_CLANG)
@@ -69,4 +79,4 @@ SET(protobuf_BUILD_SHARED_LIBS ON CACHE INTERNAL "")
 SET(protobuf_MSVC_STATIC_RUNTIME OFF CACHE INTERNAL "")
 SET(protobuf_WITH_ZLIB ON CACHE INTERNAL "")
 SET(ZLIB_LIBRARIES ${ZLIB_LIBRARY})
-ADD_SUBDIRECTORY(protobuf-3.6.1/cmake)
+ADD_SUBDIRECTORY(protobuf-3.11.4/cmake)

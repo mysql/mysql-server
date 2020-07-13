@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -41,11 +41,11 @@ return doc.parentWindow||doc.defaultView;
 },scrollIntoView:function(_17,pos){
 try{
 _17=_4.byId(_17);
-var doc=_17.ownerDocument||_3.doc,_18=_3.body(doc),_19=doc.documentElement||_18.parentNode,_1a=_2("ie"),_1b=_2("webkit");
+var doc=_17.ownerDocument||_3.doc,_18=_3.body(doc),_19=doc.documentElement||_18.parentNode,_1a=_2("ie")||_2("trident"),_1b=_2("webkit");
 if(_17==_18||_17==_19){
 return;
 }
-if(!(_2("mozilla")||_1a||_1b||_2("opera")||_2("trident"))&&("scrollIntoView" in _17)){
+if(!(_2("mozilla")||_1a||_1b||_2("opera")||_2("trident")||_2("edge"))&&("scrollIntoView" in _17)){
 _17.scrollIntoView(false);
 return;
 }

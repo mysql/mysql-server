@@ -18,7 +18,7 @@ define("dojox/html/_base", [
 	Need to pull in the implementation of the various helper methods
 	Some can be static method, others maybe methods of the ContentSetter (?)
 
-	Gut the ContentPane, replace its _setContent with our own call to dojox.html.set()
+	Gut the ContentPane, replace its _setContent with our own call to dojox/html.set()
 
 
 */
@@ -217,7 +217,7 @@ define("dojox/html/_base", [
 		n.text = code; // DOM 1 says this should work
 	};
 
-	html._ContentSetter = declare(/*===== "dojox.html._ContentSetter", =====*/ htmlUtil._ContentSetter, {
+	html._ContentSetter = declare(/*===== "dojox/html._ContentSetter", =====*/ htmlUtil._ContentSetter, {
 		// adjustPaths: Boolean
 		//		Adjust relative paths in html string content to point to this page
 		//		Only useful if you grab content from a another folder than the current one
@@ -267,7 +267,7 @@ define("dojox/html/_base", [
 			//		Called after instantiation, but before set();
 			//		It allows modification of any of the object properties - including the node and content
 			//		provided - before the set operation actually takes place
-			//		This implementation extends that of dojo.html._ContentSetter
+			//		This implementation extends that of dojo/html/_ContentSetter
 			//		to add handling for adjustPaths, renderStyles on the html string content before it is set
 			this.inherited("onBegin", arguments);
 
@@ -275,6 +275,7 @@ define("dojox/html/_base", [
 				node = this.node;
 
 			var styles = this._styles;// init vars
+			this._code = null; // do not execute scripts from previous content set
 
 			if(lang.isString(cont)){
 				if(this.adjustPaths && this.referencePath){
@@ -285,8 +286,8 @@ define("dojox/html/_base", [
 					cont = snarfStyles(this.referencePath, cont, styles);
 				}
 
-				// because of a bug in IE, script tags that is first in html hierarchy doesnt make it into the DOM
-				//	when content is innerHTML'ed, so we can't use dojo.query to retrieve scripts from DOM
+				// because of a bug in IE, the script tag that is first in html hierarchy doesnt make it into the DOM
+				//	when content is innerHTML'ed, so we can't use dojo/query to retrieve scripts from DOM
 				if(this.executeScripts){
 					var _t = this;
 					var byRef = {
@@ -306,7 +307,7 @@ define("dojox/html/_base", [
 			// summary:
 			//		Called after set(), when the new content has been pushed into the node
 			//		It provides an opportunity for post-processing before handing back the node to the caller
-			//		This implementation extends that of dojo.html._ContentSetter
+			//		This implementation extends that of dojo/html/_ContentSetter
 
 			var code = this._code,
 				styles = this._styles;
@@ -402,13 +403,15 @@ define("dojox/html/_base", [
 			//		the content to be set on the parent element.
 			//		This can be an html string, a node reference or a NodeList, dojo/NodeList, Array or other enumerable list of nodes
 			// params:
-			//		Optional flags/properties to configure the content-setting. See dojo.html._ContentSetter
+			//		Optional flags/properties to configure the content-setting. See dojo/html/_ContentSetter
 			// example:
 			//		A safe string/node/nodelist content replacement/injection with hooks for extension
 			//		Example Usage:
-			//	|	dojo.html.set(node, "some string");
-			//	|	dojo.html.set(node, contentNode, {options});
-			//	|	dojo.html.set(node, myNode.childNodes, {options});
+			//	|	require(["dojo/html", "dojox/html", "dojo/domReady!"], function(html){
+			//	|		html.set(node, "some string");
+			//	|		html.set(node, contentNode, {options});
+			//	|		html.set(node, myNode.childNodes, {options});
+			//	|	});
 
 		if(!params){
 			// simple and fast

@@ -268,9 +268,8 @@ class Remote_clone_handler : public Group_event_observer {
 
     @param[in] error_code the clone returned error
 
-    @return
-      @retval true  error is critical
-      @retval false error is not critical
+    @retval true  error is critical
+    @retval false error is not critical
   */
   bool evaluate_error_code(int error_code);
 

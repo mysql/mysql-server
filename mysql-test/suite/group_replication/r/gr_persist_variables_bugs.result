@@ -5,9 +5,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 ############################################################
-# 0. Set binlog_checksum to NONE.
+# 0. Persist binlog_checksum.
 [connection server1]
-SET PERSIST binlog_checksum=NONE;
+SET PERSIST binlog_checksum= @@global.binlog_checksum;
 
 ############################################################
 # 1. SET PERSIST GR specific variables.

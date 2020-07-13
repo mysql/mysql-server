@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -103,10 +103,29 @@ class Histogram_sampler {
     return (m_err != DB_SUCCESS);
   }
 
+  /** Each parallel reader thread's init function.
+  @param[in]  reader_thread_ctx  context information related to the thread
+  @return DB_SUCCESS or error code. */
+  dberr_t start_callback(Parallel_reader::Thread_ctx *reader_thread_ctx)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Each parallel reader thread's end function.
+  @param[in]  reader_thread_ctx  context information related to the thread
+  @return DB_SUCCESS or error code. */
+  dberr_t finish_callback(Parallel_reader::Thread_ctx *reader_thread_ctx)
+      MY_ATTRIBUTE((warn_unused_result));
+
   /** Convert the row in InnoDB format to MySQL format and store in the buffer
-  for server to use. */
-  dberr_t sample_rec(ulint thread_id, const rec_t *rec, ulint *offsets,
-                     const dict_index_t *index, row_prebuilt_t *prebuilt);
+  for server to use.
+  @param[in]  ctx       Parallel read context.
+  @param[in]  rec       record that needs to be converted
+  @param[in]  offsets   offsets belonging to the record
+  @param[in]  index     index of the record
+  @param[in]  prebuilt  Row meta-data cache.
+  @return DB_SUCCESS or error code. */
+  dberr_t sample_rec(const Parallel_reader::Ctx *ctx, const rec_t *rec,
+                     ulint *offsets, const dict_index_t *index,
+                     row_prebuilt_t *prebuilt);
 
   /** For each record in a non-leaf block at level 1 (if leaf level is 0)
   check if the child page needs to be sampled and if so sample all the rows in
@@ -160,19 +179,6 @@ class Histogram_sampler {
 
   /** Sampling seed to be used for sampling */
   int m_sampling_seed{};
-
-  /** BLOB heap per thread.
-
-  There are data members in row_prebuilt_t that cannot be accessed in
-  multi-threaded mode e.g., blob_heap.
-
-  row_prebuilt_t is designed for single threaded access and to share
-  it among threads is not recommended unless "you know what you are doing".
-  This is very fragile code as it stands.
-
-  To solve the blob heap issue in prebuilt we use per thread m_blob_heaps.
-  Pass the blob heap to the InnoDB to MySQL row format conversion function. */
-  std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>> m_blob_heaps{};
 
   /** Number of rows sampled */
   std::atomic_size_t m_n_sampled;

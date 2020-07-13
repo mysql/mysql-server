@@ -8,7 +8,7 @@ define("dojox/editor/plugins/NormalizeStyle", [
 	"dojo/_base/declare"
 ], function(dojo, dijit, dojox, _Plugin, editorHtml) {
 
-dojo.declare("dojox.editor.plugins.NormalizeStyle", _Plugin,{
+var NormalizeStyle = dojo.declare("dojox.editor.plugins.NormalizeStyle", _Plugin,{
 	// summary:
 	//		This plugin provides NormalizeStyle capability to the editor.  It is
 	//		a headless plugin that tries to normalize how content is styled when
@@ -550,13 +550,13 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "normalizestyle"){
-		o.plugin = new dojox.editor.plugins.NormalizeStyle({
+		o.plugin = new NormalizeStyle({
 			mode: ("mode" in o.args)?o.args.mode:"semantic",
 			condenseSpans: ("condenseSpans" in o.args)?o.args.condenseSpans:true
 		});
 	}
 });
 
-return dojox.editor.plugins.NormalizeStyle;
+return NormalizeStyle;
 
 });

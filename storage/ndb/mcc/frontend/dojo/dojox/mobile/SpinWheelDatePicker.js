@@ -4,7 +4,7 @@ return _2("dojox.mobile.SpinWheelDatePicker",[_5,_4],{slotClasses:[_6,_6,_6],slo
 this.initSlots();
 this.inherited(arguments);
 _3.add(this.domNode,"mblSpinWheelDatePicker");
-this._conn=[this.connect(this.slots[0],"onFlickAnimationEnd","onYearSet"),this.connect(this.slots[1],"onFlickAnimationEnd","onMonthSet"),this.connect(this.slots[2],"onFlickAnimationEnd","onDaySet")];
+this._conn=[this.connect(this.slots[0],"onFlickAnimationEnd","_onYearSet"),this.connect(this.slots[1],"onFlickAnimationEnd","_onMonthSet"),this.connect(this.slots[2],"onFlickAnimationEnd","_onDaySet")];
 },disableValues:function(_7){
 _1.forEach(this.slots[2].panelNodes,function(_8){
 for(var i=27;i<31;i++){

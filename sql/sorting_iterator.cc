@@ -624,9 +624,9 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
     }
     field->set_notnull();
     if (Packed_addon_fields)
-      start_of_record = field->unpack(field->ptr, start_of_record);
+      start_of_record = field->unpack(start_of_record);
     else
-      field->unpack(field->ptr, buff + addonf->offset);
+      field->unpack(buff + addonf->offset);
   }
 }
 

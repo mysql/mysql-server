@@ -1,0 +1,52 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start GR on server1 and create a table.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+# 2. Start GR on server2.
+#    Disable recovery channel relay logs purge through a debug flag.
+[connection server2]
+SET GLOBAL debug= '+d,gr_recovery_skip_purge_logs';
+include/start_group_replication.inc
+SET GLOBAL debug= '-d,gr_recovery_skip_purge_logs';
+
+############################################################
+# 3. Validate that server2 recovery channel relay logs have
+#    checksums.
+include/mysqlbinlog.inc
+include/assert_grep.inc [recovery channel relay logs have checksums]
+
+############################################################
+# 4. Execute a new transaction on server1 and validate that
+#    server2 applier channel relay logs do not have checksums.
+[connection server1]
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server2]
+include/mysqlbinlog.inc
+include/assert_grep.inc [applier channel relay logs do not have checksums]
+
+############################################################
+# 5. Validate that server2 binary log have checksums.
+[connection server2]
+include/mysqlbinlog.inc
+include/assert_grep.inc [binary log have checksums]
+
+############################################################
+# 6. Validate that server1 binary log have checksums.
+[connection server1]
+include/mysqlbinlog.inc
+include/assert_grep.inc [binary log have checksums]
+
+############################################################
+# 7. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

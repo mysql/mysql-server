@@ -1,17 +1,13 @@
 //>>built
-define("dijit/Calendar",["dojo/_base/array","dojo/date","dojo/date/locale","dojo/_base/declare","dojo/dom-attr","dojo/dom-class","dojo/_base/event","dojo/_base/kernel","dojo/keys","dojo/_base/lang","dojo/sniff","./CalendarLite","./_Widget","./_CssStateMixin","./_TemplatedMixin","./form/DropDownButton"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,_10){
-var _11=_4("dijit.Calendar",[_c,_d,_e],{cssStateNodes:{"decrementMonth":"dijitCalendarArrow","incrementMonth":"dijitCalendarArrow","previousYearLabelNode":"dijitCalendarPreviousYear","nextYearLabelNode":"dijitCalendarNextYear"},setValue:function(_12){
+define("dijit/Calendar",["dojo/_base/array","dojo/date","dojo/date/locale","dojo/_base/declare","dojo/dom-attr","dojo/dom-class","dojo/dom-construct","dojo/_base/kernel","dojo/keys","dojo/_base/lang","dojo/on","dojo/sniff","./CalendarLite","./_Widget","./_CssStateMixin","./_TemplatedMixin","./form/DropDownButton"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,on,_b,_c,_d,_e,_f,_10){
+var _11=_4("dijit.Calendar",[_c,_d,_e],{baseClass:"dijitCalendar",cssStateNodes:{"decrementMonth":"dijitCalendarArrow","incrementMonth":"dijitCalendarArrow","previousYearLabelNode":"dijitCalendarPreviousYear","nextYearLabelNode":"dijitCalendarNextYear"},setValue:function(_12){
 _8.deprecated("dijit.Calendar:setValue() is deprecated.  Use set('value', ...) instead.","","2.0");
 this.set("value",_12);
 },_createMonthWidget:function(){
 return new _11._MonthDropDownButton({id:this.id+"_mddb",tabIndex:-1,onMonthSelect:_a.hitch(this,"_onMonthSelect"),lang:this.lang,dateLocaleModule:this.dateLocaleModule},this.monthNode);
 },postCreate:function(){
 this.inherited(arguments);
-this.connect(this.domNode,"onkeydown","_onKeyDown");
-this.connect(this.dateRowsNode,"onmouseover","_onDayMouseOver");
-this.connect(this.dateRowsNode,"onmouseout","_onDayMouseOut");
-this.connect(this.dateRowsNode,"onmousedown","_onDayMouseDown");
-this.connect(this.dateRowsNode,"onmouseup","_onDayMouseUp");
+this.own(on(this.domNode,"keydown",_a.hitch(this,"_onKeyDown")),on(this.dateRowsNode,"mouseover",_a.hitch(this,"_onDayMouseOver")),on(this.dateRowsNode,"mouseout",_a.hitch(this,"_onDayMouseOut")),on(this.dateRowsNode,"mousedown",_a.hitch(this,"_onDayMouseDown")),on(this.dateRowsNode,"mouseup",_a.hitch(this,"_onDayMouseUp")));
 },_onMonthSelect:function(_13){
 var _14=new this.dateClassObj(this.currentFocus);
 _14.setDate(1);
@@ -78,10 +74,6 @@ case _9.HOME:
 _1c=new this.dateClassObj(_1c);
 _1c.setDate(1);
 break;
-case _9.ENTER:
-case _9.SPACE:
-this.set("value",this.currentFocus);
-break;
 default:
 return true;
 }
@@ -92,7 +84,8 @@ this._setCurrentFocusAttr(_1c);
 return false;
 },_onKeyDown:function(evt){
 if(!this.handleKey(evt)){
-_7.stop(evt);
+evt.stopPropagation();
+evt.preventDefault();
 }
 },onValueSelected:function(){
 },onChange:function(_1d){
@@ -108,15 +101,15 @@ var _1f=this.dateLocaleModule.getNames("months","wide","standAlone",this.lang,_1
 this.dropDown.set("months",_1f);
 this.containerNode.innerHTML=(_b("ie")==6?"":"<div class='dijitSpacer'>"+this.dropDown.domNode.innerHTML+"</div>")+"<div class='dijitCalendarMonthLabel dijitCalendarCurrentMonthLabel'>"+_1f[_1e.getMonth()]+"</div>";
 }});
-_11._MonthDropDown=_4("dijit.Calendar._MonthDropDown",[_d,_f],{months:[],templateString:"<div class='dijitCalendarMonthMenu dijitMenu' "+"data-dojo-attach-event='onclick:_onClick,onmouseover:_onMenuHover,onmouseout:_onMenuHover'></div>",_setMonthsAttr:function(_20){
-this.domNode.innerHTML=_1.map(_20,function(_21,idx){
-return _21?"<div class='dijitCalendarMonthLabel' month='"+idx+"'>"+_21+"</div>":"";
-}).join("");
+_11._MonthDropDown=_4("dijit.Calendar._MonthDropDown",[_d,_f,_e],{months:[],baseClass:"dijitCalendarMonthMenu dijitMenu",templateString:"<div data-dojo-attach-event='ondijitclick:_onClick'></div>",_setMonthsAttr:function(_20){
+this.domNode.innerHTML="";
+_1.forEach(_20,function(_21,idx){
+var div=_7.create("div",{className:"dijitCalendarMonthLabel",month:idx,innerHTML:_21},this.domNode);
+div._cssState="dijitCalendarMonthLabel";
+},this);
 },_onClick:function(evt){
 this.onChange(_5.get(evt.target,"month"));
 },onChange:function(){
-},_onMenuHover:function(evt){
-_6.toggle(evt.target,"dijitCalendarMonthLabelHover",evt.type=="mouseover");
 }});
 return _11;
 });

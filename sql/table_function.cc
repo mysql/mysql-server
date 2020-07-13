@@ -173,7 +173,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
         const String *path = col->m_path_string->val_str(&buffer);
         DBUG_ASSERT(path != nullptr);
         if (parse_path(*path, false, &col->m_path_json)) return true;
-        if (col->m_on_empty == enum_jtc_on::JTO_DEFAULT) {
+        if (col->m_on_empty == Json_on_response_type::DEFAULT) {
           const String *default_string =
               col->m_default_empty_string->val_str(&buffer);
           DBUG_ASSERT(default_string != nullptr);
@@ -187,7 +187,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
           }
           col->m_default_empty_json = Json_wrapper(std::move(dom));
         }
-        if (col->m_on_error == enum_jtc_on::JTO_DEFAULT) {
+        if (col->m_on_error == Json_on_response_type::DEFAULT) {
           const String *default_string =
               col->m_default_error_string->val_str(&buffer);
           DBUG_ASSERT(default_string != nullptr);
@@ -280,13 +280,13 @@ bool Table_function_json::do_init_args() {
   for (const Json_table_column *col : m_all_columns) {
     if (col->m_jtc_type != enum_jt_column::JTC_PATH) continue;
     DBUG_ASSERT(col->m_field_idx >= 0);
-    if (col->m_on_empty == enum_jtc_on::JTO_DEFAULT) {
+    if (col->m_on_empty == Json_on_response_type::DEFAULT) {
       if (save_json_to_field(thd, get_field(col->m_field_idx),
                              &col->m_default_empty_json, false)) {
         return true;
       }
     }
-    if (col->m_on_error == enum_jtc_on::JTO_DEFAULT) {
+    if (col->m_on_error == Json_on_response_type::DEFAULT) {
       if (save_json_to_field(thd, get_field(col->m_field_idx),
                              &col->m_default_error_json, false)) {
         return true;
@@ -385,7 +385,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
                          ? nullptr
                          : table_function->get_field(m_field_idx);
   DBUG_ASSERT(m_jtc_type == enum_jt_column::JTC_NESTED_PATH ||
-              (fld != nullptr && fld->field_index == m_field_idx));
+              (fld != nullptr && fld->field_index() == m_field_idx));
 
   switch (m_jtc_type) {
     case enum_jt_column::JTC_ORDINALITY: {
@@ -417,7 +417,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
           } else {
             is_error = true;
             // Thrown an error when save_json_to_field() isn't called
-            if (m_on_error == enum_jtc_on::JTO_ERROR)
+            if (m_on_error == Json_on_response_type::ERROR)
               my_error(ER_WRONG_JSON_TABLE_VALUE, MYF(0), field_name);
           }
         } else
@@ -430,22 +430,25 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
           // Strict_error_handler and prevent the ON ERROR clause from being
           // respected.
           Ignore_warnings_error_handler ignore_warnings;
-          const bool no_error = m_on_error != enum_jtc_on::JTO_ERROR;
+          const bool no_error = m_on_error != Json_on_response_type::ERROR;
           if (no_error) thd->push_internal_handler(&ignore_warnings);
-          is_error = save_json_to_field(thd, fld, &buf, no_error);
+          if (buf.type() == enum_json_type::J_NULL)  // see JSON_VALUE
+            fld->set_null();
+          else
+            is_error = save_json_to_field(thd, fld, &buf, no_error);
           if (no_error) thd->pop_internal_handler();
         }
         if (is_error) {
           switch (m_on_error) {
-            case enum_jtc_on::JTO_ERROR: {
+            case Json_on_response_type::ERROR: {
               return true;
               break;
             }
-            case enum_jtc_on::JTO_DEFAULT: {
+            case Json_on_response_type::DEFAULT: {
               save_json_to_field(thd, fld, &m_default_error_json, true);
               break;
             }
-            case enum_jtc_on::JTO_NULL:
+            case Json_on_response_type::NULL_VALUE:
             default: {
               fld->set_null();
               break;
@@ -454,15 +457,15 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
         }
       } else {
         switch (m_on_empty) {
-          case enum_jtc_on::JTO_ERROR: {
+          case Json_on_response_type::ERROR: {
             my_error(ER_MISSING_JSON_TABLE_VALUE, MYF(0), field_name);
             return true;
           }
-          case enum_jtc_on::JTO_DEFAULT: {
+          case Json_on_response_type::DEFAULT: {
             save_json_to_field(thd, fld, &m_default_empty_json, true);
             break;
           }
-          case enum_jtc_on::JTO_NULL:
+          case Json_on_response_type::NULL_VALUE:
           default: {
             fld->set_null();
             break;
@@ -530,9 +533,9 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
 void Json_table_column::cleanup() {
   // Reset paths and wrappers to free allocated memory.
   m_path_json = Json_path();
-  if (m_on_empty == enum_jtc_on::JTO_DEFAULT)
+  if (m_on_empty == Json_on_response_type::DEFAULT)
     m_default_empty_json = Json_wrapper();
-  if (m_on_error == enum_jtc_on::JTO_DEFAULT)
+  if (m_on_error == Json_on_response_type::DEFAULT)
     m_default_error_json = Json_wrapper();
 }
 
@@ -678,23 +681,30 @@ bool Table_function_json::fill_result_table() {
   return false;
 }
 
-static bool print_on_empty_error(const THD *thd, String *str,
-                                 enum_query_type query_type, enum_jtc_on jto,
-                                 const Item *default_string) {
-  switch (jto) {
-    case enum_jtc_on::JTO_ERROR:
-      return str->append(STRING_WITH_LEN(" error on"));
-    case enum_jtc_on::JTO_NULL:
-      return str->append(STRING_WITH_LEN(" null on"));
-    case enum_jtc_on::JTO_DEFAULT:
-      if (str->append(STRING_WITH_LEN(" default "))) return true;
-      default_string->print(thd, str, query_type);
-      return str->append(STRING_WITH_LEN(" on"));
-    case enum_jtc_on::JTO_IMPLICIT:
+void print_on_empty_or_error(const THD *thd, String *str,
+                             enum_query_type query_type, bool on_empty,
+                             Json_on_response_type response_type,
+                             const Item *default_string) {
+  switch (response_type) {
+    case Json_on_response_type::ERROR:
+      str->append(STRING_WITH_LEN(" error"));
       break;
+    case Json_on_response_type::NULL_VALUE:
+      str->append(STRING_WITH_LEN(" null"));
+      break;
+    case Json_on_response_type::DEFAULT:
+      str->append(STRING_WITH_LEN(" default "));
+      default_string->print(thd, str, query_type);
+      break;
+    case Json_on_response_type::IMPLICIT:
+      // Nothing to print when the clause was implicit.
+      return;
   };
-  DBUG_ASSERT(false);
-  return true;
+
+  if (on_empty)
+    str->append(STRING_WITH_LEN(" on empty"));
+  else
+    str->append(STRING_WITH_LEN(" on error"));
 }
 
 /**
@@ -750,18 +760,12 @@ static bool print_nested_path(const THD *thd, const TABLE *table,
         if (str->append(STRING_WITH_LEN(" path "))) return true;
         jtc.m_path_string->print(thd, str, query_type);
         if (jtc.m_jtc_type == enum_jt_column::JTC_EXISTS) break;
-        if (jtc.m_on_empty != enum_jtc_on::JTO_IMPLICIT) {
-          if (print_on_empty_error(thd, str, query_type, jtc.m_on_empty,
-                                   jtc.m_default_empty_string) ||
-              str->append(STRING_WITH_LEN(" empty")))
-            return true;
-        }
-        if (jtc.m_on_error != enum_jtc_on::JTO_IMPLICIT) {
-          if (print_on_empty_error(thd, str, query_type, jtc.m_on_error,
-                                   jtc.m_default_error_string) ||
-              str->append(STRING_WITH_LEN(" error")))
-            return true;
-        }
+        // ON EMPTY
+        print_on_empty_or_error(thd, str, query_type, /*on_empty=*/true,
+                                jtc.m_on_empty, jtc.m_default_empty_string);
+        // ON ERROR
+        print_on_empty_or_error(thd, str, query_type, /*on_empty=*/false,
+                                jtc.m_on_error, jtc.m_default_error_string);
         break;
       }
       case enum_jt_column::JTC_NESTED_PATH: {

@@ -37,6 +37,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYPS (& YYTHD->m_parser_state->m_yacc)
 #define YYCSCL (YYLIP->query_charset)
 #define YYMEM_ROOT (YYTHD->mem_root)
+#define YYCLIENT_NO_SCHEMA (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
 
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
@@ -67,6 +68,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_json_func.h"
 #include "sql/item_regexp_func.h"
 #include "sql/json_dom.h"
+#include "sql/json_syntax_check.h"           // is_valid_json_syntax
 #include "sql/key_spec.h"
 #include "sql/keycaches.h"
 #include "sql/lex_symbol.h"
@@ -1244,15 +1246,24 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM 996 /* MYSQL */
 %token<lexer.keyword> STREAM_SYM 997                    /* MYSQL */
 %token<lexer.keyword> OFF_SYM 998                       /* SQL-1999-R */
+%token<lexer.keyword> RETURNING_SYM 999                 /* SQL-2016-N */
 /*
   Here is an intentional gap in token numbers.
 
-  Token numbers starting 1000 till NOT_A_TOKEN_SYM are occupied by:
+  Token numbers starting 1000 till YYUNDEF are occupied by:
   1. hint terminals (see sql_hints.yy),
   2. digest special internal token numbers (see gen_lex_token.cc, PART 6).
-*/
-%token NOT_A_TOKEN_SYM 1150                             /* INTERNAL */
 
+  Note: YYUNDEF in internal to Bison. Please don't change its number, or change
+  it in sync with YYUNDEF in sql_hints.yy.
+*/
+%token YYUNDEF 1150                /* INTERNAL (for use in the lexer) */
+%token<lexer.keyword> JSON_VALUE_SYM 1151               /* SQL-2016-R */
+%token<lexer.keyword> TLS_SYM 1152                      /* MYSQL */
+%token<lexer.keyword> ATTRIBUTE_SYM 1153                /* SQL-2003-N */
+
+%token<lexer.keyword> ENGINE_ATTRIBUTE_SYM 1154         /* MYSQL */
+%token<lexer.keyword> SECONDARY_ENGINE_ATTRIBUTE_SYM 1155 /* MYSQL */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -1328,6 +1339,7 @@ void warn_about_deprecated_binary(THD *thd)
         opt_table_alias
         opt_replace_password
         sp_opt_label
+        json_attribute
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -1417,6 +1429,9 @@ void warn_about_deprecated_binary(THD *thd)
         where_clause
         opt_having_clause
         opt_simple_limit
+        null_as_literal
+        literal_or_null
+        signed_literal_or_null
 
 
 %type <item_string> window_name opt_existing_window_name
@@ -1483,7 +1498,7 @@ void warn_about_deprecated_binary(THD *thd)
 %type <ha_read_mode> handler_scan_function
         handler_rkey_function
 
-%type <cast_type> cast_type
+%type <cast_type> cast_type opt_returning_type
 
 %type <lexer.keyword> ident_keyword label_keyword role_keyword
         lvalue_keyword
@@ -1753,7 +1768,7 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <user_list> user_list role_list default_role_clause opt_except_role_list
 
-%type <alter_instance_action> alter_instance_action
+%type <alter_instance_cmd> alter_instance_action
 
 %type <index_column_list> key_list key_list_with_expression
 
@@ -1883,8 +1898,9 @@ void warn_about_deprecated_binary(THD *thd)
 // used by JSON_TABLE
 %type <jtc_list> columns_clause columns_list
 %type <jt_column> jt_column
-%type <jt_on_response> jt_on_response opt_on_error opt_on_empty
-%type <jt_on_error_or_empty> opt_on_empty_or_error
+%type <json_on_response> json_on_response on_empty on_error
+%type <json_on_error_or_empty> opt_on_empty_or_error
+        opt_on_empty_or_error_json_table
 %type <jt_column_type> jt_column_type
 
 %type <acl_type> opt_acl_type
@@ -1943,9 +1959,11 @@ void warn_about_deprecated_binary(THD *thd)
         ts_option_redo_buffer_size
         ts_option_undo_buffer_size
         ts_option_wait
-	ts_option_encryption
+        ts_option_encryption
+        ts_option_engine_attribute
 
 %type <explain_format_type> opt_explain_format_type
+%type <explain_format_type> opt_explain_analyze_type
 
 %type <load_set_element> load_data_set_elem
 
@@ -2863,6 +2881,7 @@ create:
         | CREATE USER opt_if_not_exists create_user_list default_role_clause
                       require_clause connect_options
                       opt_account_lock_password_expire_options
+                      opt_user_attribute
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_CREATE_USER;
@@ -4019,7 +4038,7 @@ signal_information_item_list:
   Only a limited subset of <expr> are allowed in SIGNAL/RESIGNAL.
 */
 signal_allowed_expr:
-          literal
+          literal_or_null
           { ITEMIZE($1, &$$); }
         | variable
           {
@@ -5343,7 +5362,8 @@ tablespace_option:
         | ts_option_wait
         | ts_option_comment
         | ts_option_file_block_size
-	| ts_option_encryption
+        | ts_option_encryption
+        | ts_option_engine_attribute
         ;
 
 opt_alter_tablespace_options:
@@ -5372,7 +5392,8 @@ alter_tablespace_option:
         | ts_option_max_size
         | ts_option_engine
         | ts_option_wait
-	| ts_option_encryption
+        | ts_option_encryption
+        | ts_option_engine_attribute
         ;
 
 opt_undo_tablespace_options:
@@ -5553,6 +5574,13 @@ ts_option_encryption:
           ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_alter_tablespace_option_encryption($3);
+          }
+        ;
+
+ts_option_engine_attribute:
+          ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_tablespace_engine_attribute(YYMEM_ROOT, $3);
           }
         ;
 
@@ -6109,13 +6137,13 @@ create_table_option:
             $$= NEW_PTN PT_create_commen_option($3);
           }
         | COMPRESSION_SYM opt_equal TEXT_STRING_sys
-	  {
+          {
             $$= NEW_PTN PT_create_compress_option($3);
-	  }
+          }
         | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
-	  {
+          {
             $$= NEW_PTN PT_create_encryption_option($3);
-	  }
+          }
         | AUTO_INC opt_equal ulonglong_num
           {
             $$= NEW_PTN PT_create_auto_increment_option($3);
@@ -6212,6 +6240,18 @@ create_table_option:
         | KEY_BLOCK_SIZE opt_equal ulong_num
           {
             $$= NEW_PTN PT_create_key_block_size_option($3);
+          }
+        | START_SYM TRANSACTION_SYM
+          {
+            $$= NEW_PTN PT_create_start_transaction_option(true);
+	  }
+        | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_table_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_table_secondary_engine_attribute(YYMEM_ROOT, $3);
           }
         ;
 
@@ -6890,6 +6930,14 @@ column_attribute:
           {
             $$ = NEW_PTN PT_constraint_enforcement_attr($1);
           }
+        | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_column_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_column_secondary_engine_attribute(YYMEM_ROOT, $3);
+          }
         ;
 
 column_format:
@@ -6915,7 +6963,7 @@ now_or_signed_literal:
           {
             $$= NEW_PTN Item_func_now_local(@$, static_cast<uint8>($1));
           }
-        | signed_literal
+        | signed_literal_or_null
         ;
 
 character_set:
@@ -7287,6 +7335,14 @@ common_index_option:
         | visibility
           {
             $$= NEW_PTN PT_index_visibility($1);
+          }
+        | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_index_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_index_secondary_engine_attribute(YYMEM_ROOT, $3);
           }
         ;
 
@@ -7709,7 +7765,7 @@ alter_server_stmt:
 
 alter_user_stmt:
           alter_user_command alter_user_list require_clause
-          connect_options opt_account_lock_password_expire_options
+          connect_options opt_account_lock_password_expire_options opt_user_attribute
         | alter_user_command user_func IDENTIFIED_SYM BY RANDOM_SYM PASSWORD
           opt_replace_password opt_retain_current_password
           {
@@ -7806,6 +7862,28 @@ alter_user_command:
           }
         ;
 
+opt_user_attribute:
+          /* empty */
+          {
+            LEX *lex= Lex;
+            lex->alter_user_attribute =
+              enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
+          }
+        | ATTRIBUTE_SYM TEXT_STRING_literal
+          {
+            LEX *lex= Lex;
+            lex->alter_user_attribute =
+              enum_alter_user_attribute::ALTER_USER_ATTRIBUTE;
+            lex->alter_user_comment_text = $2;
+          }
+        | COMMENT_SYM TEXT_STRING_literal
+          {
+            LEX *lex= Lex;
+            lex->alter_user_attribute =
+              enum_alter_user_attribute::ALTER_USER_COMMENT;
+            lex->alter_user_comment_text = $2;
+          }
+        ;
 opt_account_lock_password_expire_options:
           /* empty */ {}
         | opt_account_lock_password_expire_option_list
@@ -8068,7 +8146,7 @@ alter_table_partition_options:
         ;
 
 opt_alter_command_list:
-	  /* empty */
+          /* empty */
           {
             $$.flags.init();
             $$.actions= NULL;
@@ -8308,7 +8386,7 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_enable_keys(true);
           }
-        | ALTER opt_column ident SET_SYM DEFAULT_SYM signed_literal
+        | ALTER opt_column ident SET_SYM DEFAULT_SYM signed_literal_or_null
           {
             $$= NEW_PTN PT_alter_table_set_default($3.str, $6);
           }
@@ -8488,17 +8566,70 @@ opt_to:
         ;
 
 group_replication:
-                 START_SYM GROUP_REPLICATION
-                 {
-                   LEX *lex=Lex;
-                   lex->sql_command = SQLCOM_START_GROUP_REPLICATION;
-                 }
-               | STOP_SYM GROUP_REPLICATION
-                 {
-                   LEX *lex=Lex;
-                   lex->sql_command = SQLCOM_STOP_GROUP_REPLICATION;
-                 }
-               ;
+          group_replication_start opt_group_replication_start_options
+        | STOP_SYM GROUP_REPLICATION
+          {
+            LEX *lex = Lex;
+            lex->sql_command = SQLCOM_STOP_GROUP_REPLICATION;
+          }
+        ;
+
+group_replication_start:
+          START_SYM GROUP_REPLICATION
+          {
+            LEX *lex = Lex;
+            lex->slave_connection.reset();
+            lex->sql_command = SQLCOM_START_GROUP_REPLICATION;
+          }
+        ;
+
+opt_group_replication_start_options:
+          /* empty */
+        | group_replication_start_options
+        ;
+
+group_replication_start_options:
+          group_replication_start_option
+        | group_replication_start_options ',' group_replication_start_option
+        ;
+
+group_replication_start_option:
+          group_replication_user
+        | group_replication_password
+        | group_replication_plugin_auth
+        ;
+
+group_replication_user:
+          USER EQ TEXT_STRING_sys_nonewline
+          {
+            Lex->slave_connection.user = $3.str;
+            if ($3.length == 0)
+            {
+              my_error(ER_GROUP_REPLICATION_USER_EMPTY_MSG, MYF(0));
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+group_replication_password:
+          PASSWORD EQ TEXT_STRING_sys_nonewline
+          {
+            Lex->slave_connection.password = $3.str;
+            Lex->contains_plaintext_password = true;
+            if ($3.length > 32)
+            {
+              my_error(ER_GROUP_REPLICATION_PASSWORD_LENGTH, MYF(0));
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+group_replication_plugin_auth:
+          DEFAULT_AUTH_SYM EQ TEXT_STRING_sys_nonewline
+          {
+            Lex->slave_connection.plugin_auth= $3.str;
+          }
+        ;
 
 slave:
         slave_start start_slave_opts{}
@@ -9218,9 +9349,9 @@ query_primary:
         | explicit_table
           {
             auto item_list= NEW_PTN PT_select_item_list;
-            if (item_list == nullptr ||
-                item_list->push_back(
-                  NEW_PTN Item_field(@$, nullptr, nullptr, "*")))
+            auto asterisk= NEW_PTN Item_asterisk(@$, nullptr, nullptr);
+            if (item_list == nullptr || asterisk == nullptr ||
+                item_list->push_back(asterisk))
               MYSQL_YYABORT;
             $$= NEW_PTN PT_explicit_table({}, item_list, $1);
           }
@@ -9413,9 +9544,9 @@ select_item_list:
           }
         | '*'
           {
-            Item *item= NEW_PTN Item_field(@$, NULL, NULL, "*");
-            $$= NEW_PTN PT_select_item_list;
-            if ($$ == NULL || $$->push_back(item))
+            Item *item = NEW_PTN Item_asterisk(@$, nullptr, nullptr);
+            $$ = NEW_PTN PT_select_item_list;
+            if ($$ == nullptr || item == nullptr || $$->push_back(item))
               MYSQL_YYABORT;
           }
         ;
@@ -9723,7 +9854,7 @@ simple_expr:
           {
             $$= NEW_PTN Item_func_set_collation(@$, $1, $3);
           }
-        | literal
+        | literal_or_null
         | param_marker { $$= $1; }
         | variable
         | set_function_specification
@@ -9779,7 +9910,7 @@ simple_expr:
           }
         | CAST_SYM '(' expr AS cast_type opt_array_cast ')'
           {
-            $$= create_func_cast(YYTHD, @3, $3, &$5, $6);
+            $$= create_func_cast(YYTHD, @3, $3, $5, $6);
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -9787,7 +9918,7 @@ simple_expr:
           }
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
-            $$= create_func_cast(YYTHD, @3, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, $5, false);
           }
         | CONVERT_SYM '(' expr USING charset_name ')'
           {
@@ -9870,6 +10001,13 @@ function_call_keyword:
         | INTERVAL_SYM '(' expr ',' expr ',' expr_list ')' %prec INTERVAL_SYM
           {
             $$= NEW_PTN Item_func_interval(@$, YYMEM_ROOT, $3, $5, $7);
+          }
+        | JSON_VALUE_SYM '(' simple_expr ',' text_literal
+          opt_returning_type opt_on_empty_or_error ')'
+          {
+            $$= create_func_json_value(YYTHD, @3, $3, $5, $6,
+                                       $7.empty.type, $7.empty.default_string,
+                                       $7.error.type, $7.error.default_string);
           }
         | LEFT '(' expr ',' expr ')'
           {
@@ -10056,6 +10194,19 @@ function_call_nonkeyword:
           }
         ;
 
+// JSON_VALUE's optional JSON returning clause.
+opt_returning_type:
+          // The default returning type is CHAR(512). (The max length of 512
+          // is chosen so that the returned values are not handled as BLOBs
+          // internally. See CONVERT_IF_BIGGER_TO_BLOB.)
+          {
+            $$= {ITEM_CAST_CHAR, nullptr, "512", nullptr};
+          }
+        | RETURNING_SYM cast_type
+          {
+            $$= $2;
+          }
+        ;
 /*
   Functions calls using a non reserved keyword, and using a regular syntax.
   Because the non reserved keyword is used in another part of the grammar,
@@ -11263,7 +11414,7 @@ jt_column:
             $$= NEW_PTN PT_json_table_column_for_ordinality($1);
           }
         | ident type opt_collate jt_column_type PATH_SYM text_literal
-          opt_on_empty_or_error
+          opt_on_empty_or_error_json_table
           {
             auto column = make_unique_destroy_only<Json_table_column>(
                 YYMEM_ROOT, $4, $6, $7.error.type, $7.error.default_string,
@@ -11288,28 +11439,36 @@ jt_column_type:
           }
         ;
 
+// The optional ON EMPTY and ON ERROR clauses for JSON_TABLE and
+// JSON_VALUE. If both clauses are specified, the ON EMPTY clause
+// should come before the ON ERROR clause.
 opt_on_empty_or_error:
           /* empty */
           {
-            $$.empty = {enum_jtc_on::JTO_IMPLICIT, nullptr};
-            $$.error = {enum_jtc_on::JTO_IMPLICIT, nullptr};
+            $$.empty = {Json_on_response_type::IMPLICIT, nullptr};
+            $$.error = {Json_on_response_type::IMPLICIT, nullptr};
           }
-        | opt_on_empty
+        | on_empty
           {
             $$.empty = $1;
-            $$.error = {enum_jtc_on::JTO_IMPLICIT, nullptr};
+            $$.error = {Json_on_response_type::IMPLICIT, nullptr};
           }
-        | opt_on_error
+        | on_error
           {
             $$.error = $1;
-            $$.empty = {enum_jtc_on::JTO_IMPLICIT, nullptr};
+            $$.empty = {Json_on_response_type::IMPLICIT, nullptr};
           }
-        | opt_on_empty opt_on_error
+        | on_empty on_error
           {
             $$.empty = $1;
             $$.error = $2;
           }
-        | opt_on_error opt_on_empty
+        ;
+
+// JSON_TABLE extends the syntax by allowing ON ERROR to come before ON EMPTY.
+opt_on_empty_or_error_json_table:
+          opt_on_empty_or_error { $$ = $1; }
+        | on_error on_empty
           {
             push_warning(
               YYTHD, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
@@ -11319,24 +11478,24 @@ opt_on_empty_or_error:
           }
         ;
 
-opt_on_empty:
-          jt_on_response ON_SYM EMPTY_SYM       { $$= $1; }
+on_empty:
+          json_on_response ON_SYM EMPTY_SYM     { $$= $1; }
         ;
-opt_on_error:
-          jt_on_response ON_SYM ERROR_SYM       { $$= $1; }
+on_error:
+          json_on_response ON_SYM ERROR_SYM     { $$= $1; }
         ;
-jt_on_response:
+json_on_response:
           ERROR_SYM
           {
-            $$ = {enum_jtc_on::JTO_ERROR, nullptr};
+            $$ = {Json_on_response_type::ERROR, nullptr};
           }
         | NULL_SYM
           {
-            $$ = {enum_jtc_on::JTO_NULL, nullptr};
+            $$ = {Json_on_response_type::NULL_VALUE, nullptr};
           }
-        | DEFAULT_SYM text_literal
+        | DEFAULT_SYM signed_literal
           {
-            $$ = {enum_jtc_on::JTO_DEFAULT, $2};
+            $$ = {Json_on_response_type::DEFAULT, $2};
           }
         ;
 
@@ -12133,10 +12292,10 @@ drop_server_stmt:
 
 drop_srs_stmt:
           DROP SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM if_exists real_ulonglong_num
-	  {
-	    $$= NEW_PTN PT_drop_srs($6, $5);
-	  }
-	;
+          {
+            $$= NEW_PTN PT_drop_srs($6, $5);
+          }
+        ;
 
 drop_role_stmt:
           DROP ROLE_SYM if_exists role_list
@@ -13191,7 +13350,7 @@ describe_stmt:
         ;
 
 explain_stmt:
-          describe_command opt_explain_format_type explainable_stmt
+          describe_command opt_explain_analyze_type explainable_stmt
           {
             $$= NEW_PTN PT_explain($2, $3);
           }
@@ -13217,7 +13376,7 @@ describe_command:
 opt_explain_format_type:
           /* empty */
           {
-            $$= Explain_format_type::TRADITIONAL;
+            $$= Explain_format_type::DEFAULT;
           }
         | FORMAT_SYM EQ ident_or_text
           {
@@ -13233,9 +13392,32 @@ opt_explain_format_type:
               MYSQL_YYABORT;
             }
           }
-        | ANALYZE_SYM
+
+opt_explain_analyze_type:
+          ANALYZE_SYM opt_explain_format_type
           {
-            $$= Explain_format_type::TREE_WITH_EXECUTE;
+            switch ($2)
+            {
+              case Explain_format_type::DEFAULT:
+              case Explain_format_type::TREE:
+                $$= Explain_format_type::TREE_WITH_EXECUTE;
+                break;
+              case Explain_format_type::JSON:
+                my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                         "FORMAT=JSON with EXPLAIN ANALYZE");
+                MYSQL_YYABORT;
+              default:
+                my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                         "FORMAT=TRADITIONAL with EXPLAIN ANALYZE");
+                MYSQL_YYABORT;
+            }
+          }
+        | opt_explain_format_type
+          {
+            if ($1 == Explain_format_type::DEFAULT)
+              $$= Explain_format_type::TRADITIONAL;
+            else
+              $$= $1;
           }
         ;
 
@@ -13806,12 +13988,13 @@ signed_literal:
           }
         ;
 
+signed_literal_or_null:
+          signed_literal
+        | null_as_literal
+        ;
 
-literal:
-          text_literal { $$= $1; }
-        | NUM_literal  { $$= $1; }
-        | temporal_literal
-        | NULL_SYM
+null_as_literal:
+          NULL_SYM
           {
             Lex_input_stream *lip= YYLIP;
             /*
@@ -13823,6 +14006,12 @@ literal:
             lip->reduce_digest_token(TOK_GENERIC_VALUE, NULL_SYM);
             $$= NEW_PTN Item_null(@$);
           }
+        ;
+
+literal:
+          text_literal { $$= $1; }
+        | NUM_literal  { $$= $1; }
+        | temporal_literal
         | FALSE_SYM
           {
             $$= NEW_PTN Item_func_false(@$);
@@ -13847,6 +14036,11 @@ literal:
           {
             $$= NEW_PTN PTI_literal_underscore_charset_bin_num(@$, $1, $2);
           }
+        ;
+
+literal_or_null:
+          literal
+        | null_as_literal
         ;
 
 NUM_literal:
@@ -13903,13 +14097,14 @@ insert_ident:
 table_wild:
           ident '.' '*'
           {
-            $$= NEW_PTN PTI_table_wild(@$, NULL, $1.str);
+            $$ = NEW_PTN Item_asterisk(@$, nullptr, $1.str);
           }
         | ident '.' ident '.' '*'
           {
             if (check_and_convert_db_name(&$1, false) != Ident_name_check::OK)
               MYSQL_YYABORT;
-            $$= NEW_PTN PTI_table_wild(@$, $1.str, $3.str);
+            auto schema_name = YYCLIENT_NO_SCHEMA ? nullptr : $1.str;
+            $$ = NEW_PTN Item_asterisk(@$, schema_name, $3.str);
           }
         ;
 
@@ -13965,11 +14160,9 @@ table_ident:
           }
         | ident '.' ident
           {
-            if (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
-              $$= NEW_PTN Table_ident(to_lex_cstring($3));
-            else {
-              $$= NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
-            }
+            auto schema_name = YYCLIENT_NO_SCHEMA ? LEX_CSTRING{}
+                                                  : to_lex_cstring($1.str);
+            $$= NEW_PTN Table_ident(schema_name, to_lex_cstring($3));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -14360,6 +14553,7 @@ ident_keywords_unambiguous:
         | ANY_SYM
         | ARRAY_SYM
         | AT_SYM
+        | ATTRIBUTE_SYM
         | AUTOEXTEND_SIZE_SYM
         | AUTO_INC
         | AVG_ROW_LENGTH
@@ -14427,6 +14621,7 @@ ident_keywords_unambiguous:
         | ENFORCED_SYM
         | ENGINES_SYM
         | ENGINE_SYM
+        | ENGINE_ATTRIBUTE_SYM
         | ENUM_SYM
         | ERRORS
         | ERROR_SYM
@@ -14478,6 +14673,7 @@ ident_keywords_unambiguous:
         | ISOLATION
         | ISSUER_SYM
         | JSON_SYM
+        | JSON_VALUE_SYM
         | KEY_BLOCK_SIZE
         | LAST_SYM
         | LEAVES
@@ -14624,6 +14820,7 @@ ident_keywords_unambiguous:
         | RESUME_SYM
         | RETAIN_SYM
         | RETURNED_SQLSTATE_SYM
+        | RETURNING_SYM
         | RETURNS_SYM
         | REUSE_SYM
         | REVERSE_SYM
@@ -14637,6 +14834,7 @@ ident_keywords_unambiguous:
         | SCHEDULE_SYM
         | SCHEMA_NAME_SYM
         | SECONDARY_ENGINE_SYM
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM
         | SECONDARY_LOAD_SYM
         | SECONDARY_SYM
         | SECONDARY_UNLOAD_SYM
@@ -14692,6 +14890,7 @@ ident_keywords_unambiguous:
         | TIMESTAMP_DIFF
         | TIMESTAMP_SYM %prec KEYWORD_USED_AS_IDENT
         | TIME_SYM %prec KEYWORD_USED_AS_IDENT
+        | TLS_SYM
         | TRANSACTION_SYM
         | TRIGGERS_SYM
         | TYPES_SYM
@@ -15227,7 +15426,7 @@ alter_instance_stmt:
           ALTER INSTANCE_SYM alter_instance_action
           {
             Lex->sql_command= SQLCOM_ALTER_INSTANCE;
-            $$= NEW_PTN PT_alter_instance($3);
+            $$= $3;
           }
 
 alter_instance_action:
@@ -15235,11 +15434,11 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-              $$= ROTATE_INNODB_MASTER_KEY;
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
             }
             else if (is_identifier($2, "BINLOG"))
             {
-              $$= ROTATE_BINLOG_MASTER_KEY;
+              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
             }
             else
             {
@@ -15247,29 +15446,49 @@ alter_instance_action:
               MYSQL_YYABORT;
             }
           }
-          | RELOAD ident
+        | RELOAD TLS_SYM
           {
-            if (is_identifier($2, "TLS"))
-            {
-              $$ = ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR;
-            }
-            else
-            {
-              YYTHD->syntax_error_at(@2);
-              MYSQL_YYABORT;
-            }
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
           }
-          | RELOAD ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
+        | RELOAD TLS_SYM NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
           {
-            if (is_identifier($2, "TLS"))
-            {
-              $$ = ALTER_INSTANCE_RELOAD_TLS;
-            }
-            else
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
+          }
+        | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident {
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
+          }
+        | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
+          }
+        | ENABLE_SYM ident ident
+          {
+            if (!is_identifier($2, "INNODB"))
             {
               YYTHD->syntax_error_at(@2);
               MYSQL_YYABORT;
             }
+
+            if (!is_identifier($3, "REDO_LOG"))
+            {
+              YYTHD->syntax_error_at(@3);
+              MYSQL_YYABORT;
+            }
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
+          }
+        | DISABLE_SYM ident ident
+          {
+            if (!is_identifier($2, "INNODB"))
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+
+            if (!is_identifier($3, "REDO_LOG"))
+            {
+              YYTHD->syntax_error_at(@3);
+              MYSQL_YYABORT;
+            }
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
           }
         ;
 
@@ -15668,12 +15887,9 @@ grant_ident:
           }
         | schema '.' ident
           {
-            Table_ident *tmp;
-            if (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
-              tmp = NEW_PTN Table_ident(to_lex_cstring($3));
-            else {
-              tmp = NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
-            }
+            auto schema_name = YYCLIENT_NO_SCHEMA ? LEX_CSTRING{}
+                                                  : to_lex_cstring($1.str);
+            auto tmp = NEW_PTN Table_ident(schema_name, to_lex_cstring($3));
             if (tmp == NULL)
               MYSQL_YYABORT;
             LEX *lex=Lex;
@@ -17018,6 +17234,22 @@ opt_force:
           /* empty */ { $$= false; }
         | FORCE_SYM   { $$= true; }
         ;
+
+
+json_attribute:
+          TEXT_STRING_sys
+          {
+            if ($1.str[0] != '\0') {
+              size_t eoff = 0;
+              std::string emsg;
+              if (!is_valid_json_syntax($1.str, $1.length, &eoff, &emsg)) {
+                my_error(ER_INVALID_JSON_ATTRIBUTE, MYF(0),
+                         emsg.c_str(), eoff, $1.str+eoff);
+                MYSQL_YYABORT;
+              }
+            }
+            $$ = to_lex_cstring($1);
+          }
 
 /**
   @} (end of group Parser)

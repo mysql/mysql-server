@@ -2,6 +2,13 @@
 ############ Test mysql ##############
 # Test mysql connecting to a server with an empty crl
 Variable_name	Value
+admin_ssl_ca	
+admin_ssl_capath	
+admin_ssl_cert	
+admin_ssl_cipher	
+admin_ssl_crl	
+admin_ssl_crlpath	
+admin_ssl_key	
 have_openssl	YES
 have_ssl	YES
 mysqlx_ssl_ca	

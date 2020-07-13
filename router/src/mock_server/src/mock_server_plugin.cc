@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,29 +22,28 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mock_server_plugin.h"
+
 #ifdef _WIN32
 #include <direct.h>  // getcwd
 #else
 #include <unistd.h>  // getcwd
 #endif
 
+#include <array>
+#include <climits>  // PATH_MAX
 #include <stdexcept>
+#include <string>
+#include <system_error>  // error_code
 
-#include "mock_server_plugin.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/stdx/filesystem.h"
 #include "mysql_server_mock.h"
 #include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
-
-#ifndef PATH_MAX
-#ifdef _MAX_PATH
-// windows has _MAX_PATH instead
-#define PATH_MAX _MAX_PATH
-#endif
-#endif
 
 static constexpr const char kSectionName[]{"mock_server"};
 
@@ -65,15 +64,15 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
         srv_protocol(get_option_string(section, "protocol")) {}
 
   std::string get_default(const std::string &option) const override {
-    char cwd[PATH_MAX];
-
-    if (nullptr == getcwd(cwd, sizeof(cwd))) {
-      throw std::system_error(errno, std::generic_category());
+    std::error_code ec;
+    const auto cwd = stdx::filesystem::current_path(ec);
+    if (ec) {
+      throw std::system_error(ec);
     }
 
     const std::map<std::string, std::string> defaults{
         {"bind_address", "0.0.0.0"},
-        {"module_prefix", cwd},
+        {"module_prefix", cwd.native()},
         {"port", "3306"},
         {"protocol", "classic"},
     };
@@ -153,16 +152,22 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
+static const std::array<const char *, 2> required = {{
+    "logger",
+    "router_protobuf",
+}};
+
 extern "C" {
 mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "Routing MySQL connections between MySQL clients/connectors and servers",
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "Routing MySQL connections between MySQL clients/connectors and "
+    "servers",  // name
     VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // requires
-    0,
-    nullptr,  // Conflicts
+    // requires
+    required.size(), required.data(),
+    // conflicts
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start

@@ -64,6 +64,7 @@
 --source include/have_binlog_format_row.inc
 --source include/not_master_info_file.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 --echo

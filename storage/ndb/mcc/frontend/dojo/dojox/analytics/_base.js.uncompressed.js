@@ -1,6 +1,6 @@
-define("dojox/analytics/_base", ["dojo/_base/lang", "dojo/_base/config", "dojo/ready", "dojo/_base/unload", 
-        "dojo/_base/sniff", "dojo/_base/xhr", "dojo/_base/json", "dojo/io-query", "dojo/io/script"
-], function(lang, config, ready, unload, has, xhr, json, ioQuery, scriptIO){
+define("dojox/analytics/_base", ["dojo/_base/lang", "dojo/_base/config", "dojo/ready", "dojo/_base/unload",
+        "dojo/_base/sniff", "dojo/request", "dojo/json", "dojo/io-query", "dojo/request/script"
+], function(lang, config, ready, unload, has, request, JSON, ioQuery, script){
 
 	var Analytics = function(){
 		// summary:
@@ -42,7 +42,7 @@ define("dojox/analytics/_base", ["dojo/_base/lang", "dojo/_base/config", "dojo/r
 
 			if(arguments.length > 2){
 				// FIXME: var c = dojo._toArray(arguments) ?
-				data = Array.prototype.slice.call(arguments,1);				
+				data = Array.prototype.slice.call(arguments,1);
 			}
 
 			this._data.push({ plugin: dataType, data: data });
@@ -55,7 +55,7 @@ define("dojox/analytics/_base", ["dojo/_base/lang", "dojo/_base/config", "dojo/r
 				this.schedulePusher(this.inTransitRetry);
 				return;
 			}
-			
+
 			if(this.pushData()){ return; }
 			this.schedulePusher();
 		},
@@ -69,28 +69,26 @@ define("dojox/analytics/_base", ["dojo/_base/lang", "dojo/_base/config", "dojo/r
 				// clear the queue
 				this._inTransit = this._data;
 				this._data = [];
-				var def;
+				var promise;
 				switch(this.sendMethod){
 					case "script":
-						def = scriptIO.get({
-							url: this.getQueryPacket(),
+						promise = script.get(this.getQueryPacket(), {
 							preventCache: 1,
 							callbackParamName: "callback"
 						});
 						break;
 					case "xhrPost":
 					default:
-						def = xhr.post({
-							url:this.dataUrl,
-							content:{
+						promise = request.post(this.dataUrl, {
+							data:{
 								id: this._id++,
-								data: json.toJson(this._inTransit)
+								data: JSON.stringify(this._inTransit)
 							}
 						});
 						break;
 				}
-				def.addCallback(this, "onPushComplete");
-				return def;
+				promise.then(lang.hitch(this, "onPushComplete"));
+				return promise;
 			}
 			return false;
 		},
@@ -100,9 +98,9 @@ define("dojox/analytics/_base", ["dojo/_base/lang", "dojo/_base/config", "dojo/r
 			while(true){
 				var content = {
 					id: this._id++,
-					data: json.toJson(this._inTransit)
+					data: JSON.stringify(this._inTransit)
 				};
-				
+
 				// FIXME would like a much better way to get the query down to length
 				var query = this.dataUrl + '?' + ioQuery.objectToQuery(content);
 				if(query.length > this.maxRequestSize){

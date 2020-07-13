@@ -4,9 +4,13 @@ return _1("dojox.dgauges.CircularValueIndicator",_3,{indicatorShapeFunc:function
 return _5.createLine({x1:0,y1:0,x2:40,y2:0}).setStroke({color:"black",width:1});
 },refreshRendering:function(){
 this.inherited(arguments);
+if(this._gfxGroup===null||this.scale===null){
+return;
+}else{
 var v=isNaN(this._transitionValue)?this.value:this._transitionValue;
 var _7=this.scale.positionForValue(v);
 this._gfxGroup.setTransform([{dx:this.scale.originX,dy:this.scale.originY},_2.matrix.rotateg(_7)]);
+}
 },_onMouseDown:function(_8){
 this.inherited(arguments);
 var _9=this.scale._gauge._gaugeToPage(this.scale.originX,this.scale.originY);

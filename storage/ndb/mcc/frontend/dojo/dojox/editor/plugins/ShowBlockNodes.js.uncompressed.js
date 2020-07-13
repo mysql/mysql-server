@@ -11,7 +11,7 @@ define("dojox/editor/plugins/ShowBlockNodes", [
 	"dojo/i18n!dojox/editor/plugins/nls/ShowBlockNodes"
 ], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.ShowBlockNodes", _Plugin, {
+var ShowBlockNodes = dojo.declare("dojox.editor.plugins.ShowBlockNodes", _Plugin, {
 	// summary:
 	//		This plugin provides ShowBlockNodes capability to the editor.  When
 	//		clicked, the document in the editor will apply a class to specific
@@ -177,10 +177,10 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name ===  "showblocknodes"){
-		o.plugin = new dojox.editor.plugins.ShowBlockNodes();
+		o.plugin = new ShowBlockNodes();
 	}
 });
 
-return dojox.editor.plugins.ShowBlockNodes;
+return ShowBlockNodes;
 
 });

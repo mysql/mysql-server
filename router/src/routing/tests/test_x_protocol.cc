@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
 #include <memory>
+#include <system_error>
 
+#include <gmock/gmock.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <gtest/gtest.h>
+
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlx.pb.h"
 #include "mysqlx_connection.pb.h"
@@ -48,7 +50,7 @@ class XProtocolTest : public ::testing::Test {
         mock_socket_operations_(mock_routing_sock_ops_->so()),
         x_protocol_(new XProtocol(mock_routing_sock_ops_.get())) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     network_buffer_.resize(routing::kDefaultNetBufferLength);
     network_buffer_offset_ = 0;
     curr_pktnr_ = 0;
@@ -63,11 +65,12 @@ class XProtocolTest : public ::testing::Test {
                                         size_t &buffer_offset,
                                         google::protobuf::MessageLite &msg,
                                         unsigned char type) {
-    size_t msg_size = msg.ByteSize();
+    size_t msg_size = message_byte_size(msg);
     google::protobuf::io::CodedOutputStream::WriteLittleEndian32ToArray(
         static_cast<uint32_t>(msg_size + 1), &buffer[buffer_offset]);
     buffer[buffer_offset + 4] = type;
-    bool res = msg.SerializeToArray(&buffer[buffer_offset + 5], msg.ByteSize());
+    bool res = msg.SerializeToArray(&buffer[buffer_offset + 5],
+                                    message_byte_size(msg));
     buffer_offset += (msg_size + 5);
     ASSERT_TRUE(res);
   }
@@ -124,7 +127,8 @@ static Mysqlx::Connection::CapabilitiesSet create_capab_set_msg() {
 TEST_F(XProtocolTest, OnBlockClientHostSuccess) {
   // we expect the router sending CapabilitiesGet message
   // to prevent MySQL server from bumping up connection error counter
-  const size_t msg_size = Mysqlx::Connection::CapabilitiesGet().ByteSize() + 5;
+  const size_t msg_size =
+      message_byte_size(Mysqlx::Connection::CapabilitiesGet()) + 5;
 
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, _, msg_size))
       .WillOnce(Return(msg_size));
@@ -138,10 +142,12 @@ TEST_F(XProtocolTest, OnBlockClientHostSuccess) {
 TEST_F(XProtocolTest, OnBlockClientHostWriteFail) {
   // we expect the router sending CapabilitiesGet message
   // to prevent MySQL server from bumping up connection error counter
-  const size_t msg_size = Mysqlx::Connection::CapabilitiesGet().ByteSize() + 5;
+  const size_t msg_size =
+      message_byte_size(Mysqlx::Connection::CapabilitiesGet()) + 5;
 
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, _, msg_size))
-      .WillOnce(Return(-1));
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::connection_refused))));
 
   const bool result =
       x_protocol_->on_block_client_host(receiver_socket_, "routing");
@@ -150,34 +156,30 @@ TEST_F(XProtocolTest, OnBlockClientHostWriteFail) {
 }
 
 TEST_F(XProtocolTest, CopyPacketsNoData) {
-  size_t report_bytes_read = 0xff;
-
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, false, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_TRUE(result == 0);
-  ASSERT_TRUE(report_bytes_read == 0);
-  ASSERT_FALSE(handshake_done_);
+  ASSERT_TRUE(copy_res);
+  EXPECT_EQ(copy_res.value(), 0);
+  EXPECT_FALSE(handshake_done_);
 }
 
 TEST_F(XProtocolTest, CopyPacketsReadError) {
-  size_t report_bytes_read = 0xff;
-
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _))
-      .WillOnce(Return(-1));
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  ASSERT_FALSE(copy_res);
+  EXPECT_FALSE(handshake_done_);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeDoneOK) {
   handshake_done_ = true;
-  size_t report_bytes_read = 0xff;
   constexpr int MSG_SIZE = 20;
 
   EXPECT_CALL(*mock_socket_operations_,
@@ -187,18 +189,17 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeDoneOK) {
               write(receiver_socket_, &network_buffer_[0], 20))
       .WillOnce(Return(MSG_SIZE));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(static_cast<size_t>(MSG_SIZE), report_bytes_read);
+  EXPECT_TRUE(handshake_done_);
+  ASSERT_TRUE(copy_res);
+  EXPECT_EQ(static_cast<size_t>(MSG_SIZE), copy_res.value());
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeDoneWriteError) {
   handshake_done_ = true;
-  size_t report_bytes_read = 0xff;
   constexpr ssize_t MSG_SIZE = 20;
 
   EXPECT_CALL(*mock_socket_operations_,
@@ -206,18 +207,18 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeDoneWriteError) {
       .WillOnce(Return(MSG_SIZE));
   EXPECT_CALL(*mock_socket_operations_,
               write(receiver_socket_, &network_buffer_[0], 20))
-      .WillOnce(Return(-1));
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::connection_refused))));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
+  ASSERT_FALSE(copy_res);
   ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(-1, result);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsIvalidData) {
-  size_t report_bytes_read = 0xff;
   constexpr size_t INVALID_DATA_SIZE = 20;
 
   // prepare some invalid data
@@ -230,17 +231,16 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsIvalidData) {
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
-  ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
-  ASSERT_EQ(network_buffer_offset_, INVALID_DATA_SIZE);
+  ASSERT_FALSE(copy_res);
+  EXPECT_FALSE(handshake_done_);
+  EXPECT_EQ(network_buffer_offset_, INVALID_DATA_SIZE);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsWrongMessage) {
-  size_t report_bytes_read = 0xff;
   Mysqlx::Session::Close close_msg{};
 
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_,
@@ -251,16 +251,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsWrongMessage) {
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
   ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsAuthStart) {
-  size_t report_bytes_read = 0xff;
   auto auth_msg = create_authenticate_start_msg();
 
   serialize_protobuf_msg_to_buffer(
@@ -275,16 +274,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsAuthStart) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
+  ASSERT_TRUE(copy_res);
   ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesGet) {
-  size_t report_bytes_read = 0xff;
   Mysqlx::Connection::CapabilitiesGet capab_msg{};
 
   serialize_protobuf_msg_to_buffer(
@@ -299,16 +297,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesGet) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
   ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
+  ASSERT_TRUE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsConnectionClose) {
-  size_t report_bytes_read = 0xff;
   Mysqlx::Connection::Close close_msg{};
 
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_,
@@ -323,16 +320,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsConnectionClose) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
   ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
+  ASSERT_TRUE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesSet) {
-  size_t report_bytes_read = 0xff;
   auto capab_msg = create_capab_set_msg();
 
   serialize_protobuf_msg_to_buffer(
@@ -347,16 +343,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesSet) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
   ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
+  ASSERT_TRUE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsBrokenMessage) {
-  size_t report_bytes_read = 0xff;
   auto capab_msg = create_capab_set_msg();
 
   serialize_protobuf_msg_to_buffer(
@@ -371,16 +366,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsBrokenMessage) {
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
   ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsError) {
-  size_t report_bytes_read = 0xff;
   auto error_msg = create_error_msg(100, "Error message", "HY007");
 
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_,
@@ -394,16 +388,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsError) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
+  ASSERT_TRUE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsOtherMessage) {
-  size_t report_bytes_read = 0xff;
   auto warn_msg = create_warning_msg(10023, "Warning message");
 
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_,
@@ -417,17 +410,15 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsOtherMessage) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(0, result);
+  ASSERT_TRUE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeReadTwoMessages) {
-  size_t report_bytes_read = 0xff;
-
   auto warn_msg = create_warning_msg(10023, "Warning message");
   auto error_msg = create_error_msg(100, "Error message", "HY007");
 
@@ -444,19 +435,17 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadTwoMessages) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   // handshake_done_ should be set after the second message
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
+  EXPECT_TRUE(handshake_done_);
+  ASSERT_TRUE(copy_res);
+  EXPECT_EQ(network_buffer_offset_, copy_res.value());
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialHeader) {
-  size_t report_bytes_read = 0xff;
-
   Mysqlx::Connection::CapabilitiesGet capab_msg{};
 
   serialize_protobuf_msg_to_buffer(
@@ -472,19 +461,17 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialHeader) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, false);
+      handshake_done_, false);
 
   // handshake_done_ should bet set
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
+  ASSERT_TRUE(copy_res);
+  EXPECT_TRUE(handshake_done_);
+  EXPECT_EQ(network_buffer_offset_, copy_res.value());
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessage) {
-  size_t report_bytes_read = 0xff;
-
   auto warn_msg = create_warning_msg(100, "Warning message");
 
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_,
@@ -499,18 +486,16 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessage) {
       write(receiver_socket_, &network_buffer_[0], network_buffer_offset_))
       .WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
-  ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
+  ASSERT_TRUE(copy_res);
+  EXPECT_FALSE(handshake_done_);
+  EXPECT_EQ(network_buffer_offset_, copy_res.value());
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessageFails) {
-  size_t report_bytes_read = 0xff;
-
   auto warn_msg = create_warning_msg(100, "Warning message");
 
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_,
@@ -519,19 +504,18 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessageFails) {
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _))
       .Times(2)
       .WillOnce(Return(network_buffer_offset_ - 8))
-      .WillOnce(Return(-1));
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer) {
-  size_t report_bytes_read = 0xff;
-
   Mysqlx::Connection::CapabilitiesSet capabilites_msg;
   // make the message bigger than the current network buffer size
   std::string msg;
@@ -539,10 +523,11 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer) {
     msg += std::string(1000, 'a');
   }
   auto error_msg = create_error_msg(100, msg, "HY007");
-  assert(error_msg.ByteSize() >
-         static_cast<int>(routing::kDefaultNetBufferLength));
+  const auto error_msg_size = message_byte_size(error_msg);
+  assert(error_msg_size >
+         static_cast<size_t>(routing::kDefaultNetBufferLength));
 
-  RoutingProtocolBuffer msg_buffer(error_msg.ByteSize() + 5);
+  RoutingProtocolBuffer msg_buffer(error_msg_size + 5);
   const auto BUFFER_SIZE = network_buffer_.size();
 
   serialize_protobuf_msg_to_buffer(msg_buffer, network_buffer_offset_,
@@ -556,14 +541,14 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer) {
       .Times(1)
       .WillOnce(Return(network_buffer_.size()));
 
-  int result = x_protocol_->copy_packets(
+  const auto copy_res = x_protocol_->copy_packets(
       sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
-      handshake_done_, &report_bytes_read, true);
+      handshake_done_, true);
 
   // the size of buffer passed to copy_packets should be untouched
   ASSERT_EQ(BUFFER_SIZE, network_buffer_.size());
   ASSERT_FALSE(handshake_done_);
-  ASSERT_EQ(-1, result);
+  ASSERT_FALSE(copy_res);
 }
 
 TEST_F(XProtocolTest, SendErrorOKMultipleWrites) {
@@ -579,7 +564,9 @@ TEST_F(XProtocolTest, SendErrorOKMultipleWrites) {
 }
 
 TEST_F(XProtocolTest, SendErrorWriteFail) {
-  EXPECT_CALL(*mock_socket_operations_, write(1, _, _)).WillOnce(Return(-1));
+  EXPECT_CALL(*mock_socket_operations_, write(1, _, _))
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
   bool res = x_protocol_->send_error(1, 55, "Error message", "SQL_STATE",
                                      "routing configuration name");

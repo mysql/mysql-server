@@ -1,43 +1,45 @@
 //>>built
-define("dojox/gfx/Moveable",["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/event","dojo/topic","dojo/has","dojo/dom-class","dojo/_base/window","./Mover"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+define("dojox/gfx/Moveable",["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/event","dojo/topic","dojo/touch","dojo/dom-class","dojo/_base/window","./Mover"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
 return _2("dojox.gfx.Moveable",null,{constructor:function(_a,_b){
 this.shape=_a;
 this.delay=(_b&&_b.delay>0)?_b.delay:0;
 this.mover=(_b&&_b.mover)?_b.mover:_9;
-this.events=[this.shape.connect(_6("touch")?"touchstart":"mousedown",this,"onMouseDown")];
+this.events=[this.shape.on(_6.press,_1.hitch(this,"onMouseDown"))];
 },destroy:function(){
-_3.forEach(this.events,this.shape.disconnect,this.shape);
+_3.forEach(this.events,function(_c){
+_c.remove();
+});
 this.events=this.shape=null;
 },onMouseDown:function(e){
 if(this.delay){
-this.events.push(this.shape.connect(_6("touch")?"touchmove":"mousemove",this,"onMouseMove"),this.shape.connect(_6("touch")?"touchend":"mouseup",this,"onMouseUp"));
-this._lastX=_6("touch")?(e.changedTouches?e.changedTouches[0]:e).clientX:e.clientX;
-this._lastY=_6("touch")?(e.changedTouches?e.changedTouches[0]:e).clientY:e.clientY;
+this.events.push(this.shape.on(_6.move,_1.hitch(this,"onMouseMove")),this.shape.on(_6.release,_1.hitch(this,"onMouseUp")));
+this._lastX=e.clientX;
+this._lastY=e.clientY;
 }else{
 new this.mover(this.shape,e,this);
 }
 _4.stop(e);
 },onMouseMove:function(e){
-var _c=_6("touch")?(e.changedTouches?e.changedTouches[0]:e).clientX:e.clientX,_d=_6("touch")?(e.changedTouches?e.changedTouches[0]:e).clientY:e.clientY;
-if(Math.abs(_c-this._lastX)>this.delay||Math.abs(_d-this._lastY)>this.delay){
+var _d=e.clientX,_e=e.clientY;
+if(Math.abs(_d-this._lastX)>this.delay||Math.abs(_e-this._lastY)>this.delay){
 this.onMouseUp(e);
 new this.mover(this.shape,e,this);
 }
 _4.stop(e);
 },onMouseUp:function(e){
-this.shape.disconnect(this.events.pop());
-},onMoveStart:function(_e){
-_5.publish("/gfx/move/start",_e);
+this.events.pop().remove();
+},onMoveStart:function(_f){
+_5.publish("/gfx/move/start",_f);
 _7.add(_8.body(),"dojoMove");
-},onMoveStop:function(_f){
-_5.publish("/gfx/move/stop",_f);
+},onMoveStop:function(_10){
+_5.publish("/gfx/move/stop",_10);
 _7.remove(_8.body(),"dojoMove");
-},onFirstMove:function(_10){
-},onMove:function(_11,_12){
-this.onMoving(_11,_12);
-this.shape.applyLeftTransform(_12);
-this.onMoved(_11,_12);
-},onMoving:function(_13,_14){
-},onMoved:function(_15,_16){
+},onFirstMove:function(_11){
+},onMove:function(_12,_13){
+this.onMoving(_12,_13);
+this.shape.applyLeftTransform(_13);
+this.onMoved(_12,_13);
+},onMoving:function(_14,_15){
+},onMoved:function(_16,_17){
 }});
 });

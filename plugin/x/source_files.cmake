@@ -81,6 +81,7 @@ SET(xplugin_SRC
   src/services/registrator.cc
   src/services/service_registry_registration.cc
   src/services/service_sys_variables.cc
+  src/services/service_audit_api_connection.cc
   src/services/services.cc
   src/services/service_udf_registration.cc
   src/xpl_plugin.cc

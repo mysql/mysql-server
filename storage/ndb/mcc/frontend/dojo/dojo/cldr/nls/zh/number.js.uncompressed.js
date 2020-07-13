@@ -10,6 +10,7 @@ define(
 	"infinity": "∞",
 	"minusSign": "-",
 	"decimal": ".",
+	"superscriptingExponent": "×",
 	"nan": "NaN",
 	"perMille": "‰",
 	"decimalFormat": "#,##0.###",

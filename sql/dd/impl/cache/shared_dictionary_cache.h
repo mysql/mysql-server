@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,6 +236,8 @@ class Shared_dictionary_cache {
   template <typename K, typename T>
   bool get(THD *thd, const K &key, Cache_element<T> **element);
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
   /**
     Read an object directly from disk, given the key.
 
@@ -254,6 +256,7 @@ class Shared_dictionary_cache {
     @retval      false   No error.
     @retval      true    Error (from reading from the DD tables).
   */
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   template <typename K, typename T>
   bool get_uncached(THD *thd, const K &key, enum_tx_isolation isolation,

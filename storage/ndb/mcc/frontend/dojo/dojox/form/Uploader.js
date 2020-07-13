@@ -1,23 +1,28 @@
 //>>built
-require({cache:{"url:dojox/form/resources/Uploader.html":"<span class=\"dijit dijitReset dijitInline\"\n\t><span class=\"dijitReset dijitInline dijitButtonNode\"\n\t\tdojoAttachEvent=\"ondijitclick:_onClick\"\n\t\t><span class=\"dijitReset dijitStretch dijitButtonContents\"\n\t\t\tdojoAttachPoint=\"titleNode,focusNode\"\n\t\t\trole=\"button\" aria-labelledby=\"${id}_label\"\n\t\t\t><span class=\"dijitReset dijitInline dijitIcon\" dojoAttachPoint=\"iconNode\"></span\n\t\t\t><span class=\"dijitReset dijitToggleButtonIconChar\">&#x25CF;</span\n\t\t\t><span class=\"dijitReset dijitInline dijitButtonText\"\n\t\t\t\tid=\"${id}_label\"\n\t\t\t\tdojoAttachPoint=\"containerNode\"\n\t\t\t></span\n\t\t></span\n\t></span\n\t><!--no need to have this for Uploader \n\t<input ${!nameAttrSetting} type=\"${type}\" value=\"${value}\" class=\"dijitOffScreen\" tabIndex=\"-1\"\n\t\tdojoAttachPoint=\"valueNode\"\n/--></span>\n"}});
-define("dojox/form/Uploader",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/lang","dojo/_base/array","dojo/_base/connect","dojo/_base/window","dojo/dom-style","dojo/dom-geometry","dojo/dom-attr","dojo/dom-construct","dojo/dom-form","dijit","dijit/form/Button","dojox/form/uploader/Base","dojo/i18n!./nls/Uploader","dojo/text!./resources/Uploader.html"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,_10){
-_1.experimental("dojox.form.Uploader");
-_2("dojox.form.Uploader",[_e,_d],{uploadOnSelect:false,tabIndex:0,multiple:false,label:_f.label,url:"",name:"uploadedfile",flashFieldName:"",uploadType:"form",showInput:"",_nameIndex:0,templateString:_10,baseClass:"dijitUploader "+_d.prototype.baseClass,postMixInProperties:function(){
+require({cache:{"url:dojox/form/resources/Uploader.html":"<span class=\"dijit dijitReset dijitInline\"\n\t><span class=\"dijitReset dijitInline dijitButtonNode\"\n\t\tdata-dojo-attach-event=\"ondijitclick:_onClick\"\n\t\t><span class=\"dijitReset dijitStretch dijitButtonContents\"\n\t\t\tdata-dojo-attach-point=\"titleNode,focusNode\"\n\t\t\trole=\"button\" aria-labelledby=\"${id}_label\"\n\t\t\t><span class=\"dijitReset dijitInline dijitIcon\" data-dojo-attach-point=\"iconNode\"></span\n\t\t\t><span class=\"dijitReset dijitToggleButtonIconChar\">&#x25CF;</span\n\t\t\t><span class=\"dijitReset dijitInline dijitButtonText\"\n\t\t\t\tid=\"${id}_label\"\n\t\t\t\tdata-dojo-attach-point=\"containerNode\"\n\t\t\t></span\n\t\t></span\n\t></span\n\t> \n\t<input ${!nameAttrSetting} type=\"${type}\" value=\"${value}\" class=\"dijitOffScreen\" tabIndex=\"-1\" data-dojo-attach-point=\"valueNode\" />\n</span>\n"}});
+define("dojox/form/Uploader",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/lang","dojo/_base/array","dojo/_base/connect","dojo/_base/window","dojo/dom-style","dojo/dom-class","dojo/dom-geometry","dojo/dom-attr","dojo/dom-construct","dojo/dom-form","dijit","dijit/form/Button","./uploader/_Base","./uploader/_HTML5","./uploader/_IFrame","./uploader/_Flash","dojo/i18n!./nls/Uploader","dojo/text!./resources/Uploader.html"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,_10,_11,_12,res,_13){
+return _2("dojox.form.Uploader",[_f,_e,_10,_11,_12],{uploadOnSelect:false,tabIndex:0,multiple:false,label:res.label,url:"",name:"uploadedfile",flashFieldName:"",force:"",uploadType:"",showInput:"",focusedClass:"dijitButtonHover",_nameIndex:0,templateString:_13,baseClass:"dijitUploader "+_e.prototype.baseClass,postMixInProperties:function(){
 this._inputs=[];
 this._cons=[];
+this.force=this.force.toLowerCase();
+if(this.supports("multiple")){
+this.uploadType=this.force==="form"?"form":"html5";
+}else{
+this.uploadType=this.force==="flash"?"flash":"iframe";
+}
 this.inherited(arguments);
 },buildRendering:function(){
 this.inherited(arguments);
 _7.set(this.domNode,{overflow:"hidden",position:"relative"});
 this._buildDisplay();
-_9.set(this.titleNode,"tabIndex",-1);
+_a.set(this.titleNode,"tabIndex",-1);
 },_buildDisplay:function(){
 if(this.showInput){
-this.displayInput=dojo.create("input",{"class":"dijitUploadDisplayInput","tabIndex":-1,"autocomplete":"off"},this.containerNode,this.showInput);
+this.displayInput=_b.create("input",{"class":"dijitUploadDisplayInput","tabIndex":-1,"autocomplete":"off","role":"presentation"},this.containerNode,this.showInput);
 this._attachPoints.push("displayInput");
-this.connect(this,"onChange",function(_11){
-var i=0,l=_11.length,f,r=[];
-while((f=_11[i++])){
+this.connect(this,"onChange",function(_14){
+var i=0,l=_14.length,f,r=[];
+while((f=_14[i++])){
 if(f&&f.name){
 r.push(f.name);
 }
@@ -36,73 +41,77 @@ this._buildInitialized=true;
 this._getButtonStyle(this.domNode);
 this._setButtonStyle();
 this.inherited(arguments);
-},onChange:function(_12){
-},onBegin:function(_13){
-},onProgress:function(_14){
-},onComplete:function(_15){
+},onChange:function(_15){
+},onBegin:function(_16){
+},onProgress:function(_17){
+},onComplete:function(_18){
 this.reset();
 },onCancel:function(){
 },onAbort:function(){
-},onError:function(_16){
-},upload:function(_17){
-},submit:function(_18){
-_18=!!_18?_18.tagName?_18:this.getForm():this.getForm();
-var _19=_b.toObject(_18);
-this.upload(_19);
+},onError:function(_19){
+},upload:function(_1a){
+_1a=_1a||{};
+_1a.uploadType=this.uploadType;
+this.inherited(arguments);
+},submit:function(_1b){
+_1b=!!_1b?_1b.tagName?_1b:this.getForm():this.getForm();
+var _1c=_c.toObject(_1b);
+_1c.uploadType=this.uploadType;
+this.upload(_1c);
 },reset:function(){
 delete this._files;
 this._disconnectButton();
-_4.forEach(this._inputs,_a.destroy,dojo);
+_4.forEach(this._inputs,_b.destroy);
 this._inputs=[];
 this._nameIndex=0;
 this._createInput();
 },getFileList:function(){
-var _1a=[];
+var _1d=[];
 if(this.supports("multiple")){
 _4.forEach(this._files,function(f,i){
-_1a.push({index:i,name:f.name,size:f.size,type:f.type});
+_1d.push({index:i,name:f.name,size:f.size,type:f.type});
 },this);
 }else{
 _4.forEach(this._inputs,function(n,i){
 if(n.value){
-_1a.push({index:i,name:n.value.substring(n.value.lastIndexOf("\\")+1),size:0,type:n.value.substring(n.value.lastIndexOf(".")+1)});
+_1d.push({index:i,name:n.value.substring(n.value.lastIndexOf("\\")+1),size:0,type:n.value.substring(n.value.lastIndexOf(".")+1)});
 }
 },this);
 }
-return _1a;
+return _1d;
 },_getValueAttr:function(){
 return this.getFileList();
-},_setValueAttr:function(_1b){
+},_setValueAttr:function(_1e){
 console.error("Uploader value is read only");
-},_setDisabledAttr:function(_1c){
-if(this.disabled==_1c||!this.inputNode){
+},_setDisabledAttr:function(_1f){
+if(this.disabled==_1f||!this.inputNode){
 return;
 }
 this.inherited(arguments);
-_7.set(this.inputNode,"display",_1c?"none":"");
-},_getButtonStyle:function(_1d){
-this.btnSize={w:_7.get(_1d,"width"),h:_7.get(_1d,"height")};
+_7.set(this.inputNode,"display",_1f?"none":"");
+},_getButtonStyle:function(_20){
+this.btnSize={w:_7.get(_20,"width"),h:_7.get(_20,"height")};
 },_setButtonStyle:function(){
 this.inputNodeFontSize=Math.max(2,Math.max(Math.ceil(this.btnSize.w/60),Math.ceil(this.btnSize.h/15)));
 this._createInput();
 },_getFileFieldName:function(){
-var _1e;
-if(this.multiple&&this.supports("multiple")){
-_1e=this.name+"s[]";
+var _21;
+if(this.supports("multiple")&&this.multiple){
+_21=this.name+"s[]";
 }else{
-_1e=this.name+(this.multiple?this._nameIndex:"");
+_21=this.name+(this.multiple?this._nameIndex:"");
 }
-return _1e;
+return _21;
 },_createInput:function(){
 if(this._inputs.length){
 _7.set(this.inputNode,{top:"500px"});
 this._disconnectButton();
 this._nameIndex++;
 }
-var _1f=this._getFileFieldName();
-this.focusNode=this.inputNode=_a.create("input",{type:"file",name:_1f},this.domNode,"first");
+var _22=this._getFileFieldName();
+this.focusNode=this.inputNode=_b.create("input",{type:"file",name:_22,"aria-labelledby":this.id+"_label"},this.domNode,"first");
 if(this.supports("multiple")&&this.multiple){
-_9.set(this.inputNode,"multiple",true);
+_a.set(this.inputNode,"multiple",true);
 }
 this._inputs.push(this.inputNode);
 _7.set(this.inputNode,{position:"absolute",fontSize:this.inputNodeFontSize+"em",top:"-3px",right:"-3px",opacity:0});
@@ -118,21 +127,14 @@ this._createInput();
 if(this.tabIndex>-1){
 this.inputNode.tabIndex=this.tabIndex;
 this._cons.push(_5.connect(this.inputNode,"focus",this,function(){
-this.titleNode.style.outline="1px dashed #ccc";
+_8.add(this.domNode,this.focusedClass);
 }));
 this._cons.push(_5.connect(this.inputNode,"blur",this,function(){
-this.titleNode.style.outline="";
+_8.remove(this.domNode,this.focusedClass);
 }));
 }
 },_disconnectButton:function(){
 _4.forEach(this._cons,_5.disconnect);
 this._cons.splice(0,this._cons.length);
 }});
-dojox.form.UploaderOrg=dojox.form.Uploader;
-var _20=[dojox.form.UploaderOrg];
-dojox.form.addUploaderPlugin=function(_21){
-_20.push(_21);
-_2("dojox.form.Uploader",_20,{});
-};
-return dojox.form.Uploader;
 });

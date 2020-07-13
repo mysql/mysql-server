@@ -702,7 +702,7 @@ inline int ha_innopart::initialize_auto_increment(
     for (uint part = 0; part < m_tot_parts; part++) {
       ib_table = m_part_share->get_table_part(part);
 
-      dict_table_autoinc_set_col_pos(ib_table, field->field_index);
+      dict_table_autoinc_set_col_pos(ib_table, field->field_index());
 
       dict_table_autoinc_lock(ib_table);
       read_auto_inc = dict_table_autoinc_read(ib_table);
@@ -2030,18 +2030,29 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
   }
 
   auto trx = m_prebuilt->trx;
+
+  /* Since histogram sampling does not have any correlation to transactions
+  we're setting the isolation level to read uncommitted to avoid unnecessarily
+  looking up old versions of a record as the version list can be very long. */
+  trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
+
   innobase_register_trx(ht, ha_thd(), trx);
   trx_start_if_not_started_xa(trx, false);
   trx_assign_read_view(trx);
 
   /* Parallel read is not currently supported for sampling. */
-  size_t n_threads = 1;
+  size_t n_threads = Parallel_reader::available_threads(1);
+
+  if (n_threads == 0) {
+    return HA_ERR_SAMPLING_INIT_FAILED;
+  }
 
   Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
       n_threads, sampling_seed, sampling_percentage, sampling_method));
 
   if (sampler == nullptr) {
-    return (HA_ERR_OUT_OF_MEM);
+    Parallel_reader::release_threads(n_threads);
+    return HA_ERR_OUT_OF_MEM;
   }
 
   scan_ctx = sampler;
@@ -2436,7 +2447,8 @@ int ha_innopart::create(const char *name, TABLE *form,
   }
 
   create_table_info_t info(thd, form, create_info, table_name, remote_path,
-                           tablespace_name, srv_file_per_table, false, 0, 0);
+                           tablespace_name, srv_file_per_table, false, 0, 0,
+                           true);
 
   ut_ad(create_info != nullptr);
   ut_ad(m_part_info == form->part_info);
@@ -2757,8 +2769,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
     dd_part->set_se_private_id(table->id);
 
     /* Set discard flag. */
-    dd::Properties &p = dd_part->table().se_private_data();
-    p.set(dd_table_key_strings[DD_TABLE_DISCARD], discard);
+    dd_set_discarded(*dd_part, discard);
 
     /* Get Tablespace object */
     dd::Tablespace *dd_space = nullptr;
@@ -2804,10 +2815,6 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
     }
   }
-
-  /* Set discard flag for the table. */
-  dd::Properties &p = table_def->table().se_private_data();
-  p.set(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
   /* Set new table id of the first partition to dd::Column::se_private_data */
   if (!discard) {
@@ -4011,6 +4018,9 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
     TrxInInnoDB::end_stmt(m_prebuilt->trx);
     --m_prebuilt->trx->n_mysql_tables_in_use;
     m_mysql_has_locked = false;
+    if (m_prebuilt->trx->n_mysql_tables_in_use == 0) {
+      m_prebuilt->trx->mysql_n_tables_locked = 0;
+    }
     return (error);
   }
 

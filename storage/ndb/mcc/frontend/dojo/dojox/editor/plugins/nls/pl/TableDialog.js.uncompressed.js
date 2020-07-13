@@ -9,14 +9,14 @@ define(
 	cellSpacing: "Odstępy między komórkami:",
 	tableWidth: "Szerokość tabeli:",
 	backgroundColor: "Kolor tła:",
-	borderColor: "Kolor krawędzi:",
+	borderColor: "Kolor ramki:",
 	borderThickness: "Grubość krawędzi:",
 	percent: "procent",
 	pixels: "piksle",
 	"default": "domyślna",
-	left: "left",
+	left: "lewa strona",
 	center: "środek",
-	right: "right",
+	right: "prawa strona",
 	buttonSet: "Ustaw", // translated elsewhere?
 	buttonInsert: "Wstaw",
 	buttonCancel: "Anuluj",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Dodaj kolumnę przed",
 	insertTableColumnAfterLabel: "Dodaj kolumnę po",
 	deleteTableRowLabel: "Usuń wiersz",
-	deleteTableColumnLabel: "Usuń kolumnę"
+	deleteTableColumnLabel: "Usuń kolumnę",
+	colorTableCellTitle: "Kolor tła - komórka tabeli",
+	tableContextMenuTitle: "Menu kontekstowe tabeli"
 })
 );

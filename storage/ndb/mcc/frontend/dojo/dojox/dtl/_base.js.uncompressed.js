@@ -10,7 +10,14 @@ define("dojox/dtl/_base", [
 	function(kernel, lang, Tokenize, json, dom, xhr, StringBuilder, deferred){
 
 	kernel.experimental("dojox.dtl");
+
 	var dd = lang.getObject("dojox.dtl", true);
+/*=====
+	dd = {
+		// TODO: summary
+	};
+=====*/
+
 	dd._base = {};
 
 	dd.TOKEN_BLOCK = -1;
@@ -541,7 +548,10 @@ define("dojox/dtl/_base", [
 	},
 	{
 		render: function(context, buffer){
-			var str = this.contents.resolve(context) || "";
+			var str = this.contents.resolve(context);
+			if (str === undefined || str === null) {
+				str = '';
+			}
 			if(!str.safe){
 				str = dd._base.escape("" + str);
 			}
@@ -777,6 +787,7 @@ define("dojox/dtl/_base", [
 	dd.register.filters("dojox.dtl", {
 		"_base": ["escape", "safe"]
 	});
+
 	return dd;
 });
 

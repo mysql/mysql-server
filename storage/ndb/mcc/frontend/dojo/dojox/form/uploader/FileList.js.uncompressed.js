@@ -1,3 +1,5 @@
+require({cache:{
+'url:dojox/form/resources/UploaderFileList.html':"<div class=\"dojoxUploaderFileList\">\n\t<div data-dojo-attach-point=\"progressNode\" class=\"dojoxUploaderFileListProgress\">\n\t\t<div data-dojo-attach-point=\"percentBarNode\" class=\"dojoxUploaderFileListProgressBar\"></div>\n\t\t<div data-dojo-attach-point=\"percentTextNode\" class=\"dojoxUploaderFileListPercentText\">0%</div>\n\t</div>\n\t<table class=\"dojoxUploaderFileListTable\">\n\t\t<thead>\n\t\t\t<tr class=\"dojoxUploaderFileListHeader\">\n\t\t\t\t<th class=\"dojoxUploaderIndex\">${headerIndex}</th>\n\t\t\t\t<th class=\"dojoxUploaderIcon\">${headerType}</th>\n\t\t\t\t<th class=\"dojoxUploaderFileName\">${headerFilename}</th>\n\t\t\t\t<th class=\"dojoxUploaderFileSize\" data-dojo-attach-point=\"sizeHeader\">${headerFilesize}</th>\n\t\t\t</tr>\n\t\t</thead>\n\t\t<tbody class=\"dojoxUploaderFileListContent\" data-dojo-attach-point=\"listNode\"></tbody>\n\t</table>\n<div>"}});
 define("dojox/form/uploader/FileList", [
 	"dojo/_base/fx",
 	"dojo/dom-style",
@@ -6,18 +8,18 @@ define("dojox/form/uploader/FileList", [
 	"dojo/_base/lang",
 	"dojo/_base/array",
 	"dijit/_base/manager",
-	"dojox/form/uploader/Base"
-],function(fx, domStyle, domClass, declare, lang, array, manager, formUploaderBase){
+	"dojox/form/uploader/_Base",
+	"dojo/text!../resources/UploaderFileList.html"
+],function(fx, domStyle, domClass, declare, lang, arrayUtil, manager, Base, template){
 
-return declare("dojox.form.uploader.FileList", [formUploaderBase], {
+return declare("dojox.form.uploader.FileList", Base, {
 	// summary:
 	//		A simple widget that provides a list of the files currently selected by
-	//		dojox.form.Uploader
+	//		dojox/form/Uploader
 	// description:
 	//		There is a required CSS file: resources/UploaderFileList.css.
 	//		This is a very simple widget, and not beautifully styled. It is here mainly for test
 	//		cases, but could very easily be used, extended, modified, or copied.
-	// Version: 1.6
 
 	// uploaderId: String
 	//		The id of the dojox.form.Uploader to connect to.
@@ -47,15 +49,7 @@ return declare("dojox.form.uploader.FileList", [formUploaderBase], {
 	_upCheckCnt:0,
 	rowAmt:0,
 
-	templateString:	'<div class="dojoxUploaderFileList">' +
-						'<div dojoAttachPoint="progressNode" class="dojoxUploaderFileListProgress"><div dojoAttachPoint="percentBarNode" class="dojoxUploaderFileListProgressBar"></div><div dojoAttachPoint="percentTextNode" class="dojoxUploaderFileListPercentText">0%</div></div>' +
-						'<table class="dojoxUploaderFileListTable">'+
-							'<thead><tr class="dojoxUploaderFileListHeader"><th class="dojoxUploaderIndex">${headerIndex}</th><th class="dojoxUploaderIcon">${headerType}</th><th class="dojoxUploaderFileName">${headerFilename}</th><th class="dojoxUploaderFileSize" dojoAttachPoint="sizeHeader">${headerFilesize}</th></tr></thead>'+
-							'<tbody class="dojoxUploaderFileListContent" dojoAttachPoint="listNode">'+
-							'</tbody>'+
-						'</table>'+
-						'<div>'
-						,
+	templateString:template,
 
 	postCreate: function(){
 		this.setUploader();
@@ -164,7 +158,7 @@ return declare("dojox.form.uploader.FileList", [formUploaderBase], {
 
 	_onUploaderChange: function(fileArray){
 		this.reset();
-		array.forEach(fileArray, function(f, i){
+		arrayUtil.forEach(fileArray, function(f, i){
 			this._addRow(i+1, this.getFileType(f.name), f.name, f.size);
 		}, this)
 	},

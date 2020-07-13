@@ -128,7 +128,7 @@ hs.right=l+v.getScrollbarWidth()+"px";
 }else{
 hs.right=l+"px";
 }
-if(!_2("webkit")){
+if(!_2("webkit")&&hs.width!="auto"){
 hs.width=parseInt(hs.width,10)-v.getScrollbarWidth()+"px";
 }
 }else{

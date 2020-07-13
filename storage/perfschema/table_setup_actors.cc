@@ -115,8 +115,8 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
   bool history;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
           host = get_field_char_utf8(f, &host_data);
           break;
@@ -278,8 +278,8 @@ int table_setup_actors::read_row_values(TABLE *table, unsigned char *,
   DBUG_ASSERT(table->s->null_bytes == 1);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
           set_field_char_utf8(f, m_row.m_hostname, m_row.m_hostname_length);
           break;
@@ -311,8 +311,8 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
   enum_yes_no value;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
         case 1: /* USER */
         case 2: /* ROLE */

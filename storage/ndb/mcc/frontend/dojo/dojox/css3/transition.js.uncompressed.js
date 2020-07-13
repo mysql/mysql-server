@@ -1,16 +1,17 @@
 define("dojox/css3/transition", ["dojo/_base/lang",
 		"dojo/_base/array",
-		"dojo/_base/Deferred",
-		"dojo/DeferredList",
+		"dojo/Deferred",
+		"dojo/when",
+		"dojo/promise/all",
 		"dojo/on",
-		"dojo/_base/sniff"], 
-		function(lang, array, Deferred, DeferredList, on, has){
+		"dojo/sniff"],
+		function(lang, array, Deferred, when, all, on, has){
 	// module: 
 	//		dojox/css3/transition
 	
 	//create cross platform animation/transition effects
 	//TODO enable opera mobile when it is hardware accelerated
-	//TODO enable IE when CSS3 transition is supported in IE 10
+	// IE10 is using standard names so this is working without any modifications
 	var transitionEndEventName = "transitionend";
 	var transitionPrefix = "t"; //by default use "t" prefix and "ransition" to make word "transition"
 	var translateMethodStart = "translate3d(";//Android 2.x does not support translateX in CSS Transition, we need to use translate3d in webkit browsers
@@ -94,8 +95,8 @@ define("dojox/css3/transition", ["dojo/_base/lang",
 		},
 		
 		_beforeClear: function(){
-			this.node.style[transitionPrefix + "ransitionProperty"] = null;
-			this.node.style[transitionPrefix + "ransitionDuration"] = null;
+			this.node.style[transitionPrefix + "ransitionProperty"] = "";
+			this.node.style[transitionPrefix + "ransitionDuration"] = "";
 			if(this["in"] !== true){
 				this.node.style.display = "none";
 			}			 
@@ -171,7 +172,7 @@ define("dojox/css3/transition", ["dojo/_base/lang",
 			var style = this.node.style;
 			for(var property in state){
 				if(state.hasOwnProperty(property)){
-					style[property] = null;
+					style[property] = "";
 				}
 			}
 		}
@@ -298,7 +299,7 @@ define("dojox/css3/transition", ["dojo/_base/lang",
 			}
 			
 		});
-		return new DeferredList(defs);
+		return all(defs);
 	};
 	
 	transition.getWaitingList = getWaitingList;
@@ -324,7 +325,7 @@ define("dojox/css3/transition", ["dojo/_base/lang",
 		});
 		
 		//wait for all deferred object in deferred list to resolve
-		Deferred.when(waitingList, function(){
+		when(waitingList, function(){
 			array.forEach(args, function(item){
 				//set the start state
 				item.initState();
@@ -346,7 +347,7 @@ define("dojox/css3/transition", ["dojo/_base/lang",
 				on.once(args[args.length-1].node, transitionEndEventName, function(){
 					var timeout;
 					for(var i=0; i<args.length-1; i++){
-						if(args[i].deferred.fired !== 0){
+						if(args[i].deferred.fired !== 0 && !args[i]._cleared){
 							timeout = new Date().getTime() - args[i]._startTime;
 							if(timeout >= args[i].duration){
 								args[i].clear();
@@ -354,8 +355,19 @@ define("dojox/css3/transition", ["dojo/_base/lang",
 						}
 					}
 				});
+				setTimeout(function(){
+					var timeout;
+					for(var i=0; i<args.length; i++){
+						if(args[i].deferred.fired !== 0 && !args[i]._cleared){
+							timeout = new Date().getTime() - args[i]._startTime;
+							if(timeout >= args[i].duration){
+								args[i].clear();
+							}
+						}
+					}
+				}, args[0].duration+50);
 			}, 33);
-		});		   
+		});
 	};
 	
 	transition.chainedPlay = function(/*Array*/args){
@@ -377,7 +389,7 @@ define("dojox/css3/transition", ["dojo/_base/lang",
 			}
 		});
 		
-		Deferred.when(waitingList, function(){
+		when(waitingList, function(){
 			array.forEach(args, function(item){
 				//set the start state
 				item.initState();

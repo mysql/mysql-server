@@ -6,7 +6,7 @@
   -moz-box-sizing: border-box;
 }
 .dj_gecko .mblSwitch .mblSwitchBgLeft {
-  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #666666 100%);
+  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #999999 100%);
 }
 .dj_gecko .mblSwitch .mblSwitchBgRight {
   background-image: -moz-linear-gradient(top, #ffffff 0%, #e2e2e2 100%);

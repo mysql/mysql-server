@@ -1,4 +1,4 @@
-define("dojox/lang/functional/lambda", ["../..", "dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array"], function(dojox, dojo, lang, arr){
+define("dojox/lang/functional/lambda", ["../..", "dojo/_base/lang", "dojo/_base/array"], function(dojox, lang, arr){
 	var df = lang.getObject("lang.functional", true, dojox);
 
 // This module adds high-level functions and related constructs:
@@ -35,7 +35,7 @@ define("dojox/lang/functional/lambda", ["../..", "dojo/_base/kernel", "dojo/_bas
 			while(sects.length){
 				s = sects.pop();
 				args = sects.pop().split(/\s*,\s*|\s+/m);
-				if(sects.length){ sects.push("(function(" + args + "){return (" + s + ")})"); }
+				if(sects.length){ sects.push("(function(" + args.join(", ") + "){ return (" + s + "); })"); }
 			}
 		}else if(s.match(/\b_\b/)){
 			args = ["_"];
@@ -58,7 +58,7 @@ define("dojox/lang/functional/lambda", ["../..", "dojo/_base/kernel", "dojo/_bas
 					replace(/(?:\b[A-Z]|\.[a-zA-Z_$])[a-zA-Z_$\d]*|[a-zA-Z_$][a-zA-Z_$\d]*:|this|true|false|null|undefined|typeof|instanceof|in|delete|new|void|arguments|decodeURI|decodeURIComponent|encodeURI|encodeURIComponent|escape|eval|isFinite|isNaN|parseFloat|parseInt|unescape|dojo|dijit|dojox|window|document|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g, "").
 					match(/([a-z_$][a-z_$\d]*)/gi) || [], t = {};
 				arr.forEach(vars, function(v){
-					if(!(v in t)){
+					if(!t.hasOwnProperty(v)){
 						args.push(v);
 						t[v] = 1;
 					}
@@ -103,8 +103,8 @@ define("dojox/lang/functional/lambda", ["../..", "dojo/_base/kernel", "dojo/_bas
 			//		built from the snippet. It is meant to be evaled in the
 			//		proper context, so local variables can be pulled from the
 			//		environment.
-			s = lambda(s);
-			return "function(" + s.args.join(",") + "){return (" + s.body + ");}";	// String
+			var l = lambda(s);
+			return "function(" + l.args.join(",") + "){return (" + l.body + ");}";	// String
 		},
 		lambda: function(/*Function|String|Array*/ s){
 			// summary:
@@ -117,9 +117,9 @@ define("dojox/lang/functional/lambda", ["../..", "dojo/_base/kernel", "dojo/_bas
 			//		a function object.
 			if(typeof s == "function"){ return s; }
 			if(s instanceof Array){ return compose(s); }
-			if(s in lcache){ return lcache[s]; }
-			s = lambda(s);
-			return lcache[s] = new Function(s.args, "return (" + s.body + ");");	// Function
+			if(lcache.hasOwnProperty(s)){ return lcache[s]; }
+			var l = lambda(s);
+			return lcache[s] = new Function(l.args, "return (" + l.body + ");");	// Function
 		},
 		clearLambdaCache: function(){
 			// summary:

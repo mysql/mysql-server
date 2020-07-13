@@ -103,7 +103,7 @@ var PasteFromWord = dojo.declare("dojox.editor.plugins.PasteFromWord", _Plugin, 
 		this._dialog.set("content", dojo.string.substitute(this._template, strings));
 
 		// Make it translucent so we can fade in the window when the RTE is created.
-		// the RTE has to be created 'visible, and this is a ncie trick to make the creation
+		// the RTE has to be created 'visible, and this is a nice trick to make the creation
 		// 'pretty'.
 		dojo.style(dojo.byId(this._uId + "_rte"), "opacity", 0.001);
 
@@ -139,6 +139,7 @@ var PasteFromWord = dojo.declare("dojox.editor.plugins.PasteFromWord", _Plugin, 
 			// dialog is showing up.
 			setTimeout(dojo.hitch(this, function() {
 				this._rte = new dijit._editor.RichText({height: this.height || "300px"}, this._uId + "_rte");
+				this._rte.startup();
 				this._rte.onLoadDeferred.addCallback(dojo.hitch(this, function() {
 					dojo.animateProperty({
 						node: this._rte.domNode, properties: { opacity: { start: 0.001, end: 1.0 } }

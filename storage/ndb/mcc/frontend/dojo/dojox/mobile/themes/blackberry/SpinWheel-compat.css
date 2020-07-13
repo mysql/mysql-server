@@ -4,7 +4,8 @@
 .mblSpinWheelBar {
   background-image: url(../common/compat/spinwheel-bar.png);
 }
-.mblSpinWheelSlotTouch, .mblSpinWheelSlotPanel {
+.mblSpinWheelSlotTouch,
+.mblSpinWheelSlotPanel {
   left: 0;
 }
 .dj_gecko .mblSpinWheel {
@@ -19,7 +20,8 @@
 .dj_ie .mblSpinWheelBar {
   filter: progid:DXImageTransform.Microsoft.alpha(opacity=60);
 }
-.dj_ie6 .mblSpinWheelBar, .dj_ie7 .mblSpinWheelBar {
+.dj_ie6 .mblSpinWheelBar,
+.dj_ie7 .mblSpinWheelBar {
   z-index: -1;
 }
 .dj_ie7 .mblSpinWheelSlotTouch {

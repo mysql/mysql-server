@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,8 @@ class Communication_protocol_action final : public Group_action {
   int process_action_message(Group_action_message &message,
                              const std::string &message_origin) final override;
   enum_action_execution_result execute_action(
-      bool invoking_member,
-      Plugin_stage_monitor_handler *stage_handler) final override;
+      bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
+      Notification_context *) final override;
   bool stop_action_execution(bool killed) final override;
   const char *get_action_name() final override;
   Group_action_diagnostics *get_execution_info() final override;

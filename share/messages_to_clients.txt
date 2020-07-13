@@ -5856,7 +5856,7 @@ ER_BLOB_FIELD_IN_PART_FUNC_ERROR
         ger "In der Partitionierungsfunktion sind BLOB-Spalten nicht erlaubt"
         swe "Ett BLOB-fält är inte tillåtet i partitioneringsfunktioner"
 ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
-        eng "A %-.192s must include all columns in the table's partitioning function"
+        eng "A %-.192s must include all columns in the table's partitioning function (prefixed columns are not considered)."
 ER_NO_PARTS_ERROR
         eng "Number of %-.64s = 0 is not an allowed value"
         ger "Eine Anzahl von %-.64s = 0 ist kein erlaubter Wert"
@@ -8348,7 +8348,7 @@ ER_INVALID_THREAD_PRIORITY
   eng "Invalid thread priority value %d for %s resource group %s. Allowed range is [%d, %d]."
 
 ER_DISALLOWED_OPERATION
-  eng "%s operation is disallowed on %s "
+  eng "%s operation is disallowed on %s"
 
 ER_RESOURCE_GROUP_BUSY
   eng "Resource group %s is busy."
@@ -9307,6 +9307,74 @@ ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
 # code.
 ER_WARN_DEPRECATED_FOUND_ROWS
   eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
+
+ER_MISSING_JSON_VALUE 22035
+  eng "No value was found by '%.192s' on the specified path."
+
+ER_MULTIPLE_JSON_VALUES 22034
+  eng "More than one value was found by '%.192s' on the specified path."
+
+ER_HOSTNAME_TOO_LONG
+  eng "Hostname cannot be longer than %d characters."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+
+ER_GROUP_REPLICATION_USER_EMPTY_MSG
+  eng "The START GROUP_REPLICATION command failed since the username provided for recovery channel is empty."
+
+ER_GROUP_REPLICATION_USER_MANDATORY_MSG
+  eng "The START GROUP_REPLICATION command failed since the USER option was not provided with PASSWORD for recovery channel."
+
+ER_GROUP_REPLICATION_PASSWORD_LENGTH
+  eng "The START GROUP_REPLICATION command failed since the password provided for the recovery channel exceeds the maximum length of 32 characters."
+
+ER_SUBQUERY_TRANSFORM_REJECTED
+  eng "Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on".
+
+ER_DA_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
+  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".
+
+ER_DA_GRP_RPL_RECOVERY_ENDPOINT_INVALID
+  eng "The server is not listening on endpoint '%s'. Only endpoints that the server is listening on are valid recovery endpoints."
+
+ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+  eng "Variable '%-.64s' cannot be set to the value of '%-.200s'. %-.200s"
+
+ER_STATEMENT_NOT_ALLOWED_AFTER_START_TRANSACTION
+  eng "Only BINLOG INSERT, COMMIT and ROLLBACK statements are allowed after CREATE TABLE with START TRANSACTION statement."
+
+ER_FOREIGN_KEY_WITH_ATOMIC_CREATE_SELECT
+  eng "Foreign key creation is not allowed with CREATE TABLE as SELECT and CREATE TABLE with START TRANSACTION statement."
+
+ER_NOT_ALLOWED_WITH_START_TRANSACTION
+  eng "START TRANSACTION clause cannot be used %.128s".
+
+ER_INVALID_JSON_ATTRIBUTE
+  eng "Invalid json attribute, error: \"%s\" at pos %u: '%s'"
+
+ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED
+  eng "Storage engine '%s' does not support ENGINE_ATTRIBUTE."
+
+ER_INVALID_USER_ATTRIBUTE_JSON
+  eng "The user attribute must be a valid JSON object"
+
+ER_INNODB_REDO_DISABLED
+  eng "Cannot perform operation as InnoDB redo logging is disabled. Please retry after enabling redo log with ALTER INSTANCE"
+
+ER_INNODB_REDO_ARCHIVING_ENABLED
+  eng "Cannot perform operation as InnoDB is archiving redo log. Please retry after stopping redo archive by invoking innodb_redo_log_archive_stop()"
+
+ER_MDL_OUT_OF_RESOURCES
+  eng "Not enough resources to complete lock request."
+
+
+ER_IMPLICIT_COMPARISON_FOR_JSON
+  eng "Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING"
+
+ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
+  eng "The function %s does not support the character set '%s'."
 
 #
 #  End of 8.0 error messages (server-to-client).

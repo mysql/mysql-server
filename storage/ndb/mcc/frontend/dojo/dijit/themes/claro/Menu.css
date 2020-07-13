@@ -15,12 +15,6 @@
 .claro .dijitMenu {
   background-color: #ffffff;
   border: 1px solid #759dc0;
-  
-  margin: -1px 0;
-}
-.dj_ie6 .claro .dijitMenu {
-  margin: 0;
-  
 }
 .claro .dijitMenuItem {
   color: #000000;
@@ -29,7 +23,8 @@
   padding: 6px 10px 7px;
   margin: -1px;
 }
-.claro .dijitMenuBar .dijitMenuItemHover, .claro .dijitMenuBar .dijitMenuItemSelected {
+.claro .dijitMenuBar .dijitMenuItemHover,
+.claro .dijitMenuBar .dijitMenuItemSelected {
   border: solid 1px #759dc0;
   padding: 5px 9px 6px;
 }
@@ -38,13 +33,19 @@
   border-spacing: 0 0;
   padding: 0;
 }
-.claro .dijitMenuItem td {
-  padding: 1px;
+.claro .dijitMenu .dijitMenuItem td,
+.claro .dijitComboBoxMenu .dijitMenuItem {
+  padding: 2px;
+  border-width: 1px 0 1px 0;
+  border-style: solid;
+  border-color: #ffffff;
 }
-.claro .dijitSelectMenu .dijitMenuItemHover td,
-.claro .dijitSelectMenu .dijitMenuItemSelected td,
+.claro .dijitMenu .dijitMenuItemHover td,
+.claro .dijitMenu .dijitMenuItemSelected td,
 .claro .dijitMenuItemHover,
+.claro .dijitComboBoxMenu .dijitMenuItemHover,
 .claro .dijitMenuItemSelected {
+  border-color: #759dc0;
   background-color: #abd6ff;
   background-image: url("images/standardGradient.png");
   background-repeat: repeat-x;
@@ -85,9 +86,7 @@
   background-image: url("images/spriteArrows.png");
   background-position: -14px 0;
   margin-right: 3px;
-}
-.claro .dijitMenuItemDisabled .dijitMenuItemIconCell {
-  opacity: 1;
+  margin-bottom: 4px;
 }
 .claro .dijitMenuSeparatorTop {
   height: auto;
@@ -99,46 +98,46 @@
   height: auto;
   margin-bottom: 1px;
 }
-.claro .dijitCheckedMenuItemIconChar {
-  display: none;
-}
-.claro .dijitCheckedMenuItemIcon {
+.claro .dijitCheckedMenuItem .dijitMenuItemIcon,
+.claro .dijitRadioMenuItem .dijitMenuItemIcon {
   background-image: url("form/images/checkboxRadioButtonStates.png");
   background-repeat: no-repeat;
   background-position: -15px 50%;
+  
   width: 15px;
   height: 16px;
 }
-.dj_ie6 .claro .dijitCheckedMenuItemIcon {
+.dj_ie6 .claro .dijitCheckedMenuItem .dijitMenuItemIcon,
+.dj_ie6 .claro .dijitRadioMenuItem .dijitMenuItemIcon {
   background-image: url("form/images/checkboxAndRadioButtons_IE6.png");
 }
 .claro .dijitCheckedMenuItemChecked .dijitCheckedMenuItemIcon {
   background-position: 0 50%;
+  
+}
+.claro .dijitRadioMenuItem .dijitMenuItemIcon {
+  background-position: -105px 50%;
+  
+}
+.claro .dijitRadioMenuItemChecked .dijitMenuItemIcon {
+  background-position: -90px 50%;
+  
 }
 .claro .dijitComboBoxMenu {
   margin-left: 0;
   background-image: none;
 }
-.claro .dijitSelectMenu .dijitMenuItem td, .claro .dijitComboBoxMenu .dijitMenuItem {
-  padding: 2px;
-  border-width: 1px 0 1px 0;
-  border-style: solid;
-  border-color: #ffffff;
-}
-.claro .dijitSelectMenu .dijitMenuItemSelected td, .claro .dijitComboBoxMenu .dijitMenuItemSelected {
+.claro .dijitMenu .dijitMenuItemSelected td,
+.claro .dijitComboBoxMenu .dijitMenuItemSelected {
   color: #000000;
   border-color: #759dc0;
-  background-color: #abd6ff;
-}
-.claro .dijitSelectMenu .dijitMenuItemHover td, .claro .dijitComboBoxMenu .dijitMenuItemHover {
-  color: #000000;
-  border-color: #769dc0;
   background-color: #abd6ff;
 }
 .claro .dijitComboBoxMenuActive .dijitMenuItemSelected {
   background-color: #7dbdfa;
   
 }
-.claro .dijitMenuPreviousButton, .claro .dijitMenuNextButton {
+.claro .dijitMenuPreviousButton,
+.claro .dijitMenuNextButton {
   font-style: italic;
 }

@@ -102,11 +102,14 @@ define("dojox/grid/cells/_base", [
 			//		grid row index
 			// returns:
 			//		html for a given grid cell
-			var f, i=this.grid.edit.info, d=this.get ? this.get(inRowIndex, inItem) : (this.value || this.defaultValue);
-			d = (d && d.replace && this.grid.escapeHTMLInData) ? d.replace(/&/g, '&amp;').replace(/</g, '&lt;') : d;
-			if(this.editable && (this.alwaysEditing || (i.rowIndex==inRowIndex && i.cell==this))){
-				return this.formatEditing(d, inRowIndex);
-			}else{
+			var i = this.grid.edit.info;
+			var d = this.get ? this.get(inRowIndex, inItem) : (this.value || this.defaultValue);
+			if (d && d.replace && this.grid.escapeHTMLInData) {
+				d = d.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+			}
+			if (this.editable && (this.alwaysEditing || (i.rowIndex==inRowIndex && i.cell==this))){
+				return this.formatEditing(i.value ? i.value : d, inRowIndex);
+			} else {
 				return this._defaultFormat(d, [d, inRowIndex, this]);
 			}
 		},
@@ -318,7 +321,7 @@ define("dojox/grid/cells/_base", [
 		getStrAttr("cellClasses", cellDef);
 	};
 
-	var Cell = declare("dojox.grid.cells.Cell", BaseCell, {
+	var Cell = BaseCell.Cell = declare("dojox.grid.cells.Cell", BaseCell, {
 		// summary:
 		//		grid cell that provides a standard text input box upon editing
 		constructor: function(){
@@ -329,6 +332,10 @@ define("dojox/grid/cells/_base", [
 		keyFilter: null,
 		formatEditing: function(inDatum, inRowIndex){
 			this.needFormatNode(inDatum, inRowIndex);
+			if (inDatum && inDatum.replace) {
+				// escape quotes to avoid XSS
+				inDatum = inDatum.replace(/"/g, '&quot;')
+			}
 			return '<input class="dojoxGridInput" type="text" value="' + inDatum + '">';
 		},
 		formatNode: function(inNode, inDatum, inRowIndex){
@@ -360,7 +367,7 @@ define("dojox/grid/cells/_base", [
 		}
 	};
 
-	var RowIndex = declare("dojox.grid.cells.RowIndex", Cell, {
+	var RowIndex = BaseCell.RowIndex = declare("dojox.grid.cells.RowIndex", Cell, {
 		name: 'Row',
 
 		postscript: function(){
@@ -374,7 +381,7 @@ define("dojox/grid/cells/_base", [
 		Cell.markupFactory(node, cellDef);
 	};
 
-	var Select = declare("dojox.grid.cells.Select", Cell, {
+	var Select = BaseCell.Select = declare("dojox.grid.cells.Select", Cell, {
 		// summary:
 		//		grid cell that provides a standard select for editing
 
@@ -442,7 +449,7 @@ define("dojox/grid/cells/_base", [
 		}
 	};
 
-	var AlwaysEdit = declare("dojox.grid.cells.AlwaysEdit", Cell, {
+	var AlwaysEdit = BaseCell.AlwaysEdit = declare("dojox.grid.cells.AlwaysEdit", Cell, {
 		// summary:
 		//		grid cell that is always in an editable state, regardless of grid editing state
 		alwaysEditing: true,
@@ -459,7 +466,7 @@ define("dojox/grid/cells/_base", [
 		Cell.markupFactory(node, cell);
 	};
 
-	var Bool = declare("dojox.grid.cells.Bool", AlwaysEdit, {
+	var Bool = BaseCell.Bool = declare("dojox.grid.cells.Bool", AlwaysEdit, {
 		// summary:
 		//		grid cell that provides a standard checkbox that is always on for editing
 		_valueProp: "checked",

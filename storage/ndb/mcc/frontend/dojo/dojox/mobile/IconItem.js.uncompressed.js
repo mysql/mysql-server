@@ -2,7 +2,7 @@ define("dojox/mobile/IconItem", [
 	"dojo/_base/declare",
 	"dojo/_base/event",
 	"dojo/_base/lang",
-	"dojo/_base/sniff",
+	"dojo/sniff",
 	"dojo/_base/window",
 	"dojo/dom-class",
 	"dojo/dom-construct",
@@ -13,13 +13,15 @@ define("dojox/mobile/IconItem", [
 	"./TransitionEvent",
 	"./iconUtils",
 	"./lazyLoadUtils",
-	"./viewRegistry"
-], function(declare, event, lang, has, win, domClass, domConstruct, domGeometry, domStyle, ItemBase, Badge, TransitionEvent, iconUtils, lazyLoadUtils, viewRegistry){
+	"./viewRegistry",
+	"./_css3",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/IconItem"
+], function(declare, event, lang, has, win, domClass, domConstruct, domGeometry, domStyle, ItemBase, Badge, TransitionEvent, iconUtils, lazyLoadUtils, viewRegistry, css3, BidiIconItem){
 
 	// module:
 	//		dojox/mobile/IconItem
 
-	return declare("dojox.mobile.IconItem", ItemBase, {
+	var IconItem = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiIconItem" : "dojox.mobile.IconItem", ItemBase, {
 		// summary:
 		//		An icon item widget.
 		// description:
@@ -145,7 +147,7 @@ define("dojox/mobile/IconItem", [
 			}
 
 			this._dragstartHandle = this.connect(this.domNode, "ondragstart", event.stop);
-			this._keydownHandle = this.connect(this.domNode, "onkeydown", "_onClick"); // for desktop browsers
+			this.connect(this.domNode, "onkeydown", "_onClick"); // for desktop browsers
 		},
 
 		highlight: function(/*Number?*/timeout){
@@ -155,7 +157,7 @@ define("dojox/mobile/IconItem", [
 			timeout = (timeout !== undefined) ? timeout : this.timeout;
 			if(timeout > 0){
 				var _this = this;
-				setTimeout(function(){
+				_this.defer(function(){
 					_this.unhighlight();
 				}, timeout*1000);
 			}
@@ -164,6 +166,10 @@ define("dojox/mobile/IconItem", [
 		unhighlight: function(){
 			// summary:
 			//		Stops shaking the icon.
+			if(!has("ie") && has("trident") === 7){
+				// Workaround on IE11: if just removing the style, the icon continues to shake
+				domStyle.set(this.iconDivNode, "animation-name", "");
+			}
 			domClass.remove(this.iconDivNode, "mblVibrate");
 		},
 
@@ -198,9 +204,9 @@ define("dojox/mobile/IconItem", [
 		_prepareForTransition: function(e, transOpts){
 			// Override from _ItemBase
 			if(transOpts){
-				setTimeout(lang.hitch(this, function(d){
+				this.defer(function(d){
 					this.set("selected", false);
-				}), 1500);
+				}, 1500);
 				return true;
 			}else{
 				if(this.getParent().transition === "below" && this.isOpen()){
@@ -220,7 +226,7 @@ define("dojox/mobile/IconItem", [
 			if(e){
 				if(e.type === "keydown" && e.keyCode !== 13){ return; }
 				if(this.closeIconClicked(e) === false){ return; } // user's click action
-				setTimeout(lang.hitch(this, function(d){ this._closeIconClicked(); }), 0);
+				this.defer(function(d){ this._closeIconClicked(); });
 				return;
 			}
 			this.close();
@@ -257,6 +263,8 @@ define("dojox/mobile/IconItem", [
 		},
 
 		_open_1: function(){
+			// summary:
+			//		Opens the icon content for the 'below' transition.
 			// tags:
 			//		private
 			this.paneWidget.show();
@@ -274,7 +282,10 @@ define("dojox/mobile/IconItem", [
 			//		Scrolls until the given node is in the view.
 			var s = viewRegistry.getEnclosingScrollable(node);
 			if(s){ // this node is placed inside scrollable
-				s.scrollIntoView(node, true);
+				var dim = s.getDim();
+				if(dim.c.h >= dim.d.h){ // #16306: only if the content is larger than the display area 
+					s.scrollIntoView(node, true);
+				}
 			}else{
 				win.global.scrollBy(0, domGeometry.position(node, false).y);
 			}
@@ -285,14 +296,14 @@ define("dojox/mobile/IconItem", [
 			//		Closes the icon content.
 			if(!this.isOpen()){ return; }
 			this.set("selected", false);
-			if(has("webkit") && !noAnimation){
+			if(has("css3-animations") && !noAnimation){
 				var contentNode = this.paneWidget.domNode;
 				if(this.getParent().transition == "below"){
 					domClass.add(contentNode, "mblCloseContent mblShrink");
 					var nodePos = domGeometry.position(contentNode, true);
 					var targetPos = domGeometry.position(this.domNode, true);
 					var origin = (targetPos.x + targetPos.w/2 - nodePos.x) + "px " + (targetPos.y + targetPos.h/2 - nodePos.y) + "px";
-					domStyle.set(contentNode, { webkitTransformOrigin:origin });
+					domStyle.set(contentNode, css3.add({}, { transformOrigin:origin }));
 				}else{
 					domClass.add(contentNode, "mblCloseContent mblShrink0");
 				}
@@ -396,4 +407,6 @@ define("dojox/mobile/IconItem", [
 						 selected ? this.getParent().pressedIconOpacity : 1);
 		}
 	});
+
+	return has("dojo-bidi") ? declare("dojox.mobile.IconItem", [IconItem, BidiIconItem]) : IconItem;
 });

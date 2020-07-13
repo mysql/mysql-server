@@ -13,21 +13,12 @@ define("dojox/editor/plugins/EntityPalette", [
 
 dojo.experimental("dojox.editor.plugins.EntityPalette");
 
-dojo.declare("dojox.editor.plugins.EntityPalette",
-	[_Widget, _TemplatedMixin, _PaletteMixin],
-	{
+var EntityPalette = dojo.declare("dojox.editor.plugins.EntityPalette", [_Widget, _TemplatedMixin, _PaletteMixin], {
 	// summary:
 	//		A keyboard accessible HTML entity-picking widget (for inserting symbol characters)
 	// description:
 	//		Grid showing various entities, so the user can pick a certain entity.
 	//		Can be used standalone, or as a popup.
-	//
-	// example:
-	// |	<div dojoType="dojox.editor.plugins.EntityPalette"></div>
-	//
-	// example:
-	// |	var picker = new dojox.editor.plugins.EntityPalette({ },srcNode);
-	// |	picker.startup();
 
 	// templateString: [protected] String
 	//		The basic template used to render the palette.
@@ -197,7 +188,7 @@ dojo.declare("dojox.editor.plugins.EntityPalette",
 	}
 });
 
-dojo.declare("dojox.editor.plugins.LatinEntity",
+EntityPalette.LatinEntity = dojo.declare("dojox.editor.plugins.LatinEntity",
 	null,
 	{
 		// summary:
@@ -227,6 +218,6 @@ dojo.declare("dojox.editor.plugins.LatinEntity",
 		}
 });
 
-return dojox.editor.plugins.EntityPalette;
+return EntityPalette;
 
 });

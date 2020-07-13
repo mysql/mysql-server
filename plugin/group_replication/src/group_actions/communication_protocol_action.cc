@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,8 @@ int Communication_protocol_action::process_action_message(
 
 Group_action::enum_action_execution_result
 Communication_protocol_action::execute_action(bool,
-                                              Plugin_stage_monitor_handler *) {
+                                              Plugin_stage_monitor_handler *,
+                                              Notification_context *) {
   /* Wait for the protocol change if it is ongoing. */
   m_protocol_change_done.wait();
 

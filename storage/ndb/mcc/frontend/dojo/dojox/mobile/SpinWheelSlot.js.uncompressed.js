@@ -2,39 +2,44 @@ define("dojox/mobile/SpinWheelSlot", [
 	"dojo/_base/kernel",
 	"dojo/_base/array",
 	"dojo/_base/declare",
-	"dojo/_base/lang",
 	"dojo/_base/window",
 	"dojo/dom-class",
 	"dojo/dom-construct",
+	"dojo/has", 
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/SpinWheelSlot",
+	"dojo/touch",
+	"dojo/on",
 	"dijit/_Contained",
 	"dijit/_WidgetBase",
-	"./scrollable"
-], function(dojo, array, declare, lang, win, domClass, domConstruct, Contained, WidgetBase, Scrollable){
+	"./scrollable",
+	"./common"
+], function(dojo, array, declare, win, domClass, domConstruct, has, BidiSpinWheelSlot, 
+	touch, on, Contained, WidgetBase, Scrollable){
 
 	// module:
 	//		dojox/mobile/SpinWheelSlot
 
-	return declare("dojox.mobile.SpinWheelSlot", [WidgetBase, Contained, Scrollable], {
+	var SpinWheelSlot = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiSpinWheelSlot" : "dojox.mobile.SpinWheelSlot", [WidgetBase, Contained, Scrollable], {
 		// summary:
 		//		A slot of a SpinWheel.
 		// description:
 		//		SpinWheelSlot is a slot that is placed in the SpinWheel widget.
 
 		// items: Array
-		//		An array of array of key-label paris.
-		//		(e.g. [[0,"Jan"],[1,"Feb"],...] ) If key values for each label
+		//		An array of array of key-label pairs
+		//		(e.g. [[0, "Jan"], [1, "Feb"], ...]). If key values for each label
 		//		are not necessary, labels can be used instead.
 		items: [],
 
 		// labels: Array
-		//		An array of labels to be displayed on the slot.
-		//		(e.g. ["Jan","Feb",...] ) This is a simplified version of the
+		//		An array of labels to be displayed on the slot
+		//		(e.g. ["Jan", "Feb", ...]). This is a simplified version of the
 		//		items property.
 		labels: [],
 
 		// labelFrom: Number
 		//		The start value of display values of the slot. This parameter is
-		//		especially useful when slot has serial values.
+		//		especially useful when the slot has serial values.
 		labelFrom: 0,
 
 		// labelTo: Number
@@ -55,11 +60,9 @@ define("dojox/mobile/SpinWheelSlot", [
 		//		The steps between labelFrom and labelTo.
 		step: 1,
 
-		// tabIndex: String
-		//		Tabindex setting for this widget so users can hit the tab key to
-		//		focus on it.
-		tabIndex: "0",
-		_setTabIndexAttr: "", // sets tabIndex to domNode
+		// pageStep: Number
+		//		The number of items in a page when using pageup/pagedown keys to navigate with the keyboard.
+		pageSteps: 1,
 
 		/* internal properties */	
 		baseClass: "mblSpinWheelSlot",
@@ -89,6 +92,7 @@ define("dojox/mobile/SpinWheelSlot", [
 			this.inherited(arguments);
 
 			this.initLabels();
+			var i, j;
 			if(this.labels.length > 0){
 				this.items = [];
 				for(i = 0; i < this.labels.length; i++){
@@ -102,16 +106,19 @@ define("dojox/mobile/SpinWheelSlot", [
 			this.panelNodes = [];
 			for(var k = 0; k < 3; k++){
 				this.panelNodes[k] = domConstruct.create("div", {className:"mblSpinWheelSlotPanel"});
+				this.panelNodes[k].setAttribute("aria-hidden", "true");
 				var len = this.items.length;
-				var n = Math.ceil(this.minItems / len);
-				for(j = 0; j < n; j++){
-					for(i = 0; i < len; i++){
-						domConstruct.create("div", {
-							className: "mblSpinWheelSlotLabel",
-							name: this.items[i][0],
-							val: this.items[i][1],
-							innerHTML: this._cv ? this._cv(this.items[i][1]) : this.items[i][1]
-						}, this.panelNodes[k]);
+				if(len > 0){ // if the slot is not empty
+					var n = Math.ceil(this.minItems / len);
+					for(j = 0; j < n; j++){
+						for(i = 0; i < len; i++){
+							domConstruct.create("div", {
+								className: "mblSpinWheelSlotLabel",
+								name: this.items[i][0],
+								"data-mobile-val": this.items[i][1],
+								innerHTML: this._cv ? this._cv(this.items[i][1]) : this.items[i][1]
+							}, this.panelNodes[k]);
+						}
 					}
 				}
 				this.containerNode.appendChild(this.panelNodes[k]);
@@ -120,22 +127,92 @@ define("dojox/mobile/SpinWheelSlot", [
 			this.touchNode = domConstruct.create("div", {className:"mblSpinWheelSlotTouch"}, this.domNode);
 			this.setSelectable(this.domNode, false);
 
+			this.touchNode.setAttribute("tabindex", 0);
+			this.touchNode.setAttribute("role", "slider");
+
 			if(this.value === "" && this.items.length > 0){
 				this.value = this.items[0][1];
 			}
 			this._initialValue = this.value;
+
+			if(has("windows-theme")){
+				var self = this,
+					containerNode = this.containerNode,
+					threshold = 5;
+
+				this.own(on(self.touchNode, touch.press, function(e){
+					var posY = e.pageY,
+						slots = self.getParent().getChildren();
+
+					for(var i = 0, ln = slots.length; i < ln; i++){
+						var container = slots[i].containerNode;
+
+						if(containerNode !== container){
+							domClass.remove(container, "mblSelectedSlot");
+							container.selected = false;
+						}else{
+							domClass.add(containerNode, "mblSelectedSlot");
+						}
+					}
+
+					var moveHandler = on(self.touchNode, touch.move, function(e){
+						if(Math.abs(e.pageY - posY) < threshold){
+							return;
+						}
+
+						moveHandler.remove();
+						releaseHandler.remove();
+						containerNode.selected = true;
+
+						var item = self.getCenterItem();
+
+						if(item){
+							domClass.remove(item, "mblSelectedSlotItem");
+						}
+					});
+
+					var releaseHandler = on(self.touchNode, touch.release, function(){
+						releaseHandler.remove();
+						moveHandler.remove();
+						containerNode.selected ?
+							domClass.remove(containerNode, "mblSelectedSlot") :
+							domClass.add(containerNode, "mblSelectedSlot");
+
+						containerNode.selected = !containerNode.selected;
+					});
+				}));
+
+				this.on("flickAnimationEnd", function(){
+						var item = self.getCenterItem();
+
+						if(self.previousCenterItem) {
+							domClass.remove(self.previousCenterItem, "mblSelectedSlotItem");
+						}
+
+						domClass.add(item, "mblSelectedSlotItem");
+						self.previousCenterItem = item;
+				});
+			}
 		},
 
 		startup: function(){
 			if(this._started){ return; }
 			this.inherited(arguments);
 			this.noResize = true;
-			this.init();
-			this.centerPos = this.getParent().centerPos;
-			var items = this.panelNodes[1].childNodes;
-			this._itemHeight = items[0].offsetHeight;
-			this.adjust();
-			this._keydownHandle = this.connect(this.domNode, "onkeydown", "_onKeyDown"); // for desktop browsers
+			if(this.items.length > 0){ // if the slot is not empty
+				this.init();
+				this.centerPos = this.getParent().centerPos;
+				var items = this.panelNodes[1].childNodes;
+				this._itemHeight = items[0].offsetHeight;
+				this.adjust();
+				this.connect(this.touchNode, "onkeydown", "_onKeyDown"); // for desktop browsers
+			}
+			if(has("windows-theme")){
+				this.previousCenterItem = this.getCenterItem();
+				if(this.previousCenterItem){
+					domClass.add(this.previousCenterItem, "mblSelectedSlotItem");
+				}
+			}
 		},
 
 		initLabels: function(){
@@ -150,6 +227,11 @@ define("dojox/mobile/SpinWheelSlot", [
 					a.push(this.zeroPad ? (zeros + i).slice(-this.zeroPad) : i + "");
 				}
 			}
+		},
+
+		onTouchStart: function(e) {
+			this.touchNode.focus(); // give focus to enable key navigation
+			this.inherited(arguments);
 		},
 
 		adjust: function(){
@@ -174,15 +256,34 @@ define("dojox/mobile/SpinWheelSlot", [
 			// summary:
 			//		Sets the initial value using this.value or the first item.
 			this.set("value", this._initialValue);
+			this.touchNode.setAttribute("aria-valuetext", this._initialValue);
 		},
 
 		_onKeyDown: function(e){
-			if(!e || e.type !== "keydown"){ return; }
-			if(e.keyCode === 40){ // down arrow key
-				this.spin(-1);
-			}else if(e.keyCode === 38){ // up arrow key
-				this.spin(1);
+			if(!e || e.type !== "keydown" || e.altKey || e.ctrlKey || e.shiftKey){
+				return true;
 			}
+			switch(e.keyCode){
+				case 38: // up arrow key (fallthrough)
+				case 39: // right arrow key
+					this.spin(1);
+					e.stopPropagation();
+					return false;
+				case 40: // down arrow key (fallthrough)
+				case 37: // left arrow key
+					this.spin(-1);
+					e.stopPropagation();
+					return false;
+				case 33: // pageup
+					this.spin(this.pageSteps);
+					e.stopPropagation();
+					return false;
+				case 34: // pagedown
+					this.spin(-1 * this.pageSteps);
+					e.stopPropagation();
+					return false;
+			}
+			return true;
 		},
 
 		_getCenterPanel: function(){
@@ -210,10 +311,10 @@ define("dojox/mobile/SpinWheelSlot", [
 
 		disableValues: function(/*Number*/n){
 			// summary:
-			//		Makes the specified items grayed out.
+			//		Grays out the items with an index higher or equal to the specified number.
 			array.forEach(this.panelNodes, function(panel){
-				for(var i = 27; i < 31; i++){
-					domClass.toggle(panel.childNodes[i], "mblSpinWheelSlotLabelGray", i >= nDays);
+				for(var i = 0; i < panel.childNodes.length; i++){
+					domClass.toggle(panel.childNodes[i], "mblSpinWheelSlotLabelGray", i >= n);
 				}
 			});
 		},
@@ -239,6 +340,17 @@ define("dojox/mobile/SpinWheelSlot", [
 		_getKeyAttr: function(){
 			// summary:
 			//		Gets the key for the currently selected value.
+			if(!this._started){
+				if(this.items){
+					var v = this.value;
+					for(var i = 0; i < this.items.length; i++){
+						if(this.items[i][1] == this.value){
+							return this.items[i][0];
+						}
+					}
+				}
+				return null;
+			}
 			var item = this.getCenterItem();
 			return (item && item.getAttribute("name"));
 		},
@@ -246,21 +358,45 @@ define("dojox/mobile/SpinWheelSlot", [
 		_getValueAttr: function(){
 			// summary:
 			//		Gets the currently selected value.
-			var item = this.getCenterItem();
-			return (item && item.getAttribute("val"));
+			if(!this._started){
+				return this.value;
+			}
+			if(this.items.length > 0){ // if the slot is not empty
+				var item = this.getCenterItem();
+				return (item && item.getAttribute("data-mobile-val"));
+			}else{
+				return this._initialValue;
+			}
 		},
 
 		_setValueAttr: function(value){
 			// summary:
 			//		Sets the value to this slot.
+			if(this.items.length > 0){ // no-op for empty slots
+				this._spinToValue(value, true);
+			}
+		},
+		
+		_spinToValue: function(value, applyValue){
+			// summary:
+			//		Spins the slot to the specified value.
+			// tags:
+			//		private
 			var idx0, idx1;
 			var curValue = this.get("value");
 			if(!curValue){
-				this._penddingValue = value;
+				this._pendingValue = value;
 				return;
 			}
-			this._penddingValue = undefined;
-			this._set("value", value);
+			if(curValue == value){
+				return; // no change; avoid notification
+			}
+			this._pendingValue = undefined;
+			// to avoid unnecessary notifications, applyValue is false when 
+			// _spinToValue is called by _DatePickerMixin.
+			if(applyValue){
+				this._set("value", value);
+			}
 			var n = this.items.length;
 			for(var i = 0; i < n; i++){
 				if(this.items[i][1] === String(curValue)){
@@ -282,20 +418,32 @@ define("dojox/mobile/SpinWheelSlot", [
 			}
 			this.spin(m);
 		},
-
-		stopAnimation: function(){
+		
+		onFlickAnimationStart: function(e){
 			// summary:
-			//		Stops the currently running animation.
-  			this.inherited(arguments);
-  			this._set("value", this.get("value")); // ensure the watches are notified
-		},	
+			//		Overrides dojox/mobile/scrollable.onFlickAnimationStart().
+			this._onFlickAnimationStartCalled = true;
+			this.inherited(arguments);
+		},
 
+		onFlickAnimationEnd: function(e){
+			// summary:
+			//		Overrides dojox/mobile/scrollable.onFlickAnimationEnd().
+			this._duringSlideTo = false;
+			this._onFlickAnimationStartCalled = false;
+			this.inherited(arguments);
+			this.touchNode.setAttribute("aria-valuetext", this.get("value"));
+		},
+		
 		spin: function(/*Number*/steps){
 			// summary:
 			//		Spins the slot as specified by steps.
-			if(!this._started){ return; } // do not work until start up
+			
+			// do nothing before startup and during slide
+			if(!this._started || this._duringSlideTo){
+				return; 
+			}
 			var to = this.getPos();
-			if(to.y % this._itemHeight){ return; } // maybe still spinning
 			to.y += steps * this._itemHeight;
 			this.slideTo(to, 1);
 		},
@@ -331,21 +479,40 @@ define("dojox/mobile/SpinWheelSlot", [
 			//		Overrides dojox/mobile/scrollable.adjustDestination().
 			var h = this._itemHeight;
 			var j = to.y + Math.round(h/2);
-			var a = Math.abs(j);
 			var r = j >= 0 ? j % h : j % h + h;
 			to.y = j - r;
 			return true;
 		},
 
 		resize: function(e){
-			if(this._penddingValue){
-				this.set("value", this._penddingValue);
+			// Correct internal variables & adjust slot panels
+			if(this.panelNodes && this.panelNodes.length > 0){
+				var items = this.panelNodes[1].childNodes;
+				// TODO investigate - the position is calculated incorrectly for
+				// windows theme, disable this logic for now.
+				if(items.length > 0 && !has("windows-theme")){ // empty slot?
+					var parent = this.getParent();
+					if(parent){ // #18012: null in same cases on IE8/9 
+						this._itemHeight = items[0].offsetHeight;
+						this.centerPos = parent.centerPos;
+						if(!this.panelNodes[0].style.top){
+							// (#17339) to avoid messing up the layout of the panels, call adjust()
+							// only if it didn't manage yet to set the style.top (this happens
+							// typically because the slot was initially	 hidden).
+							this.adjust();
+						}
+					}
+				}
+			}
+			if(this._pendingValue){
+				this.set("value", this._pendingValue);
 			}
 		},
 
 		slideTo: function(/*Object*/to, /*Number*/duration, /*String*/easing){
 			// summary:
 			//		Overrides dojox/mobile/scrollable.slideTo().
+			this._duringSlideTo = true; 
 			var pos = this.getPos();
 			var top = pos.y + this.panelNodes[1].offsetTop;
 			var bottom = top + this.panelNodes[1].offsetHeight;
@@ -370,13 +537,31 @@ define("dojox/mobile/SpinWheelSlot", [
 					this.panelNodes[2] = t;
 				}
 			}
-			if(!this._initialized){
+			if(this.getParent()._duringStartup){
 				duration = 0; // to reduce flickers at start-up especially on android
-				this._initialized = true;
+				// No scroll animation at startup. This avoids flickering especially on Android,
+				// and avoids the issue in #17775.
 			}else if(Math.abs(this._speed.y) < 40){
 				duration = 0.2;
 			}
-			this.inherited(arguments, [to, duration, easing]); // 2nd arg is to avoid excessive optimization by closure compiler
+			if(duration && duration > 0){
+				this.inherited(arguments, [to, duration, easing]); // 2nd arg is to avoid excessive optimization by closure compiler
+				if(!this._onFlickAnimationStartCalled){
+					// if slideTo() didn't call itself (synchronously) onFlickAnimationEnd():
+					this._duringSlideTo = false;
+					// (otherwise, wait for onFlickAnimationEnd which deletes the flag)
+				}
+			}else{
+				// #17775: at startup, no scroll animation, because it is not needed ergonomically,
+				// and because the animation would imply an asynchrouns notification of 
+				// onFlickAnimationEnd() which would forbid resetting the value right after startup.
+				// this.onFlickAnimationStart(); // not called by scrollTo()
+				this.onFlickAnimationStart(); // not called by scrollTo()
+				this.scrollTo(to, true);
+				this.onFlickAnimationEnd(); // not called by scrollTo()
+			}
 		}
 	});
+
+	return has("dojo-bidi") ? declare("dojox.mobile.SpinWheelSlot", [SpinWheelSlot, BidiSpinWheelSlot]) : SpinWheelSlot;	
 });

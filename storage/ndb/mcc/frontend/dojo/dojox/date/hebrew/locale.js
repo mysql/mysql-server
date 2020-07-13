@@ -1,5 +1,5 @@
 //>>built
-define("dojox/date/hebrew/locale",["../..","dojo/_base/lang","dojo/_base/array","dojo/date","dojo/i18n","dojo/regexp","dojo/string","./Date","./numerals","dojo/i18n!dojo/cldr/nls/hebrew"],function(_1,_2,_3,dd,_4,_5,_6,_7,_8){
+define("dojox/date/hebrew/locale",["dojox/main","dojo/_base/lang","dojo/_base/array","dojo/date","dojo/i18n","dojo/regexp","dojo/string","./Date","./numerals","dojo/i18n!dojo/cldr/nls/hebrew"],function(_1,_2,_3,dd,_4,_5,_6,_7,_8){
 var _9=_2.getObject("date.hebrew.locale",true,_1);
 _4.getLocalization("dojo.cldr","hebrew");
 function _a(_b,_c,_d,_e,_f){
@@ -9,6 +9,9 @@ var c=_10.charAt(0);
 var l=_10.length;
 var _11=["abbr","wide","narrow"];
 switch(c){
+case "G":
+s=_c[(l<4)?"eraAbbr":"eraNames"][0];
+break;
 case "y":
 if(_d.match(/^he(?:-.+)?$/)){
 s=_8.getYearHebrewLetters(_b.getFullYear());
@@ -314,7 +317,7 @@ case "M":
 if(_4b.match("^he(?:-.+)?$")){
 s=(l>2)?"\\S+ ?\\S+":"\\S{1,4}";
 }else{
-s=(l>2)?"\\S+ ?\\S+":p2+"[1-9]|1[0-2]";
+s=(l>2)?"\\S+ ?\\S+":p2+"[1-9]|1[0-3]";
 }
 break;
 case "d":

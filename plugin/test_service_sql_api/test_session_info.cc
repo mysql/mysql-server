@@ -878,6 +878,7 @@ static void test_sql(void *p) {
                    "INFORMATION_SCHEMA.PROCESSLIST WHERE info LIKE 'PLUGIN%' "
                    "ORDER BY id",
                    p, plugin_ctx, true);
+  session_1 = nullptr;  // session_1 is closed in EXEC_TEST_CMD_EX.
   WRITE_SEP();
   WRITE_VAL("srv_session_info_killed(Session 1) : %d\n",
             srv_session_info_killed(session_1));

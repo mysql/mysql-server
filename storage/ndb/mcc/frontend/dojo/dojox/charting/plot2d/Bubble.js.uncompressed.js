@@ -1,17 +1,13 @@
-define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", 
-		"./CartesianBase", "./_PlotEvents", "./common", "dojox/lang/functional", "dojox/lang/functional/reversed",
-		"dojox/lang/utils", "dojox/gfx/fx"], 
-	function(lang, declare, arr, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
-
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/has",
+		"./CartesianBase", "./_PlotEvents", "./common", "dojox/lang/functional",
+		"dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, declare, arr, has, CartesianBase, _PlotEvents, dc, df, du, fx){
 
 	return declare("dojox.charting.plot2d.Bubble", [CartesianBase, _PlotEvents], {
 		// summary:
 		//		A plot representing bubbles.  Note that data for Bubbles requires 3 parameters,
 		//		in the form of:  { x, y, size }, where size determines the size of the bubble.
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			animate: null   // animate bars into place
 		},
 		optionalParams: {
@@ -20,9 +16,11 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 			outline:	{},
 			shadow:		{},
 			fill:		{},
+			filter:     {},
 			styleFunc:	null,
 			font:		"",
-			fontColor:	""
+			fontColor:	"",
+			labelFunc: null
 		},
 
 		constructor: function(chart, kwArgs){
@@ -32,12 +30,14 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 			//		The chart this plot belongs to.
 			// kwArgs: dojox.charting.plot2d.__DefaultCtorArgs?
 			//		Optional keyword arguments object to help define plot parameters.
-			this.opt = lang.clone(this.defaultParams);
+			this.opt = lang.clone(lang.mixin(this.opt, this.defaultParams));
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
+			if(!this.opt.labelFunc){
+				this.opt.labelFunc = function(value, fixed, precision){
+					return this._getLabel(value.size, fixed, precision);
+				};
+			}
 			this.animate = this.opt.animate;
 		},
 
@@ -51,16 +51,17 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 			//		An object of the form { l, r, t, b}.
 			// returns: dojox/charting/plot2d/Bubble
 			//		A reference to this plot for functional chaining.
+			var s;
 			if(this.zoom && !this.isDataDirty()){
 				return this.performZoom(dim, offsets);
 			}
 			this.resetEvents();
 			this.dirty = this.isDirty();
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				var s = this.group;
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 
@@ -69,7 +70,7 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
 				events = this.events();
 
-			for(var i = this.series.length - 1; i >= 0; --i){
+			for(var i = 0; i < this.series.length; i++){
 				var run = this.series[i];
 				if(!this.dirty && !run.dirty){
 					t.skip();
@@ -88,14 +89,21 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 					continue;
 				}
 
-				var theme = t.next("circle", [this.opt, run]), s = run.group,
-					points = arr.map(run.data, function(v, i){
+				var theme = t.next("circle", [this.opt, run]),
+					points = arr.map(run.data, function(v){
 						return v ? {
 							x: ht(v.x) + offsets.l,
 							y: dim.height - offsets.b - vt(v.y),
 							radius: this._vScaler.bounds.scale * (v.size / 2)
 						} : null;
 					}, this);
+
+				if(run.hidden){
+					run.dyn.fill = theme.series.fill;
+					run.dyn.stroke =  theme.series.stroke;
+					continue;
+				}
+				s = run.group;
 
 				var frontCircles = null, outlineCircles = null, shadowCircles = null, styleFunc = this.opt.styleFunc;
 
@@ -109,7 +117,7 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				// make shadows if needed
 				if(theme.series.shadow){
 					shadowCircles = arr.map(points, function(item, i){
-						if(item !== null){
+						if(!this.isNullValue(item)){
 							var finalTheme = getFinalTheme(run.data[i]),
 								shadow = finalTheme.series.shadow;
 							var shape = s.createCircle({
@@ -130,10 +138,10 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				// make outlines if needed
 				if(theme.series.outline){
 					outlineCircles = arr.map(points, function(item, i){
-						if(item !== null){
+						if(!this.isNullValue(item)){
 							var finalTheme = getFinalTheme(run.data[i]),
 								outline = dc.makeStroke(finalTheme.series.outline);
-							outline.width = 2 * outline.width + theme.series.stroke.width;
+							outline.width = 2 * outline.width + (theme.series.stroke && theme.series.stroke.width || 0);
 							var shape = s.createCircle({
 								cx: item.x, cy: item.y, r: item.radius
 							}).setStroke(outline);
@@ -151,7 +159,7 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 
 				//	run through the data and add the circles.
 				frontCircles = arr.map(points, function(item, i){
-					if(item !== null){
+					if(!this.isNullValue(item)){
 						var finalTheme = getFinalTheme(run.data[i]),
 							rect = {
 								x: item.x - item.radius,
@@ -164,9 +172,13 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 						var shape = s.createCircle({
 							cx: item.x, cy: item.y, r: item.radius
 						}).setFill(specialFill).setStroke(finalTheme.series.stroke);
+						if(shape.setFilter && finalTheme.series.filter){
+							shape.setFilter(finalTheme.series.filter);
+						}
 						if(this.animate){
 							this._animateBubble(shape, dim.height - offsets.b, item.radius);
 						}
+						this.createLabel(s, run.data[i], rect, finalTheme);
 						return shape;
 					}
 					return null;
@@ -206,6 +218,11 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				run.dirty = false;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/Bubble
 		},
 		_animateBubble: function(shape, offset, size){

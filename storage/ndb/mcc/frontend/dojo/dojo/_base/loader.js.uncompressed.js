@@ -1,4 +1,4 @@
-define("dojo/_base/loader", ["./kernel", "../has", "require", "module", "./json", "./lang", "./array"], function(dojo, has, require, thisModule, json, lang, array) {
+define("dojo/_base/loader", ["./kernel", "../has", "require", "module", "../json", "./lang", "./array"], function(dojo, has, require, thisModule, json, lang, array) {
 	// module:
 	//		dojo/_base/loader
 
@@ -294,7 +294,7 @@ define("dojo/_base/loader", ["./kernel", "../has", "require", "module", "./json"
 			startApplication  // the position in text where the function application expression starts
 		){
 			// find end of the call by finding the matching end paren
-			// Warning: as usual, this will fail in the presense of unmatched right parans contained in strings, regexs, or unremoved comments
+			// Warning: as usual, this will fail in the presence of unmatched right parans contained in strings, regexs, or unremoved comments
 			var parenRe = /\(|\)/g,
 				matchCount = 1,
 				match;
@@ -318,19 +318,11 @@ define("dojo/_base/loader", ["./kernel", "../has", "require", "module", "./json"
 			return [dojo.trim(text.substring(startApplication, parenRe.lastIndex))+";\n", parenRe.lastIndex];
 		},
 
-		// the following regex is taken from 1.6. It is a very poor technique to remove comments and
-		// will fail in some cases; for example, consider the code...
+		// The following regex matches all comments and strings, with the strings in the capturing group.
+		// Replacing all matches with "$1" will remove comments and keep strings.
 		//
-		//	  var message = "Category-1 */* Category-2";
-		//
-		// The regex that follows will see a /* comment and trash the code accordingly. In fact, there are all
-		// kinds of cases like this with strings and regexs that will cause this design to fail miserably.
-		//
-		// Alternative regex designs exist that will result in less-likely failures, but will still fail in many cases.
-		// The only solution guaranteed 100% correct is to parse the code and that seems overkill for this
-		// backcompat/unbuilt-xdomain layer. In the end, since it's been this way for a while, we won't change it.
-		// See the opening paragraphs of Chapter 7 or ECME-262 which describes the lexical abiguity further.
-		removeCommentRe = /(\/\*([\s\S]*?)\*\/|\/\/(.*)$)/mg,
+		// It accounts for single quotes, double quotes, backslashes (line continuations and escaped characters), and template strings.
+		removeCommentRe = /\/\/.*|\/\*[\s\S]*?\*\/|("(?:\\.|[^"])*"|'(?:\\.|[^'])*'|`(?:\\.|[^`])*`)/mg,
 
 		syncLoaderApiRe = /(^|\s)dojo\.(loadInit|require|provide|requireLocalization|requireIf|requireAfterIf|platformRequire)\s*\(/mg,
 
@@ -360,12 +352,7 @@ define("dojo/_base/loader", ["./kernel", "../has", "require", "module", "./json"
 				allApplications = [];
 
 			// noCommentText may be provided by a build app with comments extracted by a better method than regex (hopefully)
-			noCommentText = noCommentText || text.replace(removeCommentRe, function(match){
-				// remove iff the detected comment has text that looks like a sync loader API application; this helps by
-				// removing as little as possible, minimizing the changes the janky regex will kill the module
-				syncLoaderApiRe.lastIndex = amdLoaderApiRe.lastIndex = 0;
-				return (syncLoaderApiRe.test(match) || amdLoaderApiRe.test(match)) ? "" : match;
-			});
+			noCommentText = noCommentText || text.replace(removeCommentRe, "$1");
 
 			// find and extract all dojo.loadInit applications
 			while((match = syncLoaderApiRe.exec(noCommentText))){
@@ -435,10 +422,10 @@ define("dojo/_base/loader", ["./kernel", "../has", "require", "module", "./json"
 			// don't have to map dojo/init since that will occur when the dependency is resolved
 			return "// xdomain rewrite of " + module.mid + "\n" +
 				"define('" + id + "',{\n" +
-				"\tnames:" + dojo.toJson(names) + ",\n" +
+				"\tnames:" + json.stringify(names) + ",\n" +
 				"\tdef:function(" + names.join(",") + "){" + extractResult[1] + "}" +
 				"});\n\n" +
-				"define(" + dojo.toJson(names.concat(["dojo/loadInit!"+id])) + ", function(" + names.join(",") + "){\n" + extractResult[0] + "});";
+				"define(" + json.stringify(names.concat(["dojo/loadInit!"+id])) + ", function(" + names.join(",") + "){\n" + extractResult[0] + "});";
 		},
 
 		loaderVars = require.initSyncLoader(dojoRequirePlugin, checkDojoRequirePlugin, transformToAmd),
@@ -720,7 +707,7 @@ define("dojo/_base/loader", ["./kernel", "../has", "require", "module", "./json"
 		//		optionally load dojo modules. The map is indexed by the
 		//		possible dojo.name_ values, with two additional values:
 		//		"default" and "common". The items in the "default" array will
-		//		be loaded if none of the other items have been choosen based on
+		//		be loaded if none of the other items have been chosen based on
 		//		dojo.name_, set by your host environment. The items in the
 		//		"common" array will *always* be loaded, regardless of which
 		//		list is chosen.

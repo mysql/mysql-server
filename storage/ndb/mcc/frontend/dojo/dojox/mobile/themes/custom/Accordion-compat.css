@@ -12,7 +12,8 @@
   -moz-border-radius-topleft: 8px;
   -moz-border-radius-topright: 8px;
 }
-.dj_ff3 .mblAccordionRoundRect .mblAccordionTitleLast, .dj_ff3 .mblAccordionRoundRect .mblAccordionPane:last-child {
+.dj_ff3 .mblAccordionRoundRect .mblAccordionTitleLast,
+.dj_ff3 .mblAccordionRoundRect .mblAccordionPane:last-child {
   -moz-border-radius-bottomleft: 8px;
   -moz-border-radius-bottomright: 8px;
 }

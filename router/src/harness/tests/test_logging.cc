@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,12 +29,6 @@
 #include <ctime>
 #include <stdexcept>
 
-#ifdef _WIN32
-#include <process.h>  // getpid()
-#else
-#include <unistd.h>  // unlink
-#endif
-
 ////////////////////////////////////////
 // Third-party include'files
 #include <gmock/gmock.h>
@@ -51,6 +45,8 @@
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/filesystem.h"
+#include "mysql/harness/stdx/process.h"
 #include "test/helpers.h"
 
 using mysql_harness::Path;
@@ -68,11 +64,7 @@ using mysql_harness::logging::LogTimestampPrecision;
 using mysql_harness::logging::Record;
 using mysql_harness::logging::StreamHandler;
 
-#if GTEST_HAS_COMBINE
-// only available if the system has <tr1/tuple> [if not gtest's own, minimal
-// tr1/tuple is used.
 using testing::Combine;
-#endif
 using testing::ContainsRegex;
 using testing::EndsWith;
 using testing::Eq;
@@ -274,10 +266,11 @@ TEST_F(LoggingLowLevelTest, test_logger_update) {
 TEST(FunctionalTest, ThisMustRunAsFirst) { init_test_logger(); }
 
 TEST(FunctionalTest, LogFromUnregisteredModule) {
-  // Test a scenario when no domain logger has been added yet. Logging should
-  // fall back to using application ("main") logger, which is always added by
-  // the application (init_log() in main(), in our case), albeit with an extra
-  // error message preceding it.
+  // Test a scenario when no domain logger has been added yet.
+  //
+  // Logging should fall back to using application ("main") logger's
+  // configuration, which is always added by the application (init_log() in
+  // main(), in our case), but use the "log domain"
 
   std::stringstream buffer;
   auto handler = std::make_shared<StreamHandler>(buffer);
@@ -287,19 +280,14 @@ TEST(FunctionalTest, LogFromUnregisteredModule) {
   log_info("Test message from an unregistered module");
   std::string log = buffer.str();
 
-  // log message should be something like (2 lines):
-  // 2017-04-12 14:05:31 main ERROR [7ffff7fd5780] Module 'my_domain' not
-  // registered with logger - logging the following message as 'main' instead
-  // 2017-04-12 14:05:31 main INFO [7ffff7fd5780] Test message from an
+  // log message should be something like:
+  // 2017-04-12 14:05:31 my_domain INFO [7ffff7fd5780] Test message from an
   // unregistered module
-  EXPECT_NE(log.npos, log.find(" main ERROR"));
-  EXPECT_NE(log.npos,
-            log.find(" Module 'my_domain' not registered with logger - logging "
-                     "the following message as 'main' instead\n"));
-  size_t first_endl = log.find('\n');
-  EXPECT_NE(log.npos, log.find(" main INFO", first_endl));
-  EXPECT_NE(log.npos, log.find(" Test message from an unregistered module\n",
-                               first_endl));
+  EXPECT_THAT(log, ::testing::Not(::testing::HasSubstr(" main ERROR")));
+
+  EXPECT_THAT(log, ::testing::HasSubstr(" my_domain INFO"));
+  EXPECT_THAT(
+      log, ::testing::HasSubstr(" Test message from an unregistered module\n"));
 
   // clean up
   g_registry->remove_handler(StreamHandler::kDefaultName);
@@ -335,8 +323,8 @@ TEST(FunctionalTest, LogOnDanglingHandlerReference) {
   // Logger::handle() should deal with it properly - it should log
   // to all (still existing) handlers ("z_stayer" in this case).
   EXPECT_NO_THROW(
-      l.handle(Record{LogLevel::kWarning, getpid(), kDefaultTimepoint,
-                      "my_logger", "Test message"}));
+      l.handle(Record{LogLevel::kWarning, stdx::this_process::get_id(),
+                      kDefaultTimepoint, "my_logger", "Test message"}));
   std::string log = buffer.str();
 
   // log message should be something like:
@@ -376,8 +364,8 @@ TEST_F(LoggingTest, StreamHandler) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
-                       "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged after applying format (timestamp, etc)
@@ -395,17 +383,20 @@ TEST_F(LoggingTest, FileHandler) {
 
   // We do not use mktemp or friends since we want this to work on
   // Windows as well.
-  Path log_file(g_here.join("log4-" + std::to_string(getpid()) + ".log"));
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { unlink(log_file.c_str()); });
+  Path log_file(g_here.join(
+      "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+    std::error_code ec;
+    stdx::filesystem::remove(log_file.str(), ec);
+  });
 
   g_registry->add_handler("TestFileHandler",
                           std::make_shared<FileHandler>(log_file));
   logger.attach_handler("TestFileHandler");
 
   // Log one record
-  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
-                       "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
 
   // Open and read the entire file into memory.
   std::vector<std::string> lines;
@@ -425,6 +416,88 @@ TEST_F(LoggingTest, FileHandler) {
   // message should be logged after applying format (timestamp, etc)
   EXPECT_THAT(lines.at(0),
               ContainsRegex(kDateRegex + " my_module INFO.*Message"));
+
+  // clean up
+  g_registry->remove_handler("TestFileHandler");
+}
+
+TEST_F(LoggingTest, FileHandlerRotate) {
+  // Check that the FileHandler can rotate to supplied filename
+
+  // We do not use mktemp or friends since we want this to work on
+  // Windows as well.
+  Path log_file(g_here.join(
+      "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  Path renamed_log_file(g_here.join(
+      "rotated-log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+    std::error_code ec;
+    stdx::filesystem::remove(log_file.str(), ec);
+    stdx::filesystem::remove(renamed_log_file.str(), ec);
+  });
+
+  g_registry->add_handler("TestFileHandler",
+                          std::make_shared<FileHandler>(log_file));
+  logger.attach_handler("TestFileHandler");
+
+  // Log one record
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
+
+  // Verify only the original logfile exists
+  ASSERT_TRUE(log_file.exists());
+
+  // Open and read the entire file into memory.
+  std::vector<std::string> lines;
+  {
+    std::ifstream ifs_log(log_file.str());
+    std::string line;
+    while (std::getline(ifs_log, line)) lines.push_back(line);
+  }
+
+  // We do the assertion here to ensure that we can do as many tests
+  // as possible and report issues.
+  ASSERT_THAT(lines.size(), Ge(1));
+
+  // Check basic properties for the first line.
+  EXPECT_THAT(lines.size(), Eq(1));
+
+  // Message should be logged after applying format (timestamp, etc)
+  EXPECT_THAT(lines.at(0),
+              ContainsRegex(kDateRegex + " my_module INFO.*Message"));
+
+  // Rotate existing file to old filename
+  g_registry->flush_all_loggers(renamed_log_file.str());
+
+  // Verify the renamed file exists
+  ASSERT_TRUE(renamed_log_file.exists());
+
+  // Log one record after rotation
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Another message"});
+
+  // Verify the original log file once again gets logged to
+  ASSERT_TRUE(log_file.exists());
+
+  // Open and read the new file into memory after rotation
+  std::vector<std::string> lines2;
+  {
+    std::ifstream ifs_log(log_file.str());
+    std::string line;
+    while (std::getline(ifs_log, line)) lines2.push_back(line);
+  }
+
+  // We do the assertion here to ensure that we can do as many tests
+  // as possible and report issues.
+  ASSERT_THAT(lines2.size(), Ge(1));
+
+  // Check basic properties for the first line.
+  EXPECT_THAT(lines2.size(), Eq(1));
+
+  // Message should be logged after rotation and applying format (timestamp,
+  // etc)
+  EXPECT_THAT(lines2.at(0),
+              ContainsRegex(kDateRegex + " my_module INFO.*Another message"));
 
   // clean up
   g_registry->remove_handler("TestFileHandler");
@@ -518,8 +591,8 @@ TEST_F(LoggingTest, HandlerWithDisabledFormatting) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
-                       "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged verbatim
@@ -539,7 +612,7 @@ TEST_F(LoggingTest, Messages) {
   std::chrono::time_point<std::chrono::system_clock> now =
       std::chrono::system_clock::now();
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   auto check_message = [this, &buffer, now, pid](const std::string &message,
                                                  LogLevel level,
@@ -590,7 +663,7 @@ TEST_F(LoggingTest, TimestampPrecision) {
   const auto nsec_part = std::chrono::duration_cast<std::chrono::nanoseconds>(
       now - std::chrono::system_clock::from_time_t(cur));
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   auto check_precision = [this, &buffer, now, pid, cur_localtime, nsec_part](
                              const std::string &message,
@@ -651,7 +724,6 @@ TEST_F(LoggingTest, TimestampPrecision) {
   g_registry->remove_handler("TestStreamHandler");
 }
 
-#if GTEST_HAS_COMBINE
 class LogLevelTest : public LoggingTest,
                      public WithParamInterface<std::tuple<LogLevel, LogLevel>> {
 };
@@ -670,7 +742,7 @@ TEST_P(LogLevelTest, Level) {
   std::chrono::time_point<std::chrono::system_clock> now =
       std::chrono::system_clock::now();
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   // Set the log level of the logger.
   logger.set_level(logger_level);
@@ -710,9 +782,9 @@ const LogLevel all_levels[]{
     LogLevel::kFatal, LogLevel::kSystem, LogLevel::kError, LogLevel::kWarning,
     LogLevel::kInfo,  LogLevel::kNote,   LogLevel::kDebug};
 
-INSTANTIATE_TEST_CASE_P(CheckLogLevel, LogLevelTest,
-                        Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
-#endif
+INSTANTIATE_TEST_SUITE_P(CheckLogLevel, LogLevelTest,
+                         Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
+
 ////////////////////////////////////////////////////////////////
 // Tests of the functional interface to the logger.
 ////////////////////////////////////////////////////////////////

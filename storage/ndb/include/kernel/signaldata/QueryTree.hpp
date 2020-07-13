@@ -147,6 +147,14 @@ struct DABits
      */
     NI_FIRST_MATCH = 0x800,
 
+    /**
+     * A ANTI_JOIN return only the rows not having a match on the right side.
+     * .. it is the inverse of NI_INNER_JOIN.
+     * It also implies FIRST_MATCH like behaviour as we can conclude that
+     * the row should not be returned as soon as a FIRST_MATCH has been found.
+     */
+    NI_ANTI_JOIN = 0x1000,
+
     NI_END = 0
   };
 

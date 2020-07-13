@@ -371,7 +371,7 @@ dojo.declare("dojox.sql._SQLCrypto", null, {
 		for(var i = 0; i < args.length; i++){
 			if(encryptColumns[i]){
 				// we have an encrypt() keyword -- get just the value inside
-				// the encrypt() parantheses -- for now this must be a ?
+				// the encrypt() parentheses -- for now this must be a ?
 				var sqlParam = args[i];
 				var paramIndex = i;
 			

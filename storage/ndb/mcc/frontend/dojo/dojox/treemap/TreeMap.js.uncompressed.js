@@ -18,6 +18,10 @@ define("dojox/treemap/TreeMap", ["dojo/_base/array", "dojo/_base/lang", "dojo/_b
 		// query: Object
 		//		A query that can be passed to when querying the store.
 		query: {},
+
+		// queryOptions: dojo/store/api/Store.QueryOptions?
+		//		Options to be applied when querying the store.
+		queryOptions: null,
 		
 		// itemToRenderer: [protected] Object
 		//		The associated array item to renderer list.
@@ -100,9 +104,9 @@ define("dojox/treemap/TreeMap", ["dojo/_base/array", "dojo/_base/lang", "dojo/_b
 		
 		postCreate: function(){
 			this.inherited(arguments);
-			this.connect(this.domNode, "mouseover", this._onMouseOver);
-			this.connect(this.domNode, "mouseout", this._onMouseOut);
-			this.connect(this.domNode, touch.release, this._onMouseUp);
+			this.own(on(this.domNode, "mouseover", lang.hitch(this, this._onMouseOver)));
+			this.own(on(this.domNode, "mouseout", lang.hitch(this, this._onMouseOut)));
+			this.own(on(this.domNode, touch.release, lang.hitch(this, this._onMouseUp)));
 			this.domNode.setAttribute("role", "presentation");
 			this.domNode.setAttribute("aria-label", "treemap");
 		},
@@ -155,17 +159,21 @@ define("dojox/treemap/TreeMap", ["dojo/_base/array", "dojo/_base/lang", "dojo/_b
 				domConstruct.empty(this.domNode);
 			}
 	
-			var rootItem = this.rootItem;
+			var rootItem = this.rootItem, rootParentItem;
 	
 			if(rootItem != null){
-				if(this._isLeaf(rootItem)){
-					rootItem = this._getRenderer(rootItem).parentItem;
+				var rootItemRenderer = this._getRenderer(rootItem);
+				if(rootItemRenderer){
+					if(this._isLeaf(rootItem)){
+						rootItem = rootItemRenderer.parentItem;
+					}
+					rootParentItem = rootItemRenderer.parentItem;
 				}
 			}
 
 			var box = domGeom.getMarginBox(this.domNode);
 			if(rootItem != null){
-				this._buildRenderer(this.domNode, null, rootItem, {
+				this._buildRenderer(this.domNode, rootParentItem, rootItem, {
 					x: box.l, y: box.t, w: box.w, h: box.h
 				}, 0, forceCreate);
 			}else{
@@ -181,11 +189,15 @@ define("dojox/treemap/TreeMap", ["dojo/_base/array", "dojo/_base/lang", "dojo/_b
 	
 		_setStoreAttr: function(value){
 			var r;
+			if(this._observeHandler){
+				this._observeHandler.remove();
+				this._observeHandler = null;
+			}
 			if(value != null){
-				var results = value.query(this.query);
+				var results = value.query(this.query, this.queryOptions);
 				if(results.observe){
 					// user asked us to observe the store
-					results.observe(lang.hitch(this, this._updateItem), true);
+					this._observeHandler = results.observe(lang.hitch(this, this._updateItem), true);
 				}				
 				r = when(results, lang.hitch(this, this._initItems));
 			}else{
@@ -687,7 +699,7 @@ define("dojox/treemap/TreeMap", ["dojo/_base/array", "dojo/_base/lang", "dojo/_b
 		_onMouseUp: function(e){
 			var renderer = this._getRendererFromTarget(e.target);
 			if(renderer.item){
-				this.selectFromEvent(e, renderer.item, e.currentTarget, true);
+				this.selectFromEvent(e, renderer.item, renderer, true);
 				//event.stop(e);
 			}
 		},

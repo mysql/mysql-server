@@ -571,9 +571,9 @@ bool GRMetadataCache::fetch_metadata_from_connected_instance(
               rs.second.members.size(),
               rs.second.single_primary_mode ? "single-master" : "multi-master");
           for (const auto &mi : rs.second.members) {
-            log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
-                     mi.port, mi.xport, mi.role.c_str(),
-                     to_string(mi.mode).c_str());
+            log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+                     mi.xport, to_string(mi.mode).c_str(),
+                     get_hidden_info(mi).c_str());
 
             if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
               // If we were running with a primary or secondary node gone

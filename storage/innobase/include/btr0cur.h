@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -585,8 +585,12 @@ bool btr_estimate_number_of_different_key_vals(
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
-@param[out]	lob_version	version of lob
-@param[in]	is_sdi		true for SDI Indexes
+@param[out]	lob_version	version of lob */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(

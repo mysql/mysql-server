@@ -35,7 +35,7 @@ var _b;
 if(_a&&_a.target){
 _b=_a.target;
 while(!_2.byNode(_b)){
-_b-_b.parentNode;
+_b=_b.parentNode;
 }
 }
 if(this.onChoose){

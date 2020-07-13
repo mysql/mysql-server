@@ -40,7 +40,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 --echo #
 --let $rpl_connection_name= server_1_1
 --source include/rpl_connection.inc
-SET DEBUG_SYNC= "now WAIT_FOR signal.reached_stop_before_leave_the_group";
+SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 
 --echo #
 --echo # Send PS query from different session. The query shall halt in

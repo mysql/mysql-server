@@ -3258,8 +3258,8 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
   This should be called after the tables have been dumped in case a trigger
   depends on the existence of a table.
 
-  @param[in] table_name
-  @param[in] db_name
+  @param[in] table_name table name
+  @param[in] db_name db name
 
   @return Error status.
     @retval true error has occurred.
@@ -3786,15 +3786,18 @@ static void dump_table(char *table, char *db) {
             if (length) {
               if (!(field->flags & NUM_FLAG)) {
                 /*
-                  "length * 2 + 2" is OK for both HEX and non-HEX modes:
+                  "length * 2 + 2" is OK for HEX mode:
                   - In HEX mode we need exactly 2 bytes per character
                   plus 2 bytes for '0x' prefix.
                   - In non-HEX mode we need up to 2 bytes per character,
-                  plus 2 bytes for leading and trailing '\'' characters.
-                  Also we need to reserve 1 byte for terminating '\0'.
+                  plus 2 bytes for leading and trailing '\'' characters
+                  and reserve 1 byte for terminating '\0'.
+                  In addition to this, for the blob type, we need to
+                  reserve for the "_binary " string that gets added in
+                  front of the string in the dump.
                 */
-                dynstr_realloc_checked(&extended_row, length * 2 + 2 + 1);
                 if (opt_hex_blob && is_blob) {
+                  dynstr_realloc_checked(&extended_row, length * 2 + 2 + 1);
                   dynstr_append_checked(&extended_row, "0x");
                   extended_row.length += mysql_hex_string(
                       extended_row.str + extended_row.length, row[i], length);
@@ -3803,6 +3806,9 @@ static void dump_table(char *table, char *db) {
                   /* mysql_hex_string() already terminated string by '\0' */
                   DBUG_ASSERT(extended_row.str[extended_row.length] == '\0');
                 } else {
+                  dynstr_realloc_checked(
+                      &extended_row,
+                      length * 2 + 2 + 1 + (is_blob ? strlen("_binary ") : 0));
                   if (is_blob) {
                     /*
                       inform SQL parser that this string isn't in

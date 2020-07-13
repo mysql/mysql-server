@@ -2,15 +2,18 @@
 .mblProgressBar {
   position: relative;
   height: 13px;
-  background-color: white;
-  border: 1px solid #739ec6;
+  background-color: #ffffff;
+  border: 1px solid #048bf4;
 }
 .mblProgressBarProgress {
   -webkit-transition-property: width;
+  transition-property: width;
   -webkit-transition-duration: 0.25s;
+  transition-duration: 0.25s;
   height: 13px;
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#e7f7ff), to(#add7ff), color-stop(0.5, #cee7ff));
-  border-right: 1px solid #739ec6;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#048bf4), to(#48adfc), color-stop(0.5, #048bf4));
+  background-image: linear-gradient(to bottom, #048bf4 0%, #048bf4 50%, #48adfc 100%);
+  border-right: 1px solid #048bf4;
 }
 .mblProgressBarNotStarted {
   border-left: none;

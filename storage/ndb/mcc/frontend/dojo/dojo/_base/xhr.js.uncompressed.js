@@ -121,8 +121,8 @@ define("dojo/_base/xhr", [
 
 			if(result && has("dom-qsa2.1") && !result.querySelectorAll && has("dom-parser")){
 				// http://bugs.dojotoolkit.org/ticket/15631
-				// IE9 supports a CSS3 querySelectorAll implementation, but the DOM implementation 
-				// returned by IE9 xhr.responseXML does not. Manually create the XML DOM to gain 
+				// IE9 supports a CSS3 querySelectorAll implementation, but the DOM implementation
+				// returned by IE9 xhr.responseXML does not. Manually create the XML DOM to gain
 				// the fuller-featured implementation and avoid bugs caused by the inconsistency
 				result = new DOMParser().parseFromString(xhr.responseText, "application/xml");
 			}
@@ -334,25 +334,25 @@ define("dojo/_base/xhr", [
 			//IE requires going through getAttributeNode instead of just getAttribute in some form cases,
 			//so use it for all. See #2844
 			var actnNode = form.getAttributeNode("action");
-			ioArgs.url = ioArgs.url || (actnNode ? actnNode.value : null);
+			ioArgs.url = ioArgs.url || (actnNode ? actnNode.value : (dojo.doc ? dojo.doc.URL : null));
 			formObject = domForm.toObject(form);
 		}
 
 		// set up the query params
-		var miArgs = [{}];
+		var miArgs = {};
 
 		if(formObject){
 			// potentially over-ride url-provided params w/ form values
-			miArgs.push(formObject);
+			lang.mixin(miArgs, formObject);
 		}
 		if(args.content){
 			// stuff in content over-rides what's set by form
-			miArgs.push(args.content);
+			lang.mixin(miArgs, args.content);
 		}
 		if(args.preventCache){
-			miArgs.push({"dojo.preventCache": new Date().valueOf()});
+			miArgs["dojo.preventCache"] = new Date().valueOf();
 		}
-		ioArgs.query = ioq.objectToQuery(lang.mixin.apply(null, miArgs));
+		ioArgs.query = ioq.objectToQuery(miArgs);
 
 		// .. and the real work of getting the deferred in order, etc.
 		ioArgs.handleAs = args.handleAs || "text";

@@ -71,6 +71,10 @@ define("dojox/mvc/at", [
 			transform: function(/*dojox/mvc/sync.converter*/ converter){
 				this.converter = converter;
 				return this;
+			},
+			equals: function(/*Function*/ equals){
+				this.equalsCallback = equals;
+				return this;
 			}
 		};
 	};
@@ -108,6 +112,14 @@ define("dojox/mvc/at", [
 			//		Attach a data converter.
 			// converter: dojox/mvc/sync.converter
 			//		Class/object containing the converter functions used when the data goes between data binding target (e.g. data model or controller) to data binding origin (e.g. widget).
+		},
+
+		equals: function(equals){
+			// summary:
+			//		Sets a function to check if a value has really been changed when source/target dojo/Stateful changes.
+			// equals: Function
+			//		The function to check for the change.
+			//		Should take two arguments, and should return true when those two are considered equal.
 		}
 	};
 	=====*/

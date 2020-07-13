@@ -26,12 +26,21 @@ define("dojo/request/script", [
 		callbacks = kernel.global[mid + '_callbacks'] = {},
 		deadScripts = [];
 
-	function attach(id, url, frameDoc){
+	function attach(id, url, frameDoc, errorHandler){
 		var doc = (frameDoc || win.doc),
 			element = doc.createElement('script');
 
+		if (errorHandler) {
+			on.once(element, 'error', errorHandler);
+		}
+
 		element.type = 'text/javascript';
-		element.src = url;
+		try {
+			element.src = url;
+		} catch(err) {
+			errorHandler && errorHandler(element);
+		}
+
 		element.id = id;
 		element.async = true;
 		element.charset = 'utf-8';
@@ -150,7 +159,15 @@ define("dojo/request/script", [
 		}
 
 		if(!options.canAttach || options.canAttach(dfd)){
-			var node = script._attach(dfd.id, url, options.frameDoc);
+			var node = script._attach(dfd.id, url, options.frameDoc, function (error) {
+				if (!(error instanceof Error)) {
+					var newError = new Error('Error loading ' + (error.target ? error.target.src : 'script'));
+					newError.source = error;
+					error = newError;
+				}
+				dfd.reject(error);
+				script._remove(dfd.id, options.frameDoc, true);
+			});
 
 			if(!options.jsonp && !options.checkString){
 				var handle = on(node, loadEvent, function(evt){

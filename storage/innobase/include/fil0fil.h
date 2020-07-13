@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0new.h"
 
+#include "m_ctype.h"
 #include "sql/dd/object_id.h"
 
 #include <list>
@@ -319,6 +320,13 @@ struct fil_space_t {
   /** FIL_SPACE_MAGIC_N */
   ulint magic_n;
 
+  /** LSN when the instance was deleted. */
+  lsn_t m_deleted_lsn;
+
+  /** Determine if this space was deleted with BUF_REMOVE_NONE.
+  @return true if the space was deleted */
+  bool is_deleted() { return m_deleted_lsn > 0; }
+
   /** System tablespace */
   static fil_space_t *s_sys_space;
 
@@ -454,36 +462,22 @@ class Fil_path {
     return (m_abs_path.length());
   }
 
-  /** Check if m_path is the same as this other path.
-  @param[in]  other  directory path to compare to
-  @return true if m_path is the same as path */
-  bool is_same_as(const Fil_path &other) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-    if (path().empty() || other.path().empty()) {
-      return (false);
-    }
-
-    return (abs_path() == other.abs_path());
-  }
-
   /** Determine if this path is equal to the other path.
   @param[in]  other		path to compare to
   @return true if the paths are the same */
   bool operator==(const Fil_path &other) const { return (is_same_as(other)); }
 
+  /** Check if m_path is the same as this other path.
+  @param[in]  other  directory path to compare to
+  @return true if m_path is the same as path */
+  bool is_same_as(const Fil_path &other) const
+      MY_ATTRIBUTE((warn_unused_result));
+
   /** Check if this path is the same as the other path.
   @param[in]  other  directory path to compare to
   @return true if this path is the same as the other path */
   bool is_same_as(const std::string &other) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-    if (path().empty() || other.empty()) {
-      return (false);
-    }
-
-    Fil_path other_path(other);
-
-    return (abs_path() == other_path.abs_path());
-  }
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if two path strings are equal. Put them into Fil_path objects
   so that they can be compared correctly.
@@ -497,43 +491,27 @@ class Fil_path {
     }
 
     Fil_path first_path(first);
-    Fil_path second_path(second);
+    std::string first_abs = first_path.abs_path();
+    trim_separator(first_abs);
 
-    return (first_path == second_path);
+    Fil_path second_path(second);
+    std::string second_abs = second_path.abs_path();
+    trim_separator(second_abs);
+
+    return (first_abs == second_abs);
   }
 
   /** Check if m_path is the parent of the other path.
   @param[in]  other  path to compare to
   @return true if m_path is an ancestor of name */
   bool is_ancestor(const Fil_path &other) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-    if (path().empty() || other.path().empty()) {
-      return (false);
-    }
-
-    const std::string ancestor = abs_path();
-    const std::string descendant = other.abs_path();
-
-    if (descendant.length() <= ancestor.length()) {
-      return (false);
-    }
-
-    return (std::equal(ancestor.begin(), ancestor.end(), descendant.begin()));
-  }
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if this Fil_path is an ancestor of the other path.
   @param[in]  other  path to compare to
   @return true if this Fil_path is an ancestor of the other path */
   bool is_ancestor(const std::string &other) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-    if (path().empty() || other.empty()) {
-      return (false);
-    }
-
-    Fil_path descendant(other);
-
-    return (is_ancestor(descendant));
-  }
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if the first path is an ancestor of the second.
   Do not assume that these paths have been converted to real paths
@@ -677,7 +655,7 @@ class Fil_path {
 
   /** Normalize a directory path for the current OS:
   On Windows, we convert '/' to '\', else we convert '\' to '/'.
-  @param[in,out]	path	Directory and file path */
+  @param[in,out]  path  Directory and file path */
   static void normalize(std::string &path) {
     for (auto &c : path) {
       if (c == OS_PATH_SEPARATOR_ALT) {
@@ -688,12 +666,20 @@ class Fil_path {
 
   /** Normalize a directory path for the current OS:
   On Windows, we convert '/' to '\', else we convert '\' to '/'.
-  @param[in,out]	path	A NUL terminated path */
+  @param[in,out]  path  A NUL terminated path */
   static void normalize(char *path) {
     for (auto ptr = path; *ptr; ++ptr) {
       if (*ptr == OS_PATH_SEPARATOR_ALT) {
         *ptr = OS_SEPARATOR;
       }
+    }
+  }
+
+  /** Convert a path string to lower case using the CHARSET my_charset_filename.
+  @param[in,out]  path  Directory and file path */
+  static void to_lower(std::string &path) {
+    for (auto &c : path) {
+      c = my_tolower(&my_charset_filename, c);
     }
   }
 
@@ -723,6 +709,15 @@ class Fil_path {
   @return  the absolute path prepared for making comparisons with other real
            paths. */
   static std::string get_real_path(const std::string &path, bool force = true)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Separate the portion of a directory path that exists and the portion that
+  does not exist.
+  @param[in]      path   Path to evaluate
+  @param[in,out]  ghost  The portion of the path that does not exist.
+  @return the existing portion of a path. */
+  static std::string get_existing_path(const std::string &path,
+                                       std::string &ghost)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if the name is an undo tablespace name.
@@ -761,9 +756,30 @@ class Fil_path {
   }
 
   /** Check if a character is a path separator ('\' or '/')
-  @param[in]	c		Character to check
+  @param[in]  c  Character to check
   @return true if it is a separator */
   static bool is_separator(char c) { return (c == '\\' || c == '/'); }
+
+  /** If the last character of a directory path is a separator ('\' or '/')
+  trim it off the string.
+  @param[in]  path  file system path */
+  static void trim_separator(std::string &path) {
+    if (!path.empty() && is_separator(path.back())) {
+      path.resize(path.size() - 1);
+    }
+  }
+
+  /** If the last character of a directory path is NOT a separator,
+  append a separator to the path.
+  NOTE: We leave it up to the caller to assure that the path is a directory
+  and not a file since if that directory does not yet exist, this function
+  cannot tell the difference.
+  @param[in]  path  file system path */
+  static void append_separator(std::string &path) {
+    if (!path.empty() && !is_separator(path.back())) {
+      path.push_back(OS_SEPARATOR);
+    }
+  }
 
   /** Allocate and build a file name from a path, a table or
   tablespace name and a suffix.
@@ -852,14 +868,25 @@ class Fil_path {
 
 #ifndef UNIV_HOTBACKUP
   /** Check if the filepath provided is in a valid placement.
+  This routine is run during file discovery at startup.
   1) File-per-table must be in a dir named for the schema.
   2) File-per-table must not be in the datadir.
-  3) General tablespace must no be under the datadir.
-  @param[in]	space_name	tablespace name
-  @param[in]	path		filepath to validate
+  3) General tablespace must not be under the datadir.
+  @param[in]	space_name  tablespace name
+  @param[in]	space_id    tablespace ID
+  @param[in]	fsp_flags   tablespace flags
+  @param[in]	path        scanned realpath to an existing file to validate
   @retval true if the filepath is a valid datafile location */
-  static bool is_valid_location(const char *space_name,
-                                const std::string &path);
+  static bool is_valid_location(const char *space_name, space_id_t space_id,
+                                uint32_t fsp_flags, const std::string &path);
+
+  /** Check if the implicit filepath is immediately within a dir named for
+  the schema.
+  @param[in]	space_name  tablespace name
+  @param[in]	path        scanned realpath to an existing file to validate
+  @retval true if the filepath is valid */
+  static bool is_valid_location_within_db(const char *space_name,
+                                          const std::string &path);
 
   /** Convert filename to the file system charset format.
   @param[in,out]	name		Filename to convert */
@@ -884,6 +911,9 @@ extern Fil_path MySQL_datadir_path;
 
 /** The MySQL server --innodb-undo-directory value */
 extern Fil_path MySQL_undo_path;
+
+/** The undo path is different from any other known directory. */
+extern bool MySQL_undo_path_is_unique;
 
 /** Initial size of a single-table tablespace in pages */
 constexpr size_t FIL_IBD_FILE_INITIAL_SIZE = 7;
@@ -1311,7 +1341,7 @@ std::string fil_system_open_fetch(space_id_t space_id)
 bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Truncate the tablespace to needed size with a new space_id.
+/** Drop and create an UNDO tablespace.
 @param[in]  old_space_id   Tablespace ID to truncate
 @param[in]  new_space_id   Tablespace ID to for the new file
 @param[in]  size_in_pages  Truncate size.
@@ -1394,7 +1424,7 @@ dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
                        uint32_t flags, page_no_t size)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Deletes an IBD tablespace, either general or single-table.
+/** Deletes an IBD  or IBU tablespace.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	space_id	Tablespace ID
@@ -1907,15 +1937,16 @@ void fil_add_moved_space(dd::Object_id dd_object_id, space_id_t space_id,
 /** Lookup the tablespace ID and return the path to the file. The filename
 is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
-@param[in]	dd_object_id	Server DD tablespace ID
-@param[in]	space_id	Tablespace ID to lookup
-@param[in]	space_name	Tablespace name
-@param[in]	old_path	Path in the data dictionary
-@param[out]	new_path	New path if scanned path not equal to path
+@param[in]  dd_object_id  server DD tablespace ID
+@param[in]  space_id      tablespace ID to lookup
+@param[in]  space_name    tablespace name
+@param[in]  fsp_flags     tablespace flags
+@param[in]  old_path      the path found in dd:Tablespace_files
+@param[out] new_path      the scanned path for this space_id
 @return status of the match. */
 Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
                                      space_id_t space_id,
-                                     const char *space_name,
+                                     const char *space_name, ulint fsp_flags,
                                      std::string old_path,
                                      std::string *new_path)
     MY_ATTRIBUTE((warn_unused_result));
@@ -1964,10 +1995,12 @@ bool fil_op_replay_rename_for_ddl(const page_id_t &page_id,
 dberr_t fil_open_for_business(bool read_only_mode)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Check if a path is known to InnoDB.
-@param[in]	path		Path to check
+/** Check if a path is known to InnoDB meaning that it is in or under
+one of the four path settings scanned at startup for file discovery.
+@param[in]  path    Path to check
 @return true if path is known to InnoDB */
-bool fil_check_path(const std::string &path) MY_ATTRIBUTE((warn_unused_result));
+bool fil_path_is_known(const std::string &path)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the list of directories that datafiles can reside in.
 @return the list of directories 'dir1;dir2;....;dirN' */
@@ -1998,4 +2031,27 @@ void fil_space_update_name(fil_space_t *space, const char *name);
 @param[in]	extn	file extension */
 void fil_adjust_name_import(dict_table_t *table, const char *path,
                             ib_file_suffix extn);
+
+#ifndef UNIV_HOTBACKUP
+
+/** Set the low water mark for the buffer pool. This will remove all
+dirty pages lower than this LSN in the BP.
+@param[in] lwm  Low water mark */
+void fil_checkpoint(lsn_t lwm);
+
+/** Count how many truncated undo space IDs are still tracked in
+the buffer pool and the file_system cache.
+@param[in]  undo_num  undo tablespace number.
+@return number of undo tablespaces that are still in memory. */
+size_t fil_count_deleted(space_id_t undo_num);
+
+/** Check if a particular undo space_id for a page in the buffer pool has
+been deleted recently.  Its space_id will be found in m_deleted until
+Fil:shard::checkpoint removes all its pages from the buffer pool and the
+fil_space_t from Fil_system.
+@return true if this space_id is in the list of recently deleted undo spaces. */
+bool fil_is_deleted(space_id_t space_id);
+
+#endif /* !UNIV_HOTBACKUP */
+
 #endif /* fil0fil_h */

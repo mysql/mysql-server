@@ -778,7 +778,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   if (column_list->contextualize(&pc) || value_list->contextualize(&pc)) {
     return nullptr;
   }
-  select->item_list = column_list->value;
+  select->fields_list = column_list->value;
 
   // Ensure we're resetting parsing context of the right select
   DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE);
@@ -1078,7 +1078,7 @@ bool PT_table_value_constructor::contextualize(Parse_context *pc) {
   // Some queries, such as CREATE TABLE with SELECT, require item_list to
   // contain items to call SELECT_LEX::prepare.
   for (Item &item : *pc->select->row_value_list->head()) {
-    pc->select->item_list.push_back(&item);
+    pc->select->fields_list.push_back(&item);
   }
 
   return false;
@@ -1096,7 +1096,6 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
     if (contextualize_safe(pc, m_order, m_limit)) return true;
   } else {
     auto lex = pc->thd->lex;
-    DBUG_ASSERT(lex->sql_command != SQLCOM_ALTER_TABLE);
     auto unit = pc->select->master_unit();
     if (unit->fake_select_lex == nullptr) {
       if (unit->add_fake_select_lex(lex->thd)) {
@@ -2521,11 +2520,33 @@ PT_json_table_column_with_path::PT_json_table_column_with_path(
 
 PT_json_table_column_with_path::~PT_json_table_column_with_path() = default;
 
+static bool check_unsupported_json_table_default(const Item *item) {
+  if (item == nullptr) return false;
+
+  // JSON_TABLE currently only supports string literals on JSON format in
+  // DEFAULT clauses. Other literals used to be rejected by the grammar, but the
+  // grammar was extended for JSON_VALUE and now accepts all types of literals.
+  // Until JSON_TABLE gets support for non-string defaults, reject them here.
+  if (item->data_type() != MYSQL_TYPE_VARCHAR) {
+    my_error(
+        ER_NOT_SUPPORTED_YET, MYF(0),
+        "non-string DEFAULT value for a column in a JSON_TABLE expression");
+    return true;
+  }
+
+  return false;
+}
+
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
   if (m_column->m_path_string->itemize(pc, &m_column->m_path_string))
     return true;
+
+  if (check_unsupported_json_table_default(m_column->m_default_empty_string) ||
+      check_unsupported_json_table_default(m_column->m_default_error_string))
+    return true;
+
   if (itemize_safe(pc, &m_column->m_default_empty_string)) return true;
   if (itemize_safe(pc, &m_column->m_default_error_string)) return true;
 
@@ -2607,6 +2628,9 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       lex->explain_format = new (thd->mem_root) Explain_format_tree;
       lex->is_explain_analyze = true;
       break;
+    default:
+      DBUG_ASSERT(false);
+      lex->explain_format = new (thd->mem_root) Explain_format_traditional;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM
 
@@ -2678,7 +2702,7 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
 
 bool PT_select_item_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  pc->select->item_list = value;
+  pc->select->fields_list = value;
   return false;
 }
 
@@ -3559,4 +3583,176 @@ Sql_cmd *PT_set_resource_group::make_cmd(THD *thd) {
 Sql_cmd *PT_restart_server::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_RESTART_SERVER;
   return &sql_cmd;
+}
+
+/**
+   Generic attribute node that can be used with different base types
+   and corrsponding parse contexts. CFP (Contextualizer Function
+   Pointer) argument implements a suitable contextualize action in the
+   given context. Value is typically a decayed captureless lambda.
+ */
+template <class ATTRIBUTE, class BASE>
+class PT_attribute : public BASE {
+  ATTRIBUTE m_attr;
+  using CFP = bool (*)(ATTRIBUTE, typename BASE::context_t *);
+  CFP m_cfp;
+
+ public:
+  PT_attribute(ATTRIBUTE a, CFP cfp) : m_attr{a}, m_cfp{cfp} {}
+  bool contextualize(typename BASE::context_t *pc) {
+    return BASE::contextualize(pc) || m_cfp(m_attr, pc);
+  }
+};
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_alter_tablespace_option_base* to PT_attribute object.
+ */
+PT_alter_tablespace_option_base *make_tablespace_engine_attribute(
+    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+  return new (mem_root)
+      PT_attribute<LEX_CSTRING, PT_alter_tablespace_option_base>(
+          attr, +[](LEX_CSTRING a, Alter_tablespace_parse_context *pc) {
+            pc->engine_attribute = a;
+            return false;
+          });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_alter_tablespace_option_base* to PT_attribute object.
+
+ */
+PT_create_table_option *make_table_engine_attribute(MEM_ROOT *mem_root,
+                                                    LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->create_info->engine_attribute = a;
+        pc->create_info->used_fields |= HA_CREATE_USED_ENGINE_ATTRIBUTE;
+        pc->alter_info->flags |=
+            (Alter_info::ALTER_OPTIONS | Alter_info::ANY_ENGINE_ATTRIBUTE);
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_create_table_option* to PT_attribute object.
+
+ */
+PT_create_table_option *make_table_secondary_engine_attribute(
+    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->create_info->secondary_engine_attribute = a;
+        pc->create_info->used_fields |=
+            HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE;
+        pc->alter_info->flags |= Alter_info::ALTER_OPTIONS;
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_create_table_option* to PT_attribute object.
+
+ */
+PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *mem_root,
+                                                  LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
+      attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *ai) {
+          cf->m_engine_attribute = a;
+          ai->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
+          return false;
+        });
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_column_attr_base* to PT_attribute object.
+
+ */
+PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *mem_root,
+                                                            LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
+      attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *) {
+          cf->m_secondary_engine_attribute = a;
+          return false;
+        });
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_base_index_option* to PT_attribute object.
+
+ */
+PT_base_index_option *make_index_engine_attribute(MEM_ROOT *mem_root,
+                                                  LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->key_create_info->m_engine_attribute = a;
+        pc->alter_info->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_base_index_option* to PT_attribute object.
+ */
+PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *mem_root,
+                                                            LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->key_create_info->m_secondary_engine_attribute = a;
+        return false;
+      });
 }

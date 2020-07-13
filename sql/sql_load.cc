@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,6 +147,7 @@ class READ_INFO {
   /* load xml */
   List<XML_TAG> taglist;
   int read_value(int delim, String *val);
+  int read_cdata(String *val, bool *have_cdata);
   bool read_xml();
   void clear_level(int level);
 
@@ -417,7 +418,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
 
     if (real_item->type() == Item::FIELD_ITEM) {
       const Field *field = down_cast<const Item_field *>(real_item)->field;
-      if (field->flags & BLOB_FLAG) {
+      if (field->is_flag_set(BLOB_FLAG)) {
         use_blobs = true;
         tot_length += 256;  // Will be extended if needed
       } else
@@ -700,8 +701,36 @@ bool Sql_cmd_load_table::write_execute_load_query_log_event(
   return mysql_bin_log.write_event(&e);
 }
 
+namespace {
+/**
+  Checks if an item is a hidden generated column.
+
+  @param table       Pointer to TABLE object
+  @param item        Item to check
+
+  @returns true if checked item is a hidden generated column.
+*/
+inline bool is_hidden_generated_column(TABLE *table, Item *item) {
+  Item *real_item = item->real_item();
+  if (table->has_gcol() && real_item->type() == Item::FIELD_ITEM) {
+    const Field *field = down_cast<Item_field *>(real_item)->field;
+    if (bitmap_is_set(&table->fields_for_functional_indexes,
+                      field->field_index()))
+      return true;
+  }
+  return false;
+}
+}  // namespace
+
 /**
   Read of rows of fixed size + optional garbage + optional newline
+
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
 
   @returns true if error
 */
@@ -746,6 +775,8 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
 
     Item *item;
     while ((item = it++)) {
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
       /*
         There is no variables in fields_vars list in this format so
         this conversion is safe (no need to check for STRING_ITEM).
@@ -857,6 +888,16 @@ class Field_tmp_nullability_guard {
 };
 
 /**
+  Read rows in delimiter-separated formats.
+
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param enclosed    ENCLOSED BY character
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
+
   @returns true if error
 */
 bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
@@ -895,6 +936,9 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
       uint length;
       uchar *pos;
       Item *real_item;
+
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
 
       if (read_info.read_field()) break;
 
@@ -1067,6 +1111,13 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 /**
   Read rows in xml format
 
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
+
   @returns true if error
 */
 bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
@@ -1115,6 +1166,9 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
     while ((item = it++)) {
       /* If this line is to be skipped we don't want to fill field or var */
       if (skip_lines) continue;
+
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
 
       /* find field in tag list */
       xmlit.rewind();
@@ -1797,6 +1851,63 @@ int READ_INFO::read_value(int delim, String *val) {
 }
 
 /*
+  Read CDATA value if any.
+  Ignore multibyte and XML escape.
+  Note: the last character read must be '<' before calling this function.
+
+  @param[out] val           Resulting CDATA string.
+  @param[out] have_cdata    Set if really read CDATA.
+
+  @returns    Last character read or
+              my_b_EOF in case of unexpected EOF.
+*/
+int READ_INFO::read_cdata(String *val, bool *have_cdata) {
+  const char cdata_head[] = "![CDATA[";
+  const char *head_ptr = cdata_head;
+
+  /* Check for CDATA head "![CDATA[" */
+  for (size_t i = 0; i < strlen(cdata_head); i++) {
+    int chr = GET;
+
+    if (chr != *head_ptr++) {
+      /*
+        Didn't find "![CDATA[" head,
+        push back the last (unmatched) character
+      */
+      PUSH(chr);
+      /* and all matched from the head. */
+      while (i--) PUSH(*--head_ptr);
+
+      *have_cdata = false;
+      return '<';
+    }
+  }
+
+  int tail[3]{0};
+  for (tail[2] = GET; tail[2] != my_b_EOF; tail[2] = GET) {
+    /* Check for CDATA tail "]]>" */
+    if (tail[0] == ']' && tail[1] == ']' && tail[2] == '>') {
+      /* Cut last two characters ("]]") which were appended to val. */
+      DBUG_ASSERT(val->length() >= 2);
+      val->length(val->length() - 2);
+
+      *have_cdata = true;
+      return '>';
+    }
+    /* Shift the tail */
+    tail[0] = tail[1];
+    tail[1] = tail[2];
+
+    val->append(tail[2]);
+  }
+
+  /* Didn't find CDATA tail "]]>", the last character read must be my_b_EOF. */
+  DBUG_ASSERT(tail[2] == my_b_EOF);
+  *have_cdata = false;
+  return my_b_EOF;
+}
+
+/*
   Read a record in xml format
   tags and attributes are stored in taglist
   when tag set in ROWS IDENTIFIED BY is closed, we are ready and return
@@ -1890,8 +2001,16 @@ bool READ_INFO::read_xml() {
           read in the upcoming call to read_value()
          */
         PUSH(chr);
-        chr = read_value('<', &value);
-        if (chr == my_b_EOF) goto found_eof;
+
+        /* Read <![CDATA[ ... ]]> and tag's value. */
+        bool have_cdata;
+        do {
+          chr = read_value('<', &value);
+          if (chr == my_b_EOF) goto found_eof;
+
+          chr = read_cdata(&value, &have_cdata);
+          if (chr == my_b_EOF) goto found_eof;
+        } while (have_cdata);
 
         /* save value to list */
         if (tag.length() > 0 && value.length() > 0) {

@@ -4,7 +4,7 @@ function(dojo, dijit, dojox, _Widget, _TemplatedMixin){
 	dojo.experimental("dojox.image.Badge");
 	dojo.getObject("image", true, dojox);
 	
-	dojo.declare("dojox.image.Badge", [_Widget, _TemplatedMixin], {
+	return dojo.declare("dojox.image.Badge", [_Widget, _TemplatedMixin], {
 		// summary:
 		//		A simple grid of Images that loops through thumbnails
 
@@ -230,7 +230,5 @@ function(dojo, dijit, dojox, _Widget, _TemplatedMixin){
 		}
 
 	});
-
-	return dojox.image.Badge;
 });
 

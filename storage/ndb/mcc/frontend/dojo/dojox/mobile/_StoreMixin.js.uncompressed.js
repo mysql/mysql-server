@@ -75,19 +75,57 @@ define("dojox/mobile/_StoreMixin", [
 					results = results.items; // looks like dojo/data style items array
 				}
 				if(promise.observe){
-					promise.observe(function(object, removedFrom, insertedInto){
-						if(removedFrom > -1){ // existing object removed
-							_this.onDelete(object, removedFrom);
-						}else if(insertedInto > -1){ // new or updated object inserted
-							_this.onUpdate(object, insertedInto);
+					if(_this._observe_h){
+						_this._observe_h.remove();
+					}
+					_this._observe_h = promise.observe(function(object, previousIndex, newIndex){
+						if(previousIndex != -1){
+							if(newIndex != previousIndex){
+								// item removed or moved
+								_this.onDelete(object, previousIndex);
+								if(newIndex != -1){
+									if (_this.onAdd) {
+										 // new widget with onAdd method defined
+										_this.onAdd(object, newIndex);
+									} else {
+										// TODO remove in 2.0
+										// compatibility with 1.8: onAdd did not exist, add was handled by onUpdate
+										_this.onUpdate(object, newIndex);
+									}
+								}
+							}else{
+								// item modified
+								// if onAdd is not defined, we are "bug compatible" with 1.8 and we do nothing.
+								// TODO remove test in 2.0
+								if(_this.onAdd){
+									_this.onUpdate(object, newIndex);
+								}
+							}
+						}else if(newIndex != -1){
+							// item added
+							if(_this.onAdd){
+								 // new widget with onAdd method defined
+								_this.onAdd(object, newIndex);
+							}else{
+								// TODO remove in 2.0
+								// compatibility with 1.8: onAdd did not exist, add was handled by onUpdate
+								_this.onUpdate(object, newIndex);
+							}
 						}
-					});
+					}, true); // we want to be notified of updates
 				}
 				_this.onComplete(results);
 			}, function(error){
 				_this.onError(error);
 			});
 			return promise;
+		},
+
+		destroy: function(){
+			if(this._observe_h){
+				this._observe_h = this._observe_h.remove();
+			}
+			this.inherited(arguments);
 		}
 
 /*=====
@@ -95,7 +133,7 @@ define("dojox/mobile/_StoreMixin", [
 
 		, onComplete: function(items){
 			// summary:
-			//		An handler that is called after the fetch completes.
+			//		A handler that is called after the fetch completes.
 		},
 
 		onError: function(errorData){
@@ -105,12 +143,23 @@ define("dojox/mobile/_StoreMixin", [
 
 		onUpdate: function(item, insertedInto){
 			// summary:
-			//		Adds a new item or updates an existing item.
+			//		Called when an existing data item has been modified in the store.
+			//		Note: for compatibility with previous versions where only onUpdate was present,
+			//		if onAdd is not defined, onUpdate will be called instead.
 		},
 
 		onDelete: function(item, removedFrom){
 			// summary:
-			//		Deletes an existing item.
+			//		Called when a data item has been removed from the store.
+		},
+		
+		// Subclass should implement the following methods.
+
+		onAdd: function(item, insertedInto){
+			// summary:
+			//		Called when a new data item has been added to the store.
+			//		Note: for compatibility with previous versions where this function did not exist,
+			//		if onAdd is not defined, onUpdate will be called instead.
 		}
 =====*/
 	});

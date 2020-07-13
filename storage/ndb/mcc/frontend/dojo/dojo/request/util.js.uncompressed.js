@@ -6,21 +6,77 @@ define("dojo/request/util", [
 	'../io-query',
 	'../_base/array',
 	'../_base/lang',
-	'../promise/Promise'
-], function(exports, RequestError, CancelError, Deferred, ioQuery, array, lang, Promise){
-	exports.deepCopy = function deepCopy(target, source){
-		for(var name in source){
+	'../promise/Promise',
+	'../has'
+], function(exports, RequestError, CancelError, Deferred, ioQuery, array, lang, Promise, has){
+
+	function isArrayBuffer(value) {
+		return has('native-arraybuffer') && value instanceof ArrayBuffer
+	}
+
+	function isBlob(value) {
+		return has('native-blob') && value instanceof Blob
+	}
+	
+	function isElement(value) {
+		if(typeof Element !== 'undefined') { //all other
+			return value instanceof Element;
+		}
+
+		//IE<=7
+		return value.nodeType === 1;
+	}
+
+	function isFormData(value) {
+		return has('native-formdata') && value instanceof FormData;
+	}
+
+	function shouldDeepCopy(value) {
+		return value &&
+			typeof value === 'object' &&
+			!isFormData(value) &&
+			!isElement(value) &&
+			!isBlob(value) &&
+			!isArrayBuffer(value)
+	}
+
+	exports.deepCopy = function(target, source) {
+		for (var name in source) {
 			var tval = target[name],
-				sval = source[name];
-			if(tval !== sval){
-				if(tval && typeof tval === 'object' && sval && typeof sval === 'object'){
-					exports.deepCopy(tval, sval);
-				}else{
+  			    sval = source[name];
+			if (name !== '__proto__' && tval !== sval) {
+				if (shouldDeepCopy(sval)) {
+					if (Object.prototype.toString.call(sval) === '[object Date]') { // use this date test to handle crossing frame boundaries
+						target[name] = new Date(sval);
+					} else if (lang.isArray(sval)) {
+ 						  target[name] = exports.deepCopyArray(sval);
+					} else {
+						if (tval && typeof tval === 'object') {
+							exports.deepCopy(tval, sval);
+						} else {
+							target[name] = exports.deepCopy({}, sval);
+						}
+					}
+				} else {
 					target[name] = sval;
 				}
 			}
 		}
 		return target;
+	};
+
+	exports.deepCopyArray = function(source) {
+		var clonedArray = [];
+		for (var i = 0, l = source.length; i < l; i++) {
+			var svalItem = source[i];
+			if (typeof svalItem === 'object') {
+				clonedArray.push(exports.deepCopy({}, svalItem));
+			} else {
+				clonedArray.push(svalItem);
+			}
+		}
+
+		return clonedArray;
 	};
 
 	exports.deepCreate = function deepCreate(source, properties){
@@ -119,9 +175,9 @@ define("dojo/request/util", [
 	exports.parseArgs = function parseArgs(url, options, skipData){
 		var data = options.data,
 			query = options.query;
-		
+
 		if(data && !skipData){
-			if(typeof data === 'object'){
+			if(typeof data === 'object' && (!(has('native-xhr2')) || !(isArrayBuffer(data) || isBlob(data) ))){
 				options.data = ioQuery.objectToQuery(data);
 			}
 		}

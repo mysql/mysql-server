@@ -79,7 +79,7 @@ exports.config = function(config){
 				// define debug for console messages during dev instead of console.log
 				// (node's heavy async makes console.log confusing sometimes)
 				var util = require("util");
-				util.debug(util.inspect(item));
+				util.debuglog(util.inspect(item));
 			},
 
 			eval: function(__text, __urlHint){

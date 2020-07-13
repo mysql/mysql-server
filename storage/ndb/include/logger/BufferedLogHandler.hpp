@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@ class BufferedLogHandler : public LogHandler
 public:
   /**
    * Constructor
-   * @param logbuf Pointer to the log buffer where log messages should be written into.
    * @param dest_loghandler Pointer to the destination log handler i.e the log handler
    * to which the log messages taken from the log buffer are passed.
    */

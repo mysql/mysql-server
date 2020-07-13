@@ -4,6 +4,8 @@
 # ./mysql-test-run.pl --mysqld=--binlog-format=mixed
 #########################################
 
+--let $rpl_privilege_checks_user_grant_option = 1
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 # Check MIXED on both master and slave

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -13260,6 +13260,17 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   scanptr.p->m_scan_dist_key = scanTabReq->distributionKey;
   scanptr.p->m_scan_dist_key_flag = ScanTabReq::getDistributionKeyFlag(ri);
 
+  if (ERROR_INSERTED(8119))
+  {
+    jam();
+    if (scanptr.p->m_scan_dist_key_flag)
+    {
+      jam();
+      ndbout_c("Forcing scan distribution key to 0xffffffff");
+      scanptr.p->m_scan_dist_key = 0xffffffff;
+    }
+  }
+
   transP->apiScanRec = scanptr.i;
   transP->returncode = 0;
   transP->transid[0] = transid1;
@@ -13702,12 +13713,8 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
      * the single pruned-to fragId we got from NDB API.
      */
     tfragCount = 1;
-    scanptr.p->scanNextFragId = scanptr.p->m_scan_dist_key;
   }
-  else
-  {
-    ndbassert(scanptr.p->scanNextFragId == 0);
-  }
+  ndbassert(scanptr.p->scanNextFragId == 0);
 
   scanptr.p->scanParallel = tfragCount;
   scanptr.p->scanNoFrag = tfragCount;
@@ -14057,7 +14064,8 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
   if (scanptr.p->m_scan_dist_key_flag) //Scan pruned to specific fragment
   {
     jamDebug();
-    ndbassert(scanFragId == scanptr.p->m_scan_dist_key);
+    ndbassert(scanFragId == 0); /* Pruned to 1 fragment */
+    req->hashValue = scanptr.p->m_scan_dist_key;
 
     TableRecordPtr tabPtr;
     tabPtr.i = scanptr.p->scanTableref;

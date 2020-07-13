@@ -181,7 +181,7 @@ enum {
   OPT_VIEW_PROTOCOL,
 };
 
-static int record = 0, opt_sleep = -1;
+static int record = 0;
 static char *opt_db = nullptr, *opt_pass = nullptr;
 const char *opt_user = nullptr, *opt_host = nullptr, *unix_sock = nullptr,
            *opt_basedir = "./";
@@ -251,6 +251,8 @@ static std::thread wait_for_stacktrace_request_event_thread;
 #endif
 
 Logfile log_file;
+// File to store the progress
+Logfile progress_file;
 
 /// Info on properties that can be set with '--disable_X' and
 /// '--disable_X' commands.
@@ -427,7 +429,6 @@ enum enum_commands {
   Q_QUERY,
   Q_CONNECT,
   Q_SLEEP,
-  Q_REAL_SLEEP,
   Q_INC,
   Q_DEC,
   Q_SOURCE,
@@ -527,11 +528,10 @@ enum enum_commands {
 };
 
 const char *command_names[] = {
-    "connection", "query", "connect", "sleep", "real_sleep", "inc", "dec",
-    "source", "disconnect", "let", "echo", "expr", "while", "end",
-    "save_master_pos", "sync_with_master", "sync_slave_with_master", "error",
-    "send", "reap", "dirty_close", "replace_result", "replace_column", "ping",
-    "eval",
+    "connection", "query", "connect", "sleep", "inc", "dec", "source",
+    "disconnect", "let", "echo", "expr", "while", "end", "save_master_pos",
+    "sync_with_master", "sync_slave_with_master", "error", "send", "reap",
+    "dirty_close", "replace_result", "replace_column", "ping", "eval",
     /* Enable/disable that the _query_ is logged to result file */
     "enable_query_log", "disable_query_log",
     /* Enable/disable that the _result_ from a query is logged to result file */
@@ -689,8 +689,7 @@ class AsyncTimer {
 /*
   Check if any data is available in the socket to be read or written.
 */
-static int socket_event_listen(net_async_block_state async_blocking_state,
-                               my_socket fd) {
+static int socket_event_listen(my_socket fd) {
   int result;
   fd_set readfds, writefds, exceptfds;
 
@@ -699,43 +698,26 @@ static int socket_event_listen(net_async_block_state async_blocking_state,
   FD_ZERO(&exceptfds);
 
   FD_SET(fd, &exceptfds);
+  FD_SET(fd, &readfds);
+  FD_SET(fd, &writefds);
 
-  switch (async_blocking_state) {
-    case NET_NONBLOCKING_READ:
-      FD_SET(fd, &readfds);
-      break;
-    case NET_NONBLOCKING_WRITE:
-    case NET_NONBLOCKING_CONNECT:
-      FD_SET(fd, &writefds);
-      break;
-    default:
-      DBUG_ASSERT(false);
-  }
   result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, NULL);
   if (result < 0) {
-    perror("select");
+    DWORD error_code = WSAGetLastError();
+    verbose_msg("Cannot determine the status due to error :%lu\n", error_code);
   }
   return result;
 }
 #else
-static int socket_event_listen(net_async_block_state async_blocking_state,
-                               my_socket fd) {
+static int socket_event_listen(my_socket fd) {
   int result;
   pollfd pfd;
   pfd.fd = fd;
-  switch (async_blocking_state) {
-    case NET_NONBLOCKING_READ:
-      pfd.events = POLLIN;
-      break;
-    case NET_NONBLOCKING_WRITE:
-      pfd.events = POLLOUT;
-      break;
-    case NET_NONBLOCKING_CONNECT:
-      pfd.events = POLLIN | POLLOUT;
-      break;
-    default:
-      DBUG_ASSERT(false);
-  }
+  /*
+    Listen to both in/out because SSL can perform reads during writes (and
+    vice versa).
+  */
+  pfd.events = POLLIN | POLLOUT;
   result = poll(&pfd, 1, -1);
   if (result < 0) {
     perror("poll");
@@ -754,9 +736,7 @@ static MYSQL_ROW async_mysql_fetch_row_wrapper(MYSQL_RES *res) {
   AsyncTimer t(__func__);
   while (mysql_fetch_row_nonblocking(res, &row) == NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA((&(mysql->net)));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return nullptr;
   }
   return row;
@@ -768,9 +748,7 @@ static MYSQL_RES *async_mysql_store_result_wrapper(MYSQL *mysql) {
   while (mysql_store_result_nonblocking(mysql, &mysql_result) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return nullptr;
   }
   return mysql_result;
@@ -783,9 +761,7 @@ static int async_mysql_real_query_wrapper(MYSQL *mysql, const char *query,
   while ((status = mysql_real_query_nonblocking(mysql, query, length)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -804,9 +780,7 @@ static int async_mysql_send_query_wrapper(MYSQL *mysql, const char *query,
   while ((status = mysql_send_query_nonblocking(mysql, query, length)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -821,9 +795,7 @@ static bool async_mysql_read_query_result_wrapper(MYSQL *mysql) {
   while ((status = (*mysql->methods->read_query_result_nonblocking)(mysql)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return true;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -838,9 +810,7 @@ static int async_mysql_next_result_wrapper(MYSQL *mysql) {
   while ((status = mysql_next_result_nonblocking(mysql)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR)
@@ -874,9 +844,7 @@ static int async_mysql_query_wrapper(MYSQL *mysql, const char *query) {
   while ((status = mysql_real_query_nonblocking(mysql, query, strlen(query))) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -890,9 +858,7 @@ static void async_mysql_free_result_wrapper(MYSQL_RES *result) {
   while (mysql_free_result_nonblocking(result) == NET_ASYNC_NOT_READY) {
     t.check();
     MYSQL *mysql = result->handle;
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int listen_result = socket_event_listen(net_async->async_blocking_state,
-                                            mysql_get_socket_descriptor(mysql));
+    int listen_result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (listen_result == -1) return;
   }
   return;
@@ -3186,24 +3152,28 @@ static void do_exec(struct st_command *command, bool run_in_background) {
   std::uint32_t status = 0;
   int error = pclose(res_file);
 
-  if (error > 0) {
+  if (error != 0) {
 #ifdef _WIN32
     status = WEXITSTATUS(error);
 #else
-    // Do the same as many shells here: show SIGKILL as 137
-    if (WIFEXITED(error))
-      status = WEXITSTATUS(error);
-    else if (WIFSIGNALED(error))
-      status = 0x80 + WTERMSIG(error);
+    if (error > 0) {
+      // Do the same as many shells here: show SIGKILL as 137
+      if (WIFEXITED(error))
+        status = WEXITSTATUS(error);
+      else if (WIFSIGNALED(error))
+        status = 0x80 + WTERMSIG(error);
+    }
 #endif
-  }
 
-  if (error != 0 && command->abort_on_error) {
-    log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d.",
-            ds_cmd.str, error, status, errno);
-    dynstr_free(&ds_cmd);
-    die("Command \"%s\" failed.\n\nOutput from before failure:\n%s",
-        command->first_argument, ds_res.str);
+    if (command->abort_on_error) {
+      log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d.",
+              ds_cmd.str, error, status, errno);
+      dynstr_free(&ds_cmd);
+      die("Command \"%s\" failed.\n\nOutput from before failure:\n%s",
+          command->first_argument, ds_res.str);
+    }
+
+    if (status == 0) status = error;
   }
 
   dynstr_free(&ds_cmd);
@@ -5207,23 +5177,17 @@ static void do_let(struct st_command *command) {
   SYNOPSIS
   do_sleep()
   q	       called command
-  real_sleep   use the value from opt_sleep as number of seconds to sleep
-               if real_sleep is false
 
   DESCRIPTION
-  sleep <seconds>
-  real_sleep <seconds>
+  Sleep <seconds>
 
-  The difference between the sleep and real_sleep commands is that sleep
-  uses the delay from the --sleep command-line option if there is one.
-  (If the --sleep option is not given, the sleep command uses the delay
-  specified by its argument.) The real_sleep command always uses the
-  delay specified by its argument.  The logic is that sometimes delays are
-  cpu-dependent, and --sleep can be used to set this delay.  real_sleep is
-  used for cpu-independent delays.
+  The argument provided to --sleep command is not required to be
+  a whole number and can have fractional parts as well. For
+  example, '--sleep 0.1' is valid.
+
 */
 
-static int do_sleep(struct st_command *command, bool real_sleep) {
+static int do_sleep(struct st_command *command) {
   int error = 0;
   double sleep_val;
   char *p;
@@ -5252,9 +5216,6 @@ static int do_sleep(struct st_command *command, bool real_sleep) {
         static_cast<int>(command->first_word_len), command->query,
         command->first_argument);
   dynstr_free(&ds_sleep);
-
-  /* Fixed sleep time selected by --sleep option */
-  if (opt_sleep >= 0 && !real_sleep) sleep_val = opt_sleep;
 
   DBUG_PRINT("info", ("sleep_val: %f", sleep_val));
   if (sleep_val) my_sleep((ulong)(sleep_val * 1000000L));
@@ -6496,10 +6457,6 @@ static void do_connect(struct st_command *command) {
     opt_protocol = MYSQL_PROTOCOL_PIPE;
   }
 
-  if (opt_compress || con_compress) {
-    enable_async_client = false;
-  }
-
   if (opt_protocol) {
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
     /*
@@ -6687,7 +6644,8 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
 
   /* Parse and evaluate test expression */
   expr_start = strchr(p, '(');
-  if (!expr_start++) die("missing '(' in %s", cmd_name);
+  if (!expr_start) die("missing '(' in %s", cmd_name);
+  ++expr_start;
 
   while (my_isspace(charset_info, *expr_start)) expr_start++;
 
@@ -7431,9 +7389,6 @@ static struct my_option my_long_options[] = {
      0, nullptr},
     {"silent", 's', "Suppress all normal output. Synonym for --quiet.", &silent,
      &silent, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"sleep", 'T', "Always sleep this many seconds on sleep commands.",
-     &opt_sleep, &opt_sleep, nullptr, GET_INT, REQUIRED_ARG, -1, -1, 0, nullptr,
-     0, nullptr},
     {"socket", 'S', "The socket file to use for connection.", &unix_sock,
      &unix_sock, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
@@ -8822,7 +8777,7 @@ static void get_command_type(struct st_command *command) {
 /// @param progress_file Logfile object to store the progress information
 /// @param line          Line number of the progress file where the progress
 ///                      information should be recorded.
-static void mark_progress(Logfile progress_file, int line) {
+static void mark_progress(Logfile *progress_file, int line) {
   static unsigned long long int progress_start = 0;
   unsigned long long int timer = timer_now();
 
@@ -8850,8 +8805,8 @@ static void mark_progress(Logfile progress_file, int line) {
   str_progress.append(str_line);
   str_progress.append("\n");
 
-  if (progress_file.write(str_progress.c_str(), str_progress.length()) ||
-      progress_file.flush()) {
+  if (progress_file->write(str_progress.c_str(), str_progress.length()) ||
+      progress_file->flush()) {
     cleanup_and_exit(1);
   }
 }
@@ -9167,9 +9122,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  // File to store the progress
-  Logfile progress_file;
-
   if (opt_mark_progress) {
     if (result_file_name) {
       if (progress_file.open(opt_logdir, result_file_name, ".progress"))
@@ -9223,9 +9175,6 @@ int main(int argc, char **argv) {
       opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 
-  if (opt_compress) {
-    enable_async_client = false;
-  }
   if (SSL_SET_OPTIONS(&con->mysql)) die("%s", SSL_SET_OPTIONS_ERROR);
 #if defined(_WIN32)
   if (shared_memory_base_name)
@@ -9381,10 +9330,7 @@ int main(int argc, char **argv) {
           do_source(command);
           break;
         case Q_SLEEP:
-          do_sleep(command, false);
-          break;
-        case Q_REAL_SLEEP:
-          do_sleep(command, true);
+          do_sleep(command);
           break;
         case Q_WAIT_FOR_SLAVE_TO_STOP:
           do_wait_for_slave_to_stop(command);
@@ -9813,7 +9759,7 @@ int main(int argc, char **argv) {
     last_command_executed = command_executed;
 
     parser.current_line += current_line_inc;
-    if (opt_mark_progress) mark_progress(progress_file, parser.current_line);
+    if (opt_mark_progress) mark_progress(&progress_file, parser.current_line);
 
     // Write result from command to log file immediately.
     if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
@@ -9826,10 +9772,6 @@ int main(int argc, char **argv) {
 
     dynstr_set(&ds_res, nullptr);
   }
-
-  log_file.close();
-
-  if (opt_mark_progress) progress_file.close();
 
   start_lineno = 0;
   verbose_msg("... Done processing test commands.");

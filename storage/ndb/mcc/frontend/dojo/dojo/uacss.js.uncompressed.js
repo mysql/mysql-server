@@ -1,5 +1,5 @@
-define("dojo/uacss", ["./dom-geometry", "./_base/lang", "./ready", "./sniff", "./_base/window"],
-	function(geometry, lang, ready, has, baseWindow){
+define("dojo/uacss", ["./dom-geometry", "./_base/lang", "./domReady", "./sniff", "./_base/window"],
+	function(geometry, lang, domReady, has, baseWindow){
 
 	// module:
 	//		dojo/uacss
@@ -41,8 +41,12 @@ define("dojo/uacss", ["./dom-geometry", "./_base/lang", "./ready", "./sniff", ".
 			"dj_webkit": has("webkit"),
 			"dj_safari": has("safari"),
 			"dj_chrome": has("chrome"),
+			"dj_edge": has("edge"),
 
-			"dj_gecko": has("mozilla")
+			"dj_gecko": has("mozilla"),
+
+			"dj_ios": has("ios"),
+			"dj_android": has("android")
 		}; // no dojo unsupported browsers
 
 	if(ie){
@@ -71,8 +75,7 @@ define("dojo/uacss", ["./dom-geometry", "./_base/lang", "./ready", "./sniff", ".
 
 	// If RTL mode, then add dj_rtl flag plus repeat existing classes with -rtl extension.
 	// We can't run the code below until the <body> tag has loaded (so we can check for dir=rtl).
-	// priority is 90 to run ahead of parser priority of 100
-	ready(90, function(){
+	domReady(function(){
 		if(!geometry.isBodyLtr()){
 			var rtlClassStr = "dj_rtl dijitRtl " + classStr.replace(/ /g, "-rtl ");
 			html.className = lang.trim(html.className + " " + rtlClassStr + "dj_rtl dijitRtl " + classStr.replace(/ /g, "-rtl "));

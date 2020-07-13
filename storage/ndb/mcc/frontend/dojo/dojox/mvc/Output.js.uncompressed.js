@@ -29,6 +29,7 @@ define("dojox/mvc/Output", [
 
 		// exprchar:  Character
 		//		Character to use for a substitution expression, for a substitution string like ${this.value}
+		//		If this class is declared in a template HTML and exprchar is used in in-line template of this class, something other than `$` should be specified to avoid conflict with exprchar of outer-template.
 		exprchar: '$',
 	
 		// templateString: [private] String

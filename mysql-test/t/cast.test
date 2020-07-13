@@ -538,3 +538,209 @@ EXPLAIN SELECT * FROM t1 WHERE date = CAST('20:21:22' AS TIME);
 
 DROP TABLE t1;
 
+--echo #
+--echo # WL#13456: Inject CAST nodes for comparisons with STRING non-const expressions. 
+--echo # 
+CREATE TABLE t(c CHAR(64), v VARCHAR(256), txt TEXT, b BINARY(64), vb VARBINARY(32),
+               e ENUM ("v1", "v2"), set1 SET('101', '102'), bl  BLOB, i INT,
+               si SMALLINT, ti TINYINT, mi MEDIUMINT, bi BIGINT, bt BIT,
+               d DECIMAL, f FLOAT, dbl DOUBLE, dt DATETIME, dd  DATE, t TIME,
+               y YEAR);
+
+INSERT INTO t
+VALUES ("char", "vchar","text", "binary", "varbinary", "v1", '101,102', "blob", 
+        2001, 2, 3, 4, 200000002, 0x01, 2001.0, 2001.0, 2001.2,
+        "2001-01-02 22:00", "2001-01-02", "20:01", 2010);
+
+--echo # String vs INT
+EXPLAIN SELECT v = i FROM t;
+--echo # String vs SMALLINT
+EXPLAIN SELECT v = si FROM t;
+--echo # String vs TINYINT
+EXPLAIN SELECT v = ti FROM t;
+--echo # String vs MEDIUMINT
+EXPLAIN SELECT v = mi FROM t;
+--echo # String vs BIGINT
+EXPLAIN SELECT v = bi FROM t;
+--echo # String vs BIT
+EXPLAIN SELECT v = bt FROM t;
+--echo # String vs YEAR
+EXPLAIN SELECT v = y FROM t;
+--echo # String vs DECIMAL 
+EXPLAIN SELECT v = d FROM t;
+--echo # String vs FLOAT 
+EXPLAIN SELECT v = f FROM t;
+--echo # String vs DOUBLE
+EXPLAIN SELECT v = dbl FROM t;
+--echo # String vs DATETIME
+EXPLAIN SELECT v = dt FROM t;
+--echo # String vs DATE
+EXPLAIN SELECT v = dd FROM t;
+--echo # String vs TIME
+EXPLAIN SELECT v = t FROM t;
+--echo # String vs another equality 
+EXPLAIN SELECT v = (v = y) FROM t;
+--echo # String vs expression
+EXPLAIN SELECT v = 1 * i FROM t;
+--echo # Other operators
+EXPLAIN SELECT v <=> i FROM t;
+EXPLAIN SELECT v <> i FROM t;
+EXPLAIN SELECT v > i FROM t;
+EXPLAIN SELECT v >= i FROM t;
+EXPLAIN SELECT v <= i FROM t;
+EXPLAIN SELECT v < i FROM t;
+--echo # Test data type combinations
+EXPLAIN SELECT c = i FROM t;
+EXPLAIN SELECT c = si FROM t;
+EXPLAIN SELECT c = ti FROM t;
+EXPLAIN SELECT c = mi FROM t;
+EXPLAIN SELECT c = bi FROM t;
+EXPLAIN SELECT c = bt FROM t;
+EXPLAIN SELECT c = y FROM t;
+EXPLAIN SELECT c = d FROM t;
+EXPLAIN SELECT c = f FROM t;
+EXPLAIN SELECT c = dbl FROM t;
+EXPLAIN SELECT c = dt FROM t;
+EXPLAIN SELECT c = dd FROM t;
+EXPLAIN SELECT c = t FROM t;
+
+EXPLAIN SELECT txt = i FROM t;
+EXPLAIN SELECT txt = si FROM t;
+EXPLAIN SELECT txt = ti FROM t;
+EXPLAIN SELECT txt = mi FROM t;
+EXPLAIN SELECT txt = bi FROM t;
+EXPLAIN SELECT txt = bt FROM t;
+EXPLAIN SELECT txt = y FROM t;
+EXPLAIN SELECT txt = d FROM t;
+EXPLAIN SELECT txt = f FROM t;
+EXPLAIN SELECT txt = dbl FROM t;
+EXPLAIN SELECT txt = dt FROM t;
+EXPLAIN SELECT txt = dd FROM t;
+EXPLAIN SELECT txt = t FROM t;
+
+EXPLAIN SELECT b = i FROM t;
+EXPLAIN SELECT b = si FROM t;
+EXPLAIN SELECT b = ti FROM t;
+EXPLAIN SELECT b = mi FROM t;
+EXPLAIN SELECT b = bi FROM t;
+EXPLAIN SELECT b = bt FROM t;
+EXPLAIN SELECT b = y FROM t;
+EXPLAIN SELECT b = d FROM t;
+EXPLAIN SELECT b = f FROM t;
+EXPLAIN SELECT b = dbl FROM t;
+EXPLAIN SELECT b = dt FROM t;
+EXPLAIN SELECT b = dd FROM t;
+EXPLAIN SELECT b = t FROM t;
+
+EXPLAIN SELECT vb = i FROM t;
+EXPLAIN SELECT vb = si FROM t;
+EXPLAIN SELECT vb = ti FROM t;
+EXPLAIN SELECT vb = mi FROM t;
+EXPLAIN SELECT vb = bi FROM t;
+EXPLAIN SELECT vb = bt FROM t;
+EXPLAIN SELECT vb = y FROM t;
+EXPLAIN SELECT vb = d FROM t;
+EXPLAIN SELECT vb = f FROM t;
+EXPLAIN SELECT vb = dbl FROM t;
+EXPLAIN SELECT vb = dt FROM t;
+EXPLAIN SELECT vb = dd FROM t;
+EXPLAIN SELECT vb = t FROM t;
+
+EXPLAIN SELECT e = i FROM t;
+EXPLAIN SELECT e = si FROM t;
+EXPLAIN SELECT e = ti FROM t;
+EXPLAIN SELECT e = mi FROM t;
+EXPLAIN SELECT e = bi FROM t;
+EXPLAIN SELECT e = bt FROM t;
+EXPLAIN SELECT e = y FROM t;
+EXPLAIN SELECT e = d FROM t;
+EXPLAIN SELECT e = f FROM t;
+EXPLAIN SELECT e = dbl FROM t;
+EXPLAIN SELECT e = dt FROM t;
+EXPLAIN SELECT e = dd FROM t;
+EXPLAIN SELECT e = t FROM t;
+
+EXPLAIN SELECT set1 = i FROM t;
+EXPLAIN SELECT set1 = si FROM t;
+EXPLAIN SELECT set1 = ti FROM t;
+EXPLAIN SELECT set1 = mi FROM t;
+EXPLAIN SELECT set1 = bi FROM t;
+EXPLAIN SELECT set1 = bt FROM t;
+EXPLAIN SELECT set1 = y FROM t;
+EXPLAIN SELECT set1 = d FROM t;
+EXPLAIN SELECT set1 = f FROM t;
+EXPLAIN SELECT set1 = dbl FROM t;
+EXPLAIN SELECT set1 = dt FROM t;
+EXPLAIN SELECT set1 = dd FROM t;
+EXPLAIN SELECT set1 = t FROM t;
+
+EXPLAIN SELECT bl = i FROM t;
+EXPLAIN SELECT bl = si FROM t;
+EXPLAIN SELECT bl = ti FROM t;
+EXPLAIN SELECT bl = mi FROM t;
+EXPLAIN SELECT bl = bi FROM t;
+EXPLAIN SELECT bl = bt FROM t;
+EXPLAIN SELECT bl = y FROM t;
+EXPLAIN SELECT bl = d FROM t;
+EXPLAIN SELECT bl = f FROM t;
+EXPLAIN SELECT bl = dbl FROM t;
+EXPLAIN SELECT bl = dt FROM t;
+EXPLAIN SELECT bl = dd FROM t;
+EXPLAIN SELECT bl = t FROM t;
+
+--echo # YEAR vs data types
+EXPLAIN SELECT y = i FROM t;
+EXPLAIN SELECT y = si FROM t;
+EXPLAIN SELECT y = ti FROM t;
+EXPLAIN SELECT y = mi FROM t;
+EXPLAIN SELECT y = bi FROM t;
+EXPLAIN SELECT y = bt FROM t;
+EXPLAIN SELECT y = y FROM t;
+EXPLAIN SELECT y = d FROM t;
+EXPLAIN SELECT y = f FROM t;
+EXPLAIN SELECT y = dbl FROM t;
+EXPLAIN SELECT y = dt FROM t;
+EXPLAIN SELECT y = dd FROM t;
+EXPLAIN SELECT y = t FROM t;
+
+--echo # cleanup
+DROP TABLE t;
+
+--echo #
+--echo # Bug#31023252: RESULTSET MISMATCH USING STRCMP() WITH DATE AND STRING DATATYPE
+--echo #
+ CREATE TABLE t1(a YEAR, b VARCHAR(10));
+ INSERT INTO t1 VALUES ('1997','random_str');
+ SELECT STRCMP(a, b) FROM t1;
+ DROP TABLE t1;
+
+--echo #
+--echo # Bug#30626100: WL13456 RESULTSET DISTINCT DIFFERENCE
+--echo #
+CREATE TABLE t (col_datetime datetime, col_date date, col_time time, col_char char);
+insert into t values ('2013-03-15 18:35:20', '2013-03-15', '18:35:20','L'),
+                     ('2003-01-10 00:00:23', '2003-01-10', '00:00:23', NULL);
+SELECT CAST(col_char AS DATETIME) FROM t;
+SELECT col_char /*CAST(col_char as datetime)*/ <> col_datetime FROM t;
+
+SELECT CAST(col_char AS DATE) FROM t;
+SELECT col_char <> col_date FROM t;
+
+SELECT CAST(col_char as TIME) FROM t;
+SELECT col_char <> col_time FROM t;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#31095719 WL13456 RESULT SET COMPARISON DIFFERENCE WITH JOINS
+--echo #
+CREATE TABLE `BB` (`col_char_key` char(1));
+CREATE TABLE `CC` ( `pk` int, `col_datetime_key` datetime,
+KEY `idx_CC_col_datetime_key` (`col_datetime_key`));
+INSERT INTO `BB` VALUES ('X');
+INSERT INTO `CC` VALUES (1,'2027-03-17 00:10:00'), (2,'2004-11-14 12:46:43');
+SELECT COUNT(table1.pk) FROM CC table1 JOIN BB table3 JOIN CC table2
+WHERE (table3.col_char_key < table2.col_datetime_key);
+DROP TABLE `BB`;
+DROP TABLE `CC`;
+

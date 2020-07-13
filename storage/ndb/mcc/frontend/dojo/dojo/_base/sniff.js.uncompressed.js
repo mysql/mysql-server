@@ -68,8 +68,8 @@ define("dojo/_base/sniff", ["./kernel", "./lang", "../sniff"], function(dojo, la
 		//		True if the client runs on Mac
 		isMac: has("mac"),
 
-		// isIos: Boolean
-		//		True if client is iPhone, iPod, or iPad
+		// isIos: Number|undefined
+		//		Version as a Number if client is iPhone, iPod, or iPad. undefined otherwise.
 		isIos: has("ios"),
 
 		// isAndroid: Number|undefined
@@ -88,9 +88,6 @@ define("dojo/_base/sniff", ["./kernel", "./lang", "../sniff"], function(dojo, la
 		//		True if client is Adobe Air
 		isAir: has("air")
 	});
-
-
-	dojo.locale = dojo.locale || (has("ie") ? navigator.userLanguage : navigator.language).toLowerCase();
 
 	return has;
 });

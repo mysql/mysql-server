@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,6 +151,9 @@ public:
     Field* next() {
       return static_cast<Field*>(m_next);
     }
+    bool is_empty() const {
+      return (m_pos == m_end);
+    }
     uint m_fieldno;
     uint m_pos;
     uint m_end;
@@ -175,6 +178,12 @@ public:
     }
     uint cnt() const {
       return m_cnt;
+    }
+    bool final_field_is_empty() const {
+      return (static_cast<Field*>(m_back))->is_empty();
+    }
+    Field * pop_back() {
+      return static_cast<Field*>(List::pop_back());
     }
   };
 
@@ -223,6 +232,7 @@ public:
     Line* alloc_line();
     void free_data_list(DataList& data_list);
     void free_field_list(FieldList& field_list);
+    void free_field(Field *);
     void free_line_list(LineList& line_list);
     bool balanced();
     DataList m_data_free;

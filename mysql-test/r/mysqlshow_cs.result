@@ -86,6 +86,7 @@ Database: information_schema
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
+| COLUMNS_EXTENSIONS                    |
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | ENABLED_ROLES                         |
@@ -145,9 +146,13 @@ Database: information_schema
 | ST_UNITS_OF_MEASURE                   |
 | TABLES                                |
 | TABLESPACES                           |
+| TABLESPACES_EXTENSIONS                |
+| TABLES_EXTENSIONS                     |
 | TABLE_CONSTRAINTS                     |
+| TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
+| USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |
@@ -164,6 +169,7 @@ Database: INFORMATION_SCHEMA
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
+| COLUMNS_EXTENSIONS                    |
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | ENABLED_ROLES                         |
@@ -223,9 +229,13 @@ Database: INFORMATION_SCHEMA
 | ST_UNITS_OF_MEASURE                   |
 | TABLES                                |
 | TABLESPACES                           |
+| TABLESPACES_EXTENSIONS                |
+| TABLES_EXTENSIONS                     |
 | TABLE_CONSTRAINTS                     |
+| TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
+| USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |

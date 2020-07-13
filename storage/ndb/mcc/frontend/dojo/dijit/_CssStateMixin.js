@@ -1,172 +1,198 @@
 //>>built
-define("dijit/_CssStateMixin",["dojo/_base/array","dojo/_base/declare","dojo/dom","dojo/dom-class","dojo/has","dojo/_base/lang","dojo/on","dojo/ready","dojo/_base/window","./registry"],function(_1,_2,_3,_4,_5,_6,on,_7,_8,_9){
-var _a=_2("dijit._CssStateMixin",[],{cssStateNodes:{},hovering:false,active:false,_applyAttributes:function(){
+define("dijit/_CssStateMixin",["dojo/_base/array","dojo/_base/declare","dojo/dom","dojo/dom-class","dojo/has","dojo/_base/lang","dojo/on","dojo/domReady","dojo/touch","dojo/_base/window","./a11yclick","./registry"],function(_1,_2,_3,_4,_5,_6,on,_7,_8,_9,_a,_b){
+var _c=_2("dijit._CssStateMixin",[],{hovering:false,active:false,_applyAttributes:function(){
 this.inherited(arguments);
-_1.forEach(["disabled","readOnly","checked","selected","focused","state","hovering","active","_opened"],function(_b){
-this.watch(_b,_6.hitch(this,"_setStateClass"));
+_1.forEach(["disabled","readOnly","checked","selected","focused","state","hovering","active","_opened"],function(_d){
+this.watch(_d,_6.hitch(this,"_setStateClass"));
 },this);
-for(var ap in this.cssStateNodes){
+for(var ap in this.cssStateNodes||{}){
 this._trackMouseState(this[ap],this.cssStateNodes[ap]);
 }
 this._trackMouseState(this.domNode,this.baseClass);
 this._setStateClass();
-},_cssMouseEvent:function(_c){
+},_cssMouseEvent:function(_e){
 if(!this.disabled){
-switch(_c.type){
+switch(_e.type){
 case "mouseover":
+case "MSPointerOver":
+case "pointerover":
 this._set("hovering",true);
 this._set("active",this._mouseDown);
 break;
 case "mouseout":
+case "MSPointerOut":
+case "pointerout":
 this._set("hovering",false);
 this._set("active",false);
 break;
 case "mousedown":
 case "touchstart":
+case "MSPointerDown":
+case "pointerdown":
+case "keydown":
 this._set("active",true);
 break;
 case "mouseup":
-case "touchend":
+case "dojotouchend":
+case "MSPointerUp":
+case "pointerup":
+case "keyup":
 this._set("active",false);
 break;
 }
 }
 },_setStateClass:function(){
-var _d=this.baseClass.split(" ");
-function _e(_f){
-_d=_d.concat(_1.map(_d,function(c){
-return c+_f;
-}),"dijit"+_f);
+var _f=this.baseClass.split(" ");
+function _10(_11){
+_f=_f.concat(_1.map(_f,function(c){
+return c+_11;
+}),"dijit"+_11);
 };
 if(!this.isLeftToRight()){
-_e("Rtl");
+_10("Rtl");
 }
-var _10=this.checked=="mixed"?"Mixed":(this.checked?"Checked":"");
+var _12=this.checked=="mixed"?"Mixed":(this.checked?"Checked":"");
 if(this.checked){
-_e(_10);
+_10(_12);
 }
 if(this.state){
-_e(this.state);
+_10(this.state);
 }
 if(this.selected){
-_e("Selected");
+_10("Selected");
 }
 if(this._opened){
-_e("Opened");
+_10("Opened");
 }
 if(this.disabled){
-_e("Disabled");
+_10("Disabled");
 }else{
 if(this.readOnly){
-_e("ReadOnly");
+_10("ReadOnly");
 }else{
 if(this.active){
-_e("Active");
+_10("Active");
 }else{
 if(this.hovering){
-_e("Hover");
+_10("Hover");
 }
 }
 }
 }
 if(this.focused){
-_e("Focused");
+_10("Focused");
 }
-var tn=this.stateNode||this.domNode,_11={};
+var tn=this.stateNode||this.domNode,_13={};
 _1.forEach(tn.className.split(" "),function(c){
-_11[c]=true;
+_13[c]=true;
 });
 if("_stateClasses" in this){
 _1.forEach(this._stateClasses,function(c){
-delete _11[c];
+delete _13[c];
 });
 }
-_1.forEach(_d,function(c){
-_11[c]=true;
+_1.forEach(_f,function(c){
+_13[c]=true;
 });
-var _12=[];
-for(var c in _11){
-_12.push(c);
+var _14=[];
+for(var c in _13){
+_14.push(c);
 }
-tn.className=_12.join(" ");
-this._stateClasses=_d;
-},_subnodeCssMouseEvent:function(_13,_14,evt){
+tn.className=_14.join(" ");
+this._stateClasses=_f;
+},_subnodeCssMouseEvent:function(_15,_16,evt){
 if(this.disabled||this.readOnly){
 return;
 }
-function _15(_16){
-_4.toggle(_13,_14+"Hover",_16);
-};
 function _17(_18){
-_4.toggle(_13,_14+"Active",_18);
+_4.toggle(_15,_16+"Hover",_18);
 };
 function _19(_1a){
-_4.toggle(_13,_14+"Focused",_1a);
+_4.toggle(_15,_16+"Active",_1a);
+};
+function _1b(_1c){
+_4.toggle(_15,_16+"Focused",_1c);
 };
 switch(evt.type){
 case "mouseover":
-_15(true);
+case "MSPointerOver":
+case "pointerover":
+_17(true);
 break;
 case "mouseout":
-_15(false);
+case "MSPointerOut":
+case "pointerout":
 _17(false);
+_19(false);
 break;
 case "mousedown":
 case "touchstart":
-_17(true);
+case "MSPointerDown":
+case "pointerdown":
+case "keydown":
+_19(true);
 break;
 case "mouseup":
-case "touchend":
-_17(false);
+case "MSPointerUp":
+case "pointerup":
+case "dojotouchend":
+case "keyup":
+_19(false);
 break;
 case "focus":
 case "focusin":
-_19(true);
+_1b(true);
 break;
 case "blur":
 case "focusout":
-_19(false);
+_1b(false);
 break;
 }
-},_trackMouseState:function(_1b,_1c){
-_1b._cssState=_1c;
+},_trackMouseState:function(_1d,_1e){
+_1d._cssState=_1e;
 }});
 _7(function(){
-function _1d(evt){
-if(!_3.isDescendant(evt.relatedTarget,evt.target)){
-for(var _1e=evt.target;_1e&&_1e!=evt.relatedTarget;_1e=_1e.parentNode){
-if(_1e._cssState){
-var _1f=_9.getEnclosingWidget(_1e);
-if(_1f){
-if(_1e==_1f.domNode){
-_1f._cssMouseEvent(evt);
-}else{
-_1f._subnodeCssMouseEvent(_1e,_1e._cssState,evt);
+function _1f(evt,_20,_21){
+if(_21&&_3.isDescendant(_21,_20)){
+return;
 }
+for(var _22=_20;_22&&_22!=_21;_22=_22.parentNode){
+if(_22._cssState){
+var _23=_b.getEnclosingWidget(_22);
+if(_23){
+if(_22==_23.domNode){
+_23._cssMouseEvent(evt);
+}else{
+_23._subnodeCssMouseEvent(_22,_22._cssState,evt);
 }
 }
 }
 }
 };
-function _20(evt){
-evt.target=evt.srcElement;
-_1d(evt);
-};
-var _21=_8.body(),_22=(_5("touch")?[]:["mouseover","mouseout"]).concat(["mousedown","touchstart","mouseup","touchend"]);
-_1.forEach(_22,function(_23){
-if(_21.addEventListener){
-_21.addEventListener(_23,_1d,true);
-}else{
-_21.attachEvent("on"+_23,_20);
+var _24=_9.body(),_25;
+on(_24,_8.over,function(evt){
+_1f(evt,evt.target,evt.relatedTarget);
+});
+on(_24,_8.out,function(evt){
+_1f(evt,evt.target,evt.relatedTarget);
+});
+on(_24,_a.press,function(evt){
+_25=evt.target;
+_1f(evt,_25);
+});
+on(_24,_a.release,function(evt){
+_1f(evt,_25);
+_25=null;
+});
+on(_24,"focusin, focusout",function(evt){
+var _26=evt.target;
+if(_26._cssState&&!_26.getAttribute("widgetId")){
+var _27=_b.getEnclosingWidget(_26);
+if(_27){
+_27._subnodeCssMouseEvent(_26,_26._cssState,evt);
+}
 }
 });
-on(_21,"focusin, focusout",function(evt){
-var _24=evt.target;
-if(_24._cssState&&!_24.getAttribute("widgetId")){
-var _25=_9.getEnclosingWidget(_24);
-_25._subnodeCssMouseEvent(_24,_24._cssState,evt);
-}
 });
-});
-return _a;
+return _c;
 });

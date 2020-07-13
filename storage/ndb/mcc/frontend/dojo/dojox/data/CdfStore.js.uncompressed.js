@@ -3,7 +3,7 @@ define("dojox/data/CdfStore", ["dojo", "dojox", "dojo/data/util/sorter"], functi
 dojox.data.ASYNC_MODE = 0;
 dojox.data.SYNC_MODE = 1;
 
-dojo.declare("dojox.data.CdfStore", null, {
+return dojo.declare("dojox.data.CdfStore", null, {
 	// summary:
 	//		IMPORTANT: The CDF Store is designed to work with Tibco GI, and references Tibco's
 	//		JSX3 JavaScript library and will not work without it.
@@ -599,9 +599,7 @@ dojo.declare("dojox.data.CdfStore", null, {
 	byId: function(/* Object|String */ args){
 		// stub. See fetchItemByIdentity
 	}
-	
 });
 
-return dojox.data.CdfStore;
 });
 

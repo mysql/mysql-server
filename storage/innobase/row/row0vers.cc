@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -284,20 +284,23 @@ static bool row_vers_find_matching(
 
 /** Finds out if an active transaction has inserted or modified a secondary
  index record.
+ @param[in]       clust_rec     clustered index record
+ @param[in]       clust_index   the clustered index
+ @param[in]       sec_rec       secondary index record
+ @param[in]       sec_index     the secondary index
+ @param[in]       sec_offsets   rec_get_offsets(sec_rec, sec_index)
+ @param[in,out]   mtr           mini-transaction
  @return 0 if committed, else the active transaction id;
  NOTE that this function can return false positives but never false
- negatives. The caller must confirm all positive results by calling
- trx_is_active() while holding lock_sys->mutex. */
+ negatives. The caller must confirm all positive results by calling checking if
+ the trx is still active.*/
 UNIV_INLINE
-trx_t *row_vers_impl_x_locked_low(
-    const rec_t *const clust_rec,          /*!< in: clustered index record */
-    const dict_index_t *const clust_index, /*!< in: the clustered index */
-    const rec_t *const sec_rec,            /*!< in: secondary index record */
-    const dict_index_t *const sec_index,   /*!< in: the secondary index */
-    const ulint
-        *const sec_offsets, /*!< in: rec_get_offsets(sec_rec, sec_index) */
-    mtr_t *const mtr)       /*!< in/out: mini-transaction */
-{
+trx_t *row_vers_impl_x_locked_low(const rec_t *const clust_rec,
+                                  const dict_index_t *const clust_index,
+                                  const rec_t *const sec_rec,
+                                  const dict_index_t *const sec_index,
+                                  const ulint *const sec_offsets,
+                                  mtr_t *const mtr) {
   trx_id_t trx_id;
   ibool corrupt;
   ulint comp;
@@ -530,23 +533,14 @@ trx_t *row_vers_impl_x_locked_low(
   return trx;
 }
 
-/** Finds out if an active transaction has inserted or modified a secondary
- index record.
- @return 0 if committed, else the active transaction id;
- NOTE that this function can return false positives but never false
- negatives. The caller must confirm all positive results by calling
- trx_is_active() while holding lock_sys->mutex. */
-trx_t *row_vers_impl_x_locked(
-    const rec_t *rec,          /*!< in: record in a secondary index */
-    const dict_index_t *index, /*!< in: the secondary index */
-    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
-{
+trx_t *row_vers_impl_x_locked(const rec_t *rec, const dict_index_t *index,
+                              const ulint *offsets) {
   mtr_t mtr;
   trx_t *trx;
   const rec_t *clust_rec;
   dict_index_t *clust_index;
 
-  ut_ad(!lock_mutex_own());
+  ut_ad(!locksys::owns_exclusive_global_latch());
   ut_ad(!trx_sys_mutex_own());
 
   mtr_start(&mtr);

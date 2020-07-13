@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -861,43 +861,43 @@ ib_err_t ib_sdi_flush(space_id_t space_id);
 #ifdef UNIV_MEMCACHED_SDI
 /** Wrapper function to retrieve SDI from tablespace.
 @param[in]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @param[in,out]	sdi		SDI data retrieved
 @param[in,out]	sdi_len		in:  Size of allocated memory
                                 out: Actual SDI length
 @return DB_SUCCESS if SDI retrieval is successful, else error */
-ib_err_t ib_memc_sdi_get(ib_crsr_t ib_crsr, const char *key, void *sdi,
+ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key, void *sdi,
                          uint64_t *sdi_len);
 
 /** Wrapper function to delete SDI from tablespace.
 @param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @return DB_SUCCESS if SDI deletion is successful, else error */
-ib_err_t ib_memc_sdi_delete(ib_crsr_t ib_crsr, const char *key);
+ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key);
 
 /** Wrapper function to insert SDI into tablespace.
 @param[in]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @param[in]	sdi		SDI to be stored in tablespace
 @param[in]	sdi_len		SDI length
 @return DB_SUCCESS if SDI insertion is successful, else error */
-ib_err_t ib_memc_sdi_set(ib_crsr_t ib_crsr, const char *key, const void *sdi,
+ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key, const void *sdi,
                          uint64_t *sdi_len);
 
 /** Wrapper function to create SDI in a tablespace.
 @param[in,out]	crsr		Memcached cursor
 @return DB_SUCCESS if SDI creation is successful, else error */
-ib_err_t ib_memc_sdi_create(ib_crsr_t ib_crsr);
+ib_err_t ib_memc_sdi_create(ib_crsr_t crsr);
 
 /** Wrapper function to drop SDI in a tablespace.
 @param[in,out]	crsr		Memcached cursor
 @return DB_SUCCESS if dropping of SDI is successful, else error */
-ib_err_t ib_memc_sdi_drop(ib_crsr_t ib_crsr);
+ib_err_t ib_memc_sdi_drop(ib_crsr_t crsr);
 
 /* Wrapper function to retreive list of SDI keys into the buffer
 The SDI keys are copied in the from x:y and separated by '|'.
 @param[in,out]	crsr		Memcached cursor
-@param[in]	key_str		Memcached key
+@param[in]	key		Memcached key
 @param[out]	sdi		The keys are copies into this buffer
 @return DB_SUCCESS if SDI keys retrieval is successful, else error */
 ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key, void *sdi,

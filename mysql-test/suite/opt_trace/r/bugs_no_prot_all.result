@@ -171,28 +171,12 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "steps": [
                       {
                         "expanded_query": "/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`)"
-                      },
-                      {
-                        "transformation": {
-                          "select#": 4,
-                          "from": "IN (SELECT)",
-                          "to": "semijoin",
-                          "chosen": true
-                        } /* transformation */
                       }
                     ] /* steps */
                   } /* join_preparation */
                 },
                 {
                   "expanded_query": "/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where `alias2`.`col_varchar_key` in (/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -402,14 +386,6 @@ FROM t1
                 },
                 {
                   "expanded_query": "/* select#2 */ select (/* select#3 */ select `t2`.`col_int_key` from `t2`) from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -869,14 +845,6 @@ ON table2 .col_int_key = table1 .col_int_key
                       }
                     ] /* steps */
                   } /* join_preparation */
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */

@@ -317,7 +317,7 @@ TEST_F(ItemFilterTest, BasicIgnoreField) {
   // Predicates on m_field[0] should be ignored
   MY_BITMAP ignore_fld0;
   bitmap_init(&ignore_fld0, nullptr, m_table->s->fields);
-  bitmap_set_bit(&ignore_fld0, m_field[0]->field_index);
+  bitmap_set_bit(&ignore_fld0, m_field[0]->field_index());
 
   // Check filtering for predicate on ignored field: field0 = 10
   create_item_check_filter(COND_FILTER_ALLPASS, Item_func::MULT_EQUAL_FUNC,
@@ -401,7 +401,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
     Calculate filtering of (field0=10 AND field1=10 AND field2<99)
     while ignoring predicates on field0
   */
-  bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[0]->field_index());
 
   float filter = and_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
@@ -411,7 +411,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
     Calculate filtering of (field0=10 AND field1=10 AND field2<99)
     while ignoring predicates on field0 and field1
   */
-  bitmap_set_bit(&ignore_flds, m_field[1]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[1]->field_index());
   filter = and_it->get_filtering_effect(thd(), m_table_list->map(), used_tables,
                                         &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_INEQUALITY, filter);
@@ -420,7 +420,7 @@ TEST_F(ItemFilterTest, BasicConstAnd) {
     Calculate filtering of (field0=10 AND field1=10 AND field2<99)
     while ignoring predicates on field0, field1 and field2
   */
-  bitmap_set_bit(&ignore_flds, m_field[2]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[2]->field_index());
   filter = and_it->get_filtering_effect(thd(), m_table_list->map(), used_tables,
                                         &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filter);
@@ -485,7 +485,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
     The result is always 1.0 if any of the ORed predicates is 1.0.
 
   */
-  bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[0]->field_index());
   const float filt_ign0 = or_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign0);
@@ -494,7 +494,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
     Calculate filtering of (field0=10 OR field1=10 OR field2<99) while
     ignoring predicates on m_field[0] and m_field[1]
   */
-  bitmap_set_bit(&ignore_flds, m_field[1]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[1]->field_index());
   const float filt_ign1 = or_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign1);
@@ -504,7 +504,7 @@ TEST_F(ItemFilterTest, BasicConstOr) {
     ignoring predicates on m_field[2]
   */
   bitmap_clear_all(&ignore_flds);
-  bitmap_set_bit(&ignore_flds, m_field[2]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[2]->field_index());
   const float filt_ign2 = or_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign2);
@@ -562,7 +562,7 @@ TEST_F(ItemFilterTest, InPredicate) {
     There is no filtering effect for "col IN (1,..,6)" if 'col' is
     ignored.
   */
-  bitmap_set_bit(&ignore_flds, m_field[0]->field_index);
+  bitmap_set_bit(&ignore_flds, m_field[0]->field_index());
   const float filt_ign = in_it->get_filtering_effect(
       thd(), m_table_list->map(), used_tables, &ignore_flds, rows_in_table);
   EXPECT_FLOAT_EQ(COND_FILTER_ALLPASS, filt_ign);

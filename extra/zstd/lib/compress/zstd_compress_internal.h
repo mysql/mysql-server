@@ -19,6 +19,7 @@
 *  Dependencies
 ***************************************/
 #include "zstd_internal.h"
+#include "my_compiler.h"
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"
 #endif
@@ -811,6 +812,7 @@ ZSTD_checkDictValidity(const ZSTD_window_t* window,
  */
 MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
                                   void const* src, size_t srcSize)
+SUPPRESS_UBSAN_CLANG10
 {
     BYTE const* const ip = (BYTE const*)src;
     U32 contiguous = 1;

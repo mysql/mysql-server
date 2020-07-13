@@ -357,7 +357,7 @@ unsigned int ha_archive::pack_row_v1(uchar *record) {
     Field_blob *field = down_cast<Field_blob *>(table->field[*blob]);
     const uint32 length = field->get_length();
     if (length) {
-      memcpy(pos, field->get_ptr(), length);
+      memcpy(pos, field->get_blob_data(), length);
       pos += length;
     }
   }
@@ -616,7 +616,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     for (; key_part != key_part_end; key_part++) {
       Field *field = key_part->field;
 
-      if (!(field->flags & AUTO_INCREMENT_FLAG)) {
+      if (!field->is_flag_set(AUTO_INCREMENT_FLAG)) {
         error = -1;
         DBUG_PRINT("ha_archive", ("Index error in creating archive table"));
         goto error;
@@ -759,8 +759,7 @@ unsigned int ha_archive::pack_row(uchar *record, azio_stream *writer) {
   ptr = record_buffer->buffer + table->s->null_bytes + ARCHIVE_ROW_HEADER_SIZE;
 
   for (Field **field = table->field; *field; field++) {
-    if (!((*field)->is_null()))
-      ptr = (*field)->pack(ptr, record + (*field)->offset(record));
+    if (!((*field)->is_null())) ptr = (*field)->pack(ptr);
   }
 
   int4store(record_buffer->buffer,
@@ -801,7 +800,7 @@ int ha_archive::write_row(uchar *buf) {
   if (table->next_number_field && record == table->record[0]) {
     KEY *mkey = &table->s->key_info[0];  // We only support one key right now
     update_auto_increment();
-    temp_auto = (((Field_num *)table->next_number_field)->unsigned_flag ||
+    temp_auto = (table->next_number_field->is_unsigned() ||
                          table->next_number_field->val_int() > 0
                      ? table->next_number_field->val_int()
                      : 0);
@@ -1021,7 +1020,8 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record) {
   ptr += table->s->null_bytes;
   for (Field **field = table->field; *field; field++) {
     if (!((*field)->is_null_in_record(record))) {
-      ptr = (*field)->unpack(record + (*field)->offset(table->record[0]), ptr);
+      ptr =
+          (*field)->unpack(record + (*field)->offset(table->record[0]), ptr, 0);
     }
   }
   return 0;
@@ -1066,7 +1066,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf) {
   for (ptr = table->s->blob_field, end = ptr + table->s->blob_fields;
        ptr != end; ptr++) {
     if (bitmap_is_set(read_set,
-                      (((Field_blob *)table->field[*ptr])->field_index)))
+                      (((Field_blob *)table->field[*ptr])->field_index())))
       total_blob_length += ((Field_blob *)table->field[*ptr])->get_length();
   }
 
@@ -1080,7 +1080,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf) {
     size_t size = ((Field_blob *)table->field[*ptr])->get_length();
     if (size) {
       if (bitmap_is_set(read_set,
-                        ((Field_blob *)table->field[*ptr])->field_index)) {
+                        ((Field_blob *)table->field[*ptr])->field_index())) {
         read = azread(file_to_read, const_cast<char *>(last), size, &error);
 
         if (error) return HA_ERR_CRASHED_ON_USAGE;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,7 +217,7 @@ public:
      returns false
 
      @param sockfd           the socket to handshake
-     @param mgs              error message describing why handshake failed,
+     @param msg              error message describing why handshake failed,
                              to be filled in when function return
      @param close_with_reset allows the function to indicate to the caller
                              how the socket should be closed when function

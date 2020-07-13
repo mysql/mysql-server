@@ -1,33 +1,32 @@
 //>>built
-require({cache:{"url:dijit/templates/MenuBar.html":"<div class=\"dijitMenuBar dijitMenuPassive\" data-dojo-attach-point=\"containerNode\"  role=\"menubar\" tabIndex=\"${tabIndex}\" data-dojo-attach-event=\"onkeypress: _onKeyPress\"></div>\n"}});
-define("dijit/MenuBar",["dojo/_base/declare","dojo/_base/event","dojo/keys","./_MenuBase","dojo/text!./templates/MenuBar.html"],function(_1,_2,_3,_4,_5){
-return _1("dijit.MenuBar",_4,{templateString:_5,baseClass:"dijitMenuBar",_isMenuBar:true,postCreate:function(){
-this.inherited(arguments);
-var l=this.isLeftToRight();
-this.connectKeyNavHandlers(l?[_3.LEFT_ARROW]:[_3.RIGHT_ARROW],l?[_3.RIGHT_ARROW]:[_3.LEFT_ARROW]);
-this._orient=["below"];
-},_moveToPopup:function(_6){
+require({cache:{"url:dijit/templates/MenuBar.html":"<div class=\"dijitMenuBar dijitMenuPassive\" data-dojo-attach-point=\"containerNode\" role=\"menubar\" tabIndex=\"${tabIndex}\"\n\t ></div>\n"}});
+define("dijit/MenuBar",["dojo/_base/declare","dojo/keys","./_MenuBase","dojo/text!./templates/MenuBar.html"],function(_1,_2,_3,_4){
+return _1("dijit.MenuBar",_3,{templateString:_4,baseClass:"dijitMenuBar",popupDelay:0,_isMenuBar:true,_orient:["below"],_moveToPopup:function(_5){
 if(this.focusedChild&&this.focusedChild.popup&&!this.focusedChild.disabled){
-this.onItemClick(this.focusedChild,_6);
+this.onItemClick(this.focusedChild,_5);
 }
-},focusChild:function(_7){
-var _8=this.focusedChild,_9=_8&&_8.popup&&_8.popup.isShowingNow;
+},focusChild:function(_6){
 this.inherited(arguments);
-if(_9&&_7.popup&&!_7.disabled){
-this._openPopup(true);
+if(this.activated&&_6.popup&&!_6.disabled){
+this._openItemPopup(_6,true);
 }
-},_onKeyPress:function(_a){
-if(_a.ctrlKey||_a.altKey){
-return;
+},_onChildDeselect:function(_7){
+if(this.currentPopupItem==_7){
+this.currentPopupItem=null;
+_7._closePopup();
 }
-switch(_a.charOrCode){
-case _3.DOWN_ARROW:
-this._moveToPopup(_a);
-_2.stop(_a);
-}
-},onItemClick:function(_b,_c){
-if(_b.popup&&_b.popup.isShowingNow&&(_c.type!=="keypress"||_c.keyCode!==_3.DOWN_ARROW)){
-_b.popup.onCancel();
+this.inherited(arguments);
+},_onLeftArrow:function(){
+this.focusPrev();
+},_onRightArrow:function(){
+this.focusNext();
+},_onDownArrow:function(_8){
+this._moveToPopup(_8);
+},_onUpArrow:function(){
+},onItemClick:function(_9,_a){
+if(_9.popup&&_9.popup.isShowingNow&&(!/^key/.test(_a.type)||_a.keyCode!==_2.DOWN_ARROW)){
+_9.focusNode.focus();
+this._cleanUp(true);
 }else{
 this.inherited(arguments);
 }

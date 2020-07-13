@@ -1,14 +1,15 @@
-define("dojo/text", ["./_base/kernel", "require", "./has", "./_base/xhr"], function(dojo, require, has, xhr){
+define("dojo/text", ["./_base/kernel", "require", "./has", "./request"], function(dojo, require, has, request){
 	// module:
 	//		dojo/text
 
 	var getText;
 	if( 1 ){
 		getText= function(url, sync, load){
-			xhr("GET", {url: url, sync:!!sync, load: load, headers: dojo.config.textPluginHeaders || {}});
+			request(url, {sync:!!sync, headers: { 'X-Requested-With': null } }).then(load);
 		};
 	}else{
-		// TODOC: only works for dojo AMD loader
+		// Path for node.js and rhino, to load from local file system.
+		// TODO: use node.js native methods rather than depending on a require.getText() method to exist.
 		if(require.getText){
 			getText= require.getText;
 		}else{
@@ -78,6 +79,7 @@ define("dojo/text", ["./_base/kernel", "require", "./has", "./_base/xhr"], funct
 		//		"dojo.cache" style of call):
 		//		| //If template.html contains "<h1>Hello</h1>" that will be
 		//		| //the value for the text variable.
+		//		| //Note: This is pre-AMD, deprecated syntax
 		//		| var text = dojo["cache"]("my.module", "template.html");
 		// example:
 		//		To ask dojo.cache to fetch content and store it in the cache, and sanitize the input
@@ -86,12 +88,14 @@ define("dojo/text", ["./_base/kernel", "require", "./has", "./_base/xhr"], funct
 		//		dojo.cache calls, use the "dojo.cache" style of call):
 		//		| //If template.html contains "<html><body><h1>Hello</h1></body></html>", the
 		//		| //text variable will contain just "<h1>Hello</h1>".
+		//		| //Note: This is pre-AMD, deprecated syntax
 		//		| var text = dojo["cache"]("my.module", "template.html", {sanitize: true});
 		// example:
 		//		Same example as previous, but demonstrates how an object can be passed in as
 		//		the first argument, then the value argument can then be the second argument.
 		//		| //If template.html contains "<html><body><h1>Hello</h1></body></html>", the
 		//		| //text variable will contain just "<h1>Hello</h1>".
+		//		| //Note: This is pre-AMD, deprecated syntax
 		//		| var text = dojo["cache"](new dojo._Url("my/module/template.html"), {sanitize: true});
 
 		//	 * (string string [value]) => (module, url, value)
@@ -186,7 +190,7 @@ define("dojo/text", ["./_base/kernel", "require", "./has", "./_base/xhr"], funct
 				};
 			if(absMid in theCache){
 				text = theCache[absMid];
-			}else if(requireCacheUrl in require.cache){
+			}else if(require.cache && requireCacheUrl in require.cache){
 				text = require.cache[requireCacheUrl];
 			}else if(url in theCache){
 				text = theCache[url];

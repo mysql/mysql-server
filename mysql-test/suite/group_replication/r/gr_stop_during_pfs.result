@@ -18,7 +18,7 @@ STOP GROUP_REPLICATION;
 # Wait for STOP GR to reach the debug sync point.
 #
 [connection server_1_1]
-SET DEBUG_SYNC= "now WAIT_FOR signal.reached_stop_before_leave_the_group";
+SET DEBUG_SYNC= "now WAIT_FOR signal.stopping_before_leave_the_group";
 #
 # Send PS query from different session. The query shall halt in
 # "get_group_member_stats()" function.

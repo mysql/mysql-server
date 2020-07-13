@@ -15,6 +15,10 @@ define("dojox/geo/openlayers/_base", ["dojo/_base/lang"], function(lang){
 		//		The Open Street Map base layer type selector.
 		OSM: "OSM",
 
+		// Transport: String
+		//		The Open Cycle Map transport layer type selector.
+		Transport: "OSM.Transport",
+
 		// WMS: String
 		//		The Web Map Server base layer type selector.
 		WMS: "WMS",

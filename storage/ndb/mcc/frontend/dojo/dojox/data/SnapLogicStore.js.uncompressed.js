@@ -1,6 +1,6 @@
 define("dojox/data/SnapLogicStore", ["dojo", "dojox", "dojo/io/script", "dojo/data/util/sorter"], function(dojo, dojox) {
 
-dojo.declare("dojox.data.SnapLogicStore", null, {
+return dojo.declare("dojox.data.SnapLogicStore", null, {
 	Parts: {
 		DATA: "data",
 		COUNT: "count"
@@ -324,6 +324,5 @@ dojo.declare("dojox.data.SnapLogicStore", null, {
 	}
 });
 
-return dojox.data.SnapLogicStore;
 });
 

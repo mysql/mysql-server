@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -108,18 +108,23 @@ void mlog_catenate_ull_compressed(mtr_t *mtr, ib_uint64_t val);
 @param[in,out]	mtr	mtr
 @param[in]	size	buffer size in bytes; MUST be smaller than
                         DYN_ARRAY_DATA_SIZE!
-@return buffer, NULL if log mode MTR_LOG_NONE */
-UNIV_INLINE
-byte *mlog_open(mtr_t *mtr, ulint size);
+@param[out]	buffer  mlog buffer pointer if opened successfully
+@retval true if opened successfully.
+@retval false if not opened. One case is when redo is disabled for mtr. */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool mlog_open(mtr_t *mtr,
+                                                              ulint size,
+                                                              byte *&buffer);
 
 /** Opens a buffer to mlog. It must be closed with mlog_close.
 This is used for writing log for metadata changes
 @param[in,out]	mtr	mtr
 @param[in]	size	buffer size in bytes; MUST be smaller than
                         DYN_ARRAY_DATA_SIZE!
-@return buffer */
-UNIV_INLINE
-byte *mlog_open_metadata(mtr_t *mtr, ulint size);
+@param[out]	buffer  mlog buffer pointer if opened successfully
+@retval true if opened successfully.
+@retval false if not opened. One case is when redo is disabled for mtr. */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool mlog_open_metadata(
+    mtr_t *mtr, ulint size, byte *&buffer);
 
 /** Closes a buffer opened to mlog.
 @param[in]	mtr	mtr
@@ -208,18 +213,21 @@ byte *mlog_parse_string(
     void *page_zip); /*!< in/out: compressed page, or NULL */
 
 /** Opens a buffer for mlog, writes the initial log record and,
- if needed, the field lengths of an index.  Reserves space
- for further log entries.  The log entry must be closed with
- mtr_close().
- @return buffer, NULL if log mode MTR_LOG_NONE */
-byte *mlog_open_and_write_index(
-    mtr_t *mtr,                /*!< in: mtr */
-    const byte *rec,           /*!< in: index record or page */
-    const dict_index_t *index, /*!< in: record descriptor */
-    mlog_id_t type,            /*!< in: log item type */
-    ulint size);               /*!< in: requested buffer size in bytes
-                               (if 0, calls mlog_close() and
-                               returns NULL) */
+if needed, the field lengths of an index.  Reserves space
+for further log entries.  The log entry must be closed with
+mtr_close().
+@param[in,out]	mtr	mini transaction
+@param[in]	rec	index record or page
+@param[in]	index	record descriptor
+@param[in]	type	log item type
+@param[in]	size	requested buffer size in bytes. if 0, calls
+                        mlog_close() and returns false.
+@param[out]	log_ptr	log buffer pointer
+@retval true if opened successfully.
+@retval false if not opened. One case is when redo is disabled for mtr. */
+bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
+                               const dict_index_t *index, mlog_id_t type,
+                               ulint size, byte *&log_ptr);
 
 /** Parses a log record written by mlog_open_and_write_index.
  @return parsed record end, NULL if not a complete record */

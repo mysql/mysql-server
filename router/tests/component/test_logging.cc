@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,13 @@ using namespace std::chrono_literals;
 
 class RouterLoggingTest : public RouterComponentTest {
  protected:
+  std::string create_config_file(
+      const std::string &directory, const std::string &sections,
+      const std::map<std::string, std::string> *default_section) const {
+    return ProcessManager::create_config_file(
+        directory, sections, default_section, "mysqlrouter.conf", "", false);
+  }
+
   TcpPortPool port_pool_;
 };
 
@@ -82,7 +89,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
       out, HasSubstr("Loading plugin for config-section '[invalid]' failed"));
 }
 
-/** @test This test is similar to log_startup_failure_to_logfile(), but the
+/** @test This test is similar to log_startup_failure_to_console(), but the
  * failure message is expected to be logged into a logfile
  */
 TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
@@ -351,7 +358,7 @@ struct LoggingConfigOkParams {
 }
 
 class RouterLoggingTestConfig
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigOkParams> {};
 
 /** @test This test verifies that a proper loggs are written to selected sinks
@@ -558,7 +565,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTest, RouterLoggingTestConfig,
     ::testing::Values(
         // no logger section, no sinks sections
@@ -822,7 +829,7 @@ INSTANTIATE_TEST_CASE_P(
             /* filelog_expected_level =  */ LogLevel::kSystem)));
 
 #ifndef WIN32
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTestUnix, RouterLoggingTestConfig,
     ::testing::Values(
         // We can't reliably check if the syslog logging is working with a
@@ -859,9 +866,20 @@ INSTANTIATE_TEST_CASE_P(
             "level=system\n",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNote,
-            /* filelog_expected_level =  */ LogLevel::kDebug)));
+            /* filelog_expected_level =  */ LogLevel::kDebug),
+        // Verify filename option is disregarded by syslog sink
+        /*3*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=note\n"
+            "sinks=syslog,filelog\n"
+            "[syslog]\n"
+            "filename=foo.log",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kNote)));
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTestWindows, RouterLoggingTestConfig,
     ::testing::Values(
         // We can't reliably check if the eventlog logging is working with a
@@ -898,7 +916,18 @@ INSTANTIATE_TEST_CASE_P(
             "level=system\n",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kNote,
-            /* filelog_expected_level =  */ LogLevel::kDebug)));
+            /* filelog_expected_level =  */ LogLevel::kDebug),
+        // Verify filename option is disregarded by eventlog sink
+        /*3*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=system\n"
+            "sinks=eventlog,filelog\n"
+            "[eventlog]\n"
+            "filename=foo.log",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kSystem)));
 #endif
 
 /**************************************************/
@@ -926,7 +955,7 @@ struct LoggingConfigErrorParams {
 }
 
 class RouterLoggingConfigError
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigErrorParams> {};
 
 /** @test This test verifies that a proper error gets printed on the console for
@@ -960,7 +989,7 @@ TEST_P(RouterLoggingConfigError, LoggingConfigError) {
       << console_log_txt;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigError, RouterLoggingConfigError,
     ::testing::Values(
         // Unknown sink name in the [logger] section
@@ -1075,7 +1104,7 @@ INSTANTIATE_TEST_CASE_P(
             "logging_folder is empty")));
 
 #ifndef _WIN32
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigErrorUnix, RouterLoggingConfigError,
     ::testing::Values(
         // We can't reliably check if the syslog logging is working with a
@@ -1102,7 +1131,7 @@ INSTANTIATE_TEST_CASE_P(
             /* expected_error =  */
             "Loading plugin for config-section '[eventlog]' failed")));
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigErrorWindows, RouterLoggingConfigError,
     ::testing::Values(
         // We can't reliably check if the eventlog logging is working with a
@@ -1131,7 +1160,7 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 
 class RouterLoggingTestTimestampPrecisionConfig
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigOkParams> {};
 
 #define DATE_REGEX "[0-9]{4}-[0-9]{2}-[0-9]{2}"
@@ -1287,7 +1316,7 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
 
 #define TS_FR1_3_STR(x) TS_FR1_1_STR(x)
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionTest,
     RouterLoggingTestTimestampPrecisionConfig,
     ::testing::Values(
@@ -1577,7 +1606,7 @@ INSTANTIATE_TEST_CASE_P(
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec)));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionError, RouterLoggingConfigError,
     ::testing::Values(
         // Unknown timestamp_precision value in a sink
@@ -1612,7 +1641,7 @@ INSTANTIATE_TEST_CASE_P(
                                  "Configuration error: Option "
                                  "'timestamp_precision' already defined.")));
 #ifndef _WIN32
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionErrorUnix, RouterLoggingConfigError,
     ::testing::Values(
         /*0*/ /* TS_HLD_1 */
@@ -1625,7 +1654,7 @@ INSTANTIATE_TEST_CASE_P(
                                  "Configuration error: timestamp_precision not "
                                  "valid for 'syslog'")));
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionErrorWindows, RouterLoggingConfigError,
     ::testing::Values(
         /*0*/ /* TS_HLD_3 */
@@ -1750,8 +1779,9 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  std::string conf_file = create_config_file(
-      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf");
+  std::string conf_file = ProcessManager::create_config_file(
+      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf", "",
+      false);
 
   auto &router = launch_router({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
@@ -1846,8 +1876,9 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  std::string conf_file = create_config_file(
-      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf");
+  std::string conf_file = ProcessManager::create_config_file(
+      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf", "",
+      false);
 
   auto &router = launch_router(
       {
@@ -2232,6 +2263,831 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
   std::this_thread::sleep_for(200ms);
 }
 
+#endif
+
+/**************************************************/
+/* Tests for valid logger filename configurations */
+/**************************************************/
+
+#define DEFAULT_LOGFILE_NAME "mysqlrouter.log"
+#define USER_LOGFILE_NAME "foo.log"
+#define USER_LOGFILE_NAME_2 "bar.log"
+
+struct LoggingConfigFilenameOkParams {
+  std::string logger_config;
+  std::string filename;
+  bool console_to_stderr;
+
+  LoggingConfigFilenameOkParams(const std::string &logger_config_,
+                                const std::string filename_)
+      : logger_config(logger_config_),
+        filename(filename_),
+        console_to_stderr(true) {}
+
+  LoggingConfigFilenameOkParams(const std::string &logger_config_,
+                                const std::string filename_,
+                                bool console_to_stderr_)
+      : logger_config(logger_config_),
+        filename(filename_),
+        console_to_stderr(console_to_stderr_) {}
+};
+
+class RouterLoggingTestConfigFilename
+    : public RouterLoggingTest,
+      public ::testing::WithParamInterface<LoggingConfigFilenameOkParams> {};
+
+/** @test This test verifies that a proper log filename is written to
+ * for various sinks/filename combinations.
+ */
+TEST_P(RouterLoggingTestConfigFilename, LoggingTestConfigFilename) {
+  auto test_params = GetParam();
+
+  TempDirectory tmp_dir;
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = tmp_dir.name();
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_text = "[routing]\n\n" + test_params.logger_config;
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  // empty routing section results in a failure, but while logging to file
+  auto &router = launch_router({"-c", conf_file}, 1);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // check the file log if it contains what's expected
+  const std::string file_log_txt =
+      router.get_full_logfile(test_params.filename, tmp_dir.name());
+
+  EXPECT_THAT(file_log_txt, HasSubstr("plugin 'routing' init failed"))
+      << "\file_log_txt:\n"
+      << file_log_txt;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    LoggingTestConfigFilename, RouterLoggingTestConfigFilename,
+    ::testing::Values(
+        // default filename in logger section
+        /*0*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "filename=" DEFAULT_LOGFILE_NAME "\n",
+                                      DEFAULT_LOGFILE_NAME),
+        // TS_FR01_01 user defined logfile name in logger section
+        /*1*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "filename=" USER_LOGFILE_NAME "\n",
+                                      USER_LOGFILE_NAME),
+        // TS_FR01_02 user defined logfile name in filelog sink
+        /*2*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "sinks=filelog\n"
+                                      "[filelog]\n"
+                                      "filename=" USER_LOGFILE_NAME "\n",
+                                      USER_LOGFILE_NAME),
+        // TS_FR04_09 user defined logfile name in filelog sink overrides user
+        // defined logfile name in logger section
+        /*3*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "sinks=filelog\n"
+                                      "filename=" USER_LOGFILE_NAME "\n"
+                                      "[filelog]\n"
+                                      "filename=" USER_LOGFILE_NAME_2 "\n",
+                                      USER_LOGFILE_NAME_2),
+        // TS_FR05_01 empty logger filename logs to default logfile name
+        /*4*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "filename=\n",
+                                      DEFAULT_LOGFILE_NAME),
+        // TS_FR05_02 empty filelog filename logs to default logfile name
+        /*5*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "sinks=filelog\n"
+                                      "[filelog]\n"
+                                      "filename=\n",
+                                      DEFAULT_LOGFILE_NAME),
+        // TS_FR04_11 empty filelog filename logs to userdefined logger filename
+        /*6*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "filename=" USER_LOGFILE_NAME "\n"
+                                      "sinks=filelog\n"
+                                      "[filelog]\n"
+                                      "filename=\n",
+                                      USER_LOGFILE_NAME),
+        // TS_FR04_12 undefined filelog filename logs to userdefined value for
+        // logger filename
+        /*7*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "filename=" USER_LOGFILE_NAME "\n"
+                                      "sinks=filelog\n"
+                                      "[filelog]\n",
+                                      USER_LOGFILE_NAME),
+        // user defined logfile name in filelog sink overrides logger section
+        /*8*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "sinks=filelog\n"
+                                      "filename=" DEFAULT_LOGFILE_NAME "\n"
+                                      "[filelog]\n"
+                                      "filename=" USER_LOGFILE_NAME "\n",
+                                      USER_LOGFILE_NAME),
+        // TS_FR04_01 empty filename has no effect
+        /*9*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "sinks=filelog\n"
+                                      "filename=\n"
+                                      "[filelog]\n"
+                                      "filename=" USER_LOGFILE_NAME_2 "\n",
+                                      USER_LOGFILE_NAME_2),
+        // TS_FR04_03 empty filenames has no effect, and logs to default
+        /*10*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "sinks=filelog\n"
+                                      "filename=\n"
+                                      "[filelog]\n"
+                                      "filename=\n",
+                                      DEFAULT_LOGFILE_NAME),
+        // TS_FR04_04 no filenames results in logging to default
+        /*11*/
+        LoggingConfigFilenameOkParams("[logger]\n"
+                                      "sinks=filelog\n"
+                                      "[filelog]\n",
+                                      DEFAULT_LOGFILE_NAME)));
+
+#define NOT_USED ""
+
+#ifndef WIN32
+#define NULL_DEVICE_NAME "/dev/null"
+#define STDOUT_DEVICE_NAME "/dev/stdout"
+#define STDERR_DEVICE_NAME "/dev/stderr"
+#else
+#define NULL_DEVICE_NAME "NUL"
+#define STDOUT_DEVICE_NAME "CON"
+// No STDERR equivalent for WIN32
+#endif
+
+class RouterLoggingTestConfigFilenameDevices
+    : public RouterLoggingTest,
+      public ::testing::WithParamInterface<LoggingConfigFilenameOkParams> {};
+
+/** @test This test verifies that consolelog destination may be set to various
+ * devices
+ */
+TEST_P(RouterLoggingTestConfigFilenameDevices,
+       LoggingTestConsoleDestinationDevices) {
+  // FIXME: Unfortunately due to the limitations of our component testing
+  // framework, this test has a flaw: it is not possible to distinguish if the
+  // output returned from router.get_full_output() appeared on STDERR or STDOUT.
+  // This should be fixed in the future.
+  auto test_params = GetParam();
+  bool console_empty =
+      (test_params.filename.compare(NULL_DEVICE_NAME) == 0 ? true : false);
+
+  Path destination(test_params.filename);
+#ifndef WIN32
+  EXPECT_TRUE(destination.exists());
+#endif
+
+  TempDirectory tmp_dir;
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = tmp_dir.name();
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_text =
+      "[routing]\n\n[logger]\nsinks=consolelog\n[consolelog]\ndestination=" +
+      destination.str();
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  // empty routing section results in a failure, but while logging to file
+  auto &router =
+      launch_router({"-c", conf_file}, 1, test_params.console_to_stderr);
+  check_exit_code(router, EXIT_FAILURE);
+
+  const std::string console_log_txt = router.get_full_output();
+  if (console_empty) {
+    // Expect the console log to be empty
+    EXPECT_TRUE(console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+  } else {
+    // Expect the console log to not be empty
+    EXPECT_TRUE(!console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+  }
+
+  // expect no default router file created in the logging folder
+  Path shouldnotexist = Path(tmp_dir.name()).join(DEFAULT_LOGFILE_NAME);
+  EXPECT_FALSE(shouldnotexist.exists());
+  shouldnotexist = Path("/dev").join(DEFAULT_LOGFILE_NAME);
+  EXPECT_FALSE(shouldnotexist.exists());
+
+#ifndef WIN32
+  EXPECT_TRUE(destination.exists());
+#endif
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    LoggingTestConsoleDestinationDevices,
+    RouterLoggingTestConfigFilenameDevices,
+    ::testing::Values(
+        // TS_FR07_03 consolelog destination /dev/null
+        /*0*/
+        LoggingConfigFilenameOkParams(NOT_USED, NULL_DEVICE_NAME, true),
+        // TS_FR07_01 consolelog destination /dev/stdout
+        /*1*/
+        LoggingConfigFilenameOkParams(NOT_USED, STDOUT_DEVICE_NAME, false)));
+
+#ifndef WIN32
+INSTANTIATE_TEST_SUITE_P(
+    LoggingTestConsoleDestinationDevicesUnix,
+    RouterLoggingTestConfigFilenameDevices,
+    ::testing::Values(
+        // TS_FR07_02 consolelog destination /dev/stderr
+        /*0*/
+        LoggingConfigFilenameOkParams(NOT_USED, STDERR_DEVICE_NAME, true)));
+#endif
+
+struct LoggingConfigFilenameErrorParams {
+  std::string logger_config;
+  std::string filename;
+  bool create_file;
+  std::string expected_error;
+
+  LoggingConfigFilenameErrorParams(const std::string &logger_config_,
+                                   const std::string filename_,
+                                   bool create_file_,
+                                   const std::string expected_error_)
+      : logger_config(logger_config_),
+        filename(filename_),
+        create_file(create_file_),
+        expected_error(expected_error_) {}
+};
+
+class RouterLoggingConfigFilenameError
+    : public RouterLoggingTest,
+      public ::testing::WithParamInterface<LoggingConfigFilenameErrorParams> {};
+
+#define ABS_PATH "%%ABSPATH%%"
+#define ABS_DIR "%%ABSDIR%%"
+#define REL_PATH "%%RELPATH%%"
+#define REL_DIR "%%RELDIR%%"
+#define FILENAME "%%FILENAME%%"
+
+/** @test This test verifies that absolute and relative filenames are rejected
+ * in filename option for various sinks/filename combinations.
+ */
+TEST_P(RouterLoggingConfigFilenameError, LoggingConfigAbsRelFilenameError) {
+  auto test_params = GetParam();
+
+  TempDirectory tmp_dir;
+
+  // create the absolute and relative paths (note: order)
+  Path abs_dir = Path(tmp_dir.name()).real_path();
+  Path abs_path = abs_dir.join(test_params.filename);
+  Path rel_path = Path(tmp_dir.name()).basename().join(test_params.filename);
+
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = abs_dir.str();
+
+  // Create tmp_file once the tmp_dir is created. Removed by tmp_dir dtor.
+  if (test_params.create_file) {
+    std::ofstream myfile_;
+    myfile_.open(abs_path.str());
+    if (myfile_.is_open()) {
+      myfile_ << "Temporary file created by router test ...\n";
+      myfile_.flush();
+      myfile_.close();
+    }
+    EXPECT_TRUE(abs_path.exists());
+  }
+
+  // replace the pattern in config where applicable
+  std::string cfg = "[keepalive]\n\n" + test_params.logger_config;
+  while (cfg.find(FILENAME) != std::string::npos) {
+    cfg.replace(cfg.find(FILENAME), sizeof(FILENAME) - 1,
+                test_params.filename.c_str());
+  }
+  while (cfg.find(ABS_PATH) != std::string::npos) {
+    cfg.replace(cfg.find(ABS_PATH), sizeof(ABS_PATH) - 1, abs_path.c_str());
+  }
+  while (cfg.find(ABS_DIR) != std::string::npos) {
+    cfg.replace(cfg.find(ABS_DIR), sizeof(ABS_DIR) - 1, abs_dir.c_str());
+  }
+  while (cfg.find(REL_PATH) != std::string::npos) {
+    cfg.replace(cfg.find(REL_PATH), sizeof(REL_PATH) - 1, rel_path.c_str());
+  }
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), cfg, &conf_params);
+
+  // empty routing section results in a failure, but while logging to file
+  auto &router = launch_router({"-c", conf_file}, 1);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // the error happens during the logger initialization so we expect the message
+  // on the console which is the default sink until we switch to the
+  // configuration from the config file
+  const std::string console_log_txt = router.get_full_output();
+
+  EXPECT_TRUE(!console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+
+  EXPECT_THAT(console_log_txt, HasSubstr(test_params.expected_error))
+      << "\nconsole:\n"
+      << console_log_txt;
+
+  // expect no default router file created in the logging folder
+  Path shouldnotexist = Path(abs_dir.str()).join(DEFAULT_LOGFILE_NAME);
+  EXPECT_FALSE(shouldnotexist.exists());
+
+  if (!test_params.create_file) {
+    EXPECT_FALSE(abs_path.exists());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    LoggingConfigAbsRelFilenameError, RouterLoggingConfigFilenameError,
+    ::testing::Values(
+        // TS_FR02_01 filename with relative path in logger
+        /*0*/ LoggingConfigFilenameErrorParams(
+            "[logger]\n"
+            "filename=" REL_PATH "\n",
+            USER_LOGFILE_NAME, false, "must be a filename, not a path"),
+        // TS_FR02_02 filename with relative path in filelog
+        /*1*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=" REL_PATH "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR02_03 absolute filename in logger
+        /*2*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=" ABS_PATH "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR02_04 absolute filename in filelog
+        /*3*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=" ABS_PATH "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR02_05 slash filename in logger
+        /*4*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=/\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "is not a valid log filename"),
+        // TS_FR02_06 slash filename in filelog
+        /*5*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=/\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "is not a valid log filename"),
+        // TS_FR02_07 existing folder filename in filelog
+        /*6*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=" ABS_DIR "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR02_08 existing folder filename in filelog
+        /*7*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=" ABS_DIR "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR02_09 dot filename in logger
+        /*8*/
+        LoggingConfigFilenameErrorParams(
+            "[logger]\n"
+            "filename=.\n",
+            USER_LOGFILE_NAME, false,
+            "File exists, but cannot open for writing"),
+        // TS_FR02_10 dot filename in filelog
+        /*9*/
+        LoggingConfigFilenameErrorParams(
+            "[logger]\n"
+            "sinks=filelog\n"
+            "[filelog]\n"
+            "filename=.\n",
+            USER_LOGFILE_NAME, false,
+            "File exists, but cannot open for writing"),
+        // TS_FR04_10 filename /path triggers warning and not silent override
+        /*10*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=" USER_LOGFILE_NAME "\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=" ABS_DIR "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR04_02 empty filename has no effect
+        /*11*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=" ABS_DIR "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR04_06 Verify [logger].filename=/path or [filelog].filename
+        // triggers an error
+        /*12*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=" ABS_DIR "\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=" ABS_DIR "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR04_07 Verify [logger].filename=/path triggers an error
+        /*13*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=" ABS_DIR "\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n"
+                                         "filename=\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR04_08 Verify [logger].filename=/path triggers an error
+        /*14*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "filename=" ABS_DIR "\n"
+                                         "sinks=filelog\n"
+                                         "[filelog]\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR10_01 consolelog destination set to existing file
+        /*15*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=consolelog\n"
+                                         "[consolelog]\n"
+                                         "destination=" FILENAME "\n",
+                                         USER_LOGFILE_NAME, true,
+                                         "Illegal destination"),
+        // TS_FR10_02 consolelog destination set to non-existing file
+        /*16*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=consolelog\n"
+                                         "[consolelog]\n"
+                                         "destination=" FILENAME "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "Illegal destination"),
+        // TS_FR10_03 consolelog destination set to realtive file
+        /*17*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=consolelog\n"
+                                         "[consolelog]\n"
+                                         "destination=" REL_PATH "\n",
+                                         USER_LOGFILE_NAME, true,
+                                         "Illegal destination"),
+        // TS_FR10_04 consolelog destination set to realtive file
+        /*18*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=consolelog\n"
+                                         "[consolelog]\n"
+                                         "destination=" ABS_PATH "\n",
+                                         USER_LOGFILE_NAME, true,
+                                         "Illegal destination"),
+        // TS_FR10_05 consolelog destination set to realtive file
+        /*19*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=consolelog\n"
+                                         "[consolelog]\n"
+                                         "destination=" ABS_DIR "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "Illegal destination"),
+        // TS_FR04_05 absolute path in logger and legal filename fails
+        /*20*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=filelog\n"
+                                         "filename=" ABS_DIR "\n"
+                                         "[filelog]\n"
+                                         "filename=" USER_LOGFILE_NAME "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR04_05a corner case
+        /*21*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=filelog\n"
+                                         "filename=/shouldfail.log\n"
+                                         "[filelog]\n"
+                                         "filename=" USER_LOGFILE_NAME "\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "must be a filename, not a path"),
+        // TS_FR04_06a corner case
+        /*22*/
+        LoggingConfigFilenameErrorParams("[logger]\n"
+                                         "sinks=filelog\n"
+                                         "filename=" USER_LOGFILE_NAME "\n"
+                                         "[filelog]\n"
+                                         "filename=/shouldfail.log\n",
+                                         USER_LOGFILE_NAME, false,
+                                         "is not a valid log filename")));
+
+struct LoggingConfigFilenameLoggingFolderParams {
+  std::string logging_folder;
+  std::string logger_config;
+  std::string filename;
+  bool catch_stderr;
+  std::string expected_error;
+
+  LoggingConfigFilenameLoggingFolderParams(const std::string &logging_folder_,
+                                           const std::string &logger_config_,
+                                           const std::string &filename_,
+                                           bool catch_stderr_,
+                                           const std::string expected_error_)
+      : logging_folder(logging_folder_),
+        logger_config(logger_config_),
+        filename(filename_),
+        catch_stderr(catch_stderr_),
+        expected_error(expected_error_) {}
+};
+
+class TempRelativeDirectory {
+ public:
+  explicit TempRelativeDirectory(const std::string &prefix = "router")
+      : name_{get_tmp_dir_(prefix)} {}
+
+  ~TempRelativeDirectory() { mysql_harness::delete_dir_recursive(name_); }
+
+  std::string name() const { return name_; }
+
+ private:
+  std::string name_;
+
+#ifndef WIN32
+  // mysql_harness::get_tmp_dir() returns a relative path on these platforms
+  std::string get_tmp_dir_(const std::string &name) {
+    return mysql_harness::get_tmp_dir(name);
+  }
+#else
+  // mysql_harness::get_tmp_dir() returns an abs path under GetTempPath() on
+  // WIN32
+  std::string get_tmp_dir_(const std::string &name) {
+    auto generate_random_sequence = [](size_t len) -> std::string {
+      std::random_device rd;
+      std::string result;
+      static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
+      std::uniform_int_distribution<unsigned long> dist(0,
+                                                        sizeof(alphabet) - 2);
+
+      for (size_t i = 0; i < len; ++i) {
+        result += alphabet[dist(rd)];
+      }
+
+      return result;
+    };
+
+    std::string dir_name = name + "-" + generate_random_sequence(10);
+    std::string result = Path(dir_name).str();
+    int err = _mkdir(result.c_str());
+    if (err != 0) {
+      throw std::runtime_error("Error creating temporary directory " + result);
+    }
+    return result;
+  }
+#endif
+};
+
+class RouterLoggingTestConfigFilenameLoggingFolder
+    : public RouterLoggingTest,
+      public ::testing::WithParamInterface<
+          LoggingConfigFilenameLoggingFolderParams> {};
+
+/** @test This test verifies that consolelog destination may be set to various
+ * devices
+ */
+TEST_P(RouterLoggingTestConfigFilenameLoggingFolder,
+       LoggingTestFilenameLoggingFolder) {
+  auto test_params = GetParam();
+
+  TempRelativeDirectory tmp_dir;
+
+  // create the absolute path (note: order)
+  Path abs_dir = Path(tmp_dir.name()).real_path();
+  Path rel_dir = Path(tmp_dir.name()).basename();
+
+  // Replace logging_folder tag with temporary directory
+  std::string lf = test_params.logging_folder;
+  while (lf.find(ABS_DIR) != std::string::npos) {
+    lf.replace(lf.find(ABS_DIR), sizeof(ABS_DIR) - 1, abs_dir.c_str());
+  }
+  while (lf.find(REL_DIR) != std::string::npos) {
+    lf.replace(lf.find(REL_DIR), sizeof(REL_DIR) - 1, rel_dir.c_str());
+  }
+
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = lf;
+
+  TempDirectory conf_dir("conf");
+  const std::string cfg = "[routing]\n\n" + test_params.logger_config;
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), cfg, &conf_params);
+
+  // empty routing section gives failure while logging to defined sink
+  auto &router = launch_router({"-c", conf_file}, 1, test_params.catch_stderr);
+  check_exit_code(router, EXIT_FAILURE);
+
+  const std::string console_log_txt = router.get_full_output();
+  if (test_params.expected_error.empty()) {
+    // expect something like this as error message on console/in log
+    // 2020-03-19 10:00:00 main ERROR [7f539f628780] Configuration error: option
+    // destinations in [routing] is required
+    const std::string errmsg = "option destinations in [routing] is required";
+
+    if (lf.empty()) {
+      // log should go to consolelog, and contain routing error
+      Path logfile = rel_dir.join(test_params.filename);
+      EXPECT_TRUE(!console_log_txt.empty()) << "\nconsole:\n"
+                                            << console_log_txt;
+      EXPECT_FALSE(logfile.exists());
+      EXPECT_THAT(console_log_txt, HasSubstr(errmsg)) << "\nconsole:\n"
+                                                      << console_log_txt;
+    } else {
+      // log should go to logfile specified
+      Path logfile = Path(lf).join(test_params.filename);
+      EXPECT_TRUE(console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+      EXPECT_TRUE(logfile.exists());
+      std::string file_log_txt =
+          router.get_full_logfile(test_params.filename, Path(lf).str());
+      EXPECT_THAT(file_log_txt, HasSubstr(errmsg)) << "\nlog:\n"
+                                                   << file_log_txt;
+    }
+  } else {
+    // log should go to consolelog, and contain routing error
+    EXPECT_TRUE(!console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+    EXPECT_THAT(console_log_txt, HasSubstr(test_params.expected_error))
+        << "\nconsole:\n"
+        << console_log_txt;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    LoggingTestConsoleDestinationDevices,
+    RouterLoggingTestConfigFilenameLoggingFolder,
+    ::testing::Values(
+        // TS_FR03_01
+        /*0*/
+        LoggingConfigFilenameLoggingFolderParams("",
+                                                 "[logger]\n"
+                                                 "filename=" USER_LOGFILE_NAME
+                                                 "\n",
+                                                 USER_LOGFILE_NAME, true,
+                                                 NOT_USED),
+        // TS_FR03_02
+        /*1*/
+        LoggingConfigFilenameLoggingFolderParams(
+            ABS_DIR, "[logger]\nfilename=" USER_LOGFILE_NAME "\n",
+            USER_LOGFILE_NAME, false, NOT_USED),
+        // TS_FR03_03
+        /*2*/
+        LoggingConfigFilenameLoggingFolderParams(
+            REL_DIR, "[logger]\nfilename=" USER_LOGFILE_NAME "\n",
+            USER_LOGFILE_NAME, false, NOT_USED),
+        // TS_FR03_04
+        /*3*/
+        LoggingConfigFilenameLoggingFolderParams(
+            "/non/existing/absolute/path/",
+            "[logger]\nfilename=" USER_LOGFILE_NAME "\n", USER_LOGFILE_NAME,
+            true, "Error when creating dir '/non/existing/absolute/path'"),
+        // TS_FR03_05
+        /*4*/
+        LoggingConfigFilenameLoggingFolderParams(
+            "non/existing/relative/path",
+            "[logger]\nfilename=" USER_LOGFILE_NAME "\n", USER_LOGFILE_NAME,
+            true, "Error when creating dir 'non/existing/relative/path'"),
+        // TS_FR05_03 without [logger].filename
+        // and TS_FR05_04 without [filesink].filename
+        /*5*/
+        LoggingConfigFilenameLoggingFolderParams(
+            ABS_DIR, "[logger]\nsinks=filelog\n[filelog]\n",
+            DEFAULT_LOGFILE_NAME, false, NOT_USED)));
+
+/** @test This test verifies that output goes to console when consolelog
+ * destination is empty (TS_FR06_01)
+ */
+TEST_F(RouterLoggingTest, log_console_destination_empty) {
+  // FIXME: Unfortunately due to the limitations of our component testing
+  // framework, this test has a flaw: it is not possible to distinguish if the
+  // output returned from router.get_full_output() appeared on STDERR or STDOUT.
+  // This should be fixed in the future.
+  TempDirectory tmp_dir;
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = tmp_dir.name();
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_text =
+      "[routing]\n\n[logger]\nsinks=consolelog\n[consolelog]\ndestination=";
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  // empty routing section results in a failure, but while logging to
+  // destination
+  auto &router = launch_router({"-c", conf_file}, 1);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // Expect the console log to be used on empty destinaton
+  const std::string console_log_txt = router.get_full_output();
+  EXPECT_FALSE(console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+
+  // expect no default router file created in tmp_dir
+  Path shouldnotexist = Path(tmp_dir.name()).join("mysqlrouter.log");
+  EXPECT_FALSE(shouldnotexist.exists());
+}
+
+/** @test This test verifies that output to console does not contain a warning
+ * or the userdefined logfile name when filename not in use (TS_FR08_01)
+ */
+TEST_F(RouterLoggingTest, log_console_unused_filename_no_warning) {
+  // FIXME: Unfortunately due to the limitations of our component testing
+  // framework, this test has a flaw: it is not possible to distinguish if the
+  // output returned from router.get_full_output() appeared on STDERR or STDOUT.
+  // This should be fixed in the future.
+  TempDirectory tmp_dir;
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = tmp_dir.name();
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_text =
+      "[routing]\n\n[logger]\nfilename=" USER_LOGFILE_NAME
+      "\nsinks=consolelog\n[consolelog]\n";
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  // empty routing section results in a failure, but while logging to
+  // destination
+  auto &router = launch_router({"-c", conf_file}, 1);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // Expect the console log output to NOT contain warning or log file name
+  const std::string console_log_txt = router.get_full_output();
+  EXPECT_FALSE(console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+
+  EXPECT_THAT(console_log_txt, Not(HasSubstr(USER_LOGFILE_NAME)))
+      << "\nconsole:\n"
+      << console_log_txt;
+
+  EXPECT_THAT(console_log_txt, Not(HasSubstr("warning"))) << "\nconsole:\n"
+                                                          << console_log_txt;
+}
+
+/** @test This test verifies non-existing [consolelog].destination uses default
+ * value. i.e console (TS_FR06_02)
+ */
+TEST_F(RouterLoggingTest, log_console_non_existing_destination) {
+  // FIXME: Unfortunately due to the limitations of our component testing
+  // framework, this test has a flaw: it is not possible to distinguish if the
+  // output returned from router.get_full_output() appeared on STDERR or STDOUT.
+  // This should be fixed in the future.
+  TempDirectory tmp_dir;
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = "";
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_text =
+      "[routing]\n\n[logger]\nsinks=consolelog\n[consolelog]\n";
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  // empty routing section results in a failure, but while logging to
+  // destination
+  auto &router = launch_router({"-c", conf_file}, 1);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // Expect the console log output to NOT contain warning or log file name
+  const std::string console_log_txt = router.get_full_output();
+  EXPECT_FALSE(console_log_txt.empty()) << "\nconsole:\n" << console_log_txt;
+}
+
+#ifndef WIN32
+/** @test This test verifies that filename may be set to /dev/null the ugly way
+ */
+TEST_F(RouterLoggingTest, log_filename_dev_null_ugly) {
+  Path dev_null("/dev/null");
+  EXPECT_TRUE(dev_null.exists());
+
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] = "/dev";
+
+  TempDirectory conf_dir("conf");
+  const std::string conf_text = "[routing]\n\n[logger]\nfilename=null\n";
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  // empty routing section results in a failure, but while logging to file
+  auto &router = launch_router({"-c", conf_file}, 1);
+  check_exit_code(router, EXIT_FAILURE);
+
+  // expect no default router file created in /dev
+  Path shouldnotexist("/dev/mysqlrouter.log");
+  EXPECT_FALSE(shouldnotexist.exists());
+
+  EXPECT_TRUE(dev_null.exists());
+}
 #endif
 
 int main(int argc, char *argv[]) {

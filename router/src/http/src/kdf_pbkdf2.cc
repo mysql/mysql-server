@@ -25,13 +25,15 @@
 #include "kdf_pbkdf2.h"
 
 #include <algorithm>
+#include <cstdint>  // uint8_t
+#include <cstdlib>  // std::strtol
 #include <cstring>
+#include <iterator>  // std::distance
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>  // std::tie
 #include <vector>
-
-#include <iostream>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>

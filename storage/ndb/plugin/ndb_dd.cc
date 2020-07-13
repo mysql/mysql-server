@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -241,7 +241,7 @@ bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid) {
   Extract all the foreign key constraint definitions on the given table from
   NDB and install them in the DD table.
 
-  @param dd_table_def[out]    The DD table object on which the foreign keys
+  @param[out] dd_table_def    The DD table object on which the foreign keys
                               are to be defined.
   @param ndb                  The Ndb object.
   @param ndb_table            The NDB table object from which the foreign key

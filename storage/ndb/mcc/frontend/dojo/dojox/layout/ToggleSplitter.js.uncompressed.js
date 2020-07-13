@@ -95,6 +95,7 @@ var ToggleSplitter = dojo.declare("dojox.layout.ToggleSplitter", dijit.layout._S
 		}
 		if(evt.charCode == dojo.keys.SPACE || evt.keyCode == dojo.keys.ENTER){
 			this._toggle(evt);
+			dojo.stopEvent(evt);
 		}
 	},
 

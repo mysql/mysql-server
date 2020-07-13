@@ -498,6 +498,7 @@ int test_sql(void *p) {
   if (session_ret) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_1 failed.");
   }
+  session_1 = nullptr;
   /* 4. statement */
   WRITE_STR(
       "-----------------------------------------------------------------\n");

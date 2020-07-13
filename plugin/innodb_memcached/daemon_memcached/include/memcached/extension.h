@@ -208,7 +208,7 @@ extern "C" {
      * exported from the loadable module.
      *
      * @param config configuration for this extension
-     * @param GET_SERVER_API pointer to a function to get a specific server
+     * @param get_server_api pointer to a function to get a specific server
      *                       API from. server_extension_api contains functions
      *                       to register extensions.
      * @return one of the error codes above.

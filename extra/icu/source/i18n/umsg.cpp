@@ -321,7 +321,7 @@ umsg_applyPattern(UMessageFormat *fmt,
     if(status ==NULL||U_FAILURE(*status)){
         return ;
     }
-    if(fmt==NULL||pattern==NULL||patternLength<-1){
+    if(fmt==NULL || (pattern==NULL && patternLength!=0) || patternLength<-1) {
         *status=U_ILLEGAL_ARGUMENT_ERROR;
         return ;
     }
@@ -329,10 +329,8 @@ umsg_applyPattern(UMessageFormat *fmt,
     if(parseError==NULL){
       parseError = &tErr;
     }
-    if(patternLength<-1){
-        patternLength=u_strlen(pattern);
-    }
 
+    // UnicodeString(pattern, -1) calls u_strlen().
     ((MessageFormat*)fmt)->applyPattern(UnicodeString(pattern,patternLength),*parseError,*status);  
 }
 
@@ -465,9 +463,7 @@ umsg_vformat(   const UMessageFormat *fmt,
 
         default:
             // Unknown/unsupported argument type.
-            U_ASSERT(FALSE);
-            *status=U_ILLEGAL_ARGUMENT_ERROR;
-            break;
+            UPRV_UNREACHABLE;
         }
     }
     UnicodeString resultStr;
@@ -594,13 +590,11 @@ umsg_vparse(const UMessageFormat *fmt,
             // support kObject.  When MessageFormat is changed to
             // understand MeasureFormats, modify this code to do the
             // right thing. [alan]
-            U_ASSERT(FALSE);
-            break;
+            UPRV_UNREACHABLE;
 
         // better not happen!
         case Formattable::kArray:
-            U_ASSERT(FALSE);
-            break;
+            UPRV_UNREACHABLE;
         }
     }
 

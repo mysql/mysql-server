@@ -11,7 +11,8 @@ define("dojox/editor/plugins/StatusBar", [
 ], function(dojo, dijit, dojox, _Widget, _TemplatedMixin, _Plugin) {
 
 dojo.experimental("dojox.editor.plugins.StatusBar");
-dojo.declare("dojox.editor.plugins._StatusBar", [_Widget, _TemplatedMixin],{
+
+var _StatusBar = dojo.declare("dojox.editor.plugins._StatusBar", [_Widget, _TemplatedMixin],{
 	// templateString: String
 	//		Template for the widget.  Currently using table to get the alignment behavior and
 	//		bordering I wanted.  Would prefer not to use table, though.
@@ -50,7 +51,7 @@ dojo.declare("dojox.editor.plugins._StatusBar", [_Widget, _TemplatedMixin],{
 	}
 });
 
-dojo.declare("dojox.editor.plugins.StatusBar", _Plugin, {
+var StatusBar = dojo.declare("dojox.editor.plugins.StatusBar", _Plugin, {
 	// summary:
 	//		This plugin provides StatusBar capability to the editor.
 	//		Basically a footer bar where status can be published.  It also
@@ -73,7 +74,7 @@ dojo.declare("dojox.editor.plugins.StatusBar", _Plugin, {
 		// editor: Object
 		//		The editor to configure for this plugin to use.
 		this.editor = editor;
-		this.statusBar = new dojox.editor.plugins._StatusBar();
+		this.statusBar = new _StatusBar();
 		if(this.resizer){
 			this.resizeHandle = new dojox.layout.ResizeHandle({targetId: this.editor, activeResize: true}, this.statusBar.handle);
 			this.resizeHandle.startup();
@@ -165,16 +166,19 @@ dojo.declare("dojox.editor.plugins.StatusBar", _Plugin, {
 	}
 });
 
+// For monkey patching
+StatusBar._StatusBar = _StatusBar;
+
 // Register this plugin.
 dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "statusbar"){
 		var resizer = ("resizer" in o.args)?o.args.resizer:true;
-		o.plugin = new dojox.editor.plugins.StatusBar({resizer: resizer});
+		o.plugin = new StatusBar({resizer: resizer});
 	}
 });
 
-return dojox.editor.plugins.StatusBar;
+return StatusBar;
 
 });

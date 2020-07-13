@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+
 #include <memory>
 #include <new>
 #include <string>
@@ -771,7 +772,7 @@ class Item : public Parse_tree_node {
     TRASH(ptr, size);
   }
   static void operator delete(void *, MEM_ROOT *,
-                              const std::nothrow_t &)noexcept {}
+                              const std::nothrow_t &) noexcept {}
 
   enum Type {
     INVALID_ITEM = 0,
@@ -803,7 +804,6 @@ class Item : public Parse_tree_node {
     XPATH_NODESET_CMP,
     VIEW_FIXER_ITEM,
     FIELD_BIT_ITEM,
-    NULL_RESULT_ITEM,
     VALUES_COLUMN_ITEM
   };
 
@@ -1692,7 +1692,9 @@ class Item : public Parse_tree_node {
   longlong val_int_from_date();
   longlong val_int_from_time();
   longlong val_int_from_datetime();
+  longlong val_int_from_string();
   double val_real_from_decimal();
+  double val_real_from_string();
 
   /**
     Get the value to return from val_bool() in case of errors.
@@ -1821,6 +1823,11 @@ class Item : public Parse_tree_node {
   type_conversion_status save_date_in_field(Field *field);
   type_conversion_status save_str_value_in_field(Field *field, String *result);
 
+  /**
+    If this Item is being materialized into a temporary table, returns the
+    field that is being materialized into. (Typically, this is the
+    “result_field” members for items that have one.)
+   */
   virtual Field *get_tmp_table_field() {
     DBUG_TRACE;
     return nullptr;
@@ -2011,11 +2018,19 @@ class Item : public Parse_tree_node {
     return runtime_item ? real_item() : this;
   }
   virtual void set_runtime_created() { runtime_item = true; }
-  virtual Item *get_tmp_table_item(THD *thd) {
-    DBUG_TRACE;
-    Item *result = copy_or_same(thd);
-    return result;
-  }
+
+  /**
+    If an Item is materialized in a temporary table, a different Item may have
+    to be used in the part of the query that runs after the materialization.
+    For instance, if the Item was an Item_field, the new Item_field needs to
+    point into the temporary table instead of the original one, but if, on the
+    other hand, the Item was a literal constant, it can be reused as-is.
+    This function encapsulates these policies for the different kinds of Items.
+    See also get_tmp_table_field().
+
+    TODO: Document how aggregate functions (Item_sum) are handled.
+   */
+  virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   static const CHARSET_INFO *default_charset();
   virtual const CHARSET_INFO *compare_collation() const { return nullptr; }
@@ -2450,7 +2465,8 @@ class Item : public Parse_tree_node {
   virtual Item *explain_subquery_propagator(uchar *) { return this; }
 
   virtual Item *equal_fields_propagator(uchar *) { return this; }
-  virtual bool set_no_const_sub(uchar *) { return false; }
+  // Mark the item to not be part of substitution.
+  virtual bool disable_constant_propagation(uchar *) { return false; }
   virtual Item *replace_equal_field(uchar *) { return this; }
   /*
     Check if an expression value has allowed arguments, like DATE/DATETIME
@@ -2562,7 +2578,7 @@ class Item : public Parse_tree_node {
     When walking the item tree seeing an Item_singlerow_subselect matching
     a target, replace it with a substitute field used when transforming
     scalar subqueries into derived tables. Cf.
-    SELECT_LEX::transform_scalar_subqueries_to_derived.
+    SELECT_LEX::transform_scalar_subqueries_to_join_with_derived.
   */
   virtual Item *replace_scalar_subquery(uchar *) { return this; }
 
@@ -2867,23 +2883,27 @@ class Item : public Parse_tree_node {
   uint32 max_length;  ///< Maximum length, in bytes
   enum item_marker    ///< Values for member 'marker'
   { MARKER_NONE = 0,
-    MARKER_CONST_PROPAG = 1,
+    /// When contextualization or itemization adds an implicit comparison '0<>'
+    /// (see make_condition()), to record that this Item_func_ne was created for
+    /// this purpose; this value is tested during resolution.
+    MARKER_IMPLICIT_NE_ZERO = 1,
+    /// When doing constant propagation (e.g. change_cond_ref_to_const(), to
+    /// remember that we have already processed the item.
+    MARKER_CONST_PROPAG = 2,
+    /// When creating an internal temporary table: says how to store BIT fields.
     MARKER_BIT = 4,
+    /// When analyzing functional dependencies for only_full_group_by (says
+    /// whether a nullable column can be treated at not nullable).
     MARKER_FUNC_DEP_NOT_NULL = 5,
+    /// When we change DISTINCT to GROUP BY: used for book-keeping of
+    /// fields.
     MARKER_DISTINCT_GROUP = 6,
+    /// When pushing index conditions: it says whether a condition uses only
+    /// indexed columns.
     MARKER_ICP_COND_USES_INDEX_ONLY = 10 };
   /**
     This member has several successive meanings, depending on the phase we're
-    in:
-    - when doing constant propagation (e.g. change_cond_ref_to_const(), to
-      remember that we have already processed the item).
-    - when creating an internal temporary table: says how to store BIT fields
-    - when analyzing functional dependencies for only_full_group_by (says
-      whether a nullable column can be treated at not nullable)
-    - when we change DISTINCT to GROUP BY: used for book-keeping of
-      fields.
-    - when pushing index conditions: it says whether a condition uses only
-      indexed columns.
+    in (@see item_marker).
     The important property is that a phase must have a value (or few values)
     which is reserved for this phase. If it wants to set "marked", it assigns
     the value; it it wants to test if it is marked, it tests marker !=
@@ -3620,7 +3640,9 @@ class Item_field : public Item_ident {
   // iterators.) The split is done because NDB expects the list to only
   // contain fields from the same join nest.
   Item_equal *item_equal_all_join_nests{nullptr};
-  bool no_const_subst;
+  /// If true, the optimizer's constant propagation will not replace this item
+  /// with an equal constant.
+  bool no_constant_propagation{false};
   /*
     if any_privileges set to true then here real effective privileges will
     be stored
@@ -3728,7 +3750,10 @@ class Item_field : public Item_ident {
     SELECT_LEX *new_block;
   };
   bool update_context(uchar *) override;
-  bool set_no_const_sub(uchar *) override;
+  bool disable_constant_propagation(uchar *) override {
+    no_constant_propagation = true;
+    return false;
+  }
   Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *field_for_view_update() override { return this; }
@@ -3816,6 +3841,48 @@ class Item_field : public Item_ident {
 
   bool replace_field_processor(uchar *arg) override;
   bool strip_db_table_name_processor(uchar *) override;
+
+  /**
+    Checks if the current object represents an asterisk select list item
+
+    @returns false if a regular column reference, true if an asterisk
+             select list item.
+  */
+  virtual bool is_asterisk() const { return false; }
+};
+
+/**
+  Represents [schema.][table.]* in a select list
+
+  Item_asterisk is used to insert placeholder objects for the special
+  select list item * (asterisk) into AST.
+  Those placeholder objects are to be substituted later with e.g. a list of real
+  table columns by a resolver (@see setup_wild).
+
+  @todo The parent class Item_field is redundant. Refactor setup_wild() to
+        replace Item_field with a simpler one.
+*/
+class Item_asterisk : public Item_field {
+  typedef Item_field super;
+
+ public:
+  /**
+    Constructor
+
+    @param pos                  Location of the * (asterisk) lexeme.
+    @param opt_schema_name      Schema name or nullptr.
+    @param opt_table_name       Table name or nullptr.
+  */
+  Item_asterisk(const POS &pos, const char *opt_schema_name,
+                const char *opt_table_name)
+      : super(pos, opt_schema_name, opt_table_name, "*") {}
+
+  bool itemize(Parse_context *pc, Item **res) override;
+  bool fix_fields(THD *, Item **) override {
+    DBUG_ASSERT(false);  // should never happen: see setup_wild()
+    return true;
+  }
+  bool is_asterisk() const override { return true; }
 };
 
 // See if the provided item points to a reachable field (one that belongs to a
@@ -3888,41 +3955,6 @@ class Item_null : public Item_basic_constant {
 
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
-};
-
-/**
-  An item representing NULL values for use with ROLLUP.
-
-  When grouping WITH ROLLUP, Item_null_result items are created to
-  represent NULL values in the grouping columns of the ROLLUP rows. To
-  avoid type problems during execution, these objects are created with
-  the same field and result types as the fields of the columns they
-  belong to.
- */
-class Item_null_result final : public Item_null {
-  /** Result type for this NULL value */
-  Item_result res_type;
-  Field *result_field{nullptr};
-
- public:
-  Item_null_result(enum_field_types fld_type, Item_result res_type)
-      : Item_null(), res_type(res_type) {
-    set_data_type(fld_type);
-  }
-  void set_result_field(Field *field) override { result_field = field; }
-  bool is_result_field() const override { return result_field != nullptr; }
-  Field *get_result_field() const override { return result_field; }
-  bool check_partition_func_processor(uchar *) override { return true; }
-  Item_result result_type() const override { return res_type; }
-  bool check_function_as_value_generator(uchar *args) override {
-    Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->banned_function_name = "NULL";
-    // This should not happen as SELECT statements are not allowed.
-    DBUG_ASSERT(false);
-    return true;
-  }
-  enum Type type() const override { return NULL_RESULT_ITEM; }
 };
 
 /// Placeholder ('?') of prepared statement.
@@ -4420,7 +4452,7 @@ class Item_float : public Item_num {
     DBUG_ASSERT(fixed == 1);
     if (value <= (double)LLONG_MIN) {
       return LLONG_MIN;
-    } else if (value >= (double)(ulonglong)LLONG_MAX) {
+    } else if (value > LLONG_MAX_DOUBLE) {
       return LLONG_MAX;
     }
     return (longlong)rint(value);
@@ -4878,13 +4910,11 @@ class Item_result_field : public Item {
   }
 
   longlong llrint_with_overflow_check(double realval) {
-    if (realval < LLONG_MIN || realval > LLONG_MAX) {
+    if (realval < LLONG_MIN || realval > LLONG_MAX_DOUBLE) {
       raise_integer_overflow();
       return error_int();
     }
-    // Rounding error, llrint() may return LLONG_MIN.
-    const longlong retval = realval == LLONG_MAX ? LLONG_MAX : llrint(realval);
-    return retval;
+    return llrint(realval);
   }
 
   void raise_numeric_overflow(const char *type_name);
@@ -5981,6 +6011,8 @@ class Item_cache : public Item_basic_constant {
   */
   bool value_cached;
 
+  friend bool has_rollup_result(Item *item);
+
  public:
   Item_cache()
       : example(nullptr),
@@ -6373,7 +6405,6 @@ class Item_aggregate_type : public Item {
   bool join_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table, bool strict);
   static uint32 display_length(Item *item);
-  static enum_field_types real_data_type(Item *);
   Field::geometry_type get_geometry_type() const override {
     return geometry_type;
   }

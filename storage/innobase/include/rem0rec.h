@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem/rec.h"
 #include "rem0types.h"
 #include "trx0types.h"
+#include "ut0class_life_cycle.h"
 
 /** The following function is used to get the pointer of the next chained record
  on the same page.
@@ -439,6 +440,81 @@ ulint rec_get_data_size_old(const rec_t *rec) /*!< in: physical record */
     MY_ATTRIBUTE((warn_unused_result));
 #define rec_offs_init(offsets) \
   rec_offs_set_n_alloc(offsets, (sizeof offsets) / sizeof *offsets)
+
+/**
+A helper RAII wrapper for otherwise difficult to use sequence of:
+
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  rec_offs_init(offsets_);
+  mem_heap_t *heap = nullptr;
+
+  const ulint *offsets =
+      rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
+
+  DO_SOMETHING(offsets);
+
+  if (heap != nullptr) {
+    mem_heap_free(heap);
+  }
+
+With this helper you can simply do:
+
+  DO_SOMETHING(Rec_offsets().compute(rec,index));
+
+And if you need to reuse the memory allocated offsets several times you can:
+  Rec_offsets offsets;
+  for(rec: recs) DO_SOMTHING(offsets.compute(rec,index))
+*/
+class Rec_offsets : private ut::Non_copyable {
+ public:
+  /** Prepares offsets to initially point to the fixed-size buffer, and marks
+  the memory as allocated, but uninitialized. You first need to call compute()
+  to use it */
+  Rec_offsets() { rec_offs_init(m_preallocated_buffer); }
+
+  /** Computes offsets for given record. Returned array is owned by this
+  instance. You can use its value as long as this object does not go out of
+  scope (which can free the buffer), and you don't call compute() again (which
+  can overwrite the offsets).
+  @param[in]  rec   The record for which you want to compute the offsets
+  @param[in]  index The index which contains the record
+  @return A pointer to offsets array owned by this instance. Valid till next
+  call to compute() or end of this instance lifetime.
+  */
+  const ulint *compute(const rec_t *rec, const dict_index_t *index) {
+    m_offsets =
+        rec_get_offsets(rec, index, m_offsets, ULINT_UNDEFINED, &m_heap);
+    return m_offsets;
+  }
+  /** Deallocated dynamically allocated memory, if any. */
+  ~Rec_offsets() {
+    if (m_heap) {
+      mem_heap_free(m_heap);
+      m_heap = nullptr;
+    }
+  }
+
+ private:
+  /** Pointer to heap used by rec_get_offsets(). Initially nullptr. If row is
+  really big, rec_get_offsets() may need to allocate new buffer for offsets.
+  At, first, when heap is null, rec_get_offsets() will create new heap, and pass
+  it back via reference. On subsequent calls, we will pass this heap, so it
+  is reused if needed. Therefore all allocated buffers are in this heap, if it
+  is not nullptr */
+  mem_heap_t *m_heap{nullptr};
+
+  /** Buffer with size large enough to handle common cases without having to use
+  heap. This is the initial value of m_offsets.*/
+  ulint m_preallocated_buffer[REC_OFFS_NORMAL_SIZE];
+
+  /* Initially points to m_preallocated_buffer (which is uninitialized memory).
+  After each call to compute() contains the pointer to the most recently
+  computed offsets.
+  We pass it back to rec_get_offsets() on subsequent calls to compute() to reuse
+  the same memory if possible. */
+  ulint *m_offsets{m_preallocated_buffer};
+};
+
 /** The following function returns the data size of a physical
  record, that is the sum of field lengths. SQL null fields
  are counted as length 0 fields. The value returned by the function
@@ -563,7 +639,7 @@ rec_t *rec_convert_dtuple_to_rec(
  @return extra size */
 UNIV_INLINE
 ulint rec_get_converted_extra_size(ulint data_size, ulint n_fields,
-                                   bool has_ext) MY_ATTRIBUTE((const));
+                                   bool has_ext);
 /** Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
  @return total size */
 ulint rec_get_converted_size_comp_prefix(

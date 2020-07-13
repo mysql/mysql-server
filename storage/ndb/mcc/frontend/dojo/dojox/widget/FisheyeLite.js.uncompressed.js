@@ -123,7 +123,7 @@ define("dojox/widget/FisheyeLite", [
 			for(var p in this.properties){
 				var prop = this.properties[p],
 					deep = lang.isObject(prop),
-					v = parseInt(cs[p])
+					v = parseFloat(cs[p])
 				;
 				// note: do not set negative scale for [a list of properties] for IE support
 				// note: filter:'s are your own issue, too ;)

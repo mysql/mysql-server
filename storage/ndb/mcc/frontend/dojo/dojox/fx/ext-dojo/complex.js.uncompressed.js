@@ -145,7 +145,7 @@ define("dojox/fx/ext-dojo/complex", ["dojo/_base/kernel", "dojo/_base/lang", "do
 		makePropObject: function(/* String */beg, /* String */end){
 			// summary:
 			//		Returns an object that stores the numeric value and
-			//		units of the beggining and ending properties.
+			//		units of the beginning and ending properties.
 
 			var b = this.getNumAndUnits(beg);
 			var e = this.getNumAndUnits(end);

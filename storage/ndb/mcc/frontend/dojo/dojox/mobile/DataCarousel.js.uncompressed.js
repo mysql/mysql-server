@@ -8,12 +8,12 @@ define("dojox/mobile/DataCarousel", [
 	// module:
 	//		dojox/mobile/DataCarousel
 
-	kernel.deprecated("dojox/mobile/DataCarousel is deprecated", "Use dojox/mobile/StoreCarousel instead", 2.0);
+	kernel.deprecated("dojox/mobile/DataCarousel", "Use dojox/mobile/StoreCarousel instead", 2.0);
 	return declare("dojox.mobile.DataCarousel", [Carousel, DataMixin], {
 		// summary:
 		//		A dojo/data-enabled Carousel.
 		// description:
-		//		DataCarousel is an enhanced version of dojox/mobile/Carousel. It
+		//		DataCarousel is a subclass of dojox/mobile/Carousel which
 		//		can generate contents according to the given dojo/data store.
 	});
 });

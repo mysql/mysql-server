@@ -114,12 +114,14 @@ static void test_session(void *) {
   /*  close sessions: Must pass */
   for (int i = 0; i < nb_sessions; i++) {
     WRITE_VAL("srv_session_close %d - ", nb_sessions - 1 - i + 1);  // 1 indexed
-    session_ret = srv_session_close(sessions[nb_sessions - 1 - i]);
+    const int idx = nb_sessions - 1 - i;
+    session_ret = srv_session_close(sessions[idx]);
     if (session_ret) {
       WRITE_STR("Failed\n");
     } else {
       WRITE_STR("Success\n");
     }
+    sessions[idx] = nullptr;
   }
 
   /*  close sessions: Fail as not opened */

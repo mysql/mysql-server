@@ -1,0 +1,145 @@
+Check behaviour when restoring with remap
+and log content.
+Backup type 2
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+insert into t1 (b,c) values 
+(1, repeat('B', 2000)),
+(2, repeat('J', 3000)),
+(3, repeat('C', 3500)),
+(4, repeat('T', 3300)),
+(5, repeat('S', 1234)),
+(6, repeat('G', 3333));
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+2	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Cause backup stall
+Starting backup
+Backup started
+insert into t1 (b,c) values
+(7, repeat('D', 999));
+insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
+delete from t1 where b=4;
+update t1 set a=1010 where a=2;
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+7	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Waiting for backup to complete
+Backup completed
+drop table test.t1;
+Restore data
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+Node 1
+Node 2
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+4001	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+4003	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4005	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+4006	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+4007	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+5000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+5010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+Check restored auto-inc metadata :
+Expect that auto-increment next is 5011, e.g. > highest remapped row that
+existed at end of backup time
+(note that SNAPSHOTSTART does not snapshot autoinc metadata)
+
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table test.t1;
+Backup type 1
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+insert into t1 (b,c) values 
+(1, repeat('B', 2000)),
+(2, repeat('J', 3000)),
+(3, repeat('C', 3500)),
+(4, repeat('T', 3300)),
+(5, repeat('S', 1234)),
+(6, repeat('G', 3333));
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+2	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Cause backup stall
+Starting backup
+Backup started
+insert into t1 (b,c) values
+(7, repeat('D', 999));
+insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
+delete from t1 where b=4;
+update t1 set a=1010 where a=2;
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+1	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+3	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+7	7	999	46fc7a0af9239159e300028f6c6ebb7a2a88c409
+1000	1000	888	96f2125198fb7a058d0e2efb86dffda145f39a56
+1010	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Waiting for backup to complete
+Backup completed
+drop table test.t1;
+Restore data
+create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+Node 1
+Node 2
+select a, b, length(c), sha1(c) from t1 order by a;
+a	b	length(c)	sha1(c)
+4001	1	2000	6d41e1d402596dff36396d1f0f288d17a4b9800a
+4002	2	3000	7ba41510385abe2274d01caa4a078103f5d9c919
+4003	3	3500	70471521682517c36d93229ed39b549b7c8ce920
+4004	4	3300	bccbd2cd904585b0e9f4a8d2cc357005e50e7bf7
+4005	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
+4006	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
+Check restored auto-inc metadata :
+Expect that auto-increment next is 5011, e.g. > highest remapped row that
+existed at end of backup time
+(note that SNAPSHOTSTART does not snapshot autoinc metadata)
+
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` text,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table test.t1;

@@ -12,6 +12,7 @@
 .claro .dijitColorPalette .dijitPaletteCell:hover .dijitPaletteImg {
   border: 1px solid #000000;
 }
-.claro .dijitColorPalette .dijitPaletteCell:active .dijitPaletteImg, .claro .dijitColorPalette .dijitPaletteTable .dijitPaletteCellSelected .dijitPaletteImg {
+.claro .dijitColorPalette .dijitPaletteCell:active .dijitPaletteImg,
+.claro .dijitColorPalette .dijitPaletteTable .dijitPaletteCellSelected .dijitPaletteImg {
   border: 2px solid #000000;
 }

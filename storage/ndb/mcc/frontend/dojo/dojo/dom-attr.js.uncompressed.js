@@ -13,14 +13,14 @@ define("dojo/dom-attr", ["exports", "./sniff", "./_base/lang", "./dom", "./dom-s
 
 	// This module will be obsolete soon. Use dojo/prop instead.
 
-	// dojo.attr() should conform to http://www.w3.org/TR/DOM-Level-2-Core/
+	// dojo/dom-attr.get() should conform to http://www.w3.org/TR/DOM-Level-2-Core/
 
 	// attribute-related functions (to be obsolete soon)
-
 	var forcePropNames = {
 			innerHTML:	1,
+			textContent:1,
 			className:	1,
-			htmlFor:	has("ie"),
+			htmlFor:	has("ie") ? 1 : 0,
 			value:		1
 		},
 		attrNames = {
@@ -36,7 +36,7 @@ define("dojo/dom-attr", ["exports", "./sniff", "./_base/lang", "./dom", "./dom-s
 		var attr = node.getAttributeNode && node.getAttributeNode(name);
 		return !!attr && attr.specified; // Boolean
 	}
-
+	
 	// There is a difference in the presence of certain properties and their default values
 	// between browsers. For example, on IE "disabled" is present on all elements,
 	// but it is value is "false"; "tabIndex" of <div> returns 0 by default on IE, yet other browsers
@@ -55,7 +55,7 @@ define("dojo/dom-attr", ["exports", "./sniff", "./_base/lang", "./dom", "./dom-s
 		//		given element, and false otherwise
 
 		var lc = name.toLowerCase();
-		return forcePropNames[prop.names[lc] || name] || _hasAttr(dom.byId(node), attrNames[lc] || name);	// Boolean
+		return !!forcePropNames[prop.names[lc] || name] || _hasAttr(dom.byId(node), attrNames[lc] || name);	// Boolean
 	};
 
 	exports.get = function getAttr(/*DOMNode|String*/ node, /*String*/ name){
@@ -73,9 +73,12 @@ define("dojo/dom-attr", ["exports", "./sniff", "./_base/lang", "./dom", "./dom-s
 		//
 		// example:
 		//	|	// get the current value of the "foo" attribute on a node
-		//	|	dojo.getAttr(dojo.byId("nodeId"), "foo");
-		//	|	// or we can just pass the id:
-		//	|	dojo.getAttr("nodeId", "foo");
+		//	|	require(["dojo/dom-attr", "dojo/dom"], function(domAttr, dom){
+		//	|		domAttr.get(dom.byId("nodeId"), "foo");
+		//	|		// or we can just pass the id:
+		//	|		domAttr.get("nodeId", "foo");
+		//	|	});	
+		//	|	
 
 		node = dom.byId(node);
 		var lc = name.toLowerCase(),
@@ -87,6 +90,11 @@ define("dojo/dom-attr", ["exports", "./sniff", "./_base/lang", "./dom", "./dom-s
 			// node's property
 			return value;	// Anything
 		}
+		
+		if(propName == "textContent"){
+			return prop.get(node, propName);
+		}
+		
 		if(propName != "href" && (typeof value == "boolean" || lang.isFunction(value))){
 			// node's property
 			return value;	// Anything
@@ -123,44 +131,20 @@ define("dojo/dom-attr", ["exports", "./sniff", "./_base/lang", "./dom", "./dom-s
 		//
 		// example:
 		//	|	// use attr() to set the tab index
-		//	|	dojo.setAttr("nodeId", "tabIndex", 3);
+		//	|	require(["dojo/dom-attr"], function(domAttr){
+		//	|		domAttr.set("nodeId", "tabIndex", 3);
+		//	|	});
 		//
 		// example:
 		//	Set multiple values at once, including event handlers:
-		//	|	dojo.setAttr("formId", {
-		//	|		"foo": "bar",
-		//	|		"tabIndex": -1,
-		//	|		"method": "POST",
-		//	|		"onsubmit": function(e){
-		//	|			// stop submitting the form. Note that the IE behavior
-		//	|			// of returning true or false will have no effect here
-		//	|			// since our handler is connect()ed to the built-in
-		//	|			// onsubmit behavior and so we need to use
-		//	|			// dojo.stopEvent() to ensure that the submission
-		//	|			// doesn't proceed.
-		//	|			dojo.stopEvent(e);
-		//	|
-		//	|			// submit the form with Ajax
-		//	|			dojo.xhrPost({ form: "formId" });
+		//	|	require(["dojo/dom-attr"],
+		//	|	function(domAttr){
+		//	|		domAttr.set("formId", {
+		//	|			"foo": "bar",
+		//	|			"tabIndex": -1,
+		//	|			"method": "POST"
 		//	|		}
 		//	|	});
-		//
-		// example:
-		//	Style is s special case: Only set with an object hash of styles
-		//	|	dojo.setAttr("someNode",{
-		//	|		id:"bar",
-		//	|		style:{
-		//	|			width:"200px", height:"100px", color:"#000"
-		//	|		}
-		//	|	});
-		//
-		// example:
-		//	Again, only set style as an object hash of styles:
-		//	|	var obj = { color:"#fff", backgroundColor:"#000" };
-		//	|	dojo.setAttr("someNode", "style", obj);
-		//	|
-		//	|	// though shorter to use `dojo.style()` in this case:
-		//	|	dojo.setStyle("someNode", obj);
 
 		node = dom.byId(node);
 		if(arguments.length == 2){ // inline'd type check

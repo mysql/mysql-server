@@ -19,8 +19,9 @@
 #include "utypeinfo.h"  // for 'typeid' to work
 
 #include "nfsubs.h"
-#include "digitlst.h"
 #include "fmtableimp.h"
+#include "putilimp.h"
+#include "number_decimalquantity.h"
 
 #if U_HAVE_RBNF
 
@@ -46,6 +47,8 @@ static const UChar gGreaterGreaterThan[] =
 }; /* ">>" */
 
 U_NAMESPACE_BEGIN
+
+using number::impl::DecimalQuantity;
 
 class SameValueSubstitution : public NFSubstitution {
 public:
@@ -111,7 +114,7 @@ public:
         return newRuleValue * divisor;
     }
 
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return divisor; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const { return static_cast<double>(divisor); }
 
     virtual UChar tokenChar() const { return (UChar)0x003c; } // '<'
 
@@ -148,20 +151,21 @@ public:
     virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
 
     virtual int64_t transformNumber(int64_t number) const { return number % divisor; }
-    virtual double transformNumber(double number) const { return uprv_fmod(number, divisor); }
+    virtual double transformNumber(double number) const { return uprv_fmod(number, static_cast<double>(divisor)); }
 
     virtual UBool doParse(const UnicodeString& text, 
         ParsePosition& parsePosition,
         double baseValue,
         double upperBound,
         UBool lenientParse,
+        uint32_t nonNumericalExecutedRuleMask,
         Formattable& result) const;
 
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const {
-        return oldRuleValue - uprv_fmod(oldRuleValue, divisor) + newRuleValue;
+        return oldRuleValue - uprv_fmod(oldRuleValue, static_cast<double>(divisor)) + newRuleValue;
     }
 
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return divisor; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const { return static_cast<double>(divisor); }
 
     virtual UBool isModulusSubstitution() const { return TRUE; }
 
@@ -221,6 +225,7 @@ public:
         double baseValue,
         double upperBound,
         UBool lenientParse,
+        uint32_t nonNumericalExecutedRuleMask,
         Formattable& result) const;
 
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const { return newRuleValue + oldRuleValue; }
@@ -292,6 +297,7 @@ public:
         double baseValue,
         double upperBound,
         UBool /*lenientParse*/,
+        uint32_t nonNumericalExecutedRuleMask,
         Formattable& result) const;
 
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const { return newRuleValue / oldRuleValue; }
@@ -689,6 +695,7 @@ NFSubstitution::doParse(const UnicodeString& text,
                         double baseValue,
                         double upperBound,
                         UBool lenientParse,
+                        uint32_t nonNumericalExecutedRuleMask,
                         Formattable& result) const
 {
 #ifdef RBNF_DEBUG
@@ -709,7 +716,7 @@ NFSubstitution::doParse(const UnicodeString& text,
     // on), then also try parsing the text using a default-
     // constructed NumberFormat
     if (ruleSet != NULL) {
-        ruleSet->parse(text, parsePosition, upperBound, result);
+        ruleSet->parse(text, parsePosition, upperBound, nonNumericalExecutedRuleMask, result);
         if (lenientParse && !ruleSet->isFractionRuleSet() && parsePosition.getIndex() == 0) {
             UErrorCode status = U_ZERO_ERROR;
             NumberFormat* fmt = NumberFormat::createInstance(status);
@@ -931,18 +938,19 @@ ModulusSubstitution::doParse(const UnicodeString& text,
                              double baseValue,
                              double upperBound,
                              UBool lenientParse,
+                             uint32_t nonNumericalExecutedRuleMask,
                              Formattable& result) const
 {
     // if this isn't a >>> substitution, we can just use the
     // inherited parse() routine to do the parsing
     if (ruleToUse == NULL) {
-        return NFSubstitution::doParse(text, parsePosition, baseValue, upperBound, lenientParse, result);
+        return NFSubstitution::doParse(text, parsePosition, baseValue, upperBound, lenientParse, nonNumericalExecutedRuleMask, result);
 
         // but if it IS a >>> substitution, we have to do it here: we
         // use the specific rule's doParse() method, and then we have to
         // do some of the other work of NFRuleSet.parse()
     } else {
-        ruleToUse->doParse(text, parsePosition, FALSE, upperBound, result);
+        ruleToUse->doParse(text, parsePosition, FALSE, upperBound, nonNumericalExecutedRuleMask, result);
 
         if (parsePosition.getIndex() != 0) {
             UErrorCode status = U_ZERO_ERROR;
@@ -1064,13 +1072,12 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
     //              numberToFormat /= 10;
     //          }
 
-    DigitList dl;
-    dl.set(number);
-    dl.roundFixedPoint(20);     // round to 20 fraction digits.
-    dl.reduce();                // Removes any trailing zeros.
+    DecimalQuantity dl;
+    dl.setToDouble(number);
+    dl.roundToMagnitude(-20, UNUM_ROUND_HALFEVEN, status);     // round to 20 fraction digits.
     
     UBool pad = FALSE;
-    for (int32_t didx = dl.getCount()-1; didx>=dl.getDecimalAt(); didx--) {
+    for (int32_t didx = dl.getLowerDisplayMagnitude(); didx<0; didx++) {
       // Loop iterates over fraction digits, starting with the LSD.
       //   include both real digits from the number, and zeros
       //   to the left of the MSD but to the right of the decimal point.
@@ -1079,7 +1086,7 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
       } else {
         pad = TRUE;
       }
-      int64_t digit = didx>=0 ? dl.getDigit(didx) - '0' : 0;
+      int64_t digit = dl.getDigit(didx);
       getRuleSet()->format(digit, toInsertInto, _pos + getPos(), recursionCount, status);
     }
 
@@ -1118,12 +1125,13 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
                 double baseValue,
                 double /*upperBound*/,
                 UBool lenientParse,
+                uint32_t nonNumericalExecutedRuleMask,
                 Formattable& resVal) const
 {
     // if we're not in byDigits mode, we can just use the inherited
     // doParse()
     if (!byDigits) {
-        return NFSubstitution::doParse(text, parsePosition, baseValue, 0, lenientParse, resVal);
+        return NFSubstitution::doParse(text, parsePosition, baseValue, 0, lenientParse, nonNumericalExecutedRuleMask, resVal);
 
         // if we ARE in byDigits mode, parse the text one digit at a time
         // using this substitution's owning rule set (we do this by setting
@@ -1136,12 +1144,13 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
         int32_t digit;
 //          double p10 = 0.1;
 
-        DigitList dl;
+        DecimalQuantity dl;
+        int32_t totalDigits = 0;
         NumberFormat* fmt = NULL;
         while (workText.length() > 0 && workPos.getIndex() != 0) {
             workPos.setIndex(0);
             Formattable temp;
-            getRuleSet()->parse(workText, workPos, 10, temp);
+            getRuleSet()->parse(workText, workPos, 10, nonNumericalExecutedRuleMask, temp);
             UErrorCode status = U_ZERO_ERROR;
             digit = temp.getLong(status);
 //            digit = temp.getType() == Formattable::kLong ?
@@ -1164,7 +1173,8 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
             }
 
             if (workPos.getIndex() != 0) {
-                dl.append((char)('0' + digit));
+                dl.appendDigit(static_cast<int8_t>(digit), 0, true);
+                totalDigits++;
 //                  result += digit * p10;
 //                  p10 /= 10;
                 parsePosition.setIndex(parsePosition.getIndex() + workPos.getIndex());
@@ -1177,7 +1187,8 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
         }
         delete fmt;
 
-        result = dl.getCount() == 0 ? 0 : dl.getDouble();
+        dl.adjustMagnitude(-totalDigits);
+        result = dl.toDouble();
         result = composeRuleValue(result, baseValue);
         resVal.setDouble(result);
         return TRUE;
@@ -1249,6 +1260,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
                                double baseValue,
                                double upperBound,
                                UBool /*lenientParse*/,
+                               uint32_t nonNumericalExecutedRuleMask,
                                Formattable& result) const
 {
     // we don't have to do anything special to do the parsing here,
@@ -1267,7 +1279,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
 
         while (workText.length() > 0 && workPos.getIndex() != 0) {
             workPos.setIndex(0);
-            getRuleSet()->parse(workText, workPos, 1, temp); // parse zero or nothing at all
+            getRuleSet()->parse(workText, workPos, 1, nonNumericalExecutedRuleMask, temp); // parse zero or nothing at all
             if (workPos.getIndex() == 0) {
                 // we failed, either there were no more zeros, or the number was formatted with digits
                 // either way, we're done
@@ -1289,7 +1301,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
     }
 
     // we've parsed off the zeros, now let's parse the rest from our current position
-    NFSubstitution::doParse(workText, parsePosition, withZeros ? 1 : baseValue, upperBound, FALSE, result);
+    NFSubstitution::doParse(workText, parsePosition, withZeros ? 1 : baseValue, upperBound, FALSE, nonNumericalExecutedRuleMask, result);
 
     if (withZeros) {
         // any base value will do in this case.  is there a way to

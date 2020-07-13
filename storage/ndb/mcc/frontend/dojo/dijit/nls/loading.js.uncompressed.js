@@ -6,6 +6,9 @@ define("dijit/nls/loading", { root:
 })
 //end v1.x content
 ,
+"bs": true,
+"mk": true,
+"sr": true,
 "zh": true,
 "zh-tw": true,
 "uk": true,
@@ -25,11 +28,13 @@ define("dijit/nls/loading", { root:
 "kk": true,
 "ja": true,
 "it": true,
+"id": true,
 "hu": true,
 "hr": true,
 "he": true,
 "fr": true,
 "fi": true,
+"eu": true,
 "es": true,
 "el": true,
 "de": true,
@@ -38,5 +43,6 @@ define("dijit/nls/loading", { root:
 "ca": true,
 "bg": true,
 "az": true,
-"ar": true
+"ar": true,
+"al": true
 });

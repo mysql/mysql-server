@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -252,9 +252,9 @@ bool Partition_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(
-    Table_partitions::FIELD_TABLESPACE_ID == 11,
-    "Table_partitions definition has changed. Review (de)ser memfuns!");
+static_assert(Table_partitions::NUMBER_OF_FIELDS == 12,
+              "Table_partitions definition has changed, check if serialize() "
+              "and deserialize() need to be updated!");
 void Partition_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);

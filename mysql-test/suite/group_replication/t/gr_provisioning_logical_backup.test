@@ -105,5 +105,6 @@ UPDATE t2 SET c1=2 WHERE c1=0;
 # Drop table
 DROP TABLE test.t1;
 DROP TABLE test.t2;
+--remove_file $MYSQL_TMP_DIR/binlog_output
 
 --source include/group_replication_end.inc

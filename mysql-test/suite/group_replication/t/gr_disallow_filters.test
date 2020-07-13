@@ -222,7 +222,6 @@ DROP TABLES test.tab1, test.itab1, test.igtab1;
 --echo #    per-channel replication filter is discarded with a warning.
 --echo #
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_disallow_filters.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_disallow_filters
 --let $assert_count = 1
 --let $assert_select = There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded.
 --let $assert_text = Found the expected warning "There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded."

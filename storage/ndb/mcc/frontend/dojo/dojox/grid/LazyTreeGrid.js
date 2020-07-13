@@ -191,7 +191,12 @@ var _4f=this.grid.edit.info,d=this.get?this.get(_4c,_4d):(this.value||this.defau
 if(this.editable&&(this.alwaysEditing||(_4f.rowIndex===_4c&&_4f.cell===this))){
 return this.formatEditing(d,_4c);
 }else{
-return this._defaultFormat(d,[d,_4c,_4e,this]);
+var dir=this.textDir||this.grid.textDir;
+var ret=this._defaultFormat(d,[d,_4c,_4e,this]);
+if(dir&&this._enforceTextDirWithUcc){
+ret=this._enforceTextDirWithUcc(dir,ret);
+}
+return ret;
 }
 }});
 var _50=_2("dojox.grid._LazyTreeLayout",_14,{setStructure:function(_51){

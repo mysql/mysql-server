@@ -458,6 +458,23 @@ inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags) {
 }
 
 /**
+  Get an existing table definition from the table definition cache.
+
+  Search the table definition cache for a share with the given key.
+  If the share exists or if it is in the process of being opened
+  by another thread (m_open_in_progress flag is true) return share.
+  Do not wait for share opening to finish.
+
+  @param db         database name.
+  @param table_name table name.
+
+  @retval nulltpr      a share for the table does not exist in the cache
+  @retval != nulltpr   pointer to existing share in the cache
+*/
+
+TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
+
+/**
   A context of open_tables() function, used to recover
   from a failed open_table() or open_routine() attempt.
 */

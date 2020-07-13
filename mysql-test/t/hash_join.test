@@ -1999,6 +1999,7 @@ let $query =
 # conditions refer to something on the outside, we cannot use hash join),
 # but that the antijoin stays a hash join.
 eval EXPLAIN FORMAT=tree $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;
@@ -2213,3 +2214,88 @@ EXPLAIN FORMAT=tree SELECT c FROM
 NATURAL RIGHT JOIN t;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#30741679 ASSERTION `FALSE' IN EXTRACT_VALUE_FOR_HASH_JOIN
+--echo # Bug#30769883 HIT ASSERT IN
+--echo #              ITEM_FUNC_EQ::APPEND_JOIN_KEY_FOR_HASH_JOIN()
+--echo #
+CREATE TABLE t1 (
+  a INTEGER,
+  b INTEGER
+);
+
+INSERT INTO t1 VALUES (1, 1);
+ANALYZE TABLE t1;
+
+# See that conditions having a non-scalar subquery is attached as extra
+# conditions, and not as join conditions.
+let $query = SELECT * FROM t1 as table1
+  WHERE (SELECT a, b FROM t1 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+# Conditions having a scalar subquery (subquery with one column) should be used
+# as a proper join condition.
+let $query = SELECT * FROM t1 as table1
+  WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#30792727 ERRORS WHEN BUILDING HASH TABLE FOR HASH JOIN NOT
+--echo #              PROPAGATED
+--echo #
+CREATE TABLE t (i INTEGER);
+INSERT INTO t VALUES (1), (2);
+
+# The first argument to JSON_EXTRACT should be a JSON document. An error
+# is expected when building the hash table for t1 since
+# "JSON_EXTRACT(t1.i, t1.i)" is used as the hash table key (giving a number as
+# the first argument results in an error).
+let $query = SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
+eval EXPLAIN FORMAT=tree $query;
+
+--error ER_INVALID_TYPE_FOR_JSON
+eval $query;
+
+# See that only one error was raised.
+SHOW ERRORS;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #31102789 A PREDICATE THAT COMPARES 0 WITH -0
+--echo #               YIELDS AN INCORRECT RESULT
+--echo #
+
+CREATE TABLE t0(c0 INT);
+CREATE TABLE t1(c0 DOUBLE);
+CREATE TABLE t2(c0 DOUBLE);
+INSERT INTO t0 VALUES(0);
+INSERT INTO t1 VALUES('-0');
+INSERT INTO t2 VALUES('+0');
+
+SELECT * FROM t0, t1 WHERE t0.c0 = t1.c0;
+SELECT * FROM t1, t2 WHERE t1.c0 = t2.c0;
+SELECT * FROM t0, t2 WHERE t0.c0 = t2.c0;
+
+DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug #31376809: PERFORMANCE REGRESSION FROM 5.7->8.0, DUE TO ANTIJOIN OF NOT EXISTS SUBQUERY
+--echo #
+
+CREATE TABLE t1 (a INTEGER NOT NULL, b INTEGER);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+ANALYZE TABLE t1;
+
+# Verify that:
+#  a) There's a LIMIT 1 being put on the hash.
+#  b) The outer side of the hash join is never executed.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
+
+DROP TABLE t1;

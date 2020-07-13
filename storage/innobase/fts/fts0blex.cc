@@ -1739,7 +1739,7 @@ void fts0bset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
 }
 
 /** Set the current line number.
- * @param line_number
+ * @param line_number line number
  * @param yyscanner The scanner object.
  */
 void fts0bset_lineno (int  line_number , yyscan_t yyscanner)
@@ -1754,7 +1754,7 @@ void fts0bset_lineno (int  line_number , yyscan_t yyscanner)
 }
 
 /** Set the current column.
- * @param column_no
+ * @param column_no column number
  * @param yyscanner The scanner object.
  */
 void fts0bset_column (int  column_no , yyscan_t yyscanner)

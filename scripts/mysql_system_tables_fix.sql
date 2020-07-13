@@ -618,10 +618,17 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
 -- Add the privilege CLONE_ADMIN for every user who has the privilege SUPER
--- provided that there isn't a user who already has the privilige CLONE_ADMIN.
+-- provided that there isn't a user who already has the privilege CLONE_ADMIN.
 SET @hadCloneAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'CLONE_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'CLONE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE super_priv = 'Y' AND @hadCloneAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege INNODB_REDO_LOG_ENABLE for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege INNODB_REDO_LOG_ENABLE.
+SET @hadRedoLogEnablePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'INNODB_REDO_LOG_ENABLE');
+INSERT INTO global_grants SELECT user, host, 'INNODB_REDO_LOG_ENABLE', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadRedoLogEnablePriv = 0;
 COMMIT;
 
 -- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
@@ -772,6 +779,13 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0 AND 
 -- during upgrade. However, this user should not have this privilege, so we need
 -- to explicitly revoke it.
 DELETE FROM global_grants WHERE user = 'mysql.session' AND host = 'localhost' AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COMMIT;
+
+-- Add the privilege REPLICATION_APPLIER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige REPLICATION_APPLIER.
+SET @hadReplicationApplierPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'REPLICATION_APPLIER');
+INSERT INTO global_grants SELECT user, host, 'REPLICATION_APPLIER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadReplicationApplierPriv = 0;
 COMMIT;
 
 -- Add the privilege SHOW_ROUTINE for every user who has global SELECT privilege

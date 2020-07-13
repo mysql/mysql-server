@@ -11,10 +11,10 @@ define(
 	"AUD_displayName": "Dólar australiano",
 	"JPY_displayName": "Iene japonês",
 	"CAD_symbol": "CA$",
-	"USD_displayName": "Dólar norte-americano",
+	"USD_displayName": "Dólar americano",
 	"EUR_symbol": "€",
 	"CNY_symbol": "CN¥",
-	"GBP_displayName": "Libra esterlina britânica",
+	"GBP_displayName": "Libra britânica",
 	"GBP_symbol": "£",
 	"AUD_symbol": "AU$",
 	"EUR_displayName": "Euro"

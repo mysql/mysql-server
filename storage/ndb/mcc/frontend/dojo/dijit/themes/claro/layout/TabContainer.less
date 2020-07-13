@@ -312,19 +312,19 @@
 	padding:2px 2px 4px;
 }
 .claro .dijitTabContainerTabListNested .dijitTab {
-	background:rgba(255, 255, 255, 0) none repeat scroll 0 0;
+	background-color:rgba(255, 255, 255, 0);
 	border: none;
 	padding: 4px;
 	border-color: rgba(118,157,192,0);
 	.transition-property(background-color, border-color);
  	.transition-duration(.3s);
 	.border-radius(2px);
-}
-.claro .dijitTabContainerTabListNested .dijitTab {
-	background: none;
-	border: none;
 	top: 0;/* to override top: 1px/-1px for normal tabs */
 	.box-shadow(none);
+
+	// CSS gradient with fallback to image for IE
+	background-image: url("images/tabNested.png") repeat-x;
+	.alpha-white-gradient (0.61,0%, 0,17%, 0,83%, 0.61,100%);
 }
 .claro .dijitTabContainerTabListNested .dijitTabHover {
 	background-color: @nestedtab-hovered-background-color;
@@ -338,12 +338,6 @@
 .claro .dijitTabContainerTabListNested .dijitTabActive {
 	border:solid 1px @nestedtab-selected-border-color;
 	padding: 3px;
-
-	// CSS gradient with fallback to image for IE
-	// this is in a weird place, only for active state; mailed Jason about it
-	background: @nestedtab-selected-background-color url("images/tabNested.png") repeat-x;
-	.alpha-white-gradient (0.61,0%, 0,17%, 0,83%, 0.61,100%);
-
 	.transition-duration(.1s);
 }
 .claro .dijitTabContainerTabListNested .dijitTabChecked {
@@ -359,8 +353,8 @@
 	border: none;/* prevent double border */
 }
 
-.claro .dijitTab,
-.claro .tabStripButton {
+.claro .dijitTabContainer .dijitTab,
+.claro .dijitTabContainer .tabStripButton {
     // IE6 can't handle background-image and background-color on same node
-	_background-image: none !important;
+	_background-image: none;
 }

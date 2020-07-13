@@ -3,18 +3,17 @@ define("dojox/mvc/_atBindingMixin", [
 	"dojo/_base/lang",
 	"dojo/_base/declare",
 	"dojo/has",
+	"dojo/Stateful",
 	"./resolve",
 	"./sync"
-], function(array, lang, declare, has, resolve, sync){
-	if(has("mvc-bindings-log-api")){
-		function getLogContent(/*dojo/Stateful*/ target, /*String*/ targetProp){
+], function(array, lang, declare, has, Stateful, resolve, sync){
+	var getLogContent = (has("mvc-bindings-log-api")) ? function(/*dojo/Stateful*/ target, /*String*/ targetProp){
 			return [target._setIdAttr || !target.declaredClass ? target : target.declaredClass, targetProp].join(":");
-		}
+	} : "";
 
-		function logResolveFailure(target, targetProp){
+	var logResolveFailure = (has("mvc-bindings-log-api")) ? function(target, targetProp){
 			console.warn(targetProp + " could not be resolved" + (typeof target == "string" ? (" with " + target) : "") + ".");
-		}
-	}
+	} : "";
 
 	function getParent(/*dijit/_WidgetBase*/ w){
 		// summary:
@@ -107,8 +106,7 @@ define("dojox/mvc/_atBindingMixin", [
 		return h;
 	}
 
-	// TODO: Like _DataBindingMixin, this should probably just be a plain Object rather than a Class
-	var _atBindingMixin = declare("dojox/mvc/_atBindingMixin", null, {
+	var mixin = {
 		// summary:
 		//		The mixin for dijit/_WidgetBase to support data binding.
 
@@ -129,11 +127,27 @@ define("dojox/mvc/_atBindingMixin", [
 					refs[prop] = h;
 				}
 			}
+
+			var dbParams = new Stateful(),
+			 _self = this;
+			dbParams.toString = function(){ return '[Mixin value of widget ' + _self.declaredClass + ', ' + (_self.id || 'NO ID') + ']'; };
+			dbParams.canConvertToLoggable = true;
+			this._startAtWatchHandles(dbParams);
+			for(var prop in refs){
+				if(dbParams[prop] !== void 0){
+					(params = params || {})[prop] = dbParams[prop];
+				}
+			}
+			this._stopAtWatchHandles();
 		},
 
-		_startAtWatchHandles: function(){
+		_startAtWatchHandles: function(/*dojo/Stateful*/ bindWith){
 			// summary:
 			//		Establish data bindings based on dojox/mvc/at handles.
+			// bindWith: dojo/Stateful
+			//		The dojo/Stateful to bind properties with.
+
+			this.canConvertToLoggable = true;
 
 			var refs = this._refs;
 			if(refs){
@@ -145,12 +159,12 @@ define("dojox/mvc/_atBindingMixin", [
 				// First, establish non-wildcard data bindings
 				for(var prop in refs){
 					if(!refs[prop] || prop == "*"){ continue; }
-					atWatchHandles[prop] = bind(refs[prop].target, refs[prop].targetProp, this, prop, {bindDirection: refs[prop].bindDirection, converter: refs[prop].converter});
+					atWatchHandles[prop] = bind(refs[prop].target, refs[prop].targetProp, bindWith || this, prop, {bindDirection: refs[prop].bindDirection, converter: refs[prop].converter, equals: refs[prop].equalsCallback});
 				}
 
 				// Then establish wildcard data bindings
 				if((refs["*"] || {}).atsignature == "dojox.mvc.at"){
-					atWatchHandles["*"] = bind(refs["*"].target, refs["*"].targetProp, this, "*", {bindDirection: refs["*"].bindDirection, converter: refs["*"].converter});
+					atWatchHandles["*"] = bind(refs["*"].target, refs["*"].targetProp, bindWith || this, "*", {bindDirection: refs["*"].bindDirection, converter: refs["*"].converter, equals: refs["*"].equalsCallback});
 				}
 			}
 		},
@@ -172,7 +186,7 @@ define("dojox/mvc/_atBindingMixin", [
 			//		Otherwise, queue it up to this._refs so that _dbstartup() can pick it up.
 
 			if(name == "ref"){
-				throw new Error(this + ": 1.7 ref syntax used in conjuction with 1.8 dojox/mvc/at syntax, which is not supported.");
+				throw new Error(this + ": 1.7 ref syntax used in conjunction with 1.8 dojox/mvc/at syntax, which is not supported.");
 			}
 
 			// Claen up older data binding
@@ -190,7 +204,7 @@ define("dojox/mvc/_atBindingMixin", [
 
 			if(this._started){
 				// If this widget has been started already, establish data binding immediately.
-				atWatchHandles[name] = bind(value.target, value.targetProp, this, name, {bindDirection: value.bindDirection, converter: value.converter});
+				atWatchHandles[name] = bind(value.target, value.targetProp, this, name, {bindDirection: value.bindDirection, converter: value.converter, equals: value.equalsCallback});
 			}else{
 				// Otherwise, queue it up to this._refs so that _dbstartup() can pick it up.
 				this._refs[name] = value;
@@ -216,8 +230,8 @@ define("dojox/mvc/_atBindingMixin", [
 			// summary:
 			//		Returns list of all properties that data binding is established with.
 
-			if(this._excludes){ 
-				return this._excludes;  // String[] 
+			if(this._excludes){
+				return this._excludes;  // String[]
 			}
 			var list = [];
 			for(var s in this._atWatchHandles){
@@ -242,8 +256,11 @@ define("dojox/mvc/_atBindingMixin", [
 			});
 			return this.constructor._attribs = list; // String[]
 		}
-	});
+	};
 
-	_atBindingMixin.prototype[_atBindingMixin.prototype.dataBindAttr] = ""; // Let parser treat the attribute as string
+	mixin[mixin.dataBindAttr] = ""; // Let parser treat the attribute as string
+
+	var _atBindingMixin = declare("dojox/mvc/_atBindingMixin", null, mixin);
+	_atBindingMixin.mixin = mixin; // Keep the plain object version
 	return _atBindingMixin;
 });

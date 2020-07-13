@@ -1,13 +1,14 @@
 //>>built
-define("dijit/tree/_dndContainer",["dojo/aspect","dojo/_base/declare","dojo/dom-class","dojo/_base/event","dojo/_base/lang","dojo/on","dojo/touch"],function(_1,_2,_3,_4,_5,on,_6){
-return _2("dijit.tree._dndContainer",null,{constructor:function(_7,_8){
-this.tree=_7;
-this.node=_7.domNode;
-_5.mixin(this,_8);
-this.current=null;
+define("dijit/tree/_dndContainer",["dojo/aspect","dojo/_base/declare","dojo/dom-class","dojo/_base/lang","dojo/on","dojo/touch"],function(_1,_2,_3,_4,on,_5){
+return _2("dijit.tree._dndContainer",null,{constructor:function(_6,_7){
+this.tree=_6;
+this.node=_6.domNode;
+_4.mixin(this,_7);
 this.containerState="";
 _3.add(this.node,"dojoDndContainer");
-this.events=[on(this.node,_6.enter,_5.hitch(this,"onOverEvent")),on(this.node,_6.leave,_5.hitch(this,"onOutEvent")),_1.after(this.tree,"_onNodeMouseEnter",_5.hitch(this,"onMouseOver"),true),_1.after(this.tree,"_onNodeMouseLeave",_5.hitch(this,"onMouseOut"),true),on(this.node,"dragstart",_5.hitch(_4,"stop")),on(this.node,"selectstart",_5.hitch(_4,"stop"))];
+this.events=[on(this.node,_5.enter,_4.hitch(this,"onOverEvent")),on(this.node,_5.leave,_4.hitch(this,"onOutEvent")),_1.after(this.tree,"_onNodeMouseEnter",_4.hitch(this,"onMouseOver"),true),_1.after(this.tree,"_onNodeMouseLeave",_4.hitch(this,"onMouseOut"),true),on(this.node,"dragstart, selectstart",function(_8){
+_8.preventDefault();
+})];
 },destroy:function(){
 var h;
 while(h=this.events.pop()){

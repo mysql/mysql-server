@@ -23,6 +23,7 @@ call mtr.add_suppression("Statement is unsafe because it is being used inside a 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc

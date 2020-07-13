@@ -1,89 +1,89 @@
 //>>built
-define("dojox/editor/plugins/NormalizeIndentOutdent",["dojo","dijit","dojox","dijit/_editor/_Plugin","dijit/_editor/range","dijit/_editor/selection","dojo/_base/connect","dojo/_base/declare"],function(_1,_2,_3,_4){
-_1.declare("dojox.editor.plugins.NormalizeIndentOutdent",_4,{indentBy:40,indentUnits:"px",setEditor:function(_5){
-this.editor=_5;
-_5._indentImpl=_1.hitch(this,this._indentImpl);
-_5._outdentImpl=_1.hitch(this,this._outdentImpl);
-if(!_5._indentoutdent_queryCommandEnabled){
-_5._indentoutdent_queryCommandEnabled=_5.queryCommandEnabled;
+define("dojox/editor/plugins/NormalizeIndentOutdent",["dojo","dijit","dojox","dijit/_editor/_Plugin","dojo/_base/declare"],function(_1,_2,_3,_4){
+var _5=_1.declare("dojox.editor.plugins.NormalizeIndentOutdent",_4,{indentBy:40,indentUnits:"px",setEditor:function(_6){
+this.editor=_6;
+_6._indentImpl=_1.hitch(this,this._indentImpl);
+_6._outdentImpl=_1.hitch(this,this._outdentImpl);
+if(!_6._indentoutdent_queryCommandEnabled){
+_6._indentoutdent_queryCommandEnabled=_6.queryCommandEnabled;
 }
-_5.queryCommandEnabled=_1.hitch(this,this._queryCommandEnabled);
-_5.customUndo=true;
-},_queryCommandEnabled:function(_6){
-var c=_6.toLowerCase();
-var ed,_7,_8,_9,_a,_b;
-var _c="marginLeft";
+_6.queryCommandEnabled=_1.hitch(this,this._queryCommandEnabled);
+_6.customUndo=true;
+},_queryCommandEnabled:function(_7){
+var c=_7.toLowerCase();
+var ed,_8,_9,_a,_b,_c;
+var _d="marginLeft";
 if(!this._isLtr()){
-_c="marginRight";
+_d="marginRight";
 }
 if(c==="indent"){
 ed=this.editor;
-_7=_2.range.getSelection(ed.window);
-if(_7&&_7.rangeCount>0){
-_8=_7.getRangeAt(0);
-_9=_8.startContainer;
-while(_9&&_9!==ed.document&&_9!==ed.editNode){
-_a=this._getTagName(_9);
-if(_a==="li"){
-_b=_9.previousSibling;
-while(_b&&_b.nodeType!==1){
-_b=_b.previousSibling;
+_8=_2.range.getSelection(ed.window);
+if(_8&&_8.rangeCount>0){
+_9=_8.getRangeAt(0);
+_a=_9.startContainer;
+while(_a&&_a!==ed.document&&_a!==ed.editNode){
+_b=this._getTagName(_a);
+if(_b==="li"){
+_c=_a.previousSibling;
+while(_c&&_c.nodeType!==1){
+_c=_c.previousSibling;
 }
-if(_b&&this._getTagName(_b)==="li"){
+if(_c&&this._getTagName(_c)==="li"){
 return true;
 }else{
 return false;
 }
 }else{
-if(this._isIndentableElement(_a)){
+if(this._isIndentableElement(_b)){
 return true;
 }
 }
-_9=_9.parentNode;
+_a=_a.parentNode;
 }
-if(this._isRootInline(_8.startContainer)){
+if(this._isRootInline(_9.startContainer)){
 return true;
 }
 }
 }else{
 if(c==="outdent"){
 ed=this.editor;
-_7=_2.range.getSelection(ed.window);
-if(_7&&_7.rangeCount>0){
-_8=_7.getRangeAt(0);
-_9=_8.startContainer;
-while(_9&&_9!==ed.document&&_9!==ed.editNode){
-_a=this._getTagName(_9);
-if(_a==="li"){
-return this.editor._indentoutdent_queryCommandEnabled(_6);
+_8=_2.range.getSelection(ed.window);
+if(_8&&_8.rangeCount>0){
+_9=_8.getRangeAt(0);
+_a=_9.startContainer;
+while(_a&&_a!==ed.document&&_a!==ed.editNode){
+_b=this._getTagName(_a);
+if(_b==="li"){
+return this.editor._indentoutdent_queryCommandEnabled(_7);
 }else{
-if(this._isIndentableElement(_a)){
-var _d=_9.style?_9.style[_c]:"";
-if(_d){
-_d=this._convertIndent(_d);
-if(_d/this.indentBy>=1){
+if(this._isIndentableElement(_b)){
+var _e=_a.style?_a.style[_d]:"";
+if(_e){
+_e=this._convertIndent(_e);
+if(_e/this.indentBy>=1){
 return true;
 }
 }
 return false;
 }
 }
-_9=_9.parentNode;
+_a=_a.parentNode;
 }
-if(this._isRootInline(_8.startContainer)){
+if(this._isRootInline(_9.startContainer)){
 return false;
 }
 }
 }else{
-return this.editor._indentoutdent_queryCommandEnabled(_6);
+return this.editor._indentoutdent_queryCommandEnabled(_7);
 }
 }
 return false;
-},_indentImpl:function(_e){
+},_indentImpl:function(_f){
 var ed=this.editor;
-var _f=_2.range.getSelection(ed.window);
-if(_f&&_f.rangeCount>0){
-var _10=_f.getRangeAt(0);
+var sel=_2.range.getSelection(ed.window);
+if(sel&&sel.rangeCount>0){
+var _10=sel.getRangeAt(0);
 var _11=_10.startContainer;
 var tag,_12,end,div;
 if(_10.startContainer===_10.endContainer){
@@ -582,8 +582,8 @@ return;
 }
 var _39=o.args.name.toLowerCase();
 if(_39==="normalizeindentoutdent"){
-o.plugin=new _3.editor.plugins.NormalizeIndentOutdent({indentBy:("indentBy" in o.args)?(o.args.indentBy>0?o.args.indentBy:40):40,indentUnits:("indentUnits" in o.args)?(o.args.indentUnits.toLowerCase()=="em"?"em":"px"):"px"});
+o.plugin=new _5({indentBy:("indentBy" in o.args)?(o.args.indentBy>0?o.args.indentBy:40):40,indentUnits:("indentUnits" in o.args)?(o.args.indentUnits.toLowerCase()=="em"?"em":"px"):"px"});
 }
 });
-return _3.editor.plugins.NormalizeIndentOutdent;
+return _5;
 });

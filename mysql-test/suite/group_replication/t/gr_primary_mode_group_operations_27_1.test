@@ -137,7 +137,6 @@ LOCK TABLE t1 READ;
 --sleep 2
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
---let $assert_only_after = CURRENT_TEST: gr_primary_mode_group_operations_27_1
 --let $assert_count = 1
 --let $assert_select = Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated.
 --let $assert_text = Found the expected error about the operation abort

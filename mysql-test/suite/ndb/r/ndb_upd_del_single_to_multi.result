@@ -1,0 +1,53 @@
+create table t1(a int) engine=ndbcluster;
+create table t2(a int) engine=ndbcluster;
+insert into t1 values(10),(11),(12),(13),(14),(15),(16);
+insert into t2 values(100),(11),(120);
+analyze table t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+explain format=tree update t1 set t1.a=3 where a=(select a from t2);
+EXPLAIN
+<not executable by iterator executor>
+
+explain update t1 set t1.a=3 where a in (select a from t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using pushed condition (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 3 where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+update t1 set t1.a=3 where a in (select a from t2);
+select * from t1;
+a
+10
+12
+13
+14
+15
+16
+3
+delete from t1;
+insert into t1 values(10),(11),(12),(13),(14),(15),(16);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain format=tree delete from t1 where a=(select a from t2);
+EXPLAIN
+<not executable by iterator executor>
+
+explain delete from t1 where a in (select a from t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using pushed condition (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)
+Warnings:
+Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
+delete from t1 where a in (select a from t2);
+select * from t1;
+a
+10
+12
+13
+14
+15
+16
+drop table t1,t2;

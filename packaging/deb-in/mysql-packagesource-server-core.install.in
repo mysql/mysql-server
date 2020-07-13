@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ usr/share/man/man1/perror.1
 usr/share/man/man1/zlib_decompress.1
 usr/share/man/man8/mysqld.8
 # private shared libraries
-usr/lib/mysql/private/libprotobuf-lite.so.3.6.1
-usr/lib/mysql/private/libprotobuf.so.3.6.1
+usr/lib/mysql/private/libprotobuf-lite.so.3.11.4
+usr/lib/mysql/private/libprotobuf.so.3.11.4
 # plugins
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
@@ -79,7 +79,6 @@ usr/lib/mysql/plugin/keyring_file.so
 usr/lib/mysql/plugin/keyring_udf.so
 usr/lib/mysql/plugin/libmemcached.so
 usr/lib/mysql/plugin/auth_socket.so
-usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/semisync_master.so
 usr/lib/mysql/plugin/semisync_slave.so

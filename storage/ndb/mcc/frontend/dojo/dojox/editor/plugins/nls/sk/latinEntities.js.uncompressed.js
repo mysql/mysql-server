@@ -1,16 +1,16 @@
 define(
 "dojox/editor/plugins/nls/sk/latinEntities", ({
 	/* These are already handled in the default RTE
-		amp:"ampersand",lt:"less-than sign",
-		gt:"greater-than sign",
-		nbsp:"no-break space\nnon-breaking space",
-		quot:"quote",
+	amp:"ampersand",lt:"less-than sign",
+	gt:"greater-than sign",
+	nbsp:"no-break space\nnon-breaking space",
+	quot:"quote",
 	*/
 	iexcl:"invertovaný výkričník",
 	cent:"znak centu",
 	pound:"znak libry",
 	curren:"znak meny",
-	yen:"znak yen\nznak yuan",
+	yen:"znak yenu\nznak yuanu",
 	brvbar:"prerušovaná čiara\nprerušovaná zvislá čiara",
 	sect:"znak paragraf",
 	uml:"znak prehláskovania",

@@ -71,6 +71,7 @@ SHOW STATUS LIKE 'Handler_%';
 
 CREATE TABLE t_nopk(c1 INT NOT NULL , c2 INT NOT NULL)ENGINE=INNODB;
 INSERT INTO t_nopk SELECT c1, c2 FROM t_innodb;
+ANALYZE TABLE t_nopk;
 SHOW CREATE TABLE t_nopk;
 
 let query6= SELECT COUNT(*) FROM t_nopk;

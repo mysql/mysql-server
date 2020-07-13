@@ -12,7 +12,8 @@
 	background:#f0f0f0 url("images/progressBarFull.png") repeat-x center center;
 }
 .soria .dijitProgressBarFull {
-	border-right:1px solid #8ba0bd;
+	border: 0px solid #8ba0bd;
+	border-right-width: 1px;
 }
 .soria .dijitProgressBarLabel {
 	

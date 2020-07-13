@@ -580,13 +580,13 @@ int validate_plugin_server_requirements(Trans_param *param) {
   my_thread_attr_t *thread_attr = get_connection_attrib();
 
   char *hostname, *uuid;
-  uint port;
+  uint port, admin_port;
   unsigned int server_version;
 
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
+  get_server_parameters(&hostname, &port, &uuid, &server_version, &admin_port);
 
   Trans_context_info startup_pre_reqs;
-  get_server_startup_prerequirements(startup_pre_reqs, false);
+  get_server_startup_prerequirements(startup_pre_reqs);
 
   // check the server is initialized by checking if the default channel exists
   bool server_engine_ready = channel_is_active("", CHANNEL_NO_THD);
@@ -767,12 +767,8 @@ int test_channel_service_interface() {
   DBUG_ASSERT(!exists);
 
   // Test the method to extract credentials - first a non existing channel
-  const char *user_arg = nullptr;
-  char user_pass[MAX_PASSWORD_LENGTH + 1];
-  char *user_pass_pointer = user_pass;
-  size_t password_size = sizeof(user_pass);
-  error = channel_get_credentials(dummy_channel, &user_arg, &user_pass_pointer,
-                                  &password_size);
+  std::string username, password;
+  error = channel_get_credentials(dummy_channel, username, password);
   DBUG_ASSERT(error == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
 
   // Now get channel credentials, after setting them
@@ -785,11 +781,10 @@ int test_channel_service_interface() {
   error = channel_create(interface_channel, &info);
   DBUG_ASSERT(!error);
 
-  error = channel_get_credentials(interface_channel, &user_arg,
-                                  &user_pass_pointer, &password_size);
+  error = channel_get_credentials(interface_channel, username, password);
   DBUG_ASSERT(!error);
-  DBUG_ASSERT(strcmp(dummy_user, user_arg) == 0);
-  DBUG_ASSERT(strcmp(dummy_pass, user_pass_pointer) == 0);
+  DBUG_ASSERT(strcmp(dummy_user, username.c_str()) == 0);
+  DBUG_ASSERT(strcmp(dummy_pass, password.c_str()) == 0);
 
   return (error && exists && running && gno && num_appliers && thread_id);
 }

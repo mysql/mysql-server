@@ -1,11 +1,11 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/_base/fx",["./kernel","./config","./lang","../Evented","./Color","./connect","./sniff","../dom","../dom-style"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+define("dojo/_base/fx",["./kernel","./config","./lang","../Evented","./Color","../aspect","../sniff","../dom","../dom-style"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
 var _a=_3.mixin;
 var _b={};
 var _c=_b._Line=function(_d,_e){
@@ -120,6 +120,8 @@ _20._percent=1;
 _20._fire("onStop",[_20.curve.getValue(_20._getStep())]);
 _20._active=_20._paused=false;
 return _20;
+},destroy:function(){
+this.stop();
 },status:function(){
 if(this._active){
 return this._paused?"paused":"playing";
@@ -169,7 +171,7 @@ var ctr=0,_24=null,_25={run:function(){
 }};
 _3.extend(_f,{_startTimer:function(){
 if(!this._timer){
-this._timer=_6.connect(_25,"run",this,"_cycle");
+this._timer=_6.after(_25,"run",_3.hitch(this,"_cycle"),true);
 ctr++;
 }
 if(!_24){
@@ -177,7 +179,7 @@ _24=setInterval(_3.hitch(_25,"run"),this.rate);
 }
 },_stopTimer:function(){
 if(this._timer){
-_6.disconnect(this._timer);
+this._timer.remove();
 this._timer=null;
 ctr--;
 }
@@ -202,7 +204,7 @@ return +_9.get(_29.node,"opacity")||0;
 }:_29.start;
 _2a.end=_29.end;
 var _2b=_b.animateProperty(_29);
-_6.connect(_2b,"beforeBegin",_3.partial(_26,_29.node));
+_6.after(_2b,"beforeBegin",_3.partial(_26,_29.node),true);
 return _2b;
 };
 _b.fadeIn=function(_2c){
@@ -243,7 +245,7 @@ if(!_33.easing){
 _33.easing=_1._defaultEasing;
 }
 var _34=new _f(_33);
-_6.connect(_34,"beforeBegin",_34,function(){
+_6.after(_34,"beforeBegin",_3.hitch(_34,function(){
 var pm={};
 for(var p in this.properties){
 if(p=="width"||p=="height"){
@@ -284,8 +286,8 @@ _35.start=(p=="opacity")?+_35.start:parseFloat(_35.start);
 }
 }
 this.curve=new _2e(pm);
-});
-_6.connect(_34,"onAnimate",_3.hitch(_9,"set",_34.node));
+}),true);
+_6.after(_34,"onAnimate",_3.hitch(_9,"set",_34.node),true);
 return _34;
 };
 _b.anim=function(_39,_3a,_3b,_3c,_3d,_3e){

@@ -15,10 +15,16 @@
 }
 
 /* dojox.mobile.TabBarButton */
+.mblTabBarFill .mblTabBarButton {
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	-webkit-box-sizing: border-box;
+}
+
 .mblTabBarButton {
 	overflow: hidden;
 	cursor: pointer;
-	-webkit-tap-highlight-color: rgba(255,255,255,0);
+	.tap-highlight-color(rgba(255,255,255,0));
 	position: relative;
 	list-style-type: none;
 	float: left;
@@ -66,10 +72,9 @@
 		.mblTabBarTabBarButtonLabelSelected-styles;
 	}
 }
-
 /* barType="segmentedControl" */
 .mblTabBarSegmentedControl {
-	background-image: @heading-background-image;
+	.heading-background-image();
 	.mblTabBarSegmentedControl-styles;
 
 	&.mblTabBarNoText {
@@ -120,7 +125,7 @@
 
 /* barType="standardTab" */
 .mblTabBarStandardTab {
-	background-image: @heading-background-image;
+	.heading-background-image();
 	.mblTabBarStandardTab-styles;
 
 	.mblTabBarButton {
@@ -160,12 +165,12 @@
 	padding: 0px;
 	border: 1px solid @heading-border-bottom-color;
 	background-color: #000000;
-	background-image: -webkit-gradient(linear, left top, left bottom, from(#2d2d2d), to(#000000), color-stop(0.5, #141414), color-stop(0.5, #000000));
+	.background-image-linear-gradient-top-bottom-2-stops(#2d2d2d, #000000, 0.5, #141414, 0.5, #000000);
 
 	.mblTabBarButton {
 		padding: 7px;
 		border-right: 1px solid #4e4e4e;
-		background-image: -webkit-gradient(linear, left top, left bottom, from(#2d2d2d), to(#000000), color-stop(0.5, #141414), color-stop(0.5, #000000));
+		.background-image-linear-gradient-top-bottom-2-stops(#2d2d2d, #000000, 0.5, #141414, 0.5, #000000);
 		font-family: Helvetica;
 		font-size: 14px;
 		font-weight: bold;
@@ -185,7 +190,7 @@
 	}
 	.mblTabBarButtonSelected {
 		background-color: #404040;
-		background-image: -webkit-gradient(linear, left top, left bottom, from(#313031), to(#959595), color-stop(0.5, #5a555a), color-stop(0.5, #616161));
+		.background-image-linear-gradient-top-bottom-2-stops(#313031, #959595, 0.5, #5a555a, 0.5, #616161);
 	}
 	.mblTabBarButtonHasIcon .mblTabBarButtonLabel {
 		margin-left: 20px;
@@ -234,7 +239,7 @@
 		border-width: 0px 1px 0px 1px;
 		border-style: solid;
 		border-color: black #182018 black #393c39;
-		background-image: -webkit-gradient(linear, left top, left bottom, from(#181818), to(#100c10), color-stop(0.1, #313031));
+		.background-image-linear-gradient-top-bottom-1-stop(#181818, #100c10, 0.1, #313031);
 		font-family: Helvetica;
 		font-size: 13px;
 		color: white;
@@ -257,7 +262,7 @@
 		.mblTabBarTallTabButtonLabel-styles;
 	}
 	.mblTabBarButtonSelected {
-		background-image: -webkit-gradient(linear, left top, left bottom, from(#a59ea5), to(#848284));
+		.background-image-linear-gradient-top-bottom(#a59ea5, #848284);
 		.mblTabBarTallTabButtonSelected-styles;
 	}
 	.mblTabBarButtonSelected .mblTabBarButtonLabel {

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -4431,7 +4431,7 @@ ER_GRP_RPL_BROADCAST_COMMIT_TRANS_MSSG_FAILED
   eng "Broadcast of committed transactions message failed."
 
 ER_GRP_RPL_GROUP_NAME_PARSE_ERROR
-  eng "Unable to parse the group name during the Certification module initialization."
+  eng "Unable to parse the group_replication_group_name during the Certification module initialization."
 
 ER_GRP_RPL_ADD_GRPSID_TO_GRPGTIDSID_MAP_ERROR
   eng "Unable to add the group_sid in the group_gtid_sid_map during the Certification module initialization."
@@ -4599,7 +4599,7 @@ ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR
   eng "Error when activating super_read_only mode on start. The member will now exit the group."
 
 ER_GRP_RPL_EXCEEDS_AUTO_INC_VALUE
-  eng "Group contains %lu members which is greater than auto_increment_increment value of %lu. This can lead to a higher transactional abort rate."
+  eng "Group contains %lu members which is greater than group_replication_auto_increment_increment value of %lu. This can lead to a higher transactional abort rate."
 
 ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM
   eng "Member with address '%s:%u' didn't provide any data during the last group change. Group information can be outdated and lead to errors on recovery."
@@ -4644,7 +4644,7 @@ ER_GRP_RPL_TRANS_WRITE_SET_EXTRACT_DIFF_FROM_GRP
   eng "The member is configured with a transaction-write-set-extraction option value '%s' different from the group '%s'. The member will now exit the group."
 
 ER_GRP_RPL_MEMBER_CFG_INCOMPATIBLE_WITH_GRP_CFG
-  eng "The member configuration is not compatible with the group configuration. Variables such as single_primary_mode or enforce_update_everywhere_checks must have the same value on every server in the group. (member configuration option: [%s], group configuration option: [%s])."
+  eng "The member configuration is not compatible with the group configuration. Variables such as group_replication_single_primary_mode or group_replication_enforce_update_everywhere_checks must have the same value on every server in the group. (member configuration option: [%s], group configuration option: [%s])."
 
 ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR
   eng "Error stopping all replication channels while server was leaving the group. %s"
@@ -4689,13 +4689,13 @@ ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED
   eng "Table %s has a foreign key with 'CASCADE', 'SET NULL' or 'SET DEFAULT' clause. This is not compatible with Group Replication."
 
 ER_GRP_RPL_AUTO_INC_RESET
-  eng "auto_increment_increment is reset to %lu"
+  eng "group_replication_auto_increment_increment is reset to %lu"
 
 ER_GRP_RPL_AUTO_INC_OFFSET_RESET
   eng "auto_increment_offset is reset to %lu"
 
 ER_GRP_RPL_AUTO_INC_SET
-  eng "auto_increment_increment is set to %lu"
+  eng "group_replication_auto_increment_increment is set to %lu"
 
 ER_GRP_RPL_AUTO_INC_OFFSET_SET
   eng "auto_increment_offset is set to %lu"
@@ -4844,7 +4844,7 @@ ER_GRP_RPL_WRITE_IDENT_HASH_BASE64_ENCODING_FAILED
 ER_GRP_RPL_INVALID_BINLOG_FORMAT
   eng "Binlog format should be ROW for Group Replication"
 
-ER_GRP_RPL_BINLOG_CHECKSUM_SET
+OBSOLETE_ER_GRP_RPL_BINLOG_CHECKSUM_SET
   eng "binlog_checksum should be NONE for Group Replication"
 
 ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET
@@ -4952,7 +4952,7 @@ ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS
 ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS
   eng "Error when trying to unblock non certified or consistent transactions. Check for consistency errors when restarting the service"
 
-ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
+OBSOLETE_ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
   eng "This server is working as secondary member with primary member address %s:%u."
 
 ER_GRP_RPL_FAILED_TO_START_WITH_INVALID_SERVER_ID
@@ -4983,7 +4983,7 @@ ER_GRP_RPL_FAILED_TO_CALL_GRP_COMMUNICATION_INTERFACE
   eng "Error calling group communication interfaces"
 
 ER_GRP_RPL_MEMBER_SERVER_UUID_IS_INCOMPATIBLE_WITH_GRP
-  eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_name %s."
+  eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_replication_group_name %s."
 
 ER_GRP_RPL_MEMBER_CONF_INFO
   eng "Member configuration: member_id: %lu; member_uuid: \"%s\"; single-primary mode: \"%s\"; group_replication_auto_increment_increment: %lu; "
@@ -5055,10 +5055,10 @@ ER_GRP_RPL_ALL_OBSERVERS_UNREGISTERED
   eng "All Group Replication server observers have been successfully unregistered"
 
 ER_GRP_RPL_FAILED_TO_PARSE_THE_GRP_NAME
-  eng "Unable to parse the group name."
+  eng "Unable to parse the group_replication_group_name."
 
 ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP
-  eng "Unable to parse the group name."
+  eng "Unable to parse the group_replication_group_name."
 
 ER_GRP_RPL_APPLIER_NOT_STARTED_DUE_TO_RUNNING_PREV_SHUTDOWN
   eng "Cannot start the Group Replication applier as a previous shutdown is still running: The thread will stop once its task is complete."
@@ -5106,19 +5106,19 @@ ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET
   eng "Group Replication requires slave-preserve-commit-order to be set to ON when using more than 1 applier threads."
 
 ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE
-  eng "It is not allowed to run single primary mode with 'enforce_update_everywhere_checks' enabled."
+  eng "It is not allowed to run single primary mode with 'group_replication_enforce_update_everywhere_checks' enabled."
 
 ER_GRP_RPL_MODULE_TERMINATE_ERROR
   eng "error_message: %s"
 
 ER_GRP_RPL_GRP_NAME_OPTION_MANDATORY
-  eng "The group name option is mandatory"
+  eng "The group_replication_group_name option is mandatory"
 
 ER_GRP_RPL_GRP_NAME_IS_TOO_LONG
-  eng "The group name '%s' is not a valid UUID, its length is too big"
+  eng "The group_replication_group_name '%s' is not a valid UUID, its length is too big"
 
 ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID
-  eng "The group name '%s' is not a valid UUID"
+  eng "The group_replication_group_name '%s' is not a valid UUID"
 
 ER_GRP_RPL_FLOW_CTRL_MIN_QUOTA_GREATER_THAN_MAX_QUOTA
   eng "group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota"
@@ -5130,7 +5130,7 @@ ER_GRP_RPL_FLOW_CTRL_MAX_QUOTA_SMALLER_THAN_MIN_QUOTAS
   eng "group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota"
 
 ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING
-  eng "The given value for recovery ssl option '%s' is invalid as its length is beyond the limit"
+  eng "The given value for recovery ssl option 'group_replication_%s' is invalid as its length is beyond the limit"
 
 ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET
   eng "There is one group_replication_force_members operation already ongoing"
@@ -6587,10 +6587,10 @@ ER_IB_MSG_350
 OBSOLETE_ER_IB_MSG_351
   eng "%s"
 
-ER_IB_MSG_352
-  eng "%s"
+ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED
+  eng "The datafile '%s' for tablespace %s is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories."
 
-ER_IB_MSG_353
+OBSOLETE_ER_IB_MSG_353
   eng "%s"
 
 ER_IB_MSG_354
@@ -6695,11 +6695,11 @@ ER_IB_MSG_386
 ER_IB_MSG_387
   eng "%s"
 
-ER_IB_MSG_388
-  eng "%s"
+ER_IB_MSG_GENERAL_TABLESPACE_UNDER_DATADIR
+  eng "A general tablespace cannot be located under the datadir. Cannot open file '%s'."
 
-ER_IB_MSG_389
-  eng "%s"
+ER_IB_MSG_IMPLICIT_TABLESPACE_IN_DATADIR
+  eng "A file-per-table tablespace cannot be located in the datadir. Cannot open file '%s'."
 
 ER_IB_MSG_390
   eng "%s"
@@ -7226,8 +7226,8 @@ ER_IB_MSG_563
 ER_IB_MSG_564
   eng "%s"
 
-ER_IB_MSG_565
-  eng "%s"
+ER_IB_MSG_INVALID_LOCATION_FOR_TABLE
+  eng "Cannot create a tablespace for table %s because the directory is not a valid location. %s"
 
 ER_IB_MSG_566
   eng "%s"
@@ -7451,10 +7451,10 @@ ER_IB_MSG_638
 ER_IB_MSG_639
   eng "%s"
 
-ER_IB_MSG_640
+OBSOLETE_ER_IB_MSG_640
   eng "%s"
 
-ER_IB_MSG_641
+OBSOLETE_ER_IB_MSG_641
   eng "%s"
 
 ER_IB_MSG_642
@@ -8783,7 +8783,7 @@ ER_IB_MSG_1082
 ER_IB_MSG_1083
   eng "Error reading encryption for %s"
 
-ER_IB_MSG_1084
+ER_IB_MSG_CANNOT_OPEN_57_UNDO
   eng "Unable to open undo tablespace number %lu"
 
 ER_IB_MSG_1085
@@ -8990,7 +8990,7 @@ ER_IB_MSG_1151
 ER_IB_MSG_1152
   eng "Waiting for purge to complete"
 
-ER_IB_MSG_1153
+OBSOLETE_ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
 
 ER_IB_MSG_1154
@@ -9029,37 +9029,37 @@ ER_IB_MSG_1164
 ER_IB_MSG_1165
   eng "%s"
 
-ER_IB_MSG_1166
+ER_IB_MSG_UNDO_TRUNCATE_FAIL_TO_READ_LOG_FILE
+  eng "Unable to read the existing undo truncate log file '%s'. The error is %s"
+
+ER_IB_MSG_UNDO_MARKED_FOR_TRUNCATE
+  eng "Undo tablespace %s is marked for truncate"
+
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_MDL
   eng "%s"
 
-ER_IB_MSG_1167
+ER_IB_MSG_UNDO_TRUNCATE_START
+  eng "Truncating UNDO tablespace %s"
+
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_DDL_LOG_START
   eng "%s"
 
-ER_IB_MSG_1168
-  eng "%s"
-
-ER_IB_MSG_1169
-  eng "%s"
-
-ER_IB_MSG_1170
-  eng "%s"
-
-ER_IB_MSG_1171
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE
   eng "Cannot create truncate log for undo tablespace '%s'."
 
-ER_IB_MSG_1172
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_TRUNCATE
   eng "%s"
 
-ER_IB_MSG_1173
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_FAILURE
   eng "Failed to truncate undo tablespace '%s'."
 
-ER_IB_MSG_1174
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_STATE_UPDATE
   eng "%s"
 
-ER_IB_MSG_1175
-  eng "%s"
+ER_IB_MSG_UNDO_TRUNCATE_COMPLETE
+  eng "Completed truncate of undo tablespace %s."
 
-ER_IB_MSG_1176
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_TRUNCATE_DONE
   eng "%s"
 
 ER_IB_MSG_1177
@@ -9101,8 +9101,8 @@ ER_IB_MSG_1188
 ER_IB_MSG_1189
   eng "%s"
 
-ER_IB_MSG_1190
-  eng "%s"
+ER_IB_MSG_TRX_RECOVERY_ROLLBACK_COMPLETED
+  eng "Rollback of non-prepared transactions completed"
 
 ER_IB_MSG_1191
   eng "%s"
@@ -9279,7 +9279,7 @@ ER_IB_MSG_1248
   eng "Waiting for %s to exit."
 
 ER_IB_MSG_1249
-  eng "Waiting for %lu active transactions to finish"
+  eng "Waiting for rollback of %zu recovered transactions, before shutdown."
 
 ER_IB_MSG_1250
   eng "Waiting for master thread to be suspended."
@@ -9849,16 +9849,16 @@ ER_IB_MSG_FOUND_WRONG_UNDO_SPACE
 ER_IB_MSG_NOT_END_WITH_IBU
   eng "Cannot use %s as an undo tablespace because it does not end with '.ibu'."
 
-ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE
+OBSOLETE_ER_IB_MSG_UNDO_TRUNCATE_EMPTY_FILE
   eng "ib_undo_trunc_empty_file"
 
-ER_IB_MSG_UNDO_TRUNC_BEFOR_DD_UPDATE
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_DD_UPDATE
   eng "ib_undo_trunc_before_dd_update"
 
-ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_UNDO_LOGGING
   eng "ib_undo_trunc_before_done_logging"
 
-ER_IB_MSG_UNDO_TRUNK_BEFORE_RSEG
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_RSEG
   eng "ib_undo_trunc_before_rsegs"
 
 ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
@@ -9867,8 +9867,8 @@ ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
 ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
   eng "The setting INNODB_UNDO_TABLESPACES is deprecated and is no longer used.  InnoDB always creates 2 undo tablespaces to start with. If you need more, please use CREATE UNDO TABLESPACE."
 
-ER_IB_MSG_DIR_DOES_NOT_EXIST
-  eng "The directory '%s' does not exist."
+ER_IB_MSG_WRONG_TABLESPACE_DIR
+  eng "The directory for tablespace %s does not exist or is incorrect."
 
 ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS
   eng "%s"
@@ -10480,10 +10480,10 @@ ER_GRP_RPL_CANT_KILL_THREAD
   eng "The group replication plugin could not kill the plugin routine for %s. %s"
 
 ER_GRP_RPL_RECOVERY_STRAT_CLONE_THRESHOLD
-  eng "Due to the number of missing transactions being higher than the configured threshold of %llu, this member will start distributed recovery using clone."
+  eng "This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of %llu."
 
 ER_GRP_RPL_RECOVERY_STRAT_CLONE_PURGED
-  eng "As no ONLINE member has the missing data for recovering in its binary logs, this member will start distributed recovery using clone."
+  eng "This member will start distributed recovery using clone. It is due to no ONLINE member has the missing data for recovering in its binary logs."
 
 ER_GRP_RPL_RECOVERY_STRAT_CHOICE
   eng "Distributed recovery will transfer data using: %s"
@@ -10680,10 +10680,10 @@ ER_IB_MSG_DBLWR_1288
 ER_IB_MSG_DBLWR_1290
   eng "The page in the doublewrite file is corrupt. Cannot continue operation. You can try to recover the database with innodb_force_recovery=6"
 
-ER_IB_MSG_DBLWR_1291
-  eng "%s"
+ER_IB_MSG_BAD_DBLWR_FILE_NAME
+  eng "The doublewrite filename '%s' is incorrect."
 
-ER_IB_MSG_DBLWR_1292
+OBSOLETE_ER_IB_MSG_DBLWR_1292
   eng "%s"
 
 ER_IB_MSG_DBLWR_1293
@@ -10826,6 +10826,228 @@ ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
 
 ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT
   eng "%s"
+
+ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+
+ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN
+  eng "Undo Truncation is occurring too often. Consider increasing --innodb-max-undo-log-size."
+
+ER_GRP_RPL_IS_STARTING
+  eng "Plugin 'group_replication' is starting."
+
+ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE
+  eng "Cannot create tablespace %s because the directory is not a valid location. %s";
+
+ER_IB_MSG_INVALID_LOCATION_WRONG_DB
+  eng "Scanned file '%s' for tablespace %s cannot be opened because it is not in a sub-directory named for the schema.");
+
+ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE
+  eng "Cannot find undo tablespace %s with filename '%s' as indicated by the Data Dictionary. Did you move or delete this tablespace? Any undo logs in it cannot be used."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
+  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INVALID
+  eng "The server is not listening on endpoint '%s'. Only endpoints that the server is listening on are valid recovery endpoints."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INVALID_DONOR_ENDPOINT
+  eng "Received invalid recovery endpoints configuration from donor. This member is not a valid donor for recovery, so it will be skipped."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INTERFACES_IPS
+  eng "Failed to retrieve IP addresses from enabled host network interfaces."
+
+ER_WARN_TLS_CHANNEL_INITIALIZATION_ERROR
+  eng "Failed to initialize TLS for channel: %s. See below for the description of exact issue."
+
+ER_XPLUGIN_FAILED_TO_VALIDATE_ADDRESS
+  eng "Validation of value '%s' set to `Mysqlx_bind_address` failed: %s. Skipping this value."
+
+ER_XPLUGIN_FAILED_TO_BIND_INTERFACE_ADDRESS
+  eng "Value '%s' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value."
+
+ER_IB_ERR_RECOVERY_REDO_DISABLED
+  eng "Server was killed when InnoDB redo logging was disabled. Data files could be corrupt. You can try to restart the database with innodb_force_recovery=6"
+
+ER_IB_WRN_FAST_SHUTDOWN_REDO_DISABLED
+  eng "InnoDB cannot do cold shutdown 'innodb_fast_shutdown = 2' and is forcing 'innodb_fast_shutdown = 1' as redo logging is disabled. InnoDB would flush all dirty pages to ensure physical data consistency."
+
+ER_IB_WRN_REDO_DISABLED
+  eng "InnoDB redo logging is disabled. All data could be lost in case of a server crash."
+
+ER_IB_WRN_REDO_ENABLED
+  eng "InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash."
+
+ER_TLS_CONFIGURED_FOR_CHANNEL
+  eng "Channel %s configured to support TLS. Encrypted connections are now supported for this channel."
+
+ER_TLS_CONFIGURATION_REUSED
+  eng "No TLS configuration was given for channel %s; re-using TLS configuration of channel %s."
+
+ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED
+  eng "Skipping InnoDB tablespace path validation. Manually moved tablespace files will not be detected!"
+
+ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
+  eng "Upgrade failed because database contains discarded tablespaces."
+
+ER_USERNAME_TRUNKATED
+  eng "The user name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
+
+ER_HOSTNAME_TRUNKATED
+  eng "The host name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
+
+ER_IB_MSG_TRX_RECOVERY_ROLLBACK_NOT_COMPLETED
+  eng "Rollback of non-prepared transactions not completed, due to fast shutdown"
+
+ER_AUTHCACHE_ROLE_EDGES_IGNORED_EMPTY_NAME
+  eng "Found an entry in the 'role_edges' table with empty authorization ID; Skipped"
+
+ER_AUTHCACHE_ROLE_EDGES_UNKNOWN_AUTHORIZATION_ID
+  eng "Found an entry in the 'role_edges' table with unknown authorization ID '%s'; Skipped"
+
+ER_AUTHCACHE_DEFAULT_ROLES_IGNORED_EMPTY_NAME
+  eng "Found an entry in the 'default_roles' table with empty authorization ID; Skipped"
+
+ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID
+  eng "Found an entry in the 'default_roles' table with unknown authorization ID '%s'; Skipped"
+
+ER_IB_ERR_DDL_LOG_INSERT_FAILURE
+  eng "Couldn't insert entry in ddl log for ddl."
+
+ER_IB_LOCK_VALIDATE_LATCH_ORDER_VIOLATION
+  eng "%s"
+
+ER_IB_RELOCK_LATCH_ORDER_VIOLATION
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1352
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1353
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1354
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1355
+  eng "%s"
+
+OBSOLETE_ER_IB_MSG_1356
+  eng "%s"
+
+ER_IB_MSG_1357
+  eng "%s"
+
+ER_IB_MSG_1358
+  eng "%s"
+
+ER_IB_MSG_1359
+  eng "%s"
+
+ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE
+  eng "%s"
+
+ER_IB_UNABLE_TO_EXPAND_TEMPORARY_TABLESPACE_POOL
+  eng "%s"
+
+ER_IB_TMP_TABLESPACE_CANNOT_CREATE_DIRECTORY
+  eng "%s"
+
+ER_IB_MSG_SCANNING_TEMP_TABLESPACE_DIR
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_DOESNT_EXIST
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_EMPTY
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_CONTAINS_SEMICOLON
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_SUBDIR_OF_DATADIR
+  eng "%s"
+
+ER_IB_ERR_SCHED_SETAFFNINITY_FAILED
+  eng "%s"
+
+ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE
+  eng "%s"
+
+ER_IB_ERR_LOG_PARSING_BUFFER_OVERFLOW
+  eng "%s"
+
+ER_IB_ERR_NOT_ENOUGH_MEMORY_FOR_PARSE_BUFFER
+  eng "%s"
+
+ER_IB_MSG_1372
+  eng "%s"
+
+ER_IB_MSG_1373
+  eng "%s"
+
+ER_IB_MSG_1374
+  eng "%s"
+
+ER_IB_MSG_1375
+  eng "%s"
+
+ER_IB_ERR_ZLIB_UNCOMPRESS_FAILED
+  eng "%s"
+
+ER_IB_ERR_ZLIB_BUF_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_MEM_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_DATA_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_UNKNOWN_ERROR
+  eng "%s"
+
+ER_IB_MSG_1381
+  eng "%s"
+
+ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER
+  eng "%s"
+
+ER_IB_ERR_INDEX_DUPLICATE_KEY
+  eng "%s"
+
+ER_IB_ERR_FOUND_N_DUPLICATE_KEYS
+  eng "%s"
+
+ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER
+  eng "%s"
+
+ER_IB_ERR_PARALLEL_READ_OOM
+  eng "%s"
+
+ER_IB_MSG_UNDO_MARKED_ACTIVE
+  eng "The state of undo tablespace %s is set to active implicitly."
+
+ER_IB_MSG_UNDO_ALTERED_ACTIVE
+  eng "The state of undo tablespace %s is set to 'active' by ALTER TABLESPACE."
+
+ER_IB_MSG_UNDO_ALTERED_INACTIVE
+  eng "The state of undo tablespace %s is set to 'inactive' by ALTER TABLESPACE."
+
+ER_IB_MSG_UNDO_MARKED_EMPTY
+  eng "The state of undo tablespace %s is set to 'empty'."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE
+  eng "Delaying truncate of undo tablespace %s due to clone activity."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_MDL
+  eng "Delaying truncate of undo tablespace %s due to a metadata lock."
+
+ER_IB_MSG_UNDO_INJECT_CRASH
+  eng "Injected debug crash point: %s"
+
+ER_IB_MSG_UNDO_INJECT_FAILURE
+  eng "Injected debug failure point: %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

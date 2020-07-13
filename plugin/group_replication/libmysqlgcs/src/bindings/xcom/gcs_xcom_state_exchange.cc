@@ -144,8 +144,10 @@ bool Xcom_member_state::encode_header(uchar *buffer,
   slider += WIRE_XCOM_NODE_ID_SIZE;
   assert(static_cast<uint64_t>(slider - buffer) == encoded_size);
 
-  MYSQL_GCS_LOG_TRACE("Encoded header for exchangeable data: (header)=%llu",
-                      static_cast<long long unsigned>(encoded_size));
+  MYSQL_GCS_LOG_TRACE(
+      "Encoded header for exchangeable data: (header)=%llu view_id %s",
+      static_cast<long long unsigned>(encoded_size),
+      m_view_id->get_representation().c_str());
 
   return false;
 }
@@ -1067,6 +1069,8 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
     }
   });
 
+  MYSQL_GCS_LOG_TRACE("get_new_view_id returns view_id %s",
+                      view_id->get_representation().c_str());
   return view_id;
 }
 

@@ -277,14 +277,12 @@ INSERT INTO test.t1 (a, b) VALUES (3, 3);
 --echo # 6.2. When OFFLINE server1 didn't send or receive any message
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server1 did not receive any message when OFFLINE.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*OFFLINE.*.'
 --let $assert_count = 0
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server2 receive a message from itself when server1 was OFFLINE.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*OFFLINE.*.'
 --let $assert_count = 1
@@ -294,14 +292,12 @@ INSERT INTO test.t1 (a, b) VALUES (3, 3);
 --echo # 6.3. When RECOVERING server1 shall send and receive all messages
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server1 receive a message from itself and one from server2 when RECOVERING.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*RECOVERING.*.'
 --let $assert_count = 2
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server2 receive a message from itself and from server1.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*RECOVERING.*.'
 --let $assert_count = 2
@@ -311,14 +307,12 @@ INSERT INTO test.t1 (a, b) VALUES (3, 3);
 --echo # 6.4. When ONLINE server1 shall send and receive all messages
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server1 receive a message from itself and one from server2 when ONLINE.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*ONLINE.*.'
 --let $assert_count = 2
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server2 receive a message from itself and from server1.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*ONLINE.*.'
 --let $assert_count = 2
@@ -328,14 +322,12 @@ INSERT INTO test.t1 (a, b) VALUES (3, 3);
 --echo # 6.5. When ERROR server1 didn't send or receive any message
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server1 did not receive any message when ERROR.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*ERROR.*.'
 --let $assert_count = 0
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server2 receive a message from itself when server1 was ERROR.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*ERROR.*.'
 --let $assert_count = 1
@@ -345,14 +337,12 @@ INSERT INTO test.t1 (a, b) VALUES (3, 3);
 --echo # 6.6. No messages are received when loss of quorum occur
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server1 did not receive any message when group loss quorum.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*QUORUM.*.'
 --let $assert_count = 0
 --source include/assert_grep.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_message_service_server_status
 --let $assert_text = Server2 did not receive any message when group loss quorum.
 --let $assert_select =  Plugin replication_observers_example reported: 'Service message recv .*QUORUM.*.'
 --let $assert_count = 0

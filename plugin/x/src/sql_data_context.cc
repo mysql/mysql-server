@@ -35,6 +35,7 @@
 #include "mysql/service_command.h"
 
 #include "plugin/x/src/helper/get_system_variable.h"
+#include "plugin/x/src/module_mysqlx.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/query_string_builder.h"
@@ -51,12 +52,6 @@ namespace details {
 
 class Admin_session_factory {
  public:
-  Admin_session_factory()
-      : m_registry{mysql_plugin_registry_acquire()},
-        m_admin_session{"mysql_admin_session", m_registry} {}
-
-  ~Admin_session_factory() { mysql_plugin_registry_release(m_registry); }
-
   MYSQL_SESSION create(srv_session_error_cb error_cb, void *context) {
     if (!m_admin_session.is_valid()) return nullptr;
 
@@ -64,8 +59,17 @@ class Admin_session_factory {
   }
 
  private:
-  SERVICE_TYPE(registry) * m_registry;
-  my_service<SERVICE_TYPE(mysql_admin_session)> m_admin_session;
+  class Registry_holder {
+   public:
+    Registry_holder() : m_registry{mysql_plugin_registry_acquire()} {}
+    ~Registry_holder() { mysql_plugin_registry_release(m_registry); }
+
+    SERVICE_TYPE(registry) *const m_registry;
+  };
+
+  Registry_holder m_registry_holder;
+  my_service<SERVICE_TYPE(mysql_admin_session)> m_admin_session{
+      "mysql_admin_session", m_registry_holder.m_registry};
 };
 
 }  // namespace details
@@ -111,15 +115,37 @@ ngs::Error_code Sql_data_context::init(const bool is_admin) {
     log_error(ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION);
     return ngs::Error_code(ER_X_SESSION, "Could not open session");
   }
+
+  m_pre_authenticate_event_fired = false;
+  m_authentication_code = ngs::Error_code();
+
   return ngs::Error_code();
 }
 
 void Sql_data_context::deinit() {
   if (m_mysql_session) {
+    if (m_pre_authenticate_event_fired && !attach()) {
+      if (!m_authentication_code) {
+        // In case of successfull login, connect event has been generated
+        // earlier. Time for generating disconnect event.
+        modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
+            get_thd(), MYSQL_AUDIT_CONNECTION_DISCONNECT);
+      } else {
+        modules::Module_mysqlx::get_instance_services()
+            ->m_audit_api->emit_with_errorcode(get_thd(),
+                                               MYSQL_AUDIT_CONNECTION_CONNECT,
+                                               m_authentication_code.error);
+      }
+    }
+
+    m_pre_authenticate_event_fired = false;
+    m_authentication_code = ngs::Error_code();
+
     srv_session_detach(m_mysql_session);
 
     log_debug("sqlsession deinit: %p [%i]", m_mysql_session,
               srv_session_info_get_session_id(m_mysql_session));
+
     srv_session_close(m_mysql_session);
     m_mysql_session = nullptr;
   }
@@ -132,7 +158,7 @@ void Sql_data_context::deinit() {
   PSI_THREAD_CALL(set_thread_os_id)(psi);
   PSI_THREAD_CALL(set_thread)(psi);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
-}
+}  // namespace xpl
 
 static void kill_completion_handler(void *, unsigned int sql_errno,
                                     const char *err_msg) {
@@ -225,21 +251,16 @@ void Sql_data_context::switch_to_local_user(const std::string &user) {
   if (error) throw error;
 }
 
-ngs::Error_code Sql_data_context::authenticate(
+ngs::Error_code Sql_data_context::authenticate_internal(
     const char *user, const char *host, const char *ip, const char *db,
     const std::string &passwd,
     const iface::Authentication &account_verification,
     bool allow_expired_passwords) {
-  m_password_expired = false;
-
-  ngs::Error_code error = switch_to_user(user, host, ip, db);
-
-  if (error) return ngs::SQLError_access_denied();
-
   std::string authenticated_user_name = get_authenticated_user_name();
   std::string authenticated_user_host = get_authenticated_user_host();
 
-  error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, nullptr, nullptr);
+  ngs::Error_code error =
+      switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, nullptr, nullptr);
 
   if (error) {
     const char *session_user = MYSQL_SESSION_USER;
@@ -252,6 +273,8 @@ ngs::Error_code Sql_data_context::authenticate(
         authenticated_user_name, authenticated_user_host, passwd);
   }
 
+  ngs::Error_code switch_error = switch_to_user(user, host, ip, db);
+
   if (error.error == ER_MUST_CHANGE_PASSWORD_LOGIN) {
     m_password_expired = true;
 
@@ -263,7 +286,7 @@ ngs::Error_code Sql_data_context::authenticate(
     if (error) return error;
   }
 
-  error = switch_to_user(user, host, ip, db);
+  error = switch_error;
 
   if (!error) {
     if (db && *db) {
@@ -285,19 +308,6 @@ ngs::Error_code Sql_data_context::authenticate(
     std::string user_name = get_user_name();
     std::string host_or_ip = get_host_or_ip();
 
-    /*
-      Instead of modifying the current security context in switch_user()
-      method above, we must create a security_context to do the
-      security_context_lookup() on newly created security_context then set
-      that in the THD. Until that happens, we have to get the existing security
-      context and set that again in the THD. The latter opertion is nedded as
-      it may toggle the system_user flag in THD iff security_context has
-      SYSTEM_USER privilege.
-    */
-    MYSQL_SECURITY_CONTEXT scontext;
-    thd_get_security_context(get_thd(), &scontext);
-    thd_set_security_context(get_thd(), scontext);
-
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_account)
     (user_name.c_str(), static_cast<int>(user_name.length()),
@@ -308,6 +318,60 @@ ngs::Error_code Sql_data_context::authenticate(
   }
 
   log_error(ER_XPLUGIN_FAILED_TO_SWITCH_CONTEXT, user);
+
+  return error;
+}
+
+ngs::Error_code Sql_data_context::authenticate(
+    const char *user, const char *host, const char *ip, const char *db,
+    const std::string &passwd,
+    const iface::Authentication &account_verification,
+    bool allow_expired_passwords) {
+  m_password_expired = false;
+
+  m_using_password = passwd.size() > 0;
+
+  ngs::Error_code error = switch_to_user(user, host, ip, db);
+
+  if (error) error = ngs::SQLError_access_denied();
+
+  m_authentication_code = error;
+
+  if (!m_pre_authenticate_event_fired) {
+    attach();
+    int audit_result =
+        modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
+            static_cast<void *>(get_thd()),
+            MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE);
+    detach();
+
+    if (audit_result != 0)
+      return ngs::Fatal(ER_AUDIT_API_ABORT, my_get_err_msg(ER_AUDIT_API_ABORT),
+                        "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE",
+                        audit_result);
+
+    m_pre_authenticate_event_fired = true;
+  }
+
+  if (error) return error;
+
+  error = authenticate_internal(user, host, ip, db, passwd,
+                                account_verification, allow_expired_passwords);
+
+  m_authentication_code = error;
+
+  if (!error) {
+    attach();
+    int audit_result =
+        modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
+            static_cast<void *>(get_thd()), MYSQL_AUDIT_CONNECTION_CONNECT);
+    detach();
+
+    if (audit_result != 0)
+      m_authentication_code = error =
+          ngs::Fatal(ER_AUDIT_API_ABORT, my_get_err_msg(ER_AUDIT_API_ABORT),
+                     "MYSQL_AUDIT_CONNECTION_CONNECT", audit_result);
+  }
 
   return error;
 }
@@ -388,16 +452,21 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
   // security_context_lookup - doesn't make a copy of username, hostname, addres
   //                           or db thus we need to make a copy of them
   //                           and pass our pointers to security_context_lookup
-  m_username = username ? username : "";
-  m_hostname = hostname ? hostname : "";
-  m_address = address ? address : "";
-  m_db = db ? db : "";
+  //                           std::string as a member is not enough. Pointer
+  //                           inside of the std::string can remain the same,
+  //                           while the security context requires pointer
+  //                           change, when the string value changes.
+  m_username.reset(new std::string(username ? username : ""));
+  m_hostname.reset(new std::string(hostname ? hostname : ""));
+  m_address.reset(new std::string(address ? address : ""));
+  m_db.reset(new std::string(db ? db : ""));
 
   log_debug("Switching security context to user %s@%s [%s]", username, hostname,
             address);
 
-  if (security_context_lookup(scontext, m_username.c_str(), hostname,
-                              m_address.c_str(), m_db.c_str())) {
+  if (security_context_lookup(scontext, m_username->c_str(),
+                              m_hostname->c_str(), m_address->c_str(),
+                              m_db->c_str())) {
     log_debug("Unable to switch security context to user %s@%s [%s]", username,
               hostname, address);
     return ngs::Fatal(ER_X_SERVICE_ERROR, "Unable to switch context to user %s",

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,48 +170,46 @@ struct Pool_context
    */
   void* get_memroot() const;
   Ndbd_mem_manager* get_mem_manager() const;
-  
+
   /**
-   * Alloc consecutive pages
+   * Alloc page.
    *
-   *   @param i   : out : i value of first page
-   *   @return    : pointer to first page (NULL if failed)
+   *   @param[out] i  i value of first page
+   *   @return     pointer to first page (NULL if failed)
    *
-   * Will handle resource limit 
+   * Will handle resource limit
    */
   void* alloc_page19(Uint32 type_id, Uint32 *i);
   void* alloc_page27(Uint32 type_id, Uint32 *i);
   void* alloc_page30(Uint32 type_id, Uint32 *i);
   void* alloc_page32(Uint32 type_id, Uint32 *i);
-  
+
   /**
-   * Release pages
-   * 
-   *   @param i   : in : i value of first page
-   *   @param p   : in : pointer to first page
+   * Release page
+   *
+   *   @param[in] i   i value of first page
    */
   void release_page(Uint32 type_id, Uint32 i);
-  
+
   /**
    * Alloc consekutive pages
    *
-   *   @param cnt : in/out : no of requested pages, 
-   *                return no of allocated (undefined return NULL)
-   *                out will never be > in
-   *   @param i   : out : i value of first page
-   *   @param min : in : will never allocate less than min
-   *   @return    : pointer to first page (NULL if failed)
+   *   @param[in,out] cnt  no of requested pages,
+   *                       return no of allocated (undefined return NULL)
+   *                       out will never be > in
+   *   @param[out] i  i value of first page
+   *   @param[in] min will never allocate less than min
+   *   @return        pointer to first page (NULL if failed)
    *
-   * Will handle resource limit 
+   * Will handle resource limit
    */
   void* alloc_pages(Uint32 type_id, Uint32 *i, Uint32 *cnt, Uint32 min =1);
-  
+
   /**
    * Release pages
-   * 
-   *   @param i   : in : i value of first page
-   *   @param p   : in : pointer to first page
-   *   @param cnt : in : no of pages to release
+   *
+   *   @param[in] i    i value of first page
+   *   @param[in] cnt  no of pages to release
    */
   void release_pages(Uint32 type_id, Uint32 i, Uint32 cnt);
 

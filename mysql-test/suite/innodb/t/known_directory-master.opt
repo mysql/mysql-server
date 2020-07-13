@@ -1,0 +1,3 @@
+--initialize --innodb-undo-directory=../../tmp/undo_dir
+--innodb-undo-directory=$MYSQL_TMP_DIR/undo_dir
+--innodb-directories=$MYSQL_TMP_DIR/known_dir;$MYSQL_TMP_DIR/undo_dir

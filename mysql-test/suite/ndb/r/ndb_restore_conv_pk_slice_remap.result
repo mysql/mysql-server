@@ -1,0 +1,2291 @@
+use test;
+Based on the test in ndb_restore_conv_remap
+But adds :
+- Log content (requiring ndb_debug)
+- Restore by slice
+- PK changes
+
+Schema has multiple tables connected via
+'entry_key' which is remapped during restore
+Some tables also have their own local autoincrement id
+as part of their PK
+Some tables have TEXT(Blob) columns requiring staging
+tables to restore, others have schema changes which
+can be handled directly inline.
+create table idx_tbl (entry_key bigint unsigned not null auto_increment,
+k1 varchar(100), 
+k2 varchar(100), 
+data int,
+primary key (k1, k2),
+unique(entry_key)) engine=ndb;
+create table type1_1 (entry_key bigint unsigned not null primary key,
+data int) engine=ndb;
+create table type1_2 (entry_key bigint unsigned not null primary key,
+data int) engine=ndb;
+create table type2_1 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data int,
+primary key (entry_key, mv_idx)) engine=ndb;
+create table type2_2 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data text,
+primary key (entry_key, mv_idx)) engine=ndb;
+create table type2_3 (mv_idx bigint unsigned not null auto_increment,
+entry_key bigint unsigned not null,
+data text,
+primary key (mv_idx)) engine = ndb;
+create table type2_4 (mv_idx bigint unsigned not null auto_increment,
+entry_key bigint unsigned not null,
+data int,
+primary key (mv_idx)) engine = ndb;
+Populate a number of entities, each with
+a couple of type_1 rows and a few sets of type_2 rows
+insert into idx_tbl (k1,k2,data) values ('Edinburgh', 'UK', 1);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 11);
+insert into type1_2 values (@ek, 12);
+insert into type2_1 (entry_key, data) values (@ek, 110);
+insert into type2_1 (entry_key, data) values (@ek, 111);
+insert into type2_1 (entry_key, data) values (@ek, 112);
+insert into type2_1 (entry_key, data) values (@ek, 113);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0121", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0122", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0124", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0125", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 126);
+insert into type2_4 (entry_key, data) values (@ek, 127);
+insert into idx_tbl (k1,k2,data) values ('Bristol', 'UK', 2);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 21);
+insert into type1_2 values (@ek, 22);
+insert into type2_1 (entry_key, data) values (@ek, 210);
+insert into type2_1 (entry_key, data) values (@ek, 211);
+insert into type2_1 (entry_key, data) values (@ek, 212);
+insert into type2_1 (entry_key, data) values (@ek, 213);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0221", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0222", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0224", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0225", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 226);
+insert into type2_4 (entry_key, data) values (@ek, 227);
+insert into idx_tbl (k1,k2,data) values ('Glasgow', 'UK', 3);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 31);
+insert into type1_2 values (@ek, 32);
+insert into type2_1 (entry_key, data) values (@ek, 310);
+insert into type2_1 (entry_key, data) values (@ek, 311);
+insert into type2_1 (entry_key, data) values (@ek, 312);
+insert into type2_1 (entry_key, data) values (@ek, 313);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0321", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0322", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0324", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0325", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 326);
+insert into type2_4 (entry_key, data) values (@ek, 327);
+insert into idx_tbl (k1,k2,data) values ('London', 'UK', 4);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 41);
+insert into type1_2 values (@ek, 42);
+insert into type2_1 (entry_key, data) values (@ek, 410);
+insert into type2_1 (entry_key, data) values (@ek, 411);
+insert into type2_1 (entry_key, data) values (@ek, 412);
+insert into type2_1 (entry_key, data) values (@ek, 413);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0421", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0422", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0424", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0425", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 426);
+insert into type2_4 (entry_key, data) values (@ek, 427);
+insert into idx_tbl (k1,k2,data) values ('Paris', 'France', 5);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 51);
+insert into type1_2 values (@ek, 52);
+insert into type2_1 (entry_key, data) values (@ek, 510);
+insert into type2_1 (entry_key, data) values (@ek, 511);
+insert into type2_1 (entry_key, data) values (@ek, 512);
+insert into type2_1 (entry_key, data) values (@ek, 513);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0521", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0522", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0524", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0525", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 526);
+insert into type2_4 (entry_key, data) values (@ek, 527);
+insert into idx_tbl (k1,k2,data) values ('Heidelberg', 'Germany', 6);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 61);
+insert into type1_2 values (@ek, 62);
+insert into type2_1 (entry_key, data) values (@ek, 610);
+insert into type2_1 (entry_key, data) values (@ek, 611);
+insert into type2_1 (entry_key, data) values (@ek, 612);
+insert into type2_1 (entry_key, data) values (@ek, 613);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0621", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0622", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0624", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0625", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 626);
+insert into type2_4 (entry_key, data) values (@ek, 627);
+insert into idx_tbl (k1,k2,data) values ('Riga', 'Latvia', 7);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 71);
+insert into type1_2 values (@ek, 72);
+insert into type2_1 (entry_key, data) values (@ek, 710);
+insert into type2_1 (entry_key, data) values (@ek, 711);
+insert into type2_1 (entry_key, data) values (@ek, 712);
+insert into type2_1 (entry_key, data) values (@ek, 713);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0721", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0722", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0724", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0725", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 726);
+insert into type2_4 (entry_key, data) values (@ek, 727);
+insert into idx_tbl (k1,k2,data) values ('Orlando', 'USA', 8);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 81);
+insert into type1_2 values (@ek, 82);
+insert into type2_1 (entry_key, data) values (@ek, 810);
+insert into type2_1 (entry_key, data) values (@ek, 811);
+insert into type2_1 (entry_key, data) values (@ek, 812);
+insert into type2_1 (entry_key, data) values (@ek, 813);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0821", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0822", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0824", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0825", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 826);
+insert into type2_4 (entry_key, data) values (@ek, 827);
+Start backup
+Cause backup to stall to allow changes
+Starting backup
+Backup started
+Now make some changes during the backup
+update idx_tbl set data = data+10;
+update type1_1 set data = data+100;
+update type1_2 set data = data+100;
+update type2_1 set data = data+1000;
+update type2_2 set data = repeat(right(data, 4)+1000, 5000);
+update type2_3 set data = repeat(right(data, 4)+2000, 5000);
+update type2_4 set data = data + 3000;
+update idx_tbl set data = data-10;
+update type1_1 set data = data-100;
+update type1_2 set data = data-100;
+update type2_1 set data = data-1000;
+update type2_2 set data = repeat(concat("0", right(data, 4)-1000), 10000);
+update type2_3 set data = repeat(concat("0", right(data, 4)-2000), 10000);
+update type2_4 set data = data - 3000;
+Unblock backup
+Waiting for backup to complete
+Backup completed
+select * from idx_tbl order by entry_key;
+entry_key	k1	k2	data
+1	Edinburgh	UK	1
+2	Bristol	UK	2
+3	Glasgow	UK	3
+4	London	UK	4
+5	Paris	France	5
+6	Heidelberg	Germany	6
+7	Riga	Latvia	7
+8	Orlando	USA	8
+select * from type1_1 order by entry_key;
+entry_key	data
+1	11
+2	21
+3	31
+4	41
+5	51
+6	61
+7	71
+8	81
+select * from type1_2 order by entry_key;
+entry_key	data
+1	12
+2	22
+3	32
+4	42
+5	52
+6	62
+7	72
+8	82
+select * from type2_1 order by entry_key, mv_idx;
+entry_key	mv_idx	data
+1	1	110
+1	2	111
+1	3	112
+1	4	113
+2	5	210
+2	6	211
+2	7	212
+2	8	213
+3	9	310
+3	10	311
+3	11	312
+3	12	313
+4	13	410
+4	14	411
+4	15	412
+4	16	413
+5	17	510
+5	18	511
+5	19	512
+5	20	513
+6	21	610
+6	22	611
+6	23	612
+6	24	613
+7	25	710
+7	26	711
+7	27	712
+7	28	713
+8	29	810
+8	30	811
+8	31	812
+8	32	813
+select entry_key, mv_idx, right(data, 4) from type2_2 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	0121
+1	2	0122
+2	3	0221
+2	4	0222
+3	5	0321
+3	6	0322
+4	7	0421
+4	8	0422
+5	9	0521
+5	10	0522
+6	11	0621
+6	12	0622
+7	13	0721
+7	14	0722
+8	15	0821
+8	16	0822
+select entry_key, mv_idx, right(data, 4) from type2_3 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	0124
+1	2	0125
+2	3	0224
+2	4	0225
+3	5	0324
+3	6	0325
+4	7	0424
+4	8	0425
+5	9	0524
+5	10	0525
+6	11	0624
+6	12	0625
+7	13	0724
+7	14	0725
+8	15	0824
+8	16	0825
+select * from type2_4 order by entry_key, mv_idx;
+mv_idx	entry_key	data
+1	1	126
+2	1	127
+3	2	226
+4	2	227
+5	3	326
+6	3	327
+7	4	426
+8	4	427
+9	5	526
+10	5	527
+11	6	626
+12	6	627
+13	7	726
+14	7	727
+15	8	826
+16	8	827
+First set of content
+--------------------
+select idx_tbl.entry_key,
+idx_tbl.k1,
+idx_tbl.k2,
+idx_tbl.data,
+type1_1.data,
+type1_2.data,
+type2_1.mv_idx,
+type2_1.data,
+type2_2.mv_idx,
+right(type2_2.data, 4),
+length(type2_2.data),
+right(type2_3.data, 4),
+length(type2_3.data),
+type2_4.mv_idx,
+type2_4.data
+from
+idx_tbl join type1_1 join type1_2 join type2_1 join type2_2 join type2_3 join type2_4
+on
+idx_tbl.entry_key = type1_1.entry_key
+and
+idx_tbl.entry_key = type1_2.entry_key
+and
+idx_tbl.entry_key = type2_1.entry_key
+and
+idx_tbl.entry_key = type2_2.entry_key
+and
+idx_tbl.entry_key = type2_3.entry_key
+and
+idx_tbl.entry_key = type2_4.entry_key
+order by idx_tbl.entry_key, type2_1.data, right(type2_2.data, 4), right(type2_3.data, 4), type2_4.data;
+entry_key	k1	k2	data	data	data	mv_idx	data	mv_idx	right(type2_2.data, 4)	length(type2_2.data)	right(type2_3.data, 4)	length(type2_3.data)	mv_idx	data
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0125	40000	2	127
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0225	40000	4	227
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0325	40000	6	327
+4	London	UK	4	41	42	13	410	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	13	410	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	13	410	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	13	410	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	13	410	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	13	410	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	13	410	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	13	410	8	0422	40000	0425	40000	8	427
+4	London	UK	4	41	42	14	411	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	14	411	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	14	411	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	14	411	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	14	411	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	14	411	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	14	411	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	14	411	8	0422	40000	0425	40000	8	427
+4	London	UK	4	41	42	15	412	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	15	412	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	15	412	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	15	412	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	15	412	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	15	412	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	15	412	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	15	412	8	0422	40000	0425	40000	8	427
+4	London	UK	4	41	42	16	413	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	16	413	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	16	413	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	16	413	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	16	413	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	16	413	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	16	413	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	16	413	8	0422	40000	0425	40000	8	427
+5	Paris	France	5	51	52	17	510	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	17	510	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	17	510	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	17	510	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	17	510	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	17	510	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	17	510	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	17	510	10	0522	40000	0525	40000	10	527
+5	Paris	France	5	51	52	18	511	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	18	511	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	18	511	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	18	511	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	18	511	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	18	511	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	18	511	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	18	511	10	0522	40000	0525	40000	10	527
+5	Paris	France	5	51	52	19	512	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	19	512	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	19	512	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	19	512	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	19	512	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	19	512	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	19	512	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	19	512	10	0522	40000	0525	40000	10	527
+5	Paris	France	5	51	52	20	513	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	20	513	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	20	513	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	20	513	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	20	513	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	20	513	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	20	513	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	20	513	10	0522	40000	0525	40000	10	527
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0625	40000	12	627
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0725	40000	14	727
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0825	40000	16	827
+Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+count(1)	max(entry_key)
+8	8
+show create table idx_tbl;
+Table	Create Table
+idx_tbl	CREATE TABLE `idx_tbl` (
+  `entry_key` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `k1` varchar(100) NOT NULL,
+  `k2` varchar(100) NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`k1`,`k2`),
+  UNIQUE KEY `entry_key` (`entry_key`)
+) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+32	32
+show create table type2_1;
+Table	Create Table
+type2_1	CREATE TABLE `type2_1` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+16	16
+show create table type2_2;
+Table	Create Table
+type2_2	CREATE TABLE `type2_2` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_3;
+count(1)	max(mv_idx)
+16	16
+show create table type2_3;
+Table	Create Table
+type2_3	CREATE TABLE `type2_3` (
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entry_key` bigint unsigned NOT NULL,
+  `data` text,
+  PRIMARY KEY (`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_4;
+count(1)	max(mv_idx)
+16	16
+show create table type2_4;
+Table	Create Table
+type2_4	CREATE TABLE `type2_4` (
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entry_key` bigint unsigned NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_3 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_4 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+Create a different set of entities, with the same auto-inc
+keys for entry_key and mv_idx
+update idx_tbl set k1="Stockholm", k2="Sweden" where entry_key = 1;
+update idx_tbl set k1="Trondheim", k2="Norway" where entry_key = 2;
+update idx_tbl set k1="Portland", k2="USA" where entry_key=3;
+update idx_tbl set k1="Bangalore", k2="India" where entry_key=4;
+update idx_tbl set k1="Helsinki", k2="Finland" where entry_key=5;
+update idx_tbl set k1="Lisbon", k2="Portugal" where entry_key=6;
+update idx_tbl set k1="Norrwaste", k2="Sweden" where entry_key=7;
+update idx_tbl set k1="ROW", k2="Earth" where entry_key=8;
+Modify data to be distinct
+update idx_tbl set data = data+10;
+update type1_1 set data = data+100;
+update type1_2 set data = data+100;
+update type2_1 set data = data+1000;
+update type2_2 set data = repeat(right(data, 4)+1000, 10000);
+update type2_3 set data = repeat(right(data, 4)+2000, 10000);
+update type2_4 set data = data+3000;
+Start backup
+Cause backup to stall to allow changes
+Starting backup
+Backup started
+Now make some changes during the backup
+update idx_tbl set data = data+10;
+update type1_1 set data = data+100;
+update type1_2 set data = data+100;
+update type2_1 set data = data+1000;
+update type2_2 set data = repeat(right(data, 4)+1000, 5000);
+update type2_3 set data = repeat(right(data, 4)+2000, 5000);
+update type2_4 set data = data + 3000;
+update idx_tbl set data = data-10;
+update type1_1 set data = data-100;
+update type1_2 set data = data-100;
+update type2_1 set data = data-1000;
+update type2_2 set data = repeat(right(data, 4)-1000, 10000);
+update type2_3 set data = repeat(right(data, 4)-2000, 10000);
+update type2_4 set data = data - 3000;
+Unblock backup
+Waiting for backup to complete
+Backup completed
+Second set of content
+---------------------
+select idx_tbl.entry_key,
+idx_tbl.k1,
+idx_tbl.k2,
+idx_tbl.data,
+type1_1.data,
+type1_2.data,
+type2_1.mv_idx,
+type2_1.data,
+type2_2.mv_idx,
+right(type2_2.data, 4),
+length(type2_2.data),
+right(type2_3.data, 4),
+length(type2_3.data),
+type2_4.mv_idx,
+type2_4.data
+from
+idx_tbl join type1_1 join type1_2 join type2_1 join type2_2 join type2_3 join type2_4
+on
+idx_tbl.entry_key = type1_1.entry_key
+and
+idx_tbl.entry_key = type1_2.entry_key
+and
+idx_tbl.entry_key = type2_1.entry_key
+and
+idx_tbl.entry_key = type2_2.entry_key
+and
+idx_tbl.entry_key = type2_3.entry_key
+and
+idx_tbl.entry_key = type2_4.entry_key
+order by idx_tbl.entry_key, type2_1.data, right(type2_2.data, 4), right(type2_3.data, 4), type2_4.data;
+entry_key	k1	k2	data	data	data	mv_idx	data	mv_idx	right(type2_2.data, 4)	length(type2_2.data)	right(type2_3.data, 4)	length(type2_3.data)	mv_idx	data
+1	Stockholm	Sweden	11	111	112	1	1110	1	1121	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	1	1110	1	1121	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	1	1110	1	1121	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	1	1110	1	1121	40000	2125	40000	2	3127
+1	Stockholm	Sweden	11	111	112	1	1110	2	1122	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	1	1110	2	1122	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	1	1110	2	1122	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	1	1110	2	1122	40000	2125	40000	2	3127
+1	Stockholm	Sweden	11	111	112	2	1111	1	1121	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	2	1111	1	1121	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	2	1111	1	1121	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	2	1111	1	1121	40000	2125	40000	2	3127
+1	Stockholm	Sweden	11	111	112	2	1111	2	1122	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	2	1111	2	1122	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	2	1111	2	1122	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	2	1111	2	1122	40000	2125	40000	2	3127
+1	Stockholm	Sweden	11	111	112	3	1112	1	1121	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	3	1112	1	1121	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	3	1112	1	1121	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	3	1112	1	1121	40000	2125	40000	2	3127
+1	Stockholm	Sweden	11	111	112	3	1112	2	1122	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	3	1112	2	1122	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	3	1112	2	1122	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	3	1112	2	1122	40000	2125	40000	2	3127
+1	Stockholm	Sweden	11	111	112	4	1113	1	1121	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	4	1113	1	1121	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	4	1113	1	1121	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	4	1113	1	1121	40000	2125	40000	2	3127
+1	Stockholm	Sweden	11	111	112	4	1113	2	1122	40000	2124	40000	1	3126
+1	Stockholm	Sweden	11	111	112	4	1113	2	1122	40000	2124	40000	2	3127
+1	Stockholm	Sweden	11	111	112	4	1113	2	1122	40000	2125	40000	1	3126
+1	Stockholm	Sweden	11	111	112	4	1113	2	1122	40000	2125	40000	2	3127
+2	Trondheim	Norway	12	121	122	5	1210	3	1221	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	5	1210	3	1221	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	5	1210	3	1221	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	5	1210	3	1221	40000	2225	40000	4	3227
+2	Trondheim	Norway	12	121	122	5	1210	4	1222	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	5	1210	4	1222	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	5	1210	4	1222	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	5	1210	4	1222	40000	2225	40000	4	3227
+2	Trondheim	Norway	12	121	122	6	1211	3	1221	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	6	1211	3	1221	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	6	1211	3	1221	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	6	1211	3	1221	40000	2225	40000	4	3227
+2	Trondheim	Norway	12	121	122	6	1211	4	1222	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	6	1211	4	1222	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	6	1211	4	1222	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	6	1211	4	1222	40000	2225	40000	4	3227
+2	Trondheim	Norway	12	121	122	7	1212	3	1221	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	7	1212	3	1221	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	7	1212	3	1221	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	7	1212	3	1221	40000	2225	40000	4	3227
+2	Trondheim	Norway	12	121	122	7	1212	4	1222	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	7	1212	4	1222	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	7	1212	4	1222	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	7	1212	4	1222	40000	2225	40000	4	3227
+2	Trondheim	Norway	12	121	122	8	1213	3	1221	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	8	1213	3	1221	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	8	1213	3	1221	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	8	1213	3	1221	40000	2225	40000	4	3227
+2	Trondheim	Norway	12	121	122	8	1213	4	1222	40000	2224	40000	3	3226
+2	Trondheim	Norway	12	121	122	8	1213	4	1222	40000	2224	40000	4	3227
+2	Trondheim	Norway	12	121	122	8	1213	4	1222	40000	2225	40000	3	3226
+2	Trondheim	Norway	12	121	122	8	1213	4	1222	40000	2225	40000	4	3227
+3	Portland	USA	13	131	132	9	1310	5	1321	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	9	1310	5	1321	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	9	1310	5	1321	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	9	1310	5	1321	40000	2325	40000	6	3327
+3	Portland	USA	13	131	132	9	1310	6	1322	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	9	1310	6	1322	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	9	1310	6	1322	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	9	1310	6	1322	40000	2325	40000	6	3327
+3	Portland	USA	13	131	132	10	1311	5	1321	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	10	1311	5	1321	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	10	1311	5	1321	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	10	1311	5	1321	40000	2325	40000	6	3327
+3	Portland	USA	13	131	132	10	1311	6	1322	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	10	1311	6	1322	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	10	1311	6	1322	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	10	1311	6	1322	40000	2325	40000	6	3327
+3	Portland	USA	13	131	132	11	1312	5	1321	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	11	1312	5	1321	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	11	1312	5	1321	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	11	1312	5	1321	40000	2325	40000	6	3327
+3	Portland	USA	13	131	132	11	1312	6	1322	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	11	1312	6	1322	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	11	1312	6	1322	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	11	1312	6	1322	40000	2325	40000	6	3327
+3	Portland	USA	13	131	132	12	1313	5	1321	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	12	1313	5	1321	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	12	1313	5	1321	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	12	1313	5	1321	40000	2325	40000	6	3327
+3	Portland	USA	13	131	132	12	1313	6	1322	40000	2324	40000	5	3326
+3	Portland	USA	13	131	132	12	1313	6	1322	40000	2324	40000	6	3327
+3	Portland	USA	13	131	132	12	1313	6	1322	40000	2325	40000	5	3326
+3	Portland	USA	13	131	132	12	1313	6	1322	40000	2325	40000	6	3327
+4	Bangalore	India	14	141	142	13	1410	7	1421	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	13	1410	7	1421	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	13	1410	7	1421	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	13	1410	7	1421	40000	2425	40000	8	3427
+4	Bangalore	India	14	141	142	13	1410	8	1422	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	13	1410	8	1422	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	13	1410	8	1422	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	13	1410	8	1422	40000	2425	40000	8	3427
+4	Bangalore	India	14	141	142	14	1411	7	1421	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	14	1411	7	1421	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	14	1411	7	1421	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	14	1411	7	1421	40000	2425	40000	8	3427
+4	Bangalore	India	14	141	142	14	1411	8	1422	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	14	1411	8	1422	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	14	1411	8	1422	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	14	1411	8	1422	40000	2425	40000	8	3427
+4	Bangalore	India	14	141	142	15	1412	7	1421	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	15	1412	7	1421	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	15	1412	7	1421	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	15	1412	7	1421	40000	2425	40000	8	3427
+4	Bangalore	India	14	141	142	15	1412	8	1422	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	15	1412	8	1422	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	15	1412	8	1422	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	15	1412	8	1422	40000	2425	40000	8	3427
+4	Bangalore	India	14	141	142	16	1413	7	1421	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	16	1413	7	1421	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	16	1413	7	1421	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	16	1413	7	1421	40000	2425	40000	8	3427
+4	Bangalore	India	14	141	142	16	1413	8	1422	40000	2424	40000	7	3426
+4	Bangalore	India	14	141	142	16	1413	8	1422	40000	2424	40000	8	3427
+4	Bangalore	India	14	141	142	16	1413	8	1422	40000	2425	40000	7	3426
+4	Bangalore	India	14	141	142	16	1413	8	1422	40000	2425	40000	8	3427
+5	Helsinki	Finland	15	151	152	17	1510	9	1521	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	17	1510	9	1521	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	17	1510	9	1521	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	17	1510	9	1521	40000	2525	40000	10	3527
+5	Helsinki	Finland	15	151	152	17	1510	10	1522	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	17	1510	10	1522	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	17	1510	10	1522	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	17	1510	10	1522	40000	2525	40000	10	3527
+5	Helsinki	Finland	15	151	152	18	1511	9	1521	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	18	1511	9	1521	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	18	1511	9	1521	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	18	1511	9	1521	40000	2525	40000	10	3527
+5	Helsinki	Finland	15	151	152	18	1511	10	1522	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	18	1511	10	1522	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	18	1511	10	1522	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	18	1511	10	1522	40000	2525	40000	10	3527
+5	Helsinki	Finland	15	151	152	19	1512	9	1521	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	19	1512	9	1521	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	19	1512	9	1521	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	19	1512	9	1521	40000	2525	40000	10	3527
+5	Helsinki	Finland	15	151	152	19	1512	10	1522	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	19	1512	10	1522	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	19	1512	10	1522	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	19	1512	10	1522	40000	2525	40000	10	3527
+5	Helsinki	Finland	15	151	152	20	1513	9	1521	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	20	1513	9	1521	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	20	1513	9	1521	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	20	1513	9	1521	40000	2525	40000	10	3527
+5	Helsinki	Finland	15	151	152	20	1513	10	1522	40000	2524	40000	9	3526
+5	Helsinki	Finland	15	151	152	20	1513	10	1522	40000	2524	40000	10	3527
+5	Helsinki	Finland	15	151	152	20	1513	10	1522	40000	2525	40000	9	3526
+5	Helsinki	Finland	15	151	152	20	1513	10	1522	40000	2525	40000	10	3527
+6	Lisbon	Portugal	16	161	162	21	1610	11	1621	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	21	1610	11	1621	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	21	1610	11	1621	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	21	1610	11	1621	40000	2625	40000	12	3627
+6	Lisbon	Portugal	16	161	162	21	1610	12	1622	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	21	1610	12	1622	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	21	1610	12	1622	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	21	1610	12	1622	40000	2625	40000	12	3627
+6	Lisbon	Portugal	16	161	162	22	1611	11	1621	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	22	1611	11	1621	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	22	1611	11	1621	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	22	1611	11	1621	40000	2625	40000	12	3627
+6	Lisbon	Portugal	16	161	162	22	1611	12	1622	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	22	1611	12	1622	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	22	1611	12	1622	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	22	1611	12	1622	40000	2625	40000	12	3627
+6	Lisbon	Portugal	16	161	162	23	1612	11	1621	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	23	1612	11	1621	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	23	1612	11	1621	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	23	1612	11	1621	40000	2625	40000	12	3627
+6	Lisbon	Portugal	16	161	162	23	1612	12	1622	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	23	1612	12	1622	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	23	1612	12	1622	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	23	1612	12	1622	40000	2625	40000	12	3627
+6	Lisbon	Portugal	16	161	162	24	1613	11	1621	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	24	1613	11	1621	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	24	1613	11	1621	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	24	1613	11	1621	40000	2625	40000	12	3627
+6	Lisbon	Portugal	16	161	162	24	1613	12	1622	40000	2624	40000	11	3626
+6	Lisbon	Portugal	16	161	162	24	1613	12	1622	40000	2624	40000	12	3627
+6	Lisbon	Portugal	16	161	162	24	1613	12	1622	40000	2625	40000	11	3626
+6	Lisbon	Portugal	16	161	162	24	1613	12	1622	40000	2625	40000	12	3627
+7	Norrwaste	Sweden	17	171	172	25	1710	13	1721	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	25	1710	13	1721	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	25	1710	13	1721	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	25	1710	13	1721	40000	2725	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	25	1710	14	1722	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	25	1710	14	1722	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	25	1710	14	1722	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	25	1710	14	1722	40000	2725	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	26	1711	13	1721	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	26	1711	13	1721	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	26	1711	13	1721	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	26	1711	13	1721	40000	2725	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	26	1711	14	1722	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	26	1711	14	1722	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	26	1711	14	1722	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	26	1711	14	1722	40000	2725	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	27	1712	13	1721	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	27	1712	13	1721	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	27	1712	13	1721	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	27	1712	13	1721	40000	2725	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	27	1712	14	1722	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	27	1712	14	1722	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	27	1712	14	1722	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	27	1712	14	1722	40000	2725	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	28	1713	13	1721	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	28	1713	13	1721	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	28	1713	13	1721	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	28	1713	13	1721	40000	2725	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	28	1713	14	1722	40000	2724	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	28	1713	14	1722	40000	2724	40000	14	3727
+7	Norrwaste	Sweden	17	171	172	28	1713	14	1722	40000	2725	40000	13	3726
+7	Norrwaste	Sweden	17	171	172	28	1713	14	1722	40000	2725	40000	14	3727
+8	ROW	Earth	18	181	182	29	1810	15	1821	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	29	1810	15	1821	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	29	1810	15	1821	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	29	1810	15	1821	40000	2825	40000	16	3827
+8	ROW	Earth	18	181	182	29	1810	16	1822	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	29	1810	16	1822	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	29	1810	16	1822	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	29	1810	16	1822	40000	2825	40000	16	3827
+8	ROW	Earth	18	181	182	30	1811	15	1821	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	30	1811	15	1821	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	30	1811	15	1821	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	30	1811	15	1821	40000	2825	40000	16	3827
+8	ROW	Earth	18	181	182	30	1811	16	1822	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	30	1811	16	1822	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	30	1811	16	1822	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	30	1811	16	1822	40000	2825	40000	16	3827
+8	ROW	Earth	18	181	182	31	1812	15	1821	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	31	1812	15	1821	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	31	1812	15	1821	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	31	1812	15	1821	40000	2825	40000	16	3827
+8	ROW	Earth	18	181	182	31	1812	16	1822	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	31	1812	16	1822	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	31	1812	16	1822	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	31	1812	16	1822	40000	2825	40000	16	3827
+8	ROW	Earth	18	181	182	32	1813	15	1821	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	32	1813	15	1821	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	32	1813	15	1821	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	32	1813	15	1821	40000	2825	40000	16	3827
+8	ROW	Earth	18	181	182	32	1813	16	1822	40000	2824	40000	15	3826
+8	ROW	Earth	18	181	182	32	1813	16	1822	40000	2824	40000	16	3827
+8	ROW	Earth	18	181	182	32	1813	16	1822	40000	2825	40000	15	3826
+8	ROW	Earth	18	181	182	32	1813	16	1822	40000	2825	40000	16	3827
+Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+count(1)	max(entry_key)
+8	8
+show create table idx_tbl;
+Table	Create Table
+idx_tbl	CREATE TABLE `idx_tbl` (
+  `entry_key` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `k1` varchar(100) NOT NULL,
+  `k2` varchar(100) NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`k1`,`k2`),
+  UNIQUE KEY `entry_key` (`entry_key`)
+) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+32	32
+show create table type2_1;
+Table	Create Table
+type2_1	CREATE TABLE `type2_1` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+16	16
+show create table type2_2;
+Table	Create Table
+type2_2	CREATE TABLE `type2_2` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_3;
+count(1)	max(mv_idx)
+16	16
+show create table type2_3;
+Table	Create Table
+type2_3	CREATE TABLE `type2_3` (
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entry_key` bigint unsigned NOT NULL,
+  `data` text,
+  PRIMARY KEY (`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_4;
+count(1)	max(mv_idx)
+16	16
+show create table type2_4;
+Table	Create Table
+type2_4	CREATE TABLE `type2_4` (
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entry_key` bigint unsigned NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_3 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_4 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select * from idx_tbl order by entry_key;
+entry_key	k1	k2	data
+1	Stockholm	Sweden	11
+2	Trondheim	Norway	12
+3	Portland	USA	13
+4	Bangalore	India	14
+5	Helsinki	Finland	15
+6	Lisbon	Portugal	16
+7	Norrwaste	Sweden	17
+8	ROW	Earth	18
+select * from type1_1 order by entry_key;
+entry_key	data
+1	111
+2	121
+3	131
+4	141
+5	151
+6	161
+7	171
+8	181
+select * from type1_2 order by entry_key;
+entry_key	data
+1	112
+2	122
+3	132
+4	142
+5	152
+6	162
+7	172
+8	182
+select * from type2_1 order by entry_key, mv_idx;
+entry_key	mv_idx	data
+1	1	1110
+1	2	1111
+1	3	1112
+1	4	1113
+2	5	1210
+2	6	1211
+2	7	1212
+2	8	1213
+3	9	1310
+3	10	1311
+3	11	1312
+3	12	1313
+4	13	1410
+4	14	1411
+4	15	1412
+4	16	1413
+5	17	1510
+5	18	1511
+5	19	1512
+5	20	1513
+6	21	1610
+6	22	1611
+6	23	1612
+6	24	1613
+7	25	1710
+7	26	1711
+7	27	1712
+7	28	1713
+8	29	1810
+8	30	1811
+8	31	1812
+8	32	1813
+select entry_key, mv_idx, right(data, 4) from type2_2 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	1121
+1	2	1122
+2	3	1221
+2	4	1222
+3	5	1321
+3	6	1322
+4	7	1421
+4	8	1422
+5	9	1521
+5	10	1522
+6	11	1621
+6	12	1622
+7	13	1721
+7	14	1722
+8	15	1821
+8	16	1822
+select entry_key, mv_idx, right(data, 4) from type2_3 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	2124
+1	2	2125
+2	3	2224
+2	4	2225
+3	5	2324
+3	6	2325
+4	7	2424
+4	8	2425
+5	9	2524
+5	10	2525
+6	11	2624
+6	12	2625
+7	13	2724
+7	14	2725
+8	15	2824
+8	16	2825
+select * from type2_4 order by entry_key, mv_idx;
+mv_idx	entry_key	data
+1	1	3126
+2	1	3127
+3	2	3226
+4	2	3227
+5	3	3326
+6	3	3327
+7	4	3426
+8	4	3427
+9	5	3526
+10	5	3527
+11	6	3626
+12	6	3627
+13	7	3726
+14	7	3727
+15	8	3826
+16	8	3827
+drop table idx_tbl, type1_1, type1_2, type2_1, type2_2, type2_3, type2_4;
+Recreate tables
+create table idx_tbl (entry_key bigint unsigned not null auto_increment,
+k1 varchar(100), 
+k2 varchar(100), 
+data int,
+primary key (k1, k2),
+unique(entry_key)) engine=ndb;
+create table type1_1 (entry_key bigint unsigned not null primary key,
+data int) engine=ndb;
+create table type1_2 (entry_key bigint unsigned not null primary key,
+data int) engine=ndb;
+create table type2_1 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data int,
+primary key (entry_key, mv_idx)) engine=ndb;
+create table type2_2 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data text,
+primary key (entry_key, mv_idx)) engine=ndb;
+create table type2_3 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data text,
+primary key (entry_key, mv_idx)) engine = ndb;
+create table type2_4 (entry_key bigint unsigned not null,
+mv_idx bigint unsigned not null auto_increment,
+data int,
+primary key (entry_key, mv_idx)) engine = ndb;
+Run normal restore for first set of content
+Remap args : -x test.idx_tbl.entry_key:offset:9 -x test.type1_1.entry_key:offset:9 -x test.type1_2.entry_key:offset:9 -x test.type2_1.entry_key:offset:9 -x test.type2_1.mv_idx:offset:33 -x test.type2_2.entry_key:offset:9 -x test.type2_2.mv_idx:offset:17 -x test.type2_3.entry_key:offset:9 -x test.type2_3.mv_idx:offset:17 -x test.type2_4.entry_key:offset:9 -x test.type2_4.mv_idx:offset:17
+Run offset restore for second set of content
+Combined dataset
+-----------------
+select idx_tbl.entry_key,
+idx_tbl.k1,
+idx_tbl.k2,
+idx_tbl.data,
+type1_1.data,
+type1_2.data,
+type2_1.mv_idx,
+type2_1.data,
+type2_2.mv_idx,
+right(type2_2.data, 4),
+length(type2_2.data),
+right(type2_3.data, 4),
+length(type2_3.data),
+type2_4.mv_idx,
+type2_4.data
+from
+idx_tbl join type1_1 join type1_2 join type2_1 join type2_2 join type2_3 join type2_4
+on
+idx_tbl.entry_key = type1_1.entry_key
+and
+idx_tbl.entry_key = type1_2.entry_key
+and
+idx_tbl.entry_key = type2_1.entry_key
+and
+idx_tbl.entry_key = type2_2.entry_key
+and
+idx_tbl.entry_key = type2_3.entry_key
+and
+idx_tbl.entry_key = type2_4.entry_key
+order by idx_tbl.entry_key, type2_1.data, right(type2_2.data, 4), right(type2_3.data, 4), type2_4.data;
+entry_key	k1	k2	data	data	data	mv_idx	data	mv_idx	right(type2_2.data, 4)	length(type2_2.data)	right(type2_3.data, 4)	length(type2_3.data)	mv_idx	data
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	1	110	2	0122	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	2	111	2	0122	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	3	112	2	0122	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	1	0121	40000	0125	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0124	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0124	40000	2	127
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0125	40000	1	126
+1	Edinburgh	UK	1	11	12	4	113	2	0122	40000	0125	40000	2	127
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	5	210	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	5	210	4	0222	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	6	211	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	6	211	4	0222	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	7	212	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	7	212	4	0222	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	8	213	3	0221	40000	0225	40000	4	227
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0224	40000	3	226
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0224	40000	4	227
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0225	40000	3	226
+2	Bristol	UK	2	21	22	8	213	4	0222	40000	0225	40000	4	227
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	9	310	6	0322	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	10	311	6	0322	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	11	312	6	0322	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	5	0321	40000	0325	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0324	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0324	40000	6	327
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0325	40000	5	326
+3	Glasgow	UK	3	31	32	12	313	6	0322	40000	0325	40000	6	327
+4	London	UK	4	41	42	13	410	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	13	410	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	13	410	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	13	410	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	13	410	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	13	410	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	13	410	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	13	410	8	0422	40000	0425	40000	8	427
+4	London	UK	4	41	42	14	411	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	14	411	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	14	411	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	14	411	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	14	411	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	14	411	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	14	411	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	14	411	8	0422	40000	0425	40000	8	427
+4	London	UK	4	41	42	15	412	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	15	412	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	15	412	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	15	412	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	15	412	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	15	412	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	15	412	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	15	412	8	0422	40000	0425	40000	8	427
+4	London	UK	4	41	42	16	413	7	0421	40000	0424	40000	7	426
+4	London	UK	4	41	42	16	413	7	0421	40000	0424	40000	8	427
+4	London	UK	4	41	42	16	413	7	0421	40000	0425	40000	7	426
+4	London	UK	4	41	42	16	413	7	0421	40000	0425	40000	8	427
+4	London	UK	4	41	42	16	413	8	0422	40000	0424	40000	7	426
+4	London	UK	4	41	42	16	413	8	0422	40000	0424	40000	8	427
+4	London	UK	4	41	42	16	413	8	0422	40000	0425	40000	7	426
+4	London	UK	4	41	42	16	413	8	0422	40000	0425	40000	8	427
+5	Paris	France	5	51	52	17	510	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	17	510	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	17	510	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	17	510	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	17	510	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	17	510	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	17	510	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	17	510	10	0522	40000	0525	40000	10	527
+5	Paris	France	5	51	52	18	511	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	18	511	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	18	511	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	18	511	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	18	511	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	18	511	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	18	511	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	18	511	10	0522	40000	0525	40000	10	527
+5	Paris	France	5	51	52	19	512	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	19	512	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	19	512	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	19	512	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	19	512	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	19	512	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	19	512	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	19	512	10	0522	40000	0525	40000	10	527
+5	Paris	France	5	51	52	20	513	9	0521	40000	0524	40000	9	526
+5	Paris	France	5	51	52	20	513	9	0521	40000	0524	40000	10	527
+5	Paris	France	5	51	52	20	513	9	0521	40000	0525	40000	9	526
+5	Paris	France	5	51	52	20	513	9	0521	40000	0525	40000	10	527
+5	Paris	France	5	51	52	20	513	10	0522	40000	0524	40000	9	526
+5	Paris	France	5	51	52	20	513	10	0522	40000	0524	40000	10	527
+5	Paris	France	5	51	52	20	513	10	0522	40000	0525	40000	9	526
+5	Paris	France	5	51	52	20	513	10	0522	40000	0525	40000	10	527
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	21	610	12	0622	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	22	611	12	0622	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	23	612	12	0622	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	11	0621	40000	0625	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0624	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0624	40000	12	627
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0625	40000	11	626
+6	Heidelberg	Germany	6	61	62	24	613	12	0622	40000	0625	40000	12	627
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	25	710	14	0722	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	26	711	14	0722	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	27	712	14	0722	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	13	0721	40000	0725	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0724	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0724	40000	14	727
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0725	40000	13	726
+7	Riga	Latvia	7	71	72	28	713	14	0722	40000	0725	40000	14	727
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	29	810	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	29	810	16	0822	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	30	811	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	30	811	16	0822	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	31	812	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	31	812	16	0822	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	32	813	15	0821	40000	0825	40000	16	827
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0824	40000	15	826
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0824	40000	16	827
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0825	40000	15	826
+8	Orlando	USA	8	81	82	32	813	16	0822	40000	0825	40000	16	827
+10	Stockholm	Sweden	11	111	112	34	1110	18	1121	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	34	1110	18	1121	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	34	1110	18	1121	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	34	1110	18	1121	40000	2125	40000	19	3127
+10	Stockholm	Sweden	11	111	112	34	1110	19	1122	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	34	1110	19	1122	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	34	1110	19	1122	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	34	1110	19	1122	40000	2125	40000	19	3127
+10	Stockholm	Sweden	11	111	112	35	1111	18	1121	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	35	1111	18	1121	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	35	1111	18	1121	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	35	1111	18	1121	40000	2125	40000	19	3127
+10	Stockholm	Sweden	11	111	112	35	1111	19	1122	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	35	1111	19	1122	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	35	1111	19	1122	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	35	1111	19	1122	40000	2125	40000	19	3127
+10	Stockholm	Sweden	11	111	112	36	1112	18	1121	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	36	1112	18	1121	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	36	1112	18	1121	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	36	1112	18	1121	40000	2125	40000	19	3127
+10	Stockholm	Sweden	11	111	112	36	1112	19	1122	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	36	1112	19	1122	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	36	1112	19	1122	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	36	1112	19	1122	40000	2125	40000	19	3127
+10	Stockholm	Sweden	11	111	112	37	1113	18	1121	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	37	1113	18	1121	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	37	1113	18	1121	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	37	1113	18	1121	40000	2125	40000	19	3127
+10	Stockholm	Sweden	11	111	112	37	1113	19	1122	40000	2124	40000	18	3126
+10	Stockholm	Sweden	11	111	112	37	1113	19	1122	40000	2124	40000	19	3127
+10	Stockholm	Sweden	11	111	112	37	1113	19	1122	40000	2125	40000	18	3126
+10	Stockholm	Sweden	11	111	112	37	1113	19	1122	40000	2125	40000	19	3127
+11	Trondheim	Norway	12	121	122	38	1210	20	1221	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	38	1210	20	1221	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	38	1210	20	1221	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	38	1210	20	1221	40000	2225	40000	21	3227
+11	Trondheim	Norway	12	121	122	38	1210	21	1222	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	38	1210	21	1222	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	38	1210	21	1222	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	38	1210	21	1222	40000	2225	40000	21	3227
+11	Trondheim	Norway	12	121	122	39	1211	20	1221	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	39	1211	20	1221	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	39	1211	20	1221	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	39	1211	20	1221	40000	2225	40000	21	3227
+11	Trondheim	Norway	12	121	122	39	1211	21	1222	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	39	1211	21	1222	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	39	1211	21	1222	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	39	1211	21	1222	40000	2225	40000	21	3227
+11	Trondheim	Norway	12	121	122	40	1212	20	1221	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	40	1212	20	1221	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	40	1212	20	1221	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	40	1212	20	1221	40000	2225	40000	21	3227
+11	Trondheim	Norway	12	121	122	40	1212	21	1222	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	40	1212	21	1222	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	40	1212	21	1222	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	40	1212	21	1222	40000	2225	40000	21	3227
+11	Trondheim	Norway	12	121	122	41	1213	20	1221	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	41	1213	20	1221	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	41	1213	20	1221	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	41	1213	20	1221	40000	2225	40000	21	3227
+11	Trondheim	Norway	12	121	122	41	1213	21	1222	40000	2224	40000	20	3226
+11	Trondheim	Norway	12	121	122	41	1213	21	1222	40000	2224	40000	21	3227
+11	Trondheim	Norway	12	121	122	41	1213	21	1222	40000	2225	40000	20	3226
+11	Trondheim	Norway	12	121	122	41	1213	21	1222	40000	2225	40000	21	3227
+12	Portland	USA	13	131	132	42	1310	22	1321	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	42	1310	22	1321	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	42	1310	22	1321	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	42	1310	22	1321	40000	2325	40000	23	3327
+12	Portland	USA	13	131	132	42	1310	23	1322	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	42	1310	23	1322	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	42	1310	23	1322	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	42	1310	23	1322	40000	2325	40000	23	3327
+12	Portland	USA	13	131	132	43	1311	22	1321	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	43	1311	22	1321	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	43	1311	22	1321	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	43	1311	22	1321	40000	2325	40000	23	3327
+12	Portland	USA	13	131	132	43	1311	23	1322	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	43	1311	23	1322	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	43	1311	23	1322	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	43	1311	23	1322	40000	2325	40000	23	3327
+12	Portland	USA	13	131	132	44	1312	22	1321	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	44	1312	22	1321	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	44	1312	22	1321	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	44	1312	22	1321	40000	2325	40000	23	3327
+12	Portland	USA	13	131	132	44	1312	23	1322	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	44	1312	23	1322	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	44	1312	23	1322	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	44	1312	23	1322	40000	2325	40000	23	3327
+12	Portland	USA	13	131	132	45	1313	22	1321	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	45	1313	22	1321	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	45	1313	22	1321	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	45	1313	22	1321	40000	2325	40000	23	3327
+12	Portland	USA	13	131	132	45	1313	23	1322	40000	2324	40000	22	3326
+12	Portland	USA	13	131	132	45	1313	23	1322	40000	2324	40000	23	3327
+12	Portland	USA	13	131	132	45	1313	23	1322	40000	2325	40000	22	3326
+12	Portland	USA	13	131	132	45	1313	23	1322	40000	2325	40000	23	3327
+13	Bangalore	India	14	141	142	46	1410	24	1421	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	46	1410	24	1421	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	46	1410	24	1421	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	46	1410	24	1421	40000	2425	40000	25	3427
+13	Bangalore	India	14	141	142	46	1410	25	1422	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	46	1410	25	1422	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	46	1410	25	1422	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	46	1410	25	1422	40000	2425	40000	25	3427
+13	Bangalore	India	14	141	142	47	1411	24	1421	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	47	1411	24	1421	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	47	1411	24	1421	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	47	1411	24	1421	40000	2425	40000	25	3427
+13	Bangalore	India	14	141	142	47	1411	25	1422	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	47	1411	25	1422	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	47	1411	25	1422	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	47	1411	25	1422	40000	2425	40000	25	3427
+13	Bangalore	India	14	141	142	48	1412	24	1421	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	48	1412	24	1421	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	48	1412	24	1421	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	48	1412	24	1421	40000	2425	40000	25	3427
+13	Bangalore	India	14	141	142	48	1412	25	1422	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	48	1412	25	1422	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	48	1412	25	1422	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	48	1412	25	1422	40000	2425	40000	25	3427
+13	Bangalore	India	14	141	142	49	1413	24	1421	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	49	1413	24	1421	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	49	1413	24	1421	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	49	1413	24	1421	40000	2425	40000	25	3427
+13	Bangalore	India	14	141	142	49	1413	25	1422	40000	2424	40000	24	3426
+13	Bangalore	India	14	141	142	49	1413	25	1422	40000	2424	40000	25	3427
+13	Bangalore	India	14	141	142	49	1413	25	1422	40000	2425	40000	24	3426
+13	Bangalore	India	14	141	142	49	1413	25	1422	40000	2425	40000	25	3427
+14	Helsinki	Finland	15	151	152	50	1510	26	1521	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	50	1510	26	1521	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	50	1510	26	1521	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	50	1510	26	1521	40000	2525	40000	27	3527
+14	Helsinki	Finland	15	151	152	50	1510	27	1522	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	50	1510	27	1522	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	50	1510	27	1522	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	50	1510	27	1522	40000	2525	40000	27	3527
+14	Helsinki	Finland	15	151	152	51	1511	26	1521	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	51	1511	26	1521	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	51	1511	26	1521	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	51	1511	26	1521	40000	2525	40000	27	3527
+14	Helsinki	Finland	15	151	152	51	1511	27	1522	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	51	1511	27	1522	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	51	1511	27	1522	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	51	1511	27	1522	40000	2525	40000	27	3527
+14	Helsinki	Finland	15	151	152	52	1512	26	1521	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	52	1512	26	1521	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	52	1512	26	1521	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	52	1512	26	1521	40000	2525	40000	27	3527
+14	Helsinki	Finland	15	151	152	52	1512	27	1522	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	52	1512	27	1522	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	52	1512	27	1522	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	52	1512	27	1522	40000	2525	40000	27	3527
+14	Helsinki	Finland	15	151	152	53	1513	26	1521	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	53	1513	26	1521	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	53	1513	26	1521	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	53	1513	26	1521	40000	2525	40000	27	3527
+14	Helsinki	Finland	15	151	152	53	1513	27	1522	40000	2524	40000	26	3526
+14	Helsinki	Finland	15	151	152	53	1513	27	1522	40000	2524	40000	27	3527
+14	Helsinki	Finland	15	151	152	53	1513	27	1522	40000	2525	40000	26	3526
+14	Helsinki	Finland	15	151	152	53	1513	27	1522	40000	2525	40000	27	3527
+15	Lisbon	Portugal	16	161	162	54	1610	28	1621	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	54	1610	28	1621	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	54	1610	28	1621	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	54	1610	28	1621	40000	2625	40000	29	3627
+15	Lisbon	Portugal	16	161	162	54	1610	29	1622	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	54	1610	29	1622	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	54	1610	29	1622	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	54	1610	29	1622	40000	2625	40000	29	3627
+15	Lisbon	Portugal	16	161	162	55	1611	28	1621	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	55	1611	28	1621	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	55	1611	28	1621	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	55	1611	28	1621	40000	2625	40000	29	3627
+15	Lisbon	Portugal	16	161	162	55	1611	29	1622	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	55	1611	29	1622	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	55	1611	29	1622	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	55	1611	29	1622	40000	2625	40000	29	3627
+15	Lisbon	Portugal	16	161	162	56	1612	28	1621	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	56	1612	28	1621	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	56	1612	28	1621	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	56	1612	28	1621	40000	2625	40000	29	3627
+15	Lisbon	Portugal	16	161	162	56	1612	29	1622	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	56	1612	29	1622	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	56	1612	29	1622	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	56	1612	29	1622	40000	2625	40000	29	3627
+15	Lisbon	Portugal	16	161	162	57	1613	28	1621	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	57	1613	28	1621	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	57	1613	28	1621	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	57	1613	28	1621	40000	2625	40000	29	3627
+15	Lisbon	Portugal	16	161	162	57	1613	29	1622	40000	2624	40000	28	3626
+15	Lisbon	Portugal	16	161	162	57	1613	29	1622	40000	2624	40000	29	3627
+15	Lisbon	Portugal	16	161	162	57	1613	29	1622	40000	2625	40000	28	3626
+15	Lisbon	Portugal	16	161	162	57	1613	29	1622	40000	2625	40000	29	3627
+16	Norrwaste	Sweden	17	171	172	58	1710	30	1721	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	58	1710	30	1721	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	58	1710	30	1721	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	58	1710	30	1721	40000	2725	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	58	1710	31	1722	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	58	1710	31	1722	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	58	1710	31	1722	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	58	1710	31	1722	40000	2725	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	59	1711	30	1721	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	59	1711	30	1721	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	59	1711	30	1721	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	59	1711	30	1721	40000	2725	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	59	1711	31	1722	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	59	1711	31	1722	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	59	1711	31	1722	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	59	1711	31	1722	40000	2725	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	60	1712	30	1721	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	60	1712	30	1721	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	60	1712	30	1721	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	60	1712	30	1721	40000	2725	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	60	1712	31	1722	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	60	1712	31	1722	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	60	1712	31	1722	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	60	1712	31	1722	40000	2725	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	61	1713	30	1721	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	61	1713	30	1721	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	61	1713	30	1721	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	61	1713	30	1721	40000	2725	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	61	1713	31	1722	40000	2724	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	61	1713	31	1722	40000	2724	40000	31	3727
+16	Norrwaste	Sweden	17	171	172	61	1713	31	1722	40000	2725	40000	30	3726
+16	Norrwaste	Sweden	17	171	172	61	1713	31	1722	40000	2725	40000	31	3727
+17	ROW	Earth	18	181	182	62	1810	32	1821	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	62	1810	32	1821	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	62	1810	32	1821	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	62	1810	32	1821	40000	2825	40000	33	3827
+17	ROW	Earth	18	181	182	62	1810	33	1822	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	62	1810	33	1822	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	62	1810	33	1822	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	62	1810	33	1822	40000	2825	40000	33	3827
+17	ROW	Earth	18	181	182	63	1811	32	1821	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	63	1811	32	1821	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	63	1811	32	1821	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	63	1811	32	1821	40000	2825	40000	33	3827
+17	ROW	Earth	18	181	182	63	1811	33	1822	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	63	1811	33	1822	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	63	1811	33	1822	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	63	1811	33	1822	40000	2825	40000	33	3827
+17	ROW	Earth	18	181	182	64	1812	32	1821	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	64	1812	32	1821	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	64	1812	32	1821	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	64	1812	32	1821	40000	2825	40000	33	3827
+17	ROW	Earth	18	181	182	64	1812	33	1822	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	64	1812	33	1822	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	64	1812	33	1822	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	64	1812	33	1822	40000	2825	40000	33	3827
+17	ROW	Earth	18	181	182	65	1813	32	1821	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	65	1813	32	1821	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	65	1813	32	1821	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	65	1813	32	1821	40000	2825	40000	33	3827
+17	ROW	Earth	18	181	182	65	1813	33	1822	40000	2824	40000	32	3826
+17	ROW	Earth	18	181	182	65	1813	33	1822	40000	2824	40000	33	3827
+17	ROW	Earth	18	181	182	65	1813	33	1822	40000	2825	40000	32	3826
+17	ROW	Earth	18	181	182	65	1813	33	1822	40000	2825	40000	33	3827
+Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+count(1)	max(entry_key)
+16	17
+show create table idx_tbl;
+Table	Create Table
+idx_tbl	CREATE TABLE `idx_tbl` (
+  `entry_key` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `k1` varchar(100) NOT NULL,
+  `k2` varchar(100) NOT NULL,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`k1`,`k2`),
+  UNIQUE KEY `entry_key` (`entry_key`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_1;
+count(1)	max(mv_idx)
+64	65
+show create table type2_1;
+Table	Create Table
+type2_1	CREATE TABLE `type2_1` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_2;
+count(1)	max(mv_idx)
+32	33
+show create table type2_2;
+Table	Create Table
+type2_2	CREATE TABLE `type2_2` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_3;
+count(1)	max(mv_idx)
+32	33
+show create table type2_3;
+Table	Create Table
+type2_3	CREATE TABLE `type2_3` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select count(1), max(mv_idx) from test.type2_4;
+count(1)	max(mv_idx)
+32	33
+show create table type2_4;
+Table	Create Table
+type2_4	CREATE TABLE `type2_4` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` int DEFAULT NULL,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_3 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_4 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select * from idx_tbl order by entry_key;
+entry_key	k1	k2	data
+1	Edinburgh	UK	1
+2	Bristol	UK	2
+3	Glasgow	UK	3
+4	London	UK	4
+5	Paris	France	5
+6	Heidelberg	Germany	6
+7	Riga	Latvia	7
+8	Orlando	USA	8
+10	Stockholm	Sweden	11
+11	Trondheim	Norway	12
+12	Portland	USA	13
+13	Bangalore	India	14
+14	Helsinki	Finland	15
+15	Lisbon	Portugal	16
+16	Norrwaste	Sweden	17
+17	ROW	Earth	18
+select * from type1_1 order by entry_key;
+entry_key	data
+1	11
+2	21
+3	31
+4	41
+5	51
+6	61
+7	71
+8	81
+10	111
+11	121
+12	131
+13	141
+14	151
+15	161
+16	171
+17	181
+select * from type1_2 order by entry_key;
+entry_key	data
+1	12
+2	22
+3	32
+4	42
+5	52
+6	62
+7	72
+8	82
+10	112
+11	122
+12	132
+13	142
+14	152
+15	162
+16	172
+17	182
+select * from type2_1 order by entry_key, mv_idx;
+entry_key	mv_idx	data
+1	1	110
+1	2	111
+1	3	112
+1	4	113
+2	5	210
+2	6	211
+2	7	212
+2	8	213
+3	9	310
+3	10	311
+3	11	312
+3	12	313
+4	13	410
+4	14	411
+4	15	412
+4	16	413
+5	17	510
+5	18	511
+5	19	512
+5	20	513
+6	21	610
+6	22	611
+6	23	612
+6	24	613
+7	25	710
+7	26	711
+7	27	712
+7	28	713
+8	29	810
+8	30	811
+8	31	812
+8	32	813
+10	34	1110
+10	35	1111
+10	36	1112
+10	37	1113
+11	38	1210
+11	39	1211
+11	40	1212
+11	41	1213
+12	42	1310
+12	43	1311
+12	44	1312
+12	45	1313
+13	46	1410
+13	47	1411
+13	48	1412
+13	49	1413
+14	50	1510
+14	51	1511
+14	52	1512
+14	53	1513
+15	54	1610
+15	55	1611
+15	56	1612
+15	57	1613
+16	58	1710
+16	59	1711
+16	60	1712
+16	61	1713
+17	62	1810
+17	63	1811
+17	64	1812
+17	65	1813
+select entry_key, mv_idx, right(data, 4) from type2_2 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	0121
+1	2	0122
+2	3	0221
+2	4	0222
+3	5	0321
+3	6	0322
+4	7	0421
+4	8	0422
+5	9	0521
+5	10	0522
+6	11	0621
+6	12	0622
+7	13	0721
+7	14	0722
+8	15	0821
+8	16	0822
+10	18	1121
+10	19	1122
+11	20	1221
+11	21	1222
+12	22	1321
+12	23	1322
+13	24	1421
+13	25	1422
+14	26	1521
+14	27	1522
+15	28	1621
+15	29	1622
+16	30	1721
+16	31	1722
+17	32	1821
+17	33	1822
+select entry_key, mv_idx, right(data, 4) from type2_3 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	0124
+1	2	0125
+2	3	0224
+2	4	0225
+3	5	0324
+3	6	0325
+4	7	0424
+4	8	0425
+5	9	0524
+5	10	0525
+6	11	0624
+6	12	0625
+7	13	0724
+7	14	0725
+8	15	0824
+8	16	0825
+10	18	2124
+10	19	2125
+11	20	2224
+11	21	2225
+12	22	2324
+12	23	2325
+13	24	2424
+13	25	2425
+14	26	2524
+14	27	2525
+15	28	2624
+15	29	2625
+16	30	2724
+16	31	2725
+17	32	2824
+17	33	2825
+select * from type2_4 order by entry_key, mv_idx;
+entry_key	mv_idx	data
+1	1	126
+1	2	127
+2	3	226
+2	4	227
+3	5	326
+3	6	327
+4	7	426
+4	8	427
+5	9	526
+5	10	527
+6	11	626
+6	12	627
+7	13	726
+7	14	727
+8	15	826
+8	16	827
+10	18	3126
+10	19	3127
+11	20	3226
+11	21	3227
+12	22	3326
+12	23	3327
+13	24	3426
+13	25	3427
+14	26	3526
+14	27	3527
+15	28	3626
+15	29	3627
+16	30	3726
+16	31	3727
+17	32	3826
+17	33	3827
+Verify the insert of further entity succeeds
+insert into idx_tbl (k1,k2,data) values ('Sancerre', 'France', 9);
+select last_insert_id() into @ek;
+insert into type1_1 values (@ek, 91);
+insert into type1_2 values (@ek, 92);
+insert into type2_1 (entry_key, data) values (@ek, 910);
+insert into type2_1 (entry_key, data) values (@ek, 911);
+insert into type2_1 (entry_key, data) values (@ek, 912);
+insert into type2_1 (entry_key, data) values (@ek, 913);
+insert into type2_2 (entry_key, data) values (@ek, repeat("0921", 10000));
+insert into type2_2 (entry_key, data) values (@ek, repeat("0922", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0923", 10000));
+insert into type2_3 (entry_key, data) values (@ek, repeat("0924", 10000));
+insert into type2_4 (entry_key, data) values (@ek, 925);
+insert into type2_4 (entry_key, data) values (@ek, 926);
+Modified content
+----------------
+show create table type2_3;
+Table	Create Table
+type2_3	CREATE TABLE `type2_3` (
+  `entry_key` bigint unsigned NOT NULL,
+  `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `data` text,
+  PRIMARY KEY (`entry_key`,`mv_idx`)
+) ENGINE=ndbcluster AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+from type2_1 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_2 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select mv_idx, count(1) as ct 
+from type2_3 group by mv_idx 
+having ct > 1;
+mv_idx	ct
+select * from idx_tbl order by entry_key;
+entry_key	k1	k2	data
+1	Edinburgh	UK	1
+2	Bristol	UK	2
+3	Glasgow	UK	3
+4	London	UK	4
+5	Paris	France	5
+6	Heidelberg	Germany	6
+7	Riga	Latvia	7
+8	Orlando	USA	8
+10	Stockholm	Sweden	11
+11	Trondheim	Norway	12
+12	Portland	USA	13
+13	Bangalore	India	14
+14	Helsinki	Finland	15
+15	Lisbon	Portugal	16
+16	Norrwaste	Sweden	17
+17	ROW	Earth	18
+18	Sancerre	France	9
+select * from type1_1 order by entry_key;
+entry_key	data
+1	11
+2	21
+3	31
+4	41
+5	51
+6	61
+7	71
+8	81
+10	111
+11	121
+12	131
+13	141
+14	151
+15	161
+16	171
+17	181
+18	91
+select * from type1_2 order by entry_key;
+entry_key	data
+1	12
+2	22
+3	32
+4	42
+5	52
+6	62
+7	72
+8	82
+10	112
+11	122
+12	132
+13	142
+14	152
+15	162
+16	172
+17	182
+18	92
+select * from type2_1 order by entry_key, mv_idx;
+entry_key	mv_idx	data
+1	1	110
+1	2	111
+1	3	112
+1	4	113
+2	5	210
+2	6	211
+2	7	212
+2	8	213
+3	9	310
+3	10	311
+3	11	312
+3	12	313
+4	13	410
+4	14	411
+4	15	412
+4	16	413
+5	17	510
+5	18	511
+5	19	512
+5	20	513
+6	21	610
+6	22	611
+6	23	612
+6	24	613
+7	25	710
+7	26	711
+7	27	712
+7	28	713
+8	29	810
+8	30	811
+8	31	812
+8	32	813
+10	34	1110
+10	35	1111
+10	36	1112
+10	37	1113
+11	38	1210
+11	39	1211
+11	40	1212
+11	41	1213
+12	42	1310
+12	43	1311
+12	44	1312
+12	45	1313
+13	46	1410
+13	47	1411
+13	48	1412
+13	49	1413
+14	50	1510
+14	51	1511
+14	52	1512
+14	53	1513
+15	54	1610
+15	55	1611
+15	56	1612
+15	57	1613
+16	58	1710
+16	59	1711
+16	60	1712
+16	61	1713
+17	62	1810
+17	63	1811
+17	64	1812
+17	65	1813
+18	66	910
+18	67	911
+18	68	912
+18	69	913
+select entry_key, mv_idx, right(data, 4) from type2_2 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	0121
+1	2	0122
+2	3	0221
+2	4	0222
+3	5	0321
+3	6	0322
+4	7	0421
+4	8	0422
+5	9	0521
+5	10	0522
+6	11	0621
+6	12	0622
+7	13	0721
+7	14	0722
+8	15	0821
+8	16	0822
+10	18	1121
+10	19	1122
+11	20	1221
+11	21	1222
+12	22	1321
+12	23	1322
+13	24	1421
+13	25	1422
+14	26	1521
+14	27	1522
+15	28	1621
+15	29	1622
+16	30	1721
+16	31	1722
+17	32	1821
+17	33	1822
+18	34	0921
+18	35	0922
+select entry_key, mv_idx, right(data, 4) from type2_3 order by entry_key, mv_idx;
+entry_key	mv_idx	right(data, 4)
+1	1	0124
+1	2	0125
+2	3	0224
+2	4	0225
+3	5	0324
+3	6	0325
+4	7	0424
+4	8	0425
+5	9	0524
+5	10	0525
+6	11	0624
+6	12	0625
+7	13	0724
+7	14	0725
+8	15	0824
+8	16	0825
+10	18	2124
+10	19	2125
+11	20	2224
+11	21	2225
+12	22	2324
+12	23	2325
+13	24	2424
+13	25	2425
+14	26	2524
+14	27	2525
+15	28	2624
+15	29	2625
+16	30	2724
+16	31	2725
+17	32	2824
+17	33	2825
+18	34	0923
+18	35	0924
+drop table idx_tbl, type1_1, type1_2, type2_1, type2_2, type2_3, type2_4;

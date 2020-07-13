@@ -1,15 +1,26 @@
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
 #
 # only global
 #
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 select @@global.admin_port;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.admin_port;
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 show global variables like 'admin_port';
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 show session variables like 'admin_port';
 --disable_warnings
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 select * from performance_schema.global_variables where variable_name='admin_port';
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 select * from performance_schema.session_variables where variable_name='admin_port';
-select * from performance_schema.variables_info where variable_name='admin_port';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+select variable_name, min_value, max_value from performance_schema.variables_info where variable_name='admin_port';
 --enable_warnings
 
 #
@@ -25,16 +36,14 @@ set persist admin_port=1000;
 #
 # Set the option and verify that it is reflected
 #
---let $PORT_OFFSET = 1
---expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
---let $restart_parameters=restart: --skip-name-resolve --admin-address=127.0.0.1 --admin_port=$ADMIN_PORT
---replace_result $ADMIN_PORT ADMIN_PORT
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=127.0.0.1 --admin_port=$MASTER_ADMINPORT
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/restart_mysqld.inc
 
 --disable_warnings
---replace_result $ADMIN_PORT ADMIN_PORT
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 select * from performance_schema.global_variables where variable_name='admin_port';
---replace_result $ADMIN_PORT ADMIN_PORT
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 select * from performance_schema.session_variables where variable_name='admin_port';
 --enable_warnings
 

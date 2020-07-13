@@ -29,7 +29,7 @@ define("dojox/gfx/utils", ["dojo/_base/kernel","dojo/_base/lang","./_base", "doj
 
 		serialize: function(object){
 			// summary:
-			//		Takes a shape or a surface and returns a JSON-like object, which describes underlying shapes.
+			//		Takes a shape or a surface and returns an object, which describes underlying shapes.
 			// object: dojox/gfx/shape.Surface|dojox/gfx/shape.Shape
 			//		The container to serialize.
 

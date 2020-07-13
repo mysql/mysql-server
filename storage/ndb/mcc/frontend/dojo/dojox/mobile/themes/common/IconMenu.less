@@ -4,7 +4,7 @@
 	height: 100%;
 	border-radius: @mbl-icon-menu-border-radius;
 	text-align: center;
-	-webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+	.tap-highlight-color(rgba(255, 255, 255, 0));
 	.mblIconMenu-styles;
 }
 
@@ -12,7 +12,7 @@
 .mblIconMenuItem {
 	float: left;
 	list-style-type: none;
-	-webkit-box-sizing: border-box;
+	.box-sizing(border-box);
 	.mblIconMenuItem-styles;
 }
 .mblIconMenuItemIcon {
@@ -48,6 +48,7 @@
 	font-family: Helvetica;
 	text-decoration: none;
 	.mblIconMenuItemAnchor-styles;
+  cursor: pointer;
 }
 .mblIconMenuItemTable {
 	width: 100%;

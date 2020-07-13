@@ -1,0 +1,17 @@
+CREATE USER admin_user IDENTIFIED BY 'abcd';
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
+
+--echo # test --crl for the client : should connect
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT -uadmin_user -pabcd --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test --ssl-crl=$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl -e "SELECT 1;"
+
+--echo # test --crlpath for the client : should connect
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT -uadmin_user -pabcd --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir test -e "SELECT 1;"
+
+--echo # try logging in with a certificate in the server's --ssl-crlpath : should fail
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1
+--exec $MYSQL --host=127.0.0.1 --port=$MASTER_ADMINPORT -uadmin_user -pabcd --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-revoked-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-revoked-cert.pem test -e "SELECT 1;"
+
+DROP USER admin_user;

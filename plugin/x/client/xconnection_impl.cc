@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -170,23 +170,10 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
   }
 
   /*
-    Use OpenSSL certificate matching functions instead of our own if we
-    have OpenSSL. The X509_check_* functions return 1 on success.
+    For OpenSSL 1.0.2 and up we already set certificate verification
+    parameters in the new_VioSSLFd() to perform automatic checks.
   */
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-  const int check_result_for_ip =
-      X509_check_ip_asc(server_cert, server_hostname.c_str(), 0);
-  const int check_result_for_host =
-      X509_check_host(server_cert, server_hostname.c_str(),
-                      server_hostname.length(), 0, nullptr);
-  if ((check_result_for_host != 1) && (check_result_for_ip != 1)) {
-    return XError{
-        CR_SSL_CONNECTION_ERROR,
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions",
-        true};
-  }
-#else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
   /*
      OpenSSL prior to 1.0.2 do not support X509_check_host() function.
      Use deprecated X509_get_subject_name() instead.
@@ -232,7 +219,7 @@ XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
     return XError{CR_SSL_CONNECTION_ERROR, "SSL certificate validation failure",
                   true};
   }
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
   return {};
 }
@@ -569,6 +556,8 @@ XError Connection_impl::activate_tls() {
   auto ssl_ctx_flags = process_tls_version(
       details::null_when_empty(m_context->m_ssl_config.m_tls_version));
 
+  const bool verify_identity =
+      Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode;
   m_vioSslFd = new_VioSSLConnectorFd(
       details::null_when_empty(m_context->m_ssl_config.m_key),
       details::null_when_empty(m_context->m_ssl_config.m_cert),
@@ -578,7 +567,7 @@ XError Connection_impl::activate_tls() {
       &m_ssl_init_error,
       details::null_when_empty(m_context->m_ssl_config.m_crl),
       details::null_when_empty(m_context->m_ssl_config.m_crl_path),
-      ssl_ctx_flags);
+      ssl_ctx_flags, verify_identity ? m_hostname.c_str() : nullptr);
 
   if (nullptr == m_vioSslFd) return get_ssl_init_error(m_ssl_init_error);
 
@@ -589,7 +578,7 @@ XError Connection_impl::activate_tls() {
     return get_ssl_error(error);
   }
 
-  if (Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode) {
+  if (verify_identity) {
     auto error = details::ssl_verify_server_cert(m_vio, m_hostname);
 
     if (error) return error;

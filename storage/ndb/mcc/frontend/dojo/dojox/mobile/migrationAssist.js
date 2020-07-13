@@ -110,16 +110,16 @@ _1d.dispatch(_1e.prototype.declaredClass,this);
 }
 },this);
 };
-extendSelectFunction=function(obj){
+var _1f=function(obj){
 _2.extend(obj,{select:function(){
 obj.prototype.set.apply(this,["selected",!arguments[0]]);
 },deselect:function(){
 this.select(true);
 }});
 };
-extendSelectFunction(_15);
-extendSelectFunction(_14);
-_2.extend(_f,{set:function(key,_1f){
+_1f(_15);
+_1f(_14);
+_2.extend(_f,{set:function(key,_20){
 if(key==="btnClass"){
 key="rightIcon";
 }else{
@@ -127,24 +127,24 @@ if(key==="btnClass2"){
 key="rightIcon2";
 }
 }
-_9.prototype.set.apply(this,[key,_1f]);
+_9.prototype.set.apply(this,[key,_20]);
 }});
 _2.extend(_11,{getValue:function(){
 return this.get("values");
-},setValue:function(_20){
-return this.set("values",_20);
+},setValue:function(_21){
+return this.set("values",_21);
 }});
 _2.extend(_12,{getValue:function(){
 return this.get("value");
 },getKey:function(){
 return this.get("key");
-},setValue:function(_21){
-return this.set("value",_21);
+},setValue:function(_22){
+return this.set("value",_22);
 }});
 _2.mixin(_b,{createDomButton:function(){
 return _e.createDomButton.apply(this,arguments);
 }});
-var _22=[],i,j;
+var _23=[],i,j;
 var s=_3.doc.styleSheets;
 for(i=0;i<s.length;i++){
 if(s[i].href){
@@ -156,32 +156,32 @@ continue;
 }
 for(j=0;j<r.length;j++){
 if(r[j].href){
-_22.push(r[j].href);
+_23.push(r[j].href);
 }
 }
 }
-var _23=_3.doc.getElementsByTagName("link");
+var _24=_3.doc.getElementsByTagName("link");
+for(i=0;i<_24.length;i++){
+_23.push(_24[i].href);
+}
 for(i=0;i<_23.length;i++){
-_22.push(_23[i].href);
-}
-for(i=0;i<_22.length;i++){
-if(_22[i].indexOf("/iphone/")!==-1){
+if(_23[i].indexOf("/iphone/")!==-1){
 _17="iphone";
 }else{
-if(_22[i].indexOf("/android/")!==-1){
+if(_23[i].indexOf("/android/")!==-1){
 _17="android";
 }else{
-if(_22[i].indexOf("/blackberry/")!==-1){
+if(_23[i].indexOf("/blackberry/")!==-1){
 _17="blackberry";
 }else{
-if(_22[i].indexOf("/custom/")!==-1){
+if(_23[i].indexOf("/custom/")!==-1){
 _17="custom";
 }
 }
 }
 }
 _4.add(_3.doc.documentElement,_17+"_theme");
-if(_22[i].match(/themes\/common\/(FixedSplitter.css)|themes\/common\/(SpinWheel.css)/)){
+if(_23[i].match(/themes\/common\/(FixedSplitter.css)|themes\/common\/(SpinWheel.css)/)){
 }
 }
 _7(function(){

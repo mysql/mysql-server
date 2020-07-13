@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,17 @@ const std::string failed_login_attempts("failed_login_attempts");
 
 /** underkeys of password locking */
 const std::string password_lock_time_days("password_lock_time_days");
+
+/** metadata tag */
+const std::string json_metadata_tag("metadata");
+
+/** comment tag */
+const std::string json_comment_tag("comment");
+
 }  // namespace consts
+
+bool replace_user_metadata(THD *thd, const std::string &json_blob,
+                           bool expect_text, TABLE *user_table);
 
 namespace acl_table {
 
@@ -113,7 +123,9 @@ static std::map<const User_attribute_type, const std::string>
     attribute_type_to_str = {
         {User_attribute_type::ADDITIONAL_PASSWORD, consts::additional_password},
         {User_attribute_type::RESTRICTIONS, consts::Restrictions},
-        {User_attribute_type::PASSWORD_LOCKING, consts::Password_locking}};
+        {User_attribute_type::PASSWORD_LOCKING, consts::Password_locking},
+        {User_attribute_type::METADATA, consts::json_metadata_tag},
+        {User_attribute_type::COMMENT, consts::json_comment_tag}};
 
 namespace {
 /**
@@ -198,6 +210,14 @@ class Acl_user_attributes {
     m_password_lock = password_lock;
   }
 
+  /**
+    Take over ownership of the json pointer.
+    @return Error state
+      @retval true An error occurred
+      @retval false Success
+  */
+  bool consume_user_attributes_json(Json_dom_ptr json);
+
  private:
   void report_and_remove_invalid_db_restrictions(
       DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
@@ -219,6 +239,8 @@ class Acl_user_attributes {
   ulong m_global_privs;
   /** password locking */
   Password_lock m_password_lock;
+  /** Save the original json object */
+  Json_dom_ptr m_user_attributes_json;
 };
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
@@ -230,7 +252,8 @@ Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
       m_additional_password(),
       m_restrictions(mem_root),
       m_global_privs(global_privs),
-      m_password_lock() {}
+      m_password_lock(),
+      m_user_attributes_json(nullptr) {}
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          bool read_restrictions,
@@ -241,6 +264,25 @@ Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
 }
 
 Acl_user_attributes::~Acl_user_attributes() { m_restrictions.clear_db(); }
+
+bool Acl_user_attributes::consume_user_attributes_json(Json_dom_ptr json) {
+  if (!json || json->json_type() != enum_json_type::J_OBJECT) {
+    json = create_dom_ptr<Json_object>();
+    if (!json) return true;
+  }
+  Json_object *ob = down_cast<Json_object *>(json.get());
+  Json_dom *metadata =
+      ob->get(attribute_type_to_str[User_attribute_type::METADATA]);
+  if (metadata) {
+    Json_object *metadata_ob = down_cast<Json_object *>(metadata);
+    m_user_attributes_json = create_dom_ptr<Json_object>();
+    Json_object *user_attributes_ob =
+        down_cast<Json_object *>(m_user_attributes_json.get());
+    user_attributes_ob->add_clone(
+        attribute_type_to_str[User_attribute_type::METADATA], metadata_ob);
+  }
+  return false;
+}
 
 void Acl_user_attributes::report_and_remove_invalid_db_restrictions(
     DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
@@ -338,7 +380,7 @@ bool Acl_user_attributes::deserialize(const Json_object &json_object) {
     }
   }
 
-  /* In case of writes, DB restrictions are always overwritten */
+  /* In cse of writes, DB restrictions are always overwritten */
   if (m_read_restrictions) {
     DB_restrictions db_restrictions(nullptr);
     if (db_restrictions.add(json_object)) return true;
@@ -362,6 +404,10 @@ bool Acl_user_attributes::serialize(Json_object &json_object) const {
             attribute_type_to_str[User_attribute_type::ADDITIONAL_PASSWORD],
             &additional_password))
       return true;
+  } else if (m_user_attributes_json) {
+    Json_object *obj = down_cast<Json_object *>(m_user_attributes_json.get());
+    obj->remove(
+        attribute_type_to_str[User_attribute_type::ADDITIONAL_PASSWORD]);
   }
 
   if (m_restrictions.db().is_not_empty()) {
@@ -371,6 +417,9 @@ bool Acl_user_attributes::serialize(Json_object &json_object) const {
             attribute_type_to_str[User_attribute_type::RESTRICTIONS],
             &restrictions_array))
       return true;
+  } else if (m_user_attributes_json) {
+    Json_object *obj = down_cast<Json_object *>(m_user_attributes_json.get());
+    obj->remove(attribute_type_to_str[User_attribute_type::RESTRICTIONS]);
   }
 
   if (m_password_lock.password_lock_time_days ||
@@ -385,6 +434,15 @@ bool Acl_user_attributes::serialize(Json_object &json_object) const {
     json_object.add_clone(
         attribute_type_to_str[User_attribute_type::PASSWORD_LOCKING],
         &password_lock);
+  } else if (m_user_attributes_json) {
+    Json_object *obj = down_cast<Json_object *>(m_user_attributes_json.get());
+    obj->remove(attribute_type_to_str[User_attribute_type::PASSWORD_LOCKING]);
+  }
+
+  if (m_user_attributes_json) {
+    Json_dom_ptr copy_attributes = m_user_attributes_json->clone();
+    Json_object_ptr tmp(down_cast<Json_object *>(copy_attributes.release()));
+    json_object.merge_patch(std::move(tmp));
   }
 
   return false;
@@ -440,12 +498,11 @@ bool parse_user_attributes(THD *thd, TABLE *table,
              table->field[table_schema->user_attributes_idx()])
              ->val_json(&json_wrapper)))
       return true;
-
-    Json_dom *json_dom = json_wrapper.to_dom(thd);
-    if (!json_dom || json_dom->json_type() != enum_json_type::J_OBJECT)
+    if (user_attributes.consume_user_attributes_json(
+            json_wrapper.clone_dom(thd)))
       return true;
-
-    const Json_object *json_object = down_cast<const Json_object *>(json_dom);
+    const Json_object *json_object =
+        down_cast<const Json_object *>(json_wrapper.to_dom(thd));
     if (user_attributes.deserialize(*json_object)) return true;
   }
   return false;
@@ -478,8 +535,9 @@ Acl_table_user_writer_status::Acl_table_user_writer_status(MEM_ROOT *mem_root)
 Acl_table_user_writer::Acl_table_user_writer(
     THD *thd, TABLE *table, LEX_USER *combo, ulong rights, bool revoke_grant,
     bool can_create_user, Pod_user_what_to_update what_to_update,
-    Restrictions *restrictions)
+    Restrictions *restrictions = nullptr)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_INSERT),
+      m_has_user_application_user_metadata(false),
       m_combo(combo),
       m_rights(rights),
       m_revoke_grant(revoke_grant),
@@ -546,7 +604,8 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
       update_user_attributes(current_password, return_value) ||
       update_user_resources() || update_password_expiry() ||
       update_password_history() || update_password_reuse() ||
-      update_password_require_current() || update_account_locking()) {
+      update_password_require_current() || update_account_locking() ||
+      update_user_application_user_metadata()) {
     return err_return_value;
   }
 
@@ -1233,17 +1292,12 @@ bool Acl_table_user_writer::update_user_attributes(
       {
         Json_object out_json_object;
         user_attributes.serialize(out_json_object);
-        if (out_json_object.cardinality()) {
-          Json_wrapper json_wrapper(&out_json_object);
-          json_wrapper.set_alias();
-          Field_json *json_field = down_cast<Field_json *>(
-              m_table->field[m_table_schema->user_attributes_idx()]);
-          if (json_field->store_json(&json_wrapper) != TYPE_OK) return true;
-          m_table->field[m_table_schema->user_attributes_idx()]->set_notnull();
-        } else {
-          /* Remove the object because it's not needed anymore. */
-          m_table->field[m_table_schema->user_attributes_idx()]->set_null();
-        }
+        Json_wrapper json_wrapper(&out_json_object);
+        json_wrapper.set_alias();
+        Field_json *json_field = down_cast<Field_json *>(
+            m_table->field[m_table_schema->user_attributes_idx()]);
+        if (json_field->store_json(&json_wrapper) != TYPE_OK) return true;
+        m_table->field[m_table_schema->user_attributes_idx()]->set_notnull();
       }
       return_value.restrictions = user_attributes.get_restrictions();
     } else {
@@ -1255,6 +1309,27 @@ bool Acl_table_user_writer::update_user_attributes(
       m_table->field[m_table_schema->user_attributes_idx()]->set_null();
     }
   }
+  return false;
+}
+
+/**
+  Send the function for updating the user metadata JSON code
+  to the table processor.
+  @param update The function expression used for updating the JSON
+
+*/
+void Acl_table_user_writer::replace_user_application_user_metadata(
+    std::function<bool(TABLE *table)> const &update) {
+  m_user_application_user_metadata = update;
+  m_has_user_application_user_metadata = true;
+}
+
+/**
+  Helper function for updating the user metadata JSON
+*/
+bool Acl_table_user_writer::update_user_application_user_metadata() {
+  if (m_has_user_application_user_metadata)
+    return m_user_application_user_metadata(m_table);
   return false;
 }
 
@@ -1848,8 +1923,7 @@ void Acl_table_user_reader::read_password_require_current(ACL_USER &user) {
 bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
   /* Read user_attributes field */
   if (m_table->s->fields > m_table_schema->user_attributes_idx()) {
-    Auth_id auth_id(user.user ? user.user : "",
-                    user.user ? strlen(user.user) : 0,
+    Auth_id auth_id(user.user ? user.user : "", user.get_username_length(),
                     user.host.get_host() ? user.host.get_host() : "",
                     user.host.get_host() ? strlen(user.host.get_host()) : 0);
     Acl_user_attributes user_attributes(&m_mem_root, true, auth_id,
@@ -2090,6 +2164,25 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
   acl_table::Acl_table_user_writer user_table(thd, table, combo, rights,
                                               revoke_grant, can_create_user,
                                               what_to_update, restrictions);
+  LEX *lex = thd->lex;
+  if (lex->alter_user_attribute !=
+      enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
+    std::string json_blob;
+    json_blob.append(lex->alter_user_comment_text.str,
+                     lex->alter_user_comment_text.length);
+
+    user_table.replace_user_application_user_metadata([=](TABLE *table_inner) {
+      if (replace_user_metadata(thd, json_blob,
+                                lex->alter_user_attribute ==
+                                    enum_alter_user_attribute::
+                                        ALTER_USER_COMMENT /* expect text */,
+                                table_inner)) {
+        return true;  // An error occurred and DA was set.
+                      // Stop transaction.
+      }
+      return false;
+    });
+  }
   acl_table::Acl_table_user_writer_status return_value(thd->mem_root);
 
   DBUG_TRACE;
@@ -2102,7 +2195,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                            acl_table::Acl_table_operation::OP_UPDATE);
     bool builtin_plugin = auth_plugin_is_built_in(combo->plugin.str);
     bool update_password = (what_to_update.m_what & PLUGIN_ATTR);
-    LEX *lex = thd->lex;
+
     /*
       Convert the time when the password was changed from timeval
       structure to MYSQL_TIME format, to store it in cache.
@@ -2116,7 +2209,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
     else
       password_change_time.time_type = MYSQL_TIMESTAMP_ERROR;
     clear_and_init_db_cache(); /* Clear privilege cache */
-    if (old_row_exists)
+    if (old_row_exists) {
       acl_update_user(combo->user.str, combo->host.str, lex->ssl_type,
                       lex->ssl_cipher, lex->x509_issuer, lex->x509_subject,
                       &lex->mqh, return_value.updated_rights, combo->plugin,
@@ -2125,7 +2218,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                       return_value.restrictions, what_to_update,
                       return_value.password_lock.failed_login_attempts,
                       return_value.password_lock.password_lock_time_days);
-    else
+    } else
       acl_insert_user(thd, combo->user.str, combo->host.str, lex->ssl_type,
                       lex->ssl_cipher, lex->x509_issuer, lex->x509_subject,
                       &lex->mqh, return_value.updated_rights, combo->plugin,
@@ -2141,17 +2234,203 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
   Read data from user table and fill in-memory caches
 
   @param [in] thd       THD handle
-  @param [in] m_table   mysql.user table handle
+  @param [in] table   mysql.user table handle
 
   @returns status of reading data from table
     @retval true  Error reading data. Don't trust it.
     @retval false All well.
 */
-bool read_user_table(THD *thd, TABLE *m_table) {
-  acl_table::Acl_table_user_reader acl_table_user_reader(thd, m_table);
+bool read_user_table(THD *thd, TABLE *table) {
+  acl_table::Acl_table_user_reader acl_table_user_reader(thd, table);
   DBUG_TRACE;
 
   if (acl_table_user_reader.driver()) return true;
 
+  return false;
+}
+
+/**
+   Replace or merge the user attributes of a given user. This function is called
+   from Acl_table_user_writer::driver() but initialized in replace_user_table
+   through a lambda expression. It's assumed that the user table has been
+   opened and the matching row for the target user is in record[0]
+
+   @param thd The thread context
+   @param json_blob Either a plain text comment or a JSON object depending on
+   @param expect_text if expect_text is true then json_blob is plain text
+   @param user_table A cursor to the open mysql.user table.
+
+   @note In case of failure this function sets the DA
+
+   @return false if the operation succeeded
+    @retval false success
+    @retval true failure
+*/
+bool replace_user_metadata(THD *thd, const std::string &json_blob,
+                           bool expect_text, TABLE *user_table) {
+  DBUG_ASSERT(!thd->is_error());
+  Json_dom_ptr json_dom;
+  Json_wrapper json_wrapper;
+  if (user_table->field[MYSQL_USER_FIELD_USER_ATTRIBUTES]->type() !=
+      MYSQL_TYPE_JSON) {
+    my_error(ER_INVALID_USER_ATTRIBUTE_JSON, MYF(0));
+    return true;
+  }
+
+  if (user_table->field[MYSQL_USER_FIELD_USER_ATTRIBUTES]->is_null()) {
+    // If the field is a NULL value we create an empty json object.
+    json_dom =
+        create_dom_ptr<Json_object>();  // smart pointer will clean itself up.
+  } else {
+    // Get the current content of the field and varify that it's a valid JSON
+    // object.
+    if ((down_cast<Field_json *>(
+             user_table->field[MYSQL_USER_FIELD_USER_ATTRIBUTES])
+             ->val_json(&json_wrapper))) {
+      // DA is already set
+      return true;
+    }
+    if (json_wrapper.type() != enum_json_type::J_OBJECT) {
+      // If it's not a valid JSON object the field is corrupt and we stop here.
+      my_error(ER_INVALID_USER_ATTRIBUTE_JSON, MYF(0));
+      return true;
+    }
+    json_dom = json_wrapper.clone_dom(thd);
+  }  // end else
+  Json_object *json_ob = down_cast<Json_object *>(json_dom.get());
+  Json_dom *metadata_dom =
+      json_ob->get(acl_table::attribute_type_to_str
+                       [acl_table::User_attribute_type::METADATA]);
+  if (!metadata_dom || metadata_dom->json_type() != enum_json_type::J_OBJECT) {
+    json_ob->add_alias(acl_table::attribute_type_to_str
+                           [acl_table::User_attribute_type::METADATA],
+                       new (std::nothrow) Json_object());
+    metadata_dom = json_ob->get(acl_table::attribute_type_to_str
+                                    [acl_table::User_attribute_type::METADATA]);
+  }
+  Json_object *metadata = down_cast<Json_object *>(metadata_dom);
+  Field_json *json_field = down_cast<Field_json *>(
+      user_table->field[MYSQL_USER_FIELD_USER_ATTRIBUTES]);
+  if (expect_text) {
+    // ALTER USER x COMMENT y
+    metadata->remove(acl_table::attribute_type_to_str
+                         [acl_table::User_attribute_type::COMMENT]);
+    metadata->add_alias(acl_table::attribute_type_to_str
+                            [acl_table::User_attribute_type::COMMENT],
+                        new (std::nothrow) Json_string(json_blob));
+  } else {
+    // ALTER USER x ATTRIBUTE y
+    const char *errmsg;
+    size_t offset;
+    auto metadata_patch = Json_dom::parse(json_blob.c_str(), json_blob.length(),
+                                          &errmsg, &offset);
+    if (metadata_patch == nullptr ||
+        metadata_patch->json_type() != enum_json_type::J_OBJECT) {
+      my_error(ER_INVALID_USER_ATTRIBUTE_JSON, MYF(0));
+      return true;
+    }
+    Json_object_ptr patch_obj(
+        down_cast<Json_object *>(metadata_patch.release()));
+    if (metadata->cardinality() == 0)
+      metadata->consume(std::move(patch_obj));
+    else
+      metadata->merge_patch(std::move(patch_obj));
+  }
+  Json_wrapper jw(json_dom.get(), true);  // alias == don't take ownership
+  json_field->set_notnull();
+  if (json_field->store_json(&jw) != TYPE_OK) {
+    my_error(ER_INVALID_USER_ATTRIBUTE_JSON, MYF(0));
+    return true;
+  }
+
+  return false;
+}
+
+/**
+  Helper function which heals with how JSON quoting rules change depending
+  on the NO_BACKSLAH_ESCAPES sql mode.
+  @param str The string which needs quoting
+
+  @sa read_user_application_user_metadata_from_table
+
+*/
+void double_the_backslash(String *str) {
+  String escaped;
+  str->print(&escaped);
+  str->takeover(escaped);
+}
+
+/**
+Helper function for recreating the CREATE USER statement when an SHOW CREATE
+USER statement is issued.
+
+@param user The user name from which to read the metadata
+@param host The host name part of the user from which to read the metadata
+@param [out] metadata_str A buffer of text which will contain the CREATE USER
+.. ATTRIBUTE data. If the JSON object is null the metadata_str will be empty.
+@param table An open TABLE handle to the mysql.user table.
+@param mode_no_backslash_escapes The SQL_MODE determines how JSON is quoted
+
+@sa mysql_show_create_user
+
+@returns error state
+@retval false Success
+@retval true An error occurred and DA was set.
+*/
+bool read_user_application_user_metadata_from_table(
+    const LEX_CSTRING user, const LEX_CSTRING host, String *metadata_str,
+    TABLE *table, bool mode_no_backslash_escapes) {
+  MEM_ROOT tmp_mem;
+  char null_token[5] = {'n', 'u', 'l', 'l', '\0'};
+  uchar user_key[MAX_KEY_LENGTH];
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
+  if (table->file->ha_index_init(0, false)) {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    return true;
+  }
+  table->use_all_columns();
+  table->field[MYSQL_USER_FIELD_HOST]->store(host.str, host.length,
+                                             system_charset_info);
+  table->field[MYSQL_USER_FIELD_USER]->store(user.str, user.length,
+                                             system_charset_info);
+  key_copy(user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY, HA_READ_KEY_EXACT)) {
+    table->file->ha_index_end();
+    return false;  // technically we fail, but result should be an empty out
+                   // string
+  }
+  char *attributes_field =
+      get_field(&tmp_mem, table->field[MYSQL_USER_FIELD_USER_ATTRIBUTES]);
+  /*
+    If the attribute field is empty we return empty string. An alternative is to
+    return an empty JSON object, but we don't want to show the ATTRIBUTE field
+    at all if there's no attribute.
+  */
+  if (strcmp(attributes_field, null_token) == 0 ||
+      attributes_field == nullptr) {
+    table->file->ha_index_end();
+    return false;
+  }
+  const char *errmsg;
+  size_t offset;
+  auto attributes_dom = Json_dom::parse(
+      attributes_field, strlen(attributes_field), &errmsg, &offset);
+  table->file->ha_index_end();
+  if (attributes_dom == nullptr ||
+      attributes_dom->json_type() != enum_json_type::J_OBJECT) {
+    my_error(ER_INVALID_USER_ATTRIBUTE_JSON, MYF(0));
+    return true;  // fail and DA is set
+  }
+  Json_object *json_ob = down_cast<Json_object *>(attributes_dom.get());
+  Json_dom *metadata_dom =
+      json_ob->get(acl_table::attribute_type_to_str
+                       [acl_table::User_attribute_type::METADATA]);
+  if (metadata_dom == nullptr) return false;  // success but out string is empty
+  Json_wrapper wr(metadata_dom, true);
+  wr.to_string(metadata_str, true, __FUNCTION__);
+  if (!mode_no_backslash_escapes) double_the_backslash(metadata_str);
   return false;
 }

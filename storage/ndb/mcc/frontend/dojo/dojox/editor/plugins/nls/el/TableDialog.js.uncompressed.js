@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Προσθήκη στήλης πριν",
 	insertTableColumnAfterLabel: "Προσθήκη στήλης μετά",
 	deleteTableRowLabel: "Διαγραφή γραμμής",
-	deleteTableColumnLabel: "Διαγραφή στήλης"
+	deleteTableColumnLabel: "Διαγραφή στήλης",
+	colorTableCellTitle: "Χρώμα φόντου",
+	tableContextMenuTitle: "Μενού περιβάλλοντος πίνακα"
 })
 );

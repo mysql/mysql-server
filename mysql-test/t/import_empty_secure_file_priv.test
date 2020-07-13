@@ -60,5 +60,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 --echo # Clean SDI files in \$EXPORT_DIR
 --remove_files_wildcard $EXPORT_DIR t1*
+--remove_files_wildcard $MYSQLD_DATADIR/test/ t1*
 --echo # Remove \$EXPORT_DIR
 --force-rmdir $EXPORT_DIR

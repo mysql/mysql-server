@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,33 +20,37 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
+# MYSQL_ADD_PLUGIN(plugin sources... options/keywords...)
 
-GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
+MACRO(MYSQL_ADD_PLUGIN plugin_arg)
+  SET(PLUGIN_OPTIONS
+    CLIENT_ONLY
+    DEFAULT         # builtin as static by default
+    MANDATORY       # not actually a plugin, always builtin
+    MODULE_ONLY     # build only as shared library
+    SKIP_INSTALL
+    STATIC_ONLY
+    STORAGE_ENGINE
+    TEST_ONLY
+    )
+  SET(PLUGIN_ONE_VALUE_KW
+    MODULE_OUTPUT_NAME
+    )
+  SET(PLUGIN_MULTI_VALUE_KW
+    DEPENDENCIES   # target1 ... targetN
+    LINK_LIBRARIES # lib1 ... libN
+    )
 
-# MYSQL_ADD_PLUGIN(plugin_name source1...sourceN
-# [STORAGE_ENGINE]
-# [MANDATORY|DEFAULT]
-# [STATIC_ONLY|MODULE_ONLY]
-# [MODULE_OUTPUT_NAME module_name]
-# [STATIC_OUTPUT_NAME static_name]
-# [LINK_LIBRARIES lib1...libN]
-# [DEPENDENCIES target1...targetN]
-
-# MANDATORY   : not actually a plugin, always builtin
-# DEFAULT     : builtin as static by default
-# MODULE_ONLY : build only as shared library
-
-MACRO(MYSQL_ADD_PLUGIN)
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;CLIENT_ONLY;MANDATORY;DEFAULT;TEST_ONLY;SKIP_INSTALL"
+  CMAKE_PARSE_ARGUMENTS(ARG
+    "${PLUGIN_OPTIONS}"
+    "${PLUGIN_ONE_VALUE_KW}"
+    "${PLUGIN_MULTI_VALUE_KW}"
     ${ARGN}
-  )
-  
-  LIST(GET ARG_DEFAULT_ARGS 0 plugin) 
-  SET(SOURCES ${ARG_DEFAULT_ARGS})
-  LIST(REMOVE_AT SOURCES 0)
+    )
+
+  SET(plugin ${plugin_arg})
+  SET(SOURCES ${ARG_UNPARSED_ARGUMENTS})
+
   STRING(TOUPPER ${plugin} plugin)
   STRING(TOLOWER ${plugin} target)
   
@@ -121,11 +125,6 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
     
-    IF(ARG_STATIC_OUTPUT_NAME)
-      SET_TARGET_PROPERTIES(${target} PROPERTIES 
-      OUTPUT_NAME ${ARG_STATIC_OUTPUT_NAME})
-    ENDIF()
-
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
@@ -219,14 +218,27 @@ MACRO(MYSQL_ADD_PLUGIN)
       SET(INSTALL_COMPONENT Server)
       IF(ARG_TEST_ONLY)
         SET(INSTALL_COMPONENT Test)
+      ELSEIF(ARG_CLIENT_ONLY)
+        SET(INSTALL_COMPONENT Client)
       ENDIF()
+
       ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
-      MYSQL_INSTALL_TARGETS(${target}
+
+      MYSQL_INSTALL_TARGET(${target}
         DESTINATION ${INSTALL_PLUGINDIR}
         COMPONENT ${INSTALL_COMPONENT})
-      INSTALL_DEBUG_TARGET(${target}
-        DESTINATION ${INSTALL_PLUGINDIR}/debug
-        COMPONENT ${INSTALL_COMPONENT})
+
+      # For testing purposes, we need
+      # <...>/lib/plugin/debug/authentication_ldap_sasl_client.so
+      IF(ARG_CLIENT_ONLY)
+        INSTALL_DEBUG_TARGET(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug
+          COMPONENT Test)
+      ELSE()
+        INSTALL_DEBUG_TARGET(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug
+          COMPONENT ${INSTALL_COMPONENT})
+      ENDIF()
     ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1182,6 +1182,7 @@ protected:
    *
    */
   void refresh_watch_dog(Uint32 place = 1);
+  volatile Uint32* get_watch_dog();
   void update_watch_dog_timer(Uint32 interval);
 
   /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,44 +62,39 @@ class Protocol_callback final : public Protocol {
   /**
     Forces read of packet from the connection
 
-    @return
-      bytes read
-      -1 failure
+    @return bytes read
+    @retval -1 failure
   */
   int read_packet() override;
 
   /**
     Reads from the line and parses the data into union COM_DATA
 
-    @return
-      bytes read
-      -1 failure
+    @return bytes read
+    @retval -1 failure
   */
   int get_command(COM_DATA *com_data, enum_server_command *cmd) override;
 
   /**
     Returns the type of the protocol
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   enum enum_protocol_type type() const override { return PROTOCOL_PLUGIN; }
 
   /**
     Returns the type of the connection
 
-    @return
-      enum enum_vio_type
+    @return enum enum_vio_type
   */
   enum enum_vio_type connection_type() const override;
 
   /**
     Sends null value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_null() override;
 
@@ -108,9 +103,8 @@ class Protocol_callback final : public Protocol {
 
     @param from value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_tiny(longlong from, uint32) override;
 
@@ -119,9 +113,8 @@ class Protocol_callback final : public Protocol {
 
     @param from value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_short(longlong from, uint32) override;
 
@@ -130,9 +123,8 @@ class Protocol_callback final : public Protocol {
 
     @param from value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_long(longlong from, uint32) override;
 
@@ -142,9 +134,8 @@ class Protocol_callback final : public Protocol {
     @param from         value
     @param is_unsigned  from is unsigned
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_longlong(longlong from, bool is_unsigned, uint32) override;
 
@@ -153,18 +144,16 @@ class Protocol_callback final : public Protocol {
 
     @param d    value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_decimal(const my_decimal *d, uint, uint) override;
 
   /**
     Sends string (CHAR/VARCHAR/TEXT/BLOB) value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_string(const char *from, size_t length,
                     const CHARSET_INFO *fromcs) override;
@@ -173,11 +162,11 @@ class Protocol_callback final : public Protocol {
     Sends FLOAT value
 
     @param from      value
-    @param decimals
+    @param decimals  number of digits to use after decimal point, unless it is
+    DECIMAL_NOT_SPECIFIED
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_float(float from, uint32 decimals, uint32) override;
 
@@ -185,11 +174,11 @@ class Protocol_callback final : public Protocol {
     Sends DOUBLE value
 
     @param from      value
-    @param decimals
+    @param decimals  number of digits to use after decimal point, unless it is
+    DECIMAL_NOT_SPECIFIED
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_double(double from, uint32 decimals, uint32) override;
 
@@ -197,11 +186,10 @@ class Protocol_callback final : public Protocol {
     Sends DATETIME value
 
     @param time      value
-    @param precision
+    @param precision fractional seconds precision. 0 ... DATETIME_MAX_DECIMALS
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_datetime(const MYSQL_TIME &time, uint precision) override;
 
@@ -210,9 +198,8 @@ class Protocol_callback final : public Protocol {
 
     @param time      value
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_date(const MYSQL_TIME &time) override;
 
@@ -220,22 +207,20 @@ class Protocol_callback final : public Protocol {
     Sends TIME value
 
     @param time      value
-    @param precision
+    @param precision fractional seconds precision. 0 ... DATETIME_MAX_DECIMALS
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_time(const MYSQL_TIME &time, uint precision) override;
 
   /**
     Sends Field
 
-    @param field
+    @param field the field to be sent through the protocol
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool store_field(const Field *field) override;
 
@@ -249,9 +234,8 @@ class Protocol_callback final : public Protocol {
 
     @param capability the capability
 
-    @return
-      true   supports
-      false  does not support
+    @retval true   supports
+    @retval false  does not support
   */
   bool has_client_capability(unsigned long capability) override;
 
@@ -284,9 +268,8 @@ class Protocol_callback final : public Protocol {
     @param server_shutdown  Whether this is a normal connection shutdown (false)
                             or a server shutdown (true).
 
-    @return
-    0   success
-    !0  failure
+    @retval 0   success
+    @retval !0  failure
   */
   int shutdown(bool server_shutdown = false) override;
 
@@ -294,8 +277,7 @@ class Protocol_callback final : public Protocol {
     This function always returns true as in many places in the server this
     is a prerequisite for continuing operations.
 
-    @return
-      true   alive
+    @retval true   alive
   */
   bool connection_alive() const override;
 
@@ -309,25 +291,22 @@ class Protocol_callback final : public Protocol {
   /**
     Checks if compression is enabled
 
-    @return
-      true  enabled
-      false disabled
+    @retval true  enabled
+    @retval false disabled
   */
   bool get_compression() override;
 
   /**
     Checks if compression is enabled and return compression method name
 
-    @return
-      algorithm name if compression is supported else null
+    @return algorithm name if compression is supported else null
   */
   char *get_compression_algorithm() override;
 
   /**
    Checks if compression is enabled and return compression level.
 
-    @return
-      compression level if compression is supported else 0
+    @return compression level if compression is supported else 0
   */
   uint get_compression_level() override;
 
@@ -335,13 +314,14 @@ class Protocol_callback final : public Protocol {
     Called BEFORE sending metadata
 
     @param num_cols Number of columns in the result set
-    @param flags
+    @param flags    flags to be used to alter the way the messages are sent to
+    the client, see Protocol class for SEND_NUM_ROWS, SEND_DEFAULTS,
+    SEND_EOF
     @param resultcs The character set of the results. Can be different from the
                     one in the field metadata.
 
-    @return
-      true  failure
-     false success
+    @retval true  failure
+    @retval false success
   */
   bool start_result_metadata(uint num_cols, uint flags,
                              const CHARSET_INFO *resultcs) override;
@@ -352,18 +332,16 @@ class Protocol_callback final : public Protocol {
     @param field  Field's metadata
     @param cs     Charset
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
   bool send_field_metadata(Send_field *field, const CHARSET_INFO *cs) override;
 
   /**
     Called AFTER sending metadata
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
   bool end_result_metadata() override;
 
@@ -377,9 +355,8 @@ class Protocol_callback final : public Protocol {
                            column
     @param message         Textual message from the execution. May be NULL.
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
   bool send_ok(uint server_status, uint warn_count, ulonglong affected_rows,
                ulonglong last_insert_id, const char *message) override;
@@ -394,9 +371,8 @@ class Protocol_callback final : public Protocol {
     @param warn_count    The warning count generated by the execution of the
                          statement.
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
   bool send_eof(uint server_status, uint warn_count) override;
 
@@ -407,9 +383,8 @@ class Protocol_callback final : public Protocol {
     @param err_msg    The error message
     @param sql_state  The SQL state - 5 char string
 
-    @return
-      true  failure
-      false success
+    @retval true  failure
+    @retval false success
   */
   bool send_error(uint sql_errno, const char *err_msg,
                   const char *sql_state) override;
@@ -436,9 +411,8 @@ class Protocol_callback final : public Protocol {
 
     @param parameters  List of PS/SP parameters (both input and output).
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool set_variables_from_parameters(List<Item_param> *parameters);
 

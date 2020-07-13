@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,11 +42,6 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::ConfigSection;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 using mysql_harness::logging::log_info;
 
 // Keep symbols with external linkage away from global scope so that
@@ -58,10 +53,10 @@ const int kRuns = 0;       // 0 means for ever
 
 }  // namespace
 
-static void init(PluginFuncEnv *) {}
+static void init(mysql_harness::PluginFuncEnv *) {}
 
-static void start(PluginFuncEnv *env) {
-  const ConfigSection *section = get_config_section(env);
+static void start(mysql_harness::PluginFuncEnv *env) {
+  const auto *section = get_config_section(env);
   int interval = kInterval;
   try {
     interval = std::stoi(section->get("interval"));
@@ -100,15 +95,13 @@ static void start(PluginFuncEnv *env) {
 #endif
 
 extern "C" {
-Plugin DLLEXPORT harness_plugin_keepalive = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "Keepalive Plugin",
-    VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,
-    0,
-    nullptr,  // conflicts
+mysql_harness::Plugin DLLEXPORT harness_plugin_keepalive = {
+    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "Keepalive Plugin", VERSION_NUMBER(0, 0, 1),
+    // requires
+    0, nullptr,
+    // conflicts
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start

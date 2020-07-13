@@ -256,7 +256,7 @@ GMail, etc.) or Eric (Saugus.net, ShellTown, etc.)
 				</xsl:choose>
 			</xsl:when>
 			<xsl:when test="starts-with($transforms,'rotate')">
-				<!-- Kluge alert - we're redoing a function GFX aleady provides here because -->
+				<!-- Kluge alert - we're redoing a function GFX already provides here because -->
 				<!-- GFX doesn't yet expose it to JSON input. It requires XSLT extensions, too. -->
 				<!-- If you don't have the extensions, comment the following out (bye bye rotate). -->
 				<xsl:choose>
@@ -277,7 +277,7 @@ GMail, etc.) or Eric (Saugus.net, ShellTown, etc.)
 				</xsl:choose>
 			</xsl:when>
 			<xsl:when test="starts-with($transforms,'skewX')">
-				<!-- Kluge alert - we're redoing a function GFX aleady provides here because -->
+				<!-- Kluge alert - we're redoing a function GFX already provides here because -->
 				<!-- GFX doesn't yet expose it to JSON input. It requires XSLT extensions, too. -->
 				<!-- If you don't have the extensions, comment the following out (bye bye skewX). -->
 				<xsl:choose>
@@ -296,7 +296,7 @@ GMail, etc.) or Eric (Saugus.net, ShellTown, etc.)
 				</xsl:choose>
 			</xsl:when>
 			<xsl:when test="starts-with($transforms,'skewY')">
-				<!-- Kluge alert - we're redoing a function GFX aleady provides here because -->
+				<!-- Kluge alert - we're redoing a function GFX already provides here because -->
 				<!-- GFX doesn't yet expose it to JSON input. It requires XSLT extensions, too. -->
 				<!-- If you don't have the extensions, comment the following out (bye bye skewY). -->
 				<xsl:choose>

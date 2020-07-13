@@ -1,6 +1,6 @@
 #ifndef MOCK_FIELD_LONG_INCLUDED
 #define MOCK_FIELD_LONG_INCLUDED
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,27 +33,28 @@
 class Mock_field_long : public Field_long {
  public:
   /// Creates a nullable column with the default name.
-  Mock_field_long() : Mock_field_long("field_name", true) {}
+  Mock_field_long(bool is_unsigned)
+      : Mock_field_long("field_name", true, is_unsigned) {}
 
   /**
     Creates a nullable column.
     @param name The column name.
   */
-  Mock_field_long(const char *name) : Mock_field_long(name, true) {}
+  Mock_field_long(const char *name) : Mock_field_long(name, true, false) {}
 
   /**
     Creates a nullable column.
     @param name The column name.
   */
-  Mock_field_long(const std::string &&name, bool is_nullable)
-      : Mock_field_long(name.c_str(), is_nullable) {}
+  Mock_field_long(const std::string &&name, bool is_nullable, bool is_unsigned)
+      : Mock_field_long(name.c_str(), is_nullable, is_unsigned) {}
 
   /**
     Creates a column.
     @param name The column name.
     @param is_nullable Whether it's nullable.
   */
-  Mock_field_long(const char *name, bool is_nullable)
+  Mock_field_long(const char *name, bool is_nullable, bool is_unsigned)
       : Field_long(
             nullptr,                                            // ptr_arg
             8,                                                  // len_arg
@@ -62,13 +63,13 @@ class Mock_field_long : public Field_long {
             Field::NONE,  // auto_flags_arg
             name,         // field_name_arg
             false,        // zero_arg
-            false)        // unsigned_arg
+            is_unsigned)  // unsigned_arg
   {
     initialize(name);
   }
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 
  private:
   char m_name[1024];

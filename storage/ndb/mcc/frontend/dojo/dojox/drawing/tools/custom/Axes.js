@@ -44,10 +44,10 @@ _b>this.zAxis.minimumSize?this.zAxis.setPoints(p):false;
 this.zAxis.cosphi=1;
 },createLabels:function(){
 var _c={align:"middle",valign:"middle",util:this.util,annotation:true,container:this.container,mouse:this.mouse,stencil:this};
-this.labelX=new _5(_1.mixin(_c,{labelPosition:this.setLabelX}));
-this.labelY=new _5(_1.mixin(_c,{labelPosition:this.setLabelY}));
+this.labelX=new _5.Label(_1.mixin(_c,{labelPosition:this.setLabelX}));
+this.labelY=new _5.Label(_1.mixin(_c,{labelPosition:this.setLabelY}));
 if(this.style.zAxisEnabled){
-this.labelZ=new _5(_1.mixin(_c,{labelPosition:this.setLabelZ}));
+this.labelZ=new _5.Label(_1.mixin(_c,{labelPosition:this.setLabelZ}));
 }
 },setLabelX:function(){
 var ax=this.points[0];

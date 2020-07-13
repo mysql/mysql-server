@@ -92,7 +92,10 @@ if(this._started){
 this.layout();
 }
 },addChild:function(_19,_1a){
-this.inherited(arguments);
+if(typeof _1a=="undefined"||_1a=="last"){
+_1a=this.getChildren().length;
+}
+this.inherited(arguments,[_19,_1a]);
 if(this._started){
 var _1b=this.getChildren();
 if(_1b.length>1){

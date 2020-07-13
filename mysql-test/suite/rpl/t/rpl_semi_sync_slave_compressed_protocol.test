@@ -32,7 +32,6 @@ DROP TABLE t1;
 --let $assert_select=Read semi-sync reply magic number error
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count= 0
---let $assert_only_after = CURRENT_TEST:rpl.rpl_semi_sync_slave_compressed_protocol.test
 --source include/assert_grep.inc
 
 

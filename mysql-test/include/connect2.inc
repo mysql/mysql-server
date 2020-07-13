@@ -40,7 +40,7 @@ while ($wait_counter)
     }
     if ($error)
     {
-        real_sleep 0.1;
+        sleep 0.1;
         dec $wait_counter;
     }
 }

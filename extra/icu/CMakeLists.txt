@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,11 @@ IF(HAS_WARN_FLAG)
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmaybe-uninitialized" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wimplicit-int-float-conversion" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()

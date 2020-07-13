@@ -1,8 +1,6 @@
 define("dojox/data/QueryReadStore", ["dojo", "dojox", "dojo/data/util/sorter", "dojo/string"], function(dojo, dojox) {
 
-dojo.declare("dojox.data.QueryReadStore",
-	null,
-	{
+	return dojo.declare("dojox.data.QueryReadStore", null, {
 		// summary:
 		//		This class provides a store that is mainly intended to be used
 		//		for loading data dynamically from the server, used i.e. for
@@ -511,8 +509,6 @@ dojo.declare("dojox.data.QueryReadStore",
 			//		See dojo/data/api/Identity.getIdentityAttributes()
 			return [this._identifier];
 		}
-	}
-);
+	});
 
-return dojox.data.QueryReadStore;
 });

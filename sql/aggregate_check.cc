@@ -50,6 +50,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -144,7 +145,7 @@ bool Distinct_check::check_query(THD *thd) {
       Subqueries in ORDER BY are non-standard anyway.
     */
     Item **const res =
-        find_item_in_list(thd, *order->item, select->item_list, &counter,
+        find_item_in_list(thd, *order->item, select->fields_list, &counter,
                           REPORT_EXCEPT_NOT_FOUND, &resolution);
     if (res == nullptr)  // Other error than "not found", my_error() was called
       return true;       /* purecov: inspected */
@@ -181,7 +182,7 @@ bool Group_check::check_query(THD *thd) {
   uint number_in_list = 1;
   const char *place = "SELECT list";
 
-  for (Item &sel_expr : select->item_list) {
+  for (Item &sel_expr : select->fields_list) {
     if (check_expression(thd, &sel_expr, true)) goto err;
     ++number_in_list;
   }
@@ -268,8 +269,9 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
     uint counter;
     enum_resolution_type resolution;
     // Search if this expression is equal to one in the SELECT list.
-    Item **const res = find_item_in_list(thd, expr, select->item_list, &counter,
-                                         REPORT_EXCEPT_NOT_FOUND, &resolution);
+    Item **const res =
+        find_item_in_list(thd, expr, select->fields_list, &counter,
+                          REPORT_EXCEPT_NOT_FOUND, &resolution);
     if (res == nullptr)  // Other error than "not found", my_error() was called
       return true;       /* purecov: inspected */
     if (res != not_found_item) {
@@ -277,6 +279,8 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
       return false;
     }
   }
+
+  expr = unwrap_rollup_group(expr);
 
   for (ORDER *grp = select->group_list.first; grp; grp = grp->next) {
     if ((*grp->item)->eq(expr, false))
@@ -578,7 +582,7 @@ void Group_check::find_group_in_fd(Item *item) {
    @returns the idx-th expression in the SELECT list of our query block.
 */
 Item *Group_check::select_expression(uint idx) {
-  List_iterator<Item> it_select_list_of_subq(*select->get_item_list());
+  List_iterator<Item> it_select_list_of_subq(*select->get_fields_list());
   Item *expr_under = nullptr;
   for (uint k = 0; k <= idx; k++) expr_under = it_select_list_of_subq++;
   DBUG_ASSERT(expr_under);
@@ -622,7 +626,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
   }
   // Find underlying expression of item_field, in SELECT list of mat_select
   Item *const expr_under =
-      mat_gc->select_expression(item_field->field->field_index);
+      mat_gc->select_expression(item_field->field->field_index());
 
   // non-nullability of tl's column in tl, is equal to that of expr_under.
   if (expr_under && !expr_under->maybe_null) mat_gc->non_null_in_source = true;
@@ -816,7 +820,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
           Search if the expression inside 'item' is FD on them.
         */
         Item *const expr_under =
-            mat_gc->select_expression(item_field->field->field_index);
+            mat_gc->select_expression(item_field->field->field_index());
         /*
           expr_under is the expression underlying 'item'.
           (1) and (4) it is a deterministic expression of mat_gc source

@@ -3,15 +3,18 @@ define("dojox/mobile/Rating", [
 	"dojo/_base/lang",
 	"dojo/dom-construct",
 	"dijit/_WidgetBase",
-	"./iconUtils"
-], function(declare, lang, domConstruct, WidgetBase, iconUtils){
+	"./iconUtils",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/Rating"
+], function(declare, lang, domConstruct, WidgetBase, iconUtils, has, BidiRating){
 
 	// module:
 	//		dojox/mobile/Rating
 
-	return declare("dojox.mobile.Rating", WidgetBase, {
+	
+	var Rating = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiRating" : "dojox.mobile.Rating", [WidgetBase], {
 		// summary:
-		//		A widget that shows rating with stars.
+		//		A widget that displays a rating, usually with stars.
 		// description:
 		//		This widget simply shows the specified number of stars. It is a
 		//		read-only widget, and has no editing capability.
@@ -69,9 +72,21 @@ define("dojox/mobile/Rating", [
 				var parent = domConstruct.create("div", {
 					style: {"float": "left"}
 				}, this.domNode);
+				if(!this.isLeftToRight()){
+					parent = this._setCustomTransform(parent);
+				}
 				iconUtils.createIcon(this.image,
 					"0," + left + "," + w + "," + h, null, this.alt, parent);
 			}
+		},
+		
+		_setCustomTransform: function(/*Object*/parent){
+			// summary:
+			//		To be implemented in bidi/Rating.js.
+			return parent;
 		}
 	});
+	
+	return has("dojo-bidi") ? declare("dojox.mobile.Rating", [Rating, BidiRating]) : Rating;
+
 });

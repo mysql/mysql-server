@@ -168,7 +168,7 @@ namespace info_schema {
     This bug updates LAST_EXECUTED to include time zones in
     I_S.EVENTS.
 
-  800201: Current
+  800201: Published in 8.0.20 (see above)
   ------------------------------------
   Changes from version 80020:
 
@@ -176,11 +176,23 @@ namespace info_schema {
     This bug updates the character set of columns returned from JSON_TABLE
     expressions in INFORMATION_SCHEMA views.
 
-  80021: Next IS version number after the previous is public.
+  80021: Current
+  ------------------------------------
+  Changes from version 800201:
+
+     - WL#13562 CREATE/ALTER USER COMMENT 'JSON'
+
+     - WL#13341: Store options for secondary engines.
+
+     - Bug#30766181 and Bug#30216864 updates I_S.KEY_COLUMN_USAGE and
+       I_S.TABLE_CONSTRAINTS views.
+
+
+  80022: Next IS version number after the previous is public.
   ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 800201;
+static const uint IS_DD_VERSION = 80021;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

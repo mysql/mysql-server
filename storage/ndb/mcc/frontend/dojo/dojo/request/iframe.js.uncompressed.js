@@ -11,10 +11,11 @@ define("dojo/request/iframe", [
 	'../dom',
 	'../dom-construct',
 	'../_base/window',
-	'../NodeList-dom'/*=====,
-	'../request',
-	'../_base/declare' =====*/
-], function(module, require, watch, util, handlers, lang, ioQuery, query, has, dom, domConstruct, win/*=====, NodeList, request, declare =====*/){
+	// NodeList enhancement modules;
+	// must be loaded (but no reference needed)
+	'../NodeList-dom',
+        '../NodeList-manipulate'
+], function(module, require, watch, util, handlers, lang, ioQuery, query, has, dom, domConstruct, win){
 	var mid = module.id.replace(/[\/\.\-]/g, '_'),
 		onload = mid + '_onload';
 
@@ -212,10 +213,16 @@ define("dojo/request/iframe", [
 								createInput(x, val[i]);
 							}
 						}else{
-							if(!formNode[x]){
+							// Explicitly search for nodes in the dom tree
+							// using formNode[x] may access attributes of the
+							// form node itself, e.g. formNode['action']
+							var n = query("input[name='"+x+"']", formNode);
+
+							// Not found if indexOf == -1
+							if(n.indexOf() == -1){
 								createInput(x, val);
 							}else{
-								formNode[x].value = val;
+								n.val(val);
 							}
 						}
 					}

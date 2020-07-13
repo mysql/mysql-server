@@ -11,6 +11,8 @@ define("dojox/form/DateTextBox", [
 			// summary:
 			//		A validating, serializable, range-bound date text box with a popup calendar
 
+			baseClass: "dijitTextBox dijitComboBox dojoxDateTextBox",
+
 			// popupClass: String
 			//		The popup widget to use. In this case, a calendar with Day, Month and Year views.
 			popupClass: Calendar,

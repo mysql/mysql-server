@@ -1,7 +1,6 @@
 define("dojox/dgauges/components/default/HorizontalLinearGauge", [
 		"dojo/_base/lang", 
-		"dojo/_base/declare", 
-		"dojo/_base/connect", 
+		"dojo/_base/declare",
 		"dojo/_base/Color", 
 		"../utils",
 		"../../RectangularGauge", 
@@ -11,7 +10,7 @@ define("dojox/dgauges/components/default/HorizontalLinearGauge", [
 		"../../TextIndicator",
 		"../DefaultPropertiesMixin"
 	], 
-	function(lang, declare, connect, Color, utils, RectangularGauge, LinearScaler, RectangularScale, RectangularValueIndicator, TextIndicator, DefaultPropertiesMixin){
+	function(lang, declare, Color, utils, RectangularGauge, LinearScaler, RectangularScale, RectangularValueIndicator, TextIndicator, DefaultPropertiesMixin){
 	return declare("dojox.dgauges.components.default.HorizontalLinearGauge", [RectangularGauge, DefaultPropertiesMixin], {
 		// summary:
 		//		A horizontal gauge widget.

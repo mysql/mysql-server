@@ -130,15 +130,16 @@ bool ClusterMetadata::connect_and_setup_session(
   }
 
   if (do_connect(*metadata_connection_, metadata_server)) {
-    try {
-      mysqlrouter::setup_metadata_session(*metadata_connection_);
+    const auto result =
+        mysqlrouter::setup_metadata_session(*metadata_connection_);
+    if (result) {
       log_debug("Connected with metadata server running on %s:%i",
                 metadata_server.host.c_str(), metadata_server.port);
       return true;
-    } catch (const std::exception &e) {
-      // setting up the session failed
+    } else {
       log_warning("Failed setting up the session on Metadata Server %s:%d: %s",
-                  metadata_server.host.c_str(), metadata_server.port, e.what());
+                  metadata_server.host.c_str(), metadata_server.port,
+                  result.error().c_str());
     }
   } else {
     // connection attempt failed
@@ -228,6 +229,16 @@ bool ClusterMetadata::update_router_version(
     return false;
   }
 
+  const auto result = mysqlrouter::setup_metadata_session(*connection);
+  if (!result) {
+    log_warning(
+        "Updating the router version in metadata failed: could not set up the "
+        "metadata session (%s)",
+        result.error().c_str());
+
+    return false;
+  }
+
   MySQLSession::Transaction transaction(connection.get());
   // throws metadata_cache::metadata_error and
   // MetadataUpgradeInProgressException
@@ -277,6 +288,16 @@ bool ClusterMetadata::update_router_last_check_in(
     log_warning(
         "Updating the router last_check_in in metadata failed: Could not "
         "connect to the writable cluster member");
+
+    return false;
+  }
+
+  const auto result = mysqlrouter::setup_metadata_session(*connection);
+  if (!result) {
+    log_warning(
+        "Updating the router last_check_in in metadata failed: could not set "
+        "up the metadata session (%s)",
+        result.error().c_str());
 
     return false;
   }
@@ -338,4 +359,162 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
   if (metadata_connection_)
     metadata_connection_->query(query, result_processor);
   return auth_credentials;
+}
+
+/**
+ * @brief Returns value fo the bool tag set in the attributes
+ *
+ * @param attributes    string containing JSON with the attributes
+ * @param name          name of the tag to be fetched
+ * @param default_value value to be returned if the given tag is missing or
+ * invalid or if the JSON string is invalid
+ * @param[out] out_warning  output parameter where the function sets the
+ * descriptive warning in case there was a JSON parsing error
+ *
+ * @note the function always sets out_warning to "" at the beginning
+ *
+ * @return value of the bool tag
+ */
+static bool get_bool_tag(const std::string &attributes, const std::string &name,
+                         bool default_value, std::string &out_warning) {
+  out_warning = "";
+  if (attributes.empty()) return default_value;
+
+  rapidjson::Document json_doc;
+  json_doc.Parse(attributes.c_str(), attributes.length());
+
+  if (!json_doc.IsObject()) {
+    out_warning = "not a valid JSON object";
+    return default_value;
+  }
+
+  if (!json_doc.HasMember("tags")) {
+    return default_value;
+  }
+
+  if (!json_doc["tags"].IsObject()) {
+    out_warning = "tags - not a valid JSON object";
+    return default_value;
+  }
+
+  const auto tags = json_doc["tags"].GetObject();
+
+  if (!tags.HasMember(name.c_str())) {
+    return default_value;
+  }
+
+  if (!tags[name.c_str()].IsBool()) {
+    out_warning = "tags." + name + " not a boolean";
+    return default_value;
+  }
+
+  return tags[name.c_str()].GetBool();
+}
+
+bool get_hidden(const std::string &attributes, std::string &out_warning) {
+  return get_bool_tag(attributes, metadata_cache::kNodeTagHidden,
+                      metadata_cache::kNodeTagHiddenDefault, out_warning);
+}
+
+bool get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
+                                                  std::string &out_warning) {
+  return get_bool_tag(attributes, metadata_cache::kNodeTagDisconnectWhenHidden,
+                      metadata_cache::kNodeTagDisconnectWhenHiddenDefault,
+                      out_warning);
+}
+
+// helper class - helps to log the warning about the instance only when the
+// warning condition changes
+struct LogSuppressor {
+  static LogSuppressor &instance() {
+    static LogSuppressor instance_;
+    return instance_;
+  }
+
+  std::string get_warning_hidden(const std::string &instance_uuid) const {
+    if (warnings_.count(instance_uuid) == 0) {
+      return "";
+    }
+
+    return warnings_.at(instance_uuid).warning_hidden;
+  }
+
+  void set_warning_hidden(const std::string &instance_uuid,
+                          const std::string &warning) {
+    warnings_[instance_uuid].warning_hidden = warning;
+  }
+
+  std::string get_warning_disconnect_existing_sessions_when_hidden(
+      const std::string &instance_uuid) {
+    if (warnings_.count(instance_uuid) == 0) {
+      return "";
+    }
+
+    return warnings_.at(instance_uuid)
+        .warning_disconnect_existing_sessions_when_hidden;
+  }
+
+  void set_warning_disconnect_existing_sessions_when_hidden(
+      const std::string &instance_uuid, const std::string &warning) {
+    warnings_[instance_uuid].warning_disconnect_existing_sessions_when_hidden =
+        warning;
+  }
+
+ private:
+  struct instance_warnings {
+    /* warning about the incorrect JSON for _hidden in the metadata from the
+     * last query */
+    std::string warning_hidden;
+
+    /* last warning about the incorrect JSON for
+     * _disconnect_existing_sessions_when_hidden from the last query */
+    std::string warning_disconnect_existing_sessions_when_hidden;
+  };
+
+  // the key in the map is the instance_id
+  std::map<std::string, instance_warnings> warnings_;
+
+  // singleton
+  LogSuppressor() = default;
+  LogSuppressor(const LogSuppressor &) = delete;
+  LogSuppressor &operator=(const LogSuppressor &) = delete;
+};
+
+void set_instance_attributes(metadata_cache::ManagedInstance &instance,
+                             const std::string &attributes) {
+  std::string warning;
+  auto &log_suppressor = LogSuppressor::instance();
+
+  instance.hidden = get_hidden(attributes, warning);
+  // we want to log the warning only when it's changing
+  if (warning !=
+      log_suppressor.get_warning_hidden(instance.mysql_server_uuid)) {
+    if (!warning.empty()) {
+      log_warning("Error parsing _hidden from attributes JSON string: %s",
+                  warning.c_str());
+    } else {
+      log_warning("Successfully parsed _hidden from attributes JSON string");
+    }
+    log_suppressor.set_warning_hidden(instance.mysql_server_uuid, warning);
+  }
+
+  instance.disconnect_existing_sessions_when_hidden =
+      get_disconnect_existing_sessions_when_hidden(attributes, warning);
+  // we want to log the warning only when it's changing
+  if (warning !=
+      log_suppressor.get_warning_disconnect_existing_sessions_when_hidden(
+          instance.mysql_server_uuid)) {
+    if (!warning.empty()) {
+      log_warning(
+          "Error parsing _disconnect_existing_sessions_when_hidden from "
+          "attributes JSON string: %s",
+          warning.c_str());
+    } else {
+      log_warning(
+          "Successfully parsed _disconnect_existing_sessions_when_hidden from "
+          "attributes JSON string");
+    }
+    log_suppressor.set_warning_disconnect_existing_sessions_when_hidden(
+        instance.mysql_server_uuid, warning);
+  }
 }

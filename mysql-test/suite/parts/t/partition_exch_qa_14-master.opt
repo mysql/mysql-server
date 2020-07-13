@@ -1,0 +1,1 @@
+--innodb-directories=$MYSQLTEST_VARDIR/mysql-test-data-dir

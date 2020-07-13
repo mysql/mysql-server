@@ -20,10 +20,13 @@ SELECT USER(), DATABASE();
 USE wl11381;
 CREATE TABLE t1(i INT, j VARCHAR(2048));
 INSERT INTO t1 VALUES(1,repeat('a',1000)),(2,repeat('def',600));
+--sorted_result
+--replace_column 1 count  2 big_value
 SELECT * FROM t1;
 
 --echo # case2: request a large packet
 SET GLOBAL max_allowed_packet=4*1024;
+--replace_column 1 lot_of_spaces
 SELECT SPACE(@@global.max_allowed_packet);
 SET GLOBAL max_allowed_packet=default;
 
@@ -104,7 +107,7 @@ CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 --source include/restart_mysqld.inc
 --enable_async_client
 
---echo # connect as sha256 
+--echo # connect as sha256
 connect(sha256_con1,localhost,sha256,auth_string,,,,SSL,sha256_password);
 SELECT USER();
 

@@ -1,32 +1,32 @@
 //>>built
-define("dojox/widget/Selection",["dojo/_base/declare","dojo/_base/array","dojo/_base/lang","dojo/Stateful"],function(_1,_2,_3,_4){
-return _1("dojox.widget.Selection",_4,{constructor:function(){
+define("dojox/widget/Selection",["dojo/_base/declare","dojo/_base/array","dojo/sniff","dojo/_base/lang","dojo/Stateful"],function(_1,_2,_3,_4,_5){
+return _1("dojox.widget.Selection",_5,{constructor:function(){
 this.selectedItems=[];
-},selectionMode:"single",_setSelectionModeAttr:function(_5){
-if(_5!="none"&&_5!="single"&&_5!="multiple"){
-_5="single";
+},selectionMode:"single",_setSelectionModeAttr:function(_6){
+if(_6!="none"&&_6!="single"&&_6!="multiple"){
+_6="single";
 }
-if(_5!=this.selectionMode){
-this.selectionMode=_5;
-if(_5=="none"){
+if(_6!=this.selectionMode){
+this.selectionMode=_6;
+if(_6=="none"){
 this.set("selectedItems",null);
 }else{
-if(_5=="single"){
+if(_6=="single"){
 this.set("selectedItem",this.selectedItem);
 }
 }
 }
-},selectedItem:null,_setSelectedItemAttr:function(_6){
-if(this.selectedItem!=_6){
-this._set("selectedItem",_6);
-this.set("selectedItems",_6?[_6]:null);
+},selectedItem:null,_setSelectedItemAttr:function(_7){
+if(this.selectedItem!=_7){
+this._set("selectedItem",_7);
+this.set("selectedItems",_7?[_7]:null);
 }
-},selectedItems:null,_setSelectedItemsAttr:function(_7){
-var _8=this.selectedItems;
-this.selectedItems=_7;
+},selectedItems:null,_setSelectedItemsAttr:function(_8){
+var _9=this.selectedItems;
+this.selectedItems=_8;
 this.selectedItem=null;
-if(_8!=null&&_8.length>0){
-this.updateRenderers(_8,true);
+if(_9!=null&&_9.length>0){
+this.updateRenderers(_9,true);
 }
 if(this.selectedItems&&this.selectedItems.length>0){
 this.selectedItem=this.selectedItems[0];
@@ -34,44 +34,43 @@ this.updateRenderers(this.selectedItems,true);
 }
 },_getSelectedItemsAttr:function(){
 return this.selectedItems==null?[]:this.selectedItems.concat();
-},isItemSelected:function(_9){
+},isItemSelected:function(_a){
 if(this.selectedItems==null||this.selectedItems.length==0){
 return false;
 }
-return _2.some(this.selectedItems,_3.hitch(this,function(_a){
-return this.getIdentity(_a)==this.getIdentity(_9);
+return _2.some(this.selectedItems,_4.hitch(this,function(_b){
+return this.getIdentity(_b)==this.getIdentity(_a);
 }));
-},getIdentity:function(_b){
-},setItemSelected:function(_c,_d){
-if(this.selectionMode=="none"||_c==null){
+},getIdentity:function(_c){
+},setItemSelected:function(_d,_e){
+if(this.selectionMode=="none"||_d==null){
 return;
 }
-var _e=this.get("selectedItems");
 var _f=this.get("selectedItems");
 if(this.selectionMode=="single"){
-if(_d){
-this.set("selectedItem",_c);
+if(_e){
+this.set("selectedItem",_d);
 }else{
-if(this.isItemSelected(_c)){
+if(this.isItemSelected(_d)){
 this.set("selectedItems",null);
 }
 }
 }else{
-if(_d){
-if(this.isItemSelected(_c)){
+if(_e){
+if(this.isItemSelected(_d)){
 return;
 }
-if(_e==null){
-_e=[_c];
+if(_f==null){
+_f=[_d];
 }else{
-_e.unshift(_c);
+_f.unshift(_d);
 }
-this.set("selectedItems",_e);
+this.set("selectedItems",_f);
 }else{
-var res=_2.filter(_e,function(_10){
-return _10.id!=_c.id;
+var res=_2.filter(_f,function(_10){
+return _10.id!=_d.id;
 });
-if(res==null||res.length==_e.length){
+if(res==null||res.length==_f.length){
 return;
 }
 this.set("selectedItems",res);
@@ -84,14 +83,15 @@ return false;
 var _14;
 var _15=this.get("selectedItem");
 var _16=_11?this.isItemSelected(_11):false;
+var _17=_3("mac")?e.metaKey:e.ctrlKey;
 if(_11==null){
-if(!e.ctrlKey&&this.selectedItem!=null){
+if(!_17&&this.selectedItem!=null){
 this.set("selectedItem",null);
 _14=true;
 }
 }else{
 if(this.selectionMode=="multiple"){
-if(e.ctrlKey){
+if(_17){
 this.setItemSelected(_11,!_16);
 _14=true;
 }else{
@@ -99,7 +99,7 @@ this.set("selectedItem",_11);
 _14=true;
 }
 }else{
-if(e.ctrlKey){
+if(_17){
 this.set("selectedItem",_16?null:_11);
 _14=true;
 }else{
@@ -114,8 +114,8 @@ if(_13&&_14){
 this.dispatchChange(_15,this.get("selectedItem"),_12,e);
 }
 return _14;
-},dispatchChange:function(_17,_18,_19,_1a){
-this.onChange({oldValue:_17,newValue:_18,renderer:_19,triggerEvent:_1a});
+},dispatchChange:function(_18,_19,_1a,_1b){
+this.onChange({oldValue:_18,newValue:_19,renderer:_1a,triggerEvent:_1b});
 },onChange:function(){
 }});
 });

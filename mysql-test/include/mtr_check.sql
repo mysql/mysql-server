@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,8 @@ BEGIN
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
                                 'gtid_executed', 'gtid_purged',
                                 'group_replication_group_name',
-                                'keyring_file_data')
+                                'keyring_file_data',
+                                'innodb_thread_sleep_delay')
   ORDER BY VARIABLE_NAME;
 
   -- Dump all persisted variables, those that may change.

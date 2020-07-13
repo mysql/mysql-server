@@ -10,7 +10,7 @@ define(
 	tableWidth: "عرض الجدول:",
 	backgroundColor: "لون الخلفية:",
 	borderColor: "لون الحدود:",
-	borderThickness: "سمك الحدود",
+	borderThickness: "سمك الحدود:",
 	percent: "نسبة مئوية",
 	pixels: "عنصر صورة",
 	"default": "المفترض",
@@ -19,13 +19,15 @@ define(
 	right: "لليمين",
 	buttonSet: "تحديد", // translated elsewhere?
 	buttonInsert: "‏ادراج‏",
-	buttonCancel: "الغاء",
+	buttonCancel: "الغاء الأمر",
 	selectTableLabel: "تحديد جدول",
 	insertTableRowBeforeLabel: "اضافة صف قبل",
 	insertTableRowAfterLabel: "اضافة صف بعد",
 	insertTableColumnBeforeLabel: "اضافة عمود قبل",
 	insertTableColumnAfterLabel: "اضافة عمود بعد",
 	deleteTableRowLabel: "حذف صف",
-	deleteTableColumnLabel: "حذف عمود"
+	deleteTableColumnLabel: "حذف عمود",
+	colorTableCellTitle: "لون خلفية خانة الجدول",
+	tableContextMenuTitle: "قائمة سياق الجدول"
 })
 );

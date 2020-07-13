@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "前に列を追加",
 	insertTableColumnAfterLabel: "後ろに列を追加",
 	deleteTableRowLabel: "行の削除",
-	deleteTableColumnLabel: "列の削除"
+	deleteTableColumnLabel: "列の削除",
+	colorTableCellTitle: "背景色のテーブル・セル",
+	tableContextMenuTitle: "テーブルのコンテキスト・メニュー"
 })
 );

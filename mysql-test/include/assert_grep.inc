@@ -103,7 +103,8 @@ if ($assert_match != '')
   open(FILE, "$file") or die("Error $? opening $file: $!\n");
   while (<FILE>) {
     my $line = $_;
-    if ($assert_only_after && $line =~ /$assert_only_after/) {
+    if (($line =~ /^CURRENT_TEST: /) ||
+        ($assert_only_after && $line =~ /$assert_only_after/)) {
       $result = "";
       $count = 0;
     }

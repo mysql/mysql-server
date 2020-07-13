@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <NdbOut.hpp>
 #include "atrt.hpp"
 #include "test_execution_resources.hpp"
+#include "process_management.hpp"
 
 #include <util/File.hpp>
 #include <FileLogHandler.hpp>
@@ -47,7 +48,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 7
+#define ATRT_VERSION_NUMBER 8
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -114,6 +115,27 @@ const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
                                "lib", "lib/mysql", 0};
 static bool find_scripts(const char *path);
 static bool find_config_ini_files();
+
+TestResult run_test_case(ProcessManagement& processManagement,
+                         const atrt_testcase& testcase,
+                         bool is_last_testcase,
+                         bool next_testcase_forces_restart);
+int test_case_init(ProcessManagement &, const atrt_testcase &);
+int test_case_execution_loop(ProcessManagement &, const time_t, const time_t);
+void test_case_results(TestResult *, const atrt_testcase &);
+
+bool do_command(ProcessManagement& processManagement,
+                atrt_config& config);
+bool setup_test_case(ProcessManagement& processManagement,
+                     atrt_config&, const atrt_testcase&);
+/**
+ * check configuration if any changes has been
+ *   done for the duration of the latest running test
+ *   if so, return true, and reset those changes
+ *   (true, indicates that a restart is needed to actually
+ *    reset the running processes)
+ */
+bool reset_config(ProcessManagement &processManagement, atrt_config&);
 
 static struct my_option g_options[] = {
     {"help", '?', "Display this help and exit.", (uchar **)&g_help,
@@ -190,10 +212,6 @@ static struct my_option g_options[] = {
      (uchar **)&g_default_behaviour_on_failure, &behaviour_typelib, GET_ENUM,
      REQUIRED_ARG, g_default_behaviour_on_failure, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
-
-const int p_ndb = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
-const int p_servers = atrt_process::AP_MYSQLD | atrt_process::AP_CUSTOM;
-const int p_clients = atrt_process::AP_CLIENT | atrt_process::AP_NDB_API;
 
 static int check_testcase_file_main(int argc, char **argv);
 static void print_testcase_file_syntax();
@@ -312,6 +330,8 @@ int main(int argc, char **argv) {
     return atrt_exit(ATRT_FAILURE);
   }
 
+  ProcessManagement processManagement(g_config, g_setup_progname);
+
   if (g_do_sshx) {
     g_logger.info("Starting xterm-ssh");
     if (!sshx(g_config, g_do_sshx)) {
@@ -321,7 +341,7 @@ int main(int argc, char **argv) {
 
     g_logger.info("Done...sleeping");
     while (true) {
-      if (!do_command(g_config)) {
+      if (!do_command(processManagement, g_config)) {
         g_logger.critical("Failed to do ssh command");
         return atrt_exit(ATRT_FAILURE);
       }
@@ -350,39 +370,28 @@ int main(int argc, char **argv) {
   }
 
   /**
-   * Start the cluster
-   */
-  g_logger.info("Starting server processes...");
-
-  if (!start_clusters(g_config)) {
-    if (!shutdown_processes(g_config, atrt_process::AP_ALL)) {
-      g_logger.warning("Failure to shutdown processes");
-    }
-
-    int result = 0;
-    if (!gather_result(g_config, &result)) {
-      g_logger.warning("Failure to gather results");
-    }
-
-    return atrt_exit(ATRT_FAILURE);
-  }
-
-  g_logger.info("All servers start completed");
-
-  /**
    * Run all tests
    */
 
   g_logger.debug("Entering main loop");
   FailureMode current_failure_mode = FailureMode::Continue;
-  for (auto testcase : testcases) {
+  unsigned int last_testcase_idx = testcases.size() - 1;
+  for (unsigned int i = 0; i <= last_testcase_idx; i++) {
+    atrt_testcase testcase = testcases[i];
     g_logger.info("#%d - %s", testcase.test_no, testcase.m_name.c_str());
 
     TestResult test_result;
     if (current_failure_mode == FailureMode::Skip) {
       test_result = {0, 0, ERR_TEST_SKIPPED};
     } else {
-      test_result = run_test_case(testcase);
+      bool is_last_testcase = last_testcase_idx == i;
+      bool next_testcase_forces_restart = false;
+      if (!is_last_testcase) {
+        next_testcase_forces_restart = testcases[i+1].m_force_cluster_restart;
+      }
+      test_result = run_test_case(processManagement, testcase,
+                                  is_last_testcase,
+                                  next_testcase_forces_restart);
       if (test_result.result != ErrorCodes::ERR_OK) {
         current_failure_mode = testcase.m_behaviour_on_failure;
       }
@@ -408,14 +417,6 @@ int main(int argc, char **argv) {
       g_logger.info("Aborting the test suite execution!");
       break;
     }
-  }
-
-  /**
-   * Stopping all the processes after all the tests are run
-   */
-  if (!shutdown_processes(g_config, atrt_process::AP_ALL)) {
-    g_logger.critical("Failed to stop all processes");
-    return_code = ATRT_FAILURE;
   }
 
   if (g_report_file != 0) {
@@ -523,10 +524,10 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
           g_do_sshx = atrt_process::AP_ALL;
           break;
         case 's':
-          g_do_start = p_ndb;
+          g_do_start = ProcessManagement::P_NDB;
           break;
         case 'S':
-          g_do_start = p_ndb | p_servers;
+          g_do_start = ProcessManagement::P_NDB | ProcessManagement::P_SERVERS;
           break;
         case 'f':
           g_fqpn = 1;
@@ -619,7 +620,8 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
     }
     if (g_do_setup == 0) g_do_setup = 2;
 
-    if (g_do_start == 0) g_do_start = p_ndb | p_servers;
+    if (g_do_start == 0) g_do_start =
+      ProcessManagement::P_NDB | ProcessManagement::P_SERVERS;
 
     if (g_mode == 0) g_mode = 1;
 
@@ -715,480 +717,15 @@ bool connect_hosts(atrt_config &config) {
   return true;
 }
 
-bool connect_ndb_mgm(atrt_process &proc) {
-  NdbMgmHandle handle = ndb_mgm_create_handle();
-  if (handle == 0) {
-    g_logger.critical("Unable to create mgm handle");
-    return false;
-  }
-  BaseString tmp = proc.m_host->m_hostname;
-  const char *val;
-  proc.m_options.m_loaded.get("--PortNumber=", &val);
-  tmp.appfmt(":%s", val);
-
-  if (ndb_mgm_set_connectstring(handle, tmp.c_str())) {
-    g_logger.critical("Unable to create parse connectstring");
-    return false;
-  }
-
-  if (ndb_mgm_connect(handle, 30, 1, 0) != -1) {
-    proc.m_ndb_mgm_handle = handle;
-    return true;
-  }
-
-  g_logger.critical("Unable to connect to ndb mgm %s", tmp.c_str());
-  return false;
-}
-
-bool connect_ndb_mgm(atrt_config &config) {
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    if ((proc.m_type & atrt_process::AP_NDB_MGMD) != 0) {
-      if (!connect_ndb_mgm(proc)) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-static int remap(int i) {
-  if (i == NDB_MGM_NODE_STATUS_NO_CONTACT) return NDB_MGM_NODE_STATUS_UNKNOWN;
-  if (i == NDB_MGM_NODE_STATUS_UNKNOWN) return NDB_MGM_NODE_STATUS_NO_CONTACT;
-  return i;
-}
-
-bool wait_ndb(atrt_config &config, int goal) {
-  goal = remap(goal);
-
-  size_t cnt = 0;
-  for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-    atrt_cluster *cluster = config.m_clusters[i];
-
-    if (strcmp(cluster->m_name.c_str(), ".atrt") == 0) {
-      /**
-       * skip atrt mysql
-       */
-      cnt++;
-      continue;
-    }
-
-    /**
-     * Get mgm handle for cluster
-     */
-    NdbMgmHandle handle = 0;
-    for (unsigned j = 0; j < cluster->m_processes.size(); j++) {
-      atrt_process &proc = *cluster->m_processes[j];
-      if ((proc.m_type & atrt_process::AP_NDB_MGMD) != 0) {
-        handle = proc.m_ndb_mgm_handle;
-        break;
-      }
-    }
-
-    if (handle == 0) {
-      return true;
-    }
-
-    if (goal == NDB_MGM_NODE_STATUS_STARTED) {
-      /**
-       * 1) wait NOT_STARTED
-       * 2) send start
-       * 3) wait STARTED
-       */
-      if (!wait_ndb(config, NDB_MGM_NODE_STATUS_NOT_STARTED)) return false;
-
-      ndb_mgm_start(handle, 0, 0);
-    }
-
-    struct ndb_mgm_cluster_state *state;
-
-    time_t now = time(0);
-    time_t end = now + 360;
-    int min = remap(NDB_MGM_NODE_STATUS_NO_CONTACT);
-    int min2 = goal;
-
-    while (now < end) {
-      /**
-       * 1) retreive current state
-       */
-      state = 0;
-      do {
-        state = ndb_mgm_get_status(handle);
-        if (state == 0) {
-          const int err = ndb_mgm_get_latest_error(handle);
-          g_logger.error("Unable to poll db state: %d %s %s",
-                         ndb_mgm_get_latest_error(handle),
-                         ndb_mgm_get_latest_error_msg(handle),
-                         ndb_mgm_get_latest_error_desc(handle));
-          if (err == NDB_MGM_SERVER_NOT_CONNECTED && connect_ndb_mgm(config)) {
-            g_logger.error("Reconnected...");
-            continue;
-          }
-          return false;
-        }
-      } while (state == 0);
-      NdbAutoPtr<void> tmp(state);
-
-      min2 = goal;
-      for (int j = 0; j < state->no_of_nodes; j++) {
-        if (state->node_states[j].node_type == NDB_MGM_NODE_TYPE_NDB) {
-          const int s = remap(state->node_states[j].node_status);
-          min2 = (min2 < s ? min2 : s);
-
-          if (s < remap(NDB_MGM_NODE_STATUS_NO_CONTACT) ||
-              s > NDB_MGM_NODE_STATUS_STARTED) {
-            g_logger.critical("Strange DB status during start: %d %d", j, min2);
-            return false;
-          }
-
-          if (min2 < min) {
-            g_logger.critical("wait ndb failed node: %d %d %d %d",
-                              state->node_states[j].node_id, min, min2, goal);
-          }
-        }
-      }
-
-      if (min2 < min) {
-        g_logger.critical("wait ndb failed %d %d %d", min, min2, goal);
-        return false;
-      }
-
-      if (min2 == goal) {
-        cnt++;
-        goto next;
-      }
-
-      min = min2;
-      now = time(0);
-    }
-
-    g_logger.critical("wait ndb timed out %d %d %d", min, min2, goal);
-    break;
-
-  next:;
-  }
-
-  return cnt == config.m_clusters.size();
-}
-
-bool start_process(atrt_process &proc, bool run_setup) {
-  if (proc.m_proc.m_id != -1) {
-    g_logger.critical("starting already started process: %u",
-                      (unsigned)proc.m_index);
-    return false;
-  }
-
-  if (run_setup) {
-    BaseString tmp = g_setup_progname;
-    tmp.appfmt(" %s %s/ %s", proc.m_host->m_hostname.c_str(),
-               proc.m_proc.m_cwd.c_str(), proc.m_proc.m_cwd.c_str());
-
-    g_logger.debug("system(%s)", tmp.c_str());
-    const int r1 = sh(tmp.c_str());
-    if (r1 != 0) {
-      g_logger.critical("Failed to setup process");
-      return false;
-    }
-  }
-
-  /**
-   * For MySQL server program we need to pass the correct basedir.
-   */
-  const bool mysqld = proc.m_type & atrt_process::AP_MYSQLD;
-  if (mysqld) {
-    BaseString basedir;
-    /**
-     * If MYSQL_BASE_DIR is set use that for basedir.
-     */
-    ssize_t pos = proc.m_proc.m_env.indexOf("MYSQL_BASE_DIR=");
-    if (pos > 0) {
-      pos = proc.m_proc.m_env.indexOf(" MYSQL_BASE_DIR=");
-      if (pos != -1) pos++;
-    }
-    if (pos >= 0) {
-      pos += strlen("MYSQL_BASE_DIR=");
-      ssize_t endpos = proc.m_proc.m_env.indexOf(' ', pos);
-      if (endpos == -1) endpos = proc.m_proc.m_env.length();
-      basedir = proc.m_proc.m_env.substr(pos, endpos);
-    } else {
-      /**
-       * If no MYSQL_BASE_DIR set, derive basedir from program path.
-       * Assumming that program path is on the form
-       *   <basedir>/{bin,sql}/mysqld
-       */
-      const BaseString sep("/");
-      Vector<BaseString> dir_parts;
-      int num_of_parts = proc.m_proc.m_path.split(dir_parts, sep);
-      dir_parts.erase(num_of_parts - 1);  // remove trailing /mysqld
-      dir_parts.erase(num_of_parts - 2);  // remove trailing /bin
-      num_of_parts -= 2;
-      basedir.assign(dir_parts, sep);
-    }
-    if (proc.m_proc.m_args.indexOf("--basedir=") == -1) {
-      proc.m_proc.m_args.appfmt(" --basedir=%s", basedir.c_str());
-      g_logger.info("appended '--basedir=%s' to mysqld process",
-                    basedir.c_str());
-    }
-  }
-  BaseString save_args(proc.m_proc.m_args);
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->define_process(proc.m_proc, reply) != 0) {
-      BaseString msg;
-      reply.get("errormessage", msg);
-      g_logger.error("Unable to define process: %s", msg.c_str());
-      if (mysqld) {
-        proc.m_proc.m_args = save_args; /* restore args */
-      }
-      return false;
-    }
-  }
-  if (mysqld) {
-    proc.m_proc.m_args = save_args; /* restore args */
-  }
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->start_process(proc.m_proc.m_id, reply) != 0) {
-      BaseString msg;
-      reply.get("errormessage", msg);
-      g_logger.error("Unable to start process: %s", msg.c_str());
-      return false;
-    }
-  }
-  return true;
-}
-
-bool start_processes(atrt_config &config, int types) {
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    if (IF_WIN(!(proc.m_type & atrt_process::AP_MYSQLD), 1) &&
-        (types & proc.m_type) != 0 && proc.m_proc.m_path != "") {
-      if (!start_process(proc)) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-bool stop_process(atrt_process &proc) {
-  if (proc.m_proc.m_id == -1) {
-    return true;
-  }
-
-  if (proc.m_type == atrt_process::AP_MYSQLD) {
-    disconnect_mysqld(proc);
-  }
-
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->stop_process(proc.m_proc.m_id, reply) != 0) {
-      Uint32 status;
-      reply.get("status", &status);
-      if (status != 4) {
-        BaseString msg;
-        reply.get("errormessage", msg);
-        g_logger.error(
-            "Unable to stop process id: %d host: %s cmd: %s, "
-            "msg: %s, status: %d",
-            proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-            proc.m_proc.m_path.c_str(), msg.c_str(), status);
-        return false;
-      }
-    }
-  }
-  {
-    Properties reply;
-    if (proc.m_host->m_cpcd->undefine_process(proc.m_proc.m_id, reply) != 0) {
-      BaseString msg;
-      reply.get("errormessage", msg);
-      g_logger.error("Unable to stop process id: %d host: %s cmd: %s, msg: %s",
-                     proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-                     proc.m_proc.m_path.c_str(), msg.c_str());
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool stop_processes(atrt_config &config, int types) {
-  int failures = 0;
-
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    if ((types & proc.m_type) != 0) {
-      if (!stop_process(proc)) {
-        failures++;
-      }
-    }
-  }
-  return failures == 0;
-}
-
-bool update_status(atrt_config &config, int types, bool fail_on_missing) {
-  Vector<Vector<SimpleCpcClient::Process> > m_procs;
-
-  Vector<SimpleCpcClient::Process> dummy;
-  m_procs.fill(config.m_hosts.size(), dummy);
-  for (unsigned i = 0; i < config.m_hosts.size(); i++) {
-    if (config.m_hosts[i]->m_hostname.length() == 0) continue;
-
-    Properties p;
-    config.m_hosts[i]->m_cpcd->list_processes(m_procs[i], p);
-  }
-
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-
-    if (proc.m_proc.m_id == -1 || (proc.m_type & types) == 0) {
-      continue;
-    }
-
-    Vector<SimpleCpcClient::Process> &h_procs = m_procs[proc.m_host->m_index];
-    bool found = false;
-    for (unsigned j = 0; j < h_procs.size() && !found; j++) {
-      if (proc.m_proc.m_id == h_procs[j].m_id) {
-        found = true;
-        proc.m_proc.m_status = h_procs[j].m_status;
-      }
-    }
-
-    if (found) continue;
-
-    if (!fail_on_missing) {
-      proc.m_proc.m_id = -1;
-      proc.m_proc.m_status.clear();
-    } else {
-      g_logger.error("update_status: not found");
-      g_logger.error("id: %d host: %s cmd: %s", proc.m_proc.m_id,
-                     proc.m_host->m_hostname.c_str(),
-                     proc.m_proc.m_path.c_str());
-      for (unsigned j = 0; j < h_procs.size(); j++) {
-        g_logger.error("found: %d %s", h_procs[j].m_id,
-                       h_procs[j].m_path.c_str());
-      }
-      return false;
-    }
-  }
-  return true;
-}
-
-int check_ndb_or_servers_failures(atrt_config &config) {
-  int failed_processes = 0;
-  const int types = p_ndb | p_servers;
-  for (unsigned i = 0; i < config.m_processes.size(); i++) {
-    atrt_process &proc = *config.m_processes[i];
-    bool skip =
-        proc.m_atrt_stopped || IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
-    bool isRunning = proc.m_proc.m_status == "running";
-    if ((types & proc.m_type) != 0 && !isRunning && !skip) {
-      g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
-                        proc.m_index, proc.m_host->m_hostname.c_str());
-      failed_processes |= proc.m_type;
-    }
-  }
-  if ((failed_processes & p_ndb) && (failed_processes & p_servers)) {
-    return ERR_NDB_AND_SERVERS_FAILED;
-  }
-  if ((failed_processes & p_ndb) != 0) {
-    return ERR_NDB_FAILED;
-  }
-  if ((failed_processes & p_servers) != 0) {
-    return ERR_SERVERS_FAILED;
-  }
-  return 0;
-}
-
 bool is_client_running(atrt_config &config) {
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
-    if ((p_clients & proc.m_type) != 0 && proc.m_proc.m_status == "running") {
+    if ((ProcessManagement::P_CLIENTS & proc.m_type) != 0
+      && proc.m_proc.m_status == "running") {
       return true;
     }
   }
   return false;
-}
-
-bool wait_for_processes_to_stop(atrt_config &config, int types, int retries,
-                                int wait_between_retries_s) {
-  for (int attempts = 0; attempts < retries; attempts++) {
-    bool last_attempt = attempts == (retries - 1);
-
-    update_status(config, types, false);
-
-    int found = 0;
-    for (unsigned i = 0; i < config.m_processes.size(); i++) {
-      atrt_process &proc = *config.m_processes[i];
-      if ((types & proc.m_type) == 0 || proc.m_proc.m_id == -1) continue;
-
-      found++;
-
-      if (!last_attempt) continue;  // skip logging
-      g_logger.error(
-          "Failed to stop process id: %d host: %s status: %s cmd: %s",
-          proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-          proc.m_proc.m_status.c_str(), proc.m_proc.m_path.c_str());
-    }
-
-    if (found == 0) return true;
-
-    if (!last_attempt) NdbSleep_SecSleep(wait_between_retries_s);
-  }
-
-  return false;
-}
-
-bool wait_for_process_to_stop(atrt_config &config, atrt_process &proc,
-                              int retries, int wait_between_retries_s) {
-  for (int attempts = 0; attempts < retries; attempts++) {
-    update_status(config, proc.m_type, false);
-
-    if (proc.m_proc.m_id == -1) return true;
-
-    bool last_attempt = attempts == (retries - 1);
-    if (!last_attempt) {
-      NdbSleep_SecSleep(wait_between_retries_s);
-      continue;
-    }
-
-    g_logger.error("Failed to stop process id: %d host: %s status: %s cmd: %s",
-                   proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
-                   proc.m_proc.m_status.c_str(), proc.m_proc.m_path.c_str());
-  }
-
-  return false;
-}
-
-bool shutdown_processes(atrt_config &config, int types) {
-  const char *p_type = get_process_type_name(types);
-
-  g_logger.info("Stopping %s processes", p_type);
-
-  if (!stop_processes(config, types)) {
-    g_logger.critical("Failed to stop %s processes", p_type);
-    return false;
-  }
-
-  if (!wait_for_processes_to_stop(config, types)) {
-    g_logger.critical("Failed to stop %s processes", p_type);
-    return false;
-  }
-  return true;
-}
-
-const char* get_process_type_name(int types) {
-  switch (types) {
-    case p_clients:
-      return "client";
-    case p_ndb:
-      return "ndb";
-    case p_servers:
-      return "server";
-    default:
-      return "all";
-  }
 }
 
 const char *get_test_status(int result) {
@@ -1203,58 +740,9 @@ const char *get_test_status(int result) {
   return "FAILED";
 }
 
-bool check_cluster_status(atrt_config &config, int types) {
-  if (!update_status(config, types)) {
-    g_logger.critical("Failed to get updated status for all processes");
-    return false;
-  }
-  if (check_ndb_or_servers_failures(config) != 0) {
-    return false;
-  }
-  return true;
-}
-
 int atrt_exit(int return_code) {
   g_logger.info("Finishing, result: %d", return_code);
   return return_code;
-}
-
-bool setup_hosts_filesystem(atrt_config &config) {
-  if (!setup_directories(config, 2)) {
-    g_logger.critical("Failed to setup directories");
-    return false;
-  }
-
-  if (!setup_files(config, 2, 1)) {
-    g_logger.critical("Failed to setup files");
-    return false;
-  }
-
-  if (!setup_hosts(config)) {
-    g_logger.critical("Failed to setup hosts");
-    return false;
-  }
-
-  return true;
-}
-
-bool start_clusters(atrt_config &config) {
-  if (!start(config, p_ndb | p_servers)) {
-    g_logger.critical("Failed to start server processes");
-    return false;
-  }
-
-  if (!setup_db(config)) {
-    g_logger.critical("Failed to setup database");
-    return false;
-  }
-
-  if (!check_cluster_status(g_config, atrt_process::AP_ALL)) {
-    g_logger.critical("Cluster start up failed");
-    return false;
-  }
-
-  return true;
 }
 
 bool read_test_cases(FILE *file, std::vector<atrt_testcase> *testcases) {
@@ -1282,7 +770,10 @@ bool read_test_cases(FILE *file, std::vector<atrt_testcase> *testcases) {
   return true;
 }
 
-TestResult run_test_case(const atrt_testcase &testcase) {
+TestResult run_test_case(ProcessManagement &processManagement,
+                         const atrt_testcase &testcase,
+                         bool is_last_testcase,
+                         bool next_testcase_forces_restart) {
   TestResult test_result = {0, 0, 0};
   for (; test_result.testruns <= testcase.m_max_retries;
        test_result.testruns++) {
@@ -1296,129 +787,133 @@ TestResult run_test_case(const atrt_testcase &testcase) {
                     testcase.m_max_retries);
     }
 
-    if (testcase.m_force_cluster_restart || test_result.result != ERR_OK) {
-      if (!shutdown_processes(g_config, ~0)) {
-        g_logger.critical("Failed to stop all processes");
-        test_result.result = ERR_CRITICAL;
-        continue;  // attempt test retry
-      }
+    test_result.result = test_case_init(processManagement, testcase);
 
-      if (!setup_hosts_filesystem(g_config)) {
-        test_result.result = ERR_CRITICAL;
-        continue;
-      }
-
-      g_logger.info("(Re)starting server processes...");
-      if (!start_clusters(g_config)) {
-        g_logger.critical("Cluster could not be started");
-        test_result.result = ERR_CRITICAL;
-        continue;
-      }
-
-      g_logger.info("All servers start completed");
+    if (test_result.result == ERR_OK) {
+      const time_t start = time(0);
+      test_result.result = test_case_execution_loop(processManagement, start,
+                                                    testcase.m_max_time);
+      test_result.elapsed = time(0) - start;
     }
 
-    {
-      // Assign processes to programs
-      if (!setup_test_case(g_config, testcase)) {
-        g_logger.critical("Failed to setup test case");
+    if (!processManagement.stopClientProcesses()) {
+      g_logger.critical("Failed to stop client processes");
+      test_result.result = ERR_CRITICAL;
+    }
+
+    test_case_results(&test_result, testcase);
+
+    bool configuration_reset = reset_config(processManagement, g_config);
+    bool restart_on_error = test_result.result != ERR_TEST_SKIPPED &&
+                      test_result.result != ERR_OK &&
+                      testcase.m_behaviour_on_failure == FailureMode::Restart;
+    bool stop_cluster = is_last_testcase ||
+                        next_testcase_forces_restart ||
+                        configuration_reset ||
+                        restart_on_error;
+    if (stop_cluster) {
+      g_logger.debug("Stopping all cluster processes on condition(s):");
+      if (is_last_testcase) g_logger.debug("- Last test case");
+      if (next_testcase_forces_restart)
+        g_logger.debug("- Next test case forces restart");
+      if (configuration_reset) g_logger.debug("- Configuration forces reset");
+      if (restart_on_error) g_logger.debug("- Restart on test error");
+
+      if (!processManagement.stopAllProcesses()) {
+        g_logger.critical("Failed to stop all processes");
         test_result.result = ERR_CRITICAL;
-        continue;
-      }
-
-      if (!start_processes(g_config, p_clients)) {
-        g_logger.critical("Failed to start client processes");
-        test_result.result = ERR_CRITICAL;
-        continue;
-      }
-
-      const time_t start = time(0);
-      time_t now = start;
-      do {
-        if (!update_status(g_config, atrt_process::AP_ALL)) {
-          g_logger.critical("Failed to get updated status for all processes");
-          test_result.result = ERR_CRITICAL;
-          break;
-        }
-
-        test_result.result = check_ndb_or_servers_failures(g_config);
-        if (test_result.result) {
-          break;
-        }
-
-        if (!is_client_running(g_config)) {
-          break;
-        }
-
-        if (!do_command(g_config)) {
-          test_result.result = ERR_COMMAND_FAILED;
-          g_logger.critical("Failure on client command execution");
-          break;
-        }
-
-        now = time(0);
-        if (now > (start + testcase.m_max_time)) {
-          g_logger.info("Timeout '%s' after %ld seconds",
-                        testcase.m_name.c_str(), testcase.m_max_time);
-          test_result.result = ERR_MAX_TIME_ELAPSED;
-          break;
-        }
-        NdbSleep_SecSleep(1);
-      } while (true);
-
-      test_result.elapsed = time(0) - start;
-      if (!shutdown_processes(g_config, p_clients)) {
-        g_logger.critical("Failed to stop client processes");
-        test_result.result = ERR_CRITICAL;
-        continue;  // retry test due to failure
       }
     }
   }
 
-  int tmp, *rp = test_result.result ? &tmp : &test_result.result;
+  return test_result;
+}
+
+int test_case_init(ProcessManagement &processManagement,
+                         const atrt_testcase &testcase) {
+  g_logger.debug("Starting test case initialization");
+
+  if (!processManagement.startAllProcesses()) {
+      g_logger.critical("Cluster could not be started");
+      return ERR_CRITICAL;
+  }
+
+  g_logger.info("All servers are running and ready");
+
+  // Assign processes to programs
+  if (!setup_test_case(processManagement, g_config, testcase)) {
+    g_logger.critical("Failed to setup test case");
+    return ERR_CRITICAL;
+  }
+
+  if (!processManagement.startClientProcesses()) {
+    g_logger.critical("Failed to start client processes");
+    return ERR_CRITICAL;
+  }
+
+  g_logger.debug("Successful test case initialization");
+
+  return ERR_OK;
+}
+
+int test_case_execution_loop(ProcessManagement &processManagement,
+                             const time_t start_time,
+                             const time_t max_execution_time) {
+  g_logger.debug("Starting test case execution loop");
+
+  const time_t stop_time = start_time + max_execution_time;
+  int result = ERR_OK;
+
+  do {
+    result = processManagement.updateProcessesStatus();
+    if (result != ERR_OK) {
+      g_logger.critical("Failed to get updated status for all processes");
+      return result;
+    }
+
+    if (!is_client_running(g_config)) {
+      g_logger.debug("Finished test case execution loop");
+      return result;
+    }
+
+    if (!do_command(processManagement, g_config)) {
+      g_logger.critical("Failure on client command execution");
+      return ERR_COMMAND_FAILED;
+    }
+
+    time_t now = time(0);
+    if (now > stop_time) {
+      g_logger.info("Timeout after %ld seconds", max_execution_time);
+      return ERR_MAX_TIME_ELAPSED;
+    }
+    NdbSleep_SecSleep(1);
+  } while (true);
+}
+
+void test_case_results(TestResult *test_result, const atrt_testcase &testcase) {
+  int tmp, *rp = test_result->result != ERR_OK ? &tmp : &(test_result->result);
+  g_logger.debug("Starting result gathering");
+
   if (!gather_result(g_config, rp)) {
     g_logger.critical("Failed to gather result after test run");
-    test_result.result = ERR_CRITICAL;
+    test_result->result = ERR_CRITICAL;
   }
 
   BaseString res_dir;
   res_dir.assfmt("result.%d", testcase.test_no);
   remove_dir(res_dir.c_str(), true);
 
-  if (testcase.m_report || test_result.result != ERR_OK) {
+  if (testcase.m_report || test_result->result != ERR_OK) {
     if (rename("result", res_dir.c_str()) != 0) {
       g_logger.critical("Failed to rename %s as %s", "result", res_dir.c_str());
-      test_result.result = ERR_CRITICAL;
+      remove_dir("result", true);
+      test_result->result = ERR_CRITICAL;
     }
   } else {
     remove_dir("result", true);
   }
 
-  bool stop_cluster = reset_config(g_config) ||
-                      (test_result.result != ERR_OK &&
-                       testcase.m_behaviour_on_failure == FailureMode::Restart);
-  if (stop_cluster) {
-    if (!shutdown_processes(g_config, ~0)) {
-      g_logger.critical("Failed to stop all processes");
-      test_result.result = ERR_CRITICAL;
-    }
-
-    if (!setup_hosts_filesystem(g_config)) {
-      test_result.result = ERR_CRITICAL;
-    }
-
-    g_logger.info("Restarting cluster processes...");
-    if (!start_clusters(g_config)) {
-      g_logger.critical("Cluster could not be started");
-      test_result.result = ERR_CRITICAL;
-    }
-  }
-
-  if (!check_cluster_status(g_config, atrt_process::AP_ALL)) {
-    test_result.result = ERR_CRITICAL;
-  }
-
-  return test_result;
+  g_logger.debug("Finished result gathering");
 }
 
 void update_atrt_result_code(const TestResult &test_result,
@@ -1609,7 +1104,8 @@ int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
   return elements;
 }
 
-bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
+bool setup_test_case(ProcessManagement &processManagement, atrt_config &config,
+                     const atrt_testcase &tc) {
   if (!remove_dir("result", true)) {
     g_logger.critical("setup_test_case: Failed to clear result");
     return false;
@@ -1663,11 +1159,11 @@ bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
     for (unsigned i = 0; i < config.m_processes.size(); i++) {
       atrt_process &proc = *config.m_processes[i];
       if (proc.m_type == atrt_process::AP_MYSQLD) {
-        if (!stop_process(proc)) {
+        if (!processManagement.stopProcess(proc)) {
           return false;
         }
 
-        if (!wait_for_process_to_stop(config, proc)) {
+        if (!processManagement.waitForProcessToStop(proc)) {
           return false;
         }
 
@@ -1675,7 +1171,7 @@ bool setup_test_case(atrt_config &config, const atrt_testcase &tc) {
         proc.m_save.m_saved = true;
         proc.m_proc.m_args.appfmt(" %s", tc.m_mysqld_options.c_str());
 
-        if (!start_process(proc)) {
+        if (!processManagement.startProcess(proc)) {
           return false;
         }
 
@@ -1832,38 +1328,14 @@ bool sshx(atrt_config &config, unsigned mask) {
   return true;
 }
 
-bool start(atrt_config &config, unsigned proc_mask) {
-  if (proc_mask & atrt_process::AP_NDB_MGMD)
-    if (!start_processes(g_config, atrt_process::AP_NDB_MGMD)) return false;
-
-  if (proc_mask & atrt_process::AP_NDBD) {
-    if (!connect_ndb_mgm(g_config)) {
-      return false;
-    }
-
-    if (!start_processes(g_config, atrt_process::AP_NDBD)) return false;
-
-    if (!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NOT_STARTED)) return false;
-
-    for (Uint32 i = 0; i < 3; i++)
-      if (wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED)) goto started;
-    return false;
-  }
-
-started:
-  if (!start_processes(g_config, p_servers & proc_mask)) return false;
-
-  return true;
-}
-
-bool reset_config(atrt_config &config) {
+bool reset_config(ProcessManagement &processManagement, atrt_config &config) {
   bool changed = false;
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
     if (proc.m_save.m_saved) {
       if (proc.m_proc.m_id != -1) {
-        if (!stop_process(proc)) return false;
-        if (!wait_for_process_to_stop(config, proc)) return false;
+        if (!processManagement.stopProcess(proc)) return false;
+        if (!processManagement.waitForProcessToStop(proc)) return false;
 
         changed = true;
       }

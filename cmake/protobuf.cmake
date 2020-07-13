@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ MACRO(COULD_NOT_FIND_PROTOBUF)
     )
 ENDMACRO()
 
-SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-3.6.1/src)
+SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-3.11.4/src)
 
 MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
   SET(WITH_PROTOBUF "bundled" CACHE STRING

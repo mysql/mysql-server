@@ -1,7 +1,6 @@
 //>>built
 define("dojox/dtl/filter/dates",["dojo/_base/lang","../_base","../utils/date"],function(_1,dd,_2){
-_1.getObject("dojox.dtl.filter.dates",true);
-var _3=dd.filter.dates;
+var _3=_1.getObject("filter.dates",true,dd);
 _1.mixin(_3,{_toDate:function(_4){
 if(_4 instanceof Date){
 return _4;
@@ -46,5 +45,5 @@ return _e(_d,_c);
 }
 return _e(new Date(),_c);
 }});
-return dojox.dtl.filter.dates;
+return _3;
 });

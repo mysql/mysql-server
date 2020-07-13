@@ -759,15 +759,12 @@ bool Arch_File_Ctx::validate(Arch_Group *group, uint file_index,
 
   build_name(file_index, start_lsn, file_name, MAX_ARCH_PAGE_FILE_NAME_LEN);
 
-  os_file_type_t type;
-  bool exists = false;
-  bool success = os_file_status(file_name, &exists, &type);
-
-  if (!success || !exists) {
+  if (!os_file_exists(file_name)) {
     /* Could be the case if files are purged. */
     return (true);
   }
 
+  bool success;
   pfs_os_file_t file;
 
   file = os_file_create(innodb_arch_file_key, file_name, OS_FILE_OPEN,
@@ -1727,7 +1724,7 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
     /* Can possibly loop only two times. */
     if (count >= 2) {
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
         arch_oper_mutex_exit();
         return;
       }
@@ -2124,7 +2121,7 @@ bool Arch_Page_Sys::wait_idle() {
           ut_ad(mutex_own(&m_mutex));
           result = (m_state == ARCH_STATE_PREPARE_IDLE);
 
-          if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+          if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
             return (ER_QUERY_INTERRUPTED);
           }
 
@@ -2374,7 +2371,7 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   if (!wait_idle()) {
     int err = 0;
 
-    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
       err = ER_QUERY_INTERRUPTED;
       my_error(err, MYF(0));
     } else {

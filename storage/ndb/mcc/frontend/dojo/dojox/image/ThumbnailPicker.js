@@ -33,11 +33,6 @@ if(this.isClickable){
 _1.addClass(this.thumbsNode,"thumbClickable");
 }
 this._totalSize=0;
-this.init();
-},init:function(){
-if(this.isInitialized){
-return false;
-}
 var _8=this.isHorizontal?"Horiz":"Vert";
 _1.addClass(this.navPrev,"prev"+_8);
 _1.addClass(this.navNext,"next"+_8);
@@ -47,17 +42,20 @@ _1.attr(this.navNextImg,"src",this._blankGif);
 _1.attr(this.navPrevImg,"src",this._blankGif);
 this.connect(this.navPrev,"onclick","_prev");
 this.connect(this.navNext,"onclick","_next");
-this.isInitialized=true;
 if(this.isHorizontal){
-this._offsetAttr="offsetLeft";
 this._sizeAttr="offsetWidth";
 this._scrollAttr="scrollLeft";
 }else{
-this._offsetAttr="offsetTop";
 this._sizeAttr="offsetHeight";
 this._scrollAttr="scrollTop";
 }
 this._updateNavControls();
+this.init();
+},init:function(){
+if(this.isInitialized){
+return false;
+}
+this.isInitialized=true;
 if(this.imageStore&&this.request){
 this._loadNextPage();
 }

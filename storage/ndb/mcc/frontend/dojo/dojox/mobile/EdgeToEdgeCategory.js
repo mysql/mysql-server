@@ -3,5 +3,8 @@ define("dojox/mobile/EdgeToEdgeCategory",["dojo/_base/declare","./RoundRectCateg
 return _1("dojox.mobile.EdgeToEdgeCategory",_2,{buildRendering:function(){
 this.inherited(arguments);
 this.domNode.className="mblEdgeToEdgeCategory";
+if(this.type&&this.type=="long"){
+this.domNode.className+=" mblEdgeToEdgeCategoryLong";
+}
 }});
 });

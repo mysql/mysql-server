@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <new>
 #include <stdexcept>  // std::exception subclasses
 
+#include "audit_api_connection_service_imp.h"
 #include "audit_api_message_service_imp.h"
 #include "component_status_var_service_imp.h"
 #include "component_sys_var_service_imp.h"
@@ -299,6 +300,13 @@ mysql_component_mysql_admin_session_imp::open END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_server_runnable)
 mysql_server_runnable_imp::run END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_audit_api_connection)
+mysql_audit_api_connection_imp::emit END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_audit_api_connection_with_error)
+mysql_audit_api_connection_with_error_imp::emit END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -344,6 +352,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_admin_session),
     PROVIDES_SERVICE(mysql_server, mysql_connection_attributes_iterator),
     PROVIDES_SERVICE(mysql_server, mysql_server_runnable),
+    PROVIDES_SERVICE(mysql_server, mysql_audit_api_connection),
+    PROVIDES_SERVICE(mysql_server, mysql_audit_api_connection_with_error),
     PROVIDES_SERVICE(mysql_server, mysql_psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_error_v1),
@@ -386,6 +396,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
+    PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

@@ -120,7 +120,7 @@ dojo.extend(dojox.xmpp.TransportSession, {
 			if(msgDom) {
 				this.processDocument(msgDom, rid);
 			} else {
-				//console.log("Recived bad document from server",msg);
+				//console.log("Received bad document from server",msg);
 			}
 		},
 		

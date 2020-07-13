@@ -4568,9 +4568,21 @@ Backup::haveAllSignals(BackupRecordPtr ptr, Uint32 gsn, Uint32 nodeId)
   ndbrequire(ptr.p->masterRef == reference());
   ndbrequire(ptr.p->masterData.gsn == gsn);
   ndbrequire(!ptr.p->masterData.sendCounter.done());
-  ndbrequire(ptr.p->masterData.sendCounter.isWaitingFor(nodeId));
-  
-  ptr.p->masterData.sendCounter.clearWaitingFor(nodeId);
+  if (ptr.p->masterData.sendCounter.isWaitingFor(nodeId))
+  {
+    ptr.p->masterData.sendCounter.clearWaitingFor(nodeId);
+  }
+  else
+  {
+    ndbrequire(ptr.p->errorCode == AbortBackupOrd::BackupFailureDueToNodeFail);
+    if (ERROR_INSERTED(10051) || ERROR_INSERTED(10052) ||
+        ERROR_INSERTED(10053))
+    {
+      ndbout_c("Received duplicate signal from non-master node %u for gsn %u",
+               nodeId, gsn);
+      CLEAR_ERROR_INSERT_VALUE;
+    }
+  }
   return ptr.p->masterData.sendCounter.done();
 }
 
@@ -4690,6 +4702,26 @@ Backup::execDEFINE_BACKUP_CONF(Signal* signal)
 void
 Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 {
+  if (ERROR_INSERTED(10051))
+  {
+    if (nodeId == getOwnNodeId())
+    {
+      jam();
+      ndbrequire(ptr.p->errorCode == 0)
+      // Delay reply from self so that master waits for DEFINE_BACKUP_REFs
+      sendSignalWithDelay(reference(), GSN_DEFINE_BACKUP_CONF, signal,
+                          5000, signal->getLength());
+      return;
+    }
+    else
+    {
+      // Received DEFINE_BACKUP_REF/CONF from node n1, now crash n1. This will
+      // trigger node-failure handling where master sends DEFINE_BACKUP_REF to
+      // self on behalf of n1. So master receives 2 REFs from n1.
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, nodeId), GSN_NDB_TAMPER, signal, 1, JBB);
+    }
+  }
   if (!haveAllSignals(ptr, GSN_DEFINE_BACKUP_REQ, nodeId)) {
     jam();
     return;
@@ -5058,6 +5090,26 @@ Backup::execSTART_BACKUP_CONF(Signal* signal)
 void
 Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 {
+  if (ERROR_INSERTED(10052))
+  {
+    if (nodeId == getOwnNodeId())
+    {
+      jam();
+      ndbrequire(ptr.p->errorCode == 0)
+      // Delay reply from self so that master waits for START_BACKUP_REFs
+      sendSignalWithDelay(reference(), GSN_START_BACKUP_CONF, signal,
+                          5000, signal->getLength());
+      return;
+    }
+    else
+    {
+      // Received START_BACKUP_REF/CONF from node n1, now crash n1. This will
+      // trigger node-failure handling where master sends START_BACKUP_REF to
+      // self on behalf of n1. So master receives 2 REFs from n1.
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, nodeId), GSN_NDB_TAMPER, signal, 1, JBB);
+    }
+  }
 
   CRASH_INSERTION((10004));
 
@@ -5716,6 +5768,26 @@ Backup::execSTOP_BACKUP_CONF(Signal* signal)
 void
 Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 {
+  if (ERROR_INSERTED(10053))
+  {
+    if (nodeId == getOwnNodeId())
+    {
+      jam();
+      ndbrequire(ptr.p->errorCode == 0)
+      // Delay reply from self so that master waits for STOP_BACKUP_REFs
+      sendSignalWithDelay(reference(), GSN_STOP_BACKUP_CONF, signal,
+                          5000, signal->getLength());
+      return;
+    }
+    else
+    {
+      // Received STOP_BACKUP_REF/CONF from node n1, now crash n1. This will
+      // trigger node-failure handling where master sends STOP_BACKUP_REF to
+      // self on behalf of n1. So master receives 2 REFs from n1.
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, nodeId), GSN_NDB_TAMPER, signal, 1, JBB);
+    }
+  }
   CRASH_INSERTION((10013));
 
   if (!haveAllSignals(ptr, GSN_STOP_BACKUP_REQ, nodeId)) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -800,7 +800,19 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     Update parallel applier indexes.
   */
   if (!local_transaction) {
-    if (!has_write_set) {
+    /*
+      'CREATE TABLE ... AS SELECT' is considered a DML, though in reality it
+      is DDL + DML, which write-sets do not capture all dependencies.
+      It is flagged through gle->last_committed and gle->sequence_number so
+      that it is only executed on parallel applier after all precedent
+      transactions like any other DDL.
+    */
+    bool update_parallel_applier_last_committed_global = false;
+    if (0 == gle->last_committed && 0 == gle->sequence_number) {
+      update_parallel_applier_last_committed_global = true;
+    }
+
+    if (!has_write_set || update_parallel_applier_last_committed_global) {
       /*
         DDL does not have write-set, so we need to ensure that it
         is applied without any other transaction in parallel.
@@ -814,7 +826,8 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     DBUG_ASSERT(gle->sequence_number > 0);
     DBUG_ASSERT(gle->last_committed < gle->sequence_number);
 
-    increment_parallel_applier_sequence_number(!has_write_set);
+    increment_parallel_applier_sequence_number(
+        !has_write_set || update_parallel_applier_last_committed_global);
   }
 
 end:
@@ -1088,6 +1101,14 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set *executed_gtid_set) {
 
 void Certifier::garbage_collect() {
   DBUG_TRACE;
+  /*
+    This debug option works together with
+    `group_replication_certifier_broadcast_thread_big_period`
+    by disabling the manual garbage collection that happens when
+    a View_log_change_event is logged.
+    Applier_module::apply_view_change_packet() does call
+    Certifier::set_group_stable_transactions_set().
+  */
   DBUG_EXECUTE_IF("group_replication_do_not_clear_certification_database",
                   { return; };);
 

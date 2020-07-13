@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,6 +181,7 @@ public:
     void push_before(ListEnt* ent1, ListEnt* ent2);
     ListEnt* pop_front();
     void remove(ListEnt* ent);
+    ListEnt* pop_back();
     void push_back_from(List& src);
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
     void validate() const;

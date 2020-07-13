@@ -3,9 +3,14 @@ define("dojox/dtl/filter/logic", [
 	"../_base"
 ], function(lang,dd){
 
-	lang.getObject("dojox.dtl.filter.logic", true);
+	var logic = lang.getObject("filter.logic", true, dd);
+	/*=====
+	 logic = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
-	lang.mixin(dd.filter.logic, {
+	lang.mixin(logic, {
 		default_: function(value, arg){
 			// summary:
 			//		If value is unavailable, use given default
@@ -42,5 +47,6 @@ define("dojox/dtl/filter/logic", [
 			return parts[2];
 		}
 	});
-	return dojox.dtl.filter.logic;
+
+	return logic;
 });

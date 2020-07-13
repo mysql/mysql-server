@@ -18,9 +18,9 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License, version 2.0, for more details.
 
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -198,8 +198,8 @@ class Queue {
     m_front = -1;
     m_rear = -1;
     m_size = 0;
-    m_enqueue_event = os_event_create("redo_log_archive_enqueue");
-    m_dequeue_event = os_event_create("redo_log_archive_dequeue");
+    m_enqueue_event = os_event_create();
+    m_dequeue_event = os_event_create();
     mutex_create(LATCH_ID_REDO_LOG_ARCHIVE_QUEUE_MUTEX, &m_mutex);
   }
 
@@ -475,13 +475,6 @@ static bool terminate_consumer(bool rapid);
 static void unregister_udfs();
 static bool register_udfs();
 
-/**
-  Register a privilege.
-  @param[in]      priv_name     privilege name
-  @return         status
-    @retval       false         success
-    @retval       true          failure
-*/
 bool register_privilege(const char *priv_name) {
   ut_ad(priv_name != nullptr);
   SERVICE_TYPE(registry) *reg = mysql_plugin_registry_acquire();
@@ -1183,6 +1176,13 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     return true;
   }
 
+  /*  Redo logging must be enabled for archiving to start. */
+  if (!mtr_t::s_logging.is_enabled()) {
+    my_error(ER_INNODB_REDO_DISABLED, MYF(0));
+    mutex_exit(&redo_log_archive_admin_mutex);
+    return true;
+  }
+
   /* Drop potential left-over resources to avoid leaks. */
   if (drop_remnants(/*force*/ false)) {
     /* purecov: begin inspected */
@@ -1242,7 +1242,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   /*
     Create the consume_event.
   */
-  os_event_t consume_event = os_event_create("redo_log_archive_consume_event");
+  os_event_t consume_event = os_event_create();
   DBUG_EXECUTE_IF("redo_log_archive_bad_alloc", os_event_destroy(consume_event);
                   consume_event = nullptr;);
   if (consume_event == nullptr) {
@@ -1646,6 +1646,20 @@ void redo_log_archive_produce(const byte *write_buf, const size_t write_size) {
       }
     }
   }
+}
+
+bool redo_log_archive_is_active() {
+  DBUG_TRACE;
+  /* During recovery, archiver may not be initialized yet. */
+  if (!redo_log_archive_initialized.load()) {
+    return false;
+  }
+
+  mutex_enter(&redo_log_archive_admin_mutex);
+  bool result = redo_log_archive_active;
+  mutex_exit(&redo_log_archive_admin_mutex);
+
+  return result;
 }
 
 /**

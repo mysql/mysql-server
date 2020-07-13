@@ -1,6 +1,6 @@
 define("dojox/testing/DocTest", ["dojo/string"], function() {
 
-dojo.declare(
+return dojo.declare(
 	"dojox.testing.DocTest",
 	null,
 	{
@@ -14,13 +14,13 @@ dojo.declare(
 		//		2) the line always starts with spaces/tabs followed by "//"
 		//		   and at least one space
 		//		3) the line(s) of the test to execute starts with ">>>"
-		//		   preceeded by what is described in 2)
+		//		   preceded by what is described in 2)
 		//		4) the first line after 3) starting without ">>>" is the exptected result.
-		//		   preceeded by what is described in 2)
+		//		   preceded by what is described in 2)
 		//		5) the test sequence is terminated by an empty line, or the next
 		//		   test in the following line, or a new line that does not start as described in 2)
 		//		   (simple said: is not a comment)
-		//		   preceeded by what is described in 2)
+		//		   preceded by what is described in 2)
 		//
 		//		I.e. the following is a simple doctest, that will actually also be run
 		//		if you run this class against this file here:
@@ -96,7 +96,7 @@ dojo.declare(
 			for(var i=0; i<len+1; i++){
 				// Trim the line, so we don't have to worry about leading
 				// spaces or tabs, bla bla ...
-				var l = trim(lines[i] || ""); // The '|| ""' makes sure tests that have no preceeding \n are taken into account too.
+				var l = trim(lines[i] || ""); // The '|| ""' makes sure tests that have no preceding \n are taken into account too.
 				// TODO:
 				//		detect tests that dont match the condition: commands,
 				//		result, empty line. esp the empty line might be missing
@@ -278,5 +278,4 @@ dojo.declare(
 	}
 );
 
-return dojox.testing.DocTest;
 });

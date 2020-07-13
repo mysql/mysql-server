@@ -43,6 +43,7 @@ let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
  call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup .+ .., with:");
  call mtr.add_suppression("Plugin mysqlx reported: .+ path is empt");
  call mtr.add_suppression("Plugin mysqlx reported: .+ is set to empty text");
+
  let $restart_parameters = $restart_parameters --loose-mysqlx-socket=;
 --replace_regex /restart: .+--loose-mysqlx-socket=/restart: --skip-networking --loose-mysqlx-socket=/
 

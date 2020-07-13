@@ -2,6 +2,11 @@
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+--enable_query_log
+
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 --let $CLONE_DATADIR2 = $MYSQL_TMP_DIR/data_new2
 --let $MYSQLD_DATADIR= `select @@datadir;`
@@ -48,6 +53,29 @@ connection con1;
 --reap
 SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
+--force-rmdir $CLONE_DATADIR
+
+--echo # 1B. ALTER INSTANCE while clone in progress
+connection default;
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+--source ../include/clone_command_send.inc
+
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
+--send ALTER INSTANCE DISABLE INNODB REDO_LOG
+
+connection default;
+--echo # In connection DEFAULT
+--error $ddl_err
+--reap
+SET DEBUG_SYNC = 'RESET';
+
+connection con1;
+--echo # In connection CON1
+--reap
+SET DEBUG_SYNC = 'RESET';
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
 --force-rmdir $CLONE_DATADIR
 
 --echo # 2. ALTER TABLE ADD COLUMN [COPY] while clone in progress

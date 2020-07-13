@@ -756,6 +756,16 @@ SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
 SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
 SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
 
+--echo # Force a multi-table UPDATE, to test:
+--echo # Bug #98691: Updating a multi-table view has problem if one sub-table is constant
+
+CREATE VIEW vv AS SELECT t1.* FROM t1 STRAIGHT_JOIN (SELECT 1) AS dt;
+EXPLAIN UPDATE vv SET i = 3 WHERE i = 4;
+UPDATE vv SET i = 3 WHERE i = 4;
+UPDATE vv SET i = 4 WHERE i = 3;
+# Not testing DELETE, as DELETE from multi-table view isn't allowed.
+DROP VIEW vv;
+
 START TRANSACTION;
 UPDATE t1 SET i = 5 WHERE i = 4;
 ROLLBACK;

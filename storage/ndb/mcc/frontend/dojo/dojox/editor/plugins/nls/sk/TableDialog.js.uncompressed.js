@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Pridať stĺpec pred",
 	insertTableColumnAfterLabel: "Pridať stĺpec za",
 	deleteTableRowLabel: "Vymazať riadok",
-	deleteTableColumnLabel: "Vymazať stĺpec"
+	deleteTableColumnLabel: "Vymazať stĺpec",
+	colorTableCellTitle: "Farba pozadia bunky tabuľky",
+	tableContextMenuTitle: "Kontextová ponuka tabuľky"
 })
 );

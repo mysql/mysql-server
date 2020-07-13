@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xdr_gen/xcom_vp.h"
 
 typedef struct cfg_app_xcom {
   /*
@@ -66,9 +62,5 @@ node_address *cfg_app_xcom_get_identity();
  @param identity The unique identity of this XCom instance. Must not be null.
 */
 void cfg_app_xcom_set_identity(node_address *identity);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

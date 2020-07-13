@@ -422,6 +422,32 @@ SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(
   f FLOAT PATH '$',
   d DECIMAL PATH '$')) AS jt;
 
+# DEFAULT NULL is not accepted syntax.
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON EMPTY)) jt;
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON ERROR)) jt;
+
+# The DEFAULT value must be a string on JSON format for now.
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON ERROR)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON ERROR)) jt;
+
 --echo #
 --echo # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
 --echo #
@@ -1434,3 +1460,34 @@ SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
 # specified in the JSON_TABLE column definitions.
 SELECT x, y, z, COLLATION(x) c_x, COLLATION(y) c_y, COLLATION(z) c_z FROM v;
 DROP VIEW v;
+
+--echo #
+--echo # Bug#31345503 JSON_TABLE SHOULD RETURN SQL NULL FOR JSON NULL
+--echo #
+
+SELECT *
+FROM
+JSON_TABLE(
+'[
+  {"c1": null,
+   "c2": [{"c": "c_val", "l": [1,2]}],
+   "c3": null},
+  {"c1": true,
+   "c2": [{"c": "c_val","l": [11]}, {"c": "c_val", "l": [false]}],
+   "c3": true},
+  {"c1": false,
+   "c2": [{"c": null,"l": [true]}, {"c": "c_val", "l": [null]}],
+   "c3": false}
+  ]',
+  '$[*]' COLUMNS(
+           top_ord FOR ORDINALITY,
+           c1path VARCHAR(10) PATH '$.c1' ERROR ON ERROR,
+           NESTED PATH '$.c2[*]' COLUMNS (
+             c2path VARCHAR(10) PATH '$.c' ERROR ON ERROR,
+             ord FOR ORDINALITY,
+             NESTED PATH '$.l[*]' COLUMNS (lpath_c VARCHAR(10) PATH '$' ERROR ON ERROR,
+             lpath_i INT PATH '$' ERROR ON ERROR)
+           ),
+           c3path INT PATH '$.c3' ERROR ON ERROR
+         )
+) as jt;

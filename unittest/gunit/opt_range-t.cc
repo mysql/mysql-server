@@ -1773,8 +1773,8 @@ TEST_F(OptRangeTest, CombineAlways2) {
   always_root.min_flag = NO_MIN_RANGE;
   always_root.max_flag = NO_MAX_RANGE;
   SEL_ROOT always(&always_root), key_range(&key_range_root);
-  Mock_field_long field1("col_1", false);
-  Mock_field_long field2("col_2", false);
+  Mock_field_long field1("col_1", false, false);
+  Mock_field_long field2("col_2", false, false);
   Fake_TABLE table(&field1, &field2);
   String res(1000), so_far(1000);
   Fake_key_part_info key_part_info[] = {Fake_key_part_info(&field1),
@@ -1794,7 +1794,7 @@ TEST_F(OptRangeTest, CombineAlways2) {
 
 TEST_F(OptRangeTest, AppendRange) {
   String out(100);
-  Mock_field_long field("my_field", false);
+  Mock_field_long field("my_field", false, false);
   Fake_TABLE table(&field);
   KEY_PART_INFO kp;
   kp.field = &field;

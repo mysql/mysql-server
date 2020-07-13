@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -143,4 +143,9 @@ MYSQL_ADD_COMPONENT(test_mysql_current_thread_reader
   MODULE_ONLY
   TEST_ONLY
   )
-
+MYSQL_ADD_COMPONENT(test_component_deinit
+  test_component_deinit.cc
+  MODULE_ONLY
+  TEST_ONLY
+  LINK_LIBRARIES mysys
+  )

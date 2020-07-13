@@ -5,13 +5,16 @@ define("dojox/mobile/_EditableListMixin", [
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/_base/event",
+	"dojo/_base/window",
 	"dojo/dom-class",
 	"dojo/dom-geometry",
 	"dojo/dom-style",
 	"dojo/touch",
+	"dojo/dom-attr",
 	"dijit/registry",
-	"./ListItem"
-], function(array, connect, declare, event, domClass, domGeometry, domStyle, touch, registry, ListItem){
+	"./ListItem",
+	"./common"
+], function(array, connect, declare, event, win, domClass, domGeometry, domStyle, touch, domAttr, registry, ListItem, common){
 
 	// module:
 	//		dojox/mobile/EditableRoundRectList
@@ -52,13 +55,13 @@ define("dojox/mobile/_EditableListMixin", [
 		_resetMoveItem: function(/*DomNode*/node){
 			// tags:
 			//		private
-			setTimeout(function(){ // iPhone needs setTimeout
+			this.defer(function(){ // iPhone needs setTimeout (via defer)
 				domClass.remove(node, "mblListItemFloat");
 				domStyle.set(node, {
 					width: "",
 					top: ""
 				});
-			}, 0);
+			});
 		},
 
 		_onClick: function(e){
@@ -72,6 +75,7 @@ define("dojox/mobile/_EditableListMixin", [
 			for(var n = e.target; n !== item.domNode; n = n.parentNode){
 				if(n === item.deleteIconNode){
 					connect.publish("/dojox/mobile/deleteListItem", [item]);
+					this.onDeleteItem(item); //callback
 					break;
 				}
 			}
@@ -92,10 +96,13 @@ define("dojox/mobile/_EditableListMixin", [
 				this._blankItem = new ListItem();
 			}
 			var item = this._movingItem = registry.getEnclosingWidget(e.target);
+			this._startIndex = this.getIndexOfChild(item);
 			var rightIconPressed = false;
 			for(var n = e.target; n !== item.domNode; n = n.parentNode){
 				if(n === item.rightIconNode){
 					rightIconPressed = true;
+					domAttr.set(item.rightIconNode, "aria-grabbed", "true");
+					domAttr.set(this.domNode, "aria-dropeffect", "move");
 					break;
 				}
 			}
@@ -109,7 +116,7 @@ define("dojox/mobile/_EditableListMixin", [
 			if(!this._conn){
 				this._conn = [
 					this.connect(this.domNode, touch.move, "_onTouchMove"),
-					this.connect(this.domNode, touch.release, "_onTouchEnd")
+					this.connect(win.doc, touch.release, "_onTouchEnd")
 				];
 			}
 			this._pos = [];
@@ -148,14 +155,26 @@ define("dojox/mobile/_EditableListMixin", [
 		_onTouchEnd: function(e){
 			// tags:
 			//		private
+			var startIndex = this._startIndex;
+			var endIndex = this.getIndexOfChild(this._blankItem);
+						
 			var ref = this._blankItem.getNextSibling();
 			ref = ref ? ref.domNode : null;
+			if(ref === null){ 
+				//If the item is droped at the end of the list the endIndex is wrong
+				endIndex--; 
+			} 
 			this.containerNode.insertBefore(this._movingItem.domNode, ref);
 			this.containerNode.removeChild(this._blankItem.domNode);
 			this._resetMoveItem(this._movingItem.domNode);
 
 			array.forEach(this._conn, connect.disconnect);
 			this._conn = null;
+			
+			this.onMoveItem(this._movingItem, startIndex, endIndex); //callback
+			
+			domAttr.set(this._movingItem.rightIconNode, "aria-grabbed", "false");
+			domAttr.remove(this.domNode, "aria-dropeffect");
 		},
 
 		startEdit: function(){
@@ -166,11 +185,19 @@ define("dojox/mobile/_EditableListMixin", [
 			array.forEach(this.getChildren(), function(child){
 				if(!child.deleteIconNode){
 					child.set("rightIcon", this.rightIconForEdit);
+					if(child.rightIconNode){
+						domAttr.set(child.rightIconNode, "role", "button");
+						domAttr.set(child.rightIconNode, "aria-grabbed", "false");
+					}
 					child.set("deleteIcon", this.deleteIconForEdit);
 					child.deleteIconNode.tabIndex = child.tabIndex;
+					if(child.deleteIconNode){
+						domAttr.set(child.deleteIconNode, "role", "button");
+					}
 				}
 				child.rightIconNode.style.display = "";
 				child.deleteIconNode.style.display = "";
+				common._setTouchAction(child.rightIconNode, "none");
 			}, this);
 			if(!this._handles){
 				this._handles = [
@@ -179,6 +206,8 @@ define("dojox/mobile/_EditableListMixin", [
 					this.connect(this.domNode, "onkeydown", "_onClick") // for desktop browsers
 				];
 			}
+			
+			this.onStartEdit(); // callback
 		},
 
 		endEdit: function(){
@@ -188,12 +217,44 @@ define("dojox/mobile/_EditableListMixin", [
 			array.forEach(this.getChildren(), function(child){
 				child.rightIconNode.style.display = "none";
 				child.deleteIconNode.style.display = "none";
+				common._setTouchAction(child.rightIconNode, "auto");
 			});
 			if(this._handles){
 				array.forEach(this._handles, this.disconnect, this);
 				this._handles = null;
 			}
 			this.isEditing = false;
+			
+			this.onEndEdit(); // callback
+		},
+		
+		
+		onDeleteItem: function(/*Widget*/item){
+			// summary:
+			//		Stub function to connect to from your application.
+			// description:
+			//		This function is called when a user clicks the delete
+			//		button.
+			//		You have to provide that function or subscribe to /dojox/mobile/deleteListItem, 
+			//		otherwise the delete button will have no-effect.
+			
+		},
+		
+		onMoveItem: function(/*Widget*/item, /*int*/from, /*int*/to){
+			// summary:
+			//		Stub function to connect to from your application.
+		},
+
+		onStartEdit: function(){
+			// summary:
+			//		Stub function to connect to from your application.
+		},
+
+		onEndEdit: function(){
+			// summary:
+			//		Stub function to connect to from your application.
 		}
+
+
 	});
 });

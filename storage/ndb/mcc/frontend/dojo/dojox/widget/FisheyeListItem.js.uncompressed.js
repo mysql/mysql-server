@@ -16,7 +16,7 @@ define("dojox/widget/FisheyeListItem", ["dojo/_base/declare", "dojo/_base/sniff"
 		label: "",
 
 		// id: String
-		//		will be set to the id of the orginal div element
+		//		will be set to the id of the original div element
 		id: "",
 
 		templateString:

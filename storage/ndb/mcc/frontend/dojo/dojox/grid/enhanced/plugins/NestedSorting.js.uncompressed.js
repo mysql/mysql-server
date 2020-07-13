@@ -545,7 +545,11 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		if(this._currRegionIdx === -1){
 			this._onMove(0, 1, null);
 		}else{
-			this._focusRegion(this._getCurrentRegion());
+			var region = this._getCurrentRegion();
+			this._focusRegion(region);
+			//keep grid body scrolled by header
+			var view = this._getRegionView(region);
+			view.scrollboxNode.scrollLeft = view.headerNode.scrollLeft;
 		}
 		try{
 			if(e){

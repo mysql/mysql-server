@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <vector>  // std::vector
 
+#include "my_compiler.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -346,6 +347,8 @@ class Shared_multi_map : public Multi_map_base<T> {
     return (e != nullptr);
   }
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
   /**
     Get a wrapper element from the map handling the given key type.
 
@@ -367,10 +370,13 @@ class Shared_multi_map : public Multi_map_base<T> {
                           the miss.
     @retval      false    Otherwise.
   */
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   template <typename K>
   bool get(const K &key, Cache_element<T> **element);
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
   /**
     Put a new object and element wrapper into the map.
 
@@ -410,6 +416,7 @@ class Shared_multi_map : public Multi_map_base<T> {
                              read object or the existing object with
                              the same keys.
   */
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   template <typename K>
   void put(const K *key, const T *object, Cache_element<T> **element);
@@ -440,6 +447,8 @@ class Shared_multi_map : public Multi_map_base<T> {
 
   void drop(Cache_element<T> *element);
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
   /**
     Delete an object corresponding to the key from the map if exists.
 
@@ -452,6 +461,7 @@ class Shared_multi_map : public Multi_map_base<T> {
     @tparam  K         Key type.
     @param   key       Key to be checked.
   */
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   template <typename K>
   void drop_if_present(const K &key);

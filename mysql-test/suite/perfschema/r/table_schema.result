@@ -1369,6 +1369,9 @@ def	performance_schema	threads	HISTORY	15	NULL	NO	enum	3	12	NULL	NULL	NULL	utf8m
 def	performance_schema	threads	CONNECTION_TYPE	16	NULL	YES	varchar	16	64	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(16)			select,insert,update,references			NULL
 def	performance_schema	threads	THREAD_OS_ID	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	MUL		select,insert,update,references			NULL
 def	performance_schema	threads	RESOURCE_GROUP	18	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)	MUL		select,insert,update,references			NULL
+def	performance_schema	tls_channel_status	CHANNEL	1	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
+def	performance_schema	tls_channel_status	PROPERTY	2	NULL	NO	varchar	128	512	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(128)			select,insert,update,references			NULL
+def	performance_schema	tls_channel_status	VALUE	3	NULL	NO	varchar	2048	8192	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(2048)			select,insert,update,references			NULL
 def	performance_schema	users	USER	1	NULL	YES	char	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(32)	UNI		select,insert,update,references			NULL
 def	performance_schema	users	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
 def	performance_schema	users	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL

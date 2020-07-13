@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       comment(old_field->comment),
       sql_type(old_field->real_type()),
       decimals(old_field->decimals()),
-      flags(old_field->flags),
+      flags(old_field->all_flags()),
       auto_flags(old_field->auto_flags),
       charset(old_field->charset()),  // May be NULL ptr
       is_explicit_collation(false),
@@ -79,6 +79,8 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       stored_in_db(old_field->stored_in_db),
       m_default_val_expr(old_field->m_default_val_expr),
       is_array(old_field->is_array()),
+      m_engine_attribute(old_field->m_engine_attribute),
+      m_secondary_engine_attribute(old_field->m_secondary_engine_attribute),
       m_max_display_width_in_codepoints(old_field->char_length()) {
   switch (sql_type) {
     case MYSQL_TYPE_TINY_BLOB:
@@ -124,7 +126,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       buffer pointer.
   */
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
-      old_field->ptr != nullptr && orig_field != nullptr) {
+      old_field->field_ptr() != nullptr && orig_field != nullptr) {
     bool default_now = false;
     if (real_type_with_now_as_default(sql_type)) {
       // The SQL type of the new field allows a function default:
@@ -189,7 +191,7 @@ bool Create_field::init(
     THD *thd, const char *fld_name, enum_field_types fld_type,
     const char *display_width_in_codepoints, const char *fld_decimals,
     uint fld_type_modifier, Item *fld_default_value, Item *fld_on_update_value,
-    LEX_CSTRING *fld_comment, const char *fld_change,
+    const LEX_CSTRING *fld_comment, const char *fld_change,
     List<String> *fld_interval_list, const CHARSET_INFO *fld_charset,
     bool has_explicit_collation, uint fld_geom_type,
     Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,

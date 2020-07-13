@@ -1,4 +1,4 @@
-define("dojox/date/islamic", ["..", "dojo/_base/lang", "dojo/date", "./islamic/Date"], function(dojox, lang, dd, IDate){
+define("dojox/date/islamic", ["dojox/main", "dojo/_base/lang", "dojo/date", "./islamic/Date"], function(dojox, lang, dd, IDate){
 
 var dislamic = lang.getObject("date.islamic", true, dojox);
 

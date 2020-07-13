@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,9 +114,9 @@ bool Index_element_impl::store_attributes(Raw_record *r) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(
-    Index_column_usage::FIELD_HIDDEN == 5,
-    "Index_column_usage definition has changed, review (de)ser memfuns!");
+static_assert(Index_column_usage::NUMBER_OF_FIELDS == 6,
+              "Index_column_usage definition has changed, check if serialize() "
+              "and deserialize() need to be updated!");
 void Index_element_impl::serialize(Sdi_wcontext *, Sdi_writer *w) const {
   w->StartObject();
   write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));

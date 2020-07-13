@@ -228,14 +228,14 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
 
-  @param       thd
-  @param       definer_user
-  @param       definer_host
-  @param       db
-  @param[out]  backup  Save a pointer to the current security context
-                       in the thread. In case of success it points to the
-                       saved old context, otherwise it points to NULL.
-  @param       force   Force context switch
+  @param       thd           Thread handle.
+  @param       definer_user  user part of a 'definer' value.
+  @param       definer_host  host part of a 'definer' value.
+  @param       db            Database name.
+  @param[out]  backup        Save a pointer to the current security context
+                             in the thread. In case of success it points to the
+                             saved old context, otherwise it points to NULL.
+  @param       force         Force context switch
 
 
   @note The Security_context_factory should be used as a replacement to this
@@ -521,7 +521,9 @@ ulong Security_context::procedure_acl(LEX_CSTRING db,
     String q_name;
     append_identifier(&q_name, db.str, db.length);
     q_name.append(".");
-    append_identifier(&q_name, procedure_name.str, procedure_name.length);
+    std::string name(procedure_name.str, procedure_name.length);
+    my_casedn_str(files_charset_info, &name[0]);
+    append_identifier(&q_name, name.c_str(), name.length());
     it = m_acl_map->sp_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->sp_acls()->end()) return 0;
     return filter_access(it->second, q_name.c_ptr());
@@ -535,7 +537,9 @@ ulong Security_context::function_acl(LEX_CSTRING db, LEX_CSTRING func_name) {
     String q_name;
     append_identifier(&q_name, db.str, db.length);
     q_name.append(".");
-    append_identifier(&q_name, func_name.str, func_name.length);
+    std::string name(func_name.str, func_name.length);
+    my_casedn_str(files_charset_info, &name[0]);
+    append_identifier(&q_name, name.c_str(), name.length());
     SP_access_map::iterator it;
     it = m_acl_map->func_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->func_acls()->end()) return 0;
@@ -630,8 +634,13 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
   std::string privilege(priv, priv_len);
 
   if (m_acl_map == nullptr) {
-    Acl_cache_lock_guard acl_cache_lock(current_thd,
-                                        Acl_cache_lock_mode::READ_MODE);
+    THD *thd = m_thd ? m_thd : current_thd;
+    if (thd == nullptr) {
+      DBUG_PRINT("error", ("Security Context must have valid THD handle to"
+                           " probe grants.\n"));
+      return {false, false};
+    }
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
     if (!acl_cache_lock.lock(false)) return std::make_pair(false, false);
     Role_id key(&m_priv_user[0], m_priv_user_length, &m_priv_host[0],
                 m_priv_host_length);
@@ -705,7 +714,8 @@ std::pair<bool, bool> Security_context::has_global_grant(
                                     true  - consider as privilege exists
                                     false - consider as privilege do not exist
 
-  @retval true    auth_id has the privilege but the current_auth does not
+  @retval true    auth_id has the privilege but the current_auth does not, also
+                  throws error.
   @retval false   Otherwise
 */
 bool Security_context::can_operate_with(const Auth_id &auth_id,

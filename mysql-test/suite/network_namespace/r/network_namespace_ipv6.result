@@ -7,6 +7,7 @@ root@::1
 # Check that client can establish connection to the address ::ffff:10.0.1.1 from the network namespace 'blue'
 USER()
 root@10.0.1.1
+# Use network namespaces with an IPv6 admin address and admin port
 # restart: --skip-name-resolve --admin-address=::1/red --admin-port=ADMIN_PORT
 GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'::1';
 GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'10.0.1.1';

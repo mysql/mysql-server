@@ -208,8 +208,8 @@ int table_ees_global_by_error::read_row_values(TABLE *table, unsigned char *buf,
   }
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* ERROR NUMBER */
         case 1: /* ERROR NAME */
         case 2: /* SQLSTATE */
@@ -218,7 +218,7 @@ int table_ees_global_by_error::read_row_values(TABLE *table, unsigned char *buf,
         case 5: /* FIRST_SEEN */
         case 6: /* LAST_SEEN */
           /** ERROR STATS */
-          m_row.m_stat.set_field(f->field_index, f, temp_error);
+          m_row.m_stat.set_field(f->field_index(), f, temp_error);
           break;
         default:
           /** We should never reach here */

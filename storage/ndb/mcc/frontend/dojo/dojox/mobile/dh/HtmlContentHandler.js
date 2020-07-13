@@ -7,8 +7,8 @@ _9=this.execScript(_9);
 var _c=_6.create("div",{innerHTML:_9,style:{visibility:"hidden"}});
 _a.insertBefore(_c,_b);
 return _4.when(_8.instantiateLazyWidgets(_c),function(){
-var _d;
-for(i=0,len=_c.childNodes.length;i<len;i++){
+var _d,i,_e;
+for(i=0,_e=_c.childNodes.length;i<_e;i++){
 var n=_c.firstChild;
 if(!_d&&n.nodeType===1){
 _d=_7.byNode(n);

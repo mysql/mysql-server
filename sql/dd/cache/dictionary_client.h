@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -494,6 +494,8 @@ class Dictionary_client {
   // Make sure all objects are released.
   ~Dictionary_client();
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
   /**
     Retrieve an object by its object id.
 
@@ -504,6 +506,7 @@ class Dictionary_client {
     @retval       false   No error.
     @retval       true    Error (from handling a cache miss).
   */
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   template <typename T>
   bool acquire(Object_id id, const T **object)

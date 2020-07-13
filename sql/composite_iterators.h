@@ -1,7 +1,7 @@
 #ifndef SQL_COMPOSITE_ITERATORS_INCLUDED
 #define SQL_COMPOSITE_ITERATORS_INCLUDED
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
  */
 
 #include <stdio.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -196,7 +197,7 @@ class LimitOffsetIterator final : public RowIterator {
   of aggregation, others (the aggregates) are added. For this reason (and also
   because we need to make copies of the group expressions -- see Read()), it
   conceptually always outputs to a temporary table. If we _are_ outputting to a
-  temporary table, that's not a problem -- we take over responsibility for
+  temporary table, that's not a problem -- we take over responsibility for
   copying the group expressions from MaterializeIterator, which would otherwise
   do it.
 
@@ -285,45 +286,14 @@ class AggregateIterator final : public RowIterator {
   const bool m_rollup;
 
   /**
-    Whether we have a rollup query where we needed to replace m_join->fields
-    with a set of Item_refs. See the constructor for more information.
-   */
-  bool m_replace_field_list;
-
-  /// If we have replaced the field list, contains the original field list.
-  List<Item> *m_original_fields = nullptr;
-
-  /**
-    If we have replaced the field list, this is the list of Item pointers
-    that each Item_ref points into.
-   */
-  Mem_root_array<Item *> *m_current_fields = nullptr;
-
-  /**
-    The list that the current values in m_current_fields come from.
-    This is used purely as an optimization so that SwitchFieldList()
-    does not have to do copying work if m_current_fields is already set up
-    correctly. Only used if m_replace_field_list is true.
-   */
-  const List<Item> *m_current_fields_source = nullptr;
-
-  /**
     For rollup: The index of the first group item that did _not_ change when we
     last switched groups. E.g., if we have group fields A,B,C,D and then switch
-    to group A,B,D,D, this value will become 1 (which means that we need
-    to output rollup rows for 2 -- A,B,D,NULL -- and then 1 -- A,B,NULL,NULL).
+    to group A,B,E,D, this value will become 1 (which means that we need
+    to output rollup rows for 2 -- A,B,E,NULL -- and then 1 -- A,B,NULL,NULL).
     m_current_rollup_position will count down from the end until it becomes
     less than this value.
 
-    In addition, it is important to know this value so that we known
-    which aggregates to reset once we start reading rows again; e.g.,
-    in the given example, the two first aggregates should keep counting,
-    while the two last ones should be reset. join->sum_funcs_end contains
-    the right end pointers for this purpose.
-
-    If we do not have rollup, this value is perennially zero, because there
-    is only one element in join->sum_funcs_end (representing all aggregates
-    in the query).
+    If we do not have rollup, this value is perennially zero.
    */
   int m_last_unchanged_group_item_idx;
 
@@ -331,21 +301,13 @@ class AggregateIterator final : public RowIterator {
     If we are in state OUTPUTTING_ROLLUP_ROWS, where we are in the iteration.
     This value will start at the index of the last group expression and then
     count backwards down to and including m_last_unchanged_group_item_idx.
-    It is used to know which field list we should send.
+    It is used to communicate to the rollup group items whether to turn
+    themselves into NULLs, and the sum items which of their sums to output.
    */
   int m_current_rollup_position;
 
-  void SwitchFieldList(List<Item> *fields) {
-    if (!m_replace_field_list || m_current_fields_source == fields) {
-      return;
-    }
-
-    size_t item_index = 0;
-    for (Item &item : *fields) {
-      (*m_current_fields)[item_index++] = &item;
-    }
-    m_current_fields_source = fields;
-  }
+  void copy_sum_funcs();
+  void SetRollupLevel(int level);
 };
 
 /**
@@ -642,9 +604,8 @@ class MaterializeIterator final : public TableRowIterator {
                       Mem_root_array<QueryBlock> query_blocks_to_materialize,
                       TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      const Common_table_expr *cte, SELECT_LEX_UNIT *unit,
-                      JOIN *join, int ref_slice, bool rematerialize,
-                      ha_rows limit_rows);
+                      Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
+                      int ref_slice, bool rematerialize, ha_rows limit_rows);
 
   /**
     A convenience form for materializing a single table only.
@@ -681,7 +642,7 @@ class MaterializeIterator final : public TableRowIterator {
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
                       Temp_table_param *temp_table_param, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      const Common_table_expr *cte, int select_number,
+                      Common_table_expr *cte, int select_number,
                       SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
                       bool copy_fields_and_items, bool rematerialize,
                       ha_rows limit_rows);
@@ -717,7 +678,7 @@ class MaterializeIterator final : public TableRowIterator {
   /// If we are materializing a CTE, points to it (otherwise nullptr).
   /// Used so that we see if some other iterator already materialized the table,
   /// avoiding duplicate work.
-  const Common_table_expr *m_cte;
+  Common_table_expr *m_cte;
 
   /// The query expression we are materializing. For derived tables,
   /// we materialize the entire query expression; for materialization within

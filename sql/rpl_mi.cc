@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -494,7 +494,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
 
   if (!!from->get_info(&temp_master_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
       !!from->get_info(host, sizeof(host), (char *)nullptr) ||
-      !!from->get_info(user, sizeof(user), "test") ||
+      !!from->get_info(user, sizeof(user), (char *)nullptr) ||
       !!from->get_info(password, sizeof(password), (char *)nullptr) ||
       !!from->get_info((int *)&port, (int)MYSQL_PORT) ||
       !!from->get_info((int *)&connect_retry, (int)DEFAULT_CONNECT_RETRY))

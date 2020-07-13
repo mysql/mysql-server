@@ -46,7 +46,7 @@ var _10=_3.xml.parser.parse(_d,"text/xml");
 if(_10){
 _f.ioArgs.xmppMessage=_10;
 }else{
-_f.errback(new Error("Recieved bad document from server: "+_d));
+_f.errback(new Error("Received bad document from server: "+_d));
 }
 },get:function(_11){
 var _12=this.findOpenIframe();

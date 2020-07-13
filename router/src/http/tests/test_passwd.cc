@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -285,7 +285,7 @@ TEST_P(PasswdFrontendTest, ensure) {
   // do what passwd_cli.cc's main does
   int exit_code = 0;
   try {
-    exit_code = PasswdFrontend(kAppExeFileName, args, cin, cout, cerr).run();
+    exit_code = PasswdFrontend(kAppExeFileName, args, cout, cerr).run();
   } catch (const FrontendError &e) {
     cerr << e.what() << std::endl;
     exit_code = EXIT_FAILURE;
@@ -316,7 +316,7 @@ TEST_P(PasswdFrontendTest, ensure) {
 
     EXPECT_NO_THROW(
         exit_code =
-            PasswdFrontend(kAppExeFileName, args, v_cin, v_cout, v_cerr).run());
+            PasswdFrontend(kAppExeFileName, args, v_cout, v_cerr).run());
 
     EXPECT_EQ(exit_code, 0);
     EXPECT_EQ(v_cout.str(), "");
@@ -633,7 +633,7 @@ const PasswdFrontendTestParam password_frontend_param[]{
 
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, PasswdFrontendTest, ::testing::ValuesIn(password_frontend_param),
     [](testing::TestParamInfo<PasswdFrontendTestParam> param_info) {
       return sanitise(param_info.param.test_name +

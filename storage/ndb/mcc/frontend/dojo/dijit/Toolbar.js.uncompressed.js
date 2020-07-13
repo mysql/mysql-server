@@ -23,7 +23,7 @@ define("dijit/Toolbar", [
 
 	return declare("dijit.Toolbar", [_Widget, _TemplatedMixin, _KeyNavContainer], {
 		// summary:
-		//		A Toolbar widget, used to hold things like `dijit.Editor` buttons
+		//		A Toolbar widget, used to hold things like `dijit/Editor` buttons
 
 		templateString:
 			'<div class="dijit" role="toolbar" tabIndex="${tabIndex}" data-dojo-attach-point="containerNode">' +
@@ -31,13 +31,12 @@ define("dijit/Toolbar", [
 
 		baseClass: "dijitToolbar",
 
-		postCreate: function(){
-			this.inherited(arguments);
+		_onLeftArrow: function(){
+			this.focusPrev();
+		},
 
-			this.connectKeyNavHandlers(
-				this.isLeftToRight() ? [keys.LEFT_ARROW] : [keys.RIGHT_ARROW],
-				this.isLeftToRight() ? [keys.RIGHT_ARROW] : [keys.LEFT_ARROW]
-			);
+		_onRightArrow: function(){
+			this.focusNext();
 		}
 	});
 });

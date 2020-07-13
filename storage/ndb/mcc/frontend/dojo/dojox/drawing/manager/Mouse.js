@@ -37,7 +37,7 @@ _1.connect(this.keys,"onEsc",this,function(_b){
 this._dragged=false;
 });
 },setCanvas:function(){
-var _c=_1.coords(this.container.parentNode);
+var _c=_1.position(this.container.parentNode);
 this.origin=_1.clone(_c);
 },scrollOffset:function(){
 return {top:this.container.parentNode.scrollTop,left:this.container.parentNode.scrollLeft};

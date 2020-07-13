@@ -4,9 +4,13 @@ define("dojox/dtl/filter/dates", [
 	"../utils/date"
 ], function(lang,dd,ddud){
 
-	lang.getObject("dojox.dtl.filter.dates", true);
+	var ddfd = lang.getObject("filter.dates", true, dd);
+/*=====
+	ddfd = {
+		// TODO: summary
+	};
+=====*/
 
-	var ddfd = dd.filter.dates;
 	lang.mixin(ddfd, {
 		_toDate: function(value){
 			if(value instanceof Date){
@@ -65,5 +69,6 @@ define("dojox/dtl/filter/dates", [
 			return timesince(new Date(), value);
 		}
 	});
-	return dojox.dtl.filter.dates;
+
+	return ddfd;
 });

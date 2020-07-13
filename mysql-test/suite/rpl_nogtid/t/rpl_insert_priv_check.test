@@ -32,15 +32,18 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
+--source include/skip_config_privilege_checks_user.inc
 --let $applier_user = 'a_bigger_username_just_for_test'
 if ($grant_to == '')
 {
   --let $grant_to = $applier_user
 }
 --let $rpl_privilege_checks_user = 2:$applier_user
+# Since $rpl_privilege_checks_user is instantiated the replication applier has
+# no privileges on the test database
+--let $RPL_PRIV_DB = test
 --let $rpl_skip_start_slave=1
 --source include/master-slave.inc
---source include/rpl_use_privilege_db.inc
 
 --write_file $MYSQLTEST_VARDIR/tmp/check_privilege.inc PROCEDURE
 
@@ -76,7 +79,6 @@ SET @@session.sql_log_bin = ON;
 # 2) On slave create an user 'u1' which will be used as a
 #    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
 --source include/rpl_connection_slave.inc
---source include/rpl_use_privilege_db.inc
 CALL mtr.add_suppression(".*command denied to user.");
 CALL mtr.add_suppression(".*the option binlog_row_value_options.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");

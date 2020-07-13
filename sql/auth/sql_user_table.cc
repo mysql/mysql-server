@@ -1581,7 +1581,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   store_record(table, record[1]);  // store at pos 1
 
   error = table->file->ha_index_read_idx_map(table->record[0], 0,
-                                             (uchar *)table->field[0]->ptr,
+                                             table->field[0]->field_ptr(),
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
               error != HA_ERR_LOCK_DEADLOCK);

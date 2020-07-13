@@ -1,0 +1,163 @@
+CREATE TABLE t1(a DATETIME NOT NULL);
+INSERT INTO t1 VALUES (TIMESTAMP'2006-06-06 15:55:55');
+ALTER TABLE t1 SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+EXPLAIN SELECT max(a) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a`) AS `max(a)` from `test`.`t1`
+# Transform is not active for InnoDB while we the do initial PREPARE
+PREPARE s FROM "EXPLAIN SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a=TIMESTAMP'2006-06-06 15:55:55')";
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET secondary_engine_cost_threshold = 10000;
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=on";
+# Let transform be active for InnoDB while we the initial PREPARE
+PREPARE s FROM "EXPLAIN SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a=TIMESTAMP'2006-06-06 15:55:55')";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET secondary_engine_cost_threshold = 10000;
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+DROP PREPARE s;
+DROP TABLE t1;
+SET secondary_engine_cost_threshold = default;
+SET optimizer_switch="subquery_to_derived=default";

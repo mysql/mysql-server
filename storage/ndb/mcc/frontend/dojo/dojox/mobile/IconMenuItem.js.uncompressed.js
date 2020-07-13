@@ -3,9 +3,10 @@ define("dojox/mobile/IconMenuItem", [
 	"dojo/_base/lang",
 	"dojo/dom-class",
 	"dojo/dom-construct",
+	"dojo/dom-attr",
 	"./iconUtils",
 	"./_ItemBase"
-], function(declare, lang, domClass, domConstruct, iconUtils, ItemBase){
+], function(declare, lang, domClass, domConstruct, domAttr, iconUtils, ItemBase){
 	// module:
 	//		dojox/mobile/IconMenuItem
 
@@ -13,18 +14,18 @@ define("dojox/mobile/IconMenuItem", [
 		// summary:
 		//		An item of IconMenu.
 		// description:
-		//		IconMenuItem represents a menu item of
-		//		dojox/mobile/MenuItem. This widget inherits from
-		//		dojox/mobile/_ItemBase. Basic usage is same as the other
-		//		subclasses such as dojox/mobile/ListItem.
+		//		IconMenuItem represents a menu item of dojox/mobile/MenuItem. 
+		//		This widget inherits from dojox/mobile/_ItemBase. Its basic usage is 
+		//		similar to other subclasses such as dojox/mobile/ListItem.
 
 		// closeOnAction: Boolean
-		//		Calls the hide() method of the parent widget, which is typically
-		//		a SimpleDialog.
+		//		If true, the internal handler of click events calls the hide() method 
+		//		of the parent widget, which is typically a dojox/mobile/SimpleDialog.
+		//		The default value is false.
 		closeOnAction: false,
 
 		// tag: String
-		//		A name of html tag to create as domNode.
+		//		The name of the HTML tag to create as domNode.
 		tag: "li",
 
 		/* internal properties */
@@ -36,6 +37,8 @@ define("dojox/mobile/IconMenuItem", [
 
 		buildRendering: function(){
 			this.domNode = this.srcNodeRef || domConstruct.create(this.tag);
+			domAttr.set(this.domNode, "role", "menuitemcheckbox");
+			domAttr.set(this.domNode, "aria-checked", "false");
 			this.inherited(arguments);
 			if(this.selected){
 				domClass.add(this.domNode, this.selColor);
@@ -50,10 +53,11 @@ define("dojox/mobile/IconMenuItem", [
 
 			var a = this.anchorNode = this.containerNode = domConstruct.create("a", {
 				className: "mblIconMenuItemAnchor",
-				href: "javascript:void(0)"
+				role: "presentation"
 			});
 			var tbl = domConstruct.create("table", {
-				className: "mblIconMenuItemTable"
+				className: "mblIconMenuItemTable",
+				role: "presentation"
 			}, a);
 			var cell = this.iconParentNode = tbl.insertRow(-1).insertCell(-1);
 			this.iconNode = domConstruct.create("div", {
@@ -69,7 +73,7 @@ define("dojox/mobile/IconMenuItem", [
 		startup: function(){
 			if(this._started){ return; }
 
-			this._keydownHandle = this.connect(this.domNode, "onkeydown", "_onClick"); // for desktop browsers
+			this.connect(this.domNode, "onkeydown", "_onClick"); // for desktop browsers
 
 			this.inherited(arguments);
 			if(!this._isOnLine){
@@ -112,6 +116,7 @@ define("dojox/mobile/IconMenuItem", [
 			//		private
 			this.inherited(arguments);
 			domClass.toggle(this.domNode, this.selColor, selected);
+			domAttr.set(this.domNode, "aria-checked", selected ? "true" : "false");
 		}
 	});
 });

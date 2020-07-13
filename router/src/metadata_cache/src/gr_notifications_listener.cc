@@ -33,6 +33,7 @@
 
 #include <algorithm>
 #include <map>
+#include <system_error>
 #include <thread>
 
 IMPORT_LOG_FUNCTIONS()
@@ -97,7 +98,6 @@ struct GRNotificationListener::Impl {
   std::unique_ptr<std::thread> listener_thread;
   std::atomic<bool> terminate{false};
   NotificationClb notification_callback;
-  std::string last_view_id;
 
   std::chrono::steady_clock::time_point last_ping_timepoint =
       std::chrono::steady_clock::now();
@@ -139,20 +139,12 @@ xcl::Handler_result GRNotificationListener::Impl::notice_handler(
       Mysqlx::Notice::Frame::Type::Frame_Type_GROUP_REPLICATION_STATE_CHANGED) {
     Mysqlx::Notice::GroupReplicationStateChanged change;
     change.ParseFromArray(payload, static_cast<int>(payload_size));
-    log_debug("Got notification from the cluster. type=%d; view_id=%s; ",
-              change.type(), change.view_id().c_str());
+    log_debug(
+        "Got notification from the cluster. type=%d; view_id=%s; Refreshing "
+        "metadata.",
+        change.type(), change.view_id().c_str());
 
-    const bool view_id_changed =
-        change.view_id().empty() || (change.view_id() != last_view_id);
-    if (view_id_changed) {
-      log_debug(
-          "Cluster notification: new view_id='%s'; previous view_id='%s'. "
-          "Refreshing metadata.",
-          change.view_id().c_str(), last_view_id.c_str());
-
-      notify = true;
-      last_view_id = change.view_id();
-    }
+    notify = true;
   }
 
   if (notify && notification_callback) {
@@ -247,21 +239,21 @@ void GRNotificationListener::Impl::listener_thread_func() {
       check_mysqlx_wait_timeout();
     }
 
-    const int poll_res = mysql_harness::SocketOperations::instance()->poll(
+    const auto poll_res = mysql_harness::SocketOperations::instance()->poll(
         fds.get(), sessions_qty, kPollTimeout);
-    if (poll_res <= 0) {
-      // poll has timed out or failed
-      const int err_no =
-          mysql_harness::SocketOperations::instance()->get_errno();
-      // if this is timeout or EINTR just sleep and go to the next iteration
-      if (poll_res == 0 || EINTR == err_no) {
+    if (!poll_res) {
+      // poll has failed
+      if (poll_res.error() == make_error_condition(std::errc::interrupted)) {
+        // got interrupted. Sleep a bit more
         std::this_thread::sleep_for(kPollTimeout);
+      } else if (poll_res.error() == make_error_code(std::errc::timed_out)) {
+        // poll has timed out, sleep time already passed.
       } else {
         // any other error is fatal
         log_error(
             "poll() failed with error: %d, clearing all the sessions in the GR "
             "Notice thread",
-            err_no);
+            poll_res.error().value());
         sessions_.clear();
         sessions_changed_ = true;
       }

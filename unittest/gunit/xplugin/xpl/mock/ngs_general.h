@@ -167,11 +167,11 @@ class Mock_listener_factory_interface : public iface::Listener_factory {
   }
 
   std::unique_ptr<iface::Listener> create_tcp_socket_listener(
-      std::string *bind_address, const std::string &network_namespace,
-      const unsigned short port, const uint32_t port_open_timeout,
+      const std::string &bind_address, const std::string &network_namespace,
+      const uint16_t port, const uint32_t port_open_timeout,
       iface::Socket_events *event, const uint32_t backlog) const override {
     return std::unique_ptr<iface::Listener>{
-        create_tcp_socket_listener_ptr(*bind_address, network_namespace, port,
+        create_tcp_socket_listener_ptr(bind_address, network_namespace, port,
                                        port_open_timeout, *event, backlog)};
   }
 };

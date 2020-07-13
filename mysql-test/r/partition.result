@@ -1576,7 +1576,7 @@ ERROR HY000: Cannot create temporary table with partitions
 create table t1 (a int, b int) partition by list (a)
 (partition p1 values in (1), partition p2 values in (2));
 alter table t1 add primary key (b);
-ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function (prefixed columns are not considered).
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2516,7 +2516,7 @@ CREATE TABLE t1 (s1 VARCHAR(5) PRIMARY KEY) PARTITION BY KEY(s1);
 LOCK TABLES t1 WRITE, t1 b READ;
 UNLOCK TABLES;
 ALTER TABLE t1 ADD COLUMN (s3 VARCHAR(5) UNIQUE);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 SELECT * FROM t1;
 s1
 DROP TABLE t1;
@@ -2710,14 +2710,14 @@ DROP TABLE t1;
 create table t1 (a int)
 partition by range (a)
 subpartition by hash (a)
-(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
-(SUBPARTITION subpart00, SUBPARTITION subpart01));
+(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR'
+ (SUBPARTITION subpart00, SUBPARTITION subpart01));
 # Checking if file exists before alter
 ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
-(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
-(SUBPARTITION subpart10, SUBPARTITION subpart11),
-partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp'
-(SUBPARTITION subpart20, SUBPARTITION subpart21));
+(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR'
+ (SUBPARTITION subpart10, SUBPARTITION subpart11),
+partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQL_TMP_DIR'
+ (SUBPARTITION subpart20, SUBPARTITION subpart21));
 # Checking if file exists after alter
 drop table t1;
 set innodb_strict_mode=off;
@@ -2783,10 +2783,10 @@ CREATE TABLE `example` (
 PRIMARY KEY (`ID_EXAMPLE`)
 )
 PARTITION BY HASH(ID_EXAMPLE)(
-PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p0Data',
-PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p1Data',
-PARTITION p2 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p2Data',
-PARTITION p3 DATA DIRECTORY = 'MYSQLTEST_VARDIR/p3Data'
+PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/p0Data',
+PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/p1Data',
+PARTITION p2 DATA DIRECTORY = 'MYSQL_TMP_DIR/p2Data',
+PARTITION p3 DATA DIRECTORY = 'MYSQL_TMP_DIR/p3Data'
 );
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -3298,3 +3298,26 @@ SELECT i, j FROM t1 PARTITION (p1);
 i	j
 0	2
 DROP TABLE t1;
+#
+# Bug #25207522: INCORRECT ORDER-BY BEHAVIOR ON A PARTITIONED TABLE
+# WITH A COMPOSITE PREFIX INDEX
+#
+CREATE TABLE t(  id int unsigned NOT NULL,
+data varchar(2) DEFAULT NULL,
+KEY data_idx (data(1),id)
+) DEFAULT CHARSET=utf8
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION p10 VALUES LESS THAN (10) ,
+PARTITION p20 VALUES LESS THAN (20) ) */;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t VALUES (6, 'ab'), (4, 'ab'), (5, 'ab'), (16, 'ab'), (14, 'ab'), (15, 'ab'), (5, 'ac'), (15, 'aa') ;
+SELECT id FROM t WHERE data = 'ab' ORDER BY id ASC;
+id
+4
+5
+6
+14
+15
+16
+DROP TABLE t;

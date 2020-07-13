@@ -210,8 +210,8 @@ int table_binary_log_transaction_compression_stats::read_row_values(
            last_trx_timestamp) = row->get_last_transaction_stats();
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /** LOG_TYPE */
         {
           set_field_enum(f, row->get_log_type());

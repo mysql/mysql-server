@@ -9,7 +9,7 @@ define(
 	cellSpacing: "Zellenabstand:",
 	tableWidth: "Tabellenbreite:",
 	backgroundColor: "Hintergrundfarbe:",
-	borderColor: "Umrandungsfarbe:",
+	borderColor: "Randfarbe:",
 	borderThickness: "Umrandungsstärke:",
 	percent: "Prozent",
 	pixels: "Pixel",
@@ -21,11 +21,13 @@ define(
 	buttonInsert: "Einfügen",
 	buttonCancel: "Abbrechen",
 	selectTableLabel: "Tabelle auswählen",
-	insertTableRowBeforeLabel: "Zeile davor einfügen",
-	insertTableRowAfterLabel: "Zeile danach einfügen",
-	insertTableColumnBeforeLabel: "Spalte davor einfügen",
-	insertTableColumnAfterLabel: "Spalte danach einfügen",
+	insertTableRowBeforeLabel: "Zeile oberhalb einfügen",
+	insertTableRowAfterLabel: "Zeile unterhalb einfügen",
+	insertTableColumnBeforeLabel: "Spalte oberhalb einfügen",
+	insertTableColumnAfterLabel: "Spalte unterhalb einfügen",
 	deleteTableRowLabel: "Zeile löschen",
-	deleteTableColumnLabel: "Spalte löschen"
+	deleteTableColumnLabel: "Spalte löschen",
+	colorTableCellTitle: "Hintergrundfarbe für Tabellenzelle",
+	tableContextMenuTitle: "Kontextmenü für Tabelle"
 })
 );

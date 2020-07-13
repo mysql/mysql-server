@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ sub get_testdir {
   return $testdir;
 }
 
-# Retrive build directory (which is different from basedir
+# Retrieve build directory (which is different from basedir
 # in out-of-source build).
 sub get_bindir {
   if (defined $ENV{MTR_BINDIR}) {
@@ -64,11 +64,6 @@ sub fix_charset_dir {
   my ($self, $config, $group_name, $group) = @_;
   return my_find_dir($self->get_basedir($group), \@::share_locations,
                      "charsets");
-}
-
-sub fix_language {
-  my ($self, $config, $group_name, $group) = @_;
-  return my_find_dir($self->get_bindir($group), \@::share_locations);
 }
 
 sub fix_datadir {
@@ -100,6 +95,12 @@ sub fix_pidfile {
 }
 
 sub fix_port {
+  my ($self, $config, $group_name, $group) = @_;
+  my $hostname = $group->value('#host');
+  return $self->{HOSTS}->{$hostname}++;
+}
+
+sub fix_admin_port {
   my ($self, $config, $group_name, $group) = @_;
   my $hostname = $group->value('#host');
   return $self->{HOSTS}->{$hostname}++;
@@ -169,7 +170,7 @@ sub fix_socket {
 
   # Make sure the socket path does not become longer then the path
   # which mtr uses to test if a new tmpdir should be created.
-  if (length($socket) > length("$dir/mysql_testsocket.sock")) {
+  if (length($socket) > length("$dir/mysql*.NN.sock")) {
     # Too long socket path, generate shorter based on port
     my $port = $group->value('port');
     my $group_prefix = substr($group_name, 0, index($group_name, '.'));
@@ -268,6 +269,7 @@ my @mysqld_rules = (
   { 'character-sets-dir'                           => \&fix_charset_dir },
   { 'datadir'                                      => \&fix_datadir },
   { 'port'                                         => \&fix_port },
+  { 'admin-port'                                   => \&fix_admin_port },
   { 'general_log'                                  => 1 },
   { 'general_log_file'                             => \&fix_log },
   { 'loose-mysqlx-port'                            => \&fix_x_port },
@@ -648,7 +650,7 @@ sub run_generate_sections_from_cluster_config {
 sub new_config {
   my ($class, $args) = @_;
 
-  my @required_args = ('basedir', 'baseport', 'vardir', 'template_path');
+  my @required_args = ('basedir', 'baseport', 'vardir', 'template_path', 'testdir', 'tmpdir');
 
   foreach my $required (@required_args) {
     croak "you must pass '$required'" unless defined $args->{$required};

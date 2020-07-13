@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,6 @@ class Sasl_client {
   int send_sasl_request_to_server(const unsigned char *request, int request_len,
                                   unsigned char **reponse, int *response_len);
   void set_user_info(std::string name, std::string pwd);
-  static void sasl_client_done_wrapper();
   std::string get_method();
 #if defined(KERBEROS_LIB_CONFIGURED)
   void read_kerberos_user_name();

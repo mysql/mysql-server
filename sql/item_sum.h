@@ -453,7 +453,8 @@ class Item_sum : public Item_result_field {
     NTILE_FUNC,
     LEAD_LAG_FUNC,
     FIRST_LAST_VALUE_FUNC,
-    NTH_VALUE_FUNC
+    NTH_VALUE_FUNC,
+    ROLLUP_SUM_SWITCHER_FUNC
   };
 
   /**
@@ -565,6 +566,9 @@ class Item_sum : public Item_result_field {
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const = 0;
 
+  // Differs only for Item_rollup_sum_switcher.
+  virtual enum Sumfunctype real_sum_func() const { return sum_func(); }
+
   /**
     Resets the aggregate value to its default and aggregates the current
     value of its attribute(s).
@@ -653,9 +657,9 @@ class Item_sum : public Item_result_field {
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
 
-  Item *get_arg(uint i) { return args[i]; }
-  Item *set_arg(uint i, THD *thd, Item *new_val);
-  uint get_arg_count() const { return arg_count; }
+  virtual Item *get_arg(uint i) { return args[i]; }
+  virtual Item *set_arg(uint i, THD *thd, Item *new_val);
+  virtual uint get_arg_count() const { return arg_count; }
   /// @todo delete this when we no longer support temporary transformations
   Item **get_arg_ptr(uint i) { return &args[i]; }
 
@@ -672,7 +676,7 @@ class Item_sum : public Item_result_field {
     Called to initialize the aggregator.
   */
 
-  inline bool aggregator_setup(THD *thd) { return aggr->setup(thd); }
+  virtual bool aggregator_setup(THD *thd) { return aggr->setup(thd); }
 
   /**
     Called to cleanup the aggregator.
@@ -698,7 +702,7 @@ class Item_sum : public Item_result_field {
     May be called multiple times.
   */
 
-  int set_aggregator(Aggregator::Aggregator_type aggregator);
+  virtual int set_aggregator(Aggregator::Aggregator_type aggregator);
 
   virtual void clear() = 0;
   virtual bool add() = 0;
@@ -2663,6 +2667,98 @@ class Item_func_grouping : public Item_int_func {
   bool aggregate_check_group(uchar *arg) override;
   bool fix_fields(THD *thd, Item **ref) override;
   void update_used_tables() override;
+};
+
+/**
+  A wrapper Item that contains a number of aggregate items, one for each level
+  of rollup (see Item_rollup_group_item for numbering conventions). When
+  aggregating, every aggregator is either reset or updated as per the correct
+  level, and when returning a value, the correct child item corresponding to
+  the current rollup level is queried.
+ */
+class Item_rollup_sum_switcher final : public Item_sum {
+ public:
+  explicit Item_rollup_sum_switcher(List<Item> *sum_func_per_level)
+      : Item_sum((*sum_func_per_level)[0]),
+        m_num_levels(sum_func_per_level->size()) {
+    args = (*THR_MALLOC)->ArrayAlloc<Item *>(sum_func_per_level->size());
+    int i = 0;
+    for (Item &item : *sum_func_per_level) {
+      args[i++] = &item;
+    }
+    item_name = master()->item_name;
+    aggr_select = master()->aggr_select;
+    base_select = master()->base_select;
+    set_distinct(master()->has_with_distinct());
+    set_data_type_from_item(master());
+  }
+  double val_real() override;
+  longlong val_int() override;
+  String *val_str(String *str) override;
+  my_decimal *val_decimal(my_decimal *dec) override;
+  bool val_json(Json_wrapper *result) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  const char *func_name() const override { return "rollup_sum_switcher"; }
+  table_map used_tables() const override { return master()->used_tables(); }
+  Item_result result_type() const override { return master()->result_type(); }
+  bool resolve_type(THD *) override {
+    set_data_type_from_item(master());
+    return false;
+  }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  Field *create_tmp_field(bool group, TABLE *table) override;
+
+  enum Sumfunctype sum_func() const override { return master()->sum_func(); }
+  enum Sumfunctype real_sum_func() const override {
+    return ROLLUP_SUM_SWITCHER_FUNC;
+  }
+  void reset_field() override { DBUG_ASSERT(false); }
+  void update_field() override { DBUG_ASSERT(false); }
+  void clear() override;
+  bool add() override {
+    DBUG_ASSERT(false);
+    return true;
+  }
+
+  bool reset_and_add_for_rollup(int last_unchanged_group_item_idx);
+
+  int set_aggregator(Aggregator::Aggregator_type aggregator) override;
+  bool aggregator_setup(THD *thd) override;
+  inline bool aggregator_add_all() {
+    for (int i = 0; i < m_num_levels; ++i) {
+      if (child(i)->aggregator_add()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Used when create_tmp_table() needs to delay application of aggregate
+  // functions to a later stage in the query processing.
+  Item *get_arg(uint i) override { return master()->get_arg(i); }
+  Item *set_arg(uint i, THD *thd, Item *new_val) override {
+    Item *ret = nullptr;
+    for (int j = 0; j < m_num_levels; ++j) {
+      ret = child(j)->set_arg(i, thd, new_val);
+    }
+    return ret;  // Return the last one, arbitrarily.
+  }
+  uint get_arg_count() const override { return master()->get_arg_count(); }
+
+  // Used by AggregateIterator.
+  void set_current_rollup_level(int level) { m_current_rollup_level = level; }
+  inline Item_sum *master() const { return child(0); }
+
+ private:
+  inline Item *current_arg() const;
+  inline Item_sum *child(size_t i) const {
+    return down_cast<Item_sum *>(args[i]);
+  }
+
+  const int m_num_levels;
+  int m_current_rollup_level = INT_MAX;
 };
 
 #endif /* ITEM_SUM_INCLUDED */

@@ -1,8 +1,8 @@
 define("dojo/dnd/Manager", [
-	"../_base/array",  "../_base/declare", "../_base/event", "../_base/lang", "../_base/window",
+	"../_base/array",  "../_base/declare", "../_base/lang", "../_base/window",
 	"../dom-class", "../Evented", "../has", "../keys", "../on", "../topic", "../touch",
 	"./common", "./autoscroll", "./Avatar"
-], function(array, declare, event, lang, win, domClass, Evented, has, keys, on, topic, touch,
+], function(array, declare, lang, win, domClass, Evented, has, keys, on, topic, touch,
 	dnd, autoscroll, Avatar){
 
 // module:
@@ -73,14 +73,21 @@ var Manager = declare("dojo.dnd.Manager", [Evented], {
 		this.avatar = this.makeAvatar();
 		win.body().appendChild(this.avatar.node);
 		topic.publish("/dnd/start", source, nodes, this.copy);
+
+		function stopEvent(e){
+			e.preventDefault();
+			e.stopPropagation();
+		}
+
 		this.events = [
 			on(win.doc, touch.move, lang.hitch(this, "onMouseMove")),
 			on(win.doc, touch.release,   lang.hitch(this, "onMouseUp")),
 			on(win.doc, "keydown",   lang.hitch(this, "onKeyDown")),
 			on(win.doc, "keyup",     lang.hitch(this, "onKeyUp")),
+
 			// cancel text selection and text dragging
-			on(win.doc, "dragstart",   event.stop),
-			on(win.body(), "selectstart", event.stop)
+			on(win.doc, "dragstart",   stopEvent),
+			on(win.body(), "selectstart", stopEvent)
 		];
 		var c = "dojoDnd" + (copy ? "Copy" : "Move");
 		domClass.add(win.body(), c);
@@ -218,6 +225,8 @@ Manager.manager = dnd.manager = function(){
 	}
 	return dnd._manager;	// Object
 };
+
+// TODO: for 2.0, store _manager and manager in Manager only.   Don't access dnd or dojo.dnd.
 
 return Manager;
 });

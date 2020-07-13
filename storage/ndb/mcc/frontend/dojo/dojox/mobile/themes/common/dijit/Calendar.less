@@ -30,7 +30,7 @@
 	border: none;
 	background-color: transparent;
 	background-image: none;
-	-webkit-box-shadow: 0 0 0 transparent;
+	.box-shadow(0 0 0 transparent);
 }
 .dijitArrowButtonInner {
 	display: none;
@@ -41,14 +41,14 @@
 .dijitCalendarIncrementControl {
 	width: 0;
 	height: 0;
-	border: 6px solid transparent;
+ 	border: 6px solid transparent !important;
 }
 .dijitCalendarDecrease {
-	border-left-width: 0;
+	border-left-width: 0 !important;
 	.dijitCalendarDecrease-styles;
 }
 .dijitCalendarIncrease {
-	border-right-width: 0;
+	border-right-width: 0 !important;
 	.dijitCalendarIncrease-styles;
 }
 .dijitA11ySideArrow {

@@ -1,9 +1,9 @@
 //>>built
-define("dojox/app/widgets/Container",["dojo/_base/declare","dojo/_base/lang","dijit/registry","dojo/dom-attr","dojo/dom-geometry","dojo/dom-style","dijit/_WidgetBase","dijit/_Container","dijit/_Contained","dojo/_base/array","dojo/query","../layout/utils","./_ScrollableMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d){
-return _1("dojox.app.widgets.Container",[_7,_8,_9,_d],{scrollable:false,buildRendering:function(){
-if(!this.region){
-this.region="center";
-_4.set(this.srcNodeRef,"data-app-region","center");
+define("dojox/app/widgets/Container",["dojo/_base/declare","dojo/_base/lang","dijit/registry","dojo/dom-attr","dojo/dom-geometry","dojo/dom-style","dijit/_WidgetBase","dijit/_Container","dijit/_Contained","dojo/_base/array","dojo/query","../utils/layout","./_ScrollableMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d){
+return _1("dojox.app.widgets.Container",[_7,_8,_9,_d],{scrollable:false,fixedFooter:"",fixedHeader:"",buildRendering:function(){
+if(!this._constraint){
+this._constraint="center";
+_4.set(this.srcNodeRef,"data-app-constraint","center");
 }
 this.inherited(arguments);
 _6.set(this.domNode,"overflow-x","hidden");
@@ -24,6 +24,11 @@ this.inherited(arguments);
 this._started=true;
 },resize:function(_e,_f){
 var _10=this.domNode;
+if(this.scrollable){
+this.inherited(arguments);
+this.layout();
+return;
+}
 if(_e){
 _5.setMarginBox(_10,_e);
 }
@@ -40,20 +45,20 @@ var pe=_5.getPadExtents(_10,cs);
 this._contentBox={l:_6.toPixelValue(_10,cs.paddingLeft),t:_6.toPixelValue(_10,cs.paddingTop),w:bb.w-pe.w,h:bb.h-pe.h};
 this.layout();
 },layout:function(){
-children=_b("> [data-app-region], > [region]",this.domNode).map(function(_11){
-var w=_3.getEnclosingWidget(_11);
+var _11=_b("> [data-app-constraint]",this.domNode).map(function(_12){
+var w=_3.getEnclosingWidget(_12);
 if(w){
-w.region=_4.get(_11,"data-app-region")||_4.get(_11,"region");
+w._constraint=_4.get(_12,"data-app-constraint");
 return w;
 }
-return {domNode:_11,region:_4.get(_11,"data-app-region")||dom.Attr.get(_11,"region")};
+return {domNode:_12,_constraint:_4.get(_12,"data-app-constraint")};
 });
 if(this._contentBox){
-_c.layoutChildren(this.domNode,this._contentBox,children);
+_c.layoutChildren(this.domNode,this._contentBox,_11);
 }
-_a.forEach(this.getChildren(),function(_12){
-if(!_12._started&&_12.startup){
-_12.startup();
+_a.forEach(this.getChildren(),function(_13){
+if(!_13._started&&_13.startup){
+_13.startup();
 }
 });
 }});

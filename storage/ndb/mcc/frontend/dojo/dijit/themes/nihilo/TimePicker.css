@@ -4,7 +4,7 @@
 	border-color: #eeeeee;
 }
 .nihilo .dijitTimePickerTick {
-	color:white;
+	color: gray;
 }
 .nihilo .dijitTimePickerMarker {
 	background:#d3d3d3 url("images/titleBar.png") repeat-x top;
@@ -19,24 +19,9 @@
 	background: #d6d6dd none;
 	color:black;
 }
-.nihilo .dijitTimePickerItemHover,
-.nihilo .dijitTimePickerItemSelected {
-	position: relative;
-	z-index: 10;
-}
 .nihilo .dijitTimePickerTick .dijitTimePickerItemInner {
-	font-size:0.4em;
+	font-size: 0.8em;
 }
-.nihilo .dijitTimePickerItemHover .dijitTimePickerItemInner,
 .nihilo .dijitTimePickerItemSelected .dijitTimePickerItemInner {
-	font-size:1em;
-}
-.nihilo .dijitTimePickerMarkerHover {
-	border-top: 1px solid #eeeeee;
-}
-.nihilo .dijitTimePickerTickHover,
-.nihilo .dijitTimePickerTickSelected {
-	margin-top:-0.3em;
-	margin-bottom:-0.3em;
-	border-bottom: none;
+	font-size: 1em;
 }

@@ -1,24 +1,24 @@
 /* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file sql/mysqld.cc
@@ -515,6 +515,242 @@ The documentation is based on the source files such as:
   - @subpage PAGE_LOCK_ORDER
 */
 
+/**
+  @page PAGE_CODE_PATHS Code paths
+
+  This section details how the server executes some statements,
+  to illustrate how different parts work together.
+
+  Note that this overall view might take some shortcuts,
+  hiding some details or taking liberties with the notations,
+  to present the whole code structure in a comprehensible way.
+
+  - @subpage CODE_PATH_CREATE_TABLE
+*/
+
+/**
+  @page CODE_PATH_CREATE_TABLE CREATE TABLE
+
+  @section CREATE_TABLE_PARSER Parser
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant parser as "SQL Parser"
+  participant bison as "Bison Parser"
+  participant lexer as "Lexical Scanner"
+  participant pt as "Parse Tree Nodes"
+
+  ddl -> server : DDL QUERY TEXT
+  server -> parser : THD::sql_parser()
+  == Bison parser ==
+  parser -> bison : MYSQLparse()
+  bison -> lexer : MYSQLlex()
+  bison <-- lexer : yylval, yylloc
+  bison -> pt : new
+  activate pt
+  parser <-- pt : Abstract Syntax Tree
+
+  @enduml
+
+  When a query is sent to the server,
+  the first step is to invoke the bison parser
+  to build an Abstract Syntax Tree to represent the query text.
+
+  Assume the following statement:
+  @verbatim
+  CREATE TABLE test.t1 (a int) ENGINE = "INNODB";
+  @endverbatim
+
+  In the bison grammar file, the rule implementing the CREATE TABLE
+  statement is @c create_table_stmt.
+
+  The tree created is an object of class @ref PT_create_table_stmt.
+
+  This parse tree node has several related nodes, such as:
+  - @ref PT_create_table_option and sub classes, for table options.
+  - @ref PT_table_element and sub classes, for the columns, indexes, etc.
+
+  The collection of nodes returned after the bison parsing is known
+  as the "Abstract Syntax Tree" that represents a SQL query.
+
+  @section CREATE_TABLE_CMD Sql command
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant parser as "SQL Parser"
+  participant ast as "Abstract Syntax Tree"
+  participant cmd as "SQL Command"
+  participant ci as "HA_CREATE_INFO"
+  participant plugin as "MySQL plugin"
+
+  ddl -> server : DDL QUERY TEXT
+  server -> parser : THD::sql_parser()
+  == Bison parser ==
+  == Build SQL command ==
+  parser -> ast : make_cmd()
+  ast -> ast : contextualize()
+  ast -> ci : build()
+  activate ci
+  ci -> plugin : ha_resolve_engine()
+  ci <-- plugin : storage engine handlerton
+  ast <-- ci : Parse Tree (contextualized)
+  ast -> cmd : build()
+  activate cmd
+  server <-- cmd : SQL Command
+
+  @enduml
+
+  Once the bison parser has finished parsing a query text,
+  the next step is to build a SQL command from the Abstract Syntax Tree.
+
+  In the Abstract Syntax Tree, attributes like a storage engine name
+  ("INNODB") are represented as strings, taken from the query text.
+
+  These attributes need to be converted to objects in the SQL context,
+  such as an @ref innodb_hton pointer to represent the INNODB storage engine.
+
+  The process that performs these transformations is contextualize().
+
+  The @ref Parse_tree_root class is an abstract factory, building @ref Sql_cmd
+  objects.
+
+  For a CREATE TABLE statement, class @ref PT_create_table_stmt builds a
+  concrete @ref Sql_cmd_create_table object.
+
+  @ref PT_create_table_stmt::make_cmd() in particular performs the following
+  actions:
+  - contextualize the parse tree for the CREATE TABLE statement.
+  - build a @ref HA_CREATE_INFO structure to represent the table DDL.
+  - resolve the storage engine name to an actual @ref handlerton pointer,
+    in @ref PT_create_table_engine_option::contextualize()
+
+  @section CREATE_TABLE_RUNTIME Runtime execution
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant cmd as "SQL Command"
+  participant rt as "Runtime"
+
+  ddl -> server : DDL QUERY TEXT
+  == Bison parser ==
+  == Build SQL command ==
+  == Execute SQL command ==
+  server -> cmd : execute()
+  cmd -> rt : mysql_create_table()
+
+  @enduml
+
+  Execution of a CREATE TABLE statement invokes
+  @ref Sql_cmd_create_table::execute(),
+  which in turns calls:
+  - @ref mysql_create_table(),
+  - @ref mysql_create_table_no_lock(),
+  - @ref create_table_impl(),
+  - @ref rea_create_base_table().
+
+  Execution of this code is the runtime implementation of the CREATE TABLE
+  statement, and eventually leads to:
+  - @ref dd::create_table(), to create the table in the Data Dictionary,
+  - @ref ha_create_table(), to create the table in the handlerton.
+
+  Details about the dictionary and the storage engine are expanded
+  in the following two sections.
+
+
+  @section CREATE_TABLE_DD Data Dictionary
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant rt as "Runtime"
+  participant dd as "Data Dictionary"
+  participant ddt as "Data Dictionary Table"
+  participant sdi as "Serialized Dictionary Information"
+  participant hton as "Handlerton"
+  participant se as "Storage Engine"
+  participant ts as "Tablespace"
+
+  ddl -> server : DDL QUERY TEXT
+  == ... ==
+  server -> rt : ( execution code path )
+  == Data Dictionary ==
+  rt -> dd : dd::create_table()
+  dd -> ddt : build dd::Table()
+  activate ddt
+  rt <-- ddt : dd:Table instance
+  == Serialized Dictionary Information ==
+  rt -> dd : store()
+  dd -> sdi : dd::sdi::store()
+  sdi -> sdi : sdi_tablespace::store_tbl_sdi()
+  == Storage Engine (Tablespace) ==
+  sdi -> hton : handlerton::sdi()
+  hton -> se : ::sdi() implementation.
+  se -> ts : write metadata in tablespace
+
+  @enduml
+
+  In the data dictionary, creation of a new table calls:
+  - @ref dd::create_dd_user_table()
+  - @ref fill_dd_table_from_create_info()
+
+  The data dictionary code parses the content of the HA_CREATE_INFO
+  input, and builds a @ref dd::Table object, to represent the table metadata.
+  Part of this metadata includes the storage engine name.
+
+  The runtime code then calls @c store() to save this new metadata.
+
+  To store a table metadata, the data dictionary code first serialize it
+  into an sdi format.
+
+  The serialized object is then stored in persistence,
+  either in a tablespace or in a file:
+  - @ref sdi_tablespace::store_tbl_sdi()
+  - @ref sfi_file::store_tbl_sdi()
+
+  When storing data into a tablespace, the storage engine handlerton is
+  invoked, so that the storage engine can ultimately store
+  the table metadata in the tablespace maintained by the storage engine.
+
+  @section CREATE_TABLE_SE Storage Engine
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant rt as "Runtime"
+  participant sei as "Storage Engine Interface"
+  participant hton as "Storage Engine Handlerton"
+  participant handler as "Storage Engine Handler"
+
+  ddl -> server : DDL QUERY TEXT
+  == ... ==
+  server -> rt : ( execution code path )
+  == Storage Engine (table) ==
+  rt -> sei : ha_create_table()
+  sei -> hton : handlerton::create()
+  hton -> handler : (build a new table handler)
+  activate handler
+  sei <-- handler : storage engine table handler
+  sei -> handler : handler::create()
+
+  @enduml
+
+  When execution of the CREATE TABLE statement
+  reaches the storage engine interface,
+  the SQL layer function @ref ha_create_table()
+  invokes the storage engine @ref handlerton::create()
+  method to instantiate a new storage engine table,
+  represented by @ref handler.
+  The SQL layer then calls @ref handler::create() to create
+  the table inside the storage engine.
+*/
 
 /**
   @page PAGE_SQL_Optimizer SQL Optimizer
@@ -594,6 +830,7 @@ The documentation is based on the source files such as:
 #include "mysql/psi/psi_system.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_tls_channel.h"
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -693,7 +930,10 @@ The documentation is based on the source files such as:
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_udf.h"
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_acceptor_context_iterator.h"
+#include "sql/ssl_acceptor_context_operator.h"
+#include "sql/ssl_acceptor_context_status.h"
+#include "sql/ssl_init_callback.h"
 #include "sql/sys_vars.h"         // fixup_enforce_gtid_consistency_...
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
 #include "sql/table_cache.h"      // table_cache_manager
@@ -913,7 +1153,7 @@ static PSI_mutex_key key_BINLOG_LOCK_sync;
 static PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 static PSI_mutex_key key_BINLOG_LOCK_xids;
 static PSI_rwlock_key key_rwlock_global_sid_lock;
-static PSI_rwlock_key key_rwlock_gtid_mode_lock;
+PSI_rwlock_key key_rwlock_gtid_mode_lock;
 static PSI_rwlock_key key_rwlock_LOCK_system_variables_hash;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_connect;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_slave;
@@ -944,6 +1184,7 @@ static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
 static PSI_mutex_key key_LOCK_keyring_operations;
 static PSI_mutex_key key_LOCK_tls_ctx_options;
+static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
 static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1084,6 +1325,7 @@ mysql_mutex_t LOCK_mandatory_roles;
 mysql_mutex_t LOCK_password_history;
 mysql_mutex_t LOCK_password_reuse_interval;
 mysql_mutex_t LOCK_tls_ctx_options;
+mysql_mutex_t LOCK_admin_tls_ctx_options;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
@@ -1689,6 +1931,7 @@ static const char *default_dbug_option;
 #endif
 
 bool opt_use_ssl = true;
+bool opt_use_admin_ssl = true;
 ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 
 /* Function declarations */
@@ -2218,10 +2461,6 @@ void gtid_server_cleanup() {
     delete gtid_table_persistor;
     gtid_table_persistor = nullptr;
   }
-  if (gtid_mode_lock) {
-    delete gtid_mode_lock;
-    gtid_mode_lock = nullptr;
-  }
 }
 
 /**
@@ -2231,21 +2470,16 @@ void gtid_server_cleanup() {
            false if OK
 */
 bool gtid_server_init() {
+  global_gtid_mode.set(
+      static_cast<Gtid_mode::value_type>(Gtid_mode::sysvar_mode));
   bool res = (!(global_sid_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
                     key_rwlock_global_sid_lock
 #endif
                     )) ||
-              !(gtid_mode_lock = new Checkable_rwlock(
-#ifdef HAVE_PSI_INTERFACE
-                    key_rwlock_gtid_mode_lock
-#endif
-                    )) ||
               !(global_sid_map = new Sid_map(global_sid_lock)) ||
               !(gtid_state = new Gtid_state(global_sid_lock, global_sid_map)) ||
               !(gtid_table_persistor = new Gtid_table_persistor()));
-
-  gtid_mode_counter = 1;
 
   if (res) {
     gtid_server_cleanup();
@@ -2348,9 +2582,6 @@ static void clean_up(bool print_message) {
   if (!is_help_or_validate_option() && !opt_initialize)
     resourcegroups::Resource_group_mgr::destroy_instance();
   mysql_client_plugin_deinit();
-  finish_client_errs();
-  deinit_errmessage();  // finish server errs
-  DBUG_PRINT("quit", ("Error messages freed"));
 
   Global_THD_manager::destroy_instance();
 
@@ -2374,6 +2605,7 @@ static void clean_up(bool print_message) {
     unregister_pfs_resource_group_service();
   }
 #endif
+  deinit_tls_psi_keys();
   component_infrastructure_deinit();
   /*
     component unregister_variable() api depends on system_variable_hash.
@@ -2384,6 +2616,10 @@ static void clean_up(bool print_message) {
   */
   sys_var_end();
   free_status_vars();
+
+  finish_client_errs();
+  deinit_errmessage();  // finish server errs
+  DBUG_PRINT("quit", ("Error messages freed"));
 
   if (have_statement_timeout == SHOW_OPTION_YES) my_timer_deinitialize();
 
@@ -2441,6 +2677,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_keyring_operations);
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
+  mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
 }
 
 /****************************************************************************
@@ -3180,12 +3417,16 @@ void my_init_signals() {
     */
     sa.sa_flags = SA_RESETHAND | SA_NODEFER;
     sa.sa_handler = handle_fatal_signal;
-    // Treat all these as fatal and handle them.
-    (void)sigaction(SIGSEGV, &sa, nullptr);
-    (void)sigaction(SIGABRT, &sa, nullptr);
-    (void)sigaction(SIGBUS, &sa, nullptr);
-    (void)sigaction(SIGILL, &sa, nullptr);
-    (void)sigaction(SIGFPE, &sa, nullptr);
+    // Treat these as fatal and handle them.
+    sigaction(SIGABRT, &sa, nullptr);
+    sigaction(SIGFPE, &sa, nullptr);
+    // Handle these as well, except for ASAN/UBSAN builds:
+    // we let sanitizer runtime handle them instead.
+#if defined(HANDLE_FATAL_SIGNALS)
+    sigaction(SIGBUS, &sa, nullptr);
+    sigaction(SIGILL, &sa, nullptr);
+    sigaction(SIGSEGV, &sa, nullptr);
+#endif
   }
 
   // Ignore SIGPIPE
@@ -3335,6 +3576,14 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
         // fall through
       case SIGTERM:
       case SIGQUIT:
+#ifndef __APPLE__  // Mac OS doesn't have sigwaitinfo.
+        if (sig_info.si_pid != getpid())
+          LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_INFO, "<via user signal>",
+                 server_version, MYSQL_COMPILATION_COMMENT_SERVER);
+#else
+        LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_INFO, "<via user signal>",
+               server_version, MYSQL_COMPILATION_COMMENT_SERVER);
+#endif  // __APPLE__
         // Switch to the file log message processing.
         query_logger.set_handlers((log_output_options != LOG_NONE) ? LOG_FILE
                                                                    : LOG_NONE);
@@ -4688,6 +4937,7 @@ int init_common_variables() {
     return 1;
   }
 
+  set_mysqld_opt_tracking_mode();
   if (global_system_variables.transaction_write_set_extraction ==
           HASH_ALGORITHM_OFF &&
       mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode !=
@@ -4849,6 +5099,8 @@ static int init_thread_environment() {
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_rotate_binlog_master_key,
                    &LOCK_rotate_binlog_master_key, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_admin_tls_ctx_options, &LOCK_admin_tls_ctx_options,
+                   MY_MUTEX_INIT_FAST);
   return 0;
 }
 
@@ -4897,7 +5149,35 @@ static int init_ssl_communication() {
     LogErr(ERROR_LEVEL, ER_SSL_FIPS_MODE_ERROR, ssl_err_string);
     return 1;
   }
-  if (SslAcceptorContext::singleton_init(opt_use_ssl)) return 1;
+  if (TLS_channel::singleton_init(&mysql_main, mysql_main_channel, opt_use_ssl,
+                                  &server_main_callback, opt_initialize))
+    return 1;
+
+  /*
+    The default value of --admin-ssl is ON. If it is set
+    to off, we should treat it as an explicit attempt to
+    set TLS off for admin channel and thereby not use
+    main channel's TLS configuration.
+  */
+  if (!opt_use_admin_ssl) g_admin_ssl_configured = true;
+
+  bool initialize_admin_tls =
+      (!opt_initialize && (my_admin_bind_addr_str != nullptr))
+          ? opt_use_admin_ssl
+          : false;
+
+  Ssl_init_callback_server_admin server_admin_callback;
+  if (TLS_channel::singleton_init(&mysql_admin, mysql_admin_channel,
+                                  initialize_admin_tls, &server_admin_callback,
+                                  opt_initialize))
+    return 1;
+
+  if (initialize_admin_tls && !g_admin_ssl_configured) {
+    Lock_and_access_ssl_acceptor_context context(mysql_main);
+    if (context.have_ssl())
+      LogErr(SYSTEM_LEVEL, ER_TLS_CONFIGURATION_REUSED,
+             mysql_admin_channel.c_str(), mysql_main_channel.c_str());
+  }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
@@ -4908,7 +5188,8 @@ static int init_ssl_communication() {
 }
 
 static void end_ssl() {
-  SslAcceptorContext::singleton_deinit();
+  TLS_channel::singleton_deinit(mysql_main);
+  TLS_channel::singleton_deinit(mysql_admin);
   deinit_rsa_keys();
 }
 
@@ -5489,8 +5770,7 @@ static int init_server_components() {
   }
 
   if (opt_log_slave_updates && replicate_same_server_id) {
-    enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
-    if (opt_bin_log && gtid_mode != GTID_MODE_ON) {
+    if (opt_bin_log && global_gtid_mode.get() != Gtid_mode::ON) {
       LogErr(ERROR_LEVEL, ER_RPL_INFINITY_DENIED);
       unireg_abort(MYSQLD_ABORT_EXIT);
     } else
@@ -5845,8 +6125,7 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (!opt_initialize && !opt_noacl) {
-    std::string disabled_se_str(opt_disabled_storage_engines);
-    ha_set_normalized_disabled_se_str(disabled_se_str);
+    set_externally_disabled_storage_engine_names(opt_disabled_storage_engines);
 
     // Log warning if default_storage_engine is a disabled storage engine.
     handlerton *default_se_handle =
@@ -5901,10 +6180,7 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  /// @todo: this looks suspicious, revisit this /sven
-  enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
-
-  if (gtid_mode == GTID_MODE_ON &&
+  if (global_gtid_mode.get() == Gtid_mode::ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON) {
     LogErr(ERROR_LEVEL, ER_RPL_GTID_MODE_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON);
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -6262,7 +6538,7 @@ int mysqld_main(int argc, char **argv)
           &psi_cond_hook, &psi_file_hook, &psi_socket_hook, &psi_table_hook,
           &psi_mdl_hook, &psi_idle_hook, &psi_stage_hook, &psi_statement_hook,
           &psi_transaction_hook, &psi_memory_hook, &psi_error_hook,
-          &psi_data_lock_hook, &psi_system_hook);
+          &psi_data_lock_hook, &psi_system_hook, &psi_tls_channel_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled) {
         pfs_param.m_enabled = false;
         LogErr(WARNING_LEVEL, ER_PERFSCHEMA_INIT_FAILED);
@@ -6415,6 +6691,14 @@ int mysqld_main(int argc, char **argv)
     service = psi_system_hook->get_interface(PSI_CURRENT_SYSTEM_VERSION);
     if (service != nullptr) {
       set_psi_system_service(service);
+    }
+  }
+
+  if (psi_tls_channel_hook != nullptr) {
+    service =
+        psi_tls_channel_hook->get_interface(PSI_CURRENT_TLS_CHANNEL_VERSION);
+    if (service != nullptr) {
+      set_psi_tls_channel_service(service);
     }
   }
 
@@ -6819,7 +7103,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifdef _WIN32
   if (opt_require_secure_transport && !opt_enable_shared_memory &&
-      !SslAcceptorContext::have_ssl() && !opt_initialize) {
+      !have_ssl() && !opt_initialize) {
     LogErr(ERROR_LEVEL, ER_TRANSPORTS_WHAT_TRANSPORTS);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -8104,6 +8388,10 @@ struct my_option my_long_options[] = {
      "Enable SSL for connection (automatically enabled with other flags).",
      &opt_use_ssl, &opt_use_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0, 0, nullptr,
      0, nullptr},
+    {"admin-ssl", 0,
+     "Enable SSL for admin interface (automatically enabled with other flags).",
+     &opt_use_admin_ssl, &opt_use_admin_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0,
+     0, nullptr, 0, nullptr},
 #ifdef _WIN32
     {"standalone", 0, "Dummy option to start as a standalone program (NT).", 0,
      0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -8828,58 +9116,58 @@ SHOW_VAR status_vars[] = {
     {"Sort_scan", (char *)offsetof(System_status_var, filesort_scan_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Ssl_accept_renegotiates",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept_renegotiate,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_accept_renegotiate,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_accepts", (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept,
+    {"Ssl_accepts", (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_accept,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_callback_cache_hits",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_cb_hits, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_cb_hits, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_cipher", (char *)&show_ssl_get_cipher, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Ssl_cipher_list", (char *)&show_ssl_get_cipher_list, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_client_connects",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_connect, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_connect_renegotiates",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect_renegotiate,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_connect_renegotiate,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_ctx_verify_depth",
-     (char *)&SslAcceptorContext::show_ssl_ctx_get_verify_depth, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_get_verify_depth, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_ctx_verify_mode",
-     (char *)&SslAcceptorContext::show_ssl_ctx_get_verify_mode, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_get_verify_mode, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_default_timeout", (char *)&show_ssl_get_default_timeout, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_finished_accepts",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept_good, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_accept_good, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_finished_connects",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect_good, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_connect_good, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_hits",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_hits, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_hits, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_misses",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_misses, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_misses, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_mode",
-     (char *)&SslAcceptorContext::show_ssl_ctx_get_session_cache_mode,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_get_session_cache_mode,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_overflows",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_cache_full, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_cache_full, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_size",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_get_cache_size, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_get_cache_size,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_timeouts",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_timeouts, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_timeouts, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_sessions_reused", (char *)&show_ssl_session_reused, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_used_session_cache_entries",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_number, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_number, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_verify_depth", (char *)&show_ssl_get_verify_depth, SHOW_FUNC,
      SHOW_SCOPE_ALL},
@@ -8887,31 +9175,33 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_ALL},
     {"Ssl_version", (char *)&show_ssl_get_version, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Ssl_server_not_before",
-     (char *)&SslAcceptorContext::show_ssl_get_server_not_before, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_server_not_before, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_server_not_after",
-     (char *)&SslAcceptorContext::show_ssl_get_server_not_after, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_server_not_after, SHOW_FUNC,
      SHOW_SCOPE_ALL},
-    {"Current_tls_ca", (char *)&SslAcceptorContext::show_ssl_get_ssl_ca,
+    {"Current_tls_ca", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_ca,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Current_tls_capath", (char *)&SslAcceptorContext::show_ssl_get_ssl_capath,
+    {"Current_tls_capath",
+     (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_capath, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Current_tls_cert", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_cert,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Current_tls_cert", (char *)&SslAcceptorContext::show_ssl_get_ssl_cert,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Current_tls_key", (char *)&SslAcceptorContext::show_ssl_get_ssl_key,
+    {"Current_tls_key", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_key,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Current_tls_version",
-     (char *)&SslAcceptorContext::show_ssl_get_tls_version, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_tls_version, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Current_tls_cipher", (char *)&SslAcceptorContext::show_ssl_get_ssl_cipher,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_cipher",
+     (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_cipher, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Current_tls_ciphersuites",
-     (char *)&SslAcceptorContext::show_ssl_get_tls_ciphersuites, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_tls_ciphersuites, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Current_tls_crl", (char *)&SslAcceptorContext::show_ssl_get_ssl_crl,
+    {"Current_tls_crl", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_crl,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Current_tls_crlpath",
-     (char *)&SslAcceptorContext::show_ssl_get_ssl_crlpath, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_crlpath, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Rsa_public_key", (char *)&show_rsa_public_key, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
@@ -9349,6 +9639,22 @@ bool mysqld_get_one_option(int optid,
         One can disable SSL later by using --skip-ssl or --ssl=0.
       */
       opt_use_ssl = true;
+      break;
+    case OPT_ADMIN_SSL_KEY:
+    case OPT_ADMIN_SSL_CERT:
+    case OPT_ADMIN_SSL_CA:
+    case OPT_ADMIN_SSL_CAPATH:
+    case OPT_ADMIN_SSL_CIPHER:
+    case OPT_ADMIN_TLS_CIPHERSUITES:
+    case OPT_ADMIN_SSL_CRL:
+    case OPT_ADMIN_SSL_CRLPATH:
+    case OPT_ADMIN_TLS_VERSION:
+      /*
+        Enable use of SSL if we are using any ssl option.
+        One can disable SSL later by using --skip-admin-ssl or --admin-ssl=0.
+      */
+      g_admin_ssl_configured = true;
+      opt_use_admin_ssl = true;
       break;
     case 'V':
       print_server_version();
@@ -10670,7 +10976,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options"},
+  { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for client server connection port"},
+  { &key_LOCK_admin_tls_ctx_options, "LOCK_admin_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for administrative connection port"},
   { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
@@ -11185,6 +11492,8 @@ static void init_server_psi_keys(void) {
   init_client_psi_keys();
   /* Vio */
   init_vio_psi_keys();
+  /* TLS interfaces */
+  init_tls_psi_keys();
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -11292,4 +11601,13 @@ bool mysqld_partial_revokes() {
 */
 void set_mysqld_partial_revokes(bool value) {
   partial_revokes.store(value, std::memory_order_relaxed);
+}
+
+/**
+  Set m_opt_tracking_mode with a user given value associated with sysvar.
+*/
+void set_mysqld_opt_tracking_mode() {
+  mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode.store(
+      mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode_value,
+      std::memory_order_relaxed);
 }

@@ -156,7 +156,7 @@ if (`SELECT CURTIME() > SEC_TO_TIME(24 * 3600 - 5)`)
 {
    # We are here when CURTIME() is between '23:59:56' and '23:59:59'.
    # So a sleep time of 5 seconds brings us between '00:00:01' and '00:00:04'.
-   --real_sleep 5
+   --sleep 5
 }
 create table t1 (f1 date, f2 datetime, f3 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1(f1) values(curdate());

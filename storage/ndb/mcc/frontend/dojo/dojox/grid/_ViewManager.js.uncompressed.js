@@ -194,7 +194,7 @@ return declare('dojox.grid._ViewManager', null, {
 				}else{
 					hs.right = l + 'px';
 				}
-				if(!has('webkit')){
+				if(!has('webkit') && hs.width != 'auto'){
 					hs.width = parseInt(hs.width, 10) - v.getScrollbarWidth() + 'px';					
 				}
 			}else{

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@
   @class Primary_election_handler
   The base class to request and execute an election
 */
-class Primary_election_handler : public Group_transaction_listener {
+class Primary_election_handler {
  public:
   /**
     Instantiate a new election handler
@@ -103,34 +103,16 @@ class Primary_election_handler : public Group_transaction_listener {
   */
   int terminate_election_process();
 
-  // Transaction observers
+  // Consistency transaction manager notifiers
+  /**
+    Notify transaction consistency manager that election is running
+  */
+  void notify_election_running();
 
   /**
-    Register an observer for transactions
+    Notify transaction consistency manager that election ended
   */
-  void register_transaction_observer();
-
-  /**
-    Un register the observer for transactions
-  */
-  void unregister_transaction_observer();
-
-  virtual int before_transaction_begin(my_thread_id thread_id,
-                                       ulong gr_consistency_level,
-                                       ulong hold_timeout,
-                                       enum_rpl_channel_type channel_type);
-  virtual int before_commit(
-      my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
-
-  virtual int before_rollback(
-      my_thread_id thread_id,
-      Group_transaction_listener::enum_transaction_origin origin);
-
-  virtual int after_rollback(my_thread_id thread_id);
-
-  virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
-                           rpl_gno gno);
+  void notify_election_end();
 
   /**
     Sets the component stop timeout.

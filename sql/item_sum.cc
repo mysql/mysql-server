@@ -30,6 +30,7 @@
 #include "sql/item_sum.h"
 
 #include <string.h>
+
 #include <algorithm>
 #include <bitset>
 #include <functional>
@@ -446,7 +447,9 @@ Item_sum::Item_sum(THD *thd, const Item_sum *item)
   memcpy(args, item->args, sizeof(Item *) * arg_count);
   init_aggregator();
   with_distinct = item->with_distinct;
-  if (item->aggr) set_aggregator(item->aggr->Aggrtype());
+  if (item->aggr) {
+    Item_sum::set_aggregator(item->aggr->Aggrtype());
+  }
   DBUG_ASSERT(!m_is_window_function);  // WF items are never copied
 }
 
@@ -1302,7 +1305,7 @@ bool Aggregator_distinct::add() {
       '0' values are also stored in the tree. This doesn't matter
       for SUM(DISTINCT), but is important for AVG(DISTINCT)
     */
-    return tree->unique_add(table->field[0]->ptr);
+    return tree->unique_add(table->field[0]->field_ptr());
   }
 }
 
@@ -1398,7 +1401,7 @@ bool Item_sum_num::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   maybe_null = false;
 
@@ -1427,7 +1430,7 @@ bool Item_sum_bit::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   for (uint i = 0; i < arg_count; i++) {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
@@ -1719,7 +1722,7 @@ bool Item_sum_hybrid::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   // 'item' can be changed during fix_fields
   if ((!item->fixed && item->fix_fields(thd, args)) ||
@@ -1786,7 +1789,7 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table) {
 
     if ((field = create_tmp_field_from_field(current_thd, field,
                                              item_name.ptr(), table, nullptr)))
-      field->flags &= ~NOT_NULL_FLAG;
+      field->clear_flag(NOT_NULL_FLAG);
     return field;
   }
   /*
@@ -2081,7 +2084,7 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val) {
 
 bool Aggregator_distinct::unique_walk_function(void *element) {
   DBUG_TRACE;
-  memcpy(table->field[0]->ptr, element, tree_key_length);
+  memcpy(table->field[0]->field_ptr(), element, tree_key_length);
   item_sum->add();
   return false;
 }
@@ -2174,7 +2177,7 @@ longlong Item_sum_count::val_int() {
       if (dynamic_cast<Item_field *>(args[0])) {
         Item_field *f = down_cast<Item_field *>(args[0]);
         DBUG_PRINT(("enter"), ("Item_sum_count::val_int field: %p ptr: %p",
-                               f->field, f->field->ptr));
+                               f->field, f->field->field_ptr()));
       }
     });
 
@@ -2680,7 +2683,7 @@ my_decimal *Item_sum_variance::val_decimal(my_decimal *dec_buf) {
 
 void Item_sum_variance::reset_field() {
   double nr;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   nr = args[0]->val_real(); /* sets null_value as side-effect */
 
@@ -2700,7 +2703,7 @@ void Item_sum_variance::reset_field() {
 
 void Item_sum_variance::update_field() {
   ulonglong field_count;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   double nr = args[0]->val_real(); /* sets null_value as side-effect */
 
@@ -2726,6 +2729,7 @@ void Item_sum_hybrid::clear() {
   value->clear();
   value->store(args[0]);
   arg_cache->clear();
+  arg_cache->store(args[0]);
   null_value = true;
   m_cnt = 0;
   m_saved_last_value_at = 0;
@@ -3192,7 +3196,6 @@ Item *Item_sum_and::copy_or_same(THD *thd) {
 
 void Item_sum_num::reset_field() {
   double nr = args[0]->val_real();
-  uchar *res = result_field->ptr;
 
   if (maybe_null) {
     if (args[0]->null_value) {
@@ -3201,7 +3204,7 @@ void Item_sum_num::reset_field() {
     } else
       result_field->set_notnull();
   }
-  float8store(res, nr);
+  float8store(result_field->field_ptr(), nr);
 }
 
 void Item_sum_hybrid::reset_field() {
@@ -3293,7 +3296,7 @@ void Item_sum_sum::reset_field() {
   } else {
     DBUG_ASSERT(hybrid_type == REAL_RESULT);
     double nr = args[0]->val_real();  // Nulls also return 0
-    float8store(result_field->ptr, nr);
+    float8store(result_field->field_ptr(), nr);
   }
   if (args[0]->null_value)
     result_field->set_null();
@@ -3302,16 +3305,15 @@ void Item_sum_sum::reset_field() {
 }
 
 void Item_sum_count::reset_field() {
-  uchar *res = result_field->ptr;
   longlong nr = 0;
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
 
   if (!args[0]->maybe_null || !args[0]->is_null()) nr = 1;
-  int8store(res, nr);
+  int8store(result_field->field_ptr(), nr);
 }
 
 void Item_sum_avg::reset_field() {
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
   if (hybrid_type == DECIMAL_RESULT) {
     longlong tmp;
@@ -3389,7 +3391,7 @@ void Item_sum_sum::update_field() {
       }
     }
   } else {
-    uchar *res = result_field->ptr;
+    uchar *res = result_field->field_ptr();
 
     double old_nr = float8get(res);
     double nr = args[0]->val_real();
@@ -3403,7 +3405,7 @@ void Item_sum_sum::update_field() {
 
 void Item_sum_count::update_field() {
   longlong nr;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   nr = sint8korr(res);
   if (!args[0]->maybe_null || !args[0]->is_null()) nr++;
@@ -3413,7 +3415,7 @@ void Item_sum_count::update_field() {
 void Item_sum_avg::update_field() {
   DBUG_TRACE;
   longlong field_count;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
 
@@ -3592,8 +3594,8 @@ double Item_avg_field::val_real() {
 
   if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  double nr = float8get(field->ptr);
-  res = (field->ptr + sizeof(double));
+  double nr = float8get(field->field_ptr());
+  res = (field->field_ptr() + sizeof(double));
   count = sint8korr(res);
 
   if ((null_value = !count)) return 0.0;
@@ -3603,12 +3605,12 @@ double Item_avg_field::val_real() {
 my_decimal *Item_avg_field::val_decimal(my_decimal *dec_buf) {
   // fix_fields() never calls for this Item
   if (hybrid_type == REAL_RESULT) return val_decimal_from_real(dec_buf);
-  longlong count = sint8korr(field->ptr + dec_bin_size);
+  longlong count = sint8korr(field->field_ptr() + dec_bin_size);
   if ((null_value = !count)) return nullptr;
 
   my_decimal dec_count, dec_field;
-  binary2my_decimal(E_DEC_FATAL_ERROR, field->ptr, &dec_field, f_precision,
-                    f_scale);
+  binary2my_decimal(E_DEC_FATAL_ERROR, field->field_ptr(), &dec_field,
+                    f_precision, f_scale);
   int2my_decimal(E_DEC_FATAL_ERROR, count, false, &dec_count);
   my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &dec_field, &dec_count,
                  prec_increment);
@@ -3644,7 +3646,7 @@ Item_sum_bit_field::Item_sum_bit_field(Item_result res_type, Item_sum_bit *item,
 
 longlong Item_sum_bit_field::val_int() {
   if (hybrid_type == INT_RESULT)
-    return uint8korr(field->ptr);
+    return uint8korr(field->field_ptr());
   else {
     String *res;
     if (!(res = val_str(&str_value))) return 0;
@@ -3659,7 +3661,7 @@ longlong Item_sum_bit_field::val_int() {
 
 double Item_sum_bit_field::val_real() {
   if (hybrid_type == INT_RESULT) {
-    ulonglong result = uint8korr(field->ptr);
+    ulonglong result = uint8korr(field->field_ptr());
     return result;
   } else {
     String *res;
@@ -3762,8 +3764,8 @@ double Item_variance_field::val_real() {
   // fix_fields() never calls for this Item
   if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  double recurrence_s = float8get(field->ptr + sizeof(double));
-  ulonglong count = sint8korr(field->ptr + sizeof(double) * 2);
+  double recurrence_s = float8get(field->field_ptr() + sizeof(double));
+  ulonglong count = uint8korr(field->field_ptr() + sizeof(double) * 2);
 
   if ((null_value = (count <= sample))) return 0.0;
   return variance_fp_recurrence_result(recurrence_s, 0.0, count, sample, false);
@@ -4334,7 +4336,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 
   maybe_null = true;
 
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   /*
     Fix fields for select list and ORDER clause
@@ -5543,7 +5545,7 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref) {
 
   if (init_sum_func_check(thd)) return true;
 
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   for (uint i = 0; i < arg_count; i++) {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
@@ -6027,13 +6029,9 @@ longlong Item_func_grouping::val_int() {
     Item *real_item = args[i];
     while (real_item->type() == REF_ITEM)
       real_item = *((down_cast<Item_ref *>(real_item))->ref);
-    /*
-      Note: if the current input argument is an 'Item_null_result',
-      then we know it is generated by rollup handler to fill the
-      subtotal rows.
-    */
-    if (real_item->type() == NULL_RESULT_ITEM)
+    if (has_rollup_result(real_item)) {
       result += 1 << (arg_count - (i + 1));
+    }
   }
   return result;
 }
@@ -6075,4 +6073,107 @@ void Item_func_grouping::update_used_tables() {
     result always depends on ROLLUP result.
   */
   used_tables_cache |= current_thd->lex->current_select()->all_tables_map();
+}
+
+inline Item *Item_rollup_sum_switcher::current_arg() const {
+  DBUG_ASSERT(m_current_rollup_level >= 0 &&
+              m_current_rollup_level < m_num_levels);
+  return args[m_current_rollup_level];
+}
+
+bool Item_rollup_sum_switcher::get_date(MYSQL_TIME *ltime,
+                                        my_time_flags_t fuzzydate) {
+  DBUG_ASSERT(fixed);
+  return (null_value = current_arg()->get_date(ltime, fuzzydate));
+}
+
+bool Item_rollup_sum_switcher::get_time(MYSQL_TIME *ltime) {
+  DBUG_ASSERT(fixed);
+  return (null_value = current_arg()->get_time(ltime));
+}
+
+double Item_rollup_sum_switcher::val_real() {
+  DBUG_ASSERT(fixed);
+  double res = current_arg()->val_real();
+  if ((null_value = current_arg()->null_value)) return 0.0;
+  return res;
+}
+
+longlong Item_rollup_sum_switcher::val_int() {
+  DBUG_ASSERT(fixed);
+  longlong res = current_arg()->val_int();
+  if ((null_value = current_arg()->null_value)) return 0;
+  return res;
+}
+
+String *Item_rollup_sum_switcher::val_str(String *str) {
+  DBUG_ASSERT(fixed);
+  String *res = current_arg()->val_str(str);
+  if ((null_value = current_arg()->null_value)) return nullptr;
+  return res;
+}
+
+my_decimal *Item_rollup_sum_switcher::val_decimal(my_decimal *dec) {
+  DBUG_ASSERT(fixed);
+  my_decimal *res = current_arg()->val_decimal(dec);
+  if ((null_value = current_arg()->null_value)) return nullptr;
+  return res;
+}
+
+bool Item_rollup_sum_switcher::val_json(Json_wrapper *result) {
+  DBUG_ASSERT(fixed);
+  bool res = current_arg()->val_json(result);
+  null_value = current_arg()->null_value;
+  return res;
+}
+
+void Item_rollup_sum_switcher::print(const THD *thd, String *str,
+                                     enum_query_type query_type) const {
+  if (query_type & QT_HIDE_ROLLUP_FUNCTIONS) {
+    master()->print(thd, str, query_type);
+  } else {
+    Item_sum::print(thd, str, query_type);
+  }
+}
+
+Field *Item_rollup_sum_switcher::create_tmp_field(bool group, TABLE *table) {
+  return master()->create_tmp_field(group, table);
+}
+
+void Item_rollup_sum_switcher::clear() {
+  for (int i = 0; i < m_num_levels; ++i) {
+    child(i)->clear();
+  }
+}
+
+bool Item_rollup_sum_switcher::reset_and_add_for_rollup(
+    int last_unchanged_group_item_idx) {
+  for (int i = 0; i < m_num_levels; ++i) {
+    if (i >= last_unchanged_group_item_idx) {
+      if (child(i)->reset_and_add()) return true;
+    } else {
+      if (child(i)->aggregator_add()) return true;
+    }
+  }
+  return false;
+}
+
+int Item_rollup_sum_switcher::set_aggregator(
+    Aggregator::Aggregator_type aggregator) {
+  for (int i = 0; i < m_num_levels; ++i) {
+    int err = child(i)->set_aggregator(aggregator);
+    if (err != 0) {
+      return err;
+    }
+  }
+  return 0;
+}
+
+bool Item_rollup_sum_switcher::aggregator_setup(THD *thd) {
+  for (int i = 0; i < m_num_levels; ++i) {
+    if (child(i)->aggregator_setup(thd)) {
+      return true;
+    }
+  }
+  return false;
 }

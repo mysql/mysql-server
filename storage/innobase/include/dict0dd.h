@@ -33,6 +33,7 @@ Data dictionary interface */
 #include "dict0dict.h"
 #include "dict0mem.h"
 #include "dict0types.h"
+#include "my_compiler.h"
 #include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
@@ -84,7 +85,11 @@ enum dd_table_keys {
   DD_TABLE_DATA_DIRECTORY,
   /** Dynamic metadata version */
   DD_TABLE_VERSION,
-  /** Discard flag */
+  /** Discard flag. Please don't use it directly, and instead use
+  dd_is_discarded and dd_set_discarded functions. Discard flag is defined
+  for both dd::Table and dd::Partition and it's easy to confuse.
+  The functions will choose right implementation for you, depending on
+  whether the argument is dd::Table or dd::Partition. */
   DD_TABLE_DISCARD,
   /** Columns before first instant ADD COLUMN */
   DD_TABLE_INSTANT_COLS,
@@ -129,6 +134,12 @@ enum dd_partition_keys {
   newly truncated partition, it can have no instant columns.
   So partition level one should be always >= table level one. */
   DD_PARTITION_INSTANT_COLS,
+  /** Discard flag. Please don't use it directly, and instead use
+  dd_is_discarded and dd_set_discarded functions. Discard flag is defined
+  for both dd::Table and dd::Partition and it's easy to confuse.
+  The functions will choose right implementation for you, depending on
+  whether the argument is dd::Table or dd::Partition. */
+  DD_PARTITION_DISCARD,
   /** Sentinel */
   DD_PARTITION__LAST
 };
@@ -204,7 +215,7 @@ const char *const dd_column_key_strings[DD_COLUMN__LAST] = {"default",
 
 /** InnoDB private key strings for dd::Partition. @see dd_partition_keys */
 const char *const dd_partition_key_strings[DD_PARTITION__LAST] = {
-    "format", "instant_col"};
+    "format", "instant_col", "discard"};
 
 /** InnoDB private keys for dd::Index or dd::Partition_index */
 enum dd_index_keys {
@@ -412,6 +423,84 @@ inline bool dd_table_part_has_instant_cols(const dd::Table &table) {
   return (false);
 }
 
+/** Determine if dd::Table is discarded. Please note that
+in case of partitioned Table, only it's leaf partitions can be marked
+as discarded. However, it's fine to call this function on partitioned
+Table - it will just return false
+
+@param[in] table non-partitioned dd::Table
+@return true if table is marked as discarded
+@return false if table is not marked as discarded */
+inline bool dd_is_discarded(const dd::Table &table) {
+  const dd::Properties &table_private = table.se_private_data();
+  bool is_discarded = false;
+  if (table_private.exists(dd_table_key_strings[DD_TABLE_DISCARD])) {
+    table_private.get(dd_table_key_strings[DD_TABLE_DISCARD], &is_discarded);
+  }
+
+  /* In case of partitioned tables, only partitions/subpartitions can ever
+  be marked as discarded */
+  ut_ad(!is_discarded || !dd_table_is_partitioned(table));
+
+  return is_discarded;
+}
+
+/** Determine if dd::Partition is discarded. Please note that
+only leaf partitions can be marked as discarded (that is, if partition has
+subpartitions, then only subpartitions can be marked as discarded)
+
+Function can be safely called on a partition, even if it has subpartitions -
+it will just return false.
+
+@param[in] partition dd::Partition
+@return true if partition is marked as discarded
+@return false if partition is not marked as discarded */
+inline bool dd_is_discarded(const dd::Partition &partition) {
+  const dd::Properties &partition_private = partition.se_private_data();
+  bool is_discarded = false;
+  if (partition_private.exists(
+          dd_partition_key_strings[DD_PARTITION_DISCARD])) {
+    partition_private.get(dd_partition_key_strings[DD_PARTITION_DISCARD],
+                          &is_discarded);
+  }
+
+  return is_discarded;
+}
+
+/** Sets appropriate discard attribute of dd::Table
+Please note that this function must not be called on partitioned tables
+
+@param[in] table non-partitioned dd::Table
+@param[in] discarded true if Table is discarded, false otherwise */
+inline void dd_set_discarded(dd::Table &table, bool discarded) {
+  ut_ad(!dd_table_is_partitioned(table));
+
+  dd::Properties &p = table.se_private_data();
+  p.set(dd_table_key_strings[DD_TABLE_DISCARD], discarded);
+}
+
+/** Sets appropriate discard attribute of dd::Partition
+
+Please note that this function can be only called on leaf_partitions.
+
+@param[in] partition leaf dd::Partition
+@param[in] discarded true if Table is discarded, false otherwise */
+inline void dd_set_discarded(dd::Partition &partition, bool discarded) {
+#ifdef UNIV_DEBUG
+  bool is_leaf = false;
+  for (const dd::Partition *part : *partition.table().leaf_partitions()) {
+    if (part == &partition) {
+      is_leaf = true;
+      break;
+    }
+  }
+  ut_ad(is_leaf);
+#endif
+
+  dd::Properties &p = partition.se_private_data();
+  p.set(dd_partition_key_strings[DD_PARTITION_DISCARD], discarded);
+}
+
 /** Get the first index of a table or partition.
 @tparam		Table	dd::Table or dd::Partition
 @tparam		Index	dd::Index or dd::Partition_index
@@ -596,6 +685,8 @@ when old table has hidden fts doc id without fulltext index
 @param[in]	old_table	Old dd table */
 void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table);
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
 /** Find the specified dd::Index or dd::Partition_index in an InnoDB table
 @tparam		Index			dd::Index or dd::Partition_index
 @param[in]	table			InnoDB table object
@@ -603,6 +694,7 @@ void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table);
 @return	the dict_index_t object related to the index */
 template <typename Index>
 const dict_index_t *dd_find_index(const dict_table_t *table, Index *dd_index);
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** Acquire a shared metadata lock.
 @param[in,out]	thd	current thread
@@ -883,11 +975,12 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
 @param[in]	name		InnoDB table name
 @param[in]	dict_locked	has dict_sys mutex locked
 @param[in]	ignore_err	whether to ignore err
+@param[out]	error		pointer to error
 @return handle to non-partitioned table
 @retval NULL if the table does not exist */
 dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
                                     const char *name, bool dict_locked,
-                                    ulint ignore_err);
+                                    ulint ignore_err, int *error = nullptr);
 
 /** Returns a cached table object based on table id.
 @param[in]	table_id	table id
@@ -903,6 +996,8 @@ dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id, bool dict_locked);
 UNIV_INLINE
 dict_table_t *dd_table_open_on_name_in_mem(const char *name, ibool dict_locked);
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
 /** Open or load a table definition based on a Global DD object.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
@@ -915,6 +1010,7 @@ template <typename Table>
 dict_table_t *dd_open_table(dd::cache::Dictionary_client *client,
                             const TABLE *table, const char *norm_name,
                             const Table *dd_table, THD *thd);
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** Open foreign tables reference a table.
 @param[in]	fk_list		foreign key name list

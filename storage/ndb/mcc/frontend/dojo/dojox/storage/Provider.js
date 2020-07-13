@@ -1,7 +1,6 @@
 //>>built
-define("dojox/storage/Provider",["dojo","dijit","dojox"],function(_1,_2,_3){
-_1.provide("dojox.storage.Provider");
-_1.declare("dojox.storage.Provider",null,{constructor:function(){
+define("dojox/storage/Provider",["dojo/_base/array","dojo/_base/declare","dojo/_base/lang"],function(_1,_2,_3){
+return _2("dojox.storage.Provider",null,{constructor:function(){
 },SUCCESS:"success",FAILED:"failed",PENDING:"pending",SIZE_NOT_AVAILABLE:"Size not available",SIZE_NO_LIMIT:"No size limit",DEFAULT_NAMESPACE:"default",onHideSettingsUI:null,initialize:function(){
 console.warn("dojox.storage.initialize not implemented");
 },isAvailable:function(){
@@ -26,20 +25,20 @@ console.warn("dojox.storage.isPermanent not implemented");
 console.warn("dojox.storage.getMaximumSize not implemented");
 },putMultiple:function(_10,_11,_12,_13){
 for(var i=0;i<_10.length;i++){
-_3.storage.put(_10[i],_11[i],_12,_13);
+dojox.storage.put(_10[i],_11[i],_12,_13);
 }
 },getMultiple:function(_14,_15){
 var _16=[];
 for(var i=0;i<_14.length;i++){
-_16.push(_3.storage.get(_14[i],_15));
+_16.push(dojox.storage.get(_14[i],_15));
 }
 return _16;
 },removeMultiple:function(_17,_18){
 for(var i=0;i<_17.length;i++){
-_3.storage.remove(_17[i],_18);
+dojox.storage.remove(_17[i],_18);
 }
 },isValidKeyArray:function(_19){
-if(_19===null||_19===undefined||!_1.isArray(_19)){
+if(_19===null||_19===undefined||!_3.isArray(_19)){
 return false;
 }
 return !_1.some(_19,function(key){

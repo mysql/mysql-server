@@ -1,0 +1,131 @@
+create table t1 (a bigint auto_increment primary key,
+d int) engine = ndb;
+create table t2 (a int auto_increment primary key,
+d int) engine = ndb;
+insert into t1 values (400,0), (401,1), (402,2), (403,3);
+insert into t2 values (100,0), (101,1), (102,2), (103,3);
+select * from test.t1 order by a;
+a	d
+400	0
+401	1
+402	2
+403	3
+select * from test.t2 order by a;
+a	d
+100	0
+101	1
+102	2
+103	3
+select table_name, auto_increment 
+from information_schema.tables where table_schema='test';
+TABLE_NAME	AUTO_INCREMENT
+t1	404
+t2	104
+Run backup
+Restore with positive offset of 200
+truncate test.t1;
+truncate test.t2;
+Expect that next autoincrement value
+has moved forward accordingly 
+insert into t1 (d) values (4);
+insert into t2 (d) values (4);
+select * from test.t1 order by a;
+a	d
+600	0
+601	1
+602	2
+603	3
+604	4
+select * from test.t2 order by a;
+a	d
+300	0
+301	1
+302	2
+303	3
+304	4
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint NOT NULL AUTO_INCREMENT,
+  `d` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=605 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `d` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=305 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Restore with negative offset of 50
+truncate test.t1;
+truncate test.t2;
+Expect that next autoincrement value has *not*
+moved back
+insert into t1 (d) values (4);
+insert into t2 (d) values (4);
+select * from test.t1 order by a;
+a	d
+350	0
+351	1
+352	2
+353	3
+404	4
+select * from test.t2 order by a;
+a	d
+50	0
+51	1
+52	2
+53	3
+104	4
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint NOT NULL AUTO_INCREMENT,
+  `d` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=405 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `d` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Restore with negative offset of 200
+truncate test.t1;
+truncate test.t2;
+Expect that next autoincrement value has *not*
+moved back
+insert into t1 (d) values (4);
+insert into t2 (d) values (4);
+select * from test.t1 order by a;
+a	d
+200	0
+201	1
+202	2
+203	3
+404	4
+select * from test.t2 order by a;
+a	d
+-100	0
+-99	1
+-98	2
+-97	3
+104	4
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint NOT NULL AUTO_INCREMENT,
+  `d` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=405 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `d` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table test.t1;
+drop table test.t2;

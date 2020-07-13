@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -177,9 +177,13 @@ ulint btr_height_get(dict_index_t *index, /*!< in: index tree */
 @param[in]	page_size	page size
 @param[in]	mode		latch mode
 @param[in]	file		file name
-@param[in]	line		line where called
+@param[in]	line		line where called */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	index		index tree, may be NULL if it is not an insert
-                                buffer tree
+                                buffer tree */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	mtr		mini-transaction
 @return block */
 UNIV_INLINE
@@ -269,9 +273,11 @@ page_no_t btr_node_ptr_get_child_page_no(
 @param[in]  index index
 @param[in]  offsets array returned by rec_get_offsets()
 @param[in]  mtr mtr
-@return child page, sx-latched */
+@param[in]  type latch type
+@return child page, latched as per the type */
 buf_block_t *btr_node_ptr_get_child(const rec_t *node_ptr, dict_index_t *index,
-                                    const ulint *offsets, mtr_t *mtr);
+                                    const ulint *offsets, mtr_t *mtr,
+                                    rw_lock_type_t type = RW_SX_LATCH);
 
 /** Create the root node for a new index tree.
 @param[in]	type			type of the index

@@ -1,4 +1,4 @@
-define("dojox/date/hebrew/numerals", ["../..", "dojo/_base/lang", "dojo/_base/array"], function(dojox, lang, arr){
+define("dojox/date/hebrew/numerals", ["dojox/main", "dojo/_base/lang", "dojo/_base/array"], function(dojox, lang, arr){
 	var hnumerals = lang.getObject("date.hebrew.numerals", true, dojox);
 
 	//Conversion from "Hindi" numerals to Hebrew numerals and vice versa

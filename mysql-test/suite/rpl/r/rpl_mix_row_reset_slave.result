@@ -85,4 +85,27 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/rpl_reset_slave.inc
+# Configure the slave with an empty user
+CHANGE MASTER TO MASTER_USER='', MASTER_PORT=MASTER_PORT, MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+# Issue a RESET SLAVE instruction and try to start the slave IO thread that will error out
+include/rpl_reset_slave.inc
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=13117]
+# Check the user is still empty
+include/assert.inc [User_name in slave_master_info is empty]
+# Cleanup
+include/rpl_reset_slave.inc
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+call mtr.add_suppression("Slave I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the master server*");
 include/rpl_end.inc

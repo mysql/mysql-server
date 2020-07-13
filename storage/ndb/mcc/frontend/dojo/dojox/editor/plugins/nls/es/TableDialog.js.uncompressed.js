@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Añadir columna antes",
 	insertTableColumnAfterLabel: "Añadir columna después",
 	deleteTableRowLabel: "Suprimir fila",
-	deleteTableColumnLabel: "Suprimir columna"
+	deleteTableColumnLabel: "Suprimir columna",
+	colorTableCellTitle: "Celda de tabla de color de fondo",
+	tableContextMenuTitle: "Menú contextual de la tabla"
 })
 );

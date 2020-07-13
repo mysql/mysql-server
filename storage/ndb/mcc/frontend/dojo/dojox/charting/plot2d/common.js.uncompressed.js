@@ -1,10 +1,10 @@
-define("dojox/charting/plot2d/common", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/Color", 
-		"dojox/gfx", "dojox/lang/functional", "../scaler/common"], 
+define("dojox/charting/plot2d/common", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/Color",
+		"dojox/gfx", "dojox/lang/functional", "../scaler/common"],
 	function(lang, arr, Color, g, df, sc){
-	
+
 	var common = lang.getObject("dojox.charting.plot2d.common", true);
-	
-	return lang.mixin(common, {	
+
+	return lang.mixin(common, {
 		doIfLoaded: sc.doIfLoaded,
 		makeStroke: function(stroke){
 			if(!stroke){ return stroke; }
@@ -39,27 +39,25 @@ define("dojox/charting/plot2d/common", ["dojo/_base/lang", "dojo/_base/array", "
 			hmin: Number.POSITIVE_INFINITY, hmax: Number.NEGATIVE_INFINITY
 		},
 
-		collectSimpleStats: function(series){
+		collectSimpleStats: function(series, isNullValue){
 			var stats = lang.delegate(common.defaultStats);
 			for(var i = 0; i < series.length; ++i){
 				var run = series[i];
 				for(var j = 0; j < run.data.length; j++){
-					if(run.data[j] !== null){
+					if(!isNullValue(run.data[j])){
 						if(typeof run.data[j] == "number"){
 							// 1D case
 							var old_vmin = stats.vmin, old_vmax = stats.vmax;
-							if(!("ymin" in run) || !("ymax" in run)){
-								arr.forEach(run.data, function(val, i){
-									if(val !== null){
-										var x = i + 1, y = val;
-										if(isNaN(y)){ y = 0; }
-										stats.hmin = Math.min(stats.hmin, x);
-										stats.hmax = Math.max(stats.hmax, x);
-										stats.vmin = Math.min(stats.vmin, y);
-										stats.vmax = Math.max(stats.vmax, y);
-									}
-								});
-							}
+							arr.forEach(run.data, function(val, i){
+								if(!isNullValue(val)){
+									var x = i + 1, y = val;
+									if(isNaN(y)){ y = 0; }
+									stats.hmin = Math.min(stats.hmin, x);
+									stats.hmax = Math.max(stats.hmax, x);
+									stats.vmin = Math.min(stats.vmin, y);
+									stats.vmax = Math.max(stats.vmax, y);
+								}
+							});
 							if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
 							if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
 						}else{
@@ -68,7 +66,7 @@ define("dojox/charting/plot2d/common", ["dojo/_base/lang", "dojo/_base/array", "
 								old_vmin = stats.vmin, old_vmax = stats.vmax;
 							if(!("xmin" in run) || !("xmax" in run) || !("ymin" in run) || !("ymax" in run)){
 								arr.forEach(run.data, function(val, i){
-									if(val !== null){
+									if(!isNullValue(val)){
 										var x = "x" in val ? val.x : i + 1, y = val.y;
 										if(isNaN(x)){ x = 0; }
 										if(isNaN(y)){ y = 0; }
@@ -203,7 +201,7 @@ define("dojox/charting/plot2d/common", ["dojo/_base/lang", "dojo/_base/array", "
 			});
 			return p.join(" ");
 		},
-		
+
 		getLabel: function(/*Number*/number, /*Boolean*/fixed, /*Number*/precision){
 			return sc.doIfLoaded("dojo/number", function(numberLib){
 				return (fixed ? numberLib.format(number, {places : precision}) :
@@ -211,6 +209,10 @@ define("dojox/charting/plot2d/common", ["dojo/_base/lang", "dojo/_base/array", "
 			}, function(){
 				return fixed ? number.toFixed(precision) : number.toString();
 			});
+		},
+
+		purgeGroup: function (item) {
+			return item.purgeGroup();
 		}
 	});
 });

@@ -2,8 +2,7 @@ define("dojox/data/AppStore", ["dojo", "dojox", "dojo/data/util/simpleFetch", "d
 
 dojo.experimental("dojox.data.AppStore");
 
-dojo.declare("dojox.data.AppStore",
-	null,{
+var AppStore = dojo.declare("dojox.data.AppStore", null, {
 
 	// url: [public] string
 	//		So the parser can instantiate the store via markup.
@@ -816,7 +815,8 @@ dojo.declare("dojox.data.AppStore",
 		return (this._adds !== null || this._updates !== null); //boolean
 	}
 });
-dojo.extend(dojox.data.AppStore,dojo.data.util.simpleFetch);
 
-return dojox.data.AppStore;
+dojo.extend(AppStore, dojo.data.util.simpleFetch);
+
+return AppStore;
 });

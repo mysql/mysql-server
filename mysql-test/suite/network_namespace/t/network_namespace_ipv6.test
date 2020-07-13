@@ -39,35 +39,36 @@ CREATE USER root@'10.0.1.1';
 --echo # Check that client can establish connection to the address ::ffff:10.0.1.1 from the network namespace 'blue'
 --exec $EXE_MYSQL --no-defaults -u root  --port $MYSQL_PORT --host ::ffff:10.0.1.1 --network-namespace=blue -e "SELECT USER()"
 
---exec # Use network namespaces with an IPv6 admin address and admin port
+--echo # Use network namespaces with an IPv6 admin address and admin port
 
-# Calculate value for admin port
---let $PORT_OFFSET = 1
---expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
 
 # Restart with an IPv6 address from the 'red' namespace
---let $restart_parameters=restart: --skip-name-resolve --admin-address=::1/red --admin-port=$ADMIN_PORT
---replace_result $ADMIN_PORT ADMIN_PORT
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::1/red --admin-port=$MASTER_ADMINPORT
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/restart_mysqld.inc
 
 GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'::1';
 GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'10.0.1.1';
 
---exec $EXE_MYSQL --no-defaults -u root --host ::1 --port $ADMIN_PORT --network-namespace=red -e "SELECT USER()"
+--exec $EXE_MYSQL --no-defaults -u root --host ::1 --port $MASTER_ADMINPORT --network-namespace=red -e "SELECT USER()"
 
 # Restart with an IPv4 mapped IPv6 address
---let $restart_parameters=restart: --skip-name-resolve --admin-address=::ffff:10.0.1.1/blue --admin-port=$ADMIN_PORT --create-admin-listener-thread=true
---replace_result $ADMIN_PORT ADMIN_PORT
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::ffff:10.0.1.1/blue --admin-port=$MASTER_ADMINPORT --create-admin-listener-thread=true
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/restart_mysqld.inc
 
---exec $EXE_MYSQL --no-defaults -u root --host ::ffff:10.0.1.1 --port $ADMIN_PORT --network-namespace=blue -e "SELECT USER()"
+--exec $EXE_MYSQL --no-defaults -u root --host ::ffff:10.0.1.1 --port $MASTER_ADMINPORT --network-namespace=blue -e "SELECT USER()"
 
 # Restart with an IPv6 admin address in the 'red' namespace with a dedicated listener thread for admin connections
---let $restart_parameters=restart: --skip-name-resolve --admin-address=::1/red --admin-port=$ADMIN_PORT --create-admin-listener-thread=true
---replace_result $ADMIN_PORT ADMIN_PORT
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::1/red --admin-port=$MASTER_ADMINPORT --create-admin-listener-thread=true
+--replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/restart_mysqld.inc
 
---exec $EXE_MYSQL --no-defaults -u root --host ::1 --port $ADMIN_PORT --network-namespace=red -e "SELECT USER()"
+--exec $EXE_MYSQL --no-defaults -u root --host ::1 --port $MASTER_ADMINPORT --network-namespace=red -e "SELECT USER()"
 
 REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@'::1';
 REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@'10.0.1.1';

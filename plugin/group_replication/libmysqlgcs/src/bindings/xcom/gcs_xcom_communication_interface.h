@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -233,9 +233,9 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
 
     @param[in] message_to_send the message to send
     @return the xcom broadcast message error
-      @retval GCS_OK, when message is transmitted successfully
-      @retval GCS_NOK, when error occurred while transmitting message
-      @retval GCS_MESSAGE_TOO_BIG, when message is bigger then
+      @retval GCS_OK when message is transmitted successfully
+      @retval GCS_NOK when error occurred while transmitting message
+      @retval GCS_MESSAGE_TOO_BIG when message is bigger then
                                    xcom can handle
   */
 

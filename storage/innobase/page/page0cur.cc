@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -867,8 +867,8 @@ static void page_cur_insert_rec_write_log(
   /* Avoid REDO logging to save on costly IO because
   temporary tables are not recovered during crash recovery. */
   if (index->table->is_temporary()) {
-    byte *log_ptr = mlog_open(mtr, 0);
-    if (log_ptr == nullptr) {
+    byte *log_ptr = nullptr;
+    if (!mlog_open(mtr, 0, log_ptr)) {
       return;
     }
     mlog_close(mtr, log_ptr);
@@ -933,22 +933,20 @@ static void page_cur_insert_rec_write_log(
     } while (i < min_rec_size);
   }
 
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
 
   if (mtr_get_log_mode(mtr) != MTR_LOG_SHORT_INSERTS) {
     if (page_rec_is_comp(insert_rec)) {
-      log_ptr = mlog_open_and_write_index(mtr, insert_rec, index,
-                                          MLOG_COMP_REC_INSERT,
-                                          2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
-      if (UNIV_UNLIKELY(!log_ptr)) {
+      if (!mlog_open_and_write_index(
+              mtr, insert_rec, index, MLOG_COMP_REC_INSERT,
+              2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN, log_ptr)) {
         /* Logging in mtr is switched off
         during crash recovery: in that case
         mlog_open returns NULL */
         return;
       }
     } else {
-      log_ptr = mlog_open(mtr, 11 + 2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
-      if (UNIV_UNLIKELY(!log_ptr)) {
+      if (!mlog_open(mtr, 11 + 2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN, log_ptr)) {
         /* Logging in mtr is switched off
         during crash recovery: in that case
         mlog_open returns NULL */
@@ -964,8 +962,7 @@ static void page_cur_insert_rec_write_log(
     mach_write_to_2(log_ptr, page_offset(cursor_rec));
     log_ptr += 2;
   } else {
-    log_ptr = mlog_open(mtr, 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
-    if (!log_ptr) {
+    if (!mlog_open(mtr, 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN, log_ptr)) {
       /* Logging in mtr is switched off during crash
       recovery: in that case mlog_open returns NULL */
       return;
@@ -1042,7 +1039,7 @@ byte *page_cur_parse_insert_rec(
   ulint end_seg_len;
   ulint mismatch_index = 0; /* remove warning */
   page_t *page;
-  rec_t *cursor_rec;
+  rec_t *cursor_rec{nullptr};
   byte buf1[1024];
   byte *buf;
   const byte *ptr2 = ptr;
@@ -1069,7 +1066,7 @@ byte *page_cur_parse_insert_rec(
     offset = mach_read_from_2(ptr);
     ptr += 2;
 
-    cursor_rec = page + offset;
+    if (page != nullptr) cursor_rec = page + offset;
 
     if (offset >= UNIV_PAGE_SIZE) {
       recv_sys->found_corrupt_log = TRUE;
@@ -1554,10 +1551,9 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
 
   /* 8. Open the mtr for name sake to set the modification flag
   to true failing which no flush would be done. */
-  byte *log_ptr = mlog_open(mtr, 0);
-  ut_ad(log_ptr == nullptr);
-  if (log_ptr != nullptr) {
-    /* To keep complier happy. */
+  byte *log_ptr = nullptr;
+  if (mlog_open(mtr, 0, log_ptr)) {
+    ut_ad(false);
     mlog_close(mtr, log_ptr);
   }
 
@@ -1968,28 +1964,29 @@ rec_t *page_cur_insert_rec_zip(
 
 #ifndef UNIV_HOTBACKUP
 /** Writes a log record of copying a record list end to a new created page.
- @return 4-byte field where to write the log data length, or NULL if
- logging is disabled */
+@param[in,out]	page	index page
+@param[in,out]	index	record descriptor
+@param[in,out]	mtr	mini transaction
+@param[out]	log_ptr	4-byte field where to write the log data length
+@retval true if mtr log is opened successfully.
+@retval false if mtr log is not opened. One case is when redo is disabled. */
 UNIV_INLINE
-byte *page_copy_rec_list_to_created_page_write_log(
-    page_t *page,        /*!< in: index page */
-    dict_index_t *index, /*!< in: record descriptor */
-    mtr_t *mtr)          /*!< in: mtr */
-{
-  byte *log_ptr;
-
+bool page_copy_rec_list_to_created_page_write_log(page_t *page,
+                                                  dict_index_t *index,
+                                                  mtr_t *mtr, byte *&log_ptr) {
   ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
-  log_ptr = mlog_open_and_write_index(mtr, page, index,
-                                      page_is_comp(page)
-                                          ? MLOG_COMP_LIST_END_COPY_CREATED
-                                          : MLOG_LIST_END_COPY_CREATED,
-                                      4);
-  if (UNIV_LIKELY(log_ptr != nullptr)) {
+  const bool opened = mlog_open_and_write_index(
+      mtr, page, index,
+      page_is_comp(page) ? MLOG_COMP_LIST_END_COPY_CREATED
+                         : MLOG_LIST_END_COPY_CREATED,
+      4, log_ptr);
+
+  if (opened) {
     mlog_close(mtr, log_ptr + 4);
   }
 
-  return (log_ptr);
+  return (opened);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2065,7 +2062,7 @@ void page_copy_rec_list_end_to_created_page(
   ulint n_recs;
   ulint slot_index;
   ulint rec_size;
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   ulint log_data_len;
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
@@ -2092,7 +2089,8 @@ void page_copy_rec_list_end_to_created_page(
                       new_page + UNIV_PAGE_SIZE - 1);
 #endif
 
-  log_ptr = page_copy_rec_list_to_created_page_write_log(new_page, index, mtr);
+  bool opened = page_copy_rec_list_to_created_page_write_log(new_page, index,
+                                                             mtr, log_ptr);
 
   log_data_len = mtr->get_log()->size();
 
@@ -2183,7 +2181,7 @@ void page_copy_rec_list_end_to_created_page(
 
   ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
 
-  if (log_ptr != nullptr) {
+  if (opened) {
     mach_write_to_4(log_ptr, log_data_len);
   }
 
@@ -2220,15 +2218,13 @@ void page_cur_delete_rec_write_log(
     const dict_index_t *index, /*!< in: record descriptor */
     mtr_t *mtr)                /*!< in: mini-transaction handle */
 {
-  byte *log_ptr;
-
+  byte *log_ptr = nullptr;
   ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
-  log_ptr = mlog_open_and_write_index(
-      mtr, rec, index,
-      page_rec_is_comp(rec) ? MLOG_COMP_REC_DELETE : MLOG_REC_DELETE, 2);
-
-  if (!log_ptr) {
+  if (!mlog_open_and_write_index(
+          mtr, rec, index,
+          page_rec_is_comp(rec) ? MLOG_COMP_REC_DELETE : MLOG_REC_DELETE, 2,
+          log_ptr)) {
     /* Logging in mtr is switched off during crash recovery:
     in that case mlog_open returns NULL */
     return;

@@ -12,10 +12,10 @@ define("dojox/mobile/ProgressBar", [
 		// summary:
 		//		A widget that shows the progress of a task.
 		// description:
-		//		The current progress can be specified either in percent or by a
-		//		value between 0 and maximum. The setter for the value can be used to
-		//		update the progress.
-
+		//		The current progress can be specified either using a number (0 to maximum) 
+		//		or percentage (0% to 100%). The setter of the 'value' property can be used to
+		//		update the degree of completion of the task.
+		
 		// value: String
 		//		Number ("0" to maximum) or percentage ("0%" to "100%")
 		//		indicating the degree of completion of the task.

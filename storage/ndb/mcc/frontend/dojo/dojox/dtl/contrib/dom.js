@@ -1,6 +1,6 @@
 //>>built
 define("dojox/dtl/contrib/dom",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/connect","dojo/dom-style","dojo/dom-construct","../_base","../dom"],function(_1,_2,_3,_4,_5,dd,_6){
-var _7=_2.getObject("dojox.dtl.contrib.dom",true);
+var _7=_2.getObject("contrib.dom",true,dd);
 var _8={render:function(){
 return this.contents;
 }};
@@ -116,5 +116,5 @@ _26[key]=_2a;
 return new _7.StyleNode(_26);
 }});
 dd.register.tags("dojox.dtl.contrib",{"dom":["html","attr:style","buffer"]});
-return dojox.dtl.contrib.dom;
+return _7;
 });

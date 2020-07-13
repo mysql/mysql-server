@@ -158,7 +158,7 @@ return oo.declare(
 		setCanvas: function(){
 			// summary:
 			//		Internal. Sets canvas position
-			var pos = dojo.coords(this.container.parentNode);
+			var pos = dojo.position(this.container.parentNode);
 			this.origin = dojo.clone(pos);
 		},
 		

@@ -44,12 +44,12 @@ USE test;
 let $start= `SELECT UNIX_TIMESTAMP()`;
 INSERT INTO t1 VALUES (1);
 
---real_sleep 3
+--sleep 3
 
 USE test2;
 let $start2= `SELECT UNIX_TIMESTAMP()`;
 INSERT INTO t2 VALUES (1);
---real_sleep 2
+--sleep 2
 
 # Wait till all events are written to relay-log
 --source include/sync_slave_io_with_master.inc
@@ -127,12 +127,12 @@ USE test;
 let $start= `SELECT UNIX_TIMESTAMP()`;
 INSERT INTO t1 VALUES (1);
 
---real_sleep 3
+--sleep 3
 
 USE test2;
 let $start2= `SELECT UNIX_TIMESTAMP()`;
 INSERT INTO t2 VALUES (1);
---real_sleep 2
+--sleep 2
 
 # Wait till all events are written to relay-log
 --source include/sync_slave_io_with_master.inc
@@ -193,16 +193,16 @@ let $start= `SELECT UNIX_TIMESTAMP()`;
 
 USE test;
 INSERT INTO t1 VALUES (1);
---real_sleep 3
+--sleep 3
 
 use test2;
 INSERT INTO t2 VALUES (1);
---real_sleep 2
+--sleep 2
 
 USE test3;
 let $start3= `SELECT UNIX_TIMESTAMP()`;
 INSERT INTO t3 VALUES (1);
---real_sleep 2
+--sleep 2
 
 --source include/sync_slave_io_with_master.inc
 

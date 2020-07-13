@@ -713,6 +713,7 @@ static void test_sql(void *p) {
   WRITE_STR("\nClose Session 1\n");
   if (srv_session_close(session_1))
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_1 failed.");
+  session_1 = nullptr;
 
   /* Statement 4 */
   WRITE_SEP();
@@ -730,6 +731,7 @@ static void test_sql(void *p) {
   WRITE_STR("\nClose Session 2\n");
   if (srv_session_close(session_2))
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_2 failed.");
+  session_2 = nullptr;
 
   /* Close session 2 */
   WRITE_STR("\nClose Session 2 again\n");

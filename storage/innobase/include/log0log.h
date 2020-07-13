@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "log0test.h"
 #include "log0types.h"
+#include "my_compiler.h"
 
 /** Prefix for name of log file, e.g. "ib_logfile" */
 constexpr const char *const ib_logfile_basename = "ib_logfile";
@@ -203,6 +204,40 @@ constexpr uint32_t LOG_HEADER_CREATOR = 16;
 
 /** End of the log file creator field. */
 constexpr uint32_t LOG_HEADER_CREATOR_END = LOG_HEADER_CREATOR + 32;
+
+/** 32 BITs flag */
+constexpr uint32_t LOG_HEADER_FLAGS = LOG_HEADER_CREATOR_END;
+
+/** Flag at BIT-1 to indicate if redo logging is disabled or not. */
+constexpr uint32_t LOG_HEADER_FLAG_NO_LOGGING = 1;
+
+/** Flag at BIT-2 to indicate if server is not recoverable on crash. This
+is set only when redo logging is disabled and unset on slow shutdown after
+all pages are flushed to disk. */
+constexpr uint32_t LOG_HEADER_FLAG_CRASH_UNSAFE = 2;
+
+/** Maximum BIT position number. Should be set to the latest added. */
+constexpr uint32_t LOG_HEADER_FLAG_MAX = LOG_HEADER_FLAG_CRASH_UNSAFE;
+
+/** Current total size of LOG header. */
+constexpr uint32_t LOG_HEADER_SIZE = LOG_HEADER_FLAGS + 4;
+
+/** Set a specific bit in flag.
+@param[in]      flag    bit flag
+@param[in]      bit     set bit */
+inline void LOG_HEADER_SET_FLAG(uint32_t &flag, uint32_t bit) {
+  ut_ad(bit > 0);
+  ut_ad(bit <= LOG_HEADER_FLAG_MAX);
+  flag |= static_cast<uint32_t>(1UL << (bit - 1));
+}
+
+/** Check a specific bit in flag.
+@param[in]      flag    bit flag
+@param[in]      bit     check bit
+@return true, iff bit is set in flag. */
+inline bool LOG_HEADER_CHECK_FLAG(uint32_t flag, uint32_t bit) {
+  return ((flag & (1ULL << (bit - 1))) > 0);
+}
 
 /** Contents of the LOG_HEADER_CREATOR field */
 #define LOG_HEADER_CREATOR_CURRENT "MySQL " INNODB_VERSION_STR
@@ -578,8 +613,14 @@ NOTE that the link is added after data is written to the reserved
 space in the log buffer. It is very critical to do all these steps
 as fast as possible, because very likely the log writer thread is
 waiting for the link.
-
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_buf_reserve
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log	redo log
 @param[in]	len	number of data bytes to reserve for write
 @return handle that represents the reservation */
@@ -594,7 +635,14 @@ overflow it. If it does not cover, then returned value should be used
 to start the next write operation. Note that finally we must use exactly
 all the reserved space.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_buf_write
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space
 @param[in]	str		memory to write data from
@@ -616,7 +664,14 @@ After the link is added, the log writer may write the data to disk.
 NOTE that still dirty pages for the [start_lsn, end_lsn) are not added
 to flush lists when this function is called.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_buf_add_links_to_recent_written
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space
 @param[in]	start_lsn	start_lsn of the link to add
@@ -650,7 +705,14 @@ This is called after all dirty pages related to [start_lsn, end_lsn)
 have been added to corresponding flush lists.
 For detailed explanation - @see log0write.cc.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_add_link_to_recent_closed
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space */
 void log_buffer_close(log_t &log, const Log_handle &handle);
@@ -724,14 +786,28 @@ are added to flush lists. That's because we need to guarantee,
 that the delay until dirty page is added to flush list is limited.
 For detailed explanation - @see log0write.cc.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_add_dirty_pages
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log   redo log
 @param[in]      lsn   lsn on which we wait (for any link: lsn -> x) */
 void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn);
 
 /** Waits until there is free space in the log buffer. The free space has to be
 available for range of sn values ending at the provided sn.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_waiting_for_writer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in]     log     redo log
 @param[in]     end_sn  end of the range of sn values */
 void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn);
@@ -757,7 +833,14 @@ lsn_t log_get_max_modified_age_async(const log_t &log);
 /** Waits until there is free space in log files which includes
 concurrency margin required for all threads. You should rather
 use log_free_check().
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_reclaim_space
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in]     log   redo log */
 void log_free_check_wait(log_t &log);
 
@@ -841,8 +924,11 @@ void log_files_header_read(log_t &log, uint32_t header);
 /** Fill redo log header.
 @param[out]	buf		filled buffer
 @param[in]	start_lsn	log start LSN
-@param[in]	creator		creator of the header */
-void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator);
+@param[in]	creator		creator of the header
+@param[in]	no_logging	redo logging is disabled
+@param[in]	crash_unsafe	it is not safe to crash */
+void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator,
+                           bool no_logging, bool crash_unsafe);
 
 /** Writes a log file header to the log file space.
 @param[in]	log		redo log
@@ -1051,32 +1137,74 @@ void log_wake_threads(log_t &log);
 void log_sys_close();
 
 /** The log writer thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_writer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_writer(log_t *log_ptr);
 
 /** The log flusher thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_flusher
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_flusher(log_t *log_ptr);
 
 /** The log flush notifier thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_flush_notifier
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_flush_notifier(log_t *log_ptr);
 
 /** The log write notifier thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_write_notifier
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_write_notifier(log_t *log_ptr);
 
 /** The log closer thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_closer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_closer(log_t *log_ptr);
 
 /** The log checkpointer thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_checkpointer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_checkpointer(log_t *log_ptr);
 
@@ -1198,6 +1326,18 @@ inline bool log_checkpointer_is_active();
 @param[in]      encrypt_key  encrypt with master key */
 bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
                                      bool is_boot, bool encrypt_key);
+
+/** Disable redo logging and persist the information.
+@param[in,out]	log	redo log */
+void log_persist_disable(log_t &log);
+
+/** Enable redo logging and persist the information.
+@param[in,out]	log	redo log */
+void log_persist_enable(log_t &log);
+
+/** Persist the information that it is safe to restart server.
+@param[in,out]	log	redo log */
+void log_persist_crash_safe(log_t &log);
 
 #else /* !UNIV_HOTBACKUP */
 

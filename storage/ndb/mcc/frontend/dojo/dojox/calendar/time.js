@@ -5,7 +5,7 @@ _5.newDate=function(_6,_7){
 _7=_7||Date;
 var d;
 if(typeof (_6)=="number"){
-return new _7(_5);
+return new _7(_6);
 }else{
 if(_6.getTime){
 return new _7(_6.getTime());
@@ -20,7 +20,7 @@ return d;
 if(typeof _6=="string"){
 d=_4.fromISOString(_6);
 if(d===null){
-d=new _7(_6);
+throw new Error("Cannot parse date string ("+_6+"), specify a \"decodeDate\" function that translates this string into a Date object");
 }else{
 if(_7!==Date){
 d=new _7(d.getTime());
@@ -57,7 +57,7 @@ var day=d.getDay();
 if(day==fd){
 return d;
 }
-return _5.floorToDay(_d.add(d,"day",day>fd?-day+fd:fd-day),true,_c);
+return _5.floorToDay(_d.add(d,"day",day>fd?-day+fd:-day+fd-7),true,_c);
 };
 _5.floor=function(_10,_11,_12,_13,_14){
 var d=_5.floorToDay(_10,_13,_14);
@@ -82,6 +82,22 @@ _5.isToday=function(d,_17){
 _17=_17||Date;
 var _18=new _17();
 return d.getFullYear()==_18.getFullYear()&&d.getMonth()==_18.getMonth()&&d.getDate()==_18.getDate();
+};
+_5.isOverlapping=function(_19,_1a,_1b,_1c,_1d,_1e){
+if(_1a==null||_1c==null||_1b==null||_1d==null){
+return false;
+}
+var cal=_19.dateModule;
+if(_1e){
+if(cal.compare(_1a,_1d)==1||cal.compare(_1c,_1b)==1){
+return false;
+}
+}else{
+if(cal.compare(_1a,_1d)!=-1||cal.compare(_1c,_1b)!=-1){
+return false;
+}
+}
+return true;
 };
 return _5;
 });

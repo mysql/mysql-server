@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,12 +206,13 @@ bool check_priv(THD *thd, bool static_variable) {
   @param off       offset of the global variable value from the
                    &global_system_variables.
   @param getopt_id -1 for no command-line option, otherwise @sa my_option::id
-  @param getopt_arg_type @sa my_option::arg_type
+  @param getopt_arg_type no|optional|required value @sa my_option::arg_type
   @param show_val_type_arg what value_ptr() returns for sql_show.cc
   @param def_val   default value, @sa my_option::def_value
   @param lock      mutex or rw_lock that protects the global variable
                    *in addition* to LOCK_global_system_variables.
-  @param binlog_status_arg @sa binlog_status_enum
+  @param binlog_status_arg if the sysvar will be written to binlog or not @sa
+  binlog_status_enum
   @param on_check_func a function to be called at the end of sys_var::check,
                    put your additional checks here
   @param on_update_func a function to be called at the end of sys_var::update,
@@ -391,16 +392,24 @@ bool sys_var::set_default(THD *thd, set_var *var) {
 
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
-  DBUG_ASSERT(thd->security_context()->user().length < sizeof(user));
-  /* set client user */
-  if (thd->security_context()->user().length > 0)
-    strncpy(user, thd->security_context()->user().str,
-            thd->security_context()->user().length);
   memset(host, 0, sizeof(host));
-  if (thd->security_context()->host().length > 0) {
-    int host_len =
-        min<size_t>(sizeof(host) - 1, thd->security_context()->host().length);
-    strncpy(host, thd->security_context()->host().str, host_len);
+  Security_context *sctx = thd->security_context();
+  bool truncated = false;
+  if (sctx->user().length > 0) {
+    truncated = set_and_truncate(user, thd->security_context()->user().str,
+                                 sizeof(user));
+    if (truncated) {
+      LogErr(WARNING_LEVEL, ER_USERNAME_TRUNKATED, sctx->user().str,
+             USERNAME_CHAR_LENGTH);
+    }
+  }
+  if (sctx->host().length > 0) {
+    truncated = set_and_truncate(host, thd->security_context()->host().str,
+                                 sizeof(host));
+    if (truncated) {
+      LogErr(WARNING_LEVEL, ER_HOSTNAME_TRUNKATED, sctx->host().str,
+             HOSTNAME_LENGTH);
+    }
   }
 }
 

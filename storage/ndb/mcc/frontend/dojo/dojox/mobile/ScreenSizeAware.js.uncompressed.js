@@ -19,13 +19,13 @@ define("dojox/mobile/ScreenSizeAware", [
 		// summary:
 		//		A module to make a screen size aware application.
 		// description:
-		//		This module helps you create an application that transforms its
+		//		This module helps for creating applications that transform their
 		//		UI layout according to the screen size. It assumes that the
 		//		application consists of two horizontally split panes, and the
-		//		left pane has a list widget. If you place this module in such an
-		//		application, the application is rendered in split view when the
-		//		screen size is detected as tablet size, while it is rendered in
-		//		single view layout when the screen size is detected as phone size.
+		//		left pane has a list widget. If you require this module in such an
+		//		application, in a tablet-sized screen, the application shows a horizontally 
+		//		split view whose left pane is a list widget.
+		//		In a phone-sized screen, the application shows a list widget that fills the screen.
 		//
 		// example:
 		// |	<span data-dojo-type="dojox.mobile.ScreenSizeAware"></span>

@@ -146,29 +146,28 @@ define("dojox/dgauges/GaugeBase", ["dojo/_base/lang", "dojo/_base/declare", "doj
 			//		Resize the gauge to the dimensions of width and height.
 			// description:
 			//		Resize the gauge and its surface to the width and height dimensions.
-			//		If no width/height or box is provided, resize the surface to the marginBox of the gauge.
-			// width: Number
-			//		The new width of the gauge.
-			// height: Number
+			//		If a single argument of the form {w: value1, h: value2} is provided take that argument as the dimensions to use.
+			//		Finally if no argument is provided, resize the surface to the marginBox of the gauge.
+			// width: Number|Object?
+			//		The new width of the gauge or the box definition.
+			// height: Number?
 			//		The new height of the gauge.
 			// returns: dojox/dgauges/GaugeBase
 			//		A reference to the current gauge for functional chaining.
-			var box;
 			switch(arguments.length){
 				// case 0, do not resize the div, just the surface
 				case 1:
 					// argument, override node box
-					box = lang.mixin({}, width);
-					domGeom.setMarginBox(this._node, box);
+					domGeom.setMarginBox(this._node, width);
 					break;
 				case 2:
-					box = {w: width, h: height};
+
 					// argument, override node box
-					domGeom.setMarginBox(this._node, box);
+					domGeom.setMarginBox(this._node, {w: width, h: height});
 					break;
 			}
 			// in all cases take back the computed box
-			box = domGeom.getMarginBox(this._node);
+			var box = domGeom.getMarginBox(this._node);
 			this._widgetBox = box;
 			var d = this.surface.getDimensions();
 			if(d.width != box.w || d.height != box.h){

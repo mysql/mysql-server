@@ -3,7 +3,8 @@ define("dojox/mobile/Carousel", [
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/_base/event",
-	"dojo/_base/sniff",
+	"dojo/_base/lang",
+	"dojo/sniff",
 	"dojo/dom-class",
 	"dojo/dom-construct",
 	"dojo/dom-style",
@@ -15,13 +16,15 @@ define("dojox/mobile/Carousel", [
 	"./CarouselItem",
 	"./PageIndicator",
 	"./SwapView",
-	"require"
-], function(array, connect, declare, event, has, domClass, domConstruct, domStyle, registry, Contained, Container, WidgetBase, lazyLoadUtils, CarouselItem, PageIndicator, SwapView, require){
+	"require",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/Carousel",
+	"dojo/i18n!dojox/mobile/nls/messages"
+], function(array, connect, declare, event, lang, has, domClass, domConstruct, domStyle, registry, Contained, Container, WidgetBase, lazyLoadUtils, CarouselItem, PageIndicator, SwapView, require, BidiCarousel, messages){
 
 	// module:
 	//		dojox/mobile/Carousel
 
-	return declare("dojox.mobile.Carousel", [WidgetBase, Container, Contained], {
+	var Carousel = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiCarousel" : "dojox.mobile.Carousel", [WidgetBase, Container, Contained], {
 		// summary:
 		//		A carousel widget that manages a list of images.
 		// description:
@@ -59,19 +62,25 @@ define("dojox/mobile/Carousel", [
 		//		A title of the carousel to be displayed on the title bar.
 		title: "",
 
-		// pageIndicator: Boolean
+		// pageIndicator: [const] Boolean
 		//		If true, a page indicator, a series of small dots that indicate
 		//		the current page, is displayed on the title bar.
+		//		Note that changing the value of the property after the widget
+		//		creation has no effect.
 		pageIndicator: true,
 
-		// navButton: Boolean
-		//		If true, navigation buttons are displyed on the title bar.
+		// navButton: [const] Boolean
+		//		If true, navigation buttons are displayed on the title bar.
+		//		Note that changing the value of the property after the widget
+		//		creation has no effect.
 		navButton: false,
 
-		// height: String
+		// height: [const] String
 		//		Explicitly specified height of the widget (ex. "300px"). If
 		//		"inherit" is specified, the height is inherited from its offset
 		//		parent.
+		//		Note that changing the value of the property after the widget
+		//		creation has no effect.
 		height: "",
 
 		// selectable: Boolean
@@ -85,11 +94,12 @@ define("dojox/mobile/Carousel", [
 		baseClass: "mblCarousel",
 
 		buildRendering: function(){
-			this.containerNode = domConstruct.create("div", {className: "mblCarouselPages"});
+			this.containerNode = domConstruct.create("div", {className: "mblCarouselPages", id: this.id + "_pages"});
 			this.inherited(arguments);
+			var i, len;
 			if(this.srcNodeRef){
 				// reparent
-				for(var i = 0, len = this.srcNodeRef.childNodes.length; i < len; i++){
+				for(i = 0, len = this.srcNodeRef.childNodes.length; i < len; i++){
 					this.containerNode.appendChild(this.srcNodeRef.firstChild);
 				}
 			}
@@ -103,13 +113,15 @@ define("dojox/mobile/Carousel", [
 				domStyle.set(this.btnContainerNode, "float", "right"); // workaround for webkit rendering problem
 				this.prevBtnNode = domConstruct.create("button", {
 					className: "mblCarouselBtn",
-					title: "Previous",
-					innerHTML: "&lt;"
+					title: messages["CarouselPrevious"],
+					innerHTML: "&lt;",
+					"aria-controls": this.containerNode.id
 				}, this.btnContainerNode);
 				this.nextBtnNode = domConstruct.create("button", {
 					className: "mblCarouselBtn",
-					title: "Next",
-					innerHTML: "&gt;"
+					title: messages["CarouselNext"],
+					innerHTML: "&gt;",
+					"aria-controls": this.containerNode.id
 				}, this.btnContainerNode);
 				this._prevHandle = this.connect(this.prevBtnNode, "onclick", "onPrevBtnClick");
 				this._nextHandle = this.connect(this.nextBtnNode, "onclick", "onNextBtnClick");
@@ -120,7 +132,6 @@ define("dojox/mobile/Carousel", [
 					this.title = "&nbsp;";
 				}
 				this.piw = new PageIndicator();
-				domStyle.set(this.piw, "float", "right"); // workaround for webkit rendering problem
 				this.headerNode.appendChild(this.piw.domNode);
 			}
 
@@ -130,8 +141,8 @@ define("dojox/mobile/Carousel", [
 
 			this.domNode.appendChild(this.containerNode);
 			this.subscribe("/dojox/mobile/viewChanged", "handleViewChanged");
-			this._clickHandle = this.connect(this.domNode, "onclick", "_onClick");
-			this._keydownHandle = this.connect(this.domNode, "onkeydown", "_onClick");
+			this.connect(this.domNode, "onclick", "_onClick");
+			this.connect(this.domNode, "onkeydown", "_onClick");
 			this._dragstartHandle = this.connect(this.domNode, "ondragstart", event.stop);
 			this.selectedItemIndex = -1;
 			this.items = [];
@@ -172,19 +183,20 @@ define("dojox/mobile/Carousel", [
 		resizeItems: function(){
 			// summary:
 			//		Resizes the child items of the carousel.
-			var idx = 0;
+			var idx = 0, i, len;
 			var h = this.domNode.offsetHeight - (this.headerNode ? this.headerNode.offsetHeight : 0);
-			var m = has("ie") ? 5 / this.numVisible-1 : 5 / this.numVisible;
+			var m = (has("ie") < 10) ? 5 / this.numVisible - 1 : 5 / this.numVisible;
+			var node, item;
 			array.forEach(this.getChildren(), function(view){
 				if(!(view instanceof SwapView)){ return; }
-				if(!(view.lazy || view.domNode.getAttribute("lazy"))){
+				if(!(view.lazy)){
 					view._instantiated = true;
 				}
 				var ch = view.containerNode.childNodes;
-				for(var i = 0, len = ch.length; i < len; i++){
-					var node = ch[i];
+				for(i = 0, len = ch.length; i < len; i++){
+					node = ch[i];
 					if(node.nodeType !== 1){ continue; }
-					var item = this.items[idx] || {};
+					item = this.items[idx] || {};
 					domStyle.set(node, {
 						width: item.width || (90 / this.numVisible + "%"),
 						height: item.height || h + "px",
@@ -216,7 +228,8 @@ define("dojox/mobile/Carousel", [
 		fillPages: function(){
 			array.forEach(this.getChildren(), function(child, i){
 				var s = "";
-				for(var j = 0; j < this.numVisible; j++){
+				var j;
+				for(j = 0; j < this.numVisible; j++){
 					var type, props = "", mixins;
 					var idx = i * this.numVisible + j;
 					var item = {};
@@ -267,7 +280,7 @@ define("dojox/mobile/Carousel", [
 			this.items = items;
 			var nPages = Math.ceil(items.length / this.numVisible),
 				i, h = this.domNode.offsetHeight - this.headerNode.offsetHeight,
-				idx = this.selectedItemIndex === -1 ? 0 : this.selectedItemIndex;
+				idx = this.selectedItemIndex === -1 ? 0 : this.selectedItemIndex,
 				pg = Math.floor(idx / this.numVisible); // current page
 			for(i = 0; i < nPages; i++){
 				var w = new SwapView({height: h + "px", lazy:true});
@@ -318,7 +331,8 @@ define("dojox/mobile/Carousel", [
 		getParentView: function(/*DomNode*/node){
 			// summary:
 			//		Returns the parent view of the given DOM node.
-			for(var w = registry.getEnclosingWidget(node); w; w = w.getParent()){
+			var w;
+			for(w = registry.getEnclosingWidget(node); w; w = w.getParent()){
 				if(w.getParent() instanceof SwapView){ return w; }
 			}
 			return null;
@@ -445,4 +459,20 @@ define("dojox/mobile/Carousel", [
 			this._set("title", title);
 		}
 	});
+	
+	Carousel.ChildSwapViewProperties = {
+		// summary:
+		//		This property can be specified for the SwapView children of a dojox/mobile/Carousel.
+
+		// lazy: Boolean
+		//		Specifies that the Carousel child must be lazily loaded.
+		lazy: false
+	};
+
+	// Since any widget can be specified as an Accordion child, mix ChildWidgetProperties
+	// into the base widget class.  (This is a hack, but it's effective.)
+	// This is for the benefit of the parser. Remove for 2.0.  Also, hide from doc viewer.
+	lang.extend(SwapView, /*===== {} || =====*/ Carousel.ChildSwapViewProperties);
+	
+	return has("dojo-bidi") ? declare("dojox.mobile.Carousel", [Carousel, BidiCarousel]) : Carousel;
 });

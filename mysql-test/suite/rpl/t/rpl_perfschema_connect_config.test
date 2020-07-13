@@ -33,6 +33,8 @@
 #  WL#7817: RPL Monitoring: Move status variables to replication P_S tables
 #           for multi-source monitoring
 
+--let $rpl_privilege_checks_user_grant_option = 1
+--source include/set_privilege_checks_user_as_system_user.inc
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
 

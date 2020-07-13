@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -3161,18 +3161,18 @@ void btr_cur_update_in_place_log(
     roll_ptr_t roll_ptr, /*!< in: roll ptr */
     mtr_t *mtr)          /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   const page_t *page = page_align(rec);
   ut_ad(flags < 256);
   ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
-  log_ptr = mlog_open_and_write_index(
+  const bool opened = mlog_open_and_write_index(
       mtr, rec, index,
       page_is_comp(page) ? MLOG_COMP_REC_UPDATE_IN_PLACE
                          : MLOG_REC_UPDATE_IN_PLACE,
-      1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN);
+      1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN, log_ptr);
 
-  if (!log_ptr) {
+  if (!opened) {
     /* Logging in mtr is switched off during crash recovery */
     return;
   }
@@ -3966,6 +3966,22 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
     lob::BtrContext ctx(mtr, pcur, index, rec, *offsets, block);
 
     ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
+
+    /* The cursor position could have changed because of the call to
+    lob::purge() above. */
+    if (rec != pcur->get_rec()) {
+      cursor = pcur->get_btr_cur();
+      block = btr_cur_get_block(cursor);
+      page = buf_block_get_frame(block);
+      page_zip = buf_block_get_page_zip(block);
+      rec = pcur->get_rec();
+      rec_offs_make_valid(rec, index, *offsets);
+    }
+
+    ut_ad(block == pcur->get_block());
+    ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
+    ut_ad(rw_lock_own(&(((buf_block_t *)block)->lock), RW_LOCK_X) ||
+          rw_lock_own(&(((buf_block_t *)block)->lock), RW_LOCK_S));
   }
 
   if (optim_err == DB_OVERFLOW) {
@@ -4184,17 +4200,17 @@ void btr_cur_del_mark_set_clust_rec_log(
     roll_ptr_t roll_ptr, /*!< in: roll ptr to the undo log record */
     mtr_t *mtr)          /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
 
   ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
-  log_ptr = mlog_open_and_write_index(mtr, rec, index,
-                                      page_rec_is_comp(rec)
-                                          ? MLOG_COMP_REC_CLUST_DELETE_MARK
-                                          : MLOG_REC_CLUST_DELETE_MARK,
-                                      1 + 1 + DATA_ROLL_PTR_LEN + 14 + 2);
+  const bool opened = mlog_open_and_write_index(
+      mtr, rec, index,
+      page_rec_is_comp(rec) ? MLOG_COMP_REC_CLUST_DELETE_MARK
+                            : MLOG_REC_CLUST_DELETE_MARK,
+      1 + 1 + DATA_ROLL_PTR_LEN + 14 + 2, log_ptr);
 
-  if (!log_ptr) {
+  if (!opened) {
     /* Logging in mtr is switched off during crash recovery */
     return;
   }
@@ -4374,14 +4390,12 @@ void btr_cur_del_mark_set_sec_rec_log(rec_t *rec, /*!< in: record */
                                       ibool val,  /*!< in: value to set */
                                       mtr_t *mtr) /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   ut_ad(val <= 1);
 
-  log_ptr = mlog_open(mtr, 11 + 1 + 2);
-
-  if (!log_ptr) {
+  if (!mlog_open(mtr, 11 + 1 + 2, log_ptr)) {
     /* Logging in mtr is switched off during crash recovery:
-    in that case mlog_open returns NULL */
+    in that case mlog_open returns false */
     return;
   }
 
@@ -4537,8 +4551,7 @@ ibool btr_cur_compress_if_useful(
     }
 
     /* Check whether page lock prevents the compression */
-    if (!lock_test_prdt_page_lock(trx, page_get_space_id(page),
-                                  page_get_page_no(page))) {
+    if (!lock_test_prdt_page_lock(trx, page_get_page_id(page))) {
       return (false);
     }
   }
@@ -4708,9 +4721,6 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
     /* The following call will restart the btr_mtr, which could change the
     cursor position. */
     btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type);
-#ifdef UNIV_ZIP_DEBUG
-    ut_a(!page_zip || page_zip_validate(page_zip, page, index));
-#endif /* UNIV_ZIP_DEBUG */
 
     /* The cursor position could have changed now. */
     if (pcur != nullptr) {
@@ -4719,7 +4729,14 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
       page = buf_block_get_frame(block);
       rec = btr_cur_get_rec(cursor);
       rec_offs_make_valid(rec, index, offsets);
+#ifdef UNIV_ZIP_DEBUG
+      page_zip = buf_block_get_page_zip(block);
+#endif /* UNIV_ZIP_DEBUG */
     }
+
+#ifdef UNIV_ZIP_DEBUG
+    ut_a(!page_zip || page_zip_validate(page_zip, page, index));
+#endif /* UNIV_ZIP_DEBUG */
 
     /* While purging LOBs, there are intermediate mtr commits which releases
     the latches.  In that duration, it is possible that the clust_rec is reused.

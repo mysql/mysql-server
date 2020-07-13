@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
+
 #include <memory>
 #include <string>
 
@@ -356,15 +357,15 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
         is created with type holder item, store name from first SELECT_LEX.
       */
       cr_field->field_name =
-          thd->lex->select_lex->item_list[i - 1]->item_name.ptr();
+          thd->lex->select_lex->fields_list[i - 1]->item_name.ptr();
     }
 
     cr_field->after = nullptr;
     cr_field->offset = 0;
     cr_field->pack_length_override = 0;
-    cr_field->is_nullable = !(tmp_field->flags & NOT_NULL_FLAG);
-    cr_field->is_zerofill = (tmp_field->flags & ZEROFILL_FLAG);
-    cr_field->is_unsigned = (tmp_field->flags & UNSIGNED_FLAG);
+    cr_field->is_nullable = !tmp_field->is_flag_set(NOT_NULL_FLAG);
+    cr_field->is_zerofill = tmp_field->is_flag_set(ZEROFILL_FLAG);
+    cr_field->is_unsigned = tmp_field->is_flag_set(UNSIGNED_FLAG);
 
     create_fields.push_back(cr_field);
   }
@@ -565,7 +566,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
     metadata stored with column information. Fill view columns only when view
     metadata is stored with column information.
   */
-  if ((thd->lex->select_lex->item_list.elements > 0) &&
+  if ((thd->lex->select_lex->fields_list.elements > 0) &&
       fill_dd_view_columns(thd, view_obj, view))
     return true;
 

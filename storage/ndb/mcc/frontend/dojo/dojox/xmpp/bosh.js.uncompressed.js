@@ -89,7 +89,7 @@ dojox.xmpp.bosh = {
 		if(xmlMsg){
 			dfd.ioArgs.xmppMessage = xmlMsg;
 		}else{
-			dfd.errback(new Error("Recieved bad document from server: " + msg));
+			dfd.errback(new Error("Received bad document from server: " + msg));
 		}
 	},
 

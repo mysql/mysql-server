@@ -2,7 +2,7 @@
 define("dojox/mvc/_Controller",["dojo/_base/declare","dojo/_base/lang","dojo/Stateful","./_atBindingMixin"],function(_1,_2,_3,_4){
 return _1("dojox.mvc._Controller",[_3,_4],{postscript:function(_5,_6){
 if(this._applyAttributes){
-this.inherited(arguments);
+return this.inherited(arguments);
 }
 this._dbpostscript(_5,_6);
 if(_5){

@@ -1,5 +1,5 @@
 require({cache:{
-'url:dojox/grid/resources/View.html':"<div class=\"dojoxGridView\" role=\"presentation\">\n\t<div class=\"dojoxGridHeader\" dojoAttachPoint=\"headerNode\" role=\"presentation\">\n\t\t<div dojoAttachPoint=\"headerNodeContainer\" style=\"width:9000em\" role=\"presentation\">\n\t\t\t<div dojoAttachPoint=\"headerContentNode\" role=\"row\"></div>\n\t\t</div>\n\t</div>\n\t<input type=\"checkbox\" class=\"dojoxGridHiddenFocus\" dojoAttachPoint=\"hiddenFocusNode\" role=\"presentation\" />\n\t<input type=\"checkbox\" class=\"dojoxGridHiddenFocus\" role=\"presentation\" />\n\t<div class=\"dojoxGridScrollbox\" dojoAttachPoint=\"scrollboxNode\" role=\"presentation\">\n\t\t<div class=\"dojoxGridContent\" dojoAttachPoint=\"contentNode\" hidefocus=\"hidefocus\" role=\"presentation\"></div>\n\t</div>\n</div>\n"}});
+'url:dojox/grid/resources/View.html':"<div class=\"dojoxGridView\" role=\"presentation\">\n\t<div class=\"dojoxGridHeader\" dojoAttachPoint=\"headerNode\" role=\"presentation\">\n\t\t<div dojoAttachPoint=\"headerNodeContainer\" style=\"width:9000em\" role=\"presentation\">\n\t\t\t<div dojoAttachPoint=\"headerContentNode\" role=\"row\"></div>\n\t\t</div>\n\t</div>\n\t<input type=\"checkbox\" class=\"dojoxGridHiddenFocus\" dojoAttachPoint=\"hiddenFocusNode\" aria-hidden=\"true\" />\n\t<input type=\"checkbox\" class=\"dojoxGridHiddenFocus\" aria-hidden=\"true\" />\n\t<div class=\"dojoxGridScrollbox\" dojoAttachPoint=\"scrollboxNode\" role=\"presentation\">\n\t\t<div class=\"dojoxGridContent\" dojoAttachPoint=\"contentNode\" hidefocus=\"hidefocus\" role=\"presentation\"></div>\n\t</div>\n</div>\n"}});
 define("dojox/grid/_View", [
 	"dojo",
 	"dijit/registry",
@@ -118,7 +118,7 @@ define("dojox/grid/_View", [
 			this.simpleStructure = Boolean(vs.cells.length == 1);
 			// bookkeeping
 			this.testFlexCells();
-			// accomodate new structure
+			// accommodate new structure
 			this.updateStructure();
 		},
 		
@@ -550,7 +550,7 @@ define("dojox/grid/_View", [
 				var self = this;
 				var checkOtherViewScrollers = function(){
 					var v;
-					for(var i in self.grid.views.views){
+					for(var i = 0; i < self.grid.views.views.length; ++i){
 						v = self.grid.views.views[i];
 						if(v !== self && v.hasHScrollbar()){
 							return true;

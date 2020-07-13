@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -503,7 +503,7 @@ struct Clone_File_Meta {
   size_t m_fsblk_size;
 
   /** Tablespace ID for the file */
-  uint32_t m_space_id;
+  space_id_t m_space_id;
 
   /** File index in clone data file vector */
   uint m_file_index;

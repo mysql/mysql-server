@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -319,11 +319,12 @@ before proceeds. */
 @param[in]	len		length
 @param[in]	pos		position in a table
 @param[in]	num_base	number of base columns
+@param[in]	is_visible	True if virtual column is visible to user
 @return the virtual column definition */
 dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
                                        const char *name, ulint mtype,
                                        ulint prtype, ulint len, ulint pos,
-                                       ulint num_base);
+                                       ulint num_base, bool is_visible);
 
 /** Adds a stored column definition to a table.
 @param[in,out]	table		table
@@ -507,6 +508,9 @@ struct dict_col_t {
                             3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
                             bytes. */
 
+  /* True, if the column is visible */
+  bool is_visible;
+
   /** Returns the minimum size of the column.
   @return minimum size */
   ulint get_min_size() const {
@@ -642,7 +646,7 @@ struct dict_v_col_t {
   /** array of base column ptr */
   dict_col_t **base_col;
 
-  /** number of base column */
+  /** number of base columns */
   ulint num_base;
 
   /** column pos in table */
@@ -1883,8 +1887,8 @@ detect this and will eventually quit sooner. */
   /* The actual collection of tables locked during AUTOINC read/write is
   kept in trx_t. In order to quickly determine whether a transaction has
   locked the AUTOINC lock we keep a pointer to the transaction here in
-  the 'autoinc_trx' member. This is to avoid acquiring the
-  lock_sys_t::mutex and scanning the vector in trx_t.
+  the 'autoinc_trx' member. This is to avoid acquiring lock_sys latches and
+  scanning the vector in trx_t.
   When an AUTOINC lock has to wait, the corresponding lock instance is
   created on the trx lock heap rather than use the pre-allocated instance
   in autoinc_lock below. */
@@ -1933,9 +1937,13 @@ detect this and will eventually quit sooner. */
   be no conflict to access it, so no protection is needed. */
   ulint autoinc_field_no;
 
-  /** The transaction that currently holds the the AUTOINC lock on this
-  table. Protected by lock_sys->mutex. */
-  const trx_t *autoinc_trx;
+  /** The transaction that currently holds the the AUTOINC lock on this table.
+  Protected by lock_sys table shard latch. To "peek" the current value one
+  can read it without any latch, understanding that in general it may change.
+  Such access pattern is correct if trx thread wants to check if it has the lock
+  granted, as the field can only change to other value when lock is released,
+  which can not happen concurrently to thread executing the trx. */
+  std::atomic<const trx_t *> autoinc_trx;
 
   /* @} */
 
@@ -1951,8 +1959,13 @@ detect this and will eventually quit sooner. */
 
   /** Count of the number of record locks on this table. We use this to
   determine whether we can evict the table from the dictionary cache.
-  It is protected by lock_sys->mutex. */
-  ulint n_rec_locks;
+  Writes (atomic increments and decrements) are performed when holding a shared
+  latch on lock_sys. (Note that this the table's shard latch is NOT required,
+  as this is field counts *record* locks, so a page shard is latched instead)
+  Reads should be performed when holding exclusive lock_sys latch, however:
+  - Some places assert this field is zero without holding any latch.
+  - Some places assert this field is positive holding only shared latch. */
+  std::atomic<size_t> n_rec_locks;
 
 #ifndef UNIV_DEBUG
  private:
@@ -1964,7 +1977,7 @@ detect this and will eventually quit sooner. */
 
  public:
 #ifndef UNIV_HOTBACKUP
-  /** List of locks on the table. Protected by lock_sys->mutex. */
+  /** List of locks on the table. Protected by lock_sys shard latch. */
   table_lock_list_t locks;
   /** count_by_mode[M] = number of locks in this->locks with
   lock->type_mode&LOCK_MODE_MASK == M.
@@ -1972,12 +1985,12 @@ detect this and will eventually quit sooner. */
   modes incompatible with LOCK_IS and LOCK_IX, to avoid costly iteration over
   this->locks when adding LOCK_IS or LOCK_IX.
   We use count_by_mode[LOCK_AUTO_INC] to track the number of granted and pending
-  autoinc locks on this table. This value is set after acquiring the
-  lock_sys_t::mutex but we peek the contents to determine whether other
+  autoinc locks on this table. This value is set after acquiring the lock_sys
+  table shard latch, but we peek the contents to determine whether other
   transactions have acquired the AUTOINC lock or not. Of course only one
   transaction can be granted the lock but there can be multiple
   waiters.
-  Protected by lock_sys->mutex. */
+  Protected by lock_sys table shard latch. */
   ulong count_by_mode[LOCK_NUM];
 #endif /* !UNIV_HOTBACKUP */
 

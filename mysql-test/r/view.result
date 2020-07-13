@@ -1891,41 +1891,41 @@ select * from v1;
 drop view v1;
 create view v1 as select 'k','K';
 select * from v1;
-k	My_exp_K
+k	Name_exp_K
 k	K
 drop view v1;
 create table t1 (s1 int);
 create view v1 as select s1, 's1' from t1;
 select * from v1;
-s1	My_exp_s1
+s1	Name_exp_s1
 drop view v1;
 create view v1 as select 's1', s1 from t1;
 select * from v1;
-My_exp_s1	s1
+Name_exp_s1	s1
 drop view v1;
-create view v1 as select 's1', s1, 1 as My_exp_s1 from t1;
+create view v1 as select 's1', s1, 1 as Name_exp_s1 from t1;
 select * from v1;
-My_exp_1_s1	s1	My_exp_s1
+Name_exp_1_s1	s1	Name_exp_s1
 drop view v1;
-create view v1 as select 1 as My_exp_s1, 's1', s1  from t1;
+create view v1 as select 1 as Name_exp_s1, 's1', s1  from t1;
 select * from v1;
-My_exp_s1	My_exp_1_s1	s1
+Name_exp_s1	Name_exp_1_s1	s1
 drop view v1;
 create view v1 as select 1 as s1, 's1', 's1' from t1;
 select * from v1;
-s1	My_exp_s1	My_exp_1_s1
+s1	Name_exp_s1	Name_exp_1_s1
 drop view v1;
 create view v1 as select 's1', 's1', 1 as s1 from t1;
 select * from v1;
-My_exp_1_s1	My_exp_s1	s1
+Name_exp_1_s1	Name_exp_s1	s1
 drop view v1;
 create view v1 as select s1, 's1', 's1' from t1;
 select * from v1;
-s1	My_exp_s1	My_exp_1_s1
+s1	Name_exp_s1	Name_exp_1_s1
 drop view v1;
 create view v1 as select 's1', 's1', s1 from t1;
 select * from v1;
-My_exp_1_s1	My_exp_s1	s1
+Name_exp_1_s1	Name_exp_s1	s1
 drop view v1;
 create view v1 as select 1 as s1, 's1', s1 from t1;
 ERROR 42S21: Duplicate column name 's1'
@@ -5733,7 +5733,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT COUNT(*) AS a, a IN (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
 FROM t1;
@@ -5770,7 +5770,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select count(0) AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select count(0) AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = floor((count(`test`.`t1`.`a`) / 2))) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, COUNT(*) AS c, (SELECT a FROM t2 WHERE a=COUNT(t1.a)) AS s
 FROM t1
@@ -5868,7 +5868,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(0) AS `c`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = count(`test`.`t1`.`a`)) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1` group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(0) AS `c`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = count(`test`.`t1`.`a`)) having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(`test`.`t2`.`a`)), true))) AS `s` from `test`.`t1` group by `test`.`t1`.`a`
 DROP VIEW v1;
 DROP TABLE t1, t2;
 #

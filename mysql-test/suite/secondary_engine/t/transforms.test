@@ -1,0 +1,62 @@
+--disable_query_log
+eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+CREATE TABLE t1(a DATETIME NOT NULL);
+INSERT INTO t1 VALUES (TIMESTAMP'2006-06-06 15:55:55');
+ALTER TABLE t1 SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+EXPLAIN SELECT max(a) from t1;
+
+--echo # Transform is not active for InnoDB while we the do initial PREPARE
+PREPARE s FROM "EXPLAIN SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a=TIMESTAMP'2006-06-06 15:55:55')";
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+SET secondary_engine_cost_threshold = 10000;
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+
+SET optimizer_switch="subquery_to_derived=on";
+--echo # Let transform be active for InnoDB while we the initial PREPARE
+PREPARE s FROM "EXPLAIN SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a=TIMESTAMP'2006-06-06 15:55:55')";
+EXECUTE s;
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+SET secondary_engine_cost_threshold = 10000;
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+SET secondary_engine_cost_threshold = 0;
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=on";
+EXECUTE s;
+SET optimizer_switch="subquery_to_derived=off";
+EXECUTE s;
+
+DROP PREPARE s;
+DROP TABLE t1;
+SET secondary_engine_cost_threshold = default;
+SET optimizer_switch="subquery_to_derived=default";
+
+--disable_query_log
+UNINSTALL PLUGIN mock;
+--enable_query_log

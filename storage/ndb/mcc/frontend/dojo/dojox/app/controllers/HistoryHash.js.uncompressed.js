@@ -1,9 +1,10 @@
-define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/declare", "dojo/topic", "dojo/on", "../Controller", "dojo/hash"],
-	function(lang, declare, topic, on, Controller){
+define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/declare", "dojo/topic", "dojo/on", "../Controller", "../utils/hash", "dojo/hash"],
+	function(lang, declare, topic, on, Controller, hash){
 	// module:
 	//		dojox/app/controllers/HistoryHash
 	// summary:
-	//		Bind "startTransition" event on dojox/app application's domNode,
+	//		Bind "app-domNode" event on dojox/app application instance,
+	//		Bind "startTransition" event on dojox/app application domNode,
 	//		Bind "/dojo/hashchange" event on window object.
 	//		Maintain history by history hash.
 
@@ -11,41 +12,43 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 
 		constructor: function(app){
 			// summary:
-			//		Bind "startTransition" event on dojox/app application's domNode,
+			//		Bind "app-domNode" event on dojox/app application instance,
+			//		Bind "startTransition" event on dojox/app application domNode,
 			//		subscribe "/dojo/hashchange" event.
 			//
 			// app:
 			//		dojox/app application instance.
 			this.events = {
-				"startTransition": this.onStartTransition
+				"app-domNode": this.onDomNodeChange
 			};
-			this.inherited(arguments);
-
+			if(this.app.domNode){
+				this.onDomNodeChange({oldNode: null, newNode: this.app.domNode});
+			}
 			topic.subscribe("/dojo/hashchange", lang.hitch(this, function(newhash){
 				this._onHashChange(newhash);
 			}));
 
 			this._historyStack = []; // application history stack
 			this._historyLen = 0;	// current window.history length
+			this._historyDiff = 0; // the diff of window.history stack and application history stack 
 			this._current = null;	// current history item in application history stack
 			this._next = null;		// next history item in application history stack
-			this._previous = null;	// privious history item in application history stack
+			this._previous = null;	// previous history item in application history stack
 			this._index = 0;		// identify current history item's index in application history stack
 			this._oldHistoryLen = 0;// window.history stack length before hash change
 			this._newHistoryLen = 0;// window.history stack length after hash change
 			this._addToHistoryStack = false;
-			this._detail = null;
 			this._startTransitionEvent = false;
 
 			// push the default page to the history stack
 			var currentHash = window.location.hash;
-			if (currentHash && (currentHash.length > 1)) {
+			if(currentHash && (currentHash.length > 1)){
 				currentHash = currentHash.substr(1);
 			}
 			this._historyStack.push({
-				'hash': currentHash,
-				'url': window.location.href,
-				'detail': {target:currentHash}
+				"hash": currentHash,
+				"url": window.location.href,
+				"detail": {target:currentHash}
 			});
 			this._historyLen = window.history.length;
 			this._index = this._historyStack.length - 1;
@@ -53,6 +56,13 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 
 			// get the diff of window.history and application history
 			this._historyDiff = window.history.length - this._historyStack.length;
+		},
+
+		onDomNodeChange: function(evt){
+			if(evt.oldNode != null){
+				this.unbind(evt.oldNode, "startTransition");
+			}
+			this.bind(evt.newNode, "startTransition", lang.hitch(this, this.onStartTransition));
 		},
 
 		onStartTransition: function(evt){
@@ -65,6 +75,7 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 			//		|		title:"List",
 			//		|		target:"items,list",
 			//		|		url: "#items,list"
+			//		|		params: {"param1":"p1value"}
 			//		|	};
 			//		|	new TransitionEvent(domNode, transOpts, e).dispatch();
 			//
@@ -73,11 +84,15 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 
 			var target = evt.detail.target;
 			var regex = /#(.+)/;
-			if (!target && regex.test(evt.detail.href)) {
+			if(!target && regex.test(evt.detail.href)){
 				target = evt.detail.href.match(regex)[1];
 			}
 
-			var currentHash = evt.detail.url || '#' + target;
+			var currentHash = evt.detail.url || "#" + target;
+
+			if(evt.detail.params){
+				currentHash = hash.buildWithParams(currentHash, evt.detail.params);
+			}
 
 			this._oldHistoryLen = window.history.length;
 			// pushState on iOS will not change location bar hash because of security.
@@ -91,7 +106,6 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 			// Use _addToHistoryStack flag to indicate the _onHashChange method should add this hash to history stack.
 			// When add hash to history stack, this flag should be set to false, we do this in _addHistory.
 			this._addToHistoryStack = true;
-			this._detail = evt.detail;
 			//set startTransition event flag to true if the hash change from startTransition event.
 			this._startTransitionEvent = true;
 		},
@@ -103,9 +117,9 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 			// hash:
 			//		new hash should be added to _historyStack.
 			this._historyStack.push({
-				'hash': hash,
-				'url': window.location.href,
-				'detail': {target:hash}
+				"hash": hash,
+				"url": window.location.href,
+				"detail": {target:hash}
 			});
 
 			this._historyLen = window.history.length;
@@ -149,7 +163,7 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 			}
 
 			// this._oldHistoryLen === this._newHistoryLen, it maybe need to refresh history stack or do history go, back and forward,
-			// so we use _addToHistoryStack to indentify the refresh operation.
+			// so we use _addToHistoryStack to identify the refresh operation.
 			if(this._addToHistoryStack && (this._oldHistoryLen === this._newHistoryLen)){
 				this._historyStack.splice((this._newHistoryLen - this._historyDiff - 1), (this._historyStack.length - 1));
 				this._addHistory(currentHash);
@@ -161,33 +175,34 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 			//window.history.length increase, add hash to application history stack.
 			if(this._historyLen < window.history.length){
 				this._addHistory(currentHash);
-				if (!this._startTransitionEvent) {
+				if(!this._startTransitionEvent){
 					// transition to the target view
-					this.app.trigger("transition", {
-						"viewId": currentHash
+					this.app.emit("app-transition", {
+						viewId: hash.getTarget(currentHash),
+						opts: { params: hash.getParams(currentHash) || {} }
 					});
 				}
 			}else{
 				if(currentHash == this._current){
-					console.log("do nothing.");
+					// console.log("do nothing.");
 				}else if(currentHash === this._previous){ // back
-					this._back(currentHash, this._historyStack[this._index]['detail']);
+					this._back(currentHash, this._historyStack[this._index]["detail"]);
 				}else if(currentHash === this._next){ //forward
-					this._forward(currentHash, this._historyStack[this._index]['detail']);
+					this._forward(currentHash, this._historyStack[this._index]["detail"]);
 				}else{ // go
-					//search in 'back' first, then 'forward'
+					//search in "back" first, then "forward"
 					var index = -1;
 					for(var i = this._index; i > 0; i--){
-						if(currentHash === this._historyStack[i]['hash']){
+						if(currentHash === this._historyStack[i]["hash"]){
 							index = i;
 							break;
 						}
 					}
 
-					//search in 'forward'
+					//search in "forward"
 					if(-1 === index){
 						for(var i = this._index; i < this._historyStack.length; i++){
-							if(currentHash === this._historyStack[i]['hash']){
+							if(currentHash === this._historyStack[i]["hash"]){
 								index = i;
 								break;
 							}
@@ -197,7 +212,7 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 					if(0 < index < this._historyStack.length){
 						this._go(index, (index - this._index));
 					}else{
-						console.log("go error. index out of history stack.");
+						this.app.log("go error. index out of history stack.");
 					}
 				}
 			}
@@ -206,74 +221,71 @@ define("dojox/app/controllers/HistoryHash", ["dojo/_base/lang", "dojo/_base/decl
 		},
 
 		_back: function(currentHash, detail){
-			console.log("back");
-			this._next = this._historyStack[this._index]['hash'];
+			this.app.log("back");
+			this._next = this._historyStack[this._index]["hash"];
 			this._index--;
 			if(this._index > 0){
-				this._previous = this._historyStack[this._index - 1]['hash'];
+				this._previous = this._historyStack[this._index - 1]["hash"];
 			}else{
 				this._previous = null;
 			}
 			this._current = currentHash;
 
+			var target = hash.getTarget(currentHash, this.app.defaultView);
+
 			// publish history back event
-			topic.publish("/app/history/back", {"viewId": currentHash, "detail": detail});
+			topic.publish("/app/history/back", {"viewId": target, "detail": detail});
 
 			// transition to the target view
-			this.app.trigger("transition", {
-				"viewId": currentHash,
-				"opts": {reverse: true}
+			this.app.emit("app-transition", {
+				viewId: target,
+ 				opts: lang.mixin({reverse: true}, detail, {"params": hash.getParams(currentHash)})
 			});
 		},
 
 		_forward: function(currentHash, detail){
-			console.log("forward");
-			this._previous = this._historyStack[this._index]['hash'];
+			this.app.log("forward");
+			this._previous = this._historyStack[this._index]["hash"];
 			this._index++;
 			if(this._index < this._historyStack.length - 1){
-				this._next = this._historyStack[this._index + 1]['hash'];
+				this._next = this._historyStack[this._index + 1]["hash"];
 			}else{
 				this._next = null;
 			}
 			this._current = currentHash;
 
+			var target = hash.getTarget(currentHash, this.app.defaultView);
+
 			// publish history forward event
-			topic.publish("/app/history/forward", {"viewId": currentHash, "detail": detail});
+			topic.publish("/app/history/forward", {"viewId": target, "detail": detail});
 
 			// transition to the target view
-			this.app.trigger("transition", {
-				"viewId": currentHash,
-				"opts": {reverse: false}
+			this.app.emit("app-transition", {
+				viewId: target,
+ 				opts: lang.mixin({reverse: false}, detail, {"params": hash.getParams(currentHash)})
 			});
 		},
 
 		_go: function(index, step){
 			if(index < 0 || (index > window.history.length - 1)){
-				throw Error("Application history.go steps out of management.");
+				throw Error("Application history.go steps out of management, index: "+index+" length: "+window.history.length);
 			}
 
 			this._index = index;
-			this._current = this._historyStack[index]['hash'];
-			this._previous = this._historyStack[index - 1] ? this._historyStack[index - 1]['hash'] : null;
-			this._next = this._historyStack[index + 1] ? this._historyStack[index + 1]['hash'] : null;
+			this._current = this._historyStack[index]["hash"];
+			this._previous = this._historyStack[index - 1] ? this._historyStack[index - 1]["hash"] : null;
+			this._next = this._historyStack[index + 1] ? this._historyStack[index + 1]["hash"] : null;
+
+			var target = hash.getTarget(this._current, this.app.defaultView);
 
 			// publish history go event
-			topic.publish("/app/history/go", {"viewId": this._current, "step": step, "detail": this._historyStack[index]["detail"]});
+			topic.publish("/app/history/go", {"viewId": target, "step": step, "detail": this._historyStack[index]["detail"]});
 
-			var param;
-			if(step > 0){
-				param = {
-					"viewId": this._current,
-					"opts": {reverse: false}
-				};
-			}else{
-				param = {
-					"viewId": this._current,
-					"opts": {reverse: true}
-				};
-			}
 			// transition to the target view
-			this.app.trigger("transition", param);
+			this.app.emit("app-transition", {
+				viewId: target,
+				opts: lang.mixin({reverse: (step <= 0)}, this._historyStack[index]["detail"], {"params": hash.getParams(this._current)})
+			});
 		}
 	});
 });

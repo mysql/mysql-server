@@ -266,7 +266,7 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 
 	attr: function(/*String|Object*/name, /*Object?*/value){
 		// summary:
-		//		Set or get properties on a widget instance.
+		//		This method is deprecated, use get() or set() directly.
 		// name:
 		//		The property to get or set. If an object is passed here and not
 		//		a string, its keys are used as names of attributes to be set
@@ -274,19 +274,8 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 		// value:
 		//		Optional. If provided, attr() operates as a setter. If omitted,
 		//		the current value of the named property is returned.
-		// description:
-		//		This method is deprecated, use get() or set() directly.
-
-		// Print deprecation warning but only once per calling function
-		if(config.isDebug){
-			var alreadyCalledHash = arguments.callee._ach || (arguments.callee._ach = {}),
-				caller = (arguments.callee.caller || "unknown caller").toString();
-			if(!alreadyCalledHash[caller]){
-				kernel.deprecated(this.declaredClass + "::attr() is deprecated. Use get() or set() instead, called from " +
-				caller, "", "2.0");
-				alreadyCalledHash[caller] = true;
-			}
-		}
+		// tags:
+		//		deprecated
 
 		var args = arguments.length;
 		if(args >= 2 || typeof name === "object"){ // setter

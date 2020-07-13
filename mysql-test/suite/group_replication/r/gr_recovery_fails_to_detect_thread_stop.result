@@ -74,7 +74,7 @@ CALL mtr.add_suppression("Already leaving or joining a group");
 CALL mtr.add_suppression("Error leaving the group");
 CALL mtr.add_suppression("Error while starting the group replication incremental recovery");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs, this member will start distributed recovery using clone.");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to no ONLINE member has the missing data for recovering in its binary logs.");
 call mtr.add_suppression("There was an issue when configuring the remote cloning process: The clone plugin is not present or active in this server.");
 call mtr.add_suppression("No valid or ONLINE members exist to get the missing data from the group. For cloning check if donors of the same version and with clone plugin installed exist. For incremental recovery check.*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");

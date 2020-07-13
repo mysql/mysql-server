@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,10 +141,10 @@ static class Ndb_tablespace_gsl_guard {
 /*
   The lock/unlock functions use the BACKUP_SEQUENCE row in SYSTAB_0
 
-  In case no_retry = false, the function will retry infinitely or until the THD
-  is killed or a GSL / MDL deadlock is detected/assumed. In the latter case a
-  timeout error (266) is returned. If no_retry is set, then the function
-  attempts to acquire GSL only once and returns.
+  In case retry = true, the function will retry infinitely or until the THD
+  is killed or a GSL / MDL deadlock is detected/assumed. In the last case a
+  timeout error (266) is returned. If retry = false, then the function attempts
+  to acquire GSL only once and returns.
 
   Returns a NdbTransaction owning the gsl-lock if it was taken. NULL is returned
   if failed to take lock. Returned NdbError will then contain the error code if
@@ -152,93 +152,139 @@ static class Ndb_tablespace_gsl_guard {
   rejected by lock manager, likely due to deadlock.
 */
 static NdbTransaction *gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
-                                    bool no_retry = false,
-                                    bool no_wait = false) {
-  ndb->setDatabaseName("sys");
-  ndb->setDatabaseSchemaName("def");
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  NdbOperation *op = nullptr;
-  NdbTransaction *trans = nullptr;
+                                    bool retry, bool no_wait) {
+  while (true) {
+    /*
+      while loop to control the behaviour of the attempt to lock the row.
+      - Temporary errors are dealt with by closing the transaction (if
+        applicable) and continuing from the beginning of the loop if retry is
+        set to true. A fresh attempt to acquire the GSL occurs after a random
+        sleep. If retry = false, even temporary errors are handled as described
+        in the next point
+      - Other errors are handled by setting ndb_error, closing the transaction
+        (if applicable), and returning nullptr
+      - A pointer to the NdbTransaction is returned in case of success
+    */
 
-  while (1) {
-    Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
+    // Get table from dictionary
+    Ndb_table_guard ndbtab_g(ndb, "sys", "SYSTAB_0");
     const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
     if (ndbtab == nullptr) {
-      if (dict->getNdbError().status == NdbError::TemporaryError) goto retry;
-      ndb_error = dict->getNdbError();
-      goto error_handler;
+      if (ndb->getDictionary()->getNdbError().status ==
+              NdbError::TemporaryError &&
+          retry) {
+        ndb_trans_retry_sleep();
+        continue;
+      }
+      ndb_error = ndb->getDictionary()->getNdbError();
+      return nullptr;
     }
 
-    trans = ndb->startTransaction();
+    // Start NDB transaction
+    NdbTransaction *trans = ndb->startTransaction();
     if (trans == nullptr) {
       ndb_error = ndb->getNdbError();
-      goto error_handler;
+      return nullptr;
     }
 
-    op = trans->getNdbOperation(ndbtab);
+    // Get NDB operation
+    NdbOperation *op = trans->getNdbOperation(ndbtab);
     if (op == nullptr) {
-      if (trans->getNdbError().status == NdbError::TemporaryError) goto retry;
+      if (trans->getNdbError().status == NdbError::TemporaryError && retry) {
+        ndb->closeTransaction(trans);
+        ndb_trans_retry_sleep();
+        continue;
+      }
       ndb_error = trans->getNdbError();
-      goto error_handler;
+      ndb->closeTransaction(trans);
+      return nullptr;
     }
-    if (op->readTuple(NdbOperation::LM_Exclusive)) goto error_handler;
-    if (no_wait) {
-      if (op->setNoWait()) goto error_handler;
+
+    // Read the tuple
+    if (op->readTuple(NdbOperation::LM_Exclusive)) {
+      ndb_error = trans->getNdbError();
+      ndb->closeTransaction(trans);
+      return nullptr;
     }
-    if (op->equal("SYSKEY_0", NDB_BACKUP_SEQUENCE)) goto error_handler;
+
+    // Set the 'NoWait' option if the caller has requested to do so
+    if (no_wait && op->setNoWait()) {
+      ndb_error = trans->getNdbError();
+      ndb->closeTransaction(trans);
+      return nullptr;
+    }
+
+    // Attempt to lock the tuple where SYSKEY_0 = NDB_BACKUP_SEQUENCE
+    if (op->equal("SYSKEY_0", NDB_BACKUP_SEQUENCE)) {
+      ndb_error = trans->getNdbError();
+      ndb->closeTransaction(trans);
+      return nullptr;
+    }
+
+    // Execute transaction
     if (trans->execute(NdbTransaction::NoCommit) == 0) {
-      // The transaction is successful but still check if the operation has
-      // failed since the abort mode is set to AO_IgnoreError. Error 635
-      // is the expected error when no_wait has been set and the row could not
-      // be locked immediately
-      if (trans->getNdbError().code == 635) goto error_handler;
-      break;
+      /*
+        The transaction is successful but still check if the operation has
+        failed since the abort mode is set to AO_IgnoreError. Error 635
+        is the expected error when no_wait has been set and the row could not
+        be locked immediately
+      */
+      if (trans->getNdbError().code == 635) {
+        ndb_error = trans->getNdbError();
+        ndb->closeTransaction(trans);
+        return nullptr;
+      }
+      /*
+        Transaction executed successfully i.e. GSL has been obtained. The
+        transaction will eventually be closed in the gsl_unlock_ext() function
+      */
+      return trans;
     }
 
-    if (trans->getNdbError().status != NdbError::TemporaryError)
-      goto error_handler;
-    if (thd_killed(thd)) goto error_handler;
+    if (trans->getNdbError().status != NdbError::TemporaryError ||
+        thd_killed(thd)) {
+      ndb_error = trans->getNdbError();
+      ndb->closeTransaction(trans);
+      return nullptr;
+    }
 
-    /**
-     * Check for MDL / GSL deadlock. A deadlock is assumed if:
-     *  1)  ::execute failed with a timeout error.
-     *  2a) There already is another THD being an participant in a schema distr.
-     *      operation (which implies that the coordinator already held the GSL
-     *                              OR
-     *  2b) The GSL has already been acquired for a pending exclusive MDL on a
-     *      tablespace. It's highly likely that there are two DDL statements
-     *      competing for a lock on the same tablespace
-     *  3)  This THD holds a lock being waited for by another THD
-     *
-     * Note: If we incorrectly assume a deadlock above, the caller
-     * will still either retry indefinitely as today, (notify_alter),
-     * or now be able to release locks gotten so far and retry later.
-     */
+    /*
+      Check for MDL / GSL deadlock. A deadlock is assumed if:
+      1)  ::execute failed with a timeout error.
+      2a) There already is another THD being an participant in a schema distr.
+          operation (which implies that the coordinator already held the GSL
+                                  OR
+      2b) The GSL has already been acquired for a pending exclusive MDL on a
+          tablespace. It's highly likely that there are two DDL statements
+          competing for a lock on the same tablespace
+      3)  This THD holds a lock being waited for by another THD
+
+      Note: If we incorrectly assume a deadlock above, the caller
+      will still either retry indefinitely as today, (notify_alter),
+      or now be able to release locks gotten so far and retry later.
+    */
     if (trans->getNdbError().code == 266 &&                     // 1)
         (ndb_is_gsl_participant_active() ||                     // 2a)
          tablespace_gsl_guard.is_tablespace_gsl_acquired()) &&  // 2b)
-        thd->mdl_context.has_locks_waited_for())                // 3)
-      goto error_handler;
-
-  retry:
-    if (trans) {
+        thd->mdl_context.has_locks_waited_for()) {              // 3)
+      ndb_error = trans->getNdbError();
       ndb->closeTransaction(trans);
-      trans = nullptr;
+      return nullptr;
     }
 
-    if (no_retry) {
-      break;
+    DBUG_ASSERT(trans->getNdbError().status == NdbError::TemporaryError);
+    if (!retry) {
+      ndb_error = trans->getNdbError();
+      ndb->closeTransaction(trans);
+      return nullptr;
     }
-
+    // Sleep and then retry
+    ndb->closeTransaction(trans);
     ndb_trans_retry_sleep();
   }
-  return trans;
 
-error_handler:
-  if (trans) {
-    ndb_error = trans->getNdbError();
-    ndb->closeTransaction(trans);
-  }
+  // This should be unreachable code
+  DBUG_ASSERT(false);
   return nullptr;
 }
 
@@ -318,7 +364,8 @@ static int ndbcluster_global_schema_lock(THD *thd,
   */
   Thd_proc_info_guard proc_info(thd);
   proc_info.set("Waiting for ndbcluster global schema lock");
-  thd_ndb->global_schema_lock_trans = gsl_lock_ext(thd, ndb, ndb_error);
+  thd_ndb->global_schema_lock_trans =
+      gsl_lock_ext(thd, ndb, ndb_error, true /* retry */, false /* no_wait */);
 
   if (DBUG_EVALUATE_IF("sleep_after_global_schema_lock", true, false)) {
     ndb_milli_sleep(6000);
@@ -536,9 +583,9 @@ bool Ndb_global_schema_lock_guard::try_lock(void) {
 
   Ndb *ndb = check_ndb_in_thd(m_thd);
   NdbError ndb_error;
-  // Attempt to take the GSL with no_retry and no_wait both set
+  // Attempt to take the GSL with no retry and no waiting
   thd_ndb->global_schema_lock_trans =
-      gsl_lock_ext(m_thd, ndb, ndb_error, true, /* no_retry */
+      gsl_lock_ext(m_thd, ndb, ndb_error, false, /* retry */
                    true /* no_wait */);
 
   if (thd_ndb->global_schema_lock_trans != nullptr) {

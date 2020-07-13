@@ -350,3 +350,67 @@ SELECT * FROM (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) AS alias LIMIT 2;
 WITH cte AS (SELECT 1) (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#30204811 ASSERTION `SELECT_LIMIT > 0' FAILED AT
+--echo #              TEST_IF_SKIP_SORT_ORDER
+--echo #
+
+# Tables are created as myISAM tables as row counts will be reported
+# as 'excact' by myISAM handler. Table B is intentionally left empty to cause
+# 'rows_fetched = 0' to be reported from the handler. This results in
+# the 'fanout' of A join B to be calculated as 0, which triggered the bug:
+#
+# The fanout was used to calculate a modified 'select_limit' for number
+# of rows to be read from the first table. This involved a division-by-zero
+# with fanout, such that 'modified select_limit' became 'infinite'.
+# Storing that (with type cast) into a ha_rows data type is undefined behavior.
+# Thus 'zero' ended up being stored (or possibly just left unassigned)
+
+CREATE TABLE a (
+  col_int int,
+  col_varchar_255 varchar(255),
+  pk integer auto_increment  primary key
+) ENGINE=myisam;
+
+CREATE TABLE b (
+  col_varchar_10 varchar(10),
+  pk integer primary key
+) ENGINE=myisam;
+
+let $query=
+SELECT STRAIGHT_JOIN a.pk
+FROM a
+  JOIN b ON a.col_varchar_255 = b.col_varchar_10
+WHERE b.pk <= a.col_int
+ORDER BY a.pk LIMIT 10;
+
+INSERT INTO a(col_int,col_varchar_255) VALUES (0,""),(1,"");
+
+##############################
+# Independent of whether there are more or less rows in table A than the
+# specified 'limit', the 'fanout == 0' should result in all rows needed
+# to be read. Thus there are no effective limits.
+
+eval explain format=tree $query;
+
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+
+#################################
+# Table A now contains 4096 rows, still all rows should be read.
+
+eval explain format=tree $query;
+
+DROP TABLE a;
+DROP TABLE b;

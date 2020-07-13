@@ -667,7 +667,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   @page page_protocol_basic_ok_packet OK_Packet
 
   An OK packet is sent from the server to the client to signal successful
-  completion of a command. As of MySQL 5.7.5, OK packes are also used to
+  completion of a command. As of MySQL 5.7.5, OK packets are also used to
   indicate EOF, and EOF packets are deprecated.
 
   if ::CLIENT_PROTOCOL_41 is set, the packet contains a warning count.
@@ -2565,6 +2565,11 @@ int Protocol_classic::read_packet() {
 
   Fetches the requested amount of rows from
   a resultset produced by ::COM_STMT_EXECUTE
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
+  @page page_protocol_com_stmt_fetch COM_STMT_FETCH
 
   @return @ref sect_protocol_com_stmt_fetch_response
   <table>
@@ -2581,11 +2586,16 @@ int Protocol_classic::read_packet() {
       <td>max number of rows to return</td></tr>
   </table>
 
-  @sa ::mysqld_stmt_fetch, ::mysql_stmt_fetch
+  @sa @ref mysqld_stmt_fetch
+  @sa @ref mysql_stmt_fetch
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
+  @page page_protocol_com_stmt_fetch COM_STMT_FETCH
 
   @section sect_protocol_com_stmt_fetch_response COM_STMT_FETCH Response
 
-  ::COM_STMT_FETCH may return one of:
+  @ref COM_STMT_FETCH may return one of:
     - @ref sect_protocol_command_phase_sp_multi_resultset
     - @ref page_protocol_basic_err_packet
 */

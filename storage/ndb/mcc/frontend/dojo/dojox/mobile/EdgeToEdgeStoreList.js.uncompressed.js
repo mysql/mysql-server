@@ -11,7 +11,7 @@ define("dojox/mobile/EdgeToEdgeStoreList", [
 		// summary:
 		//		A dojo/store-enabled version of EdgeToEdgeList.
 		// description:
-		//		EdgeToEdgeStoreList is an enhanced version of EdgeToEdgeList. It
+		//		EdgeToEdgeStoreList is a subclass of EdgeToEdgeList which
 		//		can generate ListItems according to the given dojo/store store.
 	});
 });

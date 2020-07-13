@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include <algorithm>
 #include <string>
 #include <utility>
 
-#include <sql/ssl_acceptor_context.h>
 #include "keycache.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -88,6 +89,8 @@
 #include "sql/sql_partition.h"  // set_part_state
 #include "sql/sql_prepare.h"    // mysql_test_show
 #include "sql/sql_table.h"      // mysql_recreate_table
+#include "sql/ssl_acceptor_context_operator.h"
+#include "sql/ssl_init_callback.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
@@ -1647,10 +1650,16 @@ bool Sql_cmd_shutdown::execute(THD *thd) {
 
 class Alter_instance_reload_tls : public Alter_instance {
  public:
-  explicit Alter_instance_reload_tls(THD *thd, bool force = false)
-      : Alter_instance(thd), force_(force) {}
+  explicit Alter_instance_reload_tls(THD *thd, const LEX_CSTRING &channel_name,
+                                     bool force = false)
+      : Alter_instance(thd), channel_name_(channel_name), force_(force) {}
 
   bool execute() {
+    if (match_channel_name() == false) {
+      my_error(ER_SYNTAX_ERROR, MYF(0));
+      return true;
+    }
+
     Security_context *sctx = m_thd->security_context();
     if (!sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "CONNECTION_ADMIN");
@@ -1659,7 +1668,21 @@ class Alter_instance_reload_tls : public Alter_instance {
 
     bool res = false;
     enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
-    SslAcceptorContext::singleton_flush(&error, force_);
+    switch (context_type_) {
+      case Ssl_acceptor_context_type::context_server_main:
+        TLS_channel::singleton_flush(mysql_main, mysql_main_channel,
+                                     &server_main_callback, &error, force_);
+        break;
+      case Ssl_acceptor_context_type::context_server_admin:
+        TLS_channel::singleton_flush(mysql_admin, mysql_admin_channel,
+                                     &server_admin_callback, &error, force_);
+        break;
+      case Ssl_acceptor_context_type::context_last:
+        // Fall through
+      default:
+        DBUG_ASSERT(false);
+        return false;
+    }
     if (error != SSL_INITERR_NOERROR) {
       const char *error_text = sslGetErrString(error);
       if (force_) {
@@ -1679,7 +1702,29 @@ class Alter_instance_reload_tls : public Alter_instance {
   ~Alter_instance_reload_tls() {}
 
  protected:
+  bool match_channel_name() {
+    String specified_channel(channel_name_.str, channel_name_.length,
+                             system_charset_info);
+
+    /* Compare now */
+    if (!my_strcasecmp(system_charset_info, mysql_main_channel.c_str(),
+                       specified_channel.ptr())) {
+      context_type_ = Ssl_acceptor_context_type::context_server_main;
+      return true;
+    }
+    if (!my_strcasecmp(system_charset_info, mysql_admin_channel.c_str(),
+                       specified_channel.ptr())) {
+      context_type_ = Ssl_acceptor_context_type::context_server_admin;
+      return true;
+    }
+
+    return false;
+  }
+
+ protected:
+  LEX_CSTRING channel_name_;
   bool force_;
+  Ssl_acceptor_context_type context_type_;
 };
 
 bool Sql_cmd_alter_instance::execute(THD *thd) {
@@ -1690,13 +1735,19 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
       alter_instance = new Rotate_innodb_master_key(thd);
       break;
     case ALTER_INSTANCE_RELOAD_TLS:
-      alter_instance = new Alter_instance_reload_tls(thd, true);
+      alter_instance = new Alter_instance_reload_tls(thd, channel_name_, true);
       break;
     case ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR:
-      alter_instance = new Alter_instance_reload_tls(thd);
+      alter_instance = new Alter_instance_reload_tls(thd, channel_name_);
       break;
     case ROTATE_BINLOG_MASTER_KEY:
       alter_instance = new Rotate_binlog_master_key(thd);
+      break;
+    case ALTER_INSTANCE_ENABLE_INNODB_REDO:
+      alter_instance = new Innodb_redo_log(thd, true);
+      break;
+    case ALTER_INSTANCE_DISABLE_INNODB_REDO:
+      alter_instance = new Innodb_redo_log(thd, false);
       break;
     default:
       DBUG_ASSERT(false);
@@ -2061,24 +2112,20 @@ bool Sql_cmd_set_role::execute(THD *thd) {
 
 bool Sql_cmd_grant_roles::execute(THD *thd) {
   DBUG_TRACE;
-  for (const LEX_USER &role : *roles) {
-    if (!has_grant_role_privilege(thd, role.user, role.host)) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-               "WITH ADMIN, ROLE_ADMIN, SUPER");
-      return true;
-    }
+  if (!has_grant_role_privilege(thd, roles)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "WITH ADMIN, ROLE_ADMIN, SUPER");
+    return true;
   }
   return mysql_grant_role(thd, users, roles, this->with_admin_option);
 }
 
 bool Sql_cmd_revoke_roles::execute(THD *thd) {
   DBUG_TRACE;
-  for (const LEX_USER &role : *roles) {
-    if (!has_grant_role_privilege(thd, role.user, role.host)) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-               "WITH ADMIN, ROLE_ADMIN, SUPER");
-      return true;
-    }
+  if (!has_grant_role_privilege(thd, roles)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "WITH ADMIN, ROLE_ADMIN, SUPER");
+    return true;
   }
   return mysql_revoke_role(thd, users, roles);
 }

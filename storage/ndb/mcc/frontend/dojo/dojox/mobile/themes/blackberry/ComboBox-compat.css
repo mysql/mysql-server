@@ -1,5 +1,5 @@
 
-.dj_gecko .dijitPopup {
+.dj_gecko .dijitPopup.mblComboBoxMenuPopup {
   -moz-box-shadow: none;
 }
 .dj_gecko .mblComboBoxMenuItemSelected {

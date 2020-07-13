@@ -1,13 +1,13 @@
 //>>built
 require({cache:{"url:dojox/widget/Wizard/Wizard.html":"<div class=\"dojoxWizard\" dojoAttachPoint=\"wizardNode\">\n    <div class=\"dojoxWizardContainer\" dojoAttachPoint=\"containerNode\"></div>\n    <div class=\"dojoxWizardButtons\" dojoAttachPoint=\"wizardNav\">\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"previousButton\">${previousButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"nextButton\">${nextButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"doneButton\" style=\"display:none\">${doneButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"cancelButton\">${cancelButtonLabel}</button>\n    </div>\n</div>\n"}});
-define("dojox/widget/Wizard",["dojo/_base/lang","dojo/_base/declare","dojo/_base/connect","dijit/layout/StackContainer","dijit/layout/ContentPane","dijit/form/Button","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dojo/i18n","dojo/text!./Wizard/Wizard.html","dojo/i18n!dijit/nls/common","dojo/i18n!./nls/Wizard","dojox/widget/WizardPane"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b){
-var _c=_2("dojox.widget.Wizard",[_4,_7,_8],{templateString:_a,nextButtonLabel:"",previousButtonLabel:"",cancelButtonLabel:"",doneButtonLabel:"",cancelFunction:null,hideDisabled:false,postMixInProperties:function(){
+define("dojox/widget/Wizard",["dojo/_base/lang","dojo/_base/declare","dojo/_base/connect","dijit/layout/StackContainer","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dojo/i18n","dojo/text!./Wizard/Wizard.html","dojo/i18n!dijit/nls/common","dojo/i18n!./nls/Wizard","dijit/form/Button"],function(_1,_2,_3,_4,_5,_6,_7,_8){
+var _9=_2("dojox.widget.Wizard",[_4,_5,_6],{templateString:_8,nextButtonLabel:"",previousButtonLabel:"",cancelButtonLabel:"",doneButtonLabel:"",cancelFunction:null,hideDisabled:false,postMixInProperties:function(){
 this.inherited(arguments);
-var _d=_1.mixin({cancel:_9.getLocalization("dijit","common",this.lang).buttonCancel},_9.getLocalization("dojox.widget","Wizard",this.lang));
-var _e;
-for(_e in _d){
-if(!this[_e+"ButtonLabel"]){
-this[_e+"ButtonLabel"]=_d[_e];
+var _a=_1.mixin({cancel:_7.getLocalization("dijit","common",this.lang).buttonCancel},_7.getLocalization("dojox.widget","Wizard",this.lang));
+var _b;
+for(_b in _a){
+if(!this[_b+"ButtonLabel"]){
+this[_b+"ButtonLabel"]=_a[_b];
 }
 }
 },startup:function(){
@@ -33,12 +33,12 @@ this.inherited(arguments);
 this._checkButtons();
 },_checkButtons:function(){
 var sw=this.selectedChildWidget;
-var _f=sw.isLastChild;
-this.nextButton.set("disabled",_f);
+var _c=sw.isLastChild||this.nextButton.get("disabled");
+this.nextButton.set("disabled",_c);
 this._setButtonClass(this.nextButton);
 if(sw.doneFunction){
 this.doneButton.domNode.style.display="";
-if(_f){
+if(_c){
 this.nextButton.domNode.style.display="none";
 }
 }else{
@@ -46,8 +46,8 @@ this.doneButton.domNode.style.display="none";
 }
 this.previousButton.set("disabled",!this.selectedChildWidget.canGoBack);
 this._setButtonClass(this.previousButton);
-},_setButtonClass:function(_10){
-_10.domNode.style.display=(this.hideDisabled&&_10.disabled)?"none":"";
+},_setButtonClass:function(_d){
+_d.domNode.style.display=(this.hideDisabled&&_d.disabled)?"none":"";
 },_forward:function(){
 if(this.selectedChildWidget._checkPass()){
 this.forward();
@@ -58,5 +58,5 @@ this.selectedChildWidget.done();
 _3.unsubscribe(this._subscription);
 this.inherited(arguments);
 }});
-return _c;
+return _9;
 });

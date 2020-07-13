@@ -124,10 +124,11 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
   new_field->init(table);
   new_field->orig_table = org_field->table;
   new_field->field_name = name;
-  new_field->flags |= (org_field->flags & NO_DEFAULT_VALUE_FLAG);
+  if (org_field->is_flag_set(NO_DEFAULT_VALUE_FLAG))
+    new_field->set_flag(NO_DEFAULT_VALUE_FLAG);
   if (org_field->is_nullable() || org_field->table->is_nullable() ||
       (item && item->maybe_null))
-    new_field->flags &= ~NOT_NULL_FLAG;  // Because of outer join
+    new_field->clear_flag(NOT_NULL_FLAG);  // Because of outer join
   if (org_field->type() == FIELD_TYPE_DOUBLE)
     down_cast<Field_double *>(new_field)->not_fixed = true;
   /*
@@ -262,8 +263,12 @@ static Field *create_tmp_field_for_schema(const Item *item, TABLE *table) {
                        the record in the original table.
                        If modify_item is 0 then fill_record() will update
                        the temporary table
-  @param table_cant_handle_bit_fields
-  @param make_copy_field
+  @param table_cant_handle_bit_fields if table can't handle bit-fields and
+  bit-fields shall be converted to long @see
+  Temp_table_param::bit_fields_as_long
+  @param make_copy_field if true, a pointer of the result field should be stored
+  in from_field,  otherwise the item should be wrapped in Func_ptr and stored in
+  copy_func
   @param copy_result_field true <=> save item's result_field in the from_field
                        arg, before changing it. This is used for a window's
                        OUT table when window uses frame buffer to copy a
@@ -391,7 +396,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
     case Item::PARAM_ITEM:
     case Item::SUM_FUNC_ITEM:
       if (type == Item::SUM_FUNC_ITEM && !is_wf) {
-        Item_sum *item_sum = (Item_sum *)item;
+        Item_sum *item_sum = down_cast<Item_sum *>(item);
         result = item_sum->create_tmp_field(group, table);
         if (!result) my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       } else {
@@ -424,7 +429,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         if (copy_func && !make_copy_field &&
             item->real_item()->is_result_field())
           copy_func->push_back(Func_ptr(item));
-        result->flags |= copy_result_field ? FIELD_IS_MARKED : 0;
+        if (copy_result_field) result->set_flag(FIELD_IS_MARKED);
       }
       break;
     case Item::TYPE_HOLDER:
@@ -613,7 +618,8 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   Field **tmp_field = table->field;
 
   /* Increase all of registed fields index */
-  for (i = 0; i < table->s->fields; i++) tmp_field[i]->field_index++;
+  for (i = 0; i < table->s->fields; i++)
+    tmp_field[i]->set_field_index(tmp_field[i]->field_index() + 1);
 
   // Increase the field_index of visible blob field
   for (i = 0; i < table->s->blob_fields; i++) blob_field[i]++;
@@ -623,7 +629,7 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   from_field[-1] = nullptr;
   field->table = table;
   field->orig_table = table;
-  field->field_index = 0;
+  field->set_field_index(0);
 
   // Keep the field from being expanded by SELECT *.
   field->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
@@ -769,7 +775,7 @@ static void sort_copy_func(const SELECT_LEX *select,
 
 inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
                            uint *null_count) {
-  if (!(field->flags & NOT_NULL_FLAG)) {
+  if (!field->is_flag_set(NOT_NULL_FLAG)) {
     field->move_field(pos, null_flags + *null_count / 8,
                       (uint8)1 << (*null_count & 7));
     (*null_count)++;
@@ -794,9 +800,8 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
   TABLE_SHARE.
   This function will replace Item_sum items in 'fields' list with
   corresponding Item_field items, pointing at the fields in the
-  temporary table, unless this was prohibited by true
-  value of argument save_sum_fields. The Item_field objects
-  are created in THD memory root.
+  temporary table, unless save_sum_fields is set to false.
+  The Item_field objects are created in THD memory root.
 
   @param thd                  thread handle
   @param param                a description used as input to create the table
@@ -880,10 +885,15 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   TABLE *table = new (&own_root) TABLE;
   if (table == nullptr || share == nullptr) return nullptr;
 
+  // NOTE: reg_field/default_field/from_field correspond 1:1 to each other,
+  // except that reg_field contains an extra nullptr marker at the end.
+  // (They should have been a struct, but we cannot, since the reg_field
+  // array ends up in the TABLE object, which expects a flat array.)
+  // blob_field is a separate array, which indexes into these.
   Field **reg_field = own_root.ArrayAlloc<Field *>(field_count + 2);
   Field **default_field = own_root.ArrayAlloc<Field *>(field_count + 1);
-  uint *blob_field = own_root.ArrayAlloc<uint>(field_count + 2);
   Field **from_field = own_root.ArrayAlloc<Field *>(field_count + 1);
+  uint *blob_field = own_root.ArrayAlloc<uint>(field_count + 2);
   if (reg_field == nullptr || default_field == nullptr ||
       from_field == nullptr || blob_field == nullptr)
     return nullptr;
@@ -937,7 +947,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint total_uneven_bit_length = 0;
   uint hidden_uneven_bit_length = 0;
 
-  Field **tmp_from_field = from_field;
   for (Item &refitem : fields) {
     Item *item = &refitem;
     Item::Type type = item->type();
@@ -1001,15 +1010,14 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         if (!arg->const_item()) {
           Field *new_field = create_tmp_field(
               thd, table, arg, arg->type(), param->items_to_copy,
-              tmp_from_field, &default_field[fieldnr], group != nullptr,
+              &from_field[fieldnr], &default_field[fieldnr], group != nullptr,
               not_all_columns, false, false, false);
           if (new_field == nullptr) return nullptr;  // Should be OOM
-          new_field->field_index = fieldnr++;
-          *(reg_field++) = new_field;
-          tmp_from_field++;
+          new_field->set_field_index(fieldnr);
+          reg_field[fieldnr++] = new_field;
           share->reclength += new_field->pack_length();
-          if (new_field->flags & BLOB_FLAG) {
-            *blob_field++ = new_field->field_index;
+          if (new_field->is_flag_set(BLOB_FLAG)) {
+            *blob_field++ = new_field->field_index();
             share->blob_fields++;
           }
           if (new_field->type() == MYSQL_TYPE_BIT)
@@ -1024,7 +1032,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           arg = sum_item->set_arg(i, thd, new Item_field(new_field));
           thd->mem_root = &share->mem_root;
 
-          if (!(new_field->flags & NOT_NULL_FLAG)) {
+          if (!new_field->is_flag_set(NOT_NULL_FLAG)) {
             null_count++;
             /*
               new_field->maybe_null() is still false, it will be
@@ -1062,7 +1070,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           (e.g. it is Item_func). In that case we pass copy_result_field=true.
         */
         new_field = create_tmp_field(
-            thd, table, item, type, param->items_to_copy, tmp_from_field,
+            thd, table, item, type, param->items_to_copy, &from_field[fieldnr],
             &default_field[fieldnr],
             group != nullptr,  // (1)
             !param->force_copy_fields && (not_all_columns || group != nullptr),
@@ -1085,12 +1093,11 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       */
       if (not_all_columns && type == Item::SUM_FUNC_ITEM)
         down_cast<Item_sum *>(item)->set_result_field(new_field);
-      tmp_from_field++;
       share->reclength += new_field->pack_length();
-      if (!(new_field->flags & NOT_NULL_FLAG)) null_count++;
+      if (!new_field->is_flag_set(NOT_NULL_FLAG)) null_count++;
       if (new_field->type() == MYSQL_TYPE_BIT)
         total_uneven_bit_length += new_field->field_length & 7;
-      if (new_field->flags & BLOB_FLAG) {
+      if (new_field->is_flag_set(BLOB_FLAG)) {
         *blob_field++ = fieldnr;
         share->blob_fields++;
       }
@@ -1107,10 +1114,10 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
       if (item->marker == Item::MARKER_BIT && item->maybe_null) {
         group_null_items++;
-        new_field->flags |= GROUP_FLAG;
+        new_field->set_flag(GROUP_FLAG);
       }
-      new_field->field_index = fieldnr++;
-      *(reg_field++) = new_field;
+      new_field->set_field_index(fieldnr);
+      reg_field[fieldnr++] = new_field;
       /* InnoDB temp table doesn't allow field with empty_name */
       if (!new_field->field_name) {
         new_field->field_name = create_tmp_table_field_tmp_name(thd, item);
@@ -1122,7 +1129,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         own due to their length, they aren't taken into account.
       */
       if (distinct && hidden_field_count <= 0) {
-        if (new_field->flags & BLOB_FLAG)
+        if (new_field->is_flag_set(BLOB_FLAG))
           unique_constraint_via_hash_field = true;
         else
           distinct_key_length += new_field->pack_length();
@@ -1153,10 +1160,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     }
   }  // end of for
 
-  DBUG_ASSERT(fieldnr == (uint)(reg_field - table->field));
-  DBUG_ASSERT(field_count >= (uint)(reg_field - table->field));
+  DBUG_ASSERT(field_count >= fieldnr);
 
-  *reg_field = nullptr;
+  reg_field[fieldnr] = nullptr;
   *blob_field = 0;  // End marker
   share->fields = fieldnr;
 
@@ -1311,10 +1317,10 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     }
 
     // Mark hash_field as NOT NULL
-    field->flags &= NOT_NULL_FLAG;
+    field->set_flag(NOT_NULL_FLAG);
     // Register hash_field as a hidden field.
-    register_hidden_field(table, default_field, from_field, share->blob_field,
-                          field);
+    register_hidden_field(table, &default_field[0], &from_field[0],
+                          share->blob_field, field);
     // Repoint arrays
     table->field--;
     default_field--;
@@ -1363,8 +1369,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   for (uint i = 0; i < share->fields; i++) {
     Field *field = table->field[i];
 
-    if (!(field->flags & NOT_NULL_FLAG)) {
-      if (field->flags & GROUP_FLAG && !unique_constraint_via_hash_field) {
+    if (!field->is_flag_set(NOT_NULL_FLAG)) {
+      if (field->is_flag_set(GROUP_FLAG) && !unique_constraint_via_hash_field) {
         /*
           We have to reserve one byte here for NULL bits,
           as this is updated by 'end_update()'
@@ -1402,7 +1408,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       Test if there is a default field value. The test for ->ptr is to skip
       'offset' fields generated by initalize_tables
     */
-    if (default_field[i] && default_field[i]->ptr) {
+    if (default_field[i] && default_field[i]->field_ptr() != nullptr) {
       /*
          default_field[i] is set only in the cases  when 'field' can
          inherit the default value that is defined for the field referred
@@ -1415,24 +1421,24 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         we are creating a tmp table to materialize the query's result.
       */
       ptrdiff_t diff = orig_field->table->default_values_offset();
-      Field *f_in_record0 = orig_field->table->field[orig_field->field_index];
-      f_in_record0->move_field_offset(diff);  // Points now at default_values
-      if (f_in_record0->is_real_null())
+      Field *f_in_record0 = orig_field->table->field[orig_field->field_index()];
+      if (f_in_record0->is_real_null(diff))
         field->set_null();
       else {
         field->set_notnull();
-        memcpy(field->ptr, f_in_record0->ptr, field->pack_length());
+        memcpy(field->field_ptr(), f_in_record0->field_ptr() + diff,
+               field->pack_length());
       }
-      f_in_record0->move_field_offset(-diff);  // Back to record[0]
     }
 
     if (from_field[i]) {
       /* This column is directly mapped to a column in the GROUP BY clause. */
       if (param->m_window && param->m_window->frame_buffer_param() &&
-          field->flags & FIELD_IS_MARKED) {
+          field->is_flag_set(FIELD_IS_MARKED)) {
         Temp_table_param *window_fb = param->m_window->frame_buffer_param();
         // Grep for FIELD_IS_MARKED in this file.
-        field->flags ^= FIELD_IS_MARKED;
+        field->is_flag_set(FIELD_IS_MARKED) ? field->clear_flag(FIELD_IS_MARKED)
+                                            : field->set_flag(FIELD_IS_MARKED);
         window_fb->copy_fields.emplace_back(from_field[i], field,
                                             save_sum_fields);
       } else {
@@ -1651,14 +1657,14 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
       goto err;  // Got OOM
     }
     // Mark hash_field as NOT NULL
-    field_ll->flags = NOT_NULL_FLAG;
+    field_ll->set_flag(NOT_NULL_FLAG);
     *(reg_field++) = hash_field = field_ll;
     if (sjtbl) sjtbl->hash_field = field_ll;
     table->hash_field = field_ll;
     field_ll->table = table;
     field_ll->orig_table = table;
     share->fields++;
-    field_ll->field_index = 0;
+    field_ll->set_field_index(0);
     reclength = field_ll->pack_length();
     table->hidden_field_count++;
   }
@@ -1672,15 +1678,16 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     if (!field) return nullptr;
     field->table = table;
     field->auto_flags = Field::NONE;
-    field->flags = (NOT_NULL_FLAG | BINARY_FLAG | NO_DEFAULT_VALUE_FLAG);
-    field->reset_fields();
+    field->set_flag(NOT_NULL_FLAG);
+    field->set_flag(BINARY_FLAG);
+    field->set_flag(NO_DEFAULT_VALUE_FLAG);
     field->init(table);
     field->orig_table = nullptr;
     *(reg_field++) = field;
     *blob_field = 0;
     *reg_field = nullptr;
 
-    field->field_index = share->fields;
+    field->set_field_index(share->fields);
     share->fields++;
     share->blob_fields = 0;
     reclength += field->pack_length();
@@ -1861,12 +1868,12 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
     if (!*reg_field) goto error;
     (*reg_field)->init(table);
     record_length += (*reg_field)->pack_length();
-    if (!((*reg_field)->flags & NOT_NULL_FLAG)) null_count++;
-    (*reg_field)->field_index = idx++;
+    if (!(*reg_field)->is_flag_set(NOT_NULL_FLAG)) null_count++;
+    (*reg_field)->set_field_index(idx++);
     if ((*reg_field)->type() == MYSQL_TYPE_BIT)
       total_uneven_bit_length += (*reg_field)->field_length & 7;
 
-    if ((*reg_field)->flags & BLOB_FLAG)
+    if ((*reg_field)->is_flag_set(BLOB_FLAG))
       share->blob_field[blob_count++] = (uint)(reg_field - table->field);
 
     reg_field++;

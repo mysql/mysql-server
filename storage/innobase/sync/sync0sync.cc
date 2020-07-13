@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -122,7 +122,8 @@ mysql_pfs_key_t trx_mutex_key;
 mysql_pfs_key_t trx_pool_mutex_key;
 mysql_pfs_key_t trx_pool_manager_mutex_key;
 mysql_pfs_key_t temp_pool_manager_mutex_key;
-mysql_pfs_key_t lock_mutex_key;
+mysql_pfs_key_t lock_sys_table_mutex_key;
+mysql_pfs_key_t lock_sys_page_mutex_key;
 mysql_pfs_key_t lock_wait_mutex_key;
 mysql_pfs_key_t trx_sys_mutex_key;
 mysql_pfs_key_t srv_sys_mutex_key;
@@ -154,6 +155,7 @@ mysql_pfs_key_t buf_block_debug_latch_key;
 #endif /* UNIV_DEBUG */
 mysql_pfs_key_t undo_spaces_lock_key;
 mysql_pfs_key_t rsegs_lock_key;
+mysql_pfs_key_t lock_sys_global_rw_lock_key;
 mysql_pfs_key_t dict_operation_lock_key;
 mysql_pfs_key_t dict_table_stats_key;
 mysql_pfs_key_t hash_table_locks_key;

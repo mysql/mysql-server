@@ -101,6 +101,7 @@
 #include "sql-common/net_ns.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/auto_thd.h"
 #include "sql/binlog.h"
 #include "sql/binlog_reader.h"
 #include "sql/clone_handler.h"  // is_provisioning
@@ -302,6 +303,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
 static int check_slave_sql_config_conflict(const Relay_log_info *rli);
+static void group_replication_cleanup_after_clone();
 
 /*
   Applier thread InnoDB priority.
@@ -467,6 +469,8 @@ int init_slave() {
     LogErr(ERROR_LEVEL,
            ER_RPL_SLAVE_FAILED_TO_CREATE_OR_RECOVER_INFO_REPOSITORIES);
 
+  group_replication_cleanup_after_clone();
+
 #ifndef DBUG_OFF
   /* @todo: Print it for all the channels */
   {
@@ -485,7 +489,7 @@ int init_slave() {
   }
 #endif
 
-  if (get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF) {
+  if (global_gtid_mode.get() == Gtid_mode::OFF) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
       Master_info *mi = it->second;
@@ -1022,7 +1026,7 @@ static void recover_relay_log(Master_info *mi) {
     Clear the retrieved GTID set so that events that are written partially
     will be fetched again.
   */
-  if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON &&
+  if (global_gtid_mode.get() == Gtid_mode::ON &&
       !channel_map.is_group_replication_channel_name(rli->get_channel())) {
     rli->get_sid_lock()->wrlock();
     (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear_set_and_sid_map();
@@ -1074,10 +1078,7 @@ int init_recovery(Master_info *mi) {
 
   /* Set the recovery_parallel_workers to 0 if Auto Position is enabled. */
   bool is_gtid_with_autopos_on =
-      (((mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) &&
-        mi->is_auto_position())
-           ? true
-           : false);
+      (global_gtid_mode.get() == Gtid_mode::ON) && mi->is_auto_position();
   if (is_gtid_with_autopos_on) rli->recovery_parallel_workers = 0;
 
   if (rli->recovery_parallel_workers) {
@@ -1955,7 +1956,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   }
 
   if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
-      mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF) {
+      global_gtid_mode.get() == Gtid_mode::OFF) {
     my_error(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF, MYF(0),
              mi->get_for_channel_str());
     return true;
@@ -2462,24 +2463,6 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
   return ret;
 }
 
-/**
-  Determine, case-sensitively, if short_string is equal to
-  long_string, or a true prefix of long_string, or not a prefix.
-
-  @retval 0 short_string is not a prefix of long_string.
-  @retval 1 short_string is a true prefix of long_string (not equal).
-  @retval 2 short_string is equal to long_string.
-*/
-static int is_str_prefix_case(const char *short_string,
-                              const char *long_string) {
-  int i;
-  for (i = 0; short_string[i]; i++)
-    if (my_toupper(system_charset_info, short_string[i]) !=
-        my_toupper(system_charset_info, long_string[i]))
-      return 0;
-  return long_string[i] ? 1 : 2;
-}
-
 /*
   Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
   relying on the binlog's version. This is not perfect: imagine an upgrade
@@ -2819,9 +2802,8 @@ maybe it is a *VERY OLD MASTER*.");
     mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1)) {
-    enum_gtid_mode master_gtid_mode = GTID_MODE_OFF;
-    enum_gtid_mode slave_gtid_mode =
-        mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE);
+    auto master_gtid_mode = Gtid_mode::OFF;
+    auto slave_gtid_mode = global_gtid_mode.get();
     switch (io_thread_init_command(mi, "SELECT @@GLOBAL.GTID_MODE",
                                    ER_UNKNOWN_SYSTEM_VARIABLE, &master_res,
                                    &master_row)) {
@@ -2829,10 +2811,9 @@ maybe it is a *VERY OLD MASTER*.");
         return 2;
       case COMMAND_STATUS_ALLOWED_ERROR:
         // master is old and does not have @@GLOBAL.GTID_MODE
-        master_gtid_mode = GTID_MODE_OFF;
+        master_gtid_mode = Gtid_mode::OFF;
         break;
       case COMMAND_STATUS_OK: {
-        bool error = false;
         const char *master_gtid_mode_string = master_row[0];
         DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_on_something",
                         { master_gtid_mode_string = "on_something"; });
@@ -2840,31 +2821,9 @@ maybe it is a *VERY OLD MASTER*.");
                         { master_gtid_mode_string = "off_something"; });
         DBUG_EXECUTE_IF("simulate_master_has_unknown_gtid_mode",
                         { master_gtid_mode_string = "Krakel Spektakel"; });
-        master_gtid_mode = get_gtid_mode(master_gtid_mode_string, &error);
-        if (error) {
-          // For potential future compatibility, allow unknown
-          // GTID_MODEs that begin with ON/OFF (treating them as ON/OFF
-          // respectively).
-          enum_gtid_mode mode = GTID_MODE_OFF;
-          for (int i = 0; i < 2; i++) {
-            switch (is_str_prefix_case(get_gtid_mode_string(mode),
-                                       master_gtid_mode_string)) {
-              case 0:  // is not a prefix; continue loop
-                break;
-              case 1:  // is a true prefix, i.e. not equal
-                mi->report(WARNING_LEVEL, ER_UNKNOWN_ERROR,
-                           "The master uses an unknown GTID_MODE '%s'. "
-                           "Treating it as '%s'.",
-                           master_gtid_mode_string, get_gtid_mode_string(mode));
-                // fall through
-              case 2:  // is equal
-                error = false;
-                master_gtid_mode = mode;
-                break;
-            }
-            mode = GTID_MODE_ON;
-          }
-        }
+        bool error;
+        std::tie(error, master_gtid_mode) =
+            Gtid_mode::from_string(master_gtid_mode_string);
         if (error) {
           mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                      "The slave IO thread stops because the master has "
@@ -2877,24 +2836,24 @@ maybe it is a *VERY OLD MASTER*.");
         break;
       }
     }
-    if ((slave_gtid_mode == GTID_MODE_OFF &&
-         master_gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
-        (slave_gtid_mode == GTID_MODE_ON &&
-         master_gtid_mode <= GTID_MODE_OFF_PERMISSIVE)) {
+    if ((slave_gtid_mode == Gtid_mode::OFF &&
+         master_gtid_mode >= Gtid_mode::ON_PERMISSIVE) ||
+        (slave_gtid_mode == Gtid_mode::ON &&
+         master_gtid_mode <= Gtid_mode::OFF_PERMISSIVE)) {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The replication receiver thread cannot start because "
                  "the master has GTID_MODE = %.192s and this server has "
                  "GTID_MODE = %.192s.",
-                 get_gtid_mode_string(master_gtid_mode),
-                 get_gtid_mode_string(slave_gtid_mode));
+                 Gtid_mode::to_string(master_gtid_mode),
+                 Gtid_mode::to_string(slave_gtid_mode));
       return 1;
     }
-    if (mi->is_auto_position() && master_gtid_mode != GTID_MODE_ON) {
+    if (mi->is_auto_position() && master_gtid_mode != Gtid_mode::ON) {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The replication receiver thread cannot start in "
                  "AUTO_POSITION mode: the master has GTID_MODE = %.192s "
                  "instead of ON.",
-                 get_gtid_mode_string(master_gtid_mode));
+                 Gtid_mode::to_string(master_gtid_mode));
       return 1;
     }
   }
@@ -7333,9 +7292,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       });
   binary_log_debug::debug_checksum_test =
       DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
-  binary_log_debug::debug_checksum_test =
-      DBUG_EVALUATE_IF("gr_simulate_checksum_test_failure", true,
-                       binary_log_debug::debug_checksum_test);
   if (Log_event_footer::event_checksum_test(
           const_cast<uchar *>(pointer_cast<const uchar *>(buf)), event_len,
           checksum_alg)) {
@@ -7707,7 +7663,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         transactions which will be sent through B to C.  Then C will hit
         this error.
       */
-      if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF) {
+      if (global_gtid_mode.get() == Gtid_mode::OFF) {
         mi->report(
             ERROR_LEVEL, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF,
             ER_THD(current_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
@@ -7755,7 +7711,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         B to C.  Then C will hit this error.
       */
       else {
-        if (mi->get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) {
+        if (global_gtid_mode.get() == Gtid_mode::ON) {
           mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON,
                      ER_THD(current_thd,
                             ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
@@ -9454,8 +9410,8 @@ static void issue_deprecation_warnings_for_channel(THD *thd) {
     Generate deprecation warning when user executes CHANGE
     MASTER TO IGNORE_SERVER_IDS if GTID_MODE=ON.
   */
-  enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP);
-  if (lex_mi->repl_ignore_server_ids.size() > 0 && gtid_mode == GTID_MODE_ON) {
+  if (lex_mi->repl_ignore_server_ids.size() > 0 &&
+      global_gtid_mode.get() == Gtid_mode::ON) {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX,
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
@@ -9603,7 +9559,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         connection changes to GTID_MODE=OFF between this check and the
         point where AUTO_POSITION is stored in the table and in mi.
       */
-      get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF) {
+      global_gtid_mode.get() == Gtid_mode::OFF) {
     error = ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF;
     my_error(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF, MYF(0));
     goto err;
@@ -10213,6 +10169,23 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli) {
   }
 
   return 0;
+}
+
+/**
+  Purge Group Replication channels relay logs after this server being a
+  recipient of clone.
+*/
+static void group_replication_cleanup_after_clone() {
+  if (clone_startup && get_server_state() == SERVER_BOOTING) {
+    channel_map.assert_some_wrlock();
+    Auto_THD thd;
+
+    Master_info *mi = channel_map.get_mi("group_replication_applier");
+    if (nullptr != mi) reset_slave(thd.thd, mi, false);
+
+    mi = channel_map.get_mi("group_replication_recovery");
+    if (nullptr != mi) reset_slave(thd.thd, mi, false);
+  }
 }
 
 /**

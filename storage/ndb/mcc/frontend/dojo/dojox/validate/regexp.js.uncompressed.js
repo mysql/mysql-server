@@ -25,7 +25,7 @@ dxregexp = dojox.validate.regexp = {
 		//		- flags.allowHybrid   IPv6 address written as six groups of four hexadecimal digits
 		//		-   followed by the usual 4 dotted decimal digit notation of IPv4. x:x:x:x:x:x:d.d.d.d
 
-		// assign default values to missing paramters
+		// assign default values to missing parameters
 		flags = (typeof flags == "object") ? flags : {};
 		if(typeof flags.allowDottedDecimal != "boolean"){ flags.allowDottedDecimal = true; }
 		if(typeof flags.allowDottedHex != "boolean"){ flags.allowDottedHex = true; }
@@ -95,7 +95,7 @@ dxregexp = dojox.validate.regexp = {
 		//		- flags.allowPort  Allow a port number to be present.  Default is true.
 		//		- flags in regexp.ipAddress can be applied.
 
-		// assign default values to missing paramters
+		// assign default values to missing parameters
 		flags = (typeof flags == "object") ? flags : {};
 
 		if(typeof flags.allowIP != "boolean"){ flags.allowIP = true; }
@@ -129,7 +129,7 @@ dxregexp = dojox.validate.regexp = {
 		//		- flags in regexp.host can be applied.
 		//		- flags in regexp.ipAddress can be applied.
 
-		// assign default values to missing paramters
+		// assign default values to missing parameters
 		flags = (typeof flags == "object") ? flags : {};
 		if(!("scheme" in flags)){ flags.scheme = [true, false]; }
 
@@ -152,7 +152,7 @@ dxregexp = dojox.validate.regexp = {
 		//		- flags in regexp.host can be applied.
 		//		- flags in regexp.ipAddress can be applied.
 
-		// assign default values to missing paramters
+		// assign default values to missing parameters
 		flags = (typeof flags == "object") ? flags : {};
 		if (typeof flags.allowCruft != "boolean") { flags.allowCruft = false; }
 		flags.allowPort = false; // invalid in email addresses
@@ -180,7 +180,7 @@ dxregexp = dojox.validate.regexp = {
 		//		- flags in regexp.host can be applied.
 		//		- flags in regexp.ipAddress can be applied.
 
-		// assign default values to missing paramters
+		// assign default values to missing parameters
 		flags = (typeof flags == "object") ? flags : {};
 		if(typeof flags.listSeparator != "string"){ flags.listSeparator = "\\s;,"; }
 
@@ -214,7 +214,7 @@ dxregexp = dojox.validate.regexp = {
 		// flags:  Object?
 		//		- flags.format  A string or an Array of strings for multiple formats.
 
-		// assign default values to missing paramters
+		// assign default values to missing parameters
 		flags = (typeof flags == "object") ? flags : {};
 		if(typeof flags.format == "undefined"){ flags.format = "###-###-####"; }
 

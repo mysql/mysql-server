@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "사전 열 추가",
 	insertTableColumnAfterLabel: "사후 열 추가",
 	deleteTableRowLabel: "행 삭제",
-	deleteTableColumnLabel: "열 삭제"
+	deleteTableColumnLabel: "열 삭제",
+	colorTableCellTitle: "배경색 테이블 셀",
+	tableContextMenuTitle: "테이블 컨텍스트 메뉴"
 })
 );

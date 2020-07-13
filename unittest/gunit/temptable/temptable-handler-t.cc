@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,12 +54,22 @@ as my_error generated. */
 // To use a test fixture, derive a class from testing::Test.
 class Handler_test : public testing::Test {
  protected:
-  virtual void SetUp() {
-    m_server_initializer.SetUp();
+  void SetUp() override {
+    plugin_early_load_one(
+        nullptr, nullptr,
+        nullptr);  // a hack which is needed to at least get
+                   // LOCK_plugin_xxx mutexes initialized in order make this
+                   // test-suite up and running again.
     init_handlerton();
+    m_server_initializer.SetUp();
   }
 
-  virtual void TearDown() { m_server_initializer.TearDown(); }
+  void TearDown() override {
+    m_server_initializer.TearDown();
+    delete remove_hton2plugin(m_temptable_handlerton.slot);
+    plugin_shutdown();  // see a comment in SetUp() for a reason why is this
+                        // needed
+  }
 
   THD *thd() { return m_server_initializer.thd(); }
 
@@ -83,6 +93,7 @@ class Handler_test : public testing::Test {
         HTON_NOT_USER_SELECTABLE | HTON_NO_PARTITION | HTON_NO_BINLOG_ROW_OPT |
         HTON_SUPPORTS_EXTENDED_KEYS;
 
+    insert_hton2plugin(m_temptable_handlerton.slot, new st_plugin_int());
     temptable::Allocator<uint8_t>::init();
   }
 };

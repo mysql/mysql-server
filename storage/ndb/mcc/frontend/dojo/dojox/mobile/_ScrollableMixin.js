@@ -1,6 +1,6 @@
 //>>built
 define("dojox/mobile/_ScrollableMixin",["dojo/_base/kernel","dojo/_base/config","dojo/_base/declare","dojo/_base/lang","dojo/_base/window","dojo/dom","dojo/dom-class","dijit/registry","./scrollable"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
-var _a=_3("dojox.mobile._ScrollableMixin",_9,{fixedHeader:"",fixedFooter:"",scrollableParams:null,allowNestedScrolls:true,appBars:true,constructor:function(){
+var _a=_3("dojox.mobile._ScrollableMixin",_9,{fixedHeader:"",fixedFooter:"",_fixedAppFooter:"",scrollableParams:null,allowNestedScrolls:true,appBars:true,constructor:function(){
 this.scrollableParams={};
 },destroy:function(){
 this.cleanup();
@@ -8,6 +8,9 @@ this.inherited(arguments);
 },startup:function(){
 if(this._started){
 return;
+}
+if(this._fixedAppFooter){
+this._fixedAppFooter=_6.byId(this._fixedAppFooter);
 }
 this.findAppBars();
 var _b,_c=this.scrollableParams;
@@ -26,7 +29,7 @@ _b.style.bottom="0px";
 }
 _c.fixedFooterHeight=_b.offsetHeight;
 }
-this.scrollType=this.scrollType||_2["mblScrollableScrollType"]||0;
+this.scrollType=this.scrollType||_2.mblScrollableScrollType||0;
 this.init(_c);
 if(this.allowNestedScrolls){
 for(var p=this.getParent();p;p=p.getParent()){
@@ -65,7 +68,7 @@ this.checkFixedBar(c,false);
 this.fixedFooterHeight=this.fixedFooter?this.fixedFooter.offsetHeight:0;
 },checkFixedBar:function(_f,_10){
 if(_f.nodeType===1){
-var _11=_f.getAttribute("fixed")||(_8.byNode(_f)&&_8.byNode(_f).fixed);
+var _11=_f.getAttribute("fixed")||_f.getAttribute("data-mobile-fixed")||(_8.byNode(_f)&&_8.byNode(_f).fixed);
 if(_11==="top"){
 _7.add(_f,"mblFixedHeaderBar");
 if(_10){
@@ -76,7 +79,11 @@ return _11;
 }else{
 if(_11==="bottom"){
 _7.add(_f,"mblFixedBottomBar");
+if(_10){
 this.fixedFooter=_f;
+}else{
+this._fixedAppFooter=_f;
+}
 return _11;
 }
 }

@@ -14,7 +14,7 @@ define(
 	percent: "пайыз",
 	pixels: "нүкте",
 	"default": "әдепкі",
-	left: "сол жақ",
+	left: "сол жағы",
 	center: "ортасы",
 	right: "оң жақ",
 	buttonSet: "Орнату", // translated elsewhere?
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Бағанды алдына қосу",
 	insertTableColumnAfterLabel: "Бағанды артына қосу",
 	deleteTableRowLabel: "Жолды жою",
-	deleteTableColumnLabel: "Бағанды жою"
+	deleteTableColumnLabel: "Бағанды жою",
+	colorTableCellTitle: "Өң түсінің кесте ұяшығы",
+	tableContextMenuTitle: "Кесте мазмұнының мәзірі"
 })
 );

@@ -20,6 +20,7 @@ SELECT * FROM performance_schema.global_variables
 WHERE VARIABLE_NAME LIKE '%group_replication%'
  ORDER BY VARIABLE_NAME;
 
+SET PERSIST group_replication_advertise_recovery_endpoints = @@GLOBAL.group_replication_advertise_recovery_endpoints;
 SET PERSIST group_replication_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET PERSIST group_replication_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
 SET PERSIST group_replication_autorejoin_tries = @@GLOBAL.group_replication_autorejoin_tries;
@@ -73,10 +74,11 @@ SET PERSIST group_replication_recovery_zstd_compression_level = @@GLOBAL.group_r
 SET PERSIST group_replication_single_primary_mode = @@GLOBAL.group_replication_single_primary_mode;
 SET PERSIST group_replication_ssl_mode = @@GLOBAL.group_replication_ssl_mode;
 SET PERSIST group_replication_start_on_boot = @@GLOBAL.group_replication_start_on_boot;
+SET PERSIST group_replication_tls_source = @@GLOBAL.group_replication_tls_source;
 SET PERSIST group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 SET PERSIST group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 
-include/assert.inc ['Expect 55 persisted variables.']
+include/assert.inc ['Expect 57 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -85,13 +87,14 @@ include/assert.inc ['Expect 55 persisted variables.']
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 55 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 55 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 55 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 57 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 56 variables which last value was set through SET PERSIST.']
+include/assert.inc ['Expect 56 variables which last value was set through SET PERSIST is equal to its global value.']
 
 ############################################################
 # 3. Test RESET PERSIST.
 #    Verify that there are no persisted variables.
+RESET PERSIST group_replication_advertise_recovery_endpoints;
 RESET PERSIST group_replication_allow_local_lower_version_join;
 RESET PERSIST group_replication_auto_increment_increment;
 RESET PERSIST group_replication_autorejoin_tries;
@@ -145,6 +148,7 @@ RESET PERSIST group_replication_recovery_zstd_compression_level;
 RESET PERSIST group_replication_single_primary_mode;
 RESET PERSIST group_replication_ssl_mode;
 RESET PERSIST group_replication_start_on_boot;
+RESET PERSIST group_replication_tls_source;
 RESET PERSIST group_replication_transaction_size_limit;
 RESET PERSIST group_replication_unreachable_majority_timeout;
 

@@ -6,7 +6,7 @@ return Math.abs(a-b)<=0.000001*(Math.abs(a)+Math.abs(b));
 var _2=_1.getObject("dojox.charting.scaler.common",true);
 var _3={};
 return _1.mixin(_2,{doIfLoaded:function(_4,_5,_6){
-if(_3[_4]==undefined){
+if(_3[_4]===undefined){
 try{
 _3[_4]=require(_4);
 }

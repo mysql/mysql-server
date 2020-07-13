@@ -6,16 +6,19 @@ define("dojox/mobile/TabBar", [
 	"dojo/dom-construct",
 	"dojo/dom-geometry",
 	"dojo/dom-style",
+	"dojo/dom-attr",
 	"dijit/_Contained",
 	"dijit/_Container",
 	"dijit/_WidgetBase",
-	"./TabBarButton" // to load TabBarButton for you (no direct references)
-], function(array, declare, win, domClass, domConstruct, domGeometry, domStyle, Contained, Container, WidgetBase, TabBarButton){
+	"./TabBarButton",// to load TabBarButton for you (no direct references)
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/TabBar"	
+], function(array, declare, win, domClass, domConstruct, domGeometry, domStyle, domAttr, Contained, Container, WidgetBase, TabBarButton, has, BidiTabBar){
 
 	// module:
 	//		dojox/mobile/TabBar
 
-	return declare("dojox.mobile.TabBar", [WidgetBase, Container, Contained],{
+	var TabBar =  declare(has("dojo-bidi") ? "dojox.mobile.NonBidiTabBar" : "dojox.mobile.TabBar", [WidgetBase, Container, Contained],{
 		// summary:
 		//		A bar widget that has buttons to control visibility of views.
 		// description:
@@ -55,6 +58,16 @@ define("dojox/mobile/TabBar", [
 		//		A name of html tag to create as domNode.
 		tag: "ul",
 
+		// fill: String
+		//		Define if the TabBar should resize its children so that they evenly fill all the available space in the bar.
+		//
+		//		Allowed values:
+		//
+		//		1. "auto" is the default behavior from version 1.8: bar buttons are resized to evenly fill the entire bar only on small devices (width < 500px) and when barType is "tabBar"
+		//		2. "always": bar buttons are always resized to evenly fill the entire bar
+		//		3. "never": bar buttons are never resized to evenly fill the entire bar
+		fill: "auto",
+
 		/* internal properties */
 		// selectOne: [private] Boolean
 		//		Specifies that only one item can be selected.
@@ -66,6 +79,7 @@ define("dojox/mobile/TabBar", [
 
 		buildRendering: function(){
 			this.domNode = this.srcNodeRef || domConstruct.create(this.tag);
+			domAttr.set(this.domNode, "role", "tablist");
 			this.reset();
 			this.inherited(arguments);
 		},
@@ -115,13 +129,9 @@ define("dojox/mobile/TabBar", [
 		resize: function(size){
 			var i, w;
 			if(size && size.w){
-				domGeometry.setMarginBox(this.domNode, size);
 				w = size.w;
 			}else{
-				// Calculation of the bar width varies according to its "position" value.
-				// When the widget is used as a fixed bar, its position would be "absolute".
-				w = domStyle.get(this.domNode, "position") === "absolute" ?
-					domGeometry.getContentBox(this.domNode).w : domGeometry.getMarginBox(this.domNode).w;
+				w = domGeometry.getMarginBox(this.domNode).w;
 			}
 			var bw = this._fixedButtonWidth;
 			var bm = this._fixedButtonMargin;
@@ -133,14 +143,13 @@ define("dojox/mobile/TabBar", [
 							!array.some(this.getChildren(), function(w){ return w.label; }));
 
 			var margin = 0;
-			if (this._barType == "tabBar"){
+			if(this._barType == "tabBar"){
 				this.containerNode.style.paddingLeft = "";
 				margin = Math.floor((w - (bw + bm * 2) * arr.length) / 2);
-				if(w < this._largeScreenWidth || margin < 0){
-					// If # of buttons is 4, for example, assign "25%" to each button.
-					// More precisely, 1%(left margin) + 98%(bar width) + 1%(right margin)
+				if(this.fill == "always" || (this.fill == "auto" && (w < this._largeScreenWidth || margin < 0))){
+					domClass.add(this.domNode, "mblTabBarFill");
 					for(i = 0; i < arr.length; i++){
-						arr[i].style.width = Math.round(98/arr.length) + "%";
+						arr[i].style.width = (100/arr.length) + "%";
 						arr[i].style.margin = "0";
 					}
 				}else{
@@ -150,7 +159,12 @@ define("dojox/mobile/TabBar", [
 						arr[i].style.margin = "0 " + bm + "px";
 					}
 					if(arr.length > 0){
-						arr[0].style.marginLeft = margin + bm + "px";
+						if(has("dojo-bidi") && !this.isLeftToRight()){
+							arr[0].style.marginLeft = "0px";
+							arr[0].style.marginRight = margin + bm + "px";
+						}else{
+							arr[0].style.marginLeft = margin + bm + "px";
+						}
 					}
 					this.containerNode.style.padding = "0px";
 				}
@@ -159,17 +173,34 @@ define("dojox/mobile/TabBar", [
 					arr[i].style.width = arr[i].style.margin = "";
 				}
 				var parent = this.getParent();
-				if(this.center && (!parent || !domClass.contains(parent.domNode, "mblHeading"))){
-					margin = w;
+				if(this.fill == "always"){
+					domClass.add(this.domNode, "mblTabBarFill");
 					for(i = 0; i < arr.length; i++){
-						margin -= domGeometry.getMarginBox(arr[i]).w;
+						arr[i].style.width = (100/arr.length) + "%";
+						if(this._barType != "segmentedControl" && this._barType != "standardTab") {
+							arr[i].style.margin = "0";
+						}
 					}
-					margin = Math.floor(margin/2);
+				}else{
+					if(this.center && (!parent || !domClass.contains(parent.domNode, "mblHeading"))){
+						margin = w;
+						for(i = 0; i < arr.length; i++){
+							margin -= domGeometry.getMarginBox(arr[i]).w;
+						}
+						margin = Math.floor(margin/2);
+					}
+					if(has("dojo-bidi") && !this.isLeftToRight()){
+						this.containerNode.style.paddingLeft = "0px";
+						this.containerNode.style.paddingRight = margin ? margin + "px" : "";
+					}else{
+						this.containerNode.style.paddingLeft = margin ? margin + "px" : "";
+					}
 				}
-				this.containerNode.style.paddingLeft = margin ? margin + "px" : "";
+			}
+			if(size && size.w){
+				domGeometry.setMarginBox(this.domNode, size);
 			}
 		},
-
 		getSelectedTab: function(){
 			// summary:
 			//		Returns the first selected child.
@@ -182,4 +213,6 @@ define("dojox/mobile/TabBar", [
 			return true;
 		}
 	});
+	
+	return has("dojo-bidi")?declare("dojox.mobile.TabBar", [TabBar, BidiTabBar]):TabBar;	
 });

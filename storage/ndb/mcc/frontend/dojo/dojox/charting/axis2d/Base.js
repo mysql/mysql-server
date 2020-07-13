@@ -20,5 +20,7 @@ return {l:0,r:0,t:0,b:0};
 },render:function(_8,_9){
 this.dirty=false;
 return this;
-}});
+},isNullValue:function(_a){
+return false;
+},naturalBaseline:0});
 });

@@ -62,6 +62,7 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 				current += (current ? "-" : "") + localeParts[i];
 				if(!root || root[current]){
 					result.push(bundlePath + current + "/" + bundleName);
+					result.specificity = current;
 				}
 			}
 			return result;
@@ -95,6 +96,7 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 					// target may not have been resolve (e.g., maybe only "fr" exists when "fr-ca" was requested)
 					var target = bundlePathAndName + "/" + locale;
 					cache[target] = current;
+					current.$locale = availableLocales.specificity;
 					load();
 				});
 			});
@@ -240,9 +242,24 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 			//		of these additional transactions can be done concurrently. Owing to this analysis, the entire preloading
 			//		algorithm can be discard during a build by setting the has feature dojo-preload-i18n-Api to false.
 
+			var match = nlsRe.exec(id),
+				bundlePath = match[1] + "/",
+				bundleName = match[5] || match[4],
+				bundlePathAndName = bundlePath + bundleName,
+				localeSpecified = (match[5] && match[4]),
+				targetLocale =	localeSpecified || dojo.locale || "",
+				loadTarget = bundlePathAndName + "/" + targetLocale,
+				loadList = localeSpecified ? [targetLocale] : getLocalesToLoad(targetLocale),
+				remaining = loadList.length,
+				finish = function(){
+					if(!--remaining){
+						load(lang.delegate(cache[loadTarget]));
+					}
+				},
+				split = id.split("*"),
+				preloadDemand = split[1] == "preload";
+
 			if(has("dojo-preload-i18n-Api")){
-				var split = id.split("*"),
-					preloadDemand = split[1] == "preload";
 				if(preloadDemand){
 					if(!cache[id]){
 						// use cache[id] to prevent multiple preloads of the same preload; this shouldn't happen, but
@@ -253,25 +270,23 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 					// don't stall the loader!
 					load(1);
 				}
-				if(preloadDemand || waitForPreloads(id, require, load)){
+				if(preloadDemand || (waitForPreloads(id, require, load) && !cache[loadTarget])){
 					return;
 				}
 			}
+			else if (preloadDemand) {
+				// If a build is created with nls resources and 'dojo-preload-i18n-Api' has not been set to false,
+				// the built file will include a preload in the cache (which looks about like so:)
+				// '*now':function(r){r(['dojo/i18n!*preload*dojo/nls/dojo*["ar","ca","cs","da","de","el","en-gb","en-us","es-es","fi-fi","fr-fr","he-il","hu","it-it","ja-jp","ko-kr","nl-nl","nb","pl","pt-br","pt-pt","ru","sk","sl","sv","th","tr","zh-tw","zh-cn","ROOT"]']);}
+				// If the consumer of the build sets 'dojo-preload-i18n-Api' to false in the Dojo config, the cached
+				// preload will not be parsed and will result in an attempt to call 'require' passing it the unparsed
+				// preload, which is not a valid module id.
+				// In this case we should skip this request.
+				load(1);
 
-			var match = nlsRe.exec(id),
-				bundlePath = match[1] + "/",
-				bundleName = match[5] || match[4],
-				bundlePathAndName = bundlePath + bundleName,
-				localeSpecified = (match[5] && match[4]),
-				targetLocale =	localeSpecified || dojo.locale,
-				loadTarget = bundlePathAndName + "/" + targetLocale,
-				loadList = localeSpecified ? [targetLocale] : getLocalesToLoad(targetLocale),
-				remaining = loadList.length,
-				finish = function(){
-					if(!--remaining){
-						load(lang.delegate(cache[loadTarget]));
-					}
-				};
+				return;
+			}
+
 			array.forEach(loadList, function(locale){
 				var target = bundlePathAndName + "/" + locale;
 				if(has("dojo-preload-i18n-Api")){
@@ -284,10 +299,6 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 				}
 			});
 		};
-
-	if(has("dojo-unit-tests")){
-		var unitTests = thisModule.unitTests = [];
-	}
 
 	if(has("dojo-preload-i18n-Api") ||  1 ){
 		var normalizeLocale = thisModule.normalizeLocale = function(locale){
@@ -466,6 +477,7 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 	if( 1 ){
 		// this code path assumes the dojo loader and won't work with a standard AMD loader
 		var amdValue = {},
+			l10nCache = {},
 			evalBundle,
 
 			syncRequire = function(deps, callback, require){
@@ -588,6 +600,11 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 		thisModule.getLocalization = function(moduleName, bundleName, locale){
 			var result,
 				l10nName = getBundleName(moduleName, bundleName, locale);
+
+			if (l10nCache[l10nName]) {
+				return l10nCache[l10nName];
+			}
+
 			load(
 				l10nName,
 
@@ -596,45 +613,20 @@ define("dojo/i18n", ["./_base/kernel", "require", "./has", "./_base/array", "./_
 				// dojo/i18n module, which, itself may have been mapped.
 				(!isXd(l10nName, require) ? function(deps, callback){ syncRequire(deps, callback, require); } : require),
 
-				function(result_){ result = result_; }
+				function(result_){
+					l10nCache[l10nName] = result_;
+					result = result_;
+				}
 			);
 			return result;
 		};
-
-		if(has("dojo-unit-tests")){
-			unitTests.push(function(doh){
-				doh.register("tests.i18n.unit", function(t){
-					var check;
-
-					check = evalBundle("{prop:1}", checkForLegacyModules, "nonsense", amdValue);
-					t.is({prop:1}, check); t.is(undefined, check[1]);
-
-					check = evalBundle("({prop:1})", checkForLegacyModules, "nonsense", amdValue);
-					t.is({prop:1}, check); t.is(undefined, check[1]);
-
-					check = evalBundle("{'prop-x':1}", checkForLegacyModules, "nonsense", amdValue);
-					t.is({'prop-x':1}, check); t.is(undefined, check[1]);
-
-					check = evalBundle("({'prop-x':1})", checkForLegacyModules, "nonsense", amdValue);
-					t.is({'prop-x':1}, check); t.is(undefined, check[1]);
-
-					check = evalBundle("define({'prop-x':1})", checkForLegacyModules, "nonsense", amdValue);
-					t.is(amdValue, check); t.is({'prop-x':1}, amdValue.result);
-
-					check = evalBundle("define('some/module', {'prop-x':1})", checkForLegacyModules, "nonsense", amdValue);
-					t.is(amdValue, check); t.is({'prop-x':1}, amdValue.result);
-
-					check = evalBundle("this is total nonsense and should throw an error", checkForLegacyModules, "nonsense", amdValue);
-					t.is(check instanceof Error, true);
-				});
-			});
-		}
 	}
 
 	return lang.mixin(thisModule, {
 		dynamic:true,
 		normalize:normalize,
 		load:load,
-		cache:cache
+		cache:cache,
+		getL10nName: getL10nName
 	});
 });

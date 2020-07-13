@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class THD;
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
 */
-class Binlog_sender : Gtid_mode_copy {
+class Binlog_sender {
   class Event_allocator;
   typedef Basic_binlog_file_reader<Binlog_ifile, Binlog_event_data_istream,
                                    Binlog_event_object_istream, Event_allocator>

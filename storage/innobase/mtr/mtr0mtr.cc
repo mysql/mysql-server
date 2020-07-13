@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,8 +34,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "buf0buf.h"
 #include "buf0flu.h"
+#include "clone0api.h"
 #include "fsp0sysspace.h"
+#include "log0meb.h"
 #ifndef UNIV_HOTBACKUP
+#include "clone0clone.h"
 #include "log0log.h"
 #include "log0recv.h"
 #include "mtr0log.h"
@@ -343,6 +346,75 @@ class mtr_t::Command {
   volatile ulint m_locks_released;
 };
 
+/* Mode update matrix. The array is indexed as [old mode][new mode].
+All new modes for a specific old mode are in one horizontal line.
+true : update to new mode
+false: ignore new mode
+   A  - MTR_LOG_ALL
+   N  - MTR_LOG_NONE
+   NR - MTR_LOG_NO_REDO
+   S  - MTR_LOG_SHORT_INSERTS */
+bool mtr_t::s_mode_update[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX] = {
+    /*      |  A      N    NR     S  */
+    /* A */ {false, true, true, true},   /* A is default and we allow to switch
+                                            to all other modes. */
+    /* N */ {true, false, true, false},  /* For both A & NR, we can shortly
+                                             switch to N and return back*/
+    /* NR*/ {false, true, false, false}, /* Default is NR when global redo is
+                                            disabled. Allow to move to N */
+    /* S */ {true, false, false, false}  /* Only allow return back to A after
+                                            short switch from A to S */
+};
+#ifdef UNIV_DEBUG
+/* Mode update validity matrix. The array is indexed as [old mode][new mode]. */
+bool mtr_t::s_mode_update_valid[MTR_LOG_MODE_MAX][MTR_LOG_MODE_MAX] = {
+    /*      | A      N    NR    S  */
+    /* A */ {true, true, true, true}, /* No assert case. */
+
+    /* N */ {true, true, true, true},
+
+    /* NR*/ {true, true, true, true}, /* We generally never return back from
+                                         NR to A but need to allow for LOB
+                                         restarting B-tree mtr. */
+
+    /* S */ {true, false, false, true} /* Short Insert state is set transiently
+                                          and we don't expect N or NR switch. */
+};
+#endif /* UNIV_DEBUG */
+
+#ifndef UNIV_HOTBACKUP
+mtr_t::Logging mtr_t::s_logging;
+#endif /* !UNIV_HOTBACKUP */
+
+mtr_log_t mtr_t::set_log_mode(mtr_log_t mode) {
+  ut_ad(mode < MTR_LOG_MODE_MAX);
+
+  const auto old_mode = m_impl.m_log_mode;
+  ut_ad(s_mode_update_valid[old_mode][mode]);
+
+#ifdef UNIV_DEBUG
+  if (mode == MTR_LOG_NO_REDO && old_mode == MTR_LOG_ALL) {
+    /* Should change to no redo mode before generating any redo. */
+    ut_ad(m_impl.m_n_log_recs == 0);
+  }
+#endif /* UNIV_DEBUG */
+
+  if (s_mode_update[old_mode][mode]) {
+    m_impl.m_log_mode = mode;
+  }
+
+#ifndef UNIV_HOTBACKUP
+  /* If we are explicitly setting no logging, this mtr doesn't need
+  logging and we can safely unmark it. */
+  if (mode == MTR_LOG_NO_REDO && mode == old_mode) {
+    check_nolog_and_unmark();
+    m_impl.m_log_mode = mode;
+  }
+#endif /* !UNIV_HOTBACKUP */
+
+  return (old_mode);
+}
+
 /** Check if a mini-transaction is dirtying a clean page.
 @return true if the mtr is dirtying a clean page. */
 bool mtr_t::is_block_dirtied(const buf_block_t *block) {
@@ -420,6 +492,9 @@ struct mtr_write_log_t {
 @param sync		true if it is a synchronous mini-transaction
 @param read_only	true if read only mini-transaction */
 void mtr_t::start(bool sync, bool read_only) {
+  ut_ad(m_impl.m_state == MTR_STATE_INIT ||
+        m_impl.m_state == MTR_STATE_COMMITTED);
+
   UNIV_MEM_INVALID(this, sizeof(*this));
 
   UNIV_MEM_INVALID(&m_impl, sizeof(m_impl));
@@ -439,9 +514,46 @@ void mtr_t::start(bool sync, bool read_only) {
   m_impl.m_n_log_recs = 0;
   m_impl.m_state = MTR_STATE_ACTIVE;
   m_impl.m_flush_observer = nullptr;
+  m_impl.m_marked_nolog = false;
 
+#ifndef UNIV_HOTBACKUP
+  check_nolog_and_mark();
+#endif /* !UNIV_HOTBACKUP */
   ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
+
+#ifndef UNIV_HOTBACKUP
+void mtr_t::check_nolog_and_mark() {
+  /* Safe check to make this call idempotent. */
+  if (m_impl.m_marked_nolog) {
+    return;
+  }
+
+  size_t shard_index = default_indexer_t<>::get_rnd_index();
+  m_impl.m_marked_nolog = s_logging.mark_mtr(shard_index);
+
+  /* Disable redo logging by this mtr if logging is globally off. */
+  if (m_impl.m_marked_nolog) {
+    ut_ad(m_impl.m_log_mode == MTR_LOG_ALL);
+    m_impl.m_log_mode = MTR_LOG_NO_REDO;
+    m_impl.m_shard_index = shard_index;
+  }
+}
+
+void mtr_t::check_nolog_and_unmark() {
+  if (m_impl.m_marked_nolog) {
+    s_logging.unmark_mtr(m_impl.m_shard_index);
+
+    m_impl.m_marked_nolog = false;
+    m_impl.m_shard_index = 0;
+
+    if (m_impl.m_log_mode == MTR_LOG_NO_REDO) {
+      /* Reset back to default mode. */
+      m_impl.m_log_mode = MTR_LOG_ALL;
+    }
+  }
+}
+#endif /* !UNIV_HOTBACKUP */
 
 /** Release the resources */
 void mtr_t::Command::release_resources() {
@@ -487,6 +599,9 @@ void mtr_t::commit() {
     cmd.release_all();
     cmd.release_resources();
   }
+#ifndef UNIV_HOTBACKUP
+  check_nolog_and_unmark();
+#endif /* !UNIV_HOTBACKUP */
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -554,6 +669,9 @@ ulint mtr_t::Command::prepare_write() {
       return (0);
     case MTR_LOG_ALL:
       break;
+    default:
+      ut_ad(false);
+      return (0);
   }
 
   /* An ibuf merge could happen when loading page to apply log
@@ -670,6 +788,123 @@ void mtr_t::Command::execute() {
 }
 
 #ifndef UNIV_HOTBACKUP
+int mtr_t::Logging::enable(THD *thd) {
+  if (is_enabled()) {
+    return (0);
+  }
+  /* Allow mtrs to generate redo log. Concurrent clone and redo
+  log archiving is still restricted till we reach a recoverable state. */
+  ut_ad(m_state.load() == DISABLED);
+  m_state.store(ENABLED_RESTRICT);
+
+  /* 1. Wait for all no-log mtrs to finish and add dirty pages to disk.*/
+  auto err = wait_no_log_mtr(thd);
+  if (err != 0) {
+    m_state.store(DISABLED);
+    return (err);
+  }
+
+  /* 2. Wait for dirty pages to flush by forcing checkpoint at current LSN.
+  All no-logging page modification are done with the LSN when we stopped
+  redo logging. We need to have one write mini-transaction after enabling redo
+  to progress the system LSN and take a checkpoint. An easy way is to flush
+  the max transaction ID which is generally done at TRX_SYS_TRX_ID_WRITE_MARGIN
+  interval but safe to do any time. */
+  trx_sys_mutex_enter();
+  trx_sys_flush_max_trx_id();
+  trx_sys_mutex_exit();
+
+  /* It would ensure that the modified page in previous mtr and all other
+  pages modified before are flushed to disk. Since there could be large
+  number of left over pages from LAD operation, we still don't enable
+  double-write at this stage. */
+  log_make_latest_checkpoint(*log_sys);
+  m_state.store(ENABLED_DBLWR);
+
+  /* 3. Take another checkpoint after enabling double write to ensure any page
+  being written without double write are already synced to disk. */
+  log_make_latest_checkpoint(*log_sys);
+
+  /* 4. Mark that it is safe to recover from crash. */
+  log_persist_enable(*log_sys);
+
+  ib::warn(ER_IB_WRN_REDO_ENABLED);
+  m_state.store(ENABLED);
+
+  return (0);
+}
+
+int mtr_t::Logging::disable(THD *) {
+  if (is_disabled()) {
+    return (0);
+  }
+
+  /* Disallow archiving to start. */
+  ut_ad(m_state.load() == ENABLED);
+  m_state.store(ENABLED_RESTRICT);
+
+  /* Check if redo log archiving is active. */
+  if (meb::redo_log_archive_is_active()) {
+    m_state.store(ENABLED);
+    my_error(ER_INNODB_REDO_ARCHIVING_ENABLED, MYF(0));
+    return (ER_INNODB_REDO_ARCHIVING_ENABLED);
+  }
+
+  /* Concurrent clone is blocked by BACKUP MDL lock except when
+  clone_ddl_timeout = 0. Force any existing clone to abort. */
+  clone_mark_abort(true);
+  ut_ad(!clone_check_active());
+
+  /* Mark that it is unsafe to crash going forward. */
+  log_persist_disable(*log_sys);
+
+  ib::warn(ER_IB_WRN_REDO_DISABLED);
+  m_state.store(DISABLED);
+
+  clone_mark_active();
+
+  /* Reset sync LSN if beyond current system LSN. */
+  reset_buf_flush_sync_lsn();
+
+  return (0);
+}
+
+int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
+  auto wait_cond = [&](bool alert, bool &result) {
+    if (Counter::total(m_count_nologging_mtr) == 0) {
+      result = false;
+      return (0);
+    }
+    result = true;
+
+    if (thd_killed(thd)) {
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      return (ER_QUERY_INTERRUPTED);
+    }
+    return (0);
+  };
+
+  /* Sleep for 1 millisecond */
+  Clone_Msec sleep_time(10);
+  /* Generate alert message every 5 second. */
+  Clone_Sec alert_interval(5);
+  /* Wait for 5 minutes. */
+  Clone_Sec time_out(Clone_Min(5));
+
+  bool is_timeout = false;
+  auto err = Clone_Sys::wait(sleep_time, time_out, alert_interval, wait_cond,
+                             nullptr, is_timeout);
+
+  if (err == 0 && is_timeout) {
+    ut_ad(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Innodb wait for no-log mtr timed out.");
+    err = ER_INTERNAL_ERROR;
+  }
+
+  return (err);
+}
+
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
 @return	true if contains */
@@ -764,7 +999,9 @@ lsn_t mtr_commit_mlog_test(log_t &log, size_t payload) {
   mtr_start(&mtr);
 
   /* Copy the created MLOG_TEST to mtr's local buffer. */
-  byte *dst = mlog_open(&mtr, rec_len);
+  byte *dst = nullptr;
+  bool success = mlog_open(&mtr, rec_len, dst);
+  ut_a(success);
   std::memcpy(dst, record, rec_len);
   mlog_close(&mtr, dst + rec_len);
 

@@ -7,10 +7,15 @@ define("dojox/dtl/contrib/dijit", [
 	"../dom",
 	"dojo/parser",
 	"dojo/_base/sniff"
-], function(lang,connect,array,Query,dd,dxdom,Parser,has){
+], function(lang,connect,array,query,dd,dxdom,parser,has){
 
-	lang.getObject("dojox.dtl.contrib.dijit", true);
-	var ddcd = dd.contrib.dijit;
+	var ddcd = lang.getObject("contrib.dijit", true, dd);
+/*=====
+	ddcd = {
+		// TODO: summary
+	};
+=====*/
+
 	ddcd.AttachNode = lang.extend(function(keys, object){
 		this._keys = keys;
 		this._object = object;
@@ -97,6 +102,12 @@ define("dojox/dtl/contrib/dijit", [
 					if(!this._object){
 						this._rendered[i] = buffer.addEvent(context, type, fn, args);
 					}else{
+						var resolved = fn; 
+						if(lang.isArray(args)){ 
+							resolved = function(e){ 
+								this[fn].apply(this, [e].concat(args)); 
+							} 
+						} 
 						this._rendered[i] = connect.connect(this._object, type, context.getThis(), fn);
 					}
 				}
@@ -119,7 +130,7 @@ define("dojox/dtl/contrib/dijit", [
 	function cloneNode(n1){
 		var n2 = n1.cloneNode(true);
 		if(has("ie")){
-			Query("script", n2).forEach("item.text = this[index].text;", Query("script", n1));
+			query("script", n2).forEach("item.text = this[index].text;", query("script", n1));
 		}
 		return n2;
 	}
@@ -138,7 +149,7 @@ define("dojox/dtl/contrib/dijit", [
 		}
 
 		if(!parsed){
-			this._dijit = Parser.instantiate([cloneNode(node)])[0];
+			this._dijit = parser.instantiate([cloneNode(node)])[0];
 		}else{
 			node = cloneNode(node);
 			var old = ddcd.widgetsInTemplate;
@@ -162,7 +173,7 @@ define("dojox/dtl/contrib/dijit", [
 					if(this._dijit){
 						this._dijit.destroyRecursive();
 					}
-					this._dijit = Parser.instantiate([root])[0];
+					this._dijit = parser.instantiate([root])[0];
 				}
 			}
 
@@ -226,5 +237,6 @@ define("dojox/dtl/contrib/dijit", [
 	dd.register.tags("dojox.dtl.contrib", {
 		"dijit": ["attr:dojoType", "attr:data-dojo-type", "attr:dojoAttachPoint", "attr:data-dojo-attach-point", ["attr:attach", "dojoAttachPoint"], ["attr:attach", "data-dojo-attach-point"], "attr:dojoAttachEvent", "attr:data-dojo-attach-event", [/(attr:)?on(click|key(up))/i, "on"]]
 	});
-	return dojox.dtl.contrib.dijit;
+
+	return ddcd;
 });

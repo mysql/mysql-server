@@ -1,0 +1,57 @@
+# ###################################################################
+# wl#13065 : Restrict All InnoDB Tablespaces To Known Directories
+# ###################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+# Connect to server1, create a table and  insert a record
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
+SET SESSION sql_log_bin= 1;
+
+LET $MYSQLD_DATADIR=`select @@datadir`;
+LET $UNKNOWN_DIR=$MYSQLD_DATADIR/../unknown_dir;
+--mkdir $UNKNOWN_DIR
+
+--echo #
+--echo # Attempt to create a table in an unknown directory.
+--echo #
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE t1 (c1 INT) DATA DIRECTORY='$UNKNOWN_DIR';
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to create a general tablespace in an unknown directory.
+--echo #
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLESPACE t2 ADD DATAFILE '$UNKNOWN_DIR/bad_2.ibd';
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Attempt to create a table with a partition in an unknown directory.
+--echo #
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--error ER_WRONG_FILE_NAME
+eval CREATE TABLE t3(c1 INT)
+       PARTITION BY HASH(c1) (
+         PARTITION p1  DATA DIRECTORY='$UNKNOWN_DIR',
+         PARTITION p2  DATA DIRECTORY='$UNKNOWN_DIR',
+         PARTITION p3  DATA DIRECTORY='$UNKNOWN_DIR');
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR \\ /
+SHOW WARNINGS;
+
+--let $assert_text= 'Assert all servers are ONLINE'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--force-rmdir $UNKNOWN_DIR
+--source include/group_replication_end.inc

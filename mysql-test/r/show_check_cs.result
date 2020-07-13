@@ -1487,7 +1487,7 @@ CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CON
 def	test	PRIMARY	test	t1	PRIMARY KEY	YES
 SELECT constraint_schema, constraint_name, table_name, column_name FROM
 INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
-constraint_schema	constraint_name	table_name	column_name
+CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME
 test	PRIMARY	t1	c1
 # EXTENDED keyword is introduced to list the hidden index and index
 # columns.

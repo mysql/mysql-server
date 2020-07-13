@@ -1,7 +1,7 @@
 define(
 "dojo/cldr/nls/zh-tw/number", //begin v1.x content
 {
-	"currencyFormat": "¤#,##0.00",
+	"$locale": "zh-hant-tw",
 	"decimalFormat-short": "000T",
 	"nan": "非數值"
 }

@@ -1,0 +1,71 @@
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB
+TABLESPACE ts1
+STORAGE DISK;
+CREATE TABLE t2 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE TABLE t3 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+Backup
+DROP TABLE t1,t2,t3;
+DROP DATABASE db1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+Restore backup into NDB Dictionary
+Wait until the following 6 object changes are detected:
+- Logfile group 'lg1'
+- Tablespace 'ts1'
+- Schema 'db1'
+- Table 'test.t1'
+- Table 'test.t2'
+- Table 'test.t3'
+SELECT * FROM performance_schema.ndb_sync_pending_objects;
+SCHEMA_NAME	NAME	TYPE
+NULL	lg1	LOGFILE GROUP
+NULL	ts1	TABLESPACE
+db1	NULL	SCHEMA
+test	t1	TABLE
+test	t2	TABLE
+test	t3	TABLE
+Wait until the changes detected have been synced
+SELECT * FROM performance_schema.ndb_sync_excluded_objects;
+SCHEMA_NAME	NAME	TYPE	REASON
+NULL	lg1	LOGFILE GROUP	Injected failure
+NULL	ts1	TABLESPACE	Injected failure
+db1	NULL	SCHEMA	Injected failure
+test	t1	TABLE	Injected failure
+test	t2	TABLE	Injected failure
+test	t3	TABLE	Injected failure
+Restart MySQL server to synchronize metadata
+# restart
+DROP TABLE t1,t2,t3;
+DROP DATABASE db1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;

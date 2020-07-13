@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -239,6 +239,14 @@ TEST(xpl_expr_generator, column_identifier) {
                std::invalid_argument);
   EXPECT_THROW(generate_expression(Column_identifier("column", EMPTY, "schema"),
                                    EMPTY_SCHEMA, DM_TABLE),
+               std::invalid_argument);
+}
+
+TEST(xpl_expr_generator, column_identifier_empty) {
+  Column_identifier ident{EMPTY, EMPTY, EMPTY};
+  EXPECT_EQ("JSON_EXTRACT(doc,'$')",
+            generate_expression(ident, EMPTY_SCHEMA, DM_DOCUMENT));
+  EXPECT_THROW(generate_expression(ident, EMPTY_SCHEMA, DM_TABLE),
                std::invalid_argument);
 }
 

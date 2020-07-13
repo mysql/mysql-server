@@ -1,7 +1,7 @@
 set @@global.optimizer_switch='block_nested_loop=off';
 select @@session.optimizer_switch;
 @@session.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=off,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=off,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on
 create temporary table server_counts_at_startup
 select * from performance_schema.global_status 
 where variable_name in 
@@ -3535,7 +3535,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,b	PRIMARY	4	func	1	100.00	Parent of 2 pushed join@1; Using where; Using pushed condition (`test`.`x`.`b` is not null); Full scan on NULL key
 2	DEPENDENT SUBQUERY	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.x.b	1	100.00	Child of 'x' in pushed join@1
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`b`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`a` = `test`.`x`.`b`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`x`.`a`), true)))) xor (`test`.`t1`.`c` > 5))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`b`,<exists>(/* select#2 */ select `test`.`x`.`a` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`a` = `test`.`x`.`b`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`x`.`a`), true)))) xor (`test`.`t1`.`c` > 5))
 select *
 from t1 where b in 
 (select x.a from t1 as x join t1 as y on (y.a = x.b))
@@ -5991,7 +5991,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.x4.d	1	100.00	Child of 'x4' in pushed join@1
 Warnings:
 Note	1003	Can't push table 'x4' as child, 'type' must be a 'ref' access
-Note	1003	Can't push outer joined table 'x3' as child of 'x2', some tables in embedding nest(s) are not part of pushed join
+Note	1003	Can't push outer joined table 'x3' as child of 'x2', some tables in embedding join-nest(s) are not part of pushed join
 Note	1003	Can't push table 'x1' as child of 'x2', column 'x4.d' is outside scope of pushable join
 Note	1003	Can't push table 'x1' as child of 'x3', column 'x4.d' is outside scope of pushable join
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` left join (`test`.`t1` `x3` join `test`.`t1` `x4`) on((`test`.`x3`.`a` = `test`.`x2`.`d`)) where (`test`.`x1`.`a` = `test`.`x4`.`d`)
@@ -6013,7 +6013,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 Warnings:
 Note	1003	Can't push table 'x3' as child, 'type' must be a 'ref' access
-Note	1003	Can't push outer joined table 'x2' as child of 'x1', some tables in embedding nest(s) are not part of pushed join
+Note	1003	Can't push outer joined table 'x2' as child of 'x1', some tables in embedding join-nest(s) are not part of pushed join
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on((`test`.`x2`.`a` = `test`.`x1`.`d`)) where true
 select count(*) from t1 as x1 
 left join (t1 as x2 
@@ -6039,11 +6039,11 @@ Warnings:
 Note	1003	Can't push table 'x2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'x3' as child of 'x0', column 'x2.d' is outside scope of pushable join
 Note	1003	Can't push table 'x4' as child of 'x0', column 'x3.d' is outside scope of pushable join
-Note	1003	Can't push outer joined table 'x1' as child of 'x0', some tables in embedding nest(s) are not part of pushed join
+Note	1003	Can't push outer joined table 'x1' as child of 'x0', some tables in embedding join-nest(s) are not part of pushed join
 Note	1003	Can't push table 'x3' as child of 'x1', column 'x2.d' is outside scope of pushable join
 Note	1003	Can't push table 'x4' as child of 'x1', column 'x3.d' is outside scope of pushable join
 Note	1003	Can't push outer joined table 'x4' as child of 'x2', table condition can not be fully evaluated by pushed join
-Note	1003	Can't push outer joined table 'x3' as child of 'x2', some tables in embedding nest(s) are not part of pushed join
+Note	1003	Can't push outer joined table 'x3' as child of 'x2', some tables in embedding join-nest(s) are not part of pushed join
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x0` left join (`test`.`t1` `x1` join `test`.`t1` `x2` left join (`test`.`t1` `x3` join `test`.`t1` `x4`) on(((`test`.`x4`.`a` = `test`.`x3`.`d`) and (`test`.`x3`.`a` = `test`.`x2`.`d`)))) on(((`test`.`x1`.`a` = `test`.`x0`.`d`) and ((`test`.`x2`.`c` is null) or (`test`.`x4`.`d` = `test`.`x0`.`d`)))) where true
 select count(*) from t1 as x0 
 left join (t1 as x1 

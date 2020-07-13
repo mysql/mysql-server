@@ -11,6 +11,7 @@
 #include "zstd_compress_internal.h"
 #include "zstd_double_fast.h"
 
+#include "my_compiler.h"
 
 void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
                               void const* end, ZSTD_dictTableLoadMethod_e dtlm)
@@ -52,6 +53,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
         U32 const mls /* template */, ZSTD_dictMode_e const dictMode)
+SUPPRESS_UBSAN_CLANG10
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
     U32* const hashLong = ms->hashTable;

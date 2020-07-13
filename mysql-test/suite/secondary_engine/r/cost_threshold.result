@@ -97,7 +97,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
+Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
 SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	2.196000
@@ -165,7 +165,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 2	DERIVED	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_0` where (`test`.`t1`.`x` = `derived_1_0`.`COUNT(*)`)
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_2` where (`test`.`t1`.`x` = `derived_1_2`.`COUNT(*)`)
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 x	y
 EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
@@ -174,24 +174,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` join (/* select#2 */ select sum(`test`.`t1`.`x`) AS `SUM(x)` from `test`.`t1`) `derived_1_0` where (`test`.`tt`.`x` = `derived_1_0`.`SUM(x)`)
+Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` join (/* select#2 */ select sum(`test`.`t1`.`x`) AS `SUM(x)` from `test`.`t1`) `derived_1_2` where (`test`.`tt`.`x` = `derived_1_2`.`SUM(x)`)
 SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 x	y
 EXPLAIN SELECT * FROM t1 tt
 WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using secondary engine MOCK
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using secondary engine MOCK
+1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
+Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
 SELECT * FROM t1 tt
 WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
 x	y
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	6
+Secondary_engine_execution_count	5
 SET @@secondary_engine_cost_threshold = 100;
 SELECT @@secondary_engine_cost_threshold,
 @@global.secondary_engine_cost_threshold;
@@ -254,7 +254,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 2	DERIVED	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_0` where (`test`.`t1`.`x` = `derived_1_0`.`COUNT(*)`)
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_2` where (`test`.`t1`.`x` = `derived_1_2`.`COUNT(*)`)
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 x	y
 EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
@@ -273,7 +273,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
+Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
 SELECT * FROM t1 tt
 WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
 x	y
@@ -345,7 +345,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
+Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = (/* select#3 */ select `test`.`tt`.`y`)) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
 EXPLAIN SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 0) */ * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK

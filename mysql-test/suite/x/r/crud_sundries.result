@@ -74,6 +74,10 @@ command ok
 keys
 ["a", "b", "c", "d", "e", "f", "g", "sqrt", "extra"]
 command ok
+doc
+{"empty": {"a": 10, "b": 20, "c": "30", "d": "40", "e": "foo", "f": "bar", "g": "2015.10.05", "sqrt": 3.1622776601683795, "extra": "FOO"}}
+command ok
+Got expected error: Column name is required in ColumnIdentifier. (code 5152)
 Mysqlx.Ok {
   msg: "bye!"
 }

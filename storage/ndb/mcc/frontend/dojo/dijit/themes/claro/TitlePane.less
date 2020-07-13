@@ -1,4 +1,4 @@
-/* TitlePane 
+/* TitlePane and Fieldset
  * 
  * Styling TitlePane means styling the TitlePane title and its content container  (dijitTitlePane)
  * 
@@ -21,11 +21,19 @@
 @import "variables";
 
 .claro .dijitTitlePaneTitle {
-	background-color: @unselected-background-color;	// TODO: Mailed Jason, shouldn't this toggle to @selected-background-color when pane opened?
+	background-color: @unselected-background-color;
 	.standard-gradient;
 	border:1px solid @border-color;
 	padding: 0 7px 3px 7px;
 	min-height:17px;
+	color: @unselected-text-color;
+}
+.claro .dijitFieldset {
+  .border-radius(4px);
+}
+.claro .dijitTitlePaneTitleOpen, .claro .dijitTitlePaneTitleFixedOpen {
+  background-color: @selected-background-color;
+  color: @text-color;
 }
 .claro .dijitTitlePaneTitleHover {
 	background-color: @hovered-background-color;
@@ -40,30 +48,30 @@
 	margin-top:3px;
 	padding-bottom:2px;
 }
-.claro .dijitTitlePane .dijitArrowNode {
+.claro .dijitTitlePane .dijitArrowNode, .claro .dijitFieldset .dijitArrowNode {
 	background-image: url(@image-arrow-sprite);
 	background-repeat: no-repeat;
 	height: 8px;
 	width: 7px;
 }
-.claro .dijitTitlePane .dijitOpen .dijitArrowNode {
+.claro .dijitTitlePaneTitleOpen .dijitArrowNode,  .claro .dijitFieldsetTitleOpen .dijitArrowNode,{
 	background-position: 0 0;
 }
-.claro .dijitTitlePane .dijitClosed .dijitArrowNode {
+.claro .dijitTitlePaneTitleClosed .dijitArrowNode, .claro .dijitFieldsetTitleClosed .dijitArrowNode {
 	background-position: -14px 0;
-}
-.claro .dijitTitlePane .dijitTitlePaneTextNode {
-	color:@text-color;
 }
 .claro .dijitTitlePaneContentOuter {
 	background: @pane-background-color;
 	border:1px solid @border-color;
 	border-top:none;
 }
-.claro .dijitTitlePaneContentInner {
+.claro .dijitTitlePaneContentInner{
 	padding:10px;
 }
-.claro .dijitTitlePaneTextNode {
+.claro .dijitFieldsetContentInner {
+  padding: 4px;
+}
+.claro .dijitTitlePaneTextNode, .claro .dijitFieldsetLegendNode {
 	margin-left: 4px;
 	margin-right: 4px;
 	vertical-align:text-top;

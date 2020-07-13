@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,9 @@ class THD;
 class my_decimal;
 struct MEM_ROOT;
 struct handlerton;
+
+struct Parse_context;
+struct Column_parse_context;
 
 /**
   Base class for parse-time Item objects
@@ -251,4 +254,6 @@ bool validate_resource_group_priority(THD *thd, int *priority,
 bool check_resource_group_support();
 bool check_resource_group_name_len(const LEX_CSTRING &name,
                                    Sql_condition::enum_severity_level severity);
+
+void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc);
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

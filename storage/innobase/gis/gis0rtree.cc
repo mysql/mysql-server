@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -189,7 +189,7 @@ dtuple_t *rtr_index_build_node_ptr(
 
 /** In-place update the mbr field of a spatial index row.
  @return true if update is successful */
-static bool rtr_update_mbr_field_in_place(
+static void rtr_update_mbr_field_in_place(
     dict_index_t *index, /*!< in: spatial index. */
     rec_t *rec,          /*!< in/out: rec to be modified.*/
     ulint *offsets,      /*!< in/out: offsets on rec. */
@@ -198,7 +198,7 @@ static bool rtr_update_mbr_field_in_place(
 {
   void *new_mbr_ptr;
   double new_mbr[SPDIMS * 2];
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   page_t *page = page_align(rec);
   ulint len = DATA_MBR_LEN;
   ulint flags = BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG;
@@ -214,16 +214,16 @@ static bool rtr_update_mbr_field_in_place(
   /* Write redo log. */
   /* For now, we use LOG_REC_UPDATE_IN_PLACE to log this enlarge.
   In the future, we may need to add a new log type for this. */
-  log_ptr = mlog_open_and_write_index(
+  const bool opened = mlog_open_and_write_index(
       mtr, rec, index,
       page_is_comp(page) ? MLOG_COMP_REC_UPDATE_IN_PLACE
                          : MLOG_REC_UPDATE_IN_PLACE,
-      1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN);
+      1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN, log_ptr);
 
-  if (!log_ptr) {
+  if (!opened) {
     /* Logging in mtr is switched off during
     crash recovery */
-    return (false);
+    return;
   }
 
   /* Flags */
@@ -254,7 +254,7 @@ static bool rtr_update_mbr_field_in_place(
 
   mlog_close(mtr, log_ptr);
 
-  return (true);
+  return;
 }
 
 /** Update the mbr field of a spatial index row.
@@ -359,9 +359,7 @@ bool rtr_update_mbr_field(
 #endif /* UNIV_DEBUG */
     }
 
-    if (!rtr_update_mbr_field_in_place(index, rec, offsets, mbr, mtr)) {
-      return (false);
-    }
+    rtr_update_mbr_field_in_place(index, rec, offsets, mbr, mtr);
 
     if (page_zip) {
       page_zip_write_rec(page_zip, rec, index, offsets, 0);
@@ -694,9 +692,9 @@ static void rtr_adjust_upper_level(
   parent_prdt.data = static_cast<void *>(&parent_mbr);
   parent_prdt.op = 0;
 
+  ut_ad(dict_index_get_space(index) == page_cursor->block->page.id.space());
   lock_prdt_update_parent(block, new_block, &prdt, &new_prdt, &parent_prdt,
-                          dict_index_get_space(index),
-                          page_cursor->block->page.id.page_no());
+                          page_cursor->block->page.id);
 
   mem_heap_free(heap);
 
@@ -1162,10 +1160,11 @@ after_insert:
   prdt.data = &mbr;
   new_prdt.data = &new_mbr;
 
+  ut_ad(dict_index_get_space(cursor->index) == block->page.id.space());
+  ut_ad(page_no == block->page.id.page_no());
   /* Check any predicate locks need to be moved/copied to the
   new page */
-  lock_prdt_update_split(block, new_block, &prdt, &new_prdt,
-                         dict_index_get_space(cursor->index), page_no);
+  lock_prdt_update_split(block, new_block, &prdt, &new_prdt);
 
   /* Adjust the upper level. */
   rtr_adjust_upper_level(cursor, flags, block, new_block, &mbr, &new_mbr,
@@ -1393,9 +1392,9 @@ void rtr_page_copy_rec_list_end_no_locks(
 
     ins_rec = page_cur_insert_rec_low(cur_rec, index, cur1_rec, offsets1, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
-      fprintf(stderr, "page number %ld and %ld\n",
-              (long)new_block->page.id.page_no(),
-              (long)block->page.id.page_no());
+      fprintf(stderr, "page number %lu and %lu\n",
+              ulong{new_block->page.id.page_no()},
+              ulong{block->page.id.page_no()});
 
       ib::fatal(ER_IB_MSG_520)
           << "rec offset " << page_offset(rec) << ", cur1 offset "

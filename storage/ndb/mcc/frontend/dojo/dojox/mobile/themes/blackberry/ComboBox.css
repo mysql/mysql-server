@@ -1,12 +1,24 @@
 
-.dijitPopup {
+.dijitPopup.mblComboBoxMenuPopup {
   margin: 0;
   padding: 0;
   position: absolute;
   border: 0;
   background-color: transparent;
   -webkit-box-shadow: none;
+  box-shadow: none;
   border-radius: 12px;
+}
+.dijitPopup.mblComboBoxMenuPopup .dijitBackgroundIframe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  border: 0;
+  padding: 0;
+  margin: 0;
 }
 .mblReset {
   margin: 0;
@@ -35,9 +47,11 @@
 }
 .mblComboBoxMenuItemSelected {
   background-image: -webkit-gradient(linear, left top, left bottom, from(#088eef), to(#0851ad), color-stop(0.5, #0869c6));
+  background-image: linear-gradient(to bottom, #088eef 0%, #0869c6 50%, #0851ad 100%);
   color: white;
 }
-.mblComboBoxMenuPreviousButton, .mblComboBoxMenuNextButton {
+.mblComboBoxMenuPreviousButton,
+.mblComboBoxMenuNextButton {
   font-style: italic;
   overflow: hidden;
 }

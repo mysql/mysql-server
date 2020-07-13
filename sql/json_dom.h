@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_time.h"  // my_time_flags_t
 #include "mysql/mysql_lex_string.h"
 #include "mysql_time.h"            // MYSQL_TIME
 #include "prealloced_array.h"      // Prealloced_array
@@ -199,7 +200,7 @@ class Json_dom {
   /**
     Nothrow delete.
   */
-  void operator delete(void *ptr, const std::nothrow_t &)noexcept;
+  void operator delete(void *ptr, const std::nothrow_t &) noexcept;
 
   /**
     Get the parent dom to which this dom is attached.
@@ -1122,7 +1123,8 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right);
 
 enum enum_coercion_error {
   CE_WARNING,  // Throw a warning, default
-  CE_ERROR     // Throw an error
+  CE_ERROR,    // Throw an error
+  CE_IGNORE    // Let the caller handle the error
 };
 
 /**
@@ -1569,58 +1571,77 @@ class Json_wrapper {
   /**
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
-    @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    true <=> error occur during coercion
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[out] err    true <=> error occur during coercion
+    @param[out] unsigned_flag Whether the value read from JSON data is
+                              unsigned
+
     @returns json value coerced to int
   */
-  longlong coerce_int(const char *msgnam, bool *err = nullptr,
-                      enum_coercion_error cr_error = CE_WARNING) const;
+  longlong coerce_int(const char *msgnam, enum_coercion_error cr_error,
+                      bool *err, bool *unsigned_flag) const;
+
+  /// Shorthand for coerce_int(msgnam, CE_WARNING, nullptr, nullptr).
+  longlong coerce_int(const char *msgnam) const {
+    return coerce_int(msgnam, CE_WARNING, nullptr, nullptr);
+  }
 
   /**
     Extract a real from the JSON if possible, coercing if need be.
 
-    @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    true <=> error occur during coercion
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[out] err    true <=> error occur during coercion
     @returns json value coerced to real
   */
-  double coerce_real(const char *msgnam, bool *err = nullptr,
-                     enum_coercion_error cr_error = CE_WARNING) const;
+  double coerce_real(const char *msgnam, enum_coercion_error cr_error,
+                     bool *err) const;
+
+  /// Shorthand for coerce_real(msgnam, CE_WARNING, nullptr).
+  double coerce_real(const char *msgnam) const {
+    return coerce_real(msgnam, CE_WARNING, nullptr);
+  }
 
   /**
     Extract a decimal from the JSON if possible, coercing if need be.
 
     @param[in,out] decimal_value a value buffer
-    @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    true <=> error occur during coercion
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[out] err    true <=> error occur during coercion
     @returns json value coerced to decimal
   */
   my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam,
-                             bool *err = nullptr,
-                             enum_coercion_error cr_error = CE_WARNING) const;
+                             enum_coercion_error cr_error, bool *err) const;
+
+  /// Shorthand for coerce_decimal(decimal_value, msgnam, CE_WARNING, nullptr).
+  my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam) {
+    return coerce_decimal(decimal_value, msgnam, CE_WARNING, nullptr);
+  }
 
   /**
     Extract a date from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
-    @param msgnam
+    @param msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
+    @param[in] date_flags_arg Flags to use for string -> date conversion
     @returns json value coerced to date
    */
   bool coerce_date(MYSQL_TIME *ltime, const char *msgnam,
-                   enum_coercion_error cr_error = CE_WARNING) const;
+                   enum_coercion_error cr_error = CE_WARNING,
+                   my_time_flags_t date_flags_arg = 0) const;
 
   /**
     Extract a time value from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
-    @param msgnam
+    @param msgnam  to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
 

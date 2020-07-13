@@ -234,7 +234,6 @@ var TreePath = declare("dojox.grid.TreePath", null, {
 	grid: null,
 	store: null,
 	cell: null,
-	item: null,
 
 	constructor: function(/*String|Integer[]|Integer|dojox.grid.TreePath*/ path, /*dojox.grid.TreeGrid*/ grid){
 		if(lang.isString(path)){

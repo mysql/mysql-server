@@ -1,7 +1,7 @@
 //>>built
 define("dojox/fx/Shadow",["dojo/_base/kernel","dojo/_base/query","dojo/_base/lang","dojo/_base/declare","dojo/_base/sniff","dojo/dom-construct","dojo/dom-class","dojo/dom-geometry","dojo/_base/fx","dojo/fx","dijit/_Widget","dojo/NodeList-fx"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c){
 _1.experimental("dojox.fx.Shadow");
-_4("dojox.fx.Shadow",_b,{shadowPng:_1.moduleUrl("dojox.fx","resources/shadow"),shadowThickness:7,shadowOffset:3,opacity:0.75,animate:false,node:null,startup:function(){
+return _4("dojox.fx.Shadow",_b,{shadowPng:_1.moduleUrl("dojox.fx","resources/shadow"),shadowThickness:7,shadowOffset:3,opacity:0.75,animate:false,node:null,startup:function(){
 this.inherited(arguments);
 this.node.style.position="relative";
 this.pieces={};
@@ -106,5 +106,4 @@ r.style.left=x+"px";
 br.style.left=x+"px";
 }
 }});
-return dojox.fx.Shadow;
 });

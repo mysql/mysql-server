@@ -9,6 +9,7 @@ define(
 	"USD_symbol": "$",
 	"AUD_displayName": "avstralski dolar",
 	"JPY_displayName": "japonski jen",
+	"CAD_symbol": "CAD",
 	"USD_displayName": "ameriški dolar",
 	"GBP_displayName": "britanski funt",
 	"EUR_displayName": "evro"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -339,7 +339,8 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   first.set_mtr(mtr);
   first.load_x(first_page_no);
 
-  bool ok_to_free_2 = (rec_type == TRX_UNDO_UPD_EXIST_REC) &&
+  bool ok_to_free_2 = (rec_type == TRX_UNDO_UPD_EXIST_REC ||
+                       rec_type == TRX_UNDO_UPD_DEL_REC) &&
                       !first.can_be_partially_updated() &&
                       (last_trx_id == trxid) && (last_undo_no == undo_no);
 
@@ -376,6 +377,11 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   const mtr_log_t log_mode = mtr->get_log_mode();
   const bool is_rollback = ctx->m_rollback;
 
+  /* Update the context object based on the persistent cursor. */
+  if (ctx->need_recalc()) {
+    ctx->recalc();
+  }
+
   if (ref.is_null()) {
     /* In the rollback, we may encounter a clustered index
     record with some unwritten off-page columns. There is
@@ -383,6 +389,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     ut_a(ctx->m_rollback);
     return;
   }
+
   /* In case ref.length()==0, the LOB might be partially deleted (for example
   a crash has happened during a rollback() of insert operation) and we want
   to make sure we delete the remaining parts of the LOB so we don't exit here.
@@ -514,7 +521,8 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   first.set_mtr(ctx->get_mtr());
   first.load_x(page_id, page_size);
 
-  bool ok_to_free = (rec_type == TRX_UNDO_UPD_EXIST_REC) &&
+  bool ok_to_free = (rec_type == TRX_UNDO_UPD_EXIST_REC ||
+                     rec_type == TRX_UNDO_UPD_DEL_REC) &&
                     !first.can_be_partially_updated() &&
                     (last_trx_id == trxid) && (last_undo_no == undo_no);
 

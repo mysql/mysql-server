@@ -3,7 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-include/rpl_use_privilege_db.inc [USE rpl_priv]
 #
 # TC1. Execute Begin_load_query and Execute_load with and without the
 #      necessary privileges
@@ -14,7 +13,6 @@ SET @@SESSION.sql_log_bin = ON;
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 include/save_master_pos.inc
 [connection slave]
-include/rpl_use_privilege_db.inc [USE rpl_priv]
 CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FILE");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 CREATE TABLE t1(word CHAR(20) NOT NULL);
@@ -55,7 +53,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
 INSERT INTO t1 VALUES (1);
 SET @@SESSION.sql_log_bin = ON;
-master_log_pos 1212
+master_log_pos 1196
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/data01' INTO TABLE t1;
 ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
 [connection slave]

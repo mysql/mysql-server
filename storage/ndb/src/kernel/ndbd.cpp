@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
+
+#include <algorithm>
 
 #include <NdbEnv.h>
 #include <NdbConfig.h>
@@ -451,15 +453,17 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     rl.m_min = sbpages;
     /**
      * allow over allocation (from SharedGlobalMemory) of up to 25% of
-     *   totally allocated SendBuffer
+     *   totally allocated SendBuffer, at most 25% of SharedGlobalMemory.
      */
-    require(sbpages + (sbpages * 25) / 100 > 0);
-    rl.m_max = sbpages + (sbpages * 25) / 100;
+    const Uint32 sb_max_shared_pages = 25 * std::min(sbpages, shared_pages) / 100;
+    require(sbpages + sb_max_shared_pages > 0);
+    rl.m_max = sbpages + sb_max_shared_pages;
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
-    g_eventLogger->info("Send buffers use %u MB, can overallocate 25%%"
-                        " more using SharedGlobalMemory",
-                         sbpages/32);
+    g_eventLogger->info("Send buffers use %u MB, can overallocate %u MB"
+                        " more using SharedGlobalMemory.",
+                        sbpages / 32,
+                        sb_max_shared_pages / 32);
   }
   else
   {

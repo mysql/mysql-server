@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@ HashJoinChunk::HashJoinChunk(HashJoinChunk &&other)
       m_num_rows(other.m_num_rows),
       m_file(other.m_file),
       m_uses_match_flags(other.m_uses_match_flags) {
+  setup_io_cache(&m_file);
   // Reset the IO_CACHE structure so that the destructor doesn't close/clear the
   // file contents and it's buffers.
   new (&other.m_file) IO_CACHE();
@@ -52,6 +53,7 @@ HashJoinChunk &HashJoinChunk::operator=(HashJoinChunk &&other) {
   // used by it.
   close_cached_file(&m_file);
   m_file = other.m_file;
+  setup_io_cache(&m_file);
 
   // Reset the IO_CACHE structure so that the destructor doesn't close/clear the
   // file contents and it's buffers.

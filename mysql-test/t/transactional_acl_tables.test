@@ -1962,39 +1962,6 @@ SET debug="-d,wl7158_replace_routine_table_3";
 DROP TABLE t1;
 DROP USER u1@h;
 
---echo
---echo ########################################################################
---echo # E. Check that it is possible to ALTER  storage engine for privilege
---echo #    tables to MyISAM.
---echo #    This is necessary for mysql_system_tables_fix_for_downgrade.sql
---echo #    to work.
---echo ########################################################################
-
-ALTER TABLE mysql.user ENGINE = MyISAM;
-
-ALTER TABLE mysql.db ENGINE = MyISAM;
-
-ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
-
-ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
-
-ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
-
-ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
-
-SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
-WHERE table_schema = 'mysql' AND
-      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
-                     'proxies_priv', 'tables_priv')
-ORDER BY table_name;
-
-ALTER TABLE mysql.user ENGINE = InnoDB;
-ALTER TABLE mysql.db ENGINE = InnoDB;
-ALTER TABLE mysql.columns_priv ENGINE = InnoDB;
-ALTER TABLE mysql.procs_priv ENGINE = InnoDB;
-ALTER TABLE mysql.proxies_priv ENGINE = InnoDB;
-ALTER TABLE mysql.tables_priv ENGINE = InnoDB;
-
 --echo ########################################################################
 --echo # Checking that it is possible to CREATE privilege tables in MyISAM.
 --echo # This is necessary for upgrade via mysqldump to work.
@@ -2274,25 +2241,6 @@ ORDER BY table_name;
 
 --echo
 --echo # The ACL tables must have been upgraded.
-SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
-WHERE table_schema = 'mysql' AND
-      table_name IN ('user', 'db', 'columns_priv', 'procs_priv',
-                     'proxies_priv', 'tables_priv')
-ORDER BY table_name;
-
---echo # Downgrading
---echo
-
---echo
---echo # Alter the storage engine to MyISAM (downgrade).
-
-ALTER TABLE mysql.user ENGINE = MyISAM;
-ALTER TABLE mysql.db ENGINE = MyISAM;
-ALTER TABLE mysql.columns_priv ENGINE = MyISAM;
-ALTER TABLE mysql.procs_priv ENGINE = MyISAM;
-ALTER TABLE mysql.proxies_priv ENGINE = MyISAM;
-ALTER TABLE mysql.tables_priv ENGINE = MyISAM;
-
 SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES
 WHERE table_schema = 'mysql' AND
       table_name IN ('user', 'db', 'columns_priv', 'procs_priv',

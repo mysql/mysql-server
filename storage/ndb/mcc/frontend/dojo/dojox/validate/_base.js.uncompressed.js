@@ -51,7 +51,7 @@ validate.isInRange = function(value, flags){
 		return false; // Boolean
 	}
     
-	// assign default values to missing paramters
+	// assign default values to missing parameters
 	flags = (typeof flags == "object") ? flags : {};
 	var max = (typeof flags.max == "number") ? flags.max : Infinity,
 		min = (typeof flags.min == "number") ? flags.min : -Infinity,

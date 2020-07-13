@@ -2856,7 +2856,7 @@ MY_ATTRIBUTE((unused)) static char *yyget_text  (void)
 }
 
 /** Set the current line number.
- * @param line_number
+ * @param line_number line number
  * 
  */
 MY_ATTRIBUTE((unused)) static void yyset_lineno (int  line_number )

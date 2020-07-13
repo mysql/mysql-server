@@ -61,21 +61,18 @@ INSERT INTO t0 SELECT * FROM t0;
 # Wait just before inserting dynamic statistics for t0.
 SET DEBUG_SYNC='before_insert_into_dd SIGNAL parked WAIT_FOR cont1';
 SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+INTO @v1, @v2, @v3
 FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
 # In another connection, query I_S.TABLES to cause
 # dynamic statistics to be inserted before con1.
 SET DEBUG_SYNC= 'now WAIT_FOR parked';
 SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+INTO @v1, @v2, @v3
 FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
-TABLE_NAME	ENGINE	TABLE_ROWS
-t0	InnoDB	80
 SET DEBUG_SYNC= 'now SIGNAL cont1';
-TABLE_NAME	ENGINE	TABLE_ROWS
-t0	InnoDB	80
 SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+INTO @v1, @v2, @v3
 FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
-TABLE_NAME	ENGINE	TABLE_ROWS
-t0	InnoDB	80
 # Cleanup
 DROP TABLE t0;
 SET GLOBAL DEBUG=DEFAULT;
@@ -92,21 +89,18 @@ INSERT INTO t0 SELECT * FROM t0;
 # Wait just before inserting dynamic statistics for t0.
 SET DEBUG_SYNC='before_insert_into_dd SIGNAL parked WAIT_FOR cont1';
 SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+INTO @v1, @v2, @v3
 FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
 # In another connection, query I_S.TABLES to cause
 # dynamic statistics to be inserted before con1.
 SET DEBUG_SYNC= 'now WAIT_FOR parked';
 SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+INTO @v1, @v2, @v3
 FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
-TABLE_NAME	ENGINE	TABLE_ROWS
-t0	MyISAM	80
 SET DEBUG_SYNC= 'now SIGNAL cont1';
-TABLE_NAME	ENGINE	TABLE_ROWS
-t0	MyISAM	80
 SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+INTO @v1, @v2, @v3
 FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
-TABLE_NAME	ENGINE	TABLE_ROWS
-t0	MyISAM	80
 # Cleanup
 DROP TABLE t0;
 SET GLOBAL DEBUG=DEFAULT;

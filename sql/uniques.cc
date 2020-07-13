@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
 /**
   Merge buffers to one buffer.
 
-  @param thd
+  @param thd            thread context
   @param param          Sort parameter
   @param from_file      File with source data (Merge_chunks point to this file)
   @param to_file        File to write the sorted result data.
@@ -147,10 +147,8 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
   @param chunk_array    Array of chunks to merge.
   @param flag           0 - write full record, 1 - write addon/ref
 
-  @returns
-    0      OK
-  @returns
-    other  error
+  @retval 0      OK
+  @retval other  error
 */
 static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
                          IO_CACHE *to_file, Sort_buffer sort_buffer,
@@ -193,8 +191,8 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   Priority_queue<Merge_chunk *,
                  std::vector<Merge_chunk *, Malloc_allocator<Merge_chunk *>>,
                  decltype(greater)>
-  queue(greater,
-        Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
+      queue(greater,
+            Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
   if (queue.reserve(chunk_array.size())) return 1;
 

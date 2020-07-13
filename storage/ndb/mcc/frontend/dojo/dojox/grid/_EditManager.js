@@ -2,11 +2,9 @@
 define("dojox/grid/_EditManager",["dojo/_base/lang","dojo/_base/array","dojo/_base/declare","dojo/_base/connect","dojo/_base/sniff","./util"],function(_1,_2,_3,_4,_5,_6){
 return _3("dojox.grid._EditManager",null,{constructor:function(_7){
 this.grid=_7;
-if(_5("ie")){
-this.connections=[_4.connect(document.body,"onfocus",_1.hitch(this,"_boomerangFocus"))];
-}else{
-this.connections=[_4.connect(this.grid,"onBlur",this,"apply")];
-}
+this.connections=!_5("ie")?[]:[_4.connect(document.body,"onfocus",_1.hitch(this,"_boomerangFocus"))];
+this.connections.push(_4.connect(this.grid,"onBlur",this,"apply"));
+this.connections.push(_4.connect(this.grid,"prerender",this,"_onPreRender"));
 },info:{},destroy:function(){
 _2.forEach(this.connections,_4.disconnect);
 },cellFocus:function(_8,_9){
@@ -129,5 +127,9 @@ return true;
 }
 w.focused=true;
 return w.isValid(true);
+},_onPreRender:function(){
+if(this.isEditing()){
+this.info.value=this.info.cell.getValue();
+}
 }});
 });

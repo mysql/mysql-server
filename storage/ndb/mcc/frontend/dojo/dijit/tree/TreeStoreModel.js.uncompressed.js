@@ -188,6 +188,14 @@ define("dijit/tree/TreeStoreModel", [
 		},
 
 		fetchItemByIdentity: function(/* object */ keywordArgs){
+			// summary:
+			//		Given the identity of an item, this method returns the item that has
+			//		that identity through the onItem callback.  Conforming implementations
+			//		should return null if there is no item with the given identity.
+			//		Implementations of fetchItemByIdentity() may sometimes return an item
+			//		from a local cache and may sometimes fetch an item from a remote server.
+			// tags:
+			//		extension
 			this.store.fetchItemByIdentity(keywordArgs);
 		},
 

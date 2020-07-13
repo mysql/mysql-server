@@ -39,7 +39,7 @@ SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 EXPLAIN
 -> Sort: t1.col1
     -> Stream results
-        -> Inner hash join (t1.col1 = t2.col1)  (cost=2.50 rows=4)
+        -> Inner hash join (cast(t1.col1 as double) = cast(t2.col1 as double))  (cost=2.50 rows=4)
             -> Table scan on t2  (cost=0.09 rows=4)
             -> Hash
                 -> Table scan on t1  (cost=0.65 rows=4)
@@ -89,7 +89,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a=b;
 EXPLAIN
--> Inner hash join (t1.a = t2.b)  (cost=0.70 rows=1)
+-> Inner hash join (t1.a = cast(t2.b as datetime(6)))  (cost=0.70 rows=1)
     -> Table scan on t2  (cost=0.35 rows=1)
     -> Hash
         -> Table scan on t1  (cost=0.35 rows=1)
@@ -3386,13 +3386,14 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 EXPLAIN
--> Nested loop left join  (cost=802.50 rows=8000)
+-> Nested loop left join
     -> Index scan on alias1 using PRIMARY  (cost=2.25 rows=20)
-    -> Hash antijoin (no condition)  (cost=40.37 rows=400)
+    -> Hash antijoin (no condition)
         -> Index scan on alias2 using PRIMARY  (cost=0.11 rows=20)
         -> Hash
-            -> Filter: (alias1.pk <> 20)  (cost=0.11 rows=20)
-                -> Index scan on t1 using PRIMARY  (cost=0.11 rows=20)
+            -> Limit: 1 row(s)
+                -> Filter: (alias1.pk <> 20)  (cost=0.11 rows=20)
+                    -> Index scan on t1 using PRIMARY  (cost=0.11 rows=20)
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.pk' of SELECT #2 was resolved in SELECT #1
@@ -3400,14 +3401,6 @@ SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 pk	pk
 1	NULL
-2	NULL
-3	NULL
-4	NULL
-5	NULL
-6	NULL
-7	NULL
-8	NULL
-9	NULL
 10	NULL
 11	NULL
 12	NULL
@@ -3418,15 +3411,8 @@ pk	pk
 17	NULL
 18	NULL
 19	NULL
+2	NULL
 20	1
-20	2
-20	3
-20	4
-20	5
-20	6
-20	7
-20	8
-20	9
 20	10
 20	11
 20	12
@@ -3437,7 +3423,22 @@ pk	pk
 20	17
 20	18
 20	19
+20	2
 20	20
+20	3
+20	4
+20	5
+20	6
+20	7
+20	8
+20	9
+3	NULL
+4	NULL
+5	NULL
+6	NULL
+7	NULL
+8	NULL
+9	NULL
 DROP TABLE t1;
 #
 # Bug #30642968: WL#13377: RESULTSET DIFFERENCE WITH HASH ANTIJOIN
@@ -3447,14 +3448,15 @@ INSERT INTO t1 VALUES ( 100 ), ( 200 );
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
 AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
 EXPLAIN
--> Nested loop left join  (cost=1.50 rows=8)
+-> Nested loop left join
     -> Table scan on alias1  (cost=0.45 rows=2)
-    -> Filter: (alias2.f1 = alias1.f1)  (cost=0.88 rows=4)
-        -> Hash antijoin (no condition)  (cost=0.88 rows=4)
+    -> Filter: (alias2.f1 = alias1.f1)
+        -> Hash antijoin (no condition)
             -> Table scan on alias2  (cost=0.23 rows=2)
             -> Hash
-                -> Filter: (alias1.f1 <= 1)  (cost=0.23 rows=2)
-                    -> Table scan on alias3  (cost=0.23 rows=2)
+                -> Limit: 1 row(s)
+                    -> Filter: (alias1.f1 <= 1)  (cost=0.23 rows=2)
+                        -> Table scan on alias3  (cost=0.23 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.f1' of SELECT #2 was resolved in SELECT #1
@@ -3709,3 +3711,102 @@ EXPLAIN
                                 -> Table scan on a  (cost=0.37 rows=1)
 
 DROP TABLE t;
+#
+# Bug#30741679 ASSERTION `FALSE' IN EXTRACT_VALUE_FOR_HASH_JOIN
+# Bug#30769883 HIT ASSERT IN
+#              ITEM_FUNC_EQ::APPEND_JOIN_KEY_FOR_HASH_JOIN()
+#
+CREATE TABLE t1 (
+a INTEGER,
+b INTEGER
+);
+INSERT INTO t1 VALUES (1, 1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 as table1
+WHERE (SELECT a, b FROM t1 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
+EXPLAIN
+-> Hash semijoin (no condition), extra conditions: ((select #2) = (t1.a,t1.b))  (cost=0.70 rows=1)
+    -> Table scan on table1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1 as table1
+WHERE (SELECT a, b FROM t1 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
+a	b
+1	1
+EXPLAIN FORMAT=tree SELECT * FROM t1 as table1
+WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin ((select #2) = (t1.a))  (cost=0.70 rows=1)
+    -> Table scan on table1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1 as table1
+WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
+a	b
+1	1
+DROP TABLE t1;
+#
+# Bug#30792727 ERRORS WHEN BUILDING HASH TABLE FOR HASH JOIN NOT
+#              PROPAGATED
+#
+CREATE TABLE t (i INTEGER);
+INSERT INTO t VALUES (1), (2);
+EXPLAIN FORMAT=tree SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
+EXPLAIN
+-> Inner hash join (json_extract(t1.i,t1.i) = t2.i)  (cost=1.10 rows=2)
+    -> Table scan on t2  (cost=0.18 rows=2)
+    -> Hash
+        -> Table scan on t1  (cost=0.45 rows=2)
+
+SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
+SHOW ERRORS;
+Level	Code	Message
+Error	3146	Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
+DROP TABLE t;
+#
+# Bug #31102789 A PREDICATE THAT COMPARES 0 WITH -0
+#               YIELDS AN INCORRECT RESULT
+#
+CREATE TABLE t0(c0 INT);
+CREATE TABLE t1(c0 DOUBLE);
+CREATE TABLE t2(c0 DOUBLE);
+INSERT INTO t0 VALUES(0);
+INSERT INTO t1 VALUES('-0');
+INSERT INTO t2 VALUES('+0');
+SELECT * FROM t0, t1 WHERE t0.c0 = t1.c0;
+c0	c0
+0	-0
+SELECT * FROM t1, t2 WHERE t1.c0 = t2.c0;
+c0	c0
+-0	0
+SELECT * FROM t0, t2 WHERE t0.c0 = t2.c0;
+c0	c0
+0	0
+DROP TABLE t0, t1, t2;
+#
+# Bug #31376809: PERFORMANCE REGRESSION FROM 5.7->8.0, DUE TO ANTIJOIN OF NOT EXISTS SUBQUERY
+#
+CREATE TABLE t1 (a INTEGER NOT NULL, b INTEGER);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
+EXPLAIN
+-> Filter: (t2.a is null)  (actual time=N.NNN..N.NNN rows=0 loops=1)
+    -> Hash antijoin (no condition)  (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Table scan on t1  (cost=0.75 rows=5) (never executed)
+        -> Hash
+            -> Limit: 1 row(s)  (actual time=N.NNN..N.NNN rows=1 loops=1)
+                -> Table scan on t2  (cost=0.15 rows=5) (actual time=N.NNN..N.NNN rows=1 loops=1)
+
+DROP TABLE t1;

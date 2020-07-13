@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +23,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "x_protocol.h"
-#include "../utils.h"
-#include "common.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/routing.h"
-
-#include <google/protobuf/io/coded_stream.h>
-#include "mysqlx.pb.h"
-#include "mysqlx_connection.pb.h"
-#include "mysqlx_session.pb.h"
 
 #include <algorithm>
 #include <cassert>
+#include <memory>
+
+#include <google/protobuf/io/coded_stream.h>
+
+#include "../utils.h"
+#include "common.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/routing.h"
+
+#include "mysqlx.pb.h"
+#include "mysqlx_connection.pb.h"
+#include "mysqlx_session.pb.h"
 
 using ProtobufMessage = google::protobuf::MessageLite;
 IMPORT_LOG_FUNCTIONS()
@@ -46,7 +50,7 @@ static bool send_message(const std::string &log_prefix, int destination,
                          mysql_harness::SocketOperationsBase *sock_ops) {
   using google::protobuf::io::CodedOutputStream;
 
-  const size_t msg_size = msg.ByteSize();
+  const size_t msg_size = message_byte_size(msg);
   RoutingProtocolBuffer buffer(kMessageHeaderSize + msg_size);
 
   // first 4 bytes is the message size (plus type byte, without size bytes)
@@ -55,18 +59,18 @@ static bool send_message(const std::string &log_prefix, int destination,
   // fifth byte is the message type
   buffer[kMessageHeaderSize - 1] = static_cast<uint8_t>(type);
 
-  if ((msg.ByteSize() > 0) &&
-      (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg.ByteSize()))) {
-    log_error("[%s] error while serializing error message. Message size = %d",
-              log_prefix.c_str(), msg.ByteSize());
+  if ((msg_size > 0) &&
+      (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg_size))) {
+    log_error("[%s] error while serializing error message. Message size = %lu",
+              log_prefix.c_str(), static_cast<ulong>(msg_size));
     return false;
   }
 
-  if (sock_ops->write_all(destination, &buffer[0], buffer.size()) < 0) {
-    const int last_errno = sock_ops->get_errno();
-
+  const auto write_res =
+      sock_ops->write_all(destination, &buffer[0], buffer.size());
+  if (!write_res) {
     log_error("[%s] fd=%d write error: %s", log_prefix.c_str(), destination,
-              get_message_error(last_errno).c_str());
+              write_res.error().message().c_str());
     return false;
   }
 
@@ -114,7 +118,6 @@ static bool get_next_message(int sender, RoutingProtocolBuffer &buffer,
                              bool &error) {
   using google::protobuf::io::CodedInputStream;
   error = false;
-  ssize_t read_res = 0;
 
   assert(buffer_contents_size >= message_offset);
   size_t bytes_left = buffer_contents_size - message_offset;
@@ -126,24 +129,22 @@ static bool get_next_message(int sender, RoutingProtocolBuffer &buffer,
 
   // we need at least 4 bytes to know the message size
   while (bytes_left < 4) {
-    read_res = sock_ops->read(sender, &buffer[message_offset + bytes_left],
-                              4 - bytes_left);
-    if (read_res < 0) {
-      const int last_errno = sock_ops->get_errno();
-      log_error("fd=%d failed reading size of the message: (%d %s %ld)", sender,
-                last_errno, get_message_error(last_errno).c_str(),
-                static_cast<long>(read_res));
+    const auto read_res = sock_ops->read(
+        sender, &buffer[message_offset + bytes_left], 4 - bytes_left);
+    if (!read_res) {
+      log_error("fd=%d failed reading size of the message: (%d %s)", sender,
+                read_res.error().value(), read_res.error().message().c_str());
       error = true;
       return false;
-    } else if (read_res == 0) {
+    } else if (read_res.value() == 0) {
       // connection got closed on us
 
       error = true;
       return false;
     }
 
-    buffer_contents_size += read_res;
-    bytes_left += read_res;
+    buffer_contents_size += read_res.value();
+    bytes_left += read_res.value();
   }
 
   // we got the message size, we can decode it
@@ -168,25 +169,24 @@ static bool get_next_message(int sender, RoutingProtocolBuffer &buffer,
   }
   // next read the remaining part of the message if needed
   while (message_size + 4 > bytes_left) {
-    read_res = sock_ops->read(sender, &buffer[message_offset + bytes_left],
-                              message_size + 4 - bytes_left);
-    if (read_res < 0) {
-      const int last_errno = sock_ops->get_errno();
-
-      log_error("fd=%d failed reading part of X protocol message: (%d %s %ld)",
-                sender, last_errno, get_message_error(last_errno).c_str(),
-                static_cast<long>(read_res));
+    const auto read_res =
+        sock_ops->read(sender, &buffer[message_offset + bytes_left],
+                       message_size + 4 - bytes_left);
+    if (!read_res) {
+      log_error("fd=%d failed reading part of X protocol message: (%d %s)",
+                sender, read_res.error().value(),
+                read_res.error().message().c_str());
 
       error = true;
       return false;
-    } else if (read_res == 0) {
+    } else if (read_res.value() == 0) {
       // connection got closed on us.
       error = true;
       return false;
     }
 
-    buffer_contents_size += read_res;
-    bytes_left += read_res;
+    buffer_contents_size += read_res.value();
+    bytes_left += read_res.value();
   }
 
   message_type = buffer[message_offset + kMessageHeaderSize - 1];
@@ -194,30 +194,25 @@ static bool get_next_message(int sender, RoutingProtocolBuffer &buffer,
   return true;
 }
 
-int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
-                            RoutingProtocolBuffer &buffer, int * /*curr_pktnr*/,
-                            bool &handshake_done, size_t *report_bytes_read,
-                            bool from_server) {
-  assert(report_bytes_read != nullptr);
-
-  ssize_t res = 0;
+stdx::expected<size_t, std::error_code> XProtocol::copy_packets(
+    int sender, int receiver, bool sender_is_readable,
+    RoutingProtocolBuffer &buffer, int * /*curr_pktnr*/, bool &handshake_done,
+    bool from_server) {
   auto buffer_length = buffer.size();
   size_t bytes_read = 0;
 
   mysql_harness::SocketOperationsBase *const so = routing_sock_ops_->so();
   if (sender_is_readable) {
-    if ((res = so->read(sender, &buffer.front(), buffer_length)) <= 0) {
-      if (res == -1) {
-        const int last_errno = so->get_errno();
-        log_error("fd=%d sender read failed: (%d %s)", sender, last_errno,
-                  get_message_error(last_errno).c_str());
-      } else {
-        // the caller assumes that errno == 0 on plain connection closes.
-        so->set_errno(0);
-      }
-      return -1;
+    const auto read_res = so->read(sender, &buffer.front(), buffer_length);
+    if (!read_res) {
+      log_error("fd=%d sender read failed: (%d %s)", sender,
+                read_res.error().value(), read_res.error().message().c_str());
+      return stdx::make_unexpected(read_res.error());
+    } else if (read_res.value() == 0) {
+      // the caller assumes that errno == 0 on plain connection closes.
+      return stdx::make_unexpected(std::error_code{});
     }
-    bytes_read += static_cast<size_t>(res);
+    bytes_read += read_res.value();
     if (!handshake_done) {
       // check packets integrity when handshaking.
       // we stop inspecting the messages when the client sends
@@ -246,7 +241,8 @@ int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
                                message_type, message_size - 1)) {
               log_warning("Invalid message content: type(%hhu), size(%u)",
                           message_type, message_size - 1);
-              return -1;
+              return stdx::make_unexpected(
+                  make_error_code(std::errc::bad_message));
             }
             handshake_done = true;
             break;
@@ -258,7 +254,8 @@ int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
                 "Received incorrect message type from the client while "
                 "handshaking (was %hhu)",
                 message_type);
-            return -1;
+            return stdx::make_unexpected(
+                make_error_code(std::errc::bad_message));
           }
         }
 
@@ -275,20 +272,19 @@ int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
       }
 
       if (msg_read_error) {
-        return -1;
+        return stdx::make_unexpected(make_error_code(std::errc::bad_message));
       }
     }
 
-    if (so->write_all(receiver, &buffer[0], bytes_read) < 0) {
-      const int last_errno = so->get_errno();
+    const auto write_res = so->write_all(receiver, &buffer[0], bytes_read);
+    if (!write_res) {
       log_error("fd=%d write error: %s", receiver,
-                get_message_error(last_errno).c_str());
-      return -1;
+                write_res.error().message().c_str());
+      return stdx::make_unexpected(write_res.error());
     }
   }
-  *report_bytes_read = bytes_read;
 
-  return 0;
+  return bytes_read;
 }
 
 bool XProtocol::send_error(int destination, unsigned short code,
@@ -320,4 +316,12 @@ bool XProtocol::on_block_client_host(int server,
   return send_message(log_prefix, server,
                       Mysqlx::ClientMessages::CON_CAPABILITIES_GET,
                       capabilities_get, routing_sock_ops_->so());
+}
+
+size_t message_byte_size(const google::protobuf::MessageLite &msg) {
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+  return msg.ByteSizeLong();
+#else
+  return msg.ByteSize();
+#endif
 }

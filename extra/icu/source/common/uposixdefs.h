@@ -31,7 +31,7 @@
  * no header defined by IEEE Std 1003.1-2001 shall be included prior to
  * the definition of the feature test macro."
  */
-#if defined(_XOPEN_SOURCE) || defined(__SUNPRO_C)
+#ifdef _XOPEN_SOURCE
     /* Use the predefined value. */
 #else
     /*

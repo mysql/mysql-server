@@ -1,7 +1,6 @@
 //>>built
 define("dojox/dtl/contrib/data",["dojo/_base/kernel","dojo/_base/lang","../_base","dojo/_base/array"],function(_1,_2,dd,_3){
-_2.getObject("dojox.dtl.contrib.data",true);
-var _4=dd.contrib.data;
+var _4=_2.getObject("contrib.data",true,dd);
 var _5=true;
 _4._BoundItem=_2.extend(function(_6,_7){
 this.item=_6;
@@ -107,5 +106,5 @@ return new _4.BindDataNode(null,_20[1],_20[3],_20[5]);
 }});
 _4._get.safe=true;
 dd.register.tags("dojox.dtl.contrib",{"data":["bind_data","bind_query"]});
-return dojox.dtl.contrib.data;
+return _4;
 });

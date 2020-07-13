@@ -26,19 +26,17 @@
 	padding: 0 0;
 	.border-radius(0);
 }
-.claro .dijitTimePicker{
+.claro .dijitTimePicker {
 	border:1px @border-color solid;
 	border-top:none;
 	border-bottom:none;
 	background-color:#fff;	/* TODO: useless?   Appears to be overridden by settings on individual elements */
 }
-.claro .dijitTimePickerItem{
+.claro .dijitTimePickerItem {
 	/* dijitTimePickerItem refers to both Tick's (minor values like 2:15, 2:30, 2:45) and Marker's (major values like 2PM, 3PM) */
 	.standard-gradient;
 	border-top:solid 1px @border-color;
 	border-bottom:solid 1px @border-color;
-	margin-right:-1px;
-	margin-left:-1px;
 	margin-top:-1px;
 }
 .claro .dijitTimePickerTick {
@@ -58,28 +56,13 @@
 .claro .dijitTimePickerMarkerSelected,
 .claro .dijitTimePickerTickSelected {
 	background-color: @timepicker-value-hovered-background-color;
-	border:solid 1px @border-color;
-	margin-left:-7px;
-	margin-right:-7px;
 	color:@timepicker-value-hovered-text-color;
 }
 .claro .dijitTimePickerMarkerSelected,
 .claro .dijitTimePickerTickSelected {
 	font-size: 1em;
 }
-.dj_ie .claro .dijitTimePickerTickHover,
-.dj_ie .claro .dijitTimePickerMarkerHover,
-.dj_ie .claro .dijitTimePickerMarkerSelected,
-.dj_ie .claro .dijitTimePickerTickSelected  {
-	width: 114%;
-}
-.dj_ie6 .claro .dijitTimePickerTickHover,
-.dj_ie6 .claro .dijitTimePickerMarkerHover,
-.dj_ie6 .claro .dijitTimePickerMarkerSelected,
-.dj_ie6 .claro .dijitTimePickerTickSelected  {
-	position: relative; /* creates widening of element */	
-	zoom: 1; /* creates widening of element */
-}
+
 .claro .dijitTimePickerTick .dijitTimePickerItemInner {
 	padding:1px;
 	margin:0;
@@ -91,13 +74,13 @@
 	background-color: @unselected-background-color;
 	.standard-gradient;
 }
-.claro .dijitTimePicker .dijitArrowButtonInner{
+.claro .dijitTimePicker .dijitArrowButtonInner {
 	height: 100%; /* hack claro.button.css */
 	background-image: url(@image-form-common-arrows);
 	background-repeat: no-repeat;
 	background-position:-140px 45%;
 }
-.claro .dijitTimePicker .dijitDownArrowButton .dijitArrowButtonInner{
+.claro .dijitTimePicker .dijitDownArrowButton .dijitArrowButtonInner {
 	background-position:-35px 45%;
 }
 /* hover */

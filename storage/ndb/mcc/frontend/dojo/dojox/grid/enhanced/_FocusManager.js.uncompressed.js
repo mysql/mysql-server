@@ -283,7 +283,7 @@ return declare("dojox.grid.enhanced._FocusManager", _FocusManager, {
 	},
 	placeArea: function(name, pos, otherAreaName){
 		// summary:
-		//		Place the area refered by *name* at some logical position relative to an existing area.
+		//		Place the area referred by *name* at some logical position relative to an existing area.
 		// example:
 		//		placeArea("myarea","before"|"after",...)
 		//		placeArea("myarea","below"|"above",...)

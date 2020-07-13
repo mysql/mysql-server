@@ -11,6 +11,7 @@
   border-color: inherit;
   vertical-align: middle;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#84868c), to(#000000), color-stop(0.5, #52555a), color-stop(0.5, #292929));
+  background-image: linear-gradient(to bottom, #84868c 0%, #52555a 50%, #292929 50%, #000000 100%);
 }
 .dijitCalendarMonthLabel {
   padding: 0 4px;
@@ -28,6 +29,7 @@
   background-color: transparent;
   background-image: none;
   -webkit-box-shadow: 0 0 0 transparent;
+  box-shadow: 0 0 0 transparent;
 }
 .dijitArrowButtonInner {
   display: none;
@@ -38,15 +40,15 @@
 .dijitCalendarIncrementControl {
   width: 0;
   height: 0;
-  border: 6px solid transparent;
+  border: 6px solid transparent !important;
 }
 .dijitCalendarDecrease {
-  border-left-width: 0;
-  border-right-color: white;
+  border-left-width: 0 !important;
+  border-right: 6px solid white !important;
 }
 .dijitCalendarIncrease {
-  border-right-width: 0;
-  border-left-color: white;
+  border-right-width: 0 !important;
+  border-left: 6px solid white !important;
 }
 .dijitA11ySideArrow {
   display: none;
@@ -78,7 +80,8 @@
   text-decoration: none;
   border: none;
 }
-.dijitCalendarPreviousMonth .dijitCalendarDateLabel, .dijitCalendarNextMonth .dijitCalendarDateLabel {
+.dijitCalendarPreviousMonth .dijitCalendarDateLabel,
+.dijitCalendarNextMonth .dijitCalendarDateLabel {
   color: lightGrey;
 }
 .dijitCalendarHoveredDate .dijitCalendarDateLabel {
@@ -86,16 +89,19 @@
 }
 .dijitCalendarSelectedDate .dijitCalendarDateLabel {
   background-image: -webkit-gradient(linear, left top, left bottom, from(#00a200), to(#00d300), color-stop(0.2, #00ba00), color-stop(0.2, #00ba00));
+  background-image: linear-gradient(to bottom, #00a200 0%, #00ba00 20%, #00ba00 20%, #00d300 100%);
   color: white;
   text-shadow: rgba(0, 0, 0, 0.4) 0 1px 0;
 }
 .dijitCalendarActiveDate .dijitCalendarDateLabel {
   background-image: -webkit-gradient(linear, left top, left bottom, from(#306ea1), to(#266093), color-stop(0.06, #4090d3), color-stop(0.5, #306ea1));
+  background-image: linear-gradient(to bottom, #306ea1 0%, #4090d3 6%, #306ea1 50%, #266093 100%);
 }
 .dijitCalendarYearLabel {
   margin: 0;
   padding: 0;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#84868c), to(#000000), color-stop(0.5, #52555a), color-stop(0.5, #292929));
+  background-image: linear-gradient(to bottom, #84868c 0%, #52555a 50%, #292929 50%, #000000 100%);
 }
 .dijitCalendarSelectedYear {
   font-family: Helvetica;
@@ -103,7 +109,8 @@
   color: white;
   font-size: 16px;
 }
-.dijitCalendarNextYear, .dijitCalendarPreviousYear {
+.dijitCalendarNextYear,
+.dijitCalendarPreviousYear {
   text-shadow: rgba(247, 247, 247, 0.6) 0px 1px 0px;
   padding: 1px 6px 3px 6px;
   color: white;

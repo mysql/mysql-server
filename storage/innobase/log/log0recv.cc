@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -412,9 +412,10 @@ static bool recv_sys_resize_buf() {
 #else  /* !UNIV_HOTBACKUP */
   if ((recv_sys->buf_len >= srv_log_buffer_size) ||
       (recv_sys->len >= srv_log_buffer_size)) {
-    ib::fatal() << "Log parsing buffer overflow. Log parse failed. "
-                << "Please increase --limit-memory above "
-                << srv_log_buffer_size / 1024 / 1024 << " (MB)";
+    ib::fatal(ER_IB_ERR_LOG_PARSING_BUFFER_OVERFLOW)
+        << "Log parsing buffer overflow. Log parse failed. "
+        << "Please increase --limit-memory above "
+        << srv_log_buffer_size / 1024 / 1024 << " (MB)";
   }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -589,8 +590,8 @@ void recv_sys_init(ulint max_mem) {
 
 #ifndef UNIV_HOTBACKUP
   if (!srv_read_only_mode) {
-    recv_sys->flush_start = os_event_create("recv_flush_start");
-    recv_sys->flush_end = os_event_create("recv_flush_end");
+    recv_sys->flush_start = os_event_create();
+    recv_sys->flush_end = os_event_create();
   }
 #else  /* !UNIV_HOTBACKUP */
   recv_is_from_backup = true;
@@ -797,6 +798,10 @@ static void recv_writer_thread() {
   mutex_exit(&recv_sys->writer_mutex);
 
   while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+    ut_a(srv_shutdown_state_matches([](auto state) {
+      return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
+    }));
+
     os_thread_sleep(100000);
 
     mutex_enter(&recv_sys->writer_mutex);
@@ -1012,6 +1017,25 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       ib::error(ER_IB_MSG_705, ulong{log.format}, REFMAN);
 
       return (DB_ERROR);
+  }
+
+  log.m_first_file_lsn = mach_read_from_8(buf + LOG_HEADER_START_LSN);
+
+  uint32_t flags = mach_read_from_4(buf + LOG_HEADER_FLAGS);
+
+  if (LOG_HEADER_CHECK_FLAG(flags, LOG_HEADER_FLAG_NO_LOGGING)) {
+    /* Exit if server is crashed while running without redo logging. */
+    if (LOG_HEADER_CHECK_FLAG(flags, LOG_HEADER_FLAG_CRASH_UNSAFE)) {
+      ib::error(ER_IB_ERR_RECOVERY_REDO_DISABLED);
+      /* Allow to proceed with SRV_FORCE_NO_LOG_REDO[6] */
+      if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+        return (DB_ERROR);
+      }
+    }
+    auto err = mtr_t::s_logging.disable(nullptr);
+    /* Currently never fails. */
+    ut_a(err == 0);
+    srv_redo_log = false;
   }
 
   uint64_t max_no = 0;
@@ -2356,9 +2380,13 @@ static void recv_data_copy_to_buf(byte *buf, recv_t *recv) {
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
-read in, or also for a page already in the buffer pool.
+read in, or also for a page already in the buffer pool. */
+#ifndef UNIV_HOTBACKUP
+/**
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
-                                read page
+                                read page */
+#endif /* !UNIV_HOTBACKUP */
+/**
 @param[in,out]	block		Buffer block */
 void recv_recover_page_func(
 #ifndef UNIV_HOTBACKUP
@@ -3331,8 +3359,9 @@ bool meb_scan_log_recs(
             return (true);
           }
 #else  /* !UNIV_HOTBACKUP */
-          ib::fatal() << "Insufficient memory for InnoDB parse buffer; want "
-                      << recv_sys->buf_len;
+          ib::fatal(ER_IB_ERR_NOT_ENOUGH_MEMORY_FOR_PARSE_BUFFER)
+              << "Insufficient memory for InnoDB parse buffer; want "
+              << recv_sys->buf_len;
 #endif /* !UNIV_HOTBACKUP */
         }
       }

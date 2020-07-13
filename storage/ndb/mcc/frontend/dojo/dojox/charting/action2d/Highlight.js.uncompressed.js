@@ -1,6 +1,6 @@
-define("dojox/charting/action2d/Highlight", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/Color", "dojo/_base/connect", "dojox/color/_base", 
+define("dojox/charting/action2d/Highlight", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/Color", "dojo/_base/connect", "dojox/color/_base",
 		"./PlotAction", "dojo/fx/easing", "dojox/gfx/fx"], 
-	function(dojo, lang, declare, Color, hub, c, PlotAction, dfe, dgf){
+	function(lang, declare, Color, hub, c, PlotAction, dfe, dgf){
 
 	/*=====
 	var __HighlightCtorArgs = {
@@ -39,8 +39,16 @@ define("dojox/charting/action2d/Highlight", ["dojo/_base/kernel", "dojo/_base/la
 						DEFAULT_LUMINOSITY2 : DEFAULT_LUMINOSITY1;
 				}
 			}
-			return c.fromHsl(x);
-		};
+			var rcolor = c.fromHsl(x);
+			rcolor.a = a.a;
+			return rcolor;
+		},
+
+		spiderhl = function(color){
+			var r = hl(color);
+			r.a = 0.7;
+			return r;
+		}
 
 	return declare("dojox.charting.action2d.Highlight", PlotAction, {
 		// summary:
@@ -67,8 +75,7 @@ define("dojox/charting/action2d/Highlight", ["dojo/_base/kernel", "dojo/_base/la
 			// kwArgs: __HighlightCtorArgs?
 			//		Optional keyword arguments object for setting parameters.
 			var a = kwArgs && kwArgs.highlight;
-			this.colorFun = a ? (lang.isFunction(a) ? a : cc(a)) : hl;
-
+			this.colorFunc = a ? (lang.isFunction(a) ? a : cc(a)) : hl;
 			this.connect();
 		},
 
@@ -79,7 +86,16 @@ define("dojox/charting/action2d/Highlight", ["dojo/_base/kernel", "dojo/_base/la
 			//		The object on which to process the highlighting action.
 			if(!o.shape || !(o.type in this.overOutEvents)){ return; }
 
-			var runName = o.run.name, index = o.index, anim, startFill, endFill;
+			// if spider let's deal only with poly
+			if(o.element == "spider_circle" || o.element == "spider_plot"){
+				return;
+			}else if(o.element == "spider_poly" && this.colorFunc == hl){
+				// hardcode alpha for compatibility reasons
+				// TODO to remove in 2.0
+				this.colorFunc = spiderhl;
+			}
+
+			var runName = o.run.name, index = o.index, anim;
 
 			if(runName in this.anim){
 				anim = this.anim[runName][index];
@@ -96,7 +112,7 @@ define("dojox/charting/action2d/Highlight", ["dojo/_base/kernel", "dojo/_base/la
 				}
 				this.anim[runName][index] = anim = {
 					start: color,
-					end:   this.colorFun(color)
+					end:   this.colorFunc(color)
 				};
 			}
 

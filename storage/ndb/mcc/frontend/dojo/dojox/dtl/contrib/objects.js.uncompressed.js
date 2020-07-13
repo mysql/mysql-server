@@ -3,9 +3,14 @@ define("dojox/dtl/contrib/objects", [
 	"../_base"	
 ], function(lang,dd){
 
-	lang.getObject("dojox.dtl.contrib.objects", true);
+	var objects = lang.getObject("contrib.objects", true, dd);
+/*=====
+	objects = {
+		// TODO: summary
+	};
+=====*/
 
-	lang.mixin(dd.contrib.objects, {
+	lang.mixin(objects, {
 		key: function(value, arg){
 			return value[arg];
 		}
@@ -14,5 +19,6 @@ define("dojox/dtl/contrib/objects", [
 	dd.register.filters("dojox.dtl.contrib", {
 		"objects": ["key"]
 	});
-	return dojox.dtl.contrib.objects;
+
+	return objects;
 });

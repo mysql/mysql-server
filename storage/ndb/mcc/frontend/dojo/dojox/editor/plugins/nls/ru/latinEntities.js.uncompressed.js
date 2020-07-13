@@ -1,10 +1,10 @@
 define(
 "dojox/editor/plugins/nls/ru/latinEntities", ({
 	/* These are already handled in the default RTE
-		amp:"ampersand",lt:"less-than sign",
-		gt:"greater-than sign",
-		nbsp:"no-break space\nnon-breaking space",
-		quot:"quote",
+	amp:"ampersand",lt:"less-than sign",
+	gt:"greater-than sign",
+	nbsp:"no-break space\nnon-breaking space",
+	quot:"quote",
 	*/
 	iexcl:"инвертированный восклицательный знак",
 	cent:"символ цента",
@@ -16,7 +16,7 @@ define(
 	uml:"трема\nтрема с интервалом",
 	copy:"символ авторских прав",
 	ordf:"индикатор женского рода",
-	laquo:"левые двойный угловые кавычки\nлевые кавычки",
+	laquo:"левые двойные угловые кавычки\nлевые кавычки",
 	not:"знак отрицания",
 	shy:"мягкий перенос\nвозможный перенос",
 	reg:"символ Зарегистрирован\nсимвол зарегистрированного товарного знака",
@@ -68,7 +68,7 @@ define(
 	Uuml:"латинская прописная буква U с тремой",
 	Yacute:"латинская прописная буква Y с акутом",
 	THORN:"латинская прописная буква THORN",
-	szlig:"латинская строчная заостренная s\nэсцэт",
+	szlig:"латинская строчная заостренная эсцэт",
 	agrave:"латинская строчная буква a с грависом\nлатинская строчная a с грависом",
 	aacute:"латинская строчная буква a с акутом",
 	acirc:"латинская строчная буква a с циркумфлексом",
@@ -222,7 +222,7 @@ define(
 	rang:"правая угловая скобка",
 	loz:"ромб",
 	spades:"пики",
-	clubs:"крести\nтрилистник",
+	clubs:"трефы\nтрилистник",
 	hearts:"червы\nвалентинка",
 	diams:"бубны",
 	OElig:"латинская прописная лигатура OE",

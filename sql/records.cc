@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
+#include "sql/opt_explain.h"
 #include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
@@ -319,6 +320,42 @@ void TableRowIterator::EndPSIBatchModeIfStarted() {
   m_table->file->end_psi_batch_mode_if_started();
 }
 
+std::vector<RowIterator::Child> TableRowIterator::children() const {
+  /*
+    A TableRowIterator is normally a leaf node in the set of Iterators.
+    The exception is if a subquery was included as part of an
+    'engine_condition_pushdown'. In such cases the subquery has
+    been evaluated prior to acessing this table, and the result(s)
+    from the subquery materialized into the pushed condition.
+    Report such subqueries as children of this table.
+  */
+  Item *pushed_cond = const_cast<Item *>(table()->file->pushed_cond);
+  vector<Child> ret;
+
+  if (pushed_cond != nullptr) {
+    ForEachSubselect(
+        pushed_cond, [&ret](int select_number, bool is_dependent,
+                            bool is_cacheable, RowIterator *iterator) {
+          char description[256];
+          if (is_dependent) {
+            snprintf(description, sizeof(description),
+                     "Select #%d (subquery in pushed condition; dependent)",
+                     select_number);
+          } else if (!is_cacheable) {
+            snprintf(description, sizeof(description),
+                     "Select #%d (subquery in pushed condition; uncacheable)",
+                     select_number);
+          } else {
+            snprintf(description, sizeof(description),
+                     "Select #%d (subquery in pushed condition; run only once)",
+                     select_number);
+          }
+          ret.push_back(Child{iterator, description});
+        });
+  }
+  return ret;
+}
+
 IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
                                                QUICK_SELECT_I *quick,
                                                QEP_TAB *qep_tab,
@@ -464,10 +501,10 @@ bool FollowTailIterator::Init() {
   const bool first_init = !table()->file->inited;
 
   if (first_init) {
-    // The first Init() call at the start of a new WITH RECURSIVE
-    // execution. MaterializeIterator calls ha_index_or_rnd_end()
-    // before each iteration, which sets file->inited = false,
-    // so we can use that as a signal.
+    // Before starting a new WITH RECURSIVE execution,
+    // MaterializeIterator::Init() does ha_index_or_rnd_end() on all read
+    // cursors of recursive members, which sets file->inited = false, so we can
+    // use that as a signal.
     if (!table()->is_created()) {
       // Recursive references always refer to a temporary table,
       // which do not exist at resolution time; thus, we need to

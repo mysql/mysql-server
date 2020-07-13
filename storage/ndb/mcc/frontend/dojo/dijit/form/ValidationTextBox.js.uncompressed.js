@@ -3,28 +3,19 @@ require({cache:{
 define("dijit/form/ValidationTextBox", [
 	"dojo/_base/declare", // declare
 	"dojo/_base/kernel", // kernel.deprecated
+	"dojo/_base/lang",
 	"dojo/i18n", // i18n.getLocalization
 	"./TextBox",
 	"../Tooltip",
 	"dojo/text!./templates/ValidationTextBox.html",
 	"dojo/i18n!./nls/validate"
-], function(declare, kernel, i18n, TextBox, Tooltip, template){
+], function(declare, kernel, lang, i18n, TextBox, Tooltip, template){
 
 	// module:
 	//		dijit/form/ValidationTextBox
 
 
-	/*=====
-	var __Constraints = {
-		// locale: String
-		//		locale used for validation, picks up value from this widget's lang attribute
-		// _flags_: anything
-		//		various flags passed to pattern function
-	};
-	=====*/
-
-	var ValidationTextBox;
-	return ValidationTextBox = declare("dijit.form.ValidationTextBox", TextBox, {
+	var ValidationTextBox = declare("dijit.form.ValidationTextBox", TextBox, {
 		// summary:
 		//		Base class for textbox widgets with the ability to validate content of various types and provide user feedback.
 
@@ -61,9 +52,10 @@ define("dijit/form/ValidationTextBox", [
 		//		displayed when the field is focused.
 		message: "",
 
-		// constraints: __Constraints
-		//		user-defined object needed to pass parameters to the validator functions
-		constraints: {},
+		// constraints: ValidationTextBox.__Constraints
+		//		Despite the name, this parameter specifies both constraints on the input as well as
+		//		formatting options.  See `dijit/form/ValidationTextBox.__Constraints` for details.
+		constraints:{},
 
 		// pattern: [extension protected] String|Function(constraints) returning a string.
 		//		This defines the regular expression used to validate the input.
@@ -96,7 +88,7 @@ define("dijit/form/ValidationTextBox", [
 		},
 		_setRegExpGenAttr: function(/*Function*/ newFcn){
 			this._deprecateRegExp("regExpGen", newFcn);
-			this.regExpGen = this._getPatternAttr; // backward compat with this.regExpGen(this.constraints)
+			this._set("regExpGen", this._computeRegexp); // backward compat with this.regExpGen(this.constraints)
 		},
 		_setRegExpAttr: function(/*String*/ value){
 			this._deprecateRegExp("regExp", value);
@@ -114,7 +106,7 @@ define("dijit/form/ValidationTextBox", [
 			//		Overridable function used to validate the text input against the regular expression.
 			// tags:
 			//		protected
-			return (new RegExp("^(?:" + this._getPatternAttr(constraints) + ")"+(this.required?"":"?")+"$")).test(value) &&
+			return (new RegExp("^(?:" + this._computeRegexp(constraints) + ")"+(this.required?"":"?")+"$")).test(value) &&
 				(!this.required || !this._isEmpty(value)) &&
 				(this._isEmpty(value) || this.parse(value, constraints) !== undefined); // Boolean
 		},
@@ -132,7 +124,7 @@ define("dijit/form/ValidationTextBox", [
 			//		Can override with your own routine in a subclass.
 			// tags:
 			//		protected
-			return this.validator(this.textbox.value, this.constraints);
+			return this.validator(this.textbox.value, this.get('constraints'));
 		},
 
 		_isEmpty: function(value){
@@ -224,7 +216,7 @@ define("dijit/form/ValidationTextBox", [
 			// srcNodeRef: DOMNode|String?
 			//		If a srcNodeRef (DOM node) is specified, replace srcNodeRef with my generated DOM tree.
 
-			this.constraints = {};
+			this.constraints = lang.clone(this.constraints);
 			this.baseClass += ' dijitValidationTextBox';
 		},
 
@@ -246,13 +238,13 @@ define("dijit/form/ValidationTextBox", [
 			this._refreshState();
 		},
 
-		_getPatternAttr: function(/*__Constraints*/ constraints){
+		_computeRegexp: function(/*__Constraints*/ constraints){
 			// summary:
 			//		Hook to get the current regExp and to compute the partial validation RE.
+
 			var p = this.pattern;
-			var type = (typeof p).toLowerCase();
-			if(type == "function"){
-				p = this.pattern(constraints || this.constraints);
+			if(typeof p == "function"){
+				p = p.call(this, constraints);
 			}
 			if(p != this._lastRegExp){
 				var partialre = "";
@@ -328,6 +320,22 @@ define("dijit/form/ValidationTextBox", [
 			this.displayMessage('');
 
 			this.inherited(arguments);
+		},
+
+		destroy: function(){
+			Tooltip.hide(this.domNode);	// in case tooltip show when ValidationTextBox (or enclosing Dialog) destroyed
+			this.inherited(arguments);
 		}
 	});
+
+	/*=====
+	 ValidationTextBox.__Constraints = {
+		 // locale: String
+		 //		locale used for validation, picks up value from this widget's lang attribute
+		 // _flags_: anything
+		 //		various flags passed to pattern function
+	 };
+	 =====*/
+
+	return ValidationTextBox;
 });

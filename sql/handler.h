@@ -768,6 +768,16 @@ given at all. */
   Implies HA_CREATE_USED_DEFAULT_ENCRYPTION.
 */
 #define HA_CREATE_USED_DEFAULT_ENCRYPTION (1L << 30)
+
+/**
+  This option is used to convey that the create table should not
+  commit the operation and keep the transaction started.
+*/
+constexpr const uint64_t HA_CREATE_USED_START_TRANSACTION{1ULL << 31};
+
+constexpr const uint64_t HA_CREATE_USED_ENGINE_ATTRIBUTE{1ULL << 32};
+constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
+
 /*
   End of bits used in used_fields
 */
@@ -941,6 +951,9 @@ enum Ha_clone_type : size_t {
 };
 
 using Ha_clone_flagset = std::bitset<HA_CLONE_TYPE_MAX>;
+
+void set_externally_disabled_storage_engine_names(const char *);
+bool ha_is_externally_disabled(const handlerton &);
 
 /** File reference for clone */
 struct Ha_clone_file {
@@ -1856,6 +1869,17 @@ typedef bool (*rotate_encryption_master_key_t)(void);
 
 /**
   @brief
+  Enable or Disable SE write ahead logging.
+
+  @param[in] thd    server thread handle
+  @param[in] enable enable/disable redo logging
+
+  @return true iff failed.
+*/
+typedef bool (*redo_log_set_state_t)(THD *thd, bool enable);
+
+/**
+  @brief
   Retrieve ha_statistics from SE.
 
   @param db_name                  Name of schema
@@ -2397,6 +2421,7 @@ struct handlerton {
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
+  redo_log_set_state_t redo_log_set_state;
 
   get_table_statistics_t get_table_statistics;
   get_index_column_cardinality_t get_index_column_cardinality;
@@ -2534,6 +2559,9 @@ struct handlerton {
 /** Engine supports table or tablespace encryption . */
 #define HTON_SUPPORTS_TABLE_ENCRYPTION (1 << 16)
 
+constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
+    1 << 17};
+
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }
@@ -2661,7 +2689,7 @@ struct HA_CREATE_INFO {
   ulonglong auto_increment_value{0};
   ulong table_options{0};
   ulong avg_row_length{0};
-  ulong used_fields{0};
+  uint64_t used_fields{0};
   ulong key_block_size{0};
   uint stats_sample_pages{0}; /* number of pages to sample during
                            stats estimation, if used, otherwise 0. */
@@ -2689,6 +2717,15 @@ struct HA_CREATE_INFO {
     created by ALTER to be marked as hidden.
   */
   bool m_hidden{false};
+
+  /*
+    A flag to indicate if this table should be created but not committed at
+    the end of statement.
+  */
+  bool m_transactional_ddl{false};
+
+  LEX_CSTRING engine_attribute = NULL_CSTR;
+  LEX_CSTRING secondary_engine_attribute = NULL_CSTR;
 
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
@@ -6669,6 +6706,22 @@ handler *get_new_handler(TABLE_SHARE *share, bool partitioned, MEM_ROOT *alloc,
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                          bool no_substitute, bool report_error);
 
+/**
+  Get default handlerton, if handler supplied is null.
+
+  @param thd   Thread context.
+  @param hton  The handlerton passed.
+
+  @returns pointer to handlerton.
+*/
+inline handlerton *get_default_handlerton(THD *thd, handlerton *hton) {
+  if (!hton) {
+    hton = ha_checktype(thd, DB_TYPE_UNKNOWN, false, false);
+    DBUG_ASSERT(hton);
+  }
+  return hton;
+}
+
 static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type) {
   return (db_type == nullptr) ? DB_TYPE_UNKNOWN : db_type->db_type;
 }
@@ -6680,7 +6733,16 @@ static inline bool ha_check_storage_engine_flag(const handlerton *db_type,
   return db_type == nullptr ? false : (db_type->flags & flag);
 }
 
-static inline bool ha_storage_engine_is_enabled(const handlerton *db_type) {
+/**
+  Predicate to determine if a storage engine, represented by a handlerton*, is
+  enabled.
+  @note "Enabled" in this context refers only the state of the handlerton
+  object, and does not consider the disabled_storage_engines system variable.
+  This leads to the very counter-intuitive and confusing situation that it is
+  possible for a storage engine to be enabled, but at the same time also be
+  disabled.
+  */
+inline bool ha_storage_engine_is_enabled(const handlerton *db_type) {
   return (db_type && db_type->create) ? (db_type->state == SHOW_OPTION_YES)
                                       : false;
 }
@@ -6835,7 +6897,6 @@ inline void print_keydup_error(TABLE *table, KEY *key, myf errflag) {
   print_keydup_error(table, key, errflag, nullptr);
 }
 
-void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
@@ -6846,53 +6907,7 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
-
-/** Generate a string representation of an `ha_rkey_function` enum value.
- * @param[in] r value to turn into string
- * @return a string, e.g. "HA_READ_KEY_EXACT" if r == HA_READ_KEY_EXACT */
-const char *ha_rkey_function_to_str(enum ha_rkey_function r);
-
-/** Generate a human readable string that describes a table structure. For
- * example:
- * t1 (`c1` char(60) not null, `c2` char(60), hash unique index0(`c1`, `c2`))
- * @param[in] table_name name of the table to be described
- * @param[in] mysql_table table structure
- * @return a string similar to a CREATE TABLE statement */
-std::string table_definition(const char *table_name, const TABLE *mysql_table);
-
-#ifndef DBUG_OFF
-/** Generate a human readable string that describes the contents of a row. The
- * row must be in the same format as provided to handler::write_row(). For
- * example, given this table structure:
- * t1 (`pk` int(11) not null,
- *     `col_int_key` int(11),
- *     `col_varchar_key` varchar(1),
- *     hash unique index0(`pk`, `col_int_key`, `col_varchar_key`))
- *
- * something like this will be generated (without the new lines):
- *
- * len=16,
- * raw=..........c.....,
- * hex=f9 1d 00 00 00 08 00 00 00 01 63 a5 a5 a5 a5 a5,
- * human=(`pk`=29, `col_int_key`=8, `col_varchar_key`=c)
- *
- * @param[in] mysql_row row to dump
- * @param[in] mysql_table table to which the row belongs, for querying metadata
- * @return textual dump of the row */
-std::string row_to_string(const uchar *mysql_row, TABLE *mysql_table);
-
-/** Generate a human readable string that describes indexed cells that are given
- * to handler::index_read() as input. The generated string is similar to the one
- * generated by row_to_string(), but only contains the cells covered by the
- * given index.
- * @param[in] indexed_cells raw buffer in handler::index_read() input format
- * @param[in] indexed_cells_len length of indexed_cells in bytes
- * @param[in] mysql_index the index that covers the cells, for querying metadata
- * @return textual dump of the cells */
-std::string indexed_cells_to_string(const uchar *indexed_cells,
-                                    uint indexed_cells_len,
-                                    const KEY &mysql_index);
-#endif /* DBUG_OFF */
+bool is_index_access_error(int error);
 
 /*
   This class is used by INFORMATION_SCHEMA.FILES to read SE specific

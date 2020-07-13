@@ -96,6 +96,9 @@ SET GLOBAL group_replication_bootstrap_group=ON;
 SET DEBUG_SYNC= "now SIGNAL signal.gr_applier_init_signal";
 SET @@GLOBAL.DEBUG= @debug_save;
 
+--let $wait_condition=SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Killed' && INFO LIKE 'START GROUP_REPLICATION%'
+--source include/wait_condition.inc
+
 # set group_replication_group_name command is failing as the previous start
 # process may still be running so can't use
 # start_and_bootstrap_group_replication.inc.

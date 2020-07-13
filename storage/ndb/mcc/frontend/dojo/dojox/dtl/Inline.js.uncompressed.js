@@ -5,7 +5,7 @@ define("dojox/dtl/Inline", [
 	"dojo/query" // dojo.query
 ], function(lang,dd,Widget,Query){
 
-	dd.Inline = lang.extend(function(args, node){
+	return dd.Inline = lang.extend(function(args, node){
 			this.create(args, node);
 		},
 		Widget.prototype,
@@ -32,5 +32,4 @@ define("dojox/dtl/Inline", [
 				this.context = (this.context.get === dd._Context.prototype.get) ? this.context : new dd._Context(this.context);
 			}
 		});
-	return dojox.dtl.Inline;
 });

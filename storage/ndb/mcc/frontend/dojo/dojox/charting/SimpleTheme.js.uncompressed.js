@@ -44,6 +44,7 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//		The default theme (and structure) looks like so:
 	//	|	// all objects are structs used directly in dojox.gfx
 	//	|	chart:{
+	//	|		margins: {l: 10, t: 10, r: 10, b: 10},
 	//	|		stroke: null,
 	//	|		fill: "white",
 	//	|		pageStyle: null // suggested page style as an object suitable for dojo.style()
@@ -87,6 +88,8 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//	|		outline: {width: 0.1, color: "#ccc"},		// outline
 	//	|		//shadow:  {dx: 1, dy: 1, width: 2, color: [0, 0, 0, 0.3]},
 	//	|		shadow: null,								// no shadow
+	//	|		//filter:  dojox/gfx/filters.createFilter(),
+	//	|		filter: null,								// no filter, to use a filter you must use gfx SVG render and require dojox/gfx/svgext
 	//	|		fill:    "#ccc",							// fill, if appropriate
 	//	|		font:    "normal normal normal 8pt Tahoma",	// if there's a label
 	//	|		fontColor: "#000"							// color of labels
@@ -111,12 +114,15 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//	|			color:     "#666",
 	//	|			width:  0.8,
 	//	|			length: 3
-	//	|		}
+	//	|		},
+	//	|		fill: "grey",  // every other stripe
+	//	|		alternateFill: "grey" // alternate stripe
 	//	|	},
 	//	|	indicator: {
 	//	|		lineStroke:  {width: 1.5, color: "#333"},		// line
 	//	|		lineOutline: {width: 0.1, color: "#ccc"},		// line outline
 	//	|		lineShadow: null,								// no line shadow
+	//	|		lineFill: null,									// fill between lines for dual indicators
 	//	|		stroke:  {width: 1.5, color: "#333"},			// label background stroke
 	//	|		outline: {width: 0.1, color: "#ccc"},			// label background outline
 	//	|		shadow: null,									// no label background shadow
@@ -128,13 +134,15 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//	|		markerSymbol:  "m-3,0 c0,-4 6,-4 6,0 m-6,0 c0,4 6,4 6,0",	// marker symbol
 	//	|		markerStroke:  {width: 1.5, color: "#333"},		// marker stroke
 	//	|		markerOutline: {width: 0.1, color: "#ccc"},		// marker outline
-	//	|		markerShadow: null,								// no marker shadow
-	//	|	}
+	//	|		markerShadow: null								// no marker shadow
+	//	|	},
+	//	|	pieInnerRadius: 33
 	//
 	// example:
 	//		Defining a new theme is pretty simple:
 	//	|	var Grasslands = new SimpleTheme({
-	//	|		colors: [ "#70803a", "#dde574", "#788062", "#b1cc5d", "#eff2c2" ]
+	//	|		colors: [ "#70803a", "#dde574", "#788062", "#b1cc5d", "#eff2c2" ],
+	//	|		pieInnerRadius: 15
 	//	|	});
 	//	|
 	//	|	myChart.setTheme(Grasslands);
@@ -200,7 +208,8 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 			markerThemes: this.markerThemes,
 			// flags
 			noGradConv: this.noGradConv,
-			noRadialConv: this.noRadialConv
+			noRadialConv: this.noRadialConv,
+			pieInnerRadius: this.pieInnerRadius
 		});
 		// copy custom methods
 		arr.forEach(
@@ -328,7 +337,7 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 					lang.setObject("series.fill", mixin.color, t);
 				}
 			}
-			arr.forEach(["stroke", "outline", "shadow", "fill", "font", "fontColor", "labelWiring"], function(name){
+			arr.forEach(["stroke", "outline", "shadow", "fill", "filter", "font", "fontColor", "labelWiring"], function(name){
 				var markerName = "marker" + name.charAt(0).toUpperCase() + name.substr(1),
 					b = markerName in mixin;
 				if(name in mixin){
@@ -489,7 +498,8 @@ lang.mixin(SimpleTheme, {
 			titleGap:		20,
 			titlePos:		"top",
 			titleFont:      "normal normal bold 14pt Tahoma",	// chart title
-			titleFontColor: "#333"
+			titleFontColor: "#333",
+			titleAlign: "middle"
 		},
 		plotarea:{
 			stroke: null,
@@ -551,6 +561,7 @@ lang.mixin(SimpleTheme, {
 			lineStroke:  {width: 1.5, color: "#333"},		
 			lineOutline: {width: 0.1, color: "#ccc"},		
 			lineShadow: null,
+			lineFill: null,
 			stroke:  {width: 1.5, color: "#333"},		
 			outline: {width: 0.1, color: "#ccc"},		
 			shadow: null,								

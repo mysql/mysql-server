@@ -132,7 +132,7 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
     DBUG_PRINT("info", ("stored in full format"));
   }
   *pack_ptr = field->pack_with_metadata_bytes(
-      *pack_ptr, field->ptr + rec_offset, field->max_data_length());
+      *pack_ptr, field->field_ptr() + rec_offset, field->max_data_length());
 }
 
 /**
@@ -219,7 +219,7 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
         table->disable_logical_diffs_for_current_row(field);
     }
 
-    *pack_ptr = field->unpack(field->ptr, *pack_ptr, metadata, true);
+    *pack_ptr = field->unpack(field->field_ptr(), *pack_ptr, metadata);
   }
 
   return false;
@@ -309,7 +309,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
         // needed for columns in the after-image, and of course only
         // when has_any_json_diff has not yet been set.
         if (!has_any_json_diff &&
-            bitmap_is_set(&table->pack_row_tmp_set, field->field_index)) {
+            bitmap_is_set(&table->pack_row_tmp_set, field->field_index())) {
           const Field_json *field_json = down_cast<const Field_json *>(field);
           const Json_diff_vector *diff_vector;
           field_json->get_diff_vector_and_length(value_options, &diff_vector);
@@ -343,7 +343,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
 
   for (auto field : fields) {
     bool is_partial_json = false;
-    if (bitmap_is_set(&table->pack_row_tmp_set, field->field_index)) {
+    if (bitmap_is_set(&table->pack_row_tmp_set, field->field_index())) {
       if (field->is_null(rec_offset)) {
         null_bits.set(true);
         DBUG_PRINT("info", ("field %s: NULL", field->field_name));
@@ -939,7 +939,7 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols,
     uint field_index = (uint)(field_ptr - table->field);
     if (field_index >= cols->n_bits || !bitmap_is_set(cols, field_index)) {
       Field *const f = *field_ptr;
-      if ((f->flags & NO_DEFAULT_VALUE_FLAG) &&
+      if (f->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
           (f->real_type() != MYSQL_TYPE_ENUM)) {
         f->set_default();
         push_warning_printf(

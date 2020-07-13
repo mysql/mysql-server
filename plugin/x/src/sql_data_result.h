@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,10 @@ class Sql_data_result {
   Sql_data_result &get(T *first, R &&... rest) {
     get(first).get(std::forward<R>(rest)...);
     return *this;
+  }
+
+  bool is_server_status_set(const uint32_t bit) const {
+    return m_resultset.get_info().server_status & bit;
   }
 
  private:

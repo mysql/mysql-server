@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -99,6 +99,11 @@ Parallel_reader::~Parallel_reader() {
   mutex_destroy(&m_mutex);
   os_event_destroy(m_event);
   release_unused_threads(m_max_threads);
+  for (auto thread_ctx : m_thread_ctxs) {
+    if (thread_ctx != nullptr) {
+      UT_DELETE(thread_ctx);
+    }
+  }
 }
 
 size_t Parallel_reader::available_threads(size_t n_required) {
@@ -181,7 +186,7 @@ Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
 
-  m_event = os_event_create("Parallel reader");
+  m_event = os_event_create();
   m_sig_count = os_event_reset(m_event);
 }
 
@@ -467,7 +472,8 @@ Parallel_reader::Scan_ctx::create_persistent_cursor(
 }
 
 bool Parallel_reader::Ctx::move_to_next_node(PCursor *pcursor, mtr_t *mtr) {
-  page_cur_t *cur = m_range.first->m_pcur->get_page_cur();
+  page_cur_t *cur MY_ATTRIBUTE((unused)) =
+      m_range.first->m_pcur->get_page_cur();
 
   if (m_scan_ctx->m_config.m_read_ahead) {
     page_no_t next_page_no = btr_page_get_next(page_cur_get_page(cur), mtr);
@@ -589,6 +595,8 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     page_cur_move_to_next(cur);
   }
 
+  m_thread_ctx->m_prev_partition_id = partition_id();
+
   mem_heap_free(heap);
 
   return (err);
@@ -623,11 +631,11 @@ bool Parallel_reader::is_queue_empty() const {
   return (empty);
 }
 
-void Parallel_reader::worker(size_t thread_id) {
+void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
   dberr_t err{DB_SUCCESS};
 
   if (m_start_callback) {
-    err = m_start_callback(thread_id);
+    err = m_start_callback(thread_ctx);
   }
 
   /* Wait for all the threads to be spawned as it's possible that we could
@@ -635,8 +643,6 @@ void Parallel_reader::worker(size_t thread_id) {
   threads. */
   constexpr auto FOREVER = OS_SYNC_INFINITE_TIME;
   os_event_wait_time_low(m_event, FOREVER, m_sig_count);
-
-  std::shared_ptr<Parallel_reader::Ctx> last_ctx{nullptr};
 
   for (;;) {
     size_t n_completed = 0;
@@ -655,7 +661,7 @@ void Parallel_reader::worker(size_t thread_id) {
         break;
       }
 
-      ctx->m_thread_id = thread_id;
+      ctx->m_thread_ctx = thread_ctx;
 
       if (ctx->m_split) {
         err = ctx->split();
@@ -666,7 +672,6 @@ void Parallel_reader::worker(size_t thread_id) {
       }
 
       ++n_completed;
-      last_ctx = std::move(ctx);
     }
 
     if (err != DB_SUCCESS || is_error_set()) {
@@ -699,7 +704,7 @@ void Parallel_reader::worker(size_t thread_id) {
   }
 
   if (m_finish_callback) {
-    dberr_t finish_err = m_finish_callback(last_ctx.get(), thread_id);
+    dberr_t finish_err = m_finish_callback(thread_ctx);
 
     /* Keep the err status from previous failed operations */
     if (finish_err != DB_SUCCESS) {
@@ -1130,16 +1135,31 @@ void Parallel_reader::parallel_read() {
   }
 
   if (m_single_threaded_mode) {
-    worker(0);
+    auto ptr = UT_NEW_NOKEY(Thread_ctx{0});
+    if (ptr == nullptr) {
+      set_error_state(DB_OUT_OF_MEMORY);
+      return;
+    }
+    m_thread_ctxs.push_back(ptr);
+    worker(m_thread_ctxs[0]);
     return;
   }
+
+  m_thread_ctxs.reserve(m_max_threads);
 
   dberr_t err{DB_SUCCESS};
 
   for (size_t i = 0; i < m_max_threads; ++i) {
     try {
-      m_parallel_read_threads.emplace_back(os_thread_create(
-          parallel_read_thread_key, &Parallel_reader::worker, this, i));
+      auto ptr = UT_NEW_NOKEY(Thread_ctx{i});
+      if (ptr == nullptr) {
+        set_error_state(DB_OUT_OF_MEMORY);
+        return;
+      }
+      m_thread_ctxs.emplace_back(ptr);
+      m_parallel_read_threads.emplace_back(
+          os_thread_create(parallel_read_thread_key, &Parallel_reader::worker,
+                           this, m_thread_ctxs[i]));
       m_parallel_read_threads.back().start();
     } catch (...) {
       err = DB_OUT_OF_RESOURCES;
@@ -1204,7 +1224,7 @@ dberr_t Parallel_reader::add_scan(trx_t *trx,
   // clang-format on
 
   if (scan_ctx.get() == nullptr) {
-    ib::error() << "Out of memory";
+    ib::error(ER_IB_ERR_PARALLEL_READ_OOM) << "Out of memory";
     return (DB_OUT_OF_MEMORY);
   }
 

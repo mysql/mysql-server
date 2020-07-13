@@ -1,0 +1,77 @@
+--source include/have_ndb.inc
+--source include/have_ndb_debug.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+--echo Check behaviour when restoring with remap
+--echo and log content.
+
+--let $backup_type=2
+
+while ($backup_type)
+{
+  --echo Backup type $backup_type
+  create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+
+  insert into t1 (b,c) values 
+    (1, repeat('B', 2000)),
+    (2, repeat('J', 3000)),
+    (3, repeat('C', 3500)),
+    (4, repeat('T', 3300)),
+    (5, repeat('S', 1234)),
+    (6, repeat('G', 3333));
+
+  select a, b, length(c), sha1(c) from t1 order by a;
+
+  --echo Cause backup stall
+  --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+
+  if ($backup_type == 1)
+  {
+    --let $start_backup_extra=SNAPSHOTSTART
+  }
+
+  --source suite/ndb/t/ndb_backup_nowait_start.inc
+
+  insert into t1 (b,c) values
+    (7, repeat('D', 999));
+
+  insert into t1 (a,b,c) values (1000, 1000, repeat('MU', 444));
+
+  delete from t1 where b=4;
+
+  update t1 set a=1010 where a=2;
+
+  select a, b, length(c), sha1(c) from t1 order by a;
+  show create table t1;
+
+  --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+  --source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+  drop table test.t1;
+
+  --echo Restore data
+
+  create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
+
+  --echo Node 1
+  --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+  --echo Node 2
+  --exec $NDB_RESTORE -b $the_backup_id -n 2 -r -x test.t1.a:offset:4000 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+  select a, b, length(c), sha1(c) from t1 order by a;
+
+  --echo Check restored auto-inc metadata :
+  --echo Expect that auto-increment next is 5011, e.g. > highest remapped row that
+  --echo existed at end of backup time
+  --echo (note that SNAPSHOTSTART does not snapshot autoinc metadata)
+  --echo
+  show create table t1;
+
+  drop table test.t1;
+
+  --dec $backup_type
+}
+
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

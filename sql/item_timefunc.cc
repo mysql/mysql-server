@@ -69,9 +69,6 @@
 using std::max;
 using std::min;
 
-/** Day number for Dec 31st, 9999. */
-#define MAX_DAY_NUMBER 3652424L
-
 /**
   Check and adjust a time value with a warning.
 
@@ -172,7 +169,7 @@ static const Date_time_format time_24hrs_format = {{0}, {"%H:%i:%S", 8}};
                             %r) and this parameter is pointer to place where
                             pointer to end of string matching this specifier
                             should be stored.
-  @param date_time_type
+  @param date_time_type "time" or "datetime", used for the error/warning msg
 
   @note
     Possibility to parse strings matching to patterns equivalent to compound
@@ -1610,7 +1607,16 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime,
   longlong value = args[0]->val_int();
   if ((null_value = args[0]->null_value)) return true;
   memset(ltime, 0, sizeof(MYSQL_TIME));
-  get_date_from_daynr((long)value, &ltime->year, &ltime->month, &ltime->day);
+  get_date_from_daynr(value, &ltime->year, &ltime->month, &ltime->day);
+
+  if (check_datetime_range(*ltime)) {
+    // Value is out of range, cannot use our printing functions to output it.
+    push_warning_printf(
+        current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
+        ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), func_name());
+    null_value = true;
+    return true;
+  }
 
   if ((null_value = (fuzzy_date & TIME_NO_ZERO_DATE) &&
                     (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
@@ -2454,7 +2460,14 @@ bool Item_typecast_datetime::get_date(MYSQL_TIME *ltime,
   my_time_flags_t flags = fuzzy_date | TIME_NO_DATE_FRAC_WARN;
   if (current_thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
 
-  if ((null_value = args[0]->get_date(ltime, flags))) return true;
+  if (get_arg0_date(ltime, flags)) {
+    ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
+    if (args[0]->null_value || m_explicit_cast) return true;
+    // The implicit CAST to DATETIME returns 0-date on invalid argument
+    null_value = false;
+    set_zero_time(ltime, ltime->time_type);
+    return false;
+  }
   DBUG_ASSERT(ltime->time_type != MYSQL_TIMESTAMP_TIME);
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;  // In case it was DATE
   int warnings = 0;
@@ -2497,10 +2510,21 @@ void Item_typecast_date::print(const THD *thd, String *str,
 
 bool Item_typecast_date::get_date(MYSQL_TIME *ltime,
                                   my_time_flags_t fuzzy_date) {
-  bool res = get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN);
-  ltime->hour = ltime->minute = ltime->second = ltime->second_part = 0;
+  if (get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN)) {
+    if (args[0]->null_value || m_explicit_cast) return true;
+    // The implicit cast to DATE returns 0-date instead of NULL
+    null_value = false;
+    set_zero_time(ltime, ltime->time_type);
+    return false;
+  }
+
+  ltime->hour = 0;
+  ltime->minute = 0;
+  ltime->second = 0;
+  ltime->second_part = 0;
   ltime->time_type = MYSQL_TIMESTAMP_DATE;
-  return res;
+
+  return false;
 }
 
 /**

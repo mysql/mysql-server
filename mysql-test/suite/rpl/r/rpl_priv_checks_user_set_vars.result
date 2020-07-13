@@ -8,11 +8,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #      `SYSTEM_VARIABLES_ADMIN` due to the set of `pseudo_thread_id`
 # ------------------------------------------------------------------
 #
-include/rpl_use_privilege_db.inc [USE rpl_priv]
 CREATE TABLE t_system (c1 INT);
 INSERT INTO t_system VALUES (1), (2);
 [connection slave]
-include/rpl_use_privilege_db.inc [USE rpl_priv]
 CALL mtr.add_suppression(".*you need .at least one of. the SUPER.* SYSTEM_VARIABLES_ADMIN.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 GRANT REPLICATION_APPLIER, CREATE, INSERT, DROP ON *.* TO 'u1'@'localhost';

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -723,26 +723,6 @@ NdbDictionary::Table::setSingleUserMode(enum NdbDictionary::Table::SingleUserMod
 {
   m_impl.m_single_user_mode = (Uint8)mode;
 }
-
-#if 0
-int
-NdbDictionary::Table::setTablespaceNames(const void *data, Uint32 len)
-{
-  return m_impl.setTablespaceNames(data, len);
-}
-
-const void*
-NdbDictionary::Table::getTablespaceNames()
-{
-  return m_impl.getTablespaceNames();
-}
-
-Uint32
-NdbDictionary::Table::getTablespaceNamesLen() const
-{
-  return m_impl.getTablespaceNamesLen();
-}
-#endif
 
 void
 NdbDictionary::Table::setLinearFlag(Uint32 flag)
@@ -4594,6 +4574,21 @@ void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const
   if (getHashMap(hashmap, &tab) != -1)
   {
     ndbout << "HashMap: " << hashmap.getName() << endl;
+  }
+
+  Uint32 tablespace_id;
+  if (tab.getTablespace(&tablespace_id))
+  {
+    ndbout << "Tablespace id: " << tablespace_id << endl;
+
+    // Look up tablespace by id and show the name
+    // NOTE! The tablespace name of a table object which
+    // has been fetched from NDB is not assigned any value.
+    const NdbDictionary::Tablespace ts = getTablespace(tablespace_id);
+    if (getNdbError().code == 0)
+    {
+      ndbout << "Tablespace: " << ts.getName() << endl;
+    }
   }
 
   ndbout << "-- Attributes --" << endl;

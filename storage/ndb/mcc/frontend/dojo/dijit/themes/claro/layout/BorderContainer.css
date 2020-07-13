@@ -3,7 +3,8 @@
   
   padding: 5px;
 }
-.claro .dijitSplitContainer-child, .claro .dijitBorderContainer-child {
+.claro .dijitSplitContainer-child,
+.claro .dijitBorderContainer-child {
   
   border: 1px #b5bcc7 solid;
 }
@@ -20,10 +21,15 @@
   border: 0;
   padding: 0;
 }
-.claro .dijitSplitterH, .claro .dijitGutterH {
+.claro .dijitSplitterH,
+.claro .dijitGutterH {
   background: none;
   border: 0;
   height: 5px;
+}
+.dj_ios .claro .dijitSplitterH,
+.dj_android .claro .dijitSplitterH {
+  height: 11px;
 }
 .claro .dijitSplitterH .dijitSplitterThumb {
   background: #b5bcc7 none;
@@ -31,11 +37,20 @@
   top: 2px;
   width: 19px;
 }
-.claro .dijitSplitterV, .claro .dijitGutterV {
+.dj_ios .claro .dijitSplitterH .dijitSplitterThumb,
+.dj_android .claro .dijitSplitterH .dijitSplitterThumb {
+  top: 5px;
+}
+.claro .dijitSplitterV,
+.claro .dijitGutterV {
   background: none;
   border: 0;
   width: 5px;
   margin: 0;
+}
+.dj_ios .claro .dijitSplitterV,
+.dj_android .claro .dijitSplitterV {
+  width: 11px;
 }
 .claro .dijitSplitterV .dijitSplitterThumb {
   background: #b5bcc7 none;
@@ -44,7 +59,12 @@
   width: 1px;
   margin: 0;
 }
-.claro .dijitSplitterHHover, .claro .dijitSplitterVHover {
+.dj_ios .claro .dijitSplitterV .dijitSplitterThumb,
+.dj_android .claro .dijitSplitterV .dijitSplitterThumb {
+  left: 5px;
+}
+.claro .dijitSplitterHHover,
+.claro .dijitSplitterVHover {
   font-size: 1px;
   background-color: #cfe5fa;
 }
@@ -60,10 +80,12 @@
   background-image: -o-linear-gradient(top, #ffffff 0px, rgba(255, 255, 255, 0) 50%, #ffffff 100%);
   background-image: linear-gradient(top, #ffffff 0px, rgba(255, 255, 255, 0) 50%, #ffffff 100%);
 }
-.claro .dijitSplitterHHover .dijitSplitterThumb, .claro .dijitSplitterVHover .dijitSplitterThumb {
+.claro .dijitSplitterHHover .dijitSplitterThumb,
+.claro .dijitSplitterVHover .dijitSplitterThumb {
   background: #759dc0 none;
 }
-.claro .dijitSplitterHActive, .claro .dijitSplitterVActive {
+.claro .dijitSplitterHActive,
+.claro .dijitSplitterVActive {
   font-size: 1px;
   background-color: #abd6ff;
   background-image: none;

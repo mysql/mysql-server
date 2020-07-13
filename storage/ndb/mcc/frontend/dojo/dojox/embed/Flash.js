@@ -1,71 +1,69 @@
 //>>built
-define("dojox/embed/Flash",["dojo"],function(_1){
-function _2(_3){
-return String(_3).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
-};
-var _4,_5;
-var _6=9;
-var _7="dojox-embed-flash-",_8=0;
-var _9={expressInstall:false,width:320,height:240,swLiveConnect:"true",allowScriptAccess:"sameDomain",allowNetworking:"all",style:null,redirect:null};
-function _a(_b){
-_b=_1.delegate(_9,_b);
-if(!("path" in _b)){
+define("dojox/embed/Flash",["dojo/_base/lang","dojo/_base/unload","dojo/_base/array","dojo/query","dojo/has","dojo/dom","dojo/on","dojo/window","dojo/string"],function(_1,_2,_3,_4,_5,_6,on,_7,_8){
+var _9,_a;
+var _b=9;
+var _c="dojox-embed-flash-",_d=0;
+var _e={expressInstall:false,width:320,height:240,swLiveConnect:"true",allowScriptAccess:"sameDomain",allowNetworking:"all",style:null,redirect:null};
+function _f(_10){
+_10=_1.delegate(_e,_10);
+if(!("path" in _10)){
 console.error("dojox.embed.Flash(ctor):: no path reference to a Flash movie was provided.");
 return null;
 }
-if(!("id" in _b)){
-_b.id=(_7+_8++);
+if(!("id" in _10)){
+_10.id=(_c+_d++);
 }
-return _b;
+return _10;
 };
-if(_1.isIE){
-_4=function(_c){
-_c=_a(_c);
-if(!_c){
+if(_5("ie")){
+_9=function(_11){
+_11=_f(_11);
+if(!_11){
 return null;
 }
 var p;
-var _d=_c.path;
-if(_c.vars){
+var _12=_11.path;
+if(_11.vars){
 var a=[];
-for(p in _c.vars){
-a.push(encodeURIComponent(p)+"="+encodeURIComponent(_c.vars[p]));
+for(p in _11.vars){
+a.push(encodeURIComponent(p)+"="+encodeURIComponent(_11.vars[p]));
 }
-_c.params.FlashVars=a.join("&");
-delete _c.vars;
+_11.params.FlashVars=a.join("&");
+delete _11.vars;
 }
-var s="<object id=\""+_2(String(_c.id))+"\" "+"classid=\"clsid:D27CDB6E-AE6D-11cf-96B8-444553540000\" "+"width=\""+_2(String(_c.width))+"\" "+"height=\""+_2(String(_c.height))+"\""+((_c.style)?" style=\""+_2(String(_c.style))+"\"":"")+">"+"<param name=\"movie\" value=\""+_2(String(_d))+"\" />";
-if(_c.params){
-for(p in _c.params){
-s+="<param name=\""+_2(p)+"\" value=\""+_2(String(_c.params[p]))+"\" />";
+var s="<object id=\""+_8.escape(String(_11.id))+"\" "+"classid=\"clsid:D27CDB6E-AE6D-11cf-96B8-444553540000\" "+"width=\""+_8.escape(String(_11.width))+"\" "+"height=\""+_8.escape(String(_11.height))+"\""+((_11.style)?" style=\""+_8.escape(String(_11.style))+"\"":"")+">"+"<param name=\"movie\" value=\""+_8.escape(String(_12))+"\" />";
+if(_11.params){
+for(p in _11.params){
+s+="<param name=\""+_8.escape(p)+"\" value=\""+_8.escape(String(_11.params[p]))+"\" />";
 }
 }
 s+="</object>";
-return {id:_c.id,markup:s};
+return {id:_11.id,markup:s};
 };
-_5=(function(){
-var _e=10,_f=null;
-while(!_f&&_e>7){
+_a=(function(){
+var _13=10,_14=null;
+while(!_14&&_13>7){
 try{
-_f=new ActiveXObject("ShockwaveFlash.ShockwaveFlash."+_e--);
+_14=new ActiveXObject("ShockwaveFlash.ShockwaveFlash."+_13--);
 }
 catch(e){
 }
 }
-if(_f){
-var v=_f.GetVariable("$version").split(" ")[1].split(",");
+if(_14){
+var v=_14.GetVariable("$version").split(" ")[1].split(",");
 return {major:(v[0]!=null)?parseInt(v[0]):0,minor:(v[1]!=null)?parseInt(v[1]):0,rev:(v[2]!=null)?parseInt(v[2]):0};
 }
 return {major:0,minor:0,rev:0};
 })();
-_1.addOnUnload(function(){
-var _10=function(){
+_2.addOnWindowUnload(function(){
+console.warn("***************UNLOAD");
+var _15=function(){
 };
-var _11=_1.query("object").reverse().style("display","none").forEach(function(i){
+var _16=_4("object").reverse().style("display","none").forEach(function(i){
 for(var p in i){
-if((p!="FlashVars")&&_1.isFunction(i[p])){
+if((p!="FlashVars")&&typeof i[p]=="function"){
 try{
-i[p]=_10;
+i[p]=_15;
 }
 catch(e){
 }
@@ -74,55 +72,55 @@ catch(e){
 });
 });
 }else{
-_4=function(_12){
-_12=_a(_12);
-if(!_12){
+_9=function(_17){
+_17=_f(_17);
+if(!_17){
 return null;
 }
 var p;
-var _13=_12.path;
-if(_12.vars){
+var _18=_17.path;
+if(_17.vars){
 var a=[];
-for(p in _12.vars){
-a.push(encodeURIComponent(p)+"="+encodeURIComponent(_12.vars[p]));
+for(p in _17.vars){
+a.push(encodeURIComponent(p)+"="+encodeURIComponent(_17.vars[p]));
 }
-_12.params.flashVars=a.join("&");
-delete _12.vars;
+_17.params.flashVars=a.join("&");
+delete _17.vars;
 }
-var s="<embed type=\"application/x-shockwave-flash\" "+"src=\""+_2(String(_13))+"\" "+"id=\""+_2(String(_12.id))+"\" "+"width=\""+_2(String(_12.width))+"\" "+"height=\""+_2(String(_12.height))+"\""+((_12.style)?" style=\""+_2(String(_12.style))+"\" ":"")+"pluginspage=\""+window.location.protocol+"//www.adobe.com/go/getflashplayer\" ";
-if(_12.params){
-for(p in _12.params){
-s+=" "+_2(p)+"=\""+_2(String(_12.params[p]))+"\"";
+var s="<embed type=\"application/x-shockwave-flash\" "+"src=\""+_8.escape(String(_18))+"\" "+"id=\""+_8.escape(String(_17.id))+"\" "+"width=\""+_8.escape(String(_17.width))+"\" "+"height=\""+_8.escape(String(_17.height))+"\""+((_17.style)?" style=\""+_8.escape(String(_17.style))+"\" ":"")+"pluginspage=\""+window.location.protocol+"//www.adobe.com/go/getflashplayer\" ";
+if(_17.params){
+for(p in _17.params){
+s+=" "+_8.escape(p)+"=\""+_8.escape(String(_17.params[p]))+"\"";
 }
 }
 s+=" />";
-return {id:_12.id,markup:s};
+return {id:_17.id,markup:s};
 };
-_5=(function(){
-var _14=navigator.plugins["Shockwave Flash"];
-if(_14&&_14.description){
-var v=_14.description.replace(/([a-zA-Z]|\s)+/,"").replace(/(\s+r|\s+b[0-9]+)/,".").split(".");
+_a=(function(){
+var _19=navigator.plugins["Shockwave Flash"];
+if(_19&&_19.description){
+var v=_19.description.replace(/([a-zA-Z]|\s)+/,"").replace(/(\s+r|\s+b[0-9]+)/,".").split(".");
 return {major:(v[0]!=null)?parseInt(v[0]):0,minor:(v[1]!=null)?parseInt(v[1]):0,rev:(v[2]!=null)?parseInt(v[2]):0};
 }
 return {major:0,minor:0,rev:0};
 })();
 }
-var _15=function(_16,_17){
+var _1a=function(_1b,_1c){
 if(location.href.toLowerCase().indexOf("file://")>-1){
 throw new Error("dojox.embed.Flash can't be run directly from a file. To instatiate the required SWF correctly it must be run from a server, like localHost.");
 }
-this.available=dojox.embed.Flash.available;
-this.minimumVersion=_16.minimumVersion||_6;
+this.available=_a.major;
+this.minimumVersion=_1b.minimumVersion||_b;
 this.id=null;
 this.movie=null;
 this.domNode=null;
-if(_17){
-_17=_1.byId(_17);
+if(_1c){
+_1c=_6.byId(_1c);
 }
 setTimeout(_1.hitch(this,function(){
-if(_16.expressInstall||this.available&&this.available>=this.minimumVersion){
-if(_16&&_17){
-this.init(_16,_17);
+if(_1b.expressInstall||this.available&&this.available>=this.minimumVersion){
+if(_1b&&_1c){
+this.init(_1b,_1c);
 }else{
 this.onError("embed.Flash was not provided with the proper arguments.");
 }
@@ -135,8 +133,8 @@ this.onError("Flash version detected: "+this.available+" is out of date. Minimum
 }
 }),100);
 };
-_1.extend(_15,{onReady:function(_18){
-},onLoad:function(_19){
+_1.extend(_1a,{onReady:function(_1d){
+},onLoad:function(_1e){
 },onError:function(msg){
 },_onload:function(){
 clearInterval(this._poller);
@@ -144,22 +142,22 @@ delete this._poller;
 delete this._pollCount;
 delete this._pollMax;
 this.onLoad(this.movie);
-},init:function(_1a,_1b){
+},init:function(_1f,_20){
 this.destroy();
-_1b=_1.byId(_1b||this.domNode);
-if(!_1b){
+_20=_6.byId(_20||this.domNode);
+if(!_20){
 throw new Error("dojox.embed.Flash: no domNode reference has been passed.");
 }
-var p=0,_1c=false;
+var p=0,_21=false;
 this._poller=null;
 this._pollCount=0;
 this._pollMax=15;
 this.pollTime=100;
-if(dojox.embed.Flash.initialized){
-this.id=dojox.embed.Flash.place(_1a,_1b);
-this.domNode=_1b;
+if(_1a.initialized){
+this.id=_1a.place(_1f,_20);
+this.domNode=_20;
 setTimeout(_1.hitch(this,function(){
-this.movie=this.byId(this.id,_1a.doc);
+this.movie=this.byId(this.id,_1f.doc);
 this.onReady(this.movie);
 this._poller=setInterval(_1.hitch(this,function(){
 try{
@@ -190,63 +188,63 @@ this.id=this.movie=this.domNode=null;
 if(!this.movie){
 return;
 }
-var _1d=_1.delegate({id:true,movie:true,domNode:true,onReady:true,onLoad:true});
+var _22=_1.delegate({id:true,movie:true,domNode:true,onReady:true,onLoad:true});
 for(var p in this){
-if(!_1d[p]){
+if(!_22[p]){
 delete this[p];
 }
 }
 if(this._poller){
-_1.connect(this,"onLoad",this,"_destroy");
+on(this,"Load",this,"_destroy");
 }else{
 this._destroy();
 }
-},byId:function(_1e,doc){
+},byId:function(_23,doc){
 doc=doc||document;
-if(doc.embeds[_1e]){
-return doc.embeds[_1e];
+if(doc.embeds[_23]){
+return doc.embeds[_23];
 }
-if(doc[_1e]){
-return doc[_1e];
+if(doc[_23]){
+return doc[_23];
 }
-if(window[_1e]){
-return window[_1e];
+if(window[_23]){
+return window[_23];
 }
-if(document[_1e]){
-return document[_1e];
+if(document[_23]){
+return document[_23];
 }
 return null;
 }});
-_1.mixin(_15,{minSupported:8,available:_5.major,supported:(_5.major>=_5.required),minimumRequired:_5.required,version:_5,initialized:false,onInitialize:function(){
-_15.initialized=true;
-},__ie_markup__:function(_1f){
-return _4(_1f);
-},proxy:function(obj,_20){
-_1.forEach((_1.isArray(_20)?_20:[_20]),function(_21){
-this[_21]=_1.hitch(this,function(){
+_1.mixin(_1a,{minSupported:8,available:_a.major,supported:(_a.major>=_a.required),minimumRequired:_a.required,version:_a,initialized:false,onInitialize:function(){
+_1a.initialized=true;
+},__ie_markup__:function(_24){
+return _9(_24);
+},proxy:function(obj,_25){
+_3.forEach((_25 instanceof Array?_25:[_25]),function(_26){
+this[_26]=_1.hitch(this,function(){
 return (function(){
-return eval(this.movie.CallFunction("<invoke name=\""+_21+"\" returntype=\"javascript\">"+"<arguments>"+_1.map(arguments,function(_22){
-return __flash__toXML(_22);
+return eval(this.movie.CallFunction("<invoke name=\""+_26+"\" returntype=\"javascript\">"+"<arguments>"+_3.map(arguments,function(_27){
+return __flash__toXML(_27);
 }).join("")+"</arguments>"+"</invoke>"));
 }).apply(this,arguments||[]);
 });
 },obj);
 }});
-_15.place=function(_23,_24){
-var o=_4(_23);
-_24=_1.byId(_24);
-if(!_24){
-_24=_1.doc.createElement("div");
-_24.id=o.id+"-container";
-_1.body().appendChild(_24);
+_1a.place=function(_28,_29){
+var o=_9(_28);
+_29=_6.byId(_29);
+if(!_29){
+_29=_7.doc.createElement("div");
+_29.id=o.id+"-container";
+_7.body().appendChild(_29);
 }
 if(o){
-_24.innerHTML=o.markup;
+_29.innerHTML=o.markup;
 return o.id;
 }
 return null;
 };
-_15.onInitialize();
-_1.setObject("dojox.embed.Flash",_15);
-return _15;
+_1a.onInitialize();
+_1.setObject("dojox.embed.Flash",_1a);
+return _1a;
 });

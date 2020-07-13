@@ -1,9 +1,74 @@
-define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", 
-		"./Base",
-		"../scaler/primitive", "dojox/gfx/fx"],
-	function(lang, declare, hub, Base, primitive, fx){
+define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", "dojo/has",
+		"./Base", "../scaler/primitive", "dojox/gfx", "dojox/gfx/fx", "dojox/lang/utils"], 
+	function(lang, declare, hub, has, Base, primitive, gfx, fx, du){
+	/*=====
+	declare("dojox.charting.plot2d.__CartesianCtorArgs", dojox.charting.plot2d.__PlotCtorArgs, {
+		// hAxis: String?
+		//		The horizontal axis name.
+		hAxis: "x",
+
+		// vAxis: String?
+		//		The vertical axis name
+		vAxis: "y",
+
+		// labels: Boolean?
+		//		For plots that support labels, whether or not to draw labels for each data item.  Default is false.
+		labels:			false,
+
+		// fixed: Boolean?
+        //		Whether a fixed precision must be applied to data values for display. Default is true.
+		fixed:			true,
+
+		// precision: Number?
+        //		The precision at which to round data values for display. Default is 0.
+		precision:		1,
+
+		// labelOffset: Number?
+		//		The amount in pixels by which to offset labels when using "outside" labelStyle.  Default is 10.
+		labelOffset:	10,
+
+		// labelStyle: String?
+		//		Options as to where to draw labels.  This must be either "inside" or "outside". By default
+		//      the labels are drawn "inside" the shape representing the data point (a column rectangle for a Columns plot
+		//      or a marker for a Line plot for instance). When "outside" is used the labels are drawn above the data point shape.
+		labelStyle:		"inside",
+
+		// htmlLabels: Boolean?
+		//		Whether or not to use HTML to render slice labels. Default is true.
+		htmlLabels:		true,
+
+		// omitLabels: Boolean?
+		//		Whether labels that do not fit in an item render are omitted or not.	This applies only when labelStyle
+		//		is "inside".	Default is false.
+		omitLabels: true,
+
+		// labelFunc: Function?
+		//		An optional function to use to compute label text. It takes precedence over
+		//		the default text when available.
+		//	|		function labelFunc(value, fixed, precision) {}
+		//		`value` is the data value to display
+		//		`fixed` is true if fixed precision must be applied.
+		//		`precision` is the requested precision to be applied.
+		labelFunc: null
+	});
+	=====*/
+
+	var alwaysFalse = function(){ return false; }
 
 	return declare("dojox.charting.plot2d.CartesianBase", Base, {
+		baseParams: {
+			hAxis: 			"x",
+			vAxis: 			"y",
+			labels:			false,
+			labelOffset:    10,
+			fixed:			true,
+			precision:		1,
+			labelStyle:		"inside",
+			htmlLabels:		true,		// use HTML to draw labels
+			omitLabels:		true,
+			labelFunc:		null
+        },
+
 		// summary:
 		//		Base class for cartesian plot types.
 		constructor: function(chart, kwArgs){
@@ -11,12 +76,17 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 			//		Create a cartesian base plot for cartesian charts.
 			// chart: dojox/chart/Chart
 			//		The chart this plot belongs to.
-			// kwArgs: dojox.charting.plot2d.__PlotCtorArgs?
+			// kwArgs: dojox.charting.plot2d.__CartesianCtorArgs?
 			//		An optional arguments object to help define the plot.
 			this.axes = ["hAxis", "vAxis"];
-			this.zoom = null,
+			this.zoom = null;
 			this.zoomQueue = [];	// zooming action task queue
 			this.lastWindow = {vscale: 1, hscale: 1, xoffset: 0, yoffset: 0};
+			this.hAxis = (kwArgs && kwArgs.hAxis) || "x";
+			this.vAxis = (kwArgs && kwArgs.vAxis) || "y";
+			this.series = [];
+			this.opt = lang.clone(this.baseParams);
+			du.updateWithObject(this.opt, kwArgs);
 		},
 		clear: function(){
 			// summary:
@@ -28,8 +98,24 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 			this._vAxis = null;
 			return this;	//	dojox/charting/plot2d/CartesianBase
 		},
-		cleanGroup: function(creator){
-			this.inherited(arguments, [creator || this.chart.plotGroup]);
+		cleanGroup: function(creator, noClip){
+			this.inherited(arguments);
+			if(!noClip && this.chart._nativeClip){
+				var offsets = this.chart.offsets, dim = this.chart.dim;
+				var w = Math.max(0, dim.width  - offsets.l - offsets.r),
+					h = Math.max(0, dim.height - offsets.t - offsets.b);
+				this.group.setClip({ x: offsets.l, y: offsets.t, width: w, height: h });
+				if(!this._clippedGroup){
+					this._clippedGroup = this.group.createGroup();
+				}
+			}
+		},
+		purgeGroup: function(){
+			this.inherited(arguments);
+			this._clippedGroup = null;
+		},
+		getGroup: function(){
+			return this._clippedGroup || this.group;
 		},
 		setAxis: function(axis){
 			// summary:
@@ -102,6 +188,25 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 			//		The state of the plot.
 			return this.dirty || this._hAxis && this._hAxis.dirty || this._vAxis && this._vAxis.dirty;	//	Boolean
 		},
+		createLabel: function(group, value, bbox, theme){
+			if(this.opt.labels){
+				var x, y, label = this.opt.labelFunc?this.opt.labelFunc.apply(this, [value, this.opt.fixed, this.opt.precision]):
+					this._getLabel(isNaN(value.y)?value:value.y);
+				if(this.opt.labelStyle == "inside"){
+					var lbox = gfx._base._getTextBox(label, { font: theme.series.font } );
+					x = bbox.x + bbox.width / 2;
+					y = bbox.y + bbox.height / 2 + lbox.h / 4;
+					if(lbox.w > bbox.width || lbox.h > bbox.height){
+						return;
+					}
+
+				}else{
+					x = bbox.x + bbox.width / 2;
+					y = bbox.y - this.opt.labelOffset;
+				}
+				this.renderLabel(group, x, y, label, theme, this.opt.labelStyle == "inside");
+			}
+		},
 		performZoom: function(dim, offsets){
 			// summary:
 			//		Create/alter any zooming windows on this plot.
@@ -128,7 +233,7 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 				rYOffset = (yOffset - this.lastWindow.yoffset)/
 					((this.lastWindow.vscale == 1)? vs : this.lastWindow.vscale),
 
-				shape = this.group,
+				shape = this.getGroup(),
 				anim = fx.animateTransform(lang.delegate({
 					shape: shape,
 					duration: 1200,
@@ -182,6 +287,17 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 				this._vScaler = primitive.buildScaler(stats.vmin, stats.vmax, dim.height);
 			}
 			return this;	//	dojox/charting/plot2d/CartesianBase
-		}
+		},
+		isNullValue: function(value){
+			if(value === null || typeof value == "undefined"){
+				return true;
+			}
+			var h = this._hAxis ? this._hAxis.isNullValue : alwaysFalse,
+				v = this._vAxis ? this._vAxis.isNullValue : alwaysFalse;
+			if(typeof value == "number"){
+				return h(1) || v(value);
+			}
+			return h(isNaN(value.x) ? 1 : value.x) || value.y === null || v(value.y);
+		}		
 	});
 });

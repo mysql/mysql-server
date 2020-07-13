@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -281,7 +281,7 @@ static bool rtr_pcur_getnext_from_path(
       if (!srv_read_only_mode && mode != PAGE_CUR_RTREE_INSERT &&
           mode != PAGE_CUR_RTREE_LOCATE) {
         ut_ad(rtr_info->thr);
-        lock_place_prdt_page_lock(space, next_page_no, index, rtr_info->thr);
+        lock_place_prdt_page_lock({space, next_page_no}, index, rtr_info->thr);
       }
       new_split = true;
 #ifdef UNIV_GIS_DEBUG
@@ -1123,10 +1123,9 @@ void rtr_check_discard_page(
 
   mutex_exit(&index->rtr_track->rtr_active_mutex);
 
-  lock_mutex_enter();
+  locksys::Shard_latch_guard guard{block->get_page_id()};
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_hash);
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
-  lock_mutex_exit();
 }
 
 /** Restore the stored position of a persistent cursor bufferfixing the page */
@@ -1661,7 +1660,7 @@ bool rtr_cur_search_with_match(
           if (!srv_read_only_mode && (rtr_info->need_page_lock || !is_loc)) {
             /* Lock the page, preventing it
             from being shrunk */
-            lock_place_prdt_page_lock(space, page_no, index, rtr_info->thr);
+            lock_place_prdt_page_lock({space, page_no}, index, rtr_info->thr);
           }
         } else {
           ut_ad(orig_mode != PAGE_CUR_RTREE_LOCATE);

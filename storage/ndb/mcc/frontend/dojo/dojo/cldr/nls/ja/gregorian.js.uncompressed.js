@@ -1,6 +1,7 @@
 define(
 "dojo/cldr/nls/ja/gregorian", //begin v1.x content
 {
+	"dateFormatItem-Ehm": "aK:mm (E)",
 	"days-standAlone-short": [
 		"日",
 		"月",
@@ -10,6 +11,21 @@ define(
 		"金",
 		"土"
 	],
+	"months-format-narrow": [
+		"1",
+		"2",
+		"3",
+		"4",
+		"5",
+		"6",
+		"7",
+		"8",
+		"9",
+		"10",
+		"11",
+		"12"
+	],
+	"field-second-relative+0": "今すぐ",
 	"quarters-standAlone-narrow": [
 		"1",
 		"2",
@@ -17,13 +33,20 @@ define(
 		"4"
 	],
 	"field-weekday": "曜日",
-	"dateFormatItem-yQQQ": "yQQQ",
+	"dateFormatItem-yQQQ": "y/QQQ",
 	"dateFormatItem-yMEd": "y/M/d(E)",
+	"field-wed-relative+0": "今週の水曜日",
+	"dateFormatItem-GyMMMEd": "Gy年M月d日(E)",
 	"dateFormatItem-MMMEd": "M月d日(E)",
+	"field-wed-relative+1": "来週の水曜日",
 	"eraNarrow": [
 		"BC",
-		"AD"
+		"BCE",
+		"AD",
+		"CE"
 	],
+	"dateFormatItem-yMM": "y/MM",
+	"field-tue-relative+-1": "先週の火曜日",
 	"days-format-short": [
 		"日",
 		"月",
@@ -34,6 +57,8 @@ define(
 		"土"
 	],
 	"dateFormat-long": "y年M月d日",
+	"field-fri-relative+-1": "先週の金曜日",
+	"field-wed-relative+-1": "先週の水曜日",
 	"months-format-wide": [
 		"1月",
 		"2月",
@@ -51,11 +76,12 @@ define(
 	"dateTimeFormat-medium": "{1} {0}",
 	"dayPeriods-format-wide-pm": "午後",
 	"dateFormat-full": "y年M月d日EEEE",
+	"field-thu-relative+-1": "先週の木曜日",
 	"dateFormatItem-Md": "M/d",
 	"dayPeriods-format-wide-noon": "正午",
 	"dateFormatItem-yMd": "y/M/d",
-	"field-era": "時代",
 	"dateFormatItem-yM": "y/M",
+	"field-era": "時代",
 	"months-standAlone-wide": [
 		"1月",
 		"2月",
@@ -77,12 +103,12 @@ define(
 		"第3四半期",
 		"第4四半期"
 	],
+	"dateFormatItem-MEEEEd": "M/dEEEE",
 	"timeFormat-long": "H:mm:ss z",
-	"field-year": "年",
 	"dateFormatItem-yMMM": "y年M月",
-	"dateFormatItem-yQ": "y/Q",
+	"dateFormatItem-yQQQQ": "yQQQQ",
+	"field-year": "年",
 	"field-hour": "時",
-	"dateFormatItem-MMdd": "MM/dd",
 	"months-format-abbr": [
 		"1月",
 		"2月",
@@ -97,11 +123,16 @@ define(
 		"11月",
 		"12月"
 	],
-	"dateFormatItem-yyQ": "yy/Q",
+	"field-sat-relative+0": "今週の土曜日",
+	"field-sat-relative+1": "来週の土曜日",
 	"timeFormat-full": "H時mm分ss秒 zzzz",
+	"dateFormatItem-yMEEEEd": "y/M/dEEEE",
 	"field-day-relative+0": "今日",
 	"field-day-relative+1": "明日",
+	"field-thu-relative+0": "今週の木曜日",
+	"dateFormatItem-GyMMMd": "Gy年M月d日",
 	"field-day-relative+2": "明後日",
+	"field-thu-relative+1": "来週の木曜日",
 	"dateFormatItem-H": "H時",
 	"months-standAlone-abbr": [
 		"1月",
@@ -118,10 +149,10 @@ define(
 		"12月"
 	],
 	"quarters-format-abbr": [
-		"1Q",
-		"2Q",
-		"3Q",
-		"4Q"
+		"Q1",
+		"Q2",
+		"Q3",
+		"Q4"
 	],
 	"quarters-standAlone-wide": [
 		"第1四半期",
@@ -129,6 +160,7 @@ define(
 		"第3四半期",
 		"第4四半期"
 	],
+	"dateFormatItem-Gy": "Gy年",
 	"dateFormatItem-M": "M月",
 	"days-standAlone-wide": [
 		"日曜日",
@@ -140,8 +172,8 @@ define(
 		"土曜日"
 	],
 	"dateFormatItem-yMMMEEEEd": "y年M月d日EEEE",
-	"dateFormatItem-yyMMM": "y年M月",
 	"timeFormat-medium": "H:mm:ss",
+	"field-sun-relative+0": "今週の日曜日",
 	"dateFormatItem-Hm": "H:mm",
 	"quarters-standAlone-abbr": [
 		"Q1",
@@ -149,9 +181,10 @@ define(
 		"Q3",
 		"Q4"
 	],
+	"field-sun-relative+1": "来週の日曜日",
 	"eraAbbr": [
-		"BC",
-		"AD"
+		"紀元前",
+		"西暦"
 	],
 	"field-minute": "分",
 	"field-dayperiod": "午前/午後",
@@ -175,11 +208,14 @@ define(
 	"field-day-relative+-1": "昨日",
 	"dateFormatItem-h": "aK時",
 	"dateTimeFormat-long": "{1} {0}",
+	"dayPeriods-format-narrow-am": "午前",
 	"field-day-relative+-2": "一昨日",
 	"dateFormatItem-MMMd": "M月d日",
 	"dateFormatItem-EEEEd": "d日EEEE",
 	"dateFormatItem-MEd": "M/d(E)",
 	"dateTimeFormat-full": "{1} {0}",
+	"field-fri-relative+0": "今週の金曜日",
+	"field-fri-relative+1": "来週の金曜日",
 	"field-day": "日",
 	"days-format-wide": [
 		"日曜日",
@@ -191,7 +227,6 @@ define(
 		"土曜日"
 	],
 	"field-zone": "タイムゾーン",
-	"dateFormatItem-yyyyMM": "yyyy/MM",
 	"dateFormatItem-y": "y年",
 	"months-standAlone-narrow": [
 		"1",
@@ -210,7 +245,7 @@ define(
 	"field-year-relative+-1": "昨年",
 	"field-month-relative+-1": "先月",
 	"dateFormatItem-hm": "aK:mm",
-	"dateFormatItem-GGGGyMd": "GGGGy年M月d日",
+	"dateFormatItem-GyMMMEEEEd": "Gy年M月d日EEEE",
 	"days-format-abbr": [
 		"日",
 		"月",
@@ -220,11 +255,11 @@ define(
 		"金",
 		"土"
 	],
-	"dateFormatItem-yMMMd": "y年M月d日",
 	"eraNames": [
 		"紀元前",
 		"西暦"
 	],
+	"dateFormatItem-yMMMd": "y年M月d日",
 	"days-format-narrow": [
 		"日",
 		"月",
@@ -235,7 +270,6 @@ define(
 		"土"
 	],
 	"dateFormatItem-MMMEEEEd": "M月d日EEEE",
-	"field-month": "月",
 	"days-standAlone-narrow": [
 		"日",
 		"月",
@@ -246,22 +280,36 @@ define(
 		"土"
 	],
 	"dateFormatItem-MMM": "M月",
+	"field-month": "月",
+	"field-tue-relative+0": "今週の火曜日",
+	"field-tue-relative+1": "来週の火曜日",
 	"dayPeriods-format-wide-am": "午前",
-	"dateFormat-short": "yyyy/MM/dd",
+	"dateFormatItem-EHm": "H:mm (E)",
+	"field-mon-relative+0": "今週の月曜日",
+	"field-mon-relative+1": "来週の月曜日",
+	"dateFormat-short": "y年M月d日",
+	"dateFormatItem-EHms": "H:mm:ss (E)",
+	"dateFormatItem-Ehms": "aK:mm:ss (E)",
+	"dayPeriods-format-narrow-noon": "正午",
 	"field-second": "秒",
+	"field-sat-relative+-1": "先週の土曜日",
 	"dateFormatItem-yMMMEd": "y年M月d日(E)",
+	"field-sun-relative+-1": "先週の日曜日",
 	"field-month-relative+0": "今月",
 	"field-month-relative+1": "翌月",
 	"dateFormatItem-Ed": "d日(E)",
+	"dateTimeFormats-appendItem-Timezone": "{0} {1}",
 	"field-week": "週",
-	"dateFormat-medium": "yyyy/MM/dd",
+	"dateFormat-medium": "y年M月d日",
 	"field-year-relative+0": "今年",
 	"field-week-relative+-1": "先週",
 	"field-year-relative+1": "翌年",
+	"dayPeriods-format-narrow-pm": "午後",
 	"dateTimeFormat-short": "{1} {0}",
 	"dateFormatItem-Hms": "H:mm:ss",
 	"dateFormatItem-hms": "aK:mm:ss",
-	"dateFormatItem-yyyy": "y年",
+	"dateFormatItem-GyMMM": "Gy年M月",
+	"field-mon-relative+-1": "先週の月曜日",
 	"field-week-relative+0": "今週",
 	"field-week-relative+1": "翌週"
 }

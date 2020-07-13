@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class Table_ident;
 enum class Acl_type;
 enum class enum_ha_read_modes;
 enum class enum_jt_column;
-enum class enum_jtc_on : uint16;
+enum class Json_on_response_type : uint16;
 enum class enum_key_algorithm;
 enum class partition_type;
 struct Alter_tablespace_parse_context;
@@ -229,7 +229,15 @@ struct Value_or_default {
   T value;  ///< undefined if is_default is true
 };
 
-enum class Explain_format_type { TRADITIONAL, JSON, TREE, TREE_WITH_EXECUTE };
+enum class Explain_format_type {
+  // DEFAULT will be changed during parsing to TRADITIONAL
+  // for regular EXPLAIN, or TREE for EXPLAIN ANALYZE.
+  DEFAULT,
+  TRADITIONAL,
+  JSON,
+  TREE,
+  TREE_WITH_EXECUTE
+};
 
 // Compatibility with Bison 2.3:
 #ifndef YYSTYPE_IS_DECLARED
@@ -397,7 +405,7 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
-  enum alter_instance_action_enum alter_instance_action;
+  class PT_alter_instance *alter_instance_cmd;
   class PT_create_index_stmt *create_index_stmt;
   class PT_table_constraint_def *table_constraint_def;
   List<PT_key_part_specification> *index_column_list;
@@ -485,14 +493,15 @@ union YYSTYPE {
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
   Mem_root_array<PT_json_table_column *> *jtc_list;
-  struct jt_on_response {
-    enum_jtc_on type;
+  // ON EMPTY/ON ERROR response for JSON_TABLE and JSON_VALUE.
+  struct Json_on_response {
+    Json_on_response_type type;
     Item *default_string;
-  } jt_on_response;
+  } json_on_response;
   struct {
-    struct jt_on_response error;
-    struct jt_on_response empty;
-  } jt_on_error_or_empty;
+    Json_on_response error;
+    Json_on_response empty;
+  } json_on_error_or_empty;
   PT_json_table_column *jt_column;
   enum_jt_column jt_column_type;
   struct {

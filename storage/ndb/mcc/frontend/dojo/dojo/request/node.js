@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -55,6 +55,9 @@ if(_17){
 clearTimeout(_17);
 }
 _f.text=_15.join("");
+if(!_2.checkStatus(_f.status)){
+def.reject({message:"http response code "+_f.status,response:_f});
+}
 try{
 _3(_f);
 def.resolve(_f);

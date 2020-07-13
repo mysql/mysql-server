@@ -462,7 +462,7 @@ define("dojox/sketch/Figure", [
 		var obj=dojox.xml.DomParser.parse(text);
 		var node=this.node;
 		this.load(obj,node);
-		//this.zoom(this.zoomFactor*100); //zoom to orignal scale
+		//this.zoom(this.zoomFactor*100); //zoom to original scale
 	};
 	p.load=function(obj, n){
 		//	create from pseudo-DOM

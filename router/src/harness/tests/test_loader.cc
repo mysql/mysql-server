@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -133,8 +133,8 @@ const char *good_cfgs[] = {
     "tests-good-2.cfg",
 };
 
-INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest,
-                        ::testing::ValuesIn(good_cfgs));
+INSTANTIATE_TEST_SUITE_P(TestLoaderGood, LoaderReadTest,
+                         ::testing::ValuesIn(good_cfgs));
 
 TEST_P(LoaderTest, BadSection) {
   EXPECT_THROW(loader->get_config().read(Path(test_data_dir_).join(GetParam())),
@@ -190,8 +190,8 @@ const char *bad_cfgs[] = {
     "tests-bad-3.cfg",
 };
 
-INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest,
-                        ::testing::ValuesIn(bad_cfgs));
+INSTANTIATE_TEST_SUITE_P(TestLoaderBad, LoaderTest,
+                         ::testing::ValuesIn(bad_cfgs));
 
 /*
    @test arch-descriptor has 3 slashes

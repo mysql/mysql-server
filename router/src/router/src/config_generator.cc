@@ -490,6 +490,12 @@ void ConfigGenerator::connect_to_metadata_server(
     throw std::runtime_error("Unable to connect to the metadata server: "s +
                              e.what());
   }
+
+  const auto result = mysqlrouter::setup_metadata_session(*mysql_);
+  if (!result) {
+    throw std::runtime_error("Failed setting up a metadata session: "s +
+                             result.error().c_str());
+  }
 }
 
 void ConfigGenerator::init_gr_data(const URI &u,
@@ -948,6 +954,8 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   }
   if (user_options.find("logdir") != user_options.end())
     options.override_logdir = user_options.at("logdir");
+  if (user_options.find("filename") != user_options.end())
+    options.override_logfilename = user_options.at("filename");
   if (user_options.find("rundir") != user_options.end())
     options.override_rundir = user_options.at("rundir");
   if (user_options.find("datadir") != user_options.end())
@@ -1061,7 +1069,6 @@ class ClusterAwareDecorator {
  protected:
   void connect(MySQLSession &session, const std::string &host,
                const unsigned port);
-  void setup_session(MySQLSession &session);
 
   ClusterMetadata &metadata_;
   const std::string &cluster_initial_username_;
@@ -1079,15 +1086,6 @@ void ClusterAwareDecorator::connect(MySQLSession &session,
   try {
     session.connect(host, port, cluster_initial_username_,
                     cluster_initial_password_, "", "", connection_timeout_);
-  } catch (const std::exception &) {
-    if (session.is_connected()) session.disconnect();
-    throw;
-  }
-}
-
-void ClusterAwareDecorator::setup_session(MySQLSession &session) {
-  try {
-    return mysqlrouter::setup_metadata_session(session);
   } catch (const std::exception &) {
     if (session.is_connected()) session.disconnect();
     throw;
@@ -1207,11 +1205,12 @@ R ClusterAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
         continue;
       }
 
-      try {
-        setup_session(metadata_.get_session());
-      } catch (const std::exception &inner_e) {
+      const auto result =
+          mysqlrouter::setup_metadata_session(metadata_.get_session());
+      if (!result) {
+        metadata_.get_session().disconnect();
         log_info("Failed setting up a metadata session %s:%ld: %s, trying next",
-                 host.c_str(), port, inner_e.what());
+                 host.c_str(), port, result.error().c_str());
       }
 
       // if this fails, we should just skip it and go to the next
@@ -1239,9 +1238,11 @@ void ConfigGenerator::set_log_file_permissions(
   std::string logdir = (!options.override_logdir.empty())
                            ? options.override_logdir
                            : default_paths.at("logging_folder");
+  std::string logfilename = (!options.override_logfilename.empty())
+                                ? options.override_logfilename
+                                : mysql_harness::logging::kDefaultLogFilename;
   if (!logdir.empty()) {
-    auto log_path =
-        mysql_harness::Path::make_path(logdir, "mysqlrouter", "log");
+    auto log_path = mysql_harness::Path(logdir).join(logfilename);
     auto log_file = log_path.str();
     std::fstream f;
     f.open(log_file, std::ios::out);
@@ -1929,8 +1930,10 @@ void ConfigGenerator::create_config(
 
   config_file << "\n"
               << "[" << mysql_harness::logging::kConfigSectionLogger << "]\n"
-              << mysql_harness::logging::kConfigOptionLogLevel << " = INFO\n"
-              << "\n";
+              << mysql_harness::logging::kConfigOptionLogLevel << " = INFO\n";
+  if (!options.override_logfilename.empty())
+    config_file << "filename=" << options.override_logfilename << "\n";
+  config_file << "\n";
 
   const auto &metadata_key = metadata_cluster;
   auto ttl = options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON

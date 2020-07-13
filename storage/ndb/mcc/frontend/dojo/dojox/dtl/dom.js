@@ -65,7 +65,7 @@ for(var k=0,kl=_1c.length;k<kl;k++){
 var _1e="";
 for(var p=2,pl=_13.length;p<pl;p++){
 if(p==2){
-_1e+="<"+tag+" dtlinstruction=\"{% "+_1c[k].replace("\"","\\\"")+" %}\">";
+_1e+="<"+tag+" dtlinstruction=\"{% "+_1c[k].replace(/"/g,"\\\"")+" %}\">";
 }else{
 if(tag==_13[p]){
 continue;
@@ -186,9 +186,6 @@ _2f=_24.className||_2f;
 if(key=="for"){
 _2f=_24.htmlFor||_2f;
 }else{
-if(key=="value"&&_24.value==_24.innerHTML){
-continue;
-}else{
 if(_24.getAttribute){
 _2f=_24.getAttribute(key,2)||_2f;
 if(key=="href"||key=="src"){
@@ -212,7 +209,6 @@ key=key.slice(1);
 }else{
 if(this._uppers[key]&&_1.trim(_2f)){
 _2e=this._uppers[key];
-}
 }
 }
 }
@@ -720,7 +716,7 @@ var _86=this.nodelist.dummyRender(_84);
 if(dd.BOOLS[key]){
 _86=!(_86=="false"||_86=="undefined"||!_86);
 }
-if(_86!==this.contents){
+if(_86!==this.contents||_86===""){
 this.contents=_86;
 return _85.setAttribute(key,_86);
 }
@@ -854,5 +850,5 @@ return new dd._DomTextNode(_9b||"");
 },getTemplate:function(loc){
 return new dd.DomTemplate(_b.getTemplate(loc));
 }});
-return dojox.dtl.dom;
+return _b;
 });

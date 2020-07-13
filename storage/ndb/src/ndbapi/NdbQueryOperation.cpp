@@ -63,6 +63,12 @@ static const int enforcedBatchSize = 0;
 // to be more adaptive based on query type
 static const bool useDoubleBuffers = true;
 
+/** Set to true to trace incoming signals.*/
+static const bool traceSignals = false;
+
+/* A 'void' index for a tuple in internal parent / child correlation structs .*/
+static const Uint16 tupleNotFound = 0xffff;
+
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_TupleNotFound = 626;
 static const int Err_FalsePredicate = 899;
@@ -81,12 +87,6 @@ static const int Err_DifferentTabForKeyRecAndAttrRec = 4287;
 static const int Err_KeyIsNULL = 4316;
 static const int Err_FinaliseNotCalled = 4519;
 static const int Err_InterpretedCodeWrongTab = 4524;
-
-/* A 'void' index for a tuple in internal parent / child correlation structs .*/
-static const Uint16 tupleNotFound = 0xffff;
-
-/** Set to true to trace incomming signals.*/
-static const bool traceSignals = false;
 
 enum
 {
@@ -523,8 +523,12 @@ public:
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
+  /**
+   * The internalOpNo is the identifier for this OpNo used in the
+   * 'matchingChild' logic in ::prepareResultSet().
+   */
   Uint32 getInternalOpNo() const
-  { return m_operation.getInternalOpNo(); }
+  { return m_internalOpNo; }
 
   /**
    * Returns true if this result stream holds the last batch of a sub scan.
@@ -533,13 +537,7 @@ public:
    */
   bool isSubScanComplete(SpjTreeNodeMask remainingScans) const
   { 
-    /**
-     * Find the node number seen by the SPJ block. Since a unique index
-     * operation will have two distincts nodes in the tree used by the
-     * SPJ block, this number may be different from 'opNo'.
-     */
-    const Uint32 internalOpNo = getInternalOpNo();
-    return !remainingScans.get(internalOpNo);
+    return !remainingScans.get(m_internalOpNo);
   }
 
   bool isScanQuery() const
@@ -550,9 +548,10 @@ public:
 
   bool isInnerJoin() const
   { return (m_properties & Is_Inner_Join); }
-
   bool isOuterJoin() const
   { return !(m_properties & Is_Inner_Join); }
+  bool isAntiJoin() const
+  { return (m_properties & Is_Anti_Join); }
 
   bool isFirstInner() const
   { return (m_properties & Is_First_Inner); }
@@ -595,30 +594,19 @@ public:
     Uint16 m_hash_next; // 'next' index matching 
 
     /**
-     * If the n'th bit is set, then a matching tuple for the n'th child has been seen.
-     * The information is aggregated by the ancestors as well, such that the topmost
-     * node in the tree can check that there are matching childs for all descendants.
-     * When NULL extended rows are allowed to be produced, 'matching bits' are set
-     * even for these
+     * m_matchingChild keep track of current and previous matches found for
+     * this tuple in the TupleSet:
      *
-     * Bit 0 has a special usage as a 'skip bit' for the row. If set the row
-     * should be ignored.
+     * Bit 0 is the 'skip' bit for the current row. If set the row should be
+     * ignored when preparing the result sets and presenting the results rows
+     * through the API
      *
      * Note that there are no children with an m_internalOpNo of 0, so using
      * bit-0 as a skip bit should not interfere with matching of child rows.
      *
-     * There is also a special skip-firstMatch usage of m_matchingChild, where
-     * all bits are set. (Also include the normal bit-0 skip). Using the normal
-     * interpretation of the bits, that translate into: 'Skip the root tuple itself,
-     * even if all 31 children had a match'.
-     * That is an impossible contradiction of the join semantics,
-     * so this special all-set bit pattern could not happen elsewhere.
-     */
-    SpjTreeNodeMask m_hasMatchingChild;
-
-    /**
-     * m_hadMatchingChild keep track of previous matches found for this tuple.
-     * Has two usages, depending on whether it is an outer- or firstMatch-semi-join:
+     * The rest of the bits in m_matchingChild keep track of match history
+     * in previous result batches relating to this TupleSet. It has two usages,
+     * depending on whether it is an outer- or firstMatch-semi-join:
      *
      * outer-join:
      *   The aggregated set of (outer joined) nests which matched this tuple.
@@ -631,8 +619,19 @@ public:
      *   The aggregated set of treeNodes which has a previous match with tuple.
      *   Used to decide if a firstMatch had already been found for this tuple,
      *   such that further matches should be skipped.
+     *
+     * There is also a special skip-firstMatch usage of m_matchingChild, where
+     * all bits are set. (Also include the normal bit-0 skip). Using the normal
+     * interpretation of the bits, that translate into: All 31 firstMatch or
+     * outer-join children of the root matched, but skip the root tuple itself.
+     * That is an impossible contradiction of the join / firstMatch semantics,
+     * so this special all-set bit pattern could not happen elsewhere.
+     *
+     * Entering the skip-firstMatch mode will also overwrite any outer_join and
+     * firstMatch bits previously set. That is fine, as no further outer-join or
+     * firstMatch handling is relevant when skip-firstMatch has been set.
      */
-    SpjTreeNodeMask m_hadMatchingChild;
+    SpjTreeNodeMask m_matchingChild;
 
     explicit TupleSet() : m_hash_head(tupleNotFound)
     {}
@@ -653,8 +652,32 @@ private:
   /** Operation to which this resultStream belong.*/
   NdbQueryOperationImpl& m_operation;
 
-  /** ResultStream for my parent operation, or NULL if I am root */
-  NdbResultStream* const m_parent;
+  /** Cached internal OpNo, as retrieves from m_operation.getInternalOpNo() */
+  const Uint32 m_internalOpNo;
+
+  /** ResultStream for my parent operation, or nullptr if I am root */
+  const NdbResultStream* const m_parent;
+  /** Children of this operation.*/
+  Vector<NdbResultStream*> m_children;
+
+  /**
+   * The 'skipFirstInnerOpNo' is used as part of ::prepareResultSet()
+   * when there is a non-match for an outer-joined child. It will
+   * hold the internalOpNo of the NdbResultStream being either:
+   *
+   *  1) The first_inner of the (outer-joined) join_nest this
+   *     NdbResultStream is a member of.
+   *  --OR--
+   *  2) If this NdbResultStream is the first_inner itself, it
+   *     will hold the first_inner of the join_nest we are embedded within
+   *     ( -> or outer joined with...)
+   *
+   * Thus, in case an outer joined match is not found, *and* a NULL-extended
+   * result row should not be created, skipFirstInnerOpNo will then identify
+   * the first_inner of an join_nest where the entire nest will not match.
+   * prepareResultSet() use this to early-skip impossible matches.
+   */
+  Uint32 m_skipFirstInnerOpNo;
 
   /**
    * The dependants node map contain those nodes depending on (the existence of)
@@ -673,8 +696,9 @@ private:
     Is_Scan_Query = 0x01,
     Is_Scan_Result = 0x02,
     Is_Inner_Join = 0x10,  // As opposed to outer join
-    Is_First_Match = 0x20,   // Return FirstMatch only
-    Is_First_Inner = 0x40
+    Is_First_Match = 0x20,  // Return FirstMatch only (semijoin)
+    Is_Anti_Join = 0x40,
+    Is_First_Inner = 0x80
   } m_properties;
 
   /** The receiver object that unpacks transid_AI messages.*/
@@ -725,13 +749,13 @@ private:
 
   /** Set/clear/check whether the specified tupleNo should become invisible */
   void setSkipped(Uint16 tupleNo)
-  { m_tupleSet[tupleNo].m_hasMatchingChild.set(0U); }
+  { m_tupleSet[tupleNo].m_matchingChild.set(0U); }
 
   void clearSkipped(Uint16 tupleNo)
-  { m_tupleSet[tupleNo].m_hasMatchingChild.clear(0U); }
+  { m_tupleSet[tupleNo].m_matchingChild.clear(0U); }
 
   bool isSkipped(Uint16 tupleNo) const
-  { return m_tupleSet[tupleNo].m_hasMatchingChild.get(0U); }
+  { return m_tupleSet[tupleNo].m_matchingChild.get(0U); }
 
   /**
    * The skip methods above are a 'one time'-skip, where the tuples are
@@ -744,13 +768,13 @@ private:
    * other way around.
    */
   void setSkippedFirstMatch(Uint16 tupleNo)
-  { m_tupleSet[tupleNo].m_hasMatchingChild.set(); }
+  { m_tupleSet[tupleNo].m_matchingChild.set(); }
 
   void clearSkippedFirstMatch(Uint16 tupleNo)
-  { m_tupleSet[tupleNo].m_hasMatchingChild.clear(); }
+  { m_tupleSet[tupleNo].m_matchingChild.clear(); }
 
   bool isSkippedFirstMatch(Uint16 tupleNo) const
-  { return m_tupleSet[tupleNo].m_hasMatchingChild.is_set(); }
+  { return m_tupleSet[tupleNo].m_matchingChild.is_set(); }
 
   /** No copying.*/
   NdbResultStream(const NdbResultStream&);
@@ -835,9 +859,12 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
 :
   m_worker(worker),
   m_operation(operation),
+  m_internalOpNo(operation.getInternalOpNo()),
   m_parent(operation.getParentOperation()
         ? &worker.getResultStream(*operation.getParentOperation())
-        : NULL),
+        : nullptr),
+  m_children(),
+  m_skipFirstInnerOpNo(~0U),
   m_dependants(operation.getDependants()),
   m_properties(
     (enum properties)
@@ -845,10 +872,16 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
        ? Is_Scan_Query : 0)
      | (operation.getQueryOperationDef().isScanOperation()
        ? Is_Scan_Result : 0)
-     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchFirst
-	? Is_First_Match : 0)
+     // Note1: If an ancestor is a firstMatch-type, we only need to firstMatch this as well.
+     // Note2: FirstMatch is only relevant for scans (Both are optimizations only)
+     | ((operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchFirst ||
+         operation.getQueryOperationDef().hasFirstMatchAncestor()) &&
+         operation.getQueryOperationDef().isScanOperation()
+       ? Is_First_Match : 0)
      | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull
        ? Is_Inner_Join : 0)
+     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNullOnly
+       ? Is_Anti_Join : 0)
      // Is_first_Inner; if outer joined (with upper nest) and another firstInner
      // than this 'operation' not specified
      | ((operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull) == 0 &&
@@ -861,7 +894,43 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_currentRow(tupleNotFound),
   m_maxRows(0),
   m_tupleSet(NULL)
-{}
+{
+  if (m_parent != nullptr)
+  {
+    const int res = const_cast<NdbResultStream*>(m_parent)->m_children.push_back(this);
+    if (res != 0)
+    {
+      operation.getQuery().setErrorCode(Err_MemoryAlloc);
+      return;
+    }
+
+    if (isOuterJoin()) {
+      /**
+       * Outer joined scan child need to know the first inner of  the
+       * join nest it is a member of. Used by prepareResultSet() to decide
+       * if/when a NULL extended row should be allowed for the outer join.
+       */
+      const NdbQueryOperationDefImpl& queryOperationDef =
+          m_operation.getQueryOperationDef();
+      const NdbQueryOperationDefImpl* firstInEmbeddingNestDef =
+          queryOperationDef.getFirstInEmbeddingNest();
+
+      if (firstInEmbeddingNestDef == nullptr) {
+        m_skipFirstInnerOpNo = m_parent->getInternalOpNo();
+      } else {
+        if (firstInEmbeddingNestDef->getInternalOpNo() <= m_parent->getInternalOpNo()) {
+          // First is 'above' parent -> Is parent or an ancestor of 'this' stream
+          m_skipFirstInnerOpNo = m_parent->getInternalOpNo();
+        } else {
+          DBUG_ASSERT(!isScanResult() ||
+                      firstInEmbeddingNestDef->getParentOperation() ==
+                      queryOperationDef.getParentOperation());
+          m_skipFirstInnerOpNo = firstInEmbeddingNestDef->getInternalOpNo();
+        }
+      }
+    }
+  }
+}
 
 NdbResultStream::~NdbResultStream()
 {
@@ -1101,25 +1170,13 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
   }
 
   SpjTreeNodeMask firstMatchedNodes;
-
-  for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
-  {
-    const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-    NdbResultStream& childStream = m_worker.getResultStream(child);
+  for (int childNo=m_children.size()-1; childNo>=0; childNo--)
+  {	
+    NdbResultStream& childStream = *m_children[childNo];
     if (expectingResults.overlaps(childStream.m_dependants))
     {
       // childStream got new result rows
       childStream.prepareResultSet(expectingResults,stillActive);
-    }
-    else if (traceSignals)
-    {
-      ndbout << "prepareResultSet"
-             << ", no new 'expecting', ignore"
-             << ", opNo: " << getInternalOpNo()
-             << ", child: " << childStream.getInternalOpNo()
-             << ", expectingResults': " << expectingResults.rep.data[0]
-             << ", 'dependants': " << childStream.m_dependants.rep.data[0]
-             << endl;
     }
     // Collect set of treeNodes involved in a firstMatch
     if (childStream.useFirstMatch())
@@ -1135,16 +1192,16 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
   // Prepare rows from the NdbQueryOperation's accessible now
   if (m_tupleSet != nullptr)
   {
-    const SpjTreeNodeMask descendants = m_operation.getDescendants();
+    const Uint32 thisOpId = getInternalOpNo();
     const Uint32 rowCount = readResult.getRowCount();
     for (Uint32 tupleNo=0; tupleNo < rowCount; tupleNo++)
     {
       /**
        * FirstMatch handling: If this tupleNo already found a match from all
-       * tables we skip it from further result processing:
+       * tables, we skip it from further result processing:
        */
-      if (!firstMatchedNodes.isclear() &&    // Some childrens are semi-joins
-          m_tupleSet[tupleNo].m_hadMatchingChild.contains(firstMatchedNodes))
+      if (!firstMatchedNodes.isclear() &&    // Some childrens are firstmatch-semi-joins
+          m_tupleSet[tupleNo].m_matchingChild.contains(firstMatchedNodes))
       {
         // We have already found a match for (all of) our firstMatchedNodes.
         // Should we skip potentially duplicates now? :
@@ -1153,10 +1210,10 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
         {
           // Got a new set of firstMatch'ed rows, starting with semi-joined tables.
           // Skip parent rows which already had its 'firstMatch'
-          if (traceSignals) {
+          if (unlikely(traceSignals)) {
             ndbout << "prepareResultSet, useFirstMatch"
-                   << ", expecting overlaps -> skip tupleNo"
-                   << ", opNo: " << getInternalOpNo()
+                   << ", seen matches -> skip tupleNo"
+                   << ", opNo: " << thisOpId
                    << ", row: "  << tupleNo
                    << endl;
           }
@@ -1169,193 +1226,200 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
         {
           // No semi joined tables affected by the 'expecting'.
           // Do nothing, except keeping 'isSkipped' if already set.
-          if (traceSignals) {
-            ndbout << "prepareResultSet, Join doesn't overlaps FirstMatchNodes"
-                   << ", opNo: " << getInternalOpNo()
+          if (unlikely(traceSignals)) {
+            ndbout << "prepareResultSet, 'expecting' doesn't overlaps FirstMatchNodes"
+                   << ", opNo: " << thisOpId
                    << ", row: "  << tupleNo
                    << ", isSkipped?: " << isSkippedFirstMatch(tupleNo)
                    << endl;
           }
-          if (isSkippedFirstMatch(tupleNo))  // already had a firstMatch
-            continue;
+          if (isSkippedFirstMatch(tupleNo))  // Already had a firstMatch
+            continue;                        // Keep skipping it
         }
         else
         {
           // Set of new children rows start with a full-join. Thus, the
           // firstMatch handling is reset as part of preparing the new
           // joined result set.
-          if (traceSignals) {
+          if (unlikely(traceSignals)) {
             ndbout << "prepareResultSet, Join-useFirstMatch"
                    << ", cleared 'hadMatching'-> un-skip"
-                   << ", opNo: " << getInternalOpNo()
+                   << ", opNo: " << thisOpId
                    << ", row: "  << tupleNo
                    << endl;
           }
-          m_tupleSet[tupleNo].m_hadMatchingChild.bitANDC(firstMatchedNodes);
           clearSkippedFirstMatch(tupleNo);
         }
       } // FirstMatch
 
-      for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
+      /**
+       * For each children; try to locate a matching row for tupleNo.
+       * Note down in hasMatchingChild when matching children are
+       * (not) found. We try to break out of the child-loop as soon
+       * as possible when we can conclude that a join-match is not
+       * possible. In such cases the thisOpNo-bit in hasMatchingChild
+       * is cleared in order to signal a 'skip' of this tupleNo.
+       *
+       * We can always 'skip' if the join-type is an InnerJoin.
+       * Else we use 'm_skipFirstInnerOpNo' to decide if an early 'skip'
+       * is possible or not.
+       *
+       * In addition there is extra logic for outer joins to decide
+       * if a NULL extended row should be made visible or not.
+       */
+      SpjTreeNodeMask hasMatchingChild;  // Collected Join match properties
+      hasMatchingChild.set();            // Assume a match
+      const Uint16 tupleId = getTupleId(tupleNo);
+
+      for (int childNo=m_children.size()-1; childNo>=0; childNo--)
       {	
-        const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-        const NdbResultStream& childStream = m_worker.getResultStream(child);
+        const NdbResultStream& childStream = *m_children[childNo];
         const Uint32 childId = childStream.getInternalOpNo();
-        const Uint16 tupleId = getTupleId(tupleNo);
-        const Uint16 childIx = childStream.findTupleWithParentId(tupleId);
 
         /**
-         * For each children; try to locate a matching row for tupleNo.
-         * Note down in hasMatchingChild when matching (grand-) children
-         * are found. If we failed to find a match for an inner joined child,
-         * we can immediately conclude that this tupleNo should be skipped
-         * from the ResultSet.
+         * Check for a matching child row(s). A 'skipFirstInnerOpNo'
+         * could possibly already have concluded the join-nest to be
+         * a non-match, and cleared our hasMatchingChild-bit.
          */
-        if (childIx != tupleNotFound)  // Found a matching child
-        {
-          if (traceSignals) {
-            ndbout << "prepareResultSet"
-                   << ", MATCHED"
-                   << ", opNo: " << getInternalOpNo()
-                   << ", row: " << tupleNo
-                   << ", child: " << childId
-                   << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
-                   << endl;
-          }
-          m_tupleSet[tupleNo].m_hasMatchingChild.set(childId);
+        const bool childMatched = hasMatchingChild.get(childId)
+          ? (childStream.findTupleWithParentId(tupleId) != tupleNotFound)
+          : false;  // A previous (inner joined) Op already decided 'no-match'
 
-          // Inform all parents about existence of matching grand-children as well
-          m_tupleSet[tupleNo].m_hasMatchingChild.bitOR(
-              childStream.m_tupleSet[childIx].m_hasMatchingChild);
-        }
-        else    // Didn't match
-        {
-          if (traceSignals) {
-            ndbout << "prepareResultSet"
-                   << ", NO MATCH"
-                   << ", opNo: " << getInternalOpNo()
-                   << ", row: " << tupleNo
-                   << ", child: " << childId
-                   << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
-                   << endl;
-          }
-          m_tupleSet[tupleNo].m_hasMatchingChild.clear(childId);
+        if (unlikely(traceSignals)) {
+          const char *const state = (childMatched) ?"MATCHED" :"NO MATCH";
+          ndbout << "prepareResultSet, " << state
+                 << ", opNo: " << thisOpId
+                 << ", row: " << tupleNo
+                 << ", child: " << childId
+                 << endl;
         }
 
-        /**
-         * Need extra match handling on nest-level, that is when we have completed
-         * the firstInner of an outer joined nest. (Note that this loop iterate the
-         * childNo's from last to first).
-         *
-         * This is the place were we also need to check the match properties of
-         * any extra dependencies defined with setFirstInnerJoin(), setUpperJoin()
-         */
-        if (childStream.isFirstInner())  // 'First inner of outer join'
+        if (childMatched == false)  // Didn't match
         {
-          // The join_nest now has complete 'Matching' info for all dependants.
-          // Assert that m_dependants at least contain the (grand-)children
-          DBUG_ASSERT(childStream.m_dependants.get(childId));
-          DBUG_ASSERT(childStream.m_dependants.contains(
-                          childStream.m_operation.getDescendants()));
-
-          if (m_tupleSet[tupleNo].m_hasMatchingChild.contains(childStream.m_dependants))
+          hasMatchingChild.clear(childId);
+          if (childStream.isInnerJoin())
           {
-            // Found a match for dependants, remember that to avoid later NULL extensions
-            m_tupleSet[tupleNo].m_hadMatchingChild.set(childId);
-            if (traceSignals) {
-              ndbout << "prepareResultSet"
+            hasMatchingChild.clear(thisOpId);  // Skip this tupleNo
+            break;
+          }
+        }
+
+        if (childStream.isOuterJoin())
+        {
+          if (childMatched == true)
+          {
+            // Found a match for this outer joined child,
+            // remember that to avoid later NULL extensions
+            m_tupleSet[tupleNo].m_matchingChild.set(childId);
+            if (unlikely(traceSignals)) {
+              ndbout << "prepareResultSet, isOuterJoin"
                      << ", matched 'innerNest'"
-                     << ", opNo: " << getInternalOpNo()
+                     << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << ", child: " << childId
                      << endl;
             }
-          }
-          // Below we did not find a match in this result batch
-          else if (m_tupleSet[tupleNo].m_hadMatchingChild.get(childId))
-          {
-            // We had a match in a previous batch -> No NULL extensions
-            if (traceSignals) {
-              ndbout << "prepareResultSet"
-                     << ", no NULLs (previous matches)"
-                     << ", opNo: " << getInternalOpNo()
-                     << ", row: " << tupleNo
-                     << ", child: " << childId
-                     << ", had matches: " << m_tupleSet[tupleNo].m_hadMatchingChild.rep.data[0]
-                     << endl;
+            if (childStream.isAntiJoin()) {
+              hasMatchingChild.clear(thisOpId);  // Skip this tupleNo
+              break;
             }
           }
-          else if (stillActive.overlaps(childStream.m_dependants))
+          /**
+           * Else: No matching children found from 'childId'. Now we may either
+           * create a NULL-extended row for the outer join(s), or keep looking
+           * for matches in later batches.
+           *
+           * A NULL-extended row should be created if:
+           *  1) This child is the firstInner in this outer-joined_nest, and
+           *  2) There are no more unfetched result rows from any of the
+           *     outer-joined tables, or descendants of these.
+           *  3) A previous join-match had not been found
+           */
+          else if (childStream.isFirstInner()  &&                      // 1)
+                   !stillActive.overlaps(childStream.m_dependants) &&  // 2)
+                   !m_tupleSet[tupleNo].m_matchingChild.get(childId))  // 3)
           {
-            // More rows pending, may have a future match, cant conclude yet
-            if (traceSignals) {
-              ndbout << "prepareResultSet"
-                     << ", no NULLs (still active)"
-                     << ", opNo: " << getInternalOpNo()
+            /**
+             * NULL-extend join-nest:
+             *
+             * No previous match found and no more rows expected.
+             * The NULL-extended row itself is created by the mysql server.
+             * All we have to do here is to treat the childId row as a
+             * 'match', such that and ancestor rows depending on it are
+             * allowed to be returned as well.
+             */
+            hasMatchingChild.set(childId);
+            DBUG_ASSERT(hasMatchingChild.get(thisOpId));
+
+            if (unlikely(traceSignals)) {
+              const char *reason =
+                childStream.isAntiJoin() ?"(antijoin match)" :"(never matched)";
+              ndbout << "prepareResultSet, isOuterJoin"
+                     << ", NULL-extend, " << reason
+                     << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << ", child: " << childId
-                     << ", nestDependants: " << childStream.m_dependants.rep.data[0]
                      << endl;
             }
           }
           else
           {
-            // No previous match found and no more rows expected.
-            // Create an NULL-extended row for this join-nest by treating
-            // it as if the descendants matched (which it sort of does as
-            // NULL is an acceptable outcome in an outer join).
-            // This allows tupleNo to be non-skipped wrt to this nest only
-            // (See 'setSkipped()' immediatley below)
-            m_tupleSet[tupleNo].m_hasMatchingChild.bitOR(childStream.m_dependants);
+            /**
+             * This is a non-match, without a NULL-extended join-nest (yet).
+             * Entire join-nest then becomes a match-failure itself.
+             * Handle this by 'un-matching' the firstInner of the join-nest.
+             */
+            const Uint32 skipFirstInnerOpNo = childStream.m_skipFirstInnerOpNo;
+            DBUG_ASSERT(skipFirstInnerOpNo != ~0U);
+            hasMatchingChild.clear(skipFirstInnerOpNo);     // Un-match join-nest
 
-            if (traceSignals) {
-              ndbout << "prepareResultSet"
-                     << ", NULL-extend (never matched)"
-                     << ", opNo: " << getInternalOpNo()
-                     << ", row: " << tupleNo
-                     << ", child: " << childId
-                     << ", nestDependants: " << childStream.m_dependants.rep.data[0]
+            if (likely(skipFirstInnerOpNo == thisOpId)) {
+              /**
+               * firstInner in child's join-nest is thisOpId. 'un-matching'
+               * it also allowes us to conclude that thisOpNo is a 'skip'.
+               */
+              if (unlikely(traceSignals)) {
+                ndbout << "prepareResultSet, isOuterJoin, ('child' is firstInner)"
+                       << "  -> Skip it"
+                       << endl;
+              }
+              break;  // Skip further child matching against this tupleNo
+            } else if (unlikely(traceSignals)) {
+              /**
+               * Join-nests has a first-inner being a sibling of (same parent as)
+               * this childStream. Can not skip yet, but was un-matched above
+	       * such that we detect it as a failed-match when processed later.
+               */
+              ndbout << "prepareResultSet, isOuterJoin (has firstInnerSibling)"
+                     << ", un-match firstInner: " << skipFirstInnerOpNo
                      << endl;
             }
-
           }
         }  //if (isOuterJoin())
       } //for (childNo..)
 
       /**
-       * If some descendants of tupleNo didnt 'Match' (possibly with a NULL-row)
-       * this tuple need to be skipped for now. May still be included in later
-       * result batches though, with a new set of descendants' row either matching
-       * or allowing NULL extensions.
+       * If some 'required' descendants of tupleNo didnt 'Match' (possibly with
+       * a NULL-row), the 'thisOpId' bit would have been cleared when checking
+       * the descendant Op's above. This tuple then needs to be skipped for now.
+       * May still be included in later result batches though, with a new set
+       * of descendants' row either matching or allowing NULL extensions.
        */
-      if (!m_tupleSet[tupleNo].m_hasMatchingChild.contains(descendants))
+      if (!hasMatchingChild.get(thisOpId))
       {
+        // Persist the decission to skip this tupleNo
         setSkipped(tupleNo);
-        if (traceSignals) {
-          ndbout << "prepareResultSet"
-                 << ", Not all desc has matches -> skip tuple"
-                 << ", opNo: " << getInternalOpNo()
-                 << ", row: " << tupleNo
-                 << endl;
-        }
       }
-      else
+      else  // tupleNo is part of (intermediate) results
       {
         clearSkipped(tupleNo);
-        if (!firstMatchedNodes.isclear())  // Some childrens are semi-joins
-        {
-          if (m_tupleSet[tupleNo].m_hasMatchingChild.contains(firstMatchedNodes))
-          {
-            m_tupleSet[tupleNo].m_hadMatchingChild.bitOR(firstMatchedNodes);
-            if (traceSignals) {
-              ndbout << "prepareResultSet"
-                     << ", matched 'semiNest'"
-                     << ", opNo: " << getInternalOpNo()
-                     << ", row: " << tupleNo
-                     << endl;
-            }
-          }
-        }
+
+        /**
+         * When we get here we know that all children matched, including the
+         * 'firstMatchedNodes' (which are possibly a 0-mask if none 'useFirstMatch')
+         * Anyway we note down that a potential firstmatch has been found.
+         */
+        m_tupleSet[tupleNo].m_matchingChild.bitOR(firstMatchedNodes);
       }
     } //for (tupleNo..)
   } //if (m_tupleSet ..)
@@ -1401,8 +1465,7 @@ NdbResultStream::buildResultCorrelations()
 
       m_tupleSet[tupleNo].m_parentId = parentId;
       m_tupleSet[tupleNo].m_tupleId  = tupleId;
-      m_tupleSet[tupleNo].m_hadMatchingChild.clear();
-      m_tupleSet[tupleNo].m_hasMatchingChild.clear();
+      m_tupleSet[tupleNo].m_matchingChild.clear();
 
       /* Insert into parentId-hashmap */
       const Uint16 hash = (parentId % m_maxRows);
@@ -4343,18 +4406,6 @@ Int32 NdbQueryOperationImpl::getNoOfDescendantOperations() const
 }
 
 SpjTreeNodeMask
-NdbQueryOperationImpl::getDescendants() const
-{
-  SpjTreeNodeMask descendants;
-  for (unsigned i = 0; i < getNoOfChildOperations(); i++)
-  {
-    descendants.bitOR(getChildOperation(i).getDescendants());
-    descendants.set(getChildOperation(i).getInternalOpNo());
-  }
-  return descendants;
-}
-
-SpjTreeNodeMask
 NdbQueryOperationImpl::getDependants() const
 {
   SpjTreeNodeMask dependants;
@@ -5472,7 +5523,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" 
            << ", from workerNo=" << worker->getWorkerNo()
-           << ", operation no: " << getQueryOperationDef().getOpNo()
+           << ", operation no: " << getQueryOperationDef().getInternalOpNo()
            << endl;
   }
 

@@ -3,74 +3,66 @@ define("dojo/html", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base
 	// module:
 	//		dojo/html
 
-	var html = {
-		// summary:
-		//		TODOC
-	};
-	lang.setObject("dojo.html", html);
-
 	// the parser might be needed..
 
 	// idCounter is incremented with each instantiation to allow assignment of a unique id for tracking, logging purposes
 	var idCounter = 0;
 
-	html._secureForInnerHtml = function(/*String*/ cont){
+	var html = {
 		// summary:
-		//		removes !DOCTYPE and title elements from the html string.
-		//
-		//		khtml is picky about dom faults, you can't attach a style or `<title>` node as child of body
-		//		must go into head, so we need to cut out those tags
-		// cont:
-		//		An html string for insertion into the dom
-		//
-		return cont.replace(/(?:\s*<!DOCTYPE\s[^>]+>|<title[^>]*>[\s\S]*?<\/title>)/ig, ""); // String
-	};
+		//		TODOC
 
-	html._emptyNode = domConstruct.empty;
-	/*=====
-	 dojo.html._emptyNode = function(node){
-		 // summary:
-		 //		Removes all child nodes from the given node.   Deprecated, should use dojo/dom-constuct.empty() directly
-		 //		instead.
-		 // node: DOMNode
-		 //		the parent element
-	 };
-	 =====*/
+		_secureForInnerHtml: function(/*String*/ cont){
+			// summary:
+			//		removes !DOCTYPE and title elements from the html string.
+			//
+			//		khtml is picky about dom faults, you can't attach a style or `<title>` node as child of body
+			//		must go into head, so we need to cut out those tags
+			// cont:
+			//		An html string for insertion into the dom
+			//
+			return cont.replace(/(?:\s*<!DOCTYPE\s[^>]+>|<title[^>]*>[\s\S]*?<\/title>)/ig, ""); // String
+		},
 
-		html._setNodeContent = function(/*DomNode*/ node, /*String|DomNode|NodeList*/ cont){
-		// summary:
-		//		inserts the given content into the given node
-		// node:
-		//		the parent element
-		// content:
-		//		the content to be set on the parent element.
-		//		This can be an html string, a node reference or a NodeList, dojo/NodeList, Array or other enumerable list of nodes
+		// Deprecated, should use dojo/dom-constuct.empty() directly, remove in 2.0.
+		_emptyNode: domConstruct.empty,
 
-		// always empty
-		domConstruct.empty(node);
+		_setNodeContent: function(/*DomNode*/ node, /*String|DomNode|NodeList*/ cont){
+			// summary:
+			//		inserts the given content into the given node
+			// node:
+			//		the parent element
+			// content:
+			//		the content to be set on the parent element.
+			//		This can be an html string, a node reference or a NodeList, dojo/NodeList, Array or other enumerable list of nodes
 
-		if(cont){
-			if(typeof cont == "string"){
-				cont = domConstruct.toDom(cont, node.ownerDocument);
-			}
-			if(!cont.nodeType && lang.isArrayLike(cont)){
-				// handle as enumerable, but it may shrink as we enumerate it
-				for(var startlen=cont.length, i=0; i<cont.length; i=startlen==cont.length ? i+1 : 0){
-					domConstruct.place( cont[i], node, "last");
+			// always empty
+			domConstruct.empty(node);
+
+			if(cont){
+				if(typeof cont == "number"){
+					cont = cont.toString();
 				}
-			}else{
-				// pass nodes, documentFragments and unknowns through to dojo.place
-				domConstruct.place(cont, node, "last");
+				if(typeof cont == "string"){
+					cont = domConstruct.toDom(cont, node.ownerDocument);
+				}
+				if(!cont.nodeType && lang.isArrayLike(cont)){
+					// handle as enumerable, but it may shrink as we enumerate it
+					for(var startlen=cont.length, i=0; i<cont.length; i=startlen==cont.length ? i+1 : 0){
+						domConstruct.place( cont[i], node, "last");
+					}
+				}else{
+					// pass nodes, documentFragments and unknowns through to dojo.place
+					domConstruct.place(cont, node, "last");
+				}
 			}
-		}
 
-		// return DomNode
-		return node;
-	};
+			// return DomNode
+			return node;
+		},
 
-	// we wrap up the content-setting operation in a object
-	html._ContentSetter = declare("dojo.html._ContentSetter", null,
-		{
+		// we wrap up the content-setting operation in a object
+		_ContentSetter: declare("dojo.html._ContentSetter", null, {
 			// node: DomNode|String
 			//		An node which will be the parent element that we set content into
 			node: "",
@@ -138,6 +130,9 @@ define("dojo/html", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base
 				if(undefined !== cont){
 					this.content = cont;
 				}
+				if(typeof cont == 'number'){
+					cont = cont.toString();
+				}
 				// in the re-use scenario, set needs to be able to mixin new configuration
 				if(params){
 					this._mixin(params);
@@ -188,7 +183,7 @@ define("dojo/html", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base
 			empty: function(){
 				// summary:
 				//		cleanly empty out existing content
-				
+
 				// If there is a parse in progress, cancel it.
 				if(this.parseDeferred){
 					if(!this.parseDeferred.isResolved()){
@@ -309,12 +304,12 @@ define("dojo/html", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base
 						inherited: inherited,
 						scope: this.parserScope
 					}).then(function(results){
-						return self.parseResults = results;
-					}, function(e){
-						self._onError('Content', e, "Error parsing in _ContentSetter#"+this.id);
-					});
+							return self.parseResults = results;
+						}, function(e){
+							self._onError('Content', e, "Error parsing in _ContentSetter#" + self.id);
+						});
 				}catch(e){
-					this._onError('Content', e, "Error parsing in _ContentSetter#"+this.id);
+					this._onError('Content', e, "Error parsing in _ContentSetter#" + this.id);
 				}
 			},
 
@@ -329,17 +324,20 @@ define("dojo/html", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base
 					html._setNodeContent(this.node, errText, true);
 				}
 			}
-	}); // end declare()
+		}), // end declare()
 
-	html.set = function(/*DomNode*/ node, /*String|DomNode|NodeList*/ cont, /*Object?*/ params){
+		set: function(/*DomNode*/ node, /*String|DomNode|NodeList*/ cont, /*Object?*/ params){
 			// summary:
-			//		inserts (replaces) the given content into the given node. dojo.place(cont, node, "only")
+			//		inserts (replaces) the given content into the given node. dojo/dom-construct.place(cont, node, "only")
 			//		may be a better choice for simple HTML insertion.
 			// description:
 			//		Unless you need to use the params capabilities of this method, you should use
-			//		dojo.place(cont, node, "only"). dojo.place() has more robust support for injecting
+			//		dojo/dom-construct.place(cont, node, "only"). dojo/dom-construct..place() has more robust support for injecting
 			//		an HTML string into the DOM, but it only handles inserting an HTML string as DOM
-			//		elements, or inserting a DOM node. dojo.place does not handle NodeList insertions
+			//		elements, or inserting a DOM node. dojo/dom-construct..place does not handle NodeList insertions
+			//		dojo/dom-construct.place(cont, node, "only"). dojo/dom-construct.place() has more robust support for injecting
+			//		an HTML string into the DOM, but it only handles inserting an HTML string as DOM
+			//		elements, or inserting a DOM node. dojo/dom-construct.place does not handle NodeList insertions
 			//		or the other capabilities as defined by the params object for this method.
 			// node:
 			//		the parent element that will receive the content
@@ -354,23 +352,28 @@ define("dojo/html", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base
 			//	|	html.set(node, "some string");
 			//	|	html.set(node, contentNode, {options});
 			//	|	html.set(node, myNode.childNodes, {options});
-		if(undefined == cont){
-			console.warn("dojo.html.set: no cont argument provided, using empty string");
-			cont = "";
-		}
-		if(!params){
-			// simple and fast
-			return html._setNodeContent(node, cont, true);
-		}else{
-			// more options but slower
-			// note the arguments are reversed in order, to match the convention for instantiation via the parser
-			var op = new html._ContentSetter(lang.mixin(
+			if(undefined == cont){
+				console.warn("dojo.html.set: no cont argument provided, using empty string");
+				cont = "";
+			}
+			if (typeof cont == 'number'){
+				cont = cont.toString();
+			}
+			if(!params){
+				// simple and fast
+				return html._setNodeContent(node, cont, true);
+			}else{
+				// more options but slower
+				// note the arguments are reversed in order, to match the convention for instantiation via the parser
+				var op = new html._ContentSetter(lang.mixin(
 					params,
 					{ content: cont, node: node }
-			));
-			return op.set();
+				));
+				return op.set();
+			}
 		}
 	};
+	lang.setObject("dojo.html", html);
 
 	return html;
 });

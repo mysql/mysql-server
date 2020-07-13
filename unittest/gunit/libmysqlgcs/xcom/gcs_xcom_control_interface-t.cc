@@ -536,8 +536,6 @@ class XComControlTest : public GcsBaseTest {
         xcom_node_address, peers, *group_id, &proxy, xcom_group_mgm,
         &gcs_engine, mock_se, mock_vce, true, mock_socket_util);
     extern_xcom_control_if = xcom_control_if;
-
-    My_xp_util::init_time();
   }
 
   virtual void TearDown() {
@@ -2262,12 +2260,11 @@ TEST_F(XComControlTest, DoNotDisbandEntireGroup) {
   EXPECT_CALL(proxy, test_xcom_tcp_connection(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_boot(_, _)).Times(1);
   EXPECT_CALL(proxy, xcom_client_remove_node(_, _))
-      .Times(3)  // twice for expulsion, once for leave
+      .Times(2)  // once for expulsion, once for leave
       .WillOnce(WithArgs<0>(Invoke(suspect_is_2)))
-      .WillOnce(WithArgs<0>(Invoke(suspect_is_me)))
       .WillOnce(WithArgs<0>(Invoke(suspect_is_me)));
   EXPECT_CALL(proxy, delete_node_address(_, _))
-      .Times(4);  // once for boot, twice for expulsion, once for leave
+      .Times(3);  // once for boot, once for expulsion, once for leave
 
   enum_gcs_error result = xcom_control_if->join(create_fake_view());
   ASSERT_EQ(GCS_OK, result);
@@ -2313,7 +2310,7 @@ TEST_F(XComControlTest, DoNotDisbandEntireGroup) {
   ASSERT_EQ(mgr->has_majority(), false);
 
   /* Test expulsion of me.
-     We should issue the expel, as specified in the EXPECT_CALL(proxy,
+     We should NOT issue the expel, as specified in the EXPECT_CALL(proxy,
      xcom_client_remove_node(_, _)) above. */
   // Build vector with suspect nodes
   member_suspect_nodes = std::vector<Gcs_member_identifier *>{me.get()};

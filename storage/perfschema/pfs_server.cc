@@ -53,6 +53,7 @@
 #include "storage/perfschema/pfs_setup_actor.h"
 #include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_tls_channel.h"
 #include "storage/perfschema/pfs_user.h"
 #include "template_utils.h"
 
@@ -100,7 +101,8 @@ int initialize_performance_schema(
     PSI_memory_bootstrap **memory_bootstrap,
     PSI_error_bootstrap **error_bootstrap,
     PSI_data_lock_bootstrap **data_lock_bootstrap,
-    PSI_system_bootstrap **system_bootstrap) {
+    PSI_system_bootstrap **system_bootstrap,
+    PSI_tls_channel_bootstrap **tls_channel_bootstrap) {
   bool init_failed = false;
 
   *thread_bootstrap = nullptr;
@@ -119,6 +121,7 @@ int initialize_performance_schema(
   *error_bootstrap = nullptr;
   *data_lock_bootstrap = nullptr;
   *system_bootstrap = nullptr;
+  *tls_channel_bootstrap = nullptr;
 
   pfs_enabled = param->m_enabled;
 
@@ -232,6 +235,7 @@ int initialize_performance_schema(
       *error_bootstrap = &pfs_error_bootstrap;
       *data_lock_bootstrap = &pfs_data_lock_bootstrap;
       *system_bootstrap = &pfs_system_bootstrap;
+      *tls_channel_bootstrap = &pfs_tls_channel_bootstrap;
     }
   }
 
@@ -246,6 +250,17 @@ int initialize_performance_schema(
       the main performance schema instrumentation.
   */
   init_pfs_plugin_table();
+
+  /*
+    Initialize TLS channel instrumentation data structures
+    This must be done:
+    - after the memory allocation for rwlock instrumentation,
+      so that rwlock LOCK_pfs_tls_channel gets instrumented
+      (if the instrumentation is enabled),
+    - Even if the RWLOCK LOCK_pfs_tls_channels ends up not instrumented,
+       it still needs to be initialized.
+  */
+  init_pfs_tls_channels_instrumentation();
 
   if (init_failed) {
     return 1;
@@ -306,6 +321,7 @@ static void cleanup_performance_schema(void) {
     find_XXX_class(key)
     will return PSI_NOT_INSTRUMENTED
   */
+  cleanup_pfs_tls_channels_instrumentation();
   cleanup_pfs_plugin_table();
   cleanup_error();
   cleanup_program();

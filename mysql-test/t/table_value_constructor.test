@@ -333,3 +333,18 @@ FROM (TABLE t1) AS table1 JOIN t2 AS table2
 WHERE table1.x IN (VALUES ROW(NULL), ROW('B'));
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30602659: TABLE VALUE CONSTRUCTOR IGNORES LIMIT CLAUSE
+--echo #
+
+# Table value constructor syntax tests:
+
+VALUES ROW(1), ROW(2) LIMIT 1;
+(VALUES ROW(1), ROW(2), ROW(3), ROW(4), ROW(5)) LIMIT 2 OFFSET 3;
+
+# Explicit table syntax coverage test:
+
+CREATE TABLE t1 VALUES ROW(1), ROW(2), ROW(3), ROW(4), ROW(5);
+TABLE t1 LIMIT 5 OFFSET 5;
+DROP TABLE t1;

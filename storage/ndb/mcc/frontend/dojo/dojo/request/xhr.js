@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -20,139 +20,196 @@ var x=new XMLHttpRequest();
 return typeof x["addEventListener"]!=="undefined"&&(typeof opera==="undefined"||typeof x["upload"]!=="undefined");
 });
 _5.add("native-formdata",function(){
-return typeof FormData==="function";
+return typeof FormData!=="undefined";
 });
-function _6(_7,_8){
-var _9=_7.xhr;
-_7.status=_7.xhr.status;
-_7.text=_9.responseText;
-if(_7.options.handleAs==="xml"){
-_7.data=_9.responseXML;
+_5.add("native-blob",function(){
+return typeof Blob!=="undefined";
+});
+_5.add("native-arraybuffer",function(){
+return typeof ArrayBuffer!=="undefined";
+});
+_5.add("native-response-type",function(){
+return _5("native-xhr")&&typeof new XMLHttpRequest().responseType!=="undefined";
+});
+_5.add("native-xhr2-blob",function(){
+if(!_5("native-response-type")){
+return;
 }
-if(!_8){
+var x=new XMLHttpRequest();
+x.open("GET","https://dojotoolkit.org/",true);
+x.responseType="blob";
+var _6=x.responseType;
+x.abort();
+return _6==="blob";
+});
+var _7={"blob":_5("native-xhr2-blob")?"blob":"arraybuffer","document":"document","arraybuffer":"arraybuffer"};
+function _8(_9,_a){
+var _b=_9.xhr;
+_9.status=_9.xhr.status;
 try{
-_3(_7);
+_9.text=_b.responseText;
 }
 catch(e){
-_8=e;
 }
+if(_9.options.handleAs==="xml"){
+_9.data=_b.responseXML;
 }
-if(_8){
-this.reject(_8);
+var _c;
+if(_a){
+this.reject(_a);
 }else{
-if(_4.checkStatus(_9.status)){
-this.resolve(_7);
+try{
+_3(_9);
+}
+catch(e){
+_c=e;
+}
+if(_4.checkStatus(_b.status)){
+if(!_c){
+this.resolve(_9);
 }else{
-_8=new _1("Unable to load "+_7.url+" status: "+_9.status,_7);
-this.reject(_8);
+this.reject(_c);
+}
+}else{
+if(!_c){
+_a=new _1("Unable to load "+_9.url+" status: "+_b.status,_9);
+this.reject(_a);
+}else{
+_a=new _1("Unable to load "+_9.url+" status: "+_b.status+" and an error in handleAs: transformation of response",_9);
+this.reject(_a);
+}
 }
 }
 };
-var _a,_b,_c,_d;
+var _d,_e,_f,_10;
 if(_5("native-xhr2")){
-_a=function(_e){
+_d=function(_11){
 return !this.isFulfilled();
 };
-_d=function(_f,_10){
-_10.xhr.abort();
+_10=function(dfd,_12){
+_12.xhr.abort();
 };
-_c=function(_11,dfd,_12){
-function _13(evt){
-dfd.handleResponse(_12);
-};
-function _14(evt){
-var _15=evt.target;
-var _16=new _1("Unable to load "+_12.url+" status: "+_15.status,_12);
-dfd.handleResponse(_12,_16);
+_f=function(_13,dfd,_14,_15){
+function _16(evt){
+dfd.handleResponse(_14);
 };
 function _17(evt){
+var _18=evt.target;
+var _19=new _1("Unable to load "+_14.url+" status: "+_18.status,_14);
+dfd.handleResponse(_14,_19);
+};
+function _1a(_1b,evt){
+_14.transferType=_1b;
 if(evt.lengthComputable){
-_12.loaded=evt.loaded;
-_12.total=evt.total;
-dfd.progress(_12);
+_14.loaded=evt.loaded;
+_14.total=evt.total;
+dfd.progress(_14);
+}else{
+if(_14.xhr.readyState===3){
+_14.loaded=("loaded" in evt)?evt.loaded:evt.position;
+dfd.progress(_14);
+}
 }
 };
-_11.addEventListener("load",_13,false);
-_11.addEventListener("error",_14,false);
-_11.addEventListener("progress",_17,false);
+function _1c(evt){
+return _1a("download",evt);
+};
+function _1d(evt){
+return _1a("upload",evt);
+};
+_13.addEventListener("load",_16,false);
+_13.addEventListener("error",_17,false);
+_13.addEventListener("progress",_1c,false);
+if(_15&&_13.upload){
+_13.upload.addEventListener("progress",_1d,false);
+}
 return function(){
-_11.removeEventListener("load",_13,false);
-_11.removeEventListener("error",_14,false);
-_11.removeEventListener("progress",_17,false);
-_11=null;
+_13.removeEventListener("load",_16,false);
+_13.removeEventListener("error",_17,false);
+_13.removeEventListener("progress",_1c,false);
+_13.upload.removeEventListener("progress",_1d,false);
+_13=null;
 };
 };
 }else{
-_a=function(_18){
-return _18.xhr.readyState;
+_d=function(_1e){
+return _1e.xhr.readyState;
 };
-_b=function(_19){
-return 4===_19.xhr.readyState;
+_e=function(_1f){
+return 4===_1f.xhr.readyState;
 };
-_d=function(dfd,_1a){
-var xhr=_1a.xhr;
-var _1b=typeof xhr.abort;
-if(_1b==="function"||_1b==="object"||_1b==="unknown"){
+_10=function(dfd,_20){
+var xhr=_20.xhr;
+var _21=typeof xhr.abort;
+if(_21==="function"||_21==="object"||_21==="unknown"){
 xhr.abort();
 }
 };
 }
-function _1c(_1d){
-return this.xhr.getResponseHeader(_1d);
+function _22(_23){
+return this.xhr.getResponseHeader(_23);
 };
-var _1e,_1f={data:null,query:null,sync:false,method:"GET"};
-function xhr(url,_20,_21){
-var _22=_4.parseArgs(url,_4.deepCreate(_1f,_20),_5("native-formdata")&&_20&&_20.data&&_20.data instanceof FormData);
-url=_22.url;
-_20=_22.options;
-var _23,_24=function(){
-_23&&_23();
+var _24,_25={data:null,query:null,sync:false,method:"GET"};
+function xhr(url,_26,_27){
+var _28=_5("native-formdata")&&_26&&_26.data&&_26.data instanceof FormData;
+var _29=_4.parseArgs(url,_4.deepCreate(_25,_26),_28);
+url=_29.url;
+_26=_29.options;
+var _2a=!_26.data&&_26.method!=="POST"&&_26.method!=="PUT";
+if(_5("ie")<=10){
+url=url.split("#")[0];
+}
+var _2b,_2c=function(){
+_2b&&_2b();
 };
-var dfd=_4.deferred(_22,_d,_a,_b,_6,_24);
-var _25=_22.xhr=xhr._create();
-if(!_25){
+var dfd=_4.deferred(_29,_10,_d,_e,_8,_2c);
+var _2d=_29.xhr=xhr._create();
+if(!_2d){
 dfd.cancel(new _1("XHR was not created"));
-return _21?dfd:dfd.promise;
+return _27?dfd:dfd.promise;
 }
-_22.getHeader=_1c;
-if(_c){
-_23=_c(_25,dfd,_22);
+_29.getHeader=_22;
+if(_f){
+_2b=_f(_2d,dfd,_29,_26.uploadProgress);
 }
-var _26=typeof (_20.data)==="undefined"?null:_20.data,_27=!_20.sync,_28=_20.method;
+var _2e=typeof (_26.data)==="undefined"?null:_26.data,_2f=!_26.sync,_30=_26.method;
 try{
-_25.open(_28,url,_27,_20.user||_1e,_20.password||_1e);
-if(_20.withCredentials){
-_25.withCredentials=_20.withCredentials;
+_2d.open(_30,url,_2f,_26.user||_24,_26.password||_24);
+if(_26.withCredentials){
+_2d.withCredentials=_26.withCredentials;
 }
-var _29=_20.headers,_2a="application/x-www-form-urlencoded";
-if(_29){
-for(var hdr in _29){
+if(_5("native-response-type")&&_26.handleAs in _7){
+_2d.responseType=_7[_26.handleAs];
+}
+var _31=_26.headers,_32=(_28||_2a)?false:"application/x-www-form-urlencoded";
+if(_31){
+for(var hdr in _31){
 if(hdr.toLowerCase()==="content-type"){
-_2a=_29[hdr];
+_32=_31[hdr];
 }else{
-if(_29[hdr]){
-_25.setRequestHeader(hdr,_29[hdr]);
+if(_31[hdr]){
+_2d.setRequestHeader(hdr,_31[hdr]);
 }
 }
 }
 }
-if(_2a&&_2a!==false){
-_25.setRequestHeader("Content-Type",_2a);
+if(_32&&_32!==false){
+_2d.setRequestHeader("Content-Type",_32);
 }
-if(!_29||!("X-Requested-With" in _29)){
-_25.setRequestHeader("X-Requested-With","XMLHttpRequest");
+if(!_31||!("X-Requested-With" in _31)){
+_2d.setRequestHeader("X-Requested-With","XMLHttpRequest");
 }
 if(_4.notify){
-_4.notify.emit("send",_22,dfd.promise.cancel);
+_4.notify.emit("send",_29,dfd.promise.cancel);
 }
-_25.send(_26);
+_2d.send(_2e);
 }
 catch(e){
 dfd.reject(e);
 }
 _2(dfd);
-_25=null;
-return _21?dfd:dfd.promise;
+_2d=null;
+return _27?dfd:dfd.promise;
 };
 xhr._create=function(){
 throw new Error("XMLHTTP not available");

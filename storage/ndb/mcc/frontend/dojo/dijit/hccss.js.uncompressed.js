@@ -1,4 +1,4 @@
-define("dijit/hccss", ["dojo/dom-class", "dojo/hccss", "dojo/ready", "dojo/_base/window"], function(domClass, has, ready, win){
+define("dijit/hccss", ["dojo/dom-class", "dojo/hccss", "dojo/domReady", "dojo/_base/window"], function(domClass, has, domReady, win){
 
 	// module:
 	//		dijit/hccss
@@ -11,9 +11,7 @@ define("dijit/hccss", ["dojo/dom-class", "dojo/hccss", "dojo/ready", "dojo/_base
 	};
 	=====*/
 
-	// Priority is 90 to run ahead of parser priority of 100.   For 2.0, remove the ready() call and instead
-	// change this module to depend on dojo/domReady!
-	ready(90, function(){
+	domReady(function(){
 		if(has("highcontrast")){
 			domClass.add(win.body(), "dijit_a11y");
 		}

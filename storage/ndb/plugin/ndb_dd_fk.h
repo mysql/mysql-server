@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class Foreign_key;
   Extract the definition of the given foreign key from NDB and
   update the DD's foreign key object with that.
 
-  @param fk_def[out]          The DD foreign key object.
+  @param[out] fk_def          The DD foreign key object.
   @param dd_child_table       The DD child table object on which the
                               foreign key exists.
   @param ndb_fk               The NDB foreign key object

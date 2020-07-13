@@ -1,9 +1,18 @@
-define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_base/declare", "dojo/query",
-		"dojo/_base/connect", "dojo/_base/Color", "./Legend", "dijit/form/CheckBox", "../action2d/Highlight",
-		"dojox/lang/functional", "dojox/gfx/fx", "dojo/keys", "dojo/dom-construct",
-		"dojo/dom-prop"], 
-	function(arrayUtil, declare, query, hub, Color, Legend, CheckBox,
-			 Highlight, df, fx, keys, dom, domProp){
+define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", 
+		"dojo/_base/declare", 
+		"dojo/query",
+		"dojo/_base/connect", 
+		"dojo/_base/Color", 
+		"./Legend", 
+		"dijit/form/CheckBox", 
+		"../action2d/Highlight",
+		"dojox/lang/functional", 
+		"dojox/gfx/fx", 
+		"dojo/keys", 
+		"dojo/dom-construct",
+		"dojo/dom-prop",
+		"dijit/registry"
+], function(arrayUtil, declare, query, hub, Color, Legend, CheckBox, Highlight, df, fx, keys, dom, domProp, registry){
 
 	var FocusManager = declare(null, {
 		// summary:
@@ -79,7 +88,11 @@ define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_bas
 			query("input", this.legend.legends[this.index])[0].focus();
 		}
 	});
-			
+	
+	var FakeHighlight = declare(Highlight, {
+		connect: function(){}
+	});
+	
 	var SelectableLegend = declare("dojox.charting.widget.SelectableLegend", Legend, {
 		// summary:
 		//		An enhanced chart legend supporting interactive events on data series
@@ -88,6 +101,10 @@ define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_bas
 		outline:			false,	//	outline of vanished data series
 		transitionFill:		null,	//	fill of deselected data series
 		transitionStroke:	null,	//	stroke of deselected data series
+
+		// autoScale: Boolean
+		//		Whether the scales of the chart are recomputed when selecting/unselecting a series in the legend. Default is false.
+		autoScale: false,
 		
 		postCreate: function(){
 			this.legends = [];
@@ -131,70 +148,66 @@ define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_bas
 				return;
 			}
 			arrayUtil.forEach(this.legends, function(legend, i){
-				var targetData, shapes = [], plotName, seriesName;
+				var targetData, plotName, seriesName;
 				if(this._isPie()){
 					targetData = this.chart.stack[0];
-					shapes.push(targetData.group.children[i]);
 					plotName = targetData.name;
 					seriesName = this.chart.series[0].name;
 				}else{
 					targetData = this.chart.series[i];
-					shapes = targetData.group.children;
 					plotName = targetData.plot;
 					seriesName = targetData.name;
 				}
-				var originalDyn = {
-					fills : df.map(shapes, "x.getFill()"),
-					strokes: df.map(shapes, "x.getStroke()")
-				};
 				//	toggle action
-				var legendCheckBox = query(".dijitCheckBox", legend)[0];
-				hub.connect(legendCheckBox, "onclick", this, function(e){
-					this._toggle(shapes, i, legend.vanished, originalDyn, seriesName, plotName);
-					legend.vanished = !legend.vanished;
+				var legendCheckBox = registry.byNode(query(".dijitCheckBox", legend)[0]);
+				legendCheckBox.set("checked", !this._isHidden(plotName, i));
+				hub.connect(legendCheckBox, "onClick", this, function(e){
+					this.toogle(plotName, i, !legendCheckBox.get("checked"));
 					e.stopPropagation();
 				});
-				
 				//	highlight action
 				var legendIcon = query(".dojoxLegendIcon", legend)[0],
 					iconShape = this._getFilledShape(this._surfaces[i].children);
 				arrayUtil.forEach(["onmouseenter", "onmouseleave"], function(event){
 					hub.connect(legendIcon, event, this, function(e){
-						this._highlight(e, iconShape, shapes, i, legend.vanished, originalDyn, seriesName, plotName);
+						this._highlight(e, iconShape, i, !legendCheckBox.get("checked"), seriesName, plotName);
 					});
 				}, this);
 			},this);
 		},
-		_toggle: function(shapes, index, isOff, dyn, seriesName, plotName){
-			arrayUtil.forEach(shapes, function(shape, i){
-				var startFill = dyn.fills[i],
-					endFill = this._getTransitionFill(plotName),
-					startStroke = dyn.strokes[i],
-					endStroke = this.transitionStroke;
-				if(startFill){
-					if(endFill && (typeof startFill == "string" || startFill instanceof Color)){
-						fx.animateFill({
-							shape: shape,
-							color: {
-								start: isOff ? endFill : startFill,
-								end: isOff ? startFill : endFill
-							}
-						}).play();
-					}else{
-						shape.setFill(isOff ? startFill : endFill);
+		_isHidden: function(plotName, index){
+			if(this._isPie()){
+				return arrayUtil.indexOf(this.chart.getPlot(plotName).runFilter, index) != -1;
+			}else{
+				return this.chart.series[index].hidden
+			}
+		},
+		toogle: function(plotName, index, hide){
+			var plot =  this.chart.getPlot(plotName);
+			if(this._isPie()){
+				if(arrayUtil.indexOf(plot.runFilter, index) != -1){
+					if(!hide){
+						plot.runFilter = arrayUtil.filter(plot.runFilter, function(item){
+							return item != index;
+						});
+					}
+				}else{
+					if(hide){
+						plot.runFilter.push(index);
 					}
 				}
-				if(startStroke && !this.outline){
-					shape.setStroke(isOff ? startStroke : endStroke);
-				}
-			}, this);
+			}else{ 
+				this.chart.series[index].hidden = hide;
+			}
+			this.autoScale ? this.chart.dirty = true: plot.dirty = true;
+			this.chart.render();
 		},
-		_highlight: function(e, iconShape, shapes, index, isOff, dyn, seriesName, plotName){
+		_highlight: function(e, iconShape, index, isOff, seriesName, plotName){
 			if(!isOff){
 				var anim = this._getAnim(plotName),
 					isPie = this._isPie(),
 					type = formatEventType(e.type);
-				//	highlight the label icon,
+				// highlight the label icon,
 				var label = {
 					shape: iconShape,
 					index: isPie ? "legend" + index : "legend",
@@ -203,8 +216,7 @@ define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_bas
 				};
 				anim.process(label);
 				//	highlight the data items
-				arrayUtil.forEach(shapes, function(shape, i){
-					shape.setFill(dyn.fills[i]);
+				arrayUtil.forEach(this._getShapes(index, plotName), function(shape, i){
 					var o = {
 						shape: shape,
 						index: isPie ? index : i,
@@ -216,12 +228,34 @@ define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_bas
 				});
 			}
 		},
+		_getShapes: function(i, plotName){
+			var shapes = [];
+			if(this._isPie()){
+				var decrease = 0;
+				arrayUtil.forEach(this.chart.getPlot(plotName).runFilter, function(item){
+					if(i > item){
+						decrease++;
+					}
+				});
+				shapes.push(this.chart.stack[0].group.children[i-decrease]);
+			}else if(this._isCandleStick(plotName)){
+				arrayUtil.forEach(this.chart.series[i].group.children, function(group){
+					arrayUtil.forEach(group.children, function(candle){
+						arrayUtil.forEach(candle.children, function(shape){
+							if(shape.shape.type !="line"){
+								shapes.push(shape);
+							}
+						});
+					});
+				});
+			}else{
+				shapes = this.chart.series[i].group.children;
+			}
+			return shapes;
+		},
 		_getAnim: function(plotName){
 			if(!this.legendAnim[plotName]){
-				this.legendAnim[plotName] = new Highlight(this.chart, plotName);
-				// calling this is marking the plot dirty however here this is a "fake" highlight action
-				// we don't want to re-render the chart, _highlight is the in charge of running the animation
-				this.chart.getPlot(plotName).dirty = false;
+				this.legendAnim[plotName] = new FakeHighlight(this.chart, plotName);
 			}
 			return this.legendAnim[plotName];
 		},
@@ -245,6 +279,9 @@ define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_bas
 		},
 		_isPie: function(){
 			return this.chart.stack[0].declaredClass == "dojox.charting.plot2d.Pie";
+		},
+		_isCandleStick: function(plotName){
+			return this.chart.stack[this.chart.plots[plotName]].declaredClass == "dojox.charting.plot2d.Candlesticks";
 		},
 		destroy: function(){
 			this._clearLabels();

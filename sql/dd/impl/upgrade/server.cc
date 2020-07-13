@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,9 @@
 #include "scripts/sql_commands_system_tables_data_fix.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "sql/dd/dd_tablespace.h"            // dd::fill_table_and_parts...
-#include "sql/dd/dd_trigger.h"               // dd::create_trigger
+#include "sql/dd/dd_table.h"  // dd::warn_on_deprecated_prefix_key_partition
+#include "sql/dd/dd_tablespace.h"                 // dd::fill_table_and_parts...
+#include "sql/dd/dd_trigger.h"                    // dd::create_trigger
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::DD_bootstrap_ctx
 #include "sql/dd/impl/bootstrap/bootstrapper.h"
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::DD_properties
@@ -502,6 +503,9 @@ bool do_server_upgrade_checks(THD *thd) {
 
     if (examine_each(&error_count, &tables, [&](const dd::Table *table) {
           (void)invalid_triggers(thd, schema->name().c_str(), *table);
+          // Check for usage of prefix key index in PARTITION BY KEY() function.
+          dd::warn_on_deprecated_prefix_key_partition(
+              thd, schema->name().c_str(), table->name().c_str(), table, true);
         }))
       break;
 

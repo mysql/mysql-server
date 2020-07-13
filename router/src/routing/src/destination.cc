@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
+#include "socket_operations.h"
 #include "tcp_address.h"
 #include "utils.h"
 
@@ -128,9 +129,10 @@ size_t RouteDestination::get_next_server() {
   return result;
 }
 
-int RouteDestination::get_mysql_socket(
-    const TCPAddress &addr, std::chrono::milliseconds connect_timeout,
-    const bool log_errors) {
+stdx::expected<mysql_harness::socket_t, std::error_code>
+RouteDestination::get_mysql_socket(const TCPAddress &addr,
+                                   std::chrono::milliseconds connect_timeout,
+                                   const bool log_errors) {
   return routing_sock_ops_->get_mysql_socket(addr, connect_timeout, log_errors);
 }
 

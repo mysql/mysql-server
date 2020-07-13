@@ -162,7 +162,7 @@ EXPLAIN SELECT /*+ QB_NAME(QB1) NO_BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 
 --echo # UPDATE|DELETE|INSERT|REPLACE hint testing
-set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
+set optimizer_switch='batched_key_access=off,mrr_cost_based=off,semijoin=off,materialization=off';
 
 EXPLAIN UPDATE t3
 SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN

@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Dodaj stolpec pred",
 	insertTableColumnAfterLabel: "Dodaj stolpec za",
 	deleteTableRowLabel: "Izbriši vrstico",
-	deleteTableColumnLabel: "Izbriši stolpec"
+	deleteTableColumnLabel: "Izbriši stolpec",
+	colorTableCellTitle: "Barva ozadja celice v tabeli",
+	tableContextMenuTitle: "Kontekstni meni tabele"
 })
 );

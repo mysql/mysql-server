@@ -42,7 +42,7 @@ var _16=null;
 for(var i=_15.childNodes.length-1;i>=0;i--){
 var c=_15.childNodes[i];
 if(c.nodeType===1){
-var _17=c.getAttribute("fixed")||(_c.byNode(c)&&_c.byNode(c).fixed);
+var _17=c.getAttribute("fixed")||c.getAttribute("data-mobile-fixed")||(_c.byNode(c)&&_c.byNode(c).fixed);
 if(_17==="bottom"){
 _16=c;
 break;
@@ -87,11 +87,16 @@ if(!_1f){
 w=_f.getEnclosingView(evt.target);
 _1f=w&&w.domNode.parentNode||_6.body();
 }
+var src=_c.getEnclosingWidget(evt.target);
+if(src&&src.callback){
+_1d.context=src;
+_1d.method=src.callback;
+}
 this.openExternalView(_1d,_1f);
 return;
 }else{
 if(_1d.href){
-if(_1d.hrefTarget){
+if(_1d.hrefTarget&&_1d.hrefTarget!="_self"){
 _6.global.open(_1d.href,_1d.hrefTarget);
 }else{
 var _20;
@@ -122,7 +127,7 @@ _1d.moveTo=(_1d.moveTo.charAt(0)==="#"?"#"+_22.id:_22.id)+_23;
 if(!_21||(_1d.moveTo&&_21===_c.byId(_1d.moveTo.replace(/^#?([^&?]+).*/,"$1")))){
 return;
 }
-var src=_c.getEnclosingWidget(evt.target);
+src=_c.getEnclosingWidget(evt.target);
 if(src&&src.callback){
 _1d.context=src;
 _1d.method=src.callback;

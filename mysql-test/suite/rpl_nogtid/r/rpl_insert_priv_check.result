@@ -3,12 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-include/rpl_use_privilege_db.inc [USE rpl_priv]
 SET @@session.sql_log_bin = OFF;
 CREATE TABLE t(c INT, d INT);
 SET @@session.sql_log_bin = ON;
 [connection slave]
-include/rpl_use_privilege_db.inc [USE rpl_priv]
 CALL mtr.add_suppression(".*command denied to user.");
 CALL mtr.add_suppression(".*the option binlog_row_value_options.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
@@ -88,7 +86,7 @@ STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT INSERT ON rpl_priv.* TO ...
+#    GRANT INSERT ON test.* TO ...
 #
 [connection master]
 INSERT INTO t VALUES(10, 10);
@@ -97,15 +95,15 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT INSERT ON rpl_priv.* TO 'a_bigger_username_just_for_test';
+GRANT INSERT ON test.* TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE INSERT ON rpl_priv.* FROM 'a_bigger_username_just_for_test';
+REVOKE INSERT ON test.* FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT UPDATE ON rpl_priv.* TO ...
+#    GRANT UPDATE ON test.* TO ...
 #
 [connection master]
 UPDATE t SET c = 12 WHERE c = 10;
@@ -114,10 +112,10 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT UPDATE ON rpl_priv.* TO 'a_bigger_username_just_for_test';
+GRANT UPDATE ON test.* TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE UPDATE ON rpl_priv.* FROM 'a_bigger_username_just_for_test';
+REVOKE UPDATE ON test.* FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 [connection slave]
@@ -125,7 +123,7 @@ SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 #
 # Running test for
-#    GRANT UPDATE ON rpl_priv.* TO ...
+#    GRANT UPDATE ON test.* TO ...
 #
 [connection master]
 UPDATE t SET c = 8 WHERE c = 12;
@@ -134,16 +132,16 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT UPDATE ON rpl_priv.* TO 'a_bigger_username_just_for_test';
+GRANT UPDATE ON test.* TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE UPDATE ON rpl_priv.* FROM 'a_bigger_username_just_for_test';
+REVOKE UPDATE ON test.* FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT DELETE ON rpl_priv.* TO ...
+#    GRANT DELETE ON test.* TO ...
 #
 [connection master]
 DELETE FROM t WHERE c = 8;
@@ -152,15 +150,15 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT DELETE ON rpl_priv.* TO 'a_bigger_username_just_for_test';
+GRANT DELETE ON test.* TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE DELETE ON rpl_priv.* FROM 'a_bigger_username_just_for_test';
+REVOKE DELETE ON test.* FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT INSERT ON rpl_priv.t TO ...
+#    GRANT INSERT ON test.t TO ...
 #
 [connection master]
 INSERT INTO t VALUES(10, 10);
@@ -169,15 +167,15 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT INSERT ON rpl_priv.t TO 'a_bigger_username_just_for_test';
+GRANT INSERT ON test.t TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE INSERT ON rpl_priv.t FROM 'a_bigger_username_just_for_test';
+REVOKE INSERT ON test.t FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT UPDATE ON rpl_priv.t TO ...
+#    GRANT UPDATE ON test.t TO ...
 #
 [connection master]
 UPDATE t SET c = 12 WHERE c = 10;
@@ -186,10 +184,10 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT UPDATE ON rpl_priv.t TO 'a_bigger_username_just_for_test';
+GRANT UPDATE ON test.t TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE UPDATE ON rpl_priv.t FROM 'a_bigger_username_just_for_test';
+REVOKE UPDATE ON test.t FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 [connection slave]
@@ -197,7 +195,7 @@ SET @binlog_row_value_options_save= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 #
 # Running test for
-#    GRANT UPDATE ON rpl_priv.t TO ...
+#    GRANT UPDATE ON test.t TO ...
 #
 [connection master]
 UPDATE t SET c = 8 WHERE c = 12;
@@ -206,16 +204,16 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT UPDATE ON rpl_priv.t TO 'a_bigger_username_just_for_test';
+GRANT UPDATE ON test.t TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE UPDATE ON rpl_priv.t FROM 'a_bigger_username_just_for_test';
+REVOKE UPDATE ON test.t FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @binlog_row_value_options_save;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT DELETE ON rpl_priv.t TO ...
+#    GRANT DELETE ON test.t TO ...
 #
 [connection master]
 DELETE FROM t WHERE c = 8;
@@ -224,15 +222,15 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT DELETE ON rpl_priv.t TO 'a_bigger_username_just_for_test';
+GRANT DELETE ON test.t TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE DELETE ON rpl_priv.t FROM 'a_bigger_username_just_for_test';
+REVOKE DELETE ON test.t FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT INSERT(c, d) ON rpl_priv.t TO ...
+#    GRANT INSERT(c, d) ON test.t TO ...
 #
 [connection master]
 INSERT INTO t VALUES(10, 10);
@@ -241,15 +239,15 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT INSERT(c, d) ON rpl_priv.t TO 'a_bigger_username_just_for_test';
+GRANT INSERT(c, d) ON test.t TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE INSERT(c, d) ON rpl_priv.t FROM 'a_bigger_username_just_for_test';
+REVOKE INSERT(c, d) ON test.t FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 #
 # Running test for
-#    GRANT UPDATE(c) ON rpl_priv.t TO ...
+#    GRANT UPDATE(c) ON test.t TO ...
 #
 [connection master]
 UPDATE t SET c = 12 WHERE c = 10;
@@ -258,10 +256,10 @@ include/save_master_pos.inc
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=1142]
 STOP SLAVE;
-GRANT UPDATE(c) ON rpl_priv.t TO 'a_bigger_username_just_for_test';
+GRANT UPDATE(c) ON test.t TO 'a_bigger_username_just_for_test';
 START SLAVE;
 include/sync_slave_sql.inc
-REVOKE UPDATE(c) ON rpl_priv.t FROM 'a_bigger_username_just_for_test';
+REVOKE UPDATE(c) ON test.t FROM 'a_bigger_username_just_for_test';
 STOP SLAVE;
 include/diff_tables.inc [master:t, slave:t]
 DROP TABLE t;

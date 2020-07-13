@@ -244,3 +244,7 @@ if (!$NO_EXT_PATH)
 }
 
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].* The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");
+--enable_query_log

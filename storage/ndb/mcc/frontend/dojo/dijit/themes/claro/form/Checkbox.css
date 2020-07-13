@@ -5,7 +5,8 @@
 .dj_ie6 .claro .dijitToggleButton .dijitCheckBoxIcon {
   background-image: url("../images/checkmarkNoBorder.gif");
 }
-.claro .dijitCheckBox, .claro .dijitCheckBoxIcon {
+.claro .dijitCheckBox,
+.claro .dijitCheckBoxIcon {
   background-image: url("../form/images/checkboxRadioButtonStates.png");
   
   background-repeat: no-repeat;
@@ -14,15 +15,18 @@
   margin: 0 2px 0 0;
   padding: 0;
 }
-.dj_ie6 .claro .dijitCheckBox, .dj_ie6 .claro .dijitCheckBoxIcon {
+.dj_ie6 .claro .dijitCheckBox,
+.dj_ie6 .claro .dijitCheckBoxIcon {
   background-image: url("../form/images/checkboxAndRadioButtons_IE6.png");
   
 }
-.claro .dijitCheckBox, .claro .dijitToggleButton .dijitCheckBoxIcon {
+.claro .dijitCheckBox,
+.claro .dijitToggleButton .dijitCheckBoxIcon {
   
   background-position: -15px;
 }
-.claro .dijitCheckBoxChecked, .claro .dijitToggleButtonChecked .dijitCheckBoxIcon {
+.claro .dijitCheckBoxChecked,
+.claro .dijitToggleButtonChecked .dijitCheckBoxIcon {
   
   background-position: 0;
 }

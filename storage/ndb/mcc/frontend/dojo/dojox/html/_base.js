@@ -127,6 +127,7 @@ this._styles=[];
 this.inherited("onBegin",arguments);
 var _43=this.content,_44=this.node;
 var _45=this._styles;
+this._code=null;
 if(_6.isString(_43)){
 if(this.adjustPaths&&this.referencePath){
 _43=_1d(this.referencePath,_43);

@@ -392,16 +392,16 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
         setup_key_part_field(share, handler_file, primary_key, keyinfo, key, i,
                              &usable_parts, true);
 
-        field->flags |= PART_KEY_FLAG;
+        field->set_flag(PART_KEY_FLAG);
         if (key == primary_key) {
-          field->flags |= PRI_KEY_FLAG;
+          field->set_flag(PRI_KEY_FLAG);
           /*
              If this field is part of the primary key and all keys contains
              the primary key, then we can use any key to find this column
              */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX) {
             if (field->key_length() == key_part->length &&
-                !(field->flags & BLOB_FLAG))
+                !field->is_flag_set(BLOB_FLAG))
               field->part_of_key = share->keys_in_use;
             if (field->part_of_sortkey.is_set(key))
               field->part_of_sortkey = share->keys_in_use;
@@ -509,7 +509,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
                "Wrong field definition.");
       return true;
     } else
-      reg_field->flags |= AUTO_INCREMENT_FLAG;
+      reg_field->set_flag(AUTO_INCREMENT_FLAG);
   }
 
   if (share->blob_fields) {
@@ -521,7 +521,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
               (uint)(share->blob_fields * sizeof(uint)))))
       return true;  // OOM error message already reported
     for (k = 0, ptr = share->field; *ptr; ptr++, k++) {
-      if ((*ptr)->flags & BLOB_FLAG || (*ptr)->is_array()) (*save++) = k;
+      if ((*ptr)->is_flag_set(BLOB_FLAG) || (*ptr)->is_array()) (*save++) = k;
     }
   }
 
@@ -727,6 +727,12 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
         strmake_root(&share->mem_root, comment.c_str(), comment.length() + 1);
     share->comment.length = comment.length();
   }
+
+  // Copy SE attributes into share's memroot
+  share->engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, tab_obj->engine_attribute());
+  share->secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, tab_obj->secondary_engine_attribute());
 
   // Read Connection strings
   if (table_options.exists("connection_string"))
@@ -1004,7 +1010,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   //
   reg_field =
       make_field(*col_obj, charset, share, rec_pos, null_pos, null_bit_pos);
-  reg_field->field_index = field_nr;
+  reg_field->set_field_index(field_nr);
   reg_field->stored_in_db = true;
 
   // Handle generated columns
@@ -1053,7 +1059,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     share->found_next_number_field = &share->field[field_nr];
 
   // Set field flags
-  if (col_obj->has_no_default()) reg_field->flags |= NO_DEFAULT_VALUE_FLAG;
+  if (col_obj->has_no_default()) reg_field->set_flag(NO_DEFAULT_VALUE_FLAG);
 
   // Set default value or NULL. Reset required for e.g. CHAR.
   if (col_obj->is_default_value_null()) {
@@ -1091,9 +1097,15 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // NOT SECONDARY column option.
   if (column_options->exists("not_secondary"))
-    reg_field->flags |= NOT_SECONDARY_FLAG;
+    reg_field->set_flag(NOT_SECONDARY_FLAG);
 
   reg_field->set_hidden(col_obj->hidden());
+
+  reg_field->m_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, col_obj->engine_attribute());
+
+  reg_field->m_secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, col_obj->secondary_engine_attribute());
 
   // Field is prepared. Store it in 'share'
   share->field[field_nr] = reg_field;
@@ -1411,7 +1423,15 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
 
     keyinfo->flags |= HA_USES_COMMENT;
   }
+  keyinfo->engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, idx_obj->engine_attribute());
+  if (keyinfo->engine_attribute.length > 0)
+    keyinfo->flags |= HA_INDEX_USES_ENGINE_ATTRIBUTE;
 
+  keyinfo->secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, idx_obj->secondary_engine_attribute());
+  if (keyinfo->secondary_engine_attribute.length > 0)
+    keyinfo->flags |= HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE;
   return (false);
 }
 

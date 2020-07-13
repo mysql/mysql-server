@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Přidat sloupec před",
 	insertTableColumnAfterLabel: "Přidat sloupec za",
 	deleteTableRowLabel: "Odstranit řádek",
-	deleteTableColumnLabel: "Odstranit sloupec"
+	deleteTableColumnLabel: "Odstranit sloupec",
+	colorTableCellTitle: "Buňka tabulky barev pozadí",
+	tableContextMenuTitle: "Kontextová nabídka tabulky"
 })
 );

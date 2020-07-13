@@ -122,7 +122,7 @@ date.add = function(/*Date*/date, /*String*/interval, /*int*/amount){
 	// amount:
 	//		How much to add to the date.
 
-	var sum = new Date(+date); // convert to Number before copying to accomodate IE (#3112)
+	var sum = new Date(+date); // convert to Number before copying to accommodate IE (#3112)
 	var fixOvershoot = false;
 	var property = "Date";
 

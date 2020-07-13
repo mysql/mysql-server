@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <time.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cfloat>  // DBL_DIG
@@ -176,8 +177,7 @@ void Item_func::set_arguments(List<Item> &list, bool context_free) {
   allowed_arg_cols = 1;
   arg_count = list.elements;
   args = tmp_arg;  // If 2 arguments
-  if (arg_count <= 2 ||
-      (args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count))) {
+  if (arg_count <= 2 || (args = (*THR_MALLOC)->ArrayAlloc<Item *>(arg_count))) {
     List_iterator_fast<Item> li(list);
     Item *item;
     Item **save_args = args;
@@ -268,12 +268,7 @@ bool Item_func::fix_fields(THD *thd, Item **) {
   Item **arg, **arg_end;
   uchar buff[STACK_BUFF_ALLOC];  // Max argument in function
 
-  /*
-    Semi-join flattening should only be performed for top-level
-    predicates. Disable it for predicates that live under an
-    Item_func.
-  */
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
@@ -458,15 +453,6 @@ void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
 
-  /*
-    Rollup property not always derivable from arguments, so don't reset that,
-    cf. "GROUP BY (a+b) WITH ROLLUP": the a and the b are never marked, cf. the
-    logic in `resolve_rollup_item', `resolve_rollup_wfs' and
-    `change_func_or_wf_group_ref', so "a+b" being a rollup expression can't be
-    derived from a or b.
-  */
-  m_accum_properties &= PROP_ROLLUP_EXPR;
-
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
     used_tables_cache |= args[i]->used_tables();
@@ -625,16 +611,13 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
   /*
     For items with aggregate functions, return the copy
     of the function.
-    For constant items, return the same object as fields
+    For constant items, return the same object, as fields
     are not created in temp tables for them.
     For items with windowing functions, return the same
     object (temp table fields are not created for windowing
     functions if they are not evaluated at this stage).
-    For items which need to store ROLLUP NULLs, we need
-    the same object as we need to detect if ROLLUP NULL's
-    need to be written for this item (in has_rollup_result).
   */
-  if (!has_aggregation() && !const_item() && !has_wf() && !has_rollup_expr()) {
+  if (!has_aggregation() && !const_item() && !has_wf()) {
     Item *result = new Item_field(result_field);
     return result;
   }
@@ -709,8 +692,8 @@ const Item_field *Item_func::contributes_to_filter(
         2) a usable field has already been found (meaning that
         this is "filter_for_table.colX OP filter_for_table.colY").
       */
-      if (bitmap_is_set(fields_to_ignore, fld->field->field_index) ||  // 1)
-          usable_field)                                                // 2)
+      if (bitmap_is_set(fields_to_ignore, fld->field->field_index()) ||  // 1)
+          usable_field)                                                  // 2)
       {
         found_comparable = true;
         continue;
@@ -1697,7 +1680,7 @@ double Item_typecast_real::val_real() {
   return check_float_overflow(res);
 }
 
-longlong Item_typecast_real::val_int() {
+longlong Item_func::val_int_from_real() {
   double res = val_real();
   if (null_value) return 0;
 
@@ -3405,7 +3388,7 @@ String *Item_func_min_max::str_op(String *str) {
   null_value = false;
   if (compare_as_dates()) {
     longlong result = 0;
-    if (cmp_datetimes(&result)) return nullptr;
+    if (cmp_datetimes(&result)) return error_str();
 
     /*
       If result is greater than 0, the winning argument was successfully
@@ -3573,39 +3556,95 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec) {
   return Item_func_numhybrid::val_decimal(dec);
 }
 
-double Item_func_rollup_const::val_real() {
-  DBUG_ASSERT(fixed == 1);
+bool Item_rollup_group_item::get_date(MYSQL_TIME *ltime,
+                                      my_time_flags_t fuzzydate) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return true;
+  }
+  return (null_value = args[0]->get_date(ltime, fuzzydate));
+}
+
+bool Item_rollup_group_item::get_time(MYSQL_TIME *ltime) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return true;
+  }
+  return (null_value = args[0]->get_time(ltime));
+}
+
+double Item_rollup_group_item::val_real() {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return 0.0;
+  }
   double res = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
   return res;
 }
 
-longlong Item_func_rollup_const::val_int() {
-  DBUG_ASSERT(fixed == 1);
+longlong Item_rollup_group_item::val_int() {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return 0;
+  }
   longlong res = args[0]->val_int();
   if ((null_value = args[0]->null_value)) return 0;
   return res;
 }
 
-String *Item_func_rollup_const::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+String *Item_rollup_group_item::val_str(String *str) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return nullptr;
+  }
   String *res = args[0]->val_str(str);
   if ((null_value = args[0]->null_value)) return nullptr;
   return res;
 }
 
-my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec) {
-  DBUG_ASSERT(fixed == 1);
+my_decimal *Item_rollup_group_item::val_decimal(my_decimal *dec) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return nullptr;
+  }
   my_decimal *res = args[0]->val_decimal(dec);
   if ((null_value = args[0]->null_value)) return nullptr;
   return res;
 }
 
-bool Item_func_rollup_const::val_json(Json_wrapper *result) {
-  DBUG_ASSERT(fixed == 1);
+bool Item_rollup_group_item::val_json(Json_wrapper *result) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return false;
+  }
   bool res = args[0]->val_json(result);
   null_value = args[0]->null_value;
   return res;
+}
+
+void Item_rollup_group_item::print(const THD *thd, String *str,
+                                   enum_query_type query_type) const {
+  if (query_type & QT_HIDE_ROLLUP_FUNCTIONS) {
+    print_args(thd, str, 0, query_type);
+    return;
+  }
+
+  str->append(func_name());
+  str->append('(');
+  print_args(thd, str, 0, query_type);
+  str->append(',');
+  char buf[16];
+  snprintf(buf, sizeof(buf), "%d", m_min_rollup_level);
+  str->append(buf);
+  str->append(')');
 }
 
 longlong Item_func_length::val_int() {
@@ -4554,7 +4593,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
   Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
 
   global_sid_lock->rdlock();
-  if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF) {
+  if (global_gtid_mode.get() == Gtid_mode::OFF) {
     global_sid_lock->unlock();
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     null_value = true;
@@ -4580,7 +4619,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     return 0;
   }
 
-  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
+  gtid_state->begin_gtid_wait();
 
   double timeout = (arg_count == 2) ? args[1]->val_real() : 0;
   if (timeout < 0) {
@@ -4682,12 +4721,12 @@ longlong Item_master_gtid_set_wait::val_int() {
       mi = channel_map.get_default_channel_mi();
   }
 
-  if (get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF) {
+  if (global_gtid_mode.get() == Gtid_mode::OFF) {
     null_value = true;
     channel_map.unlock();
     return 0;
   }
-  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_CHANNEL_MAP);
+  gtid_state->begin_gtid_wait();
 
   if (mi) mi->inc_reference();
 
@@ -5897,9 +5936,8 @@ bool Item_func_set_user_var::check(bool use_result_field) {
     case INT_RESULT: {
       save_result.vint =
           use_result_field ? result_field->val_int() : args[0]->val_int();
-      unsigned_flag = use_result_field
-                          ? ((Field_num *)result_field)->unsigned_flag
-                          : args[0]->unsigned_flag;
+      unsigned_flag = use_result_field ? result_field->is_unsigned()
+                                       : args[0]->unsigned_flag;
       break;
     }
     case STRING_RESULT: {
@@ -7100,7 +7138,7 @@ float Item_func_match::get_filtering_effect(THD *, table_map filter_for_table,
 static void update_table_read_set(const Field *field) {
   TABLE *table = field->table;
 
-  if (!bitmap_test_and_set(table->read_set, field->field_index))
+  if (!bitmap_test_and_set(table->read_set, field->field_index()))
     table->covering_keys.intersect(field->part_of_key);
 }
 
@@ -7381,7 +7419,8 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
   }
 
   /* skip hints setting if there are aggregates(except of FT_NO_RANKING) */
-  if (join->implicit_grouping || join->group_list || join->select_distinct) {
+  if (join->implicit_grouping || !join->group_list.empty() ||
+      join->select_distinct) {
     /* 'No ranking' is possibe even if aggregates are present */
     if ((ft_flag & FT_NO_RANKING)) hints->set_hint_flag(FT_NO_RANKING);
     return;
@@ -7631,7 +7670,7 @@ bool Item_func_sp::resolve_type(THD *) {
   max_length = sp_result_field->field_length;
   collation.set(sp_result_field->charset());
   maybe_null = true;
-  unsigned_flag = (sp_result_field->flags & UNSIGNED_FLAG);
+  unsigned_flag = sp_result_field->is_flag_set(UNSIGNED_FLAG);
 
   return false;
 }
@@ -7719,28 +7758,6 @@ bool Item_func_sp::execute_impl(THD *thd) {
     my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
     goto error;
   }
-
-  /*
-    The 'function call' top statement can not distinguish if its sub
-    statements (function) have 'CREATE/DROP TEMPORARY TABLE' or not
-    before executing its sub statements, It is too late to set the
-    binlog format to row in mixed mode when executing the 'CREATE/DROP
-    TEMPORARY TABLE' in sub statement, because the binlog format is not
-    consistent before and after 'CREATE/DROP TEMPORARY TABLE'. Which
-    implies that we have to write the 'function call' top statement
-    into binlog if the function contains 'CREATE/DROP TEMPORARY TABLE'
-    in mixed mode. Because of that constrain we have to write the
-    'function call' top statement into binlog if the function contains
-    the DMLs on temporary table in mixed mode, another reason is that
-    the DMLs on temporary table might be in the same function as
-    'CREATE/DROP TEMPORARY TABLE'. Which requires to set binlog format
-    to statement if the function contains DML statement(s) on temporary
-    table in mixed mode.
-  */
-  if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-      (thd->lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE) ||
-       thd->lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE)))
-    thd->clear_current_stmt_binlog_format_row();
 
   /*
     Disable the binlogging if this is not a SELECT statement. If this is a

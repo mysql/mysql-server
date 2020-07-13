@@ -1,0 +1,76 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--echo # Bug #31329634 ASSERTION FAILURE:
+--echo #    LOCK0LATCHES.CC:42:LOCK_SYS->REC_HASH->N_CELLS == LOCK_SYS->P
+
+# The two values in master-opt were chosen so that the following
+# SET GLOBAL innodb_buffer_pool_size= ...
+# will succeed, and will resize lock_sys in parallel to the UPDATE.
+# (As opposed to say, block, as is the case when it shrinks instead of growing)
+# Also it must be larger than BUF_LRU_MIN_LEN pages, as otherwise BP shrink will
+# not be able to finish as it will try to keep BUF_LRU_MIN_LEN pages in BP.
+SELECT @@innodb_buffer_pool_size;
+SELECT @@innodb_buffer_pool_chunk_size;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(1000)) ENGINE=INNODB;
+INSERT INTO t1 (id,val) VALUES (1,''),(2,''),(3,''),(4,''),(5,'');
+
+
+--connect (con1,localhost,root,,)
+  SET DEBUG_SYNC='lock_rec_restore_from_page_infimum_will_latch
+    SIGNAL con1_will_latch
+    WAIT_FOR con1_can_go';
+  # This will cause resize of records and require calls to
+  # lock_rec_restore_from_page_infimum() which exercise Shard_latches_guard
+  --send UPDATE t1 SET val='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+
+--connect (con2,localhost,root,,)
+  SET DEBUG_SYNC='now WAIT_FOR con1_will_latch';
+  # resize happens in a background thread so we need to enable sync point
+  SET GLOBAL DEBUG='+d,syncpoint_after_lock_sys_resize_rec_hash';
+  SET GLOBAL innodb_buffer_pool_size=
+    @@innodb_buffer_pool_size * 2 + @@innodb_buffer_pool_chunk_size;
+
+--connection default
+  SET DEBUG_SYNC='now WAIT_FOR reached_after_lock_sys_resize_rec_hash';
+  SET DEBUG_SYNC='now SIGNAL con1_can_go';
+  # This is the moment where con1 could observe assertion failure
+  SET GLOBAL DEBUG='-d,syncpoint_after_lock_sys_resize_rec_hash';
+  SET DEBUG_SYNC='now SIGNAL continue_after_lock_sys_resize_rec_hash';
+
+--connection con1
+  --reap
+
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+DROP TABLE t1;
+
+# Make sure we finish previous resizing before issuing another
+let $wait_timeout = 60;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 9) = 'Completed'
+  FROM performance_schema.global_status
+  WHERE variable_name = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+SELECT @@innodb_buffer_pool_size;
+
+# Restore original smaller size
+SET GLOBAL innodb_buffer_pool_size=
+  (@@innodb_buffer_pool_size - @@innodb_buffer_pool_chunk_size) div 2;
+# Make sure we finish resizing and restore original state before ending
+let $wait_timeout = 60;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 9) = 'Completed'
+  FROM performance_schema.global_status
+  WHERE variable_name = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+SELECT @@innodb_buffer_pool_size;
+
+--source include/wait_until_count_sessions.inc

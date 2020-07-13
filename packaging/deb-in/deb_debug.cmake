@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,6 @@ SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS
 # debug plugins
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
-usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/debug/component_log_sink_json.so
 usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
@@ -95,6 +94,7 @@ SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
 "
 usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/debug/auth_test_plugin.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
 usr/lib/mysql/plugin/debug/component_example_component3.so
@@ -108,6 +108,7 @@ usr/lib/mysql/plugin/debug/component_test_udf_registration.so
 usr/lib/mysql/plugin/debug/component_test_host_application_signal.so
 usr/lib/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 usr/lib/mysql/plugin/debug/component_test_mysql_runtime_error.so
+usr/lib/mysql/plugin/debug/component_test_component_deinit.so
 usr/lib/mysql/plugin/debug/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_avg_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_int_func.so

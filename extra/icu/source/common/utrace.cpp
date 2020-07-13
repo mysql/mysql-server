@@ -67,8 +67,7 @@ utrace_exit(int32_t fnNumber, int32_t returnType, ...) {
             fmt = gExitFmtPtrStatus;
             break;
         default:
-            U_ASSERT(FALSE);
-            fmt = gExitFmt;
+            UPRV_UNREACHABLE;
         }
 
         va_start(args, returnType);
@@ -477,6 +476,16 @@ trCollNames[] = {
     NULL
 };
 
+
+static const char* const
+trResDataNames[] = {
+    "resc",
+    "bundle-open",
+    "file-open",
+    "res-open",
+    NULL
+};
+
                 
 U_CAPI const char * U_EXPORT2
 utrace_functionName(int32_t fnNumber) {
@@ -486,6 +495,8 @@ utrace_functionName(int32_t fnNumber) {
         return trConvNames[fnNumber - UTRACE_CONVERSION_START];
     } else if(UTRACE_COLLATION_START <= fnNumber && fnNumber < UTRACE_COLLATION_LIMIT){
         return trCollNames[fnNumber - UTRACE_COLLATION_START];
+    } else if(UTRACE_UDATA_START <= fnNumber && fnNumber < UTRACE_RES_DATA_LIMIT){
+        return trResDataNames[fnNumber - UTRACE_UDATA_START];
     } else {
         return "[BOGUS Trace Function Number]";
     }

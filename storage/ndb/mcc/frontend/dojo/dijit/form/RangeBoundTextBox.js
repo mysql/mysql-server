@@ -1,5 +1,5 @@
 //>>built
-define("dijit/form/RangeBoundTextBox",["dojo/_base/declare","dojo/i18n","./MappedTextBox"],function(_1,_2,_3){
+define("dijit/form/RangeBoundTextBox",["dojo/_base/declare","dojo/i18n","./MappedTextBox","dojo/i18n!./nls/validate"],function(_1,_2,_3){
 var _4=_1("dijit.form.RangeBoundTextBox",_3,{rangeMessage:"",rangeCheck:function(_5,_6){
 return ("min" in _6?(this.compare(_5,_6.min)>=0):true)&&("max" in _6?(this.compare(_5,_6.max)<=0):true);
 },isInRange:function(){
@@ -35,7 +35,6 @@ if(!this.rangeMessage){
 this.messages=_2.getLocalization("dijit.form","validate",this.lang);
 this.rangeMessage=this.messages.rangeMessage;
 }
-},applyTextDir:function(){
 }});
 return _4;
 });

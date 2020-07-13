@@ -7,16 +7,20 @@ define("dojox/mobile/Switch", [
 	"dojo/dom-class",
 	"dojo/dom-construct",
 	"dojo/dom-style",
+	"dojo/dom-attr",
 	"dojo/touch",
 	"dijit/_Contained",
 	"dijit/_WidgetBase",
-	"./sniff"
-], function(array, connect, declare, event, win, domClass, domConstruct, domStyle, touch, Contained, WidgetBase, has){
+	"./sniff",
+	"./_maskUtils",
+	"./common",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/Switch"
+], function(array, connect, declare, event, win, domClass, domConstruct, domStyle, domAttr, touch, Contained, WidgetBase, has, maskUtils, dm, BidiSwitch){
 
 	// module:
 	//		dojox/mobile/Switch
 
-	return declare("dojox.mobile.Switch", [WidgetBase, Contained],{
+	var Switch = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiSwitch" : "dojox.mobile.Switch", [WidgetBase, Contained],{
 		// summary:
 		//		A toggle switch with a sliding knob.
 		// description:
@@ -25,7 +29,7 @@ define("dojox/mobile/Switch", [
 		//		handler is called when the switch is manipulated.
 
 		// value: String
-		//		The initial state of the switch. "on" or "off". The default
+		//		The initial state of the switch: "on" or "off". The default
 		//		value is "on".
 		value: "on",
 
@@ -59,39 +63,97 @@ define("dojox/mobile/Switch", [
 		// role: [private] String
 		//		The accessibility role.
 		role: "", // a11y
-		_createdMasks: [],
 
 		buildRendering: function(){
-			this.domNode = (this.srcNodeRef && this.srcNodeRef.tagName === "SPAN") ?
-				this.srcNodeRef : domConstruct.create("span");
+			if(!this.templateString){ // true if this widget is not templated
+				this.domNode = (this.srcNodeRef && this.srcNodeRef.tagName === "SPAN") ?
+					this.srcNodeRef : domConstruct.create("span");
+			}
+			// prevent browser scrolling on IE10 (evt.preventDefault() is not enough)
+			dm._setTouchAction(this.domNode, "none");
 			this.inherited(arguments);
-			var c = (this.srcNodeRef && this.srcNodeRef.className) || this.className || this["class"];
-			if((c = c.match(/mblSw.*Shape\d*/))){ this.shape = c; }
-			domClass.add(this.domNode, this.shape);
-			var nameAttr = this.name ? " name=\"" + this.name + "\"" : "";
-			this.domNode.innerHTML =
-				  '<div class="mblSwitchInner">'
-				+	'<div class="mblSwitchBg mblSwitchBgLeft">'
-				+		'<div class="mblSwitchText mblSwitchTextLeft"></div>'
-				+	'</div>'
-				+	'<div class="mblSwitchBg mblSwitchBgRight">'
-				+		'<div class="mblSwitchText mblSwitchTextRight"></div>'
-				+	'</div>'
-				+	'<div class="mblSwitchKnob"></div>'
-				+	'<input type="hidden"'+nameAttr+'></div>'
-				+ '</div>';
-			var n = this.inner = this.domNode.firstChild;
-			this.left = n.childNodes[0];
-			this.right = n.childNodes[1];
-			this.knob = n.childNodes[2];
-			this.input = n.childNodes[3];
+			if(!this.templateString){ // true if this widget is not templated
+				var c = (this.srcNodeRef && this.srcNodeRef.className) || this.className || this["class"];
+				if((c = c.match(/mblSw.*Shape\d*/))){ this.shape = c; }
+				domClass.add(this.domNode, this.shape);
+				var nameAttr = this.name ? " name=\"" + this.name + "\"" : "";
+				this.domNode.innerHTML =
+					  '<div class="mblSwitchInner">'
+					+	'<div class="mblSwitchBg mblSwitchBgLeft">'
+					+		'<div class="mblSwitchText mblSwitchTextLeft"></div>'
+					+	'</div>'
+					+	'<div class="mblSwitchBg mblSwitchBgRight">'
+					+		'<div class="mblSwitchText mblSwitchTextRight"></div>'
+					+	'</div>'
+					+	'<div class="mblSwitchKnob"></div>'
+					+	'<input type="hidden"'+nameAttr+' value="'+this.value+'"></div>'
+					+ '</div>';
+				var n = this.inner = this.domNode.firstChild;
+				this.left = n.childNodes[0];
+				this.right = n.childNodes[1];
+				this.knob = n.childNodes[2];
+				this.input = n.childNodes[3];
+			}
+			domAttr.set(this.domNode, "role", "checkbox"); //a11y
+			domAttr.set(this.domNode, "aria-checked", (this.value === "on") ? "true" : "false"); //a11y
+
+			this.switchNode = this.domNode;
+
+			if(has("windows-theme")) {
+				var rootNode = domConstruct.create("div", {className: "mblSwitchContainer"});
+				this.labelNode = domConstruct.create("label", {"class": "mblSwitchLabel", "for": this.id}, rootNode);
+				rootNode.appendChild(this.domNode.cloneNode(true));
+				this.domNode = rootNode;
+				this.focusNode = rootNode.childNodes[1];
+				this.labelNode.innerHTML = (this.value=="off") ? this.rightLabel : this.leftLabel;
+				this.switchNode = this.domNode.childNodes[1];
+				var inner = this.inner = this.domNode.childNodes[1].firstChild;
+				this.left = inner.childNodes[0];
+				this.right = inner.childNodes[1];
+				this.knob = inner.childNodes[2];
+				this.input = inner.childNodes[3];
+			}
 		},
 
 		postCreate: function(){
-			this._clickHandle = this.connect(this.domNode, "onclick", "_onClick");
-			this._keydownHandle = this.connect(this.domNode, "onkeydown", "_onClick"); // for desktop browsers
-			this._startHandle = this.connect(this.domNode, touch.press, "onTouchStart");
+			this.connect(this.switchNode, "onclick", "_onClick");
+			this.connect(this.switchNode, "onkeydown", "_onClick"); // for desktop browsers
+			this._startHandle = this.connect(this.switchNode, touch.press, "onTouchStart");
 			this._initialValue = this.value; // for reset()
+		},
+
+		startup: function(){
+			var started = this._started;
+			this.inherited(arguments);
+			if(!started){
+				this.resize();
+			}
+		},
+
+		resize: function(){
+			if(has("windows-theme")){
+				// Override the custom CSS width (if any) to avoid misplacement.
+				// Per design, the windows theme does not allow resizing the controls.
+				// The label of the switch is placed next to the switch, and a custom
+				// width would only have the effect to increase the distance between the
+				// label and the switch, which is undesired. Hence, on windows theme,
+				// ensure the width of root DOM node is 100%.
+				domStyle.set(this.domNode, "width", "100%");
+			}else{
+				var value = domStyle.get(this.domNode,"width");
+				var outWidth = value + "px";
+				var innWidth = (value - domStyle.get(this.knob,"width")) + "px";
+				domStyle.set(this.left, "width", outWidth);
+				domStyle.set(this.right,this.isLeftToRight()?{width: outWidth, left: innWidth}:{width: outWidth});
+				domStyle.set(this.left.firstChild, "width", innWidth);
+				domStyle.set(this.right.firstChild, "width", innWidth);
+				domStyle.set(this.knob, "left", innWidth);
+				if(this.value == "off"){
+					domStyle.set(this.inner, "left", this.isLeftToRight()?("-" + innWidth):0);
+				}
+				this._hasMaskImage = false;
+				this._createMaskImage();
+			}
 		},
 
 		_changeState: function(/*String*/state, /*Boolean*/anim){
@@ -100,58 +162,41 @@ define("dojox/mobile/Switch", [
 			this.right.style.display = "";
 			this.inner.style.left = "";
 			if(anim){
-				domClass.add(this.domNode, "mblSwitchAnimation");
+				domClass.add(this.switchNode, "mblSwitchAnimation");
 			}
-			domClass.remove(this.domNode, on ? "mblSwitchOff" : "mblSwitchOn");
-			domClass.add(this.domNode, on ? "mblSwitchOn" : "mblSwitchOff");
+			domClass.remove(this.switchNode, on ? "mblSwitchOff" : "mblSwitchOn");
+			domClass.add(this.switchNode, on ? "mblSwitchOn" : "mblSwitchOff");
+			domAttr.set(this.switchNode, "aria-checked", on ? "true" : "false"); //a11y
+
+			if(!on && !has("windows-theme")){
+				this.inner.style.left  = (this.isLeftToRight()?(-(domStyle.get(this.domNode,"width") - domStyle.get(this.knob,"width"))):0) + "px";
+			}
 
 			var _this = this;
-			setTimeout(function(){
+			_this.defer(function(){
 				_this.left.style.display = on ? "" : "none";
 				_this.right.style.display = !on ? "" : "none";
-				domClass.remove(_this.domNode, "mblSwitchAnimation");
+				domClass.remove(_this.switchNode, "mblSwitchAnimation");
 			}, anim ? 300 : 0);
 		},
 
 		_createMaskImage: function(){
+			if(this._timer){
+				 this._timer.remove();
+				 delete this._timer;
+			}
 			if(this._hasMaskImage){ return; }
-			this._width = this.domNode.offsetWidth - this.knob.offsetWidth;
+			var w = domStyle.get(this.domNode,"width"), h = domStyle.get(this.domNode,"height");
+			this._width = (w - domStyle.get(this.knob,"width"));
 			this._hasMaskImage = true;
-			if(!has("webkit")){ return; }
+			if(!(has("mask-image"))){ return; }
 			var rDef = domStyle.get(this.left, "borderTopLeftRadius");
 			if(rDef == "0px"){ return; }
 			var rDefs = rDef.split(" ");
 			var rx = parseFloat(rDefs[0]), ry = (rDefs.length == 1) ? rx : parseFloat(rDefs[1]);
-			var w = this.domNode.offsetWidth, h = this.domNode.offsetHeight;
 			var id = (this.shape+"Mask"+w+h+rx+ry).replace(/\./,"_");
-			if(!this._createdMasks[id]){
-				this._createdMasks[id] = 1;
-				var ctx = win.doc.getCSSCanvasContext("2d", id, w, h);
-				ctx.fillStyle = "#000000";
-				ctx.beginPath();
-				if(rx == ry){
-					// round arc
-					ctx.moveTo(rx, 0);
-					ctx.arcTo(0, 0, 0, rx, rx);
-					ctx.lineTo(0, h - rx);
-					ctx.arcTo(0, h, rx, h, rx);
-					ctx.lineTo(w - rx, h);
-					ctx.arcTo(w, h, w, rx, rx);
-					ctx.lineTo(w, rx);
-					ctx.arcTo(w, 0, w - rx, 0, rx);
-				}else{
-					// elliptical arc
-					var pi = Math.PI;
-					ctx.scale(1, ry/rx);
-					ctx.moveTo(rx, 0);
-					ctx.arc(rx, rx, rx, 1.5 * pi, 0.5 * pi, true);
-					ctx.lineTo(w - rx, 2 * rx);
-					ctx.arc(w - rx, rx, rx, 0.5 * pi, 1.5 * pi, true);
-				}
-				ctx.closePath();
-				ctx.fill();
-			}
-			this.domNode.style.webkitMaskImage = "-webkit-canvas(" + id + ")";
+
+			maskUtils.createRoundMask(this.switchNode, 0, 0, 0, 0, w, h, rx, ry, 1);
 		},
 
 		_onClick: function(e){
@@ -162,7 +207,7 @@ define("dojox/mobile/Switch", [
 			if(e && e.type === "keydown" && e.keyCode !== 13){ return; }
 			if(this.onClick(e) === false){ return; } // user's click action
 			if(this._moved){ return; }
-			this.value = this.input.value = (this.value == "on") ? "off" : "on";
+			this._set("value", this.input.value = (this.value == "on") ? "off" : "on");
 			this._changeState(this.value, true);
 			this.onStateChanged(this.value);
 		},
@@ -182,8 +227,17 @@ define("dojox/mobile/Switch", [
 			if(!this._conn){
 				this._conn = [
 					this.connect(this.inner, touch.move, "onTouchMove"),
-					this.connect(this.inner, touch.release, "onTouchEnd")
+					this.connect(win.doc, touch.release, "onTouchEnd")
 				];
+
+				/* While moving the slider knob sometimes IE fires MSPointerCancel event. That prevents firing
+				MSPointerUp event (http://msdn.microsoft.com/ru-ru/library/ie/hh846776%28v=vs.85%29.aspx) so the
+				knob can be stuck in the middle of the switch. As a fix we handle MSPointerCancel event with the
+				same lintener as for MSPointerUp event.
+				*/
+				if(has("windows-theme")){
+					this._conn.push(this.connect(win.doc, "MSPointerCancel", "onTouchEnd"));
+				}
 			}
 			this.touchStartX = e.touches ? e.touches[0].pageX : e.clientX;
 			this.left.style.display = "";
@@ -219,38 +273,39 @@ define("dojox/mobile/Switch", [
 			array.forEach(this._conn, connect.disconnect);
 			this._conn = null;
 			if(this.innerStartX == this.inner.offsetLeft){
-				// #15936 The reason we send this synthetic click event is that we assume that the OS
-				// will not send the click because we stopped the touchstart.
-				// However, this does not seem true any more in Android 4.1 where the click is
-				// actually sent by the OS. So we must not send it a second time.
-				if(has('touch') && !(has("android") >= 4.1)){
-					var ev = win.doc.createEvent("MouseEvents");
-					ev.initEvent("click", true, true);
-					this.inner.dispatchEvent(ev);
+				// need to send a synthetic click?
+				if(has("touch") && has("clicks-prevented")){
+					dm._sendClick(this.inner, e);
 				}
 				return;
 			}
 			var newState = (this.inner.offsetLeft < -(this._width/2)) ? "off" : "on";
+			newState = this._newState(newState);
 			this._changeState(newState, true);
 			if(newState != this.value){
-				this.value = this.input.value = newState;
+				this._set("value", this.input.value = newState);
 				this.onStateChanged(newState);
 			}
 		},
-
+		_newState: function(newState){
+			return newState;
+		},
 		onStateChanged: function(/*String*/newState){
 			// summary:
 			//		Stub function to connect to from your application.
 			// description:
 			//		Called when the state has been changed.
+			if (this.labelNode) {
+				this.labelNode.innerHTML = newState=='off' ? this.rightLabel : this.leftLabel;
+			}
 		},
 
 		_setValueAttr: function(/*String*/value){
 			this._changeState(value, false);
 			if(this.value != value){
+				this._set("value", this.input.value = value);
 				this.onStateChanged(value);
 			}
-			this.value = this.input.value = value;
 		},
 
 		_setLeftLabelAttr: function(/*String*/label){
@@ -269,4 +324,6 @@ define("dojox/mobile/Switch", [
 			this.set("value", this._initialValue);
 		}
 	});
+
+	return has("dojo-bidi") ? declare("dojox.mobile.Switch", [Switch, BidiSwitch]) : Switch;
 });

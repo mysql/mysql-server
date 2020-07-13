@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -299,6 +299,10 @@ class Security_context {
 
   void clear_db_restrictions();
 
+  void set_thd(THD *thd);
+
+  THD *get_thd();
+
  private:
   void init();
   void destroy();
@@ -480,5 +484,9 @@ inline bool Security_context::is_skip_grants_user() {
 inline void Security_context::clear_db_restrictions() {
   m_restrictions.clear_db();
 }
+
+inline void Security_context::set_thd(THD *thd) { m_thd = thd; }
+
+inline THD *Security_context::get_thd() { return m_thd; }
 
 #endif /* SQL_SECURITY_CTX_INCLUDED */

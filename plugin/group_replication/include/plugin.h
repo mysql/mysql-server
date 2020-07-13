@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef PLUGIN_INCLUDE
 #define PLUGIN_INCLUDE
 
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_group_replication.h>
 
@@ -52,7 +53,6 @@
 
 // Forward declarations
 class Autorejoin_thread;
-class Hold_transactions;
 class Transaction_consistency_manager;
 
 // Definition of system var structures
@@ -119,6 +119,16 @@ struct gr_modules {
 };
 
 /**
+  @enum enum_tls_source_values
+  @brief Source of TLS configuration for the connection between Group
+  Replication members.
+*/
+enum enum_tls_source_values {
+  TLS_SOURCE_MYSQL_MAIN = 0,
+  TLS_SOURCE_MYSQL_ADMIN
+};
+
+/**
   The plugin modules.
 
   @note Whenever you want to create a new plugin module, be sure to add it to
@@ -143,7 +153,6 @@ extern Shared_writelock *shared_plugin_stop_lock;
 extern Delayed_initialization_thread *delayed_initialization_thread;
 extern Group_action_coordinator *group_action_coordinator;
 extern Primary_election_handler *primary_election_handler;
-extern Hold_transactions *hold_transactions;
 extern Autorejoin_thread *autorejoin_module;
 extern Message_service_handler *message_service_handler;
 
@@ -157,6 +166,7 @@ extern Remote_clone_handler *remote_clone_handler;
 // Latch used as the control point of the event driven
 // management of the transactions.
 extern Wait_ticket<my_thread_id> *transactions_latch;
+extern SERVICE_TYPE_NO_CONST(mysql_runtime_error) * mysql_runtime_error_service;
 
 // Plugin global methods
 bool server_engine_initialized();

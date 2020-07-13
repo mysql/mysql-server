@@ -1,6 +1,6 @@
 //>>built
 define("dojox/dtl/DomInline",["dojo/_base/lang","./dom","./_base","dijit/_WidgetBase"],function(_1,_2,dd,_3){
-dd.DomInline=_1.extend(function(_4,_5){
+return dd.DomInline=_1.extend(function(_4,_5){
 this.create(_4,_5);
 },_3.prototype,{context:null,render:function(_6){
 this.context=_6||this.context;
@@ -22,5 +22,4 @@ this.render();
 },postMixInProperties:function(){
 this.context=(this.context.get===dojox.dtl._Context.prototype.get)?this.context:new dojox.dtl.Context(this.context);
 }});
-return dojox.dtl.DomInline;
 });

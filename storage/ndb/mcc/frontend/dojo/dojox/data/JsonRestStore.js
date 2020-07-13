@@ -142,7 +142,7 @@ var _2d=_5.commit(_2c);
 this.serverVersion=this._updates&&this._updates.length;
 return _2d;
 },revert:function(_2e){
-_5.revert(_2e&&_2e.global&&this.service);
+_5.revert(!(_2e&&_2e.global)&&this.service);
 },isDirty:function(_2f){
 return _5.isDirty(_2f,this);
 },isItem:function(_30,_31){

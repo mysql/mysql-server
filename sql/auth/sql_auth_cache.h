@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,6 +200,9 @@ class ACL_USER : public ACL_ACCESS {
   ACL_USER *copy(MEM_ROOT *root);
   ACL_USER();
 
+  void set_user(MEM_ROOT *mem, const char *user_arg);
+  void set_host(MEM_ROOT *mem, const char *host_arg);
+  size_t get_username_length() const { return user ? strlen(user) : 0; }
   class Password_locked_state {
    public:
     bool is_active() const {
@@ -241,6 +244,9 @@ class ACL_USER : public ACL_ACCESS {
 class ACL_DB : public ACL_ACCESS {
  public:
   char *user, *db;
+
+  void set_user(MEM_ROOT *mem, const char *user_arg);
+  void set_host(MEM_ROOT *mem, const char *host_arg);
 };
 
 class ACL_PROXY_USER : public ACL_ACCESS {
@@ -276,9 +282,8 @@ class ACL_PROXY_USER : public ACL_ACCESS {
   const char *get_user() { return user; }
   const char *get_proxied_user() { return proxied_user; }
   const char *get_proxied_host() { return proxied_host.get_host(); }
-  void set_user(MEM_ROOT *mem, const char *user_arg) {
-    user = user_arg && *user_arg ? strdup_root(mem, user_arg) : nullptr;
-  }
+  void set_user(MEM_ROOT *mem, const char *user_arg);
+  void set_host(MEM_ROOT *mem, const char *host_arg);
 
   bool check_validity(bool check_no_resolve);
 
@@ -592,14 +597,14 @@ class Acl_cache {
     A new object will also be created if the role graph version counter is
     different than the acl map object's version.
 
-    @param uid
+    @param uid user id
   */
   Acl_map *checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
                             List_of_auth_id_refs &active_roles);
   /**
     When the security context is done with the acl map it calls the cache
     to decrease the reference count on that object.
-    @param map
+    @param map acl map
   */
   void return_acl_map(Acl_map *map);
   /**

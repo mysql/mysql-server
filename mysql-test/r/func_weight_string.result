@@ -29,7 +29,7 @@ create table t1 charset latin1 select weight_string('test') as w;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `w` varbinary(4) DEFAULT NULL
+  `w` varbinary(8) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 charset latin1 select weight_string(repeat('t',66000)) as w;
@@ -179,3 +179,12 @@ DROP TABLE t1;
 SELECT HEX(WEIGHT_STRING(JSON_UNQUOTE(JSON_SET('{}','$',''))));
 HEX(WEIGHT_STRING(JSON_UNQUOTE(JSON_SET('{}','$',''))))
 
+#
+# Bug #30898753: DISTINCT(HEX(WEIGHT_STRING(CH))) CUT RESULT OFF
+#
+CREATE TABLE t1 ( ch VARCHAR(1) COLLATE latin2_czech_cs );
+INSERT INTO t1 VALUES (0x4F);
+SELECT DISTINCT HEX(WEIGHT_STRING(ch)) FROM t1;
+HEX(WEIGHT_STRING(ch))
+140127014D014D00
+DROP TABLE t1;

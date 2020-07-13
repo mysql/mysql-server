@@ -12,6 +12,7 @@
 #include "hist.h"
 #include "zstd_opt.h"
 
+#include "my_compiler.h"
 
 #define ZSTD_LITFREQ_ADD    2   /* scaling factor for litFreq, so that frequencies adapt faster to new stats */
 #define ZSTD_FREQ_DIV       4   /* log factor when using previous stats to init next stats */
@@ -404,6 +405,7 @@ static U32 ZSTD_insertBt1(
                 ZSTD_matchState_t* ms,
                 const BYTE* const ip, const BYTE* const iend,
                 U32 const mls, const int extDict)
+SUPPRESS_UBSAN_CLANG10
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32*   const hashTable = ms->hashTable;
@@ -549,6 +551,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                     U32 const ll0,   /* tells if associated literal length is 0 or not. This value must be 0 or 1 */
                     const U32 lengthToBeat,
                     U32 const mls /* template */)
+SUPPRESS_UBSAN_CLANG10
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);

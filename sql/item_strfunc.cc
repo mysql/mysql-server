@@ -35,6 +35,7 @@
 #include <string.h>
 #include <zconf.h>
 #include <zlib.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>  // std::isfinite
@@ -45,6 +46,9 @@
 
 #include "base64.h"  // base64_encode_max_arg_length
 #include "decimal.h"
+#include "field_types.h"  // MYSQL_TYPE_BIT
+#include "lex_string.h"   // LEX_CSTRING
+#include "m_ctype.h"      // is_supported_parser_charset
 #include "m_string.h"
 #include "my_aes.h"  // MY_AES_IV_SIZE
 #include "my_byteorder.h"
@@ -103,6 +107,7 @@
 #include "sql/val_int_compare.h"  // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
+#include "unhex.h"
 
 using std::max;
 using std::min;
@@ -213,29 +218,6 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   (void)str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
                        res->charset(), decimal_value);
   return decimal_value;
-}
-
-double Item_str_func::val_real() {
-  DBUG_ASSERT(fixed == 1);
-  int err_not_used;
-  const char *end_not_used;
-  char buff[64];
-  String *res, tmp(buff, sizeof(buff), &my_charset_bin);
-  res = val_str(&tmp);
-  return res ? my_strntod(res->charset(), res->ptr(), res->length(),
-                          &end_not_used, &err_not_used)
-             : 0.0;
-}
-
-longlong Item_str_func::val_int() {
-  DBUG_ASSERT(fixed == 1);
-  int err;
-  char buff[22];
-  String *res, tmp(buff, sizeof(buff), &my_charset_bin);
-  res = val_str(&tmp);
-  return (res ? my_strntoll(res->charset(), res->ptr(), res->length(), 10, NULL,
-                            &err)
-              : (longlong)0);
 }
 
 String *Item_func_md5::val_str_ascii(String *str) {
@@ -947,7 +929,12 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
   {
     THD *thd = current_thd;
     Thd_parse_modifier thd_mod(thd, m_token_buffer);
-
+    const CHARSET_INFO *cs = args[0]->charset_for_protocol();
+    if (!is_supported_parser_charset(cs)) {
+      my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
+               cs->name);
+      return error_str();
+    }
     if (parse(thd, args[0], statement_string)) return error_str();
     compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
   }
@@ -977,7 +964,12 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
 
   THD *thd = current_thd;
   Thd_parse_modifier thd_mod(thd, m_token_buffer);
-
+  const CHARSET_INFO *cs = args[0]->charset_for_protocol();
+  if (!is_supported_parser_charset(cs)) {
+    my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
+             cs->name);
+    return error_str();
+  }
   if (parse(thd, args[0], statement_string)) return error_str();
 
   compute_digest_text(&thd->m_digest->m_digest_storage, buf);
@@ -3088,16 +3080,24 @@ bool Item_func_weight_string::resolve_type(THD *) {
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
     and "num_codepoints".
-
-    FIXME: Shouldn't this use strxfrm_multiply instead of, or in
-    addition to, mbmaxlen? Do we take into account things like
-    UCA level separators at all?
   */
-  set_data_type_string(
-      field ? field->pack_length()
-            : result_length ? result_length
-                            : cs->mbmaxlen * max(args[0]->max_char_length(),
-                                                 num_codepoints));
+  uint len;
+  if (field != nullptr) {
+    len = field->pack_length();
+  } else if (result_length > 0) {
+    len = result_length;
+  } else {
+    len = cs->coll->strnxfrmlen(
+        cs, cs->mbmaxlen * max(args[0]->max_char_length(), num_codepoints));
+  }
+
+  // Due to the filesort logic in val_str(), we could return an int;
+  // make sure we have room to do so. This will result in too large lengths
+  // in some cases, but this is a debug function not meant for end users,
+  // so we do not have strict demands.
+  len = max<uint>(len, sizeof(longlong));
+
+  set_data_type_string(len);
   maybe_null = true;
   return false;
 }
@@ -3242,8 +3242,6 @@ String *Item_func_hex::val_str_ascii(String *str) {
 /** Convert given hex string to a binary string. */
 
 String *Item_func_unhex::val_str(String *str) {
-  const char *from, *end;
-  char *to;
   String *res;
   size_t length;
   null_value = true;
@@ -3254,22 +3252,10 @@ String *Item_func_unhex::val_str(String *str) {
   if (args[0]->null_value) return nullptr;
   if (!res || tmp_value.alloc(length = (1 + res->length()) / 2)) goto err;
 
-  from = res->ptr();
   tmp_value.length(length);
-  to = tmp_value.ptr();
-  if (res->length() % 2) {
-    int hex_char = hexchar_to_int(*from++);
-    if (hex_char == -1) goto err;
-    *to++ = static_cast<char>(hex_char);
-  }
-  for (end = res->ptr() + res->length(); from < end; from += 2, to++) {
-    int hex_char = hexchar_to_int(from[0]);
-    if (hex_char == -1) goto err;
-    *to = static_cast<char>(hex_char << 4);
-    hex_char = hexchar_to_int(from[1]);
-    if (hex_char == -1) goto err;
-    *to |= hex_char;
-  }
+
+  if (unhex(res->ptr(), res->ptr() + res->length(), tmp_value.ptr())) goto err;
+
   null_value = false;
   return &tmp_value;
 

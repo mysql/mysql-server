@@ -4,7 +4,6 @@
 --echo ########################################################################
 
 --source include/have_debug.inc
-SET debug = '+d,skip_dd_table_access_check';
 
 --echo ########################################################################
 --echo # The number of I_S system views must be as expected.
@@ -33,6 +32,7 @@ eval INSERT INTO $I_S_view_names (name) VALUES
   ('COLLATIONS'),
   ('COLLATION_CHARACTER_SET_APPLICABILITY'),
   ('COLUMNS'),
+  ('COLUMNS_EXTENSIONS'),
   ('COLUMN_STATISTICS'),
   ('EVENTS'),
   ('FILES'),
@@ -55,8 +55,12 @@ eval INSERT INTO $I_S_view_names (name) VALUES
   ('ST_GEOMETRY_COLUMNS'),
   ('STATISTICS'),
   ('TABLE_CONSTRAINTS'),
+  ('TABLE_CONSTRAINTS_EXTENSIONS'),
   ('TABLES'),
+  ('TABLES_EXTENSIONS'),
+  ('TABLESPACES_EXTENSIONS'),
   ('TRIGGERS'),
+  ('USER_ATTRIBUTES'),
   ('VIEW_ROUTINE_USAGE'),
   ('VIEW_TABLE_USAGE'),
   ('VIEWS'),
@@ -103,5 +107,3 @@ if ($drop_I_S_view_names)
   let $I_S_view_names =;
   let $drop_I_S_view_names =;
 }
-
-SET debug = '-d,skip_dd_table_access_check';

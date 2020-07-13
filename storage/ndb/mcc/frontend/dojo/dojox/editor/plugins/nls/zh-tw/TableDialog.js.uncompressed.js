@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "在前面新增一個直欄",
 	insertTableColumnAfterLabel: "在後面新增一個直欄",
 	deleteTableRowLabel: "刪除列",
-	deleteTableColumnLabel: "刪除欄"
+	deleteTableColumnLabel: "刪除欄",
+	colorTableCellTitle: "背景色表資料格",
+	tableContextMenuTitle: "表格快速功能表"
 })
 );

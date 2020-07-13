@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,8 +58,12 @@ in the clustered index
 @param[in]	tuple	data tuple containing the field references of the
 externally stored columns; must be indexed by col_no; the clustered index record
 must be covered by a lock or a page latch to prevent deletion (rollback
-or purge)
-@param[in]	is_sdi	true for SDI Indexes
+or purge) */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi	true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	heap	heap where created
 @return own: column prefix cache */
 row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,

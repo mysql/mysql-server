@@ -1,0 +1,373 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--disable_query_log
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
+--enable_query_log
+
+use test;
+
+--echo More complex example
+create table idx_tbl (entry_key bigint unsigned not null auto_increment,
+                      k1 varchar(100), 
+                      k2 varchar(100), 
+                      data int,
+                      primary key (k1, k2),
+                      unique(entry_key)) engine=ndb;
+
+create table type1_1 (entry_key bigint unsigned not null primary key,
+                      data int) engine=ndb;
+
+create table type1_2 (entry_key bigint unsigned not null primary key,
+                      data int) engine=ndb;
+
+create table type2_1 (entry_key bigint unsigned not null,
+                      mv_idx bigint unsigned not null auto_increment,
+                      data int,
+                      primary key (entry_key, mv_idx)) engine=ndb;
+
+create table type2_2 (entry_key bigint unsigned not null,
+                      mv_idx bigint unsigned not null auto_increment,
+                      data text,
+                      primary key (entry_key, mv_idx)) engine=ndb;
+
+
+--echo Populate a number of entities, each with
+--echo a couple of type_1 rows and 2 sets of type_2 rows
+
+insert into idx_tbl (k1,k2,data) values ('Edinburgh', 'UK', 1);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 11);
+  insert into type1_2 values (@ek, 12);
+  insert into type2_1 (entry_key, data) values (@ek, 110);
+  insert into type2_1 (entry_key, data) values (@ek, 111);
+  insert into type2_1 (entry_key, data) values (@ek, 112);
+  insert into type2_1 (entry_key, data) values (@ek, 113);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0121", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0122", 10000));
+
+insert into idx_tbl (k1,k2,data) values ('Bristol', 'UK', 2);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 21);
+  insert into type1_2 values (@ek, 22);
+  insert into type2_1 (entry_key, data) values (@ek, 210);
+  insert into type2_1 (entry_key, data) values (@ek, 211);
+  insert into type2_1 (entry_key, data) values (@ek, 212);
+  insert into type2_1 (entry_key, data) values (@ek, 213);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0221", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0222", 10000));
+
+insert into idx_tbl (k1,k2,data) values ('Glasgow', 'UK', 3);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 31);
+  insert into type1_2 values (@ek, 32);
+  insert into type2_1 (entry_key, data) values (@ek, 310);
+  insert into type2_1 (entry_key, data) values (@ek, 311);
+  insert into type2_1 (entry_key, data) values (@ek, 312);
+  insert into type2_1 (entry_key, data) values (@ek, 313);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0321", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0322", 10000));
+
+insert into idx_tbl (k1,k2,data) values ('London', 'UK', 4);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 41);
+  insert into type1_2 values (@ek, 42);
+  insert into type2_1 (entry_key, data) values (@ek, 410);
+  insert into type2_1 (entry_key, data) values (@ek, 411);
+  insert into type2_1 (entry_key, data) values (@ek, 412);
+  insert into type2_1 (entry_key, data) values (@ek, 413);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0421", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0422", 10000));
+
+insert into idx_tbl (k1,k2,data) values ('Paris', 'France', 5);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 51);
+  insert into type1_2 values (@ek, 52);
+  insert into type2_1 (entry_key, data) values (@ek, 510);
+  insert into type2_1 (entry_key, data) values (@ek, 511);
+  insert into type2_1 (entry_key, data) values (@ek, 512);
+  insert into type2_1 (entry_key, data) values (@ek, 513);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0521", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0522", 10000));
+
+insert into idx_tbl (k1,k2,data) values ('Heidelberg', 'Germany', 6);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 61);
+  insert into type1_2 values (@ek, 62);
+  insert into type2_1 (entry_key, data) values (@ek, 610);
+  insert into type2_1 (entry_key, data) values (@ek, 611);
+  insert into type2_1 (entry_key, data) values (@ek, 612);
+  insert into type2_1 (entry_key, data) values (@ek, 613);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0621", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0622", 10000));
+
+insert into idx_tbl (k1,k2,data) values ('Riga', 'Latvia', 7);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 71);
+  insert into type1_2 values (@ek, 72);
+  insert into type2_1 (entry_key, data) values (@ek, 710);
+  insert into type2_1 (entry_key, data) values (@ek, 711);
+  insert into type2_1 (entry_key, data) values (@ek, 712);
+  insert into type2_1 (entry_key, data) values (@ek, 713);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0721", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0722", 10000));
+
+insert into idx_tbl (k1,k2,data) values ('Orlando', 'USA', 8);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 81);
+  insert into type1_2 values (@ek, 82);
+  insert into type2_1 (entry_key, data) values (@ek, 810);
+  insert into type2_1 (entry_key, data) values (@ek, 811);
+  insert into type2_1 (entry_key, data) values (@ek, 812);
+  insert into type2_1 (entry_key, data) values (@ek, 813);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0821", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0822", 10000));
+
+select * from idx_tbl order by entry_key;
+select * from type1_1 order by entry_key;
+select * from type1_2 order by entry_key;
+select * from type2_1 order by entry_key, mv_idx;
+select entry_key, mv_idx, right(data, 4) from type2_2 order by entry_key, mv_idx;
+
+--echo First set of content
+--echo --------------------
+select idx_tbl.entry_key,
+       idx_tbl.k1,
+       idx_tbl.k2,
+       idx_tbl.data,
+       type1_1.data,
+       type1_2.data,
+       type2_1.mv_idx,
+       type2_1.data,
+       type2_2.mv_idx,
+       right(type2_2.data, 4),
+       length(type2_2.data)
+  from
+       idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+    on
+       idx_tbl.entry_key = type1_1.entry_key
+       and
+       idx_tbl.entry_key = type1_2.entry_key
+       and
+       idx_tbl.entry_key = type2_1.entry_key
+       and
+       idx_tbl.entry_key = type2_2.entry_key
+  order by idx_tbl.entry_key, type2_1.data, right(type2_2.data, 4);
+
+--echo Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+show create table idx_tbl;
+select count(1), max(mv_idx) from test.type2_1;
+show create table type2_1;
+select count(1), max(mv_idx) from test.type2_2;
+show create table type2_2;
+
+--echo No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+  from type2_1 group by mv_idx 
+having ct > 1;
+select mv_idx, count(1) as ct 
+  from type2_2 group by mv_idx 
+having ct > 1;
+
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+--let first_backup_id=$the_backup_id
+
+--echo Create a different set of entities, with the same auto-inc
+--echo keys for entry_key and mv_idx
+update idx_tbl set k1="Stockholm", k2="Sweden" where entry_key = 1;
+update idx_tbl set k1="Trondheim", k2="Norway" where entry_key = 2;
+update idx_tbl set k1="Portland", k2="USA" where entry_key=3;
+update idx_tbl set k1="Bangalore", k2="India" where entry_key=4;
+update idx_tbl set k1="Helsinki", k2="Finland" where entry_key=5;
+update idx_tbl set k1="Lisbon", k2="Portugal" where entry_key=6;
+update idx_tbl set k1="Norrwaste", k2="Sweden" where entry_key=7;
+update idx_tbl set k1="ROW", k2="Earth" where entry_key=8;
+
+--echo Modify data to be distinct
+update idx_tbl set data = data+10;
+update type1_1 set data = data+100;
+update type1_2 set data = data+100;
+update type2_1 set data = data+1000;
+update type2_2 set data = repeat(right(data, 4)+1000, 10000);
+
+--echo Second set of content
+--echo ---------------------
+
+select idx_tbl.entry_key,
+       idx_tbl.k1,
+       idx_tbl.k2,
+       idx_tbl.data,
+       type1_1.data,
+       type1_2.data,
+       type2_1.mv_idx,
+       type2_1.data,
+       type2_2.mv_idx,
+       right(type2_2.data,4),
+       length(type2_2.data)
+  from
+       idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+    on
+       idx_tbl.entry_key = type1_1.entry_key
+       and
+       idx_tbl.entry_key = type1_2.entry_key
+       and
+       idx_tbl.entry_key = type2_1.entry_key
+       and
+       idx_tbl.entry_key = type2_2.entry_key
+  order by idx_tbl.entry_key, type2_1.data, right(type2_2.data,4);
+
+--echo Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+show create table idx_tbl;
+select count(1), max(mv_idx) from test.type2_1;
+show create table type2_1;
+select count(1), max(mv_idx) from test.type2_2;
+show create table type2_2;
+
+--echo No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+  from type2_1 group by mv_idx 
+having ct > 1;
+select mv_idx, count(1) as ct 
+  from type2_2 group by mv_idx 
+having ct > 1;
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+--let second_backup_id=$the_backup_id
+
+drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;                      
+
+--echo Run normal restore for first set of content
+--exec $NDB_RESTORE -b $first_backup_id -n 1 -m $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $first_backup_id -n 1 -r $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $first_backup_id -n 2 -r $NDB_BACKUPS-$first_backup_id >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/include/ndb_sync_metadata.inc
+
+--let next_entry_key=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='idx_tbl', AUTO_INCREMENT, 1)
+--let next_type2_1=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='type2_1', AUTO_INCREMENT, 1)
+--let next_type2_2=query_get_value(select auto_increment from information_schema.tables where table_schema='test' and table_name='type2_2', AUTO_INCREMENT, 1)
+
+--let remap_args = -x test.idx_tbl.entry_key:offset:$next_entry_key
+--let remap_args = $remap_args -x test.type1_1.entry_key:offset:$next_entry_key
+--let remap_args = $remap_args -x test.type1_2.entry_key:offset:$next_entry_key
+--let remap_args = $remap_args -x test.type2_1.entry_key:offset:$next_entry_key
+--let remap_args = $remap_args -x test.type2_1.mv_idx:offset:$next_type2_1
+--let remap_args = $remap_args -x test.type2_2.entry_key:offset:$next_entry_key
+--let remap_args = $remap_args -x test.type2_2.mv_idx:offset:$next_type2_2
+
+--echo Remap args : $remap_args
+
+--echo Run offset restore for second set of content
+--exec $NDB_RESTORE -b $second_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$second_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $second_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$second_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Combined dataset
+--echo -----------------
+select idx_tbl.entry_key,
+       idx_tbl.k1,
+       idx_tbl.k2,
+       idx_tbl.data,
+       type1_1.data,
+       type1_2.data,
+       type2_1.mv_idx,
+       type2_1.data,
+       type2_2.mv_idx,
+       right(type2_2.data,4),
+       length(type2_2.data)
+  from
+       idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+    on
+       idx_tbl.entry_key = type1_1.entry_key
+       and
+       idx_tbl.entry_key = type1_2.entry_key
+       and
+       idx_tbl.entry_key = type2_1.entry_key
+       and
+       idx_tbl.entry_key = type2_2.entry_key
+  order by idx_tbl.entry_key, type2_1.data, right(type2_2.data,4);
+
+--echo Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+show create table idx_tbl;
+select count(1), max(mv_idx) from test.type2_1;
+show create table type2_1;
+select count(1), max(mv_idx) from test.type2_2;
+show create table type2_2;
+
+--echo No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+  from type2_1 group by mv_idx 
+having ct > 1;
+select mv_idx, count(1) as ct 
+  from type2_2 group by mv_idx 
+having ct > 1;
+
+--echo Verify the insert of further entity succeeds
+insert into idx_tbl (k1,k2,data) values ('Sancerre', 'France', 9);
+select last_insert_id() into @ek;
+  insert into type1_1 values (@ek, 91);
+  insert into type1_2 values (@ek, 92);
+  insert into type2_1 (entry_key, data) values (@ek, 910);
+  insert into type2_1 (entry_key, data) values (@ek, 911);
+  insert into type2_1 (entry_key, data) values (@ek, 912);
+  insert into type2_1 (entry_key, data) values (@ek, 913);
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0921", 10000));
+  insert into type2_2 (entry_key, data) values (@ek, repeat("0922", 10000));
+
+--echo Modified content
+--echo ----------------
+select idx_tbl.entry_key,
+       idx_tbl.k1,
+       idx_tbl.k2,
+       idx_tbl.data,
+       type1_1.data,
+       type1_2.data,
+       type2_1.mv_idx,
+       type2_1.data,
+       type2_2.mv_idx,
+       right(type2_2.data,4),
+       length(type2_2.data)
+  from
+       idx_tbl join type1_1 join type1_2 join type2_1 join type2_2
+    on
+       idx_tbl.entry_key = type1_1.entry_key
+       and
+       idx_tbl.entry_key = type1_2.entry_key
+       and
+       idx_tbl.entry_key = type2_1.entry_key
+       and
+       idx_tbl.entry_key = type2_2.entry_key
+  order by idx_tbl.entry_key, type2_1.data, right(type2_2.data,4);
+
+--echo Show auto-inc values
+select count(1), max(entry_key) from test.idx_tbl;
+show create table idx_tbl;
+select count(1), max(mv_idx) from test.type2_1;
+show create table type2_1;
+select count(1), max(mv_idx) from test.type2_2;
+show create table type2_2;
+
+--echo No mv_idx duplicates in type_2 tables
+select mv_idx, count(1) as ct 
+  from type2_1 group by mv_idx 
+having ct > 1;
+select mv_idx, count(1) as ct 
+  from type2_2 group by mv_idx 
+having ct > 1;
+
+drop table idx_tbl, type1_1, type1_2, type2_1, type2_2;
+
+--disable_query_log
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+--enable_query_log
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

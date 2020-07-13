@@ -23,7 +23,7 @@ CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
 EXPLAIN FORMAT=tree UPDATE t1, t2 SET f1=f1+2, f2=f2+1 WHERE f1 = f2;
 EXPLAIN
--> Update t1, t2
+-> Update t1 (buffered), t2 (buffered)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Filter: (t2.f2 = t1.f1)  (cost=0.35 rows=1)
@@ -34,7 +34,7 @@ CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
 EXPLAIN FORMAT=tree DELETE t1, t2 FROM t1, t2;
 EXPLAIN
--> Delete from t1, t2
+-> Delete from t1 (immediate), t2 (buffered)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
@@ -724,6 +724,14 @@ EXPLAIN
 DROP TABLE t1;
 EXPLAIN ANALYZE FOR CONNECTION 1;
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE FOR CONNECTION'
+EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'FORMAT=TRADITIONAL with EXPLAIN ANALYZE'
+EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
+ERROR 42000: This version of MySQL doesn't yet support 'FORMAT=JSON with EXPLAIN ANALYZE'
+EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
+EXPLAIN
+-> Rows fetched before execution  (actual time=N.NNN..N.NNN rows=1 loops=1)
+
 EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
 EXPLAIN
 -> Table scan on ENGINES
@@ -771,4 +779,52 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1;
+#
+# Bug#17978975 EXPLAIN FOR MULTI-TABLE UPDATE/DELETE DOES NOT MENTION TEMPORARY TABLE
+#
+CREATE TABLE t1(a INT, b INT);
+CREATE TABLE t2(a INT, b INT);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1;
+EXPLAIN
+-> Update t1 (immediate), t2 (buffered)
+    -> Nested loop inner join  (cost=0.70 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+        -> Table scan on t2  (cost=0.35 rows=1)
+
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1 WHERE t2.a=t1.a;
+EXPLAIN
+-> Update t1 (buffered), t2 (buffered)
+    -> Nested loop inner join  (cost=0.70 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+        -> Filter: (t2.a = t1.a)  (cost=0.35 rows=1)
+            -> Table scan on t2  (cost=0.35 rows=1)
+
+EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
+EXPLAIN
+-> Delete from t1 (immediate), t2 (buffered)
+    -> Nested loop inner join  (cost=0.70 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+        -> Table scan on t2  (cost=0.35 rows=1)
+
+EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
+EXPLAIN
+-> Delete from t1 (buffered), t1bis (buffered)
+    -> Nested loop inner join  (cost=0.70 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+        -> Table scan on t1bis  (cost=0.35 rows=1)
+
+DROP TABLE t1,t2;
+#
+# Bug #30941336: EXPLAIN ANAYLZE SELECT COUNT(*) FROM MYSQL.USER COREDUMP UNDER DEBUG VERSION
+#
+CREATE TABLE t1 ( a INTEGER );
+EXPLAIN ANALYZE SELECT COUNT(*) FROM t1;
+EXPLAIN
+-> Count rows in t1  (actual time=N.NNN..N.NNN rows=1 loops=1)
+
 DROP TABLE t1;

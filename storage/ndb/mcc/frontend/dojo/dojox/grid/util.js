@@ -1,57 +1,89 @@
 //>>built
-define("dojox/grid/util",["../main","dojo/_base/lang","dojo/dom"],function(_1,_2,_3){
-var _4=_2.getObject("grid.util",true,_1);
-_4.na="...";
-_4.rowIndexTag="gridRowIndex";
-_4.gridViewTag="gridView";
-_4.fire=function(ob,ev,_5){
-var fn=ob&&ev&&ob[ev];
-return fn&&(_5?fn.apply(ob,_5):ob[ev]());
+define("dojox/grid/util",["../main","dojo/_base/lang","dojo/dom","dojo/_base/sniff"],function(_1,_2,_3,_4){
+var _5=_2.getObject("grid.util",true,_1);
+_5.na="...";
+_5.rowIndexTag="gridRowIndex";
+_5.gridViewTag="gridView";
+_5.fire=function(ob,ev,_6){
+function _7(_8,_9){
+if(_8==null){
+return null;
+}
+var _a=_9?"Width":"Height";
+if(_8["scroll"+_a]>_8["client"+_a]){
+return _8;
+}else{
+return _7(_8.parentNode,_9);
+}
 };
-_4.setStyleHeightPx=function(_6,_7){
-if(_7>=0){
-var s=_6.style;
-var v=_7+"px";
-if(_6&&s["height"]!=v){
+var _b,_c,_d,_e,_f;
+if(_4("webkit")&&(ev=="focus")){
+_f=ob.domNode?ob.domNode:ob;
+_b=_7(_f,false);
+if(_b){
+_d=_b.scrollTop;
+}
+_c=_7(_f,true);
+if(_c){
+_e=_c.scrollLeft;
+}
+}
+var fn=ob&&ev&&ob[ev];
+var _10=fn&&(_6?fn.apply(ob,_6):ob[ev]());
+if(_4("webkit")&&(ev=="focus")){
+if(_b){
+_b.scrollTop=_d;
+}
+if(_c){
+_c.scrollLeft=_e;
+}
+}
+return _10;
+};
+_5.setStyleHeightPx=function(_11,_12){
+if(_12>=0){
+var s=_11.style;
+var v=_12+"px";
+if(_11&&s["height"]!=v){
 s["height"]=v;
 }
 }
 };
-_4.mouseEvents=["mouseover","mouseout","mousedown","mouseup","click","dblclick","contextmenu"];
-_4.keyEvents=["keyup","keydown","keypress"];
-_4.funnelEvents=function(_8,_9,_a,_b){
-var _c=(_b?_b:_4.mouseEvents.concat(_4.keyEvents));
-for(var i=0,l=_c.length;i<l;i++){
-_9.connect(_8,"on"+_c[i],_a);
+_5.mouseEvents=["mouseover","mouseout","mousedown","mouseup","click","dblclick","contextmenu"];
+_5.keyEvents=["keyup","keydown","keypress"];
+_5.funnelEvents=function(_13,_14,_15,_16){
+var _17=(_16?_16:_5.mouseEvents.concat(_5.keyEvents));
+for(var i=0,l=_17.length;i<l;i++){
+_14.connect(_13,"on"+_17[i],_15);
 }
 };
-_4.removeNode=function(_d){
-_d=_3.byId(_d);
-_d&&_d.parentNode&&_d.parentNode.removeChild(_d);
-return _d;
+_5.removeNode=function(_18){
+_18=_3.byId(_18);
+_18&&_18.parentNode&&_18.parentNode.removeChild(_18);
+return _18;
 };
-_4.arrayCompare=function(_e,_f){
-for(var i=0,l=_e.length;i<l;i++){
-if(_e[i]!=_f[i]){
+_5.arrayCompare=function(inA,inB){
+for(var i=0,l=inA.length;i<l;i++){
+if(inA[i]!=inB[i]){
 return false;
 }
 }
-return (_e.length==_f.length);
+return (inA.length==inB.length);
 };
-_4.arrayInsert=function(_10,_11,_12){
-if(_10.length<=_11){
-_10[_11]=_12;
+_5.arrayInsert=function(_19,_1a,_1b){
+if(_19.length<=_1a){
+_19[_1a]=_1b;
 }else{
-_10.splice(_11,0,_12);
+_19.splice(_1a,0,_1b);
 }
 };
-_4.arrayRemove=function(_13,_14){
-_13.splice(_14,1);
+_5.arrayRemove=function(_1c,_1d){
+_1c.splice(_1d,1);
 };
-_4.arraySwap=function(_15,inI,inJ){
-var _16=_15[inI];
-_15[inI]=_15[inJ];
-_15[inJ]=_16;
+_5.arraySwap=function(_1e,inI,inJ){
+var _1f=_1e[inI];
+_1e[inI]=_1e[inJ];
+_1e[inJ]=_1f;
 };
-return _4;
+return _5;
 });

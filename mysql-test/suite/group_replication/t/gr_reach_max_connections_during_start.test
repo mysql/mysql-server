@@ -36,7 +36,6 @@ SET @@GLOBAL.DEBUG= '+d,simulate_reach_max_connections';
 START GROUP_REPLICATION;
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_reach_max_connections_during_start
 --let $assert_count = 1
 --let $assert_select = Failed to establish an internal server connection to execute plugin operations since the server does not have available connections, please increase @@GLOBAL.MAX_CONNECTIONS.
 --let $assert_text = Found the expected error log message about exceeded max connections.

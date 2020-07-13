@@ -1905,7 +1905,7 @@ static int i_s_metrics_fill(
       time_diff = 0;
     }
 
-    /* Unless MONITOR__NO_AVERAGE is marked, we will need
+    /* Unless MONITOR_NO_AVERAGE is marked, we will need
     to calculate the average value. If this is a monitor set
     owner marked by MONITOR_SET_OWNER, divide
     the value by another counter (number of calls) designated
@@ -1933,6 +1933,7 @@ static int i_s_metrics_fill(
             MONITOR_VALUE(count) /
                 MONITOR_VALUE(monitor_info->monitor_related_id),
             FALSE));
+        fields[METRIC_AVG_VALUE_RESET]->set_notnull();
       } else {
         fields[METRIC_AVG_VALUE_RESET]->set_null();
       }
@@ -6109,6 +6110,7 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
                         column->instant_default));
   } else {
     OK(fields[SYS_COLUMN_HAS_DEFAULT]->store(0));
+    fields[SYS_COLUMN_DEFAULT_VALUE]->set_null();
   }
 
   OK(schema_table_store_record(thd, table_to_fill));
@@ -6116,107 +6118,92 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
   return 0;
 }
 
-/** Function to fill column information for all the partitions in case
-the table is a partitioned table. In case of a non-partitioned table,
-the table_id is associated with the column.
-All the low level latches, dict_sys_mutex should be released and mtr
-should be committed before calling this function as it acquires a mdl
-lock.
-@param[in]	thd		thread
-@param[in]	tid		table_id
-@param[in]	col_name	column name
-@param[in]	column		dict_col_t obj
-@param[in]	nth_v_col	nth virtual column
-@param[in,out]	table_to_fill	fill this table
-@return 0 on success */
-static int fill_column_table_or_partition(THD *thd, table_id_t tid,
-                                          const char *col_name,
-                                          dict_col_t *column, ulint nth_v_col,
-                                          TABLE *table_to_fill) {
-  /* Get the dd::Table object from DD for the table with given table id (tid) */
-  dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
+                         dict_table_t *dd_table, btr_pcur_t &pcur, mtr_t &mtr,
+                         mem_heap_t *heap, bool is_partition) {
+  ut_ad(mutex_own(&dict_sys->mutex));
 
-  dd::String_type schema_name;
-  dd::String_type table_name;
-  const dd::Table *dd_table = nullptr;
-  MDL_ticket *mdl = nullptr;
+  while (rec) {
+    dict_table_t *table_rec = nullptr;
+    MDL_ticket *mdl_on_tab = nullptr;
 
-  bool is_part = false;
-
-  /* Test hook to test that a warning message is returned to the user
-  if a table cannot be opened */
-  DBUG_EXECUTE_IF("do_before_filling_i_s_innodb_columns",
-                  if (strcmp(col_name, "a") == 0)
-                      DEBUG_SYNC_C("wait_before_filling_i_s_innodb_columns"););
-
-  /* Get the schema and table name from the dictionary */
-  if (dc->get_table_name_by_se_private_id(handler_name, tid, &schema_name,
-                                          &table_name)) {
-    goto end_fill;
-  }
-
-  /* Get the schema and table name from the dictionary by partition table id */
-  if (schema_name.empty() &&
-      dc->get_table_name_by_partition_se_private_id(
-          handler_name, tid, &schema_name, &table_name)) {
-    goto end_fill;
-  }
-
-  /* Stop here, if the table name could not be found */
-  if (schema_name.empty() || table_name.empty()) {
-    ib::warn() << "Unable to open innodb table with id = " << tid
-               << " in the data dictionary.";
-    goto end_fill;
-  }
-
-  /* Acquire mdl lock to access the table */
-  if (dd_mdl_acquire(thd, &mdl, schema_name.c_str(), table_name.c_str())) {
-    goto end_fill;
-  }
-
-  /* Get the dd::Table object from the dictionary */
-  if (dc->acquire(schema_name, table_name, &dd_table) || dd_table == nullptr) {
-    /* Print a warning message if the table could not be found in the data
-    dictionary. Skip the table */
-    ib::warn() << "Unable to open innodb table " << schema_name.c_str() << "."
-               << table_name.c_str() << " in the data dictionary.";
-    goto end_fill;
-  } else {
-    /* Find out if the table is a partitioned one */
-    is_part = dd_table_is_partitioned(*dd_table);
-  }
-
-  if (is_part) {
-    /* This is a partitioned table. Display columns for all the partitions
-    by associating the partition's table id with the column. This is to work
-    around the problem where in 8.0, columns are displayed only for the first
-    partition */
-    for (const dd::Partition *p : dd_table->leaf_partitions()) {
-      i_s_dict_fill_innodb_columns(thd, p->se_private_id(), col_name, column,
-                                   nth_v_col, table_to_fill);
+    /* Fetch the dict_table_t structure corresponding to this table or
+    partition record */
+    if (!is_partition) {
+      dd_process_dd_tables_rec_and_mtr_commit(heap, rec, &table_rec, dd_table,
+                                              &mdl_on_tab, &mtr);
+    } else {
+      dd_process_dd_partitions_rec_and_mtr_commit(heap, rec, &table_rec,
+                                                  dd_table, &mdl_on_tab, &mtr);
     }
-  } else {
-    /* If the table is not a partitioned table, use table_id */
-    i_s_dict_fill_innodb_columns(thd, tid, col_name, column, nth_v_col,
-                                 table_to_fill);
-  }
 
-end_fill:
-  /* Clear any error set earlier in this function */
-  if (thd->is_error()) {
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 thd->get_stmt_da()->mysql_errno(),
-                 thd->get_stmt_da()->message_text());
-    thd->clear_error();
-  }
+    if (table_rec == nullptr) {
+      mem_heap_empty(heap);
 
-  /* Release the mdl lock on the table */
-  if (mdl != nullptr) {
-    dd_mdl_release(thd, &mdl);
-  }
+      /* Get the next record */
+      mtr_start(&mtr);
+      rec = dd_getnext_system_rec(&pcur, &mtr);
+      continue;
+    }
 
-  return 0;
+    mutex_exit(&dict_sys->mutex);
+
+    /* For each column in the table, fill in innodb_columns. */
+    dict_col_t *column = table_rec->cols;
+    const char *name = table_rec->col_names;
+    dict_v_col_t *v_column = nullptr;
+    const char *v_name = nullptr;
+
+    bool has_virtual_cols = table_rec->n_v_cols > 0 ? true : false;
+    if (has_virtual_cols) {
+      v_column = table_rec->v_cols;
+      v_name = table_rec->v_col_names;
+    }
+
+    for (int32_t i = 0, v_i = 0;
+         i < table_rec->n_cols || v_i < table_rec->n_v_cols;) {
+      if (i < table_rec->n_cols &&
+          (!has_virtual_cols || v_i == table_rec->n_v_cols ||
+           column->ind < v_column->m_col.ind)) {
+        /* Fill up normal column */
+        ut_ad(!column->is_virtual());
+
+        if (column->is_visible) {
+          i_s_dict_fill_innodb_columns(thd, table_rec->id, name, column,
+                                       UINT32_UNDEFINED, tables->table);
+        }
+
+        column++;
+        i++;
+        name += strlen(name) + 1;
+      } else {
+        /* Fill up virtual column */
+        ut_ad(v_column->m_col.is_virtual());
+        ut_ad(v_i < table_rec->n_v_cols);
+
+        if (v_column->m_col.is_visible) {
+          uint64_t v_pos =
+              dict_create_v_col_pos(v_column->v_pos, v_column->m_col.ind);
+          uint64_t nth_v_col = dict_get_v_col_pos(v_pos);
+
+          i_s_dict_fill_innodb_columns(thd, table_rec->id, v_name,
+                                       &v_column->m_col, nth_v_col,
+                                       tables->table);
+        }
+
+        v_column++;
+        v_i++;
+        v_name += strlen(v_name) + 1;
+      }
+    }
+
+    /* Get the next record */
+    mem_heap_empty(heap);
+    mutex_enter(&dict_sys->mutex);
+    dd_table_close(table_rec, thd, &mdl_on_tab, true);
+    mtr_start(&mtr);
+    rec = dd_getnext_system_rec(&pcur, &mtr);
+  }
 }
 
 /** Function to fill information_schema.innodb_columns with information
@@ -6227,12 +6214,10 @@ collected by scanning INNODB_COLUMNS table.
 static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
   btr_pcur_t pcur;
   const rec_t *rec;
-  char *col_name;
   mem_heap_t *heap;
   mtr_t mtr;
   MDL_ticket *mdl = nullptr;
-  dict_table_t *dd_columns;
-  bool ret;
+  dict_table_t *dd_tables;
 
   DBUG_TRACE;
 
@@ -6243,46 +6228,34 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
 
   heap = mem_heap_create(1000);
   mutex_enter(&dict_sys->mutex);
+
+  /* Scan mysql.tables table */
   mtr_start(&mtr);
+  rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_tables_name.c_str(),
+                            &dd_tables);
 
-  /* Start scan the mysql.columns */
-  rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_columns_name.c_str(),
-                            &dd_columns);
-
-  while (rec) {
-    dict_col_t column_rec;
-    table_id_t table_id;
-    ulint nth_v_col;
-
-    column_rec.instant_default = nullptr;
-    /* populate a dict_col_t structure with information from
-    a row */
-    ret = dd_process_dd_columns_rec(heap, rec, &column_rec, &table_id,
-                                    &col_name, &nth_v_col, dd_columns, &mtr);
-
-    mutex_exit(&dict_sys->mutex);
-
-    if (ret) {
-      /* Fill column information for all the tables and partitions */
-      fill_column_table_or_partition(thd, table_id, col_name, &column_rec,
-                                     nth_v_col, tables->table);
-    }
-
-    mem_heap_empty(heap);
-
-    /* Get the next record */
-    mutex_enter(&dict_sys->mutex);
-    mtr_start(&mtr);
-    rec = dd_getnext_system_rec(&pcur, &mtr);
-  }
+  process_rows(thd, tables, rec, dd_tables, pcur, mtr, heap, false);
 
   mtr_commit(&mtr);
-  dd_table_close(dd_columns, thd, &mdl, true);
+  dd_table_close(dd_tables, thd, &mdl, true);
+
+  /* Scan mysql.partitions table */
+  mem_heap_empty(heap);
+  mtr_start(&mtr);
+  rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_partitions_name.c_str(),
+                            &dd_tables);
+
+  process_rows(thd, tables, rec, dd_tables, pcur, mtr, heap, true);
+
+  mtr_commit(&mtr);
+  dd_table_close(dd_tables, thd, &mdl, true);
+
   mutex_exit(&dict_sys->mutex);
   mem_heap_free(heap);
 
   return 0;
 }
+
 /** Bind the dynamic table INFORMATION_SCHEMA.innodb_columns
 @param[in,out]	p	table schema object
 @return 0 on success */

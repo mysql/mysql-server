@@ -1,14 +1,15 @@
 define(
 "dojo/cldr/nls/fr/gregorian", //begin v1.x content
 {
+	"dateFormatItem-Ehm": "E h:mm a",
 	"days-standAlone-short": [
-		"dim.",
-		"lun.",
-		"mar.",
-		"mer.",
-		"jeu.",
-		"ven.",
-		"sam."
+		"Di",
+		"Lu",
+		"Ma",
+		"Me",
+		"Je",
+		"Ve",
+		"Sa"
 	],
 	"months-format-narrow": [
 		"J",
@@ -24,6 +25,7 @@ define(
 		"N",
 		"D"
 	],
+	"field-second-relative+0": "maintenant",
 	"quarters-standAlone-narrow": [
 		"1",
 		"2",
@@ -31,17 +33,18 @@ define(
 		"4"
 	],
 	"field-weekday": "jour de la semaine",
-	"dateFormatItem-yyQQQQ": "QQQQ yy",
 	"dateFormatItem-yQQQ": "QQQ y",
-	"dateFormatItem-yyMMMEd": "E d MMM yy",
-	"dateFormatItem-yMEd": "E d/M/yyyy",
+	"dateFormatItem-yMEd": "E d/M/y",
+	"field-wed-relative+0": "ce mercredi",
+	"dateFormatItem-GyMMMEd": "E d MMM y G",
 	"dateFormatItem-MMMEd": "E d MMM",
+	"field-wed-relative+1": "mercredi prochain",
 	"eraNarrow": [
 		"av. J.-C.",
 		"ap. J.-C."
 	],
+	"field-tue-relative+-1": "mardi dernier",
 	"dayPeriods-format-wide-morning": "matin",
-	"dateFormatItem-MMMdd": "dd MMM",
 	"days-format-short": [
 		"di",
 		"lu",
@@ -52,6 +55,8 @@ define(
 		"sa"
 	],
 	"dateFormat-long": "d MMMM y",
+	"field-fri-relative+-1": "vendredi dernier",
+	"field-wed-relative+-1": "mercredi dernier",
 	"months-format-wide": [
 		"janvier",
 		"février",
@@ -69,25 +74,26 @@ define(
 	"dateTimeFormat-medium": "{1} {0}",
 	"dayPeriods-format-wide-pm": "PM",
 	"dateFormat-full": "EEEE d MMMM y",
+	"field-thu-relative+-1": "jeudi dernier",
 	"dateFormatItem-Md": "d/M",
 	"dayPeriods-format-abbr-am": "AM",
 	"dayPeriods-format-wide-noon": "midi",
-	"dateFormatItem-yMd": "d/M/yyyy",
+	"dateFormatItem-yMd": "d/M/y",
+	"dateFormatItem-yM": "M/y",
 	"field-era": "ère",
-	"dateFormatItem-yM": "M/yyyy",
 	"months-standAlone-wide": [
-		"janvier",
-		"février",
-		"mars",
-		"avril",
-		"mai",
-		"juin",
-		"juillet",
-		"août",
-		"septembre",
-		"octobre",
-		"novembre",
-		"décembre"
+		"Janvier",
+		"Février",
+		"Mars",
+		"Avril",
+		"Mai",
+		"Juin",
+		"Juillet",
+		"Août",
+		"Septembre",
+		"Octobre",
+		"Novembre",
+		"Décembre"
 	],
 	"timeFormat-short": "HH:mm",
 	"quarters-format-wide": [
@@ -97,12 +103,10 @@ define(
 		"4e trimestre"
 	],
 	"timeFormat-long": "HH:mm:ss z",
-	"field-year": "année",
 	"dateFormatItem-yMMM": "MMM y",
-	"dateFormatItem-yQ": "'T'Q y",
-	"dateFormatItem-yyyyMMMM": "MMMM y",
+	"dateFormatItem-yQQQQ": "QQQQ y",
+	"field-year": "année",
 	"field-hour": "heure",
-	"dateFormatItem-MMdd": "dd/MM",
 	"months-format-abbr": [
 		"janv.",
 		"févr.",
@@ -117,26 +121,30 @@ define(
 		"nov.",
 		"déc."
 	],
-	"dateFormatItem-yyQ": "'T'Q yy",
+	"field-sat-relative+0": "ce samedi",
+	"field-sat-relative+1": "samedi prochain",
 	"timeFormat-full": "HH:mm:ss zzzz",
 	"dayPeriods-format-narrow-morning": "matin",
 	"field-day-relative+0": "aujourd’hui",
 	"field-day-relative+1": "demain",
+	"field-thu-relative+0": "ce jeudi",
+	"dateFormatItem-GyMMMd": "d MMM y G",
 	"field-day-relative+2": "après-demain",
-	"dateFormatItem-H": "HH",
+	"field-thu-relative+1": "jeudi prochain",
+	"dateFormatItem-H": "HH 'h'",
 	"months-standAlone-abbr": [
-		"janv.",
-		"févr.",
-		"mars",
-		"avr.",
-		"mai",
-		"juin",
-		"juil.",
-		"août",
-		"sept.",
-		"oct.",
-		"nov.",
-		"déc."
+		"Janv.",
+		"Févr.",
+		"Mars",
+		"Avr.",
+		"Mai",
+		"Juin",
+		"Juil.",
+		"Août",
+		"Sept.",
+		"Oct.",
+		"Nov.",
+		"Déc."
 	],
 	"quarters-format-abbr": [
 		"T1",
@@ -150,18 +158,19 @@ define(
 		"3e trimestre",
 		"4e trimestre"
 	],
+	"dateFormatItem-Gy": "y G",
 	"dateFormatItem-M": "L",
 	"days-standAlone-wide": [
-		"dimanche",
-		"lundi",
-		"mardi",
-		"mercredi",
-		"jeudi",
-		"vendredi",
-		"samedi"
+		"Dimanche",
+		"Lundi",
+		"Mardi",
+		"Mercredi",
+		"Jeudi",
+		"Vendredi",
+		"Samedi"
 	],
-	"dateFormatItem-yyMMM": "MMM yy",
 	"timeFormat-medium": "HH:mm:ss",
+	"field-sun-relative+0": "ce dimanche",
 	"dateFormatItem-Hm": "HH:mm",
 	"quarters-standAlone-abbr": [
 		"T1",
@@ -169,6 +178,7 @@ define(
 		"T3",
 		"T4"
 	],
+	"field-sun-relative+1": "dimanche prochain",
 	"eraAbbr": [
 		"av. J.-C.",
 		"ap. J.-C."
@@ -176,16 +186,15 @@ define(
 	"field-minute": "minute",
 	"field-dayperiod": "cadran",
 	"days-standAlone-abbr": [
-		"dim.",
-		"lun.",
-		"mar.",
-		"mer.",
-		"jeu.",
-		"ven.",
-		"sam."
+		"Dim.",
+		"Lun.",
+		"Mar.",
+		"Mer.",
+		"Jeu.",
+		"Ven.",
+		"Sam."
 	],
 	"dayPeriods-format-wide-night": "soir",
-	"dateFormatItem-yyMMMd": "d MMM yy",
 	"dateFormatItem-d": "d",
 	"dateFormatItem-ms": "mm:ss",
 	"quarters-format-narrow": [
@@ -201,6 +210,9 @@ define(
 	"dateFormatItem-MMMd": "d MMM",
 	"dateFormatItem-MEd": "E d/M",
 	"dateTimeFormat-full": "{1} {0}",
+	"field-fri-relative+0": "ce vendredi",
+	"dateFormatItem-yMMMM": "MMMM y",
+	"field-fri-relative+1": "vendredi prochain",
 	"field-day": "jour",
 	"days-format-wide": [
 		"dimanche",
@@ -230,7 +242,6 @@ define(
 	"field-year-relative+-1": "l’année dernière",
 	"dayPeriods-format-narrow-night": "soir",
 	"field-month-relative+-1": "le mois dernier",
-	"dateFormatItem-yyMM": "MM/yy",
 	"dateFormatItem-hm": "h:mm a",
 	"dayPeriods-format-abbr-pm": "PM",
 	"days-format-abbr": [
@@ -242,11 +253,11 @@ define(
 		"ven.",
 		"sam."
 	],
-	"dateFormatItem-yMMMd": "d MMM y",
 	"eraNames": [
 		"avant Jésus-Christ",
 		"après Jésus-Christ"
 	],
+	"dateFormatItem-yMMMd": "d MMM y",
 	"days-format-narrow": [
 		"D",
 		"L",
@@ -267,17 +278,25 @@ define(
 	],
 	"dateFormatItem-MMM": "LLL",
 	"field-month": "mois",
+	"field-tue-relative+0": "ce mardi",
+	"field-tue-relative+1": "mardi prochain",
 	"dayPeriods-format-wide-am": "AM",
-	"dateFormatItem-MMMMEd": "E d MMMM",
-	"dateFormat-short": "dd/MM/yy",
-	"dateFormatItem-MMd": "d/MM",
+	"dateFormatItem-EHm": "E HH:mm",
+	"field-mon-relative+0": "ce lundi",
+	"field-mon-relative+1": "lundi prochain",
+	"dateFormat-short": "dd/MM/y",
 	"dayPeriods-format-wide-afternoon": "après-midi",
+	"dateFormatItem-EHms": "E HH:mm:ss",
+	"dateFormatItem-Ehms": "E h:mm:ss a",
 	"dayPeriods-format-narrow-noon": "midi",
 	"field-second": "seconde",
+	"field-sat-relative+-1": "samedi dernier",
 	"dateFormatItem-yMMMEd": "E d MMM y",
+	"field-sun-relative+-1": "dimanche dernier",
 	"field-month-relative+0": "ce mois-ci",
 	"field-month-relative+1": "le mois prochain",
 	"dateFormatItem-Ed": "E d",
+	"dateTimeFormats-appendItem-Timezone": "{0} {1}",
 	"field-week": "semaine",
 	"dateFormat-medium": "d MMM y",
 	"field-year-relative+0": "cette année",
@@ -287,6 +306,8 @@ define(
 	"dateTimeFormat-short": "{1} {0}",
 	"dateFormatItem-Hms": "HH:mm:ss",
 	"dateFormatItem-hms": "h:mm:ss a",
+	"dateFormatItem-GyMMM": "MMM y G",
+	"field-mon-relative+-1": "lundi dernier",
 	"field-week-relative+0": "cette semaine",
 	"field-week-relative+1": "la semaine prochaine"
 }

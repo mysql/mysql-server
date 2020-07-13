@@ -15,6 +15,7 @@
 #   6. WL2392: "Change Password at next login" (initial default for root)
 #   7. Show binlog events on master
 
+--source include/not_have_privilege_checks_user.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 

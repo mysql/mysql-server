@@ -19,6 +19,7 @@
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
 --source include/force_restart.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -121,7 +122,7 @@ DROP TABLE t1;
 --source include/rpl_sync.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs,*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to no ONLINE member has the missing data for recovering in its binary logs.");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

@@ -1,10 +1,10 @@
 //>>built
-define("dojox/treemap/DrillDownUp",["dojo/_base/lang","dojo/_base/event","dojo/_base/declare","dojo/dom-geometry","dojo/dom-construct","dojo/dom-style","dojo/_base/fx","dojo/has!touch?dojox/gesture/tap"],function(_1,_2,_3,_4,_5,_6,fx,_7){
+define("dojox/treemap/DrillDownUp",["dojo/_base/lang","dojo/_base/event","dojo/_base/declare","dojo/on","dojo/dom-geometry","dojo/dom-construct","dojo/dom-style","dojo/_base/fx","dojo/has!touch?dojox/gesture/tap"],function(_1,_2,_3,on,_4,_5,_6,fx,_7){
 return _3("dojox.treemap.DrillDownUp",null,{postCreate:function(){
 this.inherited(arguments);
-this.connect(this.domNode,"dblclick",this._onDoubleClick);
+this.own(on(this.domNode,"dblclick",_1.hitch(this,this._onDoubleClick)));
 if(_7){
-this.connect(this.domNode,_7.doubletap,this._onDoubleClick);
+this.own(on(this.domNode,_7.doubletap,_1.hitch(this,this._onDoubleClick)));
 }
 },_onDoubleClick:function(e){
 var _8=this._getRendererFromTarget(e.target);

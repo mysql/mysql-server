@@ -322,6 +322,5 @@ Level	Code	Message
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
-Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t1;

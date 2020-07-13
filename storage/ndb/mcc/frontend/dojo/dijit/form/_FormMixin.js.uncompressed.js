@@ -118,13 +118,11 @@ define("dijit/form/_FormMixin", [
 				if(values === undefined){
 					continue;
 				}
-				if(!lang.isArray(values)){
-					values = [ values ];
-				}
+				values = [].concat(values);
 				if(typeof widgets[0].checked == 'boolean'){
 					// for checkbox/radio, values is a list of which widgets should be checked
 					array.forEach(widgets, function(w){
-						w.set('value', array.indexOf(values, w.value) != -1);
+						w.set('value', array.indexOf(values, w._get('value')) != -1);
 					});
 				}else if(widgets[0].multiple){
 					// it takes an array (e.g. multi-select)

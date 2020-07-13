@@ -1,4 +1,5 @@
 # Test case for BUG #11733
+--source include/not_have_privilege_checks_user.inc
 -- source include/master-slave.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

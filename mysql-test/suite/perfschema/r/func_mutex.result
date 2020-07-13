@@ -18,9 +18,10 @@ TRUNCATE TABLE performance_schema.events_waits_current;
 SELECT * FROM t1 WHERE id = 1;
 id	b
 1	initial value
-SET @before_count = (SELECT SUM(TIMER_WAIT)
-FROM performance_schema.events_waits_history_long
-WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache'));
+CREATE TABLE t2 SELECT * FROM performance_schema.events_waits_history_long
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache');
+SET @before_count = (SELECT SUM(TIMER_WAIT) FROM t2);
+TRUNCATE TABLE performance_schema.events_waits_history_long;
 SELECT * FROM t1;
 id	b
 1	initial value
@@ -31,12 +32,13 @@ id	b
 6	initial value
 7	initial value
 8	initial value
-SET @after_count = (SELECT SUM(TIMER_WAIT)
-FROM performance_schema.events_waits_history_long
-WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache'));
-SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_fm1_timed;
+INSERT INTO t2 SELECT * FROM performance_schema.events_waits_history_long
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache');
+SET @after_count = (SELECT SUM(TIMER_WAIT) FROM t2);
+SELECT IF(@after_count < @before_count, 'Failue', 'Success') test_fm1_timed;
 test_fm1_timed
 Success
+DROP TABLE t2;
 UPDATE performance_schema.setup_instruments SET enabled = 'NO'
 WHERE NAME = 'wait/synch/mutex/sql/LOCK_table_cache';
 TRUNCATE TABLE performance_schema.events_waits_history_long;

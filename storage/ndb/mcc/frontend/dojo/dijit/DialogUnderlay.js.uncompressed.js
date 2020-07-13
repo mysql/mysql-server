@@ -1,23 +1,29 @@
 define("dijit/DialogUnderlay", [
 	"dojo/_base/declare", // declare
+	"dojo/_base/lang", // lang.hitch
+	"dojo/aspect", // aspect.after
 	"dojo/dom-attr", // domAttr.set
-	"dojo/window", // winUtils.getBox
+	"dojo/dom-style", // domStyle.getComputedStyle
+	"dojo/on",
+	"dojo/window", // winUtils.getBox, winUtils.get
 	"./_Widget",
 	"./_TemplatedMixin",
-	"./BackgroundIframe"
-], function(declare, domAttr, winUtils, _Widget, _TemplatedMixin, BackgroundIframe){
+	"./BackgroundIframe",
+	"./Viewport",
+	"./main" // for back-compat, exporting dijit._underlay (remove in 2.0)
+], function(declare, lang, aspect, domAttr, domStyle, on,
+			winUtils, _Widget, _TemplatedMixin, BackgroundIframe, Viewport, dijit){
 
 	// module:
 	//		dijit/DialogUnderlay
 
-	return declare("dijit.DialogUnderlay", [_Widget, _TemplatedMixin], {
+	var DialogUnderlay = declare("dijit.DialogUnderlay", [_Widget, _TemplatedMixin], {
 		// summary:
-		//		The component that blocks the screen behind a `dijit.Dialog`
+		//		A component used to block input behind a `dijit/Dialog`.
 		//
-		// description:
-		//		A component used to block input behind a `dijit.Dialog`. Only a single
-		//		instance of this widget is created by `dijit.Dialog`, and saved as
-		//		a reference to be shared between all Dialogs as `dijit._underlay`
+		//		Normally this class should not be instantiated directly, but rather shown and hidden via
+		//		DialogUnderlay.show() and DialogUnderlay.hide().  And usually the module is not accessed directly
+		//		at all, since the underlay is shown and hidden by Dialog.DialogLevelManager.
 		//
 		//		The underlay itself can be styled based on and id:
 		//	|	#myDialog_underlay { background-color:red; }
@@ -27,7 +33,7 @@ define("dijit/DialogUnderlay", [
 
 		// Template has two divs; outer div is used for fade-in/fade-out, and also to hold background iframe.
 		// Inner div has opacity specified in CSS file.
-		templateString: "<div class='dijitDialogUnderlayWrapper'><div class='dijitDialogUnderlay' data-dojo-attach-point='node'></div></div>",
+		templateString: "<div class='dijitDialogUnderlayWrapper'><div class='dijitDialogUnderlay' tabIndex='-1' data-dojo-attach-point='node'></div></div>",
 
 		// Parameters on creation or updatable later
 
@@ -38,6 +44,10 @@ define("dijit/DialogUnderlay", [
 		// class: String
 		//		This class name is used on the DialogUnderlay node, in addition to dijitDialogUnderlay
 		"class": "",
+
+		// This will get overwritten as soon as show() is call, but leave an empty array in case hide() or destroy()
+		// is called first.   The array is shared between instances but that's OK because we never write into it.
+		_modalConnects: [],
 
 		_setDialogIdAttr: function(id){
 			domAttr.set(this.node, "id", id + "_underlay");
@@ -50,9 +60,12 @@ define("dijit/DialogUnderlay", [
 		},
 
 		postCreate: function(){
-			// summary:
-			//		Append the underlay to the body
+			// Append the underlay to the body
 			this.ownerDocumentBody.appendChild(this.domNode);
+
+			this.own(on(this.domNode, "keydown", lang.hitch(this, "_onKeyDown")));
+
+			this.inherited(arguments);
 		},
 
 		layout: function(){
@@ -87,16 +100,72 @@ define("dijit/DialogUnderlay", [
 			// summary:
 			//		Show the dialog underlay
 			this.domNode.style.display = "block";
+			this.open = true;
 			this.layout();
 			this.bgIframe = new BackgroundIframe(this.domNode);
+
+			var win = winUtils.get(this.ownerDocument);
+			this._modalConnects = [
+				Viewport.on("resize", lang.hitch(this, "layout")),
+				on(win, "scroll", lang.hitch(this, "layout"))
+			];
+
 		},
 
 		hide: function(){
 			// summary:
 			//		Hides the dialog underlay
+
 			this.bgIframe.destroy();
 			delete this.bgIframe;
 			this.domNode.style.display = "none";
+			while(this._modalConnects.length){ (this._modalConnects.pop()).remove(); }
+			this.open = false;
+		},
+
+		destroy: function(){
+			while(this._modalConnects.length){ (this._modalConnects.pop()).remove(); }
+			this.inherited(arguments);
+		},
+
+		_onKeyDown: function(){
+			// summary:
+			//		Extension point so Dialog can monitor keyboard events on the underlay.
 		}
 	});
+
+	DialogUnderlay.show = function(/*Object*/ attrs, /*Number*/ zIndex){
+		// summary:
+		//		Display the underlay with the given attributes set.  If the underlay is already displayed,
+		//		then adjust it's attributes as specified.
+		// attrs:
+		//		The parameters to create DialogUnderlay with.
+		// zIndex:
+		//		zIndex of the underlay
+
+		var underlay = DialogUnderlay._singleton;
+		if(!underlay || underlay._destroyed){
+			underlay = dijit._underlay = DialogUnderlay._singleton = new DialogUnderlay(attrs);
+		}else{
+			if(attrs){ underlay.set(attrs); }
+		}
+		domStyle.set(underlay.domNode, 'zIndex', zIndex);
+		if(!underlay.open){
+			underlay.show();
+		}
+	};
+
+	DialogUnderlay.hide = function(){
+		// summary:
+		//		Hide the underlay.
+
+		// Guard code in case the underlay widget has already been destroyed
+		// because we are being called during page unload (when all widgets are destroyed)
+		var underlay = DialogUnderlay._singleton;
+		if(underlay && !underlay._destroyed){
+			underlay.hide();
+		}
+	};
+
+	return DialogUnderlay;
 });

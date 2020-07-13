@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -162,10 +162,13 @@ UNIV_INLINE
 trx_id_t trx_read_trx_id(
     const byte *ptr); /*!< in: pointer to memory from where to read */
 
-/** Looks for the trx instance with the given id in the rw trx_list.
- @return	the trx handle or NULL if not found */
+/** Looks for the trx handle with the given id in rw trxs list.
+ The caller must be holding trx_sys->mutex.
+ @param[in]   trx_id   trx id to search for
+ @return the trx handle or NULL if not found */
 UNIV_INLINE
-trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id); /*!< in: trx id to search for */
+trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id);
+
 /** Returns the minimum trx id in rw trx list. This is the smallest id for which
  the trx can possibly be active. (But, you must look at the trx->state to
  find out if the minimum trx id transaction itself is active, or already
@@ -251,10 +254,23 @@ void trx_sys_close(void);
 UNIV_INLINE
 bool trx_sys_need_rollback();
 
-/*********************************************************************
-Check if there are any active (non-prepared) transactions.
-@return total number of active transactions or 0 if none */
-ulint trx_sys_any_active_transactions(void);
+/** Reads number of recovered transactions which have state
+equal to TRX_STATE_ACTIVE (so are not prepared transactions).
+@return number of active recovered transactions */
+size_t trx_sys_recovered_active_trxs_count();
+
+/** Validates lists of transactions at the very beginning of the
+pre-dd-shutdown phase. */
+void trx_sys_before_pre_dd_shutdown_validate();
+
+/** Validates lists of transactions at the very end of the
+pre-dd-shutdown phase. */
+void trx_sys_after_pre_dd_shutdown_validate();
+
+/** Validates lists of transactions after all background threads
+of InnoDB exited during shutdown of MySQL. */
+void trx_sys_after_background_threads_shutdown_validate();
+
 #endif /* !UNIV_HOTBACKUP */
 /**
 Add the transaction to the RW transaction set
@@ -309,7 +325,7 @@ slots */
 /* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
 rollback segment.  It initialized some arrays with this number of entries.
 We must remember this limit in order to keep file compatibility. */
-#define TRX_SYS_OLD_N_RSEGS 256
+constexpr size_t TRX_SYS_OLD_N_RSEGS = 256;
 
 /* The system temporary tablespace was originally allocated rseg_id slot
 numbers 1 through 32 in the TRX_SYS page.  But those slots were not used
@@ -317,7 +333,7 @@ because those Rollback segments were recreated at startup and after any
 crash. These slots are now used for redo-enabled rollback segments.
 The default number of rollback segments in the temporary tablespace
 remains the same. */
-#define TRX_SYS_OLD_TMP_RSEGS 32
+constexpr size_t TRX_SYS_OLD_TMP_RSEGS = 32;
 
 /** Maximum length of MySQL binlog file name, in bytes. */
 #define TRX_SYS_MYSQL_LOG_NAME_LEN 512

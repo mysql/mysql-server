@@ -88,7 +88,7 @@ select length(@trace);
 # and we trace only EXECUTE)
 # - So in normal mode, the lines below verify truncation,
 # whereas in ps-protocol mode they verify non-truncation.
-set @max_mem_size=13807;
+set @max_mem_size=13307;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
@@ -563,4 +563,20 @@ select * from information_schema.OPTIMIZER_TRACE;
 
 drop table t1,t2;
 DROP TABLE t5,t6;
-set optimizer_trace=default;
+
+
+--echo # Trace for transformation scalar subquery to derived table
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t1, t2;
+
+SET optimizer_switch='subquery_to_derived=on';
+SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2;
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET optimizer_switch='subquery_to_derived=default';
+
+DROP TABLE t1, t2;
+
+SET optimizer_trace=default;

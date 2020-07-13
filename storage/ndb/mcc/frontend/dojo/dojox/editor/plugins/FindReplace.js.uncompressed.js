@@ -17,7 +17,7 @@ define("dojox/editor/plugins/FindReplace", [
 	"dijit/form/Button",
 	"dijit/form/DropDownButton",
 	"dijit/form/ToggleButton",
-	"dojox/editor/plugins/ToolbarLineBreak",
+	"./ToolbarLineBreak",
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/i18n",
@@ -29,7 +29,8 @@ define("dojox/editor/plugins/FindReplace", [
 
 dojo.experimental("dojox.editor.plugins.FindReplace");
 
-dojo.declare("dojox.editor.plugins._FindReplaceCloseBox", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
+var FindReplaceCloseBox = dojo.declare("dojox.editor.plugins._FindReplaceCloseBox",
+	[_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
 	// summary:
 	//		Base class for widgets that contains a button labeled X
 	//		to close the tool bar.
@@ -58,7 +59,7 @@ dojo.declare("dojox.editor.plugins._FindReplaceCloseBox", [_Widget, _TemplatedMi
 });
 
 
-dojo.declare("dojox.editor.plugins._FindReplaceTextBox",
+var FindReplaceTextBox = dojo.declare("dojox.editor.plugins._FindReplaceTextBox",
 	[_Widget, _TemplatedMixin, _WidgetsInTemplateMixin],{
 	// summary:
 	//		Base class for widgets that contains a label (like "Font:")
@@ -164,7 +165,7 @@ dojo.declare("dojox.editor.plugins._FindReplaceTextBox",
 });
 
 
-dojo.declare("dojox.editor.plugins._FindReplaceCheckBox",
+var FindReplaceCheckBox = dojo.declare("dojox.editor.plugins._FindReplaceCheckBox",
 	[_Widget, _TemplatedMixin, _WidgetsInTemplateMixin],{
 	// summary:
 	//		Base class for widgets that contains a label (like "Match case: ")
@@ -245,7 +246,7 @@ dojo.declare("dojox.editor.plugins._FindReplaceCheckBox",
 });
 
 
-dojo.declare("dojox.editor.plugins._FindReplaceToolbar", Toolbar, {
+var FindReplaceToolbar = dojo.declare("dojox.editor.plugins._FindReplaceToolbar", Toolbar, {
 	// summary:
 	//		A toolbar that derived from dijit.Toolbar, which
 	//		eliminates some unnecessary event response such as LEFT_ARROW pressing
@@ -276,7 +277,7 @@ dojo.declare("dojox.editor.plugins._FindReplaceToolbar", Toolbar, {
 	}
 });
 
-dojo.declare("dojox.editor.plugins.FindReplace",[_Plugin],{
+var FindReplace = dojo.declare("dojox.editor.plugins.FindReplace",[_Plugin],{
 	// summary:
 	//		This plugin provides a Find/Replace capability for the editor.
 	//		Note that this plugin is NOT supported on Opera currently, as opera
@@ -452,7 +453,7 @@ dojo.declare("dojox.editor.plugins.FindReplace",[_Plugin],{
 		//		public
 		this.inherited(arguments);
 		if(!dojo.isOpera){
-			var _tb = (this._frToolbar = new dojox.editor.plugins._FindReplaceToolbar());
+			var _tb = (this._frToolbar = new FindReplaceToolbar());
 			dojo.style(_tb.domNode, "display", "none");
 			dojo.place(_tb.domNode, toolbar.domNode, "after");
 			_tb.startup();
@@ -460,15 +461,15 @@ dojo.declare("dojox.editor.plugins.FindReplace",[_Plugin],{
 			// IE6 will put the close box in a new line when its style is "float: right".
 			// So place the close box ahead of the other fields, which makes it align with
 			// the other components.
-			this._closeBox = new dojox.editor.plugins._FindReplaceCloseBox();
+			this._closeBox = new FindReplaceCloseBox();
 			_tb.addChild(this._closeBox);
 			
 			// Define the search/replace fields.
-			this._findField = new dojox.editor.plugins._FindReplaceTextBox(
+			this._findField = new FindReplaceTextBox(
 				{label: this._strings["findLabel"], tooltip: this._strings["findTooltip"]});
 			_tb.addChild(this._findField);
 			
-			this._replaceField = new dojox.editor.plugins._FindReplaceTextBox(
+			this._replaceField = new FindReplaceTextBox(
 				{label: this._strings["replaceLabel"], tooltip: this._strings["replaceTooltip"]});
 			_tb.addChild(this._replaceField);
 
@@ -491,11 +492,11 @@ dojo.declare("dojox.editor.plugins.FindReplace",[_Plugin],{
 			_tb.addChild(this._replaceAllButton);
 			
 			// Define the option checkboxes.
-			this._caseSensitive = new dojox.editor.plugins._FindReplaceCheckBox(
+			this._caseSensitive = new FindReplaceCheckBox(
 				{label: this._strings["matchCase"], tooltip: this._strings["matchCaseTooltip"]});
 			_tb.addChild(this._caseSensitive);
 			
-			this._backwards = new dojox.editor.plugins._FindReplaceCheckBox(
+			this._backwards = new FindReplaceCheckBox(
 				{label: this._strings["backwards"], tooltip: this._strings["backwardsTooltip"]});
 			_tb.addChild(this._backwards);
 
@@ -861,16 +862,21 @@ dojo.declare("dojox.editor.plugins.FindReplace",[_Plugin],{
 	}
 });
 
+// For monkey patching
+FindReplace._FindReplaceCloseBox = FindReplaceCloseBox;
+FindReplace._FindReplaceTextBox = FindReplaceTextBox;
+FindReplace._FindReplaceCheckBox = FindReplaceCheckBox;
+FindReplace._FindReplaceToolbar = FindReplaceToolbar;
 
 // Register this plugin.
 dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name ===  "findreplace"){
-		o.plugin = new dojox.editor.plugins.FindReplace({});
+		o.plugin = new FindReplace({});
 	}
 });
 
-return dojox.editor.plugins.FindReplace;
+return FindReplace;
 
 });

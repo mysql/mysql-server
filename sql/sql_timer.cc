@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,8 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
   Reap a (possibly) pending timer object.
 
   @param  thd_timer   Thread timer object.
-  @param  pending
+  @param  pending     State of the timer object. true if timer is not expired.
+  false otherwise.
 
   @return true if the timer object is unreachable.
 */

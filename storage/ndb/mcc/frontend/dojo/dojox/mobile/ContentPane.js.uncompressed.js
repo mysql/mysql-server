@@ -15,7 +15,7 @@ define("dojox/mobile/ContentPane", [
 		//		the ability to load external content using dojo/_base/xhr. onLoad()
 		//		is called when parsing is done and the content is
 		//		ready. Compared with dijit/layout/ContentPane, this widget
-		//		provides only basic fuctionality, but it is much lighter.
+		//		provides only basic functionality, but it is much lighter.
 
 		baseClass: "mblContentPane"
 	});

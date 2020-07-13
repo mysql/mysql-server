@@ -1,18 +1,20 @@
 define("dojox/mobile/IconMenu", [
 	"dojo/_base/declare",
-	"dojo/_base/sniff",
+	"dojo/sniff",
 	"dojo/dom-class",
 	"dojo/dom-construct",
 	"dojo/dom-style",
+	"dojo/dom-attr",
 	"dijit/_Contained",
 	"dijit/_Container",
 	"dijit/_WidgetBase",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/IconMenu",
 	"./IconMenuItem"
-], function(declare, has, domClass, domConstruct, domStyle, Contained, Container, WidgetBase){
+], function(declare, has, domClass, domConstruct, domStyle, domAttr, Contained, Container, WidgetBase, BidiIconMenu){
 	// module:
 	//		dojox/mobile/IconMenu
 
-	return declare("dojox.mobile.IconMenu", [WidgetBase, Container, Contained], {
+	var IconMenu = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiIconMenu" : "dojox.mobile.IconMenu", [WidgetBase, Container, Contained], {
 		// summary:
 		//		A pop-up menu.
 		// description:
@@ -56,6 +58,7 @@ define("dojox/mobile/IconMenu", [
 
 		buildRendering: function(){
 			this.domNode = this.containerNode = this.srcNodeRef || domConstruct.create(this.tag);
+			domAttr.set(this.domNode, "role", "menu");
 			this.inherited(arguments);
 
 			if(this._createTerminator){
@@ -118,4 +121,6 @@ define("dojox/mobile/IconMenu", [
 			}
 		}
 	});
+
+	return has("dojo-bidi") ? declare("dojox.mobile.IconMenu", [IconMenu, BidiIconMenu]) : IconMenu;
 });

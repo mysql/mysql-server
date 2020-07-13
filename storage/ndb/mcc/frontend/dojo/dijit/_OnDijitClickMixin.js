@@ -1,8 +1,8 @@
 //>>built
-define("dijit/_OnDijitClickMixin",["dojo/on","dojo/_base/array","dojo/keys","dojo/_base/declare","dojo/has","dojo/_base/unload","dojo/_base/window","./a11yclick"],function(on,_1,_2,_3,_4,_5,_6,_7){
-var _8=_3("dijit._OnDijitClickMixin",null,{connect:function(_9,_a,_b){
-return this.inherited(arguments,[_9,_a=="ondijitclick"?_7:_a,_b]);
+define("dijit/_OnDijitClickMixin",["dojo/on","dojo/_base/array","dojo/keys","dojo/_base/declare","dojo/has","./a11yclick"],function(on,_1,_2,_3,_4,_5){
+var _6=_3("dijit._OnDijitClickMixin",null,{connect:function(_7,_8,_9){
+return this.inherited(arguments,[_7,_8=="ondijitclick"?_5:_8,_9]);
 }});
-_8.a11yclick=_7;
-return _8;
+_6.a11yclick=_5;
+return _6;
 });

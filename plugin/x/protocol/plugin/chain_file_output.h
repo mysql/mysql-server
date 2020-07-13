@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ class Chain_file_output : public File_output {
         context,
         "    for(unsigned int i = 0; i < sizeof(v)/sizeof(v[0]); ++i)");
     write_to_context(context, "      m_allowed_tag_chains.insert(v[i]);");
-    write_to_context(context, "  };");
+    write_to_context(context, "  }");
     write_to_context(context, "};");
     write_to_context(context, "");
     write_to_context(context, "#endif  // PLUGIN_X_GENERATED_XPROTOCOL_TAGS_H");

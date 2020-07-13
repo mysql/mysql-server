@@ -5,9 +5,12 @@ define("dojox/dtl/tag/misc", [
 	"../_base"
 ], function(lang,array,connect,dd){
 
-	lang.getObject("dojox.dtl.tag.misc", true);
-
-	var ddtm = dd.tag.misc;
+	var ddtm = lang.getObject("tag.misc", true, dd);
+	/*=====
+	 ddtm = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
 	ddtm.DebugNode = lang.extend(function(text){
 		this.text = text;
@@ -290,5 +293,6 @@ define("dojox/dtl/tag/misc", [
 			return new ddtm.WithNode(parts[1], parts[3], nodelist);
 		}
 	});
-	return dojox.dtl.tag.misc;
+
+	return ddtm;
 });

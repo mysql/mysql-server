@@ -152,9 +152,6 @@ ubidi_openSized(int32_t maxLength, int32_t maxRunCount, UErrorCode *pErrorCode) 
     /* reset the object, all pointers NULL, all flags FALSE, all sizes 0 */
     uprv_memset(pBiDi, 0, sizeof(UBiDi));
 
-    /* get BiDi properties */
-    pBiDi->bdp=ubidi_getSingleton();
-
     /* allocate memory for arrays as requested */
     if(maxLength>0) {
         if( !getInitialDirPropsMemory(pBiDi, maxLength) ||
@@ -627,7 +624,7 @@ getDirProps(UBiDi *pBiDi) {
         pBiDi->paras[pBiDi->paraCount-1].level=1;
     }
     if(isDefaultLevel) {
-        pBiDi->paraLevel=pBiDi->paras[0].level;
+        pBiDi->paraLevel=static_cast<UBiDiLevel>(pBiDi->paras[0].level);
     }
     /* The following is needed to resolve the text direction for default level
        paragraphs containing no strong character */
@@ -828,28 +825,28 @@ bracketProcessClosing(BracketData *bd, int32_t openIdx, int32_t position) {
        N0c1. */
 
     if((direction==0 && pOpening->flags&FOUND_L) ||
-       (direction==1 && pOpening->flags&FOUND_R)) { /* N0b */
-        newProp=direction;
+       (direction==1 && pOpening->flags&FOUND_R)) {                         /* N0b */
+        newProp=static_cast<DirProp>(direction);
     }
-    else if(pOpening->flags&(FOUND_L|FOUND_R)) {    /* N0c */
+    else if(pOpening->flags&(FOUND_L|FOUND_R)) {                            /* N0c */
         /* it is stable if there is no containing pair or in
            conditions too complicated and not worth checking */
         stable=(openIdx==pLastIsoRun->start);
         if(direction!=pOpening->contextDir)
-            newProp=pOpening->contextDir;           /* N0c1 */
+            newProp= static_cast<DirProp>(pOpening->contextDir);           /* N0c1 */
         else
-            newProp=direction;                      /* N0c2 */
+            newProp= static_cast<DirProp>(direction);                      /* N0c2 */
     } else {
         /* forget this and any brackets nested within this pair */
-        pLastIsoRun->limit=openIdx;
-        return ON;                                  /* N0d */
+        pLastIsoRun->limit= static_cast<uint16_t>(openIdx);
+        return ON;                                                          /* N0d */
     }
     bd->pBiDi->dirProps[pOpening->position]=newProp;
     bd->pBiDi->dirProps[position]=newProp;
     /* Update nested N0c pairs that may be affected */
     fixN0c(bd, openIdx, pOpening->position, newProp);
     if(stable) {
-        pLastIsoRun->limit=openIdx; /* forget any brackets nested within this pair */
+        pLastIsoRun->limit= static_cast<uint16_t>(openIdx); /* forget any brackets nested within this pair */
         /* remove lower located synonyms if any */
         while(pLastIsoRun->limit>pLastIsoRun->start &&
               bd->openings[pLastIsoRun->limit-1].position==pOpening->position)
@@ -921,11 +918,11 @@ bracketProcessChar(BracketData *bd, int32_t position) {
            bracket or it is a case of N0d */
         /* Now see if it is an opening bracket */
         if(c)
-            match=u_getBidiPairedBracket(c);    /* get the matching char */
+            match= static_cast<UChar>(u_getBidiPairedBracket(c));    /* get the matching char */
         else
             match=0;
         if(match!=c &&                  /* has a matching char */
-           ubidi_getPairedBracketType(bd->pBiDi->bdp, c)==U_BPT_OPEN) { /* opening bracket */
+           ubidi_getPairedBracketType(c)==U_BPT_OPEN) { /* opening bracket */
             /* special case: process synonyms
                create an opening entry for each synonym */
             if(match==0x232A) {     /* RIGHT-POINTING ANGLE BRACKET */
@@ -951,7 +948,7 @@ bracketProcessChar(BracketData *bd, int32_t position) {
         pLastIsoRun->contextPos=position;
     }
     else if(dirProp<=R || dirProp==AL) {
-        newProp=DIR_FROM_STRONG(dirProp);
+        newProp= static_cast<DirProp>(DIR_FROM_STRONG(dirProp));
         pLastIsoRun->lastBase=dirProp;
         pLastIsoRun->lastStrong=dirProp;
         pLastIsoRun->contextDir=(UBiDiDirection)newProp;
@@ -1104,7 +1101,7 @@ resolveExplicitLevels(UBiDi *pBiDi, UErrorCode *pErrorCode) {
             else
                 start=pBiDi->paras[paraIndex-1].limit;
             limit=pBiDi->paras[paraIndex].limit;
-            level=pBiDi->paras[paraIndex].level;
+            level= static_cast<UBiDiLevel>(pBiDi->paras[paraIndex].level);
             for(i=start; i<limit; i++)
                 levels[i]=level;
         }
@@ -1122,7 +1119,7 @@ resolveExplicitLevels(UBiDi *pBiDi, UErrorCode *pErrorCode) {
             else
                 start=pBiDi->paras[paraIndex-1].limit;
             limit=pBiDi->paras[paraIndex].limit;
-            level=pBiDi->paras[paraIndex].level;
+            level= static_cast<UBiDiLevel>(pBiDi->paras[paraIndex].level);
             for(i=start; i<limit; i++) {
                 levels[i]=level;
                 dirProp=dirProps[i];
@@ -2050,8 +2047,7 @@ processPropertySeq(UBiDi *pBiDi, LevState *pLevState, uint8_t _prop,
             break;
 
         default:                        /* we should never get here */
-            U_ASSERT(FALSE);
-            break;
+            UPRV_UNREACHABLE;
         }
     }
     if((addLevel) || (start < start0)) {
@@ -2254,8 +2250,7 @@ resolveImplicitLevels(UBiDi *pBiDi,
                 start2=i;
                 break;
             default:            /* we should never get here */
-                U_ASSERT(FALSE);
-                break;
+                UPRV_UNREACHABLE;
             }
         }
     }
@@ -2729,8 +2724,7 @@ ubidi_setPara(UBiDi *pBiDi, const UChar *text, int32_t length,
             break;
         default:
             /* we should never get here */
-            U_ASSERT(FALSE);
-            break;
+            UPRV_UNREACHABLE;
         }
         /*
          * If there are no external levels specified and there
@@ -2830,7 +2824,7 @@ ubidi_setPara(UBiDi *pBiDi, const UChar *text, int32_t length,
         DirProp dirProp;
         for(i=0; i<pBiDi->paraCount; i++) {
             last=(pBiDi->paras[i].limit)-1;
-            level=pBiDi->paras[i].level;
+            level= static_cast<UBiDiLevel>(pBiDi->paras[i].level);
             if(level==0)
                 continue;           /* LTR paragraph */
             start= i==0 ? 0 : pBiDi->paras[i-1].limit;
@@ -3033,7 +3027,7 @@ ubidi_getCustomizedClass(UBiDi *pBiDi, UChar32 c)
     if( pBiDi->fnClassCallback == NULL ||
         (dir = (*pBiDi->fnClassCallback)(pBiDi->coClassCallback, c)) == U_BIDI_CLASS_DEFAULT )
     {
-        dir = ubidi_getClass(pBiDi->bdp, c);
+        dir = ubidi_getClass(c);
     }
     if(dir >= U_CHAR_DIRECTION_COUNT) {
         dir = (UCharDirection)ON;

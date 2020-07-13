@@ -1,0 +1,141 @@
+## This is test file for verification binding on multiple addresses
+##
+--source include/windows.inc
+--source include/xplugin_preamble.inc
+
+
+## Tests starting here
+--echo
+--echo
+--echo ## Table of testing
+--echo #
+--echo # 1. localhost bindings
+--echo # 2. "not existing hosts" bindings
+--echo # 3. skipped "*" binding
+--echo # 4. skipped "0.0.0.0" binding
+--echo # 5. skipped "empty address" binding
+--echo # 6. skipped "empty network namespace" binding
+--echo # 7. skipped "wildcard with namespace" binding
+--echo # 8. skipped "wrong network namespace" binding
+--echo # 9. skipped "distanthost" binding
+--echo # 10. default bindings
+--echo #
+
+--echo
+--echo #
+--echo # 1. localhost bindings
+--let $expect_bind_address=localhost,127.0.0.1
+--let $expect_address=127.0.0.1,127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Value '127.0.0.1' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: '127.0.0.1' port: [0-9]* failed, `bind\\(\\)` failed with error: Address already in use \\([0-9]+\\). Do you already have another mysqld server running with Mysqlx \\?'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 2. "not existing hosts" bindings
+--let $expect_bind_address=otherhost,anotherhost
+--let $expect_address=UNDEFINED
+--let $wait_for_tcpsocket_status = undefined_value
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Value 'otherhost' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'otherhost' port: [0-9]* failed, can't resolve `hostname`'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Value 'anotherhost' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'anotherhost' port: [0-9]* failed, can't resolve `hostname`'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Preparation of I/O interfaces failed, X Protocol won't be accessible'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 3. skipped "*" binding
+--let $expect_bind_address=*,localhost
+--let $expect_address=127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '\\*' set to `Mysqlx_bind_address` failed: wildcards are not allowed when there are more than one address. Skipping this value.'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 4. skipped "0.0.0.0" binding
+--let $expect_bind_address=0.0.0.0,localhost
+--let $expect_address=127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '0.0.0.0' set to `Mysqlx_bind_address` failed: wildcards are not allowed when there are more than one address. Skipping this value.'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 5. skipped "empty address" binding
+--let $expect_bind_address=,localhost
+--let $expect_address=127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '' set to `Mysqlx_bind_address` failed: wildcards are not allowed when there are more than one address. Skipping this value.'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 6. skipped "empty network namespace" binding
+--let $expect_bind_address=localhost/,localhost
+--let $expect_address=127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value 'localhost/' set to `Mysqlx_bind_address` failed: can't be parsed as an address. Skipping this value.'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 7. skipped "wildcard with namespace" binding
+--let $expect_bind_address=*/wrong,localhost
+--let $expect_address=127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '\\*/wrong' set to `Mysqlx_bind_address` failed: network namespace are not allowed for wildcards. Skipping this value.'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 8. skipped "wrong network namespace" binding
+--let $expect_bind_address=localhost/wrong,localhost
+--let $expect_address=127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Value 'localhost/wrong' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Network Namespaces is not supported on this platform'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'localhost/wrong' port: [0-9]* failed, '");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 9. skipped "distanthost" binding
+--let $expect_bind_address=distanthost,localhost
+--let $expect_address=127.0.0.1
+--let $restart_parameters = restart: --mysqlx_bind_address=$expect_bind_address
+call mtr.add_suppression("Plugin mysqlx reported: 'Value 'distanthost' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'distanthost' port: [0-9]* failed, can't resolve `hostname`'");
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+
+--echo
+--echo #
+--echo # 10. default bindings
+--let $expect_bind_address=*
+--let $expect_address=::
+--let $restart_parameters = restart:
+--source ../include/restart_mysqld_and_verify_bind_addresses.inc
+
+
+## Cleanup

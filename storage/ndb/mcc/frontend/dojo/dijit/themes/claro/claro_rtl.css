@@ -1,4 +1,9 @@
 
+.dijitRtl .dijitOffScreen {
+	
+	left: auto !important;
+	right: -10000px !important;
+}
 .dijitRtl .dijitPlaceHolder {
 	left: auto;
 	right: 0;
@@ -34,6 +39,12 @@
 }
 div.dijitNumberTextBoxRtl {
 	text-align: right;
+}
+.dijitCalendarRtl .dijitCalendarDecrementArrow {
+	float: right;
+}
+.dijitCalendarRtl .dijitCalendarIncrementArrow {
+	float: left;
 }
 .dijitCalendarRtl .dijitCalendarNextYear {
 	margin:0 0.55em 0 0;
@@ -109,6 +120,9 @@ div.dijitNumberTextBoxRtl {
 	border-style: none none none solid;
 	text-align: right;
 }
+.dijitTreeRtl .dijitTreeContainer {
+	float: right;	
+}
 .dijitRtl .dojoDndHorizontal .dojoDndItemBefore {
     border-width: 0 2px 0 0;
     padding: 2px 0 2px 2px;
@@ -118,8 +132,8 @@ div.dijitNumberTextBoxRtl {
     padding: 2px 2px 2px 0;
 }
 .claro .dijitTextBoxRtlError .dijitValidationContainer {
-  border-left-width: 0 !important;
-  border-right-width: 1px !important;
+  border-left-width: 0;
+  border-right-width: 1px;
 }
 .claro .dijitComboButtonRtl .dijitStretch {
   -moz-border-radius: 0 4px 4px 0;
@@ -132,7 +146,8 @@ div.dijitNumberTextBoxRtl {
   border-left-width: 1px;
   border-right-width: 0;
 }
-.claro .dijitTabContainerTop-tabs .dijitTabRtl, .claro .dijitTabContainerBottom-tabs .dijitTabRtl {
+.claro .dijitTabContainerTop-tabs .dijitTabRtl,
+.claro .dijitTabContainerBottom-tabs .dijitTabRtl {
   margin-right: 0;
   margin-left: 1px;
 }
@@ -143,7 +158,9 @@ div.dijitNumberTextBoxRtl {
 .claro .dijitSliderRtl .dijitSliderTopBumper {
   background-position: top right;
 }
-.claro .dijitSliderRtl .dijitSliderProgressBarV, .claro .dijitSliderRtl .dijitSliderRemainingBarV, .claro .dijitSliderRtl .dijitSliderBottomBumper {
+.claro .dijitSliderRtl .dijitSliderProgressBarV,
+.claro .dijitSliderRtl .dijitSliderRemainingBarV,
+.claro .dijitSliderRtl .dijitSliderBottomBumper {
   background-position: bottom right;
 }
 .claro .dijitSliderRtl .dijitSliderLeftBumper {
@@ -170,6 +187,13 @@ div.dijitNumberTextBoxRtl {
 }
 .claro .dijitEditorRtl .dijitEditorIFrameContainer {
   padding: 3px 10px 1px 3px;
+}
+.dj_ie6 .claro .dijitEditorRtl .dijitEditorIFrameContainer,
+.dj_ie7 .claro .dijitEditorRtl .dijitEditorIFrameContainer,
+.dj_ie8 .claro .dijitEditorRtl .dijitEditorIFrameContainer {
+  padding: 3px 0px 1px 10px;
+  margin-right: 0px;
+  border: 0px solid #d3d3d3;
 }
 .dijitEditorRtl .dijitEditorIcon {
 	background-image: url("../../icons/images/editorIconsEnabled_rtl.png"); 
@@ -293,7 +317,11 @@ div.dijitNumberTextBoxRtl {
 .dijitRtl .dijitDisabled .dijitIconError {
 	background-image: url("../../icons/images/commonIconsObjActDisabled_rtl.png"); 
 }
-.claro .dijitTitlePaneRtl .dijitClosed .dijitArrowNode {
+.dijitRtl .dijitIconLoading {
+	background-image: url("../../icons/images/loadingAnimation_rtl.gif");
+}
+.claro .dijitTitlePaneRtl .dijitClosed .dijitArrowNode,
+.claro .dijitFieldsetRtl .dijitFieldsetTitleClosed .dijitArrowNode {
   background-position: -7px 0;
 }
 .claro .dijitMenuItemRtl .dijitMenuExpand {
@@ -322,19 +350,12 @@ div.dijitNumberTextBoxRtl {
 .claro .dijitCalendarRtl .dijitCalendarArrowActive .dijitCalendarDecrease {
   background-position: -91px 0;
 }
-.dj_ie .claro .dijitTimePickerRtl .dijitTimePickerTickHover,
-.dj_ie .claro .dijitTimePickerRtl .dijitTimePickerMarkerHover,
-.dj_ie .claro .dijitTimePickerRtl .dijitTimePickerMarkerSelected,
-.dj_ie .claro .dijitTimePickerRtl .dijitTimePickerTickSelected {
-  margin-left: -6px;
-  margin-right: -8px;
-  width: 114%;
-}
 .claro .dijitToolbar .dijitComboButtonRtl .dijitButtonNode {
   border-width: 0;
   padding: 2px;
 }
-.claro .dijitToolbar .dijitComboButtonRtlHover .dijitButtonNode, .claro .dijitToolbar .dijitComboButtonRtlActive .dijitButtonNode {
+.claro .dijitToolbar .dijitComboButtonRtlHover .dijitButtonNode,
+.claro .dijitToolbar .dijitComboButtonRtlActive .dijitButtonNode {
   border-width: 1px;
   padding: 1px;
 }
@@ -348,10 +369,27 @@ div.dijitNumberTextBoxRtl {
   -moz-border-radius: 2px 0 0 2px;
   border-radius: 2px 0 0 2px;
 }
-.claro .dijitToolbar .dijitComboButtonRtlHover .dijitArrowButton, .claro .dijitToolbar .dijitComboButtonRtlActive .dijitArrowButton {
+.claro .dijitToolbar .dijitComboButtonRtlHover .dijitArrowButton,
+.claro .dijitToolbar .dijitComboButtonRtlActive .dijitArrowButton {
   
   border-left-width: 1px;
   border-right-width: 0;
   padding-left: 1px;
   padding-right: 2px;
+}
+.claro .dijitTreeRtl .dijitTreeExpandoLoading {
+  background-image: url("../../icons/images/loadingAnimation_rtl.gif");
+  background-position: 100% 0;
+}
+.claro .dijitProgressBarRtl .dijitProgressBarFull {
+  border-left-width: 1px;
+  border-right-width: 0px;
+}
+.claro .dijitProgressBarIndeterminateRtl .dijitProgressBarTile {
+  -moz-transform: scaleX(-1);
+  -o-transform: scaleX(-1);
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
+  filter: FlipH;
+  -ms-filter: "FlipH";
 }

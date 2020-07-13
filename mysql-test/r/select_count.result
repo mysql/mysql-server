@@ -162,6 +162,9 @@ Handler_update	0
 Handler_write	0
 CREATE TABLE t_nopk(c1 INT NOT NULL , c2 INT NOT NULL)ENGINE=INNODB;
 INSERT INTO t_nopk SELECT c1, c2 FROM t_innodb;
+ANALYZE TABLE t_nopk;
+Table	Op	Msg_type	Msg_text
+test.t_nopk	analyze	status	OK
 SHOW CREATE TABLE t_nopk;
 Table	Create Table
 t_nopk	CREATE TABLE `t_nopk` (

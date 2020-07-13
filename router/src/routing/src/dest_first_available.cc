@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "dest_first_available.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -33,11 +34,14 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-int DestFirstAvailable::get_server_socket(
-    std::chrono::milliseconds connect_timeout, int *error,
+stdx::expected<mysql_harness::socket_t, std::error_code>
+DestFirstAvailable::get_server_socket(
+    std::chrono::milliseconds connect_timeout,
     mysql_harness::TCPAddress *address) noexcept {
+  std::error_code last_ec{};
+
   if (destinations_.empty()) {
-    return -1;
+    return stdx::make_unexpected(last_ec);
   }
 
   for (size_t i = 0; i < destinations_.size(); ++i) {
@@ -45,19 +49,15 @@ int DestFirstAvailable::get_server_socket(
     auto addr = destinations_.at(current_pos_);
     log_debug("Trying server %s (index %lu)", addr.str().c_str(),
               static_cast<long unsigned>(i));  // 32bit Linux requires cast
-    auto sock = get_mysql_socket(addr, connect_timeout);
-    if (sock >= 0) {
+    auto sock_res = get_mysql_socket(addr, connect_timeout);
+    if (sock_res) {
       if (address) *address = addr;
-      return sock;
+      return sock_res;
     } else {
       if (++current_pos_ >= destinations_.size()) current_pos_ = 0;
+      last_ec = sock_res.error();
     }
   }
 
-#ifndef _WIN32
-  *error = errno;
-#else
-  *error = WSAGetLastError();
-#endif
-  return -1;
+  return stdx::make_unexpected(last_ec);
 }

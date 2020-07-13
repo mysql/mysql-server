@@ -1,5 +1,5 @@
-define("dojo/dnd/common", ["../_base/connect", "../_base/kernel", "../_base/lang", "../dom"],
-	function(connect, kernel, lang, dom){
+define("dojo/dnd/common", ["../sniff", "../_base/kernel", "../_base/lang", "../dom"],
+	function(has, kernel, lang, dom){
 
 // module:
 //		dojo/dnd/common
@@ -13,7 +13,9 @@ var exports = {
 };
 =====*/
 
-exports.getCopyKeyState = connect.isCopyKey;
+exports.getCopyKeyState = function(evt){
+	return evt[has("mac") ? "metaKey" : "ctrlKey"]
+};
 
 exports._uniqueId = 0;
 exports.getUniqueId = function(){
@@ -35,7 +37,7 @@ exports.isFormElement = function(/*Event*/ e){
 	if(t.nodeType == 3 /*TEXT_NODE*/){
 		t = t.parentNode;
 	}
-	return " button textarea input select option ".indexOf(" " + t.tagName.toLowerCase() + " ") >= 0;	// Boolean
+	return " a button textarea input select option ".indexOf(" " + t.tagName.toLowerCase() + " ") >= 0;	// Boolean
 };
 
 return exports;

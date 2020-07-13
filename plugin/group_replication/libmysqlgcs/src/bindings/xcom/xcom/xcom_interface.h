@@ -23,13 +23,10 @@
 #ifndef XCOM_INTERFACE_H
 #define XCOM_INTERFACE_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
+#include "xcom/site_struct.h"
+#include "xcom/xcom_cache.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+void deliver_view_msg(site_def const *site);
 void deliver_global_view_msg(site_def const *site, synode_no message_id);
 
 /**
@@ -66,8 +63,8 @@ void deliver_global_view_msg(site_def const *site, synode_no message_id);
 void deliver_to_app(pax_machine *pma, app_data_ptr app,
                     delivery_status app_status);
 
-#ifdef __cplusplus
-}
-#endif
+void deliver_config(app_data_ptr a);
+
+void deinit_xcom_interface();
 
 #endif

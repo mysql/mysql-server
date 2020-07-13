@@ -28,14 +28,15 @@ INCLUDE_DIRECTORIES(
   SYSTEM
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/include
+  ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/xdr_gen
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/interface
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom
   ${CMAKE_SOURCE_DIR}/unittest/gunit/libmysqlgcs/include)
 
-IF (WIN32)
-  SET (XCOM_BASEDIR
+IF(WIN32)
+  SET(XCOM_BASEDIR
     ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom)
   INCLUDE_DIRECTORIES(
     ${XCOM_BASEDIR}/windeps/include
@@ -76,6 +77,7 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_control_interface
   xcom/gcs_xcom_view_identifier
   xcom/gcs_message_stage_fragmentation
+  xcom/gcs_xcom_site_def
   xcom/gcs_xcom_expels_in_progress
   )
 

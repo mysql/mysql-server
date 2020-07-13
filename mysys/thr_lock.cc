@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -997,8 +997,11 @@ void thr_multi_unlock(THR_LOCK_DATA **data, uint count) {
     if ((*pos)->type != TL_UNLOCK)
       thr_unlock(*pos);
     else {
-      DBUG_PRINT("lock", ("Free lock: data: %p  thread: 0x%x  lock: %p", *pos,
-                          (*pos)->owner->thread_id, (*pos)->lock));
+      DBUG_PRINT("lock", ("Free lock: data: %p  lock: %p", *pos, (*pos)->lock));
+      if ((*pos)->owner) {
+        DBUG_PRINT("lock",
+                   ("Free lock: thread: 0x%x", (*pos)->owner->thread_id));
+      }
     }
   }
 }

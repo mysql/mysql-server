@@ -1,11 +1,10 @@
 define("dijit/Viewport", [
 	"dojo/Evented",
 	"dojo/on",
-	"dojo/ready",
-	"dojo/sniff",
-	"dojo/_base/window", // global
+	"dojo/domReady",
+	"dojo/sniff",	// has("ie"), has("ios")
 	"dojo/window" // getBox()
-], function(Evented, on, ready, has, win, winUtils){
+], function(Evented, on, domReady, has, winUtils){
 
 	// module:
 	//		dijit/Viewport
@@ -27,9 +26,9 @@ define("dijit/Viewport", [
 
 	var focusedNode;
 
-	ready(200, function(){
+	domReady(function(){
 		var oldBox = winUtils.getBox();
-		Viewport._rlh = on(win.global, "resize", function(){
+		Viewport._rlh = on(window, "resize", function(){
 			var newBox = winUtils.getBox();
 			if(oldBox.h == newBox.h && oldBox.w == newBox.w){ return; }
 			oldBox = newBox;

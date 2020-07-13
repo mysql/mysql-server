@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -280,7 +280,7 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
     }
 
     dict_mem_table_add_col(table, nullptr, nullptr, mtype,
-                           val & 1 ? DATA_NOT_NULL : 0, len);
+                           val & 1 ? DATA_NOT_NULL : 0, len, true);
 
     /* The is_ascending flag does not matter during decompression,
     because we do not compare for "less than" or "greater than" */

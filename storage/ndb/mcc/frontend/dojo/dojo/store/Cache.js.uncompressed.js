@@ -1,5 +1,5 @@
-define("dojo/store/Cache", ["../_base/lang","../_base/Deferred" /*=====, "../_base/declare", "./api/Store" =====*/],
-function(lang, Deferred /*=====, declare, Store =====*/){
+define("dojo/store/Cache", ["../_base/lang","../when" /*=====, "../_base/declare", "./api/Store" =====*/],
+function(lang, when /*=====, declare, Store =====*/){
 
 // module:
 //		dojo/store/Cache
@@ -19,8 +19,8 @@ var Cache = function(masterStore, cachingStore, options){
 		// look for a queryEngine in either store
 		queryEngine: masterStore.queryEngine || cachingStore.queryEngine,
 		get: function(id, directives){
-			return Deferred.when(cachingStore.get(id), function(result){
-				return result || Deferred.when(masterStore.get(id, directives), function(result){
+			return when(cachingStore.get(id), function(result){
+				return result || when(masterStore.get(id, directives), function(result){
 					if(result){
 						cachingStore.put(result, {id: id});
 					}
@@ -29,23 +29,23 @@ var Cache = function(masterStore, cachingStore, options){
 			});
 		},
 		add: function(object, directives){
-			return Deferred.when(masterStore.add(object, directives), function(result){
+			return when(masterStore.add(object, directives), function(result){
 				// now put result in cache
-				cachingStore.add(typeof result == "object" ? result : object, directives);
+				cachingStore.add(result && typeof result == "object" ? result : object, directives);
 				return result; // the result from the add should be dictated by the masterStore and be unaffected by the cachingStore
 			});
 		},
 		put: function(object, directives){
 			// first remove from the cache, so it is empty until we get a response from the master store
 			cachingStore.remove((directives && directives.id) || this.getIdentity(object));
-			return Deferred.when(masterStore.put(object, directives), function(result){
+			return when(masterStore.put(object, directives), function(result){
 				// now put result in cache
-				cachingStore.put(typeof result == "object" ? result : object, directives);
+				cachingStore.put(result && typeof result == "object" ? result : object, directives);
 				return result; // the result from the put should be dictated by the masterStore and be unaffected by the cachingStore
 			});
 		},
 		remove: function(id, directives){
-			return Deferred.when(masterStore.remove(id, directives), function(result){
+			return when(masterStore.remove(id, directives), function(result){
 				return cachingStore.remove(id, directives);
 			});
 		},

@@ -113,17 +113,7 @@ define("dojox/widget/Rotator", [
 				idm = _t._idMap = {},
 				tp = _t.transitionParams = eval("({ " + _t.transitionParams + " })"),
 				node = _t._domNode = dom.byId(node),
-				cb = _t._domNodeContentBox = domGeometry.getContentBox(node), // we are going to assume the rotator will not be changing size
-
-				// default styles to apply to all the container node and rotator's panes
-				p = {
-					left: 0,
-					top: 0
-				},
-
-				warn = function(bt, dt){
-					console.warn(_t.declaredClass, ' - Unable to find transition "', bt, '", defaulting to "', dt, '".');
-				};
+				cb = _t._domNodeContentBox = domGeometry.getContentBox(node); // we are going to assume the rotator will not be changing size
 
 			// if we don't have an id, then generate one
 			_t.id = node.id || (new Date()).getTime();
@@ -136,7 +126,7 @@ define("dojox/widget/Rotator", [
 			// create our object for caching transition objects
 			tt[t] = lang.getObject(t);
 			if(!tt[t]){
-				warn(t, _defaultTransition);
+				this._transitionWarn(t, _defaultTransition);
 				tt[_t.transition = _defaultTransition] = lang.getObject(_defaultTransition);
 			}
 
@@ -151,60 +141,97 @@ define("dojox/widget/Rotator", [
 			});
 
 			// zero out our panes array to store the real pane instance
-			var pp = _t.panes = [];
+			_t.panes = [];
 
 			// find and initialize the panes
-			query(">", node).forEach(function(n, i){
-				var q = { node: n, idx: i, params: lang.mixin({}, tp, eval("({ " + (domAttr.get(n, "transitionParams") || "") + " })")) },
-					r = q.trans = domAttr.get(n, "transition") || _t.transition;
-
-				// cache each pane's title, duration, and waitForEvent attributes
-				array.forEach(["id", "title", "duration", "waitForEvent"], function(a){
-					q[a] = domAttr.get(n, a);
-				});
-
-				if(q.id){
-					idm[q.id] = i;
-				}
-
-				// cache the transition function
-				if(!tt[r] && !(tt[r] = lang.getObject(r))){
-					warn(r, q.trans = _t.transition);
-				}
-
-				p.position = "absolute";
-				p.display = _noneStr;
-
-				// find the selected pane and initialize styles
-				if(_t.idx == null || domAttr.get(n, "selected")){
-					if(_t.idx != null){
-						domStyle.set(pp[_t.idx].node, _displayStr, _noneStr);
-					}
-					_t.idx = i;
-					p.display = "";
-				}
-				domStyle.set(n, p);
-
-				// check for any declarative script blocks
-				query("> script[type^='dojo/method']", n).orphan().forEach(function(s){
-					var e = domAttr.get(s, "event");
-					if(e){
-						q[e] = parser._functionFromScript(s);
-					}
-				});
-
-				// add this pane to the array of panes
-				pp.push(q);
+			query("> *", node).forEach(function(n, i){
+				_t._initializePane(n, i);
 			});
 
 			_t._controlSub = topic.subscribe(_t.id + "/rotator/control", lang.hitch(_t, this.control));
 		},
 
+		insert: function(/*DomNode*/node, /*number?*/index){
+			// summary:
+			// 		Inserts a new pane into the rotator at a given index. If no index is
+			// 		given, the new pane is inserted at the end of the pane list.
+			var pane,
+				panes = this.panes,
+				paneNode;
+
+			if (index == null) {
+				index = panes.length;
+			}
+
+			if (index < panes.length) {
+				pane = panes[index];
+				domConstruct.place(node, pane.node, 'before');
+			}
+			else {
+				domConstruct.place(node, this._domNode, 'last');
+			}
+
+			this._initializePane(node, index);
+		},
+
+		remove: function(/*DomNode|number*/nodeOrIndex){
+			// summary:
+			// 		Removes a pane from the rotator.
+			function removeFromPanes(idx) {
+				var removed = panes.splice(idx, 1)[0];
+				if (removed) {
+					if (removed.id) {
+						_t._idMap[removed.id] = undefined;
+					}
+					_t._domNode.removeChild(removed.node);
+				}
+				if (_t.idx > idx) {
+					_t.idx--;
+				}
+			}
+
+			var index,
+				_t = this,
+				panes = this.panes;
+
+			if (typeof nodeOrIndex === "number") {
+				index = nodeOrIndex;
+			}
+			else {
+				for (var i = 0; i < panes.length; i++) {
+					if (panes[i].node === nodeOrIndex) {
+						index = i;
+						break;
+					}
+				}
+
+				if (index == null) {
+					return;
+				}
+			}
+
+			if (index === this.idx) {
+				var def = this.go(this.idx - 1);
+				if (def) {
+					return def.then(function () {
+						removeFromPanes(index);
+					});
+				}
+				else {
+					removeFromPanes(index);
+				}
+			}
+			else {
+				removeFromPanes(index);
+			}
+		},
+
 		destroy: function(){
 			// summary:
 			//		Destroys the Rotator and its DOM node.
-			array.forEach([this._controlSub, this.wfe], function(wfe) { wfe.remove() });
+			array.forEach([this._controlSub, this.wfe], function(wfe) { wfe && wfe.remove() });
 			domConstruct.destroy(this._domNode);
+			this.panes = [];
 		},
 
 		next: function(){
@@ -323,6 +350,59 @@ define("dojox/widget/Rotator", [
 			topic.publish(this.id + "/rotator/update", type, this, params || {});
 		},
 
+		_initializePane: function(/*node*/node, /*number*/index) {
+			// summary:
+			// 		Initializes a new pane node.
+			var tp = this.transitionParams,
+				q = { node: node, idx: index, params: lang.mixin({}, tp, eval("({ " + (domAttr.get(node, "transitionParams") || "") + " })")) },
+				r = q.trans = domAttr.get(node, "transition") || this.transition,
+				tt = this._transitions,
+				panes = this.panes,
+				// default styles to apply to all the container node and rotator's panes
+				p = {
+					left: 0,
+					top: 0,
+					position: "absolute",
+					display: _noneStr
+				};
+
+			// cache each pane's title, duration, and waitForEvent attributes
+			array.forEach(["id", "title", "duration", "waitForEvent"], function(a){
+				q[a] = domAttr.get(node, a);
+			});
+
+			if(q.id){
+				this._idMap[q.id] = index;
+			}
+
+			// cache the transition function
+			if(!tt[r] && !(tt[r] = lang.getObject(r))){
+				this._transitionWarn(r, q.trans = this.transition);
+			}
+
+			// find the selected pane and initialize styles
+			if(this.idx == null || domAttr.get(node, "selected")){
+				if(this.idx != null){
+					domStyle.set(panes[this.idx].node, _displayStr, _noneStr);
+				}
+				this.idx = index;
+				p.display = "";
+			}
+			domStyle.set(node, p);
+
+			// check for any declarative script blocks
+			// TODO: The way declarative scripts are handled here needs to be updated to no conflict with dojo/parser
+			query("> script[type^='dojo/method']", node).orphan().forEach(function(s){
+				var e = domAttr.get(s, "event");
+				if(e){
+					q[e] = parser._functionFromScript(s);
+				}
+			});
+
+			// add this pane to the array of panes
+			panes.splice(index, 0, q);
+		},
+
 		_resetWaitForEvent: function(){
 			// summary:
 			//		If there is a waitForEvent pending, kill it.
@@ -367,6 +447,10 @@ define("dojox/widget/Rotator", [
 		onManualChange: function(){
 			// summary:
 			//		Stub function that can be overriden or connected to.
+		},
+
+		_transitionWarn: function(bt, dt){
+			console.warn(this.declaredClass, ' - Unable to find transition "', bt, '", defaulting to "', dt, '".');
 		}
 	});
 

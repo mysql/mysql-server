@@ -1,20 +1,20 @@
 define(
 "dojox/editor/plugins/nls/ro/TableDialog", ({
-	insertTableTitle: "Inserare tabelă",
-	modifyTableTitle: "Modificare tabelă",
+	insertTableTitle: "Inserare tabel",
+	modifyTableTitle: "Modificare tabel",
 	rows: "Rânduri:",
 	columns: "Coloane:",
 	align: "Aliniere:",
 	cellPadding: "Padding celulă:",
 	cellSpacing: "Spaţiere celulă:",
 	tableWidth: "Lăţime tabelă:",
-	backgroundColor: "Culoare fundal:",
-	borderColor: "Culoare bordură:",
-	borderThickness: "Grosime bordură:",
+	backgroundColor: "Culoare de fundal:",
+	borderColor: "Coloare de bordură:",
+	borderThickness: "Grosime de bordură:",
 	percent: "procent",
 	pixels: "pixeli",
 	"default": "implicit",
-	left: "stâng",
+	left: "stânga",
 	center: "centru",
 	right: "dreapta",
 	buttonSet: "Setare", // translated elsewhere?
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Adăugare coloană înainte",
 	insertTableColumnAfterLabel: "Adăugare coloană după",
 	deleteTableRowLabel: "Ştergere rând",
-	deleteTableColumnLabel: "Ştergere coloană"
+	deleteTableColumnLabel: "Ştergere coloană",
+	colorTableCellTitle: "Celulă tabel culoare fundal",
+	tableContextMenuTitle: "Meniu de context tabel"
 })
 );

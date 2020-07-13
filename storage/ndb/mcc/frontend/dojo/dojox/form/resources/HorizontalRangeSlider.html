@@ -14,12 +14,12 @@
 		><td class="dijitReset"
 			><input dojoAttachPoint="valueNode" type="hidden" ${!nameAttrSetting}
 			/><div role="presentation" class="dojoxRangeSliderBarContainer" dojoAttachPoint="sliderBarContainer"
-				><div dojoAttachPoint="sliderHandle" tabIndex="${tabIndex}" class="dijitSliderMoveable dijitSliderMoveableH" dojoAttachEvent="onmousedown:_onHandleClick" role="slider"
-					><div class="dijitSliderImageHandle dijitSliderImageHandleH"></div
+				><div class="dijitSliderMoveable dijitSliderMoveableH"
+					><div class="dijitSliderImageHandle dijitSliderImageHandleH" dojoAttachPoint="sliderHandle,focusNode" tabIndex="${tabIndex}" dojoAttachEvent="onmousedown:_onHandleClick" role="slider"></div
 				></div
-				><div role="presentation" dojoAttachPoint="progressBar,focusNode" class="dijitSliderBar dijitSliderBarH dijitSliderProgressBar dijitSliderProgressBarH" dojoAttachEvent="onmousedown:_onBarClick"></div
-				><div dojoAttachPoint="sliderHandleMax" tabIndex="${tabIndex}" class="dijitSliderMoveable dijitSliderMoveableH" dojoAttachEvent="onmousedown:_onHandleClickMax" role="slider"
-					><div class="dijitSliderImageHandle dijitSliderImageHandleH"></div
+				><div role="presentation" dojoAttachPoint="progressBar" class="dijitSliderBar dijitSliderBarH dijitSliderProgressBar dijitSliderProgressBarH" dojoAttachEvent="onmousedown:_onBarClick"></div
+				><div class="dijitSliderMoveable dijitSliderMoveableH"
+					><div class="dijitSliderImageHandle dijitSliderImageHandleH" dojoAttachPoint="sliderHandleMax" tabIndex="${tabIndex}" dojoAttachEvent="onmousedown:_onHandleClickMax" role="slider"></div
 				></div
 				><div role="presentation" dojoAttachPoint="remainingBar" class="dijitSliderBar dijitSliderBarH dijitSliderRemainingBar dijitSliderRemainingBarH" dojoAttachEvent="onmousedown:_onRemainingBarClick"></div
 			></div

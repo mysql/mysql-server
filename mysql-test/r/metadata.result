@@ -61,7 +61,7 @@ id	data	data
 2	female	no
 select t1.id from t1 union select t2.id from t2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				id	id	1	4	1	Y	32768	0	63
+def				id	id	2	4	1	Y	32768	0	63
 id
 1
 2

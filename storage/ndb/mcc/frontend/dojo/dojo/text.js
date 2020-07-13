@@ -1,15 +1,15 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/text",["./_base/kernel","require","./has","./_base/xhr"],function(_1,_2,_3,_4){
+define("dojo/text",["./_base/kernel","require","./has","./request"],function(_1,_2,_3,_4){
 var _5;
 if(1){
 _5=function(_6,_7,_8){
-_4("GET",{url:_6,sync:!!_7,load:_8,headers:_1.config.textPluginHeaders||{}});
+_4(_6,{sync:!!_7,headers:{"X-Requested-With":null}}).then(_8);
 };
 }else{
 if(_2.getText){
@@ -71,7 +71,7 @@ _16(_18?_a(_1d):_1d);
 if(_19 in _9){
 _1b=_9[_19];
 }else{
-if(_1a in _15.cache){
+if(_15.cache&&_1a in _15.cache){
 _1b=_15.cache[_1a];
 }else{
 if(url in _9){

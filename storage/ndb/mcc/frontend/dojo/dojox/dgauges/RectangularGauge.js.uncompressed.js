@@ -116,46 +116,28 @@ define("dojox/dgauges/RectangularGauge", ["dojo/_base/declare", "./GaugeBase", "
 			// tags:
 			//		private
 			if(elements.length == 0){
-				return {
-					x: 0,
-					y: 0,
-					w: 0,
-					h: 0
-				};
+				return {x: 0, y: 0, w: 0, h: 0};
 			}
-			var res = {
-				x: -Infinity,
-				y: -Infinity,
-				w: 0,
-				h: 0
-			};
 			var bbox = null;
+			var minX, minY, maxX, maxY;
+			minX = minY = +Infinity;
+			maxX = maxY = -Infinity;
 			for(var i = 0; i < elements.length; i++){
 				bbox = this._computeBoundingBox(elements[i]._gfxGroup);
-				if(!bbox){
-					continue;
+				if(minX > bbox.x){
+					minX = bbox.x;
 				}
-				if(res.x < bbox.x){
-					res.x = bbox.x;
+				if(minY > bbox.y){
+					minY = bbox.y;
 				}
-				if(res.w < bbox.width){
-					res.w = bbox.width;
+				if(maxX < bbox.x + bbox.width){
+					maxX = bbox.x + bbox.width;
 				}
-				if(res.y < bbox.y){
-					res.y = bbox.y;
-				}
-				if(res.h < bbox.height){
-					res.h = bbox.height;
+				if(maxY < bbox.y + bbox.height){
+					maxY = bbox.y + bbox.height;
 				}
 			}
-			if(res.x == -Infinity){
-				res.x = 0;
-			}
-			if(res.y == -Infinity){
-				res.y = 0;
-			}
-			
-			return res;
+			return {x: minX, y:minY, w: maxX-minX, h: maxY-minY};
 		},
 		
 		refreshRendering: function(){

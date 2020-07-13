@@ -135,7 +135,7 @@ static UnicodeString& appendAsciiDigits(int32_t number, uint8_t length, UnicodeS
             digits[i++] = number % 10;
             number /= 10;
         } while (number != 0);
-        length = i;
+        length = static_cast<uint8_t>(i);
     } else {
         // fixed digits
         for (i = 0; i < length; i++) {
@@ -965,7 +965,7 @@ VTimeZone::VTimeZone(const VTimeZone& source)
     tzurl(source.tzurl), lastmod(source.lastmod),
     olsonzid(source.olsonzid), icutzver(source.icutzver) {
     if (source.tz != NULL) {
-        tz = (BasicTimeZone*)source.tz->clone();
+        tz = source.tz->clone();
     }
     if (source.vtzlines != NULL) {
         UErrorCode status = U_ZERO_ERROR;
@@ -1007,7 +1007,7 @@ VTimeZone::operator=(const VTimeZone& right) {
             tz = NULL;
         }
         if (right.tz != NULL) {
-            tz = (BasicTimeZone*)right.tz->clone();
+            tz = right.tz->clone();
         }
         if (vtzlines != NULL) {
             delete vtzlines;
@@ -1092,7 +1092,7 @@ VTimeZone::createVTimeZoneFromBasicTimeZone(const BasicTimeZone& basic_time_zone
         status = U_MEMORY_ALLOCATION_ERROR;
         return NULL;
     }
-    vtz->tz = (BasicTimeZone *)basic_time_zone.clone();
+    vtz->tz = basic_time_zone.clone();
     if (vtz->tz == NULL) {
         status = U_MEMORY_ALLOCATION_ERROR;
         delete vtz;
@@ -1177,8 +1177,8 @@ VTimeZone::writeSimple(UDate time, UnicodeString& result, UErrorCode& status) co
     writeSimple(time, writer, status);
 }
 
-TimeZone*
-VTimeZone::clone(void) const {
+VTimeZone*
+VTimeZone::clone() const {
     return new VTimeZone(*this);
 }
 
@@ -1747,26 +1747,16 @@ VTimeZone::write(VTZWriter& writer, UErrorCode& status) const {
             }
         }
     } else {
-        UVector *customProps = NULL;
+        UnicodeString icutzprop;
+        UVector customProps(nullptr, uhash_compareUnicodeString, status);
         if (olsonzid.length() > 0 && icutzver.length() > 0) {
-            customProps = new UVector(uprv_deleteUObject, uhash_compareUnicodeString, status);
-            if (U_FAILURE(status)) {
-                return;
-            }
-            UnicodeString *icutzprop = new UnicodeString(ICU_TZINFO_PROP);
-            icutzprop->append(olsonzid);
-            icutzprop->append((UChar)0x005B/*'['*/);
-            icutzprop->append(icutzver);
-            icutzprop->append((UChar)0x005D/*']'*/);
-            customProps->addElement(icutzprop, status);
-            if (U_FAILURE(status)) {
-                delete icutzprop;
-                delete customProps;
-                return;
-            }
+            icutzprop.append(olsonzid);
+            icutzprop.append(u'[');
+            icutzprop.append(icutzver);
+            icutzprop.append(u']');
+            customProps.addElement(&icutzprop, status);
         }
-        writeZone(writer, *tz, customProps, status);
-        delete customProps;
+        writeZone(writer, *tz, &customProps, status);
     }
 }
 
@@ -1967,7 +1957,7 @@ VTimeZone::writeZone(VTZWriter& w, BasicTimeZone& basictz,
                 && (atzrule = dynamic_cast<const AnnualTimeZoneRule *>(tzt.getTo())) != NULL
                 && atzrule->getEndYear() == AnnualTimeZoneRule::MAX_YEAR
             ) {
-                finalDstRule = (AnnualTimeZoneRule*)tzt.getTo()->clone();
+                finalDstRule = atzrule->clone();
             }
             if (dstCount > 0) {
                 if (year == dstStartYear + dstCount
@@ -2018,7 +2008,7 @@ VTimeZone::writeZone(VTZWriter& w, BasicTimeZone& basictz,
                 && (atzrule = dynamic_cast<const AnnualTimeZoneRule *>(tzt.getTo())) != NULL
                 && atzrule->getEndYear() == AnnualTimeZoneRule::MAX_YEAR
             ) {
-                finalStdRule = (AnnualTimeZoneRule*)tzt.getTo()->clone();
+                finalStdRule = atzrule->clone();
             }
             if (stdCount > 0) {
                 if (year == stdStartYear + stdCount

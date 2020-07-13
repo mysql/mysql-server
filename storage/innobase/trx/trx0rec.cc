@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,13 +71,11 @@ void trx_undof_page_add_undo_rec_log(
     ulint new_free,    /*!< in: end offset of the entry */
     mtr_t *mtr)        /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   const byte *log_end;
   ulint len;
 
-  log_ptr = mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN);
-
-  if (log_ptr == nullptr) {
+  if (!mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN, log_ptr)) {
     return;
   }
 
@@ -775,8 +773,12 @@ log of an update or delete marking of a clustered index record.
 @param[out]	ext_buf		buffer to hold the prefix data and BLOB pointer
 @param[in]	prefix_len	prefix size to store in the undo log
 @param[in]	page_size	page size
-@param[in]	field		an externally stored column
-@param[in]	is_sdi		true for SDI indexes
+@param[in]	field		an externally stored column */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	len		input: length of field; output: used length of
 ext_buf
 @return ext_buf */
@@ -823,8 +825,12 @@ static byte *trx_undo_page_fetch_ext_func(trx_t *trx, dict_index_t *index,
 @param[in]	page_size	page size
 @param[in,out]	field		the locally stored part of the externally
 stored column
-@param[in,out]	len		length of field, in bytes
-@param[in]	is_sdi		true for SDI indexes
+@param[in,out]	len		length of field, in bytes */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	spatial_status	whether the column is used by spatial index or
                                 regular index
 @return undo log position */

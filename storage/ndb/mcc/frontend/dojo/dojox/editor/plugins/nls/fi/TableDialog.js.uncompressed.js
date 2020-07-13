@@ -4,7 +4,7 @@ define(
 	modifyTableTitle: "Muokkaa taulukkoa",
 	rows: "Rivit:",
 	columns: "Sarakkeet:",
-	align: "Tasaa:",
+	align: "Tasaus:",
 	cellPadding: "Solun täyttö:",
 	cellSpacing: "Solujen väli:",
 	tableWidth: "Taulukon leveys:",
@@ -12,8 +12,8 @@ define(
 	borderColor: "Kehyksen väri:",
 	borderThickness: "Kehyksen paksuus:",
 	percent: "prosenttia",
-	pixels: "pikseliä",
-	"default": "oletusarvo",
+	pixels: "kuvapistettä",
+	"default": "oletus",
 	left: "vasen",
 	center: "keskitetty",
 	right: "oikea",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Lisää sarake ennen",
 	insertTableColumnAfterLabel: "Lisää sarake jälkeen",
 	deleteTableRowLabel: "Poista rivi",
-	deleteTableColumnLabel: "Poista sarake"
+	deleteTableColumnLabel: "Poista sarake",
+	colorTableCellTitle: "Taulukon solun taustaväri",
+	tableContextMenuTitle: "Taulukon pikavalikko"
 })
 );

@@ -1,15 +1,20 @@
 define("dojox/date/posix", ["dojo/_base/kernel", "dojo/date", "dojo/date/locale", "dojo/string", "dojo/cldr/supplemental"],
        function(dojo, dojoDate, dojoDateLocale, dojoString, dojoCldrSupplemental){
 
-dojo.getObject("date.posix", true, dojox);
+var posix = dojo.getObject("date.posix", true, dojox);
+/*=====
+var posix = {
+	// TODO: summary
+};
+=====*/
 
-dojox.date.posix.strftime = function(/*Date*/dateObject, /*String*/format, /*String?*/locale){
-//
-// summary:
-//		Formats the date object using the specifications of the POSIX strftime function
-//
-// description:
-//		see http://www.opengroup.org/onlinepubs/007908799/xsh/strftime.html
+posix.strftime = function(/*Date*/dateObject, /*String*/format, /*String?*/locale){
+	//
+	// summary:
+	//		Formats the date object using the specifications of the POSIX strftime function
+	//
+	// description:
+	//		see http://www.opengroup.org/onlinepubs/007908799/xsh/strftime.html
 
 	// zero pad
 	var padChar = null;
@@ -134,7 +139,7 @@ dojox.date.posix.strftime = function(/*Date*/dateObject, /*String*/format, /*Str
 				      // 1 January has four or more days in the new year, then it
 				      // is considered week 1. Otherwise, it is the last week of
 				      // the previous year, and the next week is week 1.
-				return _(dojox.date.posix.getIsoWeekOfYear(dateObject));
+				return _(posix.getIsoWeekOfYear(dateObject));
 				
 			case "W": // week number of the current year as a decimal number,
 				      // starting with the first Monday as the first day of the
@@ -232,7 +237,7 @@ dojox.date.posix.strftime = function(/*Date*/dateObject, /*String*/format, /*Str
 	return string; // String
 };
 
-dojox.date.posix.getStartOfWeek = function(/*Date*/dateObject, /*Number*/firstDay){
+posix.getStartOfWeek = function(/*Date*/dateObject, /*Number*/firstDay){
 	// summary:
 	//		Return a date object representing the first day of the given
 	//		date's week.
@@ -250,36 +255,36 @@ dojox.date.posix.getStartOfWeek = function(/*Date*/dateObject, /*Number*/firstDa
 	return dojoDate.add(date, "day", offset); // Date
 };
 
-dojox.date.posix.setIsoWeekOfYear = function(/*Date*/dateObject, /*Number*/week){
+posix.setIsoWeekOfYear = function(/*Date*/dateObject, /*Number*/week){
 	// summary:
 	//		Set the ISO8601 week number of the given date.
 	//		The week containing January 4th is the first week of the year.
 	// week:
 	//		can be positive or negative: -1 is the year's last week.
 	if(!week){ return dateObject; }
-	var currentWeek = dojox.date.posix.getIsoWeekOfYear(dateObject);
+	var currentWeek = posix.getIsoWeekOfYear(dateObject);
 	var offset = week - currentWeek;
 	if(week < 0){
-		var weeks = dojox.date.posix.getIsoWeeksInYear(dateObject);
+		var weeks = posix.getIsoWeeksInYear(dateObject);
 		offset = (weeks + week + 1) - currentWeek;
 	}
 	return dojoDate.add(dateObject, "week", offset); // Date
 };
 
-dojox.date.posix.getIsoWeekOfYear = function(/*Date*/dateObject){
+posix.getIsoWeekOfYear = function(/*Date*/dateObject){
 	// summary:
 	//		Get the ISO8601 week number of the given date.
 	//		The week containing January 4th is the first week of the year.
 	//		See http://en.wikipedia.org/wiki/ISO_week_date
-	var weekStart = dojox.date.posix.getStartOfWeek(dateObject, 1);
+	var weekStart = posix.getStartOfWeek(dateObject, 1);
 	var yearStart = new Date(dateObject.getFullYear(), 0, 4); // January 4th
-	yearStart = dojox.date.posix.getStartOfWeek(yearStart, 1);
+	yearStart = posix.getStartOfWeek(yearStart, 1);
 	var diff = weekStart.getTime() - yearStart.getTime();
-	if(diff < 0){ return dojox.date.posix.getIsoWeeksInYear(weekStart); } // Integer
+	if(diff < 0){ return posix.getIsoWeeksInYear(weekStart); } // Integer
 	return Math.ceil(diff / 604800000) + 1; // Integer
 };
 
-dojox.date.posix.getIsoWeeksInYear = function(/*Date*/dateObject) {
+posix.getIsoWeeksInYear = function(/*Date*/dateObject) {
 	// summary:
 	//		Determine the number of ISO8601 weeks in the year of the given
 	//		date. Most years have 52 but some have 53.
@@ -290,5 +295,7 @@ dojox.date.posix.getIsoWeeksInYear = function(/*Date*/dateObject) {
 	var y = dateObject.getFullYear();
 	return ( p(y) % 7 == 4 || p(y-1) % 7 == 3 ) ? 53 : 52;	//	Integer
 };
-	return dojox.date.posix;
+
+return posix;
+
 });

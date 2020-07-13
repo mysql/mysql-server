@@ -27,7 +27,7 @@ monetary.getData = function(/*String*/ code){
 		XAF:0,XOF:0,XPF:0,YER:0,ZMK:0,ZWD:0
 	};
 
-	var roundingData = {CHF:5};
+	var roundingData = {};
 
 	var places = placesData[code], round = roundingData[code];
 	if(typeof places == "undefined"){ places = 2; }

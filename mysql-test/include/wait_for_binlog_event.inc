@@ -28,7 +28,7 @@ while (`SELECT INSTR("$_last_event","$wait_binlog_event") = 0`)
     --source include/show_rpl_debug_info.inc
     --die ERROR: failed while waiting for $wait_binlog_event in binlog 
   }
-  real_sleep 0.1;
+  sleep 0.1;
   let $_event= query_get_value($_show_events_query, Info, $_event_pos);
   let $_last_event= $_event;
   while ($_event != "No such row")

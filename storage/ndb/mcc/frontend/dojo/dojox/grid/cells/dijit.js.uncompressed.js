@@ -32,8 +32,10 @@ define("dojox/grid/cells/dijit", [
 		
 // TODO: shouldn't it be the test file's job to require these modules,
 // if it is using them?  Most of these modules aren't referenced by this file.
-	
-	var _Widget = declare("dojox.grid.cells._Widget", BaseCell, {
+
+	var exports = {};
+
+	var _Widget = exports._Widget = declare("dojox.grid.cells._Widget", BaseCell, {
 		widgetClass: TextBox,
 		constructor: function(inCell){
 			this.widget = null;
@@ -143,7 +145,7 @@ define("dojox/grid/cells/dijit", [
 		}
 	};
 
-	var ComboBox = declare("dojox.grid.cells.ComboBox", _Widget, {
+	var ComboBox = exports.ComboBox = declare("dojox.grid.cells.ComboBox", _Widget, {
 		widgetClass: ComboBox,
 		getWidgetProps: function(inDatum){
 			var items=[];
@@ -174,7 +176,7 @@ define("dojox/grid/cells/dijit", [
 		}
 	};
 
-	var DateTextBox = declare("dojox.grid.cells.DateTextBox", _Widget, {
+	var DateTextBox = exports.DateTextBox = declare("dojox.grid.cells.DateTextBox", _Widget, {
 		widgetClass: DateTextBox,
 		setValue: function(inRowIndex, inValue){
 			if(this.widget){
@@ -193,7 +195,7 @@ define("dojox/grid/cells/dijit", [
 		_Widget.markupFactory(node, cell);
 	};
 
-	var CheckBox = declare("dojox.grid.cells.CheckBox", _Widget, {
+	var CheckBox = exports.CheckBox = declare("dojox.grid.cells.CheckBox", _Widget, {
 		widgetClass: CheckBox,
 		getValue: function(){
 			return this.widget.checked;
@@ -213,7 +215,7 @@ define("dojox/grid/cells/dijit", [
 		_Widget.markupFactory(node, cell);
 	};
 
-	var Editor = declare("dojox.grid.cells.Editor", _Widget, {
+	var Editor = exports.Editor = declare("dojox.grid.cells.Editor", _Widget, {
 		widgetClass: Editor,
 		getWidgetProps: function(inDatum){
 			return lang.mixin({}, this.widgetProps||{}, {
@@ -255,6 +257,6 @@ define("dojox/grid/cells/dijit", [
 		}
 	};
 
-	return dojox.grid.cells.dijit;
+	return exports;
 
 });

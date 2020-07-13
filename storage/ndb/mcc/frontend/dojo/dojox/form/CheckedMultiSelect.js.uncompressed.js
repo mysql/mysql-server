@@ -26,7 +26,7 @@ define("dojox/form/CheckedMultiSelect", [
 	"dojo/i18n!dojox/form/nls/CheckedMultiSelect",
 	"dijit/form/CheckBox" // template
 ], function(declare, lang, array, event, domGeometry, domClass, domConstruct, i18n, Widget, TemplatedMixin, WidgetsInTemplateMixin, registry, Menu, MenuItem, Tooltip, FormSelectWidget, ComboButton, CheckedMultiSelectMenuItem, CheckedMultiSelectItem, CheckedMultiSelect, nlsCheckedMultiSelect){
-
+ 
 // module:
 //		dojox/form/CheckedMultiSelect
 // summary:
@@ -317,20 +317,6 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 	//		See description of `Tooltip.defaultPosition` for details on this parameter.
 	tooltipPosition: [],
 
-	setStore: function(store, selectedValue, fetchArgs){
-		// summary:
-		//		If there is any items selected in the store, the value
-		//		of the widget will be set to the values of these items.
-		this.inherited(arguments);
-		var setSelectedItems = function(items){
-			var value = array.map(items, function(item){ return item.value[0]; });
-			if(value.length){
-				this.set("value", value);
-			}
-		};
-		this.store.fetch({query:{selected: true}, onComplete: setSelectedItems, scope: this});
-	},
-
 	postMixInProperties: function(){
 		this.inherited(arguments);
 		this._nlsResources = i18n.getLocalization("dojox.form", "CheckedMultiSelect", this.lang);
@@ -376,7 +362,7 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 		// summary:
 		//		Cancels the mousedown event to prevent others from stealing
 		//		focus
-		event.stop(e);
+		e.preventDefault();
 	},
 
 	validator: function(){
@@ -543,7 +529,7 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 		//		Sets read only (or unsets) all the children as well
 		this.inherited(arguments);
 		if("readOnly" in this.attributeMap){
-			this._attrToDom("readOnly", value);
+			this[this.attributeMap.readOnly].setAttribute("readonly", value);
 		}
 		this.readOnly = value;
 		array.forEach(this._getChildren(), function(node){

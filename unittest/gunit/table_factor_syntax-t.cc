@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class TableFactorSyntaxTest : public ParserTest {
     SELECT_LEX *term1 = parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
     EXPECT_EQ(nullptr, term1->first_inner_unit());
     EXPECT_EQ(nullptr, term1->next_select_in_list());
-    EXPECT_EQ(1, term1->get_item_list()->head()->val_int());
+    EXPECT_EQ(1, term1->get_fields_list()->head()->val_int());
 
     SELECT_LEX_UNIT *top_union = term1->master_unit();
     EXPECT_EQ(nullptr, top_union->outer_select());
@@ -58,7 +58,7 @@ class TableFactorSyntaxTest : public ParserTest {
 
       EXPECT_EQ(nullptr, term2->first_inner_unit());
       EXPECT_EQ(term1, term2->next_select_in_list());
-      EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
+      EXPECT_EQ(2, term2->get_fields_list()->head()->val_int());
 
       if (num_terms <= 2) {
         EXPECT_EQ(nullptr, term2->next_select());
@@ -78,10 +78,10 @@ class TableFactorSyntaxTest : public ParserTest {
 
 void check_query_block(SELECT_LEX *block, int select_list_item,
                        const char *tablename) {
-  EXPECT_EQ(1U, block->item_list.elements);
-  EXPECT_EQ(select_list_item, block->item_list.head()->val_int());
+  ASSERT_EQ(1U, block->fields_list.size());
+  EXPECT_EQ(select_list_item, block->fields_list.head()->val_int());
 
-  EXPECT_EQ(1U, block->top_join_list.size());
+  ASSERT_EQ(1U, block->top_join_list.size());
   EXPECT_STREQ(tablename, block->top_join_list.front()->alias);
 }
 

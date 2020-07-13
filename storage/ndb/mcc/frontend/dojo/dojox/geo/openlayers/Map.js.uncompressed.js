@@ -25,6 +25,7 @@ define("dojox/geo/openlayers/Map", [
 		//		 type of the base layer. Can be any of
 		//
 		//		- `dojox.geo.openlayers.BaseLayerType.OSM`: Open Street Map base layer
+		//		- `dojox.geo.openlayers.BaseLayerType.Transport`: Open Street Map Transport base layer (opencyclemap.org)
 		//		- `dojox.geo.openlayers.BaseLayerType.WMS`: Web Map Service layer
 		//		- `dojox.geo.openlayers.BaseLayerType.GOOGLE`: Google layer
 		//		- `dojox.geo.openlayers.BaseLayerType.VIRTUAL_EARTH`: Virtual Earth layer
@@ -55,6 +56,7 @@ define("dojox/geo/openlayers/Map", [
 		//		_baseLayerType_: type of the base layer. Can be any of:
 		//		
 		//		- `dojox.geo.openlayers.BaseLayerType.OSM`: Open Street Map base layer
+		//		- `dojox.geo.openlayers.BaseLayerType.Transport`: Open Street Map Transport base layer (opencyclemap.org)
 		//		- `dojox.geo.openlayers.BaseLayerType.WMS`: Web Map Service layer
 		//		- `dojox.geo.openlayers.BaseLayerType.GOOGLE`: Google layer
 		//		- `dojox.geo.openlayers.BaseLayerType.VIRTUAL_EARTH`: Virtual Earth layer
@@ -266,6 +268,12 @@ define("dojox/geo/openlayers/Map", [
 					//				base = new OpenLayers.Layer.OSM(name, url, options);
 					base = new Layer(name, {
 						olLayer: new OpenLayers.Layer.OSM(name, url, options)
+					});
+				break;
+				case openlayers.BaseLayerType.Transport:
+					options.transitionEffect = "resize";
+					base = new Layer(name, {
+						olLayer: new OpenLayers.Layer.OSM.TransportMap(name, url, options)
 					});
 				break;
 				case openlayers.BaseLayerType.WMS:

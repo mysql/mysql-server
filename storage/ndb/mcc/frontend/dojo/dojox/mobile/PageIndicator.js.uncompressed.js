@@ -6,8 +6,9 @@ define("dojox/mobile/PageIndicator", [
 	"dojo/dom-construct",
 	"dijit/registry",
 	"dijit/_Contained",
-	"dijit/_WidgetBase"
-], function(connect, declare, dom, domClass, domConstruct, registry, Contained, WidgetBase){
+	"dijit/_WidgetBase",
+	"dojo/i18n!dojox/mobile/nls/messages"
+], function(connect, declare, dom, domClass, domConstruct, registry, Contained, WidgetBase, messages){
 
 	// module:
 	//		dojox/mobile/PageIndicator
@@ -33,9 +34,10 @@ define("dojox/mobile/PageIndicator", [
 
 		buildRendering: function(){
 			this.inherited(arguments);
+			this.domNode.setAttribute("role", "img");
 			this._tblNode = domConstruct.create("table", {className:"mblPageIndicatorContainer"}, this.domNode);
 			this._tblNode.insertRow(-1);
-			this._clickHandle = this.connect(this.domNode, "onclick", "_onClick");
+			this.connect(this.domNode, "onclick", "_onClick");
 			this.subscribe("/dojox/mobile/viewChanged", function(view){
 				this.reset();
 			});
@@ -43,16 +45,16 @@ define("dojox/mobile/PageIndicator", [
 
 		startup: function(){
 			var _this = this;
-			setTimeout(function(){ // to wait until views' visibility is determined
+			_this.defer(function(){ // to wait until views' visibility is determined
 				_this.reset();
-			}, 0);
+			});
 		},
 
 		reset: function(){
 			// summary:
 			//		Updates the indicator.
 			var r = this._tblNode.rows[0];
-			var i, c, a = [], dot;
+			var i, c, a = [], dot, value = 0;
 			var refNode = (this.refId && dom.byId(this.refId)) || this.domNode;
 			var children = refNode.parentNode.childNodes;
 			for(i = 0; i < children.length; i++){
@@ -74,10 +76,16 @@ define("dojox/mobile/PageIndicator", [
 			for(i = 0; i < r.cells.length; i++){
 				dot = r.cells[i].firstChild;
 				if(a[i] === currentView.domNode){
+					value = i + 1;
 					domClass.add(dot, "mblPageIndicatorDotSelected");
 				}else{
 					domClass.remove(dot, "mblPageIndicatorDotSelected");
 				}
+			}
+			if (r.cells.length)  {
+				this.domNode.setAttribute("alt", messages["PageIndicatorLabel"].replace("$0", value).replace("$1", r.cells.length));
+			} else {
+				this.domNode.removeAttribute("alt");
 			}
 		},
 

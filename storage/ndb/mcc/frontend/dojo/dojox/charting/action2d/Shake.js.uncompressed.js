@@ -54,9 +54,7 @@ define("dojox/charting/action2d/Shake", ["dojo/_base/connect", "dojo/_base/decla
 			//		The object on which to process the slice moving action.
 			if(!o.shape || !(o.type in this.overOutEvents)){ return; }
 
-			var runName = o.run.name, index = o.index, vector = [], anim,
-				shiftX = o.type == "onmouseover" ? this.shiftX : -this.shiftX,
-				shiftY = o.type == "onmouseover" ? this.shiftY : -this.shiftY;
+			var runName = o.run.name, index = o.index, vector = [], anim;
 
 			if(runName in this.anim){
 				anim = this.anim[runName][index];

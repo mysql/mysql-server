@@ -234,5 +234,5 @@ _37.push(i);
 }
 return _37;
 };
-return dojox.string.BidiComplex;
+return _7;
 });

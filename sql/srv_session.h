@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,7 @@ class Srv_session {
   */
   enum srv_session_state {
     SRV_SESSION_CREATED,
+    SRV_SESSION_OPENED,
     SRV_SESSION_ATTACHED,
     SRV_SESSION_DETACHED,
     SRV_SESSION_CLOSED

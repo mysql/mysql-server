@@ -353,8 +353,11 @@ static const ulong EVENT_DEF_CACHE_MIN = 256;
 #define OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES (1ULL << 19)
 #define OPTIMIZER_SKIP_SCAN (1ULL << 20)
 #define OPTIMIZER_SWITCH_HASH_JOIN (1ULL << 21)
-#define OPTIMIZER_SWITCH_LAST (1ULL << 22)
+#define OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED (1ULL << 22)
+#define OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX (1ULL << 23)
+#define OPTIMIZER_SWITCH_LAST (1ULL << 24)
 
+// Including the switch in this set, makes its default 'on'
 #define OPTIMIZER_SWITCH_DEFAULT                                          \
   (OPTIMIZER_SWITCH_INDEX_MERGE | OPTIMIZER_SWITCH_INDEX_MERGE_UNION |    \
    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION |                              \
@@ -367,7 +370,8 @@ static const ulong EVENT_DEF_CACHE_MIN = 256;
    OPTIMIZER_SWITCH_DUPSWEEDOUT | OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED |  \
    OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS |                                \
    OPTIMIZER_SWITCH_COND_FANOUT_FILTER | OPTIMIZER_SWITCH_DERIVED_MERGE | \
-   OPTIMIZER_SKIP_SCAN | OPTIMIZER_SWITCH_HASH_JOIN)
+   OPTIMIZER_SKIP_SCAN | OPTIMIZER_SWITCH_HASH_JOIN |                     \
+   OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX)
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED };
 
@@ -448,4 +452,16 @@ class Item;
 /// Processor type for {Item,SELECT_LEX[_UNIT],Table_function}::walk
 typedef bool (Item::*Item_processor)(uchar *arg);
 
+/// Enumeration for SELECT_LEX::condition_context.
+/// If the expression being resolved belongs to a condition clause (WHERE, etc),
+/// it is connected to the clause's root through a chain of Items; tells if this
+/// chain matches ^(AND)*$ ("is top-level"), ^(AND|OR)*$, or neither.
+enum class enum_condition_context {
+  NEITHER,
+  ANDS,
+  ANDS_ORS,
+};
+
+/// Used to uniquely name expressions in derived tables
+#define SYNTHETIC_FIELD_NAME "Name_exp_"
 #endif /* SQL_CONST_INCLUDED */

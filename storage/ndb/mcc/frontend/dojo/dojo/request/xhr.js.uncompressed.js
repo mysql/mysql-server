@@ -24,34 +24,84 @@ define("dojo/request/xhr", [
 
 	has.add('native-formdata', function(){
 		// if true, the environment has a native FormData implementation
-		return typeof FormData === 'function';
+		return typeof FormData !== 'undefined';
 	});
+
+	has.add('native-blob', function(){
+		// if true, the environment has a native Blob implementation
+		return typeof Blob !== 'undefined';
+	});
+
+	has.add('native-arraybuffer', function(){
+		// if true, the environment has a native ArrayBuffer implementation
+		return typeof ArrayBuffer !== 'undefined';
+	});
+
+	has.add('native-response-type', function(){
+		return has('native-xhr') && typeof new XMLHttpRequest().responseType !== 'undefined';
+	});
+
+	has.add('native-xhr2-blob', function(){
+		if(!has('native-response-type')){ return; }
+		var x = new XMLHttpRequest();
+		// The URL used here does not have to be reachable as the XHR's `send` method is never called.
+		// It does need to be parsable/resolvable in all cases, so it should be an absolute URL.
+		// XMLHttpRequest within a Worker created from a Blob does not support relative URL paths.
+		x.open('GET', 'https://dojotoolkit.org/', true);
+		x.responseType = 'blob';
+		// will not be set if unsupported
+		var responseType = x.responseType;
+		x.abort();
+		return responseType === 'blob';
+	});
+
+	// Google Chrome doesn't support "json" response type
+	// up to version 30, so it's intentionally not included here
+	var nativeResponseTypes = {
+		'blob': has('native-xhr2-blob') ? 'blob' : 'arraybuffer',
+		'document': 'document',
+		'arraybuffer': 'arraybuffer'
+	};
 
 	function handleResponse(response, error){
 		var _xhr = response.xhr;
 		response.status = response.xhr.status;
-		response.text = _xhr.responseText;
+
+		try {
+			// Firefox throws an error when trying to access
+			// xhr.responseText if response isn't text
+			response.text = _xhr.responseText;
+		} catch (e) {}
 
 		if(response.options.handleAs === 'xml'){
 			response.data = _xhr.responseXML;
 		}
 
-		if(!error){
+		var handleError;
+		if(error){
+			this.reject(error);
+		}else{
 			try{
 				handlers(response);
 			}catch(e){
-				error = e;
+				handleError = e;
 			}
-		}
-
-		if(error){
-			this.reject(error);
-		}else if(util.checkStatus(_xhr.status)){
-			this.resolve(response);
-		}else{
-			error = new RequestError('Unable to load ' + response.url + ' status: ' + _xhr.status, response);
-
-			this.reject(error);
+			if(util.checkStatus(_xhr.status)){
+				if(!handleError){
+					this.resolve(response);
+				}else{
+					this.reject(handleError);
+				}
+			}else{
+				if(!handleError){
+					error = new RequestError('Unable to load ' + response.url + ' status: ' + _xhr.status, response);
+					this.reject(error);
+				}else{
+					error = new RequestError('Unable to load ' + response.url + ' status: ' + _xhr.status +
+						' and an error in handleAs: transformation of response', response);
+					this.reject(error);
+				}
+			}
 		}
 	}
 
@@ -69,7 +119,7 @@ define("dojo/request/xhr", [
 			//		Canceler for deferred
 			response.xhr.abort();
 		};
-		addListeners = function(_xhr, dfd, response){
+		addListeners = function(_xhr, dfd, response, uploadProgress){
 			// summary:
 			//		Adds event listeners to the XMLHttpRequest object
 			function onLoad(evt){
@@ -81,22 +131,39 @@ define("dojo/request/xhr", [
 				dfd.handleResponse(response, error);
 			}
 
-			function onProgress(evt){
+			function onProgress(transferType, evt){
+				response.transferType = transferType;
 				if(evt.lengthComputable){
 					response.loaded = evt.loaded;
 					response.total = evt.total;
 					dfd.progress(response);
+				} else if(response.xhr.readyState === 3){
+					response.loaded = ('loaded' in evt) ? evt.loaded : evt.position;
+					dfd.progress(response);
 				}
+			}
+
+			function onDownloadProgress(evt) {
+				return onProgress('download', evt);
+			}
+
+			function onUploadProgress(evt) {
+				return onProgress('upload', evt);
 			}
 
 			_xhr.addEventListener('load', onLoad, false);
 			_xhr.addEventListener('error', onError, false);
-			_xhr.addEventListener('progress', onProgress, false);
+			_xhr.addEventListener('progress', onDownloadProgress, false);
+
+			if (uploadProgress && _xhr.upload) {
+				_xhr.upload.addEventListener('progress', onUploadProgress, false);
+			}
 
 			return function(){
 				_xhr.removeEventListener('load', onLoad, false);
 				_xhr.removeEventListener('error', onError, false);
-				_xhr.removeEventListener('progress', onProgress, false);
+				_xhr.removeEventListener('progress', onDownloadProgress, false);
+				_xhr.upload.removeEventListener('progress', onUploadProgress, false);
 				_xhr = null;
 			};
 		};
@@ -130,13 +197,20 @@ define("dojo/request/xhr", [
 			method: 'GET'
 		};
 	function xhr(url, options, returnDeferred){
+		var isFormData = has('native-formdata') && options && options.data && options.data instanceof FormData;
 		var response = util.parseArgs(
 			url,
 			util.deepCreate(defaultOptions, options),
-			has('native-formdata') && options && options.data && options.data instanceof FormData
+			isFormData
 		);
 		url = response.url;
 		options = response.options;
+		var hasNoData = !options.data && options.method !== 'POST' && options.method !== 'PUT';
+
+		if(has('ie') <= 10){
+			// older IE breaks point 9 in http://www.w3.org/TR/XMLHttpRequest/#the-open()-method and sends fragment, so strip it
+			url = url.split('#')[0];
+		}
 
 		var remover,
 			last = function(){
@@ -164,7 +238,7 @@ define("dojo/request/xhr", [
 		response.getHeader = getHeader;
 
 		if(addListeners){
-			remover = addListeners(_xhr, dfd, response);
+			remover = addListeners(_xhr, dfd, response, options.uploadProgress);
 		}
 
 		// IE11 treats data: undefined different than other browsers
@@ -180,8 +254,12 @@ define("dojo/request/xhr", [
 				_xhr.withCredentials = options.withCredentials;
 			}
 
+			if(has('native-response-type') && options.handleAs in nativeResponseTypes) {
+				_xhr.responseType = nativeResponseTypes[options.handleAs];
+			}
+
 			var headers = options.headers,
-				contentType = 'application/x-www-form-urlencoded';
+				contentType = (isFormData || hasNoData) ? false : 'application/x-www-form-urlencoded';
 			if(headers){
 				for(var hdr in headers){
 					if(hdr.toLowerCase() === 'content-type'){
@@ -241,6 +319,10 @@ define("dojo/request/xhr", [
 		// withCredentials: Boolean?
 		//		For cross-site requests, whether to send credentials
 		//		or not.
+		// uploadProgress: Boolean?
+		//		Upload progress events cause preflighted requests. This
+		//		option enables upload progress event support but also
+		//		causes all requests to be preflighted.
 	});
 	xhr.__MethodOptions = declare(null, {
 		// method: String?

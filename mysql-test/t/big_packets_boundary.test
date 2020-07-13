@@ -1,18 +1,16 @@
-
+#
 # Test sending and receiving queries that saddle a MAX_PACKET_LENGTH
 # boundary (aka 16mb boundary)
+#
 
-let $str = `SELECT REPEAT('X', 16777208)`;
-let $i = 0;
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+# Requires big_test option
+--source include/big_test.inc
 
---disable_query_log
-while ($i < 16)
-{
-  let $str = z$str;
-  --eval SELECT MD5("$str");
-  --eval SELECT LENGTH("$str");
-  --replace_column 1 verylongstring
-  --eval SELECT "Q $str END";
-  inc $i;
-}
---enable_query_log
+--let CLIENT_TYPE = BLOCKING
+--source big_packets_boundary.inc
+
+# cleanup
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

@@ -931,7 +931,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
       (*field)->set_null();
       (*field)->reset();
     } else {
-      if (bitmap_is_set(table->read_set, (*field)->field_index)) {
+      if (bitmap_is_set(table->read_set, (*field)->field_index())) {
         (*field)->set_notnull();
 
         // Field_json::store expects the incoming data to be in utf8mb4_bin, so
@@ -942,9 +942,9 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
           (*field)->store(*row, *lengths, &my_charset_bin);
         }
 
-        if ((*field)->flags & BLOB_FLAG) {
+        if ((*field)->is_flag_set(BLOB_FLAG)) {
           Field_blob *blob_field = down_cast<Field_blob *>(*field);
-          size_t length = blob_field->get_length(blob_field->ptr);
+          size_t length = blob_field->get_length();
           // BLOB data is not stored inside record. It only contains a
           // pointer to it. Copy the BLOB data into a separate memory
           // area so that it is not overwritten by subsequent calls to
@@ -952,7 +952,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
           if (length > 0) {
             unsigned char *new_blob = new (&m_blob_root) unsigned char[length];
             if (new_blob == nullptr) return HA_ERR_OUT_OF_MEM;
-            memcpy(new_blob, blob_field->get_ptr(), length);
+            memcpy(new_blob, blob_field->get_blob_data(), length);
             blob_field->set_ptr(length, new_blob);
           }
         }
@@ -1662,7 +1662,7 @@ bool ha_federated::append_stmt_insert(String *query) {
     list and the fields list that match the current query id
   */
   for (field = table->field; *field; field++) {
-    if (bitmap_is_set(table->write_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->write_set, (*field)->field_index())) {
       /* append the field name */
       append_ident(&insert_string, (*field)->field_name,
                    strlen((*field)->field_name), ident_quote_char);
@@ -1749,7 +1749,7 @@ int ha_federated::write_row(uchar *) {
     list and the fields list that is part of the write set
   */
   for (field = table->field; *field; field++) {
-    if (bitmap_is_set(table->write_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->write_set, (*field)->field_index())) {
       if ((*field)->is_null())
         values_string.append(STRING_WITH_LEN(" NULL "));
       else {
@@ -2030,7 +2030,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
   */
 
   for (Field **field = table->field; *field; field++) {
-    if (bitmap_is_set(table->write_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->write_set, (*field)->field_index())) {
       size_t field_name_length = strlen((*field)->field_name);
       append_ident(&update_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
@@ -2052,7 +2052,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
       update_string.append(STRING_WITH_LEN(", "));
     }
 
-    if (bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->read_set, (*field)->field_index())) {
       size_t field_name_length = strlen((*field)->field_name);
       append_ident(&where_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
@@ -2140,7 +2140,7 @@ int ha_federated::delete_row(const uchar *) {
   for (Field **field = table->field; *field; field++) {
     Field *cur_field = *field;
     found++;
-    if (bitmap_is_set(table->read_set, cur_field->field_index)) {
+    if (bitmap_is_set(table->read_set, cur_field->field_index())) {
       append_ident(&delete_string, (*field)->field_name,
                    strlen((*field)->field_name), ident_quote_char);
       data_string.length(0);

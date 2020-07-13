@@ -1,5 +1,5 @@
 define("dojox/charting/themes/Midwest", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
-	themes.Midwest=new Theme({
+	themes.Midwest=new SimpleTheme({
 		colors: [
 			"#927b51",
 			"#a89166",

@@ -66,6 +66,7 @@ typedef enum UTraceFunctionNumber {
     UTRACE_FUNCTION_START=0,
     UTRACE_U_INIT=UTRACE_FUNCTION_START,
     UTRACE_U_CLEANUP,
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal collation trace location.
@@ -83,6 +84,7 @@ typedef enum UTraceFunctionNumber {
     UTRACE_UCNV_FLUSH_CACHE,
     UTRACE_UCNV_LOAD,
     UTRACE_UCNV_UNLOAD,
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal collation trace location.
@@ -101,13 +103,80 @@ typedef enum UTraceFunctionNumber {
     UTRACE_UCOL_STRCOLLITER,
     UTRACE_UCOL_OPEN_FROM_SHORT_STRING,
     UTRACE_UCOL_STRCOLLUTF8, /**< @stable ICU 50 */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal collation trace location.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UTRACE_COLLATION_LIMIT
+    UTRACE_COLLATION_LIMIT,
 #endif  // U_HIDE_DEPRECATED_API
+
+#ifndef U_HIDE_DRAFT_API
+
+    /**
+     * The lowest resource/data location.
+     * @draft ICU 65
+     */
+    UTRACE_UDATA_START=0x3000,
+
+    /**
+     * Indicates that a value was read from a resource bundle. Provides three
+     * C-style strings to UTraceData: type, file name, and resource path. The
+     * possible types are:
+     *
+     * - "string" (a string value was accessed)
+     * - "binary" (a binary value was accessed)
+     * - "intvector" (a integer vector value was accessed)
+     * - "int" (a signed integer value was accessed)
+     * - "uint" (a unsigned integer value was accessed)
+     * - "get" (a path was loaded, but the value was not accessed)
+     * - "getalias" (a path was loaded, and an alias was resolved)
+     *
+     * @draft ICU 65
+     */
+    UTRACE_UDATA_RESOURCE=UTRACE_UDATA_START,
+
+    /**
+     * Indicates that a resource bundle was opened.
+     *
+     * Provides one C-style string to UTraceData: file name.
+     * @draft ICU 65
+     */
+    UTRACE_UDATA_BUNDLE,
+
+    /**
+     * Indicates that a data file was opened, but not *.res files.
+     *
+     * Provides one C-style string to UTraceData: file name.
+     *
+     * @draft ICU 65
+     */
+    UTRACE_UDATA_DATA_FILE,
+
+    /**
+     * Indicates that a *.res file was opened.
+     *
+     * This differs from UTRACE_UDATA_BUNDLE because a res file is typically
+     * opened only once per application runtime, but the bundle corresponding
+     * to that res file may be opened many times.
+     *
+     * Provides one C-style string to UTraceData: file name.
+     *
+     * @draft ICU 65
+     */
+    UTRACE_UDATA_RES_FILE,
+
+#endif  // U_HIDE_DRAFT_API
+
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * One more than the highest normal resource/data trace location.
+     * @internal The numeric value may change over time, see ICU ticket #12420.
+     */
+    UTRACE_RES_DATA_LIMIT,
+#endif  // U_HIDE_INTERNAL_API
+
 } UTraceFunctionNumber;
 
 /**
@@ -183,7 +252,7 @@ UTraceData(const void *context, int32_t fnNumber, int32_t level,
   *  tracing functions must themselves filter by checking that the
   *  current thread is the desired thread.
   *
-  *  @param context an uninterpretted pointer.  Whatever is passed in
+  *  @param context an uninterpreted pointer.  Whatever is passed in
   *                 here will in turn be passed to each of the tracing
   *                 functions UTraceEntry, UTraceExit and UTraceData.
   *                 ICU does not use or alter this pointer.
@@ -320,7 +389,7 @@ utrace_getFunctions(const void **context,
   *                 human readable form.  Note that a UTraceData function may choose
   *                 to not format the data;  it could, for example, save it in
   *                 in the raw form it was received (more compact), leaving
-  *                 formatting for a later trace analyis tool.
+  *                 formatting for a later trace analysis tool.
   *  @param outBuf  pointer to a buffer to receive the formatted output.  Output
   *                 will be nul terminated if there is space in the buffer -
   *                 if the length of the requested output < the output buffer size.

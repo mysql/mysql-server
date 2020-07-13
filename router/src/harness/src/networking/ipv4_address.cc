@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,6 @@
 
 #include "mysql/harness/networking/ipv4_address.h"
 
-#include "utilities.h"
-
 #ifndef _WIN32
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -35,12 +33,12 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
-#include <cerrno>
-#include <cstring>
+#include <array>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 
-using mysql_harness::utility::get_message_error;
+#include "mysql/harness/net_ts/impl/resolver.h"
 
 namespace mysql_harness {
 
@@ -51,15 +49,16 @@ IPv4Address::IPv4Address(const char *data) {
 }
 
 std::string IPv4Address::str() const {
-  char tmp[INET_ADDRSTRLEN];
+  std::array<char, INET_ADDRSTRLEN> tmp;
 
-  if (auto addr = inet_ntop(AF_INET, const_cast<in_addr *>(&address_), tmp,
-                            INET_ADDRSTRLEN)) {
-    return addr;
+  const auto ntop_res = net::impl::resolver::inetntop(
+      AF_INET, const_cast<in_addr *>(&address_), tmp.data(), tmp.size());
+
+  if (!ntop_res) {
+    throw std::system_error(ntop_res.error(), "inet_ntop failed");
   }
 
-  throw std::runtime_error(std::string("inet_ntop failed: ") +
-                           get_message_error(errno));
+  return ntop_res.value();
 }
 
 }  // namespace mysql_harness

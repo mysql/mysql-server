@@ -34,9 +34,9 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_clear_certification_database';
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
 --source include/start_and_bootstrap_group_replication.inc
-SET @debug_save1= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= 'd,group_replication_do_not_clear_certification_database';
 
 SET @debug_save_slave_max_allowed_packet= @@GLOBAL.slave_max_allowed_packet;
 SET GLOBAL slave_max_allowed_packet=1024;
@@ -73,6 +73,7 @@ WHILE($rows)
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+--let $wait_timeout= 600
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
@@ -80,7 +81,6 @@ WHILE($rows)
 --sleep 1
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_slave_max_allowed_packet_dependency
 --let $assert_count = 1
 --let $assert_select = The certification information could not be set in this server: 'Certification information is too large for transmission.'
 --let $assert_text = Found the expected error about the view change log even being over size
@@ -119,7 +119,8 @@ DROP TABLE t1;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET @@GLOBAL.DEBUG= @debug_save1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_do_not_clear_certification_database';
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -130,6 +131,8 @@ call mtr.add_suppression("Error when processing certification information in the
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
 SET session sql_log_bin=1;
 
 --source include/group_replication_end.inc

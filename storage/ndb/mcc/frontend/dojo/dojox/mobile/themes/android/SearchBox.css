@@ -18,7 +18,7 @@
   background-repeat: no-repeat;
   background-position: center center;
   background-size: 15px 15px;
-  background-image: -webkit-gradient(linear, left top, right bottom, from(transparent), color-stop(0.46, transparent), color-stop(0.46, black), color-stop(0.54, black), color-stop(0.54, transparent), to(transparent)), -webkit-gradient(linear, right top, left bottom, from(transparent), color-stop(0.46, transparent), color-stop(0.46, black), color-stop(0.54, black), color-stop(0.54, transparent), to(transparent)) !important;
+  background-image: -webkit-gradient(linear, left top, right bottom, from(transparent), color-stop(0.46, transparent), color-stop(0.46, #000000), color-stop(0.54, #000000), color-stop(0.54, transparent), to(transparent)), -webkit-gradient(linear, right top, left bottom, from(transparent), color-stop(0.46, transparent), color-stop(0.46, #000000), color-stop(0.54, #000000), color-stop(0.54, transparent), to(transparent)) !important;
   border: 2px solid transparent;
   box-sizing: border-box;
   height: 15px;
@@ -33,7 +33,7 @@
   background-repeat: no-repeat;
   background-size: 13px 13px, 9px 9px;
   background-position: 0px 0px, 10px 10px;
-  background-image: -webkit-gradient(radial, 50% 50%, 0, 50% 50%, 6, from(transparent), color-stop(0.65, transparent), color-stop(0.8, black), color-stop(0.95, transparent), to(transparent)), -webkit-gradient(linear, right top, left bottom, from(transparent), color-stop(0.425, transparent), color-stop(0.5, black), color-stop(0.575, transparent), to(transparent)) !important;
+  background-image: -webkit-gradient(radial, 50% 50%, 0, 50% 50%, 6, from(transparent), color-stop(0.65, transparent), color-stop(0.8, #000000), color-stop(0.95, transparent), to(transparent)), -webkit-gradient(linear, right top, left bottom, from(transparent), color-stop(0.425, transparent), color-stop(0.5, #000000), color-stop(0.575, transparent), to(transparent)) !important;
   width: 15px;
   height: 15px;
   display: inline-block;
@@ -44,4 +44,20 @@
 }
 .dj_chrome .mblSearchBox {
   border-radius: 0;
+}
+.mblFilteredRoundRectListSearchBox {
+  width: 100%;
+  padding-left: 9px;
+  padding-right: 9px;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+}
+.mblFilteredRoundRectListSearchBox > input {
+  width: 100%;
+}
+.mblFilteredEdgeToEdgeListSearchBox {
+  width: 100%;
+}
+.mblFilteredEdgeToEdgeListSearchBox > input {
+  width: 100%;
 }

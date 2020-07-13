@@ -14,11 +14,9 @@ return declare("dojox.grid._EditManager", null, {
 		// inGrid: dojox.Grid
 		//		The dojox.Grid this editor should be attached to
 		this.grid = inGrid;
-		if(has('ie')){
-			this.connections = [connect.connect(document.body, "onfocus", lang.hitch(this, "_boomerangFocus"))];
-		}else{
-			this.connections = [connect.connect(this.grid, 'onBlur', this, 'apply')];
-		}
+		this.connections = !has('ie') ? [] : [connect.connect(document.body, "onfocus", lang.hitch(this, "_boomerangFocus"))];
+		this.connections.push(connect.connect(this.grid, 'onBlur', this, 'apply'));
+		this.connections.push(connect.connect(this.grid, 'prerender', this, '_onPreRender'));
 	},
 	
 	info: {},
@@ -253,6 +251,13 @@ return declare("dojox.grid._EditManager", null, {
 		}		
 		w.focused = true;
 		return w.isValid(true);
+	},
+	
+	_onPreRender: function(){
+		if(this.isEditing()){
+			//cache the current editing value before render
+			this.info.value = this.info.cell.getValue();
+		}
 	}
 });
 });

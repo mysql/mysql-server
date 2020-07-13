@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1111,7 +1111,7 @@ static const DecimalToStringParam TO_STRING_OVERFLOW_TRUNCATE[] = {
     {"0.00000", 4, "0.0", E_DEC_TRUNCATED},
 };
 
-INSTANTIATE_TEST_CASE_P(OverflowTruncate, DecimalToStringTest,
-                        testing::ValuesIn(TO_STRING_OVERFLOW_TRUNCATE));
+INSTANTIATE_TEST_SUITE_P(OverflowTruncate, DecimalToStringTest,
+                         testing::ValuesIn(TO_STRING_OVERFLOW_TRUNCATE));
 
 }  // namespace decimal_unittest

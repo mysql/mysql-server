@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,8 +138,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the payload item: variable
     PIT_PURGED_GTID = 19,
 
+    // Length of the payload item: variable
+    PIT_RECOVERY_ENDPOINTS = 20,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 20
+    PIT_MAX = 21
   };
 
   /*
@@ -191,6 +194,8 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] lower_case_table_names_arg             lower case table names
     @param[in] psi_mutex_key_arg                      mutex key
     @param[in] default_table_encryption_arg           default_table_encryption
+    @param[in] recovery_endpoints_arg                 recovery endpoints
+    advertised
    */
   Group_member_info(const char *hostname_arg, uint port_arg,
                     const char *uuid_arg, int write_set_extraction_algorithm,
@@ -203,6 +208,7 @@ class Group_member_info : public Plugin_gcs_message {
                     bool has_enforces_update_everywhere_checks,
                     uint member_weight_arg, uint lower_case_table_names_arg,
                     bool default_table_encryption_arg,
+                    const char *recovery_endpoints_arg,
                     PSI_mutex_key psi_mutex_key_arg =
                         key_GR_LOCK_group_member_info_update_lock);
 
@@ -251,8 +257,10 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] member_weight_arg                      member_weight
     @param[in] lower_case_table_names_arg             lower case table names
     @param[in] default_table_encryption_arg           default table encryption
+    @param[in] recovery_endpoints_arg                 recovery endpoints
+    advertised
    */
-  void update(char *hostname_arg, uint port_arg, char *uuid_arg,
+  void update(const char *hostname_arg, uint port_arg, const char *uuid_arg,
               int write_set_extraction_algorithm,
               const std::string &gcs_member_id_arg,
               Group_member_info::Group_member_status status_arg,
@@ -262,7 +270,15 @@ class Group_member_info : public Plugin_gcs_message {
               bool in_single_primary_mode,
               bool has_enforces_update_everywhere_checks,
               uint member_weight_arg, uint lower_case_table_names_arg,
-              bool default_table_encryption_arg);
+              bool default_table_encryption_arg,
+              const char *recovery_endpoints_arg);
+
+  /**
+    Update Group_member_info.
+
+    @param other source of the copy
+    */
+  void update(Group_member_info &other);
 
   /**
     @return the member hostname
@@ -515,6 +531,18 @@ class Group_member_info : public Plugin_gcs_message {
   */
   void set_is_primary_election_running(bool is_running);
 
+  /**
+    List of member advertised recovery endpoints
+    @return recovery endpoints
+   */
+  std::string get_recovery_endpoints();
+
+  /**
+    Save list of member advertised recovery endpoints
+    @param endpoints list of advertised recovery endpoints
+   */
+  void set_recovery_endpoints(const char *endpoints);
+
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const;
   void decode_payload(const unsigned char *buffer, const unsigned char *);
@@ -555,6 +583,7 @@ class Group_member_info : public Plugin_gcs_message {
   bool default_table_encryption;
   bool group_action_running;
   bool primary_election_running;
+  std::string recovery_endpoints;
 #ifndef DBUG_OFF
  public:
   bool skip_encode_default_table_encryption;

@@ -57,3 +57,4 @@ if ($run_log_message_test) {
 # Restore default settings
 let $restart_parameters = restart:;
 --source include/restart_mysqld.inc
+--remove_file $server_log

@@ -211,7 +211,7 @@ command ok
 
 0 rows affected
 Query
-/* xplugin authentication */ SELECT @@require_secure_transport, `authentication_string`, `plugin`,(`account_locked`='Y') as is_account_locked, (`password_expired`!='N') as `is_password_expired`, @@disconnect_on_expired_password as `disconnect_on_expired_password`, @@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_not_super_user`,`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` FROM mysql.user WHERE 'x_root' = `user` AND 'localhost' = `host`
+/* xplugin authentication */ SELECT /*+ SET_VAR(SQL_MODE = 'TRADITIONAL') */ @@require_secure_transport, `authentication_string`, `plugin`, (`account_locked`='Y') as is_account_locked, (`password_expired`!='N') as `is_password_expired`, @@disconnect_on_expired_password as `disconnect_on_expired_password`, @@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_not_super_user`, `ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` FROM mysql.user WHERE 'x_root' = `user` AND 'localhost' = `host`
 KILL
 drop user unpriv@localhost
 0 rows affected

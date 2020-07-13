@@ -498,3 +498,14 @@ CREATE INDEX idx ON t((CAST(j->'$.x' AS CHAR(100))));
 --eval $query1
 --eval $query2
 DROP TABLE t;
+
+--echo ##
+--echo ## Bug #31017765 CREATE TABLE ... SELECT FAILS IF THERE IS A FUNCTIONAL INDEX
+--echo ##
+--echo ##
+
+    CREATE TEMPORARY TABLE issue_functional_key_part (
+      sold_on DATETIME NOT NULL DEFAULT NOW(),
+      INDEX sold_on_date ((DATE(sold_on)))
+    )
+    SELECT NOW() `sold_on`;

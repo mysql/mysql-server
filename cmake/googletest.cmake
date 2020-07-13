@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We want release-1.8.1.zip in order to build these unit tests.
+# We want release-1.10.0.zip in order to build these unit tests.
 # If you have already downloaded it,
-# invoke cmake with -DWITH_GMOCK=/path/to/release-1.8.1.zip
+# invoke cmake with -DWITH_GMOCK=/path/to/release-1.10.0.zip
 #                or -DWITH_GMOCK=/path/to
 #
 # Alternatively, set an environment variable
-# export WITH_GMOCK=/path/to/release-1.8.1.zip
+# export WITH_GMOCK=/path/to/release-1.10.0.zip
 #
 # You can also do cmake -DENABLE_DOWNLOADS=1
 # and we will download it from https://github.com/google/googletest/archive/
@@ -40,8 +40,8 @@ IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
 ENDIF()
 
-# We want googletest version 1.8, which also contains googlemock.
-SET(GMOCK_PACKAGE_NAME "release-1.8.1")
+# We want googletest version 1.10, which also contains googlemock.
+SET(GMOCK_PACKAGE_NAME "release-1.10.0")
 
 IF (DEFINED ENV{WITH_GMOCK} AND NOT DEFINED WITH_GMOCK)
   FILE(TO_CMAKE_PATH "$ENV{WITH_GMOCK}" WITH_GMOCK)
@@ -250,6 +250,33 @@ IF(MY_COMPILER_IS_SUNPRO)
 
   FOREACH(target gtest gmock gtest_main gmock_main)
     ADD_DEPENDENCIES(${target} generate_gtest_hack generate_gtest_port_hack)
+    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/hack)
+  ENDFOREACH()
+
+ENDIF()
+
+# Workaround for bug in gtest-death-test.cc
+# Fixed in the googletest sources, but not part of 1.10.0
+IF(LINUX AND HAVE_ASAN)
+  IF(NOT EXISTS ${CMAKE_BINARY_DIR}/hack/src/)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/hack/src
+      )
+  ENDIF()
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_BINARY_DIR}/hack/src/gtest-death-test.cc
+    COMMAND sed -e "s/getpagesize()/getpagesize() * 2/"
+         < ${GTEST_SOURCE_DIR}/src/gtest-death-test.cc
+         > ${CMAKE_BINARY_DIR}/hack/src/gtest-death-test.cc
+    DEPENDS ${GTEST_SOURCE_DIR}/src/gtest-death-test.cc
+    COMMENT "Fixing pagesize for ASAN tests"
+    VERBATIM
+    )
+  ADD_CUSTOM_TARGET(generate_gtest_deathtest_hack
+    DEPENDS ${CMAKE_BINARY_DIR}/hack/src/gtest-death-test.cc)
+
+  FOREACH(target gtest gmock gtest_main gmock_main)
+    ADD_DEPENDENCIES(${target} generate_gtest_deathtest_hack)
     TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/hack)
   ENDFOREACH()
 

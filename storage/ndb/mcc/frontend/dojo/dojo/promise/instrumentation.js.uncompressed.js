@@ -7,6 +7,9 @@ define("dojo/promise/instrumentation", [
 	has.add("config-useDeferredInstrumentation", "report-unhandled-rejections");
 
 	function logError(error, rejection, deferred){
+		if(error && error.log === false){
+			return;
+		}
 		var stack = "";
 		if(error && error.stack){
 			stack += error.stack;

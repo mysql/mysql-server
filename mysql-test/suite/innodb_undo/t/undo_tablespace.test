@@ -257,10 +257,12 @@ source include/wait_until_undo_space_is_empty.inc;
 DROP UNDO TABLESPACE undo_005;
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .* The directory '.*' does not exist.");
-call mtr.add_suppression("\\[ERROR\\] .* Cannot drop undo tablespace 'undo_005' because it is active. Please do: ALTER UNDO TABLESPACE undo_005 SET INACTIVE");
 call mtr.add_suppression("\\[Warning\\] .* Log writer is waiting for checkpointer to to catch up lag");
 call mtr.add_suppression("\\[Warning\\] .* Tablespace .*, name 'undo_004', file 'undo_004.ibu' is missing");
 call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace");
+call mtr.add_suppression("\\[ERROR\\] .* The directory for tablespace .* does not exist or is incorrect.");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot drop undo tablespace 'undo_005' because it is active. Please do: ALTER UNDO TABLESPACE undo_005 SET INACTIVE");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create tablespace undo_99 because the directory is not a valid location. The UNDO DATAFILE location must be in a known directory");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot find undo tablespace undo_004 with filename '.*' as indicated by the Data Dictionary. Did you move or delete this tablespace. Any undo logs in it cannot be used");
 --enable_query_log
 

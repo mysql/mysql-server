@@ -290,7 +290,7 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 				return text.replace(/\x01((\w|\.)+\s*)\([^()]*\)/, replaceFuncWithNum);
 			}
 			function FactorialParser(text){
-				// loop this untill all ! are gone (in main)
+				// loop this until all ! are gone (in main)
 				return text.replace(factorialRE, "\x01"+"factorial($1)");
 			}
 			function putFuncChar(wholematch){
@@ -359,7 +359,7 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 				// keep going until there is nothing left that can be simplified
 				while (isSimpleGrouping(text)||isSimpleFunction(text)||factorialRE.test(text)||caretRE.test(text)||radicalRE.test(text)||unaryRE.test(text)||binaryHighRE.test(text)||binaryLowRE.test(text)){
 
-					var sTextOrginal = text;
+					var sTextOriginal = text;
 
 					if(isSimpleFunction(text)){
 						var debugText = text;
@@ -383,38 +383,38 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 
 					// factorials must come first for 5^2! cases, it equals 25
 					text = FactorialParser(text);
-					if(text!=sTextOrginal){
+					if(text!=sTextOriginal){
 						continue;
 					}
 
 					text = caretParser(text);
-					if(text!=sTextOrginal){
+					if(text!=sTextOriginal){
 						continue;
 					}
 
 					text = radicalOperatorParse(text);
-					if(text!=sTextOrginal){
+					if(text!=sTextOriginal){
 						continue;
 					}
 					text = unaryOperatorRightsideParse(text);
-					if(text!=sTextOrginal){
+					if(text!=sTextOriginal){
 						// put parentheses around the unary operators so 0--2 will pass
 						numbers[numbers.length-1] = "("+numbers[numbers.length-1]+")";
 						continue;
 					}
 					text = unaryOperatorParse(text);
-					if(text!=sTextOrginal){
+					if(text!=sTextOriginal){
 						// put parentheses around the unary operators so 0--2 will pass
 						numbers[numbers.length-1] = "("+numbers[numbers.length-1]+")";
 						continue;
 					}
 
 					text = binaryHighPriorityOperatorParse(text);
-					if(text!=sTextOrginal){
+					if(text!=sTextOriginal){
 						continue;
 					}
 					text = binaryLowPriorityOperatorParse(text);
-					if(text!=sTextOrginal){
+					if(text!=sTextOriginal){
 						continue;
 					}
 					// it should never ever make it to this point.  If it does, I'll want to know about it.

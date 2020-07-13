@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Afegeix columna abans",
 	insertTableColumnAfterLabel: "Afegeix columna després",
 	deleteTableRowLabel: "Suprimeix fila",
-	deleteTableColumnLabel: "Suprimeix columna"
+	deleteTableColumnLabel: "Suprimeix columna",
+	colorTableCellTitle: "Cel·la de taula del color de fons",
+	tableContextMenuTitle: "Menú contextual de la taula"
 })
 );

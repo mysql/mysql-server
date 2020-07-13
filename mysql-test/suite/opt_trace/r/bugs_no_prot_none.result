@@ -175,14 +175,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         "transformation": {
                           "select#": 4,
                           "from": "IN (SELECT)",
-                          "to": "semijoin",
-                          "chosen": false
-                        } /* transformation */
-                      },
-                      {
-                        "transformation": {
-                          "select#": 4,
-                          "from": "IN (SELECT)",
                           "to": "EXISTS (CORRELATED SELECT)",
                           "chosen": true,
                           "evaluating_constant_where_conditions": [
@@ -194,14 +186,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                 },
                 {
                   "expanded_query": "/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where <in_optimizer>(`alias2`.`col_varchar_key`,<exists>(/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where ((`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (<cache>(`alias2`.`col_varchar_key`) = `sq2_alias1`.`col_varchar_nokey`))))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -394,14 +378,6 @@ FROM t1
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_where_conditions": [
@@ -542,14 +518,6 @@ FROM t1
                         ] /* rows_estimation */
                       },
                       {
-                        "transformation": {
-                          "select#": 2,
-                          "from": "IN (SELECT)",
-                          "to": "EXISTS (CORRELATED SELECT)",
-                          "put_1_in_SELECT_list": true
-                        } /* transformation */
-                      },
-                      {
                         "attaching_conditions_to_tables": {
                           "original_condition": "(<cache>('7') = (/* select#3 */ select `t2`.`col_int_key` from `t2`))",
                           "attached_conditions_computation": [
@@ -632,12 +600,12 @@ FROM t1
             } /* subselect_execution */
           },
           {
-            "condition_on_constant_tables": "<in_optimizer>('7',<exists>(/* select#2 */ select 1 from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
+            "condition_on_constant_tables": "<in_optimizer>('7',<exists>(/* select#2 */ select (/* select#3 */ select '7' from dual) from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
             "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>('7',<exists>(/* select#2 */ select 1 from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
+              "original_condition": "<in_optimizer>('7',<exists>(/* select#2 */ select (/* select#3 */ select '7' from dual) from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -824,14 +792,6 @@ ON table2 .col_int_key = table1 .col_int_key
                       }
                     ] /* steps */
                   } /* join_preparation */
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -1200,14 +1160,6 @@ ON table2 .col_int_key = table1 .col_int_key
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "transformation": {
-              "select#": 3,
-              "from": "IN (SELECT)",
-              "to": "EXISTS (CORRELATED SELECT)",
-              "put_1_in_SELECT_list": true
-            } /* transformation */
           },
           {
             "attaching_conditions_to_tables": {
@@ -2412,8 +2364,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index_merge	PRIMARY,i1,vc	vc,i1,PRIMARY	43,9,4	NULL	2	100.00	Using union(vc,intersect(i1,PRIMARY)); Using where
 1	SIMPLE	t2	NULL	ALL	vc2	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Warning	1739	Cannot use range access on index 'vc2' due to type or collation conversion on field 'vc'
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc2` AS `vc2`,`test`.`t2`.`vc` AS `vc`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` left join `test`.`t2` on((`test`.`t1`.`i1` < `test`.`t2`.`vc`)) where ((`test`.`t1`.`vc` = 'AVZPQ') or ((`test`.`t1`.`i1` is null) and (`test`.`t1`.`pk` >= 9)))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc2` AS `vc2`,`test`.`t2`.`vc` AS `vc`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` left join `test`.`t2` on((cast(`test`.`t1`.`i1` as double) < cast(`test`.`t2`.`vc` as double))) where ((`test`.`t1`.`vc` = 'AVZPQ') or ((`test`.`t1`.`i1` is null) and (`test`.`t1`.`pk` >= 9)))
 SELECT *
 FROM t1 LEFT JOIN t2
 ON t1.i1 < t2.vc

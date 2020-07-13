@@ -1,7 +1,7 @@
 //>>built
 define("dojox/geo/openlayers/_base",["dojo/_base/lang"],function(_1){
 var _2=_1.getObject("dojox.geo.openlayers",true);
-_2.BaseLayerType={OSM:"OSM",WMS:"WMS",GOOGLE:"Google",VIRTUAL_EARTH:"VirtualEarth",BING:"VirtualEarth",YAHOO:"Yahoo",ARCGIS:"ArcGIS"};
+_2.BaseLayerType={OSM:"OSM",Transport:"OSM.Transport",WMS:"WMS",GOOGLE:"Google",VIRTUAL_EARTH:"VirtualEarth",BING:"VirtualEarth",YAHOO:"Yahoo",ARCGIS:"ArcGIS"};
 _2.EPSG4326=new OpenLayers.Projection("EPSG:4326");
 var re=/^\s*(\d{1,3})[D°]\s*(\d{1,2})[M']\s*(\d{1,2}\.?\d*)\s*(S|"|'')\s*([NSEWnsew]{0,1})\s*$/i;
 _2.parseDMS=function(v,_3){

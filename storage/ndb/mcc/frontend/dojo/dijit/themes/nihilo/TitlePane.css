@@ -11,24 +11,24 @@
 .nihilo .dijitTitlePaneTitleHover  {
 	background: #f9f9f9 url("images/accordionItemActive.png") top repeat-x;
 }
-.nihilo .dijitTitlePane .dijitOpen .dijitArrowNode,
-.nihilo .dijitTitlePane .dijitClosed .dijitArrowNode {
+.nihilo .dijitTitlePane .dijitArrowNode,
+.nihilo .dijitFieldset .dijitArrowNode {
 	width:15px;
 	height:15px;
 }
 .nihilo .dijitTitlePaneTextNode {
 	color: #243C5F;
 }
-.nihilo .dijitTitlePane .dijitClosed .dijitArrowNode {
+.nihilo .dijitTitlePane .dijitClosed .dijitArrowNode, .nihilo .dijitFieldset .dijitFieldsetTitleClosed .dijitArrowNode {
 	background: url('images/spriteRoundedIconsSmall.png') no-repeat -30px top;
 }
-.dj_ie6 .nihilo .dijitTitlePane .dijitClosed .dijitArrowNode {
+.dj_ie6 .nihilo .dijitTitlePane .dijitClosed .dijitArrowNode, .dj_ie6 .nihilo .dijitFieldset .dijitFieldsetTitleClosed .dijitArrowNode {
 	background:url('images/spriteRoundedIconsSmall.gif') no-repeat -30px top;
 }
-.nihilo .dijitTitlePane .dijitOpen .dijitArrowNode {
+.nihilo .dijitTitlePane .dijitOpen .dijitArrowNode, .nihilo .dijitFieldset .dijitFieldsetTitleOpen .dijitArrowNode {
 	background:url('images/spriteRoundedIconsSmall.png') no-repeat -15px top;
 }
-.dj_ie6 .nihilo .dijitTitlePane .dijitOpen .dijitArrowNode {
+.dj_ie6 .nihilo .dijitTitlePane .dijitOpen .dijitArrowNode, .dj_ie6 .nihilo .dijitFieldset .dijitFieldsetTitleClosed .dijitArrowNode {
 	background:url('images/spriteRoundedIconsSmall.gif') no-repeat -15px top;
 }
 .nihilo .dijitTitlePaneContentOuter {

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,8 @@ add_harness_plugin(mock_server
   mock_server_plugin.cc
   mock_server_component.cc
   authentication.cc
-  REQUIRES mysql_protocol;duktape;${PROTOBUF_LIBRARY};mysqlxmessages)
+  REQUIRES mysql_protocol;duktape;${PROTOBUF_LITE_LIBRARY};mysqlxmessages_lite;
+  harness_stdx_filesystem;harness-library)
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/src/
@@ -173,8 +174,9 @@ MYSQL_ADD_EXECUTABLE(mysql_server_mock
   LINK_LIBRARIES
   ${common_libraries}
   harness-library
-  mysqlxmessages
-  ${PROTOBUF_LIBRARY}
+  mysqlxmessages_lite
+  ${PROTOBUF_LITE_LIBRARY}
+  harness_stdx_filesystem
   SKIP_INSTALL
   )
 
@@ -191,4 +193,3 @@ TARGET_COMPILE_DEFINITIONS(mysql_server_mock
   )
 SET_PATH_TO_SSL(mysql_server_mock ${CMAKE_BINARY_DIR}/runtime_output_directory)
 
-ADD_DEFINITIONS(-DUSE_MYSQLX_FULL_PROTO)

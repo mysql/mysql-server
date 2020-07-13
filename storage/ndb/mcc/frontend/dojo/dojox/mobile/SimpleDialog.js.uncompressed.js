@@ -2,26 +2,32 @@ define("dojox/mobile/SimpleDialog", [
 	"dojo/_base/declare",
 	"dojo/_base/window",
 	"dojo/dom-class",
+	"dojo/dom-attr",
 	"dojo/dom-construct",
+	"dojo/on",
+	"dojo/touch",
+	"dijit/registry",
 	"./Pane",
-	"./iconUtils"
-], function(declare, win, domClass, domConstruct, Pane, iconUtils){
+	"./iconUtils",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/SimpleDialog"
+], function(declare, win, domClass, domAttr, domConstruct, on, touch, registry, Pane, iconUtils, has, BidiSimpleDialog){
 	// module:
 	//		dojox/mobile/SimpleDialog
 
-	return declare("dojox.mobile.SimpleDialog", Pane, {
+	var SimpleDialog = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiSimpleDialog" : "dojox.mobile.SimpleDialog", Pane, {
 		// summary:
 		//		A dialog box for mobile.
 		// description:
 		//		SimpleDialog is a dialog box for mobile.
-		//		When a SimpleDialog is created, it is initially hidden and not
-		//		displayed (display="none"). To show the dialog box, you need to
+		//		When a SimpleDialog is created, it is initially hidden 
+		//		(display="none"). To show the dialog box, you need to
 		//		get a reference to the widget and to call its show() method.
 		//
 		//		The contents can be arbitrary HTML, text, or widgets. Note,
 		//		however, that the widget is initially hidden. You need to be
-		//		careful when you place something that cannot be initialized
-		//		under the hidden state into a SimpleDialog.
+		//		careful when you place in a SimpleDialog elements that cannot 
+		//		be initialized in hidden state.
 		//
 		//		This widget has much less functionalities than dijit/Dialog, 
 		//		but it has the advantage of a much smaller code size.
@@ -43,9 +49,11 @@ define("dojox/mobile/SimpleDialog", [
 		//		prevent the user from interacting with elements on the page.
 		modal: true,
 
-		// closeButton: Boolean
+		// closeButton: [const] Boolean
 		//		If true, a button to close the dialog box is displayed at the
 		//		top-right corner.
+		//		Note that changing the value of the property after the widget
+		//		creation has no effect.
 		closeButton: false,
 
 		// closeButtonClass: String
@@ -80,6 +88,20 @@ define("dojox/mobile/SimpleDialog", [
 				}
 			}
 			this.inherited(arguments);
+			domAttr.set(this.domNode, "role", "dialog");
+			
+			if(this.containerNode.getElementsByClassName){ //TODO: Do we need to support IE8 a11y?
+	            var titleNode = this.containerNode.getElementsByClassName("mblSimpleDialogTitle")[0];
+	            if (titleNode){
+	            	titleNode.id = titleNode.id || registry.getUniqueId("dojo_mobile_mblSimpleDialogTitle");
+	            	domAttr.set(this.domNode, "aria-labelledby", titleNode.id);
+	            }
+	            var textNode = this.containerNode.getElementsByClassName("mblSimpleDialogText")[0];
+	            if (textNode){
+	                textNode.id = textNode.id || registry.getUniqueId("dojo_mobile_mblSimpleDialogText");
+	                domAttr.set(this.domNode, "aria-describedby", textNode.id);
+	            }
+			}
 			domClass.add(this.domNode, "mblSimpleDialogDecoration");
 			this.domNode.style.display = "none";
 			this.domNode.appendChild(this.containerNode);
@@ -88,9 +110,9 @@ define("dojox/mobile/SimpleDialog", [
 					className: "mblSimpleDialogCloseBtn "+this.closeButtonClass
 				}, this.domNode);
 				iconUtils.createDomButton(this.closeButtonNode);
-				this._clickHandle = this.connect(this.closeButtonNode, "onclick", "_onCloseButtonClick");
+				this.connect(this.closeButtonNode, "onclick", "_onCloseButtonClick");
 			}
-			this._keydownHandle = this.connect(this.domNode, "onkeydown", "_onKeyDown"); // for desktop browsers
+			this.connect(this.domNode, "onkeydown", "_onKeyDown"); // for desktop browsers
 		},
 
 		startup: function(){
@@ -108,6 +130,11 @@ define("dojox/mobile/SimpleDialog", [
 				}, win.body());
 			}else{
 				this._cover[0].style.display = "";
+			}
+
+			if(has("windows-theme")) {
+				// Hack to prevent interaction with elements placed under cover div.
+				this.own(on(this._cover[0], touch.press, function() {}));
 			}
 		},
 
@@ -143,6 +170,7 @@ define("dojox/mobile/SimpleDialog", [
 			// summary:
 			//		Refreshes the layout of the dialog.
 			var n = this.domNode;
+			var h;
 			if(this.closeButton){
 				var b = this.closeButtonNode;
 				var s = Math.round(b.offsetHeight / 2);
@@ -150,13 +178,13 @@ define("dojox/mobile/SimpleDialog", [
 				b.style.left = n.offsetWidth - s + "px";
 			}
 			if(this.top === "auto"){
-				var h = win.global.innerHeight || win.doc.documentElement.clientHeight;
+				h = win.global.innerHeight || win.doc.documentElement.clientHeight;
 				n.style.top = Math.round((h - n.offsetHeight) / 2) + "px";
 			}else{
 				n.style.top = this.top;
 			}
 			if(this.left === "auto"){
-				var h = win.global.innerWidth || win.doc.documentElement.clientWidth;
+				h = win.global.innerWidth || win.doc.documentElement.clientWidth;
 				n.style.left = Math.round((h - n.offsetWidth) / 2) + "px";
 			}else{
 				n.style.left = this.left;
@@ -171,8 +199,15 @@ define("dojox/mobile/SimpleDialog", [
 				this.addCover();
 			}
 			this.domNode.style.display = "";
+			this.resize(); // #15628
 			this.refresh();
-			this.domNode.focus();
+			var diaglogButton;
+			if(this.domNode.getElementsByClassName){
+				diaglogButton = this.domNode.getElementsByClassName("mblSimpleDialogButton")[0];
+			}
+			var focusNode = diaglogButton || this.closeButtonNode || this.domNode; // Focus preference is: user supplied button, close button, entire dialog
+			/// on Safari iOS the focus is not taken without a timeout
+			this.defer(function(){ focusNode.focus();}, 1000);
 		},
 
 		hide: function(){
@@ -185,4 +220,5 @@ define("dojox/mobile/SimpleDialog", [
 			}
 		}
 	});
+	return has("dojo-bidi") ? declare("dojox.mobile.SimpleDialog", [SimpleDialog, BidiSimpleDialog]) : SimpleDialog;
 });

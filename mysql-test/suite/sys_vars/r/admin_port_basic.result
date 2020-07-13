@@ -1,23 +1,23 @@
 select @@global.admin_port;
 @@global.admin_port
-33062
+ADMIN_PORT
 select @@session.admin_port;
 ERROR HY000: Variable 'admin_port' is a GLOBAL variable
 show global variables like 'admin_port';
 Variable_name	Value
-admin_port	33062
+admin_port	ADMIN_PORT
 show session variables like 'admin_port';
 Variable_name	Value
-admin_port	33062
+admin_port	ADMIN_PORT
 select * from performance_schema.global_variables where variable_name='admin_port';
 VARIABLE_NAME	VARIABLE_VALUE
-admin_port	33062
+admin_port	ADMIN_PORT
 select * from performance_schema.session_variables where variable_name='admin_port';
 VARIABLE_NAME	VARIABLE_VALUE
-admin_port	33062
-select * from performance_schema.variables_info where variable_name='admin_port';
-VARIABLE_NAME	VARIABLE_SOURCE	VARIABLE_PATH	MIN_VALUE	MAX_VALUE	SET_TIME	SET_USER	SET_HOST
-admin_port	COMPILED		0	65535	NULL	NULL	NULL
+admin_port	ADMIN_PORT
+select variable_name, min_value, max_value from performance_schema.variables_info where variable_name='admin_port';
+variable_name	min_value	max_value
+admin_port	0	65535
 set global admin_port=1000;
 ERROR HY000: Variable 'admin_port' is a read only variable
 set session admin_port=1000;

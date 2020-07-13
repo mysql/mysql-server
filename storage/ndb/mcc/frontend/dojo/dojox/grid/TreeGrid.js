@@ -144,7 +144,7 @@ this.inherited(arguments);
 var obj=this.inherited(arguments);
 return _5.mixin(obj,_12);
 }});
-var _45=_3("dojox.grid.TreePath",null,{level:0,_str:"",_arr:null,grid:null,store:null,cell:null,item:null,constructor:function(_46,_47){
+var _45=_3("dojox.grid.TreePath",null,{level:0,_str:"",_arr:null,grid:null,store:null,cell:null,constructor:function(_46,_47){
 if(_5.isString(_46)){
 this._str=_46;
 this._arr=_4.map(_46.split("/"),function(_48){

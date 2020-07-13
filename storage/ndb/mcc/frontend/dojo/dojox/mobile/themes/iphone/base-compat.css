@@ -106,7 +106,7 @@
   -moz-box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
 }
 .dj_ie .mblRoundCorner {
-  background-color: white;
+  background-color: #ffffff;
   height: 1px;
   font-size: 1px;
   overflow: hidden;
@@ -116,7 +116,7 @@
 }
 .dj_ie .mblRoundRectContainer {
   padding: 3px 8px;
-  background-color: white;
+  background-color: #ffffff;
   border-style: solid;
   border-color: #adaaad;
   border-width: 0 1px;
@@ -182,7 +182,7 @@
   position: relative;
 }
 .dj_ie .mblRoundCorner {
-  background-color: white;
+  background-color: #ffffff;
   height: 1px;
   font-size: 1px;
   overflow: hidden;
@@ -192,7 +192,7 @@
 }
 .dj_ie .mblRoundRectContainer {
   padding: 3px 8px;
-  background-color: white;
+  background-color: #ffffff;
   border-style: solid;
   border-color: #adaaad;
   border-width: 0 1px;

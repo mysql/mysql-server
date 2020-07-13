@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,7 @@
 #ifndef NODE_LIST_H
 #define NODE_LIST_H
 
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xdr_gen/xcom_vp.h"
 
 node_list clone_node_list(node_list list);
 char *dbg_list(node_list const *nodes);
@@ -43,9 +39,9 @@ void remove_node_list(u_int n, node_address *names, node_list *nodes);
 node_address *init_single_node_address(node_address *na, char *name);
 node_address *init_node_address(node_address *na, u_int n, char *names[]);
 node_list *empty_node_list();
-
-#ifdef __cplusplus
-}
-#endif
+node_list null_node_list();
+blob clone_blob(blob const b);
+blob *clone_blob_ptr(blob const *b);
+uint32_t chksum_node_list(node_list const *nodes);
 
 #endif

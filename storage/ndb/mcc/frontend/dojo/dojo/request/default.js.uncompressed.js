@@ -6,7 +6,7 @@ define("dojo/request/default", [
 	var defId = has('config-requestProvider'),
 		platformId;
 
-	if( 1 ){
+	if( 1  || has('host-webworker')){
 		platformId = './xhr';
 	}else if( 0 ){
 		platformId = './node';

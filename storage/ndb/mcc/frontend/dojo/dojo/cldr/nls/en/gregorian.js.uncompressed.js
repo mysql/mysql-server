@@ -25,6 +25,7 @@ define(
 		"N",
 		"D"
 	],
+	"field-second-relative+0": "now",
 	"quarters-standAlone-narrow": [
 		"1",
 		"2",
@@ -34,11 +35,15 @@ define(
 	"field-weekday": "Day of the Week",
 	"dateFormatItem-yQQQ": "QQQ y",
 	"dateFormatItem-yMEd": "E, M/d/y",
+	"field-wed-relative+0": "this Wednesday",
+	"field-wed-relative+1": "next Wednesday",
+	"dateFormatItem-GyMMMEd": "E, MMM d, y G",
 	"dateFormatItem-MMMEd": "E, MMM d",
 	"eraNarrow": [
 		"B",
 		"A"
 	],
+	"field-tue-relative+-1": "last Tuesday",
 	"days-format-short": [
 		"Su",
 		"Mo",
@@ -48,7 +53,10 @@ define(
 		"Fr",
 		"Sa"
 	],
+	"dateTimeFormats-appendItem-Day-Of-Week": "{0} {1}",
 	"dateFormat-long": "MMMM d, y",
+	"field-fri-relative+-1": "last Friday",
+	"field-wed-relative+-1": "last Wednesday",
 	"months-format-wide": [
 		"January",
 		"February",
@@ -66,7 +74,9 @@ define(
 	"dateTimeFormat-medium": "{1}, {0}",
 	"dayPeriods-format-wide-pm": "PM",
 	"dateFormat-full": "EEEE, MMMM d, y",
+	"field-thu-relative+-1": "last Thursday",
 	"dateFormatItem-Md": "M/d",
+	"dateTimeFormats-appendItem-Second": "{0} ({2}: {1})",
 	"dayPeriods-format-wide-noon": "noon",
 	"dateFormatItem-yMd": "M/d/y",
 	"field-era": "Era",
@@ -92,10 +102,11 @@ define(
 		"3rd quarter",
 		"4th quarter"
 	],
+	"dateFormatItem-yQQQQ": "QQQQ y",
 	"timeFormat-long": "h:mm:ss a z",
 	"field-year": "Year",
 	"dateFormatItem-yMMM": "MMM y",
-	"dateFormatItem-yQ": "Q y",
+	"dateTimeFormats-appendItem-Era": "{0} {1}",
 	"field-hour": "Hour",
 	"months-format-abbr": [
 		"Jan",
@@ -111,9 +122,16 @@ define(
 		"Nov",
 		"Dec"
 	],
+	"field-sat-relative+0": "this Saturday",
+	"field-sat-relative+1": "next Saturday",
 	"timeFormat-full": "h:mm:ss a zzzz",
-	"field-day-relative+0": "Today",
-	"field-day-relative+1": "Tomorrow",
+	"dateTimeFormats-appendItem-Week": "{0} ({2}: {1})",
+	"field-day-relative+0": "today",
+	"field-thu-relative+0": "this Thursday",
+	"field-day-relative+1": "tomorrow",
+	"field-thu-relative+1": "next Thursday",
+	"dateFormatItem-GyMMMd": "MMM d, y G",
+	"dateFormatItem-H": "HH",
 	"months-standAlone-abbr": [
 		"Jan",
 		"Feb",
@@ -140,6 +158,7 @@ define(
 		"3rd quarter",
 		"4th quarter"
 	],
+	"dateFormatItem-Gy": "y G",
 	"dateFormatItem-M": "L",
 	"days-standAlone-wide": [
 		"Sunday",
@@ -151,30 +170,26 @@ define(
 		"Saturday"
 	],
 	"timeFormat-medium": "h:mm:ss a",
+	"field-sun-relative+0": "this Sunday",
 	"dateFormatItem-Hm": "HH:mm",
+	"field-sun-relative+1": "next Sunday",
 	"eraAbbr": [
 		"BC",
 		"AD"
 	],
 	"field-minute": "Minute",
-	"field-dayperiod": "AM/PM",
-	"days-standAlone-abbr": [
-		"Sun",
-		"Mon",
-		"Tue",
-		"Wed",
-		"Thu",
-		"Fri",
-		"Sat"
-	],
+	"field-dayperiod": "am/pm",
 	"dateFormatItem-d": "d",
 	"dateFormatItem-ms": "mm:ss",
-	"field-day-relative+-1": "Yesterday",
+	"field-day-relative+-1": "yesterday",
+	"dateFormatItem-h": "h a",
 	"dateTimeFormat-long": "{1} 'at' {0}",
 	"dayPeriods-format-narrow-am": "a",
 	"dateFormatItem-MMMd": "MMM d",
 	"dateFormatItem-MEd": "E, M/d",
 	"dateTimeFormat-full": "{1} 'at' {0}",
+	"field-fri-relative+0": "this Friday",
+	"field-fri-relative+1": "next Friday",
 	"field-day": "Day",
 	"days-format-wide": [
 		"Sunday",
@@ -186,6 +201,7 @@ define(
 		"Saturday"
 	],
 	"field-zone": "Time Zone",
+	"dateTimeFormats-appendItem-Day": "{0} ({2}: {1})",
 	"dateFormatItem-y": "y",
 	"months-standAlone-narrow": [
 		"J",
@@ -201,9 +217,11 @@ define(
 		"N",
 		"D"
 	],
-	"field-year-relative+-1": "Last year",
-	"field-month-relative+-1": "Last month",
+	"field-year-relative+-1": "last year",
+	"field-month-relative+-1": "last month",
 	"dateFormatItem-hm": "h:mm a",
+	"dateTimeFormats-appendItem-Year": "{0} {1}",
+	"dateTimeFormats-appendItem-Hour": "{0} ({2}: {1})",
 	"days-format-abbr": [
 		"Sun",
 		"Mon",
@@ -218,16 +236,6 @@ define(
 		"Before Christ",
 		"Anno Domini"
 	],
-	"days-format-narrow": [
-		"S",
-		"M",
-		"T",
-		"W",
-		"T",
-		"F",
-		"S"
-	],
-	"field-month": "Month",
 	"days-standAlone-narrow": [
 		"S",
 		"M",
@@ -238,28 +246,41 @@ define(
 		"S"
 	],
 	"dateFormatItem-MMM": "LLL",
+	"field-month": "Month",
+	"field-tue-relative+0": "this Tuesday",
+	"dateTimeFormats-appendItem-Quarter": "{0} ({2}: {1})",
+	"field-tue-relative+1": "next Tuesday",
 	"dayPeriods-format-wide-am": "AM",
+	"dateTimeFormats-appendItem-Month": "{0} ({2}: {1})",
+	"dateTimeFormats-appendItem-Minute": "{0} ({2}: {1})",
 	"dateFormatItem-EHm": "E HH:mm",
+	"field-mon-relative+0": "this Monday",
+	"field-mon-relative+1": "next Monday",
 	"dateFormat-short": "M/d/yy",
 	"dateFormatItem-EHms": "E HH:mm:ss",
 	"dateFormatItem-Ehms": "E h:mm:ss a",
 	"dayPeriods-format-narrow-noon": "n",
 	"field-second": "Second",
+	"field-sat-relative+-1": "last Saturday",
 	"dateFormatItem-yMMMEd": "E, MMM d, y",
-	"field-month-relative+0": "This month",
-	"field-month-relative+1": "Next month",
+	"field-sun-relative+-1": "last Sunday",
+	"field-month-relative+0": "this month",
+	"field-month-relative+1": "next month",
 	"dateFormatItem-Ed": "d E",
+	"dateTimeFormats-appendItem-Timezone": "{0} {1}",
 	"field-week": "Week",
 	"dateFormat-medium": "MMM d, y",
-	"field-year-relative+0": "This year",
-	"field-week-relative+-1": "Last week",
-	"field-year-relative+1": "Next year",
+	"field-year-relative+0": "this year",
+	"field-week-relative+-1": "last week",
+	"field-year-relative+1": "next year",
 	"dayPeriods-format-narrow-pm": "p",
 	"dateTimeFormat-short": "{1}, {0}",
 	"dateFormatItem-Hms": "HH:mm:ss",
 	"dateFormatItem-hms": "h:mm:ss a",
-	"field-week-relative+0": "This week",
-	"field-week-relative+1": "Next week"
+	"dateFormatItem-GyMMM": "MMM y G",
+	"field-mon-relative+-1": "last Monday",
+	"field-week-relative+0": "this week",
+	"field-week-relative+1": "next week"
 }
 //end v1.x content
 );

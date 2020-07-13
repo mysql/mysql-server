@@ -4,25 +4,28 @@ define("dojox/mobile/Heading", [
 	"dojo/_base/declare",
 	"dojo/_base/lang",
 	"dojo/_base/window",
-	"dojo/dom",
 	"dojo/dom-class",
 	"dojo/dom-construct",
 	"dojo/dom-style",
+	"dojo/dom-attr",
 	"dijit/registry",
+	"./common",
 	"dijit/_Contained",
 	"dijit/_Container",
 	"dijit/_WidgetBase",
 	"./ProgressIndicator",
 	"./ToolBarButton",
-	"./View"
-], function(array, connect, declare, lang, win, dom, domClass, domConstruct, domStyle, registry, Contained, Container, WidgetBase, ProgressIndicator, ToolBarButton, View){
+	"./View",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/Heading"
+], function(array, connect, declare, lang, win, domClass, domConstruct, domStyle, domAttr, registry, common, Contained, Container, WidgetBase, ProgressIndicator, ToolBarButton, View, has, BidiHeading){
 
 	// module:
 	//		dojox/mobile/Heading
 
 	var dm = lang.getObject("dojox.mobile", true);
 
-	return declare("dojox.mobile.Heading", [WidgetBase, Container, Contained],{
+	var Heading = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiHeading" : "dojox.mobile.Heading", [WidgetBase, Container, Contained],{
 		// summary:
 		//		A widget that represents a navigation bar.
 		// description:
@@ -94,29 +97,40 @@ define("dojox/mobile/Heading", [
 		baseClass: "mblHeading",
 
 		buildRendering: function(){
-			this.domNode = this.containerNode = this.srcNodeRef || win.doc.createElement(this.tag);
+			if(!this.templateString){ // true if this widget is not templated
+				// Create root node if it wasn't created by _TemplatedMixin
+				this.domNode = this.containerNode = this.srcNodeRef || win.doc.createElement(this.tag);
+			}
 			this.inherited(arguments);
-			if(!this.label){
-				array.forEach(this.domNode.childNodes, function(n){
-					if(n.nodeType == 3){
-						var v = lang.trim(n.nodeValue);
-						if(v){
-							this.label = v;
-							this.labelNode = domConstruct.create("span", {innerHTML:v}, n, "replace");
+			
+			if(!this.templateString){ // true if this widget is not templated
+				if(!this.label){
+					array.forEach(this.domNode.childNodes, function(n){
+						if(n.nodeType == 3){
+							var v = lang.trim(n.nodeValue);
+							if(v){
+								this.label = v;
+								this.labelNode = domConstruct.create("span", {innerHTML:v}, n, "replace");
+							}
 						}
-					}
-				}, this);
+					}, this);
+				}
+				if(!this.labelNode){
+					this.labelNode = domConstruct.create("span", null, this.domNode);
+				}
+				this.labelNode.className = "mblHeadingSpanTitle";
+				this.labelDivNode = domConstruct.create("div", {
+					className: "mblHeadingDivTitle",
+					innerHTML: this.labelNode.innerHTML
+				}, this.domNode);
 			}
-			if(!this.labelNode){
-				this.labelNode = domConstruct.create("span", null, this.domNode);
-			}
-			this.labelNode.className = "mblHeadingSpanTitle";
-			this.labelDivNode = domConstruct.create("div", {
-				className: "mblHeadingDivTitle",
-				innerHTML: this.labelNode.innerHTML
-			}, this.domNode);
 
-			dom.setSelectable(this.domNode, false);
+			if(this.labelDivNode){
+				domAttr.set(this.labelDivNode, "role", "heading"); //a11y
+				domAttr.set(this.labelDivNode, "aria-level", "1");
+			}
+
+			common.setSelectable(this.domNode, false);
 		},
 
 		startup: function(){
@@ -124,9 +138,9 @@ define("dojox/mobile/Heading", [
 			var parent = this.getParent && this.getParent();
 			if(!parent || !parent.resize){ // top level widget
 				var _this = this;
-				setTimeout(function(){ // necessary to render correctly
+				_this.defer(function(){ // necessary to render correctly
 					_this.resize();
-				}, 0);
+				});
 			}
 			this.inherited(arguments);
 		},
@@ -177,10 +191,11 @@ define("dojox/mobile/Heading", [
 					arrow: "left",
 					label: back,
 					moveTo: this.moveTo,
-					back: !this.moveTo,
+					back: !this.moveTo && !this.href, // use browser history unless moveTo or href
 					href: this.href,
 					transition: this.transition,
-					transitionDir: -1
+					transitionDir: -1,
+					dir: this.isLeftToRight() ? "ltr" : "rtl"
 				});
 				this.backButton.placeAt(this.domNode, "first");
 			}else{
@@ -195,6 +210,7 @@ define("dojox/mobile/Heading", [
 			this._set("moveTo", moveTo);
 			if(this.backButton){
 				this.backButton.set("moveTo", moveTo);
+				this.backButton.set("back", !moveTo && !this.href);
 			}
 		},
 		
@@ -204,6 +220,7 @@ define("dojox/mobile/Heading", [
 			this._set("href", href);
 			if(this.backButton){
 				this.backButton.set("href", href);
+				this.backButton.set("back", !this.moveTo && !href);
 			}
 		},
 		
@@ -221,6 +238,7 @@ define("dojox/mobile/Heading", [
 			//		private
 			this._set("label", label);
 			this.labelNode.innerHTML = this.labelDivNode.innerHTML = this._cv ? this._cv(label) : label;
+			delete this.labelNodeLen;
 		},
 
 		_setBusyAttr: function(/*Boolean*/busy){
@@ -234,10 +252,12 @@ define("dojox/mobile/Heading", [
 				}
 				domConstruct.place(prog.domNode, this.domNode, "first");
 				prog.start();
-			}else{
+			}else if(prog){
 				prog.stop();
 			}
 			this._set("busy", busy);
 		}	
 	});
+
+	return has("dojo-bidi") ? declare("dojox.mobile.Heading", [Heading, BidiHeading]) : Heading;
 });

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ inline Table_helper::Table_helper(const char *name, THD *thd)
 }
 
 inline void Table_helper::add_field_long(const char *name, bool is_nullable) {
-  add_field(Mock_field_long(name, is_nullable));
+  add_field(Mock_field_long(name, is_nullable, false));
 }
 
 inline void Table_helper::add_field_varstring(const char *name, uint char_len,
@@ -126,7 +126,7 @@ inline void Table_helper::add_field(const Field &field) {
   EXPECT_FALSE(m_finalized);
 
   auto new_field = field.clone(m_thd->mem_root);
-  new_field->field_index = static_cast<uint16>(m_fields.size());
+  new_field->set_field_index(static_cast<uint16>(m_fields.size()));
 
   m_fields.push_back(new_field);
 }
@@ -247,7 +247,7 @@ inline void Table_helper::finalize_fields() {
     Field *field = m_table_share.field[i];
 
     field->init(&m_table);
-    field->field_index = i;
+    field->set_field_index(i);
 
     bitmap_set_bit(m_table.read_set, i);
     bitmap_set_bit(m_table.write_set, i);
@@ -267,7 +267,7 @@ inline uint Table_helper::set_field_pointers(uchar *record) {
 
   for (auto &field : m_fields) {
     /* Use the flag, it should be valid as field was cloned */
-    if (field->flags & NOT_NULL_FLAG) {
+    if (field->is_flag_set(NOT_NULL_FLAG)) {
       field->set_null_ptr(nullptr, 0);
     } else {
       field->set_null_ptr(nul_ptr, nul_bit);
@@ -277,7 +277,7 @@ inline uint Table_helper::set_field_pointers(uchar *record) {
       }
     }
 
-    field->ptr = buf_ptr;
+    field->set_field_ptr(buf_ptr);
     buf_ptr += field->pack_length();
   }
 

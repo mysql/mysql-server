@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -80,6 +80,17 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
+
+IF(KERBEROS_FOUND)
+  SET(PLUGIN_VERSION_FILE
+    ${CMAKE_CURRENT_SOURCE_DIR}/authentication_ldap_sasl_client.ver)
+  # Hide all symbols in mysys, to avoid ODR violations.
+  # There is *one* visible symbol: _mysql_client_plugin_declaration_
+  SET_TARGET_PROPERTIES(authentication_ldap_sasl_client
+    PROPERTIES LINK_FLAGS
+    " -Wl,--version-script=${PLUGIN_VERSION_FILE}"
+    )
+ENDIF()
 
 IF(LINUX_STANDALONE AND SASL_CUSTOM_LIBRARY)
   TARGET_COMPILE_DEFINITIONS(authentication_ldap_sasl_client

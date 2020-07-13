@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ TEST_F(MakeSortKeyTest, AddonFields) {
                     false);
   Fake_TABLE table(&field);
   table.s->db_low_byte_first = false;
-  field.ptr = reinterpret_cast<unsigned char *>(&val);
+  field.set_field_ptr(reinterpret_cast<unsigned char *>(&val));
   addon_field.field = &field;
   addon_field.offset = 4;  // Need room for the length bytes.
   addon_field.max_length = field.max_packed_col_length();
@@ -176,7 +176,7 @@ TEST_F(MakeSortKeyTest, AddonFields) {
   float unpacked_val;
   field.unpack(reinterpret_cast<uchar *>(&unpacked_val),
                m_to.array() + m_sort_fields[0].length + addon_field.offset,
-               /*param_data=*/0, /*low_byte_first=*/false);
+               /*param_data=*/0);
   EXPECT_EQ(unpacked_val, val);
 
   // Test truncation. (The actual contents don't matter in this case.)

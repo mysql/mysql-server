@@ -71,7 +71,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* write the BOM if necessary */
     if(cnv->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ (char)0xfe, (char)0xff };
+        static const char bom[]={ (char)0xfeu, (char)0xffu };
         ucnv_fromUWriteBytes(cnv,
                              bom, 2,
                              &pArgs->target, pArgs->targetLimit,
@@ -672,7 +672,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* write the BOM if necessary */
     if(cnv->fromUnicodeStatus==UCNV_NEED_TO_WRITE_BOM) {
-        static const char bom[]={ (char)0xff, (char)0xfe };
+        static const char bom[]={ (char)0xffu, (char)0xfeu };
         ucnv_fromUWriteBytes(cnv,
                              bom, 2,
                              &pArgs->target, pArgs->targetLimit,
@@ -1323,9 +1323,17 @@ _UTF16GetName(const UConverter *cnv) {
 U_CDECL_END
 extern const UConverterSharedData _UTF16Data;
 
-#define IS_UTF16BE(cnv) ((cnv)->sharedData==&_UTF16BEData)
-#define IS_UTF16LE(cnv) ((cnv)->sharedData==&_UTF16LEData)
-#define IS_UTF16(cnv) ((cnv)->sharedData==&_UTF16Data || (cnv)->sharedData==&_UTF16v2Data)
+static inline bool IS_UTF16BE(const UConverter *cnv) {
+    return ((cnv)->sharedData == &_UTF16BEData);
+}
+
+static inline bool IS_UTF16LE(const UConverter *cnv) {
+    return ((cnv)->sharedData == &_UTF16LEData);
+}
+
+static inline bool IS_UTF16(const UConverter *cnv) {
+    return ((cnv)->sharedData==&_UTF16Data) || ((cnv)->sharedData == &_UTF16v2Data);
+}
 
 U_CDECL_BEGIN
 static void U_CALLCONV

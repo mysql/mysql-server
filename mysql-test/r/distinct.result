@@ -1285,11 +1285,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
 EXPLAIN
--> Sort with duplicate removal: t1.a DESC
-    -> Stream results
-        -> Group (no aggregates)
-            -> Sort: t1.a DESC, t1.b  (cost=0.80 rows=3)
-                -> Table scan on t1
+-> Sort: t1.a DESC, t1.b
+    -> Sort with duplicate removal: t1.a DESC
+        -> Stream results
+            -> Group (no aggregates)
+                -> Sort: t1.a DESC, t1.b  (cost=0.80 rows=3)
+                    -> Table scan on t1
 
 SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
 a

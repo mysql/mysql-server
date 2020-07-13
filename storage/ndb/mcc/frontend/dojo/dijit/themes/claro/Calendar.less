@@ -36,7 +36,6 @@
 
 .claro .dijitCalendar {
 	border: solid 1px @border-color;
-	border-collapse: separate;	// in case user CSS has set border-collapse: collapse for tables
 	.border-radius(4px);
 
 	// Background color and alpha-gradient
@@ -61,6 +60,9 @@
 	 */
 	background-color: @hovered-background-color;
 	border:solid 1px @hovered-border-color;
+}
+.claro .dijitCalendar table {
+  border-collapse: separate;	// in case user CSS has set border-collapse: collapse for tables
 }
 .claro .dijitCalendarMonthContainer th {
 	text-align:center;
@@ -186,7 +188,7 @@
 /* End Normal Calendar Style */
 /* Hovered Calendar Style */
 .claro .dijitCalendarHoveredDate .dijitCalendarDateLabel,
-.claro .dijitCalendarEnabledDate:hover .dijitCalendarDateLabel {
+.claro .dijitCalendarLite .dijitCalendarEnabledDate:hover .dijitCalendarDateLabel {
 	background-color:@hovered-background-color;
 	border:solid 1px @hovered-border-color;
 	color:@hovered-text-color;
@@ -270,7 +272,7 @@
 	padding: 2px 0;
 }
 .claro .dijitCalendarMonthMenu .dijitCalendarMonthLabelHover,
-.claro .dijitCalendarMonthMenu .dijitCalendarMonthLabel:hover {
+.claro .dijitCalendarMonthMenu .dijitCalendarMonthLabelActive {
 	border-color: @hovered-border-color;
 	border-width:1px 0;
 	.gradient-and-filter(@hovered-background-color, 70, 0);

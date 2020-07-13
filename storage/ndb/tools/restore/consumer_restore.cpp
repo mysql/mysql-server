@@ -38,6 +38,12 @@
 
 #define NDB_ANYVALUE_FOR_NOLOGGING 0x8000007f
 
+/**
+ * PK mapping index has a known name.
+ * Multiple ndb_restore instances can share an index
+ */
+static const char* PK_MAPPING_IDX_NAME = "NDB$RESTORE_PK_MAPPING";
+
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
@@ -1309,11 +1315,11 @@ BackupRestore::finalize_table(const TableS & table){
         NdbSleep_MilliSleep(50);
         continue; // retry
       }
-      err << "Finalize_table failed to read auto increment value for table "
-          << get_table(table)->getName()
-          << " Error : " 
-          << m_ndb->getNdbError()
-          << endl;
+      restoreLogger.log_error("Finalize_table failed to read auto increment "
+                              "value for table %s.  Error : %u %s",
+                              get_table(table)->getName(),
+                              m_ndb->getNdbError().code,
+                              m_ndb->getNdbError().message);
       return false;
     }
     if (restore_next_val > db_next_val)
@@ -1359,6 +1365,12 @@ BackupRestore::rebuild_indexes(const TableS& table)
   m_ndb->setDatabaseName(db_name.c_str());
   m_ndb->setSchemaName(schema_name.c_str());
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+
+  /* First drop any support indexes */
+  if (!dropPkMappingIndex(&table))
+  {
+    return false;
+  }
 
   Vector<NdbDictionary::Index*> & indexes = m_index_per_table[id];
   for(unsigned i = 0; i<indexes.size(); i++)
@@ -2068,7 +2080,8 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
   }
   if (result &&
       retries > 0)
-    err << "--restore-epoch completed successfully after retries" << endl;
+    restoreLogger.log_error("--restore-epoch completed successfully "
+                            "after retries");
 
   return result;
 }
@@ -2193,7 +2206,7 @@ BackupRestore::column_compatible_check(const char* tableName,
     restoreLogger.log_info("Column %s.%s "
         "%s a primary key in the DB", tableName, backupCol->getName(),
         (dbCol->getPrimaryKey()?" is":" is not"));
-    similarEnough = false;
+    /* If --allow-pk-changes is set, this may be ok */
   }
   else
   {
@@ -2309,7 +2322,7 @@ BackupRestore::column_compatible_check(const char* tableName,
   if (similarEnough)
     restoreLogger.log_info("  Difference(s) will be ignored during restore.");
   else
-    restoreLogger.log_info("  Difference(s) cannot be ignored.  Cannot restore this column as is.");
+    restoreLogger.log_info("  Difference(s) cannot be ignored.  Column requires conversion to restore.");
 
   return similarEnough;
 }
@@ -2342,7 +2355,9 @@ BackupRestore::check_blobs(TableS & tableS)
   /**
    * For blob tables, check if there is a conversion on any PK of the main table.
    * If there is, the blob table PK needs the same conversion as the main table PK.
-   * Copy the conversion to the blob table. 
+   * Copy the conversion to the blob table.
+   * If a staging table is used, there may only be a partial conversion done
+   * during data + log restore
    */
   if(match_blob(tableS.getTableName()) == -1)
     return true;
@@ -2352,19 +2367,62 @@ BackupRestore::check_blobs(TableS & tableS)
   if(mainTableS->m_dictTable->getColumn(mainColumnId)->getBlobVersion() == NDB_BLOB_V1)
     return true; /* only to make old ndb_restore_compat* tests on v1 blobs pass */
 
-  /* check all PK columns in v2 blob table */
+  /**
+   * Loop over columns in Backup schema for Blob parts table.
+   * v2 Blobs have e.g. <Main table PK col(s)>, NDB$PART, NDB$PKID, NDB$DATA
+   */
   for(int i=0; i<tableS.m_dictTable->getNoOfColumns(); i++)
   {
     NDBCOL *col = tableS.m_dictTable->getColumn(i);
     AttributeDesc *attrDesc = tableS.getAttributeDesc(col->getAttrId());
   
-    /* get corresponding pk column in main table */
-    NDBCOL *mainCol = mainTableS->m_dictTable->getColumn(col->getName());
-    if(!mainCol || !mainCol->getPrimaryKey()) 
-      return true; /* no more PKs */
+    /* get corresponding pk column in main table, backup + kernel versions */
+    NDBCOL *backupMainCol = mainTableS->m_dictTable->getColumn(col->getName());
+    const NdbDictionary::Table* ndbMainTab = get_table(*mainTableS);
+    const NdbDictionary::Column* ndbMainCol = ndbMainTab->getColumn(col->getName());
+    const NdbDictionary::Table* ndbTab = get_table(tableS);
+    const NdbDictionary::Column* ndbCol = ndbTab->getColumn(col->getName());
 
-    int mainTableAttrId = mainCol->getAttrId();
+    if(!backupMainCol || !backupMainCol->getPrimaryKey())
+    {
+      /* Finished with Blob part table's pk columns shared with main table
+       * (Blob parts table always has main table PKs first)
+       * Now just setting attrId values to match kernel table
+       */
+      assert(ndbCol != NULL);
+      attrDesc->attrId = ndbCol->getColumnNo();
+      continue;
+    }
+
+    int mainTableAttrId = backupMainCol->getAttrId();
     AttributeDesc *mainTableAttrDesc = mainTableS->getAttributeDesc(mainTableAttrId);
+
+    if (mainTableAttrDesc->m_exclude)
+    {
+      /**
+       * This column is gone from the main table pk, remove it from the
+       * Blob part table pk here
+       */
+      restoreLogger.log_debug("Column excluded from main table, "
+                              "exclude from blob parts pk");
+      attrDesc->m_exclude = true;
+      continue;
+    }
+
+    /* Column is part of main table pk in backup, check DB */
+    if (!ndbMainCol->getPrimaryKey())
+    {
+      /* This column is still in the main table, but no longer
+       * as part of the primary key
+       */
+      restoreLogger.log_debug("Column moved from pk in main table, "
+                              "exclude from blob parts pk");
+      attrDesc->m_exclude = true;
+      continue;
+    }
+
+    attrDesc->attrId = ndbCol->getColumnNo();
+
     if(mainTableAttrDesc->convertFunc)
     {
       /* copy convertFunc from main table PK to blob table PK */
@@ -2413,6 +2471,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
 
   BaseString db_name, schema_name, table_name;
   if (!dissect_table_name(tablename, db_name, schema_name, table_name)) {
+    restoreLogger.log_error("Failed to dissect table name %s", tablename);
     return false;
   }
   check_rewrite_database(db_name);
@@ -2429,16 +2488,91 @@ BackupRestore::table_compatible_check(TableS & tableS)
   }
 
   /**
+   * Allowed primary key modifications
+   *
+   * Extend pk
+   *   a) Using existing non-pk non-nullable column(s)
+   *   b) NOT SUPPORTED Using new defaulted columns
+   *
+   * Contract pk
+   *   c) Leaving columns in the table
+   *   d) Removing columns entirely
+   *
+   * b) not currently supported as
+   *   - NdbApi does not represent default-valued pk
+   *     columns
+   *   - NdbApi does not have a concept of a default-init
+   *     value for a type like MySQLD
+   *   In future these concepts could be added to NdbApi
+   *   or even to ndb_restore.
+   *   An autoincrement column could also be considered a
+   *   type of defaulted column in a future extension.
+   *
+   * Note that
+   *   a) + c) are symmetric
+   *   b) + d) are symmetric
+   *
+   * Since b) is not supported, d) must be used with care
+   * as it is not 'reversible' in e.g. a rollback / replication
+   * use case.
+   *
+   * Reducing or demoting the pk columns has the risk that
+   * the reduced pk is no longer unique across the set of
+   * key values in the backup.
+   * This is a user responsibility to avoid, as it is today
+   * when a pk column undergoes a lossy type demotion.
+   *
+   * When INSERTing rows (from .Data or .Log), all column
+   * values are present, so support is trivial.
+   *
+   * PK mapping index
+   *
+   * For UPDATE and DELETE, c) and d) are trivial, but
+   * a) requires some way to identify which row to
+   * update or delete.  This is managed using an optional
+   * secondary index on the old primary key column(s).
+   *
+   * Changes to PK columns in log
+   *
+   * For case a), it is possible that a backup log contains
+   * UPDATEs to the columns which are becoming part
+   * of the primary key.  When applying those to the new
+   * table schema, they are mapped to separate DELETE + INSERT
+   * operations.
+   *
+   * Blobs
+   *
+   * Blob columns have part tables which share the primary key of
+   * the main table, but do not have all of the other columns.
+   *
+   * For a), this would require that a column from the main table row
+   * is found and used when inserting/updating/deleting a part table
+   * row.
+   *
+   * This is not practical for ndb_restore to do inline in a single
+   * pass, so for pk changes to tables with Blobs, we require the
+   * use of a staging table to achieve this transform.
+   */
+  bool full_pk_present_in_kernel = true;
+  bool pk_extended_in_kernel = false;
+  bool table_has_blob_parts = false;
+
+
+  /**
    * remap column(s) based on column-names
+   * Loop over columns recorded in the Backup
    */
   for (int i = 0; i<tableS.m_dictTable->getNoOfColumns(); i++)
   {
     AttributeDesc * attr_desc = tableS.getAttributeDesc(i);
     const NDBCOL * col_in_backup = tableS.m_dictTable->getColumn(i);
     const NDBCOL * col_in_kernel = tab->getColumn(col_in_backup->getName());
+    const bool col_in_backup_pk = col_in_backup->getPrimaryKey();
 
     if (col_in_kernel == 0)
     {
+      /* Col in backup does not exist in kernel */
+
       if ((m_tableChangesMask & TCM_EXCLUDE_MISSING_COLUMNS) == 0)
       {
         restoreLogger.log_error( "Missing column(%s.%s) in DB and "
@@ -2452,13 +2586,74 @@ BackupRestore::table_compatible_check(TableS & tableS)
           tableS.m_dictTable->getName(), col_in_backup->getName());
 
       attr_desc->m_exclude = true;
+
+      if (col_in_backup_pk)
+      {
+        restoreLogger.log_info("  Missing column (%s.%s) in DB was "
+                               "part of primary key in Backup.  "
+                               "Risk of row loss or merge if remaining "
+                               "key(s) not unique.",
+                               tableS.m_dictTable->getName(),
+                               col_in_backup->getName());
+
+        full_pk_present_in_kernel = false;
+      }
     }
     else
     {
+      /* Col in backup exists in kernel */
       attr_desc->attrId = col_in_kernel->getColumnNo();
+
+      {
+        const bool col_in_kernel_pk = col_in_kernel->getPrimaryKey();
+
+        if (col_in_backup_pk)
+        {
+          if (!col_in_kernel_pk)
+          {
+            restoreLogger.log_info("Column (%s.%s) is part of "
+                                   "primary key in Backup but "
+                                   "not part of primary key in DB. "
+                                   " Risk of row loss or merge if remaining "
+                                   " key(s) not unique.",
+                                   tableS.m_dictTable->getName(),
+                                   col_in_backup->getName());
+
+            full_pk_present_in_kernel = false;
+          }
+        }
+        else
+        {
+          if (col_in_kernel_pk)
+          {
+            restoreLogger.log_info("Column (%s.%s) is not part of "
+                                   "primary key in Backup but "
+                                   "changed to be part of primary "
+                                   "key in DB.",
+                                   tableS.m_dictTable->getName(),
+                                   col_in_backup->getName());
+
+            pk_extended_in_kernel = true;
+          }
+        }
+
+        /* Check for blobs with part tables */
+        switch (col_in_kernel->getType())
+        {
+        case NDB_TYPE_BLOB:
+        case NDB_TYPE_TEXT:
+          if (col_in_kernel->getPartSize() > 0)
+          {
+            table_has_blob_parts = true;
+          }
+        default:
+          break;
+        }
+      }
     }
   }
 
+  /* Loop over columns present in the DB */
   for (int i = 0; i<tab->getNoOfColumns(); i++)
   {
     const NDBCOL * col_in_kernel = tab->getColumn(i);
@@ -2467,9 +2662,10 @@ BackupRestore::table_compatible_check(TableS & tableS)
 
     if (col_in_backup == 0)
     {
+      /* New column in database */
       if ((m_tableChangesMask & TCM_EXCLUDE_MISSING_COLUMNS) == 0)
       {
-        restoreLogger.log_error( "Missing column(%s.%s) ) in backup and "
+        restoreLogger.log_error( "Missing column(%s.%s) in backup and "
             "exclude-missing-columns not specified",
              tableS.m_dictTable->getName(), col_in_kernel->getName());
         return false;
@@ -2483,7 +2679,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
           ((col_in_kernel->getNullable() == false) &&
            (col_in_kernel->getDefaultValue() == NULL)))
       {
-        restoreLogger.log_error( "Missing column(%s.%s)in backup "
+        restoreLogger.log_error( "Missing column(%s.%s) in backup "
             " is primary key or not nullable or defaulted in DB",
             tableS.m_dictTable->getName(), col_in_kernel->getName());
         return false;
@@ -2496,6 +2692,92 @@ BackupRestore::table_compatible_check(TableS & tableS)
                                             "Null" : "Default value"));
     }
   }
+
+  /* Check pk changes against flags */
+
+  if (pk_extended_in_kernel)
+  {
+    if ((m_tableChangesMask & TCM_ALLOW_PK_CHANGES) == 0)
+    {
+      restoreLogger.log_error("Error : Primary key extended in DB without "
+                              "allow-pk-changes.");
+      return false;
+    }
+
+    if (m_restore && !m_disable_indexes)
+    {
+      /**
+       * Prefer to use disable_indexes here as it supports safer use of
+       * a single shared mapping index rather than per
+       * ndb_restore / slice / thread indices
+       */
+      restoreLogger.log_info("Warning : Primary key extended in DB with "
+                             "allow-pk-changes, and --restore-data but without "
+                             "--disable-indexes.  A final --rebuild-indexes step "
+                             "is required to drop any mapping indices created.");
+      /**
+       * This could be a hard error (requiring --disable-indexes), but
+       * for now it is a warning, allowing serialised use of ndb_restore
+       * without --disable-indexes and --rebuild-indexes
+       */
+      //return false;
+    }
+
+    if (table_has_blob_parts)
+    {
+      /**
+       * Problem as the blob parts tables will not have the
+       * non-pk column(s) required to do a 1-pass reformat.
+       * This requires staging tables.
+       */
+      restoreLogger.log_info("Table %s has Blob/Text columns with part tables "
+                             "and an extended primary key.  This requires "
+                             "staging.", tableS.getTableName());
+      tableS.m_staging = true;
+    }
+  }
+
+  if (!full_pk_present_in_kernel)
+  {
+    if ((m_tableChangesMask & TCM_ALLOW_PK_CHANGES) == 0)
+    {
+      restoreLogger.log_error("Error : Primary key reduced in DB without "
+                              "allow-pk-changes.");
+      return false;
+    }
+    if ((m_tableChangesMask & TCM_ATTRIBUTE_DEMOTION) == 0)
+    {
+      restoreLogger.log_error("Error : Primary key reduced in DB without "
+                              "lossy-conversions.");
+      return false;
+    }
+  }
+
+  if (pk_extended_in_kernel ||
+      !full_pk_present_in_kernel)
+  {
+    if (tab->getFragmentType() == NdbDictionary::Object::UserDefined)
+    {
+      /**
+       * Note
+       *
+       * 1.  Type promotion/demotion on distribution keys may also
+       *     affect stored hash for user defined partitioning
+       *     As we don't know the function mapping we cannot allow
+       *     this.
+       *
+       * 2.  Could allow changes to non-distribution primary keys
+       *     if there are any, but not for now.
+       */
+      restoreLogger.log_error("Error : Primary key changes to table with "
+                              "user-defined partitioning not supported as "
+                              "new value of stored distribution keys "
+                              "potentially unknown.");
+      return false;
+    }
+  }
+
+  tableS.m_pk_extended = pk_extended_in_kernel;
 
   AttrCheckCompatFunc attrCheckCompatFunc = NULL;
   for(int i = 0; i<tableS.m_dictTable->getNoOfColumns(); i++)
@@ -2517,6 +2799,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
 
     NDBCOL::Type type_in_backup = col_in_backup->getType();
     NDBCOL::Type type_in_kernel = col_in_kernel->getType();
+    const bool col_in_kernel_pk = col_in_kernel->getPrimaryKey();
     attrCheckCompatFunc = get_attr_check_compatability(type_in_backup,
                                                        type_in_kernel);
     AttrConvType compat
@@ -2526,7 +2809,8 @@ BackupRestore::table_compatible_check(TableS & tableS)
     case ACT_UNSUPPORTED:
       {
         restoreLogger.log_error("Table: %s column: %s"
-            " incompatible with kernel's definition",
+            " incompatible with kernel's definition. "
+            "Conversion not possible",
             tablename, col_in_backup->getName());
         return false;
       }
@@ -2549,6 +2833,14 @@ BackupRestore::table_compatible_check(TableS & tableS)
             tablename, col_in_backup->getName());
         return false;
       }
+      if (col_in_kernel_pk)
+      {
+        restoreLogger.log_info("Warning : Table: %s column: %s "
+                               "is part of primary key and involves "
+                               "a lossy conversion.  Risk of row loss "
+                               "or merge if demoted key(s) not unique.",
+                               tablename, col_in_backup->getName());
+      }
       break;
     case ACT_STAGING_PRESERVING:
       if ((m_tableChangesMask & TCM_ATTRIBUTE_PROMOTION) == 0)
@@ -2559,6 +2851,10 @@ BackupRestore::table_compatible_check(TableS & tableS)
             tablename, col_in_backup->getName());
         return false;
       }
+      /**
+       * Staging lossy conversions should be safe w.r.t pk uniqueness
+       * as staging conversion rejects duplicate keys
+       */
       attr_desc->staging = true;
       tableS.m_staging = true;
       tableS.m_stagingFlags |= Ndb_move_data::Opts::MD_ATTRIBUTE_PROMOTION;
@@ -2721,6 +3017,8 @@ BackupRestore::table_compatible_check(TableS & tableS)
         {
           stagingTable->addColumn(*col_in_backup);
           attr_desc->convertFunc = NULL;
+          attr_desc->staging = true;
+          tableS.m_stagingFlags |= Ndb_move_data::Opts::MD_ATTRIBUTE_PROMOTION;
         }
         else
         {
@@ -2838,8 +3136,9 @@ BackupRestore::table(const TableS & table){
         assert(copy.getFragmentCount() != 0);
         part_bal = NdbDictionary::Object::PartitionBalance_Specific;
         copy.setPartitionBalance(part_bal);
-        info << "Setting " << name << " to specific partition balance with "
-             << copy.getFragmentCount() << " fragments." << endl;
+        restoreLogger.log_info("Setting %s to specific partition balance with "
+                               "%u fragments.",
+                               name, copy.getFragmentCount());
       }
     }
     if (part_bal != NdbDictionary::Object::PartitionBalance_Specific)
@@ -3011,9 +3310,11 @@ BackupRestore::table(const TableS & table){
           NdbSleep_MilliSleep(50);
           continue;
         }
-        err << "Failed to create auto increment value for table : "
-            << table_name << " error : " << m_ndb->getNdbError()
-            << endl;
+        restoreLogger.log_error("Failed to create auto increment value "
+                                "for table : %s error : %u %s.",
+                                table_name.c_str(),
+                                m_ndb->getNdbError().code,
+                                m_ndb->getNdbError().message);
         return false;
       }
     }
@@ -3576,10 +3877,14 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
           Uint32 orig_table_id = tup.getTable()->m_dictTable->getTableId();
           update_next_auto_val(orig_table_id, usedAutoVal + 1);
         }
+
+        /* Use column's DB pk status to decide whether it is a key or data */
+        const bool col_pk_in_kernel =
+          table->getColumn(attr_desc->attrId)->getPrimaryKey();
 	
         if (attr_desc->convertFunc)
         {
-          if ((attr_desc->m_column->getPrimaryKey() && j == 0) ||
+          if ((col_pk_in_kernel && j == 0) ||
               (j == 1 && !attr_data->null))
           {
             bool truncated = true; // assume data truncation until overridden
@@ -3603,7 +3908,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
           }            
         }
 
-	if (attr_desc->m_column->getPrimaryKey())
+	if (col_pk_in_kernel)
 	{
 	  if (j == 1) continue;
 	  ret = op->equal(attr_desc->attrId, dataPtr, length);
@@ -3782,7 +4087,7 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
 void BackupRestore::exitHandler()
 {
   release();
-  exit(NdbToolsProgramExitCode::FAILED);
+  _exit(NdbToolsProgramExitCode::FAILED);
 }
 
 
@@ -3803,6 +4108,310 @@ void
 BackupRestore::endOfTuples()
 {
   tuple_free();
+}
+
+bool
+BackupRestore::tryCreatePkMappingIndex(TableS* table,
+                                       const char* short_table_name)
+{
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  const NdbDictionary::Table* ndbtab = dict->getTable(short_table_name);
+
+  if (ndbtab == NULL)
+  {
+    restoreLogger.log_error("Failed to find table %s in DB.  Error : %u %s.",
+                            table->getTableName(),
+                            dict->getNdbError().code,
+                            dict->getNdbError().message);
+    return false;
+  }
+  NdbDictionary::Index idx(PK_MAPPING_IDX_NAME);
+
+  if (idx.setTable(short_table_name) != 0)
+  {
+    restoreLogger.log_error("Error in idx::setTable.");
+    return false;
+  }
+
+  idx.setType(NdbDictionary::Index::UniqueHashIndex);
+  idx.setLogging(false); /* Save on redo + lcp */
+
+  Uint32 oldPkColsAvailable = 0;
+
+  for (int i=0; i<table->getNoOfAttributes(); i++)
+  {
+    const AttributeDesc* attrDesc = table->getAttributeDesc(i);
+    if (attrDesc->m_column->getPrimaryKey())
+    {
+      /* This was a primary key before.
+       * If it's still in the table then add as
+       * an index key
+       */
+      const NdbDictionary::Column* col =
+        ndbtab->getColumn(attrDesc->m_column->getName());
+
+      if (col != NULL)
+      {
+        restoreLogger.log_info("Adding column (%s) DB(%s) to "
+                               "PK mapping index for table %s.",
+                               attrDesc->m_column->getName(),
+                               col->getName(),
+                               table->getTableName());
+
+        if (idx.addColumn(*col) != 0)
+        {
+          restoreLogger.log_error("Problem adding column %s to index",
+                                  col->getName());
+          return false;
+        }
+
+        oldPkColsAvailable++;
+      }
+      else
+      {
+        restoreLogger.log_info("Warning : Table %s primary key column %s "
+                               "no longer exists in DB.",
+                               table->getTableName(),
+                               attrDesc->m_column->getName());
+      }
+    }
+  }
+
+  if (oldPkColsAvailable == 0)
+  {
+    restoreLogger.log_error("Table %s has update or delete backup log "
+                            "entries and no columns from the old "
+                            "primary key are available. "
+                            "Restore using backup schema then ALTER to "
+                            "new schema.",
+                            table->getTableName());
+    return false;
+  }
+
+  if (dict->createIndex(idx) == 0)
+  {
+    restoreLogger.log_info("Built PK mapping index on table %s.",
+                           table->getTableName());
+
+    restoreLogger.log_info("Remember to run ndb_restore --rebuild-indexes "
+                           "after all ndb_restore --restore-data steps as this "
+                           "will also drop this PK mapping index.");
+    return true;
+  }
+
+
+  /* Potential errors :
+     - Index now exists - someone else created it
+     - System busy with other operation
+     - Temp error
+     - Permanent error
+  */
+  NdbError createError = dict->getNdbError();
+
+  if (createError.code == 721)
+  {
+    /* Index now exists - we will use it */
+    return true;
+  } else if (createError.code == 701)
+  {
+    /**
+     * System busy with other (schema) operation
+     *
+     * This could be e.g. another ndb_restore instance building
+     * the index, or something else
+     */
+    restoreLogger.log_info("Build PK mapping index : System busy with "
+                           "other schema operation, retrying.");
+    NdbSleep_MilliSleep(1000);
+    return true;
+  }
+  else if (createError.status == NdbError::TemporaryError)
+  {
+    NdbSleep_MilliSleep(500);
+    return true;
+  }
+  else
+  {
+    restoreLogger.log_error("Failed to create pk mapping index on "
+                            "table %s %u %s.",
+                            table->getTableName(),
+                            createError.code,
+                            createError.message);
+    return false;
+  }
+}
+
+bool
+BackupRestore::getPkMappingIndex(TableS* table)
+{
+  /**
+   * A table can have more pk columns in the DB than
+   * in the Backup.
+   * For UPDATE and DELETE log events, where the full
+   * DB pk is not available, we need some means to
+   * identify which row to modify.
+   * This is done using a PkMappingIndex, on the
+   * available primary keys from the Backup schema.
+   *
+   * Optimisations :
+   *  - A mapping index is only built if needed
+   *    (e.g. pk extension + UPDATE/DELETE log
+   *    event must be applied)
+   *  - A mapping index can be shared between
+   *    multiple ndb_restore instances
+   *    - It is created when the first
+   *      ndb_restore instance to need one
+   *      creates one
+   *    - It is dropped as part of the
+   *      --rebuild-indexes step
+   */
+  const NdbDictionary::Index* dbIdx = NULL;
+  const Uint32 Max_Retries = 20;
+  Uint32 retry_count = 0;
+
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+
+  /* Set database, schema */
+  BaseString db_name, schema_name, table_name;
+  if (!dissect_table_name(table->getTableName(),
+                          db_name, schema_name, table_name))
+  {
+    restoreLogger.log_error("Failed to dissect table name : %s",
+                            table->getTableName());
+    return false;
+  }
+
+  check_rewrite_database(db_name);
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
+  const char* short_table_name = table_name.c_str();
+
+  do
+  {
+    dbIdx = dict->getIndex(PK_MAPPING_IDX_NAME,
+                           short_table_name);
+
+    if (dbIdx)
+    {
+      /* Found index, use it */
+      table->m_pk_index = dbIdx;
+      return true;
+    }
+    else
+    {
+      NdbError getErr = dict->getNdbError();
+
+      if (getErr.code == 701)
+      {
+        /**
+         * System busy with other (schema) operation
+         *
+         * This could be e.g. another ndb_restore instance building
+         * the index, or some other DDL.
+         */
+        restoreLogger.log_info("Build PK mapping index : System busy with "
+                               "other schema operation, retrying.");
+        NdbSleep_MilliSleep(1000);
+        continue;
+      }
+
+      if (getErr.code == 4243)
+      {
+        /**
+         * Index not found
+         * Let's try to create it
+         */
+        if (!tryCreatePkMappingIndex(table,
+                                     short_table_name))
+        {
+          /* Hard failure */
+          return false;
+        }
+        retry_count = 0;
+
+        /* Retry lookup */
+        continue;
+      }
+      else if (getErr.status == NdbError::TemporaryError)
+      {
+        NdbSleep_MilliSleep(500);
+
+        /* Retry lookup */
+        continue;
+      }
+      else
+      {
+        restoreLogger.log_error("Failure looking up PK mapping index on "
+                                "table %s %u %s.",
+                                table->getTableName(),
+                                getErr.code,
+                                getErr.message);
+        return false;
+      }
+    }
+  } while (retry_count++ < Max_Retries);
+
+  restoreLogger.log_error("Failure to lookup / create PK mapping "
+                          "index after %u attempts.",
+                          Max_Retries);
+  return false;
+}
+
+bool
+BackupRestore::dropPkMappingIndex(const TableS* table)
+{
+  const char *tablename = table->getTableName();
+
+  BaseString db_name, schema_name, table_name;
+  if (!dissect_table_name(tablename, db_name, schema_name, table_name)) {
+    return false;
+  }
+  check_rewrite_database(db_name);
+
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+
+  /* Drop any support indexes */
+  bool dropped = false;
+  int attempts = 11;
+  while (!dropped && attempts--)
+  {
+    dict->dropIndex(PK_MAPPING_IDX_NAME,
+                    table_name.c_str());
+    const NdbError dropErr = dict->getNdbError();
+    switch (dropErr.status)
+    {
+    case NdbError::Success:
+      restoreLogger.log_info("Dropped PK mapping index on %s.",
+                             tablename);
+      dropped = true;
+      break;
+    case NdbError::TemporaryError:
+      restoreLogger.log_error("Temporary error: %u %s.",
+                              dropErr.code,
+                              dropErr.message);
+      NdbSleep_MilliSleep(500);
+      continue;
+    case NdbError::PermanentError:
+      if (dropErr.code == 723 ||
+          dropErr.code == 4243)
+      {
+        // No such table exists
+        dropped = true;
+        break;
+      }
+      /* Fall through */
+    default:
+      restoreLogger.log_error("Error dropping mapping index on %s %u %s",
+                              tablename,
+                              dropErr.code,
+                              dropErr.message);
+      return false;
+    }
+  }
+
+  return dropped;
 }
 
 #ifdef NOT_USED
@@ -3842,6 +4451,36 @@ BackupRestore::logEntry(const LogEntry & tup)
   if (!m_restore)
     return;
 
+  bool use_mapping_idx = false;
+
+  if (unlikely((tup.m_table->m_pk_extended) &&
+               (tup.m_type != LogEntry::LE_INSERT) &&
+               (!tup.m_table->m_staging)))
+  {
+    /**
+     * We will need to find a row to operate on, using
+     * a secondary unique index on the remains of the
+     * old PK
+     */
+    if (unlikely(tup.m_table->m_pk_index == NULL))
+    {
+      /* Need to get/build an index for this purpose */
+      if (!getPkMappingIndex(tup.m_table))
+      {
+        restoreLogger.log_error("Build of PK mapping index failed "
+                                "on table %s.",
+                                tup.m_table->getTableName());
+        exitHandler();
+      }
+      assert(tup.m_table->m_pk_index != NULL);
+
+      restoreLogger.log_info("Using PK mapping index on table %s.",
+                             tup.m_table->getTableName());
+    }
+
+    use_mapping_idx = true;
+  }
+
   if (tup.m_table->isSYSTAB_0())
   {
     /* We don't restore from SYSTAB_0 log entries */
@@ -3851,6 +4490,8 @@ BackupRestore::logEntry(const LogEntry & tup)
   Uint32 retries = 0;
   NdbError errobj;
 retry:
+  Uint32 mapping_idx_key_count = 0;
+
   if (retries == 11)
   {
     restoreLogger.log_error("execute failed: %u", errobj.code);
@@ -3877,7 +4518,19 @@ retry:
   
   TransGuard g(trans);
   const NdbDictionary::Table * table = get_table(*tup.m_table);
-  NdbOperation * op = trans->getNdbOperation(table);
+  NdbOperation * op = NULL;
+
+  if (unlikely(use_mapping_idx))
+  {
+    /* UI access */
+    op = trans->getNdbIndexOperation(tup.m_table->m_pk_index,
+                                     table);
+  }
+  else
+  {
+    /* Normal pk access */
+    op = trans->getNdbOperation(table);
+  }
   if (op == NULL) 
   {
     restoreLogger.log_error("Cannot get operation: %u: %s", trans->getNdbError().code, trans->getNdbError().message);
@@ -3924,68 +4577,142 @@ retry:
 
   Bitmask<4096> keys;
   Uint32 n_bytes= 0;
-  for (Uint32 i= 0; i < tup.size(); i++) 
+  for (Uint32 pass= 0; pass < 2; pass++)  // Keys then Values
   {
-    const AttributeS * attr = tup[i];
-    int size = attr->Desc->size;
-    int arraySize = attr->Desc->arraySize;
-    const char * dataPtr = attr->Data.string_value;
-
-    if (attr->Desc->m_exclude)
-      continue;
-    
-    if (tup.m_table->have_auto_inc(attr->Desc->attrId))
+    for (Uint32 i= 0; i < tup.size(); i++)
     {
-      Uint64 usedAutoVal = extract_auto_val(dataPtr,
-                                            size * arraySize,
-                                            attr->Desc->m_column->getType());
-      Uint32 orig_table_id = tup.m_table->m_dictTable->getTableId();
-      update_next_auto_val(orig_table_id, usedAutoVal + 1);
-    }
+      const AttributeS * attr = tup[i];
+      int size = attr->Desc->size;
+      int arraySize = attr->Desc->arraySize;
+      const char * dataPtr = attr->Data.string_value;
+      const bool col_pk_in_backup = attr->Desc->m_column->getPrimaryKey();
 
-    const Uint32 length = (size / 8) * arraySize;
-    n_bytes+= length;
+      if (attr->Desc->m_exclude)
+        continue;
 
-    if (attr->Desc->convertFunc &&
-        dataPtr != NULL) // NULL will not be converted
-    {
-      bool truncated = true; // assume data truncation until overridden
-      dataPtr = (char*)attr->Desc->convertFunc(dataPtr,
-                                               attr->Desc->parameter,
-                                               truncated);
-      if (!dataPtr)
+      const bool col_pk_in_kernel =
+        table->getColumn(attr->Desc->attrId)->getPrimaryKey();
+      bool col_is_key = col_pk_in_kernel;
+      Uint32 keyAttrId = attr->Desc->attrId;
+
+      if (unlikely(use_mapping_idx))
       {
-        const char* tabname = tup.m_table->m_dictTable->getName();
-        restoreLogger.log_error("Error: Convert data failed when restoring tuples!"
-               " Log part, table %s, entry type %u",
-               tabname, tup.m_type);
+        if (col_pk_in_backup)
+        {
+          /* Using a secondary UI to map non-excluded
+           * backup keys to kernel rows.
+           * Backup pks are UI keys, using key
+           * AttrIds in declaration order.
+           * Therefore we set the attrId here.
+           */
+          col_is_key = true;
+          keyAttrId = mapping_idx_key_count++;
+        }
+        else
+        {
+          col_is_key = false;
+        }
+      }
+
+      if ((!col_is_key && pass == 0) ||  // Keys
+          (col_is_key && pass == 1))     // Values
+      {
+        continue;
+      }
+
+      /* Check for unsupported PK update */
+      if (unlikely(!col_pk_in_backup && col_pk_in_kernel))
+     {
+        if (unlikely(tup.m_type == LogEntry::LE_UPDATE))
+        {
+          if ((m_tableChangesMask & TCM_IGNORE_EXTENDED_PK_UPDATES) != 0)
+          {
+            /* Ignore it as requested */
+            m_pk_update_warning_count++;
+            continue;
+          }
+          else
+          {
+            /**
+             * Problem as a non-pk column has become part of
+             * the table's primary key, but is updated in
+             * the backup - which would require DELETE + INSERT
+             * to represent
+             */
+            restoreLogger.log_error("Error : Primary key remapping failed "
+                                    "during log apply for table %s which " 
+                                    "UPDATEs column(s) now included in the "
+                                    "table's primary key.  "
+                                    "Perhaps the --ignore-extended-pk-updates "
+                                    "switch is missing?",
+                                    tup.m_table->m_dictTable->getName());
+            exitHandler();
+          }
+        }
+     }
+      if (tup.m_table->have_auto_inc(attr->Desc->attrId))
+      {
+        Uint64 usedAutoVal = extract_auto_val(dataPtr,
+                                              size * arraySize,
+                                              attr->Desc->m_column->getType());
+        Uint32 orig_table_id = tup.m_table->m_dictTable->getTableId();
+        update_next_auto_val(orig_table_id, usedAutoVal + 1);
+      }
+
+      const Uint32 length = (size / 8) * arraySize;
+      n_bytes+= length;
+
+      if (attr->Desc->convertFunc &&
+          dataPtr != NULL) // NULL will not be converted
+      {
+        bool truncated = true; // assume data truncation until overridden
+        dataPtr = (char*)attr->Desc->convertFunc(dataPtr,
+                                                 attr->Desc->parameter,
+                                                 truncated);
+        if (!dataPtr)
+        {
+          const char* tabname = tup.m_table->m_dictTable->getName();
+          restoreLogger.log_error("Error: Convert data failed when restoring tuples! "
+                                  "Log part, table %s, entry type %u.",
+                                  tabname, tup.m_type);
+          exitHandler();
+        }
+        if (truncated)
+        {
+          // wl5421: option to report data truncation on tuple of desired
+          //err << "******  data truncation detected for column: "
+          //    << attr->Desc->m_column->getName() << endl;
+          attr->Desc->truncation_detected = true;
+        }
+      }
+
+      if (col_is_key)
+      {
+        assert(pass == 0);
+
+        if(!keys.get(keyAttrId))
+        {
+          keys.set(keyAttrId);
+          check= op->equal(keyAttrId, dataPtr, length);
+        }
+      }
+      else
+      {
+        assert(pass == 1);
+        if (tup.m_type != LogEntry::LE_DELETE)
+        {
+          check= op->setValue(attr->Desc->attrId, dataPtr, length);
+        }
+      }
+
+      if (check != 0)
+      {
+        restoreLogger.log_error("Error defining log op: %u %s.",
+                                trans->getNdbError().code,
+                                trans->getNdbError().message);
         exitHandler();
-      }            
-      if (truncated)
-      {
-        // wl5421: option to report data truncation on tuple of desired
-        //restoreLogger.log_error("******  data truncation detected for column: "
-        //    << attr->Desc->m_column->getName());
-        attr->Desc->truncation_detected = true;
-      }
-    } 
- 
-    if (attr->Desc->m_column->getPrimaryKey())
-    {
-      if(!keys.get(attr->Desc->attrId))
-      {
-	keys.set(attr->Desc->attrId);
-	check= op->equal(attr->Desc->attrId, dataPtr, length);
-      }
+      } // if
     }
-    else
-      check= op->setValue(attr->Desc->attrId, dataPtr, length);
-    
-    if (check != 0) 
-    {
-      restoreLogger.log_error("Error defining op: %u: %s",trans->getNdbError().code, trans->getNdbError().message);
-      exitHandler();
-    } // if
   }
   
   if (opt_no_binlog)
@@ -3993,6 +4720,19 @@ retry:
     op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
   const int ret = trans->execute(NdbTransaction::Commit);
+
+#ifndef DBUG_OFF
+  /* Test retry path */
+  if ((m_logCount % 100000) == 3)
+  {
+    if (retries < 3)
+    {
+      restoreLogger.log_info("Testing log retry path");
+      goto retry;
+    }
+  }
+#endif
+
   if (ret != 0)
   {
     // Both insert update and delete can fail during log running
@@ -4032,6 +4772,14 @@ BackupRestore::endOfLogEntrys()
 {
   if (!m_restore)
     return;
+
+  if (m_pk_update_warning_count > 0)
+  {
+    restoreLogger.log_info("Warning : --ignore-extended-pk-updates resulted in %llu "
+                           "modifications to extended primary key columns being "
+                           "ignored.",
+                           m_pk_update_warning_count);
+  }
 
   info.setLevel(254);
   restoreLogger.log_info("Restored %u tuples and "

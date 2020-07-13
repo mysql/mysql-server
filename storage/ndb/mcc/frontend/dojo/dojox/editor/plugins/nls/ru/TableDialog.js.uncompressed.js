@@ -2,9 +2,9 @@ define(
 "dojox/editor/plugins/nls/ru/TableDialog", ({
 	insertTableTitle: "Вставить таблицу",
 	modifyTableTitle: "Изменить таблицу",
-	rows: "Строк:",
-	columns: "Столбцов:",
-	align: "Выровнять:",
+	rows: "Число строк:",
+	columns: "Число столбцов:",
+	align: "Выравнивание:",
 	cellPadding: "Отступ внутри ячеек:",
 	cellSpacing: "Расстояние между ячейками:",
 	tableWidth: "Ширина таблицы:",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Добавить столбец перед",
 	insertTableColumnAfterLabel: "Добавить столбец после",
 	deleteTableRowLabel: "Удалить строку",
-	deleteTableColumnLabel: "Удалить столбец"
+	deleteTableColumnLabel: "Удалить столбец",
+	colorTableCellTitle: "Цвет фона - ячейка таблицы",
+	tableContextMenuTitle: "Контекстное меню таблицы"
 })
 );

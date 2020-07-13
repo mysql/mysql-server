@@ -1,6 +1,6 @@
 //>>built
 define("dojox/data/SnapLogicStore",["dojo","dojox","dojo/io/script","dojo/data/util/sorter"],function(_1,_2){
-_1.declare("dojox.data.SnapLogicStore",null,{Parts:{DATA:"data",COUNT:"count"},url:"",constructor:function(_3){
+return _1.declare("dojox.data.SnapLogicStore",null,{Parts:{DATA:"data",COUNT:"count"},url:"",constructor:function(_3){
 if(_3.url){
 this.url=_3.url;
 }
@@ -170,5 +170,4 @@ _1f._countHandle=_1.io.script.get(_25);
 }
 return _1f;
 }});
-return _2.data.SnapLogicStore;
 });

@@ -82,6 +82,8 @@ include/save_binlog_position.inc
 ## Malformed table should be handled gracefully
 RENAME TABLE mysql.user TO mysql.user_bak;
 CREATE TABLE mysql.user(dummy INT) ENGINE=MyISAM;
+Warnings:
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.user]
 FLUSH PRIVILEGES;
 Warnings:
 Warning	1805	Column count of mysql.user is wrong. Expected 51, found 1. The table is probably corrupted

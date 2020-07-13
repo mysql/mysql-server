@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -71,20 +71,20 @@ var _1a=null;
 if(_15.form){
 var _1b=_5.byId(_15.form);
 var _1c=_1b.getAttributeNode("action");
-_19.url=_19.url||(_1c?_1c.value:null);
+_19.url=_19.url||(_1c?_1c.value:(_1.doc?_1.doc.URL:null));
 _1a=_6.toObject(_1b);
 }
-var _1d=[{}];
+var _1d={};
 if(_1a){
-_1d.push(_1a);
+_a.mixin(_1d,_1a);
 }
 if(_15.content){
-_1d.push(_15.content);
+_a.mixin(_1d,_15.content);
 }
 if(_15.preventCache){
-_1d.push({"dojo.preventCache":new Date().valueOf()});
+_1d["dojo.preventCache"]=new Date().valueOf();
 }
-_19.query=_4.objectToQuery(_a.mixin.apply(null,_1d));
+_19.query=_4.objectToQuery(_1d);
 _19.handleAs=_15.handleAs||"text";
 var d=new _7(function(dfd){
 dfd.canceled=true;

@@ -49,6 +49,9 @@
 #define RESBUND_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 #include "unicode/ures.h"
 #include "unicode/unistr.h"
@@ -132,7 +135,7 @@ public:
     ResourceBundle(UErrorCode &err);
 
     /**
-     * Standard constructor, onstructs a resource bundle for the locale-specific
+     * Standard constructor, constructs a resource bundle for the locale-specific
      * bundle in the specified package.
      *
      * @param packageName   The packageName and locale together point to an ICU udata object, 
@@ -489,4 +492,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif

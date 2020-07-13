@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
 #include "my_macros.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -879,10 +880,9 @@ double Optimize_table_order::calculate_scan_cost(
                                        tab->records() - *rows_after_filtering));
 
       trace_access_scan->add("using_join_cache", true);
-      trace_access_scan->add("buffers_needed",
-                             buffer_count >= std::numeric_limits<ulong>::max()
-                                 ? std::numeric_limits<ulong>::max()
-                                 : static_cast<ulong>(buffer_count));
+      trace_access_scan->add(
+          "buffers_needed",
+          static_cast<ulonglong>(std::min(buffer_count, ULLONG_MAX_DOUBLE)));
     }
   }
 
@@ -1276,7 +1276,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
          tab->join()->select_lex->master_unit()->outer_select() !=
              nullptr ||                                 // 2c
          !tab->join()->select_lex->sj_nests.empty() ||  // 2d
-         ((tab->join()->order || tab->join()->group_list) &&
+         ((!tab->join()->order.empty() || !tab->join()->group_list.empty()) &&
           tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||  // 2e
          thd->lex->is_explain())))                                 // 2f
     return COND_FILTER_ALLPASS;
@@ -1324,7 +1324,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         over the next 'actual_key_parts' works.
       */
       for (uint i = 0; i < key->actual_key_parts; i++)
-        bitmap_set_bit(&table->tmp_set, key->key_part[i].field->field_index);
+        bitmap_set_bit(&table->tmp_set, key->key_part[i].field->field_index());
     } else {
       const Key_use *curr_ku = keyuse;
 
@@ -1361,7 +1361,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
              curr_ku->keypart_map & keyuse->bound_keyparts)  // 2)
       {
         bitmap_set_bit(&table->tmp_set,
-                       key->key_part[curr_ku->keypart].field->field_index);
+                       key->key_part[curr_ku->keypart].field->field_index());
         curr_ku++;
       }
     }
@@ -1398,7 +1398,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         const KEY *key = table->key_info + keyno;
         for (uint i = 0; i < table->quick_key_parts[keyno]; i++)
           bitmap_set_bit(&fields_current_quick,
-                         key->key_part[i].field->field_index);
+                         key->key_part[i].field->field_index());
 
         /*
           If any of the fields used to get the rows estimate for this
@@ -2550,10 +2550,8 @@ bool Optimize_table_order::consider_plan(uint idx,
       (Similar code in best_extension_by_li...)
     */
     join->best_read = cost - 0.001;
-    join->best_rowcount = join->positions[idx].prefix_rowcount >=
-                                  std::numeric_limits<ha_rows>::max()
-                              ? std::numeric_limits<ha_rows>::max()
-                              : (ha_rows)join->positions[idx].prefix_rowcount;
+    join->best_rowcount = static_cast<ha_rows>(
+        std::min(join->positions[idx].prefix_rowcount, ULLONG_MAX_DOUBLE));
     join->sort_cost = sort_cost;
     join->windowing_cost = windowing_cost;
     found_plan_with_allowed_sj = plan_uses_allowed_sj;

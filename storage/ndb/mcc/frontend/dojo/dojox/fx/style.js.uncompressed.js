@@ -11,7 +11,7 @@ define("dojox/fx/style", ["dojo/_base/kernel","dojo/_base/lang","dojo/_base/fx",
 		//		properties.
 		//
 		// returns:  Array
-		//		an array of raw, calculcated values (no keys), to be normalized/compared
+		//		an array of raw, calculated values (no keys), to be normalized/compared
 		//		elsewhere
 		return arrayUtil.map(dojoxFx._allowedProperties, function(style){
 			return cache[style]; // String

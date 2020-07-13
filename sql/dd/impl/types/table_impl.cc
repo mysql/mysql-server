@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -429,6 +429,14 @@ bool Table_impl::restore_attributes(const Raw_record &r) {
 
   set_se_private_data(r.read_str(Tables::FIELD_SE_PRIVATE_DATA, ""));
 
+  // m_engine_attribute and m_secondary_engine_attribute added in 80021
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021)) {
+    m_engine_attribute = r.read_str(Tables::FIELD_ENGINE_ATTRIBUTE, "");
+    m_secondary_engine_attribute =
+        r.read_str(Tables::FIELD_SECONDARY_ENGINE_ATTRIBUTE, "");
+  }
+
   m_engine = r.read_str(Tables::FIELD_ENGINE);
 
   // m_last_checked_for_upgrade_version added in 80012
@@ -484,6 +492,18 @@ bool Table_impl::store_attributes(Raw_record *r) {
     return true;
   }
 
+  // Store engine_attribute and secondary_engine_attribute only if
+  // we're not upgrading
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021) &&
+      (r->store(Tables::FIELD_ENGINE_ATTRIBUTE, m_engine_attribute,
+                m_engine_attribute.empty()) ||
+       r->store(Tables::FIELD_SECONDARY_ENGINE_ATTRIBUTE,
+                m_secondary_engine_attribute,
+                m_secondary_engine_attribute.empty()))) {
+    return true;
+  }
+
   // Store field values
   return Abstract_table_impl::store_attributes(r) ||
          r->store(Tables::FIELD_ENGINE, m_engine) ||
@@ -517,7 +537,9 @@ bool Table_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
+static_assert(Tables::NUMBER_OF_FIELDS == 37,
+              "Tables definition has changed, check if serialize() and "
+              "deserialize() need to be updated!");
 void Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   // Temporary table definitions are never persisted.
   DBUG_ASSERT(!m_is_temporary);
@@ -530,6 +552,9 @@ void Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
         STRING_WITH_LEN("last_checked_for_upgrade_version_id"));
   write(w, m_comment, STRING_WITH_LEN("comment"));
   write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write(w, m_engine_attribute, STRING_WITH_LEN("engine_attribute"));
+  write(w, m_secondary_engine_attribute,
+        STRING_WITH_LEN("secondary_engine_attribute"));
   write_enum(w, m_row_format, STRING_WITH_LEN("row_format"));
   write_enum(w, m_partition_type, STRING_WITH_LEN("partition_type"));
   write(w, m_partition_expression, STRING_WITH_LEN("partition_expression"));
@@ -565,6 +590,8 @@ bool Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
        "last_checked_for_upgrade_version_id");
   read(&m_comment, val, "comment");
   read_properties(&m_se_private_data, val, "se_private_data");
+  read(&m_engine_attribute, val, "engine_attribute");
+  read(&m_secondary_engine_attribute, val, "secondary_engine_attribute");
   read_enum(&m_row_format, val, "row_format");
   read_enum(&m_partition_type, val, "partition_type");
   read(&m_partition_expression, val, "partition_expression");
@@ -615,6 +642,8 @@ void Table_impl::debug_print(String_type &outb) const {
      << "m_comment: " << m_comment << "; "
      << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_se_private_id: {OID: " << m_se_private_id << "}; "
+     << "m_engine_attribute: " << m_engine_attribute << "; "
+     << "m_secondary_engine_attribute: " << m_secondary_engine_attribute << "; "
      << "m_row_format: " << m_row_format << "; "
      << "m_is_temporary: " << m_is_temporary << "; "
      << "m_tablespace: {OID: " << m_tablespace_id << "}; "
@@ -998,6 +1027,8 @@ Table_impl::Table_impl(const Table_impl &src)
       m_last_checked_for_upgrade_version_id{
           src.m_last_checked_for_upgrade_version_id},
       m_se_private_data(src.m_se_private_data),
+      m_engine_attribute(src.m_engine_attribute),
+      m_secondary_engine_attribute(src.m_secondary_engine_attribute),
       m_row_format(src.m_row_format),
       m_is_temporary(src.m_is_temporary),
       m_partition_type(src.m_partition_type),

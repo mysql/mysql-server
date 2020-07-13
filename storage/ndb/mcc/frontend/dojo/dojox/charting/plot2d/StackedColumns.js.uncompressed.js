@@ -1,5 +1,5 @@
-define("dojox/charting/plot2d/StackedColumns", ["dojo/_base/declare", "./Columns", "./commonStacked"], 
-	function( declare, Columns, commonStacked){
+define("dojox/charting/plot2d/StackedColumns", ["dojo/_base/declare", "dojo/_base/lang", "./Columns", "./commonStacked"], 
+	function(declare, lang, Columns, commonStacked){
 
 	return declare("dojox.charting.plot2d.StackedColumns", Columns, {
 		// summary:
@@ -9,22 +9,14 @@ define("dojox/charting/plot2d/StackedColumns", ["dojo/_base/declare", "./Columns
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			var stats = commonStacked.collectStats(this.series);
+			var stats = commonStacked.collectStats(this.series, lang.hitch(this, "isNullValue"));
 			stats.hmin -= 0.5;
 			stats.hmax += 0.5;
 			return stats; // Object
 		},
-		getValue: function(value, index, seriesIndex, indexed){
-			var y,x;
-			if(indexed){
-				x = index;
-				y = commonStacked.getIndexValue(this.series, seriesIndex, x);
-			}else{
-				x = value.x - 1;
-				y = commonStacked.getValue(this.series, seriesIndex, value.x);
-				y = y ? y.y: null;
-			}
-			return {y:y, x:x};
-		}
+
+		rearrangeValues: function(values, transform, baseline){
+			return commonStacked.rearrangeValues.call(this, values, transform, baseline);
+ 		}
 	});
 });

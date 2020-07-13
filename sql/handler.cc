@@ -36,10 +36,6 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <atomic>
-#include <boost/algorithm/string/case_conv.hpp>
-#include <boost/foreach.hpp>
-#include <boost/token_functions.hpp>
-#include <boost/tokenizer.hpp>
 #include <cmath>
 #include <list>
 #include <random>  // std::uniform_real_distribution
@@ -119,6 +115,7 @@
 #include "sql/sql_plugin.h"  // plugin_foreach
 #include "sql/sql_select.h"  // actual_key_parts
 #include "sql/sql_table.h"   // build_table_filename
+#include "sql/strfunc.h"     // strnncmp_nopads
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
@@ -240,12 +237,14 @@ size_t num_hton2plugins() { return se_plugin_array.size(); }
 
 st_plugin_int *insert_hton2plugin(uint slot, st_plugin_int *plugin) {
   if (se_plugin_array.assign_at(slot, plugin)) return nullptr;
+  builtin_htons.assign_at(slot, true);
   return se_plugin_array[slot];
 }
 
 st_plugin_int *remove_hton2plugin(uint slot) {
   st_plugin_int *retval = se_plugin_array[slot];
   se_plugin_array[slot] = NULL;
+  builtin_htons.assign_at(slot, false);
   return retval;
 }
 
@@ -260,15 +259,19 @@ ulong total_ha_2pc = 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size = 0;
 
-static const LEX_CSTRING sys_table_aliases[] = {{STRING_WITH_LEN("INNOBASE")},
-                                                {STRING_WITH_LEN("INNODB")},
-                                                {STRING_WITH_LEN("NDB")},
-                                                {STRING_WITH_LEN("NDBCLUSTER")},
-                                                {STRING_WITH_LEN("HEAP")},
-                                                {STRING_WITH_LEN("MEMORY")},
-                                                {STRING_WITH_LEN("MERGE")},
-                                                {STRING_WITH_LEN("MRG_MYISAM")},
-                                                {NullS, 0}};
+namespace {
+struct Storage_engine_identifier {
+  const LEX_CSTRING canonical;
+  const LEX_CSTRING legacy;
+};
+const Storage_engine_identifier se_names[] = {
+    {{STRING_WITH_LEN("INNODB")}, {STRING_WITH_LEN("INNOBASE")}},
+    {{STRING_WITH_LEN("NDBCLUSTER")}, {STRING_WITH_LEN("NDB")}},
+    {{STRING_WITH_LEN("MEMORY")}, {STRING_WITH_LEN("HEAP")}},
+    {{STRING_WITH_LEN("MRG_MYISAM")}, {STRING_WITH_LEN("MERGE")}}};
+const auto se_names_end = std::end(se_names);
+std::vector<std::string> disabled_se_names;
+}  // namespace
 
 const char *ha_row_type[] = {"",
                              "FIXED",
@@ -285,31 +288,6 @@ const char *tx_isolation_names[] = {"READ-UNCOMMITTED", "READ-COMMITTED",
                                     "REPEATABLE-READ", "SERIALIZABLE", NullS};
 TYPELIB tx_isolation_typelib = {array_elements(tx_isolation_names) - 1, "",
                                 tx_isolation_names, nullptr};
-
-// System tables that belong to the 'mysql' system database.
-// These are the "dictionary external system tables" (see WL#6391).
-st_handler_tablename mysqld_system_tables[] = {
-    {MYSQL_SCHEMA_NAME.str, "db"},
-    {MYSQL_SCHEMA_NAME.str, "user"},
-    {MYSQL_SCHEMA_NAME.str, "host"},
-    {MYSQL_SCHEMA_NAME.str, "func"},
-    {MYSQL_SCHEMA_NAME.str, "plugin"},
-    {MYSQL_SCHEMA_NAME.str, "servers"},
-    {MYSQL_SCHEMA_NAME.str, "procs_priv"},
-    {MYSQL_SCHEMA_NAME.str, "tables_priv"},
-    {MYSQL_SCHEMA_NAME.str, "proxies_priv"},
-    {MYSQL_SCHEMA_NAME.str, "columns_priv"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_name"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_leap_second"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_transition"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_transition_type"},
-    {MYSQL_SCHEMA_NAME.str, "help_category"},
-    {MYSQL_SCHEMA_NAME.str, "help_keyword"},
-    {MYSQL_SCHEMA_NAME.str, "help_relation"},
-    {MYSQL_SCHEMA_NAME.str, "help_topic"},
-    {(const char *)nullptr, (const char *)nullptr} /* This must be at the end */
-};
 
 // Called for each SE to check if given db.table_name is a system table.
 static bool check_engine_system_table_handlerton(THD *unused, plugin_ref plugin,
@@ -406,31 +384,41 @@ plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name) {
   return plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN);
 }
 
-/** @brief
-  Return the storage engine handlerton for the supplied name
+static const CHARSET_INFO &hton_charset() { return *system_charset_info; }
 
-  SYNOPSIS
-    ha_resolve_by_name(thd, name)
-    thd         current thread
-    name        name of storage engine
+/**
+  Return the storage engine handlerton for the supplied name.
 
-  RETURN
-    pointer to storage engine plugin handle
+  @param thd           Current thread. May be nullptr, (e.g. during initialize).
+  @param name          Name of storage engine.
+  @param is_temp_table true if table is a temporary table.
+
+  @return Pointer to storage engine plugin handle.
 */
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
                               bool is_temp_table) {
-  const LEX_CSTRING *table_alias;
-  plugin_ref plugin;
-
-redo:
-  /* my_strnncoll is a macro and gcc doesn't do early expansion of macro */
-  if (thd && !my_charset_latin1.coll->strnncoll(
-                 &my_charset_latin1, (const uchar *)name->str, name->length,
-                 (const uchar *)STRING_WITH_LEN("DEFAULT"), false))
+  if (thd && 0 == strnncmp_nopads(hton_charset(), *name,
+                                  {STRING_WITH_LEN("DEFAULT")})) {
     return is_temp_table ? ha_default_plugin(thd) : ha_default_temp_plugin(thd);
+  }
 
-  LEX_CSTRING cstring_name = {name->str, name->length};
-  if ((plugin = ha_resolve_by_name_raw(thd, cstring_name))) {
+  // Note that thd CAN be nullptr here - it is not actually needed by
+  // ha_resolve_by_name_raw().
+  plugin_ref plugin = ha_resolve_by_name_raw(thd, *name);
+  if (plugin == nullptr) {
+    // If we fail to resolve the name passed in, we try to see if it is a
+    // historical alias.
+    auto match = std::find_if(
+        std::begin(se_names), se_names_end,
+        [&](const Storage_engine_identifier &sei) {
+          return (0 == strnncmp_nopads(hton_charset(), *name, sei.legacy));
+        });
+    if (match != se_names_end) {
+      // if it is, we resolve using the new name
+      plugin = ha_resolve_by_name_raw(thd, match->canonical);
+    }
+  }
+  if (plugin != nullptr) {
     handlerton *hton = plugin_data<handlerton *>(plugin);
     if (hton && !(hton->flags & HTON_NOT_USER_SELECTABLE)) return plugin;
 
@@ -439,60 +427,70 @@ redo:
     */
     plugin_unlock(thd, plugin);
   }
-
-  /*
-    We check for the historical aliases.
-  */
-  for (table_alias = sys_table_aliases; table_alias->str; table_alias += 2) {
-    if (!my_strnncoll(&my_charset_latin1, (const uchar *)name->str,
-                      name->length, (const uchar *)table_alias->str,
-                      table_alias->length)) {
-      name = table_alias + 1;
-      goto redo;
-    }
-  }
-
   return nullptr;
 }
 
-std::string normalized_se_str = "";
-
-/*
-  Parse comma separated list of disabled storage engine names
-  and create a normalized string by appending storage names that
-  have aliases. This normalized string is used to disallow
-  table/tablespace creation under the storage engines specified.
+/**
+  Read a comma-separated list of storage engine names. Look up each in the
+  known list of canonical and legacy names. In case of a match; add both the
+  canonical and the legacy name to disabled_se_names, which is a static vector
+  of disabled storage engine names.
+  If there is no match, the unmodified name is added to the vector.
 */
-void ha_set_normalized_disabled_se_str(const std::string &disabled_se) {
-  boost::char_separator<char> sep(",");
-  boost::tokenizer<boost::char_separator<char>> tokens(disabled_se, sep);
-  normalized_se_str.append(",");
-  BOOST_FOREACH (std::string se_name, tokens) {
-    const LEX_CSTRING *table_alias;
-    boost::algorithm::to_upper(se_name);
-    for (table_alias = sys_table_aliases; table_alias->str; table_alias += 2) {
-      if (!native_strcasecmp(se_name.c_str(), table_alias->str) ||
-          !native_strcasecmp(se_name.c_str(), (table_alias + 1)->str)) {
-        normalized_se_str.append(std::string(table_alias->str) + "," +
-                                 std::string((table_alias + 1)->str) + ",");
-        break;
-      }
-    }
+void set_externally_disabled_storage_engine_names(const char *disabled_list) {
+  DBUG_ASSERT(disabled_list != nullptr);
 
-    if (table_alias->str == nullptr) normalized_se_str.append(se_name + ",");
-  }
+  myu::Split(
+      disabled_list, disabled_list + strlen(disabled_list), myu::IsComma,
+      [](const char *f, const char *l) {
+        auto tr = myu::FindTrimmedRange(f, l, myu::IsSpace);
+        if (tr.first == tr.second) return;
+
+        const LEX_CSTRING dse{tr.first,
+                              static_cast<size_t>(tr.second - tr.first)};
+        auto match = std::find_if(
+            std::begin(se_names), se_names_end,
+            [&](const Storage_engine_identifier &seid) {
+              return (
+                  (0 == strnncmp_nopads(hton_charset(), dse, seid.canonical)) ||
+                  (0 == strnncmp_nopads(hton_charset(), dse, seid.legacy)));
+            });
+        if (match == se_names_end) {
+          disabled_se_names.emplace_back(dse.str, dse.length);
+          return;
+        }
+        disabled_se_names.emplace_back(match->canonical.str,
+                                       match->canonical.length);
+        disabled_se_names.emplace_back(match->legacy.str, match->legacy.length);
+      });
+}
+
+static bool is_storage_engine_name_externally_disabled(const char *name) {
+  const LEX_CSTRING n{name, strlen(name)};
+  return std::any_of(
+      disabled_se_names.begin(), disabled_se_names.end(),
+      [&](const std::string &dse) {
+        return (0 == strnncmp_nopads(hton_charset(), n,
+                                     {dse.c_str(), dse.length()}));
+      });
+}
+
+/**
+  Returns true if the storage engine of the handlerton argument has
+  been listed in the disabled_storage_engines system variable. @note
+  that the SE may still be internally enabled, that is
+  HaIsInternallyEnabled may return true.
+ */
+bool ha_is_externally_disabled(const handlerton &htnr) {
+  const char *se_name = ha_resolve_storage_engine_name(&htnr);
+  DBUG_ASSERT(se_name != nullptr);
+  return is_storage_engine_name_externally_disabled(se_name);
 }
 
 // Check if storage engine is disabled for table/tablespace creation.
 bool ha_is_storage_engine_disabled(handlerton *se_handle) {
-  if (normalized_se_str.size()) {
-    std::string se_name(",");
-    se_name.append(ha_resolve_storage_engine_name(se_handle));
-    se_name.append(",");
-    boost::algorithm::to_upper(se_name);
-    if (strstr(normalized_se_str.c_str(), se_name.c_str())) return true;
-  }
-  return false;
+  DBUG_ASSERT(se_handle != nullptr);
+  return ha_is_externally_disabled(*se_handle);
 }
 
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton) {
@@ -546,6 +544,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type) {
 */
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                          bool no_substitute, bool report_error) {
+  DBUG_TRACE;
   handlerton *hton = ha_resolve_by_legacy_type(thd, database_type);
   if (ha_storage_engine_is_enabled(hton)) return hton;
 
@@ -2645,6 +2644,12 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     DBUG_ASSERT(secondary_engine.str == nullptr);
     secondary_engine = share->secondary_engine;
   }
+
+  if (engine_attribute.str == nullptr)
+    engine_attribute = share->engine_attribute;
+
+  if (secondary_engine_attribute.str == nullptr)
+    secondary_engine_attribute = share->secondary_engine_attribute;
 }
 
 /****************************************************************************
@@ -3717,8 +3722,7 @@ int handler::update_auto_increment() {
       we should call adjust_next_insert_id_after_explicit_value()
       and result row will be (1, 333, 334).
     */
-    if (((Field_num *)table->next_number_field)->unsigned_flag ||
-        ((longlong)nr) > 0)
+    if (table->next_number_field->is_unsigned() || ((longlong)nr) > 0)
       adjust_next_insert_id_after_explicit_value(nr);
 
     insert_id_for_cur_row = 0;  // didn't generate anything
@@ -4922,6 +4926,12 @@ enum_alter_inplace_result handler::check_if_supported_inplace_alter(
       (table->s->row_type != create_info->row_type))
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
 
+  // The presence of engine attributes does not prevent inplace so
+  // that we get the same behavior as COMMENT. If SEs support engine
+  // attribute values which are incompatible with INPLACE the need to
+  // check for that when overriding (as they must do for parsed
+  // comments).
+
   uint table_changes = (ha_alter_info->handler_flags &
                         Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)
                            ? IS_EQUAL_PACK_LENGTH
@@ -5313,33 +5323,24 @@ bool ha_check_if_table_exists(THD *thd, const char *db, const char *name,
 /**
   Check if a table specified by name is a system table.
 
-  @param db                    Database name for the table.
-  @param table_name            Table name to be checked.
-  @param [out] is_sql_layer_system_table  True if a system table belongs to
-  sql_layer.
+  @param       db                         Database name for the table.
+  @param       table_name                 Table name to be checked.
+  @param[out]  is_sql_layer_system_table  True if a system table belongs to
+                                          sql_layer.
 
   @return Operation status
-    @retval  true              If the table name is a system table.
-    @retval  false             If the table name is a user-level table.
+    @retval    true              If the table name is a system table.
+    @retval    false             If the table name is a user-level table.
 */
 
 static bool check_if_system_table(const char *db, const char *table_name,
                                   bool *is_sql_layer_system_table) {
-  st_handler_tablename *systab;
-
   // Check if we have the system database name in the command.
   if (!dd::get_dictionary()->is_dd_schema_name(db)) return false;
 
   // Check if this is SQL layer system tables.
-  systab = mysqld_system_tables;
-  while (systab && systab->db) {
-    if (strcmp(systab->tablename, table_name) == 0) {
-      *is_sql_layer_system_table = true;
-      break;
-    }
-
-    systab++;
-  }
+  if (dd::get_dictionary()->is_system_table_name(db, table_name))
+    *is_sql_layer_system_table = true;
 
   return true;
 }
@@ -6372,12 +6373,15 @@ int handler::multi_range_read_next(char **range_info) {
     */
     if (!((mrr_cur_range.range_flag & UNIQUE_RANGE) &&
           (mrr_cur_range.range_flag & EQ_RANGE))) {
+      DBUG_ASSERT(!result || result == HA_ERR_END_OF_FILE);
       result = read_range_next();
+      DBUG_EXECUTE_IF("bug20162055_DEADLOCK", result = HA_ERR_LOCK_DEADLOCK;);
       /*
-        On success or non-EOF errors check loop condition to filter
-        duplicates, if needed.
+        On success check loop condition to filter duplicates, if needed.
+        Exit on non-EOF error. Use next range on EOF error.
       */
-      if (result != HA_ERR_END_OF_FILE) continue;
+      if (!result) continue;
+      if (result != HA_ERR_END_OF_FILE) break;
     } else {
       if (was_semi_consistent_read()) goto scan_it_again;
     }
@@ -8008,7 +8012,7 @@ static void extract_blob_space_and_length_from_record_buff(
   int num = 0;
   for (Field **vfield = table->vfield; *vfield; vfield++) {
     // Check if this field should be included
-    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+    if (bitmap_is_set(fields, (*vfield)->field_index()) &&
         (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB) {
       auto field = down_cast<Field_blob *>(*vfield);
       blob_len_ptr_array[num].length = field->data_length();
@@ -8047,7 +8051,7 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
   uint num = 0;
   for (Field **vfield = table->vfield; *vfield; vfield++) {
     // Check if this field should be included
-    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+    if (bitmap_is_set(fields, (*vfield)->field_index()) &&
         (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB) {
       DBUG_ASSERT(blob_len_ptr_array[num].length > 0);
       DBUG_ASSERT(blob_len_ptr_array[num].ptr != nullptr);
@@ -8062,10 +8066,10 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
       const uint alloc_len = blob_len_ptr_array[num].length;
       length = length > alloc_len ? alloc_len : length;
 
-      memcpy(blob_len_ptr_array[num].ptr, (*vfield)->get_ptr(), length);
-      (down_cast<Field_blob *>(*vfield))
-          ->store_in_allocated_space(
-              pointer_cast<char *>(blob_len_ptr_array[num].ptr), length);
+      Field_blob *blob_field = down_cast<Field_blob *>(*vfield);
+      memcpy(blob_len_ptr_array[num].ptr, blob_field->get_blob_data(), length);
+      blob_field->store_in_allocated_space(
+          pointer_cast<char *>(blob_len_ptr_array[num].ptr), length);
       num++;
       DBUG_ASSERT(num <= MAX_FIELDS);
     }
@@ -8128,9 +8132,9 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
   for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
     Field *field = *vfield_ptr;
     // Validate that the field number is less than the bit map size
-    DBUG_ASSERT(field->field_index < fields->n_bits);
+    DBUG_ASSERT(field->field_index() < fields->n_bits);
 
-    if (bitmap_is_set(fields, field->field_index)) {
+    if (bitmap_is_set(fields, field->field_index())) {
       bitmap_union(&fields_to_evaluate, &field->gcol_info->base_columns_map);
       if (field->is_array()) {
         mv_field = field;
@@ -8160,7 +8164,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     Field *field = *vfield_ptr;
 
     // Check if we should evaluate this field
-    if (bitmap_is_set(&fields_to_evaluate, field->field_index) &&
+    if (bitmap_is_set(&fields_to_evaluate, field->field_index()) &&
         field->is_virtual_gcol()) {
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
 
@@ -8509,317 +8513,6 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
   return false;
 }
 
-const char *ha_rkey_function_to_str(enum ha_rkey_function r) {
-  switch (r) {
-    case HA_READ_KEY_EXACT:
-      return ("HA_READ_KEY_EXACT");
-    case HA_READ_KEY_OR_NEXT:
-      return ("HA_READ_KEY_OR_NEXT");
-    case HA_READ_KEY_OR_PREV:
-      return ("HA_READ_KEY_OR_PREV");
-    case HA_READ_AFTER_KEY:
-      return ("HA_READ_AFTER_KEY");
-    case HA_READ_BEFORE_KEY:
-      return ("HA_READ_BEFORE_KEY");
-    case HA_READ_PREFIX:
-      return ("HA_READ_PREFIX");
-    case HA_READ_PREFIX_LAST:
-      return ("HA_READ_PREFIX_LAST");
-    case HA_READ_PREFIX_LAST_OR_PREV:
-      return ("HA_READ_PREFIX_LAST_OR_PREV");
-    case HA_READ_MBR_CONTAIN:
-      return ("HA_READ_MBR_CONTAIN");
-    case HA_READ_MBR_INTERSECT:
-      return ("HA_READ_MBR_INTERSECT");
-    case HA_READ_MBR_WITHIN:
-      return ("HA_READ_MBR_WITHIN");
-    case HA_READ_MBR_DISJOINT:
-      return ("HA_READ_MBR_DISJOINT");
-    case HA_READ_MBR_EQUAL:
-      return ("HA_READ_MBR_EQUAL");
-    case HA_READ_INVALID:
-      return ("HA_READ_INVALID");
-  }
-  return ("UNKNOWN");
-}
-
-std::string table_definition(const char *table_name, const TABLE *mysql_table) {
-  std::string def = table_name;
-
-  def += " (";
-  for (uint i = 0; i < mysql_table->s->fields; i++) {
-    Field *field = mysql_table->field[i];
-    String type(128);
-
-    field->sql_type(type);
-
-    def += i == 0 ? "`" : ", `";
-    def += field->field_name;
-    def += "` ";
-    def.append(type.ptr(), type.length());
-
-    if (!field->is_nullable()) {
-      def += " not null";
-    }
-  }
-
-  for (uint i = 0; i < mysql_table->s->keys; i++) {
-    const KEY &key = mysql_table->key_info[i];
-
-    /* A string like "col1, col2, col3". */
-    std::string columns;
-
-    for (uint j = 0; j < key.user_defined_key_parts; j++) {
-      columns += j == 0 ? "`" : ", `";
-      columns += key.key_part[j].field->field_name;
-      columns += "`";
-    }
-
-    def += ", ";
-
-    switch (key.algorithm) {
-      case HA_KEY_ALG_BTREE:
-        def += "tree ";
-        break;
-      case HA_KEY_ALG_HASH:
-        def += "hash ";
-        break;
-      case HA_KEY_ALG_SE_SPECIFIC:
-        def += "se_specific ";
-        break;
-      case HA_KEY_ALG_RTREE:
-        def += "rtree ";
-        break;
-      case HA_KEY_ALG_FULLTEXT:
-        def += "fulltext ";
-        break;
-    }
-    def += key.flags & HA_NOSAME ? "unique " : "";
-    def += "index" + std::to_string(i) + "(" + columns + ")";
-  }
-  def += ")";
-
-  return def;
-}
-
-#ifndef DBUG_OFF
-/** Convert a binary buffer to a raw string, replacing non-printable characters
- * with a dot.
- * @param[in] buf buffer to convert
- * @param[in] buf_size_bytes length of the buffer in bytes
- * @return a printable string, e.g. "ab.d." for an input 0x61620064FF */
-static std::string buf_to_raw(const uchar *buf, uint buf_size_bytes) {
-  std::string r;
-  r.reserve(buf_size_bytes);
-  for (uint i = 0; i < buf_size_bytes; ++i) {
-    const uchar c = buf[i];
-    r += static_cast<char>(isprint(c) ? c : '.');
-  }
-  return r;
-}
-
-/** Convert a binary buffer to a hex string, replacing each character with its
- * hex number.
- * @param[in] buf buffer to convert
- * @param[in] buf_size_bytes length of the buffer in bytes
- * @return a hex string, e.g. "61 62 63" for an input "abc" */
-static std::string buf_to_hex(const uchar *buf, uint buf_size_bytes) {
-  std::string r;
-  r.reserve(buf_size_bytes * 3 -
-            1 /* the first hex byte has no leading space */);
-  char hex[3];
-  for (uint i = 0; i < buf_size_bytes; ++i) {
-    snprintf(hex, sizeof(hex), "%02x", buf[i]);
-    if (i > 0) {
-      r.append(" ", 1);
-    }
-    r.append(hex, 2);
-  }
-  return r;
-}
-
-std::string row_to_string(const uchar *mysql_row, TABLE *mysql_table) {
-  /* MySQL can either use handler::table->record[0] or handler::table->record[1]
-   * for buffers to store rows. We need each field in mysql_table->field[] to
-   * point inside the buffer which was used (either record[0] or record[1]). */
-
-  uchar *buf0 = mysql_table->record[0];
-  uchar *buf1 = mysql_table->record[1];
-  const uint mysql_row_length = mysql_table->s->rec_buff_length;
-
-  /* See which of the two buffers is being used. */
-  uchar *buf_used_by_mysql;
-  if (mysql_row == buf0) {
-    buf_used_by_mysql = buf0;
-  } else {
-    DBUG_ASSERT(mysql_row == buf1);
-    buf_used_by_mysql = buf1;
-  }
-
-  const uint number_of_fields = mysql_table->s->fields;
-
-  /* See where the fields currently point to. */
-  uchar *fields_orig_buf;
-  if (number_of_fields == 0) {
-    fields_orig_buf = buf_used_by_mysql;
-  } else {
-    Field *first_field = mysql_table->field[0];
-    if (first_field->ptr >= buf0 &&
-        first_field->ptr < buf0 + mysql_row_length) {
-      fields_orig_buf = buf0;
-    } else {
-      DBUG_ASSERT(first_field->ptr >= buf1);
-      DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
-      fields_orig_buf = buf1;
-    }
-  }
-
-  /* Repoint if necessary. */
-  if (buf_used_by_mysql != fields_orig_buf) {
-    repoint_field_to_record(mysql_table, fields_orig_buf, buf_used_by_mysql);
-  }
-
-  bool skip_raw_and_hex = false;
-
-#ifdef HAVE_VALGRIND
-  /* It is expected that here not all bits in (mysql_row, mysql_row_length) are
-   * initialized. For example in the first byte (the null-byte) we only set
-   * the bits of the corresponding columns to 0 or 1 (is null). And leave the
-   * remaining bits uninitialized for performance reasons. Thus Valgrind is
-   * right to complain below when we print everything. We do not want to
-   * memset() everything, so that Valgrind does not complain here and we do
-   * not want to MEM_DEFINED_IF_ADDRESSABLE(mysql_row, mysql_row_length) either
-   * because that would silence Valgrind in other possible places where the
-   * uninitialized bits should not be read. In other words - we want the
-   * Valgrind warnings if somebody tries to use the uninitialized bits,
-   * except here in this function. */
-  uchar *mysql_row_copy = static_cast<uchar *>(malloc(mysql_row_length));
-  memcpy(mysql_row_copy, mysql_row, mysql_row_length);
-  MEM_DEFINED_IF_ADDRESSABLE(mysql_row_copy, mysql_row_length);
-#else
-  const uchar *mysql_row_copy = mysql_row;
-  const char *running_valgrind = getenv("VALGRIND_SERVER_TEST");
-  int error = 0;
-  /* If testing with Valgrind, and MySQL isn't compiled for it, printing
-     would produce misleading errors, see comments for HAVE_VALGRIND above.
-  */
-  skip_raw_and_hex =
-      (nullptr != running_valgrind &&
-       0 != my_strtoll10(running_valgrind, nullptr, &error) && 0 == error);
-#endif /* HAVE_VALGRIND */
-
-  std::string r;
-
-  r += "len=" + std::to_string(mysql_row_length);
-
-  if (skip_raw_and_hex) {
-    r += ", raw=<skipped because of valgrind>";
-    r += ", hex=<skipped because of valgrind>";
-  } else {
-    r += ", raw=" + buf_to_raw(mysql_row_copy, mysql_row_length);
-    r += ", hex=" + buf_to_hex(mysql_row_copy, mysql_row_length);
-  }
-#ifdef HAVE_VALGRIND
-  free(mysql_row_copy);
-#endif /* HAVE_VALGRIND */
-
-  r += ", human=(";
-  for (uint i = 0; i < number_of_fields; ++i) {
-    Field *field = mysql_table->field[i];
-
-    DBUG_ASSERT(field->field_index == i);
-    DBUG_ASSERT(field->ptr >= mysql_row);
-    DBUG_ASSERT(field->ptr < mysql_row + mysql_row_length);
-
-    std::string val;
-
-    if (bitmap_is_set(mysql_table->read_set, i)) {
-      String s;
-      field->val_str(&s);
-      val = std::string(s.ptr(), s.length());
-    } else {
-      /* Field::val_str() asserts in ASSERT_COLUMN_MARKED_FOR_READ() if
-       * the read bit is not set. */
-      val = "read_bit_not_set";
-    }
-
-    r += std::string(i == 0 ? "`" : ", `") + field->field_name + "`=" + val;
-  }
-  r += ")";
-
-  /* Revert the above repoint_field_to_record(). */
-  if (buf_used_by_mysql != fields_orig_buf) {
-    repoint_field_to_record(mysql_table, buf_used_by_mysql, fields_orig_buf);
-  }
-
-  return r;
-}
-
-std::string indexed_cells_to_string(const uchar *indexed_cells,
-                                    uint indexed_cells_len,
-                                    const KEY &mysql_index) {
-  std::string r = "raw=" + buf_to_raw(indexed_cells, indexed_cells_len);
-
-  r += ", hex=" + buf_to_hex(indexed_cells, indexed_cells_len);
-
-  r += ", human=(";
-  uint key_len_so_far = 0;
-  for (uint i = 0; i < mysql_index.user_defined_key_parts; i++) {
-    const KEY_PART_INFO &key_part = mysql_index.key_part[i];
-    Field *field = key_part.field;
-
-    // Check if this field should be included
-    if (!bitmap_is_set(mysql_index.table->read_set, field->field_index)) {
-      continue;
-    }
-    if (key_len_so_far == indexed_cells_len) {
-      break;
-    }
-    DBUG_ASSERT(key_len_so_far < indexed_cells_len);
-
-    uchar *orig_ptr = field->ptr;
-    bool is_null = false;
-    field->ptr = const_cast<uchar *>(indexed_cells + key_len_so_far);
-
-    if (field->is_nullable()) {
-      if (field->ptr[0] != '\0') {
-        is_null = true;
-      } else {
-        field->ptr++;
-      }
-    }
-
-    uint32 orig_length_bytes;
-
-    String val;
-    if (!is_null) {
-      switch (field->type()) {
-        case MYSQL_TYPE_VARCHAR:
-          orig_length_bytes =
-              reinterpret_cast<Field_varstring *>(field)->length_bytes;
-          reinterpret_cast<Field_varstring *>(field)->length_bytes = 2;
-          field->val_str(&val);
-          reinterpret_cast<Field_varstring *>(field)->length_bytes =
-              orig_length_bytes;
-          break;
-        default:
-          field->val_str(&val);
-          break;
-      }
-    }
-
-    field->ptr = orig_ptr;
-
-    r += std::string(i > 0 ? ", `" : "`") + field->field_name +
-         "`=" + (is_null ? "NULL" : std::string(val.ptr(), val.length()));
-
-    key_len_so_far += key_part.store_length;
-  }
-  r += ")";
-  return r;
-}
-#endif /* DBUG_OFF */
-
 /**
   Set the transaction isolation level for the next transaction and update
   session tracker information about the transaction isolation level.
@@ -8915,4 +8608,19 @@ bool ha_check_reserved_db_name(const char *name) {
   return (plugin_foreach(nullptr, is_reserved_db_name_handlerton,
                          MYSQL_STORAGE_ENGINE_PLUGIN,
                          const_cast<char *>(name)));
+}
+
+/**
+   Check whether an error is index access error or not
+   after an index read. Error other than HA_ERR_END_OF_FILE
+   or HA_ERR_KEY_NOT_FOUND will stop next index read.
+
+   @param  error    Handler error code.
+
+   @retval true     if error is different from HA_ERR_END_OF_FILE or
+                    HA_ERR_KEY_NOT_FOUND.
+   @retval false    if error is HA_ERR_END_OF_FILE or HA_ERR_KEY_NOT_FOUND.
+*/
+bool is_index_access_error(int error) {
+  return (error != HA_ERR_END_OF_FILE && error != HA_ERR_KEY_NOT_FOUND);
 }

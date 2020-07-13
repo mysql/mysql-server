@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2821,14 +2821,14 @@ const KeyringFrontendTestParam password_frontend_param[]{
 
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, KeyringFrontendTest,
-                        ::testing::ValuesIn(password_frontend_param),
-                        [](const auto &param_info) {
-                          return param_info.param.test_name +
-                                 (param_info.param.exit_code == EXIT_SUCCESS
-                                      ? "_succeeds"s
-                                      : "_fails"s);
-                        });
+INSTANTIATE_TEST_SUITE_P(Spec, KeyringFrontendTest,
+                         ::testing::ValuesIn(password_frontend_param),
+                         [](const auto &param_info) {
+                           return param_info.param.test_name +
+                                  (param_info.param.exit_code == EXIT_SUCCESS
+                                       ? "_succeeds"s
+                                       : "_fails"s);
+                         });
 
 #define TS_FR1_1(CMD, ...)                                                     \
   {                                                                            \
@@ -3221,18 +3221,18 @@ const KeyringFrontendTestParam frontend_fail_param[]{
 
 };
 
-INSTANTIATE_TEST_CASE_P(Fail, KeyringFrontendTest,
-                        ::testing::ValuesIn(frontend_fail_param),
-                        [](const auto &param_info) {
-                          std::string test_name = param_info.param.test_name;
-                          for (auto &c : test_name) {
-                            if (c == '-') c = '_';
-                          }
-                          return test_name +
-                                 (param_info.param.exit_code == EXIT_SUCCESS
-                                      ? "_succeeds"s
-                                      : "_fails"s);
-                        });
+INSTANTIATE_TEST_SUITE_P(Fail, KeyringFrontendTest,
+                         ::testing::ValuesIn(frontend_fail_param),
+                         [](const auto &param_info) {
+                           std::string test_name = param_info.param.test_name;
+                           for (auto &c : test_name) {
+                             if (c == '-') c = '_';
+                           }
+                           return test_name +
+                                  (param_info.param.exit_code == EXIT_SUCCESS
+                                       ? "_succeeds"s
+                                       : "_fails"s);
+                         });
 
 static void init_DIM() {
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();

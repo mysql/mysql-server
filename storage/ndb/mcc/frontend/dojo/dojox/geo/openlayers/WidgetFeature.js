@@ -97,7 +97,7 @@ if(_3.isFunction(w.resize)){
 w.resize({w:box.width,h:box.height});
 }
 },remove:function(){
-var w=this.getWidget();
+var w=this._getWidget();
 if(!w){
 return;
 }

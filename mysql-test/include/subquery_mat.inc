@@ -1098,6 +1098,7 @@ where (t2.a,t2.a) in (select a,a from t2 as t3);
 --echo then rejected (due to outer join), and in that case, the
 --echo fallback is IN->EXISTS, subq-materialization is not tried...
 eval explain $query;
+--sorted_result
 eval $query;
 
 --echo
@@ -1241,7 +1242,7 @@ INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 --sorted_result
 SELECT * FROM t2;
 
---echo # Not used for single-table UPDATE, DELETE:
+--echo # Used for single-table UPDATE, DELETE, by converting to multi-table
 # a) all different tables
 EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT * FROM t1);
 EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);

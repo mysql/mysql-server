@@ -1,5 +1,8 @@
+@import "../Base.less";
+
 @outer-border: 1px solid #B5BCC7;
 @inner-border: 1px solid #CCC;
+@sub-column-border: 1px solid #DDD;
 
 @row-color:#EFEFEF;
 @row-color-hover: #E5F2FE;
@@ -8,6 +11,8 @@
 @today-color: #FFF0B4;
 @today-label-color: #FF0000;
 
+@subcolumn-text-color: #777;
+
 @week-end-color: #E5F2FE;
 @week-end-label-color:#759DC0;
 
@@ -15,40 +20,22 @@
 @expand-down-color: #A5D1FB;
 
 @label-color: #000;
+@secondary-label-color: #555;
 
 @event-border: 1px solid #260000;
-@event-border-focused: dashed 1px #FFFFFF;	
+@event-border-focused: dashed 1px #FFFFFF;
 
-.border-box(){
-	-webkit-box-sizing: border-box;
-	-moz-box-sizing: border-box;
-	box-sizing: border-box;
-}
+@event-bg-color: #9F0000;
+@event-selected-bg-color: #660000;
+@event-hovered-bg-color: #CC0000;
 
-.opacity(@op){
-	filter: ~"alpha(opacity=@{op})";
-	opacity:@op/100;	
-}
+@event-header-bg-color: @event-bg-color - #330000;
+@event-header-selected-bg-color: @event-selected-bg-color - #330000;
+@event-header-hovered-bg-color: @event-hovered-bg-color  - #330000;
 
-.transition-duration(@dur: 0s){
-	-webkit-transition-duration: @dur;
-	-moz-transition-duration: @dur;
-	transition-duration: @dur;
-}
-
-.select-none() {
-	-moz-user-select: none;
-	-webkit-user-select: none;
-	khtml-user-select: none;
-	user-select: none;
-}
-
-.glass-view(){
-	z-index: 2;	
-	background-color: #F00;	
-	.opacity(0);
-	.select-none;
-}
+@hour-stroke: 1px solid #C7BEBE;
+@half-hour-stroke: dotted 1px #C7BEBE;
+@quarter-hour-stroke: dotted 1px #C7BEBE;
 
 .header-background(){
 	background-color: #efefef;
@@ -69,25 +56,4 @@
 	border-color: #769dc0;
 	background-position: 0 -136px;
 	.transition-duration(0s);
-}
-
-.rounded-corners (@radius: 5px) {
-  border-radius: @radius;
-  -webkit-border-radius: @radius;
-  -moz-border-radius: @radius;
-}
-
-.top-rounded-corners (@radius: 5px) {
-  border-top-left-radius: @radius;
-  border-top-right-radius: @radius;
-  -webkit-border-top-left-radius: @radius;
-  -webkit-border-top-right-radius: @radius;
-  -moz-border-top-right-radius: @radius;
-  -moz-border-top-left-radius: @radius;
-}
-
-.top-left-right-border(@style){
-	border-top: @style;
-	border-left: @style;
-	border-right: @style;
 }

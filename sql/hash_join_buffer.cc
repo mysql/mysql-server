@@ -39,6 +39,7 @@
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/psi_memory_key.h"
+#include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"
 #include "sql/sql_optimizer.h"
@@ -100,12 +101,12 @@ void TableCollection::AddTable(QEP_TAB *qep_tab) {
   for (const hash_join_buffer::Column &column : table.columns) {
     // Field_typed_array will mask away the BLOB_FLAG for all types. Hence,
     // we will treat all Field_typed_array as blob columns.
-    if ((column.field->flags & BLOB_FLAG) > 0 || column.field->is_array()) {
+    if (column.field->is_flag_set(BLOB_FLAG) || column.field->is_array()) {
       m_has_blob_column = true;
     }
 
     // If a column is marked as nullable, we need to copy the NULL flags.
-    if ((column.field->flags & NOT_NULL_FLAG) == 0) {
+    if (!column.field->is_flag_set(NOT_NULL_FLAG)) {
       table.copy_null_flags = true;
     }
 
@@ -256,11 +257,11 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
 
     for (const Column &column : tbl.columns) {
       DBUG_ASSERT(bitmap_is_set(column.field->table->read_set,
-                                column.field->field_index));
+                                column.field->field_index()));
       if (!column.field->is_null()) {
         // Store the data in packed format. The packed format will also
         // include the length of the data if needed.
-        dptr = column.field->pack(dptr, column.field->ptr);
+        dptr = column.field->pack(dptr);
       }
     }
   }
@@ -304,7 +305,7 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
 
     for (const Column &column : tbl.columns) {
       if (!column.field->is_null()) {
-        ptr = column.field->unpack(column.field->ptr, ptr);
+        ptr = column.field->unpack(ptr);
       }
     }
   }
@@ -373,6 +374,11 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
     bool null_in_join_condition =
         hash_join_condition.join_condition()->append_join_key_for_hash_join(
             thd, m_tables.tables_bitmap(), hash_join_condition, &m_buffer);
+
+    if (thd->is_error()) {
+      // An error was raised while evaluating the join condition.
+      return StoreRowResult::FATAL_ERROR;
+    }
 
     if (null_in_join_condition && !store_rows_with_null_in_condition) {
       // SQL NULL values will never match in an inner join or semijoin, so skip

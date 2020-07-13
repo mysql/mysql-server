@@ -24,6 +24,7 @@
 # WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
 
 --source include/have_binlog_format_statement.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 --let $naptime= 4

@@ -5,7 +5,7 @@ define("dojox/editor/plugins/_SpellCheckParser", [
 	"dojo/_base/declare"
 ], function(dojo, dojox) {
 
-dojo.declare("dojox.editor.plugins._SpellCheckParser", null, {
+var SpellCheckParser = dojo.declare("dojox.editor.plugins._SpellCheckParser", null, {
 	lang: "english",
 	
 	parseIntoWords: function(/*String*/ text){
@@ -29,7 +29,7 @@ dojo.declare("dojox.editor.plugins._SpellCheckParser", null, {
 		
 		while(index < length){
 			var ch;
-			// Skip the white charactor and need to treat HTML entity respectively
+			// Skip the white character and need to treat HTML entity respectively
 			while(index < length && !isCharExt(ch = text.charAt(index)) && ch != "&"){ index++; }
 			if(ch == "&"){ // An HTML entity, skip it
 				while(++index < length && (ch = text.charAt(index)) != ";" && isCharExt(ch)){}
@@ -60,9 +60,9 @@ dojo.declare("dojox.editor.plugins._SpellCheckParser", null, {
 // Register this parser in the SpellCheck plugin.
 dojo.subscribe(dijit._scopeName + ".Editor.plugin.SpellCheck.getParser", null, function(sp){
 	if(sp.parser){ return; }
-	sp.parser = new dojox.editor.plugins._SpellCheckParser();
+	sp.parser = new SpellCheckParser();
 });
 
-return dojox.editor.plugins._SpellCheckParser;
+return SpellCheckParser;
 
 });

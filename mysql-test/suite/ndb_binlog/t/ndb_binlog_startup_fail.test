@@ -1,0 +1,184 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+# We are using some debug-only features in this test
+--source include/have_debug.inc
+# Test terminates mysqld which causes valgrind warnings
+--source include/not_valgrind.inc
+# Ignore any mysqld failure reporting
+--source include/not_crashrep.inc
+
+connection server1;
+# Find NodeId of the mysqld we are connected to:
+--let $node_id= `SHOW STATUS LIKE 'Ndb_cluster_node_id'`
+--let $node_id= `SELECT SUBSTRING('$node_id', 20)+0`
+--disable_query_log
+call mtr.add_suppression("cluster disconnect An incident event");
+--enable_query_log
+
+connection server2;
+# Find NodeId2 of 'server2' we are connected to:
+--let $node_id2= `SHOW STATUS LIKE 'Ndb_cluster_node_id'`
+--let $node_id2= `SELECT SUBSTRING('$node_id2', 20)+0`
+
+# Ignore server shutdown/startup failure
+--disable_query_log
+call mtr.add_suppression("Failed to setup binlog");
+call mtr.add_suppression("Distribution of CREATE TABLE");
+call mtr.add_suppression("Server shutdown in progress");
+call mtr.add_suppression("cluster disconnect An incident event");
+call mtr.add_suppression("Failed setting up binlogging");
+call mtr.add_suppression("mysqld startup an incident event");
+call mtr.add_suppression("Failed to release global schema lock");
+--enable_query_log
+
+#
+# 1 create a table
+# 2 Setup error insert on MySQLD2
+# 3 Disconnect MySQLD2 using DUMP code, causing Binlog re-init
+# 4 Observe MySQLD2 fail, then restart (and succeed)
+#
+
+connection server1;
+use test;
+
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+connection server2;
+disable_query_log;
+let $debug_saved = `select @@global.debug`;
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_binlog_fail_setup';
+enable_query_log;
+
+--echo Prepare for Server2 to fail
+connection server2;
+# Find NodeId2 of 'server2' we are connected to:
+--let $node_id2= `SHOW STATUS LIKE 'Ndb_cluster_node_id'`
+--let $node_id2= `SELECT SUBSTRING('$node_id2', 20)+0`
+
+#
+# Some magic for MTR to allow failure, taken from include/restart_mysqld.inc
+#
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.1.expect
+
+--exec echo "wait" > $_expect_file_name
+#
+# /end magic part 1
+#
+
+#
+# Cause data nodes to disconnect all API nodes
+# Each API will setup binlog again
+# MySQLD2 will get stuck and restart
+#
+
+--exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
+
+#connection server1;
+#--echo Wait for 'server1' binlog rotate to indicate disconnect
+#--let $wait_binlog_event= binlog.000002
+#--source include/wait_for_binlog_event.inc
+
+connection server2;
+--echo Wait for 'server2' binlog rotate to indicate disconnect
+--let $wait_binlog_event= binlog.000002
+--source include/wait_for_binlog_event.inc
+
+connection server1;
+--source include/ndb_not_readonly.inc
+insert into t1 values (11);
+
+--echo Give 'server2' some time to start, and fail, a binlog_setup
+sleep 2;
+
+--echo Wait for Server2 to fail
+connection server2;
+--source include/wait_until_disconnected.inc
+
+--echo Server2 failed as expected
+
+#
+# More magic from include/restart_mysqld.inc
+#
+--exec echo "restart" > $_expect_file_name
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+# /end magic part 2
+#
+
+connection server1;
+insert into t1 values (10);
+drop table test.t1;
+
+connection server2;
+--echo Wait for 'server2' to complete setup and get out of read-only mode
+--source include/ndb_not_readonly.inc
+--remove_file $NDB_TOOLS_OUTPUT
+
+#
+# 1 Setup error insert on MySQLD2
+# 2 create a table on MySQLD1
+# 3 Observe MySQLD2 fail, then restart (and succeed)
+#
+
+--echo Prepare for Server2 to fail
+--connection server2
+#
+# Some magic for MTR to allow failure, taken from include/restart_mysqld.inc
+#
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.1.expect
+
+--exec echo "wait" > $_expect_file_name
+#
+# /end magic part 1
+#
+
+--connection server2
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_binlog_fail_setup';
+
+--connection server1
+use test;
+--disable_warnings
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+--echo Wait for Server2 to fail
+--connection server2
+--source include/wait_until_disconnected.inc
+
+--echo Server2 failed as expected
+--enable_warnings
+
+#
+# More magic from include/restart_mysqld.inc
+#
+--exec echo "restart" > $_expect_file_name
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+# /end magic part 2
+#
+
+--source include/ndb_not_readonly.inc
+insert into t1 values (10);
+
+--connection server1
+--source include/ndb_not_readonly.inc
+insert into t1 values (11);
+drop table t1;
+
+--connection server2
+disable_query_log;
+set global debug='+d'; # Switch DEBUG/TRACING ON
+eval set global debug= '$debug_saved';
+enable_query_log;

@@ -6,7 +6,8 @@ define("dojox/timing/Sequence", [
 	"./_base"
 ], function(dojo){
 	dojo.experimental("dojox.timing.Sequence");
-	dojo.declare("dojox.timing.Sequence", null, {
+
+	return dojo.declare("dojox.timing.Sequence", null, {
 		// summary:
 		//	This class provides functionality to really sequentialize
 		//	function calls. You need to provide a list of functions and
@@ -152,5 +153,4 @@ define("dojox/timing/Sequence", [
 		}
 
 	});
-	return dojox.timing.Sequence;
 });

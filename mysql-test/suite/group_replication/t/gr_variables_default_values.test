@@ -82,9 +82,10 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_recovery_compression_level = `SELECT @@GLOBAL.group_replication_recovery_zstd_compression_level;`
 --let $saved_gr_recovery_tls_version = `SELECT @@GLOBAL.group_replication_recovery_tls_version;`
 --let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites;`
+--let $saved_gr_advertise_recovery_endpoints = `SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints;`
 
 # Total number of GR variables.
---let $total_gr_vars= 55
+--let $total_gr_vars= 57
 
 --echo #
 --echo # Test Unit#1
@@ -151,6 +152,7 @@ SET @@GLOBAL.group_replication_recovery_compression_algorithms= default;
 SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
 SET @@GLOBAL.group_replication_recovery_tls_version= default;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
+SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -316,8 +318,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_member_expel_timeout
---let $assert_text= Default group_replication_member_expel_timeout is 0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 0
+--let $assert_text= Default group_replication_member_expel_timeout is 5
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 5
 --source include/assert.inc
 
 # group_replication_consistency
@@ -335,8 +337,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 #group_replication_autorejoin_tries
---let $assert_text= Default group_replication_autorejoin_tries is 0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_autorejoin_tries]" = 0
+--let $assert_text= Default group_replication_autorejoin_tries is 3
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_autorejoin_tries]" = 3
 --source include/assert.inc
 
 # group_replication_message_cache_size
@@ -363,6 +365,11 @@ SET @@SESSION.group_replication_consistency= default;
 --let $recovery_tls_ciphersuites= query_get_value(SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites, @@GLOBAL.group_replication_recovery_tls_ciphersuites, 1)
 --let $assert_text= Default group_replication_recovery_tls_ciphersuites is NULL
 --let $assert_cond= "$recovery_tls_ciphersuites" = "NULL"
+--source include/assert.inc
+
+# group_replication_advertise_recovery_endpoints
+--let $assert_text= Default group_replication_advertise_recovery_endpoints is "DEFAULT"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints]" = "DEFAULT"
 --source include/assert.inc
 
 --echo #
@@ -417,6 +424,7 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_recovery_zstd_compression_level= $saved_gr_recovery_compression_level
 --eval SET @@GLOBAL.group_replication_recovery_tls_version= "$saved_gr_recovery_tls_version"
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
+--eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "$saved_gr_advertise_recovery_endpoints"
 --enable_query_log
 
 --let $total_gr_vars=

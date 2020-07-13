@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -574,13 +574,13 @@ fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) MY_ATTRIBUTE((const));
+uint32_t dict_tf_to_fsp_flags(uint32_t table_flags);
 
 /** Extract the page size from table flags.
 @param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-const page_size_t dict_tf_get_page_size(uint32_t flags) MY_ATTRIBUTE((const));
+const page_size_t dict_tf_get_page_size(uint32_t flags);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table
@@ -1139,7 +1139,7 @@ struct dict_sys_t {
   static constexpr space_id_t s_min_undo_space_id =
       s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * undo_space_id_range);
 
-  /** The highest undo  tablespace ID. */
+  /** The highest undo tablespace ID. */
   static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
 
   /** The first reserved tablespace ID */

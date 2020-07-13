@@ -4,15 +4,15 @@
 	height: 29px;
 	border-style: outset;
 	border-width: 1px;
-	background-image: @mbl-button-background-image;
+	.mbl-button-background-image();
 	font-family: Helvetica;
 	line-height: 29px;
 	cursor: pointer;
-	-webkit-tap-highlight-color: rgba(255,255,255,0);
+	.tap-highlight-color(rgba(255,255,255,0));
 	.mblButton-styles;
 }
 .mblButtonSelected {
-	background-image: @mbl-button-selected-background-image;
+	.mbl-button-selected-background-image();
 	.mblButtonSelected-styles;
 }
 .mblButtonDisabled,
@@ -23,16 +23,16 @@
 	cursor: default;
 }
 .mblBlueButton {
-	background-image: @mbl-blue-button-background-image;
+	.mbl-blue-button-background-image();
 	.mblButton-mblBlueButton-styles;
 }
 .mblBlueButtonSelected {
-	background-image: @mbl-blue-button-selected-background-image;
+	.mbl-blue-button-selected-background-image();
 }
 .mblRedButton {
-	background-image: @mbl-red-button-background-image;
+	.mbl-red-button-background-image();
 	.mblButton-mblRedButton-styles;
 }
 .mblRedButtonSelected {
-	background-image: @mbl-red-button-selected-background-image;
+	.mbl-red-button-selected-background-image();
 }

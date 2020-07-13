@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -163,10 +163,10 @@ extern bool fts_enable_diag_print;
 typedef float fts_rank_t;
 
 /** Structure to manage FTS AUX table name and MDL during its drop */
-typedef struct {
+struct aux_name_vec_t {
   /** AUX table name */
   std::vector<char *> aux_name;
-} aux_name_vec_t;
+};
 
 /** Type of a row during a transaction. FTS_NOTHING means the row can be
 forgotten from the FTS system's POV, FTS_INVALID is an internal value used

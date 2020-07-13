@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT GMOCK_FOUND)
+IF(NOT GMOCK_FOUND OR NOT WITH_UNIT_TESTS)
   RETURN()
 ENDIF()
 
@@ -63,7 +63,6 @@ ADD_LIBRARY(gunit_small STATIC
   gunit_test_main.cc
   skip_trailing.cc
   strnxfrm.cc
-  tap_event_listener.cc
   thread_utils.cc
   fake_table.cc
 )
@@ -83,7 +82,6 @@ SET_TARGET_PROPERTIES(libmysql_errmsg
 ADD_LIBRARY(gunit_large STATIC
   benchmark.cc
   gunit_test_main_server.cc
-  tap_event_listener.cc
   test_utils.cc
   thread_utils.cc
 )
@@ -175,6 +173,7 @@ SET(TESTS
   varlen_sort
   collation_loader
   my_rcu_lock
+  unhex
   )
 
 SET(ALL_SMALL_TESTS)
@@ -353,6 +352,16 @@ FOREACH(test ${SERVER_TESTS})
     server_unittest_library
     )
 ENDFOREACH()
+
+ADD_LIBRARY(rpl_channel_credentials_lib STATIC
+  ${CMAKE_SOURCE_DIR}/sql/rpl_channel_credentials.cc
+)
+
+MYSQL_ADD_EXECUTABLE(rpl_channel_credentials-t rpl_channel_credentials-t.cc
+  ENABLE_EXPORTS
+  ADD_TEST rpl_channel_credentials
+  LINK_LIBRARIES rpl_channel_credentials_lib gunit_small
+)
 
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)

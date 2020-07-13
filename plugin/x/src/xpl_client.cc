@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -199,15 +199,15 @@ void Protocol_monitor::init(Client *client) { m_client = client; }
 
 namespace {
 
-template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
-              *variable>
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::*
+              variable>
 inline void update_status(iface::Session *session) {
   if (session) ++(session->get_status_variables().*variable);
   ++(Global_status_variables::instance().*variable);
 }
 
-template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
-              *variable>
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::*
+              variable>
 inline void update_status(iface::Session *session, const uint32_t value) {
   if (session) (session->get_status_variables().*variable) += value;
   (Global_status_variables::instance().*variable) += value;

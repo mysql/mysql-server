@@ -26,6 +26,7 @@
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
+
 #include <cmath>  // isfinite
 #include <functional>
 
@@ -171,6 +172,7 @@ class Item_func : public Item_result_field {
     NEG_FUNC,
     GSYSVAR_FUNC,
     GROUPING_FUNC,
+    ROLLUP_GROUP_ITEM_FUNC,
     TABLE_FUNC,
     DD_INTERNAL_FUNC,
     PLUS_FUNC,
@@ -202,13 +204,17 @@ class Item_func : public Item_result_field {
     CASE_FUNC,
     YEAR_FUNC,
     MONTH_FUNC,
+    MONTHNAME_FUNC,
     DAY_FUNC,
+    DAYNAME_FUNC,
     TO_DAYS_FUNC,
     DATE_FUNC,
     HOUR_FUNC,
     MINUTE_FUNC,
     SECOND_FUNC,
     MICROSECOND_FUNC,
+    DAYOFYEAR_FUNC,
+    QUARTER_FUNC,
     WEEK_FUNC,
     WEEKDAY_FUNC,
     DATEADD_FUNC,
@@ -634,6 +640,8 @@ class Item_func : public Item_result_field {
     }
     return false;
   }
+
+  longlong val_int_from_real();
 };
 
 class Item_real_func : public Item_func {
@@ -977,7 +985,7 @@ class Item_typecast_real final : public Item_func {
   Item_typecast_real(Item *a) : Item_func(a) { set_data_type_double(); }
   String *val_str(String *str) override;
   double val_real() override;
-  longlong val_int() override;
+  longlong val_int() override { return val_int_from_real(); }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;
@@ -1478,34 +1486,54 @@ class Item_func_max final : public Item_func_min_max {
   enum Functype functype() const override { return GREATEST_FUNC; }
 };
 
-/*
-  Objects of this class are used for ROLLUP queries to wrap up
-  each constant item referred to in GROUP BY list.
+/**
+  A wrapper Item that normally returns its parameter, but becomes NULL when
+  processing rows for rollup. Rollup is implemented by AggregateIterator, and
+  works by means of hierarchical levels -- 0 is the “grand totals” phase, 1 is
+  where only one group level is active, and so on. E.g., for a query with GROUP
+  BY a,b, the rows will look like this:
 
-  Before grouping the wrapped item could be considered constant, but after
-  grouping it is not, as rollup adds NULL values, which can affect later
-  phases like DISTINCT or windowing.
-*/
+     a     b      rollup level
+     1     1      2
+     1     2      2
+     1     NULL   1
+     2     1      2
+     2     NULL   1
+     NULL  NULL   0
 
-class Item_func_rollup_const final : public Item_func {
+  Each rollup group item has a minimum level for when it becomes NULL. In the
+  example above, a would have minimum level 0 and b would have minimum level 1.
+  For simplicity, the JOIN carries a list of all rollup group items, and they
+  are being given the current rollup level when it changes. A rollup level of
+  INT_MAX essentially always disables rollup, which is useful when there are
+  leftover group items in places that are not relevant for rollup
+  (e.g., sometimes resolving can leave rollup wrappers in place for temporary
+  tables that are created before grouping, which should then effectively be
+  disabled).
+ */
+class Item_rollup_group_item final : public Item_func {
  public:
-  Item_func_rollup_const(Item *a) : Item_func(a) { item_name = a->item_name; }
+  Item_rollup_group_item(int min_rollup_level, Item *inner_item)
+      : Item_func(inner_item), m_min_rollup_level(min_rollup_level) {
+    item_name = inner_item->item_name;
+    max_length = inner_item->max_length;
+    set_data_type(inner_item->data_type());
+    collation = inner_item->collation;
+    maybe_null = true;
+    set_rollup_expr();
+  }
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *dec) override;
   bool val_json(Json_wrapper *result) override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
-    return (null_value = args[0]->get_date(ltime, fuzzydate));
-  }
-  bool get_time(MYSQL_TIME *ltime) override {
-    return (null_value = args[0]->get_time(ltime));
-  }
-  const char *func_name() const override { return "rollup_const"; }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  const char *func_name() const override { return "rollup_group_item"; }
   table_map used_tables() const override {
     /*
       If underlying item is non-constant, return its used_tables value.
-      Otherwise ensure it is non-constant by returning RAND_TABLE_BIT.
+      Otherwise, ensure it is non-constant by returning RAND_TABLE_BIT.
     */
     return args[0]->used_tables() ? args[0]->used_tables() : RAND_TABLE_BIT;
   }
@@ -1517,6 +1545,23 @@ class Item_func_rollup_const final : public Item_func {
     null_value = args[0]->is_null();
     return false;
   }
+  Item *inner_item() const { return args[0]; }
+  bool rollup_null() const {
+    return m_current_rollup_level <= m_min_rollup_level;
+  }
+  enum Functype functype() const override { return ROLLUP_GROUP_ITEM_FUNC; }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+
+  // Used by AggregateIterator.
+  void set_current_rollup_level(int level) { m_current_rollup_level = level; }
+
+  // Used when cloning the item only.
+  int min_rollup_level() const { return m_min_rollup_level; }
+
+ private:
+  const int m_min_rollup_level;
+  int m_current_rollup_level = INT_MAX;
 };
 
 class Item_func_length : public Item_int_func {
@@ -1711,7 +1756,7 @@ class Item_func_bit : public Item_func {
     @brief Performs the operation on integers to produce a result of type
     INT_RESULT.
     @return The result of the operation.
- */
+   */
   virtual longlong int_op() = 0;
 
   /**

@@ -5,9 +5,13 @@ define("dojox/dtl/contrib/data", [
 	"dojo/_base/array"
 ], function(kernel,lang,dd,array){
 
-	lang.getObject("dojox.dtl.contrib.data", true);
+	var ddcd = lang.getObject("contrib.data", true, dd);
+/*=====
+	ddcd = {
+		// TODO: summary
+	};
+=====*/
 
-	var ddcd = dd.contrib.data;
 	var first = true;
 
 	ddcd._BoundItem = lang.extend(function(item, store){
@@ -160,5 +164,6 @@ define("dojox/dtl/contrib/data", [
 	dd.register.tags("dojox.dtl.contrib", {
 		"data": ["bind_data", "bind_query"]
 	});
-	return dojox.dtl.contrib.data;
+
+	return ddcd;
 });

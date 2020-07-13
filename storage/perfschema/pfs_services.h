@@ -40,6 +40,7 @@
 #include <mysql/components/services/psi_system_service.h>
 #include <mysql/components/services/psi_table_service.h>
 #include <mysql/components/services/psi_thread_service.h>
+#include <mysql/components/services/psi_tls_channel_service.h>
 #include <mysql/components/services/psi_transaction_service.h>
 
 bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg);
@@ -78,5 +79,7 @@ extern SERVICE_TYPE(psi_thread_v3)
     SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v3);
 extern SERVICE_TYPE(psi_transaction_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1);
+extern SERVICE_TYPE(psi_tls_channel_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_tls_channel_v1);
 
 #endif /* PFS_SERVICES_H */

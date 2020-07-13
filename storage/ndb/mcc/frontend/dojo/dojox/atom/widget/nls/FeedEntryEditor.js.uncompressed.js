@@ -8,20 +8,26 @@ define("dojox/atom/widget/nls/FeedEntryEditor", { root:
 })
 //end v1.x content
 ,
+"bs": true,
+"mk": true,
+"sr": true,
 "ar": true,
 "az": true,
+"bg": true,
 "ca": true,
 "cs": true,
 "da": true,
 "de": true,
 "el": true,
 "es": true,
+"eu": true,
 "fi": true,
 "fr": true,
 "he": true,
 "hu": true,
 "hr": true,
 "it": true,
+"id": true,
 "ja": true,
 "kk": true,
 "ko": true,
@@ -37,6 +43,7 @@ define("dojox/atom/widget/nls/FeedEntryEditor", { root:
 "sv": true,
 "th": true,
 "tr": true,
+"uk": true,
 "zh": true,
 "zh-tw": true
-})
+});

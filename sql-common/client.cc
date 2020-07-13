@@ -129,6 +129,7 @@
 #else
 #include "libmysql/client_settings.h"
 #endif
+#include "client_extensions_macros.h"
 #include "sql/log_event.h"     /* Log_event_type */
 #include "sql/rpl_constants.h" /* mysql_binlog_XXX() */
 
@@ -1074,37 +1075,18 @@ net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
                                                    bool *is_data_packet,
                                                    ulong *res) {
   NET *net = &mysql->net;
-  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
-
-  ulong len = 0, complen = 0;
+  ulong len = 0;
   DBUG_TRACE;
+  DBUG_ASSERT(net->vio);
 
-  if (net_async->async_multipacket_read_started == false) {
-    net_async->async_multipacket_read_started = true;
-    net_async->async_multipacket_read_saved_whereb = net->where_b;
-    net_async->async_multipacket_read_total_len = 0;
+  if (NET_ASYNC_NOT_READY == my_net_read_nonblocking(net, &len)) {
+    return NET_ASYNC_NOT_READY;
   }
 
-  if (net->vio != nullptr) {
-    net_async_status status = my_net_read_nonblocking(net, &len, &complen);
-    if (len != packet_error) {
-      net_async->async_multipacket_read_total_len += len;
-      net->where_b += len;
-    }
+  DBUG_PRINT("info",
+             ("total nb read: %lu,  net->where_b: %lu", len, net->where_b));
 
-    if (status == NET_ASYNC_NOT_READY) {
-      return NET_ASYNC_NOT_READY;
-    }
-  }
-
-  net->where_b = net_async->async_multipacket_read_saved_whereb;
-  net->read_pos = net->buff + net->where_b;
-
-  DBUG_PRINT("info", ("total nb read: %lu",
-                      net_async->async_multipacket_read_total_len));
-  *res = cli_safe_read_with_ok_complete(
-      mysql, parse_ok, is_data_packet,
-      net_async->async_multipacket_read_total_len);
+  *res = cli_safe_read_with_ok_complete(mysql, parse_ok, is_data_packet, len);
 
   /*
     In case, packet is too large or connection is lost, net_end() is called to
@@ -1113,10 +1095,6 @@ net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
   if ((*res == packet_error) && (NET_ASYNC_DATA(net) == nullptr)) {
     return NET_ASYNC_ERROR;
   }
-
-  net_async->async_multipacket_read_started = false;
-  net_async->async_multipacket_read_saved_whereb = 0;
-
   return NET_ASYNC_COMPLETE;
 }
 
@@ -1456,6 +1434,15 @@ net_async_status cli_advanced_command_nonblocking(
 
   if (mysql->net.vio == nullptr) {
     set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
+    goto end;
+  }
+  /**
+    When non blocking API execution is pending and did not complete then
+    it can result in async context to be null. In such case if user executes
+    any other API report command out of sync error.
+  */
+  if (net_async == nullptr) {
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     goto end;
   }
   if (net_async->async_send_command_status == NET_ASYNC_SEND_COMMAND_IDLE) {
@@ -2010,41 +1997,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd) {
 
   return 0;
 }
-
-#define ALLOCATE_EXTENSIONS(OPTS)                                          \
-  (OPTS)->extension = (struct st_mysql_options_extention *)my_malloc(      \
-      key_memory_mysql_options, sizeof(struct st_mysql_options_extention), \
-      MYF(MY_WME | MY_ZEROFILL))
-
-#define ENSURE_EXTENSIONS_PRESENT(OPTS)                \
-  do {                                                 \
-    if (!(OPTS)->extension) ALLOCATE_EXTENSIONS(OPTS); \
-  } while (0)
-
-#define EXTENSION_SET_STRING(OPTS, X, STR)                            \
-  do {                                                                \
-    if ((OPTS)->extension)                                            \
-      my_free((OPTS)->extension->X);                                  \
-    else                                                              \
-      ALLOCATE_EXTENSIONS(OPTS);                                      \
-    (OPTS)->extension->X =                                            \
-        ((STR) != NULL)                                               \
-            ? my_strdup(key_memory_mysql_options, (STR), MYF(MY_WME)) \
-            : NULL;                                                   \
-  } while (0)
-
-#define SET_OPTION(opt_var, arg)                                            \
-  do {                                                                      \
-    if (mysql->options.opt_var) my_free(mysql->options.opt_var);            \
-    mysql->options.opt_var =                                                \
-        arg ? my_strdup(key_memory_mysql_options, arg, MYF(MY_WME)) : NULL; \
-  } while (0)
-
-#define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode)               \
-  do {                                                             \
-    EXTENSION_SET_STRING(OPTS, X, static_cast<const char *>(STR)); \
-    if ((OPTS)->extension->X) (OPTS)->extension->ssl_mode = mode;  \
-  } while (0)
 
 static char *set_ssl_option_unpack_path(const char *arg) {
   char *opt_var = nullptr;
@@ -2876,7 +2828,7 @@ net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
         cur->data[field] = nullptr;
       } else {
         cur->data[field] = to;
-        if (len > (ulong)(end_to - to)) {
+        if (to > end_to || len > (ulong)(end_to - to)) {
           free_rows(result);
           async_context->rows_result_buffer = nullptr;
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
@@ -2994,7 +2946,11 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
         cur->data[field] = nullptr;
       } else {
         cur->data[field] = to;
-        if (len > (ulong)(end_to - to)) {
+        DBUG_EXECUTE_IF("simulate_invalid_packet_data", {
+          to = end_to + 1;
+          len = ULONG_MAX - 1;
+        });
+        if (to > end_to || len > (ulong)(end_to - to)) {
           free_rows(result);
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
           return nullptr;
@@ -3042,6 +2998,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
 static int read_one_row_complete(MYSQL *mysql, ulong pkt_len,
                                  bool is_data_packet, uint fields,
                                  MYSQL_ROW row, ulong *lengths) {
+  DBUG_TRACE;
   uint field;
   ulong len;
   uchar *pos, *prev_pos, *end_pos;
@@ -3111,6 +3068,7 @@ static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
 static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
                                                  MYSQL_ROW row, ulong *lengths,
                                                  int *res) {
+  DBUG_TRACE;
   ulong pkt_len;
   bool is_data_packet;
   net_async_status status;
@@ -3231,7 +3189,19 @@ MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused))) {
 void mysql_extension_free(MYSQL_EXTENSION *ext) {
   if (!ext) return;
   if (ext->trace_data) my_free(ext->trace_data);
-  if (ext->mysql_async_context) my_free(ext->mysql_async_context);
+  if (ext->mysql_async_context) {
+    if (ext->mysql_async_context->connect_context) {
+      if (ext->mysql_async_context->connect_context
+              ->scramble_buffer_allocated) {
+        my_free(ext->mysql_async_context->connect_context->scramble_buffer);
+        ext->mysql_async_context->connect_context->scramble_buffer = nullptr;
+      }
+      my_free(ext->mysql_async_context->connect_context);
+      ext->mysql_async_context->connect_context = nullptr;
+    }
+    my_free(ext->mysql_async_context);
+    ext->mysql_async_context = nullptr;
+  }
   // free state change related resources.
   free_state_change_info(ext);
 
@@ -3279,6 +3249,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->ssl_crl);
     my_free(mysql->options.extension->ssl_crlpath);
     my_free(mysql->options.extension->tls_ciphersuites);
+    my_free(mysql->options.extension->load_data_dir);
   }
   mysql->options.ssl_key = nullptr;
   mysql->options.ssl_cert = nullptr;
@@ -3293,6 +3264,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
     mysql->options.extension->ssl_fips_mode = SSL_FIPS_MODE_OFF;
     mysql->options.extension->tls_ciphersuites = nullptr;
+    mysql->options.extension->load_data_dir = nullptr;
   }
   mysql->connector_fd = nullptr;
 }
@@ -3377,18 +3349,11 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
      have OpenSSL. The X509_check_* functions return 1 on success.
   */
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L
-  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       nullptr) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
-    *errptr =
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions";
-    goto error;
-
-  } else {
-    /* Success */
-    ret_validation = 0;
-  }
+  /*
+    For OpenSSL 1.0.2 and up we already set certificate verification
+    parameters in the new_VioSSLFd() to perform automatic checks.
+  */
+  ret_validation = 0;
 #else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
   /*
      OpenSSL prior to 1.0.2 do not support X509_check_host() function.
@@ -3431,7 +3396,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   }
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
-  *errptr = "SSL certificate validation failure";
+  *errptr = "SSL certificate validation success";
 
 error:
   if (server_cert != nullptr) X509_free(server_cert);
@@ -4038,21 +4003,29 @@ static char *mysql_fill_packet_header(MYSQL *mysql, char *buff,
   NET *net = &mysql->net;
   char *end;
   uchar *buff_p = (uchar *)buff;
+  /*
+    Always send CLIENT_LOCAL_FILES to the server.
+    This needs to be done since the client can always decide to support
+    local files even if this option is disabled by enabling the directory.
+    But we can't turn it on in the client flag since it's used throughout the
+    code base if the option is enabled or not.
+  */
+  unsigned long client_flag = mysql->client_flag | CLIENT_LOCAL_FILES;
 
-  if (mysql->client_flag & CLIENT_PROTOCOL_41) {
+  if (client_flag & CLIENT_PROTOCOL_41) {
     /* 4.1 server and 4.1 client has a 32 byte option flag */
     DBUG_ASSERT(buff_size >= 32);
 
-    int4store(buff_p, mysql->client_flag);
+    int4store(buff_p, client_flag);
     int4store(buff_p + 4, net->max_packet_size);
     buff[8] = (char)mysql->charset->number;
     memset(buff + 9, 0, 32 - 9);
     end = buff + 32;
   } else {
     DBUG_ASSERT(buff_size >= 5);
-    DBUG_ASSERT(mysql->client_flag <= UINT_MAX16);
+    DBUG_ASSERT(client_flag <= UINT_MAX16);
 
-    int2store(buff_p, (uint16)mysql->client_flag);
+    int2store(buff_p, (uint16)client_flag);
     int3store(buff_p + 2, net->max_packet_size);
     end = buff + 5;
   }
@@ -4150,6 +4123,8 @@ static int cli_establish_ssl(MYSQL *mysql) {
     const char *cert_error;
     unsigned long ssl_error;
     char buff[33], *end;
+    const bool verify_identity =
+        mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT;
 
     /* check if server supports compression else turn off client capability */
     if (!(mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
@@ -4185,7 +4160,8 @@ static int cli_establish_ssl(MYSQL *mysql) {
               &ssl_init_error,
               options->extension ? options->extension->ssl_crl : nullptr,
               options->extension ? options->extension->ssl_crlpath : nullptr,
-              options->extension ? options->extension->ssl_ctx_flags : 0))) {
+              options->extension ? options->extension->ssl_ctx_flags : 0,
+              verify_identity ? mysql->host : nullptr))) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR),
                                sslGetErrString(ssl_init_error));
@@ -4208,7 +4184,7 @@ static int cli_establish_ssl(MYSQL *mysql) {
     DBUG_PRINT("info", ("IO layer change done!"));
 
     /* Verify server cert */
-    if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
+    if (verify_identity &&
         ssl_verify_server_cert(net->vio, mysql->host, &cert_error)) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR), cert_error);
@@ -4327,6 +4303,8 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
     const char *cert_error;
     unsigned long ssl_error;
     size_t ret;
+    const bool verify_identity =
+        mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT;
 
     MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
 
@@ -4340,7 +4318,8 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
                 &ssl_init_error,
                 options->extension ? options->extension->ssl_crl : nullptr,
                 options->extension ? options->extension->ssl_crlpath : nullptr,
-                options->extension ? options->extension->ssl_ctx_flags : 0))) {
+                options->extension ? options->extension->ssl_ctx_flags : 0,
+                verify_identity ? mysql->host : nullptr))) {
         set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
                                  unknown_sqlstate,
                                  ER_CLIENT(CR_SSL_CONNECTION_ERROR),
@@ -4383,7 +4362,7 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
     vio_set_blocking_flag(net->vio, !ctx->non_blocking);
 
     /* Verify server cert */
-    if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
+    if (verify_identity &&
         ssl_verify_server_cert(net->vio, mysql->host, &cert_error)) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR), cert_error);
@@ -5592,7 +5571,8 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   ctx.user = user;
   ctx.passwd = passwd;
   ctx.unix_socket = unix_socket;
-  ctx.client_flag = client_flag;
+  mysql->options.client_flag |= client_flag;
+  ctx.client_flag = mysql->options.client_flag;
   ctx.state_function = csm_begin_connect;
   ctx.ssl_state = SSL_NONE;
 
@@ -5611,7 +5591,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     /* Free alloced memory */
     end_server(mysql);
     mysql_close_free(mysql);
-    if (!(client_flag & CLIENT_REMEMBER_OPTIONS))
+    if (!(ctx.client_flag & CLIENT_REMEMBER_OPTIONS))
       mysql_close_free_options(mysql);
     if (ctx.scramble_buffer_allocated) my_free(ctx.scramble_buffer);
   }
@@ -5645,10 +5625,6 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
   mysql_state_machine_status status;
   mysql_async_connect *ctx = ASYNC_DATA(mysql)->connect_context;
 
-  if (client_flag & MYSQL_OPT_COMPRESS) {
-    set_mysql_error(mysql, CR_COMPRESSION_NOT_SUPPORTED, unknown_sqlstate);
-    return NET_ASYNC_ERROR;
-  }
   if (!ctx) {
     ctx = static_cast<mysql_async_connect *>(
         my_malloc(key_memory_MYSQL, sizeof(*ctx), MYF(MY_WME | MY_ZEROFILL)));
@@ -5661,7 +5637,8 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     ctx->user = user;
     ctx->passwd = passwd;
     ctx->unix_socket = unix_socket;
-    ctx->client_flag = client_flag;
+    mysql->options.client_flag |= client_flag;
+    ctx->client_flag = mysql->options.client_flag;
     ctx->non_blocking = true;
     ctx->state_function = csm_begin_connect;
     ctx->ssl_state = SSL_NONE;
@@ -5683,13 +5660,8 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     /* Free alloced memory */
     end_server(mysql);
     mysql_close_free(mysql);
-    if (!(ctx->client_flag & CLIENT_REMEMBER_OPTIONS))
+    if (!(mysql->options.client_flag & CLIENT_REMEMBER_OPTIONS))
       mysql_close_free_options(mysql);
-    if (ctx->scramble_buffer_allocated) {
-      my_free(ctx->scramble_buffer);
-      ctx->scramble_buffer = nullptr;
-    }
-    my_free(ctx);
     return NET_ASYNC_ERROR;
   }
   return NET_ASYNC_NOT_READY;
@@ -6193,7 +6165,7 @@ static mysql_state_machine_status csm_complete_connect(
 
   /* Get version info */
   mysql->protocol_version = PROTOCOL_VERSION; /* Assume this */
-  if (mysql->options.connect_timeout &&
+  if (mysql->options.connect_timeout && !ctx->non_blocking &&
       (vio_io_wait(net->vio, VIO_IO_EVENT_READ,
                    get_vio_connect_timeout(mysql)) < 1)) {
     set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
@@ -7032,11 +7004,6 @@ get_info:
 
     MYSQL_TRACE_STAGE(mysql, FILE_REQUEST);
 
-    if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES)) {
-      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-      return true;
-    }
-
     error = handle_local_infile(mysql, (char *)pos);
 
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
@@ -7549,24 +7516,34 @@ net_async_status STDCALL mysql_fetch_row_nonblocking(MYSQL_RES *res,
 
   if (!res->data) { /* Unbufferred fetch */
     if (!res->eof) {
+      /*
+        Can be -1 (error), 0 (success) and 1 (eof).
+        Init to -1 so if state is not MYSQL_STATUS_USE_RESULT we get
+        out of sync error.
+      */
+      int read_row_result = -1;
       if (mysql->status == MYSQL_STATUS_USE_RESULT) {
-        int ret;
         if (read_one_row_nonblocking(mysql, res->field_count, res->row,
                                      res->lengths,
-                                     &ret) == NET_ASYNC_NOT_READY) {
+                                     &read_row_result) == NET_ASYNC_NOT_READY) {
           return NET_ASYNC_NOT_READY;
         }
 
-        if (!ret) {
+        // we arrive here on NET_ASYNC_ERROR or NET_ASYNC_COMPLETE
+
+        if (read_row_result == 0) {  // we've got a row: process it
+          res->row_count++;
           *row = res->current_row = res->row;
           goto end;
         }
       }
 
-      set_mysql_error(mysql,
-                      res->unbuffered_fetch_cancelled ? CR_FETCH_CANCELED
-                                                      : CR_COMMANDS_OUT_OF_SYNC,
-                      unknown_sqlstate);
+      if (read_row_result == -1)  // on row reading error
+        set_mysql_error(mysql,
+                        res->unbuffered_fetch_cancelled
+                            ? CR_FETCH_CANCELED
+                            : CR_COMMANDS_OUT_OF_SYNC,
+                        unknown_sqlstate);
       DBUG_PRINT("info", ("end of data"));
       res->eof = true;
       mysql->status = MYSQL_STATUS_READY;
@@ -7613,6 +7590,43 @@ ulong *STDCALL mysql_fetch_lengths(MYSQL_RES *res) {
   if (res->data)
     (*res->methods->fetch_lengths)(res->lengths, column, res->field_count);
   return res->lengths;
+}
+
+/**
+  Validates, makes into an absolute path and sets @ref
+  MYSQL_OPT_LOAD_DATA_LOCAL_DIR value
+
+  @param mysql connection handle
+  @param arg the value to set. Can be null
+
+  @retval true failed
+  @retval false success
+*/
+static bool set_load_data_local_infile_option(MYSQL *mysql, const char *arg) {
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+
+  // NULL is a valid argument
+  if (arg == nullptr || !arg[0]) {
+    EXTENSION_SET_STRING(&mysql->options, load_data_dir, nullptr);
+    return false;
+  }
+
+  // make fully qualified name
+  if (my_realpath(buff1, arg, 0)) {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    set_mysql_extended_error(
+        mysql, CR_LOAD_DATA_LOCAL_INFILE_REALPATH_FAIL, unknown_sqlstate,
+        ER_CLIENT(CR_LOAD_DATA_LOCAL_INFILE_REALPATH_FAIL), arg, my_errno(),
+        my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    return true;
+  }
+
+  // with uniform directory separators
+  convert_dirname(buff2, buff1, NullS);
+  EXTENSION_SET_STRING(&mysql->options, load_data_dir, buff2);
+  return false;
 }
 
 int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
@@ -7888,6 +7902,12 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
           *static_cast<const unsigned int *>(arg);
       break;
 
+    case MYSQL_OPT_LOAD_DATA_LOCAL_DIR:
+      if (set_load_data_local_infile_option(mysql,
+                                            static_cast<const char *>(arg)))
+        return 1;
+      break;
+
     default:
       return 1;
   }
@@ -8101,6 +8121,11 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
       *(const_cast<bool *>(static_cast<const bool *>(arg))) =
           (mysql->options.client_flag & CLIENT_OPTIONAL_RESULTSET_METADATA) !=
           0;
+      break;
+    case MYSQL_OPT_LOAD_DATA_LOCAL_DIR:
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->load_data_dir
+                                   : nullptr;
       break;
 
     case MYSQL_OPT_NAMED_PIPE:          /* This option is deprecated */

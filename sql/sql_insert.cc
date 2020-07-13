@@ -304,8 +304,8 @@ bool validate_default_values_of_unset_fields(THD *thd, TABLE *table) {
   DBUG_TRACE;
 
   for (Field **field = table->field; *field; field++) {
-    if (!bitmap_is_set(write_set, (*field)->field_index) &&
-        !((*field)->flags & NO_DEFAULT_VALUE_FLAG)) {
+    if (!bitmap_is_set(write_set, (*field)->field_index()) &&
+        !(*field)->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
       if ((*field)->validate_stored_val(thd) && thd->is_error()) return true;
     }
   }
@@ -798,7 +798,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref) {
   DBUG_TRACE;
 
-  const uint num = view->view_query()->select_lex->item_list.elements;
+  const uint num = view->view_query()->select_lex->fields_list.elements;
   TABLE *const table = insert_table_ref->table;
   MY_BITMAP used_fields;
   enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
@@ -858,7 +858,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
     Item_field *field = down_cast<Item_field *>(trans->item);
     /* check fields belong to table in which we are inserting */
     if (field->field->table == table &&
-        bitmap_test_and_set(&used_fields, field->field->field_index))
+        bitmap_test_and_set(&used_fields, field->field->field_index()))
       return true;
   }
 
@@ -941,7 +941,7 @@ bool get_default_columns(TABLE *table, MY_BITMAP **m_function_default_columns) {
     Field *f = table->field[i];
     // if it's a default expression
     if (f->has_insert_default_general_value_expression()) {
-      bitmap_set_bit(*m_function_default_columns, f->field_index);
+      bitmap_set_bit(*m_function_default_columns, f->field_index());
     }
   }
 
@@ -2156,13 +2156,14 @@ before_trg_err:
 }
 
 /**
-  Check that all fields with arn't null_fields are used
+  Check that all fields with aren't null_fields are used
 
   @param thd    thread handler
-  @param entry
-  @param table_list
+  @param entry  table that's checked
+  @param table_list top-level table or view, used for generating error or
+  warning message
 
-  @returns true if all fields are given values
+  @retval true if all fields are given values
 */
 
 bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
@@ -2170,8 +2171,8 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
   MY_BITMAP *write_set = entry->fields_set_during_insert;
 
   for (Field **field = entry->field; *field; field++) {
-    if (!bitmap_is_set(write_set, (*field)->field_index) &&
-        (((*field)->flags & NO_DEFAULT_VALUE_FLAG) &&
+    if (!bitmap_is_set(write_set, (*field)->field_index()) &&
+        ((*field)->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
          ((*field)->m_default_val_expr == nullptr)) &&
         ((*field)->real_type() != MYSQL_TYPE_ENUM)) {
       bool view = false;
@@ -2304,6 +2305,13 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
       case VIEW_CHECK_ERROR:
         return true;
     }
+    /*
+      Replication may require extra check of data change statements, i.e.,
+      for DML executed for CREATE ... SELECT. We check this only once
+      before inserting the first row.
+    */
+  } else if (info.stats.records == 0 && run_before_dml_hook(thd)) {
+    return true;
   }
 
   if (invoke_table_check_constraints(thd, table)) {
@@ -2581,6 +2589,10 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   DBUG_TRACE;
 
+  handlerton *actual_hton = get_viable_handlerton_for_create(
+      thd, create_table->table_name, *create_info);
+  if (actual_hton == nullptr) return nullptr;
+
   tmp_table.s = &share;
   init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
 
@@ -2755,14 +2767,20 @@ bool Query_result_create::prepare(THD *thd, List<Item> &values,
     /* abort() deletes table */
     return true;
 
-  if (table->s->fields < values.elements) {
+  /* Ignore hidden fields */
+  uint field_count = table->s->fields;
+  for (uint i = 0; i < table->s->fields; ++i) {
+    if (table->s->field[i]->is_field_for_functional_index()) field_count--;
+  }
+
+  if (field_count < values.elements) {
     my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
     return true;
   }
   /* First field to copy */
-  field = table->field + table->s->fields - values.elements;
+  field = table->field + field_count - values.elements;
   for (Field **f = field; *f; f++) {
-    if ((*f)->gcol_info) {
+    if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
       /*
         Generated columns are not allowed to be given a value for CREATE TABLE
         .. SELECT statment.
@@ -2818,8 +2836,8 @@ bool Query_result_create::start_execution(THD *thd) {
   }
   /* Mark all fields that are given values */
   for (Field **f = field; *f; f++) {
-    bitmap_set_bit(table->write_set, (*f)->field_index);
-    bitmap_set_bit(table->fields_set_during_insert, (*f)->field_index);
+    bitmap_set_bit(table->write_set, (*f)->field_index());
+    bitmap_set_bit(table->fields_set_during_insert, (*f)->field_index());
   }
 
   // Set up an empty bitmap of function defaults
@@ -2934,15 +2952,22 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
     /*
       Binary log layer has special code to handle rollback of CREATE TABLE
       SELECT in RBR mode - it truncates statement cache in this case.
-      So it is OK that we disregard that SE is transactional and might even
-      support atomic DDL below.
+
+      If SE is transactional and supports atomic DDL, we log the Query_log
+      event into transactional cache and do not flush it immediately.
     */
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+
+    bool is_trans = false;
+    bool direct = true;
+    if (get_default_handlerton(thd, thd->lex->create_info->db_type)->flags &
+        HTON_SUPPORTS_ATOMIC_DDL) {
+      is_trans = true;
+      direct = false;
+    }
     result =
         thd->binlog_query(THD::STMT_QUERY_TYPE, query.ptr(), query.length(),
-                          /* is_trans */ false,
-                          /* direct */ true,
-                          /* suppress_use */ false, errcode);
+                          is_trans, direct, /* suppress_use */ false, errcode);
     DEBUG_SYNC(thd, "create_select_after_write_create_event");
   }
   return result;
@@ -3076,12 +3101,15 @@ bool Query_result_create::send_eof(THD *thd) {
       error = update_referencing_views_metadata(thd, create_table, false,
                                                 &uncommitted_tables);
   }
+  DBUG_EXECUTE_IF("crash_before_create_select_insert", DBUG_SUICIDE(););
 
   if (!error) error = Query_result_insert::send_eof(thd);
   if (error)
     abort_result_set(thd);
   else {
     bool commit_error = false;
+
+    DBUG_EXECUTE_IF("crash_after_create_select_insert", DBUG_SUICIDE(););
     /*
       Do an implicit commit at end of statement for non-temporary tables.
       This can fail in which case rollback will be done automatically.

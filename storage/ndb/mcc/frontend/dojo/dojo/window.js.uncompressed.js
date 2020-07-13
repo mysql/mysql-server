@@ -130,11 +130,12 @@ define("dojo/window", ["./_base/lang", "./sniff", "./_base/window", "./dom", "./
 				var	doc = node.ownerDocument || baseWindow.doc,	// TODO: why baseWindow.doc?  Isn't node.ownerDocument always defined?
 					body = baseWindow.body(doc),
 					html = doc.documentElement || body.parentNode,
-					isIE = has("ie"),
+					isIE = has("ie") || has("trident"),
 					isWK = has("webkit");
 				// if an untested browser, then use the native method
 				if(node == body || node == html){ return; }
-				if(!(has("mozilla") || isIE || isWK || has("opera") || has("trident")) && ("scrollIntoView" in node)){
+				if(!(has("mozilla") || isIE || isWK || has("opera") || has("trident") || has("edge"))
+						&& ("scrollIntoView" in node)){
 					node.scrollIntoView(false); // short-circuit to native if possible
 					return;
 				}

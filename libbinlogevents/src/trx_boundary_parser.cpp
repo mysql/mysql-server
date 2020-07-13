@@ -119,7 +119,9 @@ bool Transaction_boundary_parser::check_row_logging_constraints(
             !native_strncasecmp(log_event_info.query,
                                 STRING_WITH_LEN("XA PREPARE")) ||
             !native_strncasecmp(log_event_info.query,
-                                STRING_WITH_LEN("SAVEPOINT")))
+                                STRING_WITH_LEN("SAVEPOINT")) ||
+            !native_strncasecmp(log_event_info.query,
+                                STRING_WITH_LEN("CREATE TABLE")))
           return false;
       }
       return true;

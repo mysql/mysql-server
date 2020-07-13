@@ -1,12 +1,13 @@
-// wrapped by build app
-define("dojox/editor/plugins/ResizeTableColumn", ["dojo","dijit","dojox","dojo/require!dojox/editor/plugins/TablePlugins"], function(dojo,dijit,dojox){
-dojo.provide("dojox.editor.plugins.ResizeTableColumn");
+define("dojox/editor/plugins/ResizeTableColumn", [
+	"dojo",
+	"dijit",
+	"dojox",
+	"./TablePlugins"
+], function(dojo, dijit, dojox, TablePlugins) {
 
-dojo.require("dojox.editor.plugins.TablePlugins");
 
-dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.TablePlugins, {
+	var ResizeTableColumn = dojo.declare("dojox.editor.plugins.ResizeTableColumn",	TablePlugins, {
 
-			
 		constructor: function(){
 			// summary:
 			//		Because IE will ignore the cursor style when the editMode of the document is on,
@@ -279,17 +280,18 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 				}
 			}
 		}
-});
+	});
 
-dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
-	if(o.plugin){ return; }
-	// make first character lower case
-	if(o.args && o.args.command){
-		var cmd = o.args.command.charAt(0).toLowerCase() + o.args.command.substring(1, o.args.command.length);
-		if(cmd == "resizeTableColumn"){
-			o.plugin = new dojox.editor.plugins.ResizeTableColumn({commandName: cmd});
+	dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
+		if(o.plugin){ return; }
+		// make first character lower case
+		if(o.args && o.args.command){
+			var cmd = o.args.command.charAt(0).toLowerCase() + o.args.command.substring(1, o.args.command.length);
+			if(cmd == "resizeTableColumn"){
+				o.plugin = new ResizeTableColumn({commandName: cmd});
+			}
 		}
-	}
-});
+	});
 
+	return ResizeTableColumn;
 });

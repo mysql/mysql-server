@@ -18,8 +18,12 @@ define("dojox/editor/plugins/nls/SpellCheck", { root:
 })
 //end v1.x content
 ,
+"bs": true,
+"mk": true,
+"sr": true,
 "zh": true,
 "zh-tw": true,
+"uk": true,
 "tr": true,
 "th": true,
 "sv": true,
@@ -36,6 +40,7 @@ define("dojox/editor/plugins/nls/SpellCheck", { root:
 "kk": true,
 "ja": true,
 "it": true,
+"id": true,
 "hu": true,
 "hr": true,
 "he": true,
@@ -43,9 +48,11 @@ define("dojox/editor/plugins/nls/SpellCheck", { root:
 "fi": true,
 "es": true,
 "el": true,
+"eu": true,
 "de": true,
 "da": true,
 "cs": true,
 "ca": true,
+"bg": true,
 "ar": true
 });

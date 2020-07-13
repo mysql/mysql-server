@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,8 +232,8 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
 
   unchecked_replace_pax_msg(&paxos->learner.msg, nullptr);
 
-  my_xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
-              reinterpret_cast<char *>(&result));
+  xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
+           reinterpret_cast<char *>(&result));
 }
 
 TEST_F(XcomBase, GetSynodeAppDataTooManySynodes) {
@@ -778,7 +778,7 @@ TEST_F(XcomBase, HandleBootWithoutIdentity) {
   pax_msg *need_boot = pax_msg_new(synod, nullptr);
   // need_boot_op without an identity.
   init_need_boot_op(need_boot, nullptr);
-  ASSERT_TRUE(should_handle_boot(config, need_boot));
+  ASSERT_TRUE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -814,7 +814,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfExistingMember) {
   // need_boot_op with an identity.
   node_address *identity = ::new_node_address_uuid(1, names, uuids);
   init_need_boot_op(need_boot, identity);
-  ASSERT_TRUE(should_handle_boot(config, need_boot));
+  ASSERT_TRUE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -855,7 +855,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfNonExistingMember) {
   blob unknown_uuids[] = {unknown_uuid};
   node_address *identity = ::new_node_address_uuid(1, names, unknown_uuids);
   init_need_boot_op(need_boot, identity);
-  ASSERT_FALSE(should_handle_boot(config, need_boot));
+  ASSERT_FALSE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -900,7 +900,7 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
     need_boot->a->body.c_t = xcom_boot_type;
     init_node_list(2, identity, &need_boot->a->body.app_u_u.nodes);
   }
-  ASSERT_FALSE(should_handle_boot(config, need_boot));
+  ASSERT_FALSE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -910,6 +910,288 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
   ::delete_node_address(2, identity);
 
   std::free(config);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - On the third attempt it must:
+ * -- Have incremented the number of pings
+ * -- Shutdown the connection
+ * - On the fourth attempt
+ * -- Have incremented the number of pings
+ * -- Make sure that we do not shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsFullSmokeTest) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+  srv_from.con.connected_ = CON_PROTO;
+  srv_from.con.fd = 0;
+  srv_from.con.ssl_fd = nullptr;
+
+  char srv_addr[1024] = "test";
+  srv_from.srv = &srv_addr[0];
+  srv_from.port = 12345;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 1.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 2.0);
+  ASSERT_EQ(2, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 3.0);
+  ASSERT_EQ(3, srv_from.number_of_pings_received);
+  ASSERT_TRUE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 5.0);
+  ASSERT_EQ(4, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping when
+ * the node has not booted
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times
+ * - On every time it must:
+ * -- NOT increment the number of pings
+ * -- Make sure that we do NOT shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsDoNothingIfNodeIsBooting) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+  srv_from.con.connected_ = CON_PROTO;
+  srv_from.con.fd = 0;
+  srv_from.con.ssl_fd = nullptr;
+
+  char srv_addr[1024] = "test";
+  srv_from.srv = &srv_addr[0];
+  srv_from.port = 12345;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 1.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 2.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 3.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, false, 5.0);
+  ASSERT_EQ(0, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ * with an inactive connection
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - On the third attempt it must:
+ * -- Have incremented the number of pings
+ * -- DO NOT Shutdown the connection
+ * - On the fourth attempt
+ * -- Have incremented the number of pings
+ * -- Make sure that we do not shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsDoNotShutdownInactiveConnection) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+  srv_from.con.connected_ = CON_NULL;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 1.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 2.0);
+  ASSERT_EQ(2, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 3.0);
+  ASSERT_EQ(3, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 5.0);
+  ASSERT_EQ(4, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ * making sure that we are able to reset the ping number value
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 3 times
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - Wait for 6 seconds
+ * - On the third attempt it must:
+ * -- Have reset number of pings
+ * -- DO NOT Shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsDoNotShutdownResetPings) {
+  site_def site;
+  pax_msg pm;
+
+  server srv_from;
+  srv_from.last_ping_received = 0.0;
+  srv_from.number_of_pings_received = 0;
+  srv_from.con.connected_ = CON_NULL;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from;
+
+  pm.from = 0;
+  pm.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 1.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 2.0);
+  ASSERT_EQ(2, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm, true, 10.0);
+  ASSERT_EQ(1, srv_from.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+}
+
+/**
+ * This test will check the logic implemented in pre_process_incoming_ping
+ * and it will receive pings from 2 different servers.
+ *
+ * It will create all necessary support structures and:
+ * - Call pre_process_incoming_ping 4 times using server 1
+ * - On the first and second try using server 1 it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - Call pre_process_incoming_ping once using server 2
+ * - On the first and second try it must:
+ * -- increment the number of pings
+ * -- Make sure that we do not shutdown the connection
+ * - On the third attempt using server 1 it must:
+ * -- Have incremented the number of pings
+ * -- Shutdown the connection
+ * - On the fourth attempt using server 1
+ * -- Have incremented the number of pings
+ * -- Make sure that we do not shutdown the connection
+ */
+TEST_F(XcomBase, ProcessPingToUsTwoServersSendingPings) {
+  site_def site;
+  pax_msg pm1, pm2;
+
+  char srv_addr[1024] = "test";
+
+  server srv_from1, srv_from2;
+  srv_from1.last_ping_received = 0.0;
+  srv_from1.number_of_pings_received = 0;
+  srv_from1.con.connected_ = CON_PROTO;
+  srv_from1.con.fd = 0;
+  srv_from1.con.ssl_fd = nullptr;
+
+  srv_from1.srv = &srv_addr[0];
+  srv_from1.port = 12345;
+
+  srv_from2.last_ping_received = 0.0;
+  srv_from2.number_of_pings_received = 0;
+  srv_from2.con.connected_ = CON_PROTO;
+  srv_from2.con.fd = 0;
+  srv_from2.con.ssl_fd = nullptr;
+
+  srv_from2.srv = &srv_addr[0];
+  srv_from2.port = 12346;
+
+  site.nodeno = 1;
+  site.global_node_set.node_set_len = 3;
+  site.nodes.node_list_len = 3;
+  site.servers[0] = &srv_from1;
+  site.servers[2] = &srv_from2;
+
+  pm1.from = 0;
+  pm1.op = are_you_alive_op;
+
+  pm2.from = 2;
+  pm2.op = are_you_alive_op;
+
+  bool has_disconnected = false;
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 1.0);
+  ASSERT_EQ(1, srv_from1.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 2.0);
+  ASSERT_EQ(2, srv_from1.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm2, true, 3.0);
+  ASSERT_EQ(1, srv_from2.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 4.0);
+  ASSERT_EQ(3, srv_from1.number_of_pings_received);
+  ASSERT_TRUE(has_disconnected);
+
+  has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 5.0);
+  ASSERT_EQ(4, srv_from1.number_of_pings_received);
+  ASSERT_FALSE(has_disconnected);
 }
 
 }  // namespace xcom_base_unittest

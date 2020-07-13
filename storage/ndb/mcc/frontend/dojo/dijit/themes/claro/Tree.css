@@ -6,7 +6,9 @@
 .claro .dijitTreeIsRoot {
   background-image: none;
 }
-.claro .dijitTreeRow, .claro .dijitTreeNode .dojoDndItemBefore, .claro .dijitTreeNode .dojoDndItemAfter {
+.claro .dijitTreeRow,
+.claro .dijitTreeNode .dojoDndItemBefore,
+.claro .dijitTreeNode .dojoDndItemAfter {
   
   padding: 4px 0 2px 0;
   background-color: none;
@@ -93,11 +95,13 @@
 .claro .dijitTreeRowHover .dijitTreeExpandoClosed {
   background-position: -17px 0;
 }
-.claro .dijitTreeExpandoLeaf, .dj_ie6 .claro .dijitTreeExpandoLeaf {
+.claro .dijitTreeExpandoLeaf,
+.dj_ie6 .claro .dijitTreeExpandoLeaf {
   background-image: none;
 }
 .claro .dijitTreeExpandoLoading {
-  background-image: url("images/loadingAnimation.gif");
+  background-image: url("../../icons/images/loadingAnimation.gif");
+  background-position: 0 0;
 }
 .claro .dijitTreeNode .dojoDndItemBefore .dijitTreeContent {
   border-top: 2px solid #759dc0;

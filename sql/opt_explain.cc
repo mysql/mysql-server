@@ -46,6 +46,7 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
@@ -354,7 +355,7 @@ class Explain_union_result : public Explain {
     DBUG_ASSERT(select_lex_arg ==
                 select_lex_arg->master_unit()->fake_select_lex);
     // Use optimized values from fake_select_lex's join
-    order_list = (select_lex_arg->join->order != nullptr);
+    order_list = !select_lex_arg->join->order.empty();
     // A plan exists so the reads above are safe:
     DBUG_ASSERT(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
@@ -436,7 +437,7 @@ class Explain_join : public Explain_table_base {
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
-    order_list = (join->order != nullptr);
+    order_list = !join->order.empty();
   }
 
  private:
@@ -722,7 +723,8 @@ bool Explain::explain_select_type() {
   if (select_lex->master_unit()->outer_select() && select_lex->join &&
       select_lex->join->get_plan_state() != JOIN::NO_PLAN) {
     fmt->entry()->is_dependent = select_lex->is_dependent();
-    fmt->entry()->is_cacheable = select_lex->is_cacheable();
+    if (select_lex->type() != enum_explain_type::EXPLAIN_DERIVED)
+      fmt->entry()->is_cacheable = select_lex->is_cacheable();
   }
   fmt->entry()->col_select_type.set(select_lex->type());
   return false;
@@ -1462,9 +1464,7 @@ bool Explain_join::explain_rows_and_filtered() {
     // Print cost-related info
     double prefix_rows = pos->prefix_rowcount;
     ulonglong prefix_rows_ull =
-        prefix_rows >= std::numeric_limits<ulonglong>::max()
-            ? std::numeric_limits<ulonglong>::max()
-            : static_cast<ulonglong>(prefix_rows);
+        static_cast<ulonglong>(std::min(prefix_rows, ULLONG_MAX_DOUBLE));
     fmt->entry()->col_prefix_rows.set(prefix_rows_ull);
     double const cond_cost = join->cost_model()->row_evaluate_cost(prefix_rows);
     fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
@@ -1594,8 +1594,8 @@ bool Explain_join::explain_extra() {
                                  !bitmap_is_clear_all(table->write_set))) {
     Field **fld;
     for (fld = table->field; *fld; fld++) {
-      if (!bitmap_is_set(table->read_set, (*fld)->field_index) &&
-          !bitmap_is_set(table->write_set, (*fld)->field_index))
+      if (!bitmap_is_set(table->read_set, (*fld)->field_index()) &&
+          !bitmap_is_set(table->write_set, (*fld)->field_index()))
         continue;
 
       const char *field_description =
@@ -2057,18 +2057,23 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
   return ret;
 }
 
-// Return a comma-separated list of all tables that are touched by UPDATE or
-// DELETE.
+/// @returns a comma-separated list of all tables that are touched by UPDATE or
+/// DELETE, with a mention of whether a temporary table is used for each.
 static string FindUpdatedTables(JOIN *join) {
+  Query_result *result = join->select_lex->query_result();
   string ret;
   for (size_t idx = 0; idx < join->tables; ++idx) {
-    TABLE *table = join->qep_tab[idx].table();
-    if (table != nullptr && table->pos_in_table_list->updating &&
+    TABLE_LIST *table_ref = join->qep_tab[idx].table_ref;
+    if (table_ref == nullptr) continue;
+    TABLE *table = table_ref->table;
+    if (table_ref->updating &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY) {
       if (!ret.empty()) {
         ret += ", ";
       }
       ret += table->alias;
+      ret +=
+          result->immediate_update(table_ref) ? " (immediate)" : " (buffered)";
     }
   }
   return ret;
@@ -2209,9 +2214,11 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   LEX *lex = explain_thd->lex;
   if (lex->explain_format->is_tree()) {
+    const bool secondary_engine =
+        explain_thd->lex->m_sql_cmd != nullptr &&
+        explain_thd->lex->m_sql_cmd->using_secondary_storage_engine();
     if (lex->is_explain_analyze) {
-      if (explain_thd->lex->m_sql_cmd != nullptr &&
-          explain_thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
+      if (secondary_engine) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                  "EXPLAIN ANALYZE with secondary engine");
         unit->set_executed();
@@ -2234,7 +2241,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
       unit->set_executed();
       if (query_thd->is_error()) return true;
     }
-
+    if (secondary_engine)
+      push_warning(explain_thd, Sql_condition::SL_NOTE, ER_YES,
+                   "Query is executed in secondary engine; the actual"
+                   " query plan may diverge from the printed one");
     return ExplainIterator(explain_thd, query_thd, unit);
   }
 
@@ -2270,17 +2280,15 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
     1) The code which prints the extended description is not robust
        against malformed queries, so skip it if we have an error.
     2) The code also isn't thread-safe, skip if explaining other thread
-    (see Explain::can_print_clauses())
-    3) Allow only SELECT, INSERT/REPLACE ... SELECT, Multi-DELETE and
-       Multi-UPDATE. Also Update of VIEW (so techincally it is a single table
-       UPDATE), but if the VIEW refers to multiple tables it will be handled in
-       this function.
+       (see Explain::can_print_clauses())
+    3) Only certain statements can be explained.
   */
   if (!res &&    // (1)
       !other &&  // (2)
       (query_thd->query_plan.get_command() == SQLCOM_SELECT ||
        query_thd->query_plan.get_command() == SQLCOM_INSERT_SELECT ||
        query_thd->query_plan.get_command() == SQLCOM_REPLACE_SELECT ||
+       query_thd->query_plan.get_command() == SQLCOM_DELETE ||
        query_thd->query_plan.get_command() == SQLCOM_DELETE_MULTI ||
        query_thd->query_plan.get_command() == SQLCOM_UPDATE ||
        query_thd->query_plan.get_command() == SQLCOM_UPDATE_MULTI))  // (3)

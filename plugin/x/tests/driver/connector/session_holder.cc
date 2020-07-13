@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 
 #include "plugin/x/tests/driver/connector/session_holder.h"
 
-#include "my_dbug.h"
-#include "template_utils.h"
+#include "my_dbug.h"         // NOLINT(build/include_subdir)
+#include "template_utils.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
 #include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
@@ -403,5 +403,9 @@ xcl::Handler_result Session_holder::dump_notices(const xcl::XProtocol *protocol,
 
 void Session_holder::print_message(const std::string &direction,
                                    const xcl::XProtocol::Message &msg) {
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+  m_console.print(direction, msg.ByteSizeLong() + 1, " ", msg);
+#else
   m_console.print(direction, msg.ByteSize() + 1, " ", msg);
+#endif
 }

@@ -3,29 +3,37 @@ define("dojox/mobile/Badge", [
 	"dojo/_base/lang",
 	"dojo/dom-class",
 	"dojo/dom-construct",
-	"./iconUtils"
-], function(declare, lang, domClass, domConstruct, iconUtils){
+	"./iconUtils",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/Badge"
+], function(declare, lang, domClass, domConstruct, iconUtils, has, BidiBadge){
 	// module:
 	//		dojox/mobile/Badge
 
-	return declare("dojox.mobile.Badge", null, {
+	var Badge = declare(has("dojo-bidi") ? "dojox.mobile.NonBidiBadge" : "dojox.mobile.Badge", null, {
 		// summary:
-		//		A utility to create/update a badge node.
+		//		A utility class to create and update a badge node.
 		// description:
-		//		Badge is not a widget, but just a convenience class. A badge
-		//		consists of a simple DOM button.
+		//		Badge is not a widget, but a simple utility class for creating and 
+		//		updating a badge node. A badge consists of a simple DOM button. 
+		//		It is intended to be used from other widgets such as dojox/mobile/IconItem 
+		//		or dojox/mobile/TabBarButton.
 
-		// value: String
+		// value: [const] String
 		//		A text to show in a badge.
+		//		Note that changing the value of the property after the badge
+		//		creation has no effect.
 		value: "0",
 
-		// className: String
+		// className: [const] String
 		//		A CSS class name of a DOM button.
 		className: "mblDomButtonRedBadge",
 
-		// fontSize: Number
+		// fontSize: [const] Number
 		//		Font size in pixel. The other style attributes are determined by the DOM
 		//		button itself.
+		//		Note that changing the value of the property after the badge
+		//		creation has no effect.
 		fontSize: 16, // [px]
 
 		constructor: function(/*Object?*/params, /*DomNode?*/node){
@@ -62,4 +70,6 @@ define("dojox/mobile/Badge", [
 			this.domNode.firstChild.innerHTML = value;
 		}
 	});
+
+	return has("dojo-bidi") ? declare("dojox.mobile.Badge", [Badge, BidiBadge]) : Badge;
 });

@@ -1,0 +1,9 @@
+# Test clone with concurrent DML with redo logging disabled
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+--enable_query_log
+
+--let disabled_redo = 1
+--source local_dml.test

@@ -124,7 +124,7 @@ source include/start_slave.inc;
 # That would cause reconnecting and relaylog rotation w/o the fix i.e
 # without a heartbeat received.
 
-real_sleep 15;
+sleep 15;
 
 #
 # proof that there has been received at least one heartbeat;

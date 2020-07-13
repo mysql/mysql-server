@@ -1,1 +1,2 @@
 --initialize --innodb_page_size=4k
+--innodb_directories=$MYSQL_TMP_DIR

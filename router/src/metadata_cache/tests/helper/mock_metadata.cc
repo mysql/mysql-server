@@ -45,9 +45,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms1.port = 3306;
   ms1.xport = 33060;
   ms1.mode = metadata_cache::ServerMode::ReadWrite;
-  ms1.role = "master";
-  ms1.weight = 1;
-  ms1.version_token = 0;
 
   ms2.replicaset_name = "replicaset-1";
   ms2.mysql_server_uuid = "instance-2";
@@ -55,9 +52,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms2.port = 3306;
   ms2.xport = 33060;
   ms2.mode = metadata_cache::ServerMode::ReadOnly;
-  ms2.role = "master";
-  ms2.weight = 1;
-  ms2.version_token = 0;
 
   ms3.replicaset_name = "replicaset-1";
   ms3.mysql_server_uuid = "instance-3";
@@ -65,9 +59,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms3.port = 3306;
   ms3.xport = 33060;
   ms3.mode = metadata_cache::ServerMode::ReadOnly;
-  ms3.role = "scale-out";
-  ms3.weight = 1;
-  ms3.version_token = 0;
 
   ms4.replicaset_name = "replicaset-2";
   ms4.mysql_server_uuid = "instance-4";
@@ -75,9 +66,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms4.port = 3306;
   ms4.xport = 33060;
   ms4.mode = metadata_cache::ServerMode::ReadWrite;
-  ms4.role = "master";
-  ms4.weight = 1;
-  ms4.version_token = 0;
 
   ms5.replicaset_name = "replicaset-2";
   ms5.mysql_server_uuid = "instance-5";
@@ -85,9 +73,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms5.port = 3306;
   ms5.xport = 33060;
   ms5.mode = metadata_cache::ServerMode::ReadOnly;
-  ms5.role = "master";
-  ms5.weight = 1;
-  ms5.version_token = 0;
 
   ms6.replicaset_name = "replicaset-2";
   ms6.mysql_server_uuid = "instance-6";
@@ -95,9 +80,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms6.port = 3306;
   ms6.xport = 33060;
   ms6.mode = metadata_cache::ServerMode::ReadOnly;
-  ms6.role = "scale-out";
-  ms6.weight = 1;
-  ms6.version_token = 0;
 
   ms7.replicaset_name = "replicaset-3";
   ms7.mysql_server_uuid = "instance-7";
@@ -105,9 +87,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms7.port = 3306;
   ms7.xport = 33060;
   ms7.mode = metadata_cache::ServerMode::ReadWrite;
-  ms7.role = "master";
-  ms7.weight = 1;
-  ms7.version_token = 0;
 
   ms8.replicaset_name = "replicaset-3";
   ms8.mysql_server_uuid = "instance-8";
@@ -115,9 +94,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms8.port = 3306;
   ms8.xport = 33060;
   ms8.mode = metadata_cache::ServerMode::ReadWrite;
-  ms8.role = "master";
-  ms8.weight = 1;
-  ms8.version_token = 0;
 
   ms9.replicaset_name = "replicaset-3";
   ms9.mysql_server_uuid = "instance-9";
@@ -125,9 +101,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms9.port = 3306;
   ms9.xport = 33060;
   ms9.mode = metadata_cache::ServerMode::ReadWrite;
-  ms9.role = "scale-out";
-  ms9.weight = 1;
-  ms9.version_token = 0;
 
   replicaset_1_vector.push_back(ms1);
   replicaset_1_vector.push_back(ms2);

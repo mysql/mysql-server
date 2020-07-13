@@ -21,11 +21,8 @@ Dependencies:
 
 	Depends on dojo core and dijit
 	
-	dojo.form.FileUploader depends on dojox.embed, and uses Flash movies created
-	in the deft project using Flex OSS 3.  You do not need any of the deft code; 
-	compiled movies are included with dojox.form in the resources folder.  
-	If you want to modify the actual movies, you can look in the deft project 
-	(under the package deft.av).
+	dojo/form/Uploader depends on dojox.embed, and uses Flash SWFs created
+	in the deft project using Flex OSS 3.
 -------------------------------------------------------------------------------
 Documentation
 
@@ -53,9 +50,10 @@ Additional Notes (Brief widget list):
 						
 	* FilePickerTextBox - a validating text box that can browser server-side
 						files using a dojox.data.FileStore
-	* FileUploader - Allows for Multi-file uploads and file masking. Uses a SWF
-						file created with Deft. Compatible with Flash Player
-						versions 8-10. Degradeable to a multi-file HTML uploader.
+	* FileUploader - deprecated
+	
+	* Uploader - Allows for Multi-file uploads using HTML5, Flash or an IFrame
+					version 1.9 had changes that may break back-compat.
 	
 	* ListInput - A text-box widget that allows inputting multiple items (similar
 						to the "to" field on many email clients)

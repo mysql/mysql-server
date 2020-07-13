@@ -842,3 +842,39 @@ SELECT * FROM t1;
 --echo # Clean up.
 DROP TABLE t1;
 SET sql_mode=@old_sql_mode;
+
+--echo #
+--echo # Bug#31024266 LOAD DATA INFILE FAILS IF THERE IS A FUNCTIONAL INDEX.
+--echo #
+
+CREATE TABLE t1 (
+ json_col JSON , KEY json_col ((CAST(json_col -> '$' AS UNSIGNED ARRAY)))
+);
+INSERT INTO t1 VALUES('[]');
+
+--echo # LOAD DATA from file with separators.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' from t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1;
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from file in fixed row format.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '';
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from XML file.
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/t1.xml" 2>&1
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/t1.xml" INTO TABLE t1;
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.xml
+
+DROP TABLE t1;

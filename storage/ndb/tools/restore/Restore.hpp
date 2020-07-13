@@ -38,6 +38,7 @@
 #include <ndb_version.h>
 #include <version.h>
 #include <NdbMutex.h>
+#include <ndb_limits.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
 #ifdef ERROR_INSERT
@@ -60,7 +61,51 @@ enum TableChangesMask
   /**
    * Allow attribute type demotion and integral signed/unsigned type changes.
    */
-  TCM_ATTRIBUTE_DEMOTION = 0x4
+  TCM_ATTRIBUTE_DEMOTION = 0x4,
+
+  /**
+   * Allow changes to the set of keys in the primary key
+   */
+  TCM_ALLOW_PK_CHANGES = 0x8,
+
+  /**
+   * Ignore log entries updating an extended pk column
+   */
+  TCM_IGNORE_EXTENDED_PK_UPDATES = 0x10
+};
+
+/**
+ * ColumnTransform
+ *
+ * Interface for classes implementing a transform on a column
+ */
+
+class ColumnTransform
+{
+public:
+  ColumnTransform() {}
+  virtual ~ColumnTransform() {}
+
+
+  /**
+   * apply
+   *
+   * apply the transform, returning a pointer to the
+   * result in dst_data.
+   *
+   * col       : The type of the column which is to be transformed
+   * src_data  : Pointer to the data to transform
+   *             NULL indicates a null value
+   * dst_data  : Pointer to a pointer to the output data
+   *
+   * returns
+   *   true : Transform was successful
+   *  false : Transform failed
+   */
+  virtual
+  bool apply(const NdbDictionary::Column* col,
+             const void* src_data,
+             void** dst_data) = 0;
 };
 
 typedef NdbDictionary::Table NDBTAB;
@@ -106,6 +151,7 @@ struct AttributeDesc {
   bool m_exclude;
   Uint32 m_nullBitIndex;
   AttrConvertFunc convertFunc;
+  ColumnTransform* transform;
   void *parameter;
   Uint32 parameterSz; 
   bool truncation_detected;
@@ -114,7 +160,7 @@ struct AttributeDesc {
 public:
   
   AttributeDesc(NdbDictionary::Column *column);
-  AttributeDesc();
+  ~AttributeDesc();
 
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
   Uint32 getSizeInBytes() const {
@@ -196,6 +242,8 @@ class TableS {
 
   Uint64 m_noOfRecords;
   Vector<FragmentInfo *> m_fragmentInfo;
+
+  Vector<TableS*> m_blobTables;
 
   void createAttr(NdbDictionary::Column *column);
 
@@ -327,11 +375,19 @@ public:
     return false;
   }
 
+  const
+  Vector<TableS*> getBlobTables()
+  {
+    return m_blobTables;
+  }
 
   bool m_staging;
   BaseString m_stagingName;
   NdbDictionary::Table* m_stagingTable;
   int m_stagingFlags;
+
+  bool m_pk_extended;
+  const NdbDictionary::Index* m_pk_index;
 }; // TableS;
 
 class RestoreLogIterator;
@@ -369,6 +425,17 @@ protected:
   // identified by a unique part ID, which is m_part_id.
   Uint32 m_part_id;
   Uint32 m_part_count;
+
+  /* Get registered consumers to finish up with buffers
+   * Then reset them */
+  void flush_and_reset_buffers()
+  {
+    if (free_data_callback)
+    {
+      (*free_data_callback)(m_ctx);
+    }
+    reset_buffers();
+  }
 
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
@@ -488,19 +555,28 @@ public:
   TableS *getCurrentTable();
 
 private:
-  void init_bitfield_storage(const NdbDictionary::Table*);
-  void free_bitfield_storage();
-  void reset_bitfield_storage();
-  Uint32* get_bitfield_storage(Uint32 len);
-  Uint32 get_free_bitfield_storage() const;
+  /**
+   * Methods related to storage used for column values which
+   * consumers cannot read directly from the file buffer
+   */
+  void calc_row_extra_storage_words(const TableS* tableSpec);
+  void alloc_extra_storage(Uint32 words);
+  void free_extra_storage();
+  void reset_extra_storage();
+  void check_extra_storage();
+  Uint32* get_extra_storage(Uint32 len);
+  Uint32 get_free_extra_storage() const;
 
-  Uint32 m_row_bitfield_len; // in words
-  Uint32* m_bitfield_storage_ptr;
-  Uint32* m_bitfield_storage_curr_ptr;
-  Uint32 m_bitfield_storage_len; // In words
+  Uint32 m_row_max_extra_wordlen;
+  Uint32* m_extra_storage_ptr;
+  Uint32* m_extra_storage_curr_ptr;
+  Uint32 m_extra_storage_wordlen;
+
+  /* Are there column transforms for the current table */
+  bool m_current_table_has_transforms;
 
 protected:
-  virtual void reset_buffers() { reset_bitfield_storage();}
+  virtual void reset_buffers() { reset_extra_storage();}
 
   int readTupleData_old(Uint32 *buf_ptr, Uint32 dataLength);
   int readTupleData_packed(Uint32 *buf_ptr, Uint32 dataLength);
@@ -567,6 +643,10 @@ private:
   Uint32 m_count;  
   Uint32 m_last_gci;
   LogEntry m_logEntry;
+  static const Uint32 RowBuffWords = MAX_TUPLE_SIZE_IN_WORDS +
+    MAX_ATTRIBUTES_IN_TABLE;
+  Uint32 m_rowBuff[RowBuffWords];
+  Uint32 m_rowBuffIndex;
 public:
   RestoreLogIterator(const RestoreMetaData &);
   virtual ~RestoreLogIterator() {}

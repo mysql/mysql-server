@@ -1,6 +1,6 @@
-define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/event","dojo/topic","dojo/has",
-	"dojo/dom-class","dojo/_base/window","./Mover"], 
-  function(lang,declare,arr,event,topic,has,domClass,win,Mover){
+define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/event","dojo/topic","dojo/touch",
+	"dojo/dom-class","dojo/_base/window","./Mover"],
+  function(lang,declare,arr,event,topic,touch,domClass,win,Mover){
 
 	/*=====
 	var __MoveableCtorArgs = declare("dojox.gfx.__MoveableCtorArgs", null, {
@@ -25,26 +25,28 @@ define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base
 			//		a shape object to be moved.
 			// params: __MoveableCtorArgs
 			//		an optional configuration object.
-			
+
 			this.shape = shape;
 			this.delay = (params && params.delay > 0) ? params.delay : 0;
 			this.mover = (params && params.mover) ? params.mover : Mover;
 			this.events = [
-				this.shape.connect(has("touch") ? "touchstart" : "mousedown", this, "onMouseDown")
+				this.shape.on(touch.press, lang.hitch(this, "onMouseDown"))
 				// cancel text selection and text dragging
 				//, dojo.connect(this.handle, "ondragstart",   dojo, "stopEvent")
 				//, dojo.connect(this.handle, "onselectstart", dojo, "stopEvent")
 			];
 		},
-	
+
 		// methods
 		destroy: function(){
 			// summary:
 			//		stops watching for possible move, deletes all references, so the object can be garbage-collected
-			arr.forEach(this.events, this.shape.disconnect, this.shape);
+			arr.forEach(this.events, function(handle){
+				handle.remove();
+			});
 			this.events = this.shape = null;
 		},
-	
+
 		// mouse event processors
 		onMouseDown: function(e){
 			// summary:
@@ -53,10 +55,10 @@ define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base
 			//		mouse event
 			if(this.delay){
 				this.events.push(
-					this.shape.connect(has("touch") ? "touchmove" : "mousemove", this, "onMouseMove"),
-					this.shape.connect(has("touch") ? "touchend" : "mouseup", this, "onMouseUp"));
-				this._lastX = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientX : e.clientX;
-				this._lastY = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientY : e.clientY;
+					this.shape.on(touch.move, lang.hitch(this, "onMouseMove")),
+					this.shape.on(touch.release, lang.hitch(this, "onMouseUp")));
+				this._lastX = e.clientX;
+				this._lastY = e.clientY;
 			}else{
 				new this.mover(this.shape, e, this);
 			}
@@ -67,9 +69,9 @@ define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base
 			//		event processor for onmousemove, used only for delayed drags
 			// e: Event
 			//		mouse event
-			var clientX = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientX : e.clientX,
-				clientY = has("touch") ? (e.changedTouches ? e.changedTouches[0] : e).clientY : e.clientY;
-			
+			var clientX = e.clientX,
+				clientY = e.clientY;
+
 			if(Math.abs(clientX - this._lastX) > this.delay || Math.abs(clientY - this._lastY) > this.delay){
 				this.onMouseUp(e);
 				new this.mover(this.shape, e, this);
@@ -81,9 +83,9 @@ define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base
 			//		event processor for onmouseup, used only for delayed delayed drags
 			// e: Event
 			//		mouse event
-			this.shape.disconnect(this.events.pop());
+			this.events.pop().remove();
 		},
-	
+
 		// local events
 		onMoveStart: function(/* dojox/gfx/Mover */ mover){
 			// summary:
@@ -107,7 +109,7 @@ define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base
 			//		can be used to initialize coordinates, can be overwritten.
 			// mover:
 			//		A Mover instance that fired the event.
-	
+
 			// default implementation does nothing
 		},
 		onMove: function(/* dojox/gfx/Mover */ mover, /* Object */ shift){
@@ -130,7 +132,7 @@ define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base
 			//		A Mover instance that fired the event.
 			// shift:
 			//		An object as {dx,dy} that represents the shift.
-	
+
 			// default implementation does nothing
 		},
 		onMoved: function(/* dojox/gfx/Mover */ mover, /* Object */ shift){
@@ -141,7 +143,7 @@ define("dojox/gfx/Moveable", ["dojo/_base/lang","dojo/_base/declare","dojo/_base
 			//		A Mover instance that fired the event.
 			// shift:
 			//		An object as {dx,dy} that represents the shift.
-	
+
 			// default implementation does nothing
 		}
 	});

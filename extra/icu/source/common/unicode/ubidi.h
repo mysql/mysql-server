@@ -323,6 +323,10 @@
  * these special values are designed that way. Also, the implementation
  * assumes that UBIDI_MAX_EXPLICIT_LEVEL is odd.
  *
+ * Note: The numeric values of the related constants will not change:
+ * They are tied to the use of 7-bit byte values (plus the override bit)
+ * and of the UBiDiLevel=uint8_t data type in this API.
+ *
  * @see UBIDI_DEFAULT_LTR
  * @see UBIDI_DEFAULT_RTL
  * @see UBIDI_LEVEL_OVERRIDE
@@ -386,6 +390,8 @@ typedef uint8_t UBiDiLevel;
 
 /**
  * Maximum explicit embedding level.
+ * Same as the max_depth value in the
+ * <a href="http://www.unicode.org/reports/tr9/#BD2">Unicode Bidirectional Algorithm</a>.
  * (The maximum resolved level can be up to <code>UBIDI_MAX_EXPLICIT_LEVEL+1</code>).
  * @stable ICU 2.0
  */
@@ -692,7 +698,7 @@ typedef enum UBiDiReorderingMode {
       * @stable ICU 3.6 */
     UBIDI_REORDER_DEFAULT = 0,
     /** Logical to Visual algorithm which handles numbers in a way which
-      * mimicks the behavior of Windows XP.
+      * mimics the behavior of Windows XP.
       * @stable ICU 3.6 */
     UBIDI_REORDER_NUMBERS_SPECIAL,
     /** Logical to Visual algorithm grouping numbers with adjacent R characters
@@ -1142,7 +1148,7 @@ ubidi_setContext(UBiDi *pBiDi,
 
 /**
  * Perform the Unicode Bidi algorithm. It is defined in the
- * <a href="http://www.unicode.org/unicode/reports/tr9/">Unicode Standard Anned #9</a>,
+ * <a href="http://www.unicode.org/unicode/reports/tr9/">Unicode Standard Annex #9</a>,
  * version 13,
  * also described in The Unicode Standard, Version 4.0 .<p>
  *
@@ -1996,7 +2002,7 @@ U_CDECL_BEGIN
  *
  * @return The directional property / Bidi class for the given code point
  *         <code>c</code> if the default class has been overridden, or
- *         <code>#U_BIDI_CLASS_DEFAULT=u_getIntPropertyMaxValue(UCHAR_BIDI_CLASS)+1</code>
+ *         <code>u_getIntPropertyMaxValue(UCHAR_BIDI_CLASS)+1</code>
  *         if the standard Bidi class value for <code>c</code> is to be used.
  * @see ubidi_setClassCallback
  * @see ubidi_getClassCallback
@@ -2010,7 +2016,7 @@ U_CDECL_END
 /**
  * Retrieve the Bidi class for a given code point.
  * <p>If a <code>#UBiDiClassCallback</code> callback is defined and returns a
- * value other than <code>#U_BIDI_CLASS_DEFAULT=u_getIntPropertyMaxValue(UCHAR_BIDI_CLASS)+1</code>,
+ * value other than <code>u_getIntPropertyMaxValue(UCHAR_BIDI_CLASS)+1</code>,
  * that value is used; otherwise the default class determination mechanism is invoked.</p>
  *
  * @param pBiDi is the paragraph <code>UBiDi</code> object.

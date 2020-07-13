@@ -36,15 +36,24 @@ define("dojox/form/Rating", [
 			//		Build the templateString. The number of stars is given by this.numStars,
 			//		which is normally an attribute to the widget node.
 
+			var radioName = 'rating-' + Math.random().toString(36).substring(2);
+
+			// The radio input used to display and select stars
+			var starTpl = '<label class="dojoxRatingStar dijitInline ${hidden}">' +
+				'<span class="dojoxRatingLabel">${value} stars</span>' +
+			 	'<input type="radio" name="' + radioName + '" value="${value}" dojoAttachPoint="focusNode" class="dojoxRatingInput">' +
+				'</label>';
+
 			// The hidden value node is attached as "focusNode" because tabIndex, id, etc. are getting mapped there.
 			var tpl = '<div dojoAttachPoint="domNode" class="dojoxRating dijitInline">' +
-				'<input type="hidden" value="0" dojoAttachPoint="focusNode" /><ul data-dojo-attach-point="list">${stars}</ul>' +
-				'</div>';
-			// The value-attribute is used to "read" the value for processing in the widget class
-			var starTpl = '<li class="dojoxRatingStar dijitInline" value="${value}"></li>';
+				'<div data-dojo-attach-point="list">' +
+				string.substitute(starTpl, {value:0, hidden: 'dojoxRatingHidden'}) +
+				'${stars}' +
+				'</div></div>';
+
 			var rendered = "";
 			for(var i = 0; i < this.numStars; i++){
-				rendered += string.substitute(starTpl, {value:i + 1});
+				rendered += string.substitute(starTpl, {value:i + 1, hidden: ''});
 			}
 			this.templateString = string.substitute(tpl, {stars:rendered});
 
@@ -57,7 +66,8 @@ define("dojox/form/Rating", [
 			this.own(
 				// Fire when mouse is moved over one of the stars.
 				on(this.list, on.selector(".dojoxRatingStar", "mouseover"), lang.hitch(this, "_onMouse")),
-				on(this.list, on.selector(".dojoxRatingStar", "click"), lang.hitch(this, "onStarClick")),
+				on(this.list, on.selector(".dojoxRatingStar", "click"), lang.hitch(this, "_onClick")),
+				on(this.list, on.selector(".dojoxRatingInput", "change"), lang.hitch(this, "onStarChange")),
 				on(this.list, mouse.leave, lang.hitch(this, function(){
 					// go from hover display back to dormant display
 					this._renderStars(this.value);
@@ -68,16 +78,31 @@ define("dojox/form/Rating", [
 		_onMouse: function(evt){
 			// summary:
 			//		Called when mouse is moved over one of the stars
-			var hoverValue = +domAttr.get(evt.target, "value");
+			var hoverValue = +domAttr.get(evt.target.querySelector('input'), "value");
 			this._renderStars(hoverValue, true);
 			this.onMouseOver(evt, hoverValue);
+		},
+
+		_onClick: function(evt) {
+			if (evt.target.tagName === 'LABEL') {
+				var clickedValue = +domAttr.get(evt.target.querySelector('input'), "value");
+				// for backwards compatibility with previous dojo versions' onStarClick event
+				evt.target.value = clickedValue;
+				this.onStarClick(evt, clickedValue);
+
+				// check for clicking current value
+				if (clickedValue == this.value) {
+					evt.preventDefault();
+					this.onStarChange(evt);
+				}
+			}
 		},
 
 		_renderStars: function(value, hover){
 			// summary:
 			//		Render the stars depending on the value.
 			query(".dojoxRatingStar", this.domNode).forEach(function(star, i){
-				if(i + 1 > value){
+				if(i > value){
 					domClass.remove(star, "dojoxRatingStarHover");
 					domClass.remove(star, "dojoxRatingStarChecked");
 				}else{
@@ -87,15 +112,17 @@ define("dojox/form/Rating", [
 			});
 		},
 
-		onStarClick: function(/*Event*/ evt){
-			// summary:
-			//		Connect on this method to get noticed when a star was clicked.
-			// example:
-			//	|	connect(widget, "onStarClick", function(event){ ... })
+		onStarChange: function(evt) {
 			var newVal = +domAttr.get(evt.target, "value");
 			this.setAttribute("value", newVal == this.value ? 0 : newVal);
 			this._renderStars(this.value);
-			this.onChange(this.value); // Do I have to call this by hand?
+
+			this.onChange(this.value);
+		},
+
+		onStarClick: function(/*Event*/ evt, /*Number*/ value){
+			// summary:
+			//		Connect on this method to get noticed when the star value was clicked.
 		},
 
 		onMouseOver: function(/*=====evt, value=====*/ ){
@@ -110,10 +137,13 @@ define("dojox/form/Rating", [
 		},
 
 		_setValueAttr: function(val){
-			this.focusNode.value = val;		// reflect the value in our hidden field, for form submission
 			this._set("value", val);
 			this._renderStars(val);
-			this.onChange(val); // Do I really have to call this by hand? :-(
+			var input = query("input[type=radio]", this.domNode)[val];
+			if (input) {
+				input.checked = true;
+			}
+			this.onChange(val);
 		}
 	});
 });

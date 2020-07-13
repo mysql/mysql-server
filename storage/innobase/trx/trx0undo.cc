@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -773,11 +773,11 @@ void trx_undo_insert_header_reuse_log(
 #endif /* !UNIV_HOTBACKUP */
 
 /** Parse the redo log entry of an undo log page header create or reuse.
-@param[in]	type	MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE
-@param[in]	ptr	redo log record
-@param[in]	end_ptr	end of log buffer
-@param[in,out]	page	page frame or NULL
-@param[in,out]	mtr	mini-transaction or NULL
+@param[in]      type     MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE
+@param[in]      ptr      redo log record
+@param[in]      end_ptr  end of log buffer
+@param[in,out]  page     page frame or NULL
+@param[in,out]  mtr      mini-transaction or NULL
 @return end of log record or NULL */
 byte *trx_undo_parse_page_header(mlog_id_t type, const byte *ptr,
                                  const byte *end_ptr, page_t *page,
@@ -997,12 +997,12 @@ void trx_undo_free_last_page_func(
 /** Empties an undo log header page of undo records for that undo log.
 Other undo logs may still have records on that page, if it is an update
 undo log.
-@param[in]	space		space
-@param[in]	page_size	page size
-@param[in]	hdr_page_no	header page number
-@param[in]	hdr_offset	header offset
-@param[in,out]	mtr		mini-transaction */
-static void trx_undo_empty_header_page(space_id_t space,
+@param[in]      space_id     Tablespace ID
+@param[in]      page_size    page size
+@param[in]      hdr_page_no  header page number
+@param[in]      hdr_offset   header offset
+@param[in,out]  mtr          mini-transaction */
+static void trx_undo_empty_header_page(space_id_t space_id,
                                        const page_size_t &page_size,
                                        page_no_t hdr_page_no, ulint hdr_offset,
                                        mtr_t *mtr) {
@@ -1011,7 +1011,7 @@ static void trx_undo_empty_header_page(space_id_t space,
   ulint end;
 
   header_page =
-      trx_undo_page_get(page_id_t(space, hdr_page_no), page_size, mtr);
+      trx_undo_page_get(page_id_t(space_id, hdr_page_no), page_size, mtr);
 
   log_hdr = header_page + hdr_offset;
 
@@ -1020,74 +1020,111 @@ static void trx_undo_empty_header_page(space_id_t space,
   mlog_write_ulint(log_hdr + TRX_UNDO_LOG_START, end, MLOG_2BYTES, mtr);
 }
 
+/** Get page offset up to which undo logs can be truncated.
+There are three possibilities.
+1. Truncate nothing on this page. Return -1
+2. Truncate part of the page. Return the offset
+3. Truncate the whole page. Return 0
+@param[in]  undo       undo log to truncate
+@param[in]  undo_page  undo log page to check
+@param[in]  limit      limit up to which undo logs to be truncated
+@return page offset to truncate to, 0 for whole page, -1 for nothing. */
+int trx_undo_page_truncate_offset(trx_undo_t *undo, page_t *undo_page,
+                                  undo_no_t limit) {
+  auto rec = trx_undo_page_get_last_rec(undo_page, undo->hdr_page_no,
+                                        undo->hdr_offset);
+  trx_undo_rec_t *trunc_rec = nullptr;
+
+  while (rec != nullptr) {
+    /* Check if current record has gone below the limit. */
+    if (trx_undo_rec_get_undo_no(rec) < limit) {
+      /* If this is the first record on the page, don't truncate anything */
+      if (trunc_rec == nullptr) {
+        return (-1);
+      }
+
+      /* Return an offset within the page. */
+      return (trunc_rec - undo_page);
+    }
+
+    /* Truncate at least up to this record, maybe more */
+    trunc_rec = rec;
+    rec = trx_undo_page_get_prev_rec(rec, undo->hdr_page_no, undo->hdr_offset);
+  }
+
+  /* All records on the page are >= limit */
+  if (undo->last_page_no == undo->hdr_page_no) {
+    /* This is the header page. Return an offset
+    if there are any records on the page. */
+    if (trunc_rec != nullptr) {
+      return (trunc_rec - undo_page);
+    }
+
+    /* Header page is empty.  Do not truncate anything. */
+    return (-1);
+  }
+
+  /* Truncate the whole page. */
+  return (0);
+}
+
 /** Truncates an undo log from the end. This function is used during a rollback
  to free space from an undo log. */
+#ifdef UNIV_DEBUG
+/**
+@param[in]  trx    transaction for this undo log */
+#endif /* UNIV_DEBUG */
+/**
+@param[in]  undo   undo log
+@param[in]  limit  all undo records with undo number;
+                   This value should be truncated. */
 void trx_undo_truncate_end_func(
 #ifdef UNIV_DEBUG
-    const trx_t *trx, /*!< in: transaction whose undo log it is */
-#endif                /* UNIV_DEBUG */
-    trx_undo_t *undo, /*!< in: undo log */
-    undo_no_t limit)  /*!< in: all undo records with undo number
-                      >= this value should be truncated */
-{
-  page_t *undo_page;
-  page_no_t last_page_no;
-  trx_undo_rec_t *rec;
-  trx_undo_rec_t *trunc_here;
-  mtr_t mtr;
-
-  ut_ad(mutex_own(&(trx->undo_mutex)));
-
+    const trx_t *trx,
+#endif /* UNIV_DEBUG */
+    trx_undo_t *undo, undo_no_t limit) {
+  ut_ad(mutex_own(&trx->undo_mutex));
   ut_ad(mutex_own(&undo->rseg->mutex));
 
+  mtr_t mtr;
+
   for (;;) {
-    mtr_start(&mtr);
+    mtr.start();
+
+    /* Set NO_REDO for temporary undo logs. */
     if (fsp_is_system_temporary(undo->rseg->space_id)) {
-      mtr.set_log_mode(MTR_LOG_NO_REDO);
       ut_ad(trx->rsegs.m_noredo.rseg == undo->rseg);
+      mtr.set_log_mode(MTR_LOG_NO_REDO);
     } else {
       ut_ad(trx->rsegs.m_redo.rseg == undo->rseg);
     }
 
-    trunc_here = nullptr;
+    const page_id_t page_id(undo->space, undo->last_page_no);
 
-    last_page_no = undo->last_page_no;
+    auto undo_page = trx_undo_page_get(page_id, undo->page_size, &mtr);
 
-    undo_page = trx_undo_page_get(page_id_t(undo->space, last_page_no),
-                                  undo->page_size, &mtr);
+    int trunc_offset = trx_undo_page_truncate_offset(undo, undo_page, limit);
 
-    rec = trx_undo_page_get_last_rec(undo_page, undo->hdr_page_no,
-                                     undo->hdr_offset);
-    while (rec) {
-      if (trx_undo_rec_get_undo_no(rec) >= limit) {
-        /* Truncate at least this record off, maybe
-        more */
-        trunc_here = rec;
-      } else {
-        goto function_exit;
-      }
-
-      rec =
-          trx_undo_page_get_prev_rec(rec, undo->hdr_page_no, undo->hdr_offset);
+    /* If offset is within the page, truncate part of the page and quit.*/
+    if (trunc_offset > 0) {
+      mlog_write_ulint(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE,
+                       trunc_offset, MLOG_2BYTES, &mtr);
+      break;
     }
 
-    if (last_page_no == undo->hdr_page_no) {
-      goto function_exit;
+    /* If all recs are < limit, don't truncate anything. */
+    if (trunc_offset < 0) {
+      break;
     }
 
-    ut_ad(last_page_no == undo->last_page_no);
+    /* Free the last page and move on to the next. */
+    ut_ad(undo->last_page_no != undo->hdr_page_no);
     trx_undo_free_last_page(trx, undo, &mtr);
 
-    mtr_commit(&mtr);
+    mtr.commit();
   }
 
-function_exit:
-  if (trunc_here) {
-    mlog_write_ulint(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE,
-                     trunc_here - undo_page, MLOG_2BYTES, &mtr);
-  }
-
-  mtr_commit(&mtr);
+  mtr.commit();
 }
 
 /** Truncate the head of an undo log.
@@ -1112,7 +1149,7 @@ void trx_undo_truncate_start(trx_rseg_t *rseg, page_no_t hdr_page_no,
     return;
   }
 loop:
-  mtr_start(&mtr);
+  mtr.start();
 
   if (fsp_is_system_temporary(rseg->space_id)) {
     mtr.set_log_mode(MTR_LOG_NO_REDO);
@@ -1123,7 +1160,7 @@ loop:
   if (rec == nullptr) {
     /* Already empty */
 
-    mtr_commit(&mtr);
+    mtr.commit();
 
     return;
   }
@@ -1132,7 +1169,7 @@ loop:
 
   last_rec = trx_undo_page_get_last_rec(undo_page, hdr_page_no, hdr_offset);
   if (trx_undo_rec_get_undo_no(last_rec) >= limit) {
-    mtr_commit(&mtr);
+    mtr.commit();
 
     return;
   }
@@ -1146,7 +1183,7 @@ loop:
     trx_undo_free_page(rseg, TRUE, rseg->space_id, hdr_page_no, page_no, &mtr);
   }
 
-  mtr_commit(&mtr);
+  mtr.commit();
 
   goto loop;
 }
@@ -1165,7 +1202,7 @@ static void trx_undo_seg_free(const trx_undo_t *undo, bool noredo) {
   rseg = undo->rseg;
 
   do {
-    mtr_start(&mtr);
+    mtr.start();
 
     if (noredo) {
       mtr.set_log_mode(MTR_LOG_NO_REDO);
@@ -1192,7 +1229,7 @@ static void trx_undo_seg_free(const trx_undo_t *undo, bool noredo) {
     }
 
     rseg->unlatch();
-    mtr_commit(&mtr);
+    mtr.commit();
   } while (!finished);
 }
 
@@ -1326,7 +1363,7 @@ ulint trx_undo_lists_init(
   ulint i;
   mtr_t mtr;
 
-  mtr_start(&mtr);
+  mtr.start();
 
   rseg_header =
       trx_rsegf_get_new(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
@@ -1349,9 +1386,9 @@ ulint trx_undo_lists_init(
 
       size += undo->size;
 
-      mtr_commit(&mtr);
+      mtr.commit();
 
-      mtr_start(&mtr);
+      mtr.start();
 
       rseg_header =
           trx_rsegf_get(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
@@ -1361,7 +1398,7 @@ ulint trx_undo_lists_init(
     }
   }
 
-  mtr_commit(&mtr);
+  mtr.commit();
 
   return (size);
 }
@@ -1653,7 +1690,7 @@ dberr_t trx_undo_assign_undo(
     is_gtid = gtid_persistor.persists_gtid(trx);
   }
 
-  mtr_start(&mtr);
+  mtr.start();
   if (no_redo) {
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   } else {
@@ -1710,7 +1747,7 @@ dberr_t trx_undo_assign_undo(
 
 func_exit:
   rseg->unlatch();
-  mtr_commit(&mtr);
+  mtr.commit();
 
   return (err);
 }
@@ -1881,13 +1918,15 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
   rseg->unlatch();
 }
 
-/** At shutdown, frees the undo logs of a PREPARED transaction. */
-void trx_undo_free_prepared(trx_t *trx) /*!< in/out: PREPARED transaction */
-{
-  ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
+void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
+                                                    ulint expected_undo_state) {
+  ut_a(expected_undo_state == TRX_UNDO_ACTIVE ||
+       expected_undo_state == TRX_UNDO_PREPARED);
+
+  ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
 
   if (trx->rsegs.m_redo.update_undo) {
-    ut_a(trx->rsegs.m_redo.update_undo->state == TRX_UNDO_PREPARED);
+    ut_a(trx->rsegs.m_redo.update_undo->state == expected_undo_state);
     UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->update_undo_list,
                    trx->rsegs.m_redo.update_undo);
     trx_undo_mem_free(trx->rsegs.m_redo.update_undo);
@@ -1896,7 +1935,7 @@ void trx_undo_free_prepared(trx_t *trx) /*!< in/out: PREPARED transaction */
   }
 
   if (trx->rsegs.m_redo.insert_undo) {
-    ut_a(trx->rsegs.m_redo.insert_undo->state == TRX_UNDO_PREPARED);
+    ut_a(trx->rsegs.m_redo.insert_undo->state == expected_undo_state);
     UT_LIST_REMOVE(trx->rsegs.m_redo.rseg->insert_undo_list,
                    trx->rsegs.m_redo.insert_undo);
     trx_undo_mem_free(trx->rsegs.m_redo.insert_undo);
@@ -1905,7 +1944,7 @@ void trx_undo_free_prepared(trx_t *trx) /*!< in/out: PREPARED transaction */
   }
 
   if (trx->rsegs.m_noredo.update_undo) {
-    ut_a(trx->rsegs.m_noredo.update_undo->state == TRX_UNDO_PREPARED);
+    ut_a(trx->rsegs.m_noredo.update_undo->state == expected_undo_state);
 
     UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->update_undo_list,
                    trx->rsegs.m_noredo.update_undo);
@@ -1914,7 +1953,7 @@ void trx_undo_free_prepared(trx_t *trx) /*!< in/out: PREPARED transaction */
     trx->rsegs.m_noredo.update_undo = nullptr;
   }
   if (trx->rsegs.m_noredo.insert_undo) {
-    ut_a(trx->rsegs.m_noredo.insert_undo->state == TRX_UNDO_PREPARED);
+    ut_a(trx->rsegs.m_noredo.insert_undo->state == expected_undo_state);
 
     UT_LIST_REMOVE(trx->rsegs.m_noredo.rseg->insert_undo_list,
                    trx->rsegs.m_noredo.insert_undo);
@@ -1926,68 +1965,72 @@ void trx_undo_free_prepared(trx_t *trx) /*!< in/out: PREPARED transaction */
 
 bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 #ifdef UNIV_DEBUG
-  static int truncate_fail_count;
-  DBUG_EXECUTE_IF(
-      "ib_undo_trunc_fail_truncate", if (++truncate_fail_count == 1) {
-        ib::info() << "ib_undo_trunc_fail_truncate";
-        return (false);
-      });
+  static undo::Inject_failure_once injector("ib_undo_trunc_fail_truncate");
+  if (injector.should_fail()) {
+    return (false);
+  };
 #endif /* UNIV_DEBUG */
 
   bool success = true;
-  space_id_t old_space_id = marked_space->id();
-  space_id_t space_num = undo::id2num(old_space_id);
-  Rsegs *marked_rsegs = marked_space->rsegs();
+
+  auto old_space_id = marked_space->id();
+  auto space_num = undo::id2num(old_space_id);
+  auto marked_rsegs = marked_space->rsegs();
 
   undo::unuse_space_id(old_space_id);
 
-  space_id_t new_space_id = undo::use_next_space_id(space_num);
+  auto new_space_id = undo::use_next_space_id(space_num);
+
+  const auto n_pages = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
   fil_space_t *space = fil_space_get(old_space_id);
   bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
 
   /* Step-1: Truncate tablespace by replacement with a new space_id. */
-  success = fil_replace_tablespace(old_space_id, new_space_id,
-                                   SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+  success = fil_replace_tablespace(old_space_id, new_space_id, n_pages);
+
   if (!success) {
     return (success);
   }
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_empty_file",
-                  ib::info(ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE);
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_empty_file"));
 
   /* This undo tablespace is unused. Lock the Rsegs before the
   file_space because SYNC_RSEGS > SYNC_FSP. */
   marked_rsegs->x_lock();
 
-  /* Step-2: Re-initialize tablespace header.
-  Avoid REDO logging as we don't want to apply the action if server
-  crashes. For fix-up we have UNDO-truncate-ddl-log. */
+  /* Step-2: Re-initialize tablespace header. */
   log_free_check();
+
   mtr_t mtr;
-  mtr_start(&mtr);
-  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-  /* Why return value is not being checked here? */
-  fsp_header_init(new_space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr, false);
+
+  mtr.start();
+
+  fsp_header_init(new_space_id, n_pages, &mtr, false);
+
+  /* If tablespace is to be encrypted, encrypt it now */
+  if (is_encrypted && srv_undo_log_encrypt) {
+    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
+    /* Don't expect any error here (unless keyring plugin is uninstalled). In
+    that case too, continue truncation processing of tablespace. */
+    ut_ad(!ret);
+  }
 
   /* Step-3: Add the RSEG_ARRAY page. */
   trx_rseg_array_create(new_space_id, &mtr);
-  mtr_commit(&mtr);
+
+  mtr.commit();
 
   /* Step-4: Re-initialize rollback segment header that resides
   in truncated tablespaces. */
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_rsegs",
-                  ib::info(ER_IB_MSG_UNDO_TRUNK_BEFORE_RSEG);
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_before_rsegs"));
 
   for (auto rseg : *marked_rsegs) {
-    trx_rsegf_t *rseg_header;
-
     log_free_check();
-    mtr_start(&mtr);
-    mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+    mtr.start();
+
     mtr_x_lock(fil_space_get_latch(new_space_id), &mtr);
 
     rseg->space_id = new_space_id;
@@ -1997,7 +2040,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
     ut_a(rseg->page_no != FIL_NULL);
 
-    rseg_header =
+    auto rseg_header =
         trx_rsegf_get_new(new_space_id, rseg->page_no, rseg->page_size, &mtr);
 
     /* Before re-initialization ensure that we free the existing
@@ -2036,7 +2079,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
         mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr) +
         1);
 
-    mtr_commit(&mtr);
+    mtr.commit();
 
     ut_ad(rseg->get_curr_size() == 1);
     ut_ad(rseg->trx_ref_count == 0);
@@ -2045,17 +2088,6 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     rseg->last_offset = 0;
     rseg->last_trx_no = 0;
     rseg->last_del_marks = FALSE;
-  }
-
-  /* If tablespace is to be encrypted, encrypt it now */
-  if (is_encrypted && srv_undo_log_encrypt) {
-    mtr_t mtr;
-    mtr_start(&mtr);
-    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
-    /* Don't expect any error here (unless keyring plugin is uninstalled). In
-    that case too, continue truncation processing of tablespace. */
-    ut_ad(!ret);
-    mtr_commit(&mtr);
   }
 
   marked_rsegs->x_unlock();

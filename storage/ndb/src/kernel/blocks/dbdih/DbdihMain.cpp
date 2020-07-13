@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28679,7 +28679,8 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
   ndbassert(requestType == WaitGCPReq::Complete ||
             requestType == WaitGCPReq::CompleteForceStart ||
             requestType == WaitGCPReq::CompleteIfRunning ||
-            requestType == WaitGCPReq::WaitEpoch);
+            requestType == WaitGCPReq::WaitEpoch ||
+            requestType == WaitGCPReq::ShutdownSync);
   
   /**
    * At this point, we wish to wait for some GCP/Epoch related
@@ -28693,6 +28694,10 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
    *                      Return latest completed GCI
    * WaitEpoch          : Wait for the next epoch completion,
    *                      and return its identity
+   * ShutdownSync       : Wait for all running nodes to request
+   *                      the same, then wait for the next
+   *                      GCI completion, and return its
+   *                      identity
    *
    * Notes
    *   For GCIs, the 'next' GCI is generally next GCI to *start* 
@@ -28831,6 +28836,21 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
       
       break;
     }
+    case WaitGCPReq::ShutdownSync:
+    {
+      jam();
+
+      const Uint32 requestingNode = refToNode(senderRef);
+      ptr.p->waitGCI = WaitGCPMasterRecord::ShutdownSyncGci;
+
+      ndbrequire(requestingNode <= MAX_DATA_NODE_ID);
+      ndbrequire(!c_shutdownReqNodes.get(requestingNode));
+      c_shutdownReqNodes.set(requestingNode);
+
+      checkShutdownSync();
+
+      break;
+    }
     default:
       jamLine(requestType);
       ndbabort();
@@ -28858,6 +28878,17 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     req->senderData = ptr.i;
     req->senderRef = reference();
     req->requestType = requestType;
+
+    if (requestType == WaitGCPReq::ShutdownSync)
+    {
+      jam();
+      const Uint32 masterVersion = getNodeInfo(refToNode(cmasterdihref)).m_version;
+      if (!ndbd_support_waitgcp_shutdownsync(masterVersion))
+      {
+        jam();
+        req->requestType = WaitGCPReq::CompleteForceStart;
+      }
+    }
 
     sendSignal(cmasterdihref, GSN_WAIT_GCP_REQ, signal,
 	       WaitGCPReq::SignalLength, JBB);
@@ -28958,7 +28989,112 @@ void Dbdih::checkWaitGCPMaster(Signal* signal, NodeId failedNodeId)
       c_waitGCPMasterList.release(i);
     }//if
   }//while
+
+  /* Node failure might mean we are now shutdown sync ready */
+  checkShutdownSync();
 }//Dbdih::checkWaitGCPMaster()
+
+/**
+ * getNodeBitmap
+ *
+ * Function to set a bitmap/mask with a bit set for each
+ * node currently in the given list [and with a version
+ * passing the supplied version function test].
+ *
+ * e.g. cfirstAliveNode / cfirstDeadNode
+ *
+ */
+void Dbdih::getNodeBitmap(NdbNodeBitmask& map,
+                          Uint32 listHead,
+                          int (*versionFunction)(Uint32))
+{
+  jam();
+
+  map.clear();
+
+  NodeRecordPtr nodePtr;
+  nodePtr.i = listHead;
+  do
+  {
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    if (versionFunction != NULL)
+    {
+      if (versionFunction(getNodeInfo(nodePtr.i).m_version))
+      {
+        map.set(nodePtr.i);
+      }
+    }
+    else
+    {
+      map.set(nodePtr.i);
+    }
+    nodePtr.i = nodePtr.p->nextNode;
+  } while (nodePtr.i != RNIL);
+}
+
+/**
+ * checkShutdownSync
+ *
+ * Called when a new shutdown sync request or node failure
+ * occurs.
+ * If all currently live nodes have requested shutdown sync
+ * then we choose the next GCI, and update their queued requests
+ * to complete on that GCI boundary
+ */
+void Dbdih::checkShutdownSync()
+{
+  jam();
+
+  if (likely(c_shutdownReqNodes.isclear()))
+  {
+    /* Nothing happening */
+    return;
+  }
+
+  /* Get bitmap of current live nodes supporting shutdownSync */
+  NdbNodeBitmask allDataNodes;
+  getNodeBitmap(allDataNodes,
+                cfirstAliveNode,
+                &ndbd_support_waitgcp_shutdownsync);
+
+  if (c_shutdownReqNodes.contains(allDataNodes))
+  {
+    /**
+     * Now we have all nodes waiting for a GCI
+     * boundary, lets choose the next boundary, as is done
+     * for WaitGCPReq::CompleteForceStart to ensure that any
+     * committed transactions are durable.
+     */
+    Uint32 safeGCI = Uint32(m_micro_gcp.m_current_gci >> 32);
+    if (m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT)
+    {
+      safeGCI = Uint32(m_micro_gcp.m_master.m_new_gci >> 32);
+    }
+
+    g_eventLogger->info("Cluster shutdown durable gci : %u", safeGCI);
+
+    WaitGCPMasterPtr ptr;
+    c_waitGCPMasterList.first(ptr);
+    while(ptr.i != RNIL) {
+      jam();
+
+      if (ptr.p->waitGCI == WaitGCPMasterRecord::ShutdownSyncGci)
+      {
+        jam();
+        ptr.p->waitGCI = safeGCI;
+      }
+      c_waitGCPMasterList.next(ptr);
+    }
+
+    // Invalidating timestamps will force GCP_PREPARE/COMMIT
+    // and GCP_SAVEREQ et al ASAP
+    NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
+    NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
+
+    c_shutdownReqNodes.clear();
+  }
+}
+
 
 void Dbdih::emptyWaitGCPMasterQueue(Signal* signal,
                                     Uint64 gci,
@@ -28978,7 +29114,7 @@ void Dbdih::emptyWaitGCPMasterQueue(Signal* signal,
     const BlockReference clientRef = ptr.p->clientRef;
     const Uint32 waitGCI = ptr.p->waitGCI;
 
-    c_waitGCPMasterList.next(ptr);
+    list.next(ptr);
     
     if (waitGCI != 0)
     {

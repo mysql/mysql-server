@@ -1,15 +1,12 @@
 define("dijit/form/_SearchMixin", [
-	"dojo/data/util/filter", // patternToRegExp
 	"dojo/_base/declare", // declare
-	"dojo/_base/event", // event.stop
 	"dojo/keys", // keys
 	"dojo/_base/lang", // lang.clone lang.hitch
 	"dojo/query", // query
-	"dojo/sniff", // has("ie")
 	"dojo/string", // string.substitute
 	"dojo/when",
 	"../registry"	// registry.byId
-], function(filter, declare, event, keys, lang, query, has, string, when, registry){
+], function(declare, keys, lang, query, string, when, registry){
 
 	// module:
 	//		dijit/form/_SearchMixin
@@ -68,7 +65,6 @@ define("dijit/form/_SearchMixin", [
 		//		based on what the user has typed.  Changing this expression will modify
 		//		whether the results are only exact matches, a "starting with" match,
 		//		etc.
-		//		dojo.data query expression pattern.
 		//		`${0}` will be substituted for the user text.
 		//		`*` is used for wildcards.
 		//		`${0}*` means "starts with", `*${0}*` means "contains", `${0}` means "is"
@@ -77,6 +73,34 @@ define("dijit/form/_SearchMixin", [
 		// ignoreCase: Boolean
 		//		Set true if the query should ignore case when matching possible items
 		ignoreCase: true,
+
+		_patternToRegExp: function(pattern){
+			// summary:
+			//		Helper function to convert a simple pattern to a regular expression for matching.
+			// description:
+			//		Returns a regular expression object that conforms to the defined conversion rules.
+			//		For example:
+			//
+			//		- ca*   -> /^ca.*$/
+			//		- *ca*  -> /^.*ca.*$/
+			//		- *c\*a*  -> /^.*c\*a.*$/
+			//		- *c\*a?*  -> /^.*c\*a..*$/
+			//
+			//		and so on.
+			// pattern: string
+			//		A simple matching pattern to convert that follows basic rules:
+			//
+			//		- * Means match anything, so ca* means match anything starting with ca
+			//		- ? Means match single character.  So, b?b will match to bob and bab, and so on.
+			//		- \ is an escape character.  So for example, \* means do not treat * as a match, but literal character *.
+			//
+			//		To use a \ as a character in the string, it must be escaped.  So in the pattern it should be
+			//		represented by \\ to be treated as an ordinary \ character instead of an escape.
+
+			return new RegExp("^" + pattern.replace(/(\\.)|(\*)|(\?)|\W/g, function(str, literal, star, question){
+				return star ? ".*" : question ? "." : literal ? literal : "\\" + str;
+			}) + "$", this.ignoreCase ? "mi" : "m");
+		},
 
 		_abortQuery: function(){
 			// stop in-progress query
@@ -107,31 +131,19 @@ define("dijit/form/_SearchMixin", [
 			if(this.disabled || this.readOnly){ return; }
 			var key = evt.charOrCode;
 
-			var doSearch = false;
 			this._prev_key_backspace = false;
 
-			switch(key){
-				case keys.DELETE:
-				case keys.BACKSPACE:
-					this._prev_key_backspace = true;
-					this._maskValidSubsetError = true;
-					doSearch = true;
-					break;
-
-				default:
-					// Non char keys (F1-F12 etc..) shouldn't start a search..
-					// Ascii characters and IME input (Chinese, Japanese etc.) should.
-					//IME input produces keycode == 229.
-					doSearch = typeof key == 'string' || key == 229;
+			if (key == keys.DELETE || key == keys.BACKSPACE) {
+				this._prev_key_backspace = true;
+				this._maskValidSubsetError = true;
 			}
-			if(doSearch){
-				// need to wait a tad before start search so that the event
-				// bubbles through DOM and we have value visible
-				if(!this.store){
-					this.onSearch();
-				}else{
-					this.searchTimer = this.defer("_startSearchFromInput", 1);
-				}
+
+			// need to wait a tad before start search so that the event
+			// bubbles through DOM and we have value visible
+			if(!this.store){
+				this.onSearch();
+			}else{
+				this.searchTimer = this.defer("_startSearchFromInput", 1);
 			}
 		},
 
@@ -236,7 +248,7 @@ define("dijit/form/_SearchMixin", [
 				// Query on searchAttr is a regex for benefit of dojo/store/Memory,
 				// but with a toString() method to help dojo/store/JsonRest.
 				// Search string like "Co*" converted to regex like /^Co.*$/i.
-				q = filter.patternToRegExp(qs, this.ignoreCase);
+				q = this._patternToRegExp(qs);
 				q.toString = function(){ return qs; };
 			}
 

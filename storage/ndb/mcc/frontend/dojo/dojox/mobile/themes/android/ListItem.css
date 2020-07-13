@@ -1,37 +1,43 @@
 
-.mblDomButtonGrayArrow, .mblDomButtonArrow {
-	position: relative;
-	width: 20px;
-	height: 29px;
+.mblDomButtonGrayArrow,
+.mblDomButtonArrow {
+  position: relative;
+  width: 20px;
+  height: 29px;
 }
-.mblDomButtonGrayArrow > div, .mblDomButtonArrow > div {
-	position: absolute;
-	top: 10px;
-	left: 6px;
-	width: 6px;
-	height: 6px;
-	font-size: 1px;
-	-webkit-transform: rotate(45deg);
-	border-width: 3px 3px 0px 0px;
-	border-style: solid;
-	border-color: #808080;
+.mblDomButtonGrayArrow > div,
+.mblDomButtonArrow > div {
+  position: absolute;
+  top: 10px;
+  left: 6px;
+  width: 6px;
+  height: 6px;
+  font-size: 1px;
+  -webkit-transform: rotate(45deg);
+  transform: rotate(45deg);
+  border-width: 3px 3px 0px 0px;
+  border-style: solid;
+  border-color: #808080;
 }
-.mblDomButtonWhiteCheck, .mblDomButtonCheck {
-	position: relative;
-	width: 20px;
-	height: 29px;
+.mblDomButtonWhiteCheck,
+.mblDomButtonCheck {
+  position: relative;
+  width: 20px;
+  height: 29px;
 }
-.mblDomButtonWhiteCheck > div, .mblDomButtonCheck > div {
-	position: absolute;
-	left: 0px;
-	top: 8px;
-	width: 16px;
-	height: 6px;
-	font-size: 1px;
-	-webkit-transform: scaleX(0.7) rotate(135deg);
-	border-width: 3px 4px 0px 0px;
-	border-style: solid;
-	border-color: white;
+.mblDomButtonWhiteCheck > div,
+.mblDomButtonCheck > div {
+  position: absolute;
+  left: 0px;
+  top: 8px;
+  width: 16px;
+  height: 6px;
+  font-size: 1px;
+  -webkit-transform: scaleX(0.7) rotate(135deg);
+  transform: scaleX(0.7) rotate(135deg);
+  border-width: 3px 4px 0px 0px;
+  border-style: solid;
+  border-color: white;
 }
 .mblListItem {
   position: relative;
@@ -53,8 +59,9 @@
   line-height: normal;
 }
 .mblListItemSelected {
-  color: white;
+  color: #ffffff;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#306ea1), to(#266093), color-stop(0.06, #4090d3), color-stop(0.5, #306ea1));
+  background-image: linear-gradient(to bottom, #306ea1 0%, #4090d3 6%, #306ea1 50%, #266093 100%);
 }
 .mblListItemSelected .mblDomButton div {
   border-color: white;
@@ -91,7 +98,9 @@
   margin-bottom: -17.5px;
   margin-right: 11px;
 }
-.mblListItemRightIcon, .mblListItemRightIcon2, .mblListItemUncheckIcon {
+.mblListItemRightIcon,
+.mblListItemRightIcon2,
+.mblListItemUncheckIcon {
   position: relative;
   float: right;
   line-height: normal;
@@ -139,6 +148,7 @@
   border: 1px solid gray;
   opacity: 0.5;
   -webkit-box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
-  -webkit-border-radius: 0px !important;
+  box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+  border-radius: 0px !important;
   -moz-border-radius: 0px !important;
 }

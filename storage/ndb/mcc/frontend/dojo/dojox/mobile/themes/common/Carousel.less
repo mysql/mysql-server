@@ -49,6 +49,7 @@
 /* dojox.mobile._CarouselItem */
 .mblCarouselItem {
 	text-align: center;
+	.tap-highlight-color(rgba(255, 255, 255, 0));
 }
 .mblCarouselItemHeaderText {
 	color: white;
@@ -65,7 +66,7 @@
 	margin-bottom: 8px;
 }
 .mblCarouselItemImage {
-	-webkit-box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+	.box-shadow(5px 5px 5px rgba(0, 0, 0, 0.5));
 	vertical-align: bottom;
 }
 .mblCarouselItemBlank {
@@ -73,5 +74,5 @@
 }
 .mblCarouselSlotSelected .mblCarouselItemImage {
 	opacity: 0.6;
-	-webkit-box-shadow: none;
+	.box-shadow(none);
 }

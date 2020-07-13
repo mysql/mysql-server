@@ -268,7 +268,7 @@ while ($i<9)
 --source include/rpl_connection.inc
 --let $rpl_channel_name= 'channel_1'
 --source include/stop_slave.inc
---source include/rpl_reset_slave_helper.inc
+--source include/rpl_reset_slave.inc
 
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc

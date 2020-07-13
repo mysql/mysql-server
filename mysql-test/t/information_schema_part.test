@@ -167,12 +167,27 @@ INSERT INTO t1 SELECT NULL, 3
                 FROM t1 a, t1 b, t1 c, t1 d, t1 e, t1 f, t1 g;
 
 --echo # This SELECT caches the cardinality, as there is non cached yet.
-SHOW INDEXES IN t1;
+--echo # We expect a non-zero cardinality value, as SE cannot provide
+--echo # latest value, without the call to ANALYZE TABLE.
+SELECT TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA INDEX_NAME, SEQ_IN_INDEX,
+       COLUMN_NAME, COLLATION, IF(CARDINALITY > 0, "non-zero", "zero"),
+       SUB_PART PACKED, NULLABLE, INDEX_TYPE, COMMENT, INDEX_COMMENT,
+       IS_VISIBLE, EXPRESSION
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 
---echo # We do not account INSERTed rows into cardinality
---echo # because the cached value is not expired yet.
+
+--echo # We do not account INSERTed rows into cardinality because
+--echo # the cached value is not expired yet.
+--echo # We expect a non-zero cardinality value, as SE cannot provide
+--echo # latest value, without the call to ANALYZE TABLE.
 INSERT INTO t1 SELECT NULL, 4 FROM t1;
-SHOW INDEXES IN t1;
+SELECT TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA INDEX_NAME, SEQ_IN_INDEX,
+       COLUMN_NAME, COLLATION, IF(CARDINALITY > 0, "non-zero", "zero"),
+       SUB_PART PACKED, NULLABLE, INDEX_TYPE, COMMENT, INDEX_COMMENT,
+       IS_VISIBLE, EXPRESSION
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1';
 
 --echo # We force update cache by calling ANALYZE TABLE.
 ANALYZE TABLE t1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -681,6 +681,7 @@ int CPCD::Process::start() {
           writePid(getpgrp());
           if (runas(m_runas.c_str()) == 0) {
             signal(SIGCHLD, SIG_DFL);
+            NdbThread_ClearSigMask();
             do_exec();
           }
           _exit(1);
@@ -715,6 +716,7 @@ int CPCD::Process::start() {
                 _exit(1);
               }
               signal(SIGCHLD, SIG_DFL);
+              NdbThread_ClearSigMask();
               do_exec();
               _exit(1);
               /* NOTREACHED */

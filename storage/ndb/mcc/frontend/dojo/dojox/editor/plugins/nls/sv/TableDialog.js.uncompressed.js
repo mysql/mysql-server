@@ -4,20 +4,20 @@ define(
 	modifyTableTitle: "Ändra tabell",
 	rows: "Rader:",
 	columns: "Kolumner:",
-	align: "Justering:",
-	cellPadding: "Cellfyllning:",
+	align: "Justera:",
+	cellPadding: "Cellutfyllnad:",
 	cellSpacing: "Cellavstånd:",
 	tableWidth: "Tabellbredd:",
 	backgroundColor: "Bakgrundsfärg:",
-	borderColor: "Kantlinjefärg:",
+	borderColor: "Ramfärg:",
 	borderThickness: "Kantlinjetjocklek:",
 	percent: "procent",
 	pixels: "bildpunkter",
 	"default": "standard",
-	left: "vänster",
-	center: "centrerat",
-	right: "höger",
-	buttonSet: "Använd", // translated elsewhere?
+	left: "vänsterjustera",
+	center: "centrera",
+	right: "högerjustera",
+	buttonSet: "Ange", // translated elsewhere?
 	buttonInsert: "Infoga",
 	buttonCancel: "Avbryt",
 	selectTableLabel: "Välj tabell",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Lägg till kolumn före",
 	insertTableColumnAfterLabel: "Lägg till kolumn efter",
 	deleteTableRowLabel: "Ta bort rad",
-	deleteTableColumnLabel: "Ta bort kolumn"
+	deleteTableColumnLabel: "Ta bort kolumn",
+	colorTableCellTitle: "Bakgrundsfärg för tabellcell",
+	tableContextMenuTitle: "Kontextmeny för tabell"
 })
 );

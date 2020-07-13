@@ -887,3 +887,729 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`spID` AS `spID`,`test`.`t1`.`userID` AS `userID`,`test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = <cache>(cast('20:21:22' as time)))
 DROP TABLE t1;
+#
+# WL#13456: Inject CAST nodes for comparisons with STRING non-const expressions. 
+# 
+CREATE TABLE t(c CHAR(64), v VARCHAR(256), txt TEXT, b BINARY(64), vb VARBINARY(32),
+e ENUM ("v1", "v2"), set1 SET('101', '102'), bl  BLOB, i INT,
+si SMALLINT, ti TINYINT, mi MEDIUMINT, bi BIGINT, bt BIT,
+d DECIMAL, f FLOAT, dbl DOUBLE, dt DATETIME, dd  DATE, t TIME,
+y YEAR);
+INSERT INTO t
+VALUES ("char", "vchar","text", "binary", "varbinary", "v1", '101,102', "blob", 
+2001, 2, 3, 4, 200000002, 0x01, 2001.0, 2001.0, 2001.2,
+"2001-01-02 22:00", "2001-01-02", "20:01", 2010);
+# String vs INT
+EXPLAIN SELECT v = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`i` as double)) AS `v = i` from `test`.`t`
+# String vs SMALLINT
+EXPLAIN SELECT v = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`si` as double)) AS `v = si` from `test`.`t`
+# String vs TINYINT
+EXPLAIN SELECT v = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`ti` as double)) AS `v = ti` from `test`.`t`
+# String vs MEDIUMINT
+EXPLAIN SELECT v = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`mi` as double)) AS `v = mi` from `test`.`t`
+# String vs BIGINT
+EXPLAIN SELECT v = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`bi` as double)) AS `v = bi` from `test`.`t`
+# String vs BIT
+EXPLAIN SELECT v = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`bt` as double)) AS `v = bt` from `test`.`t`
+# String vs YEAR
+EXPLAIN SELECT v = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`y` as double)) AS `v = y` from `test`.`t`
+# String vs DECIMAL 
+EXPLAIN SELECT v = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`d` as double)) AS `v = d` from `test`.`t`
+# String vs FLOAT 
+EXPLAIN SELECT v = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = `test`.`t`.`f`) AS `v = f` from `test`.`t`
+# String vs DOUBLE
+EXPLAIN SELECT v = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = `test`.`t`.`dbl`) AS `v = dbl` from `test`.`t`
+# String vs DATETIME
+EXPLAIN SELECT v = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as datetime(6)) = `test`.`t`.`dt`) AS `v = dt` from `test`.`t`
+# String vs DATE
+EXPLAIN SELECT v = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as date) = `test`.`t`.`dd`) AS `v = dd` from `test`.`t`
+# String vs TIME
+EXPLAIN SELECT v = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`v` = `test`.`t`.`t`) AS `v = t` from `test`.`t`
+# String vs another equality 
+EXPLAIN SELECT v = (v = y) FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast((cast(`test`.`t`.`v` as double) = cast(`test`.`t`.`y` as double)) as double)) AS `v = (v = y)` from `test`.`t`
+# String vs expression
+EXPLAIN SELECT v = 1 * i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) = cast((1 * `test`.`t`.`i`) as double)) AS `v = 1 * i` from `test`.`t`
+# Other operators
+EXPLAIN SELECT v <=> i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) <=> cast(`test`.`t`.`i` as double)) AS `v <=> i` from `test`.`t`
+EXPLAIN SELECT v <> i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) <> cast(`test`.`t`.`i` as double)) AS `v <> i` from `test`.`t`
+EXPLAIN SELECT v > i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) > cast(`test`.`t`.`i` as double)) AS `v > i` from `test`.`t`
+EXPLAIN SELECT v >= i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) >= cast(`test`.`t`.`i` as double)) AS `v >= i` from `test`.`t`
+EXPLAIN SELECT v <= i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) <= cast(`test`.`t`.`i` as double)) AS `v <= i` from `test`.`t`
+EXPLAIN SELECT v < i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`v` as double) < cast(`test`.`t`.`i` as double)) AS `v < i` from `test`.`t`
+# Test data type combinations
+EXPLAIN SELECT c = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`i` as double)) AS `c = i` from `test`.`t`
+EXPLAIN SELECT c = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`si` as double)) AS `c = si` from `test`.`t`
+EXPLAIN SELECT c = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`ti` as double)) AS `c = ti` from `test`.`t`
+EXPLAIN SELECT c = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`mi` as double)) AS `c = mi` from `test`.`t`
+EXPLAIN SELECT c = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`bi` as double)) AS `c = bi` from `test`.`t`
+EXPLAIN SELECT c = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`bt` as double)) AS `c = bt` from `test`.`t`
+EXPLAIN SELECT c = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`y` as double)) AS `c = y` from `test`.`t`
+EXPLAIN SELECT c = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = cast(`test`.`t`.`d` as double)) AS `c = d` from `test`.`t`
+EXPLAIN SELECT c = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = `test`.`t`.`f`) AS `c = f` from `test`.`t`
+EXPLAIN SELECT c = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as double) = `test`.`t`.`dbl`) AS `c = dbl` from `test`.`t`
+EXPLAIN SELECT c = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as datetime(6)) = `test`.`t`.`dt`) AS `c = dt` from `test`.`t`
+EXPLAIN SELECT c = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`c` as date) = `test`.`t`.`dd`) AS `c = dd` from `test`.`t`
+EXPLAIN SELECT c = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`c` = `test`.`t`.`t`) AS `c = t` from `test`.`t`
+EXPLAIN SELECT txt = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`i` as double)) AS `txt = i` from `test`.`t`
+EXPLAIN SELECT txt = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`si` as double)) AS `txt = si` from `test`.`t`
+EXPLAIN SELECT txt = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`ti` as double)) AS `txt = ti` from `test`.`t`
+EXPLAIN SELECT txt = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`mi` as double)) AS `txt = mi` from `test`.`t`
+EXPLAIN SELECT txt = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`bi` as double)) AS `txt = bi` from `test`.`t`
+EXPLAIN SELECT txt = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`bt` as double)) AS `txt = bt` from `test`.`t`
+EXPLAIN SELECT txt = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`y` as double)) AS `txt = y` from `test`.`t`
+EXPLAIN SELECT txt = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = cast(`test`.`t`.`d` as double)) AS `txt = d` from `test`.`t`
+EXPLAIN SELECT txt = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = `test`.`t`.`f`) AS `txt = f` from `test`.`t`
+EXPLAIN SELECT txt = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as double) = `test`.`t`.`dbl`) AS `txt = dbl` from `test`.`t`
+EXPLAIN SELECT txt = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as datetime(6)) = `test`.`t`.`dt`) AS `txt = dt` from `test`.`t`
+EXPLAIN SELECT txt = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`txt` as date) = `test`.`t`.`dd`) AS `txt = dd` from `test`.`t`
+EXPLAIN SELECT txt = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`txt` = `test`.`t`.`t`) AS `txt = t` from `test`.`t`
+EXPLAIN SELECT b = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`i` as double)) AS `b = i` from `test`.`t`
+EXPLAIN SELECT b = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`si` as double)) AS `b = si` from `test`.`t`
+EXPLAIN SELECT b = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`ti` as double)) AS `b = ti` from `test`.`t`
+EXPLAIN SELECT b = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`mi` as double)) AS `b = mi` from `test`.`t`
+EXPLAIN SELECT b = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`bi` as double)) AS `b = bi` from `test`.`t`
+EXPLAIN SELECT b = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`bt` as double)) AS `b = bt` from `test`.`t`
+EXPLAIN SELECT b = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`y` as double)) AS `b = y` from `test`.`t`
+EXPLAIN SELECT b = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = cast(`test`.`t`.`d` as double)) AS `b = d` from `test`.`t`
+EXPLAIN SELECT b = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = `test`.`t`.`f`) AS `b = f` from `test`.`t`
+EXPLAIN SELECT b = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as double) = `test`.`t`.`dbl`) AS `b = dbl` from `test`.`t`
+EXPLAIN SELECT b = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as datetime(6)) = `test`.`t`.`dt`) AS `b = dt` from `test`.`t`
+EXPLAIN SELECT b = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`b` as date) = `test`.`t`.`dd`) AS `b = dd` from `test`.`t`
+EXPLAIN SELECT b = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`b` = `test`.`t`.`t`) AS `b = t` from `test`.`t`
+EXPLAIN SELECT vb = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`i` as double)) AS `vb = i` from `test`.`t`
+EXPLAIN SELECT vb = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`si` as double)) AS `vb = si` from `test`.`t`
+EXPLAIN SELECT vb = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`ti` as double)) AS `vb = ti` from `test`.`t`
+EXPLAIN SELECT vb = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`mi` as double)) AS `vb = mi` from `test`.`t`
+EXPLAIN SELECT vb = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`bi` as double)) AS `vb = bi` from `test`.`t`
+EXPLAIN SELECT vb = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`bt` as double)) AS `vb = bt` from `test`.`t`
+EXPLAIN SELECT vb = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`y` as double)) AS `vb = y` from `test`.`t`
+EXPLAIN SELECT vb = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = cast(`test`.`t`.`d` as double)) AS `vb = d` from `test`.`t`
+EXPLAIN SELECT vb = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = `test`.`t`.`f`) AS `vb = f` from `test`.`t`
+EXPLAIN SELECT vb = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as double) = `test`.`t`.`dbl`) AS `vb = dbl` from `test`.`t`
+EXPLAIN SELECT vb = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as datetime(6)) = `test`.`t`.`dt`) AS `vb = dt` from `test`.`t`
+EXPLAIN SELECT vb = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`vb` as date) = `test`.`t`.`dd`) AS `vb = dd` from `test`.`t`
+EXPLAIN SELECT vb = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`vb` = `test`.`t`.`t`) AS `vb = t` from `test`.`t`
+EXPLAIN SELECT e = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`i` as double)) AS `e = i` from `test`.`t`
+EXPLAIN SELECT e = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`si` as double)) AS `e = si` from `test`.`t`
+EXPLAIN SELECT e = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`ti` as double)) AS `e = ti` from `test`.`t`
+EXPLAIN SELECT e = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`mi` as double)) AS `e = mi` from `test`.`t`
+EXPLAIN SELECT e = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`bi` as double)) AS `e = bi` from `test`.`t`
+EXPLAIN SELECT e = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`bt` as double)) AS `e = bt` from `test`.`t`
+EXPLAIN SELECT e = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`y` as double)) AS `e = y` from `test`.`t`
+EXPLAIN SELECT e = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = cast(`test`.`t`.`d` as double)) AS `e = d` from `test`.`t`
+EXPLAIN SELECT e = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = `test`.`t`.`f`) AS `e = f` from `test`.`t`
+EXPLAIN SELECT e = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as double) = `test`.`t`.`dbl`) AS `e = dbl` from `test`.`t`
+EXPLAIN SELECT e = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as datetime(6)) = `test`.`t`.`dt`) AS `e = dt` from `test`.`t`
+EXPLAIN SELECT e = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`e` as date) = `test`.`t`.`dd`) AS `e = dd` from `test`.`t`
+EXPLAIN SELECT e = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`e` = `test`.`t`.`t`) AS `e = t` from `test`.`t`
+EXPLAIN SELECT set1 = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`i` as double)) AS `set1 = i` from `test`.`t`
+EXPLAIN SELECT set1 = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`si` as double)) AS `set1 = si` from `test`.`t`
+EXPLAIN SELECT set1 = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`ti` as double)) AS `set1 = ti` from `test`.`t`
+EXPLAIN SELECT set1 = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`mi` as double)) AS `set1 = mi` from `test`.`t`
+EXPLAIN SELECT set1 = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`bi` as double)) AS `set1 = bi` from `test`.`t`
+EXPLAIN SELECT set1 = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`bt` as double)) AS `set1 = bt` from `test`.`t`
+EXPLAIN SELECT set1 = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`y` as double)) AS `set1 = y` from `test`.`t`
+EXPLAIN SELECT set1 = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = cast(`test`.`t`.`d` as double)) AS `set1 = d` from `test`.`t`
+EXPLAIN SELECT set1 = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = `test`.`t`.`f`) AS `set1 = f` from `test`.`t`
+EXPLAIN SELECT set1 = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as double) = `test`.`t`.`dbl`) AS `set1 = dbl` from `test`.`t`
+EXPLAIN SELECT set1 = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as datetime(6)) = `test`.`t`.`dt`) AS `set1 = dt` from `test`.`t`
+EXPLAIN SELECT set1 = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`set1` as date) = `test`.`t`.`dd`) AS `set1 = dd` from `test`.`t`
+EXPLAIN SELECT set1 = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`set1` = `test`.`t`.`t`) AS `set1 = t` from `test`.`t`
+EXPLAIN SELECT bl = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`i` as double)) AS `bl = i` from `test`.`t`
+EXPLAIN SELECT bl = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`si` as double)) AS `bl = si` from `test`.`t`
+EXPLAIN SELECT bl = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`ti` as double)) AS `bl = ti` from `test`.`t`
+EXPLAIN SELECT bl = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`mi` as double)) AS `bl = mi` from `test`.`t`
+EXPLAIN SELECT bl = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`bi` as double)) AS `bl = bi` from `test`.`t`
+EXPLAIN SELECT bl = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`bt` as double)) AS `bl = bt` from `test`.`t`
+EXPLAIN SELECT bl = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`y` as double)) AS `bl = y` from `test`.`t`
+EXPLAIN SELECT bl = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = cast(`test`.`t`.`d` as double)) AS `bl = d` from `test`.`t`
+EXPLAIN SELECT bl = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = `test`.`t`.`f`) AS `bl = f` from `test`.`t`
+EXPLAIN SELECT bl = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as double) = `test`.`t`.`dbl`) AS `bl = dbl` from `test`.`t`
+EXPLAIN SELECT bl = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as datetime(6)) = `test`.`t`.`dt`) AS `bl = dt` from `test`.`t`
+EXPLAIN SELECT bl = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`t`.`bl` as date) = `test`.`t`.`dd`) AS `bl = dd` from `test`.`t`
+EXPLAIN SELECT bl = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`bl` = `test`.`t`.`t`) AS `bl = t` from `test`.`t`
+# YEAR vs data types
+EXPLAIN SELECT y = i FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`i`) AS `y = i` from `test`.`t`
+EXPLAIN SELECT y = si FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`si`) AS `y = si` from `test`.`t`
+EXPLAIN SELECT y = ti FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`ti`) AS `y = ti` from `test`.`t`
+EXPLAIN SELECT y = mi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`mi`) AS `y = mi` from `test`.`t`
+EXPLAIN SELECT y = bi FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`bi`) AS `y = bi` from `test`.`t`
+EXPLAIN SELECT y = bt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`bt`) AS `y = bt` from `test`.`t`
+EXPLAIN SELECT y = y FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`y`) AS `y = y` from `test`.`t`
+EXPLAIN SELECT y = d FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`d`) AS `y = d` from `test`.`t`
+EXPLAIN SELECT y = f FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`f`) AS `y = f` from `test`.`t`
+EXPLAIN SELECT y = dbl FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`dbl`) AS `y = dbl` from `test`.`t`
+EXPLAIN SELECT y = dt FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`dt`) AS `y = dt` from `test`.`t`
+EXPLAIN SELECT y = dd FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`dd`) AS `y = dd` from `test`.`t`
+EXPLAIN SELECT y = t FROM t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t`.`y` = `test`.`t`.`t`) AS `y = t` from `test`.`t`
+# cleanup
+DROP TABLE t;
+#
+# Bug#31023252: RESULTSET MISMATCH USING STRCMP() WITH DATE AND STRING DATATYPE
+#
+CREATE TABLE t1(a YEAR, b VARCHAR(10));
+INSERT INTO t1 VALUES ('1997','random_str');
+SELECT STRCMP(a, b) FROM t1;
+STRCMP(a, b)
+-1
+DROP TABLE t1;
+#
+# Bug#30626100: WL13456 RESULTSET DISTINCT DIFFERENCE
+#
+CREATE TABLE t (col_datetime datetime, col_date date, col_time time, col_char char);
+insert into t values ('2013-03-15 18:35:20', '2013-03-15', '18:35:20','L'),
+('2003-01-10 00:00:23', '2003-01-10', '00:00:23', NULL);
+SELECT CAST(col_char AS DATETIME) FROM t;
+CAST(col_char AS DATETIME)
+NULL
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'L'
+SELECT col_char /*CAST(col_char as datetime)*/ <> col_datetime FROM t;
+col_char /*CAST(col_char as datetime)*/ <> col_datetime
+1
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'L'
+SELECT CAST(col_char AS DATE) FROM t;
+CAST(col_char AS DATE)
+NULL
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'L'
+SELECT col_char <> col_date FROM t;
+col_char <> col_date
+1
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'L'
+SELECT CAST(col_char as TIME) FROM t;
+CAST(col_char as TIME)
+NULL
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'L'
+SELECT col_char <> col_time FROM t;
+col_char <> col_time
+1
+NULL
+DROP TABLE t;
+#
+# Bug#31095719 WL13456 RESULT SET COMPARISON DIFFERENCE WITH JOINS
+#
+CREATE TABLE `BB` (`col_char_key` char(1));
+CREATE TABLE `CC` ( `pk` int, `col_datetime_key` datetime,
+KEY `idx_CC_col_datetime_key` (`col_datetime_key`));
+INSERT INTO `BB` VALUES ('X');
+INSERT INTO `CC` VALUES (1,'2027-03-17 00:10:00'), (2,'2004-11-14 12:46:43');
+SELECT COUNT(table1.pk) FROM CC table1 JOIN BB table3 JOIN CC table2
+WHERE (table3.col_char_key < table2.col_datetime_key);
+COUNT(table1.pk)
+4
+Warnings:
+Warning	1292	Incorrect datetime value: 'X'
+Warning	1292	Incorrect datetime value: 'X'
+Warning	1292	Incorrect datetime value: 'X'
+Warning	1292	Incorrect datetime value: 'X'
+DROP TABLE `BB`;
+DROP TABLE `CC`;

@@ -107,8 +107,13 @@ const char *client_errors[] = {
     "File name is too long",
     "Set FIPS mode ON/STRICT failed",
     "Compression protocol not supported with asynchronous protocol",
-    "Connection failed due to wrongly configured compression algorithm",
+    "Connection failed due to wrongly "
+    "configured compression "
+    "algorithm",
     "SSO user not found, Please perform SSO authentication using kerberos.",
+    "LOAD DATA LOCAL INFILE file request rejected due to restrictions on "
+    "access.",
+    "Determining the real path for '%s' failed with error (%d): %s",
     ""};
 
 static const char *get_client_errmsg(int nr) {

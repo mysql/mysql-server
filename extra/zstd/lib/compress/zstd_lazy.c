@@ -11,6 +11,7 @@
 #include "zstd_compress_internal.h"
 #include "zstd_lazy.h"
 
+#include "my_compiler.h"
 
 /*-*************************************
 *  Binary Tree search
@@ -65,6 +66,7 @@ ZSTD_insertDUBT1(ZSTD_matchState_t* ms,
                  U32 current, const BYTE* inputEnd,
                  U32 nbCompares, U32 btLow,
                  const ZSTD_dictMode_e dictMode)
+SUPPRESS_UBSAN_CLANG10
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const bt = ms->chainTable;
@@ -233,6 +235,7 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
                         size_t* offsetPtr,
                         U32 const mls,
                         const ZSTD_dictMode_e dictMode)
+SUPPRESS_UBSAN_CLANG10
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32*   const hashTable = ms->hashTable;
@@ -483,6 +486,7 @@ size_t ZSTD_HcFindBestMatch_generic (
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
                         const U32 mls, const ZSTD_dictMode_e dictMode)
+SUPPRESS_UBSAN_CLANG10
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const chainTable = ms->chainTable;
@@ -628,6 +632,7 @@ ZSTD_compressBlock_lazy_generic(
                         const void* src, size_t srcSize,
                         const searchMethod_e searchMethod, const U32 depth,
                         ZSTD_dictMode_e const dictMode)
+SUPPRESS_UBSAN_CLANG10
 {
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;

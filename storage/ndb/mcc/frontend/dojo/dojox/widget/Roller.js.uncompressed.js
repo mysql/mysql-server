@@ -1,6 +1,6 @@
 define("dojox/widget/Roller", ["dojo", "dijit", "dijit/_Widget"], function(dojo, dijit){
 
-	dojo.declare("dojox.widget.Roller", dijit._Widget, {
+	var Roller = dojo.declare("dojox.widget.Roller", dijit._Widget, {
 		// summary:
 		//		A simple widget to take an unordered-list of Text and roll through them
 		// description:
@@ -165,7 +165,7 @@ define("dojox/widget/Roller", ["dojo", "dijit", "dijit/_Widget"], function(dojo,
 
 	});
 
-	dojo.declare("dojox.widget.RollerSlide", dojox.widget.Roller, {
+	Roller.RollerSlide = dojo.declare("dojox.widget.RollerSlide", dojox.widget.Roller, {
 		// summary:
 		//		An add-on to the Roller to modify animations. This produces
 		//		a slide-from-bottom like effect. See `dojox.widget.Roller` for
@@ -207,13 +207,13 @@ define("dojox/widget/Roller", ["dojo", "dijit", "dijit/_Widget"], function(dojo,
 
 	});
 
-	dojo.declare("dojox.widget._RollerHover", null, {
+	Roller._Hover = dojo.declare("dojox.widget._RollerHover", null, {
 		// summary:
 		//		A mixin class to provide a way to automate the "stop on hover" functionality.
 		//
 		// description:
 		//		A mixin class used to provide a way to automate a "stop on hover" behavior,
-		//		while still allowing for ambigious subclassing for custom animations.
+		//		while still allowing for ambiguous subclassing for custom animations.
 		//		Simply mix this class into a `dojox.widget.Roller` variant, and instantiate
 		//		as you would. The hover connection is done automatically.
 		//
@@ -222,7 +222,7 @@ define("dojox/widget/Roller", ["dojo", "dijit", "dijit/_Widget"], function(dojo,
 		//		will start if a mouse enters and leaves the node in this case.
 		//
 		// example:
-		// |	dojo.declare("my.Roller", [dojox.widget.RollerSlide, dojox.widget._RollerHover], {});
+		// |	dojo.declare("my.Roller", [Roller.RollerSlide, Roller._Hover], {});
 		// |	new my.Roller({}, "myList");
 
 		postCreate: function(){
@@ -232,7 +232,6 @@ define("dojox/widget/Roller", ["dojo", "dijit", "dijit/_Widget"], function(dojo,
 		}
 
 	});
-	
-	return dojox.widget.Roller;
-	
+
+	return Roller;
 });

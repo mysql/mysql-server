@@ -722,12 +722,15 @@ RestoreMetaData::fixBlobs()
         }
       }
       assert(blobTable->m_dictTable != NULL);
+      assert(blobTable->m_blobTables.size() == 0);
       NdbTableImpl& bt = NdbTableImpl::getImpl(*blobTable->m_dictTable);
       const char* colName = c->m_blobVersion == 1 ? "DATA" : "NDB$DATA";
       const NdbColumnImpl* bc = bt.getColumn(colName);
       assert(bc != NULL);
       assert(c->m_storageType == NDB_STORAGETYPE_MEMORY);
       c->m_storageType = bc->m_storageType;
+
+      table->m_blobTables.push_back(blobTable);
     }
   }
   return true;
@@ -832,6 +835,9 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_staging = false;
   m_stagingTable = NULL;
   m_stagingFlags = 0;
+
+  m_pk_extended = false;
+  m_pk_index = NULL;
 }
 
 TableS::~TableS()
@@ -892,24 +898,23 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 
 // Constructor
 RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)(void*), void *ctx)
-  : BackupFile(_free_data_callback, ctx), m_metaData(md)
+  : BackupFile(_free_data_callback, ctx), m_metaData(md),
+    m_current_table_has_transforms(false)
 {
   restoreLogger.log_debug("RestoreDataIterator constructor");
   setDataFile(md, 0);
 
-  m_bitfield_storage_len = 8192;
-  m_bitfield_storage_ptr = (Uint32*)malloc(4*m_bitfield_storage_len);
-  m_bitfield_storage_curr_ptr = m_bitfield_storage_ptr;
-  m_row_bitfield_len = 0;
+  alloc_extra_storage(8192);
+  m_row_max_extra_wordlen = 0;
 }
 
 
 bool
 RestoreDataIterator::validateRestoreDataIterator()
 {
-    if (!m_bitfield_storage_ptr)
+    if (!m_extra_storage_ptr)
     {
-        restoreLogger.log_error("m_bitfield_storage_ptr is NULL");
+        restoreLogger.log_error("m_extra_storage_ptr is NULL");
         return false;
     }
     return true;
@@ -918,58 +923,107 @@ RestoreDataIterator::validateRestoreDataIterator()
 
 RestoreDataIterator::~RestoreDataIterator()
 {
-  free_bitfield_storage();
+  free_extra_storage();
 }
 
 void
-RestoreDataIterator::init_bitfield_storage(const NdbDictionary::Table* tab)
+RestoreDataIterator::calc_row_extra_storage_words(const TableS* tableSpec)
 {
-  Uint32 len = 0;
+  const NdbDictionary::Table* tab = tableSpec->m_dictTable;
+  Uint32 bitmap_words = 0;
+  Uint32 transform_words = 0;
   for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
+    /* Space for bitmap-copy out from PACKED format */
     if (tab->getColumn(i)->getType() == NdbDictionary::Column::Bit)
     {
-      len += (tab->getColumn(i)->getLength() + 31) >> 5;
+      bitmap_words += (tab->getColumn(i)->getLength() + 31) >> 5;
+    }
+    /* Space for output from this column transform */
+    const AttributeDesc* attr_desc = tableSpec->getAttributeDesc(i);
+    if (attr_desc->transform != NULL)
+    {
+      transform_words += attr_desc->getSizeInWords();
     }
   }
 
-  m_row_bitfield_len = len;
+  m_current_table_has_transforms = (transform_words > 0);
+
+  m_row_max_extra_wordlen = bitmap_words + transform_words;
 }
 
 void
-RestoreDataIterator::reset_bitfield_storage()
+RestoreDataIterator::reset_extra_storage()
 {
-  m_bitfield_storage_curr_ptr = m_bitfield_storage_ptr;
+  m_extra_storage_curr_ptr = m_extra_storage_ptr;
 }
 
 void
-RestoreDataIterator::free_bitfield_storage()
+RestoreDataIterator::alloc_extra_storage(Uint32 words)
 {
-  if (m_bitfield_storage_ptr)
-    free(m_bitfield_storage_ptr);
-  m_bitfield_storage_ptr = 0;
-  m_bitfield_storage_curr_ptr = 0;
-  m_bitfield_storage_len = 0;
+  m_extra_storage_wordlen = words;
+  m_extra_storage_ptr = (Uint32*)malloc(4 * words);
+  m_extra_storage_curr_ptr = m_extra_storage_ptr;
+}
+
+void
+RestoreDataIterator::free_extra_storage()
+{
+  if (m_extra_storage_ptr)
+    free(m_extra_storage_ptr);
+  m_extra_storage_ptr = 0;
+  m_extra_storage_curr_ptr = 0;
 }
 
 Uint32
-RestoreDataIterator::get_free_bitfield_storage() const
+RestoreDataIterator::get_free_extra_storage() const
 {
-  
-  return Uint32((m_bitfield_storage_ptr + m_bitfield_storage_len) - 
-    m_bitfield_storage_curr_ptr);
+
+  return Uint32((m_extra_storage_ptr + m_extra_storage_wordlen) -
+    m_extra_storage_curr_ptr);
 }
 
-Uint32*
-RestoreDataIterator::get_bitfield_storage(Uint32 len)
+void
+RestoreDataIterator::check_extra_storage()
 {
-  Uint32 * currptr = m_bitfield_storage_curr_ptr;
+  assert(m_row_max_extra_wordlen <= m_extra_storage_wordlen);
+  if (m_row_max_extra_wordlen >= get_free_extra_storage())
+  {
+    /**
+     * No more space available to buffer rows, flush
+     * what is outstanding, then reset buffers and
+     * continue.
+     */
+    flush_and_reset_buffers();
+    assert(get_free_extra_storage() > m_row_max_extra_wordlen);
+    assert(m_extra_storage_ptr == m_extra_storage_curr_ptr);
+
+    /**
+     * We do not want to break up batching due to a lack of
+     * extra buffer storage, but that is what has happened
+     * here.
+     * So to avoid this in future we will take this chance
+     * to double the extra storage size, so that batching
+     * boundaries are eventually controlled by the file
+     * buffering only.
+     */
+    const Uint32 newWords = m_extra_storage_wordlen * 2;
+    free_extra_storage();
+    alloc_extra_storage(newWords);
+  }
+}
+
+
+Uint32*
+RestoreDataIterator::get_extra_storage(Uint32 len)
+{
+  Uint32 * currptr = m_extra_storage_curr_ptr;
   Uint32 * nextptr = currptr + len;
-  Uint32 * endptr = m_bitfield_storage_ptr + m_bitfield_storage_len;
+  Uint32 * endptr = m_extra_storage_ptr + m_extra_storage_wordlen;
 
   if (nextptr <= endptr)
   {
-    m_bitfield_storage_curr_ptr = nextptr;
+    m_extra_storage_curr_ptr = nextptr;
     return currptr;
   }
   
@@ -1049,24 +1103,65 @@ charpad:
   }
 }
 
+bool
+applyColumnTransform(const NdbDictionary::Column* col,
+                     const AttributeDesc* attr_desc,
+                     AttributeData* attr_data,
+                     void* dst_buf)
+{
+  assert(attr_desc->transform != NULL);
+
+  void* src_ptr = (attr_data->null? NULL : attr_data->void_value);
+  void* dst_ptr = dst_buf;
+
+  if (!attr_desc->transform->apply(col,
+                                   src_ptr,
+                                   &dst_ptr))
+  {
+    return false;
+  }
+
+  if (dst_ptr == NULL)
+  {
+    assert(col->getNullable());
+    attr_data->null = true;
+    attr_data->size = 0;
+    attr_data->void_value = NULL;
+  }
+  else
+  {
+    const uchar* dst_char = (const uchar*) dst_ptr;
+    attr_data->null = false;
+    attr_data->void_value = dst_ptr;
+    switch(col->getArrayType())
+    {
+    case NDB_ARRAYTYPE_SHORT_VAR:
+      attr_data->size = 1 + size_t(dst_char[0]);
+      break;
+    case NDB_ARRAYTYPE_MEDIUM_VAR:
+      attr_data->size = 2 + size_t(dst_char[0])
+        + (256 * size_t(dst_char[1]));
+      break;
+    default:
+      /* No change */
+      break;
+    }
+  }
+
+  /* Check size is within 'word length' of column type */
+  assert(attr_data->size <=
+         4 * ((((Uint32)col->getSizeInBytes()) +3)/4));
+
+  return true;
+}
+
+
 const TupleS *
 RestoreDataIterator::getNextTuple(int  & res, const bool skipFragment)
 {
-  if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
-  {
-    if (m_row_bitfield_len >= get_free_bitfield_storage())
-    {
-      /**
-       * Informing buffer reader that it does not need to cache
-       * "old" data here would be clever...
-       * But I can't find a good/easy way to do this
-       */
-      if (free_data_callback)
-        (*free_data_callback)(m_ctx);
-      reset_bitfield_storage();
-    }
-  }
-  
+  /* Check that we have space to return another tuple */
+  check_extra_storage();
+
   while (true)
   {
     Uint32  dataLength = 0;
@@ -1121,6 +1216,31 @@ RestoreDataIterator::getNextTuple(int  & res, const bool skipFragment)
     if (res)
     {
       return NULL;
+    }
+
+    /* Apply column transforms if the table has any defined */
+    if (m_current_table_has_transforms)
+    {
+      for (int i=0; i < m_currentTable->getNoOfAttributes(); i++)
+      {
+        const AttributeDesc* attr_desc = m_currentTable->getAttributeDesc(i);
+        if (attr_desc->transform == NULL)
+        {
+          continue;
+        }
+        const NdbDictionary::Column* col = m_currentTable->m_dictTable->getColumn(i);
+        void* dst_buf = get_extra_storage(attr_desc->getSizeInWords());
+        assert(dst_buf != NULL);
+
+        if (!applyColumnTransform(col,
+                                  attr_desc,
+                                  m_tuple.getData(i),
+                                  dst_buf))
+        {
+          res = -1;
+          return NULL;
+        }
+      }
     }
 
     res = 0;
@@ -1211,7 +1331,7 @@ RestoreDataIterator::readTupleData_packed(Uint32 *buf_ptr,
       Uint32* src32 = (Uint32*)src;
       
       Uint32 len32 = (len + 31) >> 5;
-      Uint32* tmp = get_bitfield_storage(len32);
+      Uint32* tmp = get_extra_storage(len32);
       attr_data->null = false;
       attr_data->void_value = tmp;
       attr_data->size = 4*len32;
@@ -1515,10 +1635,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
   Uint32 sz = size*nmemb;
   if (sz > m_buffer_data_left) {
 
-    if (free_data_callback)
-      (*free_data_callback)(m_ctx);
-
-    reset_buffers();
+    flush_and_reset_buffers();
 
     if (m_is_undolog)
     {
@@ -1919,7 +2036,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
     return false;
   }
 
-  init_bitfield_storage(m_currentTable->m_dictTable);
+  calc_row_extra_storage_words(m_currentTable);
   info.setLevel(254);
   restoreLogger.log_info("_____________________________________________________"
                          "\nProcessing data in table: %s(%u) fragment %u",
@@ -1956,12 +2073,18 @@ RestoreDataIterator::validateFragmentFooter() {
 } // RestoreDataIterator::getFragmentFooter
 
 AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
-  : m_column(c), truncation_detected(false)
+  : m_column(c), transform(NULL), truncation_detected(false)
 {
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
   staging = false;
   parameterSz = 0;
+}
+
+AttributeDesc::~AttributeDesc()
+{
+  delete transform;
+  transform = NULL;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)
@@ -2087,6 +2210,7 @@ RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
 
   m_count = 0;
   m_last_gci = 0;
+  m_rowBuffIndex = 0;
 }
 
 const LogEntry *
@@ -2219,6 +2343,7 @@ RestoreLogIterator::getNextLogEntry(int & res) {
 
   const TableS * tab = m_logEntry.m_table;
   m_logEntry.clear();
+  m_rowBuffIndex = 0;
 
   AttributeHeader * ah = (AttributeHeader *)attr_data;
   AttributeHeader *end = (AttributeHeader *)(attr_data + attr_data_len);
@@ -2249,7 +2374,24 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       attr->Data.size = sz;
       Twiddle(attr->Desc, &(attr->Data));
     }
-    
+
+    if (attr->Desc->transform)
+    {
+      const int col_idx = ah->getAttributeId();
+      const NdbDictionary::Column* col = tab->m_dictTable->getColumn(col_idx);
+      void* dst_buf = m_rowBuff + m_rowBuffIndex;
+      m_rowBuffIndex+= attr->Desc->getSizeInWords();
+      assert(m_rowBuffIndex <= RowBuffWords);
+
+      if (!applyColumnTransform(col,
+                                attr->Desc,
+                                &attr->Data,
+                                dst_buf))
+      {
+        res = -1;
+        return 0;
+      }
+    }
     
     ah = ah->getNext();
   }

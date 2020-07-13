@@ -274,25 +274,29 @@ class View_creation_ctx : public Default_object_creation_ctx {
 
 /** Order clause list element */
 
+class Item_rollup_group_item;
+
 struct ORDER {
-  ORDER *next;
+  ORDER *next{nullptr};
   /**
     Points at the item in the select fields. Note that this means that
     after resolving, it points into a slice (see JOIN::ref_items),
     even though the item is not of type Item_ref!
    */
-  Item **item;
-  Item *item_ptr; /* Storage for initial item */
+  Item **item{nullptr};
+  Item *item_ptr{nullptr}; /* Storage for initial item */
+  Item_rollup_group_item *rollup_item{nullptr};
 
-  enum_order direction; /* Requested direction of ordering */
-  bool in_field_list;   /* true if in select field list */
+  enum_order direction{
+      ORDER_NOT_RELEVANT};   /* Requested direction of ordering */
+  bool in_field_list{false}; /* true if in select field list */
   /**
      Tells whether this ORDER element was referenced with an alias or with an
      expression, in the query:
      SELECT a AS foo GROUP BY foo: true.
      SELECT a AS foo GROUP BY a: false.
   */
-  bool used_alias;
+  bool used_alias{false};
   /**
     When GROUP BY is implemented with a temporary table (i.e. the table takes
     care to store only unique group rows, table->group != nullptr), each GROUP
@@ -302,11 +306,11 @@ struct ORDER {
     value from a tmp table's row), or into 'buff' (if we use it to do index
     lookup into the tmp table).
   */
-  Field *field_in_tmp_table;
-  char *buff; /* If tmp-table group */
-  table_map used, depend_map;
-  bool is_position; /* An item expresses a position in a ORDER clause */
-  bool is_explicit; /* Whether ASC/DESC is explicitly specified */
+  Field *field_in_tmp_table{nullptr};
+  char *buff{nullptr}; /* If tmp-table group */
+  table_map used{0}, depend_map{0};
+  bool is_position{false}; /* An item expresses a position in a ORDER clause */
+  bool is_explicit{false}; /* Whether ASC/DESC is explicitly specified */
 };
 
 /**
@@ -734,6 +738,9 @@ struct TABLE_SHARE {
   LEX_STRING path{nullptr, 0};        /* Path to .frm file (from datadir) */
   LEX_CSTRING normalized_path{nullptr, 0}; /* unpack_filename(path) */
   LEX_STRING connect_string{nullptr, 0};
+
+  LEX_CSTRING engine_attribute = EMPTY_CSTR;
+  LEX_CSTRING secondary_engine_attribute = EMPTY_CSTR;
 
   /**
     The set of indexes that are not disabled for this table. I.e. it excludes
@@ -1249,7 +1256,7 @@ class Binary_diff final {
     @param field  the column that is updated
     @return a pointer to the start of the replacement data
   */
-  const char *new_data(Field *field) const;
+  const char *new_data(const Field *field) const;
 
   /**
     Get a pointer to the start of the old data to be replaced.
@@ -1257,7 +1264,7 @@ class Binary_diff final {
     @param field  the column that is updated
     @return a pointer to the start of old data to be replaced.
   */
-  const char *old_data(Field *field) const;
+  const char *old_data(const Field *field) const;
 };
 
 /**
@@ -1436,6 +1443,12 @@ struct TABLE {
     Set during resolving; every field that gets resolved, sets its own bit
     in the read set. In some cases, we switch the read set around during
     various phases; note that it is a pointer.
+
+    In addition, for binary logging purposes, the bitmaps are set according
+    to the settings of @@binlog_row_image. Therefore, for logging purposes,
+    some additional fields, to those specified by the optimizer, may be
+    flagged in the read and write sets.
+    @c TABLE::mark_columns_per_binlog_row_image for additional details.
    */
   MY_BITMAP *read_set{nullptr};
 
@@ -3368,6 +3381,7 @@ struct TABLE_LIST {
   bool straight{false}; /* optimize with prev table */
   /**
     True for tables and views being changed in a data change statement.
+    Also true for tables subject to a SELECT ... FOR UPDATE.
     Also used by replication to filter out statements that can be ignored,
     especially important for multi-table UPDATE and DELETE.
   */
@@ -3454,6 +3468,13 @@ struct TABLE_LIST {
     other way around.  See SELECT_LEX::transform_grouped_to_derived.
   */
   bool m_was_grouped2derived{false};
+
+  /// If this is a derived table created by transforming a quantified subquery.
+  /// @todo remove after WL#6570.
+  bool m_was_table_subquery{false};
+  /// Usable only if was_table_subquery==true; contains the index of the
+  /// first SJ-inner expression of the subquery predicate.
+  int m_first_sj_inner_expr_of_subquery{0};
 
   /* View creation context. */
 
@@ -3937,6 +3958,8 @@ class Common_table_expr {
       : references(mem_root), recursive(false), tmp_tables(mem_root) {}
   TABLE *clone_tmp_table(THD *thd, TABLE_LIST *tl);
   bool substitute_recursive_reference(THD *thd, SELECT_LEX *sl);
+  /// Empties the materialized CTE and informs all of its clones.
+  bool clear_all_references();
   /**
      All references to this CTE in the statement, except those inside the
      query expression defining this CTE.

@@ -5,8 +5,9 @@ define("dijit/_base/focus", [
 	"dojo/topic", // publish
 	"dojo/_base/window", // win.doc win.doc.selection win.global win.global.getSelection win.withGlobal
 	"../focus",
+	"../selection",
 	"../main"	// for exporting symbols to dijit
-], function(array, dom, lang, topic, win, focus, dijit){
+], function(array, dom, lang, topic, win, focus, selection, dijit){
 
 	// module:
 	//		dijit/_base/focus
@@ -33,90 +34,8 @@ define("dijit/_base/focus", [
 		getBookmark: function(){
 			// summary:
 			//		Retrieves a bookmark that can be used with moveToBookmark to return to the same range
-			var bm, rg, tg, sel = win.doc.selection, cf = focus.curNode;
-
-			if(win.global.getSelection){
-				//W3C Range API for selections.
-				sel = win.global.getSelection();
-				if(sel){
-					if(sel.isCollapsed){
-						tg = cf? cf.tagName : "";
-						if(tg){
-							//Create a fake rangelike item to restore selections.
-							tg = tg.toLowerCase();
-							if(tg == "textarea" ||
-									(tg == "input" && (!cf.type || cf.type.toLowerCase() == "text"))){
-								sel = {
-									start: cf.selectionStart,
-									end: cf.selectionEnd,
-									node: cf,
-									pRange: true
-								};
-								return {isCollapsed: (sel.end <= sel.start), mark: sel}; //Object.
-							}
-						}
-						bm = {isCollapsed:true};
-						if(sel.rangeCount){
-							bm.mark = sel.getRangeAt(0).cloneRange();
-						}
-					}else{
-						rg = sel.getRangeAt(0);
-						bm = {isCollapsed: false, mark: rg.cloneRange()};
-					}
-				}
-			}else if(sel){
-				// If the current focus was a input of some sort and no selection, don't bother saving
-				// a native bookmark.  This is because it causes issues with dialog/page selection restore.
-				// So, we need to create psuedo bookmarks to work with.
-				tg = cf ? cf.tagName : "";
-				tg = tg.toLowerCase();
-				if(cf && tg && (tg == "button" || tg == "textarea" || tg == "input")){
-					if(sel.type && sel.type.toLowerCase() == "none"){
-						return {
-							isCollapsed: true,
-							mark: null
-						}
-					}else{
-						rg = sel.createRange();
-						return {
-							isCollapsed: rg.text && rg.text.length?false:true,
-							mark: {
-								range: rg,
-								pRange: true
-							}
-						};
-					}
-				}
-				bm = {};
-
-				//'IE' way for selections.
-				try{
-					// createRange() throws exception when dojo in iframe
-					//and nothing selected, see #9632
-					rg = sel.createRange();
-					bm.isCollapsed = !(sel.type == 'Text' ? rg.htmlText.length : rg.length);
-				}catch(e){
-					bm.isCollapsed = true;
-					return bm;
-				}
-				if(sel.type.toUpperCase() == 'CONTROL'){
-					if(rg.length){
-						bm.mark=[];
-						var i=0,len=rg.length;
-						while(i<len){
-							bm.mark.push(rg.item(i++));
-						}
-					}else{
-						bm.isCollapsed = true;
-						bm.mark = null;
-					}
-				}else{
-					bm.mark = rg.getBookmark();
-				}
-			}else{
-				console.warn("No idea how to store the current selection for this browser!");
-			}
-			return bm; // Object
+			var sel = win.global == window ? selection : new selection.SelectionManager(win.global);
+			return sel.getBookmark();
 		},
 
 		moveToBookmark: function(/*Object*/ bookmark){
@@ -125,43 +44,8 @@ define("dijit/_base/focus", [
 			// bookmark:
 			//		This should be a returned object from dijit.getBookmark()
 
-			var _doc = win.doc,
-				mark = bookmark.mark;
-			if(mark){
-				if(win.global.getSelection){
-					//W3C Rangi API (FF, WebKit, Opera, etc)
-					var sel = win.global.getSelection();
-					if(sel && sel.removeAllRanges){
-						if(mark.pRange){
-							var n = mark.node;
-							n.selectionStart = mark.start;
-							n.selectionEnd = mark.end;
-						}else{
-							sel.removeAllRanges();
-							sel.addRange(mark);
-						}
-					}else{
-						console.warn("No idea how to restore selection for this browser!");
-					}
-				}else if(_doc.selection && mark){
-					//'IE' way.
-					var rg;
-					if(mark.pRange){
-						rg = mark.range;
-					}else if(lang.isArray(mark)){
-						rg = _doc.body.createControlRange();
-						//rg.addElement does not have call/apply method, so can not call it directly
-						//rg is not available in "range.addElement(item)", so can't use that either
-						array.forEach(mark, function(n){
-							rg.addElement(n);
-						});
-					}else{
-						rg = _doc.body.createTextRange();
-						rg.moveToBookmark(mark);
-					}
-					rg.select();
-				}
-			}
+			var sel = win.global == window ? selection : new selection.SelectionManager(win.global);
+			return sel.moveToBookmark(bookmark);
 		},
 
 		getFocus: function(/*Widget?*/ menu, /*Window?*/ openedForWindow){

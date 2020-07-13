@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -259,6 +259,11 @@ struct NdbThread *NdbThread_GetNdbThread();
  *  return -1 - Invalid spec
  */
 int NdbThread_SetHighPrioProperties(const char * spec);
+
+/**
+ * Clear Unix signal mask of thread
+ */
+void NdbThread_ClearSigMask();
 
 #ifdef	__cplusplus
 }

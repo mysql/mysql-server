@@ -218,10 +218,12 @@ EOF
 
 --echo # CLEAN UP
 SET @@global.general_log=0;
+
+--echo # Restore default settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQLD_LOG
 --remove_file $MYSQLD_LOG_GENERAL
 --remove_file $MYSQLD_LOG_GENERAL.1
 
-# Restore default settings
---let $restart_parameters = restart:
---source include/restart_mysqld.inc

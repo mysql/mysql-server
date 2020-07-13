@@ -1,10 +1,11 @@
 require({cache:{
-'url:dijit/layout/templates/_TabButton.html':"<div role=\"presentation\" data-dojo-attach-point=\"titleNode,innerDiv,tabContent\" class=\"dijitTabInner dijitTabContent\">\n\t<img src=\"${_blankGif}\" alt=\"\" class=\"dijitIcon dijitTabButtonIcon\" data-dojo-attach-point='iconNode'/>\n\t<span data-dojo-attach-point='containerNode,focusNode' class='tabLabel'></span>\n\t<span class=\"dijitInline dijitTabCloseButton dijitTabCloseIcon\" data-dojo-attach-point='closeNode'\n\t\t  role=\"presentation\">\n\t\t<span data-dojo-attach-point='closeText' class='dijitTabCloseText'>[x]</span\n\t\t\t\t></span>\n</div>\n"}});
+'url:dijit/layout/templates/_TabButton.html':"<div role=\"presentation\" data-dojo-attach-point=\"titleNode,innerDiv,tabContent\" class=\"dijitTabInner dijitTabContent\">\n\t<span role=\"presentation\" class=\"dijitInline dijitIcon dijitTabButtonIcon\" data-dojo-attach-point=\"iconNode\"></span>\n\t<span data-dojo-attach-point='containerNode,focusNode' class='tabLabel'></span>\n\t<span class=\"dijitInline dijitTabCloseButton dijitTabCloseIcon\" data-dojo-attach-point='closeNode'\n\t\t  role=\"presentation\">\n\t\t<span data-dojo-attach-point='closeText' class='dijitTabCloseText'>[x]</span\n\t\t\t\t></span>\n</div>\n"}});
 define("dijit/layout/TabController", [
 	"dojo/_base/declare", // declare
 	"dojo/dom", // dom.setSelectable
 	"dojo/dom-attr", // domAttr.attr
 	"dojo/dom-class", // domClass.toggle
+	"dojo/has",
 	"dojo/i18n", // i18n.getLocalization
 	"dojo/_base/lang", // lang.hitch lang.trim
 	"./StackController",
@@ -13,12 +14,12 @@ define("dijit/layout/TabController", [
 	"../MenuItem",
 	"dojo/text!./templates/_TabButton.html",
 	"dojo/i18n!../nls/common"
-], function(declare, dom, domAttr, domClass, i18n, lang, StackController, registry, Menu, MenuItem, template){
+], function(declare, dom, domAttr, domClass, has, i18n, lang, StackController, registry, Menu, MenuItem, template){
 
 	// module:
 	//		dijit/layout/TabController
 
-	var TabButton = declare("dijit.layout._TabButton", StackController.StackButton, {
+	var TabButton = declare("dijit.layout._TabButton" + (has("dojo-bidi") ? "_NoBidi" : ""), StackController.StackButton, {
 		// summary:
 		//		A tab (the thing you click to select a pane).
 		// description:
@@ -37,6 +38,9 @@ define("dijit/layout/TabController", [
 		},
 
 		templateString: template,
+
+		// Button superclass maps name to a this.valueNode, but we don't have a this.valueNode attach point
+		_setNameAttr: "focusNode",
 
 		// Override _FormWidget.scrollOnFocus.
 		// Don't scroll the whole tab container into view when the button is focused.
@@ -104,6 +108,15 @@ define("dijit/layout/TabController", [
 		}
 	});
 
+	if(has("dojo-bidi")){
+		TabButton = declare("dijit.layout._TabButton", TabButton, {
+			_setLabelAttr: function(/*String*/ content){
+				this.inherited(arguments);
+				this.applyTextDir(this.iconNode, this.iconNode.alt);
+			}
+		});
+	}
+
 	var TabController = declare("dijit.layout.TabController", StackController, {
 		// summary:
 		//		Set of tabs (the things with titles and a close button, that you click to show a tab panel).
@@ -117,7 +130,7 @@ define("dijit/layout/TabController", [
 
 		baseClass: "dijitTabController",
 
-		templateString: "<div role='tablist' data-dojo-attach-event='onkeypress:onkeypress'></div>",
+		templateString: "<div role='tablist' data-dojo-attach-event='onkeydown:onkeydown'></div>",
 
 		// tabPosition: String
 		//		Defines where tabs go relative to the content.
@@ -137,7 +150,7 @@ define("dijit/layout/TabController", [
 
 			// Setup a close menu to be shared between all the closable tabs (excluding disabled tabs)
 			var closeMenu = new Menu({
-				id: this.id+"_Menu",
+				id: this.id + "_Menu",
 				ownerDocument: this.ownerDocument,
 				dir: this.dir,
 				lang: this.lang,

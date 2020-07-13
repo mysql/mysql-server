@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -617,10 +617,14 @@ bitmap page
 /** Gets the desired bits for a given page from a bitmap page.
 @param[in]	page		bitmap page
 @param[in]	page_id		page id whose bits to get
-@param[in]	page_size	page size
+@param[in]	page_size	page size */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	latch_type	MTR_MEMO_PAGE_X_FIX, MTR_MEMO_BUF_FIX, ...
 @param[in,out]	mtr		mini-transaction holding latch_type on the
-bitmap page
+bitmap page */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
 @return value of bits */
 UNIV_INLINE
@@ -994,9 +998,13 @@ ibool ibuf_fixed_addr_page(const page_id_t &page_id,
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]	page_size	page size */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	x_latch		FALSE if relaxed check (avoid latching the
-bitmap page)
+bitmap page) */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	file		file name
 @param[in]	line		line where called
 @param[in,out]	mtr		mtr which will contain an x-latch to the
@@ -1143,11 +1151,15 @@ static space_id_t ibuf_rec_get_space_func(
 #define ibuf_rec_get_info(mtr, rec, op, comp, info_len, counter) \
   ibuf_rec_get_info_func(rec, op, comp, info_len, counter)
 #endif
-/** Get various information about an ibuf record in >= 4.1.x format.
+/** Get various information about an ibuf record in >= 4.1.x format. */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	mtr		mini-transaction owning rec, or nullptr if this
                                 is called from ibuf_rec_has_multi_value().
                                 Because it's from page_validate() which doesn't
-                                have mtr at hand
+                                have mtr at hand */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	rec		ibuf record
 @param[in,out]	op		operation type, or NULL
 @param[in,out]	comp		compact flag, or NULL
@@ -1363,7 +1375,7 @@ static void ibuf_dummy_index_add_col(
 {
   ulint i = index->table->n_def;
   dict_mem_table_add_col(index->table, nullptr, nullptr, dtype_get_mtype(type),
-                         dtype_get_prtype(type), dtype_get_len(type));
+                         dtype_get_prtype(type), dtype_get_len(type), true);
   dict_index_add_col(index, index->table, index->table->get_col(i), len, true);
 }
 /** Deallocates a dummy index for inserting a record to a non-clustered index.
@@ -2426,7 +2438,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ulint
   when a slow shutdown is being executed. During a slow
   shutdown, the insert buffer merge must be completed. */
 
-  if (ibuf->empty && srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+  if (ibuf->empty && srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
     return (0);
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   } else if (ibuf_debug) {
@@ -3200,8 +3212,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   /* We check if the index page is suitable for buffered entries */
 
-  if (buf_page_peek(page_id) ||
-      lock_rec_expl_exist_on_page(page_id.space(), page_id.page_no())) {
+  if (buf_page_peek(page_id) || lock_rec_expl_exist_on_page(page_id)) {
     ibuf_mtr_commit(&bitmap_mtr);
     goto fail_exit;
   }
@@ -4059,7 +4070,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
   ulint mops[IBUF_OP_COUNT];
   ulint dops[IBUF_OP_COUNT];
 
-  ut_ad(block == nullptr || page_id.equals_to(block->page.id));
+  ut_ad(block == nullptr || page_id == block->page.id);
   ut_ad(block == nullptr ||
         buf_block_get_io_fix_unlocked(block) == BUF_IO_READ);
 

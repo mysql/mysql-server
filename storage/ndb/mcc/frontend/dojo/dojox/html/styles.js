@@ -172,7 +172,14 @@ _6[_1c]=s;
 }else{
 _6[_1c]=s;
 _6[_1c].id=s.ownerNode.id;
-_2.forEach(s.cssRules,function(r){
+var _1d=[];
+try{
+_1d=s[s.cssRules?"cssRules":"rules"];
+}
+catch(err){
+console.warn("Reading css rules from stylesheet "+s.href+" is forbidden due to same-origin policy. See http://www.w3.org/TR/CSP/#cascading-style-sheet-css-parsing",s);
+}
+_2.forEach(_1d,function(r){
 if(r.href){
 _6[r.href]=r.styleSheet;
 _6[r.href].id=s.ownerNode.id;

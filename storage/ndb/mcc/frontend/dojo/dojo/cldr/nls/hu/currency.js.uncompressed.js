@@ -1,23 +1,23 @@
 define(
 "dojo/cldr/nls/hu/currency", //begin v1.x content
 {
-	"HKD_displayName": "Hongkongi dollár",
-	"CHF_displayName": "Svájci frank",
+	"HKD_displayName": "hongkongi dollár",
+	"CHF_displayName": "svájci frank",
 	"JPY_symbol": "¥",
-	"CAD_displayName": "Kanadai dollár",
+	"CAD_displayName": "kanadai dollár",
 	"HKD_symbol": "HKD",
-	"CNY_displayName": "Kínai jüan renminbi",
-	"USD_symbol": "$",
-	"AUD_displayName": "Ausztrál dollár",
-	"JPY_displayName": "Japán jen",
+	"CNY_displayName": "kínai jüan",
+	"USD_symbol": "USD",
+	"AUD_displayName": "ausztrál dollár",
+	"JPY_displayName": "japán jen",
 	"CAD_symbol": "CAD",
-	"USD_displayName": "USA dollár",
+	"USD_displayName": "USA-dollár",
 	"EUR_symbol": "EUR",
 	"CNY_symbol": "CNY",
-	"GBP_displayName": "Brit font sterling",
+	"GBP_displayName": "brit font",
 	"GBP_symbol": "GBP",
 	"AUD_symbol": "AUD",
-	"EUR_displayName": "Euro"
+	"EUR_displayName": "euró"
 }
 //end v1.x content
 );

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,26 +41,6 @@
 class Cost_constant_cache;
 CHARSET_INFO *system_charset_info = nullptr;
 class THD;
-
-namespace {
-
-bool opt_use_tap = false;
-bool opt_unit_help = false;
-
-struct my_option unittest_options[] = {
-    {"tap-output", 1, "TAP (default) or gunit output.", &opt_use_tap,
-     &opt_use_tap, nullptr, GET_BOOL, OPT_ARG, opt_use_tap, 0, 1, nullptr, 0,
-     nullptr},
-    {"help", 2, "Help.", &opt_unit_help, &opt_unit_help, nullptr, GET_BOOL,
-     NO_ARG, opt_unit_help, 0, 1, nullptr, 0, nullptr},
-    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
-     0, nullptr, 0, nullptr}};
-
-extern "C" bool get_one_option(int, const struct my_option *, char *) {
-  return false;
-}
-
-}  // namespace
 
 #ifdef _WIN32
 #define SIGNAL_FMT "exception 0x%x"
@@ -122,14 +102,16 @@ static void init_signal_handling() {
   sigprocmask(SIG_SETMASK, &sa.sa_mask, nullptr);
 
   sa.sa_handler = signal_handler;
-
-  sigaction(SIGSEGV, &sa, nullptr);
+  // Treat these as fatal and handle them.
   sigaction(SIGABRT, &sa, nullptr);
-#ifdef SIGBUS
-  sigaction(SIGBUS, &sa, nullptr);
-#endif
-  sigaction(SIGILL, &sa, nullptr);
   sigaction(SIGFPE, &sa, nullptr);
+  // Handle these as well, except for ASAN/UBSAN builds:
+  // we let sanitizer runtime handle them instead.
+#if defined(HANDLE_FATAL_SIGNALS)
+  sigaction(SIGBUS, &sa, nullptr);
+  sigaction(SIGILL, &sa, nullptr);
+  sigaction(SIGSEGV, &sa, nullptr);
+#endif
 }
 
 #endif
@@ -144,22 +126,12 @@ Cost_constant_cache *cost_constant_cache = nullptr;
 
 extern "C" void sql_alloc_error_handler(void) { ADD_FAILURE(); }
 
-extern void install_tap_listener();
-
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
   MY_INIT(argv[0]);
 
   mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_open, MY_MUTEX_INIT_FAST);
-
-  if (handle_options(&argc, &argv, unittest_options, get_one_option))
-    return EXIT_FAILURE;
-  if (opt_use_tap) install_tap_listener();
-  if (opt_unit_help)
-    printf(
-        "\n\nTest options: [--[enable-]tap-output] output TAP "
-        "rather than googletest format\n");
 
 #ifndef _WIN32
   rlimit core_limit;

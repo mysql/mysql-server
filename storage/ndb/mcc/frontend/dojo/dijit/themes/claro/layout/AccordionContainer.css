@@ -41,6 +41,16 @@
   
   padding: 9px;
 }
+.claro .dijitAccordionInnerContainerHover {
+  border: 1px solid #759dc0;
+  background-color: #abd6ff;
+  -webkit-transition-duration: 0.2s;
+  -moz-transition-duration: 0.2s;
+  transition-duration: 0.2s;
+}
+.claro .dijitAccordionInnerContainerHover .dijitAccordionTitle {
+  color: #000000;
+}
 .claro .dijitAccordionInnerContainerActive {
   border: 1px solid #759dc0;
   background-color: #7dbdfa;
@@ -72,23 +82,4 @@
   background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
   _background-image: none;
   
-}
-.claro .dijitAccordionInnerContainerHover .dijitAccordionTitle {
-  
-  color: #000000;
-}
-.claro .dijitAccordionInnerContainerHover, .claro .dijitAccordionInnerContainerSelectedActive {
-  
-  border: 1px solid #759dc0;
-  background-color: #abd6ff;
-  -webkit-transition-duration: 0.2s;
-  -moz-transition-duration: 0.2s;
-  transition-duration: 0.2s;
-}
-.claro .dijitAccordionInnerContainerSelectedHover .dijitAccordionChildWrapper, .claro .dijitAccordionInnerContainerSelectedActive .dijitAccordionChildWrapper {
-  background-color: #ffffff;
-  border: 1px solid #759dc0;
-  -webkit-box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.25);
-  -moz-box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.25);
-  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.25);
 }

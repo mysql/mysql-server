@@ -1,22 +1,13 @@
 //>>built
-define("dojox/charting/plot2d/StackedBars",["dojo/_base/declare","./Bars","./commonStacked"],function(_1,_2,_3){
-return _1("dojox.charting.plot2d.StackedBars",_2,{getSeriesStats:function(){
-var _4=_3.collectStats(this.series),t;
-_4.hmin-=0.5;
-_4.hmax+=0.5;
-t=_4.hmin,_4.hmin=_4.vmin,_4.vmin=t;
-t=_4.hmax,_4.hmax=_4.vmax,_4.vmax=t;
-return _4;
-},getValue:function(_5,_6,_7,_8){
-var y,x;
-if(_8){
-x=_6;
-y=_3.getIndexValue(this.series,_7,x);
-}else{
-x=_5.x-1;
-y=_3.getValue(this.series,_7,_5.x);
-y=y?y.y:null;
-}
-return {y:y,x:x};
+define("dojox/charting/plot2d/StackedBars",["dojo/_base/declare","dojo/_base/lang","./Bars","./commonStacked"],function(_1,_2,_3,_4){
+return _1("dojox.charting.plot2d.StackedBars",_3,{getSeriesStats:function(){
+var _5=_4.collectStats(this.series,_2.hitch(this,"isNullValue")),t;
+_5.hmin-=0.5;
+_5.hmax+=0.5;
+t=_5.hmin,_5.hmin=_5.vmin,_5.vmin=t;
+t=_5.hmax,_5.hmax=_5.vmax,_5.vmax=t;
+return _5;
+},rearrangeValues:function(_6,_7,_8){
+return _4.rearrangeValues.call(this,_6,_7,_8);
 }});
 });

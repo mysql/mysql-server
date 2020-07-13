@@ -457,7 +457,7 @@ dojo.query differences that cause some tests to fail:
 			// inherited from Object.prototype.  For example, if obj has a custom
 			// toString() method, don't overwrite it with the toString() method
 			// that props inherited from Object.prototype
-			if((tobj[x] === undefined || tobj[x] != props[x]) && props[x] !== undefined && obj != props[x]){
+			if(x !== '__proto__ ' && ((tobj[x] === undefined || tobj[x] != props[x])) && props[x] !== undefined && obj != props[x]){
 				if(dojo.isObject(obj[x]) && dojo.isObject(props[x])){
 					if(dojo.isArray(props[x])){
 						obj[x] = props[x];

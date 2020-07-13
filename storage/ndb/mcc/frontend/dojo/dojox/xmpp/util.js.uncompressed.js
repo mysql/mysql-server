@@ -5,10 +5,7 @@ dojo.require("dojox.string.Builder");
 dojo.require("dojox.encoding.base64");
 
 dojox.xmpp.util.xmlEncode = function(str) {
-	if(str) {
-		str = str.replace("&", "&amp;").replace(">", "&gt;").replace("<", "&lt;").replace("'", "&apos;").replace('"', "&quot;");
-	}
-	return str;
+	return dojo.string.escape(str);
 };
 
 dojox.xmpp.util.encodeJid = function(jid) {
@@ -51,7 +48,7 @@ dojox.xmpp.util.encodeJid = function(jid) {
 };
 
 dojox.xmpp.util.decodeJid = function(jid) {
-	
+
 	jid = jid.replace(/\\([23][02367acef])/g, function(match) {
 			switch(match){
 				case "\\20" :
@@ -75,7 +72,7 @@ dojox.xmpp.util.decodeJid = function(jid) {
 			}
 			return "ARG";
 	});
-	
+
 	return jid;
 };
 
@@ -89,7 +86,7 @@ dojox.xmpp.util.createElement = function(tag, attributes, terminal){
 		elem.append(attributes[attr]);
 		elem.append('" ');
 	}
-	
+
 	if (terminal){
 		elem.append("/>");
 	}else{

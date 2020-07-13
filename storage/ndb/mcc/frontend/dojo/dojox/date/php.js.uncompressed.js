@@ -1,14 +1,20 @@
 define("dojox/date/php", ["dojo/_base/kernel", "dojo/_base/lang","dojo/date","dojox/string/tokenize"], function(dojo,dlang,ddate,dxst){
-dojo.getObject("date.php", true, dojox);
 
-dojox.date.php.format = function(/*Date*/ date, /*String*/ format){
+var php = dojo.getObject("date.php", true, dojox);
+/*=====
+var php = {
+	// TODO: summary
+};
+=====*/
+
+php.format = function(/*Date*/ date, /*String*/ format){
 	// summary:
 	//		Get a formatted string for a given date object
-	var df = new dojox.date.php.DateFormat(format);
+	var df = new php.DateFormat(format);
 	return df.format(date);
 };
 
-dojox.date.php.DateFormat = function(/*String*/ format){
+php.DateFormat = function(/*String*/ format){
 	// summary:
 	//		Format the internal date object
 	if(!this.regex){
@@ -36,7 +42,7 @@ dojox.date.php.DateFormat = function(/*String*/ format){
 	this.replacements = replacements;
 };
 
-dojo.extend(dojox.date.php.DateFormat, {
+dojo.extend(php.DateFormat, {
 	weekdays: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
 	weekdays_3: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
 	months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -343,5 +349,5 @@ dojo.extend(dojox.date.php.DateFormat, {
 	}
 
 });
-return dojox.date.php;
+return php;
 });

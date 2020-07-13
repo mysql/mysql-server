@@ -11,7 +11,7 @@ define("dojox/mobile/StoreCarousel", [
 		// summary:
 		//		A dojo/store enabled Carousel.
 		// description:
-		//		StoreCarousel is an enhanced version of dojox/mobile/Carousel. It
+		//		StoreCarousel is a subclass of dojox/mobile/Carousel which
 		//		can generate contents according to the given dojo/store store.
 	});
 });

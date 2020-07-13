@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,8 +68,6 @@ class THD;
 class Window;
 struct MYSQL_LOCK;
 
-typedef Bounds_checked_array<Item_null_result *> Item_null_array;
-
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
 typedef Mem_root_array<Key_use> Key_use_array;
 
@@ -81,15 +79,6 @@ struct SARGABLE_PARAM {
   uint num_values;  /* number of values in the above array      */
 };
 
-struct ROLLUP {
-  enum State { STATE_NONE, STATE_INITED, STATE_READY };
-  State state;
-  Item_null_array null_items;
-  Ref_item_array *ref_item_arrays;
-  List<Item> *fields_list;  ///< SELECT list
-  List<Item> *all_fields;   ///< Including hidden fields
-};
-
 /**
   Wrapper for ORDER* pointer to trace origins of ORDER list
 
@@ -98,19 +87,6 @@ struct ROLLUP {
   the whole ORDER list.
 */
 class ORDER_with_src {
-  /**
-    Private empty class to implement type-safe NULL assignment
-
-    This private utility class allows us to implement a constructor
-    from NULL and only NULL (or 0 -- this is the same thing) and
-    an assignment operator from NULL.
-    Assignments from other pointers still prohibited since other
-    pointer types are incompatible with the "null" type, and the
-    casting is impossible outside of ORDER_with_src class, since
-    the "null" type is private.
-  */
-  struct null {};
-
  public:
   ORDER *order;  ///< ORDER expression that we are wrapping with this class
   Explain_sort_clause src;  ///< origin of order list
@@ -126,39 +102,7 @@ class ORDER_with_src {
         src(src_arg),
         flags(order_arg ? ESP_EXISTS : ESP_none) {}
 
-  /**
-    Type-safe NULL assignment
-
-    See a commentary for the "null" type above.
-  */
-  ORDER_with_src &operator=(null *) {
-    clean();
-    return *this;
-  }
-
-  /**
-    Type-safe constructor from NULL
-
-    See a commentary for the "null" type above.
-  */
-  ORDER_with_src(null *) { clean(); }
-
-  /**
-    Transparent access to the wrapped order list
-
-    These operators are safe, since we don't do any conversion of
-    ORDER_with_src value, but just an access to the wrapped
-    ORDER pointer value.
-    We can use ORDER_with_src objects instead ORDER pointers in
-    a transparent way without accessor functions.
-
-    @note     This operator also implements safe "operator bool()"
-              functionality.
-  */
-  operator ORDER *() { return order; }
-  operator const ORDER *() const { return order; }
-
-  ORDER *operator->() const { return order; }
+  bool empty() const { return order == nullptr; }
 
   void clean() {
     order = nullptr;
@@ -334,7 +278,6 @@ class JOIN {
   List<Cached_item> group_fields{};
   List<Cached_item> group_fields_cache{};
   Item_sum **sum_funcs{nullptr};
-  Item_sum ***sum_funcs_end{nullptr};
   /**
      Describes a temporary table.
      Each tmp table has its own tmp_table_param.
@@ -347,7 +290,8 @@ class JOIN {
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
 
-  ROLLUP rollup{};         ///< Used with rollup
+  enum class RollupState { NONE, INITED, READY };
+  RollupState rollup_state;
   bool implicit_grouping;  ///< True if aggregated but no GROUP BY
 
   /**
@@ -611,14 +555,6 @@ class JOIN {
   */
   bool with_json_agg;
 
-  /**
-    If set, "fields" has been replaced with a set of Item_refs for rollup
-    processing; see the AggregateIterator constructor for more details.
-    This is used when constructing iterators only; it is not used during
-    execution.
-   */
-  bool replaced_items_for_rollup = false;
-
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
 
@@ -633,8 +569,8 @@ class JOIN {
   bool prepare_result();
   bool destroy();
   bool alloc_func_list();
-  bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
-                          bool before_group_by, bool recompute = false);
+  bool make_sum_func_list(List<Item> &all_fields, bool before_group_by,
+                          bool recompute = false);
 
   /**
      Overwrites one slice of ref_items with the contents of another slice.
@@ -689,11 +625,6 @@ class JOIN {
   List<Item> *get_current_fields();
 
   bool optimize_rollup();
-  bool rollup_process_const_fields();
-  bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
-                          Item_sum ***func);
-  bool switch_slice_for_rollup_fields(List<Item> &all_fields,
-                                      List<Item> &fields);
   bool finalize_table_conditions();
   /**
     Release memory and, if possible, the open tables held by this execution
@@ -720,7 +651,7 @@ class JOIN {
   */
   bool send_row_on_empty_set() const {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-            group_list == nullptr && !group_optimized_away &&
+            group_list.empty() && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
 
@@ -736,7 +667,7 @@ class JOIN {
  public:
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(uint idx, ORDER_with_src *order,
-                            bool force_stable_sort = false);
+                            bool force_stable_sort, bool sort_before_group);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
   void recalculate_deps_of_remaining_lateral_derived_tables(
@@ -830,7 +761,7 @@ class JOIN {
     @param tab              the JOIN_TAB object to attach created table to
     @param tmp_table_fields List of items that will be used to define
                             column types of the table.
-    @param tmp_table_group  Group key to use for temporary table, NULL if none.
+    @param tmp_table_group  Group key to use for temporary table, empty if none.
     @param save_sum_fields  If true, do not replace Item_sum items in
                             @c tmp_fields list with Item_field items referring
                             to fields in temporary table.
@@ -949,7 +880,7 @@ class JOIN {
   bool add_having_as_tmp_table_cond(uint curr_tmp_table);
   bool make_tmp_tables_info();
   void set_plan_state(enum_plan_state plan_state_arg);
-  bool compare_costs_of_subquery_strategies(SubqueryExecMethod *method);
+  bool compare_costs_of_subquery_strategies(Subquery_strategy *method);
   ORDER *remove_const(ORDER *first_order, Item *cond, bool change_list,
                       bool *simple_order, bool group_by);
 
@@ -1127,8 +1058,8 @@ class Deps_of_remaining_lateral_derived_tables {
   /**
      Constructor.
      @param j                the JOIN
-     @param plan_tables_arg  @see
-                             JOIN::deps_of_remaining_lateral_derived_tables
+     @param plan_tables_arg  table_map of derived tables @see
+     JOIN::deps_of_remaining_lateral_derived_tables
   */
   Deps_of_remaining_lateral_derived_tables(JOIN *j, table_map plan_tables_arg)
       : join(j),

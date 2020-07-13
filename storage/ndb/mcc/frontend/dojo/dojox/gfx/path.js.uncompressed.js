@@ -1,8 +1,8 @@
-define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./matrix", "./shape"], 
+define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./matrix", "./shape"],
 	function(g, lang, declare, matrix, shapeLib){
-// summary:
-//		This module contains the core graphics Path API.
-//		Path command format follows the W3C SVG 1.0 Path api.
+
+	// module:
+	//		dojox/gfx/path
 
 	var Path = declare("dojox.gfx.path.Path", shapeLib.Shape, {
 		// summary:
@@ -462,7 +462,16 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 		}
 	});
 
-	return g.path = { // our hash of newly defined objects
+	/*=====
+	g.Path = Path;
+	g.TextPath = TextPath;
+	=====*/
+
+	return g.path = {
+		// summary:
+		//		This module contains the core graphics Path API.
+		//		Path command format follows the W3C SVG 1.0 Path api.
+
 		Path: Path,
 		TextPath: TextPath
 	};

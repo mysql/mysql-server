@@ -1,6 +1,6 @@
 //>>built
 define("dojox/testing/DocTest",["dojo/string"],function(){
-dojo.declare("dojox.testing.DocTest",null,{errors:[],getTests:function(_1){
+return dojo.declare("dojox.testing.DocTest",null,{errors:[],getTests:function(_1){
 var _2=dojo.moduleUrl(_1).path;
 var _3=_2.substring(0,_2.length-1)+".js";
 var _4=dojo.xhrGet({url:_3,handleAs:"text"});
@@ -77,5 +77,4 @@ ret.success=true;
 }
 return ret;
 }});
-return dojox.testing.DocTest;
 });

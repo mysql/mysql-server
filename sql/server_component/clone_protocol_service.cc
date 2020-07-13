@@ -34,7 +34,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"
 #include "sql/sql_thd_internal_api.h"
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_init_callback.h"
 #include "sql/sys_vars_shared.h"
 #include "sql_common.h"
 
@@ -274,9 +274,9 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
 
     OptionalString capath, cipher, ciphersuites, crl, crlpath, version;
 
-    SslAcceptorContext::read_parameters(nullptr, &capath, &version, nullptr,
-                                        &cipher, &ciphersuites, nullptr, &crl,
-                                        &crlpath);
+    server_main_callback.read_parameters(nullptr, &capath, &version, nullptr,
+                                         &cipher, &ciphersuites, nullptr, &crl,
+                                         &crlpath);
 
     mysql_ssl_set(mysql, ssl_ctx->m_ssl_key, ssl_ctx->m_ssl_cert,
                   ssl_ctx->m_ssl_ca, capath.c_str(), cipher.c_str());

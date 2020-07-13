@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -920,7 +920,7 @@ class Window {
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
 
     @param thd              The session's execution thread
-    @param ref_item_array
+    @param ref_item_array   The base ref items
     @param tables           The list of tables involved
     @param fields           The list of selected fields
     @param all_fields       The list of all fields, including hidden ones

@@ -45,7 +45,7 @@ define("dojox/charting/axis2d/Base", ["dojo/_base/declare", "../Element"],
 		},
 		calculate: function(min, max, span){
 			// summary:
-			//		Stub function to run the calcuations needed for drawing this axis.
+			//		Stub function to run the calculations needed for drawing this axis.
 			// returns: dojox/charting/axis2d/Base
 			//		A reference to the axis for functional chaining.
 			return this;	//	dojox/charting/axis2d/Base
@@ -78,6 +78,17 @@ define("dojox/charting/axis2d/Base", ["dojo/_base/declare", "../Element"],
 			//		A reference to the axis for functional chaining.
 			this.dirty = false;
 			return this;	//	dojox/charting/axis2d/Base
-		}
+		},
+		isNullValue: function(value){
+			// summary:
+			//		A stub function to determine a data value
+			//		that should be ignored.
+			// value: Number|Null|Object
+			//		A data value to be inspected.
+			// returns: Boolean
+			//		If the value makes sense for this axis or not.
+			return false;
+		},
+		naturalBaseline: 0
 	});
 });

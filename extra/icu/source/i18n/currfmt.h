@@ -57,7 +57,7 @@ class CurrencyFormat : public MeasureFormat {
     /**
      * Override Format API.
      */
-    virtual Format* clone() const;
+    virtual CurrencyFormat* clone() const;
 
 
     using MeasureFormat::format;
@@ -86,10 +86,6 @@ class CurrencyFormat : public MeasureFormat {
      * Returns the class ID for this class.
      */
     static UClassID U_EXPORT2 getStaticClassID();
-
- private:
-
-    NumberFormat* fmt;
 };
 
 U_NAMESPACE_END

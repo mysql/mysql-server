@@ -168,7 +168,6 @@ COMMIT;
 --echo #      before throwing ER_DUP_ENTRY error (non-temporary error).
 --echo #
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/rpl_mts_slave_preserve_commit_order_deadlock_error.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_mts_slave_preserve_commit_order_deadlock_error
 --let $assert_count = 1
 --let $assert_select = Error 'Duplicate entry '1' for key 't2.PRIMARY'' on query
 --let $assert_text = Found 'Duplicate entry' error only once time which proves that transaction is not retried after getting 'non-temporary error'.

@@ -103,8 +103,10 @@
 }
 .claro .dijitFileInputButton,
 .claro .dijitFileInputText {
-	background-position: center top;
-	background-repeat: repeat-x;
+	background-image: -moz-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+	background-image: -webkit-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+	background-image: -o-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+	background-image: linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
 	background-color: #cde3f6;
 	border: 1px solid #799ab7;
 	border-radius: 4px;

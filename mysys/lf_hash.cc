@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -459,6 +459,7 @@ void lf_hash_destroy(LF_HASH *hash) {
   LF_SLIST *el, **head = (LF_SLIST **)lf_dynarray_value(&hash->array, 0);
 
   if (unlikely(!head)) {
+    lf_alloc_destroy(&hash->alloc);
     return;
   }
   el = *head;
@@ -511,10 +512,12 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data) {
   el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, bucket));
   if (unlikely(!el)) {
+    lf_pinbox_free(pins, node);
     return -1;
   }
   if (el->load() == nullptr &&
       unlikely(initialize_bucket(hash, el, bucket, pins))) {
+    lf_pinbox_free(pins, node);
     return -1;
   }
   node->hashnr = my_reverse_bits(hashnr) | 1; /* normal node */
@@ -721,14 +724,19 @@ static int initialize_bucket(LF_HASH *hash, std::atomic<LF_SLIST *> *node,
   uint parent = my_clear_highest_bit(bucket);
   LF_SLIST *dummy =
       (LF_SLIST *)my_malloc(key_memory_lf_slist, sizeof(LF_SLIST), MYF(MY_WME));
+  if (unlikely(!dummy)) {
+    return -1;
+  }
   LF_SLIST *tmp = nullptr, *cur;
   std::atomic<LF_SLIST *> *el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, parent));
-  if (unlikely(!el || !dummy)) {
+  if (unlikely(!el)) {
+    my_free(dummy);
     return -1;
   }
   if (el->load() == nullptr && bucket &&
       unlikely(initialize_bucket(hash, el, parent, pins))) {
+    my_free(dummy);
     return -1;
   }
   dummy->hashnr = my_reverse_bits(bucket) | 0; /* dummy node */

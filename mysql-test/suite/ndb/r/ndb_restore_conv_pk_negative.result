@@ -1,0 +1,101 @@
+******************************
+Tests for unsupported features
+******************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(a,b)) engine=ndb;
+insert into test.t1 values 
+("1a","1b","1c","1d","1e"), 
+("2a","2b","2c","2d","2e"), 
+("3a","3b","3c","3d","3e"), 
+("4a","4b","4c","4d","4e"), 
+("5a","5b","5c","5d","5e"), 
+("6a","6b","6c","6d","6e");
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.t1 values 
+("7a","7b","7c","7d","7e"), 
+("8a","8b","8c","8d","8e"), 
+("9a","9b","9c","9d","9e");
+update test.t1 set d=concat(d, "-modified");
+update test.t1 set c=concat(c, "-modified") where a in ("1a", "2a", "3a");
+update test.t1 set c=concat(c, "2"), d=concat(d, "2"), e=concat(e,"-modified") where a in ("4a", "5a", "6a");
+delete from test.t1 where a in ("5a","8a");
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c-modified	1d-modified	1e
+2a	2b	2c-modified	2d-modified	2e
+3a	3b	3c-modified	3d-modified	3e
+4a	4b	4c2	4d-modified2	4e-modified
+6a	6b	6c2	6d-modified2	6e-modified
+7a	7b	7c	7d-modified	7e
+9a	9b	9c	9d-modified	9e
+drop table test.t1;
+Show that we cannot change pk without --allow-pk-changes
+Extend PK (a,b) -> (a,b,c)
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(a,b,c)) engine=ndb;
+Run restore
+Expect error
+File contains row(s) matching pattern without allow-pk-changes 
+drop table test.t1;
+Show that we cannot change pk if the new column has updates
+with --ignore-extended-pk-updates
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(a,b,c)) engine=ndb;
+Run restore
+Expect error
+File contains row(s) matching pattern ignore-extended-pk-updates switch is missing 
+drop table test.t1;
+Show that we cannot add a pk column from nowhere
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20),
+x varchar(20) not null, 
+primary key(a,b,x)) engine=ndb;
+Run restore
+Expect error
+File contains row(s) matching pattern structure incompatible 
+drop table test.t1;
+Show that we cannot add an autoincrement pk from nowhere
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20),
+x int auto_increment not null, 
+primary key(a,b,x)) engine=ndb;
+Run restore
+Expect error
+File contains row(s) matching pattern structure incompatible 
+drop table test.t1;
+Complete key change with nothing of old key remaining
+Will fail as the log apply lookup for update/delete
+needs an index which has nothing to index
+
+create table test.t1 (c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20),
+primary key(c,d)) engine=ndb;
+Run restore
+File contains row(s) matching pattern no columns 
+drop table test.t1;

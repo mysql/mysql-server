@@ -214,7 +214,8 @@ void Arch_Log_Sys::update_header(byte *header, lsn_t checkpoint_lsn) {
   start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
   /* Copy Header information. */
-  log_files_header_fill(header, start_lsn, LOG_HEADER_CREATOR_CLONE);
+  log_files_header_fill(header, start_lsn, LOG_HEADER_CREATOR_CLONE, false,
+                        false);
 
   ut_ad(checkpoint_lsn >= start_lsn);
 
@@ -275,7 +276,7 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
   if (!wait_idle()) {
     int err = 0;
 
-    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
       err = ER_QUERY_INTERRUPTED;
       my_error(err, MYF(0));
     } else {
@@ -675,7 +676,7 @@ bool Arch_Log_Sys::wait_idle() {
           ut_ad(mutex_own(&m_mutex));
           result = (m_state == ARCH_STATE_PREPARE_IDLE);
 
-          if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+          if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
             return (ER_QUERY_INTERRUPTED);
           }
 
@@ -730,7 +731,7 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 
           /* Check if we need to abort. */
           if (state == ARCH_STATE_ABORT ||
-              srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+              srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
             my_error(ER_QUERY_INTERRUPTED, MYF(0));
             return (ER_QUERY_INTERRUPTED);
           }

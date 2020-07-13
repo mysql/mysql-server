@@ -16,14 +16,8 @@ define("dojox/treemap/Keyboard", ["dojo/_base/array", "dojo/_base/lang", "dojo/_
 		
 		postCreate: function(){
 			this.inherited(arguments);
-			this._keyDownHandle = on(this.domNode, "keydown", lang.hitch(this, this._onKeyDown));
-			this._mouseDownHandle = on(this.domNode, "mousedown", lang.hitch(this, this._onMouseDown));
-		},
-		
-		destroy: function(){
-			this.inherited(arguments);
-			this._keyDownHandle.remove();
-			this._mouseDownHandle.remove();
+			this.own(on(this.domNode, "keydown", lang.hitch(this, this._onKeyDown)));
+			this.own(on(this.domNode, "mousedown", lang.hitch(this, this._onMouseDown)));
 		},
 
 		createRenderer: function(item, level, kind){

@@ -8,7 +8,7 @@ define("dojox/mvc/sync", [
 	/*=====
 	mvc = {};
 	=====*/
-	
+
 	/*=====
 	dojox.mvc.sync.converter = {
 		// summary:
@@ -43,7 +43,12 @@ define("dojox/mvc/sync", [
 
 		// converter: dojox/mvc/sync.converter
 		//		Class/object containing the converter functions used when the data goes between data binding source (e.g. data model or controller) to data binding origin (e.g. widget).
-		converter: null
+		converter: null,
+
+		// equals: Function
+		//		The function to check if there really was a change when source/target dojo/Stateful indicates so.
+		//		Should take two arguments, and should return true when those two are considered equal.
+		equals: null
 	};
 	=====*/
 
@@ -51,14 +56,12 @@ define("dojox/mvc/sync", [
 
 	var sync;
 
-	if(has("mvc-bindings-log-api")){
-		function getLogContent(/*dojo/Stateful*/ source, /*String*/ sourceProp, /*dojo/Stateful*/ target, /*String*/ targetProp){
-			return [
-				[target._setIdAttr || !target.declaredClass ? target : target.declaredClass, targetProp].join(":"),
-				[source._setIdAttr || !source.declaredClass ? source : source.declaredClass, sourceProp].join(":")
-			];
-		}
-	}
+	var getLogContent = (has("mvc-bindings-log-api")) ? function(/*dojo/Stateful*/ source, /*String*/ sourceProp, /*dojo/Stateful*/ target, /*String*/ targetProp){
+		return [
+			[target.canConvertToLoggable || !target.declaredClass ? target : target.declaredClass, targetProp].join(":"),
+			[source.canConvertToLoggable || !source.declaredClass ? source : source.declaredClass, sourceProp].join(":")
+		];
+	} : "";
 
 	function equals(/*Anything*/ dst, /*Anything*/ src){
 		// summary:
@@ -70,7 +73,7 @@ define("dojox/mvc/sync", [
 		 || (lang.isFunction((dst || {}).equals) ? dst.equals(src) : lang.isFunction((src || {}).equals) ? src.equals(dst) : false);
 	}
 
-	function copy(/*Function*/ convertFunc, /*Object?*/ constraints, /*dojo/Stateful*/ source, /*String*/ sourceProp, /*dojo/Stateful*/ target, /*String*/ targetProp, /*Anything*/ old, /*Anything*/ current, /*Object?*/ excludes){
+	function copy(/*Function*/ convertFunc, /*Object?*/ constraints, /*Function*/ equals, /*dojo/Stateful*/ source, /*String*/ sourceProp, /*dojo/Stateful*/ target, /*String*/ targetProp, /*Anything*/ old, /*Anything*/ current, /*Object?*/ excludes){
 		// summary:
 		//		Watch for change in property in dojo/Stateful object.
 		// description:
@@ -80,6 +83,9 @@ define("dojox/mvc/sync", [
 		//		The data converter function.
 		// constraints: Object?
 		//		The data converter options.
+		// equals: Function
+		//		The function to check if there really was a change when source/target dojo/Stateful indicates so.
+		//		Should take two arguments, and should return true when those two are considered equal.
 		// source: dojo/Stateful
 		//		The dojo/Stateful of copy source.
 		// sourceProp: String
@@ -98,7 +104,7 @@ define("dojox/mvc/sync", [
 		// Bail if there is no change in value,
 		// or property name is wildcarded and the property to be copied is not in source property list (and source property list is defined),
 		// or property name is wildcarded and the property to be copied is in explicit "excludes" list
-		if(sync.equals(current, old)
+		if(equals(current, old)
 		 || sourceProp == "*" && array.indexOf(source.get("properties") || [targetProp], targetProp) < 0
 		 || sourceProp == "*" && targetProp in (excludes || {})){ return; }
 
@@ -167,7 +173,8 @@ define("dojox/mvc/sync", [
 		 excludes = [],
 		 list,
 		 constraints = lang.mixin({}, source.constraints, target.constraints),
-		 bindDirection = (options || {}).bindDirection || mvc.both;
+		 bindDirection = (options || {}).bindDirection || mvc.both,
+		 equals = (options || {}).equals || sync.equals;
 
 		if(has("mvc-bindings-log-api")){
 			var logContent = getLogContent(source, sourceProp, target, targetProp);
@@ -189,7 +196,7 @@ define("dojox/mvc/sync", [
 			// Start synchronization from source to target (e.g. from model to widget). For wildcard mode (sourceProp == targetProp == "*"), the 1st argument of watch() is omitted
 			if(lang.isFunction(source.set) && lang.isFunction(source.watch)){
 				_watchHandles.push(source.watch.apply(source, ((sourceProp != "*") ? [sourceProp] : []).concat([function(name, old, current){
-					copy(formatFunc, constraints, target, targetProp, source, name, old, current, excludes);
+					copy(formatFunc, constraints, equals, target, targetProp, source, name, old, current, excludes);
 				}])));
 			}else if(has("mvc-bindings-log-api")){
 				console.log(logContent.reverse().join(" is not a stateful property. Its change is not reflected to ") + ".");
@@ -200,7 +207,7 @@ define("dojox/mvc/sync", [
 				// In "all properties synchronization" case, copy is not done for properties in "exclude" list
 				if(targetProp != "*" || !(prop in (excludes || {}))){
 					var value = lang.isFunction(source.get) ? source.get(prop) : source[prop];
-					copy(formatFunc, constraints, target, targetProp == "*" ? prop : targetProp, source, prop, undef, value);
+					copy(formatFunc, constraints, equals, target, targetProp == "*" ? prop : targetProp, source, prop, undef, value);
 				}
 			});
 		}
@@ -213,7 +220,7 @@ define("dojox/mvc/sync", [
 					if(targetProp != "*" || !(prop in (excludes || {}))){
 						// Initial copy from target to source (e.g. from widget to model), only done for one-way binding from widget to model
 						var value = lang.isFunction(target.get) ? target.get(targetProp) : target[targetProp];
-						copy(parseFunc, constraints, source, prop, target, targetProp == "*" ? prop : targetProp, undef, value);
+						copy(parseFunc, constraints, equals, source, prop, target, targetProp == "*" ? prop : targetProp, undef, value);
 					}
 				});
 			}
@@ -221,7 +228,7 @@ define("dojox/mvc/sync", [
 			// Start synchronization from target to source (e.g. from widget to model). For wildcard mode (sourceProp == targetProp == "*"), the 1st argument of watch() is omitted
 			if(lang.isFunction(target.set) && lang.isFunction(target.watch)){
 				_watchHandles.push(target.watch.apply(target, ((targetProp != "*") ? [targetProp] : []).concat([function(name, old, current){
-					copy(parseFunc, constraints, source, sourceProp, target, name, old, current, excludes);
+					copy(parseFunc, constraints, equals, source, sourceProp, target, name, old, current, excludes);
 				}])));
 			}else if(has("mvc-bindings-log-api")){
 				console.log(logContent.join(" is not a stateful property. Its change is not reflected to ") + ".");
@@ -236,9 +243,9 @@ define("dojox/mvc/sync", [
 		handle.unwatch = handle.remove = function(){
 			for(var h = null; h = _watchHandles.pop();){
 				h.unwatch();
-				if(has("mvc-bindings-log-api")){
-					console.log(logContent.join(" is unbound from: "));
-				}
+			}
+			if(has("mvc-bindings-log-api")){
+				console.log(logContent.join(" is unbound from: "));
 			}
 		};
 		return handle; // dojo/handle

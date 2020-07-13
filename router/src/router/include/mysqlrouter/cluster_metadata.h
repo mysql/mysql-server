@@ -28,6 +28,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "mysql/harness/stdx/expected.h"
+
 namespace mysqlrouter {
 
 class MySQLSession;
@@ -118,7 +120,7 @@ std::string to_string(const ClusterType cluster_type);
 
 class MetadataUpgradeInProgressException : public std::exception {};
 
-void setup_metadata_session(MySQLSession &session);
+stdx::expected<void, std::string> setup_metadata_session(MySQLSession &session);
 
 }  // namespace mysqlrouter
 #endif

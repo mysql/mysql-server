@@ -487,10 +487,10 @@ this._setAutoHeightAttr(this.autoHeight,true);
 if(this.layout.cells.length){
 this.scroller.updateRowCount(_41);
 }
-this._resize();
 if(this.layout.cells.length){
 this.setScrollTop(this.scrollTop);
 }
+this._resize();
 }
 },updateRowStyles:function(_42){
 this.views.updateRowStyles(_42);

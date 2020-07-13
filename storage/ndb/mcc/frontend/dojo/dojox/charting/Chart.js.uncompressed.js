@@ -1,11 +1,11 @@
 define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array","dojo/_base/declare", "dojo/dom-style",
-	"dojo/dom", "dojo/dom-geometry", "dojo/dom-construct","dojo/_base/Color", "dojo/_base/sniff",
-	"./Element", "./SimpleTheme", "./Series", "./axis2d/common", "dojox/gfx/shape",
-	"dojox/gfx", "dojox/lang/functional", "dojox/lang/functional/fold", "dojox/lang/functional/reversed"], 
+	"dojo/dom", "dojo/dom-geometry", "dojo/dom-construct","dojo/_base/Color", "dojo/sniff",
+	"./Element", "./SimpleTheme", "./Series", "./axis2d/common", "./plot2d/common", "dojox/gfx/shape",
+	"dojox/gfx", "dojo/has!dojo-bidi?./bidi/Chart", "dojox/lang/functional", "dojox/lang/functional/fold", "dojox/lang/functional/reversed"],
 	function(dojox, lang, arr, declare, domStyle,
 	 		 dom, domGeom, domConstruct, Color, has,
-	 		 Element, SimpleTheme, Series, common, shape,
-	 		 g, func, funcFold, funcReversed){
+			 Element, SimpleTheme, Series, common, plot2dCommon, shape,
+	 		 g, BidiChart, func){
 	/*=====
 	var __ChartCtorArgs = {
 		// summary:
@@ -44,14 +44,31 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 	=====*/
 
 	var dc = lang.getObject("charting", true, dojox),
-		clear = func.lambda("item.clear()"),
-		purge = func.lambda("item.purgeGroup()"),
-		destroy = func.lambda("item.destroy()"),
-		makeClean = func.lambda("item.dirty = false"),
-		makeDirty = func.lambda("item.dirty = true"),
-		getName = func.lambda("item.name");
+		defaultMargins = {l: 10, t: 10, r: 10, b: 10};
 
-	var Chart = declare("dojox.charting.Chart", null, {
+	function clear (item) {
+		return item.clear();
+	}
+
+	function destroy (item) {
+		return item.destroy();
+	}
+
+	function makeClean (item) {
+		item.dirty = false;
+		return false;
+	}
+
+	function makeDirty (item) {
+		item.dirty = true;
+		return true;
+	}
+
+	function getName (item) {
+		return item.name;
+	}
+
+	var Chart = declare(has("dojo-bidi")? "dojox.charting.NonBidiChart" : "dojox.charting.Chart", null, {
 		// summary:
 		//		The main chart object in dojox.charting.  This will create a two dimensional
 		//		chart based on dojox.gfx.
@@ -123,7 +140,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 		//	|			)
 		//	|			.render();
 		//	|	});
-		
+
 		// theme: dojox/charting/SimpleTheme?
 		//		An optional theme to use for styling the chart.
 		// axes: dojox/charting/axis2d/Base{}?
@@ -148,6 +165,9 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 		//		The main graphics surface upon which a chart is drawn.
 		// dirty: Boolean
 		//		A boolean flag indicating whether or not the chart needs to be updated/re-rendered.
+		// htmlLabels: Boolean
+		//		A boolean flag indicating whether or not it should try to use HTML-based labels for the title or not.
+		//		The default is true.  The only caveat is IE and Opera browsers will always use GFX-based labels.
 
 		constructor: function(/* DOMNode */node, /* __ChartCtorArgs? */kwArgs){
 			// summary:
@@ -157,7 +177,8 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 
 			// initialize parameters
 			if(!kwArgs){ kwArgs = {}; }
-			this.margins   = kwArgs.margins ? kwArgs.margins : {l: 10, t: 10, r: 10, b: 10};
+			this.margins = kwArgs.margins || defaultMargins;
+			this._customMargins = !!kwArgs.margins;
 			this.stroke    = kwArgs.stroke;
 			this.fill      = kwArgs.fill;
 			this.delayInMs = kwArgs.delayInMs || 200;
@@ -166,7 +187,13 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			this.titlePos  = kwArgs.titlePos;
 			this.titleFont = kwArgs.titleFont;
 			this.titleFontColor = kwArgs.titleFontColor;
+			this.titleAlign = kwArgs.titleAlign; // This can be middle, left, right, or edge
+															 // edge is left or right aligned with chart plot edge depending on bidi.
 			this.chartTitle = null;
+			this.htmlLabels = true;
+			if("htmlLabels" in kwArgs){
+				this.htmlLabels = kwArgs.htmlLabels;
+			}
 
 			// default initialization
 			this.theme = null;
@@ -183,7 +210,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			this.surface = g.createSurface(this.node, box.w || 400, box.h || 300);
 			if(this.surface.declaredClass.indexOf("vml") == -1){
 				// except if vml use native clipping
-				this.plotGroup = this.surface.createGroup();
+				this._nativeClip = true;
 			}
 		},
 		destroy: function(){
@@ -220,6 +247,9 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			// returns: dojox/charting/Chart
 			//		A reference to the current chart for functional chaining.
 			this.theme = theme.clone();
+			if(!this._customMargins){
+				this.margins = this.theme.chart.margins || defaultMargins;
+			}
 			this.dirty = true;
 			return this;	//	dojox/charting/Chart
 		},
@@ -623,29 +653,27 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			//		Resize the chart to the dimensions of width and height.
 			// description:
 			//		Resize the chart and its surface to the width and height dimensions.
-			//		If no width/height or box is provided, resize the surface to the marginBox of the chart.
-			// width: Number
-			//		The new width of the chart.
-			// height: Number
+			//		If a single argument of the form {w: value1, h: value2} is provided take that argument as the dimensions to use.
+			//		Finally if no argument is provided, resize the surface to the marginBox of the chart.
+			// width: Number|Object?
+			//		The new width of the chart or the box definition.
+			// height: Number?
 			//		The new height of the chart.
 			// returns: dojox/charting/Chart
 			//		A reference to the current chart for functional chaining.
-			var box;
 			switch(arguments.length){
 				// case 0, do not resize the div, just the surface
 				case 1:
 					// argument, override node box
-					box = lang.mixin({}, width);
-					domGeom.setMarginBox(this.node, box);
+					domGeom.setMarginBox(this.node, width);
 					break;
 				case 2:
-					box = {w: width, h: height};
 					// argument, override node box
-					domGeom.setMarginBox(this.node, box);
+					domGeom.setMarginBox(this.node, {w: width, h: height});
 					break;
 			}
 			// in all cases take back the computed box
-			box = domGeom.getMarginBox(this.node);
+			var box = domGeom.getMarginBox(this.node);
 			var d = this.surface.getDimensions();
 			if(d.width != box.w || d.height != box.h){
 				// and set it on the surface
@@ -801,6 +829,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			// assign series
 			arr.forEach(this.series, function(run){
 				if(!(run.plot in this.plots)){
+					// TODO remove auto-assignment
 					if(!dc.plot2d || !dc.plot2d.Default){
 						throw Error("Can't find plot: Default - didn't you forget to dojo" + ".require() it?");
 					}
@@ -829,15 +858,22 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 
 			// assumption: we don't have stacked axes yet
 			var offsets = this.offsets = {l: 0, r: 0, t: 0, b: 0};
+			// chart mirroring starts
+			var self = this;
 			func.forIn(this.axes, function(axis){
+				if(has("dojo-bidi")){
+					self._resetLeftBottom(axis);
+				}
 				func.forIn(axis.getOffsets(), function(o, i){ offsets[i] = Math.max(o, offsets[i]); });
 			});
+			// chart mirroring ends
 			// add title area
 			if(this.title){
 				this.titleGap = (this.titleGap==0) ? 0 : this.titleGap || this.theme.chart.titleGap || 20;
 				this.titlePos = this.titlePos || this.theme.chart.titlePos || "top";
 				this.titleFont = this.titleFont || this.theme.chart.titleFont;
 				this.titleFontColor = this.titleFontColor || this.theme.chart.titleFontColor || "black";
+				this.titleAlign = this.titleAlign || this.theme && this.theme.chart && this.theme.chart.titleAlign || "middle";
 				var tsize = g.normalizedLength(g.splitFontString(this.titleFont).size);
 				offsets[this.titlePos == "top" ? "t" : "b"] += (tsize + this.titleGap);
 			}
@@ -867,7 +903,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 				clearTimeout(this._delayedRenderHandle);
 				this._delayedRenderHandle = null;
 			}
-			
+
 			if(this.theme){
 				this.theme.clear();
 			}
@@ -906,28 +942,26 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			//this.theme.defineColors({num: requiredColors, cache: false});
 
 			// clear old shapes
-			arr.forEach(this.series, purge);
-			func.forIn(this.axes, purge);
-			arr.forEach(this.stack,  purge);
+			arr.forEach(this.series, plot2dCommon.purgeGroup);
+			func.forIn(this.axes, plot2dCommon.purgeGroup);
+			arr.forEach(this.stack, plot2dCommon.purgeGroup);
 			var children = this.surface.children;
-			for(var i = 0; i < children.length;++i){
-				shape.dispose(children[i]);
+			// starting with 1.9 the registry is optional and thus dispose is
+			if(shape.dispose){
+				for(var i = 0; i < children.length;++i){
+					shape.dispose(children[i]);
+				}
 			}
 			if(this.chartTitle && this.chartTitle.tagName){
 				// destroy title if it is a DOM node
 			    domConstruct.destroy(this.chartTitle);
 			}
-			if(this.plotGroup){
-				this.plotGroup.clear();
-			}
 			this.surface.clear();
 			this.chartTitle = null;
 
-			if(this.plotGroup){
-				this._renderChartBackground(dim, offsets);
+			this._renderChartBackground(dim, offsets);
+			if(this._nativeClip){
 				this._renderPlotBackground(dim, offsets, w, h);
-				this.surface.add(this.plotGroup);
-				this.plotGroup.setClip({ x: offsets.l, y: offsets.t, width: w, height: h });
 			}else{
 				// VML
 				this._renderPlotBackground(dim, offsets, w, h);
@@ -936,26 +970,14 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			// go over the stack backwards
 			func.foldr(this.stack, function(z, plot){ return plot.render(dim, offsets), 0; }, 0);
 
-			if(!this.plotGroup){
+			if(!this._nativeClip){
 				// VML, matting-clipping
 				this._renderChartBackground(dim, offsets);
 			}
 
 			//create title: Whether to make chart title as a widget which extends dojox.charting.Element?
 			if(this.title){
-				var forceHtmlLabels = (g.renderer == "canvas"),
-					labelType = forceHtmlLabels || !has("ie") && !has("opera") ? "html" : "gfx",
-					tsize = g.normalizedLength(g.splitFontString(this.titleFont).size);
-				this.chartTitle = common.createText[labelType](
-					this,
-					this.surface,
-					dim.width/2,
-					this.titlePos=="top" ? tsize + this.margins.t : dim.height - this.margins.b,
-					"middle",
-					this.title,
-					this.titleFont,
-					this.titleFontColor
-				);
+				this._renderTitle(dim, offsets);
 			}
 
 			// go over axes
@@ -964,6 +986,51 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			this._makeClean();
 
 			return this;	//	dojox/charting/Chart
+		},
+		_renderTitle: function(dim, offsets){
+			// summary:
+			//		Internal function to render the chart title.
+			// dim:
+			//		The dimension object of the chart
+			// tags:
+			//		private
+			var forceHtmlLabels = (g.renderer == "canvas") && this.htmlLabels,
+				labelType = forceHtmlLabels || !has("ie") && !has("opera") && this.htmlLabels ? "html" : "gfx",
+				tsize = g.normalizedLength(g.splitFontString(this.titleFont).size),
+				tBox = g._base._getTextBox(this.title,{ font: this.titleFont });
+
+			var titleAlign = this.titleAlign;
+			var isRtl = has("dojo-bidi") && this.isRightToLeft();
+			var posX = dim.width/2; // Default is middle.
+			if(titleAlign === "edge"){
+				titleAlign = "left";
+				if(isRtl){
+					posX = dim.width - (offsets.r + tBox.w);
+				}else {
+					posX = offsets.l;
+				}
+			}else if(titleAlign != "middle"){
+				if(isRtl){
+					// We're in BIDI mode, reverse the alignment.
+					titleAlign = titleAlign === "left" ? "right" : "left";
+				}
+				if(titleAlign === "left"){
+					posX = this.margins.l;
+				}else if(titleAlign === "right"){
+					titleAlign = "left";
+					posX = dim.width - (this.margins.l + tBox.w);
+				}
+			}
+			this.chartTitle = common.createText[labelType](
+				this,
+				this.surface,
+				posX,
+				this.titlePos=="top" ? tsize + this.margins.t : dim.height - this.margins.b,
+				titleAlign,
+				this.title,
+				this.titleFont,
+				this.titleFontColor
+			);
 		},
 		_renderChartBackground: function(dim, offsets){
 			var t = this.theme, rect;
@@ -983,7 +1050,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			}
 
 			if(fill){
-				if(this.plotGroup){
+				if(this._nativeClip){
 					fill = Element.prototype._shapeFill(Element.prototype._plotFill(fill, dim),
 						{ x:0, y: 0, width: dim.width + 1, height: dim.height + 1 });
 					this.surface.createRect({ width: dim.width + 1, height: dim.height + 1 }).setFill(fill);
@@ -1147,6 +1214,13 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 					plot.dirty = true;
 				}
 			}
+		},
+		setDir : function(dir){
+			return this;
+		},
+		_resetLeftBottom: function(axis){
+		},
+		formatTruncatedLabel: function(element, label, labelType){
 		}
 	});
 
@@ -1198,6 +1272,6 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			plot.initializeScalers(plotArea, stats);
 		});
 	}
-	
-	return Chart;
+
+	return has("dojo-bidi")? declare("dojox.charting.Chart", [Chart, BidiChart]) : Chart;
 });

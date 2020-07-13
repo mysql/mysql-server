@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,14 +165,14 @@ void Binlog_sender::init() {
   }
 
   if (m_using_gtid_protocol) {
-    enum_gtid_mode gtid_mode = get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE);
-    if (gtid_mode != GTID_MODE_ON) {
+    auto gtid_mode = global_gtid_mode.get();
+    if (gtid_mode != Gtid_mode::ON) {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
               "The replication sender thread cannot start in "
               "AUTO_POSITION mode: this server has GTID_MODE = %.192s "
               "instead of ON.",
-              get_gtid_mode_string(gtid_mode));
+              Gtid_mode::to_string(gtid_mode));
       set_fatal_error(buf);
       return;
     }
@@ -338,7 +338,7 @@ void Binlog_sender::run() {
   }
 
   THD_STAGE_INFO(m_thd, stage_waiting_to_finalize_termination);
-  char error_text[MAX_SLAVE_ERRMSG];
+  char error_text[MAX_SLAVE_ERRMSG + 100];
 
   /*
     If the dump thread was killed because of a duplicate slave UUID we
@@ -584,7 +584,7 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       GTID_MODE to ON when the slave has not yet replicated all
       anonymous transactions.
     */
-    else if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) {
+    else if (global_gtid_mode.get() == Gtid_mode::ON) {
       char buf[MYSQL_ERRMSG_SIZE];
       snprintf(buf, MYSQL_ERRMSG_SIZE,
                ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
@@ -600,7 +600,7 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       GTID_MODE to OFF when the slave has not yet replicated all GTID
       transactions.
     */
-    if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF) {
+    if (global_gtid_mode.get() == Gtid_mode::OFF) {
       char buf[MYSQL_ERRMSG_SIZE];
       snprintf(buf, MYSQL_ERRMSG_SIZE,
                ER_THD(m_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),

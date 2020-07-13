@@ -1,5 +1,5 @@
 //>>built
-define("dojox/date/hebrew",["..","dojo/_base/lang","dojo/date","./hebrew/Date"],function(_1,_2,dd,_3){
+define("dojox/date/hebrew",["dojox/main","dojo/_base/lang","dojo/date","./hebrew/Date"],function(_1,_2,dd,_3){
 var _4=_2.getObject("date.hebrew",true,_1);
 _4.getDaysInMonth=function(_5){
 return _5.getDaysInHebrewMonth(_5.getMonth(),_5.getFullYear());

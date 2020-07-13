@@ -1,12 +1,12 @@
-define("dojo/data/ObjectStore", ["../_base/lang", "../Evented", "../_base/declare", "../_base/Deferred", "../_base/array", 
-	"../_base/connect", "../regexp"
-], function(lang, Evented, declare, Deferred, array, connect, regexp){
+define("dojo/data/ObjectStore", ["../_base/lang", "../Evented", "../_base/declare", "../_base/Deferred",
+	"../promise/all", "../_base/array", "../_base/connect", "../regexp"
+], function(lang, Evented, declare, Deferred, all, array, connect, regexp){
 
 // module:
 //		dojo/data/ObjectStore
 
 function convertRegex(character){
-	return character == '*' ? '.*' : character == '?' ? '.' : character; 
+	return character == '*' ? '.*' : character == '?' ? '.' : character;
 }
 return declare("dojo.data.ObjectStore", [Evented],{
 		// summary:
@@ -21,11 +21,11 @@ return declare("dojo.data.ObjectStore", [Evented],{
 			//		- options.objectStore:
 			//
 			//		The object store to use as the source provider for this data store
-			
+
 			this._dirtyObjects = [];
 			if(options.labelAttribute){
 				// accept the old labelAttribute to make it easier to switch from old data stores
-				options.labelProperty = options.labelAttribute; 
+				options.labelProperty = options.labelAttribute;
 			}
 			lang.mixin(this, options);
 		},
@@ -303,7 +303,7 @@ return declare("dojo.data.ObjectStore", [Evented],{
 			//		The data to be added in as an item.
 			// data: Object
 			//		See dojo/data/api/Write.newItem()
-					
+
 			if(parentInfo){
 				// get the previous value or any empty array
 				var values = this.getValue(parentInfo.parent,parentInfo.attribute,[]);
@@ -332,7 +332,7 @@ return declare("dojo.data.ObjectStore", [Evented],{
 			// summary:
 			//		sets 'attribute' on 'item' to 'value'
 			//		See dojo/data/api/Write.setValue()
-			
+
 			var old = item[attribute];
 			this.changing(item);
 			item[attribute]=value;
@@ -368,10 +368,10 @@ return declare("dojo.data.ObjectStore", [Evented],{
 			//		cloned and trimmed version of old object for use with
 			//		revert.
 			// object: Object
-			//		Indicates that the given object is changing and should be marked as 
+			//		Indicates that the given object is changing and should be marked as
 			// 		dirty for the next save
 			// _deleting: [private] Boolean
-			
+
 			object.__isDirty = true;
 			//if an object is already in the list of dirty objects, don't add it again
 			//or it will overwrite the premodification data set.
@@ -434,8 +434,9 @@ return declare("dojo.data.ObjectStore", [Evented],{
 						self._dirtyObjects = dirtyObjects.concat(savingObjects);
 					}
 				});
+				var transaction;
 				if(this.objectStore.transaction){
-					var transaction = this.objectStore.transaction();
+					transaction = this.objectStore.transaction();
 				}
 				for(var i = 0; i < dirtyObjects.length; i++){
 					var dirty = dirtyObjects[i];
@@ -444,29 +445,30 @@ return declare("dojo.data.ObjectStore", [Evented],{
 					delete object.__isDirty;
 					if(object){
 						result = this.objectStore.put(object, {overwrite: !!old});
+						actions.push(result);
 					}
 					else if(typeof old != "undefined"){
 						result = this.objectStore.remove(this.getIdentity(old));
+						actions.push(result);
 					}
 					savingObjects.push(dirty);
 					dirtyObjects.splice(i--,1);
-					Deferred.when(result, function(value){
-						if(!(--left)){
-							if(kwArgs.onComplete){
-								kwArgs.onComplete.call(kwArgs.scope, actions);
-							}
-						}
-					},function(value){
-
-						// on an error we want to revert, first we want to separate any changes that were made since the commit
-						left = -1; // first make sure that success isn't called
-						kwArgs.onError.call(kwArgs.scope, value);
-					});
 
 				}
+				all(actions).then(function(value){
+					if(kwArgs.onComplete){
+						kwArgs.onComplete.call(kwArgs.scope, value);
+					}
+				}, function(error){
+					if(kwArgs.onError) {
+						kwArgs.onError.call(kwArgs.scope, error);
+					}
+				});
+
 				if(transaction){
 					transaction.commit();
 				}
+
 			}catch(e){
 				kwArgs.onError.call(kwArgs.scope, value);
 			}
@@ -536,7 +538,7 @@ return declare("dojo.data.ObjectStore", [Evented],{
 		// an extra to get result sets
 		onFetch: function(results){
 			// summary:
-			// 		Called when a fetch occurs			
+			// 		Called when a fetch occurs
 		}
 
 	}

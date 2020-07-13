@@ -48,6 +48,9 @@
 #include <ws2tcpip.h>
 #endif
 
+#include "mysql/harness/net_ts/impl/resolver.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql_session.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
@@ -55,8 +58,6 @@
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
-
-using mysql_harness::SocketOperations;
 
 using mysqlrouter::MySQLSession;
 
@@ -211,8 +212,6 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   // DEBUG is needed to synchronize with 'Running.' from the Loader::main_loop()
   // to get a stable test.
   const std::string routing_section =
-      "[logger]\n"
-      "level = DEBUG\n"
       "[routing:basic]\n"
       "bind_port = " +
       std::to_string(router_port) +
@@ -400,52 +399,49 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
       std::exception, "Too many connection errors");
 }
 
-// in following functions we use SocketOperations for convenience: it provides
-// Win and Unix implemenatations where needed, thus saving us some #ifdefs
-
-static bool connect_to_host(int &sock, uint16_t port) {
-  SocketOperations *so = SocketOperations::instance();
-
-  struct addrinfo hints, *ainfo;
+static stdx::expected<mysql_harness::socket_t, std::error_code> connect_to_host(
+    uint16_t port) {
+  struct addrinfo hints;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
-  int status =
-      getaddrinfo("127.0.0.1", std::to_string(port).c_str(), &hints, &ainfo);
-  if (status != 0)
-    throw std::runtime_error(std::string("getaddrinfo() failed: ") +
-                             gai_strerror(status));
+  const auto addrinfo_res = net::impl::resolver::getaddrinfo(
+      "127.0.0.1", std::to_string(port).c_str(), &hints);
+  if (!addrinfo_res)
+    throw std::system_error(addrinfo_res.error(), "getaddrinfo() failed: ");
 
-  std::shared_ptr<void> exit_freeaddrinfo(nullptr,
-                                          [&](void *) { freeaddrinfo(ainfo); });
+  const auto *ainfo = addrinfo_res.value().get();
 
-  sock = socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
-  if (sock < 0)
-    throw std::runtime_error("socket() failed: " +
-                             std::to_string(so->get_errno()));
+  const auto socket_res = net::impl::socket::socket(
+      ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
+  if (!socket_res) return socket_res;
 
-  // return connection success
-  return (connect(sock, ainfo->ai_addr, ainfo->ai_addrlen) == 0);
+  const auto connect_res = net::impl::socket::connect(
+      socket_res.value(), ainfo->ai_addr, ainfo->ai_addrlen);
+  if (!connect_res) {
+    return stdx::make_unexpected(connect_res.error());
+  }
+
+  // return the fd
+  return socket_res.value();
 }
 
 static void read_until_error(int sock) {
-  SocketOperations *so = SocketOperations::instance();
-
-  char buf[1024];
+  std::array<char, 1024> buf;
   while (true) {
-    int bytes_read = so->read(sock, buf, sizeof(buf));
-    if (bytes_read <= 0) return;
+    const auto read_res = net::impl::socket::read(sock, buf.data(), buf.size());
+    if (!read_res || read_res.value() == 0) return;
   }
 }
 
 static void make_bad_connection(uint16_t port) {
-  SocketOperations *so = SocketOperations::instance();
-
   // TCP-level connection phase
-  int sock;
-  if (!connect_to_host(sock, port)) return;
+  auto connection_res = connect_to_host(port);
+  ASSERT_TRUE(connection_res);
+
+  auto sock = connection_res.value();
 
   // MySQL protocol handshake phase
   // To simplify code, instead of alternating between reading and writing
@@ -453,10 +449,13 @@ static void make_bad_connection(uint16_t port) {
   // Router sends back. Router will read what we wrote in chunks, inbetween its
   // writes, thinking they're replies to its handshake packets. Eventually it
   // will finish the handshake with error and disconnect.
-  std::vector<char> bogus_data(1024, 0);  // '=' is arbitrary bad value
-  if (so->write(sock, bogus_data.data(), bogus_data.size()) == -1)
-    throw std::runtime_error("write() failed: " + std::to_string(errno));
+  std::vector<char> bogus_data(1024, 0);
+  const auto write_res =
+      net::impl::socket::write(sock, bogus_data.data(), bogus_data.size());
+  if (!write_res) throw std::system_error(write_res.error(), "write() failed");
   read_until_error(sock);  // error triggered by Router disconnecting
+
+  net::impl::socket::close(sock);
 }
 
 /**

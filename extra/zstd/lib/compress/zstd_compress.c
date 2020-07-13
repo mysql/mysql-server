@@ -13,6 +13,7 @@
 ***************************************/
 #include <limits.h>         /* INT_MAX */
 #include <string.h>         /* memset */
+#include "my_compiler.h"
 #include "cpu.h"
 #include "mem.h"
 #include "hist.h"           /* HIST_countFast_wksp */
@@ -1339,6 +1340,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                       void* ptr,
                 const ZSTD_compressionParameters* cParams,
                       ZSTD_compResetPolicy_e const crp, ZSTD_resetTarget_e const forWho)
+SUPPRESS_UBSAN_CLANG10
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
@@ -3456,6 +3458,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                           ZSTD_outBuffer* output,
                                           ZSTD_inBuffer* input,
                                           ZSTD_EndDirective const flushMode)
+SUPPRESS_UBSAN_CLANG10
 {
     const char* const istart = (const char*)input->src;
     const char* const iend = istart + input->size;

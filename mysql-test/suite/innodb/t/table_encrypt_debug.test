@@ -15,19 +15,6 @@
 # # innodb-force-recovery-crash needs debug
 --source include/have_debug.inc
 
---disable_query_log
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
-call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dictionary of InnoDB");
-call mtr.add_suppression("\\[Warning\\] .* Tablespace for table `tde_db`.`t1` is set as discarded");
-call mtr.add_suppression("\\[Warning\\] .* Database page corruption or a failed file read of page");
-call mtr.add_suppression("\\[Warning\\] .* Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("\\[Warning\\] .* Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup");
-call mtr.add_suppression("\\[ERROR\\] .* The table .* doesn't have a corresponding tablespace, it was discarded.");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption algorithm support missing:");
---enable_query_log
-
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 --disable_warnings
@@ -137,10 +124,6 @@ DROP DATABASE tde_db;
 --echo # DURING CRASH RECOVERY
 --echo #
 
---disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup'");
---enable_query_log
-
 CREATE DATABASE tde_db;
 
 # Write file to make mysql-test-run.pl start up the server again
@@ -166,3 +149,17 @@ DROP TABLE tde_db.test_tbl;
 # Cleanup
 DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Warning\\].* Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\].* Database page corruption or a failed file read of page");
+call mtr.add_suppression("\\[Warning\\].* does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
+call mtr.add_suppression("\\[Warning\\].* Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup'");
+call mtr.add_suppression("\\[Warning\\].* Tablespace .*, name '.*', file '.*' is missing");
+call mtr.add_suppression("\\[Warning\\].* Tablespace for table `tde_db`.`t1` is set as discarded");
+call mtr.add_suppression("\\[ERROR\\].* Encryption algorithm support missing:");
+call mtr.add_suppression("\\[ERROR\\].* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\].* The table .* doesn't have a corresponding tablespace, it was discarded.");
+--enable_query_log

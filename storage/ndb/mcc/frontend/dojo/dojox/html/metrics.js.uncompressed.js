@@ -69,7 +69,9 @@ define("dojox/html/metrics", ["dojo/_base/kernel","dojo/_base/lang", "dojo/_base
 		var m, s;
 		if(!measuringNode){
 			m = measuringNode = Window.doc.createElement("div");
-			// Container that we can set contraints on so that it doesn't
+			// Due to fixing the parent node's width below, texts which contain white-spaces would be wrapped. Avoid this.
+			m.style.whiteSpace = "nowrap";
+			// Container that we can set constraints on so that it doesn't
 			// trigger a scrollbar.
 			var c = Window.doc.createElement("div");
 			c.appendChild(m);

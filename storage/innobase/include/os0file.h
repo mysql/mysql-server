@@ -91,7 +91,7 @@ struct Block {
 
   byte *m_ptr;
 
-  byte pad[INNOBASE_CACHE_LINE_SIZE - sizeof(ulint)];
+  byte pad[ut::INNODB_CACHE_LINE_SIZE - sizeof(ulint)];
   lock_word_t m_in_use;
 };
 }  // namespace file
@@ -371,7 +371,7 @@ class IORequest {
 
   /** @return true if the read should be validated */
   bool validate() const MY_ATTRIBUTE((warn_unused_result)) {
-    ut_a(is_read() ^ is_write());
+    ut_ad(is_read() ^ is_write());
 
     return (!is_read() || !punch_hole());
   }
@@ -1538,12 +1538,19 @@ dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
                            const void *buf, os_offset_t offset, ulint n)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Check the existence and type of the given file.
-@param[in]	path		pathname of the file
-@param[out]	exists		true if file exists
-@param[out]	type		type of the file (if it exists)
+/** Check the existence and type of a given path.
+@param[in]   path    pathname of the file
+@param[out]  exists  true if file exists
+@param[out]  type    type of the file (if it exists)
 @return true if call succeeded */
 bool os_file_status(const char *path, bool *exists, os_file_type_t *type);
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+bool os_file_exists(const char *path);
 
 /** Create all missing subdirectories along the given path.
 @return DB_SUCCESS if OK, otherwise error code. */

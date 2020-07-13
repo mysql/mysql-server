@@ -1,50 +1,67 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
 define("dojo/string",["./_base/kernel","./_base/lang"],function(_1,_2){
-var _3={};
-_2.setObject("dojo.string",_3);
-_3.rep=function(_4,_5){
-if(_5<=0||!_4){
+var _3=/[&<>'"\/]/g;
+var _4={"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#x27;","/":"&#x2F;"};
+var _5={};
+_2.setObject("dojo.string",_5);
+_5.escape=function(_6){
+if(!_6){
 return "";
 }
-var _6=[];
-for(;;){
-if(_5&1){
-_6.push(_4);
+return _6.replace(_3,function(c){
+return _4[c];
+});
+};
+_5.rep=function(_7,_8){
+if(_8<=0||!_7){
+return "";
 }
-if(!(_5>>=1)){
+var _9=[];
+for(;;){
+if(_8&1){
+_9.push(_7);
+}
+if(!(_8>>=1)){
 break;
 }
-_4+=_4;
+_7+=_7;
 }
-return _6.join("");
+return _9.join("");
 };
-_3.pad=function(_7,_8,ch,_9){
+_5.pad=function(_a,_b,ch,_c){
 if(!ch){
 ch="0";
 }
-var _a=String(_7),_b=_3.rep(ch,Math.ceil((_8-_a.length)/ch.length));
-return _9?_a+_b:_b+_a;
+var _d=String(_a),_e=_5.rep(ch,Math.ceil((_b-_d.length)/ch.length));
+return _c?_d+_e:_e+_d;
 };
-_3.substitute=function(_c,_d,_e,_f){
-_f=_f||_1.global;
-_e=_e?_2.hitch(_f,_e):function(v){
+_5.substitute=function(_f,map,_10,_11){
+_11=_11||_1.global;
+_10=_10?_2.hitch(_11,_10):function(v){
 return v;
 };
-return _c.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,function(_10,key,_11){
-var _12=_2.getObject(key,false,_d);
-if(_11){
-_12=_2.getObject(_11,false,_f).call(_f,_12,key);
+return _f.replace(/\$\{([^\s\:\}]*)(?:\:([^\s\:\}]+))?\}/g,function(_12,key,_13){
+if(key==""){
+return "$";
 }
-return _e(_12,key).toString();
+var _14=_2.getObject(key,false,map);
+if(_13){
+_14=_2.getObject(_13,false,_11).call(_11,_14,key);
+}
+var _15=_10(_14,key);
+if(typeof _15==="undefined"){
+throw new Error("string.substitute could not find key \""+key+"\" in template");
+}
+return _15.toString();
 });
 };
-_3.trim=String.prototype.trim?_2.trim:function(str){
+_5.trim=String.prototype.trim?_2.trim:function(str){
 str=str.replace(/^\s+/,"");
 for(var i=str.length-1;i>=0;i--){
 if(/\S/.test(str.charAt(i))){
@@ -54,5 +71,5 @@ break;
 }
 return str;
 };
-return _3;
+return _5;
 });

@@ -10,10 +10,11 @@ define(
 	"infinity": "∞",
 	"minusSign": "-",
 	"decimal": ".",
+	"superscriptingExponent": "×",
 	"nan": "NaN",
 	"perMille": "‰",
 	"decimalFormat": "#,##0.###",
-	"currencyFormat": "¤#,##0.00",
+	"currencyFormat": "¤#,##0.00;(¤#,##0.00)",
 	"plusSign": "+",
 	"decimalFormat-long": "000兆",
 	"decimalFormat-short": "000兆"

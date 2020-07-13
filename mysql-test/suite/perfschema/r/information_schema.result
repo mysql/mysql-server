@@ -101,6 +101,7 @@ performance_schema	table_io_waits_summary_by_index_usage	def
 performance_schema	table_io_waits_summary_by_table	def
 performance_schema	table_lock_waits_summary_by_table	def
 performance_schema	threads	def
+performance_schema	tls_channel_status	def
 performance_schema	user_defined_functions	def
 performance_schema	user_variables_by_thread	def
 performance_schema	users	def
@@ -209,6 +210,7 @@ table_io_waits_summary_by_index_usage	BASE TABLE	PERFORMANCE_SCHEMA
 table_io_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 table_lock_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 threads	BASE TABLE	PERFORMANCE_SCHEMA
+tls_channel_status	BASE TABLE	PERFORMANCE_SCHEMA
 user_defined_functions	BASE TABLE	PERFORMANCE_SCHEMA
 user_variables_by_thread	BASE TABLE	PERFORMANCE_SCHEMA
 users	BASE TABLE	PERFORMANCE_SCHEMA
@@ -317,6 +319,7 @@ table_io_waits_summary_by_index_usage	10	Dynamic
 table_io_waits_summary_by_table	10	Dynamic
 table_lock_waits_summary_by_table	10	Dynamic
 threads	10	Dynamic
+tls_channel_status	10	Dynamic
 user_defined_functions	10	Dynamic
 user_variables_by_thread	10	Dynamic
 users	10	Fixed
@@ -417,6 +420,7 @@ table_io_waits_summary_by_index_usage	0
 table_io_waits_summary_by_table	0
 table_lock_waits_summary_by_table	0
 threads	0
+tls_channel_status	0
 user_defined_functions	0
 user_variables_by_thread	0
 users	0
@@ -539,6 +543,7 @@ table_io_waits_summary_by_index_usage	0	0
 table_io_waits_summary_by_table	0	0
 table_lock_waits_summary_by_table	0	0
 threads	0	0
+tls_channel_status	0	0
 user_defined_functions	0	0
 user_variables_by_thread	0	0
 users	0	0
@@ -647,6 +652,7 @@ table_io_waits_summary_by_index_usage	0	0	NULL
 table_io_waits_summary_by_table	0	0	NULL
 table_lock_waits_summary_by_table	0	0	NULL
 threads	0	0	NULL
+tls_channel_status	0	0	NULL
 user_defined_functions	0	0	NULL
 user_variables_by_thread	0	0	NULL
 users	0	0	NULL
@@ -755,6 +761,7 @@ table_io_waits_summary_by_index_usage	NULL	NULL	NULL
 table_io_waits_summary_by_table	NULL	NULL	NULL
 table_lock_waits_summary_by_table	NULL	NULL	NULL
 threads	NULL	NULL	NULL
+tls_channel_status	NULL	NULL	NULL
 user_defined_functions	NULL	NULL	NULL
 user_variables_by_thread	NULL	NULL	NULL
 users	NULL	NULL	NULL
@@ -863,6 +870,7 @@ table_io_waits_summary_by_index_usage	utf8mb4_0900_ai_ci	NULL
 table_io_waits_summary_by_table	utf8mb4_0900_ai_ci	NULL
 table_lock_waits_summary_by_table	utf8mb4_0900_ai_ci	NULL
 threads	utf8mb4_0900_ai_ci	NULL
+tls_channel_status	utf8mb4_0900_ai_ci	NULL
 user_defined_functions	utf8mb4_0900_ai_ci	NULL
 user_variables_by_thread	utf8mb4_0900_ai_ci	NULL
 users	utf8mb4_0900_ai_ci	NULL
@@ -971,6 +979,7 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+tls_channel_status	
 user_defined_functions	
 user_variables_by_thread	
 users	
@@ -1079,6 +1088,7 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table	
 table_lock_waits_summary_by_table	
 threads	
+tls_channel_status	
 user_defined_functions	
 user_variables_by_thread	
 users	

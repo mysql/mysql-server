@@ -8,6 +8,9 @@ return this;
 },transform:function(_7){
 this.converter=_7;
 return this;
+},equals:function(_8){
+this.equalsCallback=_8;
+return this;
 }};
 };
 at.from=_3.from;

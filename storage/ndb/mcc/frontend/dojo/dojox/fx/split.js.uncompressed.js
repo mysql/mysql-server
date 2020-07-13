@@ -10,7 +10,7 @@ lang.mixin(dojoxFx,{
 		//		Returns an animation that will split the node into a grid
 		//		of pieces that move independently.
 		// args:
-		//		- args.crop: Boolean - If true, pieces will only be visible inside node's boundries
+		//		- args.crop: Boolean - If true, pieces will only be visible inside node's boundaries
 		//		- args.rows: Integer - The number of horizontal pieces (default is 3)
 		//		- args.columns: Integer - The number of vertical pieces (default is 3)
 		//		- args.pieceAnimation: Function(piece, x, y, coords) - Returns either the dojo.Animation

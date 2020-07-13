@@ -1,6 +1,6 @@
 define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declare", "./Base", "../scaler/linear",
-	"dojox/gfx", "dojox/lang/utils"],
-	function(lang, declare, Base, lin, g, du){
+	"dojox/lang/utils"],
+	function(lang, declare, Base, lin, du){
 
 /*=====
 	var __InvisibleAxisCtorArgs = {
@@ -149,7 +149,7 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 			//		Get the current windowing offset for the axis.
 			return "offset" in this ? this.offset : 0;	//	Number
 		},
-		calculate: function(min, max, span){
+		calculate: function(min, max, span, scalerType){
 			// summary:
 			//		Perform all calculations needed to render this axis.
 			// min: Number
@@ -158,6 +158,8 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 			//		The largest value represented on this axis.
 			// span: Number
 			//		The span in pixels over which axis calculations are made.
+			// scalerType: Object
+			//		An optional scaler type object.
 			// returns: dojox/charting/axis2d/Invisible
 			//		The reference to the axis for functional chaining.
 			if(this.initialized()){
@@ -167,7 +169,7 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 			// we used to have a 4th function parameter to reach labels but
 			// nobody was calling it with 4 parameters.
 			this.labels = o.labels;
-			this.scaler = lin.buildScaler(min, max, span, o);
+			this.scaler = (scalerType || lin).buildScaler(min, max, span, o);
 			// store the absolute major tick start, this will be useful when dropping a label every n labels
 			// TODO: if o.lower then it does not work
 			var tsb = this.scaler.bounds;
@@ -200,7 +202,7 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 					this.offset = o.from - tsb.lower;
 				}
 				// re-calculate the scaler
-				this.scaler = lin.buildScaler(min, max, span, o);
+				this.scaler = (scalerType || lin).buildScaler(min, max, span, o);
 				tsb = this.scaler.bounds;
 				// cleanup
 				if(this.scale == 1 && this.offset == 0){

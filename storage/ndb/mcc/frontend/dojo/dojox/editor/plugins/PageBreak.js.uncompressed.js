@@ -10,7 +10,7 @@ define("dojox/editor/plugins/PageBreak", [
 	"dojo/i18n!dojox/editor/plugins/nls/PageBreak"
 ], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.PageBreak", _Plugin, {
+var PageBreak = dojo.declare("dojox.editor.plugins.PageBreak", _Plugin, {
 	// summary:
 	//		This plugin provides a simple CSS page break plugin that
 	//		lets your insert browser print recognizable page breaks in
@@ -164,10 +164,10 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "pagebreak"){
-		o.plugin = new dojox.editor.plugins.PageBreak({});
+		o.plugin = new PageBreak({});
 	}
 });
 
-return dojox.editor.plugins.PageBreak;
+return PageBreak;
 
 });

@@ -218,7 +218,7 @@ define("dojox/geo/openlayers/WidgetFeature", [
 				//		removes this feature.
 				// description:
 				//		Remove this feature by disconnecting the widget from the dom.
-				var w = this.getWidget();
+				var w = this._getWidget();
 				if(!w){
 					return;
 				}

@@ -1,10 +1,10 @@
 define(
 "dojox/editor/plugins/nls/da/latinEntities", ({
 	/* These are already handled in the default RTE
-		amp:"ampersand",lt:"less-than sign",
-		gt:"greater-than sign",
-		nbsp:"no-break space\nnon-breaking space",
-		quot:"quote",
+	amp:"ampersand",lt:"less-than sign",
+	gt:"greater-than sign",
+	nbsp:"no-break space\nnon-breaking space",
+	quot:"quote",
 	*/
 	iexcl:"omvendt udråbstegn",
 	cent:"cent-tegn",
@@ -35,7 +35,7 @@ define(
 	raquo:"dobbelt vinkelanførselstegn pegende mod højre\nhøjre fransk anførselstegn",
 	frac14:"forskudt brøk en kvart\nbrøk en kvart",
 	frac12:"forskudt brøk en halv\nbrøk en halv",
-	frac34:"forskudt børk en tre kvart\nbrøk tre kvart",
+	frac34:"forskudt brøk en tre kvart\nbrøk tre kvart",
 	iquest:"omvendt spørgsmålstegn\ndrejet spørgsmålstegn",
 	Agrave:"stort latinsk A med accent grave\nstort latinsk A med accent grave",
 	Aacute:"stort latinsk A med accent aigu",

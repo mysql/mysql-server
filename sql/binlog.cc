@@ -2527,7 +2527,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     cache_mngr->stmt_cache.reset();
   } else if (!cache_mngr->stmt_cache.is_binlog_empty()) {
     if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex->item_list.elements && /* With select */
+        thd->lex->select_lex->get_fields_list()->elements && /* With select */
         !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
         thd->is_current_stmt_binlog_format_row()) {
       /*
@@ -4127,8 +4127,8 @@ enum enum_read_gtids_from_binlog_status {
   of the Gtid_log_event. If lock is needed in the sid_map, the caller
   must hold it.
   @param verify_checksum Set to true to verify event checksums.
-  @param is_relay_log
-
+  @param is_relay_log Set to true, if filename is a Relay Log, false if it is a
+  Binary Log.
   @retval GOT_GTIDS The file was successfully read and it contains
   both Gtid_log_events and Previous_gtids_log_events.
   This is only possible if either all_gtids or first_gtid are not null.
@@ -5010,7 +5010,9 @@ bool MYSQL_BIN_LOG::open_binlog(
     At every rotate memorize the last transaction counter state to use it as
     offset at logging the transaction logical timestamps.
   */
+  mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
   m_dependency_tracker.rotate();
+  mysql_mutex_unlock(&LOCK_slave_trans_dep_tracker);
 
   close_purge_index_file();
 
@@ -5822,7 +5824,8 @@ err:
 
   @param to_log	      Delete all log file name before this file.
   @param included            If true, to_log is deleted too.
-  @param need_lock_index
+  @param need_lock_index     Set to true, if the lock_index of the binary log
+  shall be acquired, false if the called is already the owner of the lock_index.
   @param need_update_threads If we want to update the log coordinates of
                              all threads. False for relay logs, true otherwise.
   @param decrease_log_space  If not null, decrement this variable of
@@ -5833,12 +5836,10 @@ err:
     If any of the logs before the deleted one is in use,
     only purge logs up to this one.
 
-  @retval
-    0			ok
-  @retval
-    LOG_INFO_EOF		to_log not found
-    LOG_INFO_EMFILE             too many files opened
-    LOG_INFO_FATAL              if any other than ENOENT error from
+  @retval 0			ok
+  @retval LOG_INFO_EOF		to_log not found
+  @retval LOG_INFO_EMFILE       too many files opened
+  @retval LOG_INFO_FATAL        if any other than ENOENT error from
                                 mysql_file_stat() or mysql_file_delete()
 */
 
@@ -7259,15 +7260,21 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
       DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0)) {
     if (thd->binlog_setup_trx_data() ||
         DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0)) {
-      enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
-      if (gtid_mode == GTID_MODE_ON || gtid_mode == GTID_MODE_ON_PERMISSIVE) {
-        const char *mode = gtid_mode == GTID_MODE_ON ? "ON" : "ON_PERMISSIVE";
+      auto gtid_mode = global_gtid_mode.get();
+      if (gtid_mode == Gtid_mode::ON || gtid_mode == Gtid_mode::ON_PERMISSIVE) {
         std::ostringstream message;
 
         message << "Could not create IO cache while writing an incident event "
-                   "to the binary log for query: '"
-                << thd->query().str << "'. Since GTID_MODE= " << mode
-                << ", server is unable to proceed with logging.";
+                   "to the binary log. Since GTID_MODE = "
+                << gtid_mode
+                << ", server is unable to proceed with logging. Query: '";
+        /**
+          The reason for the error may be that the query was
+          huge. Better cut it to not run into resource problems.
+        */
+        message.write(thd->query().str, MYSQL_ERRMSG_SIZE);
+        message << "'.";
+
         handle_binlog_flush_or_sync_error(thd, true, message.str().c_str());
         return true;
       }
@@ -7355,13 +7362,12 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
 }
 
 bool MYSQL_BIN_LOG::write_dml_directly(THD *thd, const char *stmt,
-                                       size_t stmt_len) {
+                                       size_t stmt_len,
+                                       enum_sql_command sql_command) {
   bool ret = false;
   /* backup the original command */
   enum_sql_command save_sql_command = thd->lex->sql_command;
-
-  /* Fake it as a DELETE statement, so it can be binlogged correctly */
-  thd->lex->sql_command = SQLCOM_DELETE;
+  thd->lex->sql_command = sql_command;
 
   if (thd->binlog_query(THD::STMT_QUERY_TYPE, stmt, stmt_len, false, false,
                         false, 0) ||
@@ -10324,6 +10330,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
          I.e., nothing prevents us from row logging if needed. */
       else {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection() ||
+            lex->is_stmt_unsafe_with_mixed_mode() ||
             (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0 ||
             lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE) ||
             lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE) ||
@@ -10345,6 +10352,8 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
                      ("is_row_injection=%d", lex->is_stmt_row_injection()));
           DBUG_PRINT("info", ("stmt_capable=%llu",
                               (flags_write_all_set & HA_BINLOG_STMT_CAPABLE)));
+          DBUG_PRINT("info", ("lex->is_stmt_unsafe_with_mixed_mode = %d",
+                              lex->is_stmt_unsafe_with_mixed_mode()));
 #endif
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
@@ -10491,11 +10500,11 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
   global_sid_lock->rdlock();
   enum_gtid_consistency_mode gtid_consistency_mode =
       get_gtid_consistency_mode();
-  enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_SID);
+  auto gtid_mode = global_gtid_mode.get();
 
   DBUG_PRINT("info", ("gtid_next.type=%d gtid_mode=%s "
                       "gtid_consistency_mode=%d error=%d query=%s",
-                      gtid_next_type, get_gtid_mode_string(gtid_mode),
+                      gtid_next_type, Gtid_mode::to_string(gtid_mode),
                       gtid_consistency_mode, error_code, thd->query().str));
 
   /*
@@ -10507,7 +10516,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
     - ENFORCE_GTID_CONSISTENCY=ON.
   */
   if ((gtid_next_type == AUTOMATIC_GTID &&
-       gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
+       gtid_mode >= Gtid_mode::ON_PERMISSIVE) ||
       gtid_next_type == ASSIGNED_GTID ||
       gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON) {
     global_sid_lock->unlock();
@@ -10576,25 +10585,28 @@ bool THD::is_ddl_gtid_compatible() {
               lex->sql_command == SQLCOM_CREATE_TABLE,
               (lex->sql_command == SQLCOM_CREATE_TABLE &&
                (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
-              lex->select_lex->item_list.elements,
+              lex->select_lex->fields_list.elements,
               lex->sql_command == SQLCOM_DROP_TABLE,
               (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
               in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      lex->select_lex->item_list.elements) {
-    /*
-      CREATE ... SELECT (without TEMPORARY) is unsafe because if
-      binlog_format=row it will be logged as a CREATE TABLE followed
-      by row events, re-executed non-atomically as two transactions,
-      and then written to the slave's binary log as two separate
-      transactions with the same GTID.
-    */
-    bool ret = handle_gtid_consistency_violation(
-        this, ER_GTID_UNSAFE_CREATE_SELECT,
-        ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
-    return ret;
+      lex->select_lex->get_fields_list()->elements) {
+    if (!(get_default_handlerton(this, lex->create_info->db_type)->flags &
+          HTON_SUPPORTS_ATOMIC_DDL)) {
+      /*
+        CREATE ... SELECT (without TEMPORARY) for engines not supporting atomic
+        DDL is unsafe because if binlog_format=row it will be logged as a CREATE
+        TABLE followed by row events, re-executed non-atomically as two
+        transactions, and then written to the slave's binary log as two separate
+        transactions with the same GTID.
+      */
+      bool ret = handle_gtid_consistency_violation(
+          this, ER_GTID_UNSAFE_CREATE_SELECT,
+          ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
+      return ret;
+    }
   } else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
              (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary)) {
@@ -11174,8 +11186,8 @@ void binlog_prepare_row_images(const THD *thd, TABLE *table) {
         for (Field **ptr = table->field; *ptr; ptr++) {
           Field *field = (*ptr);
           if ((field->type() == MYSQL_TYPE_BLOB) &&
-              !(field->flags & PRI_KEY_FLAG))
-            bitmap_clear_bit(&table->tmp_set, field->field_index);
+              !field->is_flag_set(PRI_KEY_FLAG))
+            bitmap_clear_bit(&table->tmp_set, field->field_index());
         }
         break;
       default:

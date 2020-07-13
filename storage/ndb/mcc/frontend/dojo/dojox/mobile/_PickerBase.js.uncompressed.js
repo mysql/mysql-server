@@ -3,13 +3,15 @@ define("dojox/mobile/_PickerBase", [
 	"dojo/_base/declare",
 	"dijit/_Contained",
 	"dijit/_Container",
-	"dijit/_WidgetBase"
-], function(array, declare, Contained, Container, WidgetBase){
+	"dijit/_WidgetBase",
+	"dojo/has",
+	"dojo/has!dojo-bidi?dojox/mobile/bidi/_PickerBase"
+], function(array, declare, Contained, Container, WidgetBase, has, _BidiPickerBase){
 
 	// module:
 	//		dojox/mobile/_PickerBase
 
-	return declare("dojox.mobile._PickerBase", [WidgetBase, Container, Contained], {
+	var _PickerBase = declare(has("dojo-bidi") ? "dojox.mobile.NonBidi_PickerBase" : "dojox.mobile._PickerBase", [WidgetBase, Container, Contained],{
 		// summary:
 		//		A base class for picker classes (e.g. SpinWheel, ValuePicker).
 
@@ -60,8 +62,10 @@ define("dojox/mobile/_PickerBase", [
 
 		startup: function(){
 			if(this._started){ return; }
+			this._duringStartup = true;
 			this.inherited(arguments);
 			this.reset();
+			delete this._duringStartup;
 		},
 
 		getSlots: function(){
@@ -111,4 +115,5 @@ define("dojox/mobile/_PickerBase", [
 			});
 		}
 	});
+	return has("dojo-bidi") ? declare("dojox.mobile._PickerBase", [_PickerBase, _BidiPickerBase]) : _PickerBase;
 });

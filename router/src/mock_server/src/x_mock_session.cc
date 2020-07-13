@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,16 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
+// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
+// globally and require to include my_rapidjson_size_t.h
+#include "my_rapidjson_size_t.h"
+#endif
+
 #include "x_mock_session.h"
 
 #include <google/protobuf/util/json_util.h>
+#include <rapidjson/document.h>
 #include <thread>
 
 #include "mysql/harness/logging/logging.h"
@@ -94,7 +101,13 @@ struct MySQLServerMockSessionX::Impl {
             const xcl::XProtocol::Message &msg) {
     std::string msg_buffer;
     const std::uint8_t header_size = 5;
+
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+    const std::size_t msg_size = msg.ByteSizeLong();
+#else
     const std::size_t msg_size = msg.ByteSize();
+#endif
+
     msg_buffer.resize(msg_size + header_size);
 
     if (!msg.SerializeToArray(&msg_buffer[0] + header_size, msg_size)) {
@@ -132,28 +145,50 @@ struct MySQLServerMockSessionX::Impl {
   }
 
  private:
-  std::unique_ptr<xcl::XProtocol::Message> get_notice_message(
-      const unsigned id) {
-    std::unique_ptr<xcl::XProtocol::Message> result;
-    switch (id) {
-      case Mysqlx::Notice::Frame_Type_WARNING:
-        result.reset(new Mysqlx::Notice::Warning());
-        break;
-      case Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED:
-        result.reset(new Mysqlx::Notice::SessionVariableChanged());
-        break;
-      case Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED:
-        result.reset(new Mysqlx::Notice::SessionStateChanged());
-        break;
-      case Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED:
-        result.reset(new Mysqlx::Notice::GroupReplicationStateChanged());
-        break;
-      default:
-        throw std::runtime_error("Unsupported notice id: " +
-                                 std::to_string(id));
+  stdx::expected<std::unique_ptr<xcl::XProtocol::Message>, std::string>
+  gr_state_changed_from_json(const std::string &json_string) {
+    rapidjson::Document json_doc;
+    auto result{
+        std::make_unique<Mysqlx::Notice::GroupReplicationStateChanged>()};
+    json_doc.Parse(json_string.c_str());
+    if (json_doc.HasMember("type")) {
+      if (json_doc["type"].IsUint()) {
+        result->set_type(json_doc["type"].GetUint());
+      } else {
+        return stdx::make_unexpected(
+            "Invalid json type for field 'type', expected 'uint' got " +
+            std::to_string(json_doc["type"].GetType()));
+      }
     }
 
-    return result;
+    if (json_doc.HasMember("view_id")) {
+      if (json_doc["view_id"].IsString()) {
+        result->set_view_id(json_doc["view_id"].GetString());
+      } else {
+        return stdx::make_unexpected(
+            "Invalid json type for field 'view_id', expected 'string' got " +
+            std::to_string(json_doc["view_id"].GetType()));
+      }
+    }
+
+    return std::unique_ptr<xcl::XProtocol::Message>(std::move(result));
+  }
+
+  stdx::expected<std::unique_ptr<xcl::XProtocol::Message>, std::string>
+  get_notice_message(const unsigned id, const std::string &payload) {
+    switch (id) {
+      case Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED: {
+        return gr_state_changed_from_json(payload);
+      }
+      // those we currently not use, if needed add a function encoding json
+      // string to the selected message type
+      case Mysqlx::Notice::Frame_Type_WARNING:
+      case Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED:
+      case Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED:
+      default:
+        return stdx::make_unexpected("Unsupported notice id: " +
+                                     std::to_string(id));
+    }
   }
 
   void send_async_notice(const AsyncNotice &async_notice) {
@@ -163,12 +198,14 @@ struct MySQLServerMockSessionX::Impl {
                                ? Mysqlx::Notice::Frame_Scope_LOCAL
                                : Mysqlx::Notice::Frame_Scope_GLOBAL);
 
-    auto notice_msg = get_notice_message(async_notice.type);
+    auto notice_msg =
+        get_notice_message(async_notice.type, async_notice.payload);
 
-    google::protobuf::util::JsonStringToMessage(async_notice.payload,
-                                                notice_msg.get());
+    if (!notice_msg)
+      throw std::runtime_error("Failed encoding notice message: " +
+                               notice_msg.error());
 
-    notice_frame.set_payload(notice_msg->SerializeAsString());
+    notice_frame.set_payload(notice_msg.value()->SerializeAsString());
 
     send(xcl::XProtocol::Server_message_type_id::ServerMessages_Type_NOTICE,
          notice_frame);

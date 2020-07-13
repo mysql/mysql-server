@@ -7,17 +7,17 @@
 	border-style: outset;
 	border-width: 1px;
 	border-radius: 0.5em;
-	background-image: @mbl-button-background-image;
+	.mbl-button-background-image();
 	font: inherit;
 	cursor: pointer;
-	-webkit-appearance: none;
-	-webkit-tap-highlight-color: rgba(255,255,255,0);
-	-webkit-transform: translateY(0.45em);
+	.appearance(none);
+	.tap-highlight-color(rgba(255,255,255,0));
+	.transform(translateY(0.45em));
 	.mblRadioButton-styles;
 }
 .mblRadioButtonChecked,
 .mblRadioButton:checked {
-	background-image: @mbl-button-checked-background-image;
+	.mbl-button-checked-background-image();
 	&::after {
 		position: absolute;
 		content: "";
@@ -27,12 +27,12 @@
 		left: 0.25em;
 		border-width: 0.15em;
 		border-style: none solid solid none;
-		-webkit-transform: rotate(45deg);
-		-webkit-transform-origin: 50% 50%;
+		.transform(rotate(45deg));
+		.transform-origin(50% 50%);
 		.mblRadioButtonChecked-after-styles;
 	}
 	&.mblRadioButtonSelected {
-		background-image: @mbl-blue-button-selected-background-image;
+		.mbl-blue-button-selected-background-image();
 		&::after {
 			.mblRadioButtonChecked-Selected-after-styles;
 		}

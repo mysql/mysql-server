@@ -1,8 +1,10 @@
 --source include/no_valgrind_without_big.inc
 --source include/not_windows.inc
 
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_FILE= $server_log;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+# Force the server to restart to see if the following messages will be logged.
+--source include/restart_mysqld.inc
 
 --echo #-----------------------------------------------------------------------
 

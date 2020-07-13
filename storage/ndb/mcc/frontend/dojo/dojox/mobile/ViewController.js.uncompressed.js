@@ -156,7 +156,8 @@ define("dojox/mobile/ViewController", [
 			for(var i = target.childNodes.length - 1; i >= 0; i--){
 				var c = target.childNodes[i];
 				if(c.nodeType === 1){
-					var fixed = c.getAttribute("fixed")
+					var fixed = c.getAttribute("fixed") // TODO: Remove the non-HTML5-compliant attribute in 2.0
+						|| c.getAttribute("data-mobile-fixed")
 						|| (registry.byNode(c) && registry.byNode(c).fixed);
 					if(fixed === "bottom"){
 						refNode = c;
@@ -204,10 +205,15 @@ define("dojox/mobile/ViewController", [
 					w = viewRegistry.getEnclosingView(evt.target);
 					target = w && w.domNode.parentNode || win.body();
 				}
+				var src = registry.getEnclosingWidget(evt.target);
+				if(src && src.callback){
+					detail.context = src;
+					detail.method = src.callback;
+				}
 				this.openExternalView(detail, target);
 				return;
 			}else if(detail.href){
-				if(detail.hrefTarget){
+				if(detail.hrefTarget && detail.hrefTarget != "_self"){
 					win.global.open(detail.href, detail.hrefTarget);
 				}else{
 					var view; // find top level visible view
@@ -235,7 +241,7 @@ define("dojox/mobile/ViewController", [
 				detail.moveTo = (detail.moveTo.charAt(0) === '#' ? '#' + toView.id : toView.id) + params;
 			}
 			if(!fromView || (detail.moveTo && fromView === registry.byId(detail.moveTo.replace(/^#?([^&?]+).*/, "$1")))){ return; }
-			var src = registry.getEnclosingWidget(evt.target);
+			src = registry.getEnclosingWidget(evt.target);
 			if(src && src.callback){
 				detail.context = src;
 				detail.method = src.callback;

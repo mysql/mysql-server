@@ -1,15 +1,15 @@
-define("dojox/charting/StoreSeries", ["dojo/_base/array", "dojo/_base/declare", "dojo/_base/Deferred"], 
+define("dojox/charting/StoreSeries", ["dojo/_base/array", "dojo/_base/declare", "dojo/_base/Deferred"],
   function(arr, declare, Deferred){
-	
+
 	return declare("dojox.charting.StoreSeries", null, {
 		constructor: function(store, kwArgs, value){
 			// summary:
-			//		Series adapter for dojo object stores (dojo.store).
+			//		Series adapter for dojo object stores (dojo/store).
 			// store: Object
 			//		A dojo object store.
 			// kwArgs: Object
 			//		A store-specific keyword parameters used for querying objects.
-			//		See dojo.store docs
+			//		See dojo/store docs
 			// value: Function|Object|String
 			//		Function, which takes an object handle, and
 			//		produces an output possibly inspecting the store's item. Or
@@ -19,7 +19,7 @@ define("dojox/charting/StoreSeries", ["dojo/_base/array", "dojo/_base/declare", 
 			//		or empty string (the default), "value" field is extracted.
 			this.store = store;
 			this.kwArgs = kwArgs;
-	
+
 			if(value){
 				if(typeof value == "function"){
 					this.value = value;
@@ -41,13 +41,13 @@ define("dojox/charting/StoreSeries", ["dojo/_base/array", "dojo/_base/declare", 
 					return object.value;
 				};
 			}
-	
+
 			this.data = [];
 
 			this._initialRendering = true;
 			this.fetch();
 		},
-	
+
 		destroy: function(){
 			// summary:
 			//		Clean up before GC.
@@ -55,26 +55,29 @@ define("dojox/charting/StoreSeries", ["dojo/_base/array", "dojo/_base/declare", 
 				this.observeHandle.remove();
 			}
 		},
-	
+
 		setSeriesObject: function(series){
 			// summary:
-			//		Sets a dojox.charting.Series object we will be working with.
+			//		Sets a dojox/charting/Series object we will be working with.
 			// series: dojox/charting/Series
 			//		Our interface to the chart.
 			this.series = series;
 		},
-	
+
 		// store fetch loop
-	
-		fetch: function(){
+
+		fetch: function(query, options){
 			// summary:
 			//		Fetches data from the store and updates a chart.
-			var objects = this.objects = [];
+            // query: String | Object | Function
+			//		Optional update to the query to use for retrieving objects from the store.
+            // options: dojo/store/api/Store.QueryOptions
+            //      Optional arguments to apply to the resultset.
 			var self = this;
 			if(this.observeHandle){
 				this.observeHandle.remove();
 			}
-			var results = this.store.query(this.kwArgs.query, this.kwArgs);
+			var results = this.store.query(query || this.kwArgs.query, options || this.kwArgs);
 			Deferred.when(results, function(objects){
 				self.objects = objects;
 				update();
@@ -89,7 +92,7 @@ define("dojox/charting/StoreSeries", ["dojo/_base/array", "dojo/_base/declare", 
 				self._pushDataChanges();
 			}
 		},
-	
+
 		_pushDataChanges: function(){
 			if(this.series){
 				this.series.chart.updateSeries(this.series.name, this, this._initialRendering);
@@ -97,6 +100,6 @@ define("dojox/charting/StoreSeries", ["dojo/_base/array", "dojo/_base/declare", 
 				this.series.chart.delayedRender();
 			}
 		}
-	
+
 	});
 });

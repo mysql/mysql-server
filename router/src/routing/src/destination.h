@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
+#include "socket_operations.h"
 #include "tcp_address.h"
 IMPORT_LOG_FUNCTIONS()
 
@@ -126,7 +127,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
         protocol_(protocol) {}
 
   /** @brief Destructor */
-  virtual ~RouteDestination() {}
+  virtual ~RouteDestination() = default;
 
   RouteDestination(const RouteDestination &other) = delete;
   RouteDestination(RouteDestination &&other) = delete;
@@ -179,20 +180,17 @@ class RouteDestination : public DestinationNodesStateNotifier {
 
   /** @brief Gets next connection to destination
    *
-   * Returns a socket descriptor for the connection to the MySQL Server or
-   * -1 when an error occurred, which means that no destination was
-   * available.
+   * Returns a socket descriptor for the connection to the MySQL Server
    *
    * @param connect_timeout timeout
-   * @param error Pointer to int for storing errno
    * @param address Pointer to memory for storing destination address
    *                if the caller is not interested in that it can pass default
-   * nullptr
+   *                nullptr
    * @return a socket descriptor
    */
-  virtual int get_server_socket(
-      std::chrono::milliseconds connect_timeout, int *error,
-      mysql_harness::TCPAddress *address = nullptr) noexcept = 0;
+  virtual stdx::expected<mysql_harness::socket_t, std::error_code>
+  get_server_socket(std::chrono::milliseconds connect_timeout,
+                    mysql_harness::TCPAddress *address = nullptr) noexcept = 0;
 
   /** @brief Gets the number of destinations
    *
@@ -240,9 +238,10 @@ class RouteDestination : public DestinationNodesStateNotifier {
    * @param log_errors whether to log errors or not
    * @return a socket descriptor
    */
-  virtual int get_mysql_socket(const mysql_harness::TCPAddress &addr,
-                               std::chrono::milliseconds connect_timeout,
-                               bool log_errors = true);
+  virtual stdx::expected<mysql_harness::socket_t, std::error_code>
+  get_mysql_socket(const mysql_harness::TCPAddress &addr,
+                   std::chrono::milliseconds connect_timeout,
+                   bool log_errors = true);
 
   /** @brief Gets the id of the next server to connect to.
    *

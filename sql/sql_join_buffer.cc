@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ void add_virtual_gcol_base_cols(TABLE *table, MEM_ROOT *mem_root,
   table->read_set = completed_read_set;
   for (Field **field_ptr = table->field; *field_ptr != nullptr; ++field_ptr) {
     Field *field = *field_ptr;
-    if (bitmap_is_set(table->read_set, field->field_index)) {
+    if (bitmap_is_set(table->read_set, field->field_index())) {
       if (field->is_virtual_gcol()) {
         table->mark_gcol_in_maps(field);
       }

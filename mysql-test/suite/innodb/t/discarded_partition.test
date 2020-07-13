@@ -1,0 +1,60 @@
+# There are two variations of the test:
+# 1. Create multiple tables and preform test queries
+# 2. Create multiple tables, restart mysqld and perform test queries
+# 3. BUG 31215415 - shutdown right after trying to rebuild discarded partition
+#
+#	Have a look at include/discarded_partition.inc for more details
+
+--echo # Testing discarded partitions without restart
+--let $discarded_partition_option = PREPARE
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = SELECT_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = REBUILD_PARTITION_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = CREATE_SECONDARY_INDEX_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = DROP_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+
+--echo # Testing discarded partitions with restart
+--let $discarded_partition_option = PREPARE
+--source suite/innodb/include/discarded_partition.inc
+
+--source include/restart_mysqld.inc
+--let $discarded_partition_option = SELECT_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = REBUILD_PARTITION_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = CREATE_SECONDARY_INDEX_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--let $discarded_partition_option = DROP_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+--echo # Test shutdown just after rebuild partition
+--let $discarded_partition_option = PREPARE
+--source suite/innodb/include/discarded_partition.inc
+
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE partitions.t1 REBUILD PARTITION p0;
+
+--source include/restart_mysqld.inc
+
+--let $discarded_partition_option = DROP_TEST
+--source suite/innodb/include/discarded_partition.inc
+
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].* Tablespace .*, name '.*', file '.*' is missing");
+call mtr.add_suppression("\\[Warning\\].* Tablespace for table `.*`\\.`.*` /\\* Partition `.*` \\*/ is set as discarded");
+call mtr.add_suppression("\\[Warning\\].* Cannot calculate statistics for table `.*`.`.*` /\\* Partition `.*` \\*/ because the \\.ibd file is missing\\. Please refer to http://dev\\.mysql\\.com/doc/refman/8.0/en/innodb-troubleshooting\\.html for how to resolve the issue");
+--enable_query_log
+

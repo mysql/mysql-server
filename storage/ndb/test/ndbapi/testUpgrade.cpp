@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2206,6 +2206,31 @@ runSkipIfPostCanKeepFS(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static int
+restartDataNodesAtHalfWay(NDBT_Context* ctx, NDBT_Step* step)
+{
+  assert(ctx->getProperty("HalfStartedHold", Uint32(0)) == 1);
+  while(ctx->getProperty("HalfStartedDone", Uint32(0)) == 0 &&
+        !ctx->isTestStopped())
+  {
+    ndbout_c("Waiting for half changed");
+    NdbSleep_SecSleep(5);
+  }
+
+  if (ctx->isTestStopped())
+  {
+    return NDBT_OK;
+  }
+
+  ndbout_c("Got half changed, performing rolling restart (same version)");
+
+  int rc = rollingRestart(ctx, step);
+
+  ndbout_c("Rolling restart completed, resuming change process");
+  ctx->setProperty("HalfStartedHold", Uint32(0));
+
+  return rc;
+}
 
 NDBT_TESTSUITE(testUpgrade);
 TESTCASE("ShowVersions",
@@ -2514,6 +2539,33 @@ TESTCASE("Upgrade_Newer_LCP_FS_Fail",
   INITIALIZER(runSkipIfPostCanKeepFS);
   STEP(runUpgradeAndFail);
   // No postupgradecheck required as the upgrade is expected to fail
+}
+TESTCASE("ChangeHalfRestartChangeHalf",
+         "Try changing half datanodes, then rolling restart all "
+         "then changing the others")
+{
+  TC_PROPERTY("HalfStartedHold", Uint32(1));
+  // Don't restart MGMDs
+  TC_PROPERTY("MgmdNodeSet", Uint32(None));
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  STEP(runUpgrade_Half);
+  STEP(restartDataNodesAtHalfWay);
+  // No postupgrade as we do not upgrade API
+}
+
+TESTCASE("ChangeMGMDChangeHalfRestartChangeHalf",
+         "Try changing MGMD then half datanodes, then rolling restart all "
+         "then changing the others")
+{
+  TC_PROPERTY("HalfStartedHold", Uint32(1));
+  // Restart MGMDs
+  TC_PROPERTY("MgmdNodeSet", Uint32(All));
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  STEP(runUpgrade_Half);
+  STEP(restartDataNodesAtHalfWay);
+  // No postupgrade as we do not upgrade API
 }
 
 

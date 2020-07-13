@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,6 +156,12 @@ Tables::Tables() {
       FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID,
       "FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID",
       "last_checked_for_upgrade_version_id INT UNSIGNED NOT NULL");
+
+  m_target_def.add_field(FIELD_ENGINE_ATTRIBUTE, "FIELD_ENGINE_ATTRIBUTE",
+                         "engine_attribute JSON");
+  m_target_def.add_field(FIELD_SECONDARY_ENGINE_ATTRIBUTE,
+                         "FIELD_SECONDARY_ENGINE_ATTRIBUTE",
+                         "secondary_engine_attribute JSON");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");
   m_target_def.add_index(INDEX_UK_SCHEMA_ID_NAME, "INDEX_UK_SCHEMA_ID_NAME",

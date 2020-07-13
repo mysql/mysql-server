@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"        // DD_bootstrap_ctx
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
 #include "sql/dd/impl/system_registry.h"                // dd::System_tables
+#include "sql/dd/impl/tables/columns.h"                 // dd::tables::Columns
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::DD_properties
 #include "sql/dd/impl/tables/events.h"         // dd::tables::Events
 #include "sql/dd/impl/tables/foreign_key_column_usage.h"  // dd::tables::Fore...
@@ -295,7 +296,7 @@ bool update_meta_data(THD *thd) {
       Remove ENCRYPTION clause for unencrypted non-InnoDB tablespaces.
       Because its only InnoDB that support encryption in 8.0.16.
     */
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -308,7 +309,7 @@ bool update_meta_data(THD *thd) {
     }
 
     // Remove ENCRYPTION clause for non-InnoDB tables.
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -340,9 +341,9 @@ bool update_meta_data(THD *thd) {
                   "SQL statements rely on a specific table definition");
     static_assert(dd::tables::Table_partitions::NUMBER_OF_FIELDS == 12,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 15,
+    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 17,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -375,11 +376,11 @@ bool update_meta_data(THD *thd) {
       This is done as we expect all innodb tablespaces to have proper
       'encryption' flag set.
     */
-    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 15,
+    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 17,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -398,7 +399,7 @@ bool update_meta_data(THD *thd) {
       Update ENCRYPTION clause for unencrypted InnoDB tablespaces.
       Where the 'encryption' key value is empty string ''.
     */
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -414,7 +415,7 @@ bool update_meta_data(THD *thd) {
       Store ENCRYPTION clause for unencrypted InnoDB general tablespaces,
       when the 'encryption' key is not yet present.
     */
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -433,9 +434,9 @@ bool update_meta_data(THD *thd) {
       table as of 8.0.15, so we ignore to check for partitioned tables
       using general tablespace.
     */
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -455,7 +456,7 @@ bool update_meta_data(THD *thd) {
       Store 'encrypt_type=N' for unencrypted InnoDB file-per-table tables,
       for tables which does not have a 'encrypt_type' key stored already.
     */
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -463,6 +464,94 @@ bool update_meta_data(THD *thd) {
             "SET t.options=CONCAT(IFNULL(t.options,''), 'encrypt_type=N;') "
             "WHERE t.tablespace_id IS NULL AND t.engine='InnoDB' AND "
             "GET_DD_PROPERTY_KEY_VALUE(t.options,'encrypt_type') IS NULL")) {
+      return dd::end_transaction(thd, true);
+    }
+  }
+  /* Upgrade from 8.0.20 or previous. */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021)) {
+    /*
+      Fix discard attribute for partitioned Tables.
+
+      Due to bug, prior to 8.0.21, discard attribute for partitioned tables
+      doesn't reflect reality - that is, it can be set to true even if no
+      partition is discarded or it can be set to false, even if some
+      partitions are discarded.
+
+      Moreover, due to the bug, the attribute is only set for a whole Table,
+      whereas only some partitions of the table may be discarded.
+
+      However, Tablespace state==discarded reflect reality properly.
+
+      Since 8.0.21, discard attribute for partitioned tables follow the rules:
+      a) dd::Table for partitioned Table cannot have discard attribute
+      b) only leaf dd::Partitions can have discard attribute
+
+      We can recreate such state looking at Tablespace state in three steps:
+      a) Remove discard attribute from dd::Tables which have any partitions
+      b) Remove discard attribute from all dd::Partitions
+      c) For each leaf_partition (taken from index_partitions) set discard
+      attribute depending on whether its Tablespace state is discarded or not
+    */
+    static_assert(dd::tables::Index_partitions::NUMBER_OF_FIELDS == 5,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Table_partitions::NUMBER_OF_FIELDS == 12,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
+                  "SQL statements rely on a specific table definition");
+
+    /*
+      Remove discard attribute from all Tables
+      Use mysql.index_partitions to find all partitions
+    */
+    if (dd::execute_query(
+            thd,
+            "UPDATE mysql.tables tbl "
+            "JOIN mysql.table_partitions tp ON tp.table_id = tbl.id "
+            "JOIN mysql.index_partitions ip ON ip.partition_id = tp.id "
+            "SET "
+            "tbl.se_private_data=NULLIF(REMOVE_DD_PROPERTY_KEY(tbl.se_private_"
+            "data, 'discard'), '') "
+            "WHERE tbl.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(tbl.se_private_data, 'discard') IS NOT "
+            "NULL ")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /*
+      Remove discard attribute from all table_partitions.
+
+      Even though we didn't store discard attribute in mysql.table_partitions,
+      it's still possible there is such attribute there: in versions 8.0.0 to
+      8.0.14 it was possible to upgrade from 5.7, when MySQL had discarded
+      partitions. Such upgrade would add discard attribute to
+      mysql.table_partitions
+    */
+    if (dd::execute_query(thd,
+                          "UPDATE mysql.table_partitions tp "
+                          "SET "
+                          "tp.se_private_data=NULLIF(REMOVE_DD_PROPERTY_KEY(tp."
+                          "se_private_data, 'discard'), '') "
+                          "WHERE tp.engine='InnoDB' AND "
+                          "GET_DD_PROPERTY_KEY_VALUE(tp.se_private_data, "
+                          "'discard') IS NOT NULL ")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /* Set discard attribute for all leaf_partitions by looking at its
+     * Tablespace state. mysql.index_partitions is used to access Tablespaces */
+    if (dd::execute_query(
+            thd,
+            "UPDATE mysql.table_partitions tp "
+            "JOIN mysql.index_partitions ip ON ip.partition_id = tp.id "
+            "JOIN mysql.tablespaces ts ON ip.tablespace_id = ts.id "
+            "SET tp.se_private_data = "
+            "CONCAT('discard=1;',IFNULL(tp.se_private_data,'')) "
+            "WHERE tp.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(ts.se_private_data, "
+            "'state')='discarded' ")) {
       return dd::end_transaction(thd, true);
     }
   }
@@ -546,12 +635,41 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
 
   /********************* Migration of mysql.tables *********************/
   /* Upgrade from 80012 or earlier. */
-  static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+  static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                 "SQL statements rely on a specific table definition");
   if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80013)) {
     /* Column 'last_checked_for_upgrade' was added. */
-    if (migrate_table("tables",
-                      "INSERT INTO tables SELECT *, 0 FROM mysql.tables")) {
+    if (migrate_table(
+            "tables",
+            "INSERT INTO tables SELECT *, 0, NULL, NULL FROM mysql.tables")) {
+      return true;
+    }
+  } else if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80020 and before.
+      Store NULL for new columns mysql.tables.engine_attribute and
+      mysql.tables.secondary_engine_attribute
+    */
+
+    if (migrate_table(
+            "tables",
+            "INSERT INTO tables SELECT *, NULL, NULL FROM mysql.tables")) {
+      return true;
+    }
+  }
+  /********************* Migration of mysql.columns *********************/
+  /* Upgrade from 80020 or earlier. */
+  static_assert(dd::tables::Columns::NUMBER_OF_FIELDS == 32,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80020 and before.
+      Store NULL for new columns mysql.columns.engine_attribute and
+      mysql.columns.secondary_engine_attribute
+    */
+    if (migrate_table(
+            "columns",
+            "INSERT INTO columns SELECT *, NULL, NULL FROM mysql.columns")) {
       return true;
     }
   }
@@ -650,6 +768,46 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
     if (migrate_table(
             "schemata",
             "INSERT INTO schemata SELECT *, NULL FROM mysql.schemata")) {
+      return true;
+    }
+  }
+
+  /********************* Migration of mysql.indexes *********************/
+  /*
+    DD version 80020 adds new columns 'engine_attribute' and
+    'secondary_engine_atribute'
+  */
+  static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 17,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80020 and before.
+      Store NULL for new columns mysql.indexes.engine_attribute and
+      mysql.indexes.secondary_engine_attribute
+    */
+    if (migrate_table(
+            "indexes",
+            "INSERT INTO indexes SELECT *, NULL, NULL FROM mysql.indexes")) {
+      return true;
+    }
+  }
+
+  /********************* Migration of mysql.tablespaces *********************/
+  /*
+    DD version 80020 adds new columns 'engine_attribute' and
+    'secondary_engine_atribute'
+  */
+  static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80021 and before.
+      Store NULL for new columns mysql.tablespaces.engine_attribute and
+      mysql.tablespaces.secondary_engine_attribute
+    */
+    if (migrate_table("tablespaces",
+                      "INSERT INTO tablespaces SELECT *, NULL FROM "
+                      "mysql.tablespaces")) {
       return true;
     }
   }

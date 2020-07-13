@@ -2,7 +2,7 @@ define("dojox/form/manager/_Mixin", [
 	"dojo/_base/window",
 	"dojo/_base/lang",
 	"dojo/_base/array",
-	"dojo/_base/connect",
+	"dojo/on",
 	"dojo/dom-attr",
 	"dojo/dom-class",
 	"dijit/_base/manager",
@@ -11,7 +11,7 @@ define("dojox/form/manager/_Mixin", [
 	"dijit/form/Button",
 	"dijit/form/CheckBox",
 	"dojo/_base/declare"
-], function(win, lang, array, connect, domAttr, domClass, manager, Widget, FormWidget, Button, CheckBox, declare){
+], function(win, lang, array, on, domAttr, domClass, manager, Widget, FormWidget, Button, CheckBox, declare){
 	// TODO: This class is loading a bunch of extra widgets just to perform isInstanceOf operations,
 	// which is wasteful
 
@@ -61,7 +61,7 @@ define("dojox/form/manager/_Mixin", [
 
 		registerWidget = function(widget){
 			var name = widget.get("name");
-			if(name && widget instanceof FormWidget){
+			if(name && widget.isInstanceOf(FormWidget)){
 				if(name in this.formWidgets){
 					var a = this.formWidgets[name].widget;
 					if(lang.isArray(a)){
@@ -81,7 +81,7 @@ define("dojox/form/manager/_Mixin", [
 		getObserversFromWidget = function(name){
 			var observers = {};
 			aa(function(_, w){
-				var o = w.get("observer");
+				var o = w.get("data-dojo-observer") || w.get("observer");
 				if(o && typeof o == "string"){
 					array.forEach(o.split(","), function(o){
 						o = lang.trim(o);
@@ -97,34 +97,34 @@ define("dojox/form/manager/_Mixin", [
 		connectWidget = function(name, observers){
 			var t = this.formWidgets[name], w = t.widget, c = t.connections;
 			if(c.length){
-				array.forEach(c, connect.disconnect);
+				array.forEach(c, function(item){ item.remove(); });
 				c = t.connections = [];
 			}
 			if(lang.isArray(w)){
 				// radio buttons
 				array.forEach(w, function(w){
 					array.forEach(observers, function(o){
-						c.push(connect.connect(w, "onChange", this, function(evt){
+						c.push(on(w, "change", lang.hitch(this, function(evt){
 							// TODO: for some reason for radio button widgets
 							// w.checked != w.focusNode.checked when value changes.
 							// We test the underlying value to be 100% sure.
 							if(this.watching && domAttr.get(w.focusNode, "checked")){
 								this[o](w.get("value"), name, w, evt);
 							}
-						}));
+						})));
 					}, this);
 				}, this);
 			}else{
 				// the rest
 				// the next line is a crude workaround for Button that fires onClick instead of onChange
 				var eventName = w.isInstanceOf(Button) ?
-						"onClick" : "onChange";
+						"click" : "change";
 				array.forEach(observers, function(o){
-					c.push(connect.connect(w, eventName, this, function(evt){
+					c.push(on(w, eventName, lang.hitch(this, function(evt){
 						if(this.watching){
 							this[o](w.get("value"), name, w, evt);
 						}
-					}));
+					})));
 				}, this);
 			}
 		};
@@ -161,7 +161,9 @@ define("dojox/form/manager/_Mixin", [
 			//		Called when the widget is being destroyed
 
 			for(var name in this.formWidgets){
-				array.forEach(this.formWidgets[name].connections, connect.disconnect);
+				array.forEach(this.formWidgets[name].connections, function(item){
+					item.remove();
+				});
 			}
 			this.formWidgets = {};
 
@@ -198,7 +200,9 @@ define("dojox/form/manager/_Mixin", [
 			// returns: Object
 			//		Returns self
 			if(name in this.formWidgets){
-				array.forEach(this.formWidgets[name].connections, this.disconnect, this);
+				array.forEach(this.formWidgets[name].connections, function(item){
+					item.remove();
+				});
 				delete this.formWidgets[name];
 			}
 			return this;
@@ -427,19 +431,19 @@ define("dojox/form/manager/_Mixin", [
 			// defaultValue: Object?
 			//		Optional. The default state (true, if omitted).
 
-			var name, result = {};
+			var name, elem, result = {};
 
 			if(state){
 				if(lang.isArray(state)){
 					array.forEach(state, function(name){
-						var elem = this[name];
+						elem = this[name];
 						if(elem && elem.tagName && elem.cloneNode){
 							result[name] = inspector.call(this, name, elem, defaultValue);
 						}
 					}, this);
 				}else{
 					for(name in state){
-						var elem = this[name];
+						elem = this[name];
 						if(elem && elem.tagName && elem.cloneNode){
 							result[name] = inspector.call(this, name, elem, state[name]);
 						}
@@ -448,7 +452,7 @@ define("dojox/form/manager/_Mixin", [
 			}else{
 				for(name in this){
 					if(!(name in skipNames)){
-						var elem = this[name];
+						elem = this[name];
 						if(elem && elem.tagName && elem.cloneNode){
 							result[name] = inspector.call(this, name, elem, defaultValue);
 						}

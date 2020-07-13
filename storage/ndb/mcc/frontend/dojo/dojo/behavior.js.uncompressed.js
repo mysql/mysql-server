@@ -1,5 +1,5 @@
-define("dojo/behavior", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base/connect", "./query", "./ready"],
-function(dojo, lang, darray, connect, query, ready){
+define("dojo/behavior", ["./_base/kernel", "./_base/lang", "./_base/array", "./_base/connect", "./query", "./domReady"],
+function(dojo, lang, darray, connect, query, domReady){
 
 // module:
 //		dojo/behavior
@@ -243,7 +243,7 @@ var Behavior = function(){
 
 dojo.behavior = new Behavior();
 
-ready(dojo.behavior, "apply"); // FIXME: should this use a priority? before/after parser priority?
+domReady( function(){ dojo.behavior.apply(); } );
 
 return dojo.behavior;
 });

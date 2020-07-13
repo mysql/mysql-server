@@ -25,91 +25,64 @@
 #ifndef ROUTING_MOCKS_INCLUDED
 #define ROUTING_MOCKS_INCLUDED
 
-#ifdef _WIN32
-#include "Winsock2.h"
-#endif
-
-// ignore GMock warnings
-#ifdef __clang__
-#ifndef __has_warning
-#define __has_warning(x) 0
-#endif
-#pragma clang diagnostic push
-#if __has_warning("-Winconsistent-missing-override")
-#pragma clang diagnostic ignored "-Winconsistent-missing-override"
-#endif
-#if __has_warning("-Wsign-conversion")
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-#endif
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
 #include <atomic>
+#include <memory>  // unique_ptr
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/routing.h"  // RoutingSockOpsInterface
+#include "socket_operations.h"
 
 class MockSocketOperations : public mysql_harness::SocketOperationsBase {
  public:
-  MOCK_METHOD3(read, ssize_t(int, void *, size_t));
-  MOCK_METHOD3(write, ssize_t(int, void *, size_t));
-  MOCK_METHOD1(close, void(int));
-  MOCK_METHOD1(shutdown, void(int));
-  MOCK_METHOD1(freeaddrinfo, void(addrinfo *ai));
-  MOCK_METHOD4(getaddrinfo,
-               int(const char *, const char *, const addrinfo *, addrinfo **));
-  MOCK_METHOD3(bind, int(int, const struct sockaddr *, socklen_t));
-  MOCK_METHOD3(socket, int(int, int, int));
-  MOCK_METHOD5(setsockopt, int(int, int, int, const void *, socklen_t));
-  MOCK_METHOD2(listen, int(int fd, int n));
-  MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
+  MOCK_METHOD3(read, result<size_t>(mysql_harness::socket_t, void *, size_t));
+  MOCK_METHOD3(write,
+               result<size_t>(mysql_harness::socket_t, const void *, size_t));
+  MOCK_METHOD1(close, result<void>(mysql_harness::socket_t));
+  MOCK_METHOD1(shutdown, result<void>(mysql_harness::socket_t));
+  MOCK_METHOD3(getaddrinfo,
+               addrinfo_result(const char *, const char *, const addrinfo *));
+  MOCK_METHOD3(connect, result<void>(mysql_harness::socket_t,
+                                     const struct sockaddr *, size_t));
+  MOCK_METHOD3(bind, result<void>(mysql_harness::socket_t,
+                                  const struct sockaddr *, size_t));
+  MOCK_METHOD3(socket, result<mysql_harness::socket_t>(int, int, int));
+  MOCK_METHOD5(setsockopt, result<void>(mysql_harness::socket_t, int, int,
+                                        const void *, size_t));
+  MOCK_METHOD2(listen, result<void>(mysql_harness::socket_t fd, int n));
+  MOCK_METHOD3(poll, result<size_t>(struct pollfd *, size_t,
+                                    std::chrono::milliseconds));
   MOCK_METHOD2(connect_non_blocking_wait,
-               int(mysql_harness::socket_t sock,
-                   std::chrono::milliseconds timeout));
-  MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
-  MOCK_METHOD2(set_socket_blocking, void(int, bool));
+               result<void>(mysql_harness::socket_t sock,
+                            std::chrono::milliseconds timeout));
+  MOCK_METHOD1(connect_non_blocking_status,
+               result<void>(mysql_harness::socket_t sock));
+  MOCK_METHOD2(set_socket_blocking,
+               result<void>(mysql_harness::socket_t, bool));
   MOCK_METHOD0(get_local_hostname, std::string());
-  MOCK_METHOD4(inetntop, const char *(int af, const void *, char *, socklen_t));
-  MOCK_METHOD3(getpeername, int(int, struct sockaddr *, socklen_t *));
-
-  void set_errno(int err) override {
-    // set errno/Windows equivalent. At the time of writing, unit tests
-    // will pass just fine without this, as they are too low-level and the errno
-    // is checked at higher level. But to do an accurate mock, we should set
-    // this.
-#ifdef _WIN32
-    WSASetLastError(err);
-#else
-    errno = err;
-#endif
-  }
-
-  int get_errno() override {
-#ifdef _WIN32
-    return WSAGetLastError();
-#else
-    return errno;
-#endif
-  }
-
-  MOCK_METHOD0(get_error_code, std::error_code());
+  MOCK_METHOD4(inetntop,
+               result<const char *>(int af, const void *, char *, size_t));
+  MOCK_METHOD3(getpeername, result<void>(mysql_harness::socket_t,
+                                         struct sockaddr *, size_t *));
 };
 
 class MockRoutingSockOps : public routing::RoutingSockOpsInterface {
  public:
-  MockRoutingSockOps() : so_(new MockSocketOperations) {}
+  MockRoutingSockOps() : so_(std::make_unique<MockSocketOperations>()) {}
 
   MockSocketOperations *so() const override { return so_.get(); }
 
-  routing::native_handle_type get_mysql_socket(mysql_harness::TCPAddress addr,
-                                               std::chrono::milliseconds,
-                                               bool = true) noexcept override {
+  stdx::expected<routing::native_handle_type, std::error_code> get_mysql_socket(
+      mysql_harness::TCPAddress addr, std::chrono::milliseconds,
+      bool = true) noexcept override {
     get_mysql_socket_call_cnt_++;
     if (get_mysql_socket_fails_todo_) {
-      so()->set_errno(ECONNREFUSED);
       get_mysql_socket_fails_todo_--;
-      return -1;  // -1 means server is unavailable
+      return stdx::make_unexpected(
+          make_error_code(std::errc::connection_refused));
     } else {
-      so()->set_errno(0);
-
       // if addr string starts with a number, this will return it. Therefore
       // it's recommended that addr.addr is set to something like "42"
       return atoi(addr.addr.c_str());
@@ -132,9 +105,5 @@ class MockRoutingSockOps : public routing::RoutingSockOpsInterface {
 
   std::unique_ptr<MockSocketOperations> so_;
 };
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 #endif  // ROUTING_MOCKS_INCLUDED

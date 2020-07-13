@@ -4,7 +4,7 @@ define("dojox/mobile/FixedSplitterPane", [
 	"./Container"
 ], function(kernel, declare, Container){
 
-	kernel.deprecated("dojox.mobile.FixedSplitterPane is deprecated", "Use dojox.mobile.Container instead", 2.0);
+	kernel.deprecated("dojox/mobile/FixedSplitterPane", "Use dojox/mobile/Container instead", 2.0);
 
 	// module:
 	//		dojox/mobile/FixedSplitterPane

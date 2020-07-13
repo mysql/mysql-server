@@ -22,6 +22,7 @@
 ################################################################################
 
 --source include/have_binlog_format_mixed.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 # Case-1: BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS

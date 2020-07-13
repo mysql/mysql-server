@@ -1,5 +1,5 @@
-define("dojo/dom", ["./sniff", "./_base/window"],
-		function(has, win){
+define("dojo/dom", ["./sniff", "./_base/window", "./_base/kernel"],
+		function(has, win, kernel){
 	// module:
 	//		dojo/dom
 
@@ -26,7 +26,7 @@ define("dojo/dom", ["./sniff", "./_base/window"],
 	if(has("ie")){
 		dom.byId = function(id, doc){
 			if(typeof id != "string"){
-				return id;
+				return id || null;
 			}
 			var _d = doc || win.doc, te = id && _d.getElementById(id);
 			// attributes.id.value is better than just id in case the
@@ -46,6 +46,7 @@ define("dojo/dom", ["./sniff", "./_base/window"],
 					}
 				}
 			}
+			return null;
 		};
 	}else{
 		dom.byId = function(id, doc){
@@ -56,61 +57,79 @@ define("dojo/dom", ["./sniff", "./_base/window"],
 	}
 	/*=====
 	 dom.byId = function(id, doc){
-		 // summary:
-		 //		Returns DOM node with matching `id` attribute or falsy value (ex: null or undefined)
-		 //		if not found.  If `id` is a DomNode, this function is a no-op.
-		 //
-		 // id: String|DOMNode
-		 //		A string to match an HTML id attribute or a reference to a DOM Node
-		 //
-		 // doc: Document?
-		 //		Document to work in. Defaults to the current value of
-		 //		dojo.doc.  Can be used to retrieve
-		 //		node references from other documents.
-		 //
-		 // example:
-		 //		Look up a node by ID:
-		 //	|	var n = dojo.byId("foo");
-		 //
-		 // example:
-		 //		Check if a node exists, and use it.
-		 //	|	var n = dojo.byId("bar");
-		 //	|	if(n){ doStuff() ... }
-		 //
-		 // example:
-		 //		Allow string or DomNode references to be passed to a custom function:
-		 //	|	var foo = function(nodeOrId){
-		 //	|		nodeOrId = dojo.byId(nodeOrId);
-		 //	|		// ... more stuff
-		 //	|	}
+		// summary:
+		//		Returns DOM node with matching `id` attribute or falsy value (ex: null or undefined)
+		//		if not found.  If `id` is a DomNode, this function is a no-op.
+		//
+		// id: String|DOMNode
+		//		A string to match an HTML id attribute or a reference to a DOM Node
+		//
+		// doc: Document?
+		//		Document to work in. Defaults to the current value of
+		//		dojo/_base/window.doc.  Can be used to retrieve
+		//		node references from other documents.
+		//
+		// example:
+		//		Look up a node by ID:
+		//	|	require(["dojo/dom"], function(dom){
+		//	|		var n = dom.byId("foo");
+		//	|	});
+		//
+		// example:
+		//		Check if a node exists, and use it.
+		//	|	require(["dojo/dom"], function(dom){
+		//	|		var n = dom.byId("bar");
+		//	|		if(n){ doStuff() ... }
+		//	|	});
+		//
+		// example:
+		//		Allow string or DomNode references to be passed to a custom function:
+		//	|	require(["dojo/dom"], function(dom){
+		//	|		var foo = function(nodeOrId){
+		//	|			nodeOrId = dom.byId(nodeOrId);
+		//	|			// ... more stuff
+		//	|		}
+		//	|	});
 	 };
 	 =====*/
 
-	dom.isDescendant = function(/*DOMNode|String*/ node, /*DOMNode|String*/ ancestor){
-		// summary:
-		//		Returns true if node is a descendant of ancestor
-		// node: DOMNode|String
-		//		string id or node reference to test
-		// ancestor: DOMNode|String
-		//		string id or node reference of potential parent to test against
-		//
-		// example:
-		//		Test is node id="bar" is a descendant of node id="foo"
-		//	|	if(dojo.isDescendant("bar", "foo")){ ... }
+	// Test for DOMNode.contains() method, available everywhere except FF8-
+	// and IE8-, where it's available in general, but not on document itself,
+	// and also problems when either ancestor or node are text nodes.
 
-		try{
-			node = dom.byId(node);
-			ancestor = dom.byId(ancestor);
-			while(node){
-				if(node == ancestor){
-					return true; // Boolean
+	var doc = kernel.global["document"] || null;
+	has.add("dom-contains", !!(doc && doc.contains));
+	dom.isDescendant = has("dom-contains") ?
+		// FF9+, IE9+, webkit, opera, iOS, Android, Edge, etc.
+		function(/*DOMNode|String*/ node, /*DOMNode|String*/ ancestor){
+			return !!( (ancestor = dom.byId(ancestor)) && ancestor.contains(dom.byId(node)) );
+		} :
+		function(/*DOMNode|String*/ node, /*DOMNode|String*/ ancestor){
+			// summary:
+			//		Returns true if node is a descendant of ancestor
+			// node: DOMNode|String
+			//		string id or node reference to test
+			// ancestor: DOMNode|String
+			//		string id or node reference of potential parent to test against
+			//
+			// example:
+			//		Test is node id="bar" is a descendant of node id="foo"
+			//	|	require(["dojo/dom"], function(dom){
+			//	|		if(dom.isDescendant("bar", "foo")){ ... }
+			//	|	});
+
+			try{
+				node = dom.byId(node);
+				ancestor = dom.byId(ancestor);
+				while(node){
+					if(node == ancestor){
+						return true; // Boolean
+					}
+					node = node.parentNode;
 				}
-				node = node.parentNode;
-			}
-		}catch(e){ /* squelch, return false */ }
-		return false; // Boolean
-	};
-
+			}catch(e){ /* squelch, return false */ }
+			return false; // Boolean
+		};
 
 	// TODO: do we need setSelectable in the base?
 
@@ -124,7 +143,7 @@ define("dojo/dom", ["./sniff", "./_base/window"],
 	has.add("css-user-select", function(global, doc, element){
 		// Avoid exception when dom.js is loaded in non-browser environments
 		if(!element){ return false; }
-		
+
 		var style = element.style;
 		var prefixes = ["Khtml", "O", "Moz", "Webkit"],
 			i = prefixes.length,
@@ -154,10 +173,14 @@ define("dojo/dom", ["./sniff", "./_base/window"],
 		//		allows selection.
 		// example:
 		//		Make the node id="bar" unselectable
-		//	|	dojo.setSelectable("bar");
+		//	|	require(["dojo/dom"], function(dom){
+		//	|		dom.setSelectable("bar");
+		//	|	});
 		// example:
 		//		Make the node id="bar" selectable
-		//	|	dojo.setSelectable("bar", true);
+		//	|	require(["dojo/dom"], function(dom){
+		//	|		dom.setSelectable("bar", true);
+		//	|	});
 	};
 	=====*/
 

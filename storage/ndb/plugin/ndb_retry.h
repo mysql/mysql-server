@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,11 +46,11 @@
     Execution will be retried only if the THD has not been killed. To disable
     this check, pass nullptr to thd param instead of passing a valid pointer.
 
-  @param ndb*               The Ndb object.
-  @param thd*               THD object pointer.
+  @param ndb                The Ndb object.
+  @param thd                THD object pointer.
   @param retry_sleep        The amount of time(in ms) to sleep before retrying
                             in case of a temporary error.
-  @param last_ndb_err[out]  The last NdbError in case of failure
+  @param[out] last_ndb_err  The last NdbError in case of failure
   @param ndb_func           The std::function instance of the function that
                             needs to be executed by this wrapper. The function
                             should take a NdbTransaction* parameter followed by

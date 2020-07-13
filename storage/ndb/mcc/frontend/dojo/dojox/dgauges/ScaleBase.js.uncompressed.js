@@ -236,3 +236,4 @@ define("dojox/dgauges/ScaleBase", ["dojo/_base/lang", "dojo/_base/declare", "doj
 		}
 	});
 });
+

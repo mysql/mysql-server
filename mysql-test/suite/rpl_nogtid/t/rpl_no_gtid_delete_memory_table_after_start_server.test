@@ -30,11 +30,15 @@
 #   INSERT INTO myisam_t1 SELECT * FROM memory_table
 #
 # The test cases verify some cases that cannot be run when gtid mode is on.
+#
+# See rpl_gtid_delete_memory_table_after_start_server.test for the tests with
+# gtid_mode=on.
 ################################################################################
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 CALL mtr.add_suppression("Found 1 prepared XA transactions");

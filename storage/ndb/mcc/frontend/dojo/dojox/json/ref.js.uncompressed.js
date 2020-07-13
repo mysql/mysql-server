@@ -1,7 +1,7 @@
 define("dojox/json/ref", [
 	"dojo/_base/array",
 	"dojo/_base/json",
-	"dojo/_base/kernel", 
+	"dojo/_base/kernel",
 	"dojo/_base/lang",
 	"dojo/date/stamp",
 	"dojox"
@@ -128,7 +128,7 @@ return dojox.json.ref = {
 							var path = ref.toString().replace(/(#)([^\.\[])/,'$1.$2').match(/(^([^\[]*\/)?[^#\.\[]*)#?([\.\[].*)?/); // divide along the path
 							if(index[(prefix + ref).replace(pathResolveRegex,'$2$3')]){
 								ref = index[(prefix + ref).replace(pathResolveRegex,'$2$3')];
-							}else if((ref = (path[1]=='$' || path[1]=='this' || path[1]=='') ? root : index[(prefix + path[1]).replace(pathResolveRegex,'$2$3')])){  // a $ indicates to start with the root, otherwise start with an id
+							}else if((ref = (path[1]=='$' || path[1]=='this' || path[1]==='') ? root : index[(prefix + path[1]).replace(pathResolveRegex,'$2$3')])){  // a $ indicates to start with the root, otherwise start with an id
 								// if there is a path, we will iterate through the path references
 								if(path[3]){
 									path[3].replace(/(\[([^\]]+)\])|(\.?([^\.\[]+))/g,function(t,a,b,c,d){
@@ -148,6 +148,7 @@ return dojox.json.ref = {
 										reWalk.push(target); // we need to rewalk it to resolve references
 									}
 									rewalking = true; // we only want to add it once
+									// TODO: What is propertyDefinition supposed to be here?
 									val = walk(val, false, val[refAttribute], true, propertyDefinition);
 									// create a lazy loaded object
 									val._loadObject = args.loader;
@@ -161,6 +162,7 @@ return dojox.json.ref = {
 									reWalk==it,
 									id === undefined ? undefined : addProp(id, i), // the default id to use
 									false,
+									// TODO: What is propertyDefinition supposed to be here?
 									propertyDefinition,
 									// if we have an existing object child, we want to
 									// maintain it's identity, so we pass it as the default object
@@ -185,7 +187,7 @@ return dojox.json.ref = {
 					}
 				}
 			}
-	
+
 			if(update && (idAttribute in it || target instanceof Array)){
 				// this means we are updating with a full representation of the object, we need to remove deleted
 				for(i in target){
@@ -230,8 +232,9 @@ return dojox.json.ref = {
 			refObject[this.refAttribute] = target;
 			return refObject;
 		}
+		var root;
 		try{
-			var root = eval('(' + str + ')'); // do the eval
+			root = eval('(' + str + ')'); // do the eval
 		}catch(e){
 			throw new SyntaxError("Invalid JSON string: " + e.message + " parsing: "+ str);
 		}
@@ -240,8 +243,8 @@ return dojox.json.ref = {
 		}
 		return root;
 	},
-	
-	toJson: function(/*Object*/ it, /*Boolean?*/ prettyPrint, /*Object?*/ idPrefix, /*Object?*/ indexSubObjects){
+
+	toJson: function(/*Object*/ it, /*Boolean?*/ prettyPrint, /*Object?*/ idPrefix, /*Object?*/ indexSubObjects, /*String*/idAttribute){
 		// summary:
 		//		Create a JSON serialization of an object.
 		//		This has support for referencing, including circular references, duplicate references, and out-of-message references
@@ -263,6 +266,15 @@ return dojox.json.ref = {
 		idPrefix = idPrefix || ''; // the id prefix for this context
 		var paths={};
 		var generated = {};
+		var idAttributeProvided = idAttribute ? true: false;
+		var uniqueIdCount = 1;
+		function getUniqueId() {
+			var str = (uniqueIdCount++).toString();
+			if (generated.hasOwnProperty(str)) {
+				return getUniqueId();
+			}
+			return str;
+		}
 		function serialize(it,path,_indentStr){
 			if(typeof it == 'object' && it){
 				var value;
@@ -286,22 +298,30 @@ return dojox.json.ref = {
 						}
 						var refObject = {};
 						refObject[refAttribute] = ref;
-						return serialize(refObject,'#');
+						return djson.toJson(refObject, prettyPrint);
 					}
 					path = id;
 				}else{
-					it.__id = path; // we will create path ids for other objects in case they are circular
-					generated[path] = it;
+					if (idAttributeProvided) {
+						if(!(it instanceof Array)){
+							path = getUniqueId();
+							it.__id = path; // we will create path ids for other objects in case they are circular
+							generated[path] = it;
+						}
+					} else {
+						it.__id = path; // we will create path ids for other objects in case they are circular
+						generated[path] = it;
+					}
 				}
 				paths[path] = it;// save it here so they can be deleted at the end
 				_indentStr = _indentStr || "";
 				var nextIndent = prettyPrint ? _indentStr + djson.toJsonIndentStr : "";
 				var newLine = prettyPrint ? "\n" : "";
 				var sep = prettyPrint ? " " : "";
-	
+
 				if(it instanceof Array){
 					var res = array.map(it, function(obj,i){
-						var val = serialize(obj, addProp(path, i), nextIndent);
+						var val = serialize(obj, idAttributeProvided ? undefined : addProp(path, i), nextIndent);
 						if(typeof val != "string"){
 							val = "undefined";
 						}
@@ -309,8 +329,11 @@ return dojox.json.ref = {
 					});
 					return "[" + res.join("," + sep) + newLine + _indentStr + "]";
 				}
-	
+
 				var output = [];
+				if (idAttributeProvided && (typeof it[idAttribute] === 'undefined')) {
+					output.push(newLine + nextIndent + djson._escapeString(idAttribute) + ":" + sep + djson.toJson(it.__id));
+				}
 				for(var i in it){
 					if(it.hasOwnProperty(i)){
 						var keyStr;
@@ -323,7 +346,7 @@ return dojox.json.ref = {
 							// skip non-string or number keys
 							continue;
 						}
-						var val = serialize(it[i],addProp(path, i),nextIndent);
+						var val = serialize(it[i],idAttributeProvided ? undefined : addProp(path, i),nextIndent);
 						if(typeof val != "string"){
 							// skip non-serializable values
 							continue;
@@ -335,10 +358,10 @@ return dojox.json.ref = {
 			}else if(typeof it == "function" && dojox.json.ref.serializeFunctions){
 				return it.toString();
 			}
-	
+
 			return djson.toJson(it); // use the default serializer for primitives
 		}
-		var json = serialize(it,'#','');
+		var json = serialize(it,idAttributeProvided ? undefined : '#','');
 		if(!indexSubObjects){
 			for(var i in generated)  {// cleanup the temporary path-generated ids
 				delete generated[i].__id;

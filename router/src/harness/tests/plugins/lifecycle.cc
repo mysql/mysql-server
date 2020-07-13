@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,14 +57,6 @@ IMPORT_LOG_FUNCTIONS()
 namespace mysql_harness {
 class PluginFuncEnv;
 }
-
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::ConfigSection;
-using mysql_harness::kRuntimeError;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 
 const int kExitCheckInterval = 1;
 const int kExitOnStopShortTimeout = 100;
@@ -163,7 +155,7 @@ std::mutex g_strategies_mtx;
 
 // called at the earliest opportunity, needs to run only once
 // (since last reset)
-void init_exit_strategies(const ConfigSection *section) {
+void init_exit_strategies(const mysql_harness::ConfigSection *section) {
   std::lock_guard<std::mutex> lock(g_strategies_mtx);
 
   // running more than once doesn't change anything, just wastes cycles
@@ -238,7 +230,8 @@ void init_exit_strategies(const ConfigSection *section) {
   }
 }
 
-void execute_exit_strategy(const std::string &func, PluginFuncEnv *env) {
+void execute_exit_strategy(const std::string &func,
+                           mysql_harness::PluginFuncEnv *env) {
   // init() and deinit() are called only once per plugin (not per plugin
   // instance), but we need an instance name for our logic to work, therefore
   // we pick the first plugin instance in such case
@@ -279,14 +272,15 @@ void execute_exit_strategy(const std::string &func, PluginFuncEnv *env) {
     case ET_ERROR:
       log_info(notify, key_for_log, "  lifecycle:%s %s():ERROR", key_for_log,
                func.c_str());
-      set_error(env, kRuntimeError, "lifecycle:%s %s(): I'm returning error!",
-                key_for_log, func.c_str());
+      set_error(env, mysql_harness::kRuntimeError,
+                "lifecycle:%s %s(): I'm returning error!", key_for_log,
+                func.c_str());
       return;
 
     case ET_ERROR_EMPTY:
       log_info(notify, key_for_log, "  lifecycle:%s %s():ERROR_EMPTY",
                key_for_log, func.c_str());
-      set_error(env, kRuntimeError, nullptr);
+      set_error(env, mysql_harness::kRuntimeError, nullptr);
       return;
 
     case ET_EXIT_ON_STOP_SHORT_TIMEOUT:
@@ -366,14 +360,13 @@ static std::array<const char *, 2> requires = {
     "routertestplugin_lifecycle3",
 };
 
-static void init(PluginFuncEnv *env) {
-  const AppInfo *info = get_app_info(env);
+static void init(mysql_harness::PluginFuncEnv *env) {
+  const auto *info = get_app_info(env);
 
   // init() and deinit() are called only once per plugin (not per plugin
   // instance), but we need an instance name for our logic to work, therefore
   // we pick the first plugin instance in such case
-  const ConfigSection *section =
-      info->config->get("routertestplugin_lifecycle").front();
+  const auto *section = info->config->get("routertestplugin_lifecycle").front();
 
   // only 3 predefined instances are supported
   harness_assert(section->key == "instance1" || section->key == "instance2" ||
@@ -385,8 +378,8 @@ static void init(PluginFuncEnv *env) {
   execute_exit_strategy("init", env);
 }
 
-static void start(PluginFuncEnv *env) {
-  const ConfigSection *section = get_config_section(env);
+static void start(mysql_harness::PluginFuncEnv *env) {
+  const auto *section = get_config_section(env);
 
   log_info(true, section->key, "lifecycle:%s start():begin",
            section->key.c_str());
@@ -395,8 +388,8 @@ static void start(PluginFuncEnv *env) {
   execute_exit_strategy("start", env);
 }
 
-static void stop(PluginFuncEnv *env) {
-  const ConfigSection *section = get_config_section(env);
+static void stop(mysql_harness::PluginFuncEnv *env) {
+  const auto *section = get_config_section(env);
 
   log_info(false, section->key, "lifecycle:%s stop():begin",
            section->key.c_str());
@@ -405,14 +398,13 @@ static void stop(PluginFuncEnv *env) {
   execute_exit_strategy("stop", env);
 }
 
-static void deinit(PluginFuncEnv *env) {
-  const AppInfo *info = get_app_info(env);
+static void deinit(mysql_harness::PluginFuncEnv *env) {
+  const auto *info = get_app_info(env);
 
   // init() and deinit() are called only once per plugin (not per plugin
   // instance), but we need an instance name for our logic to work, therefore
   // we pick the first plugin instance in such case
-  const ConfigSection *section =
-      info->config->get("routertestplugin_lifecycle").front();
+  const auto *section = info->config->get("routertestplugin_lifecycle").front();
 
   // only 3 predefined instances are supported
   harness_assert(section->key == "instance1" || section->key == "instance2" ||
@@ -425,19 +417,20 @@ static void deinit(PluginFuncEnv *env) {
 }
 
 extern "C" {
-LIFECYCLE_API Plugin harness_plugin_routertestplugin_lifecycle = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "Lifecycle test plugin",
-    VERSION_NUMBER(1, 0, 0),
-    requires.size(),
-    requires.data(),
-    0,        // \_ conflicts
-    nullptr,  // /
-    init,     // init
-    deinit,   // deinit
-    start,    // start
-    stop,     // stop
+LIFECYCLE_API mysql_harness::Plugin harness_plugin_routertestplugin_lifecycle =
+    {
+        mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+        "Lifecycle test plugin",                 // name
+        VERSION_NUMBER(1, 0, 0),
+        // requires
+        requires.size(), requires.data(),
+        // conflicts
+        0, nullptr,
+        init,    // init
+        deinit,  // deinit
+        start,   // start
+        stop,    // stop
 };
 
 LIFECYCLE_API void lifecycle_init(int flags) {

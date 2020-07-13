@@ -74,7 +74,7 @@ return declare("dojox.grid._Layout", null, {
 				}
 			}
 		}
-		
+
 		//Fix #9481 - reset idx in cell markup
 		array.forEach(this.cells, function(c){
 			var marks = c.markup[2].split(" ");
@@ -84,7 +84,7 @@ return declare("dojox.grid._Layout", null, {
 				c.markup[2] = marks.join(" ");
 			}
 		});
-		
+
 		this.grid.setupHeaderMenu();
 		//this.grid.renderOnIdle();
 	},
@@ -103,7 +103,7 @@ return declare("dojox.grid._Layout", null, {
 			return false;
 		}
 	},
-	
+
 	addCellDef: function(inRowIndex, inCellIndex, inDef){
 		var self = this;
 		var getCellWidth = function(inDef){
@@ -142,7 +142,7 @@ return declare("dojox.grid._Layout", null, {
 		props.unitWidth = getCellWidth(inDef);
 		return new cell_type(lang.mixin({}, this._defaultCellProps, inDef, props));
 	},
-	
+
 	addRowDef: function(inRowIndex, inDef){
 		var result = [];
 		var relSum = 0, pctSum = 0, doRel = true;
@@ -174,13 +174,16 @@ return declare("dojox.grid._Layout", null, {
 			});
 		}
 		return result;
-	
+
 	},
 
 	addRowsDef: function(inDef){
 		var result = [];
 		if(lang.isArray(inDef)){
-			if(lang.isArray(inDef[0])){
+            // inDef[0] could be a NodeList if the Grid is defined in a declarative way.
+            // lang.isArray() does not recognize a NodeList as an array, now so the wrong path will be chosen.
+            // lang.isArrayLike() does the right match against a NodeList, instead.
+			if(lang.isArrayLike(inDef[0])){
 				for(var i=0, row; inDef && (row=inDef[i]); i++){
 					result.push(this.addRowDef(i, row));
 				}
@@ -190,7 +193,7 @@ return declare("dojox.grid._Layout", null, {
 		}
 		return result;
 	},
-	
+
 	addViewDef: function(inDef){
 		this._defaultCellProps = inDef.defaultCell || {};
 		if(inDef.width && inDef.width == "auto"){
@@ -198,7 +201,7 @@ return declare("dojox.grid._Layout", null, {
 		}
 		return lang.mixin({}, inDef, {cells: this.addRowsDef(inDef.rows || inDef.cells)});
 	},
-	
+
 	setStructure: function(inStructure){
 		this.fieldIndex = 0;
 		this.cells = [];
@@ -244,7 +247,7 @@ return declare("dojox.grid._Layout", null, {
 					("cells" in def || "rows" in def || ("type" in def && !isCell(def))));
 		};
 
-		if(lang.isArray(inStructure)){
+		if(lang.isArrayLike(inStructure)){
 			var hasViews = false;
 			for(var i=0, st; (st=inStructure[i]); i++){
 				if(isView(st)){

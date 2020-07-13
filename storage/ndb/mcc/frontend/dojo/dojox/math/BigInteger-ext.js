@@ -72,7 +72,7 @@ b=10;
 var cs=this._chunkSize(b);
 var d=Math.pow(b,cs),mi=false,j=0,w=0;
 for(var i=0;i<s.length;++i){
-var x=intAt(s,i);
+var x=this._intAt(s,i);
 if(x<0){
 if(s.charAt(i)=="-"&&this.signum()==0){
 mi=true;

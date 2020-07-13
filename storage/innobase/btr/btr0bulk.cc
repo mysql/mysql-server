@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,7 +44,6 @@ long innobase_fill_factor;
 Note: we commit all mtrs on failure.
 @return error code. */
 dberr_t PageBulk::init() {
-  mtr_t *mtr;
   buf_block_t *new_block;
   page_t *new_page;
   page_zip_des_t *new_page_zip;
@@ -54,7 +53,8 @@ dberr_t PageBulk::init() {
 
   m_heap = mem_heap_create(1000);
 
-  mtr = static_cast<mtr_t *>(mem_heap_alloc(m_heap, sizeof(mtr_t)));
+  auto mtr_alloc = mem_heap_alloc(m_heap, sizeof(mtr_t));
+  mtr_t *mtr = new (mtr_alloc) mtr_t();
   mtr_start(mtr);
 
   if (!dict_index_is_online_ddl(m_index)) {

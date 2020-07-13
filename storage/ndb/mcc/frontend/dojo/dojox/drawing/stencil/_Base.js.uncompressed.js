@@ -1,6 +1,6 @@
 define("dojox/drawing/stencil/_Base", ["dojo", "dojo/fx/easing", "../util/oo", "../annotations/BoxShadow", 
   "../annotations/Angle", "../annotations/Label", "../defaults"], 
-function(dojo, easing, oo, BoxShadow, Angle, LabelExports, defaults){
+function(dojo, easing, oo, BoxShadow, Angle, Label, defaults){
 
 /*=====
 var StencilArgs = {
@@ -127,7 +127,7 @@ var ToolsSetup = {
 //		This object is inserted into the *function* of
 //		a tool (not a stencil). Like: function.ToolsSetup
 //		It must be attached after constructr creation, so
-//		this object is found at the botton of the file.
+//		this object is found at the bottom of the file.
 
 // name: String
 //		Fully qualified name of constructor
@@ -554,7 +554,7 @@ var Base = oo.declare(
 			}
 			
 			if(this.useSelectedStyle){
-				// using the orginal selected style copy as
+				// using the original selected style copy as
 				// a reference map of what props to copy
 				for(nm in this.style.norm){
 					if(this.selCopy[nm]===undefined){
@@ -844,7 +844,7 @@ var Base = oo.declare(
 			// text: String
 			//		The text to set as the label.
 			if(!this._label){
-				this._label = new LabelExports.Label({
+				this._label = new Label.Label({
 					text:text,
 					util:this.util,
 					mouse:this.mouse,

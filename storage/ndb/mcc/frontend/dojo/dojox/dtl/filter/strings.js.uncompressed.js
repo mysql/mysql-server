@@ -7,9 +7,14 @@ define("dojox/dtl/filter/strings", [
 	"../_base"
 ], function(lang,array,Tokenize,Sprintf,htmlstrings,dd){
 
-	lang.getObject("dojox.dtl.filter.strings", true);
+	var strings = lang.getObject("filter.strings", true, dd);
+	/*=====
+	 strings = {
+	 	// TODO: summary
+	 };
+	 =====*/
 
-	lang.mixin(dd.filter.strings, {
+	lang.mixin(strings, {
 		_urlquote: function(/*String*/ url, /*String?*/ safe){
 			if(!safe){
 				safe = "/";
@@ -66,7 +71,7 @@ define("dojox/dtl/filter/strings", [
 		fix_ampersands: function(value){
 			// summary:
 			//		Replaces ampersands with ``&amp;`` entities
-			return value.replace(dojox.dtl.filter.strings._fix_ampersands, "&amp;");
+			return value.replace(strings._fix_ampersands, "&amp;");
 		},
 		floatformat: function(value, arg){
 			// summary:
@@ -88,7 +93,7 @@ define("dojox/dtl/filter/strings", [
 			return (arg < 0) ? parseFloat(value) + "" : value;
 		},
 		iriencode: function(value){
-			return dojox.dtl.filter.strings._urlquote(value, "/#%[]=:;$&()+,!");
+			return strings._urlquote(value, "/#%[]=:;$&()+,!");
 		},
 		linenumbers: function(value){
 			// summary:
@@ -157,14 +162,14 @@ define("dojox/dtl/filter/strings", [
 		stringformat: function(value, arg){
 			// summary:
 			//		Formats the variable according to the argument, a string formatting specifier.
-			//		This specifier uses Python string formating syntax, with the exception that
+			//		This specifier uses Python string formatting syntax, with the exception that
 			//		the leading "%" is dropped.
 			arg = "" + arg;
-			var strings = dojox.dtl.filter.strings._strings;
-			if(!strings[arg]){
-				strings[arg] = new Sprintf.Formatter("%" + arg);
+			var strs = strings._strings;
+			if(!strs[arg]){
+				strs[arg] = new Sprintf.Formatter("%" + arg);
 			}
-			return strings[arg].format(value);
+			return strs[arg].format(value);
 		},
 		title: function(value){
 			// summary:
@@ -194,14 +199,14 @@ define("dojox/dtl/filter/strings", [
 
 			for(var i = 0, j = value.length, count = 0, current, last; i < value.length; i++){
 				current = value.charAt(i);
-				if(dojox.dtl.filter.strings._truncatewords.test(last)){
-					if(!dojox.dtl.filter.strings._truncatewords.test(current)){
+				if(strings._truncatewords.test(last)){
+					if(!strings._truncatewords.test(current)){
 						++count;
 						if(count == arg){
-							return value.substring(0, j + 1);
+							return value.substring(0, j + 1) + ' ...';
 						}
 					}
-				}else if(!dojox.dtl.filter.strings._truncatewords.test(current)){
+				}else if(!strings._truncatewords.test(current)){
 					j = i;
 				}
 				last = current;
@@ -218,7 +223,6 @@ define("dojox/dtl/filter/strings", [
 				return "";
 			}
 
-			var strings = dojox.dtl.filter.strings;
 			var words = 0;
 			var open = [];
 
@@ -265,17 +269,17 @@ define("dojox/dtl/filter/strings", [
 			return value.toUpperCase();
 		},
 		urlencode: function(value){
-			return dojox.dtl.filter.strings._urlquote(value);
+			return strings._urlquote(value);
 		},
 		_urlize: /^((?:[(>]|&lt;)*)(.*?)((?:[.,)>\n]|&gt;)*)$/,
 		_urlize2: /^\S+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+$/,
 		urlize: function(value){
-			return dojox.dtl.filter.strings.urlizetrunc(value);
+			return strings.urlizetrunc(value);
 		},
 		urlizetrunc: function(value, arg){
 			arg = parseInt(arg);
 			return Tokenize(value, /(\S+)/g, function(word){
-				var matches = dojox.dtl.filter.strings._urlize.exec(word);
+				var matches = strings._urlize.exec(word);
 				if(!matches){
 					return word;
 				}
@@ -300,7 +304,7 @@ define("dojox/dtl/filter/strings", [
 					return '<a href="http://' + middle + '" rel="nofollow">' + trimmed + '</a>';
 				}else if(startsHttp || startsHttps){
 					return '<a href="' + middle + '" rel="nofollow">' + trimmed + '</a>';
-				}else if(hasAt && !startsWww && !hasColon && dojox.dtl.filter.strings._urlize2.test(middle)){
+				}else if(hasAt && !startsWww && !hasColon && strings._urlize2.test(middle)){
 					return '<a href="mailto:' + middle + '">' + middle + '</a>';
 				}
 				return word;
@@ -344,5 +348,6 @@ define("dojox/dtl/filter/strings", [
 			return output.join("");
 		}
 	});
-	return dojox.dtl.filter.strings;
+
+	return strings;
 });

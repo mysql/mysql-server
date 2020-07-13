@@ -7,11 +7,11 @@ define(
 	align: "יישור:",
 	cellPadding: "ריפוד תאים:",
 	cellSpacing: "ריווח תאים:",
-	tableWidth: "רוחב טבלה:‏",
+	tableWidth: "רוחב טבלה:",
 	backgroundColor: "צבע רקע:",
 	borderColor: "צבע גבול:",
-	borderThickness: "עובי גבול",
-	percent: "אחוזים",
+	borderThickness: "עובי גבול:",
+	percent: "אחוז",
 	pixels: "פיקסלים",
 	"default": "ברירת מחדל",
 	left: "ימין",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "הוספת עמודה לפני",
 	insertTableColumnAfterLabel: "הוספת עמודה אחרי",
 	deleteTableRowLabel: "מחיקת שורה",
-	deleteTableColumnLabel: "מחיקת עמודה"
+	deleteTableColumnLabel: "מחיקת עמודה",
+	colorTableCellTitle: "צבע רקע של תא בטבלה",
+	tableContextMenuTitle: "תפריט הקשר של טבלה"
 })
 );

@@ -14,7 +14,7 @@ define("dojox/string/BidiComplex", ["dojo/_base/kernel", "dojo/_base/lang", "doj
 
 	bdc.attachInput = function(/*DOMNode*/field, /*String*/pattern){
 		// summary:
-		//		Attach key listeners to the INPUT field to accomodate dynamic complex BiDi expressions
+		//		Attach key listeners to the INPUT field to accommodate dynamic complex BiDi expressions
 		// field: INPUT DOM node
 		// pattern: Complex Expression Pattern type. One of "FILE_PATH", "URL", "EMAIL", "XPATH"
 
@@ -311,5 +311,5 @@ define("dojox/string/BidiComplex", ["dojo/_base/kernel", "dojo/_base/lang", "doj
 		}
 		return segmentsPointers;
 	};
-	return dojox.string.BidiComplex;
+	return bdc;
 });

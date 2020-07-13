@@ -549,8 +549,7 @@ WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_update	1
 FLUSH STATUS;
 #
@@ -863,8 +862,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # No pruning due to DEFAULT function on partitioning column
 # 2 read_key + 1 read_rnd (1 read_key due to index lookup,
@@ -1012,8 +1010,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # No pruning due to DEFAULT function on partitioning column
 # 2 read_key + 1 read_rnd (1 read_key due to index lookup,
@@ -1444,8 +1441,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_update	1
 # No pruning due to DEFAULT function on partitioning column
 # 2 read_key + 1 read_rnd (1 read_key due to index lookup,
@@ -1592,8 +1588,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_update	1
 # No pruning due to DEFAULT function on partitioning column
 # 2 read_key + 1 read_rnd (1 read_key due to index lookup,
@@ -2612,8 +2607,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # 2 read_key
 # 1 read_rnd
@@ -2627,8 +2621,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_update	1
 # 2 read_key
 # 1 read_rnd
@@ -2645,8 +2638,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # 2 read_key
 # 1 read_rnd
@@ -2731,12 +2723,12 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	15
+Handler_read_key	16
 Handler_read_next	1
-Handler_read_rnd	1
-Handler_read_rnd_next	2
+Handler_read_rnd	2
+Handler_read_rnd_next	4
 Handler_update	2
-Handler_write	1
+Handler_write	2
 # 15 read_key
 # 1 read_next, read_rnd
 # 2 read_rnd_next
@@ -3586,7 +3578,7 @@ a	b
 FLUSH STATUS;
 EXPLAIN UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	p3	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	t1	p3	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`b` = concat(`test`.`t1`.`b`,', UPDATED2') where (`test`.`t1`.`a` = 3)
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3603,8 +3595,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	6
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_update	1
 Handler_write	2
 # t1, before update, after update
@@ -3791,8 +3782,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # Updating partitioning column, no lock pruning
 #
@@ -3844,8 +3834,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # Updating partitioning column, no lock pruning
 #
@@ -3898,8 +3887,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # Updating partitioning column, no lock pruning
 #
@@ -3943,8 +3931,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_update	1
 FLUSH STATUS;
 UPDATE t1 SET a = 4, b = CONCAT(b, ", a was 0") WHERE a = 0;
@@ -3953,8 +3940,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # Updating partitioning column, no lock pruning
 #
@@ -4006,8 +3992,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # Updating partitioning column, no lock pruning
 SELECT * FROM t1 ORDER BY a;
@@ -4157,12 +4142,12 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	15
+Handler_read_key	16
 Handler_read_next	1
-Handler_read_rnd	1
-Handler_read_rnd_next	2
+Handler_read_rnd	2
+Handler_read_rnd_next	4
 Handler_update	2
-Handler_write	1
+Handler_write	2
 # Due to the BEFORE UPDATE trigger on t2 that looks at 'a',
 # no locks can be pruned.
 # 15 read_key
@@ -6361,7 +6346,7 @@ a	b
 ROLLBACK;
 EXPLAIN UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`sf_add_1`(`test`.`t2`.`a`) + 4) where (`test`.`t2`.`a` = (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` = '1')))
@@ -6373,9 +6358,8 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	5
+Handler_read_key	4
 Handler_read_next	1
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6392,9 +6376,8 @@ Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
 Handler_prepare	2
-Handler_read_key	17
+Handler_read_key	16
 Handler_read_next	7
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6405,7 +6388,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`sf_add_1`(`test`.`t2`.`a`) + 4) where (`test`.`t2`.`a` = (7 + (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` = '1'))))
@@ -6417,9 +6400,8 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	5
+Handler_read_key	4
 Handler_read_next	1
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6436,9 +6418,8 @@ Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
 Handler_prepare	2
-Handler_read_key	17
+Handler_read_key	16
 Handler_read_next	7
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6494,7 +6475,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	t2	p1	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`sf_add_1`(`test`.`t2`.`a`) + 4) where (`test`.`t2`.`a` = `sf_a_from_t1b_d`('1'))
 FLUSH STATUS;
@@ -6505,9 +6486,8 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	14
+Handler_read_key	13
 Handler_read_next	4
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6524,9 +6504,8 @@ Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
 Handler_prepare	2
-Handler_read_key	26
+Handler_read_key	25
 Handler_read_next	10
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6582,7 +6561,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b_d('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`sf_add_1`(`test`.`t2`.`a`) + 4) where (`test`.`t2`.`a` = (7 + `sf_a_from_t1b_d`('1')))
 FLUSH STATUS;
@@ -6593,9 +6572,8 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
 Handler_prepare	2
-Handler_read_key	14
+Handler_read_key	13
 Handler_read_next	4
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6612,9 +6590,8 @@ Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
 Handler_prepare	2
-Handler_read_key	26
+Handler_read_key	25
 Handler_read_next	10
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b
@@ -6625,7 +6602,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`sf_add_1`(`test`.`t2`.`a`) + 4) where ((`test`.`t2`.`a` = 2) and (2 = `sf_a_from_t1b`('1')))
 FLUSH STATUS;
@@ -6775,7 +6752,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
 2	SUBQUERY	t1	p0,p1,p2	ref	b	b	1023	const	#	100.00	Using index
 Warnings:
 Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`sf_add_1`(`test`.`t2`.`a`) + 4) where (((`test`.`t2`.`a` = 8) and (0 <> `sf_a_from_t1b`('2'))))
@@ -6787,9 +6764,8 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	6
 Handler_prepare	2
-Handler_read_key	8
+Handler_read_key	7
 Handler_read_next	2
-Handler_read_rnd	1
 Handler_write	1
 SELECT * FROM t2;
 a	b

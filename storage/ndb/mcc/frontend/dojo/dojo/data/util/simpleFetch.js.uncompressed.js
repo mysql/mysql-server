@@ -21,7 +21,7 @@ simpleFetch.errorHandler = function(/*Object*/ errorData, /*Object*/ requestObje
 
 simpleFetch.fetchHandler = function(/*Array*/ items, /*Object*/ requestObject){
 	// summary:
-	//		The handler when items are sucessfully fetched.  This function should not be called directly
+	//		The handler when items are successfully fetched.  This function should not be called directly
 	//		and is used by simpleFetch.fetch().
 	var oldAbortFunction = requestObject.abort || null,
 		aborted = false,

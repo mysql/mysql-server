@@ -1,10 +1,22 @@
 //>>built
-require({cache:{"url:dojox/widget/Pager/Pager.html":"<div dojoAttachPoint=\"pagerContainer\" tabIndex=\"0\" dojoAttachEvent=\"onkeypress: _handleKey, onfocus: _a11yStyle, onblur:_a11yStyle\" class=\"${orientation}PagerContainer\">\n    <div class=\"pagerContainer\">\n\t\t<div dojoAttachPoint=\"pagerContainerStatus\" class=\"${orientation}PagerStatus\"></div>\n\t\t<div dojoAttachPoint=\"pagerContainerView\" class=\"${orientation}PagerView\">\n\t\t    <div dojoAttachPoint=\"pagerItemContainer\"><ul dojoAttachPoint=\"pagerItems\" class=\"pagerItems\"></ul></div>\n\t\t</div>\n\t\t<div dojoAttachPoint=\"pagerContainerPager\" class=\"${orientation}PagerPager\">\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerNext\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerNext\"><img dojoAttachPoint=\"pagerIconNext\" src=\"${iconNext}\" alt=\"Next\" /></div>\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerPrevious\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerPrevious\"><img dojoAttachPoint=\"pagerIconPrevious\" src=\"${iconPrevious}\" alt=\"Previous\" /></div>\n\t\t</div>\n    </div>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none\"></div>\n</div>"}});
+require({cache:{"url:dojox/widget/Pager/Pager.html":"<div dojoAttachPoint=\"pagerContainer\" tabIndex=\"0\" dojoAttachEvent=\"onkeypress: _handleKey, onfocus: _a11yStyle, onblur:_a11yStyle\" class=\"${orientation}PagerContainer\">\n    <div class=\"pagerContainer\">\n\t\t<div dojoAttachPoint=\"pagerContainerStatus\" class=\"${orientation}PagerStatus\"></div>\n\t\t<div dojoAttachPoint=\"pagerContainerView\" class=\"${orientation}PagerView\">\n\t\t    <div dojoAttachPoint=\"pagerItemContainer\"><ul dojoAttachPoint=\"pagerItems\" class=\"pagerItems\"></ul></div>\n\t\t</div>\n\t\t<div dojoAttachPoint=\"pagerContainerPager\" class=\"${orientation}PagerPager\">\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerNext\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _next\"><img dojoAttachPoint=\"pagerIconNext\" src=\"${iconNext}\" alt=\"Next\" /></div>\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerPrevious\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _previous\"><img dojoAttachPoint=\"pagerIconPrevious\" src=\"${iconPrevious}\" alt=\"Previous\" /></div>\n\t\t</div>\n    </div>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none\"></div>\n</div>"}});
 define("dojox/widget/Pager",["dojo/aspect","dojo/_base/array","dojo/_base/declare","dojo/dom","dojo/dom-attr","dojo/dom-class","dojo/dom-construct","dojo/dom-geometry","dojo/dom-style","dojo/fx","dojo/_base/kernel","dojo/keys","dojo/_base/lang","dojo/on","dijit/_WidgetBase","dijit/_TemplatedMixin","./PagerItem","dojo/text!./Pager/Pager.html"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,fx,_a,_b,_c,on,_d,_e,_f,_10){
 _a.experimental("dojox.widget.Pager");
 return _3("dojox.widget.Pager",[_d,_e],{templateString:_10,iconPrevious:"",iconNext:"",iconPage:require.toUrl("dojox/widget/Pager/images/pageInactive.png"),iconPageActive:require.toUrl("dojox/widget/Pager/images/pageActive.png"),store:null,orientation:"horizontal",statusPos:"leading",pagerPos:"center",duration:500,itemSpace:2,resizeChildren:true,itemClass:_f,itemsPage:3,postMixInProperties:function(){
 var h=(this.orientation=="horizontal");
 _c.mixin(this,{_totalPages:0,_currentPage:1,dirClass:"pager"+(h?"Horizontal":"Vertical"),iconNext:require.toUrl("dojox/widget/Pager/images/"+(h?"h":"v")+"Next.png"),iconPrevious:require.toUrl("dojox/widget/Pager/images/"+(h?"h":"v")+"Previous.png")});
+},_next:function(){
+if(!this.isLeftToRight()){
+this._pagerPrevious();
+}else{
+this._pagerNext();
+}
+},_previous:function(){
+if(!this.isLeftToRight()){
+this._pagerNext();
+}else{
+this._pagerPrevious();
+}
 },postCreate:function(){
 this.inherited(arguments);
 this.store.fetch({onComplete:_c.hitch(this,"_init")});
@@ -18,22 +30,22 @@ case _b.RIGHT_ARROW:
 case 110:
 case 78:
 e.preventDefault();
-this._pagerNext();
+this._next();
 break;
 case _b.DOWN_ARROW:
 case _b.LEFT_ARROW:
 case 112:
 case 80:
 e.preventDefault();
-this._pagerPrevious();
+this._previous();
 break;
 case _b.ENTER:
 switch(e.target){
 case this.pagerNext:
-this._pagerNext();
+this._next();
 break;
 case this.pagerPrevious:
-this._pagerPrevious();
+this._previous();
 break;
 }
 break;
@@ -171,7 +183,7 @@ _9.set(this.pagerContainerPager,"bottom",((_32/2)-(_33/2))+"px");
 _9.set(this.pagerContainerStatus,"top","0px");
 }
 var _34=(_9.get(this.pagerContainer,"width")/2)-(this.iconWidth/2);
-_9.set(this.pagerContainerStatus,"paddingLeft",_34+"px");
+_9.set(this.pagerContainerStatus,this.isLeftToRight()?"paddingLeft":"paddingRight",_34+"px");
 }else{
 if(this.statusPos=="trailing"){
 if(this.pagerPos=="center"){

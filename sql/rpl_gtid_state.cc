@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -468,7 +468,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(
     sid_lock->assert_some_lock();
 
   // If GTID_MODE = ON_PERMISSIVE or ON, generate a new GTID
-  if (get_gtid_mode(GTID_MODE_LOCK_SID) >= GTID_MODE_ON_PERMISSIVE) {
+  if (global_gtid_mode.get() >= Gtid_mode::ON_PERMISSIVE) {
     Gtid automatic_gtid = {specified_sidno, specified_gno};
 
     if (automatic_gtid.sidno == 0) automatic_gtid.sidno = get_server_sidno();

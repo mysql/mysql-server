@@ -10,7 +10,7 @@
 	line-height: @mbl-switch-height + 2;
 	overflow: hidden;
 	text-align: left;
-	-webkit-tap-highlight-color: rgba(255,255,255,0);
+	.tap-highlight-color(rgba(255,255,255,0));
 }
 .mblListItem .mblSwitch {
 	position: absolute;
@@ -23,8 +23,8 @@
 	height: @mbl-switch-height;
 }
 .mblSwitchAnimation .mblSwitchInner {
-	-webkit-transition-property: left;
-	-webkit-transition-duration: .1s;
+	.transition-property(left);
+	.transition-duration(.1s);
 }
 .mblSwitchOn .mblSwitchInner {
 	left: 0;
@@ -38,26 +38,26 @@
 	font-size: 16px;
 	font-weight: bold;
 	line-height: @mbl-switch-height + 2;
-	-webkit-box-sizing: border-box;
+	.box-sizing(border-box);
 	.mblSwitchBg-styles;
 }
 .mblSwitchBgLeft {
 	left: 0;
 	color: white;
 	background-color: #3f84eb;
-	background-image: @mbl-switch-bg-left-background-image;
+	.mbl-switch-bg-left-background-image();
 }
 .mblSwitchBgRight {
 	color: #7f7f7f;
-	background-image: @mbl-switch-bg-right-background-image;
+	.mbl-switch-bg-right-background-image();
 }
 .mblSwitchKnob {
 	position: absolute;
 	top: 0;
 	height: @mbl-switch-height;
-	background-image: @mbl-switch-knob-background-image;
+	.mbl-switch-knob-background-image();
 	font-size: 1px;
-	-webkit-box-sizing: border-box;
+	.box-sizing(border-box);
 	.mblSwitchKnob-styles;
 }
 .mblSwitchText {

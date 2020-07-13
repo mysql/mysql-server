@@ -5,10 +5,11 @@ define("dojox/mobile/RoundRectList", [
 	"dojo/_base/lang",
 	"dojo/_base/window",
 	"dojo/dom-construct",
+	"dojo/dom-attr",
 	"dijit/_Contained",
 	"dijit/_Container",
 	"dijit/_WidgetBase"
-], function(array, declare, event, lang, win, domConstruct, Contained, Container, WidgetBase){
+], function(array, declare, event, lang, win, domConstruct, domAttr, Contained, Container, WidgetBase){
 
 	// module:
 	//		dojox/mobile/RoundRectList
@@ -44,13 +45,17 @@ define("dojox/mobile/RoundRectList", [
 		//		If true, the last selected item remains highlighted.
 		stateful: false,
 
-		// syncWithViews: Boolean
+		// syncWithViews: [const] Boolean
 		//		If true, this widget listens to view transition events to be
 		//		synchronized with view's visibility.
+		//		Note that changing the value of the property after the widget
+		//		creation has no effect.
 		syncWithViews: false,
 
-		// editable: Boolean
+		// editable: [const] Boolean
 		//		If true, the list can be reordered.
+		//		Note that changing the value of the property after the widget
+		//		creation has no effect.
 		editable: false,
 
 		// tag: String
@@ -65,9 +70,21 @@ define("dojox/mobile/RoundRectList", [
 		// baseClass: String
 		//		The name of the CSS class of this widget.
 		baseClass: "mblRoundRectList",
+		
+		// filterBoxClass: String
+		//		The name of the CSS class added to the DOM node inside which is placed the 
+		//		dojox/mobile/SearchBox created when mixing dojox/mobile/FilteredListMixin.
+		//		The default value is "mblFilteredRoundRectListSearchBox".  
+		filterBoxClass: "mblFilteredRoundRectListSearchBox",
 
 		buildRendering: function(){
 			this.domNode = this.srcNodeRef || domConstruct.create(this.tag);
+			if(this.select){
+				domAttr.set(this.domNode, "role", "listbox");
+				if(this.select === "multiple"){
+					domAttr.set(this.domNode, "aria-multiselectable", "true");
+				}
+			}
 			this.inherited(arguments);
 		},
 

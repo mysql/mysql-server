@@ -1,22 +1,10 @@
-require({cache:{
-'url:dojox/widget/Wizard/Wizard.html':"<div class=\"dojoxWizard\" dojoAttachPoint=\"wizardNode\">\n    <div class=\"dojoxWizardContainer\" dojoAttachPoint=\"containerNode\"></div>\n    <div class=\"dojoxWizardButtons\" dojoAttachPoint=\"wizardNav\">\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"previousButton\">${previousButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"nextButton\">${nextButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"doneButton\" style=\"display:none\">${doneButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"cancelButton\">${cancelButtonLabel}</button>\n    </div>\n</div>\n"}});
 define("dojox/widget/WizardPane", [
 	"dojo/_base/lang",
 	"dojo/_base/declare",
-	"dojo/_base/connect",
-	"dijit/layout/StackContainer",
-	"dijit/layout/ContentPane",
-	"dijit/form/Button",
-	"dijit/_TemplatedMixin",
-	"dijit/_WidgetsInTemplateMixin",
-	"dojo/i18n",
-	"dojo/text!./Wizard/Wizard.html",
-	"dojo/i18n!dijit/nls/common",
-	"dojo/i18n!./nls/Wizard",
-	"dojox/widget/WizardPane"
-], function (lang, declare, connect, StackContainer, ContentPane, Button, _TemplatedMixin, _WidgetsInTemplateMixin, i18n, template, wizardPane) {
+	"dijit/layout/ContentPane"
+], function(lang, declare, ContentPane){
   
-var WizardPane = declare("dojox.widget.WizardPane", ContentPane, {
+return declare("dojox.widget.WizardPane", ContentPane, {
 	// summary:
 	//		A panel in a `dojox.widget.Wizard`
 	// description:
@@ -83,6 +71,6 @@ var WizardPane = declare("dojox.widget.WizardPane", ContentPane, {
 		if(this.doneFunction && lang.isFunction(this.doneFunction)){ this.doneFunction(); }
 	}
 });
-	return WizardPane;
+
 });
 

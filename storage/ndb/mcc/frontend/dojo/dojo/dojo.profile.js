@@ -1,5 +1,6 @@
 var profile = (function(){
-	var testResourceRe = /^dojo\/tests\//,
+	var testResourceRe = /^dojo\/tests(?:DOH)?\//,
+		nodeModulesRe = /\/node_modules\//,
 
 		copyOnly = function(filename, mid){
 			var list = {
@@ -19,13 +20,14 @@ var profile = (function(){
 				/^dojo\/_base\/config\w+$/.test(mid) ||
 				(/^dojo\/resources\//.test(mid) && !/\.css$/.test(filename)) ||
 				/(png|jpg|jpeg|gif|tiff)$/.test(filename) ||
+				nodeModulesRe.test(mid) ||
 				/built\-i18n\-test\/152\-build/.test(mid);
 		};
 
 	return {
 		resourceTags:{
 			test: function(filename, mid){
-				return testResourceRe.test(mid) || mid=="dojo/tests" || mid=="dojo/robot" || mid=="dojo/robotx";
+				return testResourceRe.test(mid) || mid=="dojo/robot" || mid=="dojo/robotx";
 			},
 
 			copyOnly: function(filename, mid){
@@ -34,6 +36,10 @@ var profile = (function(){
 
 			amd: function(filename, mid){
 				return !testResourceRe.test(mid) && !copyOnly(filename, mid) && /\.js$/.test(filename);
+			},
+
+			miniExclude: function(filename, mid){
+				return nodeModulesRe.test(mid);
 			}
 		}
 	};

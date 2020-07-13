@@ -2,8 +2,10 @@ define("dojox/fx/Shadow", ["dojo/_base/kernel", "dojo/_base/query" ,"dojo/_base/
 		"dojo/dom-construct", "dojo/dom-class", "dojo/dom-geometry", "dojo/_base/fx", "dojo/fx", "dijit/_Widget",
 		"dojo/NodeList-fx"], 
   function(kernel, query, lang, declare, has, domConstruct, domClass, domGeom, baseFx, coreFx, Widget, NodeListFx){
-kernel.experimental("dojox.fx.Shadow");
-declare("dojox.fx.Shadow", Widget,{
+
+	kernel.experimental("dojox.fx.Shadow");
+
+	return declare("dojox.fx.Shadow", Widget,{
 		// summary:
 		//		Adds a drop-shadow to a node.
 		// example:
@@ -149,5 +151,4 @@ declare("dojox.fx.Shadow", Widget,{
 			}
 		}
 	});
-	return dojox.fx.Shadow;
 });

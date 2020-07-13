@@ -8,15 +8,16 @@ define(
 	"percentFormat": "#,##0%",
 	"list": ";",
 	"infinity": "∞",
-	"minusSign": "-",
+	"minusSign": "‎-",
 	"decimal": ".",
+	"superscriptingExponent": "×",
 	"nan": "NaN",
 	"perMille": "‰",
-	"decimalFormat": "#,##0.###;#,##0.###-",
-	"currencyFormat": "¤ #,##0.00;¤ #,##0.00-",
-	"plusSign": "+",
+	"decimalFormat": "#,##0.###",
+	"currencyFormat": "¤#,##0.00;(¤#,##0.00)",
+	"plusSign": "‎+",
 	"decimalFormat-long": "000 تريليون",
-	"decimalFormat-short": "000 ترليو"
+	"decimalFormat-short": "000 ترليو"
 }
 //end v1.x content
 );

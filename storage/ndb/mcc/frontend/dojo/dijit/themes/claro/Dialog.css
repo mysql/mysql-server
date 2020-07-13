@@ -22,6 +22,8 @@
   padding: 3px 5px 2px 7px;
   text-align: right;
   border-top: 1px solid #d3d3d3;
+}
+.claro .dijitDialogPaneContent .dijitDialogPaneActionBar {
   margin: 10px -8px -10px;
 }
 .claro .dijitTooltipDialog .dijitDialogPaneActionBar {
@@ -71,10 +73,11 @@
 .claro .dijitDialogCloseIconHover {
   background-position: -21px;
 }
-.claro .dijitDialogCloseIconActive {
+.claro .dijitDialogCloseIcon:active {
   background-position: -42px;
 }
-.claro .dijitTooltip, .claro .dijitTooltipDialog {
+.claro .dijitTooltip,
+.claro .dijitTooltipDialog {
   
   background: transparent;
   
@@ -121,11 +124,6 @@
 .dj_ie6 .claro .dijitTooltipConnector {
   background-image: url("images/tooltip8bit.png");
 }
-.claro .dijitTooltipABRight .dijitTooltipConnector {
-  
-  left: auto !important;
-  right: 3px;
-}
 .claro .dijitTooltipBelow .dijitTooltipConnector {
   
   top: 0;
@@ -142,8 +140,14 @@
   width: 16px;
   height: 14px;
 }
-.dj_ie7 .claro .dijitTooltipAbove .dijitTooltipConnector, .dj_ie6 .claro .dijitTooltipAbove .dijitTooltipConnector {
+.dj_ie7 .claro .dijitTooltipAbove .dijitTooltipConnector,
+.dj_ie6 .claro .dijitTooltipAbove .dijitTooltipConnector {
   bottom: -1px;
+}
+.claro .dijitTooltipABRight .dijitTooltipConnector {
+  
+  left: auto;
+  right: 3px;
 }
 .claro .dijitTooltipLeft {
   padding-right: 14px;

@@ -1,0 +1,453 @@
+use test;
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(a,b)) engine=ndb;
+insert into test.t1 values 
+("1a","1b","1c","1d"), 
+("2a","2b","2c","2d"), 
+("3a","3b","3c","3d"), 
+("4a","4b","4c","4d"), 
+("5a","5b","5c","5d"), 
+("6a","6b","6c","6d");
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.t1 values 
+("7a","7b","7c","7d"), 
+("8a","8b","8c","8d"), 
+("9a","9b","9c","9d");
+update test.t1 set d=concat(d, "-modified");
+delete from test.t1 where a in ("5a","8a");
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+drop table test.t1;
+********************************************
+* Tests with column change from pk <-> !pk *
+********************************************
+Extend pk (a,b) -> (a,b,c)
+**************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(a,b,c)) engine=ndb;
+Show no PK mapping index
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+count(1)
+0
+Run restore
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+count(1)
+1
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+count(1)
+1
+select * from test.t1 order by b;
+a	b	c	d
+1a	1b	1c	1d-modified
+2a	2b	2c	2d-modified
+3a	3b	3c	3d-modified
+4a	4b	4c	4d-modified
+6a	6b	6c	6d-modified
+7a	7b	7c	7d-modified
+9a	9b	9c	9d-modified
+drop table test.t1;
+Reduce pk (a,b) -> (a)
+**********************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(a)) engine=ndb;
+Run restore
+select * from test.t1 order by b;
+a	b	c	d
+1a	1b	1c	1d-modified
+2a	2b	2c	2d-modified
+3a	3b	3c	3d-modified
+4a	4b	4c	4d-modified
+6a	6b	6c	6d-modified
+7a	7b	7c	7d-modified
+9a	9b	9c	9d-modified
+drop table test.t1;
+Reduced and Extended pk (a,b) -> (b,c)
+**************************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(b,c)) engine=ndb;
+Run restore
+select * from test.t1 order by b;
+a	b	c	d
+1a	1b	1c	1d-modified
+2a	2b	2c	2d-modified
+3a	3b	3c	3d-modified
+4a	4b	4c	4d-modified
+6a	6b	6c	6d-modified
+7a	7b	7c	7d-modified
+9a	9b	9c	9d-modified
+drop table test.t1;
+Reduced and Extended, promoted and demoted pk (a,b) -> (big B, small C)
+***********************************************************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(40) not null, 
+c varchar(10) not null, 
+d varchar(20), 
+primary key(b,c)) engine=ndb;
+Run restore
+select * from test.t1 order by b;
+a	b	c	d
+1a	1b	1c	1d-modified
+2a	2b	2c	2d-modified
+3a	3b	3c	3d-modified
+4a	4b	4c	4d-modified
+6a	6b	6c	6d-modified
+7a	7b	7c	7d-modified
+9a	9b	9c	9d-modified
+drop table test.t1;
+**************************
+* Tests with column drop *
+**************************
+Column which was part of pk is gone (a,b) -> (a)
+************************************************
+create table test.t1 (a varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(a)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	c	d
+1a	1c	1d-modified
+2a	2c	2d-modified
+3a	3c	3d-modified
+4a	4c	4d-modified
+6a	6c	6d-modified
+7a	7c	7d-modified
+9a	9c	9d-modified
+drop table test.t1;
+Column which was part of pk is gone, another is brought in  (a,b) -> (a,c)
+**************************************************************************
+create table test.t1 (a varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(a,c)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	c	d
+1a	1c	1d-modified
+2a	2c	2d-modified
+3a	3c	3d-modified
+4a	4c	4d-modified
+6a	6c	6d-modified
+7a	7c	7d-modified
+9a	9c	9d-modified
+drop table test.t1;
+Column which was part of pk is gone, another is brought in plus promote/demote  (a,b) -> (a,c)
+**********************************************************************************************
+create table test.t1 (a varchar(40) not null, 
+c varchar(10) not null, 
+d varchar(20), 
+primary key(a,c)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	c	d
+1a	1c	1d-modified
+2a	2c	2d-modified
+3a	3c	3d-modified
+4a	4c	4d-modified
+6a	6c	6d-modified
+7a	7c	7d-modified
+9a	9c	9d-modified
+drop table test.t1;
+Column order change
+*******************
+create table test.t1 (d varchar(20),
+c varchar(20) not null,
+b varchar(20) not null,
+a varchar(20) not null,
+primary key (b,a)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+d	c	b	a
+1d-modified	1c	1b	1a
+2d-modified	2c	2b	2a
+3d-modified	3c	3b	3a
+4d-modified	4c	4b	4a
+6d-modified	6c	6b	6a
+7d-modified	7c	7b	7a
+9d-modified	9c	9b	9a
+drop table test.t1;
+Check index reuse between instances with --disable-indexes
+**********************************************************
+Extend pk (a,b) -> (a,b,c)
+**************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(a,b,c)) engine=ndb;
+Run restore
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+count(1)
+1
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+count(1)
+1
+Check that we dropped the pk mapping index
+select count(1) from ndbinfo.dict_obj_info where fq_name like '%RESTORE_PK_MAPPING%';
+count(1)
+0
+select * from test.t1 order by b;
+a	b	c	d
+1a	1b	1c	1d-modified
+2a	2b	2c	2d-modified
+3a	3b	3c	3d-modified
+4a	4b	4c	4d-modified
+6a	6b	6c	6d-modified
+7a	7b	7c	7d-modified
+9a	9b	9c	9d-modified
+drop table test.t1;
+create table test.t1 (d varchar(20),
+c varchar(20) not null,
+b varchar(20) not null,
+a varchar(20) not null, 
+primary key(a,b,c)) engine=ndb;
+insert into test.t1 (a,b,c,d) values 
+("1a","1b","1c","1d"), 
+("2a","2b","2c","2d"), 
+("3a","3b","3c","3d"), 
+("4a","4b","4c","4d"), 
+("5a","5b","5c","5d"), 
+("6a","6b","6c","6d");
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.t1 (a,b,c,d) values 
+("7a","7b","7c","7d"), 
+("8a","8b","8c","8d"), 
+("9a","9b","9c","9d");
+update test.t1 set d=concat(d, "-modified");
+delete from test.t1 where a in ("5a","8a");
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+drop table test.t1;
+Column order mixing
+**************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(a,b,c)) engine=ndb;
+Run restore
+select * from test.t1 order by b;
+a	b	c	d
+1a	1b	1c	1d-modified
+2a	2b	2c	2d-modified
+3a	3b	3c	3d-modified
+4a	4b	4c	4d-modified
+6a	6b	6c	6d-modified
+7a	7b	7c	7d-modified
+9a	9b	9c	9d-modified
+drop table test.t1;
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20), 
+primary key(b)) engine=ndb;
+Run restore
+select * from test.t1 order by b;
+a	b	c	d
+1a	1b	1c	1d-modified
+2a	2b	2c	2d-modified
+3a	3b	3c	3d-modified
+4a	4b	4c	4d-modified
+6a	6b	6c	6d-modified
+7a	7b	7c	7d-modified
+9a	9b	9c	9d-modified
+drop table test.t1;
+************************************************************************
+Tests for backup log containing update to column(s) becoming primary key
+************************************************************************
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(a,b)) engine=ndb;
+insert into test.t1 values 
+("1a","1b","1c","1d","1e"), 
+("2a","2b","2c","2d","2e"), 
+("3a","3b","3c","3d","3e"), 
+("4a","4b","4c","4d","4e"), 
+("5a","5b","5c","5d","5e"), 
+("6a","6b","6c","6d","6e");
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.t1 values 
+("7a","7b","7c","7d","7e"), 
+("8a","8b","8c","8d","8e"), 
+("9a","9b","9c","9d","9e");
+update test.t1 set e=concat(e, "-modified");
+update test.t1 set c=c, d=d, e=concat(d, "-e");
+delete from test.t1 where a in ("5a","8a");
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table test.t1;
+Show that UPDATE on a single column becoming pk succeeds
+Extend PK (a,b) -> (a,b,c)
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(a,b,c)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table test.t1;
+Show that UPDATE on a column becoming pk while another is dropped succeeds
+Extend + Contract PK (a,b) -> (b,c)
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(b,c)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table test.t1;
+Show that UPDATE on a column becoming pk while another is dropped succeeds
+Extend + Contract PK (a,b) -> (b,c)
+Also show type promotion
+create table test.t1 (a varchar(200) not null, 
+b varchar(200) not null, 
+c varchar(200) not null, 
+d varchar(200) not null,
+e varchar(200), 
+primary key(b,c)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table test.t1;
+Show that UPDATE on a column becoming pk while another is dropped succeeds
+Extend + Contract PK (a,b) -> (b,c)
+Also show type demotion
+create table test.t1 (a varchar(10) not null, 
+b varchar(10) not null, 
+c varchar(10) not null, 
+d varchar(15) not null,
+e varchar(10), 
+primary key(b,c)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table test.t1;
+Show that UPDATE on multiple columns becoming pk while another is dropped succeeds
+Extend + Contract PK (a,b) -> (b,c,d)
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(b,c,d)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table test.t1;
+Swap pk entirely
+PK (a,b) -> (c,d)
+create table test.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(c,d)) engine=ndb;
+Run restore
+select * from test.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table test.t1;
+Swap pk entirely + db rewrite
+create database minitel;
+create table minitel.t1 (a varchar(20) not null, 
+b varchar(20) not null, 
+c varchar(20) not null, 
+d varchar(20) not null,
+e varchar(20), 
+primary key(c,d)) engine=ndb;
+Run restore
+select * from minitel.t1 order by a;
+a	b	c	d	e
+1a	1b	1c	1d	1d-e
+2a	2b	2c	2d	2d-e
+3a	3b	3c	3d	3d-e
+4a	4b	4c	4d	4d-e
+6a	6b	6c	6d	6d-e
+7a	7b	7c	7d	7d-e
+9a	9b	9c	9d	9d-e
+drop table minitel.t1;
+drop database minitel;

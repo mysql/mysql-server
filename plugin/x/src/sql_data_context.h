@@ -54,10 +54,23 @@ class Sql_data_context : public iface::Sql_session {
   Sql_data_context()
       : m_mysql_session(nullptr),
         m_last_sql_errno(0),
-        m_password_expired(false) {}
+        m_password_expired(false),
+        m_using_password(false),
+        m_pre_authenticate_event_fired(false) {}
 
   ~Sql_data_context() override;
 
+  // The authentication process of the user connecting to the X Plugin.
+  //
+  // @param user                    User name.
+  // @param host                    Host name.
+  // @param ip                      IP value.
+  // @param db                      Database name.
+  // @param passwd                  User password.
+  // @param account_verification    User authentication object.
+  // @param allow_expired_passwords Ignore password
+  //
+  // @return Error_code instance that holds authentication result.
   ngs::Error_code authenticate(
       const char *user, const char *host, const char *ip, const char *db,
       const std::string &passwd,
@@ -104,6 +117,7 @@ class Sql_data_context : public iface::Sql_session {
   ngs::Error_code init(const bool is_admin = false);
   ngs::Error_code init(const int client_port, const Connection_type type,
                        const bool is_admin = false);
+
   void deinit();
 
   MYSQL_THD get_thd() const;
@@ -116,6 +130,14 @@ class Sql_data_context : public iface::Sql_session {
  private:
   Sql_data_context(const Sql_data_context &) = delete;
   Sql_data_context &operator=(const Sql_data_context &) = delete;
+
+  // The real authentication process implementation, without generation
+  // of the audit events. For argument description see @ref authenticate.
+  ngs::Error_code authenticate_internal(
+      const char *user, const char *host, const char *ip, const char *db,
+      const std::string &passwd,
+      const iface::Authentication &account_verification,
+      bool allow_expired_passwords);
 
   MYSQL_SESSION mysql_session() const { return m_mysql_session; }
 
@@ -135,10 +157,14 @@ class Sql_data_context : public iface::Sql_session {
                                          const COM_DATA &cmd_data,
                                          iface::Resultset *rset);
 
-  std::string m_username;
-  std::string m_hostname;
-  std::string m_address;
-  std::string m_db;
+  // We need to keep pointers to std::string to guarantee that pointer
+  // of the buffer holding the string changes. This is due to the security
+  // context implementation, which do not update internal data, when
+  // the pointer does not change.
+  std::unique_ptr<std::string> m_username;
+  std::unique_ptr<std::string> m_hostname;
+  std::unique_ptr<std::string> m_address;
+  std::unique_ptr<std::string> m_db;
 
   iface::Protocol_encoder *m_proto;
   MYSQL_SESSION m_mysql_session;
@@ -147,6 +173,18 @@ class Sql_data_context : public iface::Sql_session {
   std::string m_last_sql_error;
 
   bool m_password_expired;
+
+  // Flag indicating whether a password is used during the authentication
+  // process.
+  bool m_using_password;
+
+  // Single X plugin user connection can be authenticated multiple times
+  // using different connection methods. This flag assures that there is
+  // only one MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE event generated.
+  bool m_pre_authenticate_event_fired;
+  // Last authentication process error code. The code is used to pass error
+  // code to the generated MYSQL_AUDIT_CONNECTION_CONNECT event.
+  ngs::Error_code m_authentication_code;
 };
 
 }  // namespace xpl

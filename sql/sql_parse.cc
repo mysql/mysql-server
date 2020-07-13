@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1999, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include "sql/sql_parse.h"
 
 #include "my_config.h"
+#include "mysql/psi/mysql_table.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -364,8 +365,10 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask) {
       return !lex->drop_temporary;
     case SQLCOM_ALTER_TABLE:
     case SQLCOM_CREATE_TABLE:
-      /* If CREATE TABLE of non-temporary table, do implicit commit */
-      return (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) == 0;
+      /* If CREATE TABLE of non-temporary table or without
+        START TRANSACTION, do implicit commit */
+      return (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE ||
+              lex->create_info->m_transactional_ddl) == 0;
     case SQLCOM_SET_OPTION:
       /* Implicitly commit a transaction started by a SET statement */
       return lex->autocommit;
@@ -624,12 +627,13 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_UNINSTALL_COMPONENT] =
       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_RESOURCE_GROUP] =
-      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_ALTER_RESOURCE_GROUP] =
-      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_DROP_RESOURCE_GROUP] =
-      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_SET_RESOURCE_GROUP] = CF_CHANGES_DATA;
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SET_RESOURCE_GROUP] =
+      CF_CHANGES_DATA | CF_ALLOW_PROTOCOL_PLUGIN;
 
   sql_command_flags[SQLCOM_CLONE] =
       CF_AUTO_COMMIT_TRANS | CF_ALLOW_PROTOCOL_PLUGIN;
@@ -1017,6 +1021,22 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_DROP_SRS] |=
       CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
 
+  /*
+    Mark these statements as SHOW commands using INFORMATION_SCHEMA system
+    views.
+  */
+  sql_command_flags[SQLCOM_SHOW_CHARSETS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_COLLATIONS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_DATABASES] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_TABLES] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATUS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_FIELDS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_KEYS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_EVENTS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_TRIGGERS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC] |= CF_SHOW_USES_SYSTEM_VIEW;
+
   /**
     Some statements doesn't if the ACL CACHE is disabled using the
     --skip-grant-tables server option.
@@ -1258,7 +1278,7 @@ bool do_command(THD *thd) {
                       command_name[command].str));
 #endif  // DBUG_OFF
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
-                      thd->get_protocol_classic()->get_packet_length(),
+                      (int)thd->get_protocol_classic()->get_packet_length(),
                       thd->get_protocol_classic()->get_raw_packet(), command));
   if (thd->get_protocol_classic()->bad_packet)
     DBUG_ASSERT(0);  // Should be caught earlier
@@ -1338,6 +1358,20 @@ static bool deny_updates_if_read_only_option(THD *thd, TABLE_LIST *all_tables) {
 
   /* Assuming that only temporary tables are modified. */
   return false;
+}
+
+/**
+  Check whether the statement is a SHOW command using INFORMATION_SCHEMA system
+  views.
+
+  @param  thd   Thread (session) context.
+
+  @return true  if command uses INFORMATION_SCHEMA system view.
+  @return false otherwise.
+
+*/
+inline bool is_show_cmd_using_system_view(THD *thd) {
+  return sql_command_flags[thd->lex->sql_command] & CF_SHOW_USES_SYSTEM_VIEW;
 }
 
 /**
@@ -2619,7 +2653,11 @@ static inline void binlog_gtid_end_transaction(THD *thd) {
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
-  @param first_level
+  @param first_level               whether invocation of the
+  mysql_execute_command() is a top level query or sub query. At the highest
+  level, first_level value is true. Stored procedures can execute sub queries.
+  In such cases first_level (recursive mysql_execute_command() call) will be
+  false.
 
   @todo this is workaround. right way will be move invalidating in
     the unlock procedure.
@@ -2646,7 +2684,27 @@ int mysql_execute_command(THD *thd, bool first_level) {
   DBUG_ASSERT(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
+  DBUG_ASSERT(!thd->m_transactional_ddl.inited() ||
+              thd->in_active_multi_stmt_transaction());
+
+  /*
+    If there is a CREATE TABLE...START TRANSACTION command which
+    is not yet committed or rollbacked, then we should allow only
+    BINLOG INSERT, COMMIT or ROLLBACK command.
+    TODO: Should we really check name of table when we cable BINLOG INSERT ?
+  */
+  if (thd->m_transactional_ddl.inited() && lex->sql_command != SQLCOM_COMMIT &&
+      lex->sql_command != SQLCOM_ROLLBACK &&
+      lex->sql_command != SQLCOM_BINLOG_BASE64_EVENT) {
+    my_error(ER_STATEMENT_NOT_ALLOWED_AFTER_START_TRANSACTION, MYF(0));
+    binlog_gtid_end_transaction(thd);
+    return 1;
+  }
+
   thd->work_part_info = nullptr;
+
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED))
+    lex->add_statement_options(OPTION_NO_CONST_TABLES);
 
   /*
     Each statement or replication event which might produce deadlock
@@ -2935,6 +2993,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
 #endif
 
   /*
+    Start a new transaction if CREATE TABLE has START TRANSACTION clause.
+    Disable binlog so that the BEGIN is not logged in binlog.
+   */
+  if (lex->create_info && lex->create_info->m_transactional_ddl &&
+      !thd->slave_thread) {
+    Disable_binlog_guard binlog_guard(thd);
+    if (trans_begin(thd, MYSQL_START_TRANS_OPT_READ_WRITE)) return true;
+  }
+
+  /*
     For statements which need this, prevent InnoDB from automatically
     committing InnoDB transaction each time data-dictionary tables are
     closed after being updated.
@@ -3002,6 +3070,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
     goto error;
   }
 
+  DBUG_EXECUTE_IF(
+      "force_rollback_in_slave_on_transactional_ddl_commit",
+      if (thd->m_transactional_ddl.inited() &&
+          thd->lex->sql_command == SQLCOM_COMMIT) {
+        lex->sql_command = SQLCOM_ROLLBACK;
+      });
+
   /*
     We do not flag "is DML" (TX_STMT_DML) here as replication expects us to
     test for LOCK TABLE etc. first. To rephrase, we try not to set TX_STMT_DML
@@ -3047,6 +3122,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
                       thd->begin_attachable_ro_transaction(););
 
       thd->clear_current_query_costs();
+
+      Enable_derived_merge_guard derived_merge_guard(
+          thd, is_show_cmd_using_system_view(thd));
 
       res = show_precheck(thd, lex, true);
 
@@ -3199,6 +3277,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
                  "SUPER or GROUP_REPLICATION_ADMIN");
         goto error;
       }
+      if (lex->slave_connection.password && !lex->slave_connection.user) {
+        my_error(ER_GROUP_REPLICATION_USER_MANDATORY_MSG, MYF(0));
+        goto error;
+      }
 
       /*
         If the client thread has locked tables, a deadlock is possible.
@@ -3226,7 +3308,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
 
       char *error_message = nullptr;
-      res = group_replication_start(&error_message);
+      res = group_replication_start(&error_message, thd);
 
       // To reduce server dependency, server errors are not used here
       switch (res) {
@@ -3894,6 +3976,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
         }
       }
       if (first_table) {
+        if (lex->dynamic_privileges.elements > 0) {
+          my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), all_tables->table_name);
+          goto error;
+        }
         if (lex->type == TYPE_ENUM_PROCEDURE ||
             lex->type == TYPE_ENUM_FUNCTION) {
           uint grants = lex->all_privileges
@@ -3911,11 +3997,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
           if (check_grant(thd, (lex->grant | lex->grant_tot_col | GRANT_ACL),
                           all_tables, false, UINT_MAX, false))
             goto error;
-          if (lex->dynamic_privileges.elements > 0) {
-            my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0),
-                     all_tables->table_name);
-            goto error;
-          }
           /* Conditionally writes to binlog */
           res =
               mysql_table_grant(thd, all_tables, lex->users_list, lex->columns,
@@ -4483,12 +4564,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_EXPLAIN_OTHER:
     case SQLCOM_RESTART_SERVER:
     case SQLCOM_CREATE_SRS:
-    case SQLCOM_DROP_SRS:
-
+    case SQLCOM_DROP_SRS: {
       DBUG_ASSERT(lex->m_sql_cmd != nullptr);
-      res = lex->m_sql_cmd->execute(thd);
-      break;
 
+      Enable_derived_merge_guard derived_merge_guard(
+          thd, is_show_cmd_using_system_view(thd));
+
+      res = lex->m_sql_cmd->execute(thd);
+
+      break;
+    }
     case SQLCOM_ALTER_USER: {
       LEX_USER *user, *tmp_user;
       bool changing_own_password = false;
@@ -4703,7 +4788,9 @@ finish:
       automatically release metadata locks of the current statement.
     */
     thd->mdl_context.release_transactional_locks();
-  } else if (!thd->in_sub_stmt) {
+  } else if (!thd->in_sub_stmt &&
+             (thd->lex->sql_command != SQLCOM_CREATE_TABLE ||
+              !thd->lex->create_info->m_transactional_ddl)) {
     thd->mdl_context.release_statement_locks();
   }
 
@@ -5541,6 +5628,15 @@ bool Alter_info::add_field(
                       is_array))
     return true;
 
+  for (const auto &a : cf_appliers) {
+    if (a(new_field, this)) return true;
+  }
+
+  // Since Alter_info objects are allocated on a mem_root and never
+  // destroyed we (move)-assign an empty vector to cf_appliers to
+  // ensure any dynamic memory is released
+  cf_appliers = decltype(cf_appliers)();
+
   create_list.push_back(new_field);
   if (opt_after != nullptr) {
     flags |= Alter_info::ALTER_COLUMN_ORDER;
@@ -5852,9 +5948,10 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
                          - TL_OPTION_ALIAS : an alias in multi table DELETE
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
-  @param index_hints_arg
-  @param partition_names
-  @param option
+  @param index_hints_arg a list of index hints(FORCE/USE/IGNORE INDEX).
+  @param partition_names List to carry partition names from PARTITION (...)
+  clause in statement
+  @param option         Used by cache index
   @param pc             Current parsing context, if available.
 
   @return Pointer to TABLE_LIST element added to the total table list
@@ -5973,6 +6070,14 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
           my_error(ER_NO_SYSTEM_VIEW_ACCESS, MYF(0), ptr->table_name);
           return nullptr;
         }
+
+        /*
+          Stop users from accessing I_S.FILES if they do not have
+          PROCESS privilege.
+        */
+        if (!strcmp(ptr->table_name, "FILES") &&
+            check_global_access(thd, PROCESS_ACL))
+          return nullptr;
       }
     } else {
       schema_table = find_schema_table(thd, ptr->table_name);
@@ -6722,7 +6827,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex) {
   else
     create_table->open_type = OT_BASE_ONLY;
 
-  if (!lex->select_lex->item_list.elements) {
+  if (!lex->select_lex->fields_list.elements) {
     /*
       Avoid opening and locking target table for ordinary CREATE TABLE
       or CREATE TABLE LIKE for write (unlike in CREATE ... SELECT we

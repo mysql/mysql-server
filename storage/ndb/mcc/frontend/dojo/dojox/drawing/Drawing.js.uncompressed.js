@@ -11,7 +11,8 @@ function(dojo, defaults, registry, keys, Mouse, Canvas, Undo, Anchors, Stencil, 
 		//		extendable and customizable.
 		//		Drawing currently only initiates from HTML although it's technically not
 		//		a Dijit to keep the file size light. But if Dijit is available, Drawing
-		//		will register itself with it and can be accessed dijit.byId('myDrawing')
+		//		will register itself with it and can be accessed with registry.byId('myDrawing')
+		//		(by requiring dijit/registry)
 		//
 		//		NOTES:
 		//		Although not Drawing and Toolbar, all other objects are created with a custom
@@ -54,7 +55,7 @@ function(dojo, defaults, registry, keys, Mouse, Canvas, Undo, Anchors, Stencil, 
 		//		- Util: A collection of common tasks.
 		//
 		// example:
-		//		|	<div dojoType="dojox.drawing.Drawing" id="drawing" defaults="myCustom.defaults"
+		//		|	<div data-dojo-type="dojox.drawing.Drawing" id="drawing" defaults="myCustom.defaults"
 		//		|		plugins="[{'name':'dojox.drawing.plugins.drawing.Grid', 'options':{gap:100}}]">
 		//		|   </div>
 		//

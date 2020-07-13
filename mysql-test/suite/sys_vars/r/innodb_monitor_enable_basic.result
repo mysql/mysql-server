@@ -55,6 +55,7 @@ buffer_flush_neighbor_total_pages	disabled
 buffer_flush_neighbor	disabled
 buffer_flush_neighbor_pages	disabled
 buffer_flush_n_to_flush_requested	disabled
+buffer_flush_n_to_flush_by_dirty_page	disabled
 buffer_flush_n_to_flush_by_age	disabled
 buffer_flush_adaptive_avg_time_slot	disabled
 buffer_LRU_batch_flush_avg_time_slot	disabled
@@ -173,11 +174,7 @@ purge_resume_count	disabled
 purge_truncate_history_count	disabled
 purge_truncate_history_usec	disabled
 undo_truncate_count	disabled
-undo_truncate_sweep_count	disabled
-undo_truncate_sweep_usec	disabled
 undo_truncate_start_logging_count	disabled
-undo_truncate_flush_count	disabled
-undo_truncate_flush_usec	disabled
 undo_truncate_done_logging_count	disabled
 undo_truncate_usec	disabled
 log_lsn_last_flush	disabled

@@ -1,5 +1,6 @@
-define("dojox/charting/Chart3D", ["dojo/_base/array", "dojo/dom","dojo/_base/declare", "dojox/gfx", "dojox/gfx3d"],
-	function(arr, dom, declare, gfx, gfx3d){
+define("dojox/charting/Chart3D", ["dojo/_base/array", "dojo/dom","dojo/_base/declare", "dojox/gfx", "dojox/gfx3d",
+        "dojo/has", "dojo/has!dojo-bidi?./bidi/Chart3D"],
+	function(arr, dom, declare, gfx, gfx3d, has, BidiChart3D){
 	// module:
 	//		dojox/charting/Chart3D
 	// summary:
@@ -22,7 +23,7 @@ define("dojox/charting/Chart3D", ["dojo/_base/array", "dojo/dom","dojo/_base/dec
 	=====*/
 	var observerVector = {x: 0, y: 0, z: 1}, v = gfx3d.vector, n = gfx.normalizedLength;
 
-	return declare("dojox.charting.Chart3D", null, {
+	var Chart3D = declare(has("dojo-bidi")? "dojox.charting.NonBidiChart3D" : "dojox.charting.Chart3D", null, {
 		constructor: function(node, lights, camera, theme){
 			// setup a view
 			this.node = dom.byId(node);
@@ -94,6 +95,10 @@ define("dojox/charting/Chart3D", ["dojo/_base/array", "dojo/dom","dojo/_base/dec
 				depth -= this.plots[i].getDepth();
 			}
 			return this;
+		},
+		setDir: function(/*String*/dir){
+			return this;
 		}
 	});
+	return has("dojo-bidi")? declare("dojox.charting.Chart3D", [Chart3D, BidiChart3D]) : Chart3D;
 });

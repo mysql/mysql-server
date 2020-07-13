@@ -1,5 +1,5 @@
 //>>built
-define("dojox/date/relative",["..","dojo/_base/lang","dojo/date/locale","dojo/i18n"],function(_1,_2,_3,_4){
+define("dojox/date/relative",["dojox/main","dojo/_base/lang","dojo/date/locale","dojo/i18n"],function(_1,_2,_3,_4){
 var _5=_2.getObject("date.relative",true,_1);
 var _6=1000*60*60*24,_7=6*_6,_8=dojo.delegate,_9=_3._getGregorianBundle,_a=_3.format;
 function _b(_c){

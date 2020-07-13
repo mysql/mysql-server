@@ -572,6 +572,46 @@ SET GLOBAL read_only= @save_read_only;
 --disconnect con1
 --disconnect con2
 
+
+--echo #
+--echo # BUG#30274240: ALTER INSTANCE ROTATE INNODB MASTER KEY NOT
+--echo #               BLOCKED IN READ_ONLY/SUPER_READ_ONLY
+
+SET @save_read_only= @@global.read_only;
+SET @save_super_read_only= @@global.super_read_only;
+
+--enable_connect_log
+connection default;
+
+CREATE USER user1@localhost;
+GRANT ENCRYPTION_KEY_ADMIN ON *.* TO user1@localhost;
+
+--echo connect (con1,localhost,user1,,test);
+--echo # This is used by read_only_bug28438114.inc
+connect (con1,localhost,user1,,test);
+
+--echo connect (con2,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+--echo # Test ALTER INSTANCE ROTATE INNODB MATER KEY in READ_ONLY mode.
+--echo # Reports error with patch.
+let $query= ALTER INSTANCE ROTATE INNODB MASTER KEY;
+--source include/read_only_bug28438114.inc
+
+--echo # Test ALTER INSTANCE ROTATE INNODB MATER KEY in SUPER_READ_ONLY mode
+SET GLOBAL SUPER_READ_ONLY= ON;
+
+--echo # Reports error with patch.
+--error ER_OPTION_PREVENTS_STATEMENT
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+
+--echo # Clean up.
+connection default;
+SET GLOBAL read_only= @save_read_only;
+SET GLOBAL super_read_only= @save_super_read_only;
+DROP USER user1@localhost;
+--disconnect con1
+--disconnect con2
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

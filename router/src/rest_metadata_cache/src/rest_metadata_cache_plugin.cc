@@ -844,22 +844,20 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
-const char *rest_metadata_plugin_requires[] = {
+static const std::array<const char *, 2> required = {{
+    "logger",
     // "metadata_cache",
     "rest_api",
-};
+}};
 
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_METADATA_CACHE",
-    VERSION_NUMBER(0, 0, 1),
-    sizeof(rest_metadata_plugin_requires) /
-        sizeof(rest_metadata_plugin_requires[0]),
-    rest_metadata_plugin_requires,  // requires
-    0,
-    nullptr,  // conflicts
+    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "REST_METADATA_CACHE", VERSION_NUMBER(0, 0, 1),
+    // requires
+    required.size(), required.data(),
+    // conflicts
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start

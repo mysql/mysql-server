@@ -1,5 +1,5 @@
-define("dojo/store/Observable", ["../_base/kernel", "../_base/lang", "../_base/Deferred", "../_base/array" /*=====, "./api/Store" =====*/
-], function(kernel, lang, Deferred, array /*=====, Store =====*/){
+define("dojo/store/Observable", ["../_base/kernel", "../_base/lang", "../when", "../_base/array" /*=====, "./api/Store" =====*/
+], function(kernel, lang, when, array /*=====, Store =====*/){
 
 // module:
 //		dojo/store/Observable
@@ -62,7 +62,7 @@ var Observable = function(/*Store*/ store){
 				if(listeners.push(listener) == 1){
 					// first listener was added, create the query checker and updater
 					queryUpdaters.push(queryUpdater = function(changed, existingId){
-						Deferred.when(results, function(resultsArray){
+						when(results, function(resultsArray){
 							var atEnd = resultsArray.length != options.count;
 							var i, l, listener;
 							if(++queryRevision != revision){
@@ -71,9 +71,14 @@ var Observable = function(/*Store*/ store){
 							var removedObject, removedFrom = -1, insertedInto = -1;
 							if(existingId !== undef){
 								// remove the old one
+								var filteredArray = [].concat(resultsArray);
+								if(queryExecutor && !changed){
+									filteredArray = queryExecutor(resultsArray);
+								}
 								for(i = 0, l = resultsArray.length; i < l; i++){
 									var object = resultsArray[i];
 									if(store.getIdentity(object) == existingId){
+										if(filteredArray.indexOf(object)<0) continue;
 										removedObject = object;
 										removedFrom = i;
 										if(queryExecutor || !changed){// if it was changed and we don't have a queryExecutor, we shouldn't remove it because updated objects would be eliminated
@@ -94,7 +99,7 @@ var Observable = function(/*Store*/ store){
 										resultsArray.length;
 									resultsArray.splice(firstInsertedInto, 0, changed); // add the new item
 									insertedInto = array.indexOf(queryExecutor(resultsArray), changed); // sort it
-									// we now need to push the chagne back into the original results array
+									// we now need to push the change back into the original results array
 									resultsArray.splice(firstInsertedInto, 1); // remove the inserted item from the previous index
 									
 									if((options.start && insertedInto == 0) ||
@@ -150,6 +155,10 @@ var Observable = function(/*Store*/ store){
 		var original = store[method];
 		if(original){
 			store[method] = function(value){
+				var originalId;
+				if(method === 'put'){
+					originalId = store.getIdentity(value);
+				}
 				if(inMethod){
 					// if one method calls another (like add() calling put()) we don't want two events
 					return original.apply(this, arguments);
@@ -157,8 +166,8 @@ var Observable = function(/*Store*/ store){
 				inMethod = true;
 				try{
 					var results = original.apply(this, arguments);
-					Deferred.when(results, function(results){
-						action((typeof results == "object" && results) || value);
+					when(results, function(results){
+						action((typeof results == "object" && results) || value, originalId);
 					});
 					return results;
 				}finally{
@@ -168,8 +177,8 @@ var Observable = function(/*Store*/ store){
 		}
 	}
 	// monitor for updates by listening to these methods
-	whenFinished("put", function(object){
-		store.notify(object, store.getIdentity(object));
+	whenFinished("put", function(object, originalId){
+		store.notify(object, originalId);
 	});
 	whenFinished("add", function(object){
 		store.notify(object);

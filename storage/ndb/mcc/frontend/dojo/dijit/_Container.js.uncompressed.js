@@ -1,8 +1,9 @@
 define("dijit/_Container", [
 	"dojo/_base/array", // array.forEach array.indexOf
 	"dojo/_base/declare", // declare
-	"dojo/dom-construct" // domConstruct.place
-], function(array, declare, domConstruct){
+	"dojo/dom-construct", // domConstruct.place
+	"dojo/_base/kernel" // kernel.deprecated
+], function(array, declare, domConstruct, kernel){
 
 	// module:
 	//		dijit/_Container
@@ -14,7 +15,10 @@ define("dijit/_Container", [
 		buildRendering: function(){
 			this.inherited(arguments);
 			if(!this.containerNode){
-				// all widgets with descendants must set containerNode
+				// All widgets with descendants must set containerNode.
+				// NB: this code doesn't quite work right because for TabContainer it runs before
+				// _TemplatedMixin::buildRendering(), and thus
+				// sets this.containerNode to this.domNode, later to be overridden by the assignment in the template.
 				this.containerNode = this.domNode;
 			}
 		},
@@ -25,18 +29,28 @@ define("dijit/_Container", [
 			// description:
 			//		Inserts specified child widget's dom node as a child of this widget's
 			//		container node, and possibly does other processing (such as layout).
-			//
-			//		Functionality is undefined if this widget contains anything besides
-			//		a list of child widgets (ie, if it contains arbitrary non-widget HTML).
 
+			// I want to just call domConstruct.place(widget.domNode, this.containerNode, insertIndex), but the counting
+			// is thrown off by text nodes and comment nodes that show up when constructed by markup.
+			// In the future consider stripping those nodes on construction, either in the parser or this widget code.
 			var refNode = this.containerNode;
-			if(insertIndex && typeof insertIndex == "number"){
-				var children = this.getChildren();
-				if(children && children.length >= insertIndex){
-					refNode = children[insertIndex-1].domNode;
-					insertIndex = "after";
+			if(insertIndex > 0){
+				// Old-school way to get nth child; dojo.query would be easier but _Container was weened from dojo.query
+				// in #10087 to minimize download size.   Not sure if that's still and issue with new smaller dojo/query.
+				refNode = refNode.firstChild;
+				while(insertIndex > 0){
+					if(refNode.nodeType == 1){ insertIndex--; }
+					refNode = refNode.nextSibling;
+				}
+				if(refNode){
+					insertIndex = "before";
+				}else{
+					// to support addChild(child, n-1) where there are n children (should add child at end)
+					refNode = this.containerNode;
+					insertIndex = "last";
 				}
 			}
+
 			domConstruct.place(widget.domNode, refNode, insertIndex);
 
 			// If I've been started but the child widget hasn't been started,
@@ -81,7 +95,7 @@ define("dijit/_Container", [
 			// tags:
 			//		private
 			var children = this.getChildren(),
-				idx = array.indexOf(this.getChildren(), child);	// int
+				idx = array.indexOf(children, child);	// int
 			return children[idx + dir];
 		},
 

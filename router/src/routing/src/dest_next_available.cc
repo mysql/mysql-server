@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #include "dest_next_available.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
+#include "socket_operations.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -33,8 +35,9 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-int DestNextAvailable::get_server_socket(
-    std::chrono::milliseconds connect_timeout, int *error,
+stdx::expected<mysql_harness::socket_t, std::error_code>
+DestNextAvailable::get_server_socket(
+    std::chrono::milliseconds connect_timeout,
     mysql_harness::TCPAddress *address) noexcept {
   // Say for example, that we have three servers: A, B and C.
   // The active server should be failed-over in such fashion:
@@ -43,9 +46,11 @@ int DestNextAvailable::get_server_socket(
   //   up or not)
   //
   // This is what this function does.
+  //
+  std::error_code last_ec{};
 
   if (destinations_.empty()) {
-    return -1;
+    return stdx::make_unexpected(last_ec);
   }
 
   // We start the list at the currently available server
@@ -53,20 +58,17 @@ int DestNextAvailable::get_server_socket(
     auto addr = destinations_.at(i);
     log_debug("Trying server %s (index %lu)", addr.str().c_str(),
               static_cast<long unsigned>(i));  // 32bit Linux requires cast
-    auto sock = get_mysql_socket(addr, connect_timeout);
-    if (sock >= 0) {
+    auto sock_res = get_mysql_socket(addr, connect_timeout);
+    if (sock_res) {
       current_pos_ = i;
       if (address) *address = addr;
-      return sock;
+      return sock_res;
+    } else {
+      last_ec = sock_res.error();
     }
   }
 
-#ifndef _WIN32
-  *error = errno;
-#else
-  *error = WSAGetLastError();
-#endif
   current_pos_ = destinations_.size();  // so for(..) above will no longer try
                                         // to connect to a server
-  return -1;
+  return stdx::make_unexpected(last_ec);
 }

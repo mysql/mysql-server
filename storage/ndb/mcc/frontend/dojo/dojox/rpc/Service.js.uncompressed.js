@@ -105,7 +105,7 @@ dojo.declare("dojox.rpc.Service", null, {
 				for(i in args){
 					var found=false;
 					for(var j=0; j<parameters.length;j++){
-						if(parameters[i].name==i){ found=true; }
+						if(parameters[j].name==i){ found=true; }
 					}
 					if(!found){
 						delete args[i];

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -155,6 +155,7 @@ SET(DD_SOURCES
   dd/impl/system_views/collations.cc
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
+  dd/impl/system_views/columns_extensions.cc
   dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/enabled_roles.cc
   dd/impl/system_views/events.cc
@@ -180,11 +181,15 @@ SET(DD_SOURCES
   dd/impl/system_views/st_units_of_measure.cc
   dd/impl/system_views/st_geometry_columns.cc
   dd/impl/system_views/tables.cc
+  dd/impl/system_views/tables_extensions.cc
   dd/impl/system_views/table_constraints.cc
+  dd/impl/system_views/table_constraints_extensions.cc
+  dd/impl/system_views/tablespaces_extensions.cc
   dd/impl/system_views/triggers.cc
   dd/impl/system_views/view_routine_usage.cc
   dd/impl/system_views/view_table_usage.cc
   dd/impl/system_views/views.cc
+  dd/impl/system_views/user_attributes.cc
 
   dd/impl/tables/character_sets.cc
   dd/impl/tables/check_constraints.cc
@@ -539,6 +544,10 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  ssl_acceptor_context_iterator.cc
+  ssl_acceptor_context_data.cc
+  ssl_acceptor_context_operator.cc
+  ssl_init_callback.cc
   stateless_allocator.cc
   strfunc.cc
   sys_vars.cc
@@ -558,7 +567,6 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
-  ssl_acceptor_context.cc
 )
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>
@@ -737,13 +745,13 @@ IF(WIN32)
     COMPILE_FLAGS "/bigobj")
 ENDIF()
 
-# Downgrade -Werror to warning for gcc 8.2.x
+# Downgrade -Werror to warning for gcc <= 8.2.x
 IF(MY_COMPILER_IS_GNU
-    AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.2
     AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.3)
   MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
     ADD_COMPILE_FLAGS(
+      geometry_rtree.cc
       item_geofunc_relchecks_bgwrap.cc
       COMPILE_FLAGS ${HAS_WARN_FLAG}
       )
@@ -865,6 +873,7 @@ SET(BINLOG_SOURCE
   rpl_filter.cc
   rpl_gtid_execution.cc
   rpl_gtid_misc.cc
+  rpl_gtid_mode.cc
   rpl_gtid_mutex_cond_array.cc
   rpl_gtid_owned.cc
   rpl_gtid_persist.cc
@@ -900,6 +909,7 @@ SET (SLAVE_SOURCE
   dynamic_ids.cc
   rpl_applier_reader.cc
   rpl_channel_service_interface.cc
+  rpl_channel_credentials.cc
   rpl_info.cc
   rpl_info_dummy.cc
   rpl_info_factory.cc
@@ -1024,6 +1034,21 @@ SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl master slave sql_dd mysys
   minchassis binlogevents_static ${ICU_LIBRARIES})
+
+# Add dependency on ldap library, to ensure it is not unloaded
+# when we shutdown the authentication plugin.
+# For Valgrind, we need it to enable our suppressions.
+# For OpenSSL in the 1.0.x series, we need it for clean shutdown.
+IF(WITH_VALGRIND)
+  SET(LINK_MYSQLD_LDAP_LIBRARY 1)
+ENDIF()
+IF(WITH_SSL STREQUAL "system" AND
+    "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}" VERSION_LESS "1.1")
+  SET(LINK_MYSQLD_LDAP_LIBRARY 1)
+ENDIF()
+IF(WITH_AUTHENTICATION_LDAP AND LINK_MYSQLD_LDAP_LIBRARY)
+  TARGET_LINK_LIBRARIES(mysqld ${LDAP_LIBRARY})
+ENDIF()
 
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")

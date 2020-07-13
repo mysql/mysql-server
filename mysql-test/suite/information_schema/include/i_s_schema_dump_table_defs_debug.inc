@@ -1,22 +1,8 @@
---echo ########################################################################
---echo # Verify the IS_VERSION and the CREATE VIEW statements of the
---echo # I_S system view.
---echo ########################################################################
-
 --source include/have_debug.inc
-SET debug = '+d,skip_dd_table_access_check,fetch_system_view_definition';
+SET debug = '+d,fetch_system_view_definition';
 
 --echo ########################################################################
---echo # The actual I_S version stored on disk.
---echo ########################################################################
-let $str = `SELECT SUBSTRING_INDEX(SUBSTRING(properties,
-              LOCATE('IS_VERSION', properties), 30), ';', 1)
-              AS I_S_VERSION
-              FROM mysql.dd_properties`;
---source include/write_line.inc
-
---echo ########################################################################
---echo # List the CREATE VIEW statements for the I_S system views.
+--echo # Verify all the CREATE VIEW statements of the I_S system view.
 --echo # Mask collations that depend on the lower case table names setting.
 --echo ########################################################################
 
@@ -60,6 +46,12 @@ eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
 let $WHERE_COND = AND TABLE_NAME='COLUMNS';
 replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='COLUMNS_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
@@ -189,8 +181,26 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='TABLE_CONSTRAINTS_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 let $WHERE_COND = AND TABLE_NAME='TABLES';
 replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='TABLES_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='TABLESPACES_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
@@ -251,5 +261,9 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
-SET debug = '-d,skip_dd_table_access_check';
+let $WHERE_COND = AND TABLE_NAME='USER_ATTRIBUTES';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ('$str');
+
 SET debug = '-d,fetch_system_view_definition';

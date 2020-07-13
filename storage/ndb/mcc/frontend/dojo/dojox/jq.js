@@ -296,7 +296,7 @@ return obj;
 }
 var _62={};
 for(var x in _61){
-if((_62[x]===undefined||_62[x]!=_61[x])&&_61[x]!==undefined&&obj!=_61[x]){
+if(x!=="__proto__ "&&((_62[x]===undefined||_62[x]!=_61[x]))&&_61[x]!==undefined&&obj!=_61[x]){
 if(_1.isObject(obj[x])&&_1.isObject(_61[x])){
 if(_1.isArray(_61[x])){
 obj[x]=_61[x];

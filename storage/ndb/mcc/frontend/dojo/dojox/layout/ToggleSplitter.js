@@ -29,6 +29,7 @@ this.inherited(arguments);
 }
 if(_a.charCode==_1.keys.SPACE||_a.keyCode==_1.keys.ENTER){
 this._toggle(_a);
+_1.stopEvent(_a);
 }
 },_onToggleNodeMouseDown:function(_b){
 _1.stopEvent(_b);

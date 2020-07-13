@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 enum status_severity { STATUS_VERBOSE, STATUS_INFO, STATUS_ERR };
 
-#define SHUTTING_DOWN() (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN() (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP)
 
 /* Flags that tell the buffer pool dump/load thread which action should it
 take after being waked up. */
@@ -191,15 +191,8 @@ void buf_dump_generate_path(char *path, size_t path_size) {
   snprintf(buf, sizeof(buf), "%s%c%s", get_buf_dump_dir(), OS_PATH_SEPARATOR,
            srv_buf_dump_filename);
 
-  os_file_type_t type;
-  bool exists = false;
-  bool ret;
-
-  ret = os_file_status(buf, &exists, &type);
-
-  /* For realpath() to succeed the file must exist. */
-
-  if (ret && exists) {
+  /* Use this file if it exists. */
+  if (os_file_exists(buf)) {
     /* my_realpath() assumes the destination buffer is big enough
     to hold FN_REFLEN bytes. */
     ut_a(path_size >= FN_REFLEN);

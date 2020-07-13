@@ -23,7 +23,7 @@
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The group name '' is not a valid UUID");
+call mtr.add_suppression("The group_replication_group_name '' is not a valid UUID");
 call mtr.add_suppression("Unable to start Group Replication on boot");
 SET SESSION sql_log_bin= 1;
 

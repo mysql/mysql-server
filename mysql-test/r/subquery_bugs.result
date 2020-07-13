@@ -87,7 +87,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.table2.col_int' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.table2.col_int_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `field1` from `test`.`t2` `sq1_t2` left join `test`.`t1` `sq1_t1` on((`test`.`sq1_t1`.`col_varchar` = `test`.`sq1_t2`.`col_varchar_key`)) left join (`test`.`t2` `table3` join `test`.`t1` `table2`) on(((`test`.`table3`.`pk` = `test`.`table2`.`col_int_key`) and (`test`.`table3`.`col_int_key` = `test`.`table2`.`col_int`))) where <not>(<in_optimizer>(`test`.`table3`.`col_int_key`,<exists>(/* select#3 */ select 1 from `test`.`t2` `sq2_t1` straight_join `test`.`t3` `sq2_t2` semi join (`test`.`t2` `sq21_t1` straight_join `test`.`t1` `sq21_t2`) where ((`test`.`sq2_t2`.`col_int` = `test`.`sq2_t1`.`pk`) and (`test`.`sq2_t1`.`col_varchar` = `<subquery4>`.`sq21_field1`) and (`test`.`sq21_t1`.`pk` = 7) and (`test`.`sq21_t2`.`col_int_key` = 7) and (`test`.`sq2_t2`.`col_int_key` >= `test`.`table2`.`col_int`) and (`test`.`sq2_t1`.`col_int_key` <= `test`.`table2`.`col_int_key`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`table3`.`col_int_key`) < `test`.`sq2_t1`.`col_int`) or (`test`.`sq2_t1`.`col_int` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`sq2_t1`.`col_int`), true))))
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `field1` from `test`.`t2` `sq1_t2` left join `test`.`t1` `sq1_t1` on((`test`.`sq1_t1`.`col_varchar` = `test`.`sq1_t2`.`col_varchar_key`)) left join (`test`.`t2` `table3` join `test`.`t1` `table2`) on(((`test`.`table3`.`pk` = `test`.`table2`.`col_int_key`) and (`test`.`table3`.`col_int_key` = `test`.`table2`.`col_int`))) where <not>(<in_optimizer>(`test`.`table3`.`col_int_key`,<exists>(/* select#3 */ select `test`.`sq2_t1`.`col_int` AS `sq2_field1` from `test`.`t2` `sq2_t1` straight_join `test`.`t3` `sq2_t2` semi join (`test`.`t2` `sq21_t1` straight_join `test`.`t1` `sq21_t2`) where ((`test`.`sq2_t2`.`col_int` = `test`.`sq2_t1`.`pk`) and (`test`.`sq2_t1`.`col_varchar` = `<subquery4>`.`sq21_field1`) and (`test`.`sq21_t1`.`pk` = 7) and (`test`.`sq21_t2`.`col_int_key` = 7) and (`test`.`sq2_t2`.`col_int_key` >= `test`.`table2`.`col_int`) and (`test`.`sq2_t1`.`col_int_key` <= `test`.`table2`.`col_int_key`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`table3`.`col_int_key`) < `test`.`sq2_t1`.`col_int`) or (`test`.`sq2_t1`.`col_int` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`sq2_t1`.`col_int`), true))))
 SELECT table2.col_int_key AS field1
 FROM (SELECT sq1_t1.*
 FROM t1 AS sq1_t1 RIGHT OUTER JOIN t2 AS sq1_t2
@@ -564,7 +564,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 3	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (`test`.`t1`) where ((`test`.`t1`.`col_varchar_key` = `test`.`t1`.`col_varchar_key`) and (`test`.`t1`.`col_varchar_key` = (/* select#3 */ select `test`.`t1`.`col_varchar_key` from `test`.`t1` where (`test`.`t1`.`col_varchar_key` = rand()))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (`test`.`t1`) where ((`test`.`t1`.`col_varchar_key` = `test`.`t1`.`col_varchar_key`) and (`test`.`t1`.`col_varchar_key` = (/* select#3 */ select `test`.`t1`.`col_varchar_key` from `test`.`t1` where (cast(`test`.`t1`.`col_varchar_key` as double) = rand()))))
 SELECT *
 FROM t1
 WHERE col_varchar_key IN
@@ -917,7 +917,7 @@ EXPLAIN
     -> Nested loop inner join  (cost=1.05 rows=1)
         -> Nested loop inner join  (cost=0.70 rows=1)
             -> Index scan on t1 using f2_idx  (cost=0.35 rows=1)
-            -> Filter: (t2.f1 > table1.f2)  (cost=0.35 rows=1)
+            -> Filter: (cast(t2.f1 as double) > cast(table1.f2 as double))  (cost=0.35 rows=1)
                 -> Index range scan on t2 (re-planned for each iteration)  (cost=0.35 rows=1)
         -> Index lookup on t3 using f2_idx (f2=t2.f2)  (cost=0.35 rows=1)
 
@@ -1055,16 +1055,7 @@ SELECT t2.f2 FROM t2 WHERE t3.f3 = 1 HAVING t2.f2 = 'xyz'
      )
 );
 EXPLAIN
--> Nested loop antijoin
-    -> Table scan on t1  (cost=0.55 rows=3)
-    -> Constant row from <subquery2>
-        -> Materialize with deduplication
-            -> Filter: <in_optimizer>('abc',<exists>(select #3))  (cost=1.60 rows=3)
-                -> Nested loop left join  (cost=1.60 rows=3)
-                    -> Table scan on t4  (cost=0.55 rows=3)
-                    -> Single-row index lookup on t3 using f3 (f3=t4.f4)  (cost=0.28 rows=1)
-                -> Select #3 (subquery in condition; dependent)
-                    -> Zero rows (Impossible HAVING)
+-> Table scan on t1  (cost=0.55 rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t3.f3' of SELECT #3 was resolved in SELECT #2
@@ -1287,6 +1278,53 @@ a	rn
 2	1
 DROP TABLE t;
 #
+# Verify that decorrelation works for WHERE outer_col=constant
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+CREATE TABLE t2 (a INTEGER);
+INSERT INTO t1 VALUES(1,10),(2,10),(3,30);
+INSERT INTO t2 VALUES(2),(3),(2),(4);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off,duplicateweedout=off';
+EXPLAIN SELECT * FROM t1 WHERE (t1.a,t1.b) IN (SELECT t2.a,10 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.a,test.t1.b	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`b` = 10) and (`<subquery2>`.`a` = `test`.`t1`.`a`))
+SELECT * FROM t1 WHERE (t1.a,t1.b) IN (SELECT t2.a,10 FROM t2);
+a	b
+2	10
+EXPLAIN SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE 10=t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.a,test.t1.b	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`b` = 10) and (`<subquery2>`.`a` = `test`.`t1`.`a`))
+SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE 10=t1.b);
+a	b
+2	10
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t2 WHERE 10=t1.b AND t1.a=t2.a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` = 10))
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t2 WHERE 10=t1.b AND t1.a=t2.a);
+a	b
+2	10
+DROP TABLE t1,t2;
+set optimizer_switch=default;
+#
 # Bug #30717861: WL#13377 REGRESSION, ITEM REFS ARE SUBSTITUTED TO REFER TABLES NOT YET AVAILABLE
 #
 CREATE TABLE t1 (
@@ -1362,7 +1400,7 @@ WHERE t2.col2 BETWEEN 2 AND 9
 );
 EXPLAIN
 -> Remove duplicate t1 rows using temporary table (weedout)  (cost=1.05 rows=1)
-    -> Filter: (t1.col1 = (t1.col1 + t2.col2))  (cost=1.05 rows=1)
+    -> Filter: (cast(t1.col1 as double) = (t1.col1 + t2.col2))  (cost=1.05 rows=1)
         -> Inner hash join (no condition)  (cost=1.05 rows=1)
             -> Index scan on t1 using col1_idx  (cost=0.35 rows=1)
             -> Hash
@@ -1465,7 +1503,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	sq1_t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(sq2_t3)
 Warnings:
 Note	1276	Field or reference 'test.table1.col_tinyint_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select count(`test`.`table1`.`col_datetime`) AS `field1` from `test`.`t1` `table2` join `test`.`t1` `table1` where ((<in_optimizer>(`test`.`table1`.`col_char_key`,<exists>(/* select#2 */ select 1 from `test`.`t2` `sq2_t1` join `test`.`t3` `sq2_t2` join `test`.`t1` `sq2_t3` semi join (`test`.`t1` `sq1_t1` join `test`.`t1` `sq1_t2`) where ((`test`.`sq2_t3`.`col_varchar_key` = `test`.`sq2_t2`.`col_varchar_key`) and (<cache>(`test`.`table1`.`col_char_key`) = `test`.`sq2_t1`.`col_real_key`) and (`test`.`sq2_t1`.`col_mediumint` = `test`.`sq1_t1`.`col_varchar_key`) and (`test`.`table1`.`col_tinyint_key` = `test`.`sq1_t2`.`col_tinyint_key`) and (locate('K',`test`.`sq2_t3`.`col_tinyint`) = `test`.`sq2_t2`.`col_varchar`)))) or (rtrim(`test`.`table1`.`col_tinyint_key`) is not null)) and (`test`.`table1`.`col_varchar_key` = `test`.`table2`.`col_char`))
+Note	1003	/* select#1 */ select count(`test`.`table1`.`col_datetime`) AS `field1` from `test`.`t1` `table2` join `test`.`t1` `table1` where ((<in_optimizer>(`test`.`table1`.`col_char_key`,<exists>(/* select#2 */ select `test`.`sq2_t1`.`col_real_key` from `test`.`t2` `sq2_t1` join `test`.`t3` `sq2_t2` join `test`.`t1` `sq2_t3` semi join (`test`.`t1` `sq1_t1` join `test`.`t1` `sq1_t2`) where ((`test`.`sq2_t3`.`col_varchar_key` = `test`.`sq2_t2`.`col_varchar_key`) and (<cache>(`test`.`table1`.`col_char_key`) = `test`.`sq2_t1`.`col_real_key`) and (cast(`test`.`sq2_t1`.`col_mediumint` as double) = cast(`test`.`sq1_t1`.`col_varchar_key` as double)) and (`test`.`table1`.`col_tinyint_key` = `test`.`sq1_t2`.`col_tinyint_key`) and (cast(locate('K',`test`.`sq2_t3`.`col_tinyint`) as double) = cast(`test`.`sq2_t2`.`col_varchar` as double))))) or (rtrim(`test`.`table1`.`col_tinyint_key`) is not null)) and (`test`.`table1`.`col_varchar_key` = `test`.`table2`.`col_char`))
 SELECT COUNT(table1.col_datetime) AS field1
 FROM t1 AS table1 RIGHT JOIN t1 AS table2
 ON table1.col_varchar_key = table2.col_char

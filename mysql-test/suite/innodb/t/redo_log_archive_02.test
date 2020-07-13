@@ -5,6 +5,8 @@
 --disable_query_log
 # When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
 --enable_query_log
 
 --let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
@@ -381,6 +383,35 @@ WHILE($i > 0) {
   --remove_file $IRLA_PATHNAME_1
   --dec $i
 }
+--echo
+
+--echo #
+--echo # Try to disable redo logging from other session.
+--echo #
+DO innodb_redo_log_archive_start('label1');
+--echo
+--error ER_INNODB_REDO_ARCHIVING_ENABLED
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+DO innodb_redo_log_archive_stop();
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Try to start redo archiving when Innodb  redo logging is diabled
+--echo #
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
+--echo
+--error ER_INNODB_REDO_DISABLED
+DO innodb_redo_log_archive_start('label1');
+--echo
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+--echo
+SELECT * FROM performance_schema.global_status WHERE variable_name like 'Innodb_redo_log_enabled';
 --echo
 
 --echo #

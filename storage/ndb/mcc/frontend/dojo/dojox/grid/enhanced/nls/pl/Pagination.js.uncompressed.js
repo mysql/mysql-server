@@ -6,7 +6,7 @@ define(
 	"nextTip": "Następna strona",
 	"prevTip": "Poprzednia strona",
 	"itemTitle": "elementy",
-	"singularItemTitle": "item",
+	"singularItemTitle": "element",
 	"pageStepLabelTemplate": "Strona ${0}",
 	"pageSizeLabelTemplate": "Liczba elementów na stronę: ${0}",
 	"allItemsLabelTemplate": "Wszystkie elementy",

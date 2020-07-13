@@ -129,7 +129,7 @@ if(this.comparative){
 var nm="default";
 this.seriesData[nm]=[];
 this.seriesDataBk[nm]=[];
-_6.forEach(_1a,function(m,i){
+_6.forEach(_1a,function(m){
 var _1b=this.getProperty(m,this.fieldName);
 this.seriesData[nm].push(_1b);
 },this);

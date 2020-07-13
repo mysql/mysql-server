@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,10 @@ SET(TESTS
   test_mysqlrouter_app.cc
   test_mysqlrouter_utils.cc
   )
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM TESTS test_mysqlrouter_app.cc)
+ENDIF()
 
 FOREACH(TEST_FILE ${TESTS})
   ADD_TEST_FILE(${TEST_FILE}

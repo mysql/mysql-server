@@ -3,12 +3,8 @@ define("dojox/treemap/Keyboard",["dojo/_base/array","dojo/_base/lang","dojo/_bas
 return _4("dojox.treemap.Keyboard",_8,{tabIndex:"0",_setTabIndexAttr:"domNode",constructor:function(){
 },postCreate:function(){
 this.inherited(arguments);
-this._keyDownHandle=on(this.domNode,"keydown",_2.hitch(this,this._onKeyDown));
-this._mouseDownHandle=on(this.domNode,"mousedown",_2.hitch(this,this._onMouseDown));
-},destroy:function(){
-this.inherited(arguments);
-this._keyDownHandle.remove();
-this._mouseDownHandle.remove();
+this.own(on(this.domNode,"keydown",_2.hitch(this,this._onKeyDown)));
+this.own(on(this.domNode,"mousedown",_2.hitch(this,this._onMouseDown)));
 },createRenderer:function(_9,_a,_b){
 var _c=this.inherited(arguments);
 _6.set(_c,"tabindex","-1");

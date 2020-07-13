@@ -616,3 +616,26 @@ ALTER TABLESPACE ts1 RENAME TO ts11;
 SELECT NAME FROM information_schema.INNODB_TABLESPACES WHERE NAME LIKE 'ts11';
 NAME	ts11
 DROP TABLESPACE ts11;
+#
+# WL#13341: Store options for secondary engines.
+# Testing engine and secondary engine attributes on tablespaces.
+#
+CREATE TABLESPACE ts1 ENGINE_ATTRIBUTE='';
+CREATE TABLESPACE ts2 ENGINE_ATTRIBUTE='{"c": "v"}';
+SELECT * FROM information_schema.tablespaces_extensions WHERE tablespace_name = 'ts2';
+TABLESPACE_NAME	ENGINE_ATTRIBUTE
+ts2	{"c": "v"}
+CREATE TABLESPACE ts3 ENGINE_ATTRIBUTE='{"c": v}';
+ERROR HY000: Invalid json attribute, error: "Invalid value." at pos 6: 'v}'
+ALTER TABLESPACE ts1 ENGINE_ATTRIBUTE='{"foo": "bar}';
+ERROR HY000: Invalid json attribute, error: "Missing a closing quotation mark in string." at pos 13: ''
+ALTER TABLESPACE ts1 ENGINE_ATTRIBUTE='{"foo": "bar"}';
+SELECT * FROM information_schema.tablespaces_extensions WHERE tablespace_name = 'ts1';
+TABLESPACE_NAME	ENGINE_ATTRIBUTE
+ts1	{"foo": "bar"}
+ALTER TABLESPACE ts1 RENAME TO ts11;
+SELECT * FROM information_schema.tablespaces_extensions WHERE tablespace_name = 'ts11';
+TABLESPACE_NAME	ENGINE_ATTRIBUTE
+ts11	{"foo": "bar"}
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts11;

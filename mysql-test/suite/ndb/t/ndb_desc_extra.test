@@ -1,0 +1,100 @@
+-- source include/have_ndb.inc
+
+#
+# Test showing extra ndb_desc options :
+#   -a --autoinc
+#     Show next stored autoincrement value for the table
+#
+#   -x --context
+#     Show table context info (database, schema, name and id)
+#
+
+--disable_query_log
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
+--enable_query_log
+
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+create table test.t2 (a int primary key, b int) engine=ndb;
+
+--echo Table with auto-inc, initial value
+--let $ndb_desc_opts= -a -x -dtest t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+insert into test.t1 (b) values (888);
+select * from test.t1 order by a;
+
+--echo Table with auto-inc, new value
+--let $ndb_desc_opts= -a -x -dtest t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+insert into test.t1 (a,b) values (12345, 888);
+select * from test.t1 order by a;
+
+--echo Table with auto-inc, forced value
+--let $ndb_desc_opts= -a -x -dtest t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+insert into test.t1 (b) values (888);
+select * from test.t1 order by a;
+
+--echo Table with auto-inc, next value after forced
+--let $ndb_desc_opts= -a -x -dtest t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+drop table test.t1;
+create table test.t1 (a int auto_increment primary key, b int) engine=ndb;
+
+--echo Re-created table with auto-inc, initial value
+--let $ndb_desc_opts= -a -x -dtest t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+drop table test.t1;
+create table test.t1 (a int primary key, b int) engine=ndb;
+
+--echo Re-created table with no auto-inc key
+--let $ndb_desc_opts= -a -x -dtest t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+
+--echo Table with no auto-inc
+--let $ndb_desc_opts= -a -x -dtest t2
+
+drop table test.t1;
+drop table test.t2;
+
+--echo Show behaviour with a larger autoinc prefetch size
+set ndb_autoincrement_prefetch_sz = 8;
+
+create table test.t3 (a int auto_increment primary key, b int) engine=ndb;
+
+--echo Initial value : 1
+--let $ndb_desc_opts= -a -x -dtest t3
+--source suite/ndb/include/ndb_desc_print.inc
+
+insert into test.t3 (b) values (1);
+select * from test.t3 order by a;
+
+--echo After 1 insertion : 1 + 8 = 9
+--let $ndb_desc_opts= -a -x -dtest t3
+--source suite/ndb/include/ndb_desc_print.inc
+
+insert into test.t3 (b) values (1), (1), (1), (1), (1), (1), (1);
+select * from test.t3 order by a;
+
+--echo After 8 insertions : Still 9
+--let $ndb_desc_opts= -a -x -dtest t3
+--source suite/ndb/include/ndb_desc_print.inc
+
+insert into test.t3 (b) values (1);
+select * from test.t3 order by a;
+
+--echo After 9 insertions : 9 + 8 = 17
+--let $ndb_desc_opts= -a -x -dtest t3
+--source suite/ndb/include/ndb_desc_print.inc
+
+drop table test.t3;
+
+--disable_query_log
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+--enable_query_log

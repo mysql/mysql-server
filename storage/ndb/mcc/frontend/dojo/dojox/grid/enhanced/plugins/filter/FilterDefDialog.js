@@ -431,7 +431,7 @@ delete this._curValueBox;
 var _62=this.dlg._dataTypeMap[_61].valueBoxCls[this._getValueBoxClsInfo(this._colSelect.get("value"),_61)],_63=this._getValueBoxArgByType(_61);
 this._curValueBox=this[this._isRange?"_createRangeBox":"_createValueBox"](_62,_63);
 this.valueNode.appendChild(this._curValueBox.domNode);
-this._curValueBox.domNode.setAttribute("aria-label",_9.substitute(this.plugin.nls.waiValueBoxTemplate,[this._index]));
+this._curValueBox.focusNode.setAttribute("aria-label",_9.substitute(this.plugin.nls.waiValueBoxTemplate,[this._index]));
 this.dlg.onRendered(this);
 },_getValueBoxArgByType:function(_64){
 var g=this.plugin.grid,_65=g.layout.cells[parseInt(this._colSelect.get("value"),10)],res={cbox:this};

@@ -81,7 +81,8 @@ class FailoverTest : public ::testing::Test {
         "@@SESSION.character_set_results=utf8, "
         "@@SESSION.character_set_connection=utf8, "
         "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
-        "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
+        "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', "
+        "@@SESSION.optimizer_switch='derived_merge=on'");
     m.then_ok();
     m.expect_execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
     m.then_ok();
@@ -95,8 +96,7 @@ class FailoverTest : public ::testing::Test {
                           m.string_or_null("1")},
                      });
     m.expect_query(
-        "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, "
+        "SELECT R.replicaset_name, I.mysql_server_uuid, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
@@ -107,21 +107,18 @@ class FailoverTest : public ::testing::Test {
         "'3e4338a1-2c5d-49ac-8baa-e5a25ba61e76'");
     m.then_return(
         7,
-        {// replicaset_name, mysql_server_uuid, role, weight, version_token,
+        {// replicaset_name, mysql_server_uuid,
          // location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
          {m.string_or_null("default"),
           m.string_or_null("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
          {m.string_or_null("default"),
           m.string_or_null("8148cba4-2ad5-456e-a04e-2ba73eb10cc5"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
          {m.string_or_null("default"),
           m.string_or_null("f0a2079f-8b90-4324-9eec-a0496c4338e0"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
 

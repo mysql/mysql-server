@@ -234,8 +234,8 @@ int table_ees_by_user_by_error::read_row_values(TABLE *table,
   }
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
           m_row.m_user.set_field(f);
           break;
@@ -247,7 +247,7 @@ int table_ees_by_user_by_error::read_row_values(TABLE *table,
         case 6: /* FIRST_SEEN */
         case 7: /* LAST_SEEN */
           /** ERROR STATS */
-          m_row.m_stat.set_field(f->field_index - 1, f, temp_error);
+          m_row.m_stat.set_field(f->field_index() - 1, f, temp_error);
           break;
         default:
           /** We should never reach here */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,9 @@ bool Spatial_reference_system_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
+static_assert(Spatial_reference_systems::NUMBER_OF_FIELDS == 10,
+              "Spatial_reference_systems definition has changed, check if "
+              "serialize() and deserialize() need to be updated!");
 void Spatial_reference_system_impl::serialize(Sdi_wcontext *wctx,
                                               Sdi_writer *w) const {
   w->StartObject();

@@ -40,7 +40,7 @@ while ($wait_seconds)
     }
     if (!$success_wait)
     {
-        real_sleep 0.1;
+        sleep 0.1;
     }
     dec $repeat;
   }

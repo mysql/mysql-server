@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -171,6 +171,7 @@ class ConfigGenerator {
     Endpoint ro_x_endpoint;
 
     std::string override_logdir;
+    std::string override_logfilename;
     std::string override_rundir;
     std::string override_datadir;
     std::string socketsdir;

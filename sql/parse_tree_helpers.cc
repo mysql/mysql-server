@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "sql/derror.h"
 #include "sql/handler.h"
 #include "sql/mysqld.h"
+#include "sql/parse_tree_column_attrs.h"
 #include "sql/parse_tree_nodes.h"
 #include "sql/resourcegroups/platform/thread_attrs_api.h"
 #include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
@@ -523,4 +524,9 @@ bool check_resource_group_name_len(
                         ER_THD(current_thd, ER_TOO_LONG_IDENT), name.str);
   }
   return true;
+}
+
+void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc) {
+  Table_ddl_parse_context *tpc = static_cast<Table_ddl_parse_context *>(tddlpc);
+  tpc->alter_info->cf_appliers = std::move(cpc->cf_appliers);
 }

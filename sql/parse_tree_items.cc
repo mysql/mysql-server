@@ -161,18 +161,6 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   return result;
 }
 
-bool PTI_table_wild::itemize(Parse_context *pc, Item **item) {
-  if (super::itemize(pc, item)) return true;
-
-  schema = pc->thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA)
-               ? nullptr
-               : schema;
-  *item = new (pc->mem_root) Item_field(POS(), schema, table, "*");
-  if (*item == nullptr || (*item)->itemize(pc, item)) return true;
-  pc->select->with_wild++;
-  return false;
-}
-
 bool PTI_comp_op::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res) || left->itemize(pc, &left) ||
       right->itemize(pc, &right))

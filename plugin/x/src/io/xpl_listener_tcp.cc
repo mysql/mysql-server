@@ -250,7 +250,7 @@ class Tcp_creator {
 };
 
 Listener_tcp::Listener_tcp(Factory_ptr operations_factory,
-                           std::string &bind_address,
+                           const std::string &bind_address,
                            const std::string &network_namespace,
                            const uint16_t port,
                            const uint32_t port_open_timeout,
@@ -270,27 +270,15 @@ Listener_tcp::~Listener_tcp() {
   close_listener();
 }
 
-Listener_tcp::Sync_variable_state &Listener_tcp::get_state() { return m_state; }
+void Listener_tcp::set_state(const State state) { m_state.set(state); }
 
-std::string Listener_tcp::get_last_error() const { return m_last_error; }
-
-std::string Listener_tcp::get_name_and_configuration() const {
-  return String_formatter()
-      .append("bind-address: '")
-      .append(m_bind_address)
-      .append("' ")
-      .append("port: ")
-      .append(m_port)
-      .get_result();
+const Listener_tcp::Sync_variable_state &Listener_tcp::get_state() const {
+  return m_state;
 }
 
-std::vector<std::string> Listener_tcp::get_configuration_variables() const {
-  std::vector<std::string> result;
-
-  result.push_back(MYSQLX_SYSTEM_VARIABLE_PREFIX("port"));
-  result.push_back(MYSQLX_SYSTEM_VARIABLE_PREFIX("bind_address"));
-
-  return result;
+std::string Listener_tcp::get_configuration_variable() const {
+  return std::string(MYSQLX_SYSTEM_VARIABLE_PREFIX("port")) + "," +
+         MYSQLX_SYSTEM_VARIABLE_PREFIX("bind_address");
 }
 
 bool Listener_tcp::setup_listener(On_connection on_connection) {
@@ -410,6 +398,25 @@ void Listener_tcp::report_properties(On_report_properties on_prop) {
 
   on_prop(ngs::Server_property_ids::k_tcp_port,
           choose_property_value(std::to_string(m_port)));
+}
+
+bool Listener_tcp::report_status() const {
+  const std::string name = m_network_namespace.empty()
+                               ? m_bind_address
+                               : m_bind_address + '/' + m_network_namespace;
+
+  const std::string msg =
+      "bind-address: '" + name + "' port: " + std::to_string(m_port);
+
+  if (m_state.is(State::k_prepared)) {
+    log_info(ER_XPLUGIN_LISTENER_STATUS_MSG, msg.c_str());
+    return true;
+  }
+
+  log_error(ER_XPLUGIN_LISTENER_SETUP_FAILED, msg.c_str(),
+            m_last_error.c_str());
+  log_error(ER_XPLUGIN_FAILED_TO_BIND_INTERFACE_ADDRESS, name.c_str());
+  return false;
 }
 
 }  // namespace xpl

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,9 @@
 
 #include <stddef.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/simset.h"
+#include "xcom/xcom_profile.h"
+#include "xdr_gen/xcom_vp.h"
 
 /*
 We require that the number of elements in the cache is big enough enough that
@@ -44,8 +41,8 @@ involved. However, for the time being, proposing a no_op for an instance
 will not mark it as busy. This may change in the future, so a safe upper
 limit on the number of nodes marked as busy is event_horizon * NSERVERS.
 */
-#define MIN_LENGTH 250000     // Also Default value
-#define INCREMENT MIN_LENGTH  // Total number of slots to add/remove
+#define MIN_LENGTH MIN_CACHE_SIZE /* Also Default value */
+#define INCREMENT MIN_LENGTH      /* Total number of slots to add/remove */
 
 #define is_cached(x) (hash_get(x) != NULL)
 
@@ -113,19 +110,19 @@ size_t pax_machine_size(pax_machine const *p);
 synode_no cache_get_last_removed();
 
 void init_cache_size();
-size_t add_cache_size(pax_machine *p);
-size_t sub_cache_size(pax_machine *p);
+uint64_t add_cache_size(pax_machine *p);
+uint64_t sub_cache_size(pax_machine *p);
 int above_cache_limit();
-size_t set_max_cache_size(uint64_t x);
+uint64_t set_max_cache_size(uint64_t x);
 int was_removed_from_cache(synode_no x);
 uint16_t check_decrease();
 void do_cache_maintenance();
 
-// Unit testing
-#define DEC_THRESHOLD_LENGTH 500000  // MIN_LENGTH * 10
-#define MIN_TARGET_OCCUPATION 0.7
-#define DEC_THRESHOLD_SIZE 0.95
-#define MIN_LENGTH_THRESHOLD 0.9
+/* Unit testing */
+#define DEC_THRESHOLD_LENGTH 500000 /* MIN_LENGTH * 10 */
+#define MIN_TARGET_OCCUPATION 0.7F
+#define DEC_THRESHOLD_SIZE 0.95F
+#define MIN_LENGTH_THRESHOLD 0.9F
 
 uint64_t get_xcom_cache_occupation();
 uint64_t get_xcom_cache_length();
@@ -146,8 +143,8 @@ int psi_report_mem_alloc(size_t size);
 #define psi_set_cache_resetting(x) \
   do {                             \
   } while (0)
-#define psi_report_cache_shutdown(x) \
-  do {                               \
+#define psi_report_cache_shutdown() \
+  do {                              \
   } while (0)
 #define psi_report_mem_free(x) \
   do {                         \
@@ -157,8 +154,13 @@ int psi_report_mem_alloc(size_t size);
   } while (0)
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+enum {
+  CACHE_SHRINK_OK = 0,
+  CACHE_TOO_SMALL = 1,
+  CACHE_HASH_NOTEMPTY = 2,
+  CACHE_HIGH_OCCUPATION = 3,
+  CACHE_RESULT_LOW = 4,
+  CACHE_INCREASING = 5
+};
 
 #endif

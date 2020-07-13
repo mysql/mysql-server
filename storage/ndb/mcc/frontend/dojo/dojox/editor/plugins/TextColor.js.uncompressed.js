@@ -18,7 +18,8 @@ define("dojox/editor/plugins/TextColor", [
 ], function(dojo, dijit, dojox, popup, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, _Plugin) {
 
 dojo.experimental("dojox.editor.plugins.TextColor");
-dojo.declare("dojox.editor.plugins._TextColorDropDown", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
+
+var TextColorDropDown = dojo.declare("dojox.editor.plugins._TextColorDropDown", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
 	// summary:
 	//		A sample widget that uses/creates a dropdown with a dojox.widget.ColorPicker.  Also provides
 	//		passthroughs to the value of the color picker and convenient hook points.
@@ -98,7 +99,7 @@ dojo.declare("dojox.editor.plugins._TextColorDropDown", [_Widget, _TemplatedMixi
 });
 
 
-dojo.declare("dojox.editor.plugins.TextColor", _Plugin, {
+var TextColor = dojo.declare("dojox.editor.plugins.TextColor", _Plugin, {
 	// summary:
 	//		This plugin provides dropdown color pickers for setting text color and background color
 	//		and makes use of the nicer-looking (though not entirely accessible), dojox.widget.ColorPicker.
@@ -116,7 +117,7 @@ dojo.declare("dojox.editor.plugins.TextColor", _Plugin, {
 	useDefaultCommand: false,
 
 	constructor: function(){
-		this._picker = new dojox.editor.plugins._TextColorDropDown();
+		this._picker = new TextColorDropDown();
 		dojo.body().appendChild(this._picker.domNode);
 		this._picker.startup();
 		this.dropDown = this._picker.dialog;
@@ -189,6 +190,9 @@ dojo.declare("dojox.editor.plugins.TextColor", _Plugin, {
 	}
 });
 
+// For monkey-patching
+TextColor._TextColorDropDown = TextColorDropDown;
+
 // Register this plugin.  Uses the same name as the dijit one, so you
 // use one or the other, not both.
 dojo.subscribe(dijit._scopeName + ".Editor.getPlugin", null, function(o){
@@ -198,12 +202,12 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin", null, function(o){
 	switch(o.args.name){
 		case "foreColor":
 		case "hiliteColor":
-			o.plugin = new dojox.editor.plugins.TextColor({
+			o.plugin = new TextColor({
 				command: o.args.name
 			});
 	}
 });
 
-return dojox.editor.plugins.TextColor;
+return TextColor;
 
 });

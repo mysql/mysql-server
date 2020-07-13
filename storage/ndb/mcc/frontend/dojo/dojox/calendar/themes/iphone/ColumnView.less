@@ -1,6 +1,6 @@
 @import "ColumnViewCommon.less";
 
-.dojoxCalendarColumnView {	
+.dojoxCalendarColumnView {
   cursor: default;
 	-webkit-user-select: none;
 }
@@ -26,7 +26,7 @@
 	border-bottom: @outer-border;
 	.border-box;
 }
-	
+
 .dojoxCalendarColumnView .dojoxCalendarGrid {
 	position: absolute;
 	left: @row-header-width;
@@ -43,25 +43,32 @@
 }
 
 .dojoxCalendarColumnView .dojoxCalendarGridTable td {
-	border-top: dotted 1px #B5BCC7;	
+	border-top: dotted 1px #B5BCC7;
 	border-right: @outer-border;
 	.border-box;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarGridTable .hour	{
+.dojoxCalendarColumnView td.hour {
 	border-top: @hour-stroke;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarGridTable tr:first-child td	{
-	border-top: 1px solid transparent;
-}
-
-.dojoxCalendarColumnView .dojoxCalendarGridTable .halfhour	{
+.dojoxCalendarColumnView td.halfhour{
 	border-top: @half-hour-stroke;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarGridTable .quarterhour	{
+.dojoxCalendarColumnView  td.quarterhour{
 	border-top: @quarter-hour-stroke;
+}
+
+.dojoxCalendarColumnView span.hour {
+	color: @label-color;
+	background-color: @row-color;
+}
+
+.claro .dojoxCalendarColumnView span.halfhour,
+.claro .dojoxCalendarColumnView span.quarterhour{
+	color: @secondary-label-color;
+	background-color: @row-color;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarContainer {
@@ -70,6 +77,18 @@
 	left: @row-header-width;
 	right: 0;
 	cursor: default;
+    
+	table {
+		background-color: transparent;
+
+		tr {
+			background-color: transparent;
+
+			td {
+				background-color: transparent;
+			}
+		}
+	}
 }
 
 .dojoxCalendarColumnView .dojoxCalendarContainerTable {
@@ -88,9 +107,26 @@
 }
 
 .dojoxCalendarColumnView .dojoxCalendarContainerColumn {
-	position:	relative;
-	margin-left: 0;
-	margin-right: 9px;
+	position: relative;
+	width:100%;
+}
+
+.dojoxCalendarColumnView .dojoxCalendarSubContainerColumn {
+	position: absolute;
+	top: 0;
+	box-sizing: border-box;
+	height:100%;
+}
+
+.dojoxCalendarColumnView .dojoxCalendarEventContainerColumn {
+	position: relative;
+	height:100%;
+	margin-left: 1px;
+	margin-right: 5px;
+}
+
+.dojoxCalendarColumnView  .dojoxCalendarSubContainerColumn.subColumn {
+	border-right: @sub-column-border;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarEventContainer {
@@ -104,7 +140,7 @@
 	height: @column-header-height;
 	left: 0;
 	width: @row-header-width;
-	top: 0;	
+	top: 0;
 	text-align: center;
 	.header-background;
 	.border-box;
@@ -113,7 +149,7 @@
 .dojoxCalendarColumnView .dojoxCalendarYearColumnHeader table {
 	position:relative;
 	width:100%;
-	height:100%;	
+	height:100%;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarYearColumnHeader table td {
@@ -124,7 +160,7 @@
 
 .dojoxCalendarColumnView .dojoxCalendarColumnHeader {
 	position: absolute;
-	height: @column-header-height;	 
+	height: @column-header-height;
 	left: @row-header-width;
 	right: 0;
 	top: 0;
@@ -136,12 +172,12 @@
 	table-layout: fixed;
 	position: relative;
 	margin: 0;
-	padding: 0;			
+	padding: 0;
 	width: 100%;
-	height: 100%;	
+	height: 100%;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarColumnHeaderTable td {	
+.dojoxCalendarColumnView .dojoxCalendarColumnHeaderTable td {
 	overflow:hidden;
 	white-space: nowrap;
 	vertical-align: middle;
@@ -155,8 +191,8 @@
 	.transition-duration(0.2s);
 }
 
-/* 
- * The dojoxCalendarToday & dojoxCalendarWeekend classes is added by the 
+/*
+ * The dojoxCalendarToday & dojoxCalendarWeekend classes is added by the
  * ColumnView.styleColumnHeaderCell method that can be subclassed to add/remove css classes
  */
 .dojoxCalendarColumnView .dojoxCalendarColumnHeaderTable .dojoxCalendarToday {
@@ -173,6 +209,17 @@
 	.border-box;
 }
 
+.dojoxCalendarColumnView .dojoxCalendarRowHeaderLabelContainer{
+	width: 100%;
+	height: 100%;
+	z-index: 10;
+}
+
+.dojoxCalendarColumnView .dojoxCalendarRowHeaderLabel{
+	right: 4px;
+	position: absolute;
+}
+
 .dojoxCalendarColumnView .dojoxCalendarRowHeaderTable {
 	border-collapse: collapse;
 	table-layout: fixed;
@@ -183,12 +230,12 @@
 	height: 100%;
 }
 
-/* 
+/*
  * The ColumnView.styleRowHeaderCell method that can be subclassed to add/remove css classes per hour.
  */
-.dojoxCalendarColumnView .dojoxCalendarRowHeaderTable td {	
-	vertical-align: top;			
-	text-align: right;	
+.dojoxCalendarColumnView .dojoxCalendarRowHeaderTable td {
+	vertical-align: top;
+	text-align: right;
 	color: @header-label-color;
 	border-top: 1px solid transparent;
 }
@@ -201,9 +248,9 @@
  	padding-top: 2px;
 	padding-right: 4px;
 }
- 
+
 .dojoxCalendarColumnView .dojoxCalendarEvent {
-	position: absolute;	
+	position: absolute;
 	text-align: left;
 	color: #FFF;
 	cursor: default;
@@ -216,14 +263,14 @@
 	top: 0;
 	bottom: 0;
 	z-index: -1;
-	border: 1px solid #260000;	
+	border: 1px solid #260000;
 	.rounded-corners;
 	background-color: #9F0000;
 	.opacity(90);
 }
 
 .dojoxCalendarColumnView .dojoxCalendarEvent.Hovered .bg {
-	background-color: #CC0000;	
+	background-color: #CC0000;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarEvent.Selected .bg {
@@ -247,8 +294,8 @@
 }
 
 .dojoxCalendarColumnView .dojoxCalendarEvent .endTime {
-	position: absolute;		
-	font-weight: bold;	
+	position: absolute;
+	font-weight: bold;
 	bottom:10px;
 	left: 3px;
 }
@@ -271,16 +318,16 @@
 .dojoxCalendarEvent .resizeHandle div {
 	position:absolute;
 	left: 3px;
-	right: 3px;	
+	right: 3px;
 	top: 2px;
-	height: 24px;	
+	height: 24px;
 	background-color: #fff;
 	.opacity(30);
-	.rounded-corners(5px);	
+	.rounded-corners(5px);
 }
 
 .dojoxCalendarEvent .resizeHandle div:active {
-	.opacity(60);	
+	.opacity(60);
 }
 
 .dojoxCalendarColumnView .dojoxCalendarEvent .moveHandle {
@@ -288,12 +335,12 @@
 	top:0;
 	width:100%;
 	bottom:0;
-	cursor:move;	
+	cursor:move;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarEvent .resizeStartHandle {
 	position: absolute;
-	top:0;	
+	top:0;
 	left: 0;
 	right: 0;
 	height:30px;
@@ -302,9 +349,9 @@
 
 .dojoxCalendarColumnView .dojoxCalendarEvent .resizeEndHandle {
 	position: absolute;
-	bottom:0;	
+	bottom:0;
 	left: 0;
-	right: 0;	
+	right: 0;
 	height:30px;
 	z-index: 2;
 }
@@ -331,7 +378,7 @@
 	overflow-x: hidden;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarMatrixView {	
+.dojoxCalendarColumnView .dojoxCalendarMatrixView {
 	position: absolute;
 	left: 0;
 	right: 0;
@@ -339,7 +386,7 @@
 	height: @secondary-sheet-height;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarGrid {	
+.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarGrid {
 	position: absolute;
 	left: @row-header-width;
 	right: 0;
@@ -348,7 +395,7 @@
 	.border-box;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarContainer {	
+.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarContainer {
 	position: absolute;
 	top: 0;
 	left: @row-header-width;
@@ -359,11 +406,11 @@
 
 .dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarRowHeader {
 	position: absolute;
-	left: 0;				
+	left: 0;
 	top: 0;
 	width: @row-header-width;
 	bottom: 0;
-	
+
 	border-right: none;
 	border-left: none;
 	.border-box;
@@ -371,7 +418,7 @@
 
 .dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarGridTable td {
 	text-align: right;
-	vertical-align: top;	
+	vertical-align: top;
 	border-top: @inner-border;
 	border-bottom: @inner-border;
 	border-right: @inner-border;
@@ -413,16 +460,15 @@
 	overflow: hidden;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .resizeHandle {	
+.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .resizeHandle {
 	top: auto;
 	text-align: auto;
-	vertical-align: auto;
 	position: absolute;
 	width:30px;
-	height:100%;	
+	height:100%;
 	background-color: #fff;
 	.opacity(0);
-	.rounded-corners(5px);	
+	.rounded-corners(5px);
 	color: #000;
 	text-align: center;
 }
@@ -432,34 +478,34 @@
 	width: auto;
 	height: auto;
 	left:auto;
-	right: auto;	
+	right: auto;
 	top: auto;
-	bottom:auto;		
+	bottom:auto;
 	background-color: none;
 	.opacity(100);
-	border: none;	
+	border: none;
 }
 
 
-.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .resizeStartHandle span {	
+.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .resizeStartHandle span {
 	position: absolute;
 	bottom: 2px;
 	left: 10px;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .resizeEndHandle span {	
+.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .resizeEndHandle span {
 	position: absolute;
 	bottom: 2px;
 	left: 10px;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .moveHandle {
-	
+
 	position: absolute;
 	left:0;
 	top:0;
 	bottom:0;
-	right:0;	
+	right:0;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .resizeStartHandle {
@@ -471,7 +517,7 @@
 	left:auto;
 }
 
-.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent.Edited .resizeHandle {		
+.dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent.Edited .resizeHandle {
 	.opacity(30);
 }
 
@@ -480,7 +526,7 @@
 }
 
 .dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarEvent .endTime {
-	position: relative;				
+	position: relative;
 	bottom:auto;
 	left: auto;
 }
@@ -501,7 +547,7 @@
 	-moz-border-radius: 5px;
 	-webkit-transition-duration: 0.2s;
 	-moz-transition-duration: 0.2s;
-	transition-duration: 0.2s;	
+	transition-duration: 0.2s;
 }
 
 .dojoxCalendarColumnView .dojoxCalendarMatrixView .dojoxCalendarExpand.Up .bg {

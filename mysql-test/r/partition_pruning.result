@@ -3784,12 +3784,12 @@ Handler_external_lock	2
 # This will only scan partition p1
 explain update t1 set a=3 where a=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 3 where (`test`.`t1`.`a` = 4)
 explain update t1 set a=3 where a=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 3 where (`test`.`t1`.`a` = 4)
 flush status;
@@ -3803,12 +3803,12 @@ Handler_external_lock	2
 # This will only scan partition p1 but with a LIMIT
 explain update t1 set a=4 where a=3 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 4 where (`test`.`t1`.`a` = 3) limit 2
 explain update t1 set a=4 where a=3 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 4 where (`test`.`t1`.`a` = 3) limit 2
 flush status;
@@ -3905,16 +3905,14 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 explain update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1000,`test`.`t2`.`a` = 1000 where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1000,`test`.`t2`.`a` = 1000 where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
 explain update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1000,`test`.`t2`.`a` = 1000 where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1000,`test`.`t2`.`a` = 1000 where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
 flush status;
 update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -3922,19 +3920,17 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_external_lock';
 Variable_name	Value
-Handler_external_lock	4
+Handler_external_lock	0
 explain delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
 explain delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
 flush status;
 delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -3942,19 +3938,17 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_external_lock';
 Variable_name	Value
-Handler_external_lock	4
+Handler_external_lock	0
 explain delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` = 5))
 explain delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` = 5))
 flush status;
 delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -3962,7 +3956,7 @@ Variable_name	Value
 Handler_read_rnd_next	0
 show status like 'Handler_external_lock';
 Variable_name	Value
-Handler_external_lock	4
+Handler_external_lock	0
 explain delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where

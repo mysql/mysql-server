@@ -5,7 +5,7 @@ _3.xmpp.chat={CHAT_STATE_NS:"http://jabber.org/protocol/chatstates",ACTIVE_STATE
 _1.declare("dojox.xmpp.ChatService",null,{state:"",constructor:function(){
 this.state="";
 this.chatid=Math.round(Math.random()*1000000000000000);
-},recieveMessage:function(_4,_5){
+},receiveMessage:function(_4,_5){
 if(_4&&!_5){
 this.onNewMessage(_4);
 }

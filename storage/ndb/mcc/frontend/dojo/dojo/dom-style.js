@@ -1,125 +1,135 @@
 /*
-	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/dom-style",["./sniff","./dom"],function(_1,_2){
-var _3,_4={};
+define("dojo/dom-style",["./sniff","./dom","./_base/window"],function(_1,_2,_3){
+var _4,_5={};
 if(_1("webkit")){
-_3=function(_5){
+_4=function(_6){
 var s;
-if(_5.nodeType==1){
-var dv=_5.ownerDocument.defaultView;
-s=dv.getComputedStyle(_5,null);
-if(!s&&_5.style){
-_5.style.display="";
-s=dv.getComputedStyle(_5,null);
+if(_6.nodeType==1){
+var dv=_6.ownerDocument.defaultView;
+s=dv.getComputedStyle(_6,null);
+if(!s&&_6.style){
+_6.style.display="";
+s=dv.getComputedStyle(_6,null);
 }
 }
 return s||{};
 };
 }else{
 if(_1("ie")&&(_1("ie")<9||_1("quirks"))){
-_3=function(_6){
-return _6.nodeType==1&&_6.currentStyle?_6.currentStyle:{};
+_4=function(_7){
+return _7.nodeType==1&&_7.currentStyle?_7.currentStyle:{};
 };
 }else{
-_3=function(_7){
-return _7.nodeType==1?_7.ownerDocument.defaultView.getComputedStyle(_7,null):{};
+_4=function(_8){
+if(_8.nodeType===1){
+var dv=_8.ownerDocument.defaultView,w=dv.opener?dv:_3.global.window;
+return w.getComputedStyle(_8,null);
+}
+return {};
 };
 }
 }
-_4.getComputedStyle=_3;
-var _8;
+_5.getComputedStyle=_4;
+var _9;
 if(!_1("ie")){
-_8=function(_9,_a){
-return parseFloat(_a)||0;
+_9=function(_a,_b){
+return parseFloat(_b)||0;
 };
 }else{
-_8=function(_b,_c){
-if(!_c){
+_9=function(_c,_d){
+if(!_d){
 return 0;
 }
-if(_c=="medium"){
+if(_d=="medium"){
 return 4;
 }
-if(_c.slice&&_c.slice(-2)=="px"){
-return parseFloat(_c);
+if(_d.slice&&_d.slice(-2)=="px"){
+return parseFloat(_d);
 }
-var s=_b.style,rs=_b.runtimeStyle,cs=_b.currentStyle,_d=s.left,_e=rs.left;
+var s=_c.style,rs=_c.runtimeStyle,cs=_c.currentStyle,_e=s.left,_f=rs.left;
 rs.left=cs.left;
 try{
-s.left=_c;
-_c=s.pixelLeft;
+s.left=_d;
+_d=s.pixelLeft;
 }
 catch(e){
-_c=0;
+_d=0;
 }
-s.left=_d;
-rs.left=_e;
-return _c;
+s.left=_e;
+rs.left=_f;
+return _d;
 };
 }
-_4.toPixelValue=_8;
-var _f="DXImageTransform.Microsoft.Alpha";
+_5.toPixelValue=_9;
+var _10="DXImageTransform.Microsoft.Alpha";
 var af=function(n,f){
 try{
-return n.filters.item(_f);
+return n.filters.item(_10);
 }
 catch(e){
 return f?{}:null;
 }
 };
-var _10=_1("ie")<9||(_1("ie")<10&&_1("quirks"))?function(_11){
+var _11=_1("ie")<9||(_1("ie")<10&&_1("quirks"))?function(_12){
 try{
-return af(_11).Opacity/100;
+return af(_12).Opacity/100;
 }
 catch(e){
 return 1;
 }
-}:function(_12){
-return _3(_12).opacity;
+}:function(_13){
+return _4(_13).opacity;
 };
-var _13=_1("ie")<9||(_1("ie")<10&&_1("quirks"))?function(_14,_15){
-var ov=_15*100,_16=_15==1;
-_14.style.zoom=_16?"":1;
-if(!af(_14)){
-if(_16){
-return _15;
+var _14=_1("ie")<9||(_1("ie")<10&&_1("quirks"))?function(_15,_16){
+if(_16===""){
+_16=1;
 }
-_14.style.filter+=" progid:"+_f+"(Opacity="+ov+")";
+var ov=_16*100,_17=_16===1;
+if(_17){
+_15.style.zoom="";
+if(af(_15)){
+_15.style.filter=_15.style.filter.replace(new RegExp("\\s*progid:"+_10+"\\([^\\)]+?\\)","i"),"");
+}
 }else{
-af(_14,1).Opacity=ov;
+_15.style.zoom=1;
+if(af(_15)){
+af(_15,1).Opacity=ov;
+}else{
+_15.style.filter+=" progid:"+_10+"(Opacity="+ov+")";
 }
-af(_14,1).Enabled=!_16;
-if(_14.tagName.toLowerCase()=="tr"){
-for(var td=_14.firstChild;td;td=td.nextSibling){
+af(_15,1).Enabled=true;
+}
+if(_15.tagName.toLowerCase()=="tr"){
+for(var td=_15.firstChild;td;td=td.nextSibling){
 if(td.tagName.toLowerCase()=="td"){
-_13(td,_15);
+_14(td,_16);
 }
 }
 }
-return _15;
-}:function(_17,_18){
-return _17.style.opacity=_18;
+return _16;
+}:function(_18,_19){
+return _18.style.opacity=_19;
 };
-var _19={left:true,top:true};
-var _1a=/margin|padding|width|height|max|min|offset/;
-function _1b(_1c,_1d,_1e){
-_1d=_1d.toLowerCase();
-if(_1("ie")||_1("trident")){
-if(_1e=="auto"){
-if(_1d=="height"){
-return _1c.offsetHeight;
+var _1a={left:true,top:true};
+var _1b=/margin|padding|width|height|max|min|offset/;
+function _1c(_1d,_1e,_1f){
+_1e=_1e.toLowerCase();
+if(_1f=="auto"){
+if(_1e=="height"){
+return _1d.offsetHeight;
 }
-if(_1d=="width"){
-return _1c.offsetWidth;
+if(_1e=="width"){
+return _1d.offsetWidth;
 }
 }
-if(_1d=="fontweight"){
-switch(_1e){
+if(_1e=="fontweight"){
+switch(_1f){
 case 700:
 return "bold";
 case 400:
@@ -127,32 +137,31 @@ default:
 return "normal";
 }
 }
+if(!(_1e in _1a)){
+_1a[_1e]=_1b.test(_1e);
 }
-if(!(_1d in _19)){
-_19[_1d]=_1a.test(_1d);
-}
-return _19[_1d]?_8(_1c,_1e):_1e;
+return _1a[_1e]?_9(_1d,_1f):_1f;
 };
-var _1f={cssFloat:1,styleFloat:1,"float":1};
-_4.get=function getStyle(_20,_21){
-var n=_2.byId(_20),l=arguments.length,op=(_21=="opacity");
+var _20={cssFloat:1,styleFloat:1,"float":1};
+_5.get=function getStyle(_21,_22){
+var n=_2.byId(_21),l=arguments.length,op=(_22=="opacity");
 if(l==2&&op){
-return _10(n);
+return _11(n);
 }
-_21=_1f[_21]?"cssFloat" in n.style?"cssFloat":"styleFloat":_21;
-var s=_4.getComputedStyle(n);
-return (l==1)?s:_1b(n,_21,s[_21]||n.style[_21]);
+_22=_20[_22]?"cssFloat" in n.style?"cssFloat":"styleFloat":_22;
+var s=_5.getComputedStyle(n);
+return (l==1)?s:_1c(n,_22,s[_22]||n.style[_22]);
 };
-_4.set=function setStyle(_22,_23,_24){
-var n=_2.byId(_22),l=arguments.length,op=(_23=="opacity");
-_23=_1f[_23]?"cssFloat" in n.style?"cssFloat":"styleFloat":_23;
+_5.set=function setStyle(_23,_24,_25){
+var n=_2.byId(_23),l=arguments.length,op=(_24=="opacity");
+_24=_20[_24]?"cssFloat" in n.style?"cssFloat":"styleFloat":_24;
 if(l==3){
-return op?_13(n,_24):n.style[_23]=_24;
+return op?_14(n,_25):n.style[_24]=_25;
 }
-for(var x in _23){
-_4.set(_22,x,_23[x]);
+for(var x in _24){
+_5.set(_23,x,_24[x]);
 }
-return _4.getComputedStyle(n);
+return _5.getComputedStyle(n);
 };
-return _4;
+return _5;
 });

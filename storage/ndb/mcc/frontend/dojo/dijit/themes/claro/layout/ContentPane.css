@@ -10,7 +10,8 @@
   background-color: #ffffff;
   padding: 8px;
 }
-.claro .dijitSplitContainer-dijitContentPane, .claro .dijitBorderContainer-dijitContentPane {
+.claro .dijitSplitContainer-dijitContentPane,
+.claro .dijitBorderContainer-dijitContentPane {
   background-color: #ffffff;
   padding: 8px;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,9 +136,9 @@ bool Check_constraint_impl::store_attributes(dd::Raw_record *r) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(Check_constraints::FIELD_CHECK_CLAUSE_UTF8 == 6,
-              "Check_constraints definition has changed, review (de)serialize "
-              "member functions!");
+static_assert(Check_constraints::NUMBER_OF_FIELDS == 7,
+              "Check_constraints definition has changed, check if serialize() "
+              "and deserialize() needs to be updated!");
 void Check_constraint_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);

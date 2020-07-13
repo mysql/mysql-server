@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -470,13 +470,30 @@ dberr_t DDL_Log_Table::insert(const DDL_Record &record) {
   create_tuple(record);
   entry = row_build_index_entry(m_tuple, nullptr, index, m_heap);
 
-  error = row_ins_clust_index_entry_low(flags, BTR_MODIFY_LEAF, index,
-                                        index->n_uniq, entry, m_thr, false);
+#ifdef UNIV_DEBUG
+  bool insert = true;
+  DBUG_EXECUTE_IF("ddl_log_return_error_from_insert", insert = false;);
+
+  if (insert) {
+#endif
+    error = row_ins_clust_index_entry_low(flags, BTR_MODIFY_LEAF, index,
+                                          index->n_uniq, entry, m_thr, false);
+#ifdef UNIV_DEBUG
+  } else {
+    error = DB_ERROR;
+  }
+#endif
 
   if (error == DB_FAIL) {
     error = row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE, index,
                                           index->n_uniq, entry, m_thr, false);
     ut_ad(error == DB_SUCCESS);
+  }
+
+  if (error != DB_SUCCESS) {
+    ib::error(ER_IB_ERR_DDL_LOG_INSERT_FAILURE);
+    mem_heap_free(offsets_heap);
+    return error;
   }
 
   index = index->next();
@@ -860,7 +877,9 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
   if (is_drop_table) {
     /* Drop index case, if committed, will be redo only */
     err = insert_free_tree_log(trx, index, id, thread_id);
-    ut_ad(err == DB_SUCCESS);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
 
     DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_log",
                       crash_after_free_tree_log_counter++);
@@ -868,7 +887,9 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
     /* This is the case of building index during create table
     scenario. The index will be dropped if ddl is rolled back */
     err = insert_free_tree_log(nullptr, index, id, thread_id);
-    ut_ad(err == DB_SUCCESS);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
 
     DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_log",
                       crash_after_free_tree_log_counter++);
@@ -917,7 +938,6 @@ dberr_t Log_DDL::insert_free_tree_log(trx_t *trx, const dict_index_t *index,
   {
     DDL_Log_Table ddl_log(trx);
     error = ddl_log.insert(record);
-    ut_ad(error == DB_SUCCESS);
   }
 
   if (!has_dd_trx) {
@@ -925,7 +945,7 @@ dberr_t Log_DDL::insert_free_tree_log(trx_t *trx, const dict_index_t *index,
     trx_free_for_background(trx);
   }
 
-  if (srv_print_ddl_logs) {
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_647) << "DDL log insert : " << record;
   }
 
@@ -955,14 +975,18 @@ dberr_t Log_DDL::write_delete_space_log(trx_t *trx, const dict_table_t *table,
   if (is_drop) {
     err = insert_delete_space_log(trx, id, thread_id, space_id, file_path,
                                   dict_locked);
-    ut_ad(err == DB_SUCCESS);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
 
     DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_log",
                       crash_after_delete_space_log_counter++);
   } else {
     err = insert_delete_space_log(nullptr, id, thread_id, space_id, file_path,
                                   dict_locked);
-    ut_ad(err == DB_SUCCESS);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
 
     DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_log",
                       crash_after_delete_space_log_counter++);
@@ -1014,7 +1038,6 @@ dberr_t Log_DDL::insert_delete_space_log(trx_t *trx, uint64_t id,
   {
     DDL_Log_Table ddl_log(trx);
     error = ddl_log.insert(record);
-    ut_ad(error == DB_SUCCESS);
   }
 
   if (dict_locked) {
@@ -1026,7 +1049,7 @@ dberr_t Log_DDL::insert_delete_space_log(trx_t *trx, uint64_t id,
     trx_free_for_background(trx);
   }
 
-  if (srv_print_ddl_logs) {
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_648) << "DDL log insert : " << record;
   }
 
@@ -1062,10 +1085,15 @@ dberr_t Log_DDL::write_rename_space_log(space_id_t space_id,
 
   dberr_t err = insert_rename_space_log(id, thread_id, space_id, old_file_path,
                                         new_file_path);
-  ut_ad(err == DB_SUCCESS);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_rename_space_log",
                     crash_after_rename_space_log_counter++);
+
+  DBUG_EXECUTE_IF("ddl_log_crash_after_rename_space_log_insert",
+                  DBUG_SUICIDE(););
 
   DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_4",
                   srv_inject_too_many_concurrent_trxs = true;);
@@ -1105,7 +1133,6 @@ dberr_t Log_DDL::insert_rename_space_log(uint64_t id, ulint thread_id,
   {
     DDL_Log_Table ddl_log(trx);
     error = ddl_log.insert(record);
-    ut_ad(error == DB_SUCCESS);
   }
 
   mutex_enter(&dict_sys->mutex);
@@ -1113,7 +1140,7 @@ dberr_t Log_DDL::insert_rename_space_log(uint64_t id, ulint thread_id,
   trx_commit_for_mysql(trx);
   trx_free_for_background(trx);
 
-  if (srv_print_ddl_logs) {
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_649) << "DDL log insert : " << record;
   }
 
@@ -1141,7 +1168,9 @@ dberr_t Log_DDL::write_alter_encrypt_space_log(space_id_t space_id) {
                     crash_before_alter_encrypt_space_log_counter++);
 
   dberr_t err = insert_alter_encrypt_space_log(id, thread_id, space_id);
-  ut_ad(err == DB_SUCCESS);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_alter_encrypt_space_log",
                     crash_after_alter_encrypt_space_log_counter++);
@@ -1168,7 +1197,6 @@ dberr_t Log_DDL::insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
   {
     DDL_Log_Table ddl_log(trx);
     error = ddl_log.insert(record);
-    ut_ad(error == DB_SUCCESS);
   }
 
   mutex_enter(&dict_sys->mutex);
@@ -1176,7 +1204,7 @@ dberr_t Log_DDL::insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
   trx_commit_for_mysql(trx);
   trx_free_for_background(trx);
 
-  if (srv_print_ddl_logs) {
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_1284) << "DDL log insert : " << record;
   }
 
@@ -1198,7 +1226,9 @@ dberr_t Log_DDL::write_drop_log(trx_t *trx, const table_id_t table_id) {
 
   dberr_t err;
   err = insert_drop_log(trx, id, thread_id, table_id);
-  ut_ad(err == DB_SUCCESS);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_drop_log",
                     crash_after_drop_log_counter++);
@@ -1225,12 +1255,11 @@ dberr_t Log_DDL::insert_drop_log(trx_t *trx, uint64_t id, ulint thread_id,
   {
     DDL_Log_Table ddl_log(trx);
     error = ddl_log.insert(record);
-    ut_ad(error == DB_SUCCESS);
   }
 
   mutex_enter(&dict_sys->mutex);
 
-  if (srv_print_ddl_logs) {
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_650) << "DDL log insert : " << record;
   }
 
@@ -1253,7 +1282,9 @@ dberr_t Log_DDL::write_rename_table_log(dict_table_t *table,
 
   dberr_t err =
       insert_rename_table_log(id, thread_id, table->id, old_name, new_name);
-  ut_ad(err == DB_SUCCESS);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_5",
                   srv_inject_too_many_concurrent_trxs = true;);
@@ -1290,7 +1321,6 @@ dberr_t Log_DDL::insert_rename_table_log(uint64_t id, ulint thread_id,
   {
     DDL_Log_Table ddl_log(trx);
     error = ddl_log.insert(record);
-    ut_ad(error == DB_SUCCESS);
   }
 
   mutex_enter(&dict_sys->mutex);
@@ -1298,7 +1328,7 @@ dberr_t Log_DDL::insert_rename_table_log(uint64_t id, ulint thread_id,
   trx_commit_for_mysql(trx);
   trx_free_for_background(trx);
 
-  if (srv_print_ddl_logs) {
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_651) << "DDL log insert : " << record;
   }
 
@@ -1319,7 +1349,9 @@ dberr_t Log_DDL::write_remove_cache_log(trx_t *trx, dict_table_t *table) {
 
   dberr_t err =
       insert_remove_cache_log(id, thread_id, table->id, table->name.m_name);
-  ut_ad(err == DB_SUCCESS);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   DBUG_EXECUTE_IF("DDL_Log_remove_inject_error_3",
                   srv_inject_too_many_concurrent_trxs = true;);
@@ -1351,13 +1383,12 @@ dberr_t Log_DDL::insert_remove_cache_log(uint64_t id, ulint thread_id,
   {
     DDL_Log_Table ddl_log(trx);
     error = ddl_log.insert(record);
-    ut_ad(error == DB_SUCCESS);
   }
 
   trx_commit_for_mysql(trx);
   trx_free_for_background(trx);
 
-  if (srv_print_ddl_logs) {
+  if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_652) << "DDL log insert : " << record;
   }
 

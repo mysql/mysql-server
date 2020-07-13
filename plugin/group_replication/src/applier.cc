@@ -437,6 +437,13 @@ int Applier_module::applier_thread_handle() {
   mysql_mutex_unlock(&run_lock);
 
   fde_evt = new Format_description_log_event();
+  /*
+    Group replication does not use binary log checksumming on contents arriving
+    from certification. So, group replication applier channel shall behave as a
+    replication channel connected to a master that does not add checksum to its
+    binary log files.
+  */
+  fde_evt->common_footer->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
   cont = new Continuation();
 
   // Give the handlers access to the applier THD

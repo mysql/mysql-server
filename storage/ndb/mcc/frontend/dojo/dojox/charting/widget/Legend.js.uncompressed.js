@@ -1,10 +1,9 @@
-define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx","dojo/_base/array",
-		"dojox/lang/functional", "dojox/lang/functional/array", "dojox/lang/functional/fold",
-		"dojo/dom", "dojo/dom-construct", "dojo/dom-class","dijit/registry"],
-		function(lang, declare, _WidgetBase, gfx, arrayUtil, df, dfa, dff,
-				dom, domFactory, domClass, registry){
+define("dojox/charting/widget/Legend", ["dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx","dojo/_base/array", "dojo/has", "dojo/has!dojo-bidi?../bidi/widget/Legend",
+		"dojox/lang/functional", "dojo/dom", "dojo/dom-construct", "dojo/dom-class","dijit/registry"],
+		function(declare, _WidgetBase, gfx, arr, has, BidiLegend, df,
+				dom, domConstruct, domClass, registry){
 
-	return declare("dojox.charting.widget.Legend", _WidgetBase, {
+	var Legend = declare(has("dojo-bidi")? "dojox.charting.widget.NonBidiLegend" : "dojox.charting.widget.Legend", _WidgetBase, {
 		// summary:
 		//		A legend for a chart. A legend contains summary labels for
 		//		each series of data contained in the chart.
@@ -37,14 +36,14 @@ define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/declare",
 			this.refresh();
 		},
 		buildRendering: function(){
-			this.domNode = domFactory.create("table",
+			this.domNode = domConstruct.create("table",
 					{role: "group", "aria-label": "chart legend", "class": "dojoxLegendNode"});
-			this.legendBody = domFactory.create("tbody", null, this.domNode);
+			this.legendBody = domConstruct.create("tbody", null, this.domNode);
 			this.inherited(arguments);
 		},
 		destroy: function(){
 			if(this._surfaces){
-				arrayUtil.forEach(this._surfaces, function(surface){
+				arr.forEach(this._surfaces, function(surface){
 					surface.destroy();
 				});
 			}
@@ -56,19 +55,19 @@ define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/declare",
 
 			// cleanup
 			if(this._surfaces){
-				arrayUtil.forEach(this._surfaces, function(surface){
+				arr.forEach(this._surfaces, function(surface){
 					surface.destroy();
 				});
 			}
 			this._surfaces = [];
 			while(this.legendBody.lastChild){
-				domFactory.destroy(this.legendBody.lastChild);
+				domConstruct.destroy(this.legendBody.lastChild);
 			}
 
 			if(this.horizontal){
 				domClass.add(this.domNode, "dojoxLegendHorizontal");
 				// make a container <tr>
-				this._tr = domFactory.create("tr", null, this.legendBody);
+				this._tr = domConstruct.create("tr", null, this.legendBody);
 				this._inrow = 0;
 			}
 
@@ -82,26 +81,26 @@ define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/declare",
 				if(typeof t.run.data[0] == "number"){
 					var filteredRun = df.map(t.run.data, "Math.max(x, 0)");
 					var slices = df.map(filteredRun, "/this", df.foldl(filteredRun, "+", 0));
-					arrayUtil.forEach(slices, function(x, i){
+					arr.forEach(slices, function(x, i){
 						this._addLabel(t.dyn[i], t._getLabel(x * 100) + "%");
 					}, this);
 				}else{
-					arrayUtil.forEach(t.run.data, function(x, i){
+					arr.forEach(t.run.data, function(x, i){
 						this._addLabel(t.dyn[i], x.legend || x.text || x.y);
 					}, this);
 				}
 			}else{
-				arrayUtil.forEach(s, function(x){
+				arr.forEach(s, function(x){
 					this._addLabel(x.dyn, x.legend || x.name);
 				}, this);
 			}
 		},
 		_addLabel: function(dyn, label){
 			// create necessary elements
-			var wrapper = domFactory.create("td"),
-				icon = domFactory.create("div", null, wrapper),
-				text = domFactory.create("label", null, wrapper),
-				div  = domFactory.create("div", {
+			var wrapper = domConstruct.create("td"),
+				icon = domConstruct.create("div", null, wrapper),
+				text = domConstruct.create("label", null, wrapper),
+				div  = domConstruct.create("div", {
 					style: {
 						"width": this.swatchSize + "px",
 						"height":this.swatchSize + "px",
@@ -116,19 +115,21 @@ define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/declare",
 				this._tr.appendChild(wrapper);
 				if(++this._inrow === this.horizontal){
 					// make a fresh container <tr>
-					this._tr = domFactory.create("tr", null, this.legendBody);
+					this._tr = domConstruct.create("tr", null, this.legendBody);
 					this._inrow = 0;
 				}
 			}else{
 				// vertical
-				var tr = domFactory.create("tr", null, this.legendBody);
+				var tr = domConstruct.create("tr", null, this.legendBody);
 				tr.appendChild(wrapper);
 			}
 
 			// populate the skeleton
 			this._makeIcon(div, dyn);
 			text.innerHTML = String(label);
-			text.dir = this.getTextDir(label, text.dir);
+			if(has("dojo-bidi")){
+				text.dir = this.getTextDir(label, text.dir);
+			}
 		},
 		_makeIcon: function(div, dyn){
 			var mb = { h: this.swatchSize, w: this.swatchSize };
@@ -159,4 +160,6 @@ define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/declare",
 			}
 		}
 	});
+	return has("dojo-bidi")? declare("dojox.charting.widget.Legend", [Legend, BidiLegend]) : Legend;
+	
 });

@@ -1,6 +1,7 @@
 define(
 "dojo/cldr/nls/sk/gregorian", //begin v1.x content
 {
+	"dateFormatItem-Ehm": "E h:mm a",
 	"days-standAlone-short": [
 		"Ne",
 		"Po",
@@ -24,21 +25,25 @@ define(
 		"n",
 		"d"
 	],
+	"field-second-relative+0": "teraz",
 	"quarters-standAlone-narrow": [
 		"1",
 		"2",
 		"3",
 		"4"
 	],
-	"field-weekday": "Deň v týždni",
-	"dateFormatItem-yyQQQQ": "QQQQ yy",
+	"field-weekday": "deň v týždni",
 	"dateFormatItem-yQQQ": "QQQ y",
 	"dateFormatItem-yMEd": "E d. M. y",
-	"dateFormatItem-MMMEd": "E, d. MMM.",
+	"field-wed-relative+0": "túto stredu",
+	"field-wed-relative+1": "budúcu stredu",
+	"dateFormatItem-GyMMMEd": "E, d. MMMM y G",
+	"dateFormatItem-MMMEd": "E, d. M.",
 	"eraNarrow": [
-		"pred n.l.",
-		"n.l."
+		"pred Kr.",
+		"po Kr."
 	],
+	"field-tue-relative+-1": "minulý utorok",
 	"days-format-short": [
 		"Ne",
 		"Po",
@@ -49,27 +54,31 @@ define(
 		"So"
 	],
 	"dateFormat-long": "d. MMMM y",
+	"field-fri-relative+-1": "minulý piatok",
+	"field-wed-relative+-1": "minulú stredu",
 	"months-format-wide": [
-		"január",
-		"február",
-		"marec",
-		"apríl",
-		"máj",
-		"jún",
-		"júl",
-		"august",
-		"september",
-		"október",
-		"november",
-		"december"
+		"januára",
+		"februára",
+		"marca",
+		"apríla",
+		"mája",
+		"júna",
+		"júla",
+		"augusta",
+		"septembra",
+		"októbra",
+		"novembra",
+		"decembra"
 	],
-	"dateTimeFormat-medium": "{1} {0}",
-	"dayPeriods-format-wide-pm": "popoludní",
+	"dateTimeFormat-medium": "{1}, {0}",
+	"dateFormatItem-yMMMMd": "d. MMMM y",
+	"dayPeriods-format-wide-pm": "odpoludnia",
 	"dateFormat-full": "EEEE, d. MMMM y",
-	"dateFormatItem-Md": "d.M.",
-	"dateFormatItem-yMd": "d.M.yyyy",
-	"field-era": "Éra",
-	"dateFormatItem-yM": "M.yyyy",
+	"field-thu-relative+-1": "minulý štvrtok",
+	"dateFormatItem-Md": "d. M.",
+	"dateFormatItem-yMd": "d. M. y",
+	"field-era": "letopočet",
+	"dateFormatItem-yM": "M/y",
 	"months-standAlone-wide": [
 		"január",
 		"február",
@@ -91,12 +100,11 @@ define(
 		"3. štvrťrok",
 		"4. štvrťrok"
 	],
+	"dateFormatItem-yQQQQ": "QQQQ y",
 	"timeFormat-long": "H:mm:ss z",
-	"field-year": "Rok",
-	"dateFormatItem-yMMM": "LLL y",
-	"dateFormatItem-yQ": "Q yyyy",
-	"dateFormatItem-yyyyMMMM": "LLLL y",
-	"field-hour": "Hodina",
+	"field-year": "rok",
+	"dateFormatItem-yMMM": "LLLL y",
+	"field-hour": "hodina",
 	"months-format-abbr": [
 		"jan",
 		"feb",
@@ -111,11 +119,15 @@ define(
 		"nov",
 		"dec"
 	],
-	"dateFormatItem-yyQ": "Q yy",
+	"field-sat-relative+0": "túto sobotu",
+	"field-sat-relative+1": "budúcu sobotu",
 	"timeFormat-full": "H:mm:ss zzzz",
-	"field-day-relative+0": "Dnes",
-	"field-day-relative+1": "Zajtra",
-	"field-day-relative+2": "Pozajtra",
+	"field-day-relative+0": "dnes",
+	"field-thu-relative+0": "tento štvrtok",
+	"field-day-relative+1": "zajtra",
+	"field-thu-relative+1": "budúci štvrtok",
+	"dateFormatItem-GyMMMd": "d. M. y G",
+	"field-day-relative+2": "pozajtra",
 	"dateFormatItem-H": "H",
 	"months-standAlone-abbr": [
 		"jan",
@@ -143,6 +155,7 @@ define(
 		"3. štvrťrok",
 		"4. štvrťrok"
 	],
+	"dateFormatItem-Gy": "y G",
 	"dateFormatItem-M": "L.",
 	"days-standAlone-wide": [
 		"nedeľa",
@@ -154,20 +167,23 @@ define(
 		"sobota"
 	],
 	"dateFormatItem-MMMMd": "d. MMMM",
+	"dateFormatItem-GyMMMMd": "d. MMMM y G",
 	"timeFormat-medium": "H:mm:ss",
+	"field-sun-relative+0": "túto nedeľu",
 	"dateFormatItem-Hm": "H:mm",
+	"field-sun-relative+1": "budúcu nedeľu",
 	"quarters-standAlone-abbr": [
-		"1Q",
-		"2Q",
-		"3Q",
-		"4Q"
+		"Q1",
+		"Q2",
+		"Q3",
+		"Q4"
 	],
 	"eraAbbr": [
-		"pred n.l.",
-		"n.l."
+		"pred Kr.",
+		"po Kr."
 	],
-	"field-minute": "Minúta",
-	"field-dayperiod": "Časť dňa",
+	"field-minute": "minúta",
+	"field-dayperiod": "časť dňa",
 	"days-standAlone-abbr": [
 		"ne",
 		"po",
@@ -185,15 +201,17 @@ define(
 		"3",
 		"4"
 	],
-	"field-day-relative+-1": "Včera",
+	"field-day-relative+-1": "včera",
 	"dateFormatItem-h": "h a",
-	"dateTimeFormat-long": "{1} {0}",
-	"field-day-relative+-2": "Predvčerom",
-	"dateFormatItem-MMMd": "d. MMM.",
-	"dateFormatItem-MEd": "E, d.M.",
-	"dateTimeFormat-full": "{1} {0}",
+	"dateTimeFormat-long": "{1}, {0}",
+	"field-day-relative+-2": "predvčerom",
+	"dateFormatItem-MMMd": "d. M",
+	"dateFormatItem-MEd": "E, d. M.",
+	"dateTimeFormat-full": "{1}, {0}",
+	"field-fri-relative+0": "tento piatok",
 	"dateFormatItem-yMMMM": "LLLL y",
-	"field-day": "Deň",
+	"field-fri-relative+1": "budúci piatok",
+	"field-day": "deň",
 	"days-format-wide": [
 		"nedeľa",
 		"pondelok",
@@ -203,7 +221,7 @@ define(
 		"piatok",
 		"sobota"
 	],
-	"field-zone": "Časové pásmo",
+	"field-zone": "časové pásmo",
 	"dateFormatItem-y": "y",
 	"months-standAlone-narrow": [
 		"j",
@@ -219,8 +237,8 @@ define(
 		"n",
 		"d"
 	],
-	"field-year-relative+-1": "Minulý rok",
-	"field-month-relative+-1": "Posledný mesiac",
+	"field-year-relative+-1": "minulý rok",
+	"field-month-relative+-1": "minulý mesiac",
 	"dateFormatItem-hm": "h:mm a",
 	"days-format-abbr": [
 		"ne",
@@ -231,10 +249,10 @@ define(
 		"pi",
 		"so"
 	],
-	"dateFormatItem-yMMMd": "d.M.yyyy",
+	"dateFormatItem-yMMMd": "d. M. y",
 	"eraNames": [
-		"pred n.l.",
-		"n.l."
+		"pred Kristom",
+		"po Kristovi"
 	],
 	"days-format-narrow": [
 		"N",
@@ -255,27 +273,38 @@ define(
 		"S"
 	],
 	"dateFormatItem-MMM": "LLL",
-	"field-month": "Mesiac",
+	"field-month": "mesiac",
+	"field-tue-relative+0": "tento utorok",
+	"field-tue-relative+1": "budúci utorok",
 	"dayPeriods-format-wide-am": "dopoludnia",
 	"dateFormatItem-MMMMEd": "E, d. MMMM",
-	"dateFormat-short": "d.M.yyyy",
-	"field-second": "Sekunda",
-	"dateFormatItem-yMMMEd": "E, d. MMM y",
-	"field-month-relative+0": "Tento mesiac",
-	"field-month-relative+1": "Budúci mesiac",
+	"dateFormatItem-EHm": "E HH:mm",
+	"field-mon-relative+0": "tento pondelok",
+	"field-mon-relative+1": "budúci pondelok",
+	"dateFormat-short": "dd.MM.yy",
+	"dateFormatItem-EHms": "E HH:mm:ss",
+	"dateFormatItem-Ehms": "E h:mm:ss a",
+	"field-second": "sekunda",
+	"field-sat-relative+-1": "minulú sobotu",
+	"dateFormatItem-yMMMEd": "E d. M. y",
+	"field-sun-relative+-1": "minulú nedeľu",
+	"field-month-relative+0": "tento mesiac",
+	"field-month-relative+1": "budúci mesiac",
 	"dateFormatItem-Ed": "E d.",
-	"field-week": "Týždeň",
-	"dateFormat-medium": "d.M.yyyy",
-	"field-year-relative+0": "Tento rok",
-	"field-week-relative+-1": "Minulý týždeň",
-	"dateFormatItem-yyyyM": "M.yyyy",
-	"field-year-relative+1": "Budúci rok",
+	"dateTimeFormats-appendItem-Timezone": "{0} {1}",
+	"field-week": "týždeň",
+	"dateFormat-medium": "d. M. y",
+	"field-year-relative+0": "tento rok",
+	"field-week-relative+-1": "minulý týždeň",
+	"field-year-relative+1": "budúci rok",
 	"dateFormatItem-mmss": "mm:ss",
 	"dateTimeFormat-short": "{1} {0}",
 	"dateFormatItem-Hms": "H:mm:ss",
 	"dateFormatItem-hms": "h:mm:ss a",
-	"field-week-relative+0": "Tento týždeň",
-	"field-week-relative+1": "Budúci týždeň"
+	"dateFormatItem-GyMMM": "LLLL y G",
+	"field-mon-relative+-1": "minulý pondelok",
+	"field-week-relative+0": "tento týždeň",
+	"field-week-relative+1": "budúci týždeň"
 }
 //end v1.x content
 );

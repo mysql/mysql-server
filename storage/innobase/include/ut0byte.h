@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,11 +37,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0ut.h"
 
 /** Creates a 64-bit integer out of two 32-bit integers.
- @return created integer */
+@param[in]	high		high-order 32 bits
+@param[in]	low		low-order 32 bits
+@return created integer */
 UNIV_INLINE
-ib_uint64_t ut_ull_create(ulint high, /*!< in: high-order 32 bits */
-                          ulint low)  /*!< in: low-order 32 bits */
-    MY_ATTRIBUTE((const));
+ib_uint64_t ut_ull_create(ulint high, ulint low);
 
 /** Rounds a 64-bit integer downward to a multiple of a power of 2.
 @param[in]	n		number to be rounded
@@ -64,20 +64,20 @@ ib_uint64_t ut_uint64_align_up(ib_uint64_t n, ulint align_no);
 UNIV_INLINE
 void *ut_align(const void *ptr, ulint align_no);
 
-/** The following function rounds down a pointer to the nearest
- aligned address.
- @return aligned pointer */
+/** The following function rounds down a pointer to the nearest aligned address.
+@param[in]	ptr		pointer
+@param[in]	align_no	align by this number
+@return aligned pointer */
 UNIV_INLINE
-void *ut_align_down(const void *ptr, /*!< in: pointer */
-                    ulint align_no)  /*!< in: align by this number */
-    MY_ATTRIBUTE((const));
+void *ut_align_down(const void *ptr, ulint align_no);
+
 /** The following function computes the offset of a pointer from the nearest
- aligned address.
- @return distance from aligned pointer */
+aligned address.
+@param[in]	ptr		pointer
+@param[in]	align_no	align by this number
+@return distance from aligned pointer */
 UNIV_INLINE
-ulint ut_align_offset(const void *ptr, /*!< in: pointer */
-                      ulint align_no)  /*!< in: align by this number */
-    MY_ATTRIBUTE((const));
+ulint ut_align_offset(const void *ptr, ulint align_no);
 
 /** Gets the nth bit of a ulint.
 @param[in]	a	ulint

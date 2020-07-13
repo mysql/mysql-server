@@ -53,18 +53,15 @@ return _11?_11.getBoundingBox():{x:0,y:0,width:0,height:0};
 this.surface.destroy();
 this.inherited(arguments);
 },resize:function(_12,_13){
-var box;
 switch(arguments.length){
 case 1:
-box=_1.mixin({},_12);
-_3.setMarginBox(this._node,box);
+_3.setMarginBox(this._node,_12);
 break;
 case 2:
-box={w:_12,h:_13};
-_3.setMarginBox(this._node,box);
+_3.setMarginBox(this._node,{w:_12,h:_13});
 break;
 }
-box=_3.getMarginBox(this._node);
+var box=_3.getMarginBox(this._node);
 this._widgetBox=box;
 var d=this.surface.getDimensions();
 if(d.width!=box.w||d.height!=box.h){

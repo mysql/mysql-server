@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ class Ndb_schema_dist_table : public Ndb_util_table {
 
   /**
     @brief Retrieve the schema UUID from the ndb_schema table in NDB.
-    @param[out] schema UUID retrieved from the table in NDB
+    @param[out] schema_uuid schema UUID retrieved from the table in NDB
     @return true on success
    */
   bool get_schema_uuid(std::string *schema_uuid) const;

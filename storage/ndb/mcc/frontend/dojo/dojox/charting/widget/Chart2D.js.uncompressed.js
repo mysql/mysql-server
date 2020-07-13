@@ -1,8 +1,9 @@
 require({cache:{
 'dojox/charting/widget/Chart':function(){
-define("dojox/charting/widget/Chart", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array","dojo/dom-attr","dojo/_base/declare", "dojo/query",
-	"dijit/_WidgetBase", "../Chart", "dojox/lang/utils", "dojox/lang/functional","dojox/lang/functional/lambda"],
-	function(kernel, lang, arr, domAttr, declare, query, _WidgetBase, Chart, du, df, dfl){
+define(["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array","dojo/dom-attr","dojo/_base/declare", "dojo/query",
+	"dijit/_WidgetBase", "../Chart", "dojo/has", "dojo/has!dojo-bidi?../bidi/widget/Chart", 
+	"dojox/lang/utils", "dojox/lang/functional","dojox/lang/functional/lambda"],
+	function(kernel, lang, arr, domAttr, declare, query, _WidgetBase, ChartBase, has, BidiChart, du, df, dfl){
 
 	var collectParams, collectAxisParams, collectPlotParams,
 		collectActionParams, collectDataParams,
@@ -72,6 +73,17 @@ define("dojox/charting/widget/Chart", ["dojo/_base/kernel", "dojo/_base/lang", "
 			type = kernel._scopeName + "x.charting.plot2d.Default";
 		}
 		collectParams(node, type, kw);
+		// TODO
+		// we have factorized axis & label management in CartesianBase and thus is is not anymore
+		// accessible to the default collect mechanism. Longer term we must get rid of that
+		// and leverage dojo/parser
+		var dp = eval("(" + type + ".prototype.baseParams)");
+		var x, attr;
+		for(x in dp){
+			if(x in kw){ continue; }
+			attr = node.getAttribute(x);
+			kw[x] = du.coerceType(dp[x], attr == null || typeof attr == "undefined" ? dp[x] : attr);
+		}
 		return o;
 	};
 
@@ -152,7 +164,7 @@ define("dojox/charting/widget/Chart", ["dojo/_base/kernel", "dojo/_base/lang", "
 		return null;
 	};
 	
-	return declare("dojox.charting.widget.Chart", _WidgetBase, {
+	var Chart = declare(has("dojo-bidi")? "dojox.charting.widget.NonBidiChart" : "dojox.charting.widget.Chart", _WidgetBase, {
 		// summary:
 		//		A chart widget.  This is leveraging dojox/charting/Chart as a Dijit widget.
 
@@ -182,7 +194,7 @@ define("dojox/charting/widget/Chart", ["dojo/_base/kernel", "dojo/_base/lang", "
 		buildRendering: function(){
 			this.inherited(arguments);
 			
-			n = this.domNode;
+			var n = this.domNode;
 			
 			// collect chart parameters
 			var axes    = query("> .axis", n).map(collectAxisParams).filter(notNull),
@@ -192,7 +204,7 @@ define("dojox/charting/widget/Chart", ["dojo/_base/kernel", "dojo/_base/lang", "
 			
 			// build the chart
 			n.innerHTML = "";
-			var c = this.chart = new Chart(n, {
+			var c = this.chart = new ChartBase(n, {
 				margins: this.margins,
 				stroke:  this.stroke,
 				fill:    this.fill,
@@ -274,15 +286,16 @@ define("dojox/charting/widget/Chart", ["dojo/_base/kernel", "dojo/_base/lang", "
 			//		If no box is provided, resize the surface to the marginBox of the domNode.
 			// box:
 			//		If passed, denotes the new size of the widget.
-			this.chart.resize(box);
+			this.chart.resize.apply(this.chart, arguments);
 		}
 	});
+	return has("dojo-bidi")? declare("dojox.charting.widget.Chart", [Chart, BidiChart]) : Chart;
 });
 
 },
 'dijit/_WidgetBase':function(){
-define("dijit/_WidgetBase", [
-	"require",			// require.toUrl
+define([
+	"require", // require.toUrl
 	"dojo/_base/array", // array.forEach array.map
 	"dojo/aspect",
 	"dojo/_base/config", // config.blankGif
@@ -292,7 +305,7 @@ define("dijit/_WidgetBase", [
 	"dojo/dom-attr", // domAttr.set domAttr.remove
 	"dojo/dom-class", // domClass.add domClass.replace
 	"dojo/dom-construct", // domConstruct.destroy domConstruct.place
-	"dojo/dom-geometry",	// isBodyLtr
+	"dojo/dom-geometry", // isBodyLtr
 	"dojo/dom-style", // domStyle.set, domStyle.get
 	"dojo/has",
 	"dojo/_base/kernel",
@@ -301,1132 +314,1211 @@ define("dijit/_WidgetBase", [
 	"dojo/ready",
 	"dojo/Stateful", // Stateful
 	"dojo/topic",
-	"dojo/_base/window", // win.doc, win.body()
+	"dojo/_base/window", // win.body()
 	"./Destroyable",
-	"./registry"	// registry.getUniqueId(), registry.findWidgets()
+	"dojo/has!dojo-bidi?./_BidiMixin",
+	"./registry"    // registry.getUniqueId(), registry.findWidgets()
 ], function(require, array, aspect, config, connect, declare,
 			dom, domAttr, domClass, domConstruct, domGeometry, domStyle, has, kernel,
-			lang, on, ready, Stateful, topic, win, Destroyable, registry){
+			lang, on, ready, Stateful, topic, win, Destroyable, _BidiMixin, registry){
 
-// module:
-//		dijit/_WidgetBase
+	// module:
+	//		dijit/_WidgetBase
 
-// Flag to make dijit load modules the app didn't explicitly request, for backwards compatibility
-has.add("dijit-legacy-requires", !kernel.isAsync);
+	// Flag to make dijit load modules the app didn't explicitly request, for backwards compatibility
+	has.add("dijit-legacy-requires", !kernel.isAsync);
 
-// For back-compat, remove in 2.0.
-if(has("dijit-legacy-requires")){
-	ready(0, function(){
-		var requires = ["dijit/_base/manager"];
-		require(requires);	// use indirection so modules not rolled into a build
-	});
-}
+	// Flag to enable support for textdir attribute
+	has.add("dojo-bidi", false);
 
-// Nested hash listing attributes for each tag, all strings in lowercase.
-// ex: {"div": {"style": true, "tabindex" true}, "form": { ...
-var tagAttrs = {};
-function getAttrs(obj){
-	var ret = {};
-	for(var attr in obj){
-		ret[attr.toLowerCase()] = true;
+
+	// For back-compat, remove in 2.0.
+	if(has("dijit-legacy-requires")){
+		ready(0, function(){
+			var requires = ["dijit/_base/manager"];
+			require(requires);	// use indirection so modules not rolled into a build
+		});
 	}
-	return ret;
-}
 
-function nonEmptyAttrToDom(attr){
-	// summary:
-	//		Returns a setter function that copies the attribute to this.domNode,
-	//		or removes the attribute from this.domNode, depending on whether the
-	//		value is defined or not.
-	return function(val){
-		domAttr[val ? "set" : "remove"](this.domNode, attr, val);
-		this._set(attr, val);
-	};
-}
+	// Nested hash listing attributes for each tag, all strings in lowercase.
+	// ex: {"div": {"style": true, "tabindex" true}, "form": { ...
+	var tagAttrs = {};
 
-function isEqual(a, b){
-	   // summary:
-	   //		Function that determines whether two values are identical,
-	   //		taking into account that NaN is not normally equal to itself
-	   //		in JS.
+	function getAttrs(obj){
+		var ret = {};
+		for(var attr in obj){
+			ret[attr.toLowerCase()] = true;
+		}
+		return ret;
+	}
 
-	   return a === b || (/* a is NaN */ a !== a && /* b is NaN */ b !== b);
-}
-
-return declare("dijit._WidgetBase", [Stateful, Destroyable], {
-	// summary:
-	//		Future base class for all Dijit widgets.
-	// description:
-	//		Future base class for all Dijit widgets.
-	//		_Widget extends this class adding support for various features needed by desktop.
-	//
-	//		Provides stubs for widget lifecycle methods for subclasses to extend, like postMixInProperties(), buildRendering(),
-	//		postCreate(), startup(), and destroy(), and also public API methods like set(), get(), and watch().
-	//
-	//		Widgets can provide custom setters/getters for widget attributes, which are called automatically by set(name, value).
-	//		For an attribute XXX, define methods _setXXXAttr() and/or _getXXXAttr().
-	//
-	//		_setXXXAttr can also be a string/hash/array mapping from a widget attribute XXX to the widget's DOMNodes:
-	//
-	//		- DOM node attribute
-	// |		_setFocusAttr: {node: "focusNode", type: "attribute"}
-	// |		_setFocusAttr: "focusNode"	(shorthand)
-	// |		_setFocusAttr: ""		(shorthand, maps to this.domNode)
-	//		Maps this.focus to this.focusNode.focus, or (last example) this.domNode.focus
-	//
-	//		- DOM node innerHTML
-	//	|		_setTitleAttr: { node: "titleNode", type: "innerHTML" }
-	//		Maps this.title to this.titleNode.innerHTML
-	//
-	//		- DOM node innerText
-	//	|		_setTitleAttr: { node: "titleNode", type: "innerText" }
-	//		Maps this.title to this.titleNode.innerText
-	//
-	//		- DOM node CSS class
-	// |		_setMyClassAttr: { node: "domNode", type: "class" }
-	//		Maps this.myClass to this.domNode.className
-	//
-	//		If the value of _setXXXAttr is an array, then each element in the array matches one of the
-	//		formats of the above list.
-	//
-	//		If the custom setter is null, no action is performed other than saving the new value
-	//		in the widget (in this).
-	//
-	//		If no custom setter is defined for an attribute, then it will be copied
-	//		to this.focusNode (if the widget defines a focusNode), or this.domNode otherwise.
-	//		That's only done though for attributes that match DOMNode attributes (title,
-	//		alt, aria-labelledby, etc.)
-
-	// id: [const] String
-	//		A unique, opaque ID string that can be assigned by users or by the
-	//		system. If the developer passes an ID which is known not to be
-	//		unique, the specified ID is ignored and the system-generated ID is
-	//		used instead.
-	id: "",
-	_setIdAttr: "domNode",	// to copy to this.domNode even for auto-generated id's
-
-	// lang: [const] String
-	//		Rarely used.  Overrides the default Dojo locale used to render this widget,
-	//		as defined by the [HTML LANG](http://www.w3.org/TR/html401/struct/dirlang.html#adef-lang) attribute.
-	//		Value must be among the list of locales specified during by the Dojo bootstrap,
-	//		formatted according to [RFC 3066](http://www.ietf.org/rfc/rfc3066.txt) (like en-us).
-	lang: "",
-	// set on domNode even when there's a focus node.	but don't set lang="", since that's invalid.
-	_setLangAttr: nonEmptyAttrToDom("lang"),
-
-	// dir: [const] String
-	//		Bi-directional support, as defined by the [HTML DIR](http://www.w3.org/TR/html401/struct/dirlang.html#adef-dir)
-	//		attribute. Either left-to-right "ltr" or right-to-left "rtl".  If undefined, widgets renders in page's
-	//		default direction.
-	dir: "",
-	// set on domNode even when there's a focus node.	but don't set dir="", since that's invalid.
-	_setDirAttr: nonEmptyAttrToDom("dir"),	// to set on domNode even when there's a focus node
-
-	// textDir: String
-	//		Bi-directional support,	the main variable which is responsible for the direction of the text.
-	//		The text direction can be different than the GUI direction by using this parameter in creation
-	//		of a widget.
-	//
-	//		Allowed values:
-	//
-	//		1. "ltr"
-	//		2. "rtl"
-	//		3. "auto" - contextual the direction of a text defined by first strong letter.
-	//
-	//		By default is as the page direction.
-	textDir: "",
-
-	// class: String
-	//		HTML class attribute
-	"class": "",
-	_setClassAttr: { node: "domNode", type: "class" },
-
-	// style: String||Object
-	//		HTML style attributes as cssText string or name/value hash
-	style: "",
-
-	// title: String
-	//		HTML title attribute.
-	//
-	//		For form widgets this specifies a tooltip to display when hovering over
-	//		the widget (just like the native HTML title attribute).
-	//
-	//		For TitlePane or for when this widget is a child of a TabContainer, AccordionContainer,
-	//		etc., it's used to specify the tab label, accordion pane title, etc.
-	title: "",
-
-	// tooltip: String
-	//		When this widget's title attribute is used to for a tab label, accordion pane title, etc.,
-	//		this specifies the tooltip to appear when the mouse is hovered over that text.
-	tooltip: "",
-
-	// baseClass: [protected] String
-	//		Root CSS class of the widget (ex: dijitTextBox), used to construct CSS classes to indicate
-	//		widget state.
-	baseClass: "",
-
-	// srcNodeRef: [readonly] DomNode
-	//		pointer to original DOM node
-	srcNodeRef: null,
-
-	// domNode: [readonly] DomNode
-	//		This is our visible representation of the widget! Other DOM
-	//		Nodes may by assigned to other properties, usually through the
-	//		template system's data-dojo-attach-point syntax, but the domNode
-	//		property is the canonical "top level" node in widget UI.
-	domNode: null,
-
-	// containerNode: [readonly] DomNode
-	//		Designates where children of the source DOM node will be placed.
-	//		"Children" in this case refers to both DOM nodes and widgets.
-	//		For example, for myWidget:
-	//
-	//		|	<div data-dojo-type=myWidget>
-	//		|		<b> here's a plain DOM node
-	//		|		<span data-dojo-type=subWidget>and a widget</span>
-	//		|		<i> and another plain DOM node </i>
-	//		|	</div>
-	//
-	//		containerNode would point to:
-	//
-	//		|		<b> here's a plain DOM node
-	//		|		<span data-dojo-type=subWidget>and a widget</span>
-	//		|		<i> and another plain DOM node </i>
-	//
-	//		In templated widgets, "containerNode" is set via a
-	//		data-dojo-attach-point assignment.
-	//
-	//		containerNode must be defined for any widget that accepts innerHTML
-	//		(like ContentPane or BorderContainer or even Button), and conversely
-	//		is null for widgets that don't, like TextBox.
-	containerNode: null,
-
-	// ownerDocument: [const] Document?
-	//		The document this widget belongs to.  If not specified to constructor, will default to
-	//		srcNodeRef.ownerDocument, or if no sourceRef specified, then to dojo/_base/window::doc
-	ownerDocument: null,
-	_setOwnerDocumentAttr: function(val){
-		// this setter is merely to avoid automatically trying to set this.domNode.ownerDocument
-		this._set("ownerDocument", val);
-	},
-
-/*=====
-	// _started: [readonly] Boolean
-	//		startup() has completed.
-	_started: false,
-=====*/
-
-	// attributeMap: [protected] Object
-	//		Deprecated.	Instead of attributeMap, widget should have a _setXXXAttr attribute
-	//		for each XXX attribute to be mapped to the DOM.
-	//
-	//		attributeMap sets up a "binding" between attributes (aka properties)
-	//		of the widget and the widget's DOM.
-	//		Changes to widget attributes listed in attributeMap will be
-	//		reflected into the DOM.
-	//
-	//		For example, calling set('title', 'hello')
-	//		on a TitlePane will automatically cause the TitlePane's DOM to update
-	//		with the new title.
-	//
-	//		attributeMap is a hash where the key is an attribute of the widget,
-	//		and the value reflects a binding to a:
-	//
-	//		- DOM node attribute
-	// |		focus: {node: "focusNode", type: "attribute"}
-	//		Maps this.focus to this.focusNode.focus
-	//
-	//		- DOM node innerHTML
-	//	|		title: { node: "titleNode", type: "innerHTML" }
-	//		Maps this.title to this.titleNode.innerHTML
-	//
-	//		- DOM node innerText
-	//	|		title: { node: "titleNode", type: "innerText" }
-	//		Maps this.title to this.titleNode.innerText
-	//
-	//		- DOM node CSS class
-	// |		myClass: { node: "domNode", type: "class" }
-	//		Maps this.myClass to this.domNode.className
-	//
-	//		If the value is an array, then each element in the array matches one of the
-	//		formats of the above list.
-	//
-	//		There are also some shorthands for backwards compatibility:
-	//
-	//		- string --> { node: string, type: "attribute" }, for example:
-	//
-	//	|	"focusNode" ---> { node: "focusNode", type: "attribute" }
-	//
-	//		- "" --> { node: "domNode", type: "attribute" }
-	attributeMap: {},
-
-	// _blankGif: [protected] String
-	//		Path to a blank 1x1 image.
-	//		Used by `<img>` nodes in templates that really get their image via CSS background-image.
-	_blankGif: config.blankGif || require.toUrl("dojo/resources/blank.gif"),
-
-	//////////// INITIALIZATION METHODS ///////////////////////////////////////
-
-	/*=====
-	constructor: function(params, srcNodeRef){
+	function nonEmptyAttrToDom(attr){
 		// summary:
-		//		Create the widget.
-		// params: Object|null
-		//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
-		//		and functions, typically callbacks like onClick.
-	 	//		The hash can contain any of the widget's properties, excluding read-only properties.
-	 	// srcNodeRef: DOMNode|String?
-		//		If a srcNodeRef (DOM node) is specified:
-		//
-		//		- use srcNodeRef.innerHTML as my contents
-		//		- if this is a behavioral widget then apply behavior to that srcNodeRef
-		//		- otherwise, replace srcNodeRef with my generated DOM tree
-	 },
-	=====*/
+		//		Returns a setter function that copies the attribute to this.domNode,
+		//		or removes the attribute from this.domNode, depending on whether the
+		//		value is defined or not.
+		return function(val){
+			domAttr[val ? "set" : "remove"](this.domNode, attr, val);
+			this._set(attr, val);
+		};
+	}
 
-	postscript: function(/*Object?*/params, /*DomNode|String*/srcNodeRef){
-		// summary:
-		//		Kicks off widget instantiation.  See create() for details.
-		// tags:
-		//		private
-		this.create(params, srcNodeRef);
-	},
+	function isEqual(a, b){
+		//	summary:
+		//		Function that determines whether two values are identical,
+		//		taking into account that NaN is not normally equal to itself
+		//		in JS.
 
-	create: function(params, srcNodeRef){
+		return a === b || (/* a is NaN */ a !== a && /* b is NaN */ b !== b);
+	}
+
+	var _WidgetBase = declare("dijit._WidgetBase", [Stateful, Destroyable], {
 		// summary:
-		//		Kick off the life-cycle of a widget
+		//		Future base class for all Dijit widgets.
 		// description:
-		//		Create calls a number of widget methods (postMixInProperties, buildRendering, postCreate,
-		//		etc.), some of which of you'll want to override. See http://dojotoolkit.org/reference-guide/dijit/_WidgetBase.html
-		//		for a discussion of the widget creation lifecycle.
+		//		Future base class for all Dijit widgets.
+		//		_Widget extends this class adding support for various features needed by desktop.
 		//
-		//		Of course, adventurous developers could override create entirely, but this should
-		//		only be done as a last resort.
-		// params: Object|null
-		//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
-		//		and functions, typically callbacks like onClick.
-		//		The hash can contain any of the widget's properties, excluding read-only properties.
-		// srcNodeRef: DOMNode|String?
-		//		If a srcNodeRef (DOM node) is specified:
+		//		Provides stubs for widget lifecycle methods for subclasses to extend, like postMixInProperties(), buildRendering(),
+		//		postCreate(), startup(), and destroy(), and also public API methods like set(), get(), and watch().
 		//
-		//		- use srcNodeRef.innerHTML as my contents
-		//		- if this is a behavioral widget then apply behavior to that srcNodeRef
-		//		- otherwise, replace srcNodeRef with my generated DOM tree
-		// tags:
-		//		private
+		//		Widgets can provide custom setters/getters for widget attributes, which are called automatically by set(name, value).
+		//		For an attribute XXX, define methods _setXXXAttr() and/or _getXXXAttr().
+		//
+		//		_setXXXAttr can also be a string/hash/array mapping from a widget attribute XXX to the widget's DOMNodes:
+		//
+		//		- DOM node attribute
+		// |		_setFocusAttr: {node: "focusNode", type: "attribute"}
+		// |		_setFocusAttr: "focusNode"	(shorthand)
+		// |		_setFocusAttr: ""		(shorthand, maps to this.domNode)
+		//		Maps this.focus to this.focusNode.focus, or (last example) this.domNode.focus
+		//
+		//		- DOM node innerHTML
+		//	|		_setTitleAttr: { node: "titleNode", type: "innerHTML" }
+		//		Maps this.title to this.titleNode.innerHTML
+		//
+		//		- DOM node innerText
+		//	|		_setTitleAttr: { node: "titleNode", type: "innerText" }
+		//		Maps this.title to this.titleNode.innerText
+		//
+		//		- DOM node CSS class
+		// |		_setMyClassAttr: { node: "domNode", type: "class" }
+		//		Maps this.myClass to this.domNode.className
+		//
+		//		- Toggle DOM node CSS class
+		// |		_setMyClassAttr: { node: "domNode", type: "toggleClass" }
+		//		Toggles myClass on this.domNode by this.myClass
+		//
+		//		If the value of _setXXXAttr is an array, then each element in the array matches one of the
+		//		formats of the above list.
+		//
+		//		If the custom setter is null, no action is performed other than saving the new value
+		//		in the widget (in this).
+		//
+		//		If no custom setter is defined for an attribute, then it will be copied
+		//		to this.focusNode (if the widget defines a focusNode), or this.domNode otherwise.
+		//		That's only done though for attributes that match DOMNode attributes (title,
+		//		alt, aria-labelledby, etc.)
 
-		// store pointer to original DOM tree
-		this.srcNodeRef = dom.byId(srcNodeRef);
+		// id: [const] String
+		//		A unique, opaque ID string that can be assigned by users or by the
+		//		system. If the developer passes an ID which is known not to be
+		//		unique, the specified ID is ignored and the system-generated ID is
+		//		used instead.
+		id: "",
+		_setIdAttr: "domNode", // to copy to this.domNode even for auto-generated id's
 
-		// No longer used, remove for 2.0.
-		this._connects = [];
-		this._supportingWidgets = [];
+		// lang: [const] String
+		//		Rarely used.  Overrides the default Dojo locale used to render this widget,
+		//		as defined by the [HTML LANG](http://www.w3.org/TR/html401/struct/dirlang.html#adef-lang) attribute.
+		//		Value must be among the list of locales specified during by the Dojo bootstrap,
+		//		formatted according to [RFC 3066](http://www.ietf.org/rfc/rfc3066.txt) (like en-us).
+		lang: "",
+		// set on domNode even when there's a focus node.	but don't set lang="", since that's invalid.
+		_setLangAttr: nonEmptyAttrToDom("lang"),
 
-		// this is here for back-compat, remove in 2.0 (but check NodeList-instantiate.html test)
-		if(this.srcNodeRef && (typeof this.srcNodeRef.id == "string")){ this.id = this.srcNodeRef.id; }
+		// dir: [const] String
+		//		Bi-directional support, as defined by the [HTML DIR](http://www.w3.org/TR/html401/struct/dirlang.html#adef-dir)
+		//		attribute. Either left-to-right "ltr" or right-to-left "rtl".  If undefined, widgets renders in page's
+		//		default direction.
+		dir: "",
+		// set on domNode even when there's a focus node.	but don't set dir="", since that's invalid.
+		_setDirAttr: nonEmptyAttrToDom("dir"), // to set on domNode even when there's a focus node
 
-		// mix in our passed parameters
-		if(params){
-			this.params = params;
-			lang.mixin(this, params);
-		}
-		this.postMixInProperties();
+		// class: String
+		//		HTML class attribute
+		"class": "",
+		_setClassAttr: { node: "domNode", type: "class" },
 
-		// Generate an id for the widget if one wasn't specified, or it was specified as id: undefined.
-		// Do this before buildRendering() because it might expect the id to be there.
-		if(!this.id){
-			this.id = registry.getUniqueId(this.declaredClass.replace(/\./g,"_"));
-			if(this.params){
-				// if params contains {id: undefined}, prevent _applyAttributes() from processing it
-				delete this.params.id;
+		// Override automatic assigning type --> focusNode, it causes exception on IE6-8.
+		// Instead, type must be specified as ${type} in the template, as part of the original DOM.
+		_setTypeAttr: null,
+
+		// style: String||Object
+		//		HTML style attributes as cssText string or name/value hash
+		style: "",
+
+		// title: String
+		//		HTML title attribute.
+		//
+		//		For form widgets this specifies a tooltip to display when hovering over
+		//		the widget (just like the native HTML title attribute).
+		//
+		//		For TitlePane or for when this widget is a child of a TabContainer, AccordionContainer,
+		//		etc., it's used to specify the tab label, accordion pane title, etc.  In this case it's
+		//		interpreted as HTML.
+		title: "",
+
+		// tooltip: String
+		//		When this widget's title attribute is used to for a tab label, accordion pane title, etc.,
+		//		this specifies the tooltip to appear when the mouse is hovered over that text.
+		tooltip: "",
+
+		// baseClass: [protected] String
+		//		Root CSS class of the widget (ex: dijitTextBox), used to construct CSS classes to indicate
+		//		widget state.
+		baseClass: "",
+
+		// srcNodeRef: [readonly] DomNode
+		//		pointer to original DOM node
+		srcNodeRef: null,
+
+		// domNode: [readonly] DomNode
+		//		This is our visible representation of the widget! Other DOM
+		//		Nodes may by assigned to other properties, usually through the
+		//		template system's data-dojo-attach-point syntax, but the domNode
+		//		property is the canonical "top level" node in widget UI.
+		domNode: null,
+
+		// containerNode: [readonly] DomNode
+		//		Designates where children of the source DOM node will be placed.
+		//		"Children" in this case refers to both DOM nodes and widgets.
+		//		For example, for myWidget:
+		//
+		//		|	<div data-dojo-type=myWidget>
+		//		|		<b> here's a plain DOM node
+		//		|		<span data-dojo-type=subWidget>and a widget</span>
+		//		|		<i> and another plain DOM node </i>
+		//		|	</div>
+		//
+		//		containerNode would point to:
+		//
+		//		|		<b> here's a plain DOM node
+		//		|		<span data-dojo-type=subWidget>and a widget</span>
+		//		|		<i> and another plain DOM node </i>
+		//
+		//		In templated widgets, "containerNode" is set via a
+		//		data-dojo-attach-point assignment.
+		//
+		//		containerNode must be defined for any widget that accepts innerHTML
+		//		(like ContentPane or BorderContainer or even Button), and conversely
+		//		is null for widgets that don't, like TextBox.
+		containerNode: null,
+
+		// ownerDocument: [const] Document?
+		//		The document this widget belongs to.  If not specified to constructor, will default to
+		//		srcNodeRef.ownerDocument, or if no sourceRef specified, then to the document global
+		ownerDocument: null,
+		_setOwnerDocumentAttr: function(val){
+			// this setter is merely to avoid automatically trying to set this.domNode.ownerDocument
+			this._set("ownerDocument", val);
+		},
+
+		/*=====
+		// _started: [readonly] Boolean
+		//		startup() has completed.
+		_started: false,
+		=====*/
+
+		// attributeMap: [protected] Object
+		//		Deprecated.	Instead of attributeMap, widget should have a _setXXXAttr attribute
+		//		for each XXX attribute to be mapped to the DOM.
+		//
+		//		attributeMap sets up a "binding" between attributes (aka properties)
+		//		of the widget and the widget's DOM.
+		//		Changes to widget attributes listed in attributeMap will be
+		//		reflected into the DOM.
+		//
+		//		For example, calling set('title', 'hello')
+		//		on a TitlePane will automatically cause the TitlePane's DOM to update
+		//		with the new title.
+		//
+		//		attributeMap is a hash where the key is an attribute of the widget,
+		//		and the value reflects a binding to a:
+		//
+		//		- DOM node attribute
+		// |		focus: {node: "focusNode", type: "attribute"}
+		//		Maps this.focus to this.focusNode.focus
+		//
+		//		- DOM node innerHTML
+		//	|		title: { node: "titleNode", type: "innerHTML" }
+		//		Maps this.title to this.titleNode.innerHTML
+		//
+		//		- DOM node innerText
+		//	|		title: { node: "titleNode", type: "innerText" }
+		//		Maps this.title to this.titleNode.innerText
+		//
+		//		- DOM node CSS class
+		// |		myClass: { node: "domNode", type: "class" }
+		//		Maps this.myClass to this.domNode.className
+		//
+		//		If the value is an array, then each element in the array matches one of the
+		//		formats of the above list.
+		//
+		//		There are also some shorthands for backwards compatibility:
+		//
+		//		- string --> { node: string, type: "attribute" }, for example:
+		//
+		//	|	"focusNode" ---> { node: "focusNode", type: "attribute" }
+		//
+		//		- "" --> { node: "domNode", type: "attribute" }
+		attributeMap: {},
+
+		// _blankGif: [protected] String
+		//		Path to a blank 1x1 image.
+		//		Used by `<img>` nodes in templates that really get their image via CSS background-image.
+		_blankGif: config.blankGif || require.toUrl("dojo/resources/blank.gif"),
+
+		// textDir: String
+		//		Bi-directional support,	the main variable which is responsible for the direction of the text.
+		//		The text direction can be different than the GUI direction by using this parameter in creation
+		//		of a widget.
+		//
+		//		This property is only effective when `has("dojo-bidi")` is defined to be true.
+		//
+		//		Allowed values:
+		//
+		//		1. "" - default value; text is same direction as widget
+		//		2. "ltr"
+		//		3. "rtl"
+		//		4. "auto" - contextual the direction of a text defined by first strong letter.
+		textDir: "",
+
+		//////////// INITIALIZATION METHODS ///////////////////////////////////////
+
+		/*=====
+		constructor: function(params, srcNodeRef){
+			// summary:
+			//		Create the widget.
+			// params: Object|null
+			//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
+			//		and functions, typically callbacks like onClick.
+			//		The hash can contain any of the widget's properties, excluding read-only properties.
+			// srcNodeRef: DOMNode|String?
+			//		If a srcNodeRef (DOM node) is specified:
+			//
+			//		- use srcNodeRef.innerHTML as my contents
+			//		- if this is a behavioral widget then apply behavior to that srcNodeRef
+			//		- otherwise, replace srcNodeRef with my generated DOM tree
+		},
+		=====*/
+
+		_introspect: function(){
+			// summary:
+			//		Collect metadata about this widget (only once per class, not once per instance):
+			//
+			//			- list of attributes with custom setters, storing in this.constructor._setterAttrs
+			//			- generate this.constructor._onMap, mapping names like "mousedown" to functions like onMouseDown
+
+			var ctor = this.constructor;
+			if(!ctor._setterAttrs){
+				var proto = ctor.prototype,
+					attrs = ctor._setterAttrs = [], // attributes with custom setters
+					onMap = (ctor._onMap = {});
+
+				// Items in this.attributeMap are like custom setters.  For back-compat, remove for 2.0.
+				for(var name in proto.attributeMap){
+					attrs.push(name);
+				}
+
+				// Loop over widget properties, collecting properties with custom setters and filling in ctor._onMap.
+				for(name in proto){
+					if(/^on/.test(name)){
+						onMap[name.substring(2).toLowerCase()] = name;
+					}
+
+					if(/^_set[A-Z](.*)Attr$/.test(name)){
+						name = name.charAt(4).toLowerCase() + name.substr(5, name.length - 9);
+						if(!proto.attributeMap || !(name in proto.attributeMap)){
+							attrs.push(name);
+						}
+					}
+				}
+
+				// Note: this isn't picking up info on properties like aria-label and role, that don't have custom setters
+				// but that set() maps to attributes on this.domNode or this.focusNode
 			}
-		}
+		},
 
-		// The document and <body> node this widget is associated with
-		this.ownerDocument = this.ownerDocument || (this.srcNodeRef ? this.srcNodeRef.ownerDocument : win.doc);
-		this.ownerDocumentBody = win.body(this.ownerDocument);
+		postscript: function(/*Object?*/params, /*DomNode|String*/srcNodeRef){
+			// summary:
+			//		Kicks off widget instantiation.  See create() for details.
+			// tags:
+			//		private
 
-		registry.add(this);
+			// Note that we skip calling this.inherited(), i.e. dojo/Stateful::postscript(), because 1.x widgets don't
+			// expect their custom setters to get called until after buildRendering().  Consider changing for 2.0.
 
-		this.buildRendering();
+			this.create(params, srcNodeRef);
+		},
 
-		var deleteSrcNodeRef;
+		create: function(params, srcNodeRef){
+			// summary:
+			//		Kick off the life-cycle of a widget
+			// description:
+			//		Create calls a number of widget methods (postMixInProperties, buildRendering, postCreate,
+			//		etc.), some of which of you'll want to override. See http://dojotoolkit.org/reference-guide/dijit/_WidgetBase.html
+			//		for a discussion of the widget creation lifecycle.
+			//
+			//		Of course, adventurous developers could override create entirely, but this should
+			//		only be done as a last resort.
+			// params: Object|null
+			//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
+			//		and functions, typically callbacks like onClick.
+			//		The hash can contain any of the widget's properties, excluding read-only properties.
+			// srcNodeRef: DOMNode|String?
+			//		If a srcNodeRef (DOM node) is specified:
+			//
+			//		- use srcNodeRef.innerHTML as my contents
+			//		- if this is a behavioral widget then apply behavior to that srcNodeRef
+			//		- otherwise, replace srcNodeRef with my generated DOM tree
+			// tags:
+			//		private
 
-		if(this.domNode){
-			// Copy attributes listed in attributeMap into the [newly created] DOM for the widget.
-			// Also calls custom setters for all attributes with custom setters.
-			this._applyAttributes();
+			// First time widget is instantiated, scan prototype to figure out info about custom setters etc.
+			this._introspect();
 
-			// If srcNodeRef was specified, then swap out original srcNode for this widget's DOM tree.
-			// For 2.0, move this after postCreate().  postCreate() shouldn't depend on the
-			// widget being attached to the DOM since it isn't when a widget is created programmatically like
-			// new MyWidget({}).	See #11635.
-			var source = this.srcNodeRef;
-			if(source && source.parentNode && this.domNode !== source){
-				source.parentNode.replaceChild(this.domNode, source);
-				deleteSrcNodeRef = true;
+			// store pointer to original DOM tree
+			this.srcNodeRef = dom.byId(srcNodeRef);
+
+			// No longer used, remove for 2.0.
+			this._connects = [];
+			this._supportingWidgets = [];
+
+			// this is here for back-compat, remove in 2.0 (but check NodeList-instantiate.html test)
+			if(this.srcNodeRef && this.srcNodeRef.id  && (typeof this.srcNodeRef.id == "string")){
+				this.id = this.srcNodeRef.id;
 			}
 
-			// Note: for 2.0 may want to rename widgetId to dojo._scopeName + "_widgetId",
-			// assuming that dojo._scopeName even exists in 2.0
-			this.domNode.setAttribute("widgetId", this.id);
-		}
-		this.postCreate();
-
-		// If srcNodeRef has been processed and removed from the DOM (e.g. TemplatedWidget) then delete it to allow GC.
-		// I think for back-compatibility it isn't deleting srcNodeRef until after postCreate() has run.
-		if(deleteSrcNodeRef){
-			delete this.srcNodeRef;
-		}
-
-		this._created = true;
-	},
-
-	_applyAttributes: function(){
-		// summary:
-		//		Step during widget creation to copy  widget attributes to the
-		//		DOM according to attributeMap and _setXXXAttr objects, and also to call
-		//		custom _setXXXAttr() methods.
-		//
-		//		Skips over blank/false attribute values, unless they were explicitly specified
-		//		as parameters to the widget, since those are the default anyway,
-		//		and setting tabIndex="" is different than not setting tabIndex at all.
-		//
-		//		For backwards-compatibility reasons attributeMap overrides _setXXXAttr when
-		//		_setXXXAttr is a hash/string/array, but _setXXXAttr as a functions override attributeMap.
-		// tags:
-		//		private
-
-		// Get list of attributes where this.set(name, value) will do something beyond
-		// setting this[name] = value.  Specifically, attributes that have:
-		//		- associated _setXXXAttr() method/hash/string/array
-		//		- entries in attributeMap (remove this for 2.0);
-		var ctor = this.constructor,
-			list = ctor._setterAttrs;
-		if(!list){
-			list = (ctor._setterAttrs = []);
-			for(var attr in this.attributeMap){
-				list.push(attr);
+			// mix in our passed parameters
+			if(params){
+				this.params = params;
+				lang.mixin(this, params);
 			}
+			this.postMixInProperties();
 
-			var proto = ctor.prototype;
-			for(var fxName in proto){
-				if(fxName in this.attributeMap){ continue; }
-				var setterName = "_set" + fxName.replace(/^[a-z]|-[a-zA-Z]/g, function(c){ return c.charAt(c.length-1).toUpperCase(); }) + "Attr";
-				if(setterName in proto){
-					list.push(fxName);
+			// Generate an id for the widget if one wasn't specified, or it was specified as id: undefined.
+			// Do this before buildRendering() because it might expect the id to be there.
+			if(!this.id){
+				this.id = registry.getUniqueId(this.declaredClass.replace(/\./g, "_"));
+				if(this.params){
+					// if params contains {id: undefined}, prevent _applyAttributes() from processing it
+					delete this.params.id;
 				}
 			}
-		}
 
-		// Call this.set() for each property that was either specified as parameter to constructor,
-		// or is in the list found above.	For correlated properties like value and displayedValue, the one
-		// specified as a parameter should take precedence.
-		// Particularly important for new DateTextBox({displayedValue: ...}) since DateTextBox's default value is
-		// NaN and thus is not ignored like a default value of "".
+			// The document and <body> node this widget is associated with
+			this.ownerDocument = this.ownerDocument || (this.srcNodeRef ? this.srcNodeRef.ownerDocument : document);
+			this.ownerDocumentBody = win.body(this.ownerDocument);
 
-		// Step 1: Save the current values of the widget properties that were specified as parameters to the constructor.
-		// Generally this.foo == this.params.foo, except if postMixInProperties() changed the value of this.foo.
-		var params = {};
-		for(var key in this.params || {}){
-			params[key] = this[key];
-		}
+			registry.add(this);
 
-		// Step 2: Call set() for each property that wasn't passed as a parameter to the constructor
-		array.forEach(list, function(attr){
-			if(attr in params){
-				// skip this one, do it below
-			}else if(this[attr]){
-				this.set(attr, this[attr]);
+			this.buildRendering();
+
+			var deleteSrcNodeRef;
+
+			if(this.domNode){
+				// Copy attributes listed in attributeMap into the [newly created] DOM for the widget.
+				// Also calls custom setters for all attributes with custom setters.
+				this._applyAttributes();
+
+				// If srcNodeRef was specified, then swap out original srcNode for this widget's DOM tree.
+				// For 2.0, move this after postCreate().  postCreate() shouldn't depend on the
+				// widget being attached to the DOM since it isn't when a widget is created programmatically like
+				// new MyWidget({}).	See #11635.
+				var source = this.srcNodeRef;
+				if(source && source.parentNode && this.domNode !== source){
+					source.parentNode.replaceChild(this.domNode, source);
+					deleteSrcNodeRef = true;
+				}
+
+				// Note: for 2.0 may want to rename widgetId to dojo._scopeName + "_widgetId",
+				// assuming that dojo._scopeName even exists in 2.0
+				this.domNode.setAttribute("widgetId", this.id);
 			}
-		}, this);
+			this.postCreate();
 
-		// Step 3: Call set() for each property that was specified as parameter to constructor.
-		// Use params hash created above to ignore side effects from step #2 above.
-		for(key in params){
-			this.set(key, params[key]);
-		}
-	},
-
-	postMixInProperties: function(){
-		// summary:
-		//		Called after the parameters to the widget have been read-in,
-		//		but before the widget template is instantiated. Especially
-		//		useful to set properties that are referenced in the widget
-		//		template.
-		// tags:
-		//		protected
-	},
-
-	buildRendering: function(){
-		// summary:
-		//		Construct the UI for this widget, setting this.domNode.
-		//		Most widgets will mixin `dijit._TemplatedMixin`, which implements this method.
-		// tags:
-		//		protected
-
-		if(!this.domNode){
-			// Create root node if it wasn't created by _Templated
-			this.domNode = this.srcNodeRef || this.ownerDocument.createElement("div");
-		}
-
-		// baseClass is a single class name or occasionally a space-separated list of names.
-		// Add those classes to the DOMNode.  If RTL mode then also add with Rtl suffix.
-		// TODO: make baseClass custom setter
-		if(this.baseClass){
-			var classes = this.baseClass.split(" ");
-			if(!this.isLeftToRight()){
-				classes = classes.concat( array.map(classes, function(name){ return name+"Rtl"; }));
+			// If srcNodeRef has been processed and removed from the DOM (e.g. TemplatedWidget) then delete it to allow GC.
+			// I think for back-compatibility it isn't deleting srcNodeRef until after postCreate() has run.
+			if(deleteSrcNodeRef){
+				delete this.srcNodeRef;
 			}
-			domClass.add(this.domNode, classes);
-		}
-	},
 
-	postCreate: function(){
-		// summary:
-		//		Processing after the DOM fragment is created
-		// description:
-		//		Called after the DOM fragment has been created, but not necessarily
-		//		added to the document.  Do not include any operations which rely on
-		//		node dimensions or placement.
-		// tags:
-		//		protected
-	},
+			this._created = true;
+		},
 
-	startup: function(){
-		// summary:
-		//		Processing after the DOM fragment is added to the document
-		// description:
-		//		Called after a widget and its children have been created and added to the page,
-		//		and all related widgets have finished their create() cycle, up through postCreate().
-		//		This is useful for composite widgets that need to control or layout sub-widgets.
-		//		Many layout widgets can use this as a wiring phase.
-		if(this._started){ return; }
-		this._started = true;
-		array.forEach(this.getChildren(), function(obj){
-			if(!obj._started && !obj._destroyed && lang.isFunction(obj.startup)){
-				obj.startup();
-				obj._started = true;
+		_applyAttributes: function(){
+			// summary:
+			//		Step during widget creation to copy  widget attributes to the
+			//		DOM according to attributeMap and _setXXXAttr objects, and also to call
+			//		custom _setXXXAttr() methods.
+			//
+			//		Skips over blank/false attribute values, unless they were explicitly specified
+			//		as parameters to the widget, since those are the default anyway,
+			//		and setting tabIndex="" is different than not setting tabIndex at all.
+			//
+			//		For backwards-compatibility reasons attributeMap overrides _setXXXAttr when
+			//		_setXXXAttr is a hash/string/array, but _setXXXAttr as a functions override attributeMap.
+			// tags:
+			//		private
+
+			// Call this.set() for each property that was either specified as parameter to constructor,
+			// or is in the list found above.	For correlated properties like value and displayedValue, the one
+			// specified as a parameter should take precedence.
+			// Particularly important for new DateTextBox({displayedValue: ...}) since DateTextBox's default value is
+			// NaN and thus is not ignored like a default value of "".
+
+			// Step 1: Save the current values of the widget properties that were specified as parameters to the constructor.
+			// Generally this.foo == this.params.foo, except if postMixInProperties() changed the value of this.foo.
+			var params = {};
+			for(var key in this.params || {}){
+				params[key] = this._get(key);
 			}
-		});
-	},
 
-	//////////// DESTROY FUNCTIONS ////////////////////////////////
-
-	destroyRecursive: function(/*Boolean?*/ preserveDom){
-		// summary:
-		//		Destroy this widget and its descendants
-		// description:
-		//		This is the generic "destructor" function that all widget users
-		//		should call to cleanly discard with a widget. Once a widget is
-		//		destroyed, it is removed from the manager object.
-		// preserveDom:
-		//		If true, this method will leave the original DOM structure
-		//		alone of descendant Widgets. Note: This will NOT work with
-		//		dijit._Templated widgets.
-
-		this._beingDestroyed = true;
-		this.destroyDescendants(preserveDom);
-		this.destroy(preserveDom);
-	},
-
-	destroy: function(/*Boolean*/ preserveDom){
-		// summary:
-		//		Destroy this widget, but not its descendants.
-		//		This method will, however, destroy internal widgets such as those used within a template.
-		// preserveDom: Boolean
-		//		If true, this method will leave the original DOM structure alone.
-		//		Note: This will not yet work with _Templated widgets
-
-		this._beingDestroyed = true;
-		this.uninitialize();
-
-		function destroy(w){
-			if(w.destroyRecursive){
-				w.destroyRecursive(preserveDom);
-			}else if(w.destroy){
-				w.destroy(preserveDom);
-			}
-		}
-
-		// Back-compat, remove for 2.0
-		array.forEach(this._connects, lang.hitch(this, "disconnect"));
-		array.forEach(this._supportingWidgets, destroy);
-
-		// Destroy supporting widgets, but not child widgets under this.containerNode (for 2.0, destroy child widgets
-		// here too).   if() statement is to guard against exception if destroy() called multiple times (see #15815).
-		if(this.domNode){
-			array.forEach(registry.findWidgets(this.domNode, this.containerNode), destroy);
-		}
-
-		this.destroyRendering(preserveDom);
-		registry.remove(this.id);
-		this._destroyed = true;
-	},
-
-	destroyRendering: function(/*Boolean?*/ preserveDom){
-		// summary:
-		//		Destroys the DOM nodes associated with this widget
-		// preserveDom:
-		//		If true, this method will leave the original DOM structure alone
-		//		during tear-down. Note: this will not work with _Templated
-		//		widgets yet.
-		// tags:
-		//		protected
-
-		if(this.bgIframe){
-			this.bgIframe.destroy(preserveDom);
-			delete this.bgIframe;
-		}
-
-		if(this.domNode){
-			if(preserveDom){
-				domAttr.remove(this.domNode, "widgetId");
-			}else{
-				domConstruct.destroy(this.domNode);
-			}
-			delete this.domNode;
-		}
-
-		if(this.srcNodeRef){
-			if(!preserveDom){
-				domConstruct.destroy(this.srcNodeRef);
-			}
-			delete this.srcNodeRef;
-		}
-	},
-
-	destroyDescendants: function(/*Boolean?*/ preserveDom){
-		// summary:
-		//		Recursively destroy the children of this widget and their
-		//		descendants.
-		// preserveDom:
-		//		If true, the preserveDom attribute is passed to all descendant
-		//		widget's .destroy() method. Not for use with _Templated
-		//		widgets.
-
-		// get all direct descendants and destroy them recursively
-		array.forEach(this.getChildren(), function(widget){
-			if(widget.destroyRecursive){
-				widget.destroyRecursive(preserveDom);
-			}
-		});
-	},
-
-	uninitialize: function(){
-		// summary:
-		//		Deprecated. Override destroy() instead to implement custom widget tear-down
-		//		behavior.
-		// tags:
-		//		protected
-		return false;
-	},
-
-	////////////////// GET/SET, CUSTOM SETTERS, ETC. ///////////////////
-
-	_setStyleAttr: function(/*String||Object*/ value){
-		// summary:
-		//		Sets the style attribute of the widget according to value,
-		//		which is either a hash like {height: "5px", width: "3px"}
-		//		or a plain string
-		// description:
-		//		Determines which node to set the style on based on style setting
-		//		in attributeMap.
-		// tags:
-		//		protected
-
-		var mapNode = this.domNode;
-
-		// Note: technically we should revert any style setting made in a previous call
-		// to his method, but that's difficult to keep track of.
-
-		if(lang.isObject(value)){
-			domStyle.set(mapNode, value);
-		}else{
-			if(mapNode.style.cssText){
-				mapNode.style.cssText += "; " + value;
-			}else{
-				mapNode.style.cssText = value;
-			}
-		}
-
-		this._set("style", value);
-	},
-
-	_attrToDom: function(/*String*/ attr, /*String*/ value, /*Object?*/ commands){
-		// summary:
-		//		Reflect a widget attribute (title, tabIndex, duration etc.) to
-		//		the widget DOM, as specified by commands parameter.
-		//		If commands isn't specified then it's looked up from attributeMap.
-		//		Note some attributes like "type"
-		//		cannot be processed this way as they are not mutable.
-		// attr:
-		//		Name of member variable (ex: "focusNode" maps to this.focusNode) pointing
-		//		to DOMNode inside the widget, or alternately pointing to a subwidget
-		// tags:
-		//		private
-
-		commands = arguments.length >= 3 ? commands : this.attributeMap[attr];
-
-		array.forEach(lang.isArray(commands) ? commands : [commands], function(command){
-
-			// Get target node and what we are doing to that node
-			var mapNode = this[command.node || command || "domNode"];	// DOM node
-			var type = command.type || "attribute";	// class, innerHTML, innerText, or attribute
-
-			switch(type){
-				case "attribute":
-					if(lang.isFunction(value)){ // functions execute in the context of the widget
-						value = lang.hitch(this, value);
+			// Step 2: Call set() for each property with a non-falsy value that wasn't passed as a parameter to the constructor
+			array.forEach(this.constructor._setterAttrs, function(key){
+				if(!(key in params)){
+					var val = this._get(key);
+					if(val){
+						this.set(key, val);
 					}
+				}
+			}, this);
 
-					// Get the name of the DOM node attribute; usually it's the same
-					// as the name of the attribute in the widget (attr), but can be overridden.
-					// Also maps handler names to lowercase, like onSubmit --> onsubmit
-					var attrName = command.attribute ? command.attribute :
-						(/^on[A-Z][a-zA-Z]*$/.test(attr) ? attr.toLowerCase() : attr);
-
-					if(mapNode.tagName){
-						// Normal case, mapping to a DOMNode.  Note that modern browsers will have a mapNode.set()
-						// method, but for consistency we still call domAttr
-						domAttr.set(mapNode, attrName, value);
-					}else{
-						// mapping to a sub-widget
-						mapNode.set(attrName, value);
-					}
-					break;
-				case "innerText":
-					mapNode.innerHTML = "";
-					mapNode.appendChild(this.ownerDocument.createTextNode(value));
-					break;
-				case "innerHTML":
-					mapNode.innerHTML = value;
-					break;
-				case "class":
-					domClass.replace(mapNode, value, this[attr]);
-					break;
+			// Step 3: Call set() for each property that was specified as parameter to constructor.
+			// Use params hash created above to ignore side effects from step #2 above.
+			for(key in params){
+				this.set(key, params[key]);
 			}
-		}, this);
-	},
+		},
 
-	get: function(name){
-		// summary:
-		//		Get a property from a widget.
-		// name:
-		//		The property to get.
-		// description:
-		//		Get a named property from a widget. The property may
-		//		potentially be retrieved via a getter method. If no getter is defined, this
-		//		just retrieves the object's property.
-		//
-		//		For example, if the widget has properties `foo` and `bar`
-		//		and a method named `_getFooAttr()`, calling:
-		//		`myWidget.get("foo")` would be equivalent to calling
-		//		`widget._getFooAttr()` and `myWidget.get("bar")`
-		//		would be equivalent to the expression
-		//		`widget.bar2`
-		var names = this._getAttrNames(name);
-		return this[names.g] ? this[names.g]() : this[name];
-	},
+		postMixInProperties: function(){
+			// summary:
+			//		Called after the parameters to the widget have been read-in,
+			//		but before the widget template is instantiated. Especially
+			//		useful to set properties that are referenced in the widget
+			//		template.
+			// tags:
+			//		protected
+		},
 
-	set: function(name, value){
-		// summary:
-		//		Set a property on a widget
-		// name:
-		//		The property to set.
-		// value:
-		//		The value to set in the property.
-		// description:
-		//		Sets named properties on a widget which may potentially be handled by a
-		//		setter in the widget.
-		//
-		//		For example, if the widget has properties `foo` and `bar`
-		//		and a method named `_setFooAttr()`, calling
-		//		`myWidget.set("foo", "Howdy!")` would be equivalent to calling
-		//		`widget._setFooAttr("Howdy!")` and `myWidget.set("bar", 3)`
-		//		would be equivalent to the statement `widget.bar = 3;`
-		//
-		//		set() may also be called with a hash of name/value pairs, ex:
-		//
-		//	|	myWidget.set({
-		//	|		foo: "Howdy",
-		//	|		bar: 3
-		//	|	});
-		//
-		//	This is equivalent to calling `set(foo, "Howdy")` and `set(bar, 3)`
+		buildRendering: function(){
+			// summary:
+			//		Construct the UI for this widget, setting this.domNode.
+			//		Most widgets will mixin `dijit._TemplatedMixin`, which implements this method.
+			// tags:
+			//		protected
 
-		if(typeof name === "object"){
-			for(var x in name){
-				this.set(x, name[x]);
+			if(!this.domNode){
+				// Create root node if it wasn't created by _TemplatedMixin
+				this.domNode = this.srcNodeRef || this.ownerDocument.createElement("div");
 			}
-			return this;
-		}
-		var names = this._getAttrNames(name),
-			setter = this[names.s];
-		if(lang.isFunction(setter)){
-			// use the explicit setter
-			var result = setter.apply(this, Array.prototype.slice.call(arguments, 1));
-		}else{
-			// Mapping from widget attribute to DOMNode/subwidget attribute/value/etc.
-			// Map according to:
-			//		1. attributeMap setting, if one exists (TODO: attributeMap deprecated, remove in 2.0)
-			//		2. _setFooAttr: {...} type attribute in the widget (if one exists)
-			//		3. apply to focusNode or domNode if standard attribute name, excluding funcs like onClick.
-			// Checks if an attribute is a "standard attribute" by whether the DOMNode JS object has a similar
-			// attribute name (ex: accept-charset attribute matches jsObject.acceptCharset).
-			// Note also that Tree.focusNode() is a function not a DOMNode, so test for that.
-			var defaultNode = this.focusNode && !lang.isFunction(this.focusNode) ? "focusNode" : "domNode",
-				tag = this[defaultNode].tagName,
-				attrsForTag = tagAttrs[tag] || (tagAttrs[tag] = getAttrs(this[defaultNode])),
-				map =	name in this.attributeMap ? this.attributeMap[name] :
-						names.s in this ? this[names.s] :
-						((names.l in attrsForTag && typeof value != "function") ||
-							/^aria-|^data-|^role$/.test(name)) ? defaultNode : null;
-			if(map != null){
-				this._attrToDom(name, value, map);
+
+			// baseClass is a single class name or occasionally a space-separated list of names.
+			// Add those classes to the DOMNode.  If RTL mode then also add with Rtl suffix.
+			// TODO: make baseClass custom setter
+			if(this.baseClass){
+				var classes = this.baseClass.split(" ");
+				if(!this.isLeftToRight()){
+					classes = classes.concat(array.map(classes, function(name){
+						return name + "Rtl";
+					}));
+				}
+				domClass.add(this.domNode, classes);
 			}
-			this._set(name, value);
-		}
-		return result || this;
-	},
+		},
 
-	_attrPairNames: {},		// shared between all widgets
-	_getAttrNames: function(name){
-		// summary:
-		//		Helper function for get() and set().
-		//		Caches attribute name values so we don't do the string ops every time.
-		// tags:
-		//		private
+		postCreate: function(){
+			// summary:
+			//		Processing after the DOM fragment is created
+			// description:
+			//		Called after the DOM fragment has been created, but not necessarily
+			//		added to the document.  Do not include any operations which rely on
+			//		node dimensions or placement.
+			// tags:
+			//		protected
+		},
 
-		var apn = this._attrPairNames;
-		if(apn[name]){ return apn[name]; }
-		var uc = name.replace(/^[a-z]|-[a-zA-Z]/g, function(c){ return c.charAt(c.length-1).toUpperCase(); });
-		return (apn[name] = {
-			n: name+"Node",
-			s: "_set"+uc+"Attr",	// converts dashes to camel case, ex: accept-charset --> _setAcceptCharsetAttr
-			g: "_get"+uc+"Attr",
-			l: uc.toLowerCase()		// lowercase name w/out dashes, ex: acceptcharset
-		});
-	},
-
-	_set: function(/*String*/ name, /*anything*/ value){
-		// summary:
-		//		Helper function to set new value for specified attribute, and call handlers
-		//		registered with watch() if the value has changed.
-		var oldValue = this[name];
-		this[name] = value;
-		if(this._created && !isEqual(value, oldValue)){
-			if(this._watchCallbacks){
-				this._watchCallbacks(name, oldValue, value);
+		startup: function(){
+			// summary:
+			//		Processing after the DOM fragment is added to the document
+			// description:
+			//		Called after a widget and its children have been created and added to the page,
+			//		and all related widgets have finished their create() cycle, up through postCreate().
+			//
+			//		Note that startup() may be called while the widget is still hidden, for example if the widget is
+			//		inside a hidden dijit/Dialog or an unselected tab of a dijit/layout/TabContainer.
+			//		For widgets that need to do layout, it's best to put that layout code inside resize(), and then
+			//		extend dijit/layout/_LayoutWidget so that resize() is called when the widget is visible.
+			if(this._started){
+				return;
 			}
-			this.emit("attrmodified-" + name, {
-				detail: {
-					prevValue: oldValue,
-					newValue: value
+			this._started = true;
+			array.forEach(this.getChildren(), function(obj){
+				if(!obj._started && !obj._destroyed && lang.isFunction(obj.startup)){
+					obj.startup();
+					obj._started = true;
 				}
 			});
-		}
-	},
+		},
 
-	emit: function(/*String*/ type, /*Object?*/ eventObj, /*Array?*/ callbackArgs){
-		// summary:
-		//		Used by widgets to signal that a synthetic event occurred, ex:
-		//	|	myWidget.emit("attrmodified-selectedChildWidget", {}).
-		//
-		//		Emits an event on this.domNode named type.toLowerCase(), based on eventObj.
-		//		Also calls onType() method, if present, and returns value from that method.
-		//		By default passes eventObj to callback, but will pass callbackArgs instead, if specified.
-		//		Modifies eventObj by adding missing parameters (bubbles, cancelable, widget).
-		// tags:
-		//		protected
+		//////////// DESTROY FUNCTIONS ////////////////////////////////
 
-		// Specify fallback values for bubbles, cancelable in case they are not set in eventObj.
-		// Also set pointer to widget, although since we can't add a pointer to the widget for native events
-		// (see #14729), maybe we shouldn't do it here?
-		eventObj = eventObj || {};
-		if(eventObj.bubbles === undefined){ eventObj.bubbles = true; }
-		if(eventObj.cancelable === undefined){ eventObj.cancelable = true; }
-		if(!eventObj.detail){ eventObj.detail = {}; }
-		eventObj.detail.widget = this;
+		destroyRecursive: function(/*Boolean?*/ preserveDom){
+			// summary:
+			//		Destroy this widget and its descendants
+			// description:
+			//		This is the generic "destructor" function that all widget users
+			//		should call to cleanly discard with a widget. Once a widget is
+			//		destroyed, it is removed from the manager object.
+			// preserveDom:
+			//		If true, this method will leave the original DOM structure
+			//		alone of descendant Widgets. Note: This will NOT work with
+			//		dijit._TemplatedMixin widgets.
 
-		var ret, callback = this["on"+type];
-		if(callback){
-			ret = callback.apply(this, callbackArgs ? callbackArgs : [eventObj]);
-		}
+			this._beingDestroyed = true;
+			this.destroyDescendants(preserveDom);
+			this.destroy(preserveDom);
+		},
 
-		// Emit event, but avoid spurious emit()'s as parent sets properties on child during startup/destroy
-		if(this._started && !this._beingDestroyed){
-			on.emit(this.domNode, type.toLowerCase(), eventObj);
-		}
+		destroy: function(/*Boolean*/ preserveDom){
+			// summary:
+			//		Destroy this widget, but not its descendants.  Descendants means widgets inside of
+			//		this.containerNode.   Will also destroy any resources (including widgets) registered via this.own().
+			//
+			//		This method will also destroy internal widgets such as those created from a template,
+			//		assuming those widgets exist inside of this.domNode but outside of this.containerNode.
+			//
+			//		For 2.0 it's planned that this method will also destroy descendant widgets, so apps should not
+			//		depend on the current ability to destroy a widget without destroying its descendants.   Generally
+			//		they should use destroyRecursive() for widgets with children.
+			// preserveDom: Boolean
+			//		If true, this method will leave the original DOM structure alone.
+			//		Note: This will not yet work with _TemplatedMixin widgets
 
-		return ret;
-	},
+			this._beingDestroyed = true;
+			this.uninitialize();
 
-	on: function(/*String|Function*/ type, /*Function*/ func){
-		// summary:
-		//		Call specified function when event occurs, ex: myWidget.on("click", function(){ ... }).
-		// type:
-		//		Name of event (ex: "click") or extension event like touch.press.
-		// description:
-		//		Call specified function when event `type` occurs, ex: `myWidget.on("click", function(){ ... })`.
-		//		Note that the function is not run in any particular scope, so if (for example) you want it to run in the
-		//		widget's scope you must do `myWidget.on("click", lang.hitch(myWidget, func))`.
-
-		// For backwards compatibility, if there's an onType() method in the widget then connect to that.
-		// Remove in 2.0.
-		var widgetMethod = this._onMap(type);
-		if(widgetMethod){
-			return aspect.after(this, widgetMethod, func, true);
-		}
-
-		// Otherwise, just listen for the event on this.domNode.
-		return this.own(on(this.domNode, type, func))[0];
-	},
-
-	_onMap: function(/*String|Function*/ type){
-		// summary:
-		//		Maps on() type parameter (ex: "mousemove") to method name (ex: "onMouseMove").
-		//		If type is a synthetic event like touch.press then returns undefined.
-		var ctor = this.constructor, map = ctor._onMap;
-		if(!map){
-			map = (ctor._onMap = {});
-			for(var attr in ctor.prototype){
-				if(/^on/.test(attr)){
-					map[attr.replace(/^on/, "").toLowerCase()] = attr;
+			function destroy(w){
+				if(w.destroyRecursive){
+					w.destroyRecursive(preserveDom);
+				}else if(w.destroy){
+					w.destroy(preserveDom);
 				}
 			}
-		}
-		return map[typeof type == "string" && type.toLowerCase()];	// String
-	},
 
-	toString: function(){
-		// summary:
-		//		Returns a string that represents the widget
-		// description:
-		//		When a widget is cast to a string, this method will be used to generate the
-		//		output. Currently, it does not implement any sort of reversible
-		//		serialization.
-		return '[Widget ' + this.declaredClass + ', ' + (this.id || 'NO ID') + ']'; // String
-	},
+			// Back-compat, remove for 2.0
+			array.forEach(this._connects, lang.hitch(this, "disconnect"));
+			array.forEach(this._supportingWidgets, destroy);
 
-	getChildren: function(){
-		// summary:
-		//		Returns all the widgets contained by this, i.e., all widgets underneath this.containerNode.
-		//		Does not return nested widgets, nor widgets that are part of this widget's template.
-		return this.containerNode ? registry.findWidgets(this.containerNode) : []; // dijit/_WidgetBase[]
-	},
-
-	getParent: function(){
-		// summary:
-		//		Returns the parent widget of this widget
-		return registry.getEnclosingWidget(this.domNode.parentNode);
-	},
-
-	connect: function(
-			/*Object|null*/ obj,
-			/*String|Function*/ event,
-			/*String|Function*/ method){
-		// summary:
-		//		Deprecated, will be removed in 2.0, use this.own(on(...)) or this.own(aspect.after(...)) instead.
-		//
-		//		Connects specified obj/event to specified method of this object
-		//		and registers for disconnect() on widget destroy.
-		//
-		//		Provide widget-specific analog to dojo.connect, except with the
-		//		implicit use of this widget as the target object.
-		//		Events connected with `this.connect` are disconnected upon
-		//		destruction.
-		// returns:
-		//		A handle that can be passed to `disconnect` in order to disconnect before
-		//		the widget is destroyed.
-		// example:
-		//	|	var btn = new Button();
-		//	|	// when foo.bar() is called, call the listener we're going to
-		//	|	// provide in the scope of btn
-		//	|	btn.connect(foo, "bar", function(){
-		//	|		console.debug(this.toString());
-		//	|	});
-		// tags:
-		//		protected
-
-		return this.own(connect.connect(obj, event, this, method))[0];	// handle
-	},
-
-	disconnect: function(handle){
-		// summary:
-		//		Deprecated, will be removed in 2.0, use handle.remove() instead.
-		//
-		//		Disconnects handle created by `connect`.
-		// tags:
-		//		protected
-
-		handle.remove();
-	},
-
-	subscribe: function(t, method){
-		// summary:
-		//		Deprecated, will be removed in 2.0, use this.own(topic.subscribe()) instead.
-		//
-		//		Subscribes to the specified topic and calls the specified method
-		//		of this object and registers for unsubscribe() on widget destroy.
-		//
-		//		Provide widget-specific analog to dojo.subscribe, except with the
-		//		implicit use of this widget as the target object.
-		// t: String
-		//		The topic
-		// method: Function
-		//		The callback
-		// example:
-		//	|	var btn = new Button();
-		//	|	// when /my/topic is published, this button changes its label to
-		//	|	// be the parameter of the topic.
-		//	|	btn.subscribe("/my/topic", function(v){
-		//	|		this.set("label", v);
-		//	|	});
-		// tags:
-		//		protected
-		return this.own(topic.subscribe(t, lang.hitch(this, method)))[0];	// handle
-	},
-
-	unsubscribe: function(/*Object*/ handle){
-		// summary:
-		//		Deprecated, will be removed in 2.0, use handle.remove() instead.
-		//
-		//		Unsubscribes handle created by this.subscribe.
-		//		Also removes handle from this widget's list of subscriptions
-		// tags:
-		//		protected
-
-		handle.remove();
-	},
-
-	isLeftToRight: function(){
-		// summary:
-		//		Return this widget's explicit or implicit orientation (true for LTR, false for RTL)
-		// tags:
-		//		protected
-		return this.dir ? (this.dir == "ltr") : domGeometry.isBodyLtr(this.ownerDocument); //Boolean
-	},
-
-	isFocusable: function(){
-		// summary:
-		//		Return true if this widget can currently be focused
-		//		and false if not
-		return this.focus && (domStyle.get(this.domNode, "display") != "none");
-	},
-
-	placeAt: function(/* String|DomNode|_Widget */ reference, /* String|Int? */ position){
-		// summary:
-		//		Place this widget somewhere in the DOM based
-		//		on standard domConstruct.place() conventions.
-		// description:
-		//		A convenience function provided in all _Widgets, providing a simple
-		//		shorthand mechanism to put an existing (or newly created) Widget
-		//		somewhere in the dom, and allow chaining.
-		// reference:
-		//		Widget, DOMNode, or id of widget or DOMNode
-		// position:
-		//		If reference is a widget (or id of widget), and that widget has an ".addChild" method,
-		//		it will be called passing this widget instance into that method, supplying the optional
-		//		position index passed.  In this case position (if specified) should be an integer.
-		//
-		//		If reference is a DOMNode (or id matching a DOMNode but not a widget),
-		//		the position argument can be a numeric index or a string
-		//		"first", "last", "before", or "after", same as dojo/dom-construct::place().
-		// returns: dijit/_WidgetBase
-		//		Provides a useful return of the newly created dijit._Widget instance so you
-		//		can "chain" this function by instantiating, placing, then saving the return value
-		//		to a variable.
-		// example:
-		//	|	// create a Button with no srcNodeRef, and place it in the body:
-		//	|	var button = new Button({ label:"click" }).placeAt(win.body());
-		//	|	// now, 'button' is still the widget reference to the newly created button
-		//	|	button.on("click", function(e){ console.log('click'); }));
-		// example:
-		//	|	// create a button out of a node with id="src" and append it to id="wrapper":
-		//	|	var button = new Button({},"src").placeAt("wrapper");
-		// example:
-		//	|	// place a new button as the first element of some div
-		//	|	var button = new Button({ label:"click" }).placeAt("wrapper","first");
-		// example:
-		//	|	// create a contentpane and add it to a TabContainer
-		//	|	var tc = dijit.byId("myTabs");
-		//	|	new ContentPane({ href:"foo.html", title:"Wow!" }).placeAt(tc)
-
-		var refWidget = !reference.tagName && registry.byId(reference);
-		if(refWidget && refWidget.addChild && (!position || typeof position === "number")){
-			// Adding this to refWidget and can use refWidget.addChild() to handle everything.
-			refWidget.addChild(this, position);
-		}else{
-			// "reference" is a plain DOMNode, or we can't use refWidget.addChild().   Use domConstruct.place() and
-			// target refWidget.containerNode for nested placement (position==number, "first", "last", "only"), and
-			// refWidget.domNode otherwise ("after"/"before"/"replace").  (But not supported officially, see #14946.)
-			var ref = refWidget ?
-				(refWidget.containerNode && !/after|before|replace/.test(position||"") ?
-					refWidget.containerNode : refWidget.domNode) : dom.byId(reference, this.ownerDocument);
-			domConstruct.place(this.domNode, ref, position);
-
-			// Start this iff it has a parent widget that's already started.
-			if(!this._started && (this.getParent() || {})._started){
-				this.startup();
+			// Destroy supporting widgets, but not child widgets under this.containerNode (for 2.0, destroy child widgets
+			// here too).   if() statement is to guard against exception if destroy() called multiple times (see #15815).
+			if(this.domNode){
+				array.forEach(registry.findWidgets(this.domNode, this.containerNode), destroy);
 			}
-		}
-		return this;
-	},
 
-	getTextDir: function(/*String*/ text,/*String*/ originalDir){
-		// summary:
-		//		Return direction of the text.
-		//		The function overridden in the _BidiSupport module,
-		//		its main purpose is to calculate the direction of the
-		//		text, if was defined by the programmer through textDir.
-		// tags:
-		//		protected.
-		return originalDir;
-	},
+			this.destroyRendering(preserveDom);
+			registry.remove(this.id);
+			this._destroyed = true;
+		},
 
-	applyTextDir: function(/*===== element, text =====*/){
-		// summary:
-		//		The function overridden in the _BidiSupport module,
-		//		originally used for setting element.dir according to this.textDir.
-		//		In this case does nothing.
-		// element: DOMNode
-		// text: String
-		// tags:
-		//		protected.
-	},
+		destroyRendering: function(/*Boolean?*/ preserveDom){
+			// summary:
+			//		Destroys the DOM nodes associated with this widget.
+			// preserveDom:
+			//		If true, this method will leave the original DOM structure alone
+			//		during tear-down. Note: this will not work with _Templated
+			//		widgets yet.
+			// tags:
+			//		protected
 
-	defer: function(fcn, delay){ 
-		// summary:
-		//		Wrapper to setTimeout to avoid deferred functions executing
-		//		after the originating widget has been destroyed.
-		//		Returns an object handle with a remove method (that returns null) (replaces clearTimeout).
-		// fcn: function reference
-		// delay: Optional number (defaults to 0)
-		// tags:
-		//		protected.
-		var timer = setTimeout(lang.hitch(this, 
-			function(){ 
-				if(!timer){ return; }
-				timer = null;
-				if(!this._destroyed){ 
-					lang.hitch(this, fcn)(); 
-				} 
-			}),
-			delay || 0
-		);
-		return {
-			remove:	function(){
+			if(this.bgIframe){
+				this.bgIframe.destroy(preserveDom);
+				delete this.bgIframe;
+			}
+
+			if(this.domNode){
+				if(preserveDom){
+					domAttr.remove(this.domNode, "widgetId");
+				}else{
+					domConstruct.destroy(this.domNode);
+				}
+				delete this.domNode;
+			}
+
+			if(this.srcNodeRef){
+				if(!preserveDom){
+					domConstruct.destroy(this.srcNodeRef);
+				}
+				delete this.srcNodeRef;
+			}
+		},
+
+		destroyDescendants: function(/*Boolean?*/ preserveDom){
+			// summary:
+			//		Recursively destroy the children of this widget and their
+			//		descendants.
+			// preserveDom:
+			//		If true, the preserveDom attribute is passed to all descendant
+			//		widget's .destroy() method. Not for use with _Templated
+			//		widgets.
+
+			// get all direct descendants and destroy them recursively
+			array.forEach(this.getChildren(), function(widget){
+				if(widget.destroyRecursive){
+					widget.destroyRecursive(preserveDom);
+				}
+			});
+		},
+
+		uninitialize: function(){
+			// summary:
+			//		Deprecated. Override destroy() instead to implement custom widget tear-down
+			//		behavior.
+			// tags:
+			//		protected
+			return false;
+		},
+
+		////////////////// GET/SET, CUSTOM SETTERS, ETC. ///////////////////
+
+		_setStyleAttr: function(/*String||Object*/ value){
+			// summary:
+			//		Sets the style attribute of the widget according to value,
+			//		which is either a hash like {height: "5px", width: "3px"}
+			//		or a plain string
+			// description:
+			//		Determines which node to set the style on based on style setting
+			//		in attributeMap.
+			// tags:
+			//		protected
+
+			var mapNode = this.domNode;
+
+			// Note: technically we should revert any style setting made in a previous call
+			// to his method, but that's difficult to keep track of.
+
+			if(lang.isObject(value)){
+				domStyle.set(mapNode, value);
+			}else{
+				if(mapNode.style.cssText){
+					mapNode.style.cssText += "; " + value;
+				}else{
+					mapNode.style.cssText = value;
+				}
+			}
+
+			this._set("style", value);
+		},
+
+		_attrToDom: function(/*String*/ attr, /*String*/ value, /*Object?*/ commands){
+			// summary:
+			//		Reflect a widget attribute (title, tabIndex, duration etc.) to
+			//		the widget DOM, as specified by commands parameter.
+			//		If commands isn't specified then it's looked up from attributeMap.
+			//		Note some attributes like "type"
+			//		cannot be processed this way as they are not mutable.
+			// attr:
+			//		Name of member variable (ex: "focusNode" maps to this.focusNode) pointing
+			//		to DOMNode inside the widget, or alternately pointing to a subwidget
+			// tags:
+			//		private
+
+			commands = arguments.length >= 3 ? commands : this.attributeMap[attr];
+
+			array.forEach(lang.isArray(commands) ? commands : [commands], function(command){
+
+				// Get target node and what we are doing to that node
+				var mapNode = this[command.node || command || "domNode"];	// DOM node
+				var type = command.type || "attribute";	// class, innerHTML, innerText, or attribute
+
+				switch(type){
+					case "attribute":
+						if(lang.isFunction(value)){ // functions execute in the context of the widget
+							value = lang.hitch(this, value);
+						}
+
+						// Get the name of the DOM node attribute; usually it's the same
+						// as the name of the attribute in the widget (attr), but can be overridden.
+						// Also maps handler names to lowercase, like onSubmit --> onsubmit
+						var attrName = command.attribute ? command.attribute :
+							(/^on[A-Z][a-zA-Z]*$/.test(attr) ? attr.toLowerCase() : attr);
+
+						if(mapNode.tagName){
+							// Normal case, mapping to a DOMNode.  Note that modern browsers will have a mapNode.set()
+							// method, but for consistency we still call domAttr
+							domAttr.set(mapNode, attrName, value);
+						}else{
+							// mapping to a sub-widget
+							mapNode.set(attrName, value);
+						}
+						break;
+					case "innerText":
+						// Deprecated, use "textContent" instead.
+						mapNode.innerHTML = "";
+						mapNode.appendChild(this.ownerDocument.createTextNode(value));
+						break;
+					case "textContent":
+						mapNode.textContent = value;
+						break;
+					case "innerHTML":
+						mapNode.innerHTML = value;
+						break;
+					case "class":
+						domClass.replace(mapNode, value, this[attr]);
+						break;
+					case "toggleClass":
+						domClass.toggle(mapNode, command.className || attr, value);
+						break;
+				}
+			}, this);
+		},
+
+		get: function(name){
+			// summary:
+			//		Get a property from a widget.
+			// name:
+			//		The property to get.
+			// description:
+			//		Get a named property from a widget. The property may
+			//		potentially be retrieved via a getter method. If no getter is defined, this
+			//		just retrieves the object's property.
+			//
+			//		For example, if the widget has properties `foo` and `bar`
+			//		and a method named `_getFooAttr()`, calling:
+			//		`myWidget.get("foo")` would be equivalent to calling
+			//		`widget._getFooAttr()` and `myWidget.get("bar")`
+			//		would be equivalent to the expression
+			//		`widget.bar2`
+			var names = this._getAttrNames(name);
+			return this[names.g] ? this[names.g]() : this._get(name);
+		},
+
+		set: function(name, value){
+			// summary:
+			//		Set a property on a widget
+			// name:
+			//		The property to set.
+			// value:
+			//		The value to set in the property.
+			// description:
+			//		Sets named properties on a widget which may potentially be handled by a
+			//		setter in the widget.
+			//
+			//		For example, if the widget has properties `foo` and `bar`
+			//		and a method named `_setFooAttr()`, calling
+			//		`myWidget.set("foo", "Howdy!")` would be equivalent to calling
+			//		`widget._setFooAttr("Howdy!")` and `myWidget.set("bar", 3)`
+			//		would be equivalent to the statement `widget.bar = 3;`
+			//
+			//		set() may also be called with a hash of name/value pairs, ex:
+			//
+			//	|	myWidget.set({
+			//	|		foo: "Howdy",
+			//	|		bar: 3
+			//	|	});
+			//
+			//	This is equivalent to calling `set(foo, "Howdy")` and `set(bar, 3)`
+
+			if(typeof name === "object"){
+				for(var x in name){
+					this.set(x, name[x]);
+				}
+				return this;
+			}
+			var names = this._getAttrNames(name),
+				setter = this[names.s];
+			if(lang.isFunction(setter)){
+				// use the explicit setter
+				var result = setter.apply(this, Array.prototype.slice.call(arguments, 1));
+			}else{
+				// Mapping from widget attribute to DOMNode/subwidget attribute/value/etc.
+				// Map according to:
+				//		1. attributeMap setting, if one exists (TODO: attributeMap deprecated, remove in 2.0)
+				//		2. _setFooAttr: {...} type attribute in the widget (if one exists)
+				//		3. apply to focusNode or domNode if standard attribute name, excluding funcs like onClick.
+				// Checks if an attribute is a "standard attribute" by whether the DOMNode JS object has a similar
+				// attribute name (ex: accept-charset attribute matches jsObject.acceptCharset).
+				// Note also that Tree.focusNode() is a function not a DOMNode, so test for that.
+				var defaultNode = this.focusNode && !lang.isFunction(this.focusNode) ? "focusNode" : "domNode",
+					tag = this[defaultNode] && this[defaultNode].tagName,
+					attrsForTag = tag && (tagAttrs[tag] || (tagAttrs[tag] = getAttrs(this[defaultNode]))),
+					map = name in this.attributeMap ? this.attributeMap[name] :
+						names.s in this ? this[names.s] :
+							((attrsForTag && names.l in attrsForTag && typeof value != "function") ||
+								/^aria-|^data-|^role$/.test(name)) ? defaultNode : null;
+				if(map != null){
+					this._attrToDom(name, value, map);
+				}
+				this._set(name, value);
+			}
+			return result || this;
+		},
+
+		_attrPairNames: {}, // shared between all widgets
+		_getAttrNames: function(name){
+			// summary:
+			//		Helper function for get() and set().
+			//		Caches attribute name values so we don't do the string ops every time.
+			// tags:
+			//		private
+
+			var apn = this._attrPairNames;
+			if(apn[name]){
+				return apn[name];
+			}
+			var uc = name.replace(/^[a-z]|-[a-zA-Z]/g, function(c){
+				return c.charAt(c.length - 1).toUpperCase();
+			});
+			return (apn[name] = {
+				n: name + "Node",
+				s: "_set" + uc + "Attr", // converts dashes to camel case, ex: accept-charset --> _setAcceptCharsetAttr
+				g: "_get" + uc + "Attr",
+				l: uc.toLowerCase()        // lowercase name w/out dashes, ex: acceptcharset
+			});
+		},
+
+		_set: function(/*String*/ name, /*anything*/ value){
+			// summary:
+			//		Helper function to set new value for specified property, and call handlers
+			//		registered with watch() if the value has changed.
+			var oldValue = this[name];
+			this[name] = value;
+			if(this._created && !isEqual(oldValue, value)){
+				if(this._watchCallbacks){
+					this._watchCallbacks(name, oldValue, value);
+				}
+				this.emit("attrmodified-" + name, {
+					detail: {
+						prevValue: oldValue,
+						newValue: value
+					}
+				});
+			}
+		},
+
+		_get: function(/*String*/ name){
+			// summary:
+			//		Helper function to get value for specified property stored by this._set(),
+			//		i.e. for properties with custom setters.  Used mainly by custom getters.
+			//
+			//		For example, CheckBox._getValueAttr() calls this._get("value").
+
+			// future: return name in this.props ? this.props[name] : this[name];
+			return this[name];
+		},
+
+		emit: function(/*String*/ type, /*Object?*/ eventObj, /*Array?*/ callbackArgs){
+			// summary:
+			//		Used by widgets to signal that a synthetic event occurred, ex:
+			//	|	myWidget.emit("attrmodified-selectedChildWidget", {}).
+			//
+			//		Emits an event on this.domNode named type.toLowerCase(), based on eventObj.
+			//		Also calls onType() method, if present, and returns value from that method.
+			//		By default passes eventObj to callback, but will pass callbackArgs instead, if specified.
+			//		Modifies eventObj by adding missing parameters (bubbles, cancelable, widget).
+			// tags:
+			//		protected
+
+			// Specify fallback values for bubbles, cancelable in case they are not set in eventObj.
+			// Also set pointer to widget, although since we can't add a pointer to the widget for native events
+			// (see #14729), maybe we shouldn't do it here?
+			eventObj = eventObj || {};
+			if(eventObj.bubbles === undefined){
+				eventObj.bubbles = true;
+			}
+			if(eventObj.cancelable === undefined){
+				eventObj.cancelable = true;
+			}
+			if(!eventObj.detail){
+				eventObj.detail = {};
+			}
+			eventObj.detail.widget = this;
+
+			var ret, callback = this["on" + type];
+			if(callback){
+				ret = callback.apply(this, callbackArgs ? callbackArgs : [eventObj]);
+			}
+
+			// Emit event, but avoid spurious emit()'s as parent sets properties on child during startup/destroy
+			if(this._started && !this._beingDestroyed){
+				on.emit(this.domNode, type.toLowerCase(), eventObj);
+			}
+
+			return ret;
+		},
+
+		on: function(/*String|Function*/ type, /*Function*/ func){
+			// summary:
+			//		Call specified function when event occurs, ex: myWidget.on("click", function(){ ... }).
+			// type:
+			//		Name of event (ex: "click") or extension event like touch.press.
+			// description:
+			//		Call specified function when event `type` occurs, ex: `myWidget.on("click", function(){ ... })`.
+			//		Note that the function is not run in any particular scope, so if (for example) you want it to run in the
+			//		widget's scope you must do `myWidget.on("click", lang.hitch(myWidget, func))`.
+
+			// For backwards compatibility, if there's an onType() method in the widget then connect to that.
+			// Remove in 2.0.
+			var widgetMethod = this._onMap(type);
+			if(widgetMethod){
+				return aspect.after(this, widgetMethod, func, true);
+			}
+
+			// Otherwise, just listen for the event on this.domNode.
+			return this.own(on(this.domNode, type, func))[0];
+		},
+
+		_onMap: function(/*String|Function*/ type){
+			// summary:
+			//		Maps on() type parameter (ex: "mousemove") to method name (ex: "onMouseMove").
+			//		If type is a synthetic event like touch.press then returns undefined.
+			var ctor = this.constructor, map = ctor._onMap;
+			if(!map){
+				map = (ctor._onMap = {});
+				for(var attr in ctor.prototype){
+					if(/^on/.test(attr)){
+						map[attr.replace(/^on/, "").toLowerCase()] = attr;
+					}
+				}
+			}
+			return map[typeof type == "string" && type.toLowerCase()];	// String
+		},
+
+		toString: function(){
+			// summary:
+			//		Returns a string that represents the widget.
+			// description:
+			//		When a widget is cast to a string, this method will be used to generate the
+			//		output. Currently, it does not implement any sort of reversible
+			//		serialization.
+			return '[Widget ' + this.declaredClass + ', ' + (this.id || 'NO ID') + ']'; // String
+		},
+
+		getChildren: function(){
+			// summary:
+			//		Returns all direct children of this widget, i.e. all widgets underneath this.containerNode whose parent
+			//		is this widget.   Note that it does not return all descendants, but rather just direct children.
+			//		Analogous to [Node.childNodes](https://developer.mozilla.org/en-US/docs/DOM/Node.childNodes),
+			//		except containing widgets rather than DOMNodes.
+			//
+			//		The result intentionally excludes internally created widgets (a.k.a. supporting widgets)
+			//		outside of this.containerNode.
+			//
+			//		Note that the array returned is a simple array.  Application code should not assume
+			//		existence of methods like forEach().
+
+			return this.containerNode ? registry.findWidgets(this.containerNode) : []; // dijit/_WidgetBase[]
+		},
+
+		getParent: function(){
+			// summary:
+			//		Returns the parent widget of this widget.
+
+			return registry.getEnclosingWidget(this.domNode.parentNode);
+		},
+
+		connect: function(/*Object|null*/ obj, /*String|Function*/ event, /*String|Function*/ method){
+			// summary:
+			//		Deprecated, will be removed in 2.0, use this.own(on(...)) or this.own(aspect.after(...)) instead.
+			//
+			//		Connects specified obj/event to specified method of this object
+			//		and registers for disconnect() on widget destroy.
+			//
+			//		Provide widget-specific analog to dojo.connect, except with the
+			//		implicit use of this widget as the target object.
+			//		Events connected with `this.connect` are disconnected upon
+			//		destruction.
+			// returns:
+			//		A handle that can be passed to `disconnect` in order to disconnect before
+			//		the widget is destroyed.
+			// example:
+			//	|	var btn = new Button();
+			//	|	// when foo.bar() is called, call the listener we're going to
+			//	|	// provide in the scope of btn
+			//	|	btn.connect(foo, "bar", function(){
+			//	|		console.debug(this.toString());
+			//	|	});
+			// tags:
+			//		protected
+
+			return this.own(connect.connect(obj, event, this, method))[0];	// handle
+		},
+
+		disconnect: function(handle){
+			// summary:
+			//		Deprecated, will be removed in 2.0, use handle.remove() instead.
+			//
+			//		Disconnects handle created by `connect`.
+			// tags:
+			//		protected
+
+			handle.remove();
+		},
+
+		subscribe: function(t, method){
+			// summary:
+			//		Deprecated, will be removed in 2.0, use this.own(topic.subscribe()) instead.
+			//
+			//		Subscribes to the specified topic and calls the specified method
+			//		of this object and registers for unsubscribe() on widget destroy.
+			//
+			//		Provide widget-specific analog to dojo.subscribe, except with the
+			//		implicit use of this widget as the target object.
+			// t: String
+			//		The topic
+			// method: Function
+			//		The callback
+			// example:
+			//	|	var btn = new Button();
+			//	|	// when /my/topic is published, this button changes its label to
+			//	|	// be the parameter of the topic.
+			//	|	btn.subscribe("/my/topic", function(v){
+			//	|		this.set("label", v);
+			//	|	});
+			// tags:
+			//		protected
+			return this.own(topic.subscribe(t, lang.hitch(this, method)))[0];	// handle
+		},
+
+		unsubscribe: function(/*Object*/ handle){
+			// summary:
+			//		Deprecated, will be removed in 2.0, use handle.remove() instead.
+			//
+			//		Unsubscribes handle created by this.subscribe.
+			//		Also removes handle from this widget's list of subscriptions
+			// tags:
+			//		protected
+
+			handle.remove();
+		},
+
+		isLeftToRight: function(){
+			// summary:
+			//		Return this widget's explicit or implicit orientation (true for LTR, false for RTL)
+			// tags:
+			//		protected
+			return this.dir ? (this.dir.toLowerCase() == "ltr") : domGeometry.isBodyLtr(this.ownerDocument); //Boolean
+		},
+
+		isFocusable: function(){
+			// summary:
+			//		Return true if this widget can currently be focused
+			//		and false if not
+			return this.focus && (domStyle.get(this.domNode, "display") != "none");
+		},
+
+		placeAt: function(/*String|DomNode|DocumentFragment|dijit/_WidgetBase*/ reference, /*String|Int?*/ position){
+			// summary:
+			//		Place this widget somewhere in the DOM based
+			//		on standard domConstruct.place() conventions.
+			// description:
+			//		A convenience function provided in all _Widgets, providing a simple
+			//		shorthand mechanism to put an existing (or newly created) Widget
+			//		somewhere in the dom, and allow chaining.
+			// reference:
+			//		Widget, DOMNode, DocumentFragment, or id of widget or DOMNode
+			// position:
+			//		If reference is a widget (or id of widget), and that widget has an ".addChild" method,
+			//		it will be called passing this widget instance into that method, supplying the optional
+			//		position index passed.  In this case position (if specified) should be an integer.
+			//
+			//		If reference is a DOMNode (or id matching a DOMNode but not a widget),
+			//		the position argument can be a numeric index or a string
+			//		"first", "last", "before", or "after", same as dojo/dom-construct::place().
+			// returns: dijit/_WidgetBase
+			//		Provides a useful return of the newly created dijit._Widget instance so you
+			//		can "chain" this function by instantiating, placing, then saving the return value
+			//		to a variable.
+			// example:
+			//	|	// create a Button with no srcNodeRef, and place it in the body:
+			//	|	var button = new Button({ label:"click" }).placeAt(win.body());
+			//	|	// now, 'button' is still the widget reference to the newly created button
+			//	|	button.on("click", function(e){ console.log('click'); }));
+			// example:
+			//	|	// create a button out of a node with id="src" and append it to id="wrapper":
+			//	|	var button = new Button({},"src").placeAt("wrapper");
+			// example:
+			//	|	// place a new button as the first element of some div
+			//	|	var button = new Button({ label:"click" }).placeAt("wrapper","first");
+			// example:
+			//	|	// create a contentpane and add it to a TabContainer
+			//	|	var tc = dijit.byId("myTabs");
+			//	|	new ContentPane({ href:"foo.html", title:"Wow!" }).placeAt(tc)
+
+			var refWidget = !reference.tagName && registry.byId(reference);
+			if(refWidget && refWidget.addChild && (!position || typeof position === "number")){
+				// Adding this to refWidget and can use refWidget.addChild() to handle everything.
+				refWidget.addChild(this, position);
+			}else{
+				// "reference" is a plain DOMNode, or we can't use refWidget.addChild().   Use domConstruct.place() and
+				// target refWidget.containerNode for nested placement (position==number, "first", "last", "only"), and
+				// refWidget.domNode otherwise ("after"/"before"/"replace").  (But not supported officially, see #14946.)
+				var ref = refWidget && ("domNode" in refWidget) ?
+					(refWidget.containerNode && !/after|before|replace/.test(position || "") ?
+						refWidget.containerNode : refWidget.domNode) : dom.byId(reference, this.ownerDocument);
+				domConstruct.place(this.domNode, ref, position);
+
+				// Start this iff it has a parent widget that's already started.
+				// TODO: for 2.0 maybe it should also start the widget when this.getParent() returns null??
+				if(!this._started && (this.getParent() || {})._started){
+					this.startup();
+				}
+			}
+			return this;
+		},
+
+		defer: function(fcn, delay){
+			// summary:
+			//		Wrapper to setTimeout to avoid deferred functions executing
+			//		after the originating widget has been destroyed.
+			//		Returns an object handle with a remove method (that returns null) (replaces clearTimeout).
+			// fcn: Function
+			//		Function reference.
+			// delay: Number?
+			//		Delay, defaults to 0.
+			// tags:
+			//		protected
+
+			var timer = setTimeout(lang.hitch(this,
+				function(){
+					if(!timer){
+						return;
+					}
+					timer = null;
+					if(!this._destroyed){
+						lang.hitch(this, fcn)();
+					}
+				}),
+				delay || 0
+			);
+			return {
+				remove: function(){
 					if(timer){
 						clearTimeout(timer);
 						timer = null;
 					}
 					return null; // so this works well: handle = handle.remove();
 				}
-		};
-	}
-});
+			};
+		}
+	});
 
+	if(has("dojo-bidi")){
+		_WidgetBase.extend(_BidiMixin);
+	}
+
+	return _WidgetBase;
 });
 
 },
@@ -1448,11 +1540,13 @@ return declare("dojo.Stateful", null, {
 	//		would have a custom getter of _fooGetter and a custom setter of _fooSetter.
 	//
 	// example:
-	//	|	var obj = new dojo.Stateful();
-	//	|	obj.watch("foo", function(){
-	//	|		console.log("foo changed to " + this.get("foo"));
+	//	|	require(["dojo/Stateful", function(Stateful) {
+	//	|		var obj = new Stateful();
+	//	|		obj.watch("foo", function(){
+	//	|			console.log("foo changed to " + this.get("foo"));
+	//	|		});
+	//	|		obj.set("foo","bar");
 	//	|	});
-	//	|	obj.set("foo","bar");
 
 	// _attrPairNames: Hash
 	//		Used across all instances a hash to cache attribute names and their getter 
@@ -1497,10 +1591,12 @@ return declare("dojo.Stateful", null, {
 		//		Get a named property on a Stateful object. The property may
 		//		potentially be retrieved via a getter method in subclasses. In the base class
 		//		this just retrieves the object's property.
-		//		For example:
-		//	|	stateful = new dojo.Stateful({foo: 3});
-		//	|	stateful.get("foo") // returns 3
-		//	|	stateful.foo // returns 3
+		// example:
+		//	|	require(["dojo/Stateful", function(Stateful) {
+		//	|		var stateful = new Stateful({foo: 3});
+		//	|		stateful.get("foo") // returns 3
+		//	|		stateful.foo // returns 3
+		//	|	});
 
 		return this._get(name, this._getAttrNames(name)); //Any
 	},
@@ -1516,18 +1612,19 @@ return declare("dojo.Stateful", null, {
 		// description:
 		//		Sets named properties on a stateful object and notifies any watchers of
 		//		the property. A programmatic setter may be defined in subclasses.
-		//		For example:
-		//	|	stateful = new dojo.Stateful();
-		//	|	stateful.watch(function(name, oldValue, value){
-		//	|		// this will be called on the set below
-		//	|	}
-		//	|	stateful.set(foo, 5);
-		//
+		// example:
+		//	|	require(["dojo/Stateful", function(Stateful) {
+		//	|		var stateful = new Stateful();
+		//	|		stateful.watch(function(name, oldValue, value){
+		//	|			// this will be called on the set below
+		//	|		}
+		//	|		stateful.set(foo, 5);
 		//	set() may also be called with a hash of name/value pairs, ex:
-		//	|	myObj.set({
-		//	|		foo: "Howdy",
-		//	|		bar: 3
-		//	|	})
+		//	|		stateful.set({
+		//	|			foo: "Howdy",
+		//	|			bar: 3
+		//	|		});
+		//	|	});
 		//	This is equivalent to calling set(foo, "Howdy") and set(bar, 3)
 
 		// If an object is used, iterate through object
@@ -1553,7 +1650,7 @@ return declare("dojo.Stateful", null, {
 		}
 		if(this._watchCallbacks){
 			var self = this;
-			// If setter returned a promise, wait for it to complete, otherwise call watches immediatly
+			// If setter returned a promise, wait for it to complete, otherwise call watches immediately
 			when(result, function(){
 				self._watchCallbacks(name, oldValue, value);
 			});
@@ -1572,7 +1669,7 @@ return declare("dojo.Stateful", null, {
 		// description:
 		//		Directly change the value of an attribute on an object, bypassing any 
 		//		accessor setter.  Also handles the calling of watch and emitting events. 
-		//		It is designed to be used by descendent class when there are two values 
+		//		It is designed to be used by descendant class when there are two values 
 		//		of attributes that are linked, but calling .set() is not appropriate.
 
 		var oldValue = this.get(name);
@@ -1647,75 +1744,97 @@ return declare("dojo.Stateful", null, {
 
 },
 'dijit/Destroyable':function(){
-define("dijit/Destroyable", [
+define([
 	"dojo/_base/array", // array.forEach array.map
 	"dojo/aspect",
 	"dojo/_base/declare"
 ], function(array, aspect, declare){
 
-// module:
-//		dijit/Destroyable
+	// module:
+	//		dijit/Destroyable
 
-return declare("dijit.Destroyable", null, {
-	// summary:
-	//		Mixin to track handles and release them when instance is destroyed.
-	// description:
-	//		Call this.own(...) on list of handles (returned from dojo/aspect, dojo/on,
-	//		dojo/Stateful::watch, or any class (including widgets) with a destroyRecursive() or destroy() method.
-	//		Then call destroy() later to destroy this instance and release the resources.
-
-	destroy: function(/*Boolean*/ preserveDom){
+	return declare("dijit.Destroyable", null, {
 		// summary:
-		//		Destroy this class, releasing any resources registered via own().
-		this._destroyed = true;
-	},
+		//		Mixin to track handles and release them when instance is destroyed.
+		// description:
+		//		Call this.own(...) on list of handles (returned from dojo/aspect, dojo/on,
+		//		dojo/Stateful::watch, or any class (including widgets) with a destroyRecursive() or destroy() method.
+		//		Then call destroy() later to destroy this instance and release the resources.
 
-	own: function(){
-		// summary:
-		//		Track specified handles and remove/destroy them when this instance is destroyed, unless they were
-		//		already removed/destroyed manually.
-		// tags:
-		//		protected
-		// returns:
-		//		The array of specified handles, so you can do for example:
-		//	|		var handle = this.own(on(...))[0];
+		destroy: function(/*Boolean*/ preserveDom){
+			// summary:
+			//		Destroy this class, releasing any resources registered via own().
+			this._destroyed = true;
+		},
 
-		array.forEach(arguments, function(handle){
-			var destroyMethodName =
-				"destroyRecursive" in handle ? "destroyRecursive" :	// remove "destroyRecursive" for 2.0
-				"destroy" in handle ? "destroy" :
-				"remove";
+		own: function(){
+			// summary:
+			//		Track specified handles and remove/destroy them when this instance is destroyed, unless they were
+			//		already removed/destroyed manually.
+			// tags:
+			//		protected
+			// returns:
+			//		The array of specified handles, so you can do for example:
+			//	|		var handle = this.own(on(...))[0];
 
-			// When this.destroy() is called, destroy handle.  Since I'm using aspect.before(),
-			// the handle will be destroyed before a subclass's destroy() method starts running, before it calls
-			// this.inherited() or even if it doesn't call this.inherited() at all.  If that's an issue, make an
-			// onDestroy() method and connect to that instead.
-			var odh = aspect.before(this, "destroy", function(preserveDom){
-				handle[destroyMethodName](preserveDom);
-			});
+			var cleanupMethods = [
+				"destroyRecursive",
+				"destroy",
+				"remove"
+			];
 
-			// If handle is destroyed manually before this.destroy() is called, remove the listener set directly above.
-			var hdh = aspect.after(handle, destroyMethodName, function(){
-				odh.remove();
-				hdh.remove();
-			}, true);
-		}, this);
+			array.forEach(arguments, function(handle){
+				// When this.destroy() is called, destroy handle.  Since I'm using aspect.before(),
+				// the handle will be destroyed before a subclass's destroy() method starts running, before it calls
+				// this.inherited() or even if it doesn't call this.inherited() at all.  If that's an issue, make an
+				// onDestroy() method and connect to that instead.
+				var destroyMethodName;
+				var odh = aspect.before(this, "destroy", function (preserveDom){
+					handle[destroyMethodName](preserveDom);
+				});
 
-		return arguments;		// handle
-	}
-});
+				// Callback for when handle is manually destroyed.
+				var hdhs = [];
+				function onManualDestroy(){
+					odh.remove();
+					array.forEach(hdhs, function(hdh){
+						hdh.remove();
+					});
+				}
 
+				// Setup listeners for manual destroy of handle.
+				// Also computes destroyMethodName, used in listener above.
+				if(handle.then){
+					// Special path for Promises.  Detect when Promise is resolved, rejected, or
+					// canceled (nb: cancelling a Promise causes it to be rejected).
+					destroyMethodName = "cancel";
+					handle.then(onManualDestroy, onManualDestroy);
+				}else{
+					// Path for other handles.  Just use AOP to detect when handle is manually destroyed.
+					array.forEach(cleanupMethods, function(cleanupMethod){
+						if(typeof handle[cleanupMethod] === "function"){
+							if(!destroyMethodName){
+								// Use first matching method name in above listener (prefer destroyRecursive() to destroy())
+								destroyMethodName = cleanupMethod;
+							}
+							hdhs.push(aspect.after(handle, cleanupMethod, onManualDestroy, true));
+						}
+					});
+				}
+			}, this);
+
+			return arguments;		// handle
+		}
+	});
 });
 
 },
 'dijit/registry':function(){
-define("dijit/registry", [
+define([
 	"dojo/_base/array", // array.forEach array.map
-	"dojo/sniff", // has("ie")
-	"dojo/_base/unload", // unload.addOnWindowUnload
 	"dojo/_base/window", // win.body
 	"./main"	// dijit._scopeName
-], function(array, has, unload, win, dijit){
+], function(array, win, dijit){
 
 	// module:
 	//		dijit/registry
@@ -1873,7 +1992,7 @@ define("dijit/registry", [
 
 },
 'dijit/main':function(){
-define("dijit/main", [
+define([
 	"dojo/_base/kernel"
 ], function(dojo){
 	// module:
@@ -1892,14 +2011,14 @@ return {
 
 },
 'dojox/charting/Chart':function(){
-define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array","dojo/_base/declare", "dojo/dom-style",
-	"dojo/dom", "dojo/dom-geometry", "dojo/dom-construct","dojo/_base/Color", "dojo/_base/sniff",
-	"./Element", "./SimpleTheme", "./Series", "./axis2d/common", "dojox/gfx/shape",
-	"dojox/gfx", "dojox/lang/functional", "dojox/lang/functional/fold", "dojox/lang/functional/reversed"], 
+define(["../main", "dojo/_base/lang", "dojo/_base/array","dojo/_base/declare", "dojo/dom-style",
+	"dojo/dom", "dojo/dom-geometry", "dojo/dom-construct","dojo/_base/Color", "dojo/sniff",
+	"./Element", "./SimpleTheme", "./Series", "./axis2d/common", "./plot2d/common", "dojox/gfx/shape",
+	"dojox/gfx", "dojo/has!dojo-bidi?./bidi/Chart", "dojox/lang/functional", "dojox/lang/functional/fold", "dojox/lang/functional/reversed"],
 	function(dojox, lang, arr, declare, domStyle,
 	 		 dom, domGeom, domConstruct, Color, has,
-	 		 Element, SimpleTheme, Series, common, shape,
-	 		 g, func, funcFold, funcReversed){
+			 Element, SimpleTheme, Series, common, plot2dCommon, shape,
+	 		 g, BidiChart, func){
 	/*=====
 	var __ChartCtorArgs = {
 		// summary:
@@ -1938,14 +2057,31 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 	=====*/
 
 	var dc = lang.getObject("charting", true, dojox),
-		clear = func.lambda("item.clear()"),
-		purge = func.lambda("item.purgeGroup()"),
-		destroy = func.lambda("item.destroy()"),
-		makeClean = func.lambda("item.dirty = false"),
-		makeDirty = func.lambda("item.dirty = true"),
-		getName = func.lambda("item.name");
+		defaultMargins = {l: 10, t: 10, r: 10, b: 10};
 
-	var Chart = declare("dojox.charting.Chart", null, {
+	function clear (item) {
+		return item.clear();
+	}
+
+	function destroy (item) {
+		return item.destroy();
+	}
+
+	function makeClean (item) {
+		item.dirty = false;
+		return false;
+	}
+
+	function makeDirty (item) {
+		item.dirty = true;
+		return true;
+	}
+
+	function getName (item) {
+		return item.name;
+	}
+
+	var Chart = declare(has("dojo-bidi")? "dojox.charting.NonBidiChart" : "dojox.charting.Chart", null, {
 		// summary:
 		//		The main chart object in dojox.charting.  This will create a two dimensional
 		//		chart based on dojox.gfx.
@@ -2017,7 +2153,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 		//	|			)
 		//	|			.render();
 		//	|	});
-		
+
 		// theme: dojox/charting/SimpleTheme?
 		//		An optional theme to use for styling the chart.
 		// axes: dojox/charting/axis2d/Base{}?
@@ -2042,6 +2178,9 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 		//		The main graphics surface upon which a chart is drawn.
 		// dirty: Boolean
 		//		A boolean flag indicating whether or not the chart needs to be updated/re-rendered.
+		// htmlLabels: Boolean
+		//		A boolean flag indicating whether or not it should try to use HTML-based labels for the title or not.
+		//		The default is true.  The only caveat is IE and Opera browsers will always use GFX-based labels.
 
 		constructor: function(/* DOMNode */node, /* __ChartCtorArgs? */kwArgs){
 			// summary:
@@ -2051,7 +2190,8 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 
 			// initialize parameters
 			if(!kwArgs){ kwArgs = {}; }
-			this.margins   = kwArgs.margins ? kwArgs.margins : {l: 10, t: 10, r: 10, b: 10};
+			this.margins = kwArgs.margins || defaultMargins;
+			this._customMargins = !!kwArgs.margins;
 			this.stroke    = kwArgs.stroke;
 			this.fill      = kwArgs.fill;
 			this.delayInMs = kwArgs.delayInMs || 200;
@@ -2060,7 +2200,13 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			this.titlePos  = kwArgs.titlePos;
 			this.titleFont = kwArgs.titleFont;
 			this.titleFontColor = kwArgs.titleFontColor;
+			this.titleAlign = kwArgs.titleAlign; // This can be middle, left, right, or edge
+															 // edge is left or right aligned with chart plot edge depending on bidi.
 			this.chartTitle = null;
+			this.htmlLabels = true;
+			if("htmlLabels" in kwArgs){
+				this.htmlLabels = kwArgs.htmlLabels;
+			}
 
 			// default initialization
 			this.theme = null;
@@ -2077,7 +2223,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			this.surface = g.createSurface(this.node, box.w || 400, box.h || 300);
 			if(this.surface.declaredClass.indexOf("vml") == -1){
 				// except if vml use native clipping
-				this.plotGroup = this.surface.createGroup();
+				this._nativeClip = true;
 			}
 		},
 		destroy: function(){
@@ -2114,6 +2260,9 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			// returns: dojox/charting/Chart
 			//		A reference to the current chart for functional chaining.
 			this.theme = theme.clone();
+			if(!this._customMargins){
+				this.margins = this.theme.chart.margins || defaultMargins;
+			}
 			this.dirty = true;
 			return this;	//	dojox/charting/Chart
 		},
@@ -2517,29 +2666,27 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			//		Resize the chart to the dimensions of width and height.
 			// description:
 			//		Resize the chart and its surface to the width and height dimensions.
-			//		If no width/height or box is provided, resize the surface to the marginBox of the chart.
-			// width: Number
-			//		The new width of the chart.
-			// height: Number
+			//		If a single argument of the form {w: value1, h: value2} is provided take that argument as the dimensions to use.
+			//		Finally if no argument is provided, resize the surface to the marginBox of the chart.
+			// width: Number|Object?
+			//		The new width of the chart or the box definition.
+			// height: Number?
 			//		The new height of the chart.
 			// returns: dojox/charting/Chart
 			//		A reference to the current chart for functional chaining.
-			var box;
 			switch(arguments.length){
 				// case 0, do not resize the div, just the surface
 				case 1:
 					// argument, override node box
-					box = lang.mixin({}, width);
-					domGeom.setMarginBox(this.node, box);
+					domGeom.setMarginBox(this.node, width);
 					break;
 				case 2:
-					box = {w: width, h: height};
 					// argument, override node box
-					domGeom.setMarginBox(this.node, box);
+					domGeom.setMarginBox(this.node, {w: width, h: height});
 					break;
 			}
 			// in all cases take back the computed box
-			box = domGeom.getMarginBox(this.node);
+			var box = domGeom.getMarginBox(this.node);
 			var d = this.surface.getDimensions();
 			if(d.width != box.w || d.height != box.h){
 				// and set it on the surface
@@ -2695,6 +2842,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			// assign series
 			arr.forEach(this.series, function(run){
 				if(!(run.plot in this.plots)){
+					// TODO remove auto-assignment
 					if(!dc.plot2d || !dc.plot2d.Default){
 						throw Error("Can't find plot: Default - didn't you forget to dojo" + ".require() it?");
 					}
@@ -2723,15 +2871,22 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 
 			// assumption: we don't have stacked axes yet
 			var offsets = this.offsets = {l: 0, r: 0, t: 0, b: 0};
+			// chart mirroring starts
+			var self = this;
 			func.forIn(this.axes, function(axis){
+				if(has("dojo-bidi")){
+					self._resetLeftBottom(axis);
+				}
 				func.forIn(axis.getOffsets(), function(o, i){ offsets[i] = Math.max(o, offsets[i]); });
 			});
+			// chart mirroring ends
 			// add title area
 			if(this.title){
 				this.titleGap = (this.titleGap==0) ? 0 : this.titleGap || this.theme.chart.titleGap || 20;
 				this.titlePos = this.titlePos || this.theme.chart.titlePos || "top";
 				this.titleFont = this.titleFont || this.theme.chart.titleFont;
 				this.titleFontColor = this.titleFontColor || this.theme.chart.titleFontColor || "black";
+				this.titleAlign = this.titleAlign || this.theme && this.theme.chart && this.theme.chart.titleAlign || "middle";
 				var tsize = g.normalizedLength(g.splitFontString(this.titleFont).size);
 				offsets[this.titlePos == "top" ? "t" : "b"] += (tsize + this.titleGap);
 			}
@@ -2761,7 +2916,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 				clearTimeout(this._delayedRenderHandle);
 				this._delayedRenderHandle = null;
 			}
-			
+
 			if(this.theme){
 				this.theme.clear();
 			}
@@ -2800,28 +2955,26 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			//this.theme.defineColors({num: requiredColors, cache: false});
 
 			// clear old shapes
-			arr.forEach(this.series, purge);
-			func.forIn(this.axes, purge);
-			arr.forEach(this.stack,  purge);
+			arr.forEach(this.series, plot2dCommon.purgeGroup);
+			func.forIn(this.axes, plot2dCommon.purgeGroup);
+			arr.forEach(this.stack, plot2dCommon.purgeGroup);
 			var children = this.surface.children;
-			for(var i = 0; i < children.length;++i){
-				shape.dispose(children[i]);
+			// starting with 1.9 the registry is optional and thus dispose is
+			if(shape.dispose){
+				for(var i = 0; i < children.length;++i){
+					shape.dispose(children[i]);
+				}
 			}
 			if(this.chartTitle && this.chartTitle.tagName){
 				// destroy title if it is a DOM node
 			    domConstruct.destroy(this.chartTitle);
 			}
-			if(this.plotGroup){
-				this.plotGroup.clear();
-			}
 			this.surface.clear();
 			this.chartTitle = null;
 
-			if(this.plotGroup){
-				this._renderChartBackground(dim, offsets);
+			this._renderChartBackground(dim, offsets);
+			if(this._nativeClip){
 				this._renderPlotBackground(dim, offsets, w, h);
-				this.surface.add(this.plotGroup);
-				this.plotGroup.setClip({ x: offsets.l, y: offsets.t, width: w, height: h });
 			}else{
 				// VML
 				this._renderPlotBackground(dim, offsets, w, h);
@@ -2830,26 +2983,14 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			// go over the stack backwards
 			func.foldr(this.stack, function(z, plot){ return plot.render(dim, offsets), 0; }, 0);
 
-			if(!this.plotGroup){
+			if(!this._nativeClip){
 				// VML, matting-clipping
 				this._renderChartBackground(dim, offsets);
 			}
 
 			//create title: Whether to make chart title as a widget which extends dojox.charting.Element?
 			if(this.title){
-				var forceHtmlLabels = (g.renderer == "canvas"),
-					labelType = forceHtmlLabels || !has("ie") && !has("opera") ? "html" : "gfx",
-					tsize = g.normalizedLength(g.splitFontString(this.titleFont).size);
-				this.chartTitle = common.createText[labelType](
-					this,
-					this.surface,
-					dim.width/2,
-					this.titlePos=="top" ? tsize + this.margins.t : dim.height - this.margins.b,
-					"middle",
-					this.title,
-					this.titleFont,
-					this.titleFontColor
-				);
+				this._renderTitle(dim, offsets);
 			}
 
 			// go over axes
@@ -2858,6 +2999,51 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			this._makeClean();
 
 			return this;	//	dojox/charting/Chart
+		},
+		_renderTitle: function(dim, offsets){
+			// summary:
+			//		Internal function to render the chart title.
+			// dim:
+			//		The dimension object of the chart
+			// tags:
+			//		private
+			var forceHtmlLabels = (g.renderer == "canvas") && this.htmlLabels,
+				labelType = forceHtmlLabels || !has("ie") && !has("opera") && this.htmlLabels ? "html" : "gfx",
+				tsize = g.normalizedLength(g.splitFontString(this.titleFont).size),
+				tBox = g._base._getTextBox(this.title,{ font: this.titleFont });
+
+			var titleAlign = this.titleAlign;
+			var isRtl = has("dojo-bidi") && this.isRightToLeft();
+			var posX = dim.width/2; // Default is middle.
+			if(titleAlign === "edge"){
+				titleAlign = "left";
+				if(isRtl){
+					posX = dim.width - (offsets.r + tBox.w);
+				}else {
+					posX = offsets.l;
+				}
+			}else if(titleAlign != "middle"){
+				if(isRtl){
+					// We're in BIDI mode, reverse the alignment.
+					titleAlign = titleAlign === "left" ? "right" : "left";
+				}
+				if(titleAlign === "left"){
+					posX = this.margins.l;
+				}else if(titleAlign === "right"){
+					titleAlign = "left";
+					posX = dim.width - (this.margins.l + tBox.w);
+				}
+			}
+			this.chartTitle = common.createText[labelType](
+				this,
+				this.surface,
+				posX,
+				this.titlePos=="top" ? tsize + this.margins.t : dim.height - this.margins.b,
+				titleAlign,
+				this.title,
+				this.titleFont,
+				this.titleFontColor
+			);
 		},
 		_renderChartBackground: function(dim, offsets){
 			var t = this.theme, rect;
@@ -2877,7 +3063,7 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			}
 
 			if(fill){
-				if(this.plotGroup){
+				if(this._nativeClip){
 					fill = Element.prototype._shapeFill(Element.prototype._plotFill(fill, dim),
 						{ x:0, y: 0, width: dim.width + 1, height: dim.height + 1 });
 					this.surface.createRect({ width: dim.width + 1, height: dim.height + 1 }).setFill(fill);
@@ -3041,6 +3227,13 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 					plot.dirty = true;
 				}
 			}
+		},
+		setDir : function(dir){
+			return this;
+		},
+		_resetLeftBottom: function(axis){
+		},
+		formatTruncatedLabel: function(element, label, labelType){
 		}
 	});
 
@@ -3092,13 +3285,13 @@ define("dojox/charting/Chart", ["../main", "dojo/_base/lang", "dojo/_base/array"
 			plot.initializeScalers(plotArea, stats);
 		});
 	}
-	
-	return Chart;
+
+	return has("dojo-bidi")? declare("dojox.charting.Chart", [Chart, BidiChart]) : Chart;
 });
 
 },
 'dojox/main':function(){
-define("dojox/main", ["dojo/_base/kernel"], function(dojo) {
+define(["dojo/_base/kernel"], function(dojo) {
 	// module:
 	//		dojox/main
 
@@ -3114,8 +3307,8 @@ define("dojox/main", ["dojo/_base/kernel"], function(dojo) {
 });
 },
 'dojox/charting/Element':function(){
-define("dojox/charting/Element", ["dojo/_base/lang", "dojo/_base/array", "dojo/dom-construct","dojo/_base/declare", "dojox/gfx", "dojox/gfx/shape"],
-	function(lang, arr, domConstruct, declare, gfx, shape){
+define(["dojo/_base/array", "dojo/dom-construct","dojo/_base/declare", "dojox/gfx", "dojox/gfx/shape"],
+	function(arr, domConstruct, declare, gfx, shape){
 
 	return declare("dojox.charting.Element", null, {
 		// summary:
@@ -3134,8 +3327,9 @@ define("dojox/charting/Element", ["dojo/_base/lang", "dojo/_base/array", "dojo/d
 		group: null,
 		htmlElements: null,
 		dirty: true,
+		renderingOptions: null,
 
-		constructor: function(chart){
+		constructor: function(chart, kwArgs){
 			// summary:
 			//		Creates a new charting element.
 			// chart: dojox/charting/Chart
@@ -3146,6 +3340,9 @@ define("dojox/charting/Element", ["dojo/_base/lang", "dojo/_base/array", "dojo/d
 			this.dirty = true;
 			this.trailingSymbol = "...";
 			this._events = [];
+			if (kwArgs && kwArgs.renderingOptions) {
+				this.renderingOptions = kwArgs.renderingOptions;
+			}
 		},
 		purgeGroup: function(){
 			// summary:
@@ -3155,16 +3352,33 @@ define("dojox/charting/Element", ["dojo/_base/lang", "dojo/_base/array", "dojo/d
 			this.destroyHtmlElements();
 			if(this.group){
 				// since 1.7.x we need dispose shape otherwise there is a memoryleak
-				this.group.removeShape();
-				var children = this.group.children;
-				for(var i = 0; i < children.length;++i){
-					shape.dispose(children[i], true);
+				this.getGroup().removeShape();
+				var children = this.getGroup().children;
+				// starting with 1.9 the registry is optional and thus dispose is
+				if(shape.dispose){
+					for(var i = 0; i < children.length;++i){
+						shape.dispose(children[i], true);
+					}
 				}
-				if(this.group.rawNode){
-					domConstruct.empty(this.group.rawNode);
+				if(this.getGroup().rawNode){
+					domConstruct.empty(this.getGroup().rawNode);
 				}
-				this.group.clear();
-				shape.dispose(this.group, true);
+				this.getGroup().clear();
+				// starting with 1.9 the registry is optional and thus dispose is
+				if(shape.dispose){
+					shape.dispose(this.getGroup(), true);
+				}
+				if(this.getGroup() != this.group){
+					// we do have an intermediary clipping group (see CartesianBase)
+					if(this.group.rawNode){
+						domConstruct.empty(this.group.rawNode);
+					}
+					this.group.clear();
+					// starting with 1.9 the registry is optional and thus dispose is
+					if(shape.dispose){
+						shape.dispose(this.group, true);
+					}
+				}
 				this.group = null;
 			}
 			this.dirty = true;
@@ -3187,23 +3401,37 @@ define("dojox/charting/Element", ["dojo/_base/lang", "dojo/_base/array", "dojo/d
 			if(!creator){ creator = this.chart.surface; }
 			if(this.group){
 				var bgnode;
-				var children = this.group.children;
-				for(var i = 0; i < children.length;++i){
-					shape.dispose(children[i], true);
+				var children = this.getGroup().children;
+				// starting with 1.9 the registry is optional and thus dispose is
+				if(shape.dispose){
+					for(var i = 0; i < children.length;++i){
+						shape.dispose(children[i], true);
+					}
 				}
-				if(this.group.rawNode){
-					bgnode = this.group.bgNode;
-					domConstruct.empty(this.group.rawNode);
+				if(this.getGroup().rawNode){
+					bgnode = this.getGroup().bgNode;
+					domConstruct.empty(this.getGroup().rawNode);
 				}
-				this.group.clear();
+				this.getGroup().clear();
 				if(bgnode){
-					this.group.rawNode.appendChild(bgnode);
+					this.getGroup().rawNode.appendChild(bgnode);
 				}
 			}else{
 				this.group = creator.createGroup();
+				// in some cases we have a rawNode but this is not an actual DOM element (CanvasWithEvents) so check
+				// the actual rawNode type.
+				if (this.renderingOptions && this.group.rawNode &&
+					this.group.rawNode.namespaceURI == "http://www.w3.org/2000/svg") {
+					for (var key in this.renderingOptions) {
+						this.group.rawNode.setAttribute(key, this.renderingOptions[key]);
+					}
+				}
 			}
 			this.dirty = true;
 			return this;	//	dojox.charting.Element
+		},
+		getGroup: function(){
+			return this.group;
 		},
 		destroyHtmlElements: function(){
 			// summary:
@@ -3217,6 +3445,10 @@ define("dojox/charting/Element", ["dojo/_base/lang", "dojo/_base/array", "dojo/d
 			// summary:
 			//		API addition to conform to the rest of the Dojo Toolkit's standard.
 			this.purgeGroup();
+		},
+		overrideShape: function(shape, params){
+			// summary:
+			//		Extension point for overriding the charting shape
 		},
 		//text utilities
 		getTextWidth: function(s, font){
@@ -3478,1080 +3710,13 @@ define("dojox/charting/Element", ["dojo/_base/lang", "dojo/_base/array", "dojo/d
 				y2: center.y + fill.r * radius * Math.sin(angle) / 100,
 				colors: fill.colors
 			};
-			return fill;
 		}
 	});
 });
 
 },
 'dojox/gfx':function(){
-require({cache:{
-'dojox/gfx/_base':function(){
-define(["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/Color", "dojo/_base/sniff", "dojo/_base/window",
-	    "dojo/_base/array","dojo/dom", "dojo/dom-construct","dojo/dom-geometry"],
-function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
-	// module:
-	//		dojox/gfx
-	// summary:
-	//		This module contains common core Graphics API used by different graphics renderers.
-
-	var g = lang.getObject("dojox.gfx", true),
-		b = g._base = {};
-	
-	// candidates for dojox.style (work on VML and SVG nodes)
-	g._hasClass = function(/*DomNode*/node, /*String*/classStr){
-		// summary:
-		//		Returns whether or not the specified classes are a portion of the
-		//		class list currently applied to the node.
-		
-		// return (new RegExp('(^|\\s+)'+classStr+'(\\s+|$)')).test(node.className)	// Boolean
-		var cls = node.getAttribute("className");
-		return cls && (" " + cls + " ").indexOf(" " + classStr + " ") >= 0;  // Boolean
-	};
-	g._addClass = function(/*DomNode*/node, /*String*/classStr){
-		// summary:
-		//		Adds the specified classes to the end of the class list on the
-		//		passed node.
-		var cls = node.getAttribute("className") || "";
-		if(!cls || (" " + cls + " ").indexOf(" " + classStr + " ") < 0){
-			node.setAttribute("className", cls + (cls ? " " : "") + classStr);
-		}
-	};
-	g._removeClass = function(/*DomNode*/node, /*String*/classStr){
-		// summary:
-		//		Removes classes from node.
-		var cls = node.getAttribute("className");
-		if(cls){
-			node.setAttribute(
-				"className",
-				cls.replace(new RegExp('(^|\\s+)' + classStr + '(\\s+|$)'), "$1$2")
-			);
-		}
-	};
-
-	// candidate for dojox.html.metrics (dynamic font resize handler is not implemented here)
-
-	//		derived from Morris John's emResized measurer
-	b._getFontMeasurements = function(){
-		// summary:
-		//		Returns an object that has pixel equivilents of standard font
-		//		size values.
-		var heights = {
-			'1em': 0, '1ex': 0, '100%': 0, '12pt': 0, '16px': 0, 'xx-small': 0,
-			'x-small': 0, 'small': 0, 'medium': 0, 'large': 0, 'x-large': 0,
-			'xx-large': 0
-		};
-		var p, oldStyle;	
-		if(has("ie")){
-			//	We do a font-size fix if and only if one isn't applied already.
-			// NOTE: If someone set the fontSize on the HTML Element, this will kill it.
-			oldStyle = win.doc.documentElement.style.fontSize || "";
-			if(!oldStyle){
-				win.doc.documentElement.style.fontSize="100%";
-			}
-		}
-
-		//		set up the measuring node.
-		var div = domConstruct.create("div", {style: {
-				position: "absolute",
-				left: "0",
-				top: "-100px",
-				width: "30px",
-				height: "1000em",
-				borderWidth: "0",
-				margin: "0",
-				padding: "0",
-				outline: "none",
-				lineHeight: "1",
-				overflow: "hidden"
-			}}, win.body());
-
-		//		do the measurements.
-		for(p in heights){
-			div.style.fontSize = p;
-			heights[p] = Math.round(div.offsetHeight * 12/16) * 16/12 / 1000;
-		}
-
-		if(has("ie")){
-			// Restore the font to its old style.
-			win.doc.documentElement.style.fontSize = oldStyle;
-		}
-		win.body().removeChild(div);
-		return heights; //object
-	};
-
-	var fontMeasurements = null;
-
-	b._getCachedFontMeasurements = function(recalculate){
-		if(recalculate || !fontMeasurements){
-			fontMeasurements = b._getFontMeasurements();
-		}
-		return fontMeasurements;
-	};
-
-	// candidate for dojox.html.metrics
-
-	var measuringNode = null, empty = {};
-	b._getTextBox = function(	/*String*/ text,
-								/*Object*/ style,
-								/*String?*/ className){
-		var m, s, al = arguments.length;
-		var i;
-		if(!measuringNode){
-			measuringNode = domConstruct.create("div", {style: {
-				position: "absolute",
-				top: "-10000px",
-				left: "0"
-			}}, win.body());
-		}
-		m = measuringNode;
-		// reset styles
-		m.className = "";
-		s = m.style;
-		s.borderWidth = "0";
-		s.margin = "0";
-		s.padding = "0";
-		s.outline = "0";
-		// set new style
-		if(al > 1 && style){
-			for(i in style){
-				if(i in empty){ continue; }
-				s[i] = style[i];
-			}
-		}
-		// set classes
-		if(al > 2 && className){
-			m.className = className;
-		}
-		// take a measure
-		m.innerHTML = text;
-
-		if(m["getBoundingClientRect"]){
-			var bcr = m.getBoundingClientRect();
-			return {l: bcr.left, t: bcr.top, w: bcr.width || (bcr.right - bcr.left), h: bcr.height || (bcr.bottom - bcr.top)};
-		}else{
-			return domGeom.getMarginBox(m);
-		}
-	};
-
-	// candidate for dojo.dom
-
-	var uniqueId = 0;
-	b._getUniqueId = function(){
-		// summary:
-		//		returns a unique string for use with any DOM element
-		var id;
-		do{
-			id = kernel._scopeName + "xUnique" + (++uniqueId);
-		}while(dom.byId(id));
-		return id;
-	};
-
-	/*=====
-	g.Stroke = {
-		// summary:
-		//		A stroke defines stylistic properties that are used when drawing a path.
-
-		// color: String
-		//		The color of the stroke, default value 'black'.
-		color: "black",
-
-		// style: String
-		//		The style of the stroke, one of 'solid', ... . Default value 'solid'.
-		style: "solid",
-
-		// width: Number
-		//		The width of a stroke, default value 1.
-		width: 1,
-
-		// cap: String
-		//		The endcap style of the path. One of 'butt', 'round', ... . Default value 'butt'.
-		cap: "butt",
-
-		// join: Number
-		//		The join style to use when combining path segments. Default value 4.
-		join: 4
-	};
-	
-	g.Fill = {
-		// summary:
-		//		Defines how to fill a shape. Four types of fills can be used: solid, linear gradient, radial gradient and pattern.
-		//		See dojox/gfx.LinearGradient, dojox/gfx.RadialGradient and dojox/gfx.Pattern respectively for more information about the properties supported by each type.
-		
-		// type: String?
-		//		The type of fill. One of 'linear', 'radial', 'pattern' or undefined. If not specified, a solid fill is assumed.
-		type:"",
-		
-		// color: String|dojo/Color?
-		//		The color of a solid fill type.
-		color:null,
-		
-	};
-	
-	g.LinearGradient = {
-		// summary:
-		//		An object defining the default stylistic properties used for Linear Gradient fills.
-		//		Linear gradients are drawn along a virtual line, which results in appearance of a rotated pattern in a given direction/orientation.
-
-		// type: String
-		//		Specifies this object is a Linear Gradient, value 'linear'
-		type: "linear",
-
-		// x1: Number
-		//		The X coordinate of the start of the virtual line along which the gradient is drawn, default value 0.
-		x1: 0,
-
-		// y1: Number
-		//		The Y coordinate of the start of the virtual line along which the gradient is drawn, default value 0.
-		y1: 0,
-
-		// x2: Number
-		//		The X coordinate of the end of the virtual line along which the gradient is drawn, default value 100.
-		x2: 100,
-
-		// y2: Number
-		//		The Y coordinate of the end of the virtual line along which the gradient is drawn, default value 100.
-		y2: 100,
-
-		// colors: Array
-		//		An array of colors at given offsets (from the start of the line).  The start of the line is
-		//		defined at offest 0 with the end of the line at offset 1.
-		//		Default value, [{ offset: 0, color: 'black'},{offset: 1, color: 'white'}], is a gradient from black to white.
-		colors: []
-	};
-	
-	g.RadialGradient = {
-		// summary:
-		//		Specifies the properties for RadialGradients using in fills patterns.
-
-		// type: String
-		//		Specifies this is a RadialGradient, value 'radial'
-		type: "radial",
-
-		// cx: Number
-		//		The X coordinate of the center of the radial gradient, default value 0.
-		cx: 0,
-
-		// cy: Number
-		//		The Y coordinate of the center of the radial gradient, default value 0.
-		cy: 0,
-
-		// r: Number
-		//		The radius to the end of the radial gradient, default value 100.
-		r: 100,
-
-		// colors: Array
-		//		An array of colors at given offsets (from the center of the radial gradient).
-		//		The center is defined at offest 0 with the outer edge of the gradient at offset 1.
-		//		Default value, [{ offset: 0, color: 'black'},{offset: 1, color: 'white'}], is a gradient from black to white.
-		colors: []
-	};
-	
-	g.Pattern = {
-		// summary:
-		//		An object specifying the default properties for a Pattern using in fill operations.
-
-		// type: String
-		//		Specifies this object is a Pattern, value 'pattern'.
-		type: "pattern",
-
-		// x: Number
-		//		The X coordinate of the position of the pattern, default value is 0.
-		x: 0,
-
-		// y: Number
-		//		The Y coordinate of the position of the pattern, default value is 0.
-		y: 0,
-
-		// width: Number
-		//		The width of the pattern image, default value is 0.
-		width: 0,
-
-		// height: Number
-		//		The height of the pattern image, default value is 0.
-		height: 0,
-
-		// src: String
-		//		A url specifying the image to use for the pattern.
-		src: ""
-	};
-
-	g.Text = {
-		//	summary:
-		//		A keyword argument object defining both the text to be rendered in a VectorText shape,
-		//		and specifying position, alignment, and fitting.
-		//	text: String
-		//		The text to be rendered.
-		//	x: Number?
-		//		The left coordinate for the text's bounding box.
-		//	y: Number?
-		//		The top coordinate for the text's bounding box.
-		//	width: Number?
-		//		The width of the text's bounding box.
-		//	height: Number?
-		//		The height of the text's bounding box.
-		//	align: String?
-		//		The alignment of the text, as defined in SVG. Can be "start", "end" or "middle".
-		//	fitting: Number?
-		//		How the text is to be fitted to the bounding box. Can be 0 (no fitting), 1 (fitting based on
-		//		passed width of the bounding box and the size of the font), or 2 (fit text to the bounding box,
-		//		and ignore any size parameters).
-		//	leading: Number?
-		//		The leading to be used between lines in the text.
-		//	decoration: String?
-		//		Any text decoration to be used.
-	};
-
-	g.Font = {
-		// summary:
-		//		An object specifying the properties for a Font used in text operations.
-	
-		// type: String
-		//		Specifies this object is a Font, value 'font'.
-		type: "font",
-	
-		// style: String
-		//		The font style, one of 'normal', 'bold', default value 'normal'.
-		style: "normal",
-	
-		// variant: String
-		//		The font variant, one of 'normal', ... , default value 'normal'.
-		variant: "normal",
-	
-		// weight: String
-		//		The font weight, one of 'normal', ..., default value 'normal'.
-		weight: "normal",
-	
-		// size: String
-		//		The font size (including units), default value '10pt'.
-		size: "10pt",
-	
-		// family: String
-		//		The font family, one of 'serif', 'sanserif', ..., default value 'serif'.
-		family: "serif"
-	};
-
-	=====*/
-
-	lang.mixin(g, {
-		// summary:
-		//		defines constants, prototypes, and utility functions for the core Graphics API
-
-		// default shapes, which are used to fill in missing parameters
-		defaultPath: {
-			// summary:
-			//		Defines the default Path prototype object.
-
-			// type: String
-			//		Specifies this object is a Path, default value 'path'.
-			type: "path", 
-
-			// path: String
-			//		The path commands. See W32C SVG 1.0 specification.
-			//		Defaults to empty string value.
-			path: ""
-		},
-		defaultPolyline: {
-			// summary:
-			//		Defines the default PolyLine prototype.
-
-			// type: String
-			//		Specifies this object is a PolyLine, default value 'polyline'.
-			type: "polyline",
-
-			// points: Array
-			//		An array of point objects [{x:0,y:0},...] defining the default polyline's line segments. Value is an empty array [].
-			points: []
-		},
-		defaultRect: {
-			// summary:
-			//		Defines the default Rect prototype.
-
-			// type: String
-			//		Specifies this default object is a type of Rect. Value is 'rect'
-			type: "rect",
-
-			// x: Number
-			//		The X coordinate of the default rectangles position, value 0.
-			x: 0,
-
-			// y: Number
-			//		The Y coordinate of the default rectangle's position, value 0.
-			y: 0,
-
-			// width: Number
-			//		The width of the default rectangle, value 100.
-			width: 100,
-
-			// height: Number
-			//		The height of the default rectangle, value 100.
-			height: 100,
-
-			// r: Number
-			//		The corner radius for the default rectangle, value 0.
-			r: 0
-		},
-		defaultEllipse: {
-			// summary:
-			//		Defines the default Ellipse prototype.
-
-			// type: String
-			//		Specifies that this object is a type of Ellipse, value is 'ellipse'
-			type: "ellipse",
-
-			// cx: Number
-			//		The X coordinate of the center of the ellipse, default value 0.
-			cx: 0,
-
-			// cy: Number
-			//		The Y coordinate of the center of the ellipse, default value 0.
-			cy: 0,
-
-			// rx: Number
-			//		The radius of the ellipse in the X direction, default value 200.
-			rx: 200,
-
-			// ry: Number
-			//		The radius of the ellipse in the Y direction, default value 200.
-			ry: 100
-		},
-		defaultCircle: {
-			// summary:
-			//		An object defining the default Circle prototype.
-
-			// type: String
-			//		Specifies this object is a circle, value 'circle'
-			type: "circle",
-
-			// cx: Number
-			//		The X coordinate of the center of the circle, default value 0.
-			cx: 0,
-			// cy: Number
-			//		The Y coordinate of the center of the circle, default value 0.
-			cy: 0,
-
-			// r: Number
-			//		The radius, default value 100.
-			r: 100
-		},
-		defaultLine: {
-			// summary:
-			//		An object defining the default Line prototype.
-
-			// type: String
-			//		Specifies this is a Line, value 'line'
-			type: "line",
-
-			// x1: Number
-			//		The X coordinate of the start of the line, default value 0.
-			x1: 0,
-
-			// y1: Number
-			//		The Y coordinate of the start of the line, default value 0.
-			y1: 0,
-
-			// x2: Number
-			//		The X coordinate of the end of the line, default value 100.
-			x2: 100,
-
-			// y2: Number
-			//		The Y coordinate of the end of the line, default value 100.
-			y2: 100
-		},
-		defaultImage: {
-			// summary:
-			//		Defines the default Image prototype.
-
-			// type: String
-			//		Specifies this object is an image, value 'image'.
-			type: "image",
-
-			// x: Number
-			//		The X coordinate of the image's position, default value 0.
-			x: 0,
-
-			// y: Number
-			//		The Y coordinate of the image's position, default value 0.
-			y: 0,
-
-			// width: Number
-			//		The width of the image, default value 0.
-			width: 0,
-
-			// height: Number
-			//		The height of the image, default value 0.
-			height: 0,
-
-			// src: String
-			//		The src url of the image, defaults to empty string.
-			src: ""
-		},
-		defaultText: {
-			// summary:
-			//		Defines the default Text prototype.
-
-			// type: String
-			//		Specifies this is a Text shape, value 'text'.
-			type: "text",
-
-			// x: Number
-			//		The X coordinate of the text position, default value 0.
-			x: 0,
-
-			// y: Number
-			//		The Y coordinate of the text position, default value 0.
-			y: 0,
-
-			// text: String
-			//		The text to be displayed, default value empty string.
-			text: "",
-
-			// align:	String
-			//		The horizontal text alignment, one of 'start', 'end', 'center'. Default value 'start'.
-			align: "start",
-
-			// decoration: String
-			//		The text decoration , one of 'none', ... . Default value 'none'.
-			decoration: "none",
-
-			// rotated: Boolean
-			//		Whether the text is rotated, boolean default value false.
-			rotated: false,
-
-			// kerning: Boolean
-			//		Whether kerning is used on the text, boolean default value true.
-			kerning: true
-		},
-		defaultTextPath: {
-			// summary:
-			//		Defines the default TextPath prototype.
-
-			// type: String
-			//		Specifies this is a TextPath, value 'textpath'.
-			type: "textpath",
-
-			// text: String
-			//		The text to be displayed, default value empty string.
-			text: "",
-
-			// align: String
-			//		The horizontal text alignment, one of 'start', 'end', 'center'. Default value 'start'.
-			align: "start",
-
-			// decoration: String
-			//		The text decoration , one of 'none', ... . Default value 'none'.
-			decoration: "none",
-
-			// rotated: Boolean
-			//		Whether the text is rotated, boolean default value false.
-			rotated: false,
-
-			// kerning: Boolean
-			//		Whether kerning is used on the text, boolean default value true.
-			kerning: true
-		},
-
-		// default stylistic attributes
-		defaultStroke: {
-			// summary:
-			//		A stroke defines stylistic properties that are used when drawing a path.
-			//		This object defines the default Stroke prototype.
-			// type: String
-			//		Specifies this object is a type of Stroke, value 'stroke'.
-			type: "stroke",
-
-			// color: String
-			//		The color of the stroke, default value 'black'.
-			color: "black",
-
-			// style: String
-			//		The style of the stroke, one of 'solid', ... . Default value 'solid'.
-			style: "solid",
-
-			// width: Number
-			//		The width of a stroke, default value 1.
-			width: 1,
-
-			// cap: String
-			//		The endcap style of the path. One of 'butt', 'round', ... . Default value 'butt'.
-			cap: "butt",
-
-			// join: Number
-			//		The join style to use when combining path segments. Default value 4.
-			join: 4
-		},
-		defaultLinearGradient: {
-			// summary:
-			//		An object defining the default stylistic properties used for Linear Gradient fills.
-			//		Linear gradients are drawn along a virtual line, which results in appearance of a rotated pattern in a given direction/orientation.
-
-			// type: String
-			//		Specifies this object is a Linear Gradient, value 'linear'
-			type: "linear",
-
-			// x1: Number
-			//		The X coordinate of the start of the virtual line along which the gradient is drawn, default value 0.
-			x1: 0,
-
-			// y1: Number
-			//		The Y coordinate of the start of the virtual line along which the gradient is drawn, default value 0.
-			y1: 0,
-
-			// x2: Number
-			//		The X coordinate of the end of the virtual line along which the gradient is drawn, default value 100.
-			x2: 100,
-
-			// y2: Number
-			//		The Y coordinate of the end of the virtual line along which the gradient is drawn, default value 100.
-			y2: 100,
-
-			// colors: Array
-			//		An array of colors at given offsets (from the start of the line).  The start of the line is
-			//		defined at offest 0 with the end of the line at offset 1.
-			//		Default value, [{ offset: 0, color: 'black'},{offset: 1, color: 'white'}], is a gradient from black to white.
-			colors: [
-				{ offset: 0, color: "black" }, { offset: 1, color: "white" }
-			]
-		},
-		defaultRadialGradient: {
-			// summary:
-			//		An object specifying the default properties for RadialGradients using in fills patterns.
-
-			// type: String
-			//		Specifies this is a RadialGradient, value 'radial'
-			type: "radial",
-
-			// cx: Number
-			//		The X coordinate of the center of the radial gradient, default value 0.
-			cx: 0,
-
-			// cy: Number
-			//		The Y coordinate of the center of the radial gradient, default value 0.
-			cy: 0,
-
-			// r: Number
-			//		The radius to the end of the radial gradient, default value 100.
-			r: 100,
-
-			// colors: Array
-			//		An array of colors at given offsets (from the center of the radial gradient).
-			//		The center is defined at offest 0 with the outer edge of the gradient at offset 1.
-			//		Default value, [{ offset: 0, color: 'black'},{offset: 1, color: 'white'}], is a gradient from black to white.
-			colors: [
-				{ offset: 0, color: "black" }, { offset: 1, color: "white" }
-			]
-		},
-		defaultPattern: {
-			// summary:
-			//		An object specifying the default properties for a Pattern using in fill operations.
-
-			// type: String
-			//		Specifies this object is a Pattern, value 'pattern'.
-			type: "pattern",
-
-			// x: Number
-			//		The X coordinate of the position of the pattern, default value is 0.
-			x: 0,
-
-			// y: Number
-			//		The Y coordinate of the position of the pattern, default value is 0.
-			y: 0,
-
-			// width: Number
-			//		The width of the pattern image, default value is 0.
-			width: 0,
-
-			// height: Number
-			//		The height of the pattern image, default value is 0.
-			height: 0,
-
-			// src: String
-			//		A url specifying the image to use for the pattern.
-			src: ""
-		},
-		defaultFont: {
-			// summary:
-			//		An object specifying the default properties for a Font used in text operations.
-
-			// type: String
-			//		Specifies this object is a Font, value 'font'.
-			type: "font",
-
-			// style: String
-			//		The font style, one of 'normal', 'bold', default value 'normal'.
-			style: "normal",
-
-			// variant: String
-			//		The font variant, one of 'normal', ... , default value 'normal'.
-			variant: "normal",
-
-			// weight: String
-			//		The font weight, one of 'normal', ..., default value 'normal'.
-			weight: "normal",
-
-			// size: String
-			//		The font size (including units), default value '10pt'.
-			size: "10pt",
-
-			// family: String
-			//		The font family, one of 'serif', 'sanserif', ..., default value 'serif'.
-			family: "serif"
-		},
-
-		getDefault: (function(){
-			// summary:
-			//		Returns a function used to access default memoized prototype objects (see them defined above).
-			var typeCtorCache = {};
-			// a memoized delegate()
-			return function(/*String*/ type){
-				var t = typeCtorCache[type];
-				if(t){
-					return new t();
-				}
-				t = typeCtorCache[type] = new Function();
-				t.prototype = g[ "default" + type ];
-				return new t();
-			}
-		})(),
-
-		normalizeColor: function(/*dojo/Color|Array|string|Object*/ color){
-			// summary:
-			//		converts any legal color representation to normalized
-			//		dojo/Color object
-			// color:
-			//		A color representation.
-			return (color instanceof Color) ? color : new Color(color); // dojo/Color
-		},
-		normalizeParameters: function(existed, update){
-			// summary:
-			//		updates an existing object with properties from an 'update'
-			//		object
-			// existed: Object
-			//		the target object to be updated
-			// update: Object
-			//		the 'update' object, whose properties will be used to update
-			//		the existed object
-			var x;
-			if(update){
-				var empty = {};
-				for(x in existed){
-					if(x in update && !(x in empty)){
-						existed[x] = update[x];
-					}
-				}
-			}
-			return existed;	// Object
-		},
-		makeParameters: function(defaults, update){
-			// summary:
-			//		copies the original object, and all copied properties from the
-			//		'update' object
-			// defaults: Object
-			//		the object to be cloned before updating
-			// update: Object
-			//		the object, which properties are to be cloned during updating
-			// returns: Object
-			//      new object with new and default properties
-			var i = null;
-			if(!update){
-				// return dojo.clone(defaults);
-				return lang.delegate(defaults);
-			}
-			var result = {};
-			for(i in defaults){
-				if(!(i in result)){
-					result[i] = lang.clone((i in update) ? update[i] : defaults[i]);
-				}
-			}
-			return result; // Object
-		},
-		formatNumber: function(x, addSpace){
-			// summary:
-			//		converts a number to a string using a fixed notation
-			// x: Number
-			//		number to be converted
-			// addSpace: Boolean
-			//		whether to add a space before a positive number
-			// returns: String
-			//      the formatted value
-			var val = x.toString();
-			if(val.indexOf("e") >= 0){
-				val = x.toFixed(4);
-			}else{
-				var point = val.indexOf(".");
-				if(point >= 0 && val.length - point > 5){
-					val = x.toFixed(4);
-				}
-			}
-			if(x < 0){
-				return val; // String
-			}
-			return addSpace ? " " + val : val; // String
-		},
-		// font operations
-		makeFontString: function(font){
-			// summary:
-			//		converts a font object to a CSS font string
-			// font: Object
-			//		font object (see dojox/gfx.defaultFont)
-			return font.style + " " + font.variant + " " + font.weight + " " + font.size + " " + font.family; // Object
-		},
-		splitFontString: function(str){
-			// summary:
-			//		converts a CSS font string to a font object
-			// description:
-			//		Converts a CSS font string to a gfx font object. The CSS font
-			//		string components should follow the W3C specified order
-			//		(see http://www.w3.org/TR/CSS2/fonts.html#font-shorthand):
-			//		style, variant, weight, size, optional line height (will be
-			//		ignored), and family. Note that the Font.size attribute is limited to numeric CSS length.
-			// str: String
-			//		a CSS font string.
-			// returns: Object
-			//      object in dojox/gfx.defaultFont format
-			var font = g.getDefault("Font");
-			var t = str.split(/\s+/);
-			do{
-				if(t.length < 5){ break; }
-				font.style   = t[0];
-				font.variant = t[1];
-				font.weight  = t[2];
-				var i = t[3].indexOf("/");
-				font.size = i < 0 ? t[3] : t[3].substring(0, i);
-				var j = 4;
-				if(i < 0){
-					if(t[4] == "/"){
-						j = 6;
-					}else if(t[4].charAt(0) == "/"){
-						j = 5;
-					}
-				}
-				if(j < t.length){
-					font.family = t.slice(j).join(" ");
-				}
-			}while(false);
-			return font;	// Object
-		},
-		// length operations
-
-		// cm_in_pt: Number
-		//		points per centimeter (constant)
-		cm_in_pt: 72 / 2.54,
-
-		// mm_in_pt: Number
-		//		points per millimeter (constant)
-		mm_in_pt: 7.2 / 2.54,
-
-		px_in_pt: function(){
-			// summary:
-			//		returns the current number of pixels per point.
-			return g._base._getCachedFontMeasurements()["12pt"] / 12;	// Number
-		},
-
-		pt2px: function(len){
-			// summary:
-			//		converts points to pixels
-			// len: Number
-			//		a value in points
-			return len * g.px_in_pt();	// Number
-		},
-
-		px2pt: function(len){
-			// summary:
-			//		converts pixels to points
-			// len: Number
-			//		a value in pixels
-			return len / g.px_in_pt();	// Number
-		},
-
-		normalizedLength: function(len) {
-			// summary:
-			//		converts any length value to pixels
-			// len: String
-			//		a length, e.g., '12pc'
-			// returns: Number
-			//      pixels
-			if(len.length === 0){ return 0; }
-			if(len.length > 2){
-				var px_in_pt = g.px_in_pt();
-				var val = parseFloat(len);
-				switch(len.slice(-2)){
-					case "px": return val;
-					case "pt": return val * px_in_pt;
-					case "in": return val * 72 * px_in_pt;
-					case "pc": return val * 12 * px_in_pt;
-					case "mm": return val * g.mm_in_pt * px_in_pt;
-					case "cm": return val * g.cm_in_pt * px_in_pt;
-				}
-			}
-			return parseFloat(len);	// Number
-		},
-
-		// pathVmlRegExp: RegExp
-		//		a constant regular expression used to split a SVG/VML path into primitive components
-		// tags:
-		//		private
-		pathVmlRegExp: /([A-Za-z]+)|(\d+(\.\d+)?)|(\.\d+)|(-\d+(\.\d+)?)|(-\.\d+)/g,
-
-		// pathVmlRegExp: RegExp
-		//		a constant regular expression used to split a SVG/VML path into primitive components
-		// tags:
-		//		private
-		pathSvgRegExp: /([A-Za-z])|(\d+(\.\d+)?)|(\.\d+)|(-\d+(\.\d+)?)|(-\.\d+)/g,
-
-		equalSources: function(a, b){
-			// summary:
-			//		compares event sources, returns true if they are equal
-			// a: Object
-			//		first event source
-			// b: Object
-			//		event source to compare against a
-			// returns: Boolean
-			//      true, if objects are truthy and the same
-			return a && b && a === b;
-		},
-
-		switchTo: function(/*String|Object*/ renderer){
-			// summary:
-			//		switch the graphics implementation to the specified renderer.
-			// renderer:
-			//		Either the string name of a renderer (eg. 'canvas', 'svg, ...) or the renderer
-			//		object to switch to.
-			var ns = typeof renderer == "string" ? g[renderer] : renderer;
-			if(ns){
-				// If more options are added, update the docblock at the end of shape.js!
-				arr.forEach(["Group", "Rect", "Ellipse", "Circle", "Line",
-						"Polyline", "Image", "Text", "Path", "TextPath",
-						"Surface", "createSurface", "fixTarget"], function(name){
-					g[name] = ns[name];
-				});
-			}
-		}
-	});
-	
-	/*=====
-		g.createSurface = function(parentNode, width, height){
-			// summary:
-			//		creates a surface
-			// parentNode: Node
-			//		a parent node
-			// width: String|Number
-			//		width of surface, e.g., "100px" or 100
-			// height: String|Number
-			//		height of surface, e.g., "100px" or 100
-			// returns: dojox/gfx.Surface
-			//     newly created surface
-		};
-		g.fixTarget = function(){
-			// tags:
-			//		private
-		};
-	=====*/
-	
-	return g; // defaults object api
-});
-
-},
-'dojox/gfx/renderer':function(){
-define(["./_base","dojo/_base/lang", "dojo/_base/sniff", "dojo/_base/window", "dojo/_base/config"],
-  function(g, lang, has, win, config){
-  //>> noBuildResolver
-	var currentRenderer = null;
-
-	has.add("vml", function(global, document, element){
-		element.innerHTML = "<v:shape adj=\"1\"/>";
-		var supported = ("adj" in element.firstChild);
-		element.innerHTML = "";
-		return supported;
-	});
-
-	return {
-		// summary:
-		//		This module is an AMD loader plugin that loads the appropriate graphics renderer
-		//		implementation based on detected environment and current configuration settings.
-		
-		load: function(id, require, load){
-			// tags:
-			//      private
-			if(currentRenderer && id != "force"){
-				load(currentRenderer);
-				return;
-			}
-			var renderer = config.forceGfxRenderer,
-				renderers = !renderer && (lang.isString(config.gfxRenderer) ?
-					config.gfxRenderer : "svg,vml,canvas,silverlight").split(","),
-				silverlightObject, silverlightFlag;
-
-			while(!renderer && renderers.length){
-				switch(renderers.shift()){
-					case "svg":
-						// the next test is from https://github.com/phiggins42/has.js
-						if("SVGAngle" in win.global){
-							renderer = "svg";
-						}
-						break;
-					case "vml":
-						if(has("vml")){
-							renderer = "vml";
-						}
-						break;
-					case "silverlight":
-						try{
-							if(has("ie")){
-								silverlightObject = new ActiveXObject("AgControl.AgControl");
-								if(silverlightObject && silverlightObject.IsVersionSupported("1.0")){
-									silverlightFlag = true;
-								}
-							}else{
-								if(navigator.plugins["Silverlight Plug-In"]){
-									silverlightFlag = true;
-								}
-							}
-						}catch(e){
-							silverlightFlag = false;
-						}finally{
-							silverlightObject = null;
-						}
-						if(silverlightFlag){
-							renderer = "silverlight";
-						}
-						break;
-					case "canvas":
-						if(win.global.CanvasRenderingContext2D){
-							renderer = "canvas";
-						}
-						break;
-				}
-			}
-
-			if (renderer === 'canvas' && config.canvasEvents !== false) {
-				renderer = "canvasWithEvents";
-			}
-
-			if(config.isDebug){
-				console.log("gfx renderer = " + renderer);
-			}
-
-			function loadRenderer(){
-				require(["dojox/gfx/" + renderer], function(module){
-					g.renderer = renderer;
-					// memorize the renderer module
-					currentRenderer = module;
-					// now load it
-					load(module);
-				});
-			}
-			if(renderer == "svg" && typeof window.svgweb != "undefined"){
-				window.svgweb.addOnLoad(loadRenderer);
-			}else{
-				loadRenderer();
-			}
-		}
-	};
-});
-
-}}});
-define("dojox/gfx", ["dojo/_base/lang", "./gfx/_base", "./gfx/renderer!"], 
+define(["dojo/_base/lang", "./gfx/_base", "./gfx/renderer!"], 
   function(lang, gfxBase, renderer){
 	// module:
 	//		dojox/gfx
@@ -4573,13 +3738,13 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 
 	var g = lang.getObject("dojox.gfx", true),
 		b = g._base = {};
-	
+
 	// candidates for dojox.style (work on VML and SVG nodes)
 	g._hasClass = function(/*DomNode*/node, /*String*/classStr){
 		// summary:
 		//		Returns whether or not the specified classes are a portion of the
 		//		class list currently applied to the node.
-		
+
 		// return (new RegExp('(^|\\s+)'+classStr+'(\\s+|$)')).test(node.className)	// Boolean
 		var cls = node.getAttribute("className");
 		return cls && (" " + cls + " ").indexOf(" " + classStr + " ") >= 0;  // Boolean
@@ -4617,7 +3782,7 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 			'x-small': 0, 'small': 0, 'medium': 0, 'large': 0, 'x-large': 0,
 			'xx-large': 0
 		};
-		var p, oldStyle;	
+		var p, oldStyle;
 		if(has("ie")){
 			//	We do a font-size fix if and only if one isn't applied already.
 			// NOTE: If someone set the fontSize on the HTML Element, this will kill it.
@@ -4672,12 +3837,13 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 								/*Object*/ style,
 								/*String?*/ className){
 		var m, s, al = arguments.length;
-		var i;
+		var i, box;
 		if(!measuringNode){
 			measuringNode = domConstruct.create("div", {style: {
 				position: "absolute",
 				top: "-10000px",
-				left: "0"
+				left: "0",
+				visibility: "hidden"
 			}}, win.body());
 		}
 		m = measuringNode;
@@ -4702,12 +3868,58 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 		// take a measure
 		m.innerHTML = text;
 
-		if(m["getBoundingClientRect"]){
+		if(m.getBoundingClientRect){
 			var bcr = m.getBoundingClientRect();
-			return {l: bcr.left, t: bcr.top, w: bcr.width || (bcr.right - bcr.left), h: bcr.height || (bcr.bottom - bcr.top)};
+			box = {l: bcr.left, t: bcr.top, w: bcr.width || (bcr.right - bcr.left), h: bcr.height || (bcr.bottom - bcr.top)};
 		}else{
-			return domGeom.getMarginBox(m);
+			box = domGeom.getMarginBox(m);
 		}
+		m.innerHTML = "";
+		return box;
+	};
+
+	b._computeTextLocation = function(/*g.defaultTextShape*/textShape, /*Number*/width, /*Number*/height, /*Boolean*/fixHeight) {
+		var loc = {}, align = textShape.align;
+		switch (align) {
+			case 'end':
+				loc.x = textShape.x - width;
+				break;
+			case 'middle':
+				loc.x = textShape.x - width / 2;
+				break;
+			default:
+				loc.x = textShape.x;
+				break;
+		}
+		var c = fixHeight ? 0.75 : 1;
+		loc.y = textShape.y - height*c; // **rough** approximation of the ascent...
+		return loc;
+	};
+	b._computeTextBoundingBox = function(/*shape.Text*/s){
+		// summary:
+		//		Compute the bbox of the given shape.Text instance. Note that this method returns an
+		//		approximation of the bbox, and should be used when the underlying renderer cannot provide precise metrics.
+		if(!g._base._isRendered(s)){
+			return {x:0, y:0, width:0, height:0};
+		}
+		var loc, textShape = s.getShape(),
+			font = s.getFont() || g.defaultFont,
+			w = s.getTextWidth(),
+			h = g.normalizedLength(font.size);
+		loc = b._computeTextLocation(textShape, w, h, true);
+		return {
+			x: loc.x,
+			y: loc.y,
+			width: w,
+			height: h
+		};
+	};
+	b._isRendered = function(/*Shape*/s){
+		var p = s.parent;
+		while(p && p.getParent){
+			p = p.parent;
+		}
+		return p !== null;
 	};
 
 	// candidate for dojo.dom
@@ -4722,6 +3934,13 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 		}while(dom.byId(id));
 		return id;
 	};
+
+	// IE10
+
+	var touchActionProp = has("pointer-events") ? "touchAction" : has("MSPointer") ? "msTouchAction" : null;
+	b._fixMsTouchAction = touchActionProp ? function(/*dojox/gfx/shape.Surface*/surface){
+		surface.rawNode.style[touchActionProp] = "none";
+	} : function() {};
 
 	/*=====
 	g.Stroke = {
@@ -4748,22 +3967,22 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 		//		The join style to use when combining path segments. Default value 4.
 		join: 4
 	};
-	
+
 	g.Fill = {
 		// summary:
 		//		Defines how to fill a shape. Four types of fills can be used: solid, linear gradient, radial gradient and pattern.
 		//		See dojox/gfx.LinearGradient, dojox/gfx.RadialGradient and dojox/gfx.Pattern respectively for more information about the properties supported by each type.
-		
+
 		// type: String?
 		//		The type of fill. One of 'linear', 'radial', 'pattern' or undefined. If not specified, a solid fill is assumed.
 		type:"",
-		
+
 		// color: String|dojo/Color?
 		//		The color of a solid fill type.
 		color:null,
-		
+
 	};
-	
+
 	g.LinearGradient = {
 		// summary:
 		//		An object defining the default stylistic properties used for Linear Gradient fills.
@@ -4795,7 +4014,7 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 		//		Default value, [{ offset: 0, color: 'black'},{offset: 1, color: 'white'}], is a gradient from black to white.
 		colors: []
 	};
-	
+
 	g.RadialGradient = {
 		// summary:
 		//		Specifies the properties for RadialGradients using in fills patterns.
@@ -4822,7 +4041,7 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 		//		Default value, [{ offset: 0, color: 'black'},{offset: 1, color: 'white'}], is a gradient from black to white.
 		colors: []
 	};
-	
+
 	g.Pattern = {
 		// summary:
 		//		An object specifying the default properties for a Pattern using in fill operations.
@@ -4881,27 +4100,27 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 	g.Font = {
 		// summary:
 		//		An object specifying the properties for a Font used in text operations.
-	
+
 		// type: String
 		//		Specifies this object is a Font, value 'font'.
 		type: "font",
-	
+
 		// style: String
 		//		The font style, one of 'normal', 'bold', default value 'normal'.
 		style: "normal",
-	
+
 		// variant: String
 		//		The font variant, one of 'normal', ... , default value 'normal'.
 		variant: "normal",
-	
+
 		// weight: String
 		//		The font weight, one of 'normal', ..., default value 'normal'.
 		weight: "normal",
-	
+
 		// size: String
 		//		The font size (including units), default value '10pt'.
 		size: "10pt",
-	
+
 		// family: String
 		//		The font family, one of 'serif', 'sanserif', ..., default value 'serif'.
 		family: "serif"
@@ -4920,7 +4139,7 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 
 			// type: String
 			//		Specifies this object is a Path, default value 'path'.
-			type: "path", 
+			type: "path",
 
 			// path: String
 			//		The path commands. See W32C SVG 1.0 specification.
@@ -5284,7 +4503,7 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 				if(t){
 					return new t();
 				}
-				t = typeCtorCache[type] = new Function();
+				t = typeCtorCache[type] = function () {};
 				t.prototype = g[ "default" + type ];
 				return new t();
 			}
@@ -5473,7 +4692,7 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 		//		a constant regular expression used to split a SVG/VML path into primitive components
 		// tags:
 		//		private
-		pathSvgRegExp: /([A-Za-z])|(\d+(\.\d+)?)|(\.\d+)|(-\d+(\.\d+)?)|(-\.\d+)/g,
+		pathSvgRegExp: /([A-DF-Za-df-z])|([-+]?\d*[.]?\d+(?:[eE][-+]?\d+)?)/g,
 
 		equalSources: function(a, b){
 			// summary:
@@ -5501,10 +4720,17 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 						"Surface", "createSurface", "fixTarget"], function(name){
 					g[name] = ns[name];
 				});
+				if(typeof renderer == "string"){
+					g.renderer = renderer;
+				}else{
+					arr.some(["svg","vml","canvas","canvasWithEvents","silverlight"], function(r){
+						return (g.renderer = g[r] && g[r].Surface === g.Surface ? r : null);
+					});
+				}
 			}
 		}
 	});
-	
+
 	/*=====
 		g.createSurface = function(parentNode, width, height){
 			// summary:
@@ -5523,7 +4749,7 @@ function(kernel, lang, Color, has, win, arr, dom, domConstruct, domGeom){
 			//		private
 		};
 	=====*/
-	
+
 	return g; // defaults object api
 });
 
@@ -5629,8 +4855,16 @@ define(["./_base","dojo/_base/lang", "dojo/_base/sniff", "dojo/_base/window", "d
 },
 'dojox/gfx/shape':function(){
 define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel", "dojo/_base/sniff",
-	"dojo/_base/connect", "dojo/_base/array", "dojo/dom-construct", "dojo/_base/Color", "./matrix" /*===== , "./path" =====*/ ], 
-	function(g, lang, declare, kernel, has, events, arr, domConstruct, Color, matrixLib){
+	"dojo/on", "dojo/_base/array", "dojo/dom-construct", "dojo/_base/Color", "./matrix" ],
+	function(g, lang, declare, kernel, has, on, arr, domConstruct, Color, matrixLib){
+
+	function removeItemAt(a, index) {
+		var len = (a.length - 1);
+		while (index < len) {
+			a[index] = a[++index];
+		}
+		a.length = len;
+	}
 
 	var shape = g.shape = {
 		// summary:
@@ -5638,66 +4872,7 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 		//		Different graphics renderer implementation modules (svg, canvas, vml, silverlight, etc.) extend this
 		//		basic api to provide renderer-specific implementations for each shape.
 	};
-	
-	// a set of ids (keys=type)
-	var _ids = {};
-	// a simple set impl to map shape<->id
-	var registry = {};
-	var disposeCount = 0, fixIELeak = has("ie") < 9;
 
-	function repack(oldRegistry){
-		var newRegistry = {};
-		for(var key in oldRegistry){
-			if(oldRegistry.hasOwnProperty(key)){
-				newRegistry[key] = oldRegistry[key]
-			}
-		}
-		return newRegistry;
-	}
-
-	shape.register = function(/*dojox/gfx/shape.Shape*/s){
-		// summary:
-		//		Register the specified shape into the graphics registry.
-		// s: dojox/gfx/shape.Shape
-		//		The shape to register.
-		// returns: Number
-		//		The unique id associated with this shape.
-		
-		// the id pattern : type+number (ex: Rect0,Rect1,etc)
-		var t = s.declaredClass.split('.').pop();
-		var i = t in _ids ? ++_ids[t] : ((_ids[t] = 0));
-		var uid = t+i;
-		registry[uid] = s;
-		return uid;
-	};
-	
-	shape.byId = function(/*String*/id){
-		// summary:
-		//		Returns the shape that matches the specified id.
-		// id: String
-		//		The unique identifier for this Shape.
-		// returns: dojox/gfx/shape.Shape
-		return registry[id]; //dojox/gfx/shape.Shape
-	};
-
-	shape.dispose = function(/*dojox/gfx/shape.Shape*/s, /*Boolean?*/recurse){
-		// summary:
-		//		Removes the specified shape from the registry.
-		// s: dojox/gfx/shape.Shape
-		//		The shape to unregister.
-		if(recurse && s.children){
-			for(var i=0; i< s.children.length; ++i){
-				shape.dispose(s.children[i], true);
-			}
-		}
-		delete registry[s.getUID()];
-		++disposeCount;
-		if(fixIELeak && disposeCount>10000){
-			registry = repack(registry);
-			disposeCount = 0;
-		}
-	};
-	
 	shape.Shape = declare("dojox.gfx.shape.Shape", null, {
 		// summary:
 		//		a Shape object, which knows how to apply
@@ -5752,10 +4927,12 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			// parentMatrix: dojox/gfx/matrix.Matrix2D
 			//		a transformation matrix inherited from the parent
 			this.parentMatrix = null;
-			
-			var uid = shape.register(this);
-			this.getUID = function(){
-				return uid;
+
+			if(has("gfxRegistry")){
+				var uid = shape.register(this);
+				this.getUID = function(){
+					return uid;
+				}
 			}
 		},
 		
@@ -5763,7 +4940,13 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			// summary:
 			//		Releases all internal resources owned by this shape. Once this method has been called,
 			//		the instance is considered destroyed and should not be used anymore.
-			shape.dispose(this);
+			if(has("gfxRegistry")){
+				shape.dispose(this);
+			}
+			if(this.rawNode && "__gfxObject__" in this.rawNode){
+				this.rawNode.__gfxObject__ = null;
+			}
+			this.rawNode = null;
 		},
 	
 		// trivial getters
@@ -6110,6 +5293,13 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 	});
 	
 	shape._eventsProcessing = {
+		on: function(type, listener){
+			//	summary:
+			//		Connects an event to this shape.
+
+			return on(this.getEventSource(), type, shape.fixCallback(this, g.fixTarget, listener));
+		},
+
 		connect: function(name, object, method){
 			// summary:
 			//		connects a handler to an event on this shape
@@ -6117,16 +5307,19 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			// COULD BE RE-IMPLEMENTED BY THE RENDERER!
 			// redirect to fixCallback to normalize events and add the gfxTarget to the event. The latter
 			// is done by dojox/gfx.fixTarget which is defined by each renderer
-			return events.connect(this.getEventSource(), name, shape.fixCallback(this, g.fixTarget, object, method));
-			
+			if(name.substring(0, 2) == "on"){
+				name = name.substring(2);
+			}
+			return this.on(name, method ? lang.hitch(object, method) : object);
 		},
+
 		disconnect: function(token){
 			// summary:
 			//		connects a handler by token from an event on this shape
 			
 			// COULD BE RE-IMPLEMENTED BY THE RENDERER!
 	
-			events.disconnect(token);
+			return token.remove();
 		}
 	};
 	
@@ -6178,6 +5371,7 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			// children: Array
 			//		a list of children
 			this.children = [];
+			this._batch = 0;
 		},
 	
 		// group management
@@ -6185,11 +5379,18 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 		openBatch: function() {
 			// summary:
 			//		starts a new batch, subsequent new child shapes will be held in
-			//		the batch instead of appending to the container directly
+			//		the batch instead of appending to the container directly.
+			// description:
+			//		Because the canvas renderer has no DOM hierarchy, the canvas implementation differs
+			//		such that it suspends the repaint requests for this container until the current batch is closed by a call to closeBatch().
+			return this;
 		},
 		closeBatch: function() {
 			// summary:
 			//		submits the current batch, append all pending child shapes to DOM
+			// description:
+			//		On canvas, this method flushes the pending redraws queue.
+			return this;
 		},
 		add: function(shape){
 			// summary:
@@ -6218,7 +5419,7 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 						shape.parent = null;
 						shape.parentMatrix = null;
 					}
-					this.children.splice(i, 1);
+					removeItemAt(this.children, i);
 					break;
 				}
 			}
@@ -6288,7 +5489,7 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			//		one of the child shapes to move to the front
 			for(var i = 0; i < this.children.length; ++i){
 				if(this.children[i] == shape){
-					this.children.splice(i, 1);
+					removeItemAt(this.children, i);
 					this.children.push(shape);
 					break;
 				}
@@ -6302,7 +5503,7 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			//		one of the child shapes to move to the front
 			for(var i = 0; i < this.children.length; ++i){
 				if(this.children[i] == shape){
-					this.children.splice(i, 1);
+					removeItemAt(this.children, i);
 					this.children.unshift(shape);
 					break;
 				}
@@ -6330,7 +5531,7 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			//		external references to make this object garbage-collectible
 			arr.forEach(this._nodes, domConstruct.destroy);
 			this._nodes = [];
-			arr.forEach(this._events, events.disconnect);
+			arr.forEach(this._events, function(h){ if(h){ h.remove(); } });
 			this._events = [];
 			this.rawNode = null;	// recycle it in _nodes, if it needs to be recycled
 			if(has("ie")){
@@ -6381,8 +5582,7 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 			if(this.isLoaded){
 				f(this);
 			}else{
-				var h = events.connect(this, "onLoad", function(surface){
-					events.disconnect(h);
+				on.once(this, "load", function(surface){
 					f(surface);
 				});
 			}
@@ -6606,6 +5806,13 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 				g.makeParameters(g.defaultFont, newFont);
 			this._setFont();
 			return this;	// self
+		},
+		getBoundingBox: function(){
+			var bbox = null, s = this.getShape();
+			if(s.text){
+				bbox = g._base._computeTextBoundingBox(this);
+			}
+			return bbox;
 		}
 	});
 	
@@ -6732,12 +5939,8 @@ define(["./_base", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/kernel",
 	g.Ellipse  = shape.Ellipse;
 	g.Line     = shape.Line;
 	g.Polyline = shape.Polyline;
-	g.Path     = shape.Path;
 	g.Text     = shape.Text;
 	g.Surface  = shape.Surface;
-
-	g.Path = g.path.Path;
-	g.TextPath = g.path.TextPath;
 	=====*/
 
 	return shape;
@@ -7249,7 +6452,7 @@ define(["./_base","dojo/_base/lang"],
 
 },
 'dojox/charting/SimpleTheme':function(){
-define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","dojo/_base/declare","dojo/_base/Color", "dojox/lang/utils", "dojox/gfx/gradutils"],
+define(["dojo/_base/lang", "dojo/_base/array","dojo/_base/declare","dojo/_base/Color", "dojox/lang/utils", "dojox/gfx/gradutils"],
 	function(lang, arr, declare, Color, dlu, dgg){
 	
 	var SimpleTheme = declare("dojox.charting.SimpleTheme", null, {
@@ -7295,6 +6498,7 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//		The default theme (and structure) looks like so:
 	//	|	// all objects are structs used directly in dojox.gfx
 	//	|	chart:{
+	//	|		margins: {l: 10, t: 10, r: 10, b: 10},
 	//	|		stroke: null,
 	//	|		fill: "white",
 	//	|		pageStyle: null // suggested page style as an object suitable for dojo.style()
@@ -7338,6 +6542,8 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//	|		outline: {width: 0.1, color: "#ccc"},		// outline
 	//	|		//shadow:  {dx: 1, dy: 1, width: 2, color: [0, 0, 0, 0.3]},
 	//	|		shadow: null,								// no shadow
+	//	|		//filter:  dojox/gfx/filters.createFilter(),
+	//	|		filter: null,								// no filter, to use a filter you must use gfx SVG render and require dojox/gfx/svgext
 	//	|		fill:    "#ccc",							// fill, if appropriate
 	//	|		font:    "normal normal normal 8pt Tahoma",	// if there's a label
 	//	|		fontColor: "#000"							// color of labels
@@ -7362,12 +6568,15 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//	|			color:     "#666",
 	//	|			width:  0.8,
 	//	|			length: 3
-	//	|		}
+	//	|		},
+	//	|		fill: "grey",  // every other stripe
+	//	|		alternateFill: "grey" // alternate stripe
 	//	|	},
 	//	|	indicator: {
 	//	|		lineStroke:  {width: 1.5, color: "#333"},		// line
 	//	|		lineOutline: {width: 0.1, color: "#ccc"},		// line outline
 	//	|		lineShadow: null,								// no line shadow
+	//	|		lineFill: null,									// fill between lines for dual indicators
 	//	|		stroke:  {width: 1.5, color: "#333"},			// label background stroke
 	//	|		outline: {width: 0.1, color: "#ccc"},			// label background outline
 	//	|		shadow: null,									// no label background shadow
@@ -7379,13 +6588,15 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 	//	|		markerSymbol:  "m-3,0 c0,-4 6,-4 6,0 m-6,0 c0,4 6,4 6,0",	// marker symbol
 	//	|		markerStroke:  {width: 1.5, color: "#333"},		// marker stroke
 	//	|		markerOutline: {width: 0.1, color: "#ccc"},		// marker outline
-	//	|		markerShadow: null,								// no marker shadow
-	//	|	}
+	//	|		markerShadow: null								// no marker shadow
+	//	|	},
+	//	|	pieInnerRadius: 33
 	//
 	// example:
 	//		Defining a new theme is pretty simple:
 	//	|	var Grasslands = new SimpleTheme({
-	//	|		colors: [ "#70803a", "#dde574", "#788062", "#b1cc5d", "#eff2c2" ]
+	//	|		colors: [ "#70803a", "#dde574", "#788062", "#b1cc5d", "#eff2c2" ],
+	//	|		pieInnerRadius: 15
 	//	|	});
 	//	|
 	//	|	myChart.setTheme(Grasslands);
@@ -7451,7 +6662,8 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 			markerThemes: this.markerThemes,
 			// flags
 			noGradConv: this.noGradConv,
-			noRadialConv: this.noRadialConv
+			noRadialConv: this.noRadialConv,
+			pieInnerRadius: this.pieInnerRadius
 		});
 		// copy custom methods
 		arr.forEach(
@@ -7579,7 +6791,7 @@ define("dojox/charting/SimpleTheme", ["dojo/_base/lang", "dojo/_base/array","doj
 					lang.setObject("series.fill", mixin.color, t);
 				}
 			}
-			arr.forEach(["stroke", "outline", "shadow", "fill", "font", "fontColor", "labelWiring"], function(name){
+			arr.forEach(["stroke", "outline", "shadow", "fill", "filter", "font", "fontColor", "labelWiring"], function(name){
 				var markerName = "marker" + name.charAt(0).toUpperCase() + name.substr(1),
 					b = markerName in mixin;
 				if(name in mixin){
@@ -7740,7 +6952,8 @@ lang.mixin(SimpleTheme, {
 			titleGap:		20,
 			titlePos:		"top",
 			titleFont:      "normal normal bold 14pt Tahoma",	// chart title
-			titleFontColor: "#333"
+			titleFontColor: "#333",
+			titleAlign: "middle"
 		},
 		plotarea:{
 			stroke: null,
@@ -7802,6 +7015,7 @@ lang.mixin(SimpleTheme, {
 			lineStroke:  {width: 1.5, color: "#333"},		
 			lineOutline: {width: 0.1, color: "#ccc"},		
 			lineShadow: null,
+			lineFill: null,
 			stroke:  {width: 1.5, color: "#333"},		
 			outline: {width: 0.1, color: "#ccc"},		
 			shadow: null,								
@@ -8041,7 +7255,7 @@ define(["./_base", "dojo/_base/lang", "./matrix", "dojo/_base/Color"],
 
 },
 'dojox/charting/Series':function(){
-define("dojox/charting/Series", ["dojo/_base/lang", "dojo/_base/declare", "./Element"], 
+define(["dojo/_base/lang", "dojo/_base/declare", "./Element"], 
 	function(lang, declare, Element){ 
 	/*=====
 	var __SeriesCtorArgs = {
@@ -8102,8 +7316,8 @@ define("dojox/charting/Series", ["dojo/_base/lang", "dojo/_base/declare", "./Ele
 
 },
 'dojox/charting/axis2d/common':function(){
-define("dojox/charting/axis2d/common", ["dojo/_base/lang", "dojo/_base/window", "dojo/dom-geometry", "dojox/gfx"],
-	function(lang, win, domGeom, g){
+define(["dojo/_base/lang", "dojo/_base/window", "dojo/dom-geometry", "dojox/gfx", "dojo/has"],
+	function(lang, win, domGeom, g, has){
 
 	var common = lang.getObject("dojox.charting.axis2d.common", true);
 	
@@ -8258,8 +7472,232 @@ define("dojox/charting/axis2d/common", ["dojo/_base/lang", "dojo/_base/window", 
 				// insert nodes
 				wrap.appendChild(p);
 				chart.node.insertBefore(wrap, chart.node.firstChild);
+				if(has("dojo-bidi")){
+					chart.htmlElementsRegistry.push([wrap, x, y, align, text, font, fontColor]);
+				}
 				return wrap;	//	DOMNode
 			}
+		}
+	});
+});
+
+},
+'dojox/charting/plot2d/common':function(){
+define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/Color",
+		"dojox/gfx", "dojox/lang/functional", "../scaler/common"],
+	function(lang, arr, Color, g, df, sc){
+
+	var common = lang.getObject("dojox.charting.plot2d.common", true);
+
+	return lang.mixin(common, {
+		doIfLoaded: sc.doIfLoaded,
+		makeStroke: function(stroke){
+			if(!stroke){ return stroke; }
+			if(typeof stroke == "string" || stroke instanceof Color){
+				stroke = {color: stroke};
+			}
+			return g.makeParameters(g.defaultStroke, stroke);
+		},
+		augmentColor: function(target, color){
+			var t = new Color(target),
+				c = new Color(color);
+			c.a = t.a;
+			return c;
+		},
+		augmentStroke: function(stroke, color){
+			var s = common.makeStroke(stroke);
+			if(s){
+				s.color = common.augmentColor(s.color, color);
+			}
+			return s;
+		},
+		augmentFill: function(fill, color){
+			var fc, c = new Color(color);
+			if(typeof fill == "string" || fill instanceof Color){
+				return common.augmentColor(fill, color);
+			}
+			return fill;
+		},
+
+		defaultStats: {
+			vmin: Number.POSITIVE_INFINITY, vmax: Number.NEGATIVE_INFINITY,
+			hmin: Number.POSITIVE_INFINITY, hmax: Number.NEGATIVE_INFINITY
+		},
+
+		collectSimpleStats: function(series, isNullValue){
+			var stats = lang.delegate(common.defaultStats);
+			for(var i = 0; i < series.length; ++i){
+				var run = series[i];
+				for(var j = 0; j < run.data.length; j++){
+					if(!isNullValue(run.data[j])){
+						if(typeof run.data[j] == "number"){
+							// 1D case
+							var old_vmin = stats.vmin, old_vmax = stats.vmax;
+							arr.forEach(run.data, function(val, i){
+								if(!isNullValue(val)){
+									var x = i + 1, y = val;
+									if(isNaN(y)){ y = 0; }
+									stats.hmin = Math.min(stats.hmin, x);
+									stats.hmax = Math.max(stats.hmax, x);
+									stats.vmin = Math.min(stats.vmin, y);
+									stats.vmax = Math.max(stats.vmax, y);
+								}
+							});
+							if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
+							if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
+						}else{
+							// 2D case
+							var old_hmin = stats.hmin, old_hmax = stats.hmax,
+								old_vmin = stats.vmin, old_vmax = stats.vmax;
+							if(!("xmin" in run) || !("xmax" in run) || !("ymin" in run) || !("ymax" in run)){
+								arr.forEach(run.data, function(val, i){
+									if(!isNullValue(val)){
+										var x = "x" in val ? val.x : i + 1, y = val.y;
+										if(isNaN(x)){ x = 0; }
+										if(isNaN(y)){ y = 0; }
+										stats.hmin = Math.min(stats.hmin, x);
+										stats.hmax = Math.max(stats.hmax, x);
+										stats.vmin = Math.min(stats.vmin, y);
+										stats.vmax = Math.max(stats.vmax, y);
+									}
+								});
+							}
+							if("xmin" in run){ stats.hmin = Math.min(old_hmin, run.xmin); }
+							if("xmax" in run){ stats.hmax = Math.max(old_hmax, run.xmax); }
+							if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
+							if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
+						}
+
+						break;
+					}
+				}
+			}
+			return stats;
+		},
+
+		calculateBarSize: function(/* Number */ availableSize, /* Object */ opt, /* Number? */ clusterSize){
+			if(!clusterSize){
+				clusterSize = 1;
+			}
+			var gap = opt.gap, size = (availableSize - 2 * gap) / clusterSize;
+			if("minBarSize" in opt){
+				size = Math.max(size, opt.minBarSize);
+			}
+			if("maxBarSize" in opt){
+				size = Math.min(size, opt.maxBarSize);
+			}
+			size = Math.max(size, 1);
+			gap = (availableSize - size * clusterSize) / 2;
+			return {size: size, gap: gap};	// Object
+		},
+
+		collectStackedStats: function(series){
+			// collect statistics
+			var stats = lang.clone(common.defaultStats);
+			if(series.length){
+				// 1st pass: find the maximal length of runs
+				stats.hmin = Math.min(stats.hmin, 1);
+				stats.hmax = df.foldl(series, "seed, run -> Math.max(seed, run.data.length)", stats.hmax);
+				// 2nd pass: stack values
+				for(var i = 0; i < stats.hmax; ++i){
+					var v = series[0].data[i];
+					v = v && (typeof v == "number" ? v : v.y);
+					if(isNaN(v)){ v = 0; }
+					stats.vmin = Math.min(stats.vmin, v);
+					for(var j = 1; j < series.length; ++j){
+						var t = series[j].data[i];
+						t = t && (typeof t == "number" ? t : t.y);
+						if(isNaN(t)){ t = 0; }
+						v += t;
+					}
+					stats.vmax = Math.max(stats.vmax, v);
+				}
+			}
+			return stats;
+		},
+
+		curve: function(/* Number[] */a, /* Number|String */tension){
+			//	FIX for #7235, submitted by Enzo Michelangeli.
+			//	Emulates the smoothing algorithms used in a famous, unnamed spreadsheet
+			//		program ;)
+			var array = a.slice(0);
+			if(tension == "x") {
+				array[array.length] = array[0];   // add a last element equal to the first, closing the loop
+			}
+			var p=arr.map(array, function(item, i){
+				if(i==0){ return "M" + item.x + "," + item.y; }
+				if(!isNaN(tension)) { // use standard Dojo smoothing in tension is numeric
+					var dx=item.x-array[i-1].x, dy=array[i-1].y;
+					return "C"+(item.x-(tension-1)*(dx/tension))+","+dy+" "+(item.x-(dx/tension))+","+item.y+" "+item.x+","+item.y;
+				} else if(tension == "X" || tension == "x" || tension == "S") {
+					// use Excel "line smoothing" algorithm (http://xlrotor.com/resources/files.shtml)
+					var p0, p1 = array[i-1], p2 = array[i], p3;
+					var bz1x, bz1y, bz2x, bz2y;
+					var f = 1/6;
+					if(i==1) {
+						if(tension == "x") {
+							p0 = array[array.length-2];
+						} else { // "tension == X || tension == "S"
+							p0 = p1;
+						}
+						f = 1/3;
+					} else {
+						p0 = array[i-2];
+					}
+					if(i==(array.length-1)) {
+						if(tension == "x") {
+							p3 = array[1];
+						} else { // "tension == X || tension == "S"
+							p3 = p2;
+						}
+						f = 1/3;
+					} else {
+						p3 = array[i+1];
+					}
+					var p1p2 = Math.sqrt((p2.x-p1.x)*(p2.x-p1.x)+(p2.y-p1.y)*(p2.y-p1.y));
+					var p0p2 = Math.sqrt((p2.x-p0.x)*(p2.x-p0.x)+(p2.y-p0.y)*(p2.y-p0.y));
+					var p1p3 = Math.sqrt((p3.x-p1.x)*(p3.x-p1.x)+(p3.y-p1.y)*(p3.y-p1.y));
+
+					var p0p2f = p0p2 * f;
+					var p1p3f = p1p3 * f;
+
+					if(p0p2f > p1p2/2 && p1p3f > p1p2/2) {
+						p0p2f = p1p2/2;
+						p1p3f = p1p2/2;
+					} else if(p0p2f > p1p2/2) {
+						p0p2f = p1p2/2;
+						p1p3f = p1p2/2 * p1p3/p0p2;
+					} else if(p1p3f > p1p2/2) {
+						p1p3f = p1p2/2;
+						p0p2f = p1p2/2 * p0p2/p1p3;
+					}
+
+					if(tension == "S") {
+						if(p0 == p1) { p0p2f = 0; }
+						if(p2 == p3) { p1p3f = 0; }
+					}
+
+					bz1x = p1.x + p0p2f*(p2.x - p0.x)/p0p2;
+					bz1y = p1.y + p0p2f*(p2.y - p0.y)/p0p2;
+					bz2x = p2.x - p1p3f*(p3.x - p1.x)/p1p3;
+					bz2y = p2.y - p1p3f*(p3.y - p1.y)/p1p3;
+				}
+				return "C"+(bz1x+","+bz1y+" "+bz2x+","+bz2y+" "+p2.x+","+p2.y);
+			});
+			return p.join(" ");
+		},
+
+		getLabel: function(/*Number*/number, /*Boolean*/fixed, /*Number*/precision){
+			return sc.doIfLoaded("dojo/number", function(numberLib){
+				return (fixed ? numberLib.format(number, {places : precision}) :
+					numberLib.format(number)) || "";
+			}, function(){
+				return fixed ? number.toFixed(precision) : number.toString();
+			});
+		},
+
+		purgeGroup: function (item) {
+			return item.purgeGroup();
 		}
 	});
 });
@@ -8272,7 +7710,7 @@ define(["./functional/lambda", "./functional/array", "./functional/object"], fun
 
 },
 'dojox/lang/functional/lambda':function(){
-define(["../..", "dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array"], function(dojox, dojo, lang, arr){
+define(["../..", "dojo/_base/lang", "dojo/_base/array"], function(dojox, lang, arr){
 	var df = lang.getObject("lang.functional", true, dojox);
 
 // This module adds high-level functions and related constructs:
@@ -8309,7 +7747,7 @@ define(["../..", "dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array"], fu
 			while(sects.length){
 				s = sects.pop();
 				args = sects.pop().split(/\s*,\s*|\s+/m);
-				if(sects.length){ sects.push("(function(" + args + "){return (" + s + ")})"); }
+				if(sects.length){ sects.push("(function(" + args.join(", ") + "){ return (" + s + "); })"); }
 			}
 		}else if(s.match(/\b_\b/)){
 			args = ["_"];
@@ -8332,7 +7770,7 @@ define(["../..", "dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array"], fu
 					replace(/(?:\b[A-Z]|\.[a-zA-Z_$])[a-zA-Z_$\d]*|[a-zA-Z_$][a-zA-Z_$\d]*:|this|true|false|null|undefined|typeof|instanceof|in|delete|new|void|arguments|decodeURI|decodeURIComponent|encodeURI|encodeURIComponent|escape|eval|isFinite|isNaN|parseFloat|parseInt|unescape|dojo|dijit|dojox|window|document|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g, "").
 					match(/([a-z_$][a-z_$\d]*)/gi) || [], t = {};
 				arr.forEach(vars, function(v){
-					if(!(v in t)){
+					if(!t.hasOwnProperty(v)){
 						args.push(v);
 						t[v] = 1;
 					}
@@ -8377,8 +7815,8 @@ define(["../..", "dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array"], fu
 			//		built from the snippet. It is meant to be evaled in the
 			//		proper context, so local variables can be pulled from the
 			//		environment.
-			s = lambda(s);
-			return "function(" + s.args.join(",") + "){return (" + s.body + ");}";	// String
+			var l = lambda(s);
+			return "function(" + l.args.join(",") + "){return (" + l.body + ");}";	// String
 		},
 		lambda: function(/*Function|String|Array*/ s){
 			// summary:
@@ -8391,9 +7829,9 @@ define(["../..", "dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array"], fu
 			//		a function object.
 			if(typeof s == "function"){ return s; }
 			if(s instanceof Array){ return compose(s); }
-			if(s in lcache){ return lcache[s]; }
-			s = lambda(s);
-			return lcache[s] = new Function(s.args, "return (" + s.body + ");");	// Function
+			if(lcache.hasOwnProperty(s)){ return lcache[s]; }
+			var l = lambda(s);
+			return lcache[s] = new Function(l.args, "return (" + l.body + ");");	// Function
 		},
 		clearLambdaCache: function(){
 			// summary:
@@ -8659,6 +8097,79 @@ define(["dojo/_base/kernel", "dojo/_base/lang", "./lambda"], function(kernel, la
 });
 
 },
+'dojox/charting/scaler/common':function(){
+define(["dojo/_base/lang"], function(lang){
+
+	var eq = function(/*Number*/ a, /*Number*/ b){
+		// summary:
+		//		compare two FP numbers for equality
+		return Math.abs(a - b) <= 1e-6 * (Math.abs(a) + Math.abs(b));	// Boolean
+	};
+
+	var common = lang.getObject("dojox.charting.scaler.common", true);
+
+	var testedModules = {};
+
+	return lang.mixin(common, {
+		doIfLoaded: function(moduleName, ifloaded, ifnotloaded){
+			if(testedModules[moduleName] === undefined){
+				try{
+					testedModules[moduleName] = require(moduleName);
+				}catch(e){
+					testedModules[moduleName] = null;
+				}
+			}
+			if(testedModules[moduleName]){
+				return ifloaded(testedModules[moduleName]);
+			}else{
+				return ifnotloaded();
+			}
+		},
+		getNumericLabel: function(/*Number*/ number, /*Number*/ precision, /*Object*/ kwArgs){
+			var def = "";
+			common.doIfLoaded("dojo/number", function(numberLib){
+				def = (kwArgs.fixed ? numberLib.format(number, {places : precision < 0 ? -precision : 0}) :
+					numberLib.format(number)) || "";
+			}, function(){
+				def = kwArgs.fixed ? number.toFixed(precision < 0 ? -precision : 0) : number.toString();
+			});
+			if(kwArgs.labelFunc){
+				var r = kwArgs.labelFunc(def, number, precision);
+				if(r){ return r; }
+				// else fall through to the regular labels search
+			}
+			if(kwArgs.labels){
+				// classic binary search
+				// TODO: working only if the array is sorted per value should be better documented or sorted automatically
+				var l = kwArgs.labels, lo = 0, hi = l.length;
+				while(lo < hi){
+					var mid = Math.floor((lo + hi) / 2), val = l[mid].value;
+					if(val < number){
+						lo = mid + 1;
+					}else{
+						hi = mid;
+					}
+				}
+				// lets take into account FP errors
+				if(lo < l.length && eq(l[lo].value, number)){
+					return l[lo].text;
+				}
+				--lo;
+				if(lo >= 0 && lo < l.length && eq(l[lo].value, number)){
+					return l[lo].text;
+				}
+				lo += 2;
+				if(lo < l.length && eq(l[lo].value, number)){
+					return l[lo].text;
+				}
+				// otherwise we will produce a number
+			}
+			return def;
+		}
+	});
+});
+
+},
 'dojox/lang/functional/fold':function(){
 define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/kernel", "./lambda"],
 	function(lang, arr, kernel, df){
@@ -8868,7 +8379,7 @@ define(["dojo/_base/lang", "dojo/_base/kernel" ,"./lambda"],
 
 },
 'dojox/charting/Chart2D':function(){
-define("dojox/charting/Chart2D", ["dojo/_base/kernel", "dojo/_base/lang", "..", "./Chart",
+define(["dojo/_base/kernel", "dojo/_base/lang", "..", "./Chart",
 	"./axis2d/Default", "./axis2d/Invisible", "./plot2d/Default", "./plot2d/Lines", "./plot2d/Areas",
 	"./plot2d/Markers", "./plot2d/MarkersOnly", "./plot2d/Scatter", "./plot2d/Stacked", "./plot2d/StackedLines",
 	"./plot2d/StackedAreas", "./plot2d/Columns", "./plot2d/StackedColumns", "./plot2d/ClusteredColumns",
@@ -8887,11 +8398,12 @@ define("dojox/charting/Chart2D", ["dojo/_base/kernel", "dojo/_base/lang", "..", 
 
 },
 'dojox/charting/axis2d/Default':function(){
-define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/sniff", "dojo/_base/declare",
+define(["dojo/_base/lang", "dojo/_base/array", "dojo/sniff", "dojo/_base/declare",
 	"dojo/_base/connect", "dojo/dom-geometry", "./Invisible",
-	"../scaler/common", "../scaler/linear", "./common", "dojox/gfx", "dojox/lang/utils", "dojox/lang/functional"],
-	function(lang, arr, has, declare, connect, domGeom, Invisible, scommon,
-			lin, acommon, g, du, df){
+	"../scaler/linear", "./common", "dojox/gfx", "dojox/lang/utils", "dojox/lang/functional",
+	"dojo/has!dojo-bidi?../bidi/axis2d/Default"],
+	function(lang, arr, has, declare, connect, domGeom, Invisible,
+			lin, acommon, g, du, df, BidiDefault){
 
 	/*=====
 	var __AxisCtorArgs = {
@@ -8906,7 +8418,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 		// natural: Boolean?
 		//		Ensure tick marks are made on "natural" numbers. Defaults to false.
 		// leftBottom: Boolean?
-		//		The position of a vertical axis; if true, will be placed against the left-bottom corner of the chart.  Defaults to true.
+		//		Deprecated: use position instead. The position of a vertical axis; if true, will be placed against the left-bottom corner of the chart.  Defaults to true.
 		// includeZero: Boolean?
 		//		Include 0 on the axis rendering.  Default is false.
 		// fixed: Boolean?
@@ -8982,12 +8494,14 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 		// labelSizeChange: Boolean?
 		//		Indicates to the axis whether the axis labels are changing their size on zoom. If false this allows to
 		//		optimize the axis by avoiding recomputing labels maximum size on zoom actions. Default is false.
+		// position: String?
+		//		The position of the axis. Values: "leftOrBottom", "center" or "rightOrTop". Default is "leftOrBottom".
 	};
 	=====*/
 
 	var centerAnchorLimit = 45;	// in degrees
 
-	return declare("dojox.charting.axis2d.Default", Invisible, {
+	var Default = declare(has("dojo-bidi")? "dojox.charting.axis2d.NonBidiDefault" : "dojox.charting.axis2d.Default", Invisible, {
 		// summary:
 		//		The default axis object used in dojox.charting.  See dojox.charting.Chart.addAxis for details.
 
@@ -9026,7 +8540,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 			fixUpper:	"none",	// align the upper on ticks: "major", "minor", "micro", "none"
 			fixLower:	"none",	// align the lower on ticks: "major", "minor", "micro", "none"
 			natural:	 false,		// all tick marks should be made on natural numbers
-			leftBottom:  true,		// position of the axis, used with "vertical"
+			leftBottom:  true,		// position of the axis, used with "vertical" - deprecated: use position instead
 			includeZero: false,		// 0 should be included
 			fixed:	   true,		// all labels are fixed numbers
 			majorLabels: true,		// draw major labels
@@ -9037,7 +8551,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 			htmlLabels:  true,		// use HTML to draw labels
 			enableCache: false,		// whether we cache or not
 			dropLabels: true,		// whether we automatically drop overlapping labels or not
-			labelSizeChange: false // whether the labels size change on zoom
+			labelSizeChange: false, // whether the labels size change on zoom
+			position: "leftOrBottom" // position of the axis: "leftOrBottom" (default), "center" or "rightOrTop"
 		},
 		optionalParams: {
 			min:			0,	// minimal value on this axis
@@ -9090,6 +8605,11 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 				this._lineUsePool = [];
 			}
 			this._invalidMaxLabelSize = true;
+			// replace deprecated leftBotton to position
+			if(!(kwArgs && ('position' in kwArgs))){
+			    this.opt.position = this.opt.leftBottom ? "leftOrBottom" : "rightOrTop";
+			}			
+			this.renderingOptions = { "shape-rendering": "crispEdges" };
 		},
 		setWindow: function(scale, offset){
 			// summary:
@@ -9272,9 +8792,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 			if(!s){
 				return offsets;
 			}
-			var o = this.opt, a, b, c, d,
-				gl = scommon.getNumericLabel,
-				offset = 0, ma = s.major, mi = s.minor,
+			var o = this.opt,
 				ta = this.chart.theme.axis,
 				labelGap = this.chart.theme.axis.tick.labelGap,
 				// TODO: we use one font --- of major tick, we need to use major and minor fonts
@@ -9283,7 +8801,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 				taMajorTick = this.chart.theme.getTick("major", o),
 				taMinorTick = this.chart.theme.getTick("minor", o),
 				tsize = taTitleFont ? g.normalizedLength(g.splitFontString(taTitleFont).size) : 0,
-				rotation = o.rotation % 360, leftBottom = o.leftBottom,
+				rotation = o.rotation % 360, position = o.position, 
+				leftBottom = position !== "rightOrTop",
 				cosr = Math.abs(Math.cos(rotation * Math.PI / 180)),
 				sinr = Math.abs(Math.sin(rotation * Math.PI / 180));
 			this.trailingSymbol = (o.trailingSymbol === undefined || o.trailingSymbol === null) ?
@@ -9304,7 +8823,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 					switch(rotation){
 						case 0:
 						case 180:
-							offsets[side] = labelWidth;
+							offsets[side] = position === "center" ? 0 : labelWidth;
 							offsets.t = offsets.b = size / 2;
 							break;
 						case 90:
@@ -9330,13 +8849,19 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 							}
 							break;
 					}
-					offsets[side] += labelGap + Math.max(taMajorTick.length, taMinorTick.length) + (o.title ? (tsize + taTitleGap) : 0);
+					if(position === "center"){
+					    offsets[side] = 0;
+					}
+					else{					
+					    offsets[side] += labelGap + Math.max(taMajorTick.length > 0?taMajorTick.length:0,
+														 taMinorTick.length > 0?taMinorTick.length:0) + (o.title ? (tsize + taTitleGap) : 0);
+					}
 				}else{
 					side = leftBottom ? "b" : "t";
 					switch(rotation){
 						case 0:
 						case 180:
-							offsets[side] = size;
+							offsets[side] = position === "center" ? 0 : size;
 							offsets.l = offsets.r = labelWidth / 2;
 							break;
 						case 90:
@@ -9362,7 +8887,13 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 							}
 							break;
 					}
-					offsets[side] += labelGap + Math.max(taMajorTick.length, taMinorTick.length) + (o.title ? (tsize + taTitleGap) : 0);
+					if(position === "center"){
+					    offsets[side] = 0;
+					}
+					else{					
+					offsets[side] += labelGap + Math.max(taMajorTick.length > 0?taMajorTick.length:0,
+														 taMinorTick.length > 0?taMinorTick.length:0) + (o.title ? (tsize + taTitleGap) : 0);
+					}
 				}
 			}
 			return offsets;	//	Object
@@ -9391,7 +8922,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 					);
 			}
 			var text;
-			if (this._textFreePool.length > 0){
+			if(this._textFreePool.length > 0){
 				text = this._textFreePool.pop();
 				text.setShape({x: x, y: y, text: textContent, align: align});
 				// For now all items share the same font, no need to re-set it
@@ -9437,11 +8968,14 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 			//		An object of the form { l, r, t, b }.
 			// returns: dojox/charting/axis2d/Default
 			//		The reference to the axis for functional chaining.
+			
+			var isRtl = this._isRtl();	// chart mirroring
 			if(!this.dirty || !this.scaler){
 				return this;	//	dojox/charting/axis2d/Default
 			}
 			// prepare variable
-			var o = this.opt, ta = this.chart.theme.axis, leftBottom = o.leftBottom, rotation = o.rotation % 360,
+			var o = this.opt, ta = this.chart.theme.axis, position = o.position, 
+			       leftBottom = position !== "rightOrTop", rotation = o.rotation % 360,
 				start, stop, titlePos, titleRotation=0, titleOffset, axisVector, tickVector, anchorOffset, labelOffset, labelAlign,
 				labelGap = this.chart.theme.axis.tick.labelGap,
 				// TODO: we use one font --- of major tick, we need to use major and minor fonts
@@ -9456,7 +8990,6 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 				taMinorTick = this.chart.theme.getTick("minor", o),
 				taMicroTick = this.chart.theme.getTick("micro", o),
 
-				tickSize = Math.max(taMajorTick.length, taMinorTick.length, taMicroTick.length),
 				taStroke = "stroke" in o ? o.stroke : ta.stroke,
 				size = taFont ? g.normalizedLength(g.splitFontString(taFont).size) : 0,
 				cosr = Math.abs(Math.cos(rotation * Math.PI / 180)),
@@ -9474,7 +9007,9 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 				start = {y: dim.height - offsets.b};
 				stop  = {y: offsets.t};
 				titlePos = {y: (dim.height - offsets.b + offsets.t)/2};
-				titleOffset = size * sinr + (cachedLabelW || 0) * cosr + labelGap + Math.max(taMajorTick.length, taMinorTick.length) + tsize + taTitleGap;
+				titleOffset = size * sinr + (cachedLabelW || 0) * cosr + labelGap + Math.max(taMajorTick.length > 0?taMajorTick.length:0,
+																		 					 taMinorTick.length > 0?taMinorTick.length:0) +
+					tsize + taTitleGap;
 				axisVector = {x: 0, y: -1};
 				labelOffset = {x: 0, y: 0};
 				tickVector = {x: 1, y: 0};
@@ -9519,7 +9054,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 						}
 				}
 				if(leftBottom){
-					start.x = stop.x = offsets.l;
+					start.x = stop.x = position === "center" ? dim.width/2 : offsets.l;
 					titleRotation = (taTitleOrientation && taTitleOrientation == "away") ? 90 : 270;
 					titlePos.x = offsets.l - titleOffset + (titleRotation == 270 ? tsize : 0);
 					tickVector.x = -1;
@@ -9544,8 +9079,10 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 				start = {x: offsets.l};
 				stop  = {x: dim.width - offsets.r};
 				titlePos = {x: (dim.width - offsets.r + offsets.l)/2};
-				titleOffset = size * cosr + (cachedLabelW || 0) * sinr + labelGap + Math.max(taMajorTick.length, taMinorTick.length) + tsize + taTitleGap;
-				axisVector = {x: 1, y: 0};
+				titleOffset = size * cosr + (cachedLabelW || 0) * sinr + labelGap + Math.max(taMajorTick.length > 0?taMajorTick.length:0,
+																		 					 taMinorTick.length > 0?taMinorTick.length:0) +
+					tsize + taTitleGap;
+				axisVector = {x: isRtl ? -1 : 1, y: 0}; 	// chart mirroring
 				labelOffset = {x: 0, y: 0};
 				tickVector = {x: 0, y: 1};
 				anchorOffset = {x: 0, y: labelGap};
@@ -9587,7 +9124,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 						}
 				}
 				if(leftBottom){
-					start.y = stop.y = dim.height - offsets.b;
+					start.y = stop.y = position === "center" ? dim.height/2 : dim.height - offsets.b;
 					titleRotation = (taTitleOrientation && taTitleOrientation == "axis") ? 180 : 0;
 					titlePos.y = dim.height - offsets.b + titleOffset - (titleRotation ? tsize : 0);
 				}else{
@@ -9663,7 +9200,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 			var canLabel = this.opt.majorLabels;
 			arr.forEach(t.major, function(tick, i){
 				var offset = f(tick.value), elem,
-					x = start.x + axisVector.x * offset,
+					x = (isRtl ? stop.x : start.x) + axisVector.x * offset, // chart mirroring
 					y = start.y + axisVector.y * offset;
 				i += rel;
 				this.createLine(s, {
@@ -9679,8 +9216,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 					label = o.maxLabelSize ? this.getTextWithLimitLength(label.text, taFont, o.maxLabelSize, label.truncated) : label;
 					elem = this.createText(labelType,
 						s,
-						x + dx + anchorOffset.x + (rotation ? 0 : labelOffset.x),
-						y + dy + anchorOffset.y + (rotation ? 0 : labelOffset.y),
+						x + (taMajorTick.length > 0 ? dx : 0) + anchorOffset.x + (rotation ? 0 : labelOffset.x),
+						y + (taMajorTick.length > 0 ? dy : 0) + anchorOffset.y + (rotation ? 0 : labelOffset.y),
 						labelAlign,
 						label.text,
 						taFont,
@@ -9692,8 +9229,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 					// Fool label: 111111W (W for bidi character)
 					// truncated label: 11...
 					// in this case for auto textDir the dir will be "ltr" which is wrong.
-					if(this.chart.truncateBidi  && label.truncated){
-						this.chart.truncateBidi(elem, tick.label, labelType);
+					if(label.truncated){
+						this.chart.formatTruncatedLabel(elem, tick.label, labelType);
 					}
 					label.truncated && this.labelTooltip(elem, this.chart, tick.label, label.text, taFont, labelType);
 					if(labelType == "html"){
@@ -9703,8 +9240,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 							{dx: labelOffset.x, dy: labelOffset.y},
 							g.matrix.rotategAt(
 								rotation,
-								x + dx + anchorOffset.x,
-								y + dy + anchorOffset.y
+								x + (taMajorTick.length > 0 ? dx : 0) + anchorOffset.x,
+								y + (taMajorTick.length > 0 ? dy : 0) + anchorOffset.y
 							)
 						]);
 					}
@@ -9716,8 +9253,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 			canLabel = this.opt.minorLabels && c.minMinorStep <= c.minor.tick * c.bounds.scale;
 			arr.forEach(t.minor, function(tick){
 				var offset = f(tick.value), elem,
-					x = start.x + axisVector.x * offset,
-					y = start.y + axisVector.y * offset;
+					x = (isRtl ? stop.x : start.x)  + axisVector.x * offset,
+					y = start.y + axisVector.y * offset; // chart mirroring
 				this.createLine(s, {
 					x1: x, y1: y,
 					x2: x + dx,
@@ -9731,8 +9268,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 					label = o.maxLabelSize ? this.getTextWithLimitLength(label.text, taFont, o.maxLabelSize, label.truncated) : label;
 					elem = this.createText(labelType,
 						s,
-						x + dx + anchorOffset.x + (rotation ? 0 : labelOffset.x),
-						y + dy + anchorOffset.y + (rotation ? 0 : labelOffset.y),
+						x + (taMinorTick.length > 0 ? dx : 0) + anchorOffset.x + (rotation ? 0 : labelOffset.x),
+						y + (taMinorTick.length  > 0 ? dy : 0) + anchorOffset.y + (rotation ? 0 : labelOffset.y),
 						labelAlign,
 						label.text,
 						taFont,
@@ -9744,8 +9281,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 					// Fool label: 111111W (W for bidi character)
 					// truncated label: 11...
 					// in this case for auto textDir the dir will be "ltr" which is wrong.
-					if(this.chart.getTextDir && label.truncated){
-						this.chart.truncateBidi(elem, tick.label, labelType);
+					if(label.truncated){
+						this.chart.formatTruncatedLabel(elem, tick.label, labelType);
 					}
 					label.truncated && this.labelTooltip(elem, this.chart, tick.label, label.text, taFont, labelType);
 					if(labelType == "html"){
@@ -9755,8 +9292,8 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 							{dx: labelOffset.x, dy: labelOffset.y},
 							g.matrix.rotategAt(
 								rotation,
-								x + dx + anchorOffset.x,
-								y + dy + anchorOffset.y
+								x + (taMinorTick.length > 0 ? dx : 0) + anchorOffset.x,
+								y + (taMinorTick.length > 0 ? dy : 0) + anchorOffset.y
 							)
 						]);
 					}
@@ -9766,7 +9303,7 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 			dx = tickVector.x * taMicroTick.length;
 			dy = tickVector.y * taMicroTick.length;
 			arr.forEach(t.micro, function(tick){
-				var offset = f(tick.value), elem,
+				var offset = f(tick.value),
 					x = start.x + axisVector.x * offset,
 					y = start.y + axisVector.y * offset;
 					this.createLine(s, {
@@ -9834,15 +9371,19 @@ define("dojox/charting/axis2d/Default", ["dojo/_base/lang", "dojo/_base/array", 
 					})
 				});
 			}
+		},
+		_isRtl: function(){
+			return false;
 		}
 	});
+	return has("dojo-bidi")? declare("dojox.charting.axis2d.Default", [Default, BidiDefault]) : Default;
 });
 
 },
 'dojox/charting/axis2d/Invisible':function(){
-define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declare", "./Base", "../scaler/linear",
-	"dojox/gfx", "dojox/lang/utils"],
-	function(lang, declare, Base, lin, g, du){
+define(["dojo/_base/lang", "dojo/_base/declare", "./Base", "../scaler/linear",
+	"dojox/lang/utils"],
+	function(lang, declare, Base, lin, du){
 
 /*=====
 	var __InvisibleAxisCtorArgs = {
@@ -9991,7 +9532,7 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 			//		Get the current windowing offset for the axis.
 			return "offset" in this ? this.offset : 0;	//	Number
 		},
-		calculate: function(min, max, span){
+		calculate: function(min, max, span, scalerType){
 			// summary:
 			//		Perform all calculations needed to render this axis.
 			// min: Number
@@ -10000,6 +9541,8 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 			//		The largest value represented on this axis.
 			// span: Number
 			//		The span in pixels over which axis calculations are made.
+			// scalerType: Object
+			//		An optional scaler type object.
 			// returns: dojox/charting/axis2d/Invisible
 			//		The reference to the axis for functional chaining.
 			if(this.initialized()){
@@ -10009,7 +9552,7 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 			// we used to have a 4th function parameter to reach labels but
 			// nobody was calling it with 4 parameters.
 			this.labels = o.labels;
-			this.scaler = lin.buildScaler(min, max, span, o);
+			this.scaler = (scalerType || lin).buildScaler(min, max, span, o);
 			// store the absolute major tick start, this will be useful when dropping a label every n labels
 			// TODO: if o.lower then it does not work
 			var tsb = this.scaler.bounds;
@@ -10042,7 +9585,7 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 					this.offset = o.from - tsb.lower;
 				}
 				// re-calculate the scaler
-				this.scaler = lin.buildScaler(min, max, span, o);
+				this.scaler = (scalerType || lin).buildScaler(min, max, span, o);
 				tsb = this.scaler.bounds;
 				// cleanup
 				if(this.scale == 1 && this.offset == 0){
@@ -10067,7 +9610,7 @@ define("dojox/charting/axis2d/Invisible", ["dojo/_base/lang", "dojo/_base/declar
 
 },
 'dojox/charting/axis2d/Base':function(){
-define("dojox/charting/axis2d/Base", ["dojo/_base/declare", "../Element"],
+define(["dojo/_base/declare", "../Element"],
 	function(declare, Element){
 	/*=====
 	var __BaseAxisCtorArgs = {
@@ -10114,7 +9657,7 @@ define("dojox/charting/axis2d/Base", ["dojo/_base/declare", "../Element"],
 		},
 		calculate: function(min, max, span){
 			// summary:
-			//		Stub function to run the calcuations needed for drawing this axis.
+			//		Stub function to run the calculations needed for drawing this axis.
 			// returns: dojox/charting/axis2d/Base
 			//		A reference to the axis for functional chaining.
 			return this;	//	dojox/charting/axis2d/Base
@@ -10147,13 +9690,24 @@ define("dojox/charting/axis2d/Base", ["dojo/_base/declare", "../Element"],
 			//		A reference to the axis for functional chaining.
 			this.dirty = false;
 			return this;	//	dojox/charting/axis2d/Base
-		}
+		},
+		isNullValue: function(value){
+			// summary:
+			//		A stub function to determine a data value
+			//		that should be ignored.
+			// value: Number|Null|Object
+			//		A data value to be inspected.
+			// returns: Boolean
+			//		If the value makes sense for this axis or not.
+			return false;
+		},
+		naturalBaseline: 0
 	});
 });
 
 },
 'dojox/charting/scaler/linear':function(){
-define("dojox/charting/scaler/linear", ["dojo/_base/lang", "./common"], 
+define(["dojo/_base/lang", "./common"], 
 	function(lang, common){
 	var linear = lang.getObject("dojox.charting.scaler.linear", true);
 	
@@ -10417,172 +9971,97 @@ define("dojox/charting/scaler/linear", ["dojo/_base/lang", "./common"],
 });
 
 },
-'dojox/charting/scaler/common':function(){
-define("dojox/charting/scaler/common", ["dojo/_base/lang"], function(lang){
-
-	var eq = function(/*Number*/ a, /*Number*/ b){
-		// summary:
-		//		compare two FP numbers for equality
-		return Math.abs(a - b) <= 1e-6 * (Math.abs(a) + Math.abs(b));	// Boolean
-	};
-	
-	var common = lang.getObject("dojox.charting.scaler.common", true);
-	
-	var testedModules = {};
-
-	return lang.mixin(common, {
-		doIfLoaded: function(moduleName, ifloaded, ifnotloaded){
-			if(testedModules[moduleName] == undefined){
-				try{
-					testedModules[moduleName] = require(moduleName);
-				}catch(e){
-					testedModules[moduleName] = null;
-				}
-			}
-			if(testedModules[moduleName]){
-				return ifloaded(testedModules[moduleName]);
-			}else{
-				return ifnotloaded();
-			}
-		},
-		getNumericLabel: function(/*Number*/ number, /*Number*/ precision, /*Object*/ kwArgs){
-			var def = "";
-			common.doIfLoaded("dojo/number", function(numberLib){
-				def = (kwArgs.fixed ? numberLib.format(number, {places : precision < 0 ? -precision : 0}) :
-					numberLib.format(number)) || "";
-			}, function(){
-				def = kwArgs.fixed ? number.toFixed(precision < 0 ? -precision : 0) : number.toString();
-			});
-			if(kwArgs.labelFunc){
-				var r = kwArgs.labelFunc(def, number, precision);
-				if(r){ return r; }
-				// else fall through to the regular labels search
-			}
-			if(kwArgs.labels){
-				// classic binary search
-				// TODO: working only if the array is sorted per value should be better documented or sorted automatically
-				var l = kwArgs.labels, lo = 0, hi = l.length;
-				while(lo < hi){
-					var mid = Math.floor((lo + hi) / 2), val = l[mid].value;
-					if(val < number){
-						lo = mid + 1;
-					}else{
-						hi = mid;
-					}
-				}
-				// lets take into account FP errors
-				if(lo < l.length && eq(l[lo].value, number)){
-					return l[lo].text;
-				}
-				--lo;
-				if(lo >= 0 && lo < l.length && eq(l[lo].value, number)){
-					return l[lo].text;
-				}
-				lo += 2;
-				if(lo < l.length && eq(l[lo].value, number)){
-					return l[lo].text;
-				}
-				// otherwise we will produce a number
-			}
-			return def;
-		}
-	});
-});
-
-},
 'dojox/charting/plot2d/Default':function(){
-define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", 
-		"./CartesianBase", "./_PlotEvents", "./common", "dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"],
-	function(lang, declare, arr, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/has",
+		"./CartesianBase", "./_PlotEvents", "./common", "dojox/lang/functional", "dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, declare, arr, has, CartesianBase, _PlotEvents, dc, df, du, fx){
 
 	/*=====
-	declare("dojox.charting.plot2d.__DefaultCtorArgs", dojox.charting.plot2d.__PlotCtorArgs, {
+	declare("dojox.charting.plot2d.__DefaultCtorArgs", dojox.charting.plot2d.__CartesianCtorArgs, {
 		// summary:
 		//		The arguments used for any/most plots.
-	
-		// hAxis: String?
-		//		The horizontal axis name.
-		hAxis: "x",
-	
-		// vAxis: String?
-		//		The vertical axis name
-		vAxis: "y",
-	
+
 		// lines: Boolean?
 		//		Whether or not to draw lines on this plot.  Defaults to true.
 		lines:   true,
-	
+
 		// areas: Boolean?
 		//		Whether or not to draw areas on this plot. Defaults to false.
 		areas:   false,
-	
+
 		// markers: Boolean?
 		//		Whether or not to draw markers at data points on this plot. Default is false.
 		markers: false,
-	
+
 		// tension: Number|String?
 		//		Whether or not to apply 'tensioning' to the lines on this chart.
 		//		Options include a number, "X", "x", or "S"; if a number is used, the
 		//		simpler bezier curve calculations are used to draw the lines.  If X, x or S
 		//		is used, the more accurate smoothing algorithm is used.
 		tension: "",
-	
-		// animate: Boolean?
-		//		Whether or not to animate the chart to place.
+
+		// animate: Boolean?|Number?
+		//		Whether or not to animate the chart to place. When a Number it specifies the duration of the animation.
+		//		Default is false.
 		animate: false,
-	
+
 		// stroke: dojox.gfx.Stroke?
 		//		An optional stroke to use for any series on the plot.
 		stroke:		{},
-	
+
 		// outline: dojox.gfx.Stroke?
 		//		An optional stroke used to outline any series on the plot.
 		outline:	{},
-	
+
 		// shadow: dojox.gfx.Stroke?
 		//		An optional stroke to use to draw any shadows for a series on a plot.
 		shadow:		{},
-	
+
 		// fill: dojox.gfx.Fill?
 		//		Any fill to be used for elements on the plot (such as areas).
 		fill:		{},
 
+		// filter: dojox.gfx.Filter?
+		//		An SVG filter to be used for elements on the plot. gfx SVG renderer must be used and dojox/gfx/svgext must
+		//		be required for this to work.
+		filter:		{},
+
 		// styleFunc: Function?
 		//		A function that returns a styling object for the a given data item.
 		styleFunc:	null,
-	
+
 		// font: String?
 		//		A font definition to be used for labels and other text-based elements on the plot.
 		font:		"",
-	
+
 		// fontColor: String|dojo.Color?
 		//		The color to be used for any text-based elements on the plot.
 		fontColor:	"",
-	
+
 		// markerStroke: dojo.gfx.Stroke?
 		//		An optional stroke to use for any markers on the plot.
 		markerStroke:		{},
-	
+
 		// markerOutline: dojo.gfx.Stroke?
 		//		An optional outline to use for any markers on the plot.
 		markerOutline:		{},
-	
+
 		// markerShadow: dojo.gfx.Stroke?
 		//		An optional shadow to use for any markers on the plot.
 		markerShadow:		{},
-	
+
 		// markerFill: dojo.gfx.Fill?
 		//		An optional fill to use for any markers on the plot.
 		markerFill:			{},
-	
+
 		// markerFont: String?
 		//		An optional font definition to use for any markers on the plot.
 		markerFont:			"",
-	
+
 		// markerFontColor: String|dojo.Color?
 		//		An optional color to use for any marker text on the plot.
 		markerFontColor:	"",
-		
+
 		// enableCache: Boolean?
 		//		Whether the markers are cached from one rendering to another. This improves the rendering performance of
 		//		successive rendering but penalize the first rendering.  Default false.
@@ -10591,21 +10070,22 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 		// interpolate: Boolean?
 		//		Whether when there is a null data point in the data the plot interpolates it or if the lines is split at that
 		//		point.	Default false.
-		interpolate: false
+		interpolate: false,
+
+		// zeroLine: Number?
+		//		Zero line for an area fill. Should be a numeric value in user coordinates.
+		//		Default: the lowest value on a vertical axis.
+		zeroLine: 0
 	});
 =====*/
-
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
 
 	var DEFAULT_ANIMATION_LENGTH = 1200;	// in ms
 
 	return declare("dojox.charting.plot2d.Default", [CartesianBase, _PlotEvents], {
-		
+
 		// defaultParams:
 		//		The default parameters of this plot.
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			lines:   true,	// draw lines
 			areas:   false,	// draw areas
 			markers: false,	// draw markers
@@ -10614,7 +10094,7 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			enableCache: false,
 			interpolate: false
 		},
-		
+
 		// optionalParams:
 		//		The optional parameters of this plot.
 		optionalParams: {
@@ -10623,6 +10103,7 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			outline:	{},
 			shadow:		{},
 			fill:		{},
+			filter:     {},
 			styleFunc: null,
 			font:		"",
 			fontColor:	"",
@@ -10632,7 +10113,8 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			markerShadow:		{},
 			markerFill:			{},
 			markerFont:			"",
-			markerFontColor:	""
+			markerFontColor:	"",
+			zeroLine:           0
 		},
 
 		constructor: function(chart, kwArgs){
@@ -10642,13 +10124,9 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			//		The chart this plot belongs to.
 			// kwArgs: dojox.charting.plot2d.__DefaultCtorArgs?
 			//		An optional arguments object to help define this plot.
-			this.opt = lang.clone(this.defaultParams);
+			this.opt = lang.clone(lang.mixin(this.opt, this.defaultParams));
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
-
 			// animation properties
 			this.animate = this.opt.animate;
 		},
@@ -10678,7 +10156,7 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			// split the run data into dense segments (each containing no nulls)
 			// except if interpolates is false in which case ignore null between valid data
 			for(var j = min; j < max; j++){
-				if(run.data[j] != null && (indexed || run.data[j].y != null)){
+				if(!this.isNullValue(run.data[j])){
 					if(!rseg){
 						rseg = [];
 						segments.push({index: j, rseg: rseg});
@@ -10713,16 +10191,16 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			this.dirty = this.isDirty();
 			var s;
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				this.group.setTransform(null);
-				s = this.group;
+				this.getGroup().setTransform(null);
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
-			var t = this.chart.theme, stroke, outline, marker, events = this.events();
+			var t = this.chart.theme, stroke, outline, events = this.events();
 
-			for(var i = this.series.length - 1; i >= 0; --i){
+			for(var i = 0; i < this.series.length; i++){
 				var run = this.series[i];
 				if(!this.dirty && !run.dirty){
 					t.skip();
@@ -10747,7 +10225,21 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 					eventSeries = this._eventSeries[run.name] = new Array(run.data.length);
 
 				s = run.group;
-				
+				if(run.hidden){
+					if(this.opt.lines){
+						run.dyn.stroke = theme.series.stroke;
+					}
+					if (run.markers || (run.markers === undefined && this.opt.markers)) {
+						run.dyn.markerFill = theme.marker.fill;
+						run.dyn.markerStroke = theme.marker.stroke;
+						run.dyn.marker = theme.symbol;
+					}
+					if(this.opt.areas){
+						run.dyn.fill = theme.series.fill;
+					}
+					continue;
+				}
+
 				// optim works only for index based case
 				var indexed = arr.some(run.data, function(item){
 					return typeof item == "number" || (item && !item.hasOwnProperty("x"));
@@ -10789,20 +10281,24 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 								}, this));
 							}
 						}
-					} 
+					}
 
 					var lpath = this.opt.tension ? dc.curve(lpoly, this.opt.tension) : "";
 
 					if(this.opt.areas && lpoly.length > 1){
-						var fill = this._plotFill(theme.series.fill, dim, offsets), apoly = lang.clone(lpoly);
+						var fill = this._plotFill(theme.series.fill, dim, offsets), apoly = lang.clone(lpoly),
+							zeroLine = dim.height - offsets.b;
+						if(!isNaN(this.opt.zeroLine)){
+							zeroLine = Math.max(offsets.t, Math.min(dim.height - offsets.b - vt(this.opt.zeroLine), zeroLine));
+						}
 						if(this.opt.tension){
-							var apath = "L" + apoly[apoly.length-1].x + "," + (dim.height - offsets.b) +
-								" L" + apoly[0].x + "," + (dim.height - offsets.b) +
+							var apath = "L" + apoly[apoly.length-1].x + "," + zeroLine +
+								" L" + apoly[0].x + "," + zeroLine +
 								" L" + apoly[0].x + "," + apoly[0].y;
 							run.dyn.fill = s.createPath(lpath + " " + apath).setFill(fill).getFill();
 						} else {
-							apoly.push({x: lpoly[lpoly.length - 1].x, y: dim.height - offsets.b});
-							apoly.push({x: lpoly[0].x, y: dim.height - offsets.b});
+							apoly.push({x: lpoly[lpoly.length - 1].x, y: zeroLine});
+							apoly.push({x: lpoly[0].x, y: zeroLine});
 							apoly.push(lpoly[0]);
 							run.dyn.fill = s.createPolyline(apoly).setFill(fill).getFill();
 						}
@@ -10812,7 +10308,7 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 						stroke = theme.series.stroke;
 						if(theme.series.outline){
 							outline = run.dyn.outline = dc.makeStroke(theme.series.outline);
-							outline.width = 2 * outline.width + stroke.width;
+							outline.width = 2 * outline.width + (stroke && stroke.width || 0);
 						}
 					}
 					if(this.opt.markers){
@@ -10840,6 +10336,7 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 						}
 					}
 					if(this.opt.lines && lpoly.length > 1){
+						var shape;
 						if(outline){
 							if(this.opt.tension){
 								run.dyn.outline = s.createPath(lpath).setStroke(outline).getStroke();
@@ -10848,13 +10345,17 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 							}
 						}
 						if(this.opt.tension){
-							run.dyn.stroke = s.createPath(lpath).setStroke(stroke).getStroke();
+							run.dyn.stroke = (shape = s.createPath(lpath)).setStroke(stroke).getStroke();
 						} else {
-							run.dyn.stroke = s.createPolyline(lpoly).setStroke(stroke).getStroke();
+							run.dyn.stroke = (shape = s.createPolyline(lpoly)).setStroke(stroke).getStroke();
+						}
+						if(shape.setFilter && theme.series.filter){
+							shape.setFilter(theme.series.filter);
 						}
 					}
+					var markerBox = null;
 					if(this.opt.markers){
-						var markerTheme = theme; 
+						var markerTheme = theme;
 						frontMarkers = new Array(lpoly.length);
 						outlineMarkers = new Array(lpoly.length);
 						outline = null;
@@ -10880,6 +10381,9 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 						}, this);
 						run.dyn.markerFill = markerTheme.marker.fill;
 						run.dyn.markerStroke = markerTheme.marker.stroke;
+						if(!markerBox && this.opt.labels){
+							markerBox = frontMarkers[0].getBoundingBox();
+						}
 						if(events){
 							arr.forEach(frontMarkers, function(s, i){
 								var o = {
@@ -10894,10 +10398,10 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 								};
 								if(indexed){
 									o.x = i + rsegment.index + 1;
-									o.y = rsegment.rseg[i];
+									o.y = run.data[i + rsegment.index];
 								}else{
 									o.x = rsegment.rseg[i].x;
-									o.y = rsegment.rseg[i].y;
+									o.y = run.data[i + rsegment.index].y;
 								}
 								this._connectEvents(o);
 								eventSeries[i + rsegment.index] = o;
@@ -10906,12 +10410,34 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 							delete this._eventSeries[run.name];
 						}
 					}
+					if(this.opt.labels){
+						var labelBoxW = markerBox?markerBox.width:2;
+						var labelBoxH = markerBox?markerBox.height:2;
+						arr.forEach(lpoly, function(c, i){
+							if(this.opt.styleFunc || typeof c.data != "number"){
+								var tMixin = typeof c.data != "number" ? [c.data] : [];
+								if(this.opt.styleFunc){
+									tMixin.push(this.opt.styleFunc(c.data));
+								}
+								markerTheme = t.addMixin(theme, "marker", tMixin, true);
+							}else{
+								markerTheme = t.post(theme, "marker");
+							}
+							this.createLabel(s, rsegment.rseg[i], { x: c.x - labelBoxW / 2, y: c.y - labelBoxH / 2,
+								width: labelBoxW , height: labelBoxH }, markerTheme);
+						}, this);
+					}
 				}
 				run.dirty = false;
 			}
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			if(this.animate){
 				// grow from the bottom
-				var plotGroup = this.group;
+				var plotGroup = this.getGroup();
 				fx.animateTransform(lang.delegate({
 					shape: plotGroup,
 					duration: DEFAULT_ANIMATION_LENGTH,
@@ -10930,12 +10456,77 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 
 },
 'dojox/charting/plot2d/CartesianBase':function(){
-define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", 
-		"./Base",
-		"../scaler/primitive", "dojox/gfx/fx"],
-	function(lang, declare, hub, Base, primitive, fx){
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", "dojo/has",
+		"./Base", "../scaler/primitive", "dojox/gfx", "dojox/gfx/fx", "dojox/lang/utils"], 
+	function(lang, declare, hub, has, Base, primitive, gfx, fx, du){
+	/*=====
+	declare("dojox.charting.plot2d.__CartesianCtorArgs", dojox.charting.plot2d.__PlotCtorArgs, {
+		// hAxis: String?
+		//		The horizontal axis name.
+		hAxis: "x",
+
+		// vAxis: String?
+		//		The vertical axis name
+		vAxis: "y",
+
+		// labels: Boolean?
+		//		For plots that support labels, whether or not to draw labels for each data item.  Default is false.
+		labels:			false,
+
+		// fixed: Boolean?
+        //		Whether a fixed precision must be applied to data values for display. Default is true.
+		fixed:			true,
+
+		// precision: Number?
+        //		The precision at which to round data values for display. Default is 0.
+		precision:		1,
+
+		// labelOffset: Number?
+		//		The amount in pixels by which to offset labels when using "outside" labelStyle.  Default is 10.
+		labelOffset:	10,
+
+		// labelStyle: String?
+		//		Options as to where to draw labels.  This must be either "inside" or "outside". By default
+		//      the labels are drawn "inside" the shape representing the data point (a column rectangle for a Columns plot
+		//      or a marker for a Line plot for instance). When "outside" is used the labels are drawn above the data point shape.
+		labelStyle:		"inside",
+
+		// htmlLabels: Boolean?
+		//		Whether or not to use HTML to render slice labels. Default is true.
+		htmlLabels:		true,
+
+		// omitLabels: Boolean?
+		//		Whether labels that do not fit in an item render are omitted or not.	This applies only when labelStyle
+		//		is "inside".	Default is false.
+		omitLabels: true,
+
+		// labelFunc: Function?
+		//		An optional function to use to compute label text. It takes precedence over
+		//		the default text when available.
+		//	|		function labelFunc(value, fixed, precision) {}
+		//		`value` is the data value to display
+		//		`fixed` is true if fixed precision must be applied.
+		//		`precision` is the requested precision to be applied.
+		labelFunc: null
+	});
+	=====*/
+
+	var alwaysFalse = function(){ return false; }
 
 	return declare("dojox.charting.plot2d.CartesianBase", Base, {
+		baseParams: {
+			hAxis: 			"x",
+			vAxis: 			"y",
+			labels:			false,
+			labelOffset:    10,
+			fixed:			true,
+			precision:		1,
+			labelStyle:		"inside",
+			htmlLabels:		true,		// use HTML to draw labels
+			omitLabels:		true,
+			labelFunc:		null
+        },
+
 		// summary:
 		//		Base class for cartesian plot types.
 		constructor: function(chart, kwArgs){
@@ -10943,12 +10534,17 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 			//		Create a cartesian base plot for cartesian charts.
 			// chart: dojox/chart/Chart
 			//		The chart this plot belongs to.
-			// kwArgs: dojox.charting.plot2d.__PlotCtorArgs?
+			// kwArgs: dojox.charting.plot2d.__CartesianCtorArgs?
 			//		An optional arguments object to help define the plot.
 			this.axes = ["hAxis", "vAxis"];
-			this.zoom = null,
+			this.zoom = null;
 			this.zoomQueue = [];	// zooming action task queue
 			this.lastWindow = {vscale: 1, hscale: 1, xoffset: 0, yoffset: 0};
+			this.hAxis = (kwArgs && kwArgs.hAxis) || "x";
+			this.vAxis = (kwArgs && kwArgs.vAxis) || "y";
+			this.series = [];
+			this.opt = lang.clone(this.baseParams);
+			du.updateWithObject(this.opt, kwArgs);
 		},
 		clear: function(){
 			// summary:
@@ -10960,8 +10556,24 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 			this._vAxis = null;
 			return this;	//	dojox/charting/plot2d/CartesianBase
 		},
-		cleanGroup: function(creator){
-			this.inherited(arguments, [creator || this.chart.plotGroup]);
+		cleanGroup: function(creator, noClip){
+			this.inherited(arguments);
+			if(!noClip && this.chart._nativeClip){
+				var offsets = this.chart.offsets, dim = this.chart.dim;
+				var w = Math.max(0, dim.width  - offsets.l - offsets.r),
+					h = Math.max(0, dim.height - offsets.t - offsets.b);
+				this.group.setClip({ x: offsets.l, y: offsets.t, width: w, height: h });
+				if(!this._clippedGroup){
+					this._clippedGroup = this.group.createGroup();
+				}
+			}
+		},
+		purgeGroup: function(){
+			this.inherited(arguments);
+			this._clippedGroup = null;
+		},
+		getGroup: function(){
+			return this._clippedGroup || this.group;
 		},
 		setAxis: function(axis){
 			// summary:
@@ -11034,6 +10646,25 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 			//		The state of the plot.
 			return this.dirty || this._hAxis && this._hAxis.dirty || this._vAxis && this._vAxis.dirty;	//	Boolean
 		},
+		createLabel: function(group, value, bbox, theme){
+			if(this.opt.labels){
+				var x, y, label = this.opt.labelFunc?this.opt.labelFunc.apply(this, [value, this.opt.fixed, this.opt.precision]):
+					this._getLabel(isNaN(value.y)?value:value.y);
+				if(this.opt.labelStyle == "inside"){
+					var lbox = gfx._base._getTextBox(label, { font: theme.series.font } );
+					x = bbox.x + bbox.width / 2;
+					y = bbox.y + bbox.height / 2 + lbox.h / 4;
+					if(lbox.w > bbox.width || lbox.h > bbox.height){
+						return;
+					}
+
+				}else{
+					x = bbox.x + bbox.width / 2;
+					y = bbox.y - this.opt.labelOffset;
+				}
+				this.renderLabel(group, x, y, label, theme, this.opt.labelStyle == "inside");
+			}
+		},
 		performZoom: function(dim, offsets){
 			// summary:
 			//		Create/alter any zooming windows on this plot.
@@ -11060,7 +10691,7 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 				rYOffset = (yOffset - this.lastWindow.yoffset)/
 					((this.lastWindow.vscale == 1)? vs : this.lastWindow.vscale),
 
-				shape = this.group,
+				shape = this.getGroup(),
 				anim = fx.animateTransform(lang.delegate({
 					shape: shape,
 					duration: 1200,
@@ -11114,16 +10745,26 @@ define("dojox/charting/plot2d/CartesianBase", ["dojo/_base/lang", "dojo/_base/de
 				this._vScaler = primitive.buildScaler(stats.vmin, stats.vmax, dim.height);
 			}
 			return this;	//	dojox/charting/plot2d/CartesianBase
-		}
+		},
+		isNullValue: function(value){
+			if(value === null || typeof value == "undefined"){
+				return true;
+			}
+			var h = this._hAxis ? this._hAxis.isNullValue : alwaysFalse,
+				v = this._vAxis ? this._vAxis.isNullValue : alwaysFalse;
+			if(typeof value == "number"){
+				return h(1) || v(value);
+			}
+			return h(isNaN(value.x) ? 1 : value.x) || value.y === null || v(value.y);
+		}		
 	});
 });
 
 },
 'dojox/charting/plot2d/Base':function(){
-define("dojox/charting/plot2d/Base", ["dojo/_base/declare",
-		"../Element", "dojo/_base/array",
-	    "./common"],
-	function(declare, Element, arr,  common){
+define(["dojo/_base/declare", "dojo/_base/array", "dojo/_base/lang", "dojox/gfx",
+		"../Element", "./common", "../axis2d/common", "dojo/has"],
+	function(declare, arr, lang, gfx, Element, common, ac, has){
 /*=====
 dojox.charting.plot2d.__PlotCtorArgs = {
 	// summary:
@@ -11131,333 +10772,161 @@ dojox.charting.plot2d.__PlotCtorArgs = {
 	//		Note that the parameters for this may change based on the
 	//		specific plot type (see the corresponding plot type for
 	//		details).
+
+	// tooltipFunc: Function?
+	//		An optional function used to compute tooltip text for this plot. It takes precedence over
+	//		the default function when available.
+	//	|		function tooltipFunc(o) { return "text"; }
+	//		`o`is the event object that triggered the tooltip.
+	tooltipFunc: null
 };
 =====*/
-return declare("dojox.charting.plot2d.Base", Element, {
-	// summary:
-	//		Base class for all plot types.
-	constructor: function(chart, kwArgs){
+	var Base = declare("dojox.charting.plot2d.Base", Element, {
 		// summary:
-		//		Create a base plot for charting.
-		// chart: dojox/chart/Chart
-		//		The chart this plot belongs to.
-		// kwArgs: dojox.charting.plot2d.__PlotCtorArgs?
-		//		An optional arguments object to help define the plot.
-	},
-	clear: function(){
-		// summary:
-		//		Clear out all of the information tied to this plot.
-		// returns: dojox.charting.plot2d.Base
-		//		A reference to this plot for functional chaining.
-		this.series = [];
-		this.dirty = true;
-		return this;	//	dojox/charting/plot2d/Base
-	},
-	setAxis: function(axis){
-		// summary:
-		//		Set an axis for this plot.
-		// axis: dojox.charting.axis2d.Base
-		//		The axis to set.
-		// returns: dojox/charting/plot2d/Base
-		//		A reference to this plot for functional chaining.
-		return this;	//	dojox/charting/plot2d/Base
-	},
-	assignAxes: function(axes){
-		// summary:
-		//		From an array of axes pick the ones that correspond to this plot and
-		//		assign them to the plot using setAxis method.
-		// axes: Array
-		//		An array of dojox/charting/axis2d/Base
-		// tags:
-		//		protected
-		arr.forEach(this.axes, function(axis){
-			if(this[axis]){
-				this.setAxis(axes[this[axis]]);
-			}
-		}, this);
-	},
-	addSeries: function(run){
-		// summary:
-		//		Add a data series to this plot.
-		// run: dojox.charting.Series
-		//		The series to be added.
-		// returns: dojox/charting/plot2d/Base
-		//		A reference to this plot for functional chaining.
-		this.series.push(run);
-		return this;	//	dojox/charting/plot2d/Base
-	},
-	getSeriesStats: function(){
-		// summary:
-		//		Calculate the min/max on all attached series in both directions.
-		// returns: Object
-		//		{hmin, hmax, vmin, vmax} min/max in both directions.
-		return common.collectSimpleStats(this.series);
-	},
-	calculateAxes: function(dim){
-		// summary:
-		//		Stub function for running the axis calculations (deprecated).
-		// dim: Object
-		//		An object of the form { width, height }
-		// returns: dojox/charting/plot2d/Base
-		//		A reference to this plot for functional chaining.
-		this.initializeScalers(dim, this.getSeriesStats());
-		return this;	//	dojox/charting/plot2d/Base
-	},
-	initializeScalers: function(){
-		// summary:
-		//		Does nothing.
-		return this;
-	},
-	isDataDirty: function(){
-		// summary:
-		//		Returns whether or not any of this plot's data series need to be rendered.
-		// returns: Boolean
-		//		Flag indicating if any of this plot's series are invalid and need rendering.
-		return arr.some(this.series, function(item){ return item.dirty; });	//	Boolean
-	},
-	render: function(dim, offsets){
-		// summary:
-		//		Render the plot on the chart.
-		// dim: Object
-		//		An object of the form { width, height }.
-		// offsets: Object
-		//		An object of the form { l, r, t, b }.
-		// returns: dojox/charting/plot2d/Base
-		//		A reference to this plot for functional chaining.
-		return this;	//	dojox/charting/plot2d/Base
-	},
-	getRequiredColors: function(){
-		// summary:
-		//		Get how many data series we have, so we know how many colors to use.
-		// returns: Number
-		//		The number of colors needed.
-		return this.series.length;	//	Number
-	}
-});
-});
-
-},
-'dojox/charting/plot2d/common':function(){
-define("dojox/charting/plot2d/common", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/Color", 
-		"dojox/gfx", "dojox/lang/functional", "../scaler/common"], 
-	function(lang, arr, Color, g, df, sc){
+		//		Base class for all plot types.
+		constructor: function(chart, kwArgs){
+			// summary:
+			//		Create a base plot for charting.
+			// chart: dojox/chart/Chart
+			//		The chart this plot belongs to.
+			// kwArgs: dojox.charting.plot2d.__PlotCtorArgs?
+			//		An optional arguments object to help define the plot.
 	
-	var common = lang.getObject("dojox.charting.plot2d.common", true);
-	
-	return lang.mixin(common, {	
-		doIfLoaded: sc.doIfLoaded,
-		makeStroke: function(stroke){
-			if(!stroke){ return stroke; }
-			if(typeof stroke == "string" || stroke instanceof Color){
-				stroke = {color: stroke};
+			// TODO does not work in markup
+			if(kwArgs && kwArgs.tooltipFunc){
+				this.tooltipFunc = kwArgs.tooltipFunc;
 			}
-			return g.makeParameters(g.defaultStroke, stroke);
 		},
-		augmentColor: function(target, color){
-			var t = new Color(target),
-				c = new Color(color);
-			c.a = t.a;
-			return c;
+		clear: function(){
+			// summary:
+			//		Clear out all of the information tied to this plot.
+			// returns: dojox.charting.plot2d.Base
+			//		A reference to this plot for functional chaining.
+			this.series = [];
+			this.dirty = true;
+			return this;	//	dojox/charting/plot2d/Base
 		},
-		augmentStroke: function(stroke, color){
-			var s = common.makeStroke(stroke);
-			if(s){
-				s.color = common.augmentColor(s.color, color);
-			}
-			return s;
+		setAxis: function(axis){
+			// summary:
+			//		Set an axis for this plot.
+			// axis: dojox.charting.axis2d.Base
+			//		The axis to set.
+			// returns: dojox/charting/plot2d/Base
+			//		A reference to this plot for functional chaining.
+			return this;	//	dojox/charting/plot2d/Base
 		},
-		augmentFill: function(fill, color){
-			var fc, c = new Color(color);
-			if(typeof fill == "string" || fill instanceof Color){
-				return common.augmentColor(fill, color);
-			}
-			return fill;
-		},
-
-		defaultStats: {
-			vmin: Number.POSITIVE_INFINITY, vmax: Number.NEGATIVE_INFINITY,
-			hmin: Number.POSITIVE_INFINITY, hmax: Number.NEGATIVE_INFINITY
-		},
-
-		collectSimpleStats: function(series){
-			var stats = lang.delegate(common.defaultStats);
-			for(var i = 0; i < series.length; ++i){
-				var run = series[i];
-				for(var j = 0; j < run.data.length; j++){
-					if(run.data[j] !== null){
-						if(typeof run.data[j] == "number"){
-							// 1D case
-							var old_vmin = stats.vmin, old_vmax = stats.vmax;
-							if(!("ymin" in run) || !("ymax" in run)){
-								arr.forEach(run.data, function(val, i){
-									if(val !== null){
-										var x = i + 1, y = val;
-										if(isNaN(y)){ y = 0; }
-										stats.hmin = Math.min(stats.hmin, x);
-										stats.hmax = Math.max(stats.hmax, x);
-										stats.vmin = Math.min(stats.vmin, y);
-										stats.vmax = Math.max(stats.vmax, y);
-									}
-								});
-							}
-							if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
-							if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
-						}else{
-							// 2D case
-							var old_hmin = stats.hmin, old_hmax = stats.hmax,
-								old_vmin = stats.vmin, old_vmax = stats.vmax;
-							if(!("xmin" in run) || !("xmax" in run) || !("ymin" in run) || !("ymax" in run)){
-								arr.forEach(run.data, function(val, i){
-									if(val !== null){
-										var x = "x" in val ? val.x : i + 1, y = val.y;
-										if(isNaN(x)){ x = 0; }
-										if(isNaN(y)){ y = 0; }
-										stats.hmin = Math.min(stats.hmin, x);
-										stats.hmax = Math.max(stats.hmax, x);
-										stats.vmin = Math.min(stats.vmin, y);
-										stats.vmax = Math.max(stats.vmax, y);
-									}
-								});
-							}
-							if("xmin" in run){ stats.hmin = Math.min(old_hmin, run.xmin); }
-							if("xmax" in run){ stats.hmax = Math.max(old_hmax, run.xmax); }
-							if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
-							if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
-						}
-
-						break;
-					}
+		assignAxes: function(axes){
+			// summary:
+			//		From an array of axes pick the ones that correspond to this plot and
+			//		assign them to the plot using setAxis method.
+			// axes: Array
+			//		An array of dojox/charting/axis2d/Base
+			// tags:
+			//		protected
+			arr.forEach(this.axes, function(axis){
+				if(this[axis]){
+					this.setAxis(axes[this[axis]]);
 				}
-			}
-			return stats;
+			}, this);
 		},
-
-		calculateBarSize: function(/* Number */ availableSize, /* Object */ opt, /* Number? */ clusterSize){
-			if(!clusterSize){
-				clusterSize = 1;
-			}
-			var gap = opt.gap, size = (availableSize - 2 * gap) / clusterSize;
-			if("minBarSize" in opt){
-				size = Math.max(size, opt.minBarSize);
-			}
-			if("maxBarSize" in opt){
-				size = Math.min(size, opt.maxBarSize);
-			}
-			size = Math.max(size, 1);
-			gap = (availableSize - size * clusterSize) / 2;
-			return {size: size, gap: gap};	// Object
+		addSeries: function(run){
+			// summary:
+			//		Add a data series to this plot.
+			// run: dojox.charting.Series
+			//		The series to be added.
+			// returns: dojox/charting/plot2d/Base
+			//		A reference to this plot for functional chaining.
+			this.series.push(run);
+			return this;	//	dojox/charting/plot2d/Base
 		},
-
-		collectStackedStats: function(series){
-			// collect statistics
-			var stats = lang.clone(common.defaultStats);
-			if(series.length){
-				// 1st pass: find the maximal length of runs
-				stats.hmin = Math.min(stats.hmin, 1);
-				stats.hmax = df.foldl(series, "seed, run -> Math.max(seed, run.data.length)", stats.hmax);
-				// 2nd pass: stack values
-				for(var i = 0; i < stats.hmax; ++i){
-					var v = series[0].data[i];
-					v = v && (typeof v == "number" ? v : v.y);
-					if(isNaN(v)){ v = 0; }
-					stats.vmin = Math.min(stats.vmin, v);
-					for(var j = 1; j < series.length; ++j){
-						var t = series[j].data[i];
-						t = t && (typeof t == "number" ? t : t.y);
-						if(isNaN(t)){ t = 0; }
-						v += t;
-					}
-					stats.vmax = Math.max(stats.vmax, v);
+		getSeriesStats: function(){
+			// summary:
+			//		Calculate the min/max on all attached series in both directions.
+			// returns: Object
+			//		{hmin, hmax, vmin, vmax} min/max in both directions.
+			return common.collectSimpleStats(this.series, lang.hitch(this, "isNullValue"));
+		},
+		calculateAxes: function(dim){
+			// summary:
+			//		Stub function for running the axis calculations (deprecated).
+			// dim: Object
+			//		An object of the form { width, height }
+			// returns: dojox/charting/plot2d/Base
+			//		A reference to this plot for functional chaining.
+			this.initializeScalers(dim, this.getSeriesStats());
+			return this;	//	dojox/charting/plot2d/Base
+		},
+		initializeScalers: function(){
+			// summary:
+			//		Does nothing.
+			return this;
+		},
+		isDataDirty: function(){
+			// summary:
+			//		Returns whether or not any of this plot's data series need to be rendered.
+			// returns: Boolean
+			//		Flag indicating if any of this plot's series are invalid and need rendering.
+			return arr.some(this.series, function(item){ return item.dirty; });	//	Boolean
+		},
+		render: function(dim, offsets){
+			// summary:
+			//		Render the plot on the chart.
+			// dim: Object
+			//		An object of the form { width, height }.
+			// offsets: Object
+			//		An object of the form { l, r, t, b }.
+			// returns: dojox/charting/plot2d/Base
+			//		A reference to this plot for functional chaining.
+			return this;	//	dojox/charting/plot2d/Base
+		},
+		renderLabel: function(group, x, y, label, theme, block, align){
+			var elem = ac.createText[this.opt.htmlLabels && gfx.renderer != "vml" ? "html" : "gfx"]
+				(this.chart, group, x, y, align?align:"middle", label, theme.series.font, theme.series.fontColor);
+			// if the label is inside we need to avoid catching events on it this would prevent action on
+			// chart elements
+			if(block){
+				// TODO this won't work in IE neither in VML nor in HTML
+				// a solution would be to catch the event on the label and refire it to the element
+				// possibly using elementFromPoint or having it already available
+				if(this.opt.htmlLabels && gfx.renderer != "vml"){
+					// we have HTML labels, let's use pointEvents on the HTML node
+					elem.style.pointerEvents = "none";
+				}else if(elem.rawNode){
+					// we have SVG labels, let's use pointerEvents on the SVG or VML node
+					elem.rawNode.style.pointerEvents = "none";
 				}
+				// else we have Canvas, we need do nothing, as Canvas text won't catch events
 			}
-			return stats;
-		},
-
-		curve: function(/* Number[] */a, /* Number|String */tension){
-			//	FIX for #7235, submitted by Enzo Michelangeli.
-			//	Emulates the smoothing algorithms used in a famous, unnamed spreadsheet
-			//		program ;)
-			var array = a.slice(0);
-			if(tension == "x") {
-				array[array.length] = array[0];   // add a last element equal to the first, closing the loop
+			if(this.opt.htmlLabels && gfx.renderer != "vml"){
+				this.htmlElements.push(elem);
 			}
-			var p=arr.map(array, function(item, i){
-				if(i==0){ return "M" + item.x + "," + item.y; }
-				if(!isNaN(tension)) { // use standard Dojo smoothing in tension is numeric
-					var dx=item.x-array[i-1].x, dy=array[i-1].y;
-					return "C"+(item.x-(tension-1)*(dx/tension))+","+dy+" "+(item.x-(dx/tension))+","+item.y+" "+item.x+","+item.y;
-				} else if(tension == "X" || tension == "x" || tension == "S") {
-					// use Excel "line smoothing" algorithm (http://xlrotor.com/resources/files.shtml)
-					var p0, p1 = array[i-1], p2 = array[i], p3;
-					var bz1x, bz1y, bz2x, bz2y;
-					var f = 1/6;
-					if(i==1) {
-						if(tension == "x") {
-							p0 = array[array.length-2];
-						} else { // "tension == X || tension == "S"
-							p0 = p1;
-						}
-						f = 1/3;
-					} else {
-						p0 = array[i-2];
-					}
-					if(i==(array.length-1)) {
-						if(tension == "x") {
-							p3 = array[1];
-						} else { // "tension == X || tension == "S"
-							p3 = p2;
-						}
-						f = 1/3;
-					} else {
-						p3 = array[i+1];
-					}
-					var p1p2 = Math.sqrt((p2.x-p1.x)*(p2.x-p1.x)+(p2.y-p1.y)*(p2.y-p1.y));
-					var p0p2 = Math.sqrt((p2.x-p0.x)*(p2.x-p0.x)+(p2.y-p0.y)*(p2.y-p0.y));
-					var p1p3 = Math.sqrt((p3.x-p1.x)*(p3.x-p1.x)+(p3.y-p1.y)*(p3.y-p1.y));
 
-					var p0p2f = p0p2 * f;
-					var p1p3f = p1p3 * f;
-
-					if(p0p2f > p1p2/2 && p1p3f > p1p2/2) {
-						p0p2f = p1p2/2;
-						p1p3f = p1p2/2;
-					} else if(p0p2f > p1p2/2) {
-						p0p2f = p1p2/2;
-						p1p3f = p1p2/2 * p1p3/p0p2;
-					} else if(p1p3f > p1p2/2) {
-						p1p3f = p1p2/2;
-						p0p2f = p1p2/2 * p0p2/p1p3;
-					}
-
-					if(tension == "S") {
-						if(p0 == p1) { p0p2f = 0; }
-						if(p2 == p3) { p1p3f = 0; }
-					}
-
-					bz1x = p1.x + p0p2f*(p2.x - p0.x)/p0p2;
-					bz1y = p1.y + p0p2f*(p2.y - p0.y)/p0p2;
-					bz2x = p2.x - p1p3f*(p3.x - p1.x)/p1p3;
-					bz2y = p2.y - p1p3f*(p3.y - p1.y)/p1p3;
-				}
-				return "C"+(bz1x+","+bz1y+" "+bz2x+","+bz2y+" "+p2.x+","+p2.y);
-			});
-			return p.join(" ");
+			return elem;
 		},
-		
-		getLabel: function(/*Number*/number, /*Boolean*/fixed, /*Number*/precision){
-			return sc.doIfLoaded("dojo/number", function(numberLib){
-				return (fixed ? numberLib.format(number, {places : precision}) :
-					numberLib.format(number)) || "";
-			}, function(){
-				return fixed ? number.toFixed(precision) : number.toString();
-			});
+		getRequiredColors: function(){
+			// summary:
+			//		Get how many data series we have, so we know how many colors to use.
+			// returns: Number
+			//		The number of colors needed.
+			return this.series.length;	//	Number
+		},
+		_getLabel: function(number){
+			return common.getLabel(number, this.opt.fixed, this.opt.precision);
 		}
 	});
+	if(has("dojo-bidi")){
+		Base.extend({
+			_checkOrientation: function(group, dim, offsets){
+				this.chart.applyMirroring(this.group, dim, offsets);
+			}		
+		});
+	}
+	return Base;
 });
 
 },
 'dojox/charting/scaler/primitive':function(){
-define("dojox/charting/scaler/primitive", ["dojo/_base/lang"], 
+define(["dojo/_base/lang"], 
   function(lang){
 	var primitive = lang.getObject("dojox.charting.scaler.primitive", true);
 	return lang.mixin(primitive, {
@@ -11496,8 +10965,8 @@ define("dojox/charting/scaler/primitive", ["dojo/_base/lang"],
 
 },
 'dojox/gfx/fx':function(){
-define(["dojo/_base/lang", "./_base", "./matrix", "dojo/_base/Color", "dojo/_base/array", "dojo/_base/fx", "dojo/_base/connect"], 
-  function(lang, g, m, Color, arr, fx, Hub){
+define(["dojo/_base/lang", "./_base", "./matrix", "dojo/_base/Color", "dojo/_base/array", "dojo/_base/fx", "dojo/_base/connect", "dojo/sniff"], 
+  function(lang, g, m, Color, arr, fx, Hub, has){
 	var fxg = g.fx = {};
 
 	// Generic interpolators. Should they be moved to dojox.fx?
@@ -11774,6 +11243,73 @@ define(["dojo/_base/lang", "./_base", "./matrix", "dojo/_base/Color", "dojo/_bas
 			this.curve = new InterpolTransform(args.transform, original);
 		});
 		Hub.connect(anim, "onAnimate", shape, "setTransform");
+		if(g.renderer === "svg" && (has("ie") >= 9 || has("ff"))){
+			// fix http://bugs.dojotoolkit.org/ticket/16879
+			var handlers = [
+					Hub.connect(anim, "onBegin", anim, function(){
+						var parent = shape.getParent();
+						while(parent && parent.getParent){
+							parent = parent.getParent();
+						}
+						if(parent){
+							shape.__svgContainer = parent.rawNode.parentNode;
+							shape.__svgRoot = parent.rawNode;
+							if(shape.__svgRoot && shape.__svgRoot.getAttribute){
+								shape.__svgWidth = parseInt(shape.__svgRoot.getAttribute("width"), 10);
+								if(isNaN(shape.__svgWidth)){
+									delete shape.__svgWidth;
+								}
+							}
+						}
+					}),
+					Hub.connect(anim, "onAnimate", anim, function(){
+						try{
+							if(shape.__svgContainer){
+								var ov = shape.__svgContainer.style.visibility;
+								shape.__svgContainer.style.visibility = "visible";
+								var pokeNode = shape.__svgContainer.offsetHeight;
+								shape.__svgContainer.style.visibility = ov;
+								var width = shape.__svgWidth;
+								if(!isNaN(width)){
+									try{
+										shape.__svgRoot.setAttribute("width", width  - 0.000005);
+										shape.__svgRoot.setAttribute("width", width);
+									}catch(ignore){}
+								}
+							}
+						}catch(e){}
+					}),
+					Hub.connect(anim, "onEnd", anim, function(){
+						arr.forEach(handlers, Hub.disconnect);
+						if(shape.__svgContainer){
+							var sn = shape.__svgContainer;
+							if(sn.getAttribute("__gotVis") == null){
+								sn.setAttribute("__gotVis", true);
+								var ov = shape.__svgContainer.style.visibility;
+								var root = shape.__svgRoot;
+								var width = shape.__svgWidth;
+								sn.style.visibility = "visible";
+								setTimeout(function(){
+									try{
+										sn.style.visibility = ov;
+										sn.removeAttribute("__gotVis");
+										sn = null;
+										try{
+											if(!isNaN(width)){
+												root.setAttribute("width", width - 0.000005);
+												root.setAttribute("width", width);
+											}
+										}catch(ignore){}
+									}catch(e){}
+								},100);
+							}
+						}
+						delete shape.__svgContainer;
+						delete shape.__svgRoot;
+						delete shape.__svgWidth;
+					})
+				];
+		}
 		return anim; // dojo.Animation
 	};
 	
@@ -11782,7 +11318,7 @@ define(["dojo/_base/lang", "./_base", "./matrix", "dojo/_base/Color", "dojo/_bas
 
 },
 'dojox/charting/plot2d/_PlotEvents':function(){
-define("dojox/charting/plot2d/_PlotEvents", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/_base/connect"], 
+define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/_base/connect"], 
 	function(lang, arr, declare, hub){
 
 	return declare("dojox.charting.plot2d._PlotEvents", null, {
@@ -11905,7 +11441,7 @@ define("dojox/charting/plot2d/_PlotEvents", ["dojo/_base/lang", "dojo/_base/arra
 
 },
 'dojox/charting/plot2d/Lines':function(){
-define("dojox/charting/plot2d/Lines", ["dojo/_base/declare", "./Default"], function(declare, Default){
+define(["dojo/_base/declare", "./Default"], function(declare, Default){
 
 	return declare("dojox.charting.plot2d.Lines", Default, {
 		// summary:
@@ -11920,7 +11456,7 @@ define("dojox/charting/plot2d/Lines", ["dojo/_base/declare", "./Default"], funct
 
 },
 'dojox/charting/plot2d/Areas':function(){
-define("dojox/charting/plot2d/Areas", ["dojo/_base/declare", "./Default"], 
+define(["dojo/_base/declare", "./Default"], 
   function(declare, Default){
 
 	return declare("dojox.charting.plot2d.Areas", Default, {
@@ -11937,7 +11473,7 @@ define("dojox/charting/plot2d/Areas", ["dojo/_base/declare", "./Default"],
 
 },
 'dojox/charting/plot2d/Markers':function(){
-define("dojox/charting/plot2d/Markers", ["dojo/_base/declare", "./Default"], function(declare, Default){
+define(["dojo/_base/declare", "./Default"], function(declare, Default){
 
 	return declare("dojox.charting.plot2d.Markers", Default, {
 		// summary:
@@ -11952,7 +11488,7 @@ define("dojox/charting/plot2d/Markers", ["dojo/_base/declare", "./Default"], fun
 
 },
 'dojox/charting/plot2d/MarkersOnly':function(){
-define("dojox/charting/plot2d/MarkersOnly", ["dojo/_base/declare", "./Default"], function(declare, Default){
+define(["dojo/_base/declare", "./Default"], function(declare, Default){
 
 	return declare("dojox.charting.plot2d.MarkersOnly", Default, {
 		// summary:
@@ -11968,18 +11504,14 @@ define("dojox/charting/plot2d/MarkersOnly", ["dojo/_base/declare", "./Default"],
 
 },
 'dojox/charting/plot2d/Scatter':function(){
-define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "./CartesianBase", "./_PlotEvents", "./common",
-	"dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx", "dojox/gfx/gradutils"],
-	function(lang, arr, declare, CartesianBase, _PlotEvents, dc, df, dfr, du, fx, gradutils){
-
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/has", "./CartesianBase", "./_PlotEvents", "./common",
+	"dojox/lang/functional", "dojox/lang/utils", "dojox/gfx/fx", "dojox/gfx/gradutils"],
+	function(lang, arr, declare, has, CartesianBase, _PlotEvents, dc, df, du, fx, gradutils){
 
 	return declare("dojox.charting.plot2d.Scatter", [CartesianBase, _PlotEvents], {
 		// summary:
 		//		A plot object representing a typical scatter chart.
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			shadows: null,	// draw shadows
 			animate: null	// animate chart to place
 		},
@@ -12001,12 +11533,9 @@ define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", 
 			//		The chart this plot belongs to.
 			// kwArgs: dojox.charting.plot2d.__DefaultCtorArgs?
 			//		An optional keyword arguments object to help define this plot's parameters.
-			this.opt = lang.clone(this.defaultParams);
+			this.opt = lang.clone(lang.mixin(this.opt, this.defaultParams));
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
 			this.animate = this.opt.animate;
 		},
 
@@ -12024,15 +11553,16 @@ define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", 
 			}
 			this.resetEvents();
 			this.dirty = this.isDirty();
+			var s;
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				var s = this.group;
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 			var t = this.chart.theme, events = this.events();
-			for(var i = this.series.length - 1; i >= 0; --i){
+			for(var i = 0; i < this.series.length; i++){
 				var run = this.series[i];
 				if(!this.dirty && !run.dirty){
 					t.skip();
@@ -12046,9 +11576,16 @@ define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", 
 					continue;
 				}
 
-				var theme = t.next("marker", [this.opt, run]), s = run.group, lpoly,
+				var theme = t.next("marker", [this.opt, run]), lpoly,
 					ht = this._hScaler.scaler.getTransformerFromModel(this._hScaler),
 					vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler);
+				if(run.hidden){
+					run.dyn.marker = theme.symbol;
+					run.dyn.markerFill = theme.marker.fill;
+					run.dyn.markerStroke = theme.marker.stroke;
+					continue;
+				}
+				s = run.group;
 				if(typeof run.data[0] == "number"){
 					lpoly = arr.map(run.data, function(v, i){
 						return {
@@ -12091,7 +11628,7 @@ define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", 
 					}
 					if(finalTheme.marker.outline){
 						var outline = dc.makeStroke(finalTheme.marker.outline);
-						outline.width = 2 * outline.width + finalTheme.marker.stroke.width;
+						outline.width = 2 * outline.width + (finalTheme.marker.stroke && finalTheme.marker.stroke.width || 0);
 						outlineMarkers[i] = s.createPath(path).setStroke(outline);
 						if(this.animate){
 							this._animateScatter(outlineMarkers[i], dim.height - offsets.b);
@@ -12107,6 +11644,10 @@ define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", 
 						frontMarkers[i] = s.createPath(path).setStroke(stroke).setFill(color);
 					}else{
 						frontMarkers[i] = s.createPath(path).setStroke(stroke).setFill(fill);
+					}
+					if(this.opt.labels){
+						var markerBox = frontMarkers[i].getBoundingBox();
+						this.createLabel(s, value, markerBox, finalTheme);
 					}
 					if(this.animate){
 						this._animateScatter(frontMarkers[i], dim.height - offsets.b);
@@ -12148,6 +11689,11 @@ define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", 
 				run.dirty = false;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/Scatter
 		},
 		_animateScatter: function(shape, offset){
@@ -12166,8 +11712,8 @@ define("dojox/charting/plot2d/Scatter", ["dojo/_base/lang", "dojo/_base/array", 
 
 },
 'dojox/charting/plot2d/Stacked':function(){
-define("dojox/charting/plot2d/Stacked", ["dojo/_base/declare", "./Default", "./commonStacked"], 
-	function(declare, Default, commonStacked){
+define(["dojo/_base/declare", "dojo/_base/lang", "./Default", "./commonStacked"], 
+	function(declare, lang, Default, commonStacked){
 
 	return declare("dojox.charting.plot2d.Stacked", Default, {
 		// summary:
@@ -12179,7 +11725,7 @@ define("dojox/charting/plot2d/Stacked", ["dojo/_base/declare", "./Default", "./c
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			var stats = commonStacked.collectStats(this.series);
+			var stats = commonStacked.collectStats(this.series, lang.hitch(this, "isNullValue"));
 			return stats; // Object
 		},
 		
@@ -12187,17 +11733,17 @@ define("dojox/charting/plot2d/Stacked", ["dojo/_base/declare", "./Default", "./c
 			var run = this.series[i],
 				min = indexed?Math.max(0, Math.floor(this._hScaler.bounds.from - 1)):0,
 				max = indexed?Math.min(run.data.length-1, Math.ceil(this._hScaler.bounds.to)):run.data.length-1,
-				rseg = null, segments = [];
+				rseg = null, segments = [], isNullValue = lang.hitch(this, "isNullValue");
 			// split the run data into dense segments (each containing no nulls)
 			// except if interpolates is false in which case ignore null between valid data
 			for(var j = min; j <= max; j++){
-				var value = indexed ? commonStacked.getIndexValue(this.series, i, j) : commonStacked.getValue(this.series, i, run.data[j] ?run.data[j].x: null);
-				if(value != null && (indexed || value.y != null)){
+				var value = indexed ? commonStacked.getIndexValue(this.series, i, j, isNullValue) : commonStacked.getValue(this.series, i, run.data[j] ?run.data[j].x: null, isNullValue);
+				if(!isNullValue(value[0]) && (indexed || value[0].y != null)){
 					if(!rseg){
 						rseg = [];
 						segments.push({index: j, rseg: rseg});
 					}
-					rseg.push(value);
+					rseg.push(value[0]);
 				}else{
 					if(!this.opt.interpolate || indexed){
 						// we break the line only if not interpolating or if we have indexed data
@@ -12213,14 +11759,15 @@ define("dojox/charting/plot2d/Stacked", ["dojo/_base/declare", "./Default", "./c
 
 },
 'dojox/charting/plot2d/commonStacked':function(){
-define("dojox/charting/plot2d/commonStacked", [
+define([
 	"dojo/_base/lang",
+	"dojox/lang/functional",
 	"./common"
-], function(lang, common){
+], function(lang, df, common){
 	
 	var commonStacked = lang.getObject("dojox.charting.plot2d.commonStacked", true);
 	return lang.mixin(commonStacked, {
-		collectStats: function(series){
+		collectStats: function(series, isNullValue){
 			var stats = lang.delegate(common.defaultStats);
 			for(var i = 0; i < series.length; ++i){
 				var run = series[i];
@@ -12228,12 +11775,12 @@ define("dojox/charting/plot2d/commonStacked", [
 					var x, y;
 					if(run.data[j] !== null){
 						if(typeof run.data[j] == "number" || !run.data[j].hasOwnProperty("x")){
-							y = commonStacked.getIndexValue(series, i, j);
+							y = commonStacked.getIndexValue(series, i, j, isNullValue)[0];
 							x = j+1;
 						}else{
 							x = run.data[j].x;
 							if(x !== null){
-								y = commonStacked.getValue(series, i, x);
+								y = commonStacked.getValue(series, i, x, isNullValue)[0];
 								y = y != null && y.y ? y.y:null; 
 							}
 						}
@@ -12241,30 +11788,158 @@ define("dojox/charting/plot2d/commonStacked", [
 						stats.hmax = Math.max(stats.hmax, x);
 						stats.vmin = Math.min(stats.vmin, y);
 						stats.vmax = Math.max(stats.vmax, y);
-					
 					}
 				}
 			}
 			return stats;
 		},
-		getIndexValue: function(series, i, index){
-			var value = 0, v, j;
+		
+		rearrangeValues: function(values, transform, baseline){
+			// collect references to non-empty sets
+			var sets = df.filter(values, "x"), n = sets.length;
+			if(!n){
+				// nothing to do at all
+				return values;
+			}
+
+			// stack values
+			var previousSet = {};
+			for(var i = 0; i < n; ++i){
+				var extractedSet = sets[i];
+				for(var j = extractedSet.min, k = extractedSet.max; j < k; ++j){
+					extractedSet[j] = (extractedSet[j] || 0) + (previousSet[j] || 0);
+				}
+				previousSet = extractedSet;
+			}
+
+			// transform to pixels
+			for(i = 0; i < n; ++i){
+				extractedSet = sets[i];
+				for(j = extractedSet.min, k = extractedSet.max; j < k; ++j){
+					extractedSet[j] = this.isNullValue(extractedSet[j]) ? 0 :
+						transform(extractedSet[j]) - baseline;
+				}
+			}
+
+			// correct the minimal width
+			if(this.opt.minWidth){
+				var minWidth = this.opt.minWidth;
+
+				// unstack
+				for(i = n - 1; i; --i){
+					extractedSet = sets[i];
+					previousSet  = sets[i - 1];
+					for(j = extractedSet.min, k = extractedSet.max; j < k; ++j){
+						extractedSet[j] = extractedSet[j] - previousSet[j];
+					}
+				}
+
+				// now let's go over all values and correct them, if needed
+				var min = extractedSet.min, max = extractedSet.max;
+				for(var j = min; j < max; ++j){
+
+					// find a total length of stack
+					var sum = 0, counter = 0;
+					for(i = 0; i < n; ++i){
+						var value = sets[i][j];
+						if(value > 0){
+							sum += value;
+							++counter;
+						}
+					}
+					if(sum <= counter * minWidth){
+						// the corner case: all values are very small
+						for(i = 0; i < n; ++i){
+							value = sets[i][j];
+							if(value > 0){
+								sets[i][j] = minWidth;
+							}
+						}
+						continue;	// next stack
+					}
+
+					// distributing overflow up
+					var overflow = 0;
+					for(i = 0; i < n; ++i){
+						extractedSet = sets[i];
+						value = extractedSet[j];
+						if(value > 0){
+							if(value < minWidth){
+								overflow += minWidth - value;
+								extractedSet[j] = minWidth;
+							}else if(overflow > 0){
+								// calculate available space
+								var available = extractedSet[j] - minWidth;
+								if(available >= overflow){
+									extractedSet[j] -= overflow;
+									overflow = 0;
+								}else if(available > 0){
+									extractedSet[j] = minWidth;
+									overflow -= available;
+								}
+							}
+						}
+					}
+
+					// distributing overflow down, if any
+					if(overflow > 0){
+						for(i = n - 1; i >= 0; --i){
+							extractedSet = sets[i];
+							value = extractedSet[j];
+							if(value > 0){
+								// calculate available space
+								available = extractedSet[j] - minWidth;
+								if(available >= overflow){
+									extractedSet[j] -= overflow;
+									break;
+								}else if(available > 0){
+									extractedSet[j] = minWidth;
+									overflow -= available;
+								}
+							}
+						}
+					}
+				}
+
+				// stack
+				for(i = 1; i < n; ++i){
+					extractedSet = sets[i];
+					previousSet  = sets[i - 1];
+					for(j = extractedSet.min, k = extractedSet.max; j < k; ++j){
+						extractedSet[j] = extractedSet[j] + previousSet[j];
+					}
+				}
+			}
+
+			return values;
+		},
+		
+		getIndexValue: function(series, i, index, isNullValue){
+			var value = 0, v, j, pvalue;
 			for(j = 0; j <= i; ++j){
+				if(series[j].hidden){
+					continue;
+				}
+				pvalue = value;
 				v = series[j].data[index];
-				if(v != null){
+				if(!isNullValue(v)){
 					if(isNaN(v)){ v = v.y || 0; }
 					value += v;
 				}
 			}
-			return value;
+			return [value , pvalue];
 		},
 		
-		getValue: function(series, i, x){
-			var value = null, j, z;
+		getValue: function(series, i, x, isNullValue){
+			var value = null, j, z, v, pvalue;
 			for(j = 0; j <= i; ++j){
+				if(series[j].hidden){
+					continue;
+				}
 				for(z = 0; z < series[j].data.length; z++){
+					pvalue = value;
 					v = series[j].data[z];
-					if(v !== null){
+					if(!isNullValue(v)){
 						if(v.x == x){
 							if(!value){
 								value = {x: x};
@@ -12280,16 +11955,14 @@ define("dojox/charting/plot2d/commonStacked", [
 					}
 				}
 			}
-			return value;
+			return [value, pvalue];
 		}
-
-		
 	});
 });
 
 },
 'dojox/charting/plot2d/StackedLines':function(){
-define("dojox/charting/plot2d/StackedLines", ["dojo/_base/declare", "./Stacked"], function(declare, Stacked){
+define(["dojo/_base/declare", "./Stacked"], function(declare, Stacked){
 
 	return declare("dojox.charting.plot2d.StackedLines", Stacked, {
 		// summary:
@@ -12304,7 +11977,7 @@ define("dojox/charting/plot2d/StackedLines", ["dojo/_base/declare", "./Stacked"]
 
 },
 'dojox/charting/plot2d/StackedAreas':function(){
-define("dojox/charting/plot2d/StackedAreas", ["dojo/_base/declare", "./Stacked"], function(declare, Stacked){
+define(["dojo/_base/declare", "./Stacked"], function(declare, Stacked){
 
 	return declare("dojox.charting.plot2d.StackedAreas", Stacked, {
 		// summary:
@@ -12321,18 +11994,16 @@ define("dojox/charting/plot2d/StackedAreas", ["dojo/_base/declare", "./Stacked"]
 
 },
 'dojox/charting/plot2d/Columns':function(){
-define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "./CartesianBase", "./_PlotEvents", "./common",
-		"dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"], 
-	function(lang, arr, declare, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
+define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/has", "./CartesianBase", "./_PlotEvents", "./common",
+		"dojox/lang/functional", "dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, arr, declare, has, CartesianBase, _PlotEvents, dc, df, du, fx){
 
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+	var alwaysFalse = function(){ return false; };
 
 	return declare("dojox.charting.plot2d.Columns", [CartesianBase, _PlotEvents], {
 		// summary:
 		//		The plot object representing a column chart (vertical bars).
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			gap:	0,		// gap between columns in pixels
 			animate: null,  // animate bars into place
 			enableCache: false
@@ -12345,6 +12016,7 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 			outline:	{},
 			shadow:		{},
 			fill:		{},
+			filter:     {},
 			styleFunc:  null,
 			font:		"",
 			fontColor:	""
@@ -12357,13 +12029,11 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 			//		The chart this plot belongs to.
 			// kwArgs: dojox.charting.plot2d.__BarCtorArgs?
 			//		An optional keyword arguments object to help define the plot.
-			this.opt = lang.clone(this.defaultParams);
+			this.opt = lang.clone(lang.mixin(this.opt, this.defaultParams));
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
 			this.animate = this.opt.animate;
+			this.renderingOptions = { "shape-rendering": "crispEdges" };
 		},
 
 		getSeriesStats: function(){
@@ -12371,12 +12041,12 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			var stats = dc.collectSimpleStats(this.series);
+			var stats = dc.collectSimpleStats(this.series, lang.hitch(this, "isNullValue"));
 			stats.hmin -= 0.5;
 			stats.hmax += 0.5;
 			return stats; // Object
 		},
-		
+
 		createRect: function(run, creator, params){
 			var rect;
 			if(this.opt.enableCache && run._rectFreePool.length > 0){
@@ -12405,27 +12075,32 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 			if(this.zoom && !this.isDataDirty()){
 				return this.performZoom(dim, offsets);
 			}
-			// TODO do we need to call this? This is not done in Bars.js
-			this.getSeriesStats();
 			this.resetEvents();
 			this.dirty = this.isDirty();
 			var s;
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				s = this.group;
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 			var t = this.chart.theme,
 				ht = this._hScaler.scaler.getTransformerFromModel(this._hScaler),
 				vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
-				baseline = Math.max(0, this._vScaler.bounds.lower),
+				baseline = Math.max(this._vScaler.bounds.lower,
+					this._vAxis ? this._vAxis.naturalBaseline : 0),
 				baselineHeight = vt(baseline),
-				events = this.events();
-			var bar = this.getBarProperties();
-			
-			for(var i = this.series.length - 1; i >= 0; --i){
+				events = this.events(),
+				bar = this.getBarProperties();
+
+			var z = 0; // the non-hidden series index
+
+			// Collect and calculate  all values
+			var extractedValues = this.extractValues(this._hScaler);
+			extractedValues = this.rearrangeValues(extractedValues, vt, baselineHeight);
+
+			for(var i = 0; i < this.series.length; i++){
 				var run = this.series[i];
 				if(!this.dirty && !run.dirty){
 					t.skip();
@@ -12439,6 +12114,12 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 				}
 				var theme = t.next("column", [this.opt, run]),
 					eventSeries = new Array(run.data.length);
+
+				if(run.hidden){
+					run.dyn.fill = theme.series.fill;
+					continue;
+				}
+
 				s = run.group;
 				var indexed = arr.some(run.data, function(item){
 					return typeof item == "number" || (item && !item.hasOwnProperty("x"));
@@ -12449,13 +12130,13 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 				var max = indexed?Math.min(run.data.length, Math.ceil(this._hScaler.bounds.to)):run.data.length;
 				for(var j = min; j < max; ++j){
 					var value = run.data[j];
-					if(value != null){
+					if(!this.isNullValue(value)){
 						var val = this.getValue(value, j, i, indexed),
 							vv = vt(val.y),
-							h = Math.abs(vv - baselineHeight), 
+							h = extractedValues[i][j],
 							finalTheme,
 							sshape;
-						
+
 						if(this.opt.styleFunc || typeof value != "number"){
 							var tMixin = typeof value != "number" ? [value] : [];
 							if(this.opt.styleFunc){
@@ -12465,13 +12146,13 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 						}else{
 							finalTheme = t.post(theme, "column");
 						}
-						
-						if(bar.width >= 1 && h >= 0){
+
+						if(bar.width >= 1){
 							var rect = {
-								x: offsets.l + ht(val.x + 0.5) + bar.gap + bar.thickness * i,
-								y: dim.height - offsets.b - (val.y > baseline ? vv : baselineHeight),
-								width: bar.width, 
-								height: h
+								x: offsets.l + ht(val.x + 0.5) + bar.gap + bar.thickness * z,
+								y: dim.height - offsets.b - baselineHeight - Math.max(h, 0),
+								width: bar.width,
+								height: Math.abs(h)
 							};
 							if(finalTheme.series.shadow){
 								var srect = lang.clone(rect);
@@ -12482,10 +12163,14 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 									this._animateColumn(sshape, dim.height - offsets.b + baselineHeight, h);
 								}
 							}
-							
+
 							var specialFill = this._plotFill(finalTheme.series.fill, dim, offsets);
 							specialFill = this._shapeFill(specialFill, rect);
 							var shape = this.createRect(run, s, rect).setFill(specialFill).setStroke(finalTheme.series.stroke);
+							this.overrideShape(shape, {index: j, value: val});
+							if(shape.setFilter && finalTheme.series.filter){
+								shape.setFilter(finalTheme.series.filter);
+							}
 							run.dyn.fill   = shape.getFill();
 							run.dyn.stroke = shape.getStroke();
 							if(events){
@@ -12495,12 +12180,20 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 									run:     run,
 									shape:   shape,
 									shadow:  sshape,
-									x:       val.x + 0.5,
-									y:       val.y
+									cx:      val.x + 0.5,
+									cy:      val.y,
+									x:	     indexed?j:run.data[j].x,
+									y:	 	 indexed?run.data[j]:run.data[j].y
 								};
 								this._connectEvents(o);
 								eventSeries[j] = o;
 							}
+							// if val.py is here, this means we are stacking and we need to subtract previous
+							// value to get the high in which we will lay out the label
+							if(!isNaN(val.py) && val.py > baseline){
+								rect.height = h - vt(val.py);
+							}
+							this.createLabel(s, value, rect, finalTheme);
 							if(this.animate){
 								this._animateColumn(shape, dim.height - offsets.b - baselineHeight, h);
 							}
@@ -12509,8 +12202,14 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 				}
 				this._eventSeries[run.name] = eventSeries;
 				run.dirty = false;
+				z++;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/Columns
 		},
 		getValue: function(value, j, seriesIndex, indexed){
@@ -12526,15 +12225,64 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 				y = value.y;
 				x = value.x - 1;
 			}
-			return {y:y, x:x};
+			return { x: x, y: y };
+		},
+		extractValues: function(scaler){
+			var extracted = [];
+			for(var i = this.series.length - 1; i >= 0; --i){
+				var run = this.series[i];
+				if(!this.dirty && !run.dirty){
+					continue;
+				}
+				// on indexed charts we can easily just interate from the first visible to the last visible
+				// data point to save time
+				var indexed = arr.some(run.data, function(item){
+						return typeof item == "number" || (item && !item.hasOwnProperty("x"));
+					}),
+					min = indexed ? Math.max(0, Math.floor(scaler.bounds.from - 1)) : 0,
+					max = indexed ? Math.min(run.data.length, Math.ceil(scaler.bounds.to)) : run.data.length,
+					extractedSet = extracted[i] = [];
+				extractedSet.min = min;
+				extractedSet.max = max;
+				for(var j = min; j < max; ++j){
+					var value = run.data[j];
+					extractedSet[j] = this.isNullValue(value) ? 0 :
+						(typeof value == "number" ? value : value.y);
+				}
+			}
+			return extracted;
+		},
+		rearrangeValues: function(values, transform, baseline){
+			// transform to pixels
+			for(var i = 0, n = values.length; i < n; ++i){
+				var extractedSet = values[i];
+				if(extractedSet){
+					for(var j = extractedSet.min, k = extractedSet.max; j < k; ++j){
+						var value = extractedSet[j];
+						extractedSet[j] = this.isNullValue(value) ? 0 : transform(value) - baseline;
+					}
+				}
+			}
+			return values;
+		},
+
+		isNullValue: function(value){
+			if(value === null || typeof value == "undefined"){
+				return true;
+			}
+			var h = this._hAxis ? this._hAxis.isNullValue : alwaysFalse,
+				v = this._vAxis ? this._vAxis.isNullValue : alwaysFalse;
+			if(typeof value == "number"){
+				return v(0.5) || h(value);
+			}
+			return v(isNaN(value.x) ? 0.5 : value.x + 0.5) || value.y === null || h(value.y);
 		},
 		getBarProperties: function(){
 			var f = dc.calculateBarSize(this._hScaler.bounds.scale, this.opt);
 			return {gap: f.gap, width: f.size, thickness: 0};
 		},
-		
 		_animateColumn: function(shape, voffset, vsize){
-			if(vsize==0){
+			if(vsize===0){
 				vsize = 1;
 			}
 			fx.animateTransform(lang.delegate({
@@ -12547,14 +12295,14 @@ define("dojox/charting/plot2d/Columns", ["dojo/_base/lang", "dojo/_base/array", 
 				]
 			}, this.animate)).play();
 		}
-		
+
 	});
 });
 
 },
 'dojox/charting/plot2d/StackedColumns':function(){
-define("dojox/charting/plot2d/StackedColumns", ["dojo/_base/declare", "./Columns", "./commonStacked"], 
-	function( declare, Columns, commonStacked){
+define(["dojo/_base/declare", "dojo/_base/lang", "./Columns", "./commonStacked"], 
+	function(declare, lang, Columns, commonStacked){
 
 	return declare("dojox.charting.plot2d.StackedColumns", Columns, {
 		// summary:
@@ -12564,56 +12312,50 @@ define("dojox/charting/plot2d/StackedColumns", ["dojo/_base/declare", "./Columns
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			var stats = commonStacked.collectStats(this.series);
+			var stats = commonStacked.collectStats(this.series, lang.hitch(this, "isNullValue"));
 			stats.hmin -= 0.5;
 			stats.hmax += 0.5;
 			return stats; // Object
 		},
-		getValue: function(value, index, seriesIndex, indexed){
-			var y,x;
-			if(indexed){
-				x = index;
-				y = commonStacked.getIndexValue(this.series, seriesIndex, x);
-			}else{
-				x = value.x - 1;
-				y = commonStacked.getValue(this.series, seriesIndex, value.x);
-				y = y ? y.y: null;
-			}
-			return {y:y, x:x};
-		}
+
+		rearrangeValues: function(values, transform, baseline){
+			return commonStacked.rearrangeValues.call(this, values, transform, baseline);
+ 		}
 	});
 });
 
 },
 'dojox/charting/plot2d/ClusteredColumns':function(){
-define("dojox/charting/plot2d/ClusteredColumns", ["dojo/_base/declare", "./Columns", "./common"], 
-	function(declare, Columns, dc){
+define(["dojo/_base/declare", "dojo/_base/array", "./Columns", "./common"], 
+	function(declare, array, Columns, dc){
 
 	return declare("dojox.charting.plot2d.ClusteredColumns", Columns, {
 		// summary:
 		//		A plot representing grouped or clustered columns (vertical bars)
 		getBarProperties: function(){
-			var f = dc.calculateBarSize(this._hScaler.bounds.scale, this.opt, this.series.length);
-			return {gap: f.gap, width: f.size, thickness: f.size};
+			var length = this.series.length;
+			array.forEach(this.series, function(serie){if(serie.hidden){length--;}});
+			var f = dc.calculateBarSize(this._hScaler.bounds.scale, this.opt, length);
+			return {gap: f.gap, width: f.size, thickness: f.size, clusterSize: length};
 		}
 	});
 });
 
 },
 'dojox/charting/plot2d/Bars':function(){
-define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "./CartesianBase", "./_PlotEvents", "./common",
-	"dojox/gfx/fx", "dojox/lang/utils", "dojox/lang/functional", "dojox/lang/functional/reversed"], 
-	function(dojo, lang, arr, declare, CartesianBase, _PlotEvents, dc, fx, du, df, dfr){
-		
+define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/has", "./CartesianBase", "./_PlotEvents", "./common",
+	"dojox/gfx/fx", "dojox/lang/utils", "dojox/lang/functional"],
+	function(lang, arr, declare, has, CartesianBase, _PlotEvents, dc, fx, du, df){
+
 	/*=====
 	declare("dojox.charting.plot2d.__BarCtorArgs", dojox.charting.plot2d.__DefaultCtorArgs, {
 		// summary:
 		//		Additional keyword arguments for bar charts.
-	
+
 		// minBarSize: Number?
 		//		The minimum size for a bar in pixels.  Default is 1.
 		minBarSize: 1,
-	
+
 		// maxBarSize: Number?
 		//		The maximum size for a bar in pixels.  Default is 1.
 		maxBarSize: 1,
@@ -12634,6 +12376,11 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 		//		Any fill to be used for elements on the plot.
 		fill:		{},
 
+		// filter: dojox.gfx.Filter?
+	 	//		An SVG filter to be used for elements on the plot. gfx SVG renderer must be used and dojox/gfx/svgext must
+	 	//		be required for this to work.
+	 	filter:		{},
+
 		// styleFunc: Function?
 		//		A function that returns a styling object for the a given data item.
 		styleFunc:	null,
@@ -12645,21 +12392,20 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 		// fontColor: String|dojo.Color?
 		//		The color to be used for any text-based elements on the plot.
 		fontColor:	"",
-		
+
 		// enableCache: Boolean?
 		//		Whether the bars rect are cached from one rendering to another. This improves the rendering performance of
 		//		successive rendering but penalize the first rendering.  Default false.
 		enableCache: false
 	});
 	=====*/
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+
+	var alwaysFalse = function(){ return false; }
 
 	return declare("dojox.charting.plot2d.Bars", [CartesianBase, _PlotEvents], {
 		// summary:
 		//		The plot object representing a bar chart (horizontal bars).
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			gap:	0,		// gap between columns in pixels
 			animate: null,   // animate bars into place
 			enableCache: false
@@ -12672,6 +12418,7 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 			outline:	{},
 			shadow:		{},
 			fill:		{},
+			filter:	    {},
 			styleFunc:  null,
 			font:		"",
 			fontColor:	""
@@ -12684,13 +12431,11 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 			//		The chart this plot belongs to.
 			// kwArgs: dojox.charting.plot2d.__BarCtorArgs?
 			//		An optional keyword arguments object to help define the plot.
-			this.opt = lang.clone(this.defaultParams);
+			this.opt = lang.clone(lang.mixin(this.opt, this.defaultParams));
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
 			this.animate = this.opt.animate;
+			this.renderingOptions = { "shape-rendering": "crispEdges" };
 		},
 
 		getSeriesStats: function(){
@@ -12698,14 +12443,14 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			var stats = dc.collectSimpleStats(this.series), t;
+			var stats = dc.collectSimpleStats(this.series, lang.hitch(this, "isNullValue")), t;
 			stats.hmin -= 0.5;
 			stats.hmax += 0.5;
 			t = stats.hmin, stats.hmin = stats.vmin, stats.vmin = t;
 			t = stats.hmax, stats.hmax = stats.vmax, stats.vmax = t;
 			return stats; // Object
 		},
-		
+
 		createRect: function(run, creator, params){
 			var rect;
 			if(this.opt.enableCache && run._rectFreePool.length > 0){
@@ -12720,6 +12465,16 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 				run._rectUsePool.push(rect);
 			}
 			return rect;
+		},
+
+		createLabel: function(group, value, bbox, theme){
+			if(this.opt.labels && this.opt.labelStyle == "outside"){
+				var y = bbox.y + bbox.height / 2;
+				var x = bbox.x + bbox.width + this.opt.labelOffset;
+				this.renderLabel(group, x, y, this._getLabel(isNaN(value.y)?value:value.y), theme, "start");
+          	}else{
+				this.inherited(arguments);
+			}
 		},
 
 		render: function(dim, offsets){
@@ -12738,21 +12493,30 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 			this.resetEvents();
 			var s;
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				s = this.group;
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 			var t = this.chart.theme,
 				ht = this._hScaler.scaler.getTransformerFromModel(this._hScaler),
 				vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
-				baseline = Math.max(0, this._hScaler.bounds.lower),
+				baseline = Math.max(this._hScaler.bounds.lower,
+					this._hAxis ? this._hAxis.naturalBaseline : 0),
 				baselineWidth = ht(baseline),
 				events = this.events();
 			var bar = this.getBarProperties();
-			
-			for(var i = this.series.length - 1; i >= 0; --i){
+
+			var actualLength = this.series.length;
+			arr.forEach(this.series, function(serie){if(serie.hidden){actualLength--;}});
+			var z = actualLength;
+
+			// Collect and calculate all values
+			var extractedValues = this.extractValues(this._vScaler);
+			extractedValues = this.rearrangeValues(extractedValues, ht, baselineWidth);
+
+			for(var i = 0; i < this.series.length; i++){
 				var run = this.series[i];
 				if(!this.dirty && !run.dirty){
 					t.skip();
@@ -12764,8 +12528,15 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 					run._rectFreePool = (run._rectFreePool?run._rectFreePool:[]).concat(run._rectUsePool?run._rectUsePool:[]);
 					run._rectUsePool = [];
 				}
-				var theme = t.next("bar", [this.opt, run]),
-					eventSeries = new Array(run.data.length);
+				var theme = t.next("bar", [this.opt, run]);
+				if(run.hidden){
+					run.dyn.fill = theme.series.fill;
+					run.dyn.stroke = theme.series.stroke;
+					continue;
+				}
+				z--;
+
+				var	eventSeries = new Array(run.data.length);
 				s = run.group;
 				var indexed = arr.some(run.data, function(item){
 					return typeof item == "number" || (item && !item.hasOwnProperty("x"));
@@ -12776,12 +12547,9 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 				var max = indexed?Math.min(run.data.length, Math.ceil(this._vScaler.bounds.to)):run.data.length;
 				for(var j = min; j < max; ++j){
 					var value = run.data[j];
-					if(value != null){
+					if(!this.isNullValue(value)){
 						var val = this.getValue(value, j, i, indexed),
-							hv = ht(val.y),
-							w = Math.abs(hv - baselineWidth),
-							finalTheme,
-							sshape;
+							w = extractedValues[i][j], finalTheme, sshape;
 						if(this.opt.styleFunc || typeof value != "number"){
 							var tMixin = typeof value != "number" ? [value] : [];
 							if(this.opt.styleFunc){
@@ -12791,11 +12559,11 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 						}else{
 							finalTheme = t.post(theme, "bar");
 						}
-						if(w >= 0 && bar.height >= 1){
+						if(w && bar.height >= 1){
 							var rect = {
-								x: offsets.l + (val.y < baseline ? hv : baselineWidth),
-								y: dim.height - offsets.b - vt(val.x + 1.5) + bar.gap + bar.thickness * (this.series.length - i - 1),
-								width: w,
+								x: offsets.l + baselineWidth + Math.min(w, 0),
+								y: dim.height - offsets.b - vt(val.x + 1.5) + bar.gap + bar.thickness * (actualLength - z - 1),
+								width: Math.abs(w),
 								height: bar.height
 							};
 							if(finalTheme.series.shadow){
@@ -12807,9 +12575,13 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 									this._animateBar(sshape, offsets.l + baselineWidth, -w);
 								}
 							}
+
 							var specialFill = this._plotFill(finalTheme.series.fill, dim, offsets);
 							specialFill = this._shapeFill(specialFill, rect);
 							var shape = this.createRect(run, s, rect).setFill(specialFill).setStroke(finalTheme.series.stroke);
+							if(shape.setFilter && finalTheme.series.filter){
+								shape.setFilter(finalTheme.series.filter);
+							}
 							run.dyn.fill   = shape.getFill();
 							run.dyn.stroke = shape.getStroke();
 							if(events){
@@ -12819,14 +12591,21 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 									run:     run,
 									shape:   shape,
 									shadow:	 sshape,
-									x:       val.y,
-									y:       val.x + 1.5
+									cx:      val.y,
+									cy:      val.x + 1.5,
+									x:	     indexed?j:run.data[j].x,
+									y:	 	 indexed?run.data[j]:run.data[j].y
 								};
 								this._connectEvents(o);
 								eventSeries[j] = o;
 							}
+							if(!isNaN(val.py) && val.py > baseline){
+								rect.x += ht(val.py);
+								rect.width -= ht(val.py);
+							}
+							this.createLabel(s, value, rect, finalTheme);
 							if(this.animate){
-								this._animateBar(shape, offsets.l + baselineWidth, -w);
+								this._animateBar(shape, offsets.l + baselineWidth, -Math.abs(w));
 							}
 						}
 					}
@@ -12835,10 +12614,15 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 				run.dirty = false;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/Bars
 		},
 		getValue: function(value, j, seriesIndex, indexed){
-			var y,x;
+			var y, x;
 			if(indexed){
 				if(typeof value == "number"){
 					y = value;
@@ -12851,6 +12635,55 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 				x = value.x -1;
 			}
 			return {y:y, x:x};
+		},
+		extractValues: function(scaler){
+			var extracted = [];
+			for(var i = this.series.length - 1; i >= 0; --i){
+				var run = this.series[i];
+				if(!this.dirty && !run.dirty){
+					continue;
+				}
+				// on indexed charts we can easily just interate from the first visible to the last visible
+				// data point to save time
+				var indexed = arr.some(run.data, function(item){
+						return typeof item == "number" || (item && !item.hasOwnProperty("x"));
+					}),
+					min = indexed ? Math.max(0, Math.floor(scaler.bounds.from - 1)) : 0,
+					max = indexed ? Math.min(run.data.length, Math.ceil(scaler.bounds.to)) : run.data.length,
+					extractedSet = extracted[i] = [];
+				extractedSet.min = min;
+				extractedSet.max = max;
+				for(var j = min; j < max; ++j){
+					var value = run.data[j];
+					extractedSet[j] = this.isNullValue(value) ? 0 :
+						(typeof value == "number" ? value : value.y);
+				}
+			}
+			return extracted;
+		},
+		rearrangeValues: function(values, transform, baseline){
+			// transform to pixels
+			for(var i = 0, n = values.length; i < n; ++i){
+				var extractedSet = values[i];
+				if(extractedSet){
+					for(var j = extractedSet.min, k = extractedSet.max; j < k; ++j){
+						var value = extractedSet[j];
+						extractedSet[j] = this.isNullValue(value) ? 0 : transform(value) - baseline;
+					}
+				}
+			}
+			return values;
+		},
+		isNullValue: function(value){
+			if(value === null || typeof value == "undefined"){
+				return true;
+			}
+			var h = this._hAxis ? this._hAxis.isNullValue : alwaysFalse,
+				v = this._vAxis ? this._vAxis.isNullValue : alwaysFalse;
+			if(typeof value == "number"){
+				return v(0.5) || h(value);
+			}
+			return v(isNaN(value.x) ? 0.5 : value.x + 0.5) || value.y === null || h(value.y);
 		},
 		getBarProperties: function(){
 			var f = dc.calculateBarSize(this._vScaler.bounds.scale, this.opt);
@@ -12875,8 +12708,8 @@ define("dojox/charting/plot2d/Bars", ["dojo/_base/kernel", "dojo/_base/lang", "d
 
 },
 'dojox/charting/plot2d/StackedBars':function(){
-define("dojox/charting/plot2d/StackedBars", ["dojo/_base/declare", "./Bars", "./commonStacked"], 
-	function(declare, Bars, commonStacked){
+define(["dojo/_base/declare", "dojo/_base/lang", "./Bars", "./commonStacked"], 
+	function(declare, lang, Bars, commonStacked){
 
 	return declare("dojox.charting.plot2d.StackedBars", Bars, {
 		// summary:
@@ -12886,38 +12719,31 @@ define("dojox/charting/plot2d/StackedBars", ["dojo/_base/declare", "./Bars", "./
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			var stats = commonStacked.collectStats(this.series), t;
+			var stats = commonStacked.collectStats(this.series, lang.hitch(this, "isNullValue")), t;
 			stats.hmin -= 0.5;
 			stats.hmax += 0.5;
 			t = stats.hmin, stats.hmin = stats.vmin, stats.vmin = t;
 			t = stats.hmax, stats.hmax = stats.vmax, stats.vmax = t;
 			return stats; // Object
 		},
-		getValue: function(value, index, seriesIndex, indexed){
-			var y,x;
-			if(indexed){
-				x = index;
-				y = commonStacked.getIndexValue(this.series, seriesIndex, x);
-			}else{
-				x = value.x - 1;
-				y = commonStacked.getValue(this.series, seriesIndex, value.x);
-				y = y ? y.y: null;
-			}
-			return {y:y, x:x};
+		rearrangeValues: function(values, transform, baseline){
+			return commonStacked.rearrangeValues.call(this, values, transform, baseline);
 		}
 	});
 });
 
 },
 'dojox/charting/plot2d/ClusteredBars':function(){
-define("dojox/charting/plot2d/ClusteredBars", ["dojo/_base/declare", "./Bars", "./common"], 
-	function(declare, Bars, dc){
+define(["dojo/_base/declare", "dojo/_base/array", "./Bars", "./common"], 
+	function(declare, array, Bars, dc){
 
 	return declare("dojox.charting.plot2d.ClusteredBars", Bars, {
 		// summary:
 		//		A plot representing grouped or clustered bars (horizontal bars)
 		getBarProperties: function(){
-			var f = dc.calculateBarSize(this._vScaler.bounds.scale, this.opt, this.series.length);
+			var length = this.series.length;
+			array.forEach(this.series, function(serie){if(serie.hidden){length--;}});
+			var f = dc.calculateBarSize(this._vScaler.bounds.scale, this.opt, length);
 			return {gap: f.gap, height: f.size, thickness: f.size};
 		}
 	});
@@ -12925,12 +12751,14 @@ define("dojox/charting/plot2d/ClusteredBars", ["dojo/_base/declare", "./Bars", "
 
 },
 'dojox/charting/plot2d/Grid':function(){
-define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", "dojo/_base/array",
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/sniff",
 		"./CartesianBase", "./common", "dojox/lang/utils", "dojox/gfx/fx"],
-	function(lang, declare, hub, arr, CartesianBase, dc, du, fx){
+	function(lang, declare, arr, has, CartesianBase, dc, du, fx){
+
+	var sortTicks = function(a,b){return a.value - b.value};
 
 	/*=====
-	declare("dojox.charting.plot2d.__GridCtorArgs", dojox.charting.plot2d.__DefaultCtorArgs, {
+	declare("dojox.charting.plot2d.__GridCtorArgs", dojox.charting.plot2d.__CartesianCtorArgs, {
 		// summary:
 		//		A special keyword arguments object that is specific to a grid "plot".
 
@@ -12950,6 +12778,22 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 		//		An optional dojox.gfx.Stroke for a minor vertical line. By default major lines use major tick stroke.
 		minorVLine:undefined,
 
+		// hFill: dojox.gfx.Fill?
+		//		An optional dojox.gfx.Fill used to fill every other horizontal stripe created by grid lines.
+		hFill: undefined,
+
+		// hAlternateFill: dojox.gfx.Fill?
+		//		An optional dojox.gfx.Fill used to fill alternating horizontal stripe created by grid lines not filled by `hFill`.
+		hAlternateFill: undefined,
+
+		// vFill: dojox.gfx.Fill?
+		//		An optional dojox.gfx.Fill used to fill every other vertical stripe created by grid lines.
+		vFill: undefined,
+
+		// vAlternateFill: dojox.gfx.Fill?
+		//		An optional dojox.gfx.Fill used to fill alternating vertical stripe created by grid lines not filled by `vFill`.
+		vAlternateFill: undefined,
+
 		// hMajorLines: Boolean?
 		//		Whether to show lines at the major ticks along the horizontal axis. Default is true.
 		hMajorLines: true,
@@ -12965,6 +12809,14 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 		// vMinorLines: Boolean?
 		//		Whether to show lines at the major ticks along the vertical axis. Default is false.
 		vMinorLines: false,
+
+		// hStripes: Boolean?
+		//		Whether to show horizontal stripes. Default is false.
+		hStripes: false,
+
+		// vStripes: Boolean?
+		//		Whether to show vertical stripes. Default is false.
+		vStripes: false,
 
 		// enableCache: Boolean?
 		//		Whether the grid lines are cached from one rendering to another. This improves the rendering performance of
@@ -12982,14 +12834,12 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 		//		A "faux" plot that can be placed behind other plots to represent
 		//		a grid against which other plots can be easily measured.
 		defaultParams: {
-			hAxis: "x",			// use a horizontal axis named "x"
-			vAxis: "y",			// use a vertical axis named "y"
 			hMajorLines: true,	// draw horizontal major lines
 			hMinorLines: false,	// draw horizontal minor lines
 			vMajorLines: true,	// draw vertical major lines
 			vMinorLines: false,	// draw vertical minor lines
-			hStripes: false,	// TBD, stripes are not implemented
-			vStripes: false,	// TBD, stripes are not implemented
+			hStripes: false,	// draw vertical stripes
+			vStripes: false,	// draw vertical stripes
 			animate: null,   // animate bars into place
 			enableCache: false,
 			renderOnAxis: true
@@ -12999,7 +12849,11 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 			majorHLine: {},
 			minorHLine: {},
 			majorVLine: {},
-			minorVLine: {}
+			minorVLine: {},
+			hFill: {},
+			vFill: {},
+			hAlternateFill: {},
+			vAlternateFill: {}
 		},
 
 		constructor: function(chart, kwArgs){
@@ -13012,12 +12866,12 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 			this.opt = lang.clone(this.defaultParams);
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
 			this.animate = this.opt.animate;
 			if(this.opt.enableCache){
 				this._lineFreePool = [];
 				this._lineUsePool = [];
+				this._rectFreePool = [];
+				this._rectUsePool = [];
 			}
 		},
 		addSeries: function(run){
@@ -13039,6 +12893,8 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 			if(this.opt.enableCache){
 				this._lineFreePool = this._lineFreePool.concat(this._lineUsePool);
 				this._lineUsePool = [];
+				this._rectFreePool = this._rectFreePool.concat(this._rectUsePool);
+				this._rectUsePool = [];
 			}
 		},
 		createLine: function(creator, params){
@@ -13056,6 +12912,22 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 			}
 			return line;
 		},
+		createRect: function(creator, params){
+			var rect;
+			if(this.opt.enableCache && this._rectFreePool.length > 0){
+				rect = this._rectFreePool.pop();
+				rect.setShape(params);
+				// was cleared, add it back
+				creator.add(rect);
+			}else{
+				rect = creator.createRect(params);
+			}
+			if(this.opt.enableCache){
+				this._rectUsePool.push(rect);
+			}
+			return rect;
+		},
+		
 		render: function(dim, offsets){
 			// summary:
 			//		Render the plot on the chart.
@@ -13071,103 +12943,154 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 			this.dirty = this.isDirty();
 			if(!this.dirty){ return this; }
 			this.cleanGroup();
-			var s = this.group, ta = this.chart.theme, lineStroke;
-			var renderOnAxis = this.opt.renderOnAxis;
+			var s = this.getGroup(), ta = this.chart.theme, lineStroke, ticks;
+			if((has("ios") && has("ios") < 6) || has("android") || (has("safari") && !has("ios"))){
+				// clipping seems buggy in some mobile Webkit browser and Safari desktop
+				// it does not clip correctly if only lines are present => create a invisible rectangle...
+				var w = Math.max(0, dim.width  - offsets.l - offsets.r),
+					h = Math.max(0, dim.height - offsets.t - offsets.b);
+				s.createRect({ x: offsets.l, y: offsets.t, width: w, height: h});
+			}
 			if(this._vAxis){
+				// draw horizontal stripes and lines
+				ticks = this._vAxis.getTicks();
 				var vScaler = this._vAxis.getScaler();
-				if(vScaler){
+				if(ticks != null && vScaler != null){
 					var vt = vScaler.scaler.getTransformerFromModel(vScaler);
-					var ticks;
-					// draw horizontal stripes and lines
-					ticks = this._vAxis.getTicks();
-					if(ticks != null){
-						if(this.opt.hMinorLines){
-							lineStroke = this.opt.minorHLine || (ta.grid && ta.grid.minorLine) || ta.axis.minorTick;
-							arr.forEach(ticks.minor, function(tick){
-								if(!renderOnAxis && tick.value == (this._vAxis.opt.leftBottom?vScaler.bounds.from:vScaler.bounds.to)){
-									return;
-								}
-								var y = dim.height - offsets.b - vt(tick.value);
-								var hMinorLine = this.createLine(s, {
-									x1: offsets.l,
-									y1: y,
-									x2: dim.width - offsets.r,
-									y2: y
-								}).setStroke(lineStroke);
-								if(this.animate){
-									this._animateGrid(hMinorLine, "h", offsets.l, offsets.r + offsets.l - dim.width);
-								}
-							}, this);
-						}
-						if(this.opt.hMajorLines){
-							lineStroke = this.opt.majorHLine || (ta.grid && ta.grid.majorLine) || ta.axis.majorTick;
-							arr.forEach(ticks.major, function(tick){
-								if(!renderOnAxis && tick.value == (this._vAxis.opt.leftBottom?vScaler.bounds.from:vScaler.bounds.to)){
-									return;
-								}
-								var y = dim.height - offsets.b - vt(tick.value);
-								var hMajorLine = this.createLine(s, {
-									x1: offsets.l,
-									y1: y,
-									x2: dim.width - offsets.r,
-									y2: y
-								}).setStroke(lineStroke);
-								if(this.animate){
-									this._animateGrid(hMajorLine, "h", offsets.l, offsets.r + offsets.l - dim.width);
-								}
-							}, this);
-						}
+					if(this.opt.hStripes){
+						this._renderHRect(ticks, ta.grid, dim, offsets, vScaler, vt);
+					}
+					if(this.opt.hMinorLines){
+						lineStroke = this.opt.minorHLine || (ta.grid && ta.grid.minorLine) || ta.axis.minorTick;
+						this._renderHLines(ticks.minor, lineStroke, dim, offsets, vScaler, vt);
+					}
+					if(this.opt.hMajorLines){
+						lineStroke = this.opt.majorHLine || (ta.grid && ta.grid.majorLine) || ta.axis.majorTick;
+						this._renderHLines(ticks.major, lineStroke, dim, offsets, vScaler, vt);
 					}
 				}
+				
 			}
 			if(this._hAxis){
+				// draw vertical stripes and lines
+				ticks = this._hAxis.getTicks();
 				var hScaler = this._hAxis.getScaler();
-				if(hScaler){
+				if(ticks != null && hScaler != null){
 					var ht = hScaler.scaler.getTransformerFromModel(hScaler);
-					// draw vertical stripes and lines
-					ticks = this._hAxis.getTicks();
-					if(this != null){
-						if(ticks && this.opt.vMinorLines){
-							lineStroke = this.opt.minorVLine || (ta.grid && ta.grid.minorLine) || ta.axis.minorTick;
-							arr.forEach(ticks.minor, function(tick){
-								if(!renderOnAxis && tick.value == (this._hAxis.opt.leftBottom?hScaler.bounds.from:hScaler.bounds.to)){
-									return;
-								}
-								var x = offsets.l + ht(tick.value);
-								var vMinorLine = this.createLine(s, {
-									x1: x,
-									y1: offsets.t,
-									x2: x,
-									y2: dim.height - offsets.b
-								}).setStroke(lineStroke);
-								if(this.animate){
-									this._animateGrid(vMinorLine, "v", dim.height - offsets.b, dim.height - offsets.b - offsets.t);
-								}
-							}, this);
-						}
-						if(ticks && this.opt.vMajorLines){
-							lineStroke = this.opt.majorVLine || (ta.grid && ta.grid.majorLine) || ta.axis.majorTick;
-							arr.forEach(ticks.major, function(tick){
-								if(!renderOnAxis && tick.value == (this._hAxis.opt.leftBottom?hScaler.bounds.from:hScaler.bounds.to)){
-									return;
-								}
-								var x = offsets.l + ht(tick.value);
-								var vMajorLine = this.createLine(s, {
-									x1: x,
-									y1: offsets.t,
-									x2: x,
-									y2: dim.height - offsets.b
-								}).setStroke(lineStroke);
-								if(this.animate){
-									this._animateGrid(vMajorLine, "v", dim.height - offsets.b, dim.height - offsets.b - offsets.t);
-								}
-							}, this);
-						}
+					if(this.opt.vStripes){
+						this._renderVRect(ticks, ta.grid, dim, offsets, hScaler, ht);
 					}
+					if(ticks && this.opt.vMinorLines){
+						lineStroke = this.opt.minorVLine || (ta.grid && ta.grid.minorLine) || ta.axis.minorTick;
+						this._renderVLines(ticks.minor, lineStroke, dim, offsets, hScaler, ht);
+					}
+					if(ticks && this.opt.vMajorLines){
+						lineStroke = this.opt.majorVLine || (ta.grid && ta.grid.majorLine) || ta.axis.majorTick;
+						this._renderVLines(ticks.major, lineStroke, dim, offsets, hScaler, ht);
+					}
+
 				}
 			}
 			this.dirty = false;
 			return this;	//	dojox/charting/plot2d/Grid
+		},
+		_renderHLines: function(ticks, lineStroke, dim, offsets, vScaler, vt){
+			var s = this.getGroup();
+			arr.forEach(ticks, function(tick){
+				if(!this.opt.renderOnAxis && tick.value == (this._vAxis.opt.leftBottom?vScaler.bounds.from:vScaler.bounds.to)){
+					return;
+				}
+				var y = dim.height - offsets.b - vt(tick.value);
+				var hLine = this.createLine(s, {
+					x1: offsets.l,
+					y1: y,
+					x2: dim.width - offsets.r,
+					y2: y
+				}).setStroke(lineStroke);
+				if(this.animate){
+					this._animateGrid(hLine, "h", offsets.l, offsets.r + offsets.l - dim.width);
+				}
+			}, this);
+		},
+		_renderVLines: function(ticks, lineStroke, dim, offsets, hScaler, ht){
+			var s = this.getGroup();
+			arr.forEach(ticks, function(tick){
+				if(!this.opt.renderOnAxis && tick.value == (this._hAxis.opt.leftBottom?hScaler.bounds.from:hScaler.bounds.to)){
+					return;
+				}
+				var x = offsets.l + ht(tick.value);
+				var vLine = this.createLine(s, {
+					x1: x,
+					y1: offsets.t,
+					x2: x,
+					y2: dim.height - offsets.b
+				}).setStroke(lineStroke);
+				if(this.animate){
+					this._animateGrid(vLine, "v", dim.height - offsets.b, dim.height - offsets.b - offsets.t);
+				}
+			}, this);
+		},
+		_renderHRect: function(ticks, theme, dim, offsets, vScaler, vt){
+			var fill, tick, y, y2, hStripe;
+			var allTicks = ticks.major.concat(ticks.minor);
+			allTicks.sort(sortTicks);
+			if(allTicks[0].value > vScaler.bounds.from){
+				allTicks.splice(0, 0, {value: vScaler.bounds.from});
+			}
+			if(allTicks[allTicks.length - 1].value < vScaler.bounds.to){
+				allTicks.push({value: vScaler.bounds.to});
+			}
+			var s = this.getGroup();
+			for(var j = 0; j < allTicks.length - 1; j++){
+				tick = allTicks[j];
+				y = dim.height - offsets.b - vt(tick.value);
+				y2 = dim.height - offsets.b - vt(allTicks[j+1].value);
+
+				fill = (j%2 == 0)?(this.opt.hAlternateFill ||(theme && theme.alternateFill)):
+					(this.opt.hFill || (theme && theme.fill));
+				if(fill){
+					hStripe = this.createRect(s, {
+						x: offsets.l,
+						y: y,
+						width: dim.width - offsets.r,
+						height: y - y2
+					}).setFill(fill);
+					if(this.animate){
+						this._animateGrid(hStripe, "h", offsets.l, offsets.r + offsets.l - dim.width);
+					}
+				}
+			}
+		},
+		_renderVRect: function(ticks, theme, dim, offsets, hScaler, ht){
+			var fill, tick, x, x2, vStripe;
+			var allTicks = ticks.major.concat(ticks.minor);
+			allTicks.sort(sortTicks);
+			if(allTicks[0].value > hScaler.bounds.from){
+				allTicks.splice(0, 0, {value: hScaler.bounds.from});
+			}
+			if(allTicks[allTicks.length - 1].value < hScaler.bounds.to){
+				allTicks.push({value: hScaler.bounds.to});
+			}
+			var s = this.getGroup();
+			for(var j = 0; j < allTicks.length - 1; j++){
+				tick = allTicks[j];
+				x = offsets.l + ht(tick.value);
+				x2 = offsets.l + ht(allTicks[j+1].value);
+
+				fill = (j%2 == 0)?(this.opt.vAlternateFill ||(theme && theme.alternateFill)):
+					(this.opt.vFill || (theme && theme.fill));
+				if(fill){
+					vStripe = this.createRect(s, {
+						x: x,
+						y: offsets.t,
+						width: x2 - x,
+						height: dim.width - offsets.r
+					}).setFill(fill);
+					if(this.animate){
+						this._animateGrid(vStripe, "v", dim.height - offsets.b, dim.height - offsets.b - offsets.t);
+					}
+				}
+			}
 		},
 		_animateGrid: function(shape, type, offset, size){
 			var transStart = type == "h" ? [offset, 0] : [0, offset];
@@ -13187,60 +13110,60 @@ define("dojox/charting/plot2d/Grid", ["dojo/_base/lang", "dojo/_base/declare", "
 
 },
 'dojox/charting/plot2d/Pie':function(){
-define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"dojo/_base/declare", 
-		"./Base", "./_PlotEvents", "./common", "../axis2d/common",
-		"dojox/gfx", "dojox/gfx/matrix", "dojox/lang/functional", "dojox/lang/utils"],
-	function(lang, arr, declare, Base, PlotEvents, dc, da, g, m, df, du){
+define(["dojo/_base/lang", "dojo/_base/array" ,"dojo/_base/declare", "dojo/dom-geometry", "dojo/_base/Color",
+		"./Base", "./_PlotEvents", "./common",
+		"dojox/gfx", "dojox/gfx/matrix", "dojox/lang/functional", "dojox/lang/utils","dojo/has"],
+	function(lang, arr, declare, domGeom, Color, Base, PlotEvents, dc, g, m, df, du, has){
 
 	/*=====
 	declare("dojox.charting.plot2d.__PieCtorArgs", dojox.charting.plot2d.__DefaultCtorArgs, {
 		// summary:
 		//		Specialized keyword arguments object for use in defining parameters on a Pie chart.
-	
+
 		// labels: Boolean?
 		//		Whether or not to draw labels for each pie slice.  Default is true.
 		labels:			true,
-	
+
 		// ticks: Boolean?
 		//		Whether or not to draw ticks to labels within each slice. Default is false.
 		ticks:			false,
-	
+
 		// fixed: Boolean?
-		//		TODO
+		//		Whether a fixed precision must be applied to data values for display. Default is true.
 		fixed:			true,
-	
+
 		// precision: Number?
-		//		The precision at which to sum/add data values. Default is 1.
+		//		The precision at which to round data values for display. Default is 0.
 		precision:		1,
-	
+
 		// labelOffset: Number?
 		//		The amount in pixels by which to offset labels.  Default is 20.
 		labelOffset:	20,
-	
+
 		// labelStyle: String?
 		//		Options as to where to draw labels.  Values include "default", and "columns".	Default is "default".
 		labelStyle:		"default",	// default/columns
-		
+
 		// omitLabels: Boolean?
 		//		Whether labels of slices small to the point of not being visible are omitted.	Default false.
 		omitLabels: false,
-		
+
 		// htmlLabels: Boolean?
 		//		Whether or not to use HTML to render slice labels. Default is true.
 		htmlLabels:		true,
-	
+
 		// radGrad: String?
 		//		The type of radial gradient to use in rendering.  Default is "native".
 		radGrad:        "native",
-	
+
 		// fanSize: Number?
 		//		The amount for a radial gradient.  Default is 5.
 		fanSize:		5,
-	
+
 		// startAngle: Number?
 		//		Where to being rendering gradients in slices, in degrees.  Default is 0.
 		startAngle:     0,
-	
+
 		// radius: Number?
 		//		The size of the radial gradient.  Default is 0.
 		radius:		0,
@@ -13253,9 +13176,24 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 		//		Any fill to be used for elements on the plot.
 		fill:		{},
 
+		// filter: dojox.gfx.Filter?
+		//		An SVG filter to be used for elements on the plot. gfx SVG renderer must be used and dojox/gfx/svgext must
+		//		be required for this to work.
+		filter:		{},
+
 		// styleFunc: Function?
 		//		A function that returns a styling object for the a given data item.
-		styleFunc:	null
+		styleFunc:	null,
+
+		// innerRadius: Number?
+		//		The inner radius of a ring in percent (0-100).  If value < 0
+		//		then it is assumed to be pixels, not percent.
+		innerRadius:	0,
+
+		//  minWidth: Number?
+		//      The minimum width of a pie slice at its chord. The default is 10px.
+		minWidth:   10
+
 	});
 	=====*/
 
@@ -13272,9 +13210,12 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 			labelOffset:	20,
 			labelStyle:		"default",	// default/columns
 			htmlLabels:		true,		// use HTML to draw labels
-			radGrad:        "native",	// or "linear", or "fan"
-			fanSize:		5,			// maximum fan size in degrees
-			startAngle:     0			// start angle for slices in degrees
+			radGrad:       "native",	// or "linear", or "fan"
+			fanSize:		   5,			// maximum fan size in degrees
+			startAngle:    0,			// start angle for slices in degrees
+			innerRadius:	0,			// inner radius in pixels
+			minWidth:      0,			// minimal width of degenerated slices
+			zeroDataMessage: ""     // The message to display when there is no data, if provided by the user.
 		},
 		optionalParams: {
 			radius:		0,
@@ -13284,6 +13225,7 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 			outline:	{},
 			shadow:		{},
 			fill:		{},
+			filter:     {},
 			styleFunc:	null,
 			font:		"",
 			fontColor:	"",
@@ -13299,6 +13241,10 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 			this.axes = [];
 			this.run = null;
 			this.dyn = [];
+			this.runFilter = [];
+			if(kwArgs && kwArgs.hasOwnProperty("innerRadius")){
+				this._plotSetInnerRadius = true;
+			}
 		},
 		clear: function(){
 			// summary:
@@ -13337,14 +13283,15 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 			//		Return the number of colors needed to draw this plot.
 			return this.run ? this.run.data.length : 0;
 		},
+
 		render: function(dim, offsets){
-			// summary:
+			//	summary:
 			//		Render the plot on the chart.
-			// dim: Object
+			//	dim: Object
 			//		An object of the form { width, height }.
-			// offsets: Object
+			//	offsets: Object
 			//		An object of the form { l, r, t, b }.
-			// returns: dojox/charting/plot2d/Pie
+			//	returns: dojox/charting/plot2d/Pie
 			//		A reference to this plot for functional chaining.
 			if(!this.dirty){ return this; }
 			this.resetEvents();
@@ -13353,78 +13300,106 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 			this.cleanGroup();
 			var s = this.group, t = this.chart.theme;
 
-			if(!this.run || !this.run.data.length){
-				return this;
+			if(!this._plotSetInnerRadius && t && t.pieInnerRadius){
+				this.opt.innerRadius = t.pieInnerRadius;
 			}
 
 			// calculate the geometry
 			var rx = (dim.width  - offsets.l - offsets.r) / 2,
 				ry = (dim.height - offsets.t - offsets.b) / 2,
 				r  = Math.min(rx, ry),
-				labelFont = "font" in this.opt ? this.opt.font : t.series.font,
-				size,
+				taFont = "font" in this.opt ? this.opt.font : t.axis.tick.titleFont || "",
+				size = taFont ? g.normalizedLength(g.splitFontString(taFont).size) : 0,
+				taFontColor = this.opt.hasOwnProperty("fontColor") ? this.opt.fontColor : t.axis.tick.fontColor,
 				startAngle = m._degToRad(this.opt.startAngle),
-				start = startAngle, step, filteredRun, slices, labels, shift, labelR,
+				start = startAngle, filteredRun, slices, labels, shift, labelR,
 				run = this.run.data,
 				events = this.events();
 
-			this.dyn = [];
+			/* Added to handle no data case */
+			var noDataFunc = lang.hitch(this, function(){
+				var ct = t.clone();
+				var themes = df.map(run, function(v){
+					var tMixin = [this.opt, this.run];
+					if(v !== null && typeof v != "number"){
+						tMixin.push(v);
+					}
+					if(this.opt.styleFunc){
+						tMixin.push(this.opt.styleFunc(v));
+					}
+					return ct.next("slice", tMixin, true);
+				}, this);
 
-			if("radius" in this.opt){
-				r = this.opt.radius;
-				labelR = r - this.opt.labelOffset;
-			}
-			var	circle = {
+				// Draw initial pie, with text in it noting 0 data.
+				if("radius" in this.opt){
+					r = this.opt.radius < r ? this.opt.radius : r;
+				}
+
+				var circle = {
 					cx: offsets.l + rx,
 					cy: offsets.t + ry,
 					r:  r
 				};
+				var rColor = new Color(taFontColor);
+				// If we have a radius, we'll need to fade the ring some
+				if(this.opt.innerRadius){
+					rColor.a = 0.1;
+				}
+				var ring = this._createRing(s, circle).setStroke(rColor);
+				if(this.opt.innerRadius){
+					// If we have a radius, fill it with the faded color.
+					ring.setFill(rColor);
+				}
+				if(this.opt.zeroDataMessage){
+					this.renderLabel(s, circle.cx, circle.cy + size/3, this.opt.zeroDataMessage, {
+						series: {
+							font: taFont,
+							fontColor: taFontColor
+						}
+					},	null, "middle");
+				}
+				this.dyn = [];
+				arr.forEach(run, function(item, i){
+					this.dyn.push({
+						fill: this._plotFill(themes[i].series.fill, dim, offsets),
+						stroke: themes[i].series.stroke});
+				}, this);
+			});
+			/* END Added to handle no data case */
 
-			// draw shadow
-			if(this.opt.shadow || t.shadow){
-				var shadow = this.opt.shadow || t.shadow;
-				var scircle = lang.clone(circle);
-				scircle.cx += shadow.dx;
-				scircle.cy += shadow.dy;
-				s.createCircle(scircle).setFill(shadow.color).setStroke(shadow);
+			// Draw over circle!
+			if(!this.run && !this.run.data.ength){
+				noDataFunc();
+				return this;
 			}
-
 			if(typeof run[0] == "number"){
 				filteredRun = df.map(run, "x ? Math.max(x, 0) : 0");
 				if(df.every(filteredRun, "<= 0")){
-					s.createCircle(circle).setStroke(t.series.stroke);
-					this.dyn = arr.map(filteredRun, function(){
-						return {  };
-					});
+					noDataFunc();
 					return this;
-				}else{
-					slices = df.map(filteredRun, "/this", df.foldl(filteredRun, "+", 0));
-				 	if(this.opt.labels){
-				 		labels = arr.map(slices, function(x){
-							return x > 0 ? this._getLabel(x * 100) + "%" : "";
-						}, this);
-					}
+				}
+				slices = df.map(filteredRun, "/this", df.foldl(filteredRun, "+", 0));
+				if(this.opt.labels){
+					labels = arr.map(slices, function(x){
+						return x > 0 ? this._getLabel(x * 100) + "%" : "";
+					}, this);
 				}
 			}else{
 				filteredRun = df.map(run, "x ? Math.max(x.y, 0) : 0");
-				if(df.every(filteredRun, "<= 0")){
-					s.createCircle(circle).setStroke(t.series.stroke);
-					this.dyn = arr.map(filteredRun, function(){
-						return {  };
-					});
+				if(!filteredRun.length || df.every(filteredRun, "<= 0")){
+					noDataFunc();
 					return this;
-				}else{
-					slices = df.map(filteredRun, "/this", df.foldl(filteredRun, "+", 0));
-					if(this.opt.labels){
-						labels = arr.map(slices, function(x, i){
-							if(x < 0){ return ""; }
-							var v = run[i];
-							return "text" in v ? v.text : this._getLabel(x * 100) + "%";
-						}, this);
-					}
+				}
+				slices = df.map(filteredRun, "/this", df.foldl(filteredRun, "+", 0));
+				if(this.opt.labels){
+					labels = arr.map(slices, function(x, i){
+						if(x < 0){ return ""; }
+						var v = run[i];
+						return v.hasOwnProperty("text") ? v.text : this._getLabel(x * 100) + "%";
+					}, this);
 				}
 			}
-			var themes = df.map(run, function(v, i){
+			var themes = df.map(run, function(v){
 				var tMixin = [this.opt, this.run];
 				if(v !== null && typeof v != "number"){
 					tMixin.push(v);
@@ -13435,30 +13410,123 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 				return t.next("slice", tMixin, true);
 			}, this);
 
-			if(this.opt.labels){
-				size = labelFont ? g.normalizedLength(g.splitFontString(labelFont).size) : 0;
+			if(this.opt.labels) {
 				shift = df.foldl1(df.map(labels, function(label, i){
 					var font = themes[i].series.font;
 					return g._base._getTextBox(label, {font: font}).w;
 				}, this), "Math.max(a, b)") / 2;
+
 				if(this.opt.labelOffset < 0){
 					r = Math.min(rx - 2 * shift, ry - size) + this.opt.labelOffset;
 				}
-				labelR = r - this.opt.labelOffset;
+			}
+			if(this.opt.hasOwnProperty("radius")){
+				r = this.opt.radius < r * 0.9 ? this.opt.radius : r * 0.9;
 			}
 
+			if (!this.opt.radius && this.opt.labels && this.opt.labelStyle == "columns") {
+				r = r / 2;
+				if (rx > ry && rx > r * 2) {
+					r *= rx / (r * 2);
+				}
+				if (r >= ry * 0.8) {
+					r = ry * 0.8;
+				}
+			} else {
+				if (r >= ry * 0.9) {
+					r = ry * 0.9;
+				}
+			}
+
+			labelR = r - this.opt.labelOffset;
+
+			var circle = {
+					cx: offsets.l + rx,
+					cy: offsets.t + ry,
+					r:  r
+				};
+
+			this.dyn = [];
 			// draw slices
 			var eventSeries = new Array(slices.length);
+
+			// Calulate primarily size for each slice
+			var slicesSteps = [], localStart = start;
+			var minWidth = this.opt.minWidth;
+			arr.forEach(slices, function(slice, i){
+				if(slice === 0){
+					slicesSteps[i] = {
+						step: 0,
+						end: localStart,
+						start: localStart,
+						weak: false
+					};
+					return;
+				}
+				var end = localStart + slice * 2 * Math.PI;
+				if(i === slices.length - 1){
+					end = startAngle + 2 * Math.PI;
+				}
+				var step = end - localStart,
+					dist = step * r;
+				slicesSteps[i] = {
+					step:  step,
+					start: localStart,
+					end:   end,
+					weak: dist < minWidth
+				};
+				localStart = end;
+			});
+
+			if(minWidth > 0){
+				var weakCount = 0, weakCoef = minWidth / r, oldWeakCoefSum = 0, i;
+				for(i = slicesSteps.length - 1; i >= 0; i--){
+					if(slicesSteps[i].weak){
+						++weakCount;
+						oldWeakCoefSum += slicesSteps[i].step;
+						slicesSteps[i].step = weakCoef;
+					}
+				}
+				// make sure that our steps are small enough
+				var weakCoefSum = weakCount * weakCoef;
+				if(weakCoefSum > Math.PI){
+					weakCoef = Math.PI / weakCount;
+					for(i = 0; i < slicesSteps.length; ++i){
+						if(slicesSteps[i].weak){
+							slicesSteps[i].step = weakCoef;
+						}
+					}
+					weakCoefSum = Math.PI;
+				}
+				// now let's redistribute percentage
+				if(weakCount > 0){
+					weakCoef = 1 - (weakCoefSum - oldWeakCoefSum) / 2 / Math.PI;
+					for(i = 0; i < slicesSteps.length; ++i){
+						if(!slicesSteps[i].weak){
+							slicesSteps[i].step = weakCoef * slicesSteps[i].step;
+						}
+					}
+				}
+				// now let's update start and end values
+				for(i = 0; i < slicesSteps.length; ++i){
+					slicesSteps[i].start = i ? slicesSteps[i].end : localStart;
+					slicesSteps[i].end = slicesSteps[i].start + slicesSteps[i].step;
+				}
+				// let's make sure that our last end is exactly 2 * Math.PI
+				for(i = slicesSteps.length - 1; i >= 0; --i){
+					if(slicesSteps[i].step !== 0){
+						slicesSteps[i].end = localStart + 2 * Math.PI;
+						break;
+					}
+				}
+			}
+
+			localStart = start;
+			var o, specialFill;
 			arr.some(slices, function(slice, i){
-				if(slice < 0){
-					// degenerated slice
-					return false;	// continue
-				}
-				if(slice == 0){
-				  this.dyn.push({fill: null, stroke: null});
-				  return false;
-				}
-				var v = run[i], theme = themes[i], specialFill, o;
+				var shape;
+				var v = run[i], theme = themes[i];
+
 				if(slice >= 1){
 					// whole pie
 					specialFill = this._plotFill(theme.series.fill, dim, offsets);
@@ -13468,7 +13536,7 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 							width: 2 * circle.r, height: 2 * circle.r
 						});
 					specialFill = this._pseudoRadialFill(specialFill, {x: circle.cx, y: circle.cy}, circle.r);
-					var shape = s.createCircle(circle).setFill(specialFill).setStroke(theme.series.stroke);
+					shape = this._createRing(s, circle).setFill(specialFill).setStroke(theme.series.stroke);
 					this.dyn.push({fill: specialFill, stroke: theme.series.stroke});
 
 					if(events){
@@ -13487,62 +13555,78 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 						eventSeries[i] = o;
 					}
 
+					var k;
+					for(k = i + 1; k < slices.length; k++){
+						theme = themes[k];
+						this.dyn.push({fill: theme.series.fill, stroke: theme.series.stroke});
+					}
 					return true;	// stop iteration
 				}
-				// calculate the geometry of the slice
-				var end = start + slice * 2 * Math.PI;
-				if(i + 1 == slices.length){
-					end = startAngle + 2 * Math.PI;
+
+				if(slicesSteps[i].step === 0){
+					// degenerated slice
+					// But we still want a fill since this will be skipped and we need the fill
+					// for the label.
+					this.dyn.push({fill: theme.series.fill, stroke: theme.series.stroke});
+					return false;	// continue
 				}
-				var	step = end - start,
-					x1 = circle.cx + r * Math.cos(start),
-					y1 = circle.cy + r * Math.sin(start),
-					x2 = circle.cx + r * Math.cos(end),
-					y2 = circle.cy + r * Math.sin(end);
+
+				// calculate the geometry of the slice
+				var step = slicesSteps[i].step,
+					x1 = circle.cx + r * Math.cos(localStart),
+					y1 = circle.cy + r * Math.sin(localStart),
+					x2 = circle.cx + r * Math.cos(localStart + step),
+					y2 = circle.cy + r * Math.sin(localStart + step);
 				// draw the slice
-				var fanSize = m._degToRad(this.opt.fanSize);
+				var fanSize = m._degToRad(this.opt.fanSize), stroke;
 				if(theme.series.fill && theme.series.fill.type === "radial" && this.opt.radGrad === "fan" && step > fanSize){
 					var group = s.createGroup(), nfans = Math.ceil(step / fanSize), delta = step / nfans;
 					specialFill = this._shapeFill(theme.series.fill,
 						{x: circle.cx - circle.r, y: circle.cy - circle.r, width: 2 * circle.r, height: 2 * circle.r});
-					for(var j = 0; j < nfans; ++j){
-						var fansx = j == 0 ? x1 : circle.cx + r * Math.cos(start + (j - FUDGE_FACTOR) * delta),
-							fansy = j == 0 ? y1 : circle.cy + r * Math.sin(start + (j - FUDGE_FACTOR) * delta),
-							fanex = j == nfans - 1 ? x2 : circle.cx + r * Math.cos(start + (j + 1 + FUDGE_FACTOR) * delta),
-							faney = j == nfans - 1 ? y2 : circle.cy + r * Math.sin(start + (j + 1 + FUDGE_FACTOR) * delta),
-							fan = group.createPath().
-								moveTo(circle.cx, circle.cy).
-								lineTo(fansx, fansy).
-								arcTo(r, r, 0, delta > Math.PI, true, fanex, faney).
-								lineTo(circle.cx, circle.cy).
-								closePath().
-								setFill(this._pseudoRadialFill(specialFill, {x: circle.cx, y: circle.cy}, r, start + (j + 0.5) * delta, start + (j + 0.5) * delta));
+					var j, alpha, beta, fansx, fansy, fanex, faney;
+					for(j = 0; j < nfans; ++j){
+						alpha = localStart + (j - FUDGE_FACTOR) * delta;
+						beta  = localStart + (j + 1 + FUDGE_FACTOR) * delta;
+						fansx = j == 0 ? x1 : circle.cx + r * Math.cos(alpha);
+						fansy = j == 0 ? y1 : circle.cy + r * Math.sin(alpha);
+						fanex = j == nfans - 1 ? x2 : circle.cx + r * Math.cos(beta);
+						faney = j == nfans - 1 ? y2 : circle.cy + r * Math.sin(beta);
+						this._createSlice(group, circle, r, fansx, fansy, fanex, faney, alpha, delta).
+							setFill(this._pseudoRadialFill(specialFill, {x: circle.cx, y: circle.cy}, r,
+								localStart + (j + 0.5) * delta, localStart + (j + 0.5) * delta));
 					}
-					group.createPath().
-						moveTo(circle.cx, circle.cy).
-						lineTo(x1, y1).
-						arcTo(r, r, 0, step > Math.PI, true, x2, y2).
-						lineTo(circle.cx, circle.cy).
-						closePath().
-						setStroke(theme.series.stroke);
+					stroke = theme.series.stroke;
+					this._createSlice(group, circle, r, x1, y1, x2, y2, localStart, step).setStroke(stroke);
 					shape = group;
 				}else{
-					shape = s.createPath().
-						moveTo(circle.cx, circle.cy).
-						lineTo(x1, y1).
-						arcTo(r, r, 0, step > Math.PI, true, x2, y2).
-						lineTo(circle.cx, circle.cy).
-						closePath().
-						setStroke(theme.series.stroke);
+					stroke = theme.series.stroke;
+
+					shape = this._createSlice(s, circle, r, x1, y1, x2, y2, localStart, step).setStroke(stroke);
+
 					specialFill = theme.series.fill;
 					if(specialFill && specialFill.type === "radial"){
 						specialFill = this._shapeFill(specialFill, {x: circle.cx - circle.r, y: circle.cy - circle.r, width: 2 * circle.r, height: 2 * circle.r});
 						if(this.opt.radGrad === "linear"){
-							specialFill = this._pseudoRadialFill(specialFill, {x: circle.cx, y: circle.cy}, r, start, end);
+							specialFill = this._pseudoRadialFill(specialFill, {x: circle.cx, y: circle.cy}, r, localStart, localStart + step);
 						}
 					}else if(specialFill && specialFill.type === "linear"){
+						var bbox = lang.clone(shape.getBoundingBox());
+						if(g.renderer === "svg"){
+							// Try to fix the bounding box calculations for
+							// height.  Only really works for SVG.
+							var pos = {w: 0, h: 0};
+							try{
+								pos = domGeom.position(shape.rawNode);
+							}catch(ignore){}
+							if(pos.h > bbox.height){
+								bbox.height = pos.h;
+							}
+							if(pos.w > bbox.width){
+								bbox.width = pos.w;
+							}
+						}
 						specialFill = this._plotFill(specialFill, dim, offsets);
-						specialFill = this._shapeFill(specialFill, shape.getBoundingBox());
+						specialFill = this._shapeFill(specialFill, bbox);
 					}
 					shape.setFill(specialFill);
 				}
@@ -13564,28 +13648,25 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 					eventSeries[i] = o;
 				}
 
-				start = end;
+				localStart = localStart + step;
 
 				return false;	// continue
 			}, this);
 			// draw labels
 			if(this.opt.labels){
+				var isRtl = has("dojo-bidi") && this.chart.isRightToLeft();
 				if(this.opt.labelStyle == "default"){
 					start = startAngle;
+					localStart = start;
 					arr.some(slices, function(slice, i){
-						if(slice <= 0){
+						if(slice <= 0 && !this.opt.minWidth){
 							// degenerated slice
 							return false;	// continue
 						}
-						var theme = themes[i], elem;
+						var theme = themes[i];
 						if(slice >= 1){
 							// whole pie
-							elem = da.createText[this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx"](
-									this.chart, s, circle.cx, circle.cy + size / 2, "middle", labels[i],
-									theme.series.font, theme.series.fontColor);
-							if(this.opt.htmlLabels){
-								this.htmlElements.push(elem);
-							}
+							this.renderLabel(s, circle.cx, circle.cy + size / 2, labels[i], theme, this.opt.labelOffset > 0);
 							return true;	// stop iteration
 						}
 						// calculate the geometry of the slice
@@ -13593,66 +13674,124 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 						if(i + 1 == slices.length){
 							end = startAngle + 2 * Math.PI;
 						}
+
 						if(this.opt.omitLabels && end-start < 0.001){
 							return false;	// continue
 						}
-						var	labelAngle = (start + end) / 2,
+
+						var labelAngle = localStart + (slicesSteps[i].step / 2),//(start + end) / 2,
 							x = circle.cx + labelR * Math.cos(labelAngle),
 							y = circle.cy + labelR * Math.sin(labelAngle) + size / 2;
 						// draw the label
-						elem = da.createText[this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx"]
-								(this.chart, s, x, y, "middle", labels[i], theme.series.font, theme.series.fontColor);
-						if(this.opt.htmlLabels){
-							this.htmlElements.push(elem);
-						}
+						this.renderLabel(s, isRtl ? dim.width - x : x, y, labels[i], theme, this.opt.labelOffset > 0);
+						localStart += slicesSteps[i].step;
 						start = end;
 						return false;	// continue
 					}, this);
 				}else if(this.opt.labelStyle == "columns"){
-					start = startAngle;
-					var omitLabels = this.opt.omitLabels;
 					//calculate label angles
-					var labeledSlices = [];
+					var omitLabels = this.opt.omitLabels;
+					start = startAngle;
+					localStart = start;
+					var labeledSlices = [],
+						significantCount = 0, k;
+					for(k = slices.length - 1; k >= 0; --k){
+						if(slices[k]){
+							++significantCount;
+						}
+					}
 					arr.forEach(slices, function(slice, i){
 						var end = start + slice * 2 * Math.PI;
 						if(i + 1 == slices.length){
 							end = startAngle + 2 * Math.PI;
 						}
-						var labelAngle = (start + end) / 2;
-						labeledSlices.push({
-							angle: labelAngle,
-							left: Math.cos(labelAngle) < 0,
-							theme: themes[i],
-							index: i,
-							omit: omitLabels?end - start < 0.001:false
-						});
-						start = end;
-					});
-					//calculate label radius to each slice
-					var labelHeight = g._base._getTextBox("a",{ font: labelFont }).h;
-					this._getProperLabelRadius(labeledSlices, labelHeight, circle.r * 1.1);
-					//draw label and wiring
-					arr.forEach(labeledSlices, function(slice, i){
-						if(!slice.omit){
-							var leftColumn = circle.cx - circle.r * 2,
-								rightColumn = circle.cx + circle.r * 2,
-								labelWidth = g._base._getTextBox(labels[i], {font: slice.theme.series.font}).w,
-								x = circle.cx + slice.labelR * Math.cos(slice.angle),
-								y = circle.cy + slice.labelR * Math.sin(slice.angle),
-								jointX = (slice.left) ? (leftColumn + labelWidth) : (rightColumn - labelWidth),
-								labelX = (slice.left) ? leftColumn : jointX;
-							var wiring = s.createPath().moveTo(circle.cx + circle.r * Math.cos(slice.angle), circle.cy + circle.r * Math.sin(slice.angle));
-							if(Math.abs(slice.labelR * Math.cos(slice.angle)) < circle.r * 2 - labelWidth){
-								wiring.lineTo(x, y);
+						if(this.minWidth !== 0 || end - start >= 0.001){
+							// var labelAngle = (start + end) / 2;
+							var labelAngle = localStart + (slicesSteps[i].step / 2);//(start + end) / 2,
+							if(significantCount === 1 && !this.opt.minWidth){
+								labelAngle = (start + end) / 2;
 							}
-							wiring.lineTo(jointX, y).setStroke(slice.theme.series.labelWiring);
-							var elem = da.createText[this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx"](
-								this.chart, s, labelX, y, "left", labels[i], slice.theme.series.font, slice.theme.series.fontColor);
-							if(this.opt.htmlLabels){
-								this.htmlElements.push(elem);
-							}
+							labeledSlices.push({
+								angle: labelAngle,
+								left:  Math.cos(labelAngle) < 0,
+								theme: themes[i],
+								index: i,
+								omit: omitLabels? end - start < 0.001:false
+							});
 						}
-					},this);
+						start = end;
+						localStart += slicesSteps[i].step;
+					}, this);
+
+					//calculate label radius to each slice
+					var labelHeight = g._base._getTextBox("a", {font:taFont, whiteSpace: "nowrap"}).h;
+					this._getProperLabelRadius(labeledSlices, labelHeight, circle.r * 1.1);
+
+					//draw label and wiring
+					var leftColumn  = circle.cx - circle.r * 2,
+						rightColumn = circle.cx + circle.r * 2;
+					arr.forEach(labeledSlices, function(slice){
+						if(slice.omit){
+							return;
+						}
+						var cTheme = themes[slice.index], lrPadding = 0;
+						if(cTheme && cTheme.axis && cTheme.axis.tick && cTheme.axis.tick.labelGap){
+							// Try to pad the lable a bit, the same as a tick gap.
+							lrPadding = cTheme.axis.tick.labelGap;
+						}
+						var labelWidth = g._base._getTextBox(labels[slice.index],
+								{font: cTheme.series.font, whiteSpace: "nowrap", paddingLeft: lrPadding + "px"}).w,
+							x = circle.cx + slice.labelR * Math.cos(slice.angle),
+							y = circle.cy + slice.labelR * Math.sin(slice.angle),
+							jointX = (slice.left) ? (leftColumn + labelWidth) : (rightColumn - labelWidth),
+							labelX = (slice.left) ? leftColumn : jointX + lrPadding,
+							newRadius = circle.r,
+							wiring = s.createPath().moveTo(circle.cx + newRadius * Math.cos(slice.angle),
+								circle.cy + newRadius * Math.sin(slice.angle));
+						if(Math.abs(slice.labelR * Math.cos(slice.angle)) < circle.r * 2 - labelWidth){
+							wiring.lineTo(x, y);
+						}
+						wiring.lineTo(jointX, y).setStroke(slice.theme.series.labelWiring);
+						// Push the wiring to the back so that highlight/magnify actions don't bleed the wire.
+						wiring.moveToBack();
+						// Try to adjust the wiring position here.  The browser always adds a bit
+						// of padding on height, so divide by 3 instead of 2.
+						var mid = labelHeight/3 + y;
+						var elem = this.renderLabel(s, labelX, mid || 0, labels[slice.index], cTheme, false, "left");
+
+						if(events && !this.opt.htmlLabels){
+							var fontWidth  = g._base._getTextBox(labels[slice.index], {font: slice.theme.series.font}).w || 0,
+								fontHeight = g.normalizedLength(g.splitFontString(slice.theme.series.font).size);
+							o = {
+								element: "labels",
+								index:   slice.index,
+								run:     this.run,
+								shape:   elem,
+								x:       labelX,
+								y:       y,
+								label:   labels[slice.index]
+							};
+
+							var shp = elem.getShape(),
+								lt = domGeom.position(this.chart.node, true),
+								aroundRect = lang.mixin({ type : 'rect' }, {
+									x: shp.x,
+									y: shp.y - 2 * fontHeight
+								});
+
+							aroundRect.x += lt.x;
+							aroundRect.y += lt.y;
+							aroundRect.x = Math.round(aroundRect.x);
+							aroundRect.y = Math.round(aroundRect.y);
+							aroundRect.width  = Math.ceil(fontWidth);
+							aroundRect.height = Math.ceil(fontHeight);
+
+							o.aroundRect = aroundRect;
+
+							this._connectEvents(o);
+							eventSeries[slices.length + slice.index] = o;
+						}
+					}, this);
 				}
 			}
 			// post-process events to restore the original indexing
@@ -13660,83 +13799,131 @@ define("dojox/charting/plot2d/Pie", ["dojo/_base/lang", "dojo/_base/array" ,"doj
 			this._eventSeries[this.run.name] = df.map(run, function(v){
 				return v <= 0 ? null : eventSeries[esi++];
 			});
+
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+
 			return this;	//	dojox/charting/plot2d/Pie
 		},
-		
-		_getProperLabelRadius: function(slices, labelHeight, minRidius){
-			var leftCenterSlice, rightCenterSlice,
-				leftMinSIN = 1, rightMinSIN = 1;
+
+		_getProperLabelRadius: function(slices, labelHeight, minRadius){
 			if(slices.length == 1){
-				slices[0].labelR = minRidius;
+				slices[0].labelR = minRadius;
 				return;
 			}
-			for(var i = 0; i < slices.length; i++){
-				var tempSIN = Math.abs(Math.sin(slices[i].angle));
+			var leftCenterSlice = {}, rightCenterSlice = {}, leftMinSIN = 2, rightMinSIN = 2, i;
+			var tempSIN;
+			for(i = 0; i < slices.length; ++i){
+				tempSIN = Math.abs(Math.sin(slices[i].angle));
 				if(slices[i].left){
-					if(leftMinSIN >= tempSIN){
+					if(leftMinSIN > tempSIN){
 						leftMinSIN = tempSIN;
 						leftCenterSlice = slices[i];
 					}
 				}else{
-					if(rightMinSIN >= tempSIN){
+					if(rightMinSIN > tempSIN){
 						rightMinSIN = tempSIN;
 						rightCenterSlice = slices[i];
 					}
 				}
 			}
-			leftCenterSlice.labelR = rightCenterSlice.labelR = minRidius;
-			this._calculateLabelR(leftCenterSlice, slices, labelHeight);
-			this._calculateLabelR(rightCenterSlice, slices, labelHeight);
+			leftCenterSlice.labelR = rightCenterSlice.labelR = minRadius;
+			this._caculateLabelR(leftCenterSlice,  slices, labelHeight);
+			this._caculateLabelR(rightCenterSlice, slices, labelHeight);
 		},
-		_calculateLabelR: function(firstSlice, slices, labelHeight){
-			var i = firstSlice.index,length = slices.length,
-				currentLabelR = firstSlice.labelR, nextLabelR;
-			while(!(slices[i%length].left ^ slices[(i+1)%length].left)){
-				if(!slices[(i + 1) % length].omit){
-					nextLabelR = (Math.sin(slices[i % length].angle) * currentLabelR + ((slices[i % length].left) ? (-labelHeight) : labelHeight)) /
-					Math.sin(slices[(i + 1) % length].angle);
-					currentLabelR = (nextLabelR < firstSlice.labelR) ? firstSlice.labelR : nextLabelR;
-					slices[(i + 1) % length].labelR = currentLabelR;
-				}
-				i++;
+
+		_caculateLabelR: function(firstSlice, slices, labelHeight){
+			var i, j, k, length = slices.length, currentLabelR = firstSlice.labelR, nextLabelR,
+				step = slices[firstSlice.index].left ? -labelHeight : labelHeight;
+			for(k = 0, i = firstSlice.index, j = (i + 1) % length; k < length && slices[i].left === slices[j].left; ++k){
+				nextLabelR = (Math.sin(slices[i].angle) * currentLabelR + step) / Math.sin(slices[j].angle);
+				currentLabelR = Math.max(firstSlice.labelR, nextLabelR);
+				slices[j].labelR = currentLabelR;
+				i = (i + 1) % length;
+				j = (j + 1) % length;
 			}
-			i = firstSlice.index;
-			var j = (i == 0)?length-1 : i - 1;
-			while(!(slices[i].left ^ slices[j].left)){
-				if(!slices[j].omit){
-					nextLabelR = (Math.sin(slices[i].angle) * currentLabelR + ((slices[i].left) ? labelHeight : (-labelHeight))) /
-					Math.sin(slices[j].angle);
-					currentLabelR = (nextLabelR < firstSlice.labelR) ? firstSlice.labelR : nextLabelR;
-					slices[j].labelR = currentLabelR;
-				}
-				i--;j--;
-				i = (i < 0)?i+slices.length:i;
-				j = (j < 0)?j+slices.length:j;
+			if(k >= length){
+				slices[0].labelR = firstSlice.labelR;
+			}
+			for(k = 0, i = firstSlice.index, j = (i || length) - 1; k < length && slices[i].left === slices[j].left; ++k){
+				nextLabelR = (Math.sin(slices[i].angle) * currentLabelR - step) / Math.sin(slices[j].angle);
+				currentLabelR = Math.max(firstSlice.labelR, nextLabelR);
+				slices[j].labelR = currentLabelR;
+				i = (i || length) - 1;
+				j = (j || length) - 1;
 			}
 		},
-		// utilities
-		_getLabel: function(number){
-			return dc.getLabel(number, this.opt.fixed, this.opt.precision);
+
+		_createRing: function(group, circle){
+			var r = this.opt.innerRadius;
+			if(r > 0){
+				// Percentage, use circle.  Anything < 0 for innerRadius
+				// is assumed to be a multiple of the radius.  So 0.25 innerRadius value
+				// is computed to be 25% of the outer radius.
+				r = circle.r * (r/100);
+			}else if(r < 0){
+				r = -r; // Assume it is pixels, fixed size hole.
+			}
+			if(r){
+				return group.createPath({}).setAbsoluteMode(true).
+					moveTo(circle.cx, circle.cy - circle.r).
+					arcTo(circle.r, circle.r, 0, false, true, circle.cx + circle.r, circle.cy).
+					arcTo(circle.r, circle.r, 0,  true, true, circle.cx, circle.cy - circle.r).
+					closePath().
+					moveTo(circle.cx, circle.cy - r).
+					arcTo(r, r, 0, false, true, circle.cx + r, circle.cy).
+					arcTo(r, r, 0,  true, true, circle.cx, circle.cy - r).
+					closePath();
+			}
+			return group.createCircle(circle);
+		},
+		_createSlice: function(group, circle, R, x1, y1, x2, y2, fromAngle, stepAngle){
+			var r = this.opt.innerRadius;
+			if(r > 0){
+				// Percentage, use circle.  Anything < 0 for innerRadius
+				// is assumed to be a multiple of the radius.  So 0.25 innerRadius value
+				// is computed to be 25% of the outer radius.
+				r = circle.r * (r/100);
+			}else if(r < 0){
+				r = -r; // Assume it is pixels, fixed size hole.
+			}
+			if(r){
+				var innerX1 = circle.cx + r * Math.cos(fromAngle),
+					innerY1 = circle.cy + r * Math.sin(fromAngle),
+					innerX2 = circle.cx + r * Math.cos(fromAngle + stepAngle),
+					innerY2 = circle.cy + r * Math.sin(fromAngle + stepAngle);
+				return group.createPath({}).setAbsoluteMode(true).
+					moveTo(innerX1, innerY1).
+					lineTo(x1, y1).
+					arcTo(R, R, 0, stepAngle > Math.PI, true, x2, y2).
+					lineTo(innerX2, innerY2).
+					arcTo(r, r, 0, stepAngle > Math.PI, false, innerX1, innerY1).
+					closePath();
+			}
+			return group.createPath({}).setAbsoluteMode(true).
+				moveTo(circle.cx, circle.cy).
+				lineTo(x1, y1).
+				arcTo(R, R, 0, stepAngle > Math.PI, true, x2, y2).
+				lineTo(circle.cx, circle.cy).
+				closePath();
 		}
 	});
 });
 
 },
 'dojox/charting/plot2d/Bubble':function(){
-define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", 
-		"./CartesianBase", "./_PlotEvents", "./common", "dojox/lang/functional", "dojox/lang/functional/reversed",
-		"dojox/lang/utils", "dojox/gfx/fx"], 
-	function(lang, declare, arr, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
-
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/has",
+		"./CartesianBase", "./_PlotEvents", "./common", "dojox/lang/functional",
+		"dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, declare, arr, has, CartesianBase, _PlotEvents, dc, df, du, fx){
 
 	return declare("dojox.charting.plot2d.Bubble", [CartesianBase, _PlotEvents], {
 		// summary:
 		//		A plot representing bubbles.  Note that data for Bubbles requires 3 parameters,
 		//		in the form of:  { x, y, size }, where size determines the size of the bubble.
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			animate: null   // animate bars into place
 		},
 		optionalParams: {
@@ -13745,9 +13932,11 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 			outline:	{},
 			shadow:		{},
 			fill:		{},
+			filter:     {},
 			styleFunc:	null,
 			font:		"",
-			fontColor:	""
+			fontColor:	"",
+			labelFunc: null
 		},
 
 		constructor: function(chart, kwArgs){
@@ -13757,12 +13946,14 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 			//		The chart this plot belongs to.
 			// kwArgs: dojox.charting.plot2d.__DefaultCtorArgs?
 			//		Optional keyword arguments object to help define plot parameters.
-			this.opt = lang.clone(this.defaultParams);
+			this.opt = lang.clone(lang.mixin(this.opt, this.defaultParams));
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
+			if(!this.opt.labelFunc){
+				this.opt.labelFunc = function(value, fixed, precision){
+					return this._getLabel(value.size, fixed, precision);
+				};
+			}
 			this.animate = this.opt.animate;
 		},
 
@@ -13776,16 +13967,17 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 			//		An object of the form { l, r, t, b}.
 			// returns: dojox/charting/plot2d/Bubble
 			//		A reference to this plot for functional chaining.
+			var s;
 			if(this.zoom && !this.isDataDirty()){
 				return this.performZoom(dim, offsets);
 			}
 			this.resetEvents();
 			this.dirty = this.isDirty();
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				var s = this.group;
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 
@@ -13794,7 +13986,7 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
 				events = this.events();
 
-			for(var i = this.series.length - 1; i >= 0; --i){
+			for(var i = 0; i < this.series.length; i++){
 				var run = this.series[i];
 				if(!this.dirty && !run.dirty){
 					t.skip();
@@ -13813,14 +14005,21 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 					continue;
 				}
 
-				var theme = t.next("circle", [this.opt, run]), s = run.group,
-					points = arr.map(run.data, function(v, i){
+				var theme = t.next("circle", [this.opt, run]),
+					points = arr.map(run.data, function(v){
 						return v ? {
 							x: ht(v.x) + offsets.l,
 							y: dim.height - offsets.b - vt(v.y),
 							radius: this._vScaler.bounds.scale * (v.size / 2)
 						} : null;
 					}, this);
+
+				if(run.hidden){
+					run.dyn.fill = theme.series.fill;
+					run.dyn.stroke =  theme.series.stroke;
+					continue;
+				}
+				s = run.group;
 
 				var frontCircles = null, outlineCircles = null, shadowCircles = null, styleFunc = this.opt.styleFunc;
 
@@ -13834,7 +14033,7 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				// make shadows if needed
 				if(theme.series.shadow){
 					shadowCircles = arr.map(points, function(item, i){
-						if(item !== null){
+						if(!this.isNullValue(item)){
 							var finalTheme = getFinalTheme(run.data[i]),
 								shadow = finalTheme.series.shadow;
 							var shape = s.createCircle({
@@ -13855,10 +14054,10 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				// make outlines if needed
 				if(theme.series.outline){
 					outlineCircles = arr.map(points, function(item, i){
-						if(item !== null){
+						if(!this.isNullValue(item)){
 							var finalTheme = getFinalTheme(run.data[i]),
 								outline = dc.makeStroke(finalTheme.series.outline);
-							outline.width = 2 * outline.width + theme.series.stroke.width;
+							outline.width = 2 * outline.width + (theme.series.stroke && theme.series.stroke.width || 0);
 							var shape = s.createCircle({
 								cx: item.x, cy: item.y, r: item.radius
 							}).setStroke(outline);
@@ -13876,7 +14075,7 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 
 				//	run through the data and add the circles.
 				frontCircles = arr.map(points, function(item, i){
-					if(item !== null){
+					if(!this.isNullValue(item)){
 						var finalTheme = getFinalTheme(run.data[i]),
 							rect = {
 								x: item.x - item.radius,
@@ -13889,9 +14088,13 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 						var shape = s.createCircle({
 							cx: item.x, cy: item.y, r: item.radius
 						}).setFill(specialFill).setStroke(finalTheme.series.stroke);
+						if(shape.setFilter && finalTheme.series.filter){
+							shape.setFilter(finalTheme.series.filter);
+						}
 						if(this.animate){
 							this._animateBubble(shape, dim.height - offsets.b, item.radius);
 						}
+						this.createLabel(s, run.data[i], rect, finalTheme);
 						return shape;
 					}
 					return null;
@@ -13931,6 +14134,11 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 				run.dirty = false;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/Bubble
 		},
 		_animateBubble: function(shape, offset, size){
@@ -13949,11 +14157,9 @@ define("dojox/charting/plot2d/Bubble", ["dojo/_base/lang", "dojo/_base/declare",
 
 },
 'dojox/charting/plot2d/Candlesticks':function(){
-define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "./CartesianBase", "./_PlotEvents", "./common",
-		"dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"], 
-	function(lang, declare, arr, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
-
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/has", "./CartesianBase", "./_PlotEvents", "./common",
+		"dojox/lang/functional", "dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, declare, arr, has, CartesianBase, _PlotEvents, dc, df, du, fx){
 
 	//	Candlesticks are based on the Bars plot type; we expect the following passed
 	//	as values in a series:
@@ -13968,8 +14174,6 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 		//		x and mid are optional parameters.  If x is not provided, the index of the
 		//		data array is used.
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			gap:	2,		// gap between columns in pixels
 			animate: null   // animate bars into place
 		},
@@ -13995,9 +14199,6 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 			this.opt = lang.clone(this.defaultParams);
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
 			this.animate = this.opt.animate;
 		},
 
@@ -14020,14 +14221,14 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 				var old_vmin = stats.vmin, old_vmax = stats.vmax;
 				if(!("ymin" in run) || !("ymax" in run)){
 					arr.forEach(run.data, function(val, idx){
-						if(val !== null){
+						if(!this.isNullValue(val)){
 							var x = val.x || idx + 1;
 							stats.hmin = Math.min(stats.hmin, x);
 							stats.hmax = Math.max(stats.hmax, x);
 							stats.vmin = Math.min(stats.vmin, val.open, val.close, val.high, val.low);
 							stats.vmax = Math.max(stats.vmax, val.open, val.close, val.high, val.low);
 						}
-					});
+					}, this);
 				}
 				if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
 				if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
@@ -14060,18 +14261,17 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 			}
 			this.resetEvents();
 			this.dirty = this.isDirty();
+			var s;
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				var s = this.group;
+				s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 			var t = this.chart.theme, f, gap, width,
 				ht = this._hScaler.scaler.getTransformerFromModel(this._hScaler),
 				vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
-				baseline = Math.max(0, this._vScaler.bounds.lower),
-				baselineHeight = vt(baseline),
 				events = this.events();
 			f = dc.calculateBarSize(this._hScaler.bounds.scale, this.opt);
 			gap = f.gap;
@@ -14084,11 +14284,19 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 					continue;
 				}
 				run.cleanGroup();
-				var theme = t.next("candlestick", [this.opt, run]), s = run.group,
+				var theme = t.next("candlestick", [this.opt, run]),
 					eventSeries = new Array(run.data.length);
+
+				if(run.hidden){
+					run.dyn.fill = theme.series.fill;
+					run.dyn.stroke =  theme.series.stroke;
+					continue;
+				}
+				s = run.group;
+
 				for(var j = 0; j < run.data.length; ++j){
 					var v = run.data[j];
-					if(v !== null){
+					if(!this.isNullValue(v)){
 						var finalTheme = t.addMixin(theme, "candlestick", v, true);
 
 						//	calculate the points we need for OHLC
@@ -14124,7 +14332,7 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 							if("mid" in v){
 								//	add the mid line.
 								inner.createLine({
-									x1: (finalTheme.series.stroke.width||1), x2: width - (finalTheme.series.stroke.width || 1),
+										x1: (finalTheme.series.stroke ? finalTheme.series.stroke.width || 1 : 1), x2: width - (finalTheme.series.stroke ? finalTheme.series.stroke.width || 1 : 1),
 									y1: y - mid, y2: y - mid
 								}).setStroke(doFill ? "white" : finalTheme.series.stroke);
 							}
@@ -14159,8 +14367,24 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 				run.dirty = false;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/Candlesticks
 		},
+
+		tooltipFunc: function(o){
+			return '<table cellpadding="1" cellspacing="0" border="0" style="font-size:0.9em;">'
+						+ '<tr><td>Open:</td><td align="right"><strong>' + o.data.open + '</strong></td></tr>'
+						+ '<tr><td>High:</td><td align="right"><strong>' + o.data.high + '</strong></td></tr>'
+						+ '<tr><td>Low:</td><td align="right"><strong>' + o.data.low + '</strong></td></tr>'
+						+ '<tr><td>Close:</td><td align="right"><strong>' + o.data.close + '</strong></td></tr>'
+						+ (o.data.mid !== undefined ? '<tr><td>Mid:</td><td align="right"><strong>' + o.data.mid + '</strong></td></tr>' : '')
+						+ '</table>';
+		},
+
 		_animateCandlesticks: function(shape, voffset, vsize){
 			fx.animateTransform(lang.delegate({
 				shape: shape,
@@ -14177,11 +14401,9 @@ define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/dec
 
 },
 'dojox/charting/plot2d/OHLC':function(){
-define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "./CartesianBase", "./_PlotEvents", "./common",
-	"dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"],
-	function(lang, arr, declare, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
-
-	var purgeGroup = dfr.lambda("item.purgeGroup()");
+define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/has", "./CartesianBase", "./_PlotEvents", "./common",
+	"dojox/lang/functional", "dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, arr, declare, has, CartesianBase, _PlotEvents, dc, df, du, fx){
 
 	//	Candlesticks are based on the Bars plot type; we expect the following passed
 	//	as values in a series:
@@ -14196,8 +14418,6 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 		//		x and mid are optional parameters.  If x is not provided, the index of the
 		//		data array is used.
 		defaultParams: {
-			hAxis: "x",		// use a horizontal axis named "x"
-			vAxis: "y",		// use a vertical axis named "y"
 			gap:	2,		// gap between columns in pixels
 			animate: null	// animate chart to place
 		},
@@ -14223,9 +14443,6 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 			this.opt = lang.clone(this.defaultParams);
 			du.updateWithObject(this.opt, kwArgs);
 			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
-			this.series = [];
-			this.hAxis = this.opt.hAxis;
-			this.vAxis = this.opt.vAxis;
 			this.animate = this.opt.animate;
 		},
 
@@ -14248,14 +14465,14 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 				var old_vmin = stats.vmin, old_vmax = stats.vmax;
 				if(!("ymin" in run) || !("ymax" in run)){
 					arr.forEach(run.data, function(val, idx){
-						if(val !== null){
+						if(!this.isNullValue(val)){
 							var x = val.x || idx + 1;
 							stats.hmin = Math.min(stats.hmin, x);
 							stats.hmax = Math.max(stats.hmax, x);
 							stats.vmin = Math.min(stats.vmin, val.open, val.close, val.high, val.low);
 							stats.vmax = Math.max(stats.vmax, val.open, val.close, val.high, val.low);
 						}
-					});
+					}, this);
 				}
 				if("ymin" in run){ stats.vmin = Math.min(old_vmin, run.ymin); }
 				if("ymax" in run){ stats.vmax = Math.max(old_vmax, run.ymax); }
@@ -14289,22 +14506,20 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 			this.resetEvents();
 			this.dirty = this.isDirty();
 			if(this.dirty){
-				arr.forEach(this.series, purgeGroup);
+				arr.forEach(this.series, dc.purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
-				var s = this.group;
+				var s = this.getGroup();
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 			var t = this.chart.theme, f, gap, width,
 				ht = this._hScaler.scaler.getTransformerFromModel(this._hScaler),
 				vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
-				baseline = Math.max(0, this._vScaler.bounds.lower),
-				baselineHeight = vt(baseline),
 				events = this.events();
 			f = dc.calculateBarSize(this._hScaler.bounds.scale, this.opt);
 			gap = f.gap;
 			width = f.size;
-			for(var i = this.series.length - 1; i >= 0; --i){
+			for(var i = 0; i < this.series.length; i++){
 				var run = this.series[i];
 				if(!this.dirty && !run.dirty){
 					t.skip();
@@ -14316,7 +14531,7 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 					eventSeries = new Array(run.data.length);
 				for(var j = 0; j < run.data.length; ++j){
 					var v = run.data[j];
-					if(v !== null){
+					if(!this.isNullValue(v)){
 						var finalTheme = t.addMixin(theme, "candlestick", v, true);
 
 						//	calculate the points we need for OHLC
@@ -14334,8 +14549,8 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 
 						if(width >= 1){
 							var hl = {x1: width/2, x2: width/2, y1: y - high, y2: y - low},
-								op = {x1: 0, x2: ((width/2) + ((finalTheme.series.stroke.width||1)/2)), y1: y-open, y2: y-open},
-								cl = {x1: ((width/2) - ((finalTheme.series.stroke.width||1)/2)), x2: width, y1: y-close, y2: y-close};
+								op = {x1: 0, x2: ((width/2) + ((finalTheme.series.stroke ? finalTheme.series.stroke.width || 1 : 1)/2)), y1: y-open, y2: y-open},
+								cl = {x1: ((width/2) - ((finalTheme.series.stroke ? finalTheme.series.stroke.width || 1 : 1)/2)), x2: width, y1: y-close, y2: y-close};
 							var shape = s.createGroup();
 							shape.setTransform({dx: x, dy: 0});
 							var inner = shape.createGroup();
@@ -14372,6 +14587,11 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 				run.dirty = false;
 			}
 			this.dirty = false;
+			// chart mirroring starts
+			if(has("dojo-bidi")){
+				this._checkOrientation(this.group, dim, offsets);
+			}
+			// chart mirroring ends
 			return this;	//	dojox/charting/plot2d/OHLC
 		},
 		_animateOHLC: function(shape, voffset, vsize){
@@ -14390,14 +14610,13 @@ define("dojox/charting/plot2d/OHLC", ["dojo/_base/lang", "dojo/_base/array", "do
 
 },
 'dojox/charting/plot2d/Spider':function(){
-define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", "dojo/_base/array",
-	"dojo/dom-geometry", "dojo/_base/fx", "dojo/fx", "dojo/_base/sniff", 
-	"./Base", "./_PlotEvents", "dojo/_base/Color", "dojox/color/_base", "./common", "../axis2d/common",
-	"../scaler/primitive", "dojox/gfx", "dojox/gfx/matrix", "dojox/gfx/fx", "dojox/lang/functional", 
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", "dojo/_base/array",
+	"dojo/dom-geometry", "dojo/_base/fx", "dojo/fx", "dojo/sniff",
+	"./Base", "./_PlotEvents", "./common", "../axis2d/common",
+	"dojox/gfx", "dojox/gfx/matrix", "dojox/gfx/fx", "dojox/lang/functional",
 	"dojox/lang/utils", "dojo/fx/easing"],
 	function(lang, declare, hub, arr, domGeom, baseFx, coreFx, has,
-			Base, PlotEvents, Color, dxcolor, dc, da, primitive,
-			g, m, gfxfx, df, du, easing){
+			Base, PlotEvents, dc, da, g, m, gfxfx, df, du, easing){
 
 	var FUDGE_FACTOR = 0.2; // use to overlap fans
 
@@ -14424,6 +14643,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			markerSize:		 3,			// radius of plot vertex (px)
 			spiderType:		 "polygon", //"circle"
 			animationType:	 easing.backOut,
+			animate: null,
 			axisTickFont:		"",
 			axisTickFontColor:	"",
 			axisFont:			"",
@@ -14449,6 +14669,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			this.datas = {};
 			this.labelKey = [];
 			this.oldSeriePoints = {};
+			this.animate = this.opt.animate === null ? {} : this.opt.animate;
 			this.animations = {};
 		},
 		clear: function(){
@@ -14489,9 +14710,9 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//		The series to be added.
 			// returns: dojox/charting/plot2d/Base
 			//		A reference to this plot for functional chaining.
-			var matched = false;
 			this.series.push(run);
-			for(var key in run.data){
+			var key;
+			for(key in run.data){
 				var val = run.data[key],
 					data = this.datas[key];
 				if(data){
@@ -14506,7 +14727,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				}
 			}
 			if(this.labelKey.length <= 0){
-				for (var key in run.data){
+				for(key in run.data){
 					this.labelKey.push(key);
 				}
 			}
@@ -14517,7 +14738,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			return dc.collectSimpleStats(this.series); // Object
+			return dc.collectSimpleStats(this.series, function(v){ return v === null; }); // Object
 		},
 		render: function(dim, offsets){
 			// summary:
@@ -14554,17 +14775,18 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				seriesWidth = o.seriesWidth || (ta.stroke && ta.stroke.width) || 2,
 				asize = g.normalizedLength(g.splitFontString(axisFont).size),
 				startAngle = m._degToRad(o.startAngle),
-				start = startAngle, step, filteredRun, slices, labels, shift, labelR,
+				start = startAngle, labels, shift, labelR,
 				outerPoints, innerPoints, divisionPoints, divisionRadius, labelPoints,
 				ro = o.spiderOrigin, dv = o.divisions >= 3 ? o.divisions : 3, ms = o.markerSize,
 				spt = o.spiderType, at = o.animationType, lboffset = o.labelOffset < -10 ? o.labelOffset : -10,
-				axisExtra = 0.2;
+				axisExtra = 0.2,
+				i, j, point, len, fontWidth, render, serieEntry, run, data, min, max, distance;
 			
 			if(o.labels){
 				labels = arr.map(this.series, function(s){
 					return s.name;
 				}, this);
-				shift = df.foldl1(df.map(labels, function(label, i){
+				shift = df.foldl1(df.map(labels, function(label){
 					var font = t.series.font;
 					return g._base._getTextBox(label, {
 						font: font
@@ -14583,28 +14805,28 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				cy: offsets.t + ry,
 				r: r
 			};
-			
-			for (var i = this.series.length - 1; i >= 0; i--){
-				var serieEntry = this.series[i];
+
+			for(var i = 0; i < this.series.length; i++){
+				serieEntry = this.series[i];
 				if(!this.dirty && !serieEntry.dirty){
 					t.skip();
 					continue;
 				}
 				serieEntry.cleanGroup();
-				var run = serieEntry.data;
+				run = serieEntry.data;
 				if(run !== null){
-					var len = this._getObjectLength(run);
+					len = this._getObjectLength(run);
 					//construct connect points
 					if(!outerPoints || outerPoints.length <= 0){
 						outerPoints = [], innerPoints = [], labelPoints = [];
-						this._buildPoints(outerPoints, len, circle, r, start, true);
-						this._buildPoints(innerPoints, len, circle, r*ro, start, true);
-						this._buildPoints(labelPoints, len, circle, labelR, start);
+						this._buildPoints(outerPoints, len, circle, r, start, true, dim);
+						this._buildPoints(innerPoints, len, circle, r*ro, start, true, dim);
+						this._buildPoints(labelPoints, len, circle, labelR, start, false, dim);
 						if(dv > 2){
 							divisionPoints = [], divisionRadius = [];
-							for (var j = 0; j < dv - 2; j++){
+							for (j = 0; j < dv - 2; j++){
 								divisionPoints[j] = [];
-								this._buildPoints(divisionPoints[j], len, circle, r*(ro + (1-ro)*(j+1)/(dv-1)), start, true);
+								this._buildPoints(divisionPoints[j], len, circle, r*(ro + (1-ro)*(j+1)/(dv-1)), start, true, dim);
 								divisionRadius[j] = r*(ro + (1-ro)*(j+1)/(dv-1));
 							}
 						}
@@ -14616,9 +14838,9 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//axis
 			var axisGroup = s.createGroup(), axisStroke = {color: axisColor, width: axisWidth},
 				spiderStroke = {color: spiderColor, width: spiderWidth};
-			for (var j = outerPoints.length - 1; j >= 0; --j){
-				var point = outerPoints[j],
-					st = {
+			for (j = outerPoints.length - 1; j >= 0; --j){
+				point = outerPoints[j];
+				var st = {
 						x: point.x + (point.x - circle.cx) * axisExtra,
 						y: point.y + (point.y - circle.cy) * axisExtra
 					},
@@ -14638,11 +14860,11 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			
 			// draw the label
 			var labelGroup = s.createGroup();
-			for (var j = labelPoints.length - 1; j >= 0; --j){
-				var point = labelPoints[j],
-					fontWidth = g._base._getTextBox(this.labelKey[j], {font: axisFont}).w || 0,
-					render = this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx",
-					elem = da.createText[render](this.chart, labelGroup, (!domGeom.isBodyLtr() && render == "html") ? (point.x + fontWidth - dim.width) : point.x, point.y,
+			for (j = labelPoints.length - 1; j >= 0; --j){
+				point = labelPoints[j];
+				fontWidth = g._base._getTextBox(this.labelKey[j], {font: axisFont}).w || 0;
+				render = this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx";
+				var elem = da.createText[render](this.chart, labelGroup, (!domGeom.isBodyLtr() && render == "html") ? (point.x + fontWidth - dim.width) : point.x, point.y,
 							"middle", this.labelKey[j], axisFont, axisFontColor);
 				if(this.opt.htmlLabels){
 					this.htmlElements.push(elem);
@@ -14655,29 +14877,33 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				spiderGroup.createPolyline(outerPoints).setStroke(spiderStroke);
 				spiderGroup.createPolyline(innerPoints).setStroke(spiderStroke);
 				if(divisionPoints.length > 0){
-					for (var j = divisionPoints.length - 1; j >= 0; --j){
+					for (j = divisionPoints.length - 1; j >= 0; --j){
 						spiderGroup.createPolyline(divisionPoints[j]).setStroke(spiderStroke);
 					}
 				}
 			}else{//circle
-				var ccount = this._getObjectLength(this.datas);
 				spiderGroup.createCircle({cx: circle.cx, cy: circle.cy, r: r}).setStroke(spiderStroke);
 				spiderGroup.createCircle({cx: circle.cx, cy: circle.cy, r: r*ro}).setStroke(spiderStroke);
 				if(divisionRadius.length > 0){
-					for (var j = divisionRadius.length - 1; j >= 0; --j){
+					for (j = divisionRadius.length - 1; j >= 0; --j){
 						spiderGroup.createCircle({cx: circle.cx, cy: circle.cy, r: divisionRadius[j]}).setStroke(spiderStroke);
 					}
 				}
 			}
 			//text
-			var textGroup = s.createGroup(), len = this._getObjectLength(this.datas), k = 0;
+			len = this._getObjectLength(this.datas);
+			var textGroup = s.createGroup(), k = 0;
 			for(var key in this.datas){
-				var data = this.datas[key], min = data.min, max = data.max, distance = max - min,
+				data = this.datas[key];
+				min = data.min;
+				max = data.max;
+				distance = max - min;
 					end = start + 2 * Math.PI * k / len;
-				for (var i = 0; i < dv; i++){
-					var text = min + distance*i/(dv-1), point = this._getCoordinate(circle, r*(ro + (1-ro)*i/(dv-1)), end);
+				for (i = 0; i < dv; i++){
+					var text = min + distance*i/(dv-1);
+					point = this._getCoordinate(circle, r*(ro + (1-ro)*i/(dv-1)), end, dim);
 					text = this._getLabel(text);
-					var fontWidth = g._base._getTextBox(text, {font: axisTickFont}).w || 0,
+					fontWidth = g._base._getTextBox(text, {font: axisTickFont}).w || 0;
 						render = this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx";
 					if(this.opt.htmlLabels){
 						this.htmlElements.push(da.createText[render]
@@ -14690,16 +14916,28 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			
 			//draw series (animation)
 			this.chart.seriesShapes = {};
-			var animationConnections = [];
-			for (var i = this.series.length - 1; i >= 0; i--){
-				var serieEntry = this.series[i], run = serieEntry.data;
+			for (i = this.series.length - 1; i >= 0; i--){
+				serieEntry = this.series[i];
+				run = serieEntry.data;
 				if(run !== null){
+					var theme = t.next("spider", [o, serieEntry]),
+						f = g.normalizeColor(theme.series.fill), 
+						sk = {color: theme.series.fill, width: seriesWidth};
+					f.a = o.seriesFillAlpha;
+					serieEntry.dyn = {fill: f, stroke: sk};
+					if(serieEntry.hidden){
+						continue;
+					}
 					//series polygon
-					var seriePoints = [], k = 0, tipData = [];
-					for(var key in run){
-						var data = this.datas[key], min = data.min, max = data.max, distance = max - min,
-							entry = run[key], end = start + 2 * Math.PI * k / len,
-							point = this._getCoordinate(circle, r*(ro + (1-ro)*(entry-min)/distance), end);
+					var seriePoints = [], tipData = [];
+					k = 0;
+					for(key in run){
+						data = this.datas[key];
+						min = data.min;
+						max = data.max;
+						distance = max - min;
+						var entry = run[key], end = start + 2 * Math.PI * k / len;
+							point = this._getCoordinate(circle, r*(ro + (1-ro)*(entry-min)/distance), end, dim);
 						seriePoints.push(point);
 						tipData.push({sname: serieEntry.name, key: key, data: entry});
 						k++;
@@ -14707,10 +14945,8 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 					seriePoints[seriePoints.length] = seriePoints[0];
 					tipData[tipData.length] = tipData[0];
 					var polygonBoundRect = this._getBoundary(seriePoints),
-						theme = t.next("spider", [o, serieEntry]), ts = serieEntry.group,
-						f = g.normalizeColor(theme.series.fill), sk = {color: theme.series.fill, width: seriesWidth};
-					f.a = o.seriesFillAlpha;
-					serieEntry.dyn = {fill: f, stroke: sk};
+						ts = serieEntry.group;
+			         
 					
 					var osps = this.oldSeriePoints[serieEntry.name];
 					var cs = this._createSeriesEntry(ts, (osps || innerPoints), seriePoints, f, sk, r, ro, ms, at);
@@ -14745,8 +14981,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 					this._connectEvents(so);
 					
 					arr.forEach(cs.circles, function(c, i){
-						var shape = c.getShape(),
-							co = {
+						var co = {
 								element: "spider_circle",
 								index:	 i,
 								id:		 "spider_circle_"+serieEntry.name+i,
@@ -14768,58 +15003,60 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 		},
 		_createSeriesEntry: function(ts, osps, sps, f, sk, r, ro, ms, at){
 			//polygon
-			var spoly = ts.createPolyline(osps).setFill(f).setStroke(sk), scircle = [];
-			for (var j = 0; j < osps.length; j++){
-				var point = osps[j], cr = ms;
+			var initpoints = this.animate?osps:sps;
+			var spoly = ts.createPolyline(initpoints).setFill(f).setStroke(sk), scircle = [];
+			for (var j = 0; j < initpoints.length; j++){
+				var point = initpoints[j], cr = ms;
 				var circle = ts.createCircle({cx: point.x, cy: point.y, r: cr}).setFill(f).setStroke(sk);
 				scircle.push(circle);
 			}
-			
-			var anims = arr.map(sps, function(np, j){
-				// create animation
-				var sp = osps[j],
-					anim = new baseFx.Animation({
-					duration: 1000,
-					easing:	  at,
-					curve:	  [sp.y, np.y]
-				});
-				var spl = spoly, sc = scircle[j];
-				hub.connect(anim, "onAnimate", function(y){
-					//apply poly
-					var pshape = spl.getShape();
-					pshape.points[j].y = y;
-					spl.setShape(pshape);
-					//apply circle
-					var cshape = sc.getShape();
-					cshape.cy = y;
-					sc.setShape(cshape);
-				});
-				return anim;
-			});
-			
-			var anims1 = arr.map(sps, function(np, j){
-				// create animation
-				var sp = osps[j],
-					anim = new baseFx.Animation({
-					duration: 1000,
-					easing:	  at,
-					curve:	  [sp.x, np.x]
-				});
-				var spl = spoly, sc = scircle[j];
-				hub.connect(anim, "onAnimate", function(x){
-					//apply poly
-					var pshape = spl.getShape();
-					pshape.points[j].x = x;
-					spl.setShape(pshape);
-					//apply circle
-					var cshape = sc.getShape();
-					cshape.cx = x;
-					sc.setShape(cshape);
-				});
-				return anim;
-			});
-			var masterAnimation = coreFx.combine(anims.concat(anims1)); //dojo.fx.chain(anims);
-			masterAnimation.play();
+			if(this.animate) {
+				var anims = arr.map(sps, function (np, j) {
+					// create animation
+					var sp = osps[j],
+						anim = new baseFx.Animation(lang.delegate({
+							duration: 1000,
+							easing: at,
+							curve: [sp.y, np.y]
+						}, this.animate));
+					var spl = spoly, sc = scircle[j];
+					hub.connect(anim, "onAnimate", function (y) {
+						//apply poly
+						var pshape = spl.getShape();
+						pshape.points[j].y = y;
+						spl.setShape(pshape);
+						//apply circle
+						var cshape = sc.getShape();
+						cshape.cy = y;
+						sc.setShape(cshape);
+					});
+					return anim;
+				}, this);
+
+				var anims1 = arr.map(sps, function (np, j) {
+					// create animation
+					var sp = osps[j],
+						anim = new baseFx.Animation(lang.delegate({
+							duration: 1000,
+							easing: at,
+							curve: [sp.x, np.x]
+						}, this.animate));
+					var spl = spoly, sc = scircle[j];
+					hub.connect(anim, "onAnimate", function (x) {
+						//apply poly
+						var pshape = spl.getShape();
+						pshape.points[j].x = x;
+						spl.setShape(pshape);
+						//apply circle
+						var cshape = sc.getShape();
+						cshape.cx = x;
+						sc.setShape(cshape);
+					});
+					return anim;
+				}, this);
+				var masterAnimation = coreFx.combine(anims.concat(anims1)); //dojo.fx.chain(anims);
+				masterAnimation.play();
+			}
 			return {group :ts, poly: spoly, circles: scircle};
 		},
 		plotEvent: function(o){
@@ -14827,83 +15064,22 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//		Stub function for use by specific plots.
 			// o: Object
 			//		An object intended to represent event parameters.
-			var runName = o.id ? o.id : "default", a;
-			if(runName in this.animations){
-				a = this.animations[runName];
-				a.anim && a.anim.stop(true);
-			}else{
-				a = this.animations[runName] = {};
-			}
-			if(o.element == "spider_poly"){
-				if(!a.color){
-					var color = o.shape.getFill();
-					if(!color || !(color instanceof Color)){
-						return;
-					}
-					a.color = {
-						start: color,
-						end:   transColor(color)
-					};
-				}
-				var start = a.color.start, end = a.color.end;
-				if(o.type == "onmouseout"){
-					// swap colors
-					var t = start; start = end; end = t;
-				}
-				a.anim = gfxfx.animateFill({
-					shape:	  o.shape,
-					duration: 800,
-					easing:	  easing.backOut,
-					color:	  {start: start, end: end}
-				});
-				a.anim.play();
-			}else if(o.element == "spider_circle"){
-				var init, scale, defaultScale = 1.5;
-				if(o.type == "onmouseover"){
-					init  = m.identity;
-					scale = defaultScale;
-					//show tooltip
-					var aroundRect = {type: "rect"};
-					aroundRect.x = o.cx;
-					aroundRect.y = o.cy;
-					aroundRect.w = aroundRect.h = 1;
-					var lt = this.chart.getCoords();
-					aroundRect.x += lt.x;
-					aroundRect.y += lt.y;
-					aroundRect.x = Math.round(aroundRect.x);
-					aroundRect.y = Math.round(aroundRect.y);
-					this.aroundRect = aroundRect;
-					var position = ["after-centered", "before-centered"];
-					dc.doIfLoaded("dijit/Tooltip", lang.hitch(this, function(Tooltip){
-						Tooltip.show(o.tdata.sname + "<br/>" + o.tdata.key + "<br/>" + o.tdata.data, this.aroundRect, position);
-					}));
-				}else{
-					init  = m.scaleAt(defaultScale, o.cx, o.cy);
-					scale = 1/defaultScale;
-					dc.doIfLoaded("dijit/Tooltip", lang.hitch(this, function(Tooltip){
-						this.aroundRect && Tooltip.hide(this.aroundRect);
-					}));
-				}
-				var cs = o.shape.getShape(),
-					init = m.scaleAt(defaultScale, cs.cx, cs.cy),
-					kwArgs = {
-						shape: o.shape,
-						duration: 200,
-						easing:	  easing.backOut,
-						transform: [
-							{name: "scaleAt", start: [1, cs.cx, cs.cy], end: [scale, cs.cx, cs.cy]},
-							init
-						]
-					};
-				a.anim = gfxfx.animateTransform(kwArgs);
-				a.anim.play();
-			}else if(o.element == "spider_plot"){
+			if(o.element == "spider_plot"){
 				//dojo gfx function "moveToFront" not work in IE
 				if(o.type == "onmouseover" && !has("ie")){
 					o.shape.moveToFront();
 				}
 			}
 		},
+
+		tooltipFunc: function(o){
+			if(o.element == "spider_circle"){
+				return o.tdata.sname + "<br/>" + o.tdata.key + "<br/>" + o.tdata.data;
+			}else{
+				return null;
+			}
+		},
+
 		_getBoundary: function(points){
 			var xmax = points[0].x,
 				xmin = points[0].x,
@@ -14932,19 +15108,23 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			s.createPolyline([start, point2, point3]).setFill(stroke.color).setStroke(stroke);
 		},
 		
-		_buildPoints: function(points, count, circle, radius, angle, recursive){
+		_buildPoints: function(points, count, circle, radius, angle, recursive, dim){
 			for(var i = 0; i < count; i++){
 				var end = angle + 2 * Math.PI * i / count;
-				points.push(this._getCoordinate(circle, radius, end));
+				points.push(this._getCoordinate(circle, radius, end, dim));
 			}
 			if(recursive){
-				points.push(this._getCoordinate(circle, radius, angle + 2 * Math.PI));
+				points.push(this._getCoordinate(circle, radius, angle + 2 * Math.PI, dim));
 			}
 		},
 		
-		_getCoordinate: function(circle, radius, angle){
+		_getCoordinate: function(circle, radius, angle, dim){
+			var x = circle.cx + radius * Math.cos(angle);
+			if(has("dojo-bidi") && this.chart.isRightToLeft() && dim){
+				x = dim.width - x;
+			}
 			return {
-				x: circle.cx + radius * Math.cos(angle),
+				x: x,
 				y: circle.cy + radius * Math.sin(angle)
 			}
 		},
@@ -14964,28 +15144,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			return dc.getLabel(number, this.opt.fixed, this.opt.precision);
 		}
 	});
-	
-	function transColor(color){
-		var a = new dxcolor.Color(color),
-			x = a.toHsl();
-		if(x.s == 0){
-			x.l = x.l < 50 ? 100 : 0;
-		}else{
-			x.s = 100;
-			if(x.l < 50){
-				x.l = 75;
-			}else if(x.l > 75){
-				x.l = 50;
-			}else{
-				x.l = x.l - 50 > 75 - x.l ?
-					50 : 75;
-			}
-		}
-		var color = dxcolor.fromHsl(x);
-		color.a = 0.7;
-		return color;
-	}
-	
+
 	return Spider; // dojox/plot2d/Spider
 });
 
@@ -14996,18 +15155,18 @@ define([
 	"./Evented",
 	"./_base/kernel",
 	"./_base/array",
-	"./_base/connect",
+	"./aspect",
 	"./_base/fx",
 	"./dom",
 	"./dom-style",
 	"./dom-geometry",
 	"./ready",
 	"require" // for context sensitive loading of Toggler
-], function(lang, Evented, dojo, arrayUtil, connect, baseFx, dom, domStyle, geom, ready, require){
+], function(lang, Evented, dojo, arrayUtil, aspect, baseFx, dom, domStyle, geom, ready, require){
 
 	// module:
 	//		dojo/fx
-	
+
 	// For back-compat, remove in 2.0.
 	if(!dojo.isAsync){
 		ready(0, function(){
@@ -15053,51 +15212,51 @@ define([
 			this._fire("onAnimate", arguments);
 		},
 		_onEnd: function(){
-			connect.disconnect(this._onAnimateCtx);
-			connect.disconnect(this._onEndCtx);
+			this._onAnimateCtx.remove();
+			this._onEndCtx.remove();
 			this._onAnimateCtx = this._onEndCtx = null;
 			if(this._index + 1 == this._animations.length){
 				this._fire("onEnd");
 			}else{
 				// switch animations
 				this._current = this._animations[++this._index];
-				this._onAnimateCtx = connect.connect(this._current, "onAnimate", this, "_onAnimate");
-				this._onEndCtx = connect.connect(this._current, "onEnd", this, "_onEnd");
+				this._onAnimateCtx = aspect.after(this._current, "onAnimate", lang.hitch(this, "_onAnimate"), true);
+				this._onEndCtx = aspect.after(this._current, "onEnd", lang.hitch(this, "_onEnd"), true);
 				this._current.play(0, true);
 			}
 		},
 		play: function(/*int?*/ delay, /*Boolean?*/ gotoStart){
 			if(!this._current){ this._current = this._animations[this._index = 0]; }
 			if(!gotoStart && this._current.status() == "playing"){ return this; }
-			var beforeBegin = connect.connect(this._current, "beforeBegin", this, function(){
+			var beforeBegin = aspect.after(this._current, "beforeBegin", lang.hitch(this, function(){
 					this._fire("beforeBegin");
-				}),
-				onBegin = connect.connect(this._current, "onBegin", this, function(arg){
+				}), true),
+				onBegin = aspect.after(this._current, "onBegin", lang.hitch(this, function(arg){
 					this._fire("onBegin", arguments);
-				}),
-				onPlay = connect.connect(this._current, "onPlay", this, function(arg){
+				}), true),
+				onPlay = aspect.after(this._current, "onPlay", lang.hitch(this, function(arg){
 					this._fire("onPlay", arguments);
-					connect.disconnect(beforeBegin);
-					connect.disconnect(onBegin);
-					connect.disconnect(onPlay);
-				});
+					beforeBegin.remove();
+					onBegin.remove();
+					onPlay.remove();
+				}));
 			if(this._onAnimateCtx){
-				connect.disconnect(this._onAnimateCtx);
+				this._onAnimateCtx.remove();
 			}
-			this._onAnimateCtx = connect.connect(this._current, "onAnimate", this, "_onAnimate");
+			this._onAnimateCtx = aspect.after(this._current, "onAnimate", lang.hitch(this, "_onAnimate"), true);
 			if(this._onEndCtx){
-				connect.disconnect(this._onEndCtx);
+				this._onEndCtx.remove();
 			}
-			this._onEndCtx = connect.connect(this._current, "onEnd", this, "_onEnd");
+			this._onEndCtx = aspect.after(this._current, "onEnd", lang.hitch(this, "_onEnd"), true);
 			this._current.play.apply(this._current, arguments);
 			return this;
 		},
 		pause: function(){
 			if(this._current){
-				var e = connect.connect(this._current, "onPause", this, function(arg){
+				var e = aspect.after(this._current, "onPause", lang.hitch(this, function(arg){
 						this._fire("onPause", arguments);
-						connect.disconnect(e);
-					});
+						e.remove();
+					}), true);
 				this._current.pause();
 			}
 			return this;
@@ -15106,17 +15265,20 @@ define([
 			this.pause();
 			var offset = this.duration * percent;
 			this._current = null;
-			arrayUtil.some(this._animations, function(a){
-				if(a.duration <= offset){
+
+			arrayUtil.some(this._animations, function(a, index){
+				if(offset <= a.duration){
 					this._current = a;
+					this._index = index;
 					return true;
 				}
 				offset -= a.duration;
 				return false;
-			});
+			}, this);
 			if(this._current){
-				this._current.gotoPercent(offset / this._current.duration, andPlay);
+				this._current.gotoPercent(offset / this._current.duration);
 			}
+			if (andPlay) { this.play(); }
 			return this;
 		},
 		stop: function(/*boolean?*/ gotoEnd){
@@ -15127,10 +15289,10 @@ define([
 					}
 					this._current = this._animations[this._index];
 				}
-				var e = connect.connect(this._current, "onStop", this, function(arg){
+				var e = aspect.after(this._current, "onStop", lang.hitch(this, function(arg){
 						this._fire("onStop", arguments);
-						connect.disconnect(e);
-					});
+						e.remove();
+					}), true);
 				this._current.stop();
 			}
 			return this;
@@ -15139,31 +15301,34 @@ define([
 			return this._current ? this._current.status() : "stopped";
 		},
 		destroy: function(){
-			if(this._onAnimateCtx){ connect.disconnect(this._onAnimateCtx); }
-			if(this._onEndCtx){ connect.disconnect(this._onEndCtx); }
+			this.stop();
+			if(this._onAnimateCtx){ this._onAnimateCtx.remove(); }
+			if(this._onEndCtx){ this._onEndCtx.remove(); }
 		}
 	});
 	lang.extend(_chain, _baseObj);
 
 	coreFx.chain = function(/*dojo/_base/fx.Animation[]*/ animations){
 		// summary:
-		//		Chain a list of `dojo.Animation`s to run in sequence
+		//		Chain a list of `dojo/_base/fx.Animation`s to run in sequence
 		//
 		// description:
-		//		Return a `dojo.Animation` which will play all passed
-		//		`dojo.Animation` instances in sequence, firing its own
+		//		Return a `dojo/_base/fx.Animation` which will play all passed
+		//		`dojo/_base/fx.Animation` instances in sequence, firing its own
 		//		synthesized events simulating a single animation. (eg:
 		//		onEnd of this animation means the end of the chain,
 		//		not the individual animations within)
 		//
 		// example:
 		//	Once `node` is faded out, fade in `otherNode`
-		//	|	fx.chain([
-		//	|		dojo.fadeIn({ node:node }),
-		//	|		dojo.fadeOut({ node:otherNode })
-		//	|	]).play();
+		//	|	require(["dojo/fx"], function(fx){
+		//	|		fx.chain([
+		//	|			fx.fadeIn({ node:node }),
+		//	|			fx.fadeOut({ node:otherNode })
+		//	|		]).play();
+		//	|	});
 		//
-		return new _chain(animations); // dojo/_base/fx.Animation
+		return new _chain(lang.isArray(animations) ? animations : Array.prototype.slice.call(animations, 0)); // dojo/_base/fx.Animation
 	};
 
 	var _combine = function(animations){
@@ -15176,16 +15341,16 @@ define([
 			var duration = a.duration;
 			if(a.delay){ duration += a.delay; }
 			if(this.duration < duration){ this.duration = duration; }
-			this._connects.push(connect.connect(a, "onEnd", this, "_onEnd"));
+			this._connects.push(aspect.after(a, "onEnd", lang.hitch(this, "_onEnd"), true));
 		}, this);
 
 		this._pseudoAnimation = new baseFx.Animation({curve: [0, 1], duration: this.duration});
 		var self = this;
 		arrayUtil.forEach(["beforeBegin", "onBegin", "onPlay", "onAnimate", "onPause", "onStop", "onEnd"],
 			function(evt){
-				self._connects.push(connect.connect(self._pseudoAnimation, evt,
-					function(){ self._fire(evt, arguments); }
-				));
+				self._connects.push(aspect.after(self._pseudoAnimation, evt,
+					function(){ self._fire(evt, arguments); },
+				true));
 			}
 		);
 	};
@@ -15233,39 +15398,47 @@ define([
 			return this._pseudoAnimation.status();
 		},
 		destroy: function(){
-			arrayUtil.forEach(this._connects, connect.disconnect);
+			this.stop();
+			arrayUtil.forEach(this._connects, function(handle){
+				handle.remove();
+			});
 		}
 	});
 	lang.extend(_combine, _baseObj);
 
 	coreFx.combine = function(/*dojo/_base/fx.Animation[]*/ animations){
 		// summary:
-		//		Combine a list of `dojo.Animation`s to run in parallel
+		//		Combine a list of `dojo/_base/fx.Animation`s to run in parallel
 		//
 		// description:
-		//		Combine an array of `dojo.Animation`s to run in parallel,
-		//		providing a new `dojo.Animation` instance encompasing each
+		//		Combine an array of `dojo/_base/fx.Animation`s or N
+		//		`dojo/_base/fx.Animation`s  to run in parallel, providing
+		//		a new `dojo/_base/fx.Animation` instance encompassing each
 		//		animation, firing standard animation events.
 		//
 		// example:
 		//	Fade out `node` while fading in `otherNode` simultaneously
-		//	|	fx.combine([
-		//	|		dojo.fadeIn({ node:node }),
-		//	|		dojo.fadeOut({ node:otherNode })
-		//	|	]).play();
+		//	|	require(["dojo/fx"], function(fx){
+		//	|		fx.combine([
+		//	|			fx.fadeIn({ node:node }),
+		//	|			fx.fadeOut({ node:otherNode })
+		//	|		]).play();
+		//	|	});
 		//
 		// example:
 		//	When the longest animation ends, execute a function:
-		//	|	var anim = fx.combine([
-		//	|		dojo.fadeIn({ node: n, duration:700 }),
-		//	|		dojo.fadeOut({ node: otherNode, duration: 300 })
-		//	|	]);
-		//	|	dojo.connect(anim, "onEnd", function(){
-		//	|		// overall animation is done.
+		//	|	require(["dojo/fx"], function(fx){
+		//	|		var anim = fx.combine([
+		//	|			fx.fadeIn({ node: n, duration:700 }),
+		//	|			fx.fadeOut({ node: otherNode, duration: 300 })
+		//	|		]);
+		//	|		aspect.after(anim, "onEnd", function(){
+		//	|			// overall animation is done.
+		//	|		}, true);
+		//	|		anim.play(); // play the animation
 		//	|	});
-		//	|	anim.play(); // play the animation
 		//
-		return new _combine(animations); // dojo/_base/fx.Animation
+		return new _combine(lang.isArray(animations) ? animations : Array.prototype.slice.call(animations, 0)); // dojo/_base/fx.Animation
 	};
 
 	coreFx.wipeIn = function(/*Object*/ args){
@@ -15279,13 +15452,16 @@ define([
 		//		Node must have no margin/border/padding.
 		//
 		// args: Object
-		//		A hash-map of standard `dojo.Animation` constructor properties
+		//		A hash-map of standard `dojo/_base/fx.Animation` constructor properties
 		//		(such as easing: node: duration: and so on)
 		//
 		// example:
-		//	|	fx.wipeIn({
-		//	|		node:"someId"
-		//	|	}).play()
+		//	|	require(["dojo/fx"], function(fx){
+		//	|		fx.wipeIn({
+		//	|			node:"someId"
+		//	|		}).play()
+		//	|	});
+
 		var node = args.node = dom.byId(args.node), s = node.style, o;
 
 		var anim = baseFx.animateProperty(lang.mixin({
@@ -15318,8 +15494,8 @@ define([
 			s.height = "auto";
 			s.overflow = o;
 		};
-		connect.connect(anim, "onStop", fini);
-		connect.connect(anim, "onEnd", fini);
+		aspect.after(anim, "onStop", fini, true);
+		aspect.after(anim, "onEnd", fini, true);
 
 		return anim; // dojo/_base/fx.Animation
 	};
@@ -15333,11 +15509,13 @@ define([
 		//		from it's current height to 1px, and then hide it.
 		//
 		// args: Object
-		//		A hash-map of standard `dojo.Animation` constructor properties
+		//		A hash-map of standard `dojo/_base/fx.Animation` constructor properties
 		//		(such as easing: node: duration: and so on)
 		//
 		// example:
-		//	|	fx.wipeOut({ node:"someId" }).play()
+		//	|	require(["dojo/fx"], function(fx){
+		//	|		fx.wipeOut({ node:"someId" }).play()
+		//	|	});
 
 		var node = args.node = dom.byId(args.node), s = node.style, o;
 
@@ -15349,18 +15527,18 @@ define([
 			}
 		}, args));
 
-		connect.connect(anim, "beforeBegin", function(){
+		aspect.after(anim, "beforeBegin", function(){
 			o = s.overflow;
 			s.overflow = "hidden";
 			s.display = "";
-		});
+		}, true);
 		var fini = function(){
 			s.overflow = o;
 			s.height = "auto";
 			s.display = "none";
 		};
-		connect.connect(anim, "onStop", fini);
-		connect.connect(anim, "onEnd", fini);
+		aspect.after(anim, "onStop", fini, true);
+		aspect.after(anim, "onEnd", fini, true);
 
 		return anim; // dojo/_base/fx.Animation
 	};
@@ -15375,7 +15553,7 @@ define([
 		//		the position defined by (args.left, args.top).
 		//
 		// args: Object
-		//		A hash-map of standard `dojo.Animation` constructor properties
+		//		A hash-map of standard `dojo/_base/fx.Animation` constructor properties
 		//		(such as easing: node: duration: and so on). Special args members
 		//		are `top` and `left`, which indicate the new position to slide to.
 		//
@@ -15409,12 +15587,438 @@ define([
 				left: args.left || 0
 			}
 		}, args));
-		connect.connect(anim, "beforeBegin", anim, init);
+		aspect.after(anim, "beforeBegin", init, true);
 
 		return anim; // dojo/_base/fx.Animation
 	};
 
 	return coreFx;
+});
+
+},
+'dojo/fx/easing':function(){
+define(["../_base/lang"], function(lang){
+
+// module:
+//		dojo/fx/easing
+
+var easingFuncs = {
+	// summary:
+	//		Collection of easing functions to use beyond the default
+	//		`dojo._defaultEasing` function.
+	// description:
+	//		Easing functions are used to manipulate the iteration through
+	//		an `dojo.Animation`s _Line. _Line being the properties of an Animation,
+	//		and the easing function progresses through that Line determining
+	//		how quickly (or slowly) it should go. Or more accurately: modify
+	//		the value of the _Line based on the percentage of animation completed.
+	//
+	//		All functions follow a simple naming convention of "ease type" + "when".
+	//		If the name of the function ends in Out, the easing described appears
+	//		towards the end of the animation. "In" means during the beginning,
+	//		and InOut means both ranges of the Animation will applied, both
+	//		beginning and end.
+	//
+	//		One does not call the easing function directly, it must be passed to
+	//		the `easing` property of an animation.
+	// example:
+	//	|	dojo.require("dojo.fx.easing");
+	//	|	var anim = dojo.fadeOut({
+	//	|		node: 'node',
+	//	|		duration: 2000,
+	//	|		//	note there is no ()
+	//	|		easing: dojo.fx.easing.quadIn
+	//	|	}).play();
+	//
+
+	linear: function(/* Decimal? */n){
+		// summary:
+		//		A linear easing function
+		return n;
+	},
+
+	quadIn: function(/* Decimal? */n){
+		return Math.pow(n, 2);
+	},
+
+	quadOut: function(/* Decimal? */n){
+		return n * (n - 2) * -1;
+	},
+
+	quadInOut: function(/* Decimal? */n){
+		n = n * 2;
+		if(n < 1){ return Math.pow(n, 2) / 2; }
+		return -1 * ((--n) * (n - 2) - 1) / 2;
+	},
+
+	cubicIn: function(/* Decimal? */n){
+		return Math.pow(n, 3);
+	},
+
+	cubicOut: function(/* Decimal? */n){
+		return Math.pow(n - 1, 3) + 1;
+	},
+
+	cubicInOut: function(/* Decimal? */n){
+		n = n * 2;
+		if(n < 1){ return Math.pow(n, 3) / 2; }
+		n -= 2;
+		return (Math.pow(n, 3) + 2) / 2;
+	},
+
+	quartIn: function(/* Decimal? */n){
+		return Math.pow(n, 4);
+	},
+
+	quartOut: function(/* Decimal? */n){
+		return -1 * (Math.pow(n - 1, 4) - 1);
+	},
+
+	quartInOut: function(/* Decimal? */n){
+		n = n * 2;
+		if(n < 1){ return Math.pow(n, 4) / 2; }
+		n -= 2;
+		return -1 / 2 * (Math.pow(n, 4) - 2);
+	},
+
+	quintIn: function(/* Decimal? */n){
+		return Math.pow(n, 5);
+	},
+
+	quintOut: function(/* Decimal? */n){
+		return Math.pow(n - 1, 5) + 1;
+	},
+
+	quintInOut: function(/* Decimal? */n){
+		n = n * 2;
+		if(n < 1){ return Math.pow(n, 5) / 2; }
+		n -= 2;
+		return (Math.pow(n, 5) + 2) / 2;
+	},
+
+	sineIn: function(/* Decimal? */n){
+		return -1 * Math.cos(n * (Math.PI / 2)) + 1;
+	},
+
+	sineOut: function(/* Decimal? */n){
+		return Math.sin(n * (Math.PI / 2));
+	},
+
+	sineInOut: function(/* Decimal? */n){
+		return -1 * (Math.cos(Math.PI * n) - 1) / 2;
+	},
+
+	expoIn: function(/* Decimal? */n){
+		return (n == 0) ? 0 : Math.pow(2, 10 * (n - 1));
+	},
+
+	expoOut: function(/* Decimal? */n){
+		return (n == 1) ? 1 : (-1 * Math.pow(2, -10 * n) + 1);
+	},
+
+	expoInOut: function(/* Decimal? */n){
+		if(n == 0){ return 0; }
+		if(n == 1){ return 1; }
+		n = n * 2;
+		if(n < 1){ return Math.pow(2, 10 * (n - 1)) / 2; }
+		--n;
+		return (-1 * Math.pow(2, -10 * n) + 2) / 2;
+	},
+
+	circIn: function(/* Decimal? */n){
+		return -1 * (Math.sqrt(1 - Math.pow(n, 2)) - 1);
+	},
+
+	circOut: function(/* Decimal? */n){
+		n = n - 1;
+		return Math.sqrt(1 - Math.pow(n, 2));
+	},
+
+	circInOut: function(/* Decimal? */n){
+		n = n * 2;
+		if(n < 1){ return -1 / 2 * (Math.sqrt(1 - Math.pow(n, 2)) - 1); }
+		n -= 2;
+		return 1 / 2 * (Math.sqrt(1 - Math.pow(n, 2)) + 1);
+	},
+
+	backIn: function(/* Decimal? */n){
+		// summary:
+		//		An easing function that starts away from the target,
+		//		and quickly accelerates towards the end value.
+		//
+		//		Use caution when the easing will cause values to become
+		//		negative as some properties cannot be set to negative values.
+		var s = 1.70158;
+		return Math.pow(n, 2) * ((s + 1) * n - s);
+	},
+
+	backOut: function(/* Decimal? */n){
+		// summary:
+		//		An easing function that pops past the range briefly, and slowly comes back.
+		// description:
+		//		An easing function that pops past the range briefly, and slowly comes back.
+		//
+		//		Use caution when the easing will cause values to become negative as some
+		//		properties cannot be set to negative values.
+
+		n = n - 1;
+		var s = 1.70158;
+		return Math.pow(n, 2) * ((s + 1) * n + s) + 1;
+	},
+
+	backInOut: function(/* Decimal? */n){
+		// summary:
+		//		An easing function combining the effects of `backIn` and `backOut`
+		// description:
+		//		An easing function combining the effects of `backIn` and `backOut`.
+		//		Use caution when the easing will cause values to become negative
+		//		as some properties cannot be set to negative values.
+		var s = 1.70158 * 1.525;
+		n = n * 2;
+		if(n < 1){ return (Math.pow(n, 2) * ((s + 1) * n - s)) / 2; }
+		n-=2;
+		return (Math.pow(n, 2) * ((s + 1) * n + s) + 2) / 2;
+	},
+
+	elasticIn: function(/* Decimal? */n){
+		// summary:
+		//		An easing function the elastically snaps from the start value
+		// description:
+		//		An easing function the elastically snaps from the start value
+		//
+		//		Use caution when the elasticity will cause values to become negative
+		//		as some properties cannot be set to negative values.
+		if(n == 0 || n == 1){ return n; }
+		var p = .3;
+		var s = p / 4;
+		n = n - 1;
+		return -1 * Math.pow(2, 10 * n) * Math.sin((n - s) * (2 * Math.PI) / p);
+	},
+
+	elasticOut: function(/* Decimal? */n){
+		// summary:
+		//		An easing function that elasticly snaps around the target value,
+		//		near the end of the Animation
+		// description:
+		//		An easing function that elasticly snaps around the target value,
+		//		near the end of the Animation
+		//
+		//		Use caution when the elasticity will cause values to become
+		//		negative as some properties cannot be set to negative values.
+		if(n==0 || n == 1){ return n; }
+		var p = .3;
+		var s = p / 4;
+		return Math.pow(2, -10 * n) * Math.sin((n - s) * (2 * Math.PI) / p) + 1;
+	},
+
+	elasticInOut: function(/* Decimal? */n){
+		// summary:
+		//		An easing function that elasticly snaps around the value, near
+		//		the beginning and end of the Animation.
+		// description:
+		//		An easing function that elasticly snaps around the value, near
+		//		the beginning and end of the Animation.
+		//
+		//		Use caution when the elasticity will cause values to become
+		//		negative as some properties cannot be set to negative values.
+		if(n == 0) return 0;
+		n = n * 2;
+		if(n == 2) return 1;
+		var p = .3 * 1.5;
+		var s = p / 4;
+		if(n < 1){
+			n -= 1;
+			return -.5 * (Math.pow(2, 10 * n) * Math.sin((n - s) * (2 * Math.PI) / p));
+		}
+		n -= 1;
+		return .5 * (Math.pow(2, -10 * n) * Math.sin((n - s) * (2 * Math.PI) / p)) + 1;
+	},
+
+	bounceIn: function(/* Decimal? */n){
+		// summary:
+		//		An easing function that 'bounces' near the beginning of an Animation
+		return (1 - easingFuncs.bounceOut(1 - n)); // Decimal
+	},
+
+	bounceOut: function(/* Decimal? */n){
+		// summary:
+		//		An easing function that 'bounces' near the end of an Animation
+		var s = 7.5625;
+		var p = 2.75;
+		var l;
+		if(n < (1 / p)){
+			l = s * Math.pow(n, 2);
+		}else if(n < (2 / p)){
+			n -= (1.5 / p);
+			l = s * Math.pow(n, 2) + .75;
+		}else if(n < (2.5 / p)){
+			n -= (2.25 / p);
+			l = s * Math.pow(n, 2) + .9375;
+		}else{
+			n -= (2.625 / p);
+			l = s * Math.pow(n, 2) + .984375;
+		}
+		return l;
+	},
+
+	bounceInOut: function(/* Decimal? */n){
+		// summary:
+		//		An easing function that 'bounces' at the beginning and end of the Animation
+		if(n < 0.5){ return easingFuncs.bounceIn(n * 2) / 2; }
+		return (easingFuncs.bounceOut(n * 2 - 1) / 2) + 0.5; // Decimal
+	}
+};
+
+lang.setObject("dojo.fx.easing", easingFuncs);
+
+return easingFuncs;
+});
+
+},
+'dojox/charting/action2d/Highlight':function(){
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/Color", "dojo/_base/connect", "dojox/color/_base",
+		"./PlotAction", "dojo/fx/easing", "dojox/gfx/fx"], 
+	function(lang, declare, Color, hub, c, PlotAction, dfe, dgf){
+
+	/*=====
+	var __HighlightCtorArgs = {
+		// summary:
+		//		Additional arguments for highlighting actions.
+		// duration: Number?
+		//		The amount of time in milliseconds for an animation to last.  Default is 400.
+		// easing: dojo/fx/easing/*?
+		//		An easing object (see dojo.fx.easing) for use in an animation.  The
+		//		default is dojo.fx.easing.backOut.
+		// highlight: String|dojo/_base/Color|Function?
+		//		Either a color or a function that creates a color when highlighting happens.
+	};
+	=====*/
+	
+	var DEFAULT_SATURATION  = 100,	// %
+		DEFAULT_LUMINOSITY1 = 75,	// %
+		DEFAULT_LUMINOSITY2 = 50,	// %
+		cc = function(color){
+			return function(){ return color; };
+		},
+
+		hl = function(color){
+			var a = new c.Color(color),
+				x = a.toHsl();
+			if(x.s == 0){
+				x.l = x.l < 50 ? 100 : 0;
+			}else{
+				x.s = DEFAULT_SATURATION;
+				if(x.l < DEFAULT_LUMINOSITY2){
+					x.l = DEFAULT_LUMINOSITY1;
+				}else if(x.l > DEFAULT_LUMINOSITY1){
+					x.l = DEFAULT_LUMINOSITY2;
+				}else{
+					x.l = x.l - DEFAULT_LUMINOSITY2 > DEFAULT_LUMINOSITY1 - x.l ?
+						DEFAULT_LUMINOSITY2 : DEFAULT_LUMINOSITY1;
+				}
+			}
+			var rcolor = c.fromHsl(x);
+			rcolor.a = a.a;
+			return rcolor;
+		},
+
+		spiderhl = function(color){
+			var r = hl(color);
+			r.a = 0.7;
+			return r;
+		}
+
+	return declare("dojox.charting.action2d.Highlight", PlotAction, {
+		// summary:
+		//		Creates a highlighting action on a plot, where an element on that plot
+		//		has a highlight on it.
+
+		// the data description block for the widget parser
+		defaultParams: {
+			duration: 400,	// duration of the action in ms
+			easing:   dfe.backOut	// easing for the action
+		},
+		optionalParams: {
+			highlight: "red"	// name for the highlight color
+								// programmatic instantiation can use functions and color objects
+		},
+
+		constructor: function(chart, plot, kwArgs){
+			// summary:
+			//		Create the highlighting action and connect it to the plot.
+			// chart: dojox/charting/Chart
+			//		The chart this action belongs to.
+			// plot: String?
+			//		The plot this action is attached to.  If not passed, "default" is assumed.
+			// kwArgs: __HighlightCtorArgs?
+			//		Optional keyword arguments object for setting parameters.
+			var a = kwArgs && kwArgs.highlight;
+			this.colorFunc = a ? (lang.isFunction(a) ? a : cc(a)) : hl;
+			this.connect();
+		},
+
+		process: function(o){
+			// summary:
+			//		Process the action on the given object.
+			// o: dojox/gfx/shape.Shape
+			//		The object on which to process the highlighting action.
+			if(!o.shape || !(o.type in this.overOutEvents)){ return; }
+
+			// if spider let's deal only with poly
+			if(o.element == "spider_circle" || o.element == "spider_plot"){
+				return;
+			}else if(o.element == "spider_poly" && this.colorFunc == hl){
+				// hardcode alpha for compatibility reasons
+				// TODO to remove in 2.0
+				this.colorFunc = spiderhl;
+			}
+
+			var runName = o.run.name, index = o.index, anim;
+
+			if(runName in this.anim){
+				anim = this.anim[runName][index];
+			}else{
+				this.anim[runName] = {};
+			}
+
+			if(anim){
+				anim.action.stop(true);
+			}else{
+				var color = o.shape.getFill();
+				if(!color || !(color instanceof Color)){
+					return;
+				}
+				this.anim[runName][index] = anim = {
+					start: color,
+					end:   this.colorFunc(color)
+				};
+			}
+
+			var start = anim.start, end = anim.end;
+			if(o.type == "onmouseout"){
+				// swap colors
+				var t = start;
+				start = end;
+				end = t;
+			}
+
+			anim.action = dgf.animateFill({
+				shape:    o.shape,
+				duration: this.duration,
+				easing:   this.easing,
+				color:    {start: start, end: end}
+			});
+			if(o.type == "onmouseout"){
+				hub.connect(anim.action, "onEnd", this, function(){
+					if(this.anim[runName]){
+						delete this.anim[runName][index];
+					}
+				});
+			}
+			anim.action.play();
+		}
+	});
+	
 });
 
 },
@@ -15852,420 +16456,9 @@ define(["./_base/kernel", "./_base/lang", "./_base/Color", "./_base/array"], fun
 });
 
 },
-'dojo/fx/easing':function(){
-define(["../_base/lang"], function(lang){
-
-// module:
-//		dojo/fx/easing
-
-var easingFuncs = {
-	// summary:
-	//		Collection of easing functions to use beyond the default
-	//		`dojo._defaultEasing` function.
-	// description:
-	//		Easing functions are used to manipulate the iteration through
-	//		an `dojo.Animation`s _Line. _Line being the properties of an Animation,
-	//		and the easing function progresses through that Line determining
-	//		how quickly (or slowly) it should go. Or more accurately: modify
-	//		the value of the _Line based on the percentage of animation completed.
-	//
-	//		All functions follow a simple naming convention of "ease type" + "when".
-	//		If the name of the function ends in Out, the easing described appears
-	//		towards the end of the animation. "In" means during the beginning,
-	//		and InOut means both ranges of the Animation will applied, both
-	//		beginning and end.
-	//
-	//		One does not call the easing function directly, it must be passed to
-	//		the `easing` property of an animation.
-	// example:
-	//	|	dojo.require("dojo.fx.easing");
-	//	|	var anim = dojo.fadeOut({
-	//	|		node: 'node',
-	//	|		duration: 2000,
-	//	|		//	note there is no ()
-	//	|		easing: dojo.fx.easing.quadIn
-	//	|	}).play();
-	//
-
-	linear: function(/* Decimal? */n){
-		// summary:
-		//		A linear easing function
-		return n;
-	},
-
-	quadIn: function(/* Decimal? */n){
-		return Math.pow(n, 2);
-	},
-
-	quadOut: function(/* Decimal? */n){
-		return n * (n - 2) * -1;
-	},
-
-	quadInOut: function(/* Decimal? */n){
-		n = n * 2;
-		if(n < 1){ return Math.pow(n, 2) / 2; }
-		return -1 * ((--n) * (n - 2) - 1) / 2;
-	},
-
-	cubicIn: function(/* Decimal? */n){
-		return Math.pow(n, 3);
-	},
-
-	cubicOut: function(/* Decimal? */n){
-		return Math.pow(n - 1, 3) + 1;
-	},
-
-	cubicInOut: function(/* Decimal? */n){
-		n = n * 2;
-		if(n < 1){ return Math.pow(n, 3) / 2; }
-		n -= 2;
-		return (Math.pow(n, 3) + 2) / 2;
-	},
-
-	quartIn: function(/* Decimal? */n){
-		return Math.pow(n, 4);
-	},
-
-	quartOut: function(/* Decimal? */n){
-		return -1 * (Math.pow(n - 1, 4) - 1);
-	},
-
-	quartInOut: function(/* Decimal? */n){
-		n = n * 2;
-		if(n < 1){ return Math.pow(n, 4) / 2; }
-		n -= 2;
-		return -1 / 2 * (Math.pow(n, 4) - 2);
-	},
-
-	quintIn: function(/* Decimal? */n){
-		return Math.pow(n, 5);
-	},
-
-	quintOut: function(/* Decimal? */n){
-		return Math.pow(n - 1, 5) + 1;
-	},
-
-	quintInOut: function(/* Decimal? */n){
-		n = n * 2;
-		if(n < 1){ return Math.pow(n, 5) / 2; }
-		n -= 2;
-		return (Math.pow(n, 5) + 2) / 2;
-	},
-
-	sineIn: function(/* Decimal? */n){
-		return -1 * Math.cos(n * (Math.PI / 2)) + 1;
-	},
-
-	sineOut: function(/* Decimal? */n){
-		return Math.sin(n * (Math.PI / 2));
-	},
-
-	sineInOut: function(/* Decimal? */n){
-		return -1 * (Math.cos(Math.PI * n) - 1) / 2;
-	},
-
-	expoIn: function(/* Decimal? */n){
-		return (n == 0) ? 0 : Math.pow(2, 10 * (n - 1));
-	},
-
-	expoOut: function(/* Decimal? */n){
-		return (n == 1) ? 1 : (-1 * Math.pow(2, -10 * n) + 1);
-	},
-
-	expoInOut: function(/* Decimal? */n){
-		if(n == 0){ return 0; }
-		if(n == 1){ return 1; }
-		n = n * 2;
-		if(n < 1){ return Math.pow(2, 10 * (n - 1)) / 2; }
-		--n;
-		return (-1 * Math.pow(2, -10 * n) + 2) / 2;
-	},
-
-	circIn: function(/* Decimal? */n){
-		return -1 * (Math.sqrt(1 - Math.pow(n, 2)) - 1);
-	},
-
-	circOut: function(/* Decimal? */n){
-		n = n - 1;
-		return Math.sqrt(1 - Math.pow(n, 2));
-	},
-
-	circInOut: function(/* Decimal? */n){
-		n = n * 2;
-		if(n < 1){ return -1 / 2 * (Math.sqrt(1 - Math.pow(n, 2)) - 1); }
-		n -= 2;
-		return 1 / 2 * (Math.sqrt(1 - Math.pow(n, 2)) + 1);
-	},
-
-	backIn: function(/* Decimal? */n){
-		// summary:
-		//		An easing function that starts away from the target,
-		//		and quickly accelerates towards the end value.
-		//
-		//		Use caution when the easing will cause values to become
-		//		negative as some properties cannot be set to negative values.
-		var s = 1.70158;
-		return Math.pow(n, 2) * ((s + 1) * n - s);
-	},
-
-	backOut: function(/* Decimal? */n){
-		// summary:
-		//		An easing function that pops past the range briefly, and slowly comes back.
-		// description:
-		//		An easing function that pops past the range briefly, and slowly comes back.
-		//
-		//		Use caution when the easing will cause values to become negative as some
-		//		properties cannot be set to negative values.
-
-		n = n - 1;
-		var s = 1.70158;
-		return Math.pow(n, 2) * ((s + 1) * n + s) + 1;
-	},
-
-	backInOut: function(/* Decimal? */n){
-		// summary:
-		//		An easing function combining the effects of `backIn` and `backOut`
-		// description:
-		//		An easing function combining the effects of `backIn` and `backOut`.
-		//		Use caution when the easing will cause values to become negative
-		//		as some properties cannot be set to negative values.
-		var s = 1.70158 * 1.525;
-		n = n * 2;
-		if(n < 1){ return (Math.pow(n, 2) * ((s + 1) * n - s)) / 2; }
-		n-=2;
-		return (Math.pow(n, 2) * ((s + 1) * n + s) + 2) / 2;
-	},
-
-	elasticIn: function(/* Decimal? */n){
-		// summary:
-		//		An easing function the elastically snaps from the start value
-		// description:
-		//		An easing function the elastically snaps from the start value
-		//
-		//		Use caution when the elasticity will cause values to become negative
-		//		as some properties cannot be set to negative values.
-		if(n == 0 || n == 1){ return n; }
-		var p = .3;
-		var s = p / 4;
-		n = n - 1;
-		return -1 * Math.pow(2, 10 * n) * Math.sin((n - s) * (2 * Math.PI) / p);
-	},
-
-	elasticOut: function(/* Decimal? */n){
-		// summary:
-		//		An easing function that elasticly snaps around the target value,
-		//		near the end of the Animation
-		// description:
-		//		An easing function that elasticly snaps around the target value,
-		//		near the end of the Animation
-		//
-		//		Use caution when the elasticity will cause values to become
-		//		negative as some properties cannot be set to negative values.
-		if(n==0 || n == 1){ return n; }
-		var p = .3;
-		var s = p / 4;
-		return Math.pow(2, -10 * n) * Math.sin((n - s) * (2 * Math.PI) / p) + 1;
-	},
-
-	elasticInOut: function(/* Decimal? */n){
-		// summary:
-		//		An easing function that elasticly snaps around the value, near
-		//		the beginning and end of the Animation.
-		// description:
-		//		An easing function that elasticly snaps around the value, near
-		//		the beginning and end of the Animation.
-		//
-		//		Use caution when the elasticity will cause values to become
-		//		negative as some properties cannot be set to negative values.
-		if(n == 0) return 0;
-		n = n * 2;
-		if(n == 2) return 1;
-		var p = .3 * 1.5;
-		var s = p / 4;
-		if(n < 1){
-			n -= 1;
-			return -.5 * (Math.pow(2, 10 * n) * Math.sin((n - s) * (2 * Math.PI) / p));
-		}
-		n -= 1;
-		return .5 * (Math.pow(2, -10 * n) * Math.sin((n - s) * (2 * Math.PI) / p)) + 1;
-	},
-
-	bounceIn: function(/* Decimal? */n){
-		// summary:
-		//		An easing function that 'bounces' near the beginning of an Animation
-		return (1 - easingFuncs.bounceOut(1 - n)); // Decimal
-	},
-
-	bounceOut: function(/* Decimal? */n){
-		// summary:
-		//		An easing function that 'bounces' near the end of an Animation
-		var s = 7.5625;
-		var p = 2.75;
-		var l;
-		if(n < (1 / p)){
-			l = s * Math.pow(n, 2);
-		}else if(n < (2 / p)){
-			n -= (1.5 / p);
-			l = s * Math.pow(n, 2) + .75;
-		}else if(n < (2.5 / p)){
-			n -= (2.25 / p);
-			l = s * Math.pow(n, 2) + .9375;
-		}else{
-			n -= (2.625 / p);
-			l = s * Math.pow(n, 2) + .984375;
-		}
-		return l;
-	},
-
-	bounceInOut: function(/* Decimal? */n){
-		// summary:
-		//		An easing function that 'bounces' at the beginning and end of the Animation
-		if(n < 0.5){ return easingFuncs.bounceIn(n * 2) / 2; }
-		return (easingFuncs.bounceOut(n * 2 - 1) / 2) + 0.5; // Decimal
-	}
-};
-
-lang.setObject("dojo.fx.easing", easingFuncs);
-
-return easingFuncs;
-});
-
-},
-'dojox/charting/action2d/Highlight':function(){
-define("dojox/charting/action2d/Highlight", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/Color", "dojo/_base/connect", "dojox/color/_base", 
-		"./PlotAction", "dojo/fx/easing", "dojox/gfx/fx"], 
-	function(dojo, lang, declare, Color, hub, c, PlotAction, dfe, dgf){
-
-	/*=====
-	var __HighlightCtorArgs = {
-		// summary:
-		//		Additional arguments for highlighting actions.
-		// duration: Number?
-		//		The amount of time in milliseconds for an animation to last.  Default is 400.
-		// easing: dojo/fx/easing/*?
-		//		An easing object (see dojo.fx.easing) for use in an animation.  The
-		//		default is dojo.fx.easing.backOut.
-		// highlight: String|dojo/_base/Color|Function?
-		//		Either a color or a function that creates a color when highlighting happens.
-	};
-	=====*/
-	
-	var DEFAULT_SATURATION  = 100,	// %
-		DEFAULT_LUMINOSITY1 = 75,	// %
-		DEFAULT_LUMINOSITY2 = 50,	// %
-		cc = function(color){
-			return function(){ return color; };
-		},
-
-		hl = function(color){
-			var a = new c.Color(color),
-				x = a.toHsl();
-			if(x.s == 0){
-				x.l = x.l < 50 ? 100 : 0;
-			}else{
-				x.s = DEFAULT_SATURATION;
-				if(x.l < DEFAULT_LUMINOSITY2){
-					x.l = DEFAULT_LUMINOSITY1;
-				}else if(x.l > DEFAULT_LUMINOSITY1){
-					x.l = DEFAULT_LUMINOSITY2;
-				}else{
-					x.l = x.l - DEFAULT_LUMINOSITY2 > DEFAULT_LUMINOSITY1 - x.l ?
-						DEFAULT_LUMINOSITY2 : DEFAULT_LUMINOSITY1;
-				}
-			}
-			return c.fromHsl(x);
-		};
-
-	return declare("dojox.charting.action2d.Highlight", PlotAction, {
-		// summary:
-		//		Creates a highlighting action on a plot, where an element on that plot
-		//		has a highlight on it.
-
-		// the data description block for the widget parser
-		defaultParams: {
-			duration: 400,	// duration of the action in ms
-			easing:   dfe.backOut	// easing for the action
-		},
-		optionalParams: {
-			highlight: "red"	// name for the highlight color
-								// programmatic instantiation can use functions and color objects
-		},
-
-		constructor: function(chart, plot, kwArgs){
-			// summary:
-			//		Create the highlighting action and connect it to the plot.
-			// chart: dojox/charting/Chart
-			//		The chart this action belongs to.
-			// plot: String?
-			//		The plot this action is attached to.  If not passed, "default" is assumed.
-			// kwArgs: __HighlightCtorArgs?
-			//		Optional keyword arguments object for setting parameters.
-			var a = kwArgs && kwArgs.highlight;
-			this.colorFun = a ? (lang.isFunction(a) ? a : cc(a)) : hl;
-
-			this.connect();
-		},
-
-		process: function(o){
-			// summary:
-			//		Process the action on the given object.
-			// o: dojox/gfx/shape.Shape
-			//		The object on which to process the highlighting action.
-			if(!o.shape || !(o.type in this.overOutEvents)){ return; }
-
-			var runName = o.run.name, index = o.index, anim, startFill, endFill;
-
-			if(runName in this.anim){
-				anim = this.anim[runName][index];
-			}else{
-				this.anim[runName] = {};
-			}
-
-			if(anim){
-				anim.action.stop(true);
-			}else{
-				var color = o.shape.getFill();
-				if(!color || !(color instanceof Color)){
-					return;
-				}
-				this.anim[runName][index] = anim = {
-					start: color,
-					end:   this.colorFun(color)
-				};
-			}
-
-			var start = anim.start, end = anim.end;
-			if(o.type == "onmouseout"){
-				// swap colors
-				var t = start;
-				start = end;
-				end = t;
-			}
-
-			anim.action = dgf.animateFill({
-				shape:    o.shape,
-				duration: this.duration,
-				easing:   this.easing,
-				color:    {start: start, end: end}
-			});
-			if(o.type == "onmouseout"){
-				hub.connect(anim.action, "onEnd", this, function(){
-					if(this.anim[runName]){
-						delete this.anim[runName][index];
-					}
-				});
-			}
-			anim.action.play();
-		}
-	});
-	
-});
-
-},
 'dojox/charting/action2d/PlotAction':function(){
-define("dojox/charting/action2d/PlotAction", ["dojo/_base/connect", "dojo/_base/declare", "./Base", "dojo/fx/easing", "dojox/lang/functional", 
-		"dojox/lang/functional/object"], 
-	function(hub, declare, Base, dfe, df, dlfo){
+define(["dojo/_base/connect", "dojo/_base/declare", "./Base", "dojo/fx/easing", "dojox/lang/functional"],
+	function(hub, declare, Base, dfe, df){
 	
 	/*=====
 	var __PlotActionCtorArgs = {
@@ -16341,10 +16534,10 @@ define("dojox/charting/action2d/PlotAction", ["dojo/_base/connect", "dojo/_base/
 
 },
 'dojox/charting/action2d/Base':function(){
-define("dojox/charting/action2d/Base", ["dojo/_base/lang", "dojo/_base/declare"], 
-	function(lang, declare){
+define(["dojo/_base/lang", "dojo/_base/declare", "dojo/Evented"],
+	function(lang, declare, Evented){
 
-	return declare("dojox.charting.action2d.Base", null, {
+	return declare("dojox.charting.action2d.Base", Evented, {
 		// summary:
 		//		Base action class for plot and chart actions.
 	
@@ -16380,7 +16573,7 @@ define("dojox/charting/action2d/Base", ["dojo/_base/lang", "dojo/_base/declare"]
 
 },
 'dojox/charting/action2d/Magnify':function(){
-define("dojox/charting/action2d/Magnify", ["dojo/_base/connect", "dojo/_base/declare", 
+define(["dojo/_base/connect", "dojo/_base/declare", 
 	"./PlotAction", "dojox/gfx/matrix", 
 	"dojox/gfx/fx", "dojo/fx", "dojo/fx/easing"], 
 	function(Hub, declare, PlotAction, m, gf, df, dfe){
@@ -16436,6 +16629,11 @@ define("dojox/charting/action2d/Magnify", ["dojo/_base/connect", "dojo/_base/dec
 			//		The object on which to process the magnifying action.
 			if(!o.shape || !(o.type in this.overOutEvents) ||
 				!("cx" in o) || !("cy" in o)){ return; }
+
+			// if spider deal only with circle
+			if(o.element == "spider_plot" || o.element == "spider_poly"){
+				return;
+			}
 
 			var runName = o.run.name, index = o.index, vector = [], anim, init, scale;
 
@@ -16501,130 +16699,130 @@ define("dojox/charting/action2d/Magnify", ["dojo/_base/connect", "dojo/_base/dec
 
 },
 'dojox/charting/action2d/MoveSlice':function(){
-define("dojox/charting/action2d/MoveSlice", ["dojo/_base/connect", "dojo/_base/declare", "dojo/_base/array", "./PlotAction", "dojo/fx/easing", "dojox/gfx/matrix",
+define(["dojo/_base/connect", "dojo/_base/declare", "dojo/_base/array", "./PlotAction", "dojo/fx/easing", "dojox/gfx/matrix",
 	"dojox/gfx/fx", "dojox/lang/functional", "dojox/lang/functional/scan", "dojox/lang/functional/fold"],
-	function(hub, declare, array, PlotAction, dfe, m, gf, df, dfs, dff){
+	function(hub, declare, array, PlotAction, dfe, m, gf, df){
 
-		/*=====
-		 var __MoveSliceCtorArgs = {
-		 // summary:
-		 //		Additional arguments for move slice actions.
-		 // duration: Number?
-		 //		The amount of time in milliseconds for an animation to last.  Default is 400.
-		 // easing: dojo/fx/easing/*?
-		 //		An easing object (see dojo.fx.easing) for use in an animation.  The
-		 //		default is dojo.fx.easing.backOut.
-		 // scale: Number?
-		 //		The amount to scale the pie slice.  Default is 1.05.
-		 // shift: Number?
-		 //		The amount in pixels to shift the pie slice.  Default is 7.
-		 };
-		 =====*/
-
-		var DEFAULT_SCALE = 1.05,
-			DEFAULT_SHIFT = 7;	// px
-
-		return declare("dojox.charting.action2d.MoveSlice", PlotAction, {
+	/*=====
+	var __MoveSliceCtorArgs = {
 			// summary:
-			//		Create an action for a pie chart that moves and scales a pie slice.
+			//		Additional arguments for move slice actions.
+			// duration: Number?
+			//		The amount of time in milliseconds for an animation to last.  Default is 400.
+			// easing: dojo/fx/easing/*?
+			//		An easing object (see dojo.fx.easing) for use in an animation.  The
+			//		default is dojo.fx.easing.backOut.
+			// scale: Number?
+			//		The amount to scale the pie slice.  Default is 1.05.
+			// shift: Number?
+			//		The amount in pixels to shift the pie slice.  Default is 7.
+	};
+	=====*/
+	
+	var DEFAULT_SCALE = 1.05,
+		DEFAULT_SHIFT = 7;	// px
 
-			// the data description block for the widget parser
-			defaultParams: {
-				duration: 400,	// duration of the action in ms
-				easing:   dfe.backOut,	// easing for the action
-				scale:    DEFAULT_SCALE,	// scale of magnification
-				shift:    DEFAULT_SHIFT		// shift of the slice
-			},
-			optionalParams: {},	// no optional parameters
+	return declare("dojox.charting.action2d.MoveSlice", PlotAction, {
+		// summary:
+		//		Create an action for a pie chart that moves and scales a pie slice.
 
-			constructor: function(chart, plot, kwArgs){
-				// summary:
-				//		Create the slice moving action and connect it to the plot.
-				// chart: dojox/charting/Chart
-				//		The chart this action belongs to.
-				// plot: String?
-				//		The plot this action is attached to.  If not passed, "default" is assumed.
-				// kwArgs: __MoveSliceCtorArgs?
-				//		Optional keyword arguments object for setting parameters.
-				if(!kwArgs){ kwArgs = {}; }
-				this.scale = typeof kwArgs.scale == "number" ? kwArgs.scale : DEFAULT_SCALE;
-				this.shift = typeof kwArgs.shift == "number" ? kwArgs.shift : DEFAULT_SHIFT;
+		// the data description block for the widget parser
+		defaultParams: {
+			duration: 400,	// duration of the action in ms
+			easing:   dfe.backOut,	// easing for the action
+			scale:    DEFAULT_SCALE,	// scale of magnification
+			shift:    DEFAULT_SHIFT		// shift of the slice
+		},
+		optionalParams: {},	// no optional parameters
 
-				this.connect();
-			},
+		constructor: function(chart, plot, kwArgs){
+			// summary:
+			//		Create the slice moving action and connect it to the plot.
+			// chart: dojox/charting/Chart
+			//		The chart this action belongs to.
+			// plot: String?
+			//		The plot this action is attached to.  If not passed, "default" is assumed.
+			// kwArgs: __MoveSliceCtorArgs?
+			//		Optional keyword arguments object for setting parameters.
+			if(!kwArgs){ kwArgs = {}; }
+			this.scale = typeof kwArgs.scale == "number" ? kwArgs.scale : DEFAULT_SCALE;
+			this.shift = typeof kwArgs.shift == "number" ? kwArgs.shift : DEFAULT_SHIFT;
 
-			process: function(o){
-				// summary:
-				//		Process the action on the given object.
-				// o: dojox/gfx/shape.Shape
-				//		The object on which to process the slice moving action.
-				if(!o.shape || o.element != "slice" || !(o.type in this.overOutEvents)){ return; }
+			this.connect();
+		},
 
-				if(!this.angles){
-					// calculate the running total of slice angles
-					var startAngle = m._degToRad(o.plot.opt.startAngle);
-					if(typeof o.run.data[0] == "number"){
-						this.angles = df.map(df.scanl(o.run.data, "+", 0),
-							"* 2 * Math.PI / this", df.foldl(o.run.data, "+", 0));
-					}else{
-						this.angles = df.map(df.scanl(o.run.data, "a + b.y", 0),
-							"* 2 * Math.PI / this", df.foldl(o.run.data, "a + b.y", 0));
-					}
-					this.angles = array.map(this.angles, function(item){
-						return item + startAngle;
-					});
-				}
+		process: function(o){
+			// summary:
+			//		Process the action on the given object.
+			// o: dojox/gfx/shape.Shape
+			//		The object on which to process the slice moving action.
+			if(!o.shape || o.element != "slice" || !(o.type in this.overOutEvents)){ return; }
 
-				var index = o.index, anim, startScale, endScale, startOffset, endOffset,
-					angle = (this.angles[index] + this.angles[index + 1]) / 2,
-					rotateTo0  = m.rotateAt(-angle, o.cx, o.cy),
-					rotateBack = m.rotateAt( angle, o.cx, o.cy);
-
-				anim = this.anim[index];
-
-				if(anim){
-					anim.action.stop(true);
+			if(!this.angles){
+				// calculate the running total of slice angles
+				var startAngle = m._degToRad(o.plot.opt.startAngle);
+				if(typeof o.run.data[0] == "number"){
+					this.angles = df.map(df.scanl(o.run.data, "+", 0),
+						"* 2 * Math.PI / this", df.foldl(o.run.data, "+", 0));
 				}else{
-					this.anim[index] = anim = {};
+					this.angles = df.map(df.scanl(o.run.data, "a + b.y", 0),
+						"* 2 * Math.PI / this", df.foldl(o.run.data, "a + b.y", 0));
 				}
-
-				if(o.type == "onmouseover"){
-					startOffset = 0;
-					endOffset   = this.shift;
-					startScale  = 1;
-					endScale    = this.scale;
-				}else{
-					startOffset = this.shift;
-					endOffset   = 0;
-					startScale  = this.scale;
-					endScale    = 1;
-				}
-
-				anim.action = gf.animateTransform({
-					shape:    o.shape,
-					duration: this.duration,
-					easing:   this.easing,
-					transform: [
-						rotateBack,
-						{name: "translate", start: [startOffset, 0], end: [endOffset, 0]},
-						{name: "scaleAt",   start: [startScale, o.cx, o.cy],  end: [endScale, o.cx, o.cy]},
-						rotateTo0
-					]
+				this.angles = array.map(this.angles, function(item){
+					return item + startAngle;
 				});
-
-				if(o.type == "onmouseout"){
-					hub.connect(anim.action, "onEnd", this, function(){
-						delete this.anim[index];
-					});
-				}
-				anim.action.play();
-			},
-
-			reset: function(){
-				delete this.angles;
 			}
-		});
+
+			var index = o.index, anim, startScale, endScale, startOffset, endOffset,
+				angle = (this.angles[index] + this.angles[index + 1]) / 2,
+				rotateTo0  = m.rotateAt(-angle, o.cx, o.cy),
+				rotateBack = m.rotateAt( angle, o.cx, o.cy);
+
+			anim = this.anim[index];
+
+			if(anim){
+				anim.action.stop(true);
+			}else{
+				this.anim[index] = anim = {};
+			}
+
+			if(o.type == "onmouseover"){
+				startOffset = 0;
+				endOffset   = this.shift;
+				startScale  = 1;
+				endScale    = this.scale;
+			}else{
+				startOffset = this.shift;
+				endOffset   = 0;
+				startScale  = this.scale;
+				endScale    = 1;
+			}
+
+			anim.action = gf.animateTransform({
+				shape:    o.shape,
+				duration: this.duration,
+				easing:   this.easing,
+				transform: [
+					rotateBack,
+					{name: "translate", start: [startOffset, 0], end: [endOffset, 0]},
+					{name: "scaleAt",   start: [startScale, o.cx, o.cy],  end: [endScale, o.cx, o.cy]},
+					rotateTo0
+				]
+			});
+
+			if(o.type == "onmouseout"){
+				hub.connect(anim.action, "onEnd", this, function(){
+					delete this.anim[index];
+				});
+			}
+			anim.action.play();
+		},
+
+		reset: function(){
+			delete this.angles;
+		}
 	});
+});
 
 },
 'dojox/lang/functional/scan':function(){
@@ -16738,7 +16936,7 @@ define(["dojo/_base/kernel", "dojo/_base/lang", "./lambda"], function(kernel, la
 
 },
 'dojox/charting/action2d/Shake':function(){
-define("dojox/charting/action2d/Shake", ["dojo/_base/connect", "dojo/_base/declare", "./PlotAction", 
+define(["dojo/_base/connect", "dojo/_base/declare", "./PlotAction", 
 	"dojo/fx", "dojo/fx/easing", "dojox/gfx/matrix", "dojox/gfx/fx"], 
 	function(hub, declare, PlotAction, df, dfe, m, gf){
 
@@ -16794,9 +16992,7 @@ define("dojox/charting/action2d/Shake", ["dojo/_base/connect", "dojo/_base/decla
 			//		The object on which to process the slice moving action.
 			if(!o.shape || !(o.type in this.overOutEvents)){ return; }
 
-			var runName = o.run.name, index = o.index, vector = [], anim,
-				shiftX = o.type == "onmouseover" ? this.shiftX : -this.shiftX,
-				shiftY = o.type == "onmouseover" ? this.shiftY : -this.shiftY;
+			var runName = o.run.name, index = o.index, vector = [], anim;
 
 			if(runName in this.anim){
 				anim = this.anim[runName][index];
@@ -16851,9 +17047,10 @@ define("dojox/charting/action2d/Shake", ["dojo/_base/connect", "dojo/_base/decla
 
 },
 'dojox/charting/action2d/Tooltip':function(){
-define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip","dojo/_base/lang", "dojo/_base/declare", "dojo/dom-style", "./PlotAction",
-	"dojox/gfx/matrix", "dojox/lang/functional", "dojox/lang/functional/scan", "dojox/lang/functional/fold"], 
-	function(dojo, Tooltip, lang, declare, domStyle, PlotAction, m, df, dfs, dff){
+define(["dijit/Tooltip", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/window", "dojo/_base/connect", "dojo/dom-style",
+	"./PlotAction", "dojox/gfx/matrix", "dojo/has", "dojo/has!dojo-bidi?../bidi/action2d/Tooltip", 
+	"dojox/lang/functional", "dojox/lang/functional/scan", "dojox/lang/functional/fold"],
+	function(DijitTooltip, lang, declare, win, hub, domStyle, PlotAction, m, has, BidiTooltip, df){
 	
 	/*=====
 	var __TooltipCtorArgs = {
@@ -16867,35 +17064,34 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			// text: Function?
 			//		The function that produces the text to be shown within a tooltip.  By default this will be
 			//		set by the plot in question, by returning the value of the element.
+			// mouseOver: Boolean?
+            //		Whether the tooltip is enabled on mouse over or on mouse click / touch down. Default is true.
 	};
 	=====*/
 
-	var DEFAULT_TEXT = function(o){
+	var DEFAULT_TEXT = function(o, plot){
 		var t = o.run && o.run.data && o.run.data[o.index];
 		if(t && typeof t != "number" && (t.tooltip || t.text)){
 			return t.tooltip || t.text;
 		}
-		if(o.element == "candlestick"){
-			return '<table cellpadding="1" cellspacing="0" border="0" style="font-size:0.9em;">'
-				+ '<tr><td>Open:</td><td align="right"><strong>' + o.data.open + '</strong></td></tr>'
-				+ '<tr><td>High:</td><td align="right"><strong>' + o.data.high + '</strong></td></tr>'
-				+ '<tr><td>Low:</td><td align="right"><strong>' + o.data.low + '</strong></td></tr>'
-				+ '<tr><td>Close:</td><td align="right"><strong>' + o.data.close + '</strong></td></tr>'
-				+ (o.data.mid !== undefined ? '<tr><td>Mid:</td><td align="right"><strong>' + o.data.mid + '</strong></td></tr>' : '')
-				+ '</table>';
+		if(plot.tooltipFunc){
+			return plot.tooltipFunc(o);
+		}else{
+			return o.y;
 		}
-		return o.element == "bar" ? o.x : o.y;
 	};
 
 	var pi4 = Math.PI / 4, pi2 = Math.PI / 2;
 	
-	return declare("dojox.charting.action2d.Tooltip", PlotAction, {
+	var Tooltip = declare(has("dojo-bidi")? "dojox.charting.action2d.NonBidiTooltip" : "dojox.charting.action2d.Tooltip", PlotAction, {
 		// summary:
 		//		Create an action on a plot where a tooltip is shown when hovering over an element.
 
 		// the data description block for the widget parser
 		defaultParams: {
-			text: DEFAULT_TEXT	// the function to produce a tooltip from the object
+			text: DEFAULT_TEXT,	// the function to produce a tooltip from the object
+            mouseOver: true,
+			defaultPosition: ["after-centered", "before-centered"]
 		},
 		optionalParams: {},	// no optional parameters
 
@@ -16909,7 +17105,8 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			// kwArgs: __TooltipCtorArgs?
 			//		Optional keyword arguments object for setting parameters.
 			this.text = kwArgs && kwArgs.text ? kwArgs.text : DEFAULT_TEXT;
-			
+			this.mouseOver = kwArgs && kwArgs.mouseOver != undefined ? kwArgs.mouseOver : true;
+			this.defaultPosition = kwArgs && kwArgs.defaultPosition != undefined ? kwArgs.defaultPosition : ["after-centered", "before-centered"];
 			this.connect();
 		},
 		
@@ -16919,7 +17116,7 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			// o: dojox/gfx/shape.Shape
 			//		The object on which to process the highlighting action.
 			if(o.type === "onplotreset" || o.type === "onmouseout"){
-                Tooltip.hide(this.aroundRect);
+                DijitTooltip.hide(this.aroundRect);
 				this.aroundRect = null;
 				if(o.type === "onplotreset"){
 					delete this.angles;
@@ -16927,10 +17124,10 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 				return;
 			}
 			
-			if(!o.shape || o.type !== "onmouseover"){ return; }
+			if(!o.shape || (this.mouseOver && o.type !== "onmouseover") || (!this.mouseOver && o.type !== "onclick")){ return; }
 			
 			// calculate relative coordinates and the position
-			var aroundRect = {type: "rect"}, position = ["after-centered", "before-centered"];
+			var aroundRect = {type: "rect"}, position = this.defaultPosition;
 			switch(o.element){
 				case "marker":
 					aroundRect.x = o.cx;
@@ -16967,13 +17164,10 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 				//case "slice":
 					if(!this.angles){
 						// calculate the running total of slice angles
-						if(typeof o.run.data[0] == "number"){
-							this.angles = df.map(df.scanl(o.run.data, "+", 0),
-								"* 2 * Math.PI / this", df.foldl(o.run.data, "+", 0));
-						}else{
-							this.angles = df.map(df.scanl(o.run.data, "a + b.y", 0),
-								"* 2 * Math.PI / this", df.foldl(o.run.data, "a + b.y", 0));
-						}
+						var filteredRun = typeof o.run.data[0] == "number" ?
+								df.map(o.run.data, "x ? Math.max(x, 0) : 0") : df.map(o.run.data, "x ? Math.max(x.y, 0) : 0");
+						this.angles = df.map(df.scanl(filteredRun, "+", 0),
+							"* 2 * Math.PI / this", df.foldl(filteredRun, "+", 0));
 					}
 					var startAngle = m._degToRad(o.plot.opt.startAngle),
 						angle = (this.angles[o.index] + this.angles[o.index + 1]) / 2 + startAngle;
@@ -16981,7 +17175,7 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 					aroundRect.y = o.cy + o.cr * Math.sin(angle);
 					aroundRect.w = aroundRect.h = 1;
                     // depending on startAngle we might go out of the 0-2*PI range, normalize that
-					if(startAngle && (angle < 0 || angle > 2 * Math.PI)){
+                    if(startAngle && (angle < 0 || angle > 2 * Math.PI)){
 						angle = Math.abs(2 * Math.PI  - Math.abs(angle));
 					}
 					// calculate the position
@@ -17001,7 +17195,9 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 					*/
 					break;
 			}
-			
+			if(has("dojo-bidi")){
+				this._recheckPosition(o,aroundRect,position);
+			}
 			// adjust relative coordinates to absolute, and remove fractions
 			var lt = this.chart.getCoords();
 			aroundRect.x += lt.x;
@@ -17012,30 +17208,29 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			aroundRect.h = Math.ceil(aroundRect.h);
 			this.aroundRect = aroundRect;
 
-			var tooltip = this.text(o);
-			if(this.chart.getTextDir){
-				var isChartDirectionRtl = (domStyle.get(this.chart.node, "direction") == "rtl");
-				var isBaseTextDirRtl = (this.chart.getTextDir(tooltip) == "rtl");
+			var tooltipText = this.text(o, this.plot);
+			if(tooltipText){
+				DijitTooltip.show(this._format(tooltipText), this.aroundRect, position);
 			}
-			if(tooltip){
-				if(isBaseTextDirRtl && !isChartDirectionRtl){
-					Tooltip.show("<span dir = 'rtl'>" + tooltip +"</span>", this.aroundRect, position);
-				}
-				else if(!isBaseTextDirRtl && isChartDirectionRtl){
-					Tooltip.show("<span dir = 'ltr'>" + tooltip +"</span>", this.aroundRect, position);
-				}else{
-					Tooltip.show(tooltip, this.aroundRect, position);
-				}
+			if(!this.mouseOver){
+				this._handle = hub.connect(win.doc, "onclick", this, "onClick");
 			}
+		},
+		onClick: function(){
+			this.process({ type: "onmouseout"});
+		},
+		_recheckPosition: function(obj,rect,position){			
+		},
+		_format: function(tooltipText){
+			return tooltipText;
 		}
 	});
+	return has("dojo-bidi")? declare("dojox.charting.action2d.Tooltip", [Tooltip, BidiTooltip]) : Tooltip;
 });
 
 },
 'dijit/Tooltip':function(){
-require({cache:{
-'url:dijit/templates/Tooltip.html':"<div class=\"dijitTooltip dijitTooltipLeft\" id=\"dojoTooltip\"\n\t><div class=\"dijitTooltipContainer dijitTooltipContents\" data-dojo-attach-point=\"containerNode\" role='alert'></div\n\t><div class=\"dijitTooltipConnector\" data-dojo-attach-point=\"connectorNode\"></div\n></div>\n"}});
-define("dijit/Tooltip", [
+define([
 	"dojo/_base/array", // array.forEach array.indexOf array.map
 	"dojo/_base/declare", // declare
 	"dojo/_base/fx", // fx.fadeIn fx.fadeOut
@@ -17094,7 +17289,7 @@ define("dijit/Tooltip", [
 			this.fadeOut = fx.fadeOut({ node: this.domNode, duration: this.duration, onEnd: lang.hitch(this, "_onHide") });
 		},
 
-		show: function(innerHTML, aroundNode, position, rtl, textDir){
+		show: function(innerHTML, aroundNode, position, rtl, textDir, onMouseEnter, onMouseLeave){
 			// summary:
 			//		Display tooltip w/specified contents to right of specified node
 			//		(To left if there's no space on the right, or if rtl == true)
@@ -17109,7 +17304,10 @@ define("dijit/Tooltip", [
 			//		means "rtl"; specifies GUI direction, not text direction.
 			// textDir: String?
 			//		Corresponds to `WidgetBase.textdir` attribute; specifies direction of text.
-
+			// onMouseEnter: Function?
+			//		Callback function for mouse enter on tooltip
+			// onMouseLeave: Function?
+			//		Callback function for mouse leave on tooltip
 
 			if(this.aroundNode && this.aroundNode === aroundNode && this.containerNode.innerHTML == innerHTML){
 				return;
@@ -17150,6 +17348,9 @@ define("dijit/Tooltip", [
 			this.fadeIn.play();
 			this.isShowingNow = true;
 			this.aroundNode = aroundNode;
+
+			this.onMouseEnter = onMouseEnter || noop;
+			this.onMouseLeave = onMouseLeave || noop;
 		},
 
 		orient: function(/*DomNode*/ node, /*String*/ aroundCorner, /*String*/ tooltipCorner, /*Object*/ spaceAvailable, /*Object*/ aroundNodeCoords){
@@ -17250,6 +17451,8 @@ define("dijit/Tooltip", [
 			}else{
 				// just ignore the call, it's for a tooltip that has already been erased
 			}
+
+			this.onMouseEnter = this.onMouseLeave = noop;
 		},
 
 		_onHide: function(){
@@ -17265,38 +17468,42 @@ define("dijit/Tooltip", [
 				this.show.apply(this, this._onDeck);
 				this._onDeck=null;
 			}
-		},
-
-		_setAutoTextDir: function(/*Object*/node){
-			// summary:
-			//		Resolve "auto" text direction for children nodes
-			// tags:
-			//		private
-
-			this.applyTextDir(node, has("ie") ? node.outerText : node.textContent);
-			array.forEach(node.children, function(child){this._setAutoTextDir(child); }, this);
-		},
-
-		_setTextDirAttr: function(/*String*/ textDir){
-			// summary:
-			//		Setter for textDir.
-			// description:
-			//		Users shouldn't call this function; they should be calling
-			//		set('textDir', value)
-			// tags:
-			//		private
-
-			this._set("textDir", textDir);
-
-			if (textDir == "auto"){
-				this._setAutoTextDir(this.containerNode);
-			}else{
-				this.containerNode.dir = this.textDir;
-			}
 		}
 	});
 
-	dijit.showTooltip = function(innerHTML, aroundNode, position, rtl, textDir){
+	if(has("dojo-bidi")){
+		MasterTooltip.extend({
+			_setAutoTextDir: function(/*Object*/node){
+				// summary:
+				//		Resolve "auto" text direction for children nodes
+				// tags:
+				//		private
+
+				this.applyTextDir(node);
+				array.forEach(node.children, function(child){ this._setAutoTextDir(child); }, this);
+			},
+
+			_setTextDirAttr: function(/*String*/ textDir){
+				// summary:
+				//		Setter for textDir.
+				// description:
+				//		Users shouldn't call this function; they should be calling
+				//		set('textDir', value)
+				// tags:
+				//		private
+
+				this._set("textDir", textDir);
+
+				if (textDir == "auto"){
+					this._setAutoTextDir(this.containerNode);
+				}else{
+					this.containerNode.dir = this.textDir;
+				}
+			}
+		});
+	}
+
+	dijit.showTooltip = function(innerHTML, aroundNode, position, rtl, textDir, onMouseEnter, onMouseLeave){
 		// summary:
 		//		Static method to display tooltip w/specified contents in specified position.
 		//		See description of dijit/Tooltip.defaultPosition for details on position parameter.
@@ -17312,6 +17519,10 @@ define("dijit/Tooltip", [
 		//		means "rtl"; specifies GUI direction, not text direction.
 		// textDir: String?
 		//		Corresponds to `WidgetBase.textdir` attribute; specifies direction of text.
+		// onMouseEnter: Function?
+		//		Callback function for mouse over on tooltip
+		// onMouseLeave: Function?
+		//		Callback function for mouse leave on tooltip
 
 		// After/before don't work, but for back-compat convert them to the working after-centered, before-centered.
 		// Possibly remove this in 2.0.   Alternately, get before/after to work.
@@ -17322,7 +17533,7 @@ define("dijit/Tooltip", [
 		}
 
 		if(!Tooltip._masterTT){ dijit._masterTT = Tooltip._masterTT = new MasterTooltip(); }
-		return Tooltip._masterTT.show(innerHTML, aroundNode, position, rtl, textDir);
+		return Tooltip._masterTT.show(innerHTML, aroundNode, position, rtl, textDir, onMouseEnter, onMouseLeave);
 	};
 
 	dijit.hideTooltip = function(aroundNode){
@@ -17331,13 +17542,21 @@ define("dijit/Tooltip", [
 		return Tooltip._masterTT && Tooltip._masterTT.hide(aroundNode);
 	};
 
+	// Possible states for a tooltip, see Tooltip.state property for definitions
+	var DORMANT = "DORMANT",
+		SHOW_TIMER = "SHOW TIMER",
+		SHOWING = "SHOWING",
+		HIDE_TIMER = "HIDE TIMER";
+
+	function noop(){}
+
 	var Tooltip = declare("dijit.Tooltip", _Widget, {
 		// summary:
 		//		Pops up a tooltip (a help message) when you hover over a node.
 		//		Also provides static show() and hide() methods that can be used without instantiating a dijit/Tooltip.
 
 		// label: String
-		//		Text to display in the tooltip.
+		//		HTML to display in the tooltip.
 		//		Specified as innerHTML when creating the widget from markup.
 		label: "",
 
@@ -17345,6 +17564,11 @@ define("dijit/Tooltip", [
 		//		Number of milliseconds to wait after hovering over/focusing on the object, before
 		//		the tooltip is displayed.
 		showDelay: 400,
+
+		// hideDelay: Integer
+		//		Number of milliseconds to wait after unhovering the object, before
+		//		the tooltip is hidden.  Note that blurring an object hides the tooltip immediately.
+		hideDelay: 400,
 
 		// connectId: String|String[]|DomNode|DomNode[]
 		//		Id of domNode(s) to attach the tooltip to.
@@ -17367,7 +17591,7 @@ define("dijit/Tooltip", [
 		// TODO: in 2.0 remove support for multiple connectIds.   selector gives the same effect.
 		// So, change connectId to a "", remove addTarget()/removeTarget(), etc.
 
-		_setConnectIdAttr: function(/*String|String[]}DomNode|DomNode[]*/ newId){
+		_setConnectIdAttr: function(/*String|String[]|DomNode|DomNode[]*/ newId){
 			// summary:
 			//		Connect to specified node(s)
 
@@ -17396,14 +17620,14 @@ define("dijit/Tooltip", [
 						self._onHover(this);
 					}),
 					on(node, delegatedEvent(mouse.leave), lang.hitch(self, "_onUnHover")),
-					on(node, delegatedEvent("focusout"), lang.hitch(self, "_onUnHover"))
+					on(node, delegatedEvent("focusout"), lang.hitch(self, "set", "state", DORMANT))
 				];
 			}, this);
 
 			this._set("connectId", newId);
 		},
 
-		addTarget: function(/*OomNode|String*/ node){
+		addTarget: function(/*DomNode|String*/ node){
 			// summary:
 			//		Attach tooltip to specified node if it's not already connected
 
@@ -17452,50 +17676,101 @@ define("dijit/Tooltip", [
 			return this.label || this.domNode.innerHTML;
 		},
 
+		// state: [private readonly] String
+		//		One of:
+		//
+		//		- DORMANT: tooltip not SHOWING
+		//		- SHOW TIMER: tooltip not SHOWING but timer set to show it
+		//		- SHOWING: tooltip displayed
+		//		- HIDE TIMER: tooltip displayed, but timer set to hide it
+		state: DORMANT,
+		_setStateAttr: function(val){
+			if(this.state == val ||
+				(val == SHOW_TIMER && this.state == SHOWING) ||
+				(val == HIDE_TIMER && this.state == DORMANT)){
+				return;
+			}
+
+			if(this._hideTimer){
+				this._hideTimer.remove();
+				delete this._hideTimer;
+			}
+			if(this._showTimer){
+				this._showTimer.remove();
+				delete this._showTimer;
+			}
+
+			switch(val){
+				case DORMANT:
+					if(this._connectNode){
+						Tooltip.hide(this._connectNode);
+						delete this._connectNode;
+						this.onHide();
+					}
+					break;
+				case SHOW_TIMER:	 // set timer to show tooltip
+					// should only get here from a DORMANT state, i.e. tooltip can't be already SHOWING
+					if(this.state != SHOWING){
+						this._showTimer = this.defer(function(){ this.set("state", SHOWING); }, this.showDelay);
+					}
+					break;
+				case SHOWING:		// show tooltip and clear timers
+					var content = this.getContent(this._connectNode);
+					if(!content){
+						this.set("state", DORMANT);
+						return;
+					}
+
+					// Show tooltip and setup callbacks for mouseenter/mouseleave of tooltip itself
+					Tooltip.show(content, this._connectNode, this.position, !this.isLeftToRight(), this.textDir,
+						lang.hitch(this, "set", "state", SHOWING), lang.hitch(this, "set", "state", HIDE_TIMER));
+
+					this.onShow(this._connectNode, this.position);
+					break;
+				case HIDE_TIMER:	// set timer set to hide tooltip
+					this._hideTimer = this.defer(function(){ this.set("state", DORMANT); }, this.hideDelay);
+					break;
+			}
+
+			this._set("state", val);
+		},
+
 		_onHover: function(/*DomNode*/ target){
 			// summary:
 			//		Despite the name of this method, it actually handles both hover and focus
 			//		events on the target node, setting a timer to show the tooltip.
 			// tags:
 			//		private
-			if(!this._showTimer){
-				this._showTimer = this.defer(function(){ this.open(target); }, this.showDelay);
+
+			if(this._connectNode && target != this._connectNode){
+				// Tooltip is displaying for another node
+				this.set("state", DORMANT);
 			}
+			this._connectNode = target;		// _connectNode means "tooltip currently displayed for this node"
+
+			this.set("state", SHOW_TIMER);	// no-op if show-timer already set, or if already showing
 		},
 
-		_onUnHover: function(){
+		_onUnHover: function(/*DomNode*/ target){
 			// summary:
-			//		Despite the name of this method, it actually handles both mouseleave and blur
-			//		events on the target node, hiding the tooltip.
+			//		Handles mouseleave event on the target node, hiding the tooltip.
 			// tags:
 			//		private
 
-			if(this._showTimer){
-				this._showTimer.remove();
-				delete this._showTimer;
-			}
-			this.close();
+			this.set("state", HIDE_TIMER);		// no-op if already dormant, or if hide-timer already set
 		},
 
+		// open() and close() aren't used anymore, except from the _BidiSupport/misc/Tooltip test.
+		// Should probably remove for 2.0, but leaving for now.
 		open: function(/*DomNode*/ target){
 			// summary:
 			//		Display the tooltip; usually not called directly.
 			// tags:
 			//		private
 
-			if(this._showTimer){
-				this._showTimer.remove();
-				delete this._showTimer;
-			}
-
-			var content = this.getContent(target);
-			if(!content){
-				return;
-			}
-			Tooltip.show(content, target, this.position, !this.isLeftToRight(), this.textDir);
-
+			this.set("state", DORMANT);
 			this._connectNode = target;		// _connectNode means "tooltip currently displayed for this node"
-			this.onShow(target, this.position);
+			this.set("state", SHOWING);
 		},
 
 		close: function(){
@@ -17504,17 +17779,7 @@ define("dijit/Tooltip", [
 			// tags:
 			//		private
 
-			if(this._connectNode){
-				// if tooltip is currently shown
-				Tooltip.hide(this._connectNode);
-				delete this._connectNode;
-				this.onHide();
-			}
-			if(this._showTimer){
-				// if tooltip is scheduled to be shown (after a brief delay)
-				this._showTimer.remove();
-				delete this._showTimer;
-			}
+			this.set("state", DORMANT);
 		},
 
 		onShow: function(/*===== target, position =====*/){
@@ -17532,7 +17797,7 @@ define("dijit/Tooltip", [
 		},
 
 		destroy: function(){
-			this.close();
+			this.set("state", DORMANT);
 
 			// Remove connections manually since they aren't registered to be removed by _WidgetBase
 			array.forEach(this._connections || [], function(nested){
@@ -17578,7 +17843,7 @@ define("dijit/Tooltip", [
 
 },
 'dijit/_base/manager':function(){
-define("dijit/_base/manager", [
+define([
 	"dojo/_base/array",
 	"dojo/_base/config", // defaultDuration
 	"dojo/_base/lang",
@@ -17616,7 +17881,7 @@ define("dijit/_base/manager", [
 
 },
 'dijit/place':function(){
-define("dijit/place", [
+define([
 	"dojo/_base/array", // array.forEach array.map array.some
 	"dojo/dom-geometry", // domGeometry.position
 	"dojo/dom-style", // domStyle.getComputedStyle
@@ -17652,8 +17917,8 @@ define("dijit/place", [
 		var view = Viewport.getEffectiveBox(node.ownerDocument);
 
 		// This won't work if the node is inside a <div style="position: relative">,
-		// so reattach it to win.doc.body.	 (Otherwise, the positioning will be wrong
-		// and also it might get cutoff)
+		// so reattach it to <body>.	 (Otherwise, the positioning will be wrong
+		// and also it might get cutoff.)
 		if(!node.parentNode || String(node.parentNode.tagName).toLowerCase() != "body"){
 			win.body(node.ownerDocument).appendChild(node);
 		}
@@ -17670,12 +17935,12 @@ define("dijit/place", [
 					'L': view.l + view.w - pos.x,
 					'R': pos.x - view.l,
 					'M': view.w
-				   }[corner.charAt(1)],
+				}[corner.charAt(1)],
 				h: {
 					'T': view.t + view.h - pos.y,
 					'B': pos.y - view.t,
 					'M': view.h
-				   }[corner.charAt(0)]
+				}[corner.charAt(0)]
 			};
 
 			// Clear left/right position settings set earlier so they don't interfere with calculations,
@@ -17751,31 +18016,51 @@ define("dijit/place", [
 		// has sized the node, due to browser quirks when the viewport is scrolled
 		// (specifically that a Tooltip will shrink to fit as though the window was
 		// scrolled to the left).
+
+		var top = best.y,
+			side = best.x,
+			body = win.body(node.ownerDocument);
+
+		if(/relative|absolute/.test(domStyle.get(body, "position"))){
+			// compensate for margin on <body>, see #16148
+			top -= domStyle.get(body, "marginTop");
+			side -= domStyle.get(body, "marginLeft");
+		}
+
 		var s = node.style;
-		s.top = best.y + "px";
-		s.left = best.x + "px";
+		s.top = top + "px";
+		s.left = side + "px";
 		s.right = "auto";	// needed for FF or else tooltip goes to far left
 
 		return best;
 	}
+
+	var reverse = {
+		// Map from corner to kitty-corner
+		"TL": "BR",
+		"TR": "BL",
+		"BL": "TR",
+		"BR": "TL"
+	};
 
 	var place = {
 		// summary:
 		//		Code to place a DOMNode relative to another DOMNode.
 		//		Load using require(["dijit/place"], function(place){ ... }).
 
-		at: function(node, pos, corners, padding){
+		at: function(node, pos, corners, padding, layoutNode){
 			// summary:
-			//		Positions one of the node's corners at specified position
-			//		such that node is fully visible in viewport.
-			// description:
-			//		NOTE: node is assumed to be absolutely or relatively positioned.
+			//		Positions node kitty-corner to the rectangle centered at (pos.x, pos.y) with width and height of
+			//		padding.x * 2 and padding.y * 2, or zero if padding not specified.  Picks first corner in corners[]
+			//		where node is fully visible, or the corner where it's most visible.
+			//
+			//		Node is assumed to be absolutely or relatively positioned.
 			// node: DOMNode
 			//		The node to position
 			// pos: dijit/place.__Position
 			//		Object like {x: 10, y: 20}
 			// corners: String[]
-			//		Array of Strings representing order to try corners in, like ["TR", "BL"].
+			//		Array of Strings representing order to try corners of the node in, like ["TR", "BL"].
 			//		Possible values are:
 			//
 			//		- "BL" - bottom left
@@ -17783,14 +18068,22 @@ define("dijit/place", [
 			//		- "TL" - top left
 			//		- "TR" - top right
 			// padding: dijit/place.__Position?
-			//		optional param to set padding, to put some buffer around the element you want to position.
+			//		Optional param to set padding, to put some buffer around the element you want to position.
+			//		Defaults to zero.
+			// layoutNode: Function(node, aroundNodeCorner, nodeCorner)
+			//		For things like tooltip, they are displayed differently (and have different dimensions)
+			//		based on their orientation relative to the parent.  This adjusts the popup based on orientation.
 			// example:
 			//		Try to place node's top right corner at (10,20).
 			//		If that makes node go (partially) off screen, then try placing
 			//		bottom left corner at (10,20).
 			//	|	place(node, {x: 10, y: 20}, ["TR", "BL"])
 			var choices = array.map(corners, function(corner){
-				var c = { corner: corner, pos: {x:pos.x,y:pos.y} };
+				var c = {
+					corner: corner,
+					aroundCorner: reverse[corner],	// so TooltipDialog.orient() gets aroundCorner argument set
+					pos: {x: pos.x,y: pos.y}
+				};
 				if(padding){
 					c.pos.x += corner.charAt(1) == 'L' ? padding.x : -padding.x;
 					c.pos.y += corner.charAt(0) == 'T' ? padding.y : -padding.y;
@@ -17798,7 +18091,7 @@ define("dijit/place", [
 				return c;
 			});
 
-			return _place(node, choices);
+			return _place(node, choices, layoutNode);
 		},
 
 		around: function(
@@ -17826,9 +18119,9 @@ define("dijit/place", [
 			//			of RTL scripts like Hebrew and Arabic; aligns either the top of the drop down
 			//			with the top of the anchor, or the bottom of the drop down with bottom of the anchor.
 			//		- before-centered: centers drop down to the left of the anchor node/widget, or to the right
-			//			 in the case of RTL scripts like Hebrew and Arabic
+			//			in the case of RTL scripts like Hebrew and Arabic
 			//		- after-centered: centers drop down to the right of the anchor node/widget, or to the left
-			//			 in the case of RTL scripts like Hebrew and Arabic
+			//			in the case of RTL scripts like Hebrew and Arabic
 			//		- above-centered: drop down is centered above anchor node
 			//		- above: drop down goes above anchor node, left sides aligned
 			//		- above-alt: drop down goes above anchor node, right sides aligned
@@ -17842,7 +18135,7 @@ define("dijit/place", [
 			//		True if widget is LTR, false if widget is RTL.   Affects the behavior of "above" and "below"
 			//		positions slightly.
 			// example:
-			//	|	placeAroundNode(node, aroundNode, {'BL':'TL', 'TR':'BR'});
+			//	|	placeAroundNode(node, aroundNode, ['below', 'above-alt']);
 			//		This will try to position node such that node's top-left corner is at the same position
 			//		as the bottom left corner of the aroundNode (ie, put node below
 			//		aroundNode, with left edges aligned).	If that fails it will try to put
@@ -17850,10 +18143,26 @@ define("dijit/place", [
 			//		(ie, put node above aroundNode, with right edges aligned)
 			//
 
-			// if around is a DOMNode (or DOMNode id), convert to coordinates
-			var aroundNodePos = (typeof anchor == "string" || "offsetWidth" in anchor || "ownerSVGElement" in anchor)
-				? domGeometry.position(anchor, true)
-				: anchor;
+			// If around is a DOMNode (or DOMNode id), convert to coordinates.
+			var aroundNodePos;
+			if(typeof anchor == "string" || "offsetWidth" in anchor || "ownerSVGElement" in anchor){
+				aroundNodePos = domGeometry.position(anchor, true);
+
+				// For above and below dropdowns, subtract width of border so that popup and aroundNode borders
+				// overlap, preventing a double-border effect.  Unfortunately, difficult to measure the border
+				// width of either anchor or popup because in both cases the border may be on an inner node.
+				if(/^(above|below)/.test(positions[0])){
+					var anchorBorder = domGeometry.getBorderExtents(anchor),
+						anchorChildBorder = anchor.firstChild ? domGeometry.getBorderExtents(anchor.firstChild) : {t:0,l:0,b:0,r:0},
+						nodeBorder =  domGeometry.getBorderExtents(node),
+						nodeChildBorder = node.firstChild ? domGeometry.getBorderExtents(node.firstChild) : {t:0,l:0,b:0,r:0};
+					aroundNodePos.y += Math.min(anchorBorder.t + anchorChildBorder.t, nodeBorder.t + nodeChildBorder.t);
+					aroundNodePos.h -=  Math.min(anchorBorder.t + anchorChildBorder.t, nodeBorder.t+ nodeChildBorder.t) +
+						Math.min(anchorBorder.b + anchorChildBorder.b, nodeBorder.b + nodeChildBorder.b);
+				}
+			}else{
+				aroundNodePos = anchor;
+			}
 
 			// Compute position and size of visible part of anchor (it may be partially hidden by ancestor nodes w/scrollbars)
 			if(anchor.parentNode){
@@ -17879,7 +18188,7 @@ define("dijit/place", [
 					}
 					parent = parent.parentNode;
 				}
-			}			
+			}
 
 			var x = aroundNodePos.x,
 				y = aroundNodePos.y,
@@ -17897,12 +18206,12 @@ define("dijit/place", [
 							'L': x,
 							'R': x + width,
 							'M': x + (width >> 1)
-						   }[aroundCorner.charAt(1)],
+						}[aroundCorner.charAt(1)],
 						y: {
 							'T': y,
 							'B': y + height,
 							'M': y + (height >> 1)
-						   }[aroundCorner.charAt(0)]
+						}[aroundCorner.charAt(0)]
 					}
 				})
 			}
@@ -17946,7 +18255,7 @@ define("dijit/place", [
 						break;
 					default:
 						// To assist dijit/_base/place, accept arguments of type {aroundCorner: "BL", corner: "TL"}.
-						// Not meant to be used directly.
+						// Not meant to be used directly.  Remove for 2.0.
 						push(pos.aroundCorner, pos.corner);
 				}
 			});
@@ -17982,14 +18291,13 @@ define("dijit/place", [
 
 },
 'dijit/Viewport':function(){
-define("dijit/Viewport", [
+define([
 	"dojo/Evented",
 	"dojo/on",
-	"dojo/ready",
-	"dojo/sniff",
-	"dojo/_base/window", // global
+	"dojo/domReady",
+	"dojo/sniff",	// has("ie"), has("ios")
 	"dojo/window" // getBox()
-], function(Evented, on, ready, has, win, winUtils){
+], function(Evented, on, domReady, has, winUtils){
 
 	// module:
 	//		dijit/Viewport
@@ -18011,9 +18319,9 @@ define("dijit/Viewport", [
 
 	var focusedNode;
 
-	ready(200, function(){
+	domReady(function(){
 		var oldBox = winUtils.getBox();
-		Viewport._rlh = on(win.global, "resize", function(){
+		Viewport._rlh = on(window, "resize", function(){
 			var newBox = winUtils.getBox();
 			if(oldBox.h == newBox.h && oldBox.w == newBox.w){ return; }
 			oldBox = newBox;
@@ -18205,11 +18513,12 @@ define(["./_base/lang", "./sniff", "./_base/window", "./dom", "./dom-geometry", 
 				var	doc = node.ownerDocument || baseWindow.doc,	// TODO: why baseWindow.doc?  Isn't node.ownerDocument always defined?
 					body = baseWindow.body(doc),
 					html = doc.documentElement || body.parentNode,
-					isIE = has("ie"),
+					isIE = has("ie") || has("trident"),
 					isWK = has("webkit");
 				// if an untested browser, then use the native method
 				if(node == body || node == html){ return; }
-				if(!(has("mozilla") || isIE || isWK || has("opera") || has("trident")) && ("scrollIntoView" in node)){
+				if(!(has("mozilla") || isIE || isWK || has("opera") || has("trident") || has("edge"))
+						&& ("scrollIntoView" in node)){
 					node.scrollIntoView(false); // short-circuit to native if possible
 					return;
 				}
@@ -18316,7 +18625,7 @@ define(["./_base/lang", "./sniff", "./_base/window", "./dom", "./dom-geometry", 
 
 },
 'dijit/_Widget':function(){
-define("dijit/_Widget", [
+define([
 	"dojo/aspect",	// aspect.around
 	"dojo/_base/config",	// config.isDebug
 	"dojo/_base/connect",	// connect.connect
@@ -18584,7 +18893,7 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 
 	attr: function(/*String|Object*/name, /*Object?*/value){
 		// summary:
-		//		Set or get properties on a widget instance.
+		//		This method is deprecated, use get() or set() directly.
 		// name:
 		//		The property to get or set. If an object is passed here and not
 		//		a string, its keys are used as names of attributes to be set
@@ -18592,19 +18901,8 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 		// value:
 		//		Optional. If provided, attr() operates as a setter. If omitted,
 		//		the current value of the named property is returned.
-		// description:
-		//		This method is deprecated, use get() or set() directly.
-
-		// Print deprecation warning but only once per calling function
-		if(config.isDebug){
-			var alreadyCalledHash = arguments.callee._ach || (arguments.callee._ach = {}),
-				caller = (arguments.callee.caller || "unknown caller").toString();
-			if(!alreadyCalledHash[caller]){
-				kernel.deprecated(this.declaredClass + "::attr() is deprecated. Use get() or set() instead, called from " +
-				caller, "", "2.0");
-				alreadyCalledHash[caller] = true;
-			}
-		}
+		// tags:
+		//		deprecated
 
 		var args = arguments.length;
 		if(args >= 2 || typeof name === "object"){ // setter
@@ -18682,48 +18980,29 @@ return _Widget;
 
 },
 'dijit/_OnDijitClickMixin':function(){
-define("dijit/_OnDijitClickMixin", [
+define([
 	"dojo/on",
 	"dojo/_base/array", // array.forEach
 	"dojo/keys", // keys.ENTER keys.SPACE
 	"dojo/_base/declare", // declare
 	"dojo/has", // has("dom-addeventlistener")
-	"dojo/_base/unload", // unload.addOnWindowUnload
-	"dojo/_base/window", // win.doc.addEventListener win.doc.attachEvent win.doc.detachEvent
 	"./a11yclick"
-], function(on, array, keys, declare, has, unload, win, a11yclick){
+], function(on, array, keys, declare, has, a11yclick){
 
 	// module:
 	//		dijit/_OnDijitClickMixin
 
 	var ret = declare("dijit._OnDijitClickMixin", null, {
-		connect: function(
-				/*Object|null*/ obj,
-				/*String|Function*/ event,
-				/*String|Function*/ method){
-			// summary:
-			//		Connects specified obj/event to specified method of this object
-			//		and registers for disconnect() on widget destroy.
-			// description:
-			//		Provide widget-specific analog to connect.connect, except with the
-			//		implicit use of this widget as the target object.
-			//		This version of connect also provides a special "ondijitclick"
-			//		event which triggers on a click or space or enter keyup.
-			//		Events connected with `this.connect` are disconnected upon
-			//		destruction.
-			// returns:
-			//		A handle that can be passed to `disconnect` in order to disconnect before
-			//		the widget is destroyed.
-			// example:
-			//	|	var btn = new Button();
-			//	|	// when foo.bar() is called, call the listener we're going to
-			//	|	// provide in the scope of btn
-			//	|	btn.connect(foo, "bar", function(){
-			//	|		console.debug(this.toString());
-			//	|	});
-			// tags:
-			//		protected
+		// summary:
+		//		Deprecated.   New code should access the dijit/a11yclick event directly, ex:
+		//		|	this.own(on(node, a11yclick, function(){ ... }));
+		//
+		//		Mixing in this class will make _WidgetBase.connect(node, "ondijitclick", ...) work.
+		//		It also used to be necessary to make templates with ondijitclick work, but now you can just require
+		//		dijit/a11yclick.
 
+		connect: function(obj, event, method){
+			// override _WidgetBase.connect() to make this.connect(node, "ondijitclick", ...) work
 			return this.inherited(arguments, [obj, event == "ondijitclick" ? a11yclick : event, method]);
 		}
 	});
@@ -18735,37 +19014,59 @@ define("dijit/_OnDijitClickMixin", [
 
 },
 'dijit/a11yclick':function(){
-define("dijit/a11yclick", [
-	"dojo/_base/array", // array.forEach
-	"dojo/_base/declare", // declare
-	"dojo/has", // has("dom-addeventlistener")
+define([
 	"dojo/keys", // keys.ENTER keys.SPACE
-	"dojo/on"
-], function(array, declare, has, keys, on){
+	"dojo/mouse",
+	"dojo/on",
+	"dojo/touch" // touch support for click is now there
+], function(keys, mouse, on, touch){
 
 	// module:
 	//		dijit/a11yclick
 
-	function marked(/*DOMNode*/ node){
-		// Test if a node or its ancestor has been marked with the dojoClick property to indicate special processing
-		do{
-			if(node.dojoClick){ return true; }
-		}while(node = node.parentNode);
-	}
+	/*=====
+	return {
+		// summary:
+		//		Custom press, release, and click synthetic events
+		//		which trigger on a left mouse click, touch, or space/enter keyup.
+
+		click: function(node, listener){
+			// summary:
+			//		Logical click operation for mouse, touch, or keyboard (space/enter key)
+		},
+		press: function(node, listener){
+			// summary:
+			//		Mousedown (left button), touchstart, or keydown (space or enter) corresponding to logical click operation.
+		},
+		release: function(node, listener){
+			// summary:
+			//		Mouseup (left button), touchend, or keyup (space or enter) corresponding to logical click operation.
+		},
+		move: function(node, listener){
+			// summary:
+			//		Mouse cursor or a finger is dragged over the given node.
+		}
+	};
+	=====*/
 
 	function clickKey(/*Event*/ e){
-		// Test if this keyboard event should be tracked as the start (if keyup) or end (if keydown) of a click event.
-		// Only track for nodes marked to be tracked, and not for buttons or inputs since they handle keyboard click
-		// natively.
-		return (e.keyCode === keys.ENTER || e.keyCode === keys.SPACE) &&
-			!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && !/input|button/i.test(e.target.nodeName) &&
-			marked(e.target);
+		// Test if this keyboard event should be tracked as the start (if keydown) or end (if keyup) of a click event.
+		// Only track for nodes marked to be tracked, and not for buttons or inputs,
+		// since buttons handle keyboard click natively, and text inputs should not
+		// prevent typing spaces or newlines.
+		if((e.keyCode === keys.ENTER || e.keyCode === keys.SPACE) && !/input|button|textarea/i.test(e.target.nodeName)){
+
+			// Test if a node or its ancestor has been marked with the dojoClick property to indicate special processing
+			for(var node = e.target; node; node = node.parentNode){
+				if(node.dojoClick){ return true; }
+			}
+		}
 	}
 
 	var lastKeyDownNode;
 
 	on(document, "keydown", function(e){
-		//console.log(this.id + ": onkeydown, e.target = ", e.target, ", lastKeyDownNode was ", lastKeyDownNode, ", equality is ", (e.target === lastKeyDownNode));
+		//console.log("a11yclick: onkeydown, e.target = ", e.target, ", lastKeyDownNode was ", lastKeyDownNode, ", equality is ", (e.target === lastKeyDownNode));
 		if(clickKey(e)){
 			// needed on IE for when focus changes between keydown and keyup - otherwise dropdown menus do not work
 			lastKeyDownNode = e.target;
@@ -18773,74 +19074,573 @@ define("dijit/a11yclick", [
 			// Prevent viewport scrolling on space key in IE<9.
 			// (Reproducible on test_Button.html on any of the first dijit/form/Button examples)
 			e.preventDefault();
+		}else{
+			lastKeyDownNode = null;
 		}
 	});
 
 	on(document, "keyup", function(e){
-		//console.log(this.id + ": onkeyup, e.target = ", e.target, ", lastKeyDownNode was ", lastKeyDownNode, ", equality is ", (e.target === lastKeyDownNode));
+		//console.log("a11yclick: onkeyup, e.target = ", e.target, ", lastKeyDownNode was ", lastKeyDownNode, ", equality is ", (e.target === lastKeyDownNode));
 		if(clickKey(e) && e.target == lastKeyDownNode){	// === breaks greasemonkey
 			//need reset here or have problems in FF when focus returns to trigger element after closing popup/alert
 			lastKeyDownNode = null;
 
 			on.emit(e.target, "click", {
 				cancelable: true,
-				bubbles: true
+				bubbles: true,
+				ctrlKey: e.ctrlKey,
+				shiftKey: e.shiftKey,
+				metaKey: e.metaKey,
+				altKey: e.altKey,
+				_origType: e.type
 			});
 		}
 	});
 
-	if(has("touch")){
-		// touchstart-->touchend will automatically generate a click event, but there are problems
-		// on iOS after focus has been programatically shifted (#14604, #14918), so setup a failsafe
-		// if click doesn't fire naturally.
+	// I want to return a hash of the synthetic events, but for backwards compatibility the main return value
+	// needs to be the click event.   Change for 2.0.
 
-		var clickTimer;
-
-		on(document, "touchend", function(e){
-			var target = e.target;
-			if(marked(target)){
-				var naturalClickListener = on.once(target, "click", function(e){
-					// If browser generates a click naturally, clear the timer to fire a synthetic click event
-					if(clickTimer){
-						clearTimeout(clickTimer);
-						clickTimer = null;
-					}
-				});
-
-				if(clickTimer){
-					clearTimeout(clickTimer);
-				}
-				clickTimer = setTimeout(function(){
-					clickTimer = null;
-					naturalClickListener.remove();
-					on.emit(target, "click", {
-						cancelable: true,
-						bubbles: true
-					});
-				}, 600);
-			}
-		});
-
-		// TODO: if the touchstart and touchend were <100ms apart, and then there's another touchstart
-		// event <300ms after the touchend event, then clear the synthetic click timer, because user
-		// is doing a zoom.   Alternately monitor screen.deviceXDPI (or something similar) to see if
-		// zoom level has changed.
-	}
-
-	return function(node, listener){
-		// summary:
-		//		Custom a11yclick (a.k.a. ondijitclick) event
-		//		which triggers on a mouse click, touch, or space/enter keyup.
-
+	var click = function(node, listener){
+		// Set flag on node so that keydown/keyup above emits click event.
+		// Also enables fast click processing from dojo/touch.
 		node.dojoClick = true;
 
 		return on(node, "click", listener);
 	};
+	click.click = click;	// forward compatibility with 2.0
+
+	click.press =  function(node, listener){
+		var touchListener = on(node, touch.press, function(evt){
+			if(evt.type == "mousedown" && !mouse.isLeft(evt)){
+				// Ignore right click
+				return;
+			}
+			listener(evt);
+		}), keyListener = on(node, "keydown", function(evt){
+			if(evt.keyCode === keys.ENTER || evt.keyCode === keys.SPACE){
+				listener(evt);
+			}
+		});
+		return {
+			remove: function(){
+				touchListener.remove();
+				keyListener.remove();
+			}
+		};
+	};
+
+	click.release =  function(node, listener){
+		var touchListener = on(node, touch.release, function(evt){
+			if(evt.type == "mouseup" && !mouse.isLeft(evt)){
+				// Ignore right click
+				return;
+			}
+			listener(evt);
+		}), keyListener = on(node, "keyup", function(evt){
+			if(evt.keyCode === keys.ENTER || evt.keyCode === keys.SPACE){
+				listener(evt);
+			}
+		});
+		return {
+			remove: function(){
+				touchListener.remove();
+				keyListener.remove();
+			}
+		};
+	};
+
+	click.move = touch.move;	// just for convenience
+
+	return click;
+});
+
+},
+'dojo/touch':function(){
+define(["./_base/kernel", "./aspect", "./dom", "./dom-class", "./_base/lang", "./on", "./has", "./mouse", "./domReady", "./_base/window"],
+function(dojo, aspect, dom, domClass, lang, on, has, mouse, domReady, win){
+
+	// module:
+	//		dojo/touch
+
+	var ios4 = has("ios") < 5;
+
+	// Detect if platform supports Pointer Events, and if so, the names of the events (pointerdown vs. MSPointerDown).
+	var hasPointer = has("pointer-events") || has("MSPointer"),
+		pointer = (function () {
+			var pointer = {};
+			for (var type in { down: 1, move: 1, up: 1, cancel: 1, over: 1, out: 1 }) {
+				pointer[type] = has("MSPointer") ?
+					"MSPointer" + type.charAt(0).toUpperCase() + type.slice(1) :
+					"pointer" + type;
+			}
+			return pointer;
+		})();
+
+	// Detect if platform supports the webkit touchstart/touchend/... events
+	var hasTouch = has("touch-events");
+
+	// Click generation variables
+	var clicksInited, clickTracker, useTarget = false, clickTarget, clickX, clickY, clickDx, clickDy, clickTime;
+
+	// Time of most recent touchstart, touchmove, or touchend event
+	var lastTouch;
+
+	function dualEvent(mouseType, touchType, pointerType){
+		// Returns synthetic event that listens for both the specified mouse event and specified touch event.
+		// But ignore fake mouse events that were generated due to the user touching the screen.
+		if(hasPointer && pointerType){
+			// IE10+: MSPointer* events are designed to handle both mouse and touch in a uniform way,
+			// so just use that regardless of hasTouch.
+			return function(node, listener){
+				return on(node, pointerType, listener);
+			};
+		}else if(hasTouch){
+			return function(node, listener){
+				var handle1 = on(node, touchType, function(evt){
+						listener.call(this, evt);
+
+						// On slow mobile browsers (see https://bugs.dojotoolkit.org/ticket/17634),
+						// a handler for a touch event may take >1s to run.  That time shouldn't
+						// be included in the calculation for lastTouch.
+						lastTouch = (new Date()).getTime();
+					}),
+					handle2 = on(node, mouseType, function(evt){
+						if(!lastTouch || (new Date()).getTime() > lastTouch + 1000){
+							listener.call(this, evt);
+						}
+					});
+				return {
+					remove: function(){
+						handle1.remove();
+						handle2.remove();
+					}
+				};
+			};
+		}else{
+			// Avoid creating listeners for touch events on performance sensitive older browsers like IE6
+			return function(node, listener){
+				return on(node, mouseType, listener);
+			};
+		}
+	}
+
+	function marked(/*DOMNode*/ node){
+		// Search for node ancestor has been marked with the dojoClick property to indicate special processing.
+		// Returns marked ancestor.
+		do{
+			if(node.dojoClick !== undefined){ return node; }
+		}while(node = node.parentNode);
+	}
+
+	function doClicks(e, moveType, endType){
+		// summary:
+		//		Setup touch listeners to generate synthetic clicks immediately (rather than waiting for the browser
+		//		to generate clicks after the double-tap delay) and consistently (regardless of whether event.preventDefault()
+		//		was called in an event listener. Synthetic clicks are generated only if a node or one of its ancestors has
+		//		its dojoClick property set to truthy. If a node receives synthetic clicks because one of its ancestors has its
+		//      dojoClick property set to truthy, you can disable synthetic clicks on this node by setting its own dojoClick property
+		//      to falsy.
+
+		if(mouse.isRight(e)){
+			return;		// avoid spurious dojoclick event on IE10+; right click is just for context menu
+		}
+
+		var markedNode = marked(e.target);
+		clickTracker  = !e.target.disabled && markedNode && markedNode.dojoClick; // click threshold = true, number, x/y object, or "useTarget"
+		if(clickTracker){
+			useTarget = (clickTracker == "useTarget");
+			clickTarget = (useTarget?markedNode:e.target);
+			if(useTarget){
+				// We expect a click, so prevent any other
+				// default action on "touchpress"
+				e.preventDefault();
+			}
+			clickX = e.changedTouches ? e.changedTouches[0].pageX - win.global.pageXOffset : e.clientX;
+			clickY = e.changedTouches ? e.changedTouches[0].pageY - win.global.pageYOffset : e.clientY;
+			clickDx = (typeof clickTracker == "object" ? clickTracker.x : (typeof clickTracker == "number" ? clickTracker : 0)) || 4;
+			clickDy = (typeof clickTracker == "object" ? clickTracker.y : (typeof clickTracker == "number" ? clickTracker : 0)) || 4;
+
+			// add move/end handlers only the first time a node with dojoClick is seen,
+			// so we don't add too much overhead when dojoClick is never set.
+			if(!clicksInited){
+				clicksInited = true;
+
+				function updateClickTracker(e){
+					if(useTarget){
+						clickTracker = dom.isDescendant(
+							win.doc.elementFromPoint(
+								(e.changedTouches ? e.changedTouches[0].pageX - win.global.pageXOffset : e.clientX),
+								(e.changedTouches ? e.changedTouches[0].pageY - win.global.pageYOffset : e.clientY)),
+							clickTarget);
+					}else{
+						clickTracker = clickTracker &&
+							(e.changedTouches ? e.changedTouches[0].target : e.target) == clickTarget &&
+							Math.abs((e.changedTouches ? e.changedTouches[0].pageX - win.global.pageXOffset : e.clientX) - clickX) <= clickDx &&
+							Math.abs((e.changedTouches ? e.changedTouches[0].pageY - win.global.pageYOffset : e.clientY) - clickY) <= clickDy;
+					}
+				}
+
+				win.doc.addEventListener(moveType, function(e){
+					if(mouse.isRight(e)){
+						return;		// avoid spurious dojoclick event on IE10+; right click is just for context menu
+					}
+					updateClickTracker(e);
+					if(useTarget){
+						// prevent native scroll event and ensure touchend is
+						// fire after touch moves between press and release.
+						e.preventDefault();
+					}
+				}, true);
+
+				win.doc.addEventListener(endType, function(e){
+					if(mouse.isRight(e)){
+						return;		// avoid spurious dojoclick event on IE10+; right click is just for context menu
+					}
+					updateClickTracker(e);
+					if(clickTracker){
+						clickTime = (new Date()).getTime();
+						var target = (useTarget?clickTarget:e.target);
+						if(target.tagName === "LABEL"){
+							// when clicking on a label, forward click to its associated input if any
+							target = dom.byId(target.getAttribute("for")) || target;
+						}
+						//some attributes can be on the Touch object, not on the Event:
+						//http://www.w3.org/TR/touch-events/#touch-interface
+						var src = (e.changedTouches) ? e.changedTouches[0] : e;
+						function createMouseEvent(type){
+							//create the synthetic event.
+							//http://www.w3.org/TR/DOM-Level-3-Events/#widl-MouseEvent-initMouseEvent
+							var evt = document.createEvent("MouseEvents");
+							evt._dojo_click = true;
+							evt.initMouseEvent(type,
+								true, //bubbles
+								true, //cancelable
+								e.view,
+								e.detail,
+								src.screenX,
+								src.screenY,
+								src.clientX,
+								src.clientY,
+								e.ctrlKey,
+								e.altKey,
+								e.shiftKey,
+								e.metaKey,
+								0, //button
+								null //related target
+							);
+							return evt;
+						}
+						var mouseDownEvt = createMouseEvent("mousedown");
+						var mouseUpEvt = createMouseEvent("mouseup");
+						var clickEvt = createMouseEvent("click");
+
+						setTimeout(function(){
+							on.emit(target, "mousedown", mouseDownEvt);
+							on.emit(target, "mouseup", mouseUpEvt);
+							on.emit(target, "click", clickEvt);
+
+							// refresh clickTime in case app-defined click handler took a long time to run
+							clickTime = (new Date()).getTime();
+						}, 0);
+					}
+				}, true);
+
+				function stopNativeEvents(type){
+					win.doc.addEventListener(type, function(e){
+						// Stop native events when we emitted our own click event.  Note that the native click may occur
+						// on a different node than the synthetic click event was generated on.  For example,
+						// click on a menu item, causing the menu to disappear, and then (~300ms later) the browser
+						// sends a click event to the node that was *underneath* the menu.  So stop all native events
+						// sent shortly after ours, similar to what is done in dualEvent.
+						// The INPUT.dijitOffScreen test is for offscreen inputs used in dijit/form/Button, on which
+						// we call click() explicitly, we don't want to stop this event.
+						var target = e.target;
+						if(clickTracker && !e._dojo_click &&
+								(new Date()).getTime() <= clickTime + 1000 &&
+								!(target.tagName == "INPUT" && domClass.contains(target, "dijitOffScreen"))){
+							e.stopPropagation();
+							e.stopImmediatePropagation && e.stopImmediatePropagation();
+							if(type == "click" &&
+								(target.tagName != "INPUT" ||
+								(target.type == "radio" &&
+									// #18352 Do not preventDefault for radios that are not dijit or
+									// dojox/mobile widgets.
+									// (The CSS class dijitCheckBoxInput holds for both checkboxes and radio buttons.)
+									(domClass.contains(target, "dijitCheckBoxInput") ||
+										domClass.contains(target, "mblRadioButton"))) ||
+								(target.type == "checkbox" &&
+									// #18352 Do not preventDefault for checkboxes that are not dijit or
+									// dojox/mobile widgets.
+									(domClass.contains(target, "dijitCheckBoxInput") ||
+										domClass.contains(target, "mblCheckBox")))) &&
+								target.tagName != "TEXTAREA" && target.tagName != "AUDIO" && target.tagName != "VIDEO"){
+								// preventDefault() breaks textual <input>s on android, keyboard doesn't popup,
+								// but it is still needed for checkboxes and radio buttons, otherwise in some cases
+								// the checked state becomes inconsistent with the widget's state
+								e.preventDefault();
+							}
+						}
+					}, true);
+				}
+
+				stopNativeEvents("click");
+
+				// We also stop mousedown/up since these would be sent well after with our "fast" click (300ms),
+				// which can confuse some dijit widgets.
+				stopNativeEvents("mousedown");
+				stopNativeEvents("mouseup");
+			}
+		}
+	}
+
+	var hoveredNode;
+
+	if(has("touch")){
+		if(hasPointer){
+			// MSPointer (IE10+) already has support for over and out, so we just need to init click support
+			domReady(function(){
+				win.doc.addEventListener(pointer.down, function(evt){
+					doClicks(evt, pointer.move, pointer.up);
+				}, true);
+			});
+		}else{
+			domReady(function(){
+				// Keep track of currently hovered node
+				hoveredNode = win.body();	// currently hovered node
+
+				win.doc.addEventListener("touchstart", function(evt){
+						lastTouch = (new Date()).getTime();
+
+					// Precede touchstart event with touch.over event.  DnD depends on this.
+					// Use addEventListener(cb, true) to run cb before any touchstart handlers on node run,
+					// and to ensure this code runs even if the listener on the node does event.stop().
+					var oldNode = hoveredNode;
+					hoveredNode = evt.target;
+					on.emit(oldNode, "dojotouchout", {
+						relatedTarget: hoveredNode,
+						bubbles: true
+					});
+					on.emit(hoveredNode, "dojotouchover", {
+						relatedTarget: oldNode,
+						bubbles: true
+					});
+
+					doClicks(evt, "touchmove", "touchend"); // init click generation
+				}, true);
+
+				function copyEventProps(evt){
+					// Make copy of event object and also set bubbles:true.  Used when calling on.emit().
+					var props = lang.delegate(evt, {
+						bubbles: true
+					});
+
+					if(has("ios") >= 6){
+						// On iOS6 "touches" became a non-enumerable property, which
+						// is not hit by for...in.  Ditto for the other properties below.
+						props.touches = evt.touches;
+						props.altKey = evt.altKey;
+						props.changedTouches = evt.changedTouches;
+						props.ctrlKey = evt.ctrlKey;
+						props.metaKey = evt.metaKey;
+						props.shiftKey = evt.shiftKey;
+						props.targetTouches = evt.targetTouches;
+					}
+
+					return props;
+				}
+
+				on(win.doc, "touchmove", function(evt){
+					lastTouch = (new Date()).getTime();
+
+					var newNode = win.doc.elementFromPoint(
+						evt.pageX - (ios4 ? 0 : win.global.pageXOffset), // iOS 4 expects page coords
+						evt.pageY - (ios4 ? 0 : win.global.pageYOffset)
+					);
+
+					if(newNode){
+						// Fire synthetic touchover and touchout events on nodes since the browser won't do it natively.
+						if(hoveredNode !== newNode){
+							// touch out on the old node
+							on.emit(hoveredNode, "dojotouchout", {
+								relatedTarget: newNode,
+								bubbles: true
+							});
+
+							// touchover on the new node
+							on.emit(newNode, "dojotouchover", {
+								relatedTarget: hoveredNode,
+								bubbles: true
+							});
+
+							hoveredNode = newNode;
+						}
+
+						// Unlike a listener on "touchmove", on(node, "dojotouchmove", listener) fires when the finger
+						// drags over the specified node, regardless of which node the touch started on.
+						if(!on.emit(newNode, "dojotouchmove", copyEventProps(evt))){
+							// emit returns false when synthetic event "dojotouchmove" is cancelled, so we prevent the
+							// default behavior of the underlying native event "touchmove".
+							evt.preventDefault();
+						}
+					}
+				});
+
+				// Fire a dojotouchend event on the node where the finger was before it was removed from the screen.
+				// This is different than the native touchend, which fires on the node where the drag started.
+				on(win.doc, "touchend", function(evt){
+						lastTouch = (new Date()).getTime();
+					var node = win.doc.elementFromPoint(
+						evt.pageX - (ios4 ? 0 : win.global.pageXOffset), // iOS 4 expects page coords
+						evt.pageY - (ios4 ? 0 : win.global.pageYOffset)
+					) || win.body(); // if out of the screen
+
+					on.emit(node, "dojotouchend", copyEventProps(evt));
+				});
+			});
+		}
+	}
+
+	//device neutral events - touch.press|move|release|cancel/over/out
+	var touch = {
+		press: dualEvent("mousedown", "touchstart", pointer.down),
+		move: dualEvent("mousemove", "dojotouchmove", pointer.move),
+		release: dualEvent("mouseup", "dojotouchend", pointer.up),
+		cancel: dualEvent(mouse.leave, "touchcancel", hasPointer ? pointer.cancel : null),
+		over: dualEvent("mouseover", "dojotouchover", pointer.over),
+		out: dualEvent("mouseout", "dojotouchout", pointer.out),
+		enter: mouse._eventHandler(dualEvent("mouseover","dojotouchover", pointer.over)),
+		leave: mouse._eventHandler(dualEvent("mouseout", "dojotouchout", pointer.out))
+	};
+
+	/*=====
+	touch = {
+		// summary:
+		//		This module provides unified touch event handlers by exporting
+		//		press, move, release and cancel which can also run well on desktop.
+		//		Based on http://dvcs.w3.org/hg/webevents/raw-file/tip/touchevents.html
+		//      Also, if the dojoClick property is set to truthy on a DOM node, dojo/touch generates
+		//      click events immediately for this node and its descendants (except for descendants that
+		//      have a dojoClick property set to falsy), to avoid the delay before native browser click events,
+		//      and regardless of whether evt.preventDefault() was called in a touch.press event listener.
+		//
+		// example:
+		//		Used with dojo/on
+		//		|	define(["dojo/on", "dojo/touch"], function(on, touch){
+		//		|		on(node, touch.press, function(e){});
+		//		|		on(node, touch.move, function(e){});
+		//		|		on(node, touch.release, function(e){});
+		//		|		on(node, touch.cancel, function(e){});
+		// example:
+		//		Used with touch.* directly
+		//		|	touch.press(node, function(e){});
+		//		|	touch.move(node, function(e){});
+		//		|	touch.release(node, function(e){});
+		//		|	touch.cancel(node, function(e){});
+		// example:
+		//		Have dojo/touch generate clicks without delay, with a default move threshold of 4 pixels
+		//		|	node.dojoClick = true;
+		// example:
+		//		Have dojo/touch generate clicks without delay, with a move threshold of 10 pixels horizontally and vertically
+		//		|	node.dojoClick = 10;
+		// example:
+		//		Have dojo/touch generate clicks without delay, with a move threshold of 50 pixels horizontally and 10 pixels vertically
+		//		|	node.dojoClick = {x:50, y:5};
+		// example:
+		//		Disable clicks without delay generated by dojo/touch on a node that has an ancestor with property dojoClick set to truthy
+		//		|  node.dojoClick = false;
+
+		press: function(node, listener){
+			// summary:
+			//		Register a listener to 'touchstart'|'mousedown' for the given node
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		},
+		move: function(node, listener){
+			// summary:
+			//		Register a listener that fires when the mouse cursor or a finger is dragged over the given node.
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		},
+		release: function(node, listener){
+			// summary:
+			//		Register a listener to releasing the mouse button while the cursor is over the given node
+			//		(i.e. "mouseup") or for removing the finger from the screen while touching the given node.
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		},
+		cancel: function(node, listener){
+			// summary:
+			//		Register a listener to 'touchcancel'|'mouseleave' for the given node
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		},
+		over: function(node, listener){
+			// summary:
+			//		Register a listener to 'mouseover' or touch equivalent for the given node
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		},
+		out: function(node, listener){
+			// summary:
+			//		Register a listener to 'mouseout' or touch equivalent for the given node
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		},
+		enter: function(node, listener){
+			// summary:
+			//		Register a listener to mouse.enter or touch equivalent for the given node
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		},
+		leave: function(node, listener){
+			// summary:
+			//		Register a listener to mouse.leave or touch equivalent for the given node
+			// node: Dom
+			//		Target node to listen to
+			// listener: Function
+			//		Callback function
+			// returns:
+			//		A handle which will be used to remove the listener by handle.remove()
+		}
+	};
+	=====*/
+
+	 1  && (dojo.touch = touch);
+
+	return touch;
 });
 
 },
 'dijit/_FocusMixin':function(){
-define("dijit/_FocusMixin", [
+define([
 	"./focus",
 	"./_WidgetBase",
 	"dojo/_base/declare", // declare
@@ -18909,31 +19709,35 @@ define("dijit/_FocusMixin", [
 
 },
 'dijit/focus':function(){
-define("dijit/focus", [
+define([
 	"dojo/aspect",
 	"dojo/_base/declare", // declare
 	"dojo/dom", // domAttr.get dom.isDescendant
 	"dojo/dom-attr", // domAttr.get dom.isDescendant
+	"dojo/dom-class",
 	"dojo/dom-construct", // connect to domConstruct.empty, domConstruct.destroy
 	"dojo/Evented",
 	"dojo/_base/lang", // lang.hitch
 	"dojo/on",
-	"dojo/ready",
+	"dojo/domReady",
 	"dojo/sniff", // has("ie")
 	"dojo/Stateful",
-	"dojo/_base/unload", // unload.addOnWindowUnload
 	"dojo/_base/window", // win.body
 	"dojo/window", // winUtils.get
 	"./a11y",	// a11y.isTabNavigable
 	"./registry",	// registry.byId
 	"./main"		// to set dijit.focus
-], function(aspect, declare, dom, domAttr, domConstruct, Evented, lang, on, ready, has, Stateful, unload, win, winUtils,
+], function(aspect, declare, dom, domAttr, domClass, domConstruct, Evented, lang, on, domReady, has, Stateful, win, winUtils,
 			a11y, registry, dijit){
 
 	// module:
 	//		dijit/focus
 
+	// Time of the last focusin event
 	var lastFocusin;
+
+	// Time of the last touch/mousedown or focusin event
+	var lastTouchOrFocusin;
 
 	var FocusManager = declare([Stateful, Evented], {
 		// summary:
@@ -19008,13 +19812,10 @@ define("dijit/focus", [
 				body = targetWindow.document && targetWindow.document.body;
 
 			if(body){
-				var mdh = on(body, 'mousedown', function(evt){
-					_this._justMouseDowned = true;
-					// Use a 13 ms timeout to work-around Chrome resolving too fast and focusout
-					// events not seeing that a mousedown just happened when a popup closes.
-					// See https://bugs.dojotoolkit.org/ticket/17668
-					setTimeout(function(){ _this._justMouseDowned = false; }, 13);
-
+				// Listen for touches or mousedowns... could also use dojo/touch.press here.
+				var event = has("pointer-events") ? "pointerdown" : has("MSPointer") ? "MSPointerDown" :
+					has("touch-events") ? "mousedown, touchstart" : "mousedown";
+				var mdh = on(targetWindow.document, event, function(evt){
 					// workaround weird IE bug where the click is on an orphaned node
 					// (first time clicking a Select/DropDownButton inside a TooltipDialog).
 					// actually, strangely this is happening on latest chrome too.
@@ -19026,9 +19827,6 @@ define("dijit/focus", [
 				});
 
 				var fih = on(body, 'focusin', function(evt){
-
-					lastFocusin = (new Date()).getTime();
-
 					// When you refocus the browser window, IE gives an event with an empty srcElement
 					if(!evt.target.tagName) { return; }
 
@@ -19048,12 +19846,6 @@ define("dijit/focus", [
 				});
 
 				var foh = on(body, 'focusout', function(evt){
-					// IE9+ has a problem where focusout events come after the corresponding focusin event.  At least
-					// when moving focus from the Editor's <iframe> to a normal DOMNode.
-					if((new Date()).getTime() < lastFocusin + 100){
-						return;
-					}
-
 					_this._onBlurNode(effectiveNode || evt.target);
 				});
 
@@ -19076,6 +19868,15 @@ define("dijit/focus", [
 			//		which indicates that we tabbed off the last field on the page,
 			//		in which case every widget is marked inactive
 
+			var now = (new Date()).getTime();
+
+			// IE9+ and chrome have a problem where focusout events come after the corresponding focusin event.
+			// For chrome problem see https://bugs.dojotoolkit.org/ticket/17668.
+			// IE problem happens when moving focus from the Editor's <iframe> to a normal DOMNode.
+			if(now < lastFocusin + 100){
+				return;
+			}
+
 			// If the blur event isn't followed by a focus event, it means the user clicked on something unfocusable,
 			// so clear focus.
 			if(this._clearFocusTimer){
@@ -19086,16 +19887,19 @@ define("dijit/focus", [
 				this.set("curNode", null);
 			}), 0);
 
-			if(this._justMouseDowned){
-				// the mouse down caused a new widget to be marked as active; this blur event
-				// is coming late, so ignore it.
-				return;
-			}
-
-			// If the blur event isn't followed by a focus or touch event then mark all widgets as inactive.
+			// Unset timer to zero-out widget stack; we'll reset it below if appropriate.
 			if(this._clearActiveWidgetsTimer){
 				clearTimeout(this._clearActiveWidgetsTimer);
 			}
+
+			if(now < lastTouchOrFocusin + 100){
+				// This blur event is coming late (after the call to _onTouchNode() rather than before.
+				// So let _onTouchNode() handle setting the widget stack.
+				// See https://bugs.dojotoolkit.org/ticket/17668
+				return;
+			}
+
+			// If the blur event isn't followed (or preceded) by a focus or touch event then mark all widgets as inactive.
 			this._clearActiveWidgetsTimer = setTimeout(lang.hitch(this, function(){
 				delete this._clearActiveWidgetsTimer;
 				this._setStack([]);
@@ -19104,16 +19908,26 @@ define("dijit/focus", [
 
 		_onTouchNode: function(/*DomNode*/ node, /*String*/ by){
 			// summary:
-			//		Callback when node is focused or mouse-downed
+			//		Callback when node is focused or touched.
+			//		Note that _onFocusNode() calls _onTouchNode().
 			// node:
 			//		The node that was touched.
 			// by:
 			//		"mouse" if the focus/touch was caused by a mouse down event
 
-			// ignore the recent blurNode event
+			// Keep track of time of last focusin or touch event.
+			lastTouchOrFocusin = (new Date()).getTime();
+
 			if(this._clearActiveWidgetsTimer){
+				// forget the recent blur event
 				clearTimeout(this._clearActiveWidgetsTimer);
 				delete this._clearActiveWidgetsTimer;
+			}
+
+			// if the click occurred on the scrollbar of a dropdown, treat it as a click on the dropdown,
+			// even though the scrollbar is technically on the popup wrapper (see #10631)
+			if(domClass.contains(node, "dijitPopup")){
+				node = node.firstChild;
 			}
 
 			// compute stack of active widgets (ex: ComboButton --> Menu --> MenuItem)
@@ -19164,8 +19978,11 @@ define("dijit/focus", [
 				return;
 			}
 
-			// There was probably a blur event right before this event, but since we have a new focus, don't
-			// do anything with the blur
+			// Keep track of time of last focusin event.
+			lastFocusin = (new Date()).getTime();
+
+			// There was probably a blur event right before this event, but since we have a new focus,
+			// forget about the blur
 			if(this._clearFocusTimer){
 				clearTimeout(this._clearFocusTimer);
 				delete this._clearFocusTimer;
@@ -19186,19 +20003,19 @@ define("dijit/focus", [
 			// by:
 			//		"mouse" if the focus/touch was caused by a mouse down event
 
-			var oldStack = this.activeStack;
-			this.set("activeStack", newStack);
+			var oldStack = this.activeStack, lastOldIdx = oldStack.length - 1, lastNewIdx = newStack.length - 1;
 
-			// compare old stack to new stack to see how many elements they have in common
-			for(var nCommon=0; nCommon<Math.min(oldStack.length, newStack.length); nCommon++){
-				if(oldStack[nCommon] != newStack[nCommon]){
-					break;
-				}
+			if(newStack[lastNewIdx] == oldStack[lastOldIdx]){
+				// no changes, return now to avoid spurious notifications about changes to activeStack
+				return;
 			}
 
-			var widget;
+			this.set("activeStack", newStack);
+
+			var widget, i;
+
 			// for all elements that have gone out of focus, set focused=false
-			for(var i=oldStack.length-1; i>=nCommon; i--){
+			for(i = lastOldIdx; i >= 0 && oldStack[i] != newStack[i]; i--){
 				widget = registry.byId(oldStack[i]);
 				if(widget){
 					widget._hasBeenBlurred = true;		// TODO: used by form widgets, should be moved there
@@ -19211,7 +20028,7 @@ define("dijit/focus", [
 			}
 
 			// for all element that have come into focus, set focused=true
-			for(i=nCommon; i<newStack.length; i++){
+			for(i++; i <= lastNewIdx; i++){
 				widget = registry.byId(newStack[i]);
 				if(widget){
 					widget.set("focused", true);
@@ -19235,10 +20052,10 @@ define("dijit/focus", [
 	var singleton = new FocusManager();
 
 	// register top window and all the iframes it contains
-	ready(function(){
-		var handle = singleton.registerWin(winUtils.get(win.doc));
+	domReady(function(){
+		var handle = singleton.registerWin(winUtils.get(document));
 		if(has("ie")){
-			unload.addOnWindowUnload(function(){
+			on(window, "unload", function(){
 				if(handle){	// because this gets called twice when doh.robot is running
 					handle.remove();
 					handle = null;
@@ -19266,7 +20083,7 @@ define("dijit/focus", [
 
 },
 'dijit/a11y':function(){
-define("dijit/a11y", [
+define([
 	"dojo/_base/array", // array.forEach array.map
 	"dojo/dom",			// dom.byId
 	"dojo/dom-attr", // domAttr.attr domAttr.has
@@ -19460,8 +20277,8 @@ define("dijit/a11y", [
 
 },
 'dojo/uacss':function(){
-define(["./dom-geometry", "./_base/lang", "./ready", "./sniff", "./_base/window"],
-	function(geometry, lang, ready, has, baseWindow){
+define(["./dom-geometry", "./_base/lang", "./domReady", "./sniff", "./_base/window"],
+	function(geometry, lang, domReady, has, baseWindow){
 
 	// module:
 	//		dojo/uacss
@@ -19503,8 +20320,12 @@ define(["./dom-geometry", "./_base/lang", "./ready", "./sniff", "./_base/window"
 			"dj_webkit": has("webkit"),
 			"dj_safari": has("safari"),
 			"dj_chrome": has("chrome"),
+			"dj_edge": has("edge"),
 
-			"dj_gecko": has("mozilla")
+			"dj_gecko": has("mozilla"),
+
+			"dj_ios": has("ios"),
+			"dj_android": has("android")
 		}; // no dojo unsupported browsers
 
 	if(ie){
@@ -19533,8 +20354,7 @@ define(["./dom-geometry", "./_base/lang", "./ready", "./sniff", "./_base/window"
 
 	// If RTL mode, then add dj_rtl flag plus repeat existing classes with -rtl extension.
 	// We can't run the code below until the <body> tag has loaded (so we can check for dir=rtl).
-	// priority is 90 to run ahead of parser priority of 100
-	ready(90, function(){
+	domReady(function(){
 		if(!geometry.isBodyLtr()){
 			var rtlClassStr = "dj_rtl dijitRtl " + classStr.replace(/ /g, "-rtl ");
 			html.className = lang.trim(html.className + " " + rtlClassStr + "dj_rtl dijitRtl " + classStr.replace(/ /g, "-rtl "));
@@ -19545,7 +20365,7 @@ define(["./dom-geometry", "./_base/lang", "./ready", "./sniff", "./_base/window"
 
 },
 'dijit/hccss':function(){
-define("dijit/hccss", ["dojo/dom-class", "dojo/hccss", "dojo/ready", "dojo/_base/window"], function(domClass, has, ready, win){
+define(["dojo/dom-class", "dojo/hccss", "dojo/domReady", "dojo/_base/window"], function(domClass, has, domReady, win){
 
 	// module:
 	//		dijit/hccss
@@ -19558,9 +20378,7 @@ define("dijit/hccss", ["dojo/dom-class", "dojo/hccss", "dojo/ready", "dojo/_base
 	};
 	=====*/
 
-	// Priority is 90 to run ahead of parser priority of 100.   For 2.0, remove the ready() call and instead
-	// change this module to depend on dojo/domReady!
-	ready(90, function(){
+	domReady(function(){
 		if(has("highcontrast")){
 			domClass.add(win.body(), "dijit_a11y");
 		}
@@ -19572,14 +20390,14 @@ define("dijit/hccss", ["dojo/dom-class", "dojo/hccss", "dojo/ready", "dojo/_base
 },
 'dojo/hccss':function(){
 define([
-	"require",			// require.toUrl
+	"require",			// require, require.toUrl
 	"./_base/config", // config.blankGif
 	"./dom-class", // domClass.add
 	"./dom-style", // domStyle.getComputedStyle
 	"./has",
-	"./ready", // ready
+	"./domReady",
 	"./_base/window" // win.body
-], function(require, config, domClass, domStyle, has, ready, win){
+], function(require, config, domClass, domStyle, has, domReady, win){
 
 	// module:
 	//		dojo/hccss
@@ -19597,27 +20415,28 @@ define([
 	has.add("highcontrast", function(){
 		// note: if multiple documents, doesn't matter which one we use
 		var div = win.doc.createElement("div");
-		div.style.cssText = "border: 1px solid; border-color:red green; position: absolute; height: 5px; top: -999px;" +
-			"background-image: url(" + (config.blankGif || require.toUrl("./resources/blank.gif")) + ");";
-		win.body().appendChild(div);
+		try{
+			div.style.cssText = "border: 1px solid; border-color:red green; position: absolute; height: 5px; top: -999px;" +
+				"background-image: url(\"" + (config.blankGif || require.toUrl("./resources/blank.gif")) + "\");";
+			win.body().appendChild(div);
 
-		var cs = domStyle.getComputedStyle(div),
-			bkImg = cs.backgroundImage,
-			hc = (cs.borderTopColor == cs.borderRightColor) ||
+			var cs = domStyle.getComputedStyle(div),
+				bkImg = cs.backgroundImage;
+			return cs.borderTopColor == cs.borderRightColor ||
 				(bkImg && (bkImg == "none" || bkImg == "url(invalid-url:)" ));
-
-		if(has("ie") <= 8){
-			div.outerHTML = "";		// prevent mixed-content warning, see http://support.microsoft.com/kb/925014
-		}else{
-			win.body().removeChild(div);
+		}catch(e){
+			console.warn("hccss: exception detecting high-contrast mode, document is likely hidden: " + e.toString());
+			return false;
+		}finally{
+			if(has("ie") <= 8){
+				div.outerHTML = "";		// prevent mixed-content warning, see http://support.microsoft.com/kb/925014
+			}else{
+				win.body().removeChild(div);
+			}
 		}
-
-		return hc;
 	});
 
-	// Priority is 90 to run ahead of parser priority of 100.   For 2.0, remove the ready() call and instead
-	// change this module to depend on dojo/domReady!
-	ready(90, function(){
+	domReady(function(){
 		if(has("highcontrast")){
 			domClass.add(win.body(), "dj_a11y");
 		}
@@ -19628,23 +20447,21 @@ define([
 
 },
 'dijit/_TemplatedMixin':function(){
-define("dijit/_TemplatedMixin", [
-	"dojo/_base/lang", // lang.getObject
-	"dojo/touch",
-	"./_WidgetBase",
-	"dojo/string", // string.substitute string.trim
+define([
 	"dojo/cache",	// dojo.cache
-	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
 	"dojo/dom-construct", // domConstruct.destroy, domConstruct.toDom
+	"dojo/_base/lang", // lang.getObject
+	"dojo/on",
 	"dojo/sniff", // has("ie")
-	"dojo/_base/unload" // unload.addOnWindowUnload
-], function(lang, touch, _WidgetBase, string, cache, array, declare, domConstruct, has, unload) {
+	"dojo/string", // string.substitute string.trim
+	"./_AttachMixin"
+], function(cache, declare, domConstruct, lang, on, has, string, _AttachMixin){
 
 	// module:
 	//		dijit/_TemplatedMixin
 
-	var _TemplatedMixin = declare("dijit._TemplatedMixin", null, {
+	var _TemplatedMixin = declare("dijit._TemplatedMixin", _AttachMixin, {
 		// summary:
 		//		Mixin for widgets that are instantiated from a template
 
@@ -19664,40 +20481,17 @@ define("dijit/_TemplatedMixin", [
 		//		that its template is always re-built from a string
 		_skipNodeCache: false,
 
-		// _earlyTemplatedStartup: Boolean
-		//		A fallback to preserve the 1.0 - 1.3 behavior of children in
-		//		templates having their startup called before the parent widget
-		//		fires postCreate. Defaults to 'false', causing child widgets to
-		//		have their .startup() called immediately before a parent widget
-		//		.startup(), but always after the parent .postCreate(). Set to
-		//		'true' to re-enable to previous, arguably broken, behavior.
-		_earlyTemplatedStartup: false,
-
 /*=====
-		// _attachPoints: [private] String[]
-		//		List of widget attribute names associated with data-dojo-attach-point=... in the
-		//		template, ex: ["containerNode", "labelNode"]
-		_attachPoints: [],
+		// _rendered: Boolean
+		//		Not normally use, but this flag can be set by the app if the server has already rendered the template,
+		//		i.e. already inlining the template for the widget into the main page.   Reduces _TemplatedMixin to
+		//		just function like _AttachMixin.
+		_rendered: false,
+=====*/
 
-		// _attachEvents: [private] Handle[]
-		//		List of connections associated with data-dojo-attach-event=... in the
-		//		template
-		_attachEvents: [],
- =====*/
-
-		constructor: function(/*===== params, srcNodeRef =====*/){
-			// summary:
-			//		Create the widget.
-			// params: Object|null
-			//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
-			//		and functions, typically callbacks like onClick.
-			//		The hash can contain any of the widget's properties, excluding read-only properties.
-			// srcNodeRef: DOMNode|String?
-			//		If a srcNodeRef (DOM node) is specified, replace srcNodeRef with my generated DOM tree.
-
-			this._attachPoints = [];
-			this._attachEvents = [];
-		},
+		// Set _AttachMixin.searchContainerNode to true for back-compat for widgets that have data-dojo-attach-point's
+		// and events inside this.containerNode.   Remove for 2.0.
+		searchContainerNode: true,
 
 		_stringRepl: function(tmpl){
 			// summary:
@@ -19714,11 +20508,27 @@ define("dijit/_TemplatedMixin", [
 
 				// Substitution keys beginning with ! will skip the transform step,
 				// in case a user wishes to insert unescaped markup, e.g. ${!foo}
-				return key.charAt(0) == "!" ? value :
-					// Safer substitution, see heading "Attribute values" in
-					// http://www.w3.org/TR/REC-html40/appendix/notes.html#h-B.3.2
-					value.toString().replace(/"/g,"&quot;"); //TODO: add &amp? use encodeXML method?
+				return key.charAt(0) == "!" ? value : this._escapeValue("" + value);
 			}, this);
+		},
+
+		_escapeValue: function(/*String*/ val){
+			// summary:
+			//		Escape a value to be inserted into the template, either into an attribute value
+			//		(ex: foo="${bar}") or as inner text of an element (ex: <span>${foo}</span>)
+
+			// Safer substitution, see heading "Attribute values" in
+			// http://www.w3.org/TR/REC-html40/appendix/notes.html#h-B.3.2
+			// and also https://www.owasp.org/index.php/XSS_%28Cross_Site_Scripting%29_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content
+			return val.replace(/["'<>&]/g, function(val){
+				return {
+					"&": "&amp;",
+					"<": "&lt;",
+					">": "&gt;",
+					"\"": "&quot;",
+					"'": "&#x27;"
+				}[val];
+			});
 		},
 
 		buildRendering: function(){
@@ -19727,43 +20537,40 @@ define("dijit/_TemplatedMixin", [
 			// tags:
 			//		protected
 
-			if(!this.templateString){
-				this.templateString = cache(this.templatePath, {sanitize: true});
-			}
-
-			// Lookup cached version of template, and download to cache if it
-			// isn't there already.  Returns either a DomNode or a string, depending on
-			// whether or not the template contains ${foo} replacement parameters.
-			var cached = _TemplatedMixin.getCachedTemplate(this.templateString, this._skipNodeCache, this.ownerDocument);
-
-			var node;
-			if(lang.isString(cached)){
-				node = domConstruct.toDom(this._stringRepl(cached), this.ownerDocument);
-				if(node.nodeType != 1){
-					// Flag common problems such as templates with multiple top level nodes (nodeType == 11)
-					throw new Error("Invalid template: " + cached);
+			if(!this._rendered){
+				if(!this.templateString){
+					this.templateString = cache(this.templatePath, {sanitize: true});
 				}
-			}else{
-				// if it's a node, all we have to do is clone it
-				node = cached.cloneNode(true);
+
+				// Lookup cached version of template, and download to cache if it
+				// isn't there already.  Returns either a DomNode or a string, depending on
+				// whether or not the template contains ${foo} replacement parameters.
+				var cached = _TemplatedMixin.getCachedTemplate(this.templateString, this._skipNodeCache, this.ownerDocument);
+
+				var node;
+				if(lang.isString(cached)){
+					node = domConstruct.toDom(this._stringRepl(cached), this.ownerDocument);
+					if(node.nodeType != 1){
+						// Flag common problems such as templates with multiple top level nodes (nodeType == 11)
+						throw new Error("Invalid template: " + cached);
+					}
+				}else{
+					// if it's a node, all we have to do is clone it
+					node = cached.cloneNode(true);
+				}
+
+				this.domNode = node;
 			}
 
-			this.domNode = node;
-
-			// Call down to _Widget.buildRendering() to get base classes assigned
+			// Call down to _WidgetBase.buildRendering() to get base classes assigned
 			// TODO: change the baseClass assignment to _setBaseClassAttr
 			this.inherited(arguments);
 
-			// recurse through the node, looking for, and attaching to, our
-			// attachment points and events, which should be defined on the template node.
-			this._attachTemplateNodes(node, function(n,p){ return n.getAttribute(p); });
+			if(!this._rendered){
+				this._fillContent(this.srcNodeRef);
+			}
 
-			this._beforeFillContent();		// hook for _WidgetsInTemplateMixin
-
-			this._fillContent(this.srcNodeRef);
-		},
-
-		_beforeFillContent: function(){
+			this._rendered = true;
 		},
 
 		_fillContent: function(/*DomNode*/ source){
@@ -19778,91 +20585,8 @@ define("dijit/_TemplatedMixin", [
 					dest.appendChild(source.firstChild);
 				}
 			}
-		},
-
-		_attachTemplateNodes: function(rootNode, getAttrFunc){
-			// summary:
-			//		Iterate through the template and attach functions and nodes accordingly.
-			//		Alternately, if rootNode is an array of widgets, then will process data-dojo-attach-point
-			//		etc. for those widgets.
-			// description:
-			//		Map widget properties and functions to the handlers specified in
-			//		the dom node and it's descendants. This function iterates over all
-			//		nodes and looks for these properties:
-			//
-			//		- dojoAttachPoint/data-dojo-attach-point
-			//		- dojoAttachEvent/data-dojo-attach-event
-			// rootNode: DomNode|Widget[]
-			//		the node to search for properties. All children will be searched.
-			// getAttrFunc: Function
-			//		a function which will be used to obtain property for a given
-			//		DomNode/Widget
-			// tags:
-			//		private
-
-			var nodes = lang.isArray(rootNode) ? rootNode : (rootNode.all || rootNode.getElementsByTagName("*"));
-			var x = lang.isArray(rootNode) ? 0 : -1;
-			for(; x < 0 || nodes[x]; x++){	// don't access nodes.length on IE, see #14346
-				var baseNode = (x == -1) ? rootNode : nodes[x];
-				if(this.widgetsInTemplate && (getAttrFunc(baseNode, "dojoType") || getAttrFunc(baseNode, "data-dojo-type"))){
-					continue;
-				}
-				// Process data-dojo-attach-point
-				var attachPoint = getAttrFunc(baseNode, "dojoAttachPoint") || getAttrFunc(baseNode, "data-dojo-attach-point");
-				if(attachPoint){
-					var point, points = attachPoint.split(/\s*,\s*/);
-					while((point = points.shift())){
-						if(lang.isArray(this[point])){
-							this[point].push(baseNode);
-						}else{
-							this[point]=baseNode;
-						}
-						this._attachPoints.push(point);
-					}
-				}
-
-				// Process data-dojo-attach-event
-				var attachEvent = getAttrFunc(baseNode, "dojoAttachEvent") || getAttrFunc(baseNode, "data-dojo-attach-event");
-				if(attachEvent){
-					// NOTE: we want to support attributes that have the form
-					// "domEvent: nativeEvent; ..."
-					var event, events = attachEvent.split(/\s*,\s*/);
-					var trim = lang.trim;
-					while((event = events.shift())){
-						if(event){
-							var thisFunc = null;
-							if(event.indexOf(":") != -1){
-								// oh, if only JS had tuple assignment
-								var funcNameArr = event.split(":");
-								event = trim(funcNameArr[0]);
-								thisFunc = trim(funcNameArr[1]);
-							}else{
-								event = trim(event);
-							}
-							if(!thisFunc){
-								thisFunc = event;
-							}
-							// Map "press", "move" and "release" to keys.touch, keys.move, keys.release
-							this._attachEvents.push(this.connect(baseNode, touch[event] || event, thisFunc));
-						}
-					}
-				}
-			}
-		},
-
-		destroyRendering: function(){
-			// Delete all attach points to prevent IE6 memory leaks.
-			array.forEach(this._attachPoints, function(point){
-				delete this[point];
-			}, this);
-			this._attachPoints = [];
-
-			// And same for event handlers
-			array.forEach(this._attachEvents, this.disconnect, this);
-			this._attachEvents = [];
-
-			this.inherited(arguments);
 		}
+
 	});
 
 	// key is templateString; object is either string or DOM tree
@@ -19914,7 +20638,7 @@ define("dijit/_TemplatedMixin", [
 	};
 
 	if(has("ie")){
-		unload.addOnWindowUnload(function(){
+		on(window, "unload", function(){
 			var cache = _TemplatedMixin._templateCache;
 			for(var key in cache){
 				var value = cache[key];
@@ -19926,253 +20650,17 @@ define("dijit/_TemplatedMixin", [
 		});
 	}
 
-	// These arguments can be specified for widgets which are used in templates.
-	// Since any widget can be specified as sub widgets in template, mix it
-	// into the base widget class.  (This is a hack, but it's effective.).
-	// Remove for 2.0.   Also, hide from API doc parser.
-	lang.extend(_WidgetBase, /*===== {} || =====*/ {
-		dojoAttachEvent: "",
-		dojoAttachPoint: ""
-	});
-
 	return _TemplatedMixin;
 });
 
 },
-'dojo/touch':function(){
-define(["./_base/kernel", "./aspect", "./dom", "./on", "./has", "./mouse", "./domReady", "./_base/window"],
-function(dojo, aspect, dom, on, has, mouse, domReady, win){
-
+'dojo/cache':function(){
+define(["./_base/kernel", "./text"], function(dojo){
 	// module:
-	//		dojo/touch
+	//		dojo/cache
 
-	var hasTouch = has("touch");
-
-	// TODO: get iOS version from dojo/sniff after #15827 is fixed
-	var ios4 = false;
-	if(has("ios")){
-		var ua = navigator.userAgent;
-		var v = ua.match(/OS ([\d_]+)/) ? RegExp.$1 : "1";
-		var os = parseFloat(v.replace(/_/, '.').replace(/_/g, ''));
-		ios4 = os < 5;
-	}
-
-	// Time of most recent touchstart or touchmove event
-	var lastTouch;
-
-	function dualEvent(mouseType, touchType){
-		// Returns synthetic event that listens for both the specified mouse event and specified touch event.
-		// But ignore fake mouse events that were generated due to the user touching the screen.
-		if(hasTouch){
-			return function(node, listener){
-				var handle1 = on(node, touchType, listener),
-					handle2 = on(node, mouseType, function(evt){
-						if(!lastTouch || (new Date()).getTime() > lastTouch + 1000){
-							listener.call(this, evt);
-						}
-					});
-				return {
-					remove: function(){
-						handle1.remove();
-						handle2.remove();
-					}
-				};
-			};
-		}else{
-			// Avoid creating listeners for touch events on performance sensitive older browsers like IE6
-			return function(node, listener){
-				return on(node, mouseType, listener);
-			}
-		}
-	}
-
-	var touchmove, hoveredNode;
-
-	if(hasTouch){
-		domReady(function(){
-			// Keep track of currently hovered node
-			hoveredNode = win.body();	// currently hovered node
-
-			win.doc.addEventListener("touchstart", function(evt){
-				lastTouch = (new Date()).getTime();
-
-				// Precede touchstart event with touch.over event.  DnD depends on this.
-				// Use addEventListener(cb, true) to run cb before any touchstart handlers on node run,
-				// and to ensure this code runs even if the listener on the node does event.stop().
-				var oldNode = hoveredNode;
-				hoveredNode = evt.target;
-				on.emit(oldNode, "dojotouchout", {
-					target: oldNode,
-					relatedTarget: hoveredNode,
-					bubbles: true
-				});
-				on.emit(hoveredNode, "dojotouchover", {
-					target: hoveredNode,
-					relatedTarget: oldNode,
-					bubbles: true
-				});
-			}, true);
-
-			// Fire synthetic touchover and touchout events on nodes since the browser won't do it natively.
-			on(win.doc, "touchmove", function(evt){
-				lastTouch = (new Date()).getTime();
-
-				var newNode = win.doc.elementFromPoint(
-					evt.pageX - (ios4 ? 0 : win.global.pageXOffset), // iOS 4 expects page coords
-					evt.pageY - (ios4 ? 0 : win.global.pageYOffset)
-				);
-				if(newNode && hoveredNode !== newNode){
-					// touch out on the old node
-					on.emit(hoveredNode, "dojotouchout", {
-						target: hoveredNode,
-						relatedTarget: newNode,
-						bubbles: true
-					});
-
-					// touchover on the new node
-					on.emit(newNode, "dojotouchover", {
-						target: newNode,
-						relatedTarget: hoveredNode,
-						bubbles: true
-					});
-
-					hoveredNode = newNode;
-				}
-			});
-		});
-
-		// Define synthetic touch.move event that unlike the native touchmove, fires for the node the finger is
-		// currently dragging over rather than the node where the touch started.
-		touchmove = function(node, listener){
-			return on(win.doc, "touchmove", function(evt){
-				if(node === win.doc || dom.isDescendant(hoveredNode, node)){
-					evt.target = hoveredNode;
-					listener.call(this, evt);
-				}
-			});
-		};
-	}
-
-
-	//device neutral events - touch.press|move|release|cancel/over/out
-	var touch = {
-		press: dualEvent("mousedown", "touchstart"),
-		move: dualEvent("mousemove", touchmove),
-		release: dualEvent("mouseup", "touchend"),
-		cancel: dualEvent(mouse.leave, "touchcancel"),
-		over: dualEvent("mouseover", "dojotouchover"),
-		out: dualEvent("mouseout", "dojotouchout"),
-		enter: mouse._eventHandler(dualEvent("mouseover","dojotouchover")),
-		leave: mouse._eventHandler(dualEvent("mouseout", "dojotouchout"))
-	};
-
-	/*=====
-	touch = {
-		// summary:
-		//		This module provides unified touch event handlers by exporting
-		//		press, move, release and cancel which can also run well on desktop.
-		//		Based on http://dvcs.w3.org/hg/webevents/raw-file/tip/touchevents.html
-		//
-		// example:
-		//		Used with dojo.on
-		//		|	define(["dojo/on", "dojo/touch"], function(on, touch){
-		//		|		on(node, touch.press, function(e){});
-		//		|		on(node, touch.move, function(e){});
-		//		|		on(node, touch.release, function(e){});
-		//		|		on(node, touch.cancel, function(e){});
-		// example:
-		//		Used with touch.* directly
-		//		|	touch.press(node, function(e){});
-		//		|	touch.move(node, function(e){});
-		//		|	touch.release(node, function(e){});
-		//		|	touch.cancel(node, function(e){});
-
-		press: function(node, listener){
-			// summary:
-			//		Register a listener to 'touchstart'|'mousedown' for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		},
-		move: function(node, listener){
-			// summary:
-			//		Register a listener to 'touchmove'|'mousemove' for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		},
-		release: function(node, listener){
-			// summary:
-			//		Register a listener to 'touchend'|'mouseup' for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		},
-		cancel: function(node, listener){
-			// summary:
-			//		Register a listener to 'touchcancel'|'mouseleave' for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		},
-		over: function(node, listener){
-			// summary:
-			//		Register a listener to 'mouseover' or touch equivalent for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		},
-		out: function(node, listener){
-			// summary:
-			//		Register a listener to 'mouseout' or touch equivalent for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		},
-		enter: function(node, listener){
-			// summary:
-			//		Register a listener to mouse.enter or touch equivalent for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		},
-		leave: function(node, listener){
-			// summary:
-			//		Register a listener to mouse.leave or touch equivalent for the given node
-			// node: Dom
-			//		Target node to listen to
-			// listener: Function
-			//		Callback function
-			// returns:
-			//		A handle which will be used to remove the listener by handle.remove()
-		}
-	};
-	=====*/
-
-	 1  && (dojo.touch = touch);
-
-	return touch;
+	// dojo.cache is defined in dojo/text
+	return dojo.cache;
 });
 
 },
@@ -20184,12 +20672,31 @@ define([
 
 // module:
 //		dojo/string
-
+var ESCAPE_REGEXP = /[&<>'"\/]/g;
+var ESCAPE_MAP = {
+	'&': '&amp;',
+	'<': '&lt;',
+	'>': '&gt;',
+	'"': '&quot;',
+	"'": '&#x27;',
+	'/': '&#x2F;'
+};
 var string = {
 	// summary:
 	//		String utilities for Dojo
 };
 lang.setObject("dojo.string", string);
+
+string.escape = function(/*String*/str){
+	// summary:
+	//		Efficiently escape a string for insertion into HTML (innerHTML or attributes), replacing &, <, >, ", ', and / characters.
+	// str:
+	//		the string to escape
+	if(!str){ return ""; }
+	return str.replace(ESCAPE_REGEXP, function(c) {
+		return ESCAPE_MAP[c];
+	});
+};
 
 string.rep = function(/*String*/str, /*Integer*/num){
 	// summary:
@@ -20247,6 +20754,7 @@ string.substitute = function(	/*String*/		template,
 	// template:
 	//		a string with expressions in the form `${key}` to be replaced or
 	//		`${key:format}` which specifies a format function. keys are case-sensitive.
+	//		The special sequence `${}` can be used escape `$`.
 	// map:
 	//		hash to search for substitutions
 	// transform:
@@ -20298,13 +20806,22 @@ string.substitute = function(	/*String*/		template,
 	transform = transform ?
 		lang.hitch(thisObject, transform) : function(v){ return v; };
 
-	return template.replace(/\$\{([^\s\:\}]+)(?:\:([^\s\:\}]+))?\}/g,
+	return template.replace(/\$\{([^\s\:\}]*)(?:\:([^\s\:\}]+))?\}/g,
 		function(match, key, format){
+			if (key == ''){
+				return '$';
+			}
 			var value = lang.getObject(key, false, map);
 			if(format){
 				value = lang.getObject(format, false, thisObject).call(thisObject, value, key);
 			}
-			return transform(value, key).toString();
+			var result = transform(value, key);
+
+			if (typeof result === 'undefined') {
+				throw new Error('string.substitute could not find key "' + key + '" in template');
+			}
+
+			return result.toString();
 		}); // String
 };
 
@@ -20331,7 +20848,7 @@ string.trim = String.prototype.trim ?
 	 //		Returns the trimmed string
 	 // description:
 	 //		This version of trim() was taken from [Steven Levithan's blog](http://blog.stevenlevithan.com/archives/faster-trim-javascript).
-	 //		The short yet performant version of this function is dojo.trim(),
+	 //		The short yet performant version of this function is dojo/_base/lang.trim(),
 	 //		which is part of Dojo base.  Uses String.prototype.trim instead, if available.
 	 return "";	// String
  };
@@ -20341,18 +20858,249 @@ string.trim = String.prototype.trim ?
 });
 
 },
-'dojo/cache':function(){
-define(["./_base/kernel", "./text"], function(dojo){
-	// module:
-	//		dojo/cache
+'dijit/_AttachMixin':function(){
+define([
+	"require",
+	"dojo/_base/array", // array.forEach
+	"dojo/_base/connect",	// remove for 2.0
+	"dojo/_base/declare", // declare
+	"dojo/_base/lang", // lang.getObject
+	"dojo/mouse",
+	"dojo/on",
+	"dojo/touch",
+	"./_WidgetBase"
+], function(require, array, connect, declare, lang, mouse, on, touch, _WidgetBase){
 
-	// dojo.cache is defined in dojo/text
-	return dojo.cache;
+	// module:
+	//		dijit/_AttachMixin
+
+	// Map from string name like "mouseenter" to synthetic event like mouse.enter
+	var synthEvents = lang.delegate(touch, {
+		"mouseenter": mouse.enter,
+		"mouseleave": mouse.leave,
+		"keypress": connect._keypress	// remove for 2.0
+	});
+
+	// To be lightweight, _AttachMixin doesn't require() dijit/a11yclick.
+	// If the subclass has a template using "ondijitclick", it must load dijit/a11yclick itself.
+	// In that case, the a11yclick variable below will get set to point to that synthetic event.
+	var a11yclick;
+
+	var _AttachMixin = declare("dijit._AttachMixin", null, {
+		// summary:
+		//		Mixin for widgets to attach to dom nodes and setup events via
+		//		convenient data-dojo-attach-point and data-dojo-attach-event DOM attributes.
+		//
+		//		Superclass of _TemplatedMixin, and can also be used standalone when templates are pre-rendered on the
+		//		server.
+		//
+		//		Does not [yet] handle widgets like ContentPane with this.containerNode set.   It should skip
+		//		scanning for data-dojo-attach-point and data-dojo-attach-event inside this.containerNode, but it
+		//		doesn't.
+
+/*=====
+		// _attachPoints: [private] String[]
+		//		List of widget attribute names associated with data-dojo-attach-point=... in the
+		//		template, ex: ["containerNode", "labelNode"]
+		_attachPoints: [],
+
+		// _attachEvents: [private] Handle[]
+		//		List of connections associated with data-dojo-attach-event=... in the
+		//		template
+		_attachEvents: [],
+
+		// attachScope: [public] Object
+		//		Object to which attach points and events will be scoped.  Defaults
+		//		to 'this'.
+		attachScope: undefined,
+
+		// searchContainerNode: [protected] Boolean
+		//		Search descendants of this.containerNode for data-dojo-attach-point and data-dojo-attach-event.
+		//		Should generally be left false (the default value) both for performance and to avoid failures when
+		//		this.containerNode holds other _AttachMixin instances with their own attach points and events.
+ 		searchContainerNode: false,
+ =====*/
+
+		constructor: function(/*===== params, srcNodeRef =====*/){
+			// summary:
+			//		Create the widget.
+			// params: Object|null
+			//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
+			//		and functions, typically callbacks like onClick.
+			//		The hash can contain any of the widget's properties, excluding read-only properties.
+			// srcNodeRef: DOMNode|String?
+			//		If a srcNodeRef (DOM node) is specified, replace srcNodeRef with my generated DOM tree.
+
+			this._attachPoints = [];
+			this._attachEvents = [];
+		},
+
+
+		buildRendering: function(){
+			// summary:
+			//		Attach to DOM nodes marked with special attributes.
+			// tags:
+			//		protected
+
+			this.inherited(arguments);
+
+			// recurse through the node, looking for, and attaching to, our
+			// attachment points and events, which should be defined on the template node.
+			this._attachTemplateNodes(this.domNode);
+
+			this._beforeFillContent();		// hook for _WidgetsInTemplateMixin
+		},
+
+		_beforeFillContent: function(){
+		},
+
+		_attachTemplateNodes: function(rootNode){
+			// summary:
+			//		Iterate through the dom nodes and attach functions and nodes accordingly.
+			// description:
+			//		Map widget properties and functions to the handlers specified in
+			//		the dom node and it's descendants. This function iterates over all
+			//		nodes and looks for these properties:
+			//
+			//		- dojoAttachPoint/data-dojo-attach-point
+			//		- dojoAttachEvent/data-dojo-attach-event
+			// rootNode: DomNode
+			//		The node to search for properties. All descendants will be searched.
+			// tags:
+			//		private
+
+			// DFS to process all nodes except those inside of this.containerNode
+			var node = rootNode;
+			while(true){
+				if(node.nodeType == 1 && (this._processTemplateNode(node, function(n,p){ return n.getAttribute(p); },
+						this._attach) || this.searchContainerNode) && node.firstChild){
+					node = node.firstChild;
+				}else{
+					if(node == rootNode){ return; }
+					while(!node.nextSibling){
+						node = node.parentNode;
+						if(node == rootNode){ return; }
+					}
+					node = node.nextSibling;
+				}
+			}
+		},
+
+		_processTemplateNode: function(/*DOMNode|Widget*/ baseNode, getAttrFunc, attachFunc){
+			// summary:
+			//		Process data-dojo-attach-point and data-dojo-attach-event for given node or widget.
+			//		Returns true if caller should process baseNode's children too.
+
+			var ret = true;
+
+			// Process data-dojo-attach-point
+			var _attachScope = this.attachScope || this,
+				attachPoint = getAttrFunc(baseNode, "dojoAttachPoint") || getAttrFunc(baseNode, "data-dojo-attach-point");
+			if(attachPoint){
+				var point, points = attachPoint.split(/\s*,\s*/);
+				while((point = points.shift())){
+					if(lang.isArray(_attachScope[point])){
+						_attachScope[point].push(baseNode);
+					}else{
+						_attachScope[point] = baseNode;
+					}
+					ret = (point != "containerNode");
+					this._attachPoints.push(point);
+				}
+			}
+
+			// Process data-dojo-attach-event
+			var attachEvent = getAttrFunc(baseNode, "dojoAttachEvent") || getAttrFunc(baseNode, "data-dojo-attach-event");
+			if(attachEvent){
+				// NOTE: we want to support attributes that have the form
+				// "domEvent: nativeEvent, ..."
+				var event, events = attachEvent.split(/\s*,\s*/);
+				var trim = lang.trim;
+				while((event = events.shift())){
+					if(event){
+						var thisFunc = null;
+						if(event.indexOf(":") != -1){
+							// oh, if only JS had tuple assignment
+							var funcNameArr = event.split(":");
+							event = trim(funcNameArr[0]);
+							thisFunc = trim(funcNameArr[1]);
+						}else{
+							event = trim(event);
+						}
+						if(!thisFunc){
+							thisFunc = event;
+						}
+
+						this._attachEvents.push(attachFunc(baseNode, event, lang.hitch(_attachScope, thisFunc)));
+					}
+				}
+			}
+
+			return ret;
+		},
+
+		_attach: function(node, type, func){
+			// summary:
+			//		Roughly corresponding to dojo/on, this is the default function for processing a
+			//		data-dojo-attach-event.  Meant to attach to DOMNodes, not to widgets.
+			// node: DOMNode
+			//		The node to setup a listener on.
+			// type: String
+			//		Event name like "click".
+			// getAttrFunc: Function
+			//		Function to get the specified property for a given DomNode/Widget.
+			// attachFunc: Function?
+			//		Attaches an event handler from the specified node/widget to specified function.
+
+			// Map special type names like "mouseenter" to synthetic events.
+			// Subclasses are responsible to require() dijit/a11yclick if they want to use it.
+			type = type.replace(/^on/, "").toLowerCase();
+			if(type == "dijitclick"){
+				type = a11yclick || (a11yclick = require("./a11yclick"));
+			}else{
+				type = synthEvents[type] || type;
+			}
+
+			return on(node, type, func);
+		},
+
+		_detachTemplateNodes: function() {
+			// summary:
+			//		Detach and clean up the attachments made in _attachtempalteNodes.
+
+			// Delete all attach points to prevent IE6 memory leaks.
+			var _attachScope = this.attachScope || this;
+			array.forEach(this._attachPoints, function(point){
+				delete _attachScope[point];
+			});
+			this._attachPoints = [];
+
+			// And same for event handlers
+			array.forEach(this._attachEvents, function(handle){ handle.remove(); });
+			this._attachEvents = [];
+		},
+
+		destroyRendering: function(){
+			this._detachTemplateNodes();
+			this.inherited(arguments);
+		}
+	});
+
+	// These arguments can be specified for widgets which are used in templates.
+	// Since any widget can be specified as sub widgets in template, mix it
+	// into the base widget class.  (This is a hack, but it's effective.).
+	// Remove for 2.0.   Also, hide from API doc parser.
+	lang.extend(_WidgetBase, /*===== {} || =====*/ {
+		dojoAttachEvent: "",
+		dojoAttachPoint: ""
+	});
+	
+	return _AttachMixin;
 });
 
 },
 'dijit/BackgroundIframe':function(){
-define("dijit/BackgroundIframe", [
+define([
 	"require",			// require.toUrl
 	"./main",	// to export dijit.BackgroundIframe
 	"dojo/_base/config",
@@ -20360,9 +21108,8 @@ define("dijit/BackgroundIframe", [
 	"dojo/dom-style", // domStyle.set
 	"dojo/_base/lang", // lang.extend lang.hitch
 	"dojo/on",
-	"dojo/sniff", // has("ie"), has("mozilla"), has("quirks")
-	"dojo/_base/window" // win.doc.createElement
-], function(require, dijit, config, domConstruct, domStyle, lang, on, has, win){
+	"dojo/sniff" // has("ie"), has("trident"), has("quirks")
+], function(require, dijit, config, domConstruct, domStyle, lang, on, has){
 
 	// module:
 	//		dijit/BackgroundIFrame
@@ -20370,12 +21117,12 @@ define("dijit/BackgroundIframe", [
 	// Flag for whether to create background iframe behind popups like Menus and Dialog.
 	// A background iframe is useful to prevent problems with popups appearing behind applets/pdf files,
 	// and is also useful on older versions of IE (IE6 and IE7) to prevent the "bleed through select" problem.
+	// By default, it's enabled for IE6-11, excluding Windows Phone 8.
 	// TODO: For 2.0, make this false by default.  Also, possibly move definition to has.js so that this module can be
 	// conditionally required via  dojo/has!bgIfame?dijit/BackgroundIframe
-	has.add("bgIframe", has("ie") || has("mozilla"));
+	has.add("config-bgIframe",
+    	(has("ie") || has("trident")) && !/IEMobile\/10\.0/.test(navigator.userAgent)); // No iframe on WP8, to match 1.9 behavior
 
-	// TODO: remove _frames, it isn't being used much, since popups never release their
-	// iframes (see [22236])
 	var _frames = new function(){
 		// summary:
 		//		cache of iframes
@@ -20388,12 +21135,13 @@ define("dijit/BackgroundIframe", [
 				iframe = queue.pop();
 				iframe.style.display="";
 			}else{
+				// transparency needed for DialogUnderlay and for tooltips on IE (to see screen near connector)
 				if(has("ie") < 9){
 					var burl = config["dojoBlankHtmlUrl"] || require.toUrl("dojo/resources/blank.html") || "javascript:\"\"";
 					var html="<iframe src='" + burl + "' role='presentation'"
 						+ " style='position: absolute; left: 0px; top: 0px;"
 						+ "z-index: -1; filter:Alpha(Opacity=\"0\");'>";
-					iframe = win.doc.createElement(html);
+					iframe = document.createElement(html);
 				}else{
 					iframe = domConstruct.create("iframe");
 					iframe.src = 'javascript:""';
@@ -20415,7 +21163,7 @@ define("dijit/BackgroundIframe", [
 
 	dijit.BackgroundIframe = function(/*DomNode*/ node){
 		// summary:
-		//		For IE/FF z-index schenanigans. id attribute is required.
+		//		For IE/FF z-index shenanigans. id attribute is required.
 		//
 		// description:
 		//		new dijit.BackgroundIframe(node).
@@ -20424,14 +21172,12 @@ define("dijit/BackgroundIframe", [
 		//		area (and position) of node
 
 		if(!node.id){ throw new Error("no id"); }
-		if(has("bgIframe")){
+		if(has("config-bgIframe")){
 			var iframe = (this.iframe = _frames.pop());
 			node.appendChild(iframe);
 			if(has("ie")<7 || has("quirks")){
 				this.resize(node);
-				this._conn = on(node, 'resize', lang.hitch(this, function(){
-					this.resize(node);
-				}));
+				this._conn = on(node, 'resize', lang.hitch(this, "resize", node));
 			}else{
 				domStyle.set(iframe, {
 					width: '100%',
@@ -20461,6 +21207,7 @@ define("dijit/BackgroundIframe", [
 				this._conn = null;
 			}
 			if(this.iframe){
+				this.iframe.parentNode.removeChild(this.iframe);
 				_frames.push(this.iframe);
 				delete this.iframe;
 			}
@@ -20471,11 +21218,10 @@ define("dijit/BackgroundIframe", [
 });
 
 },
-'url:dijit/templates/Tooltip.html':"<div class=\"dijitTooltip dijitTooltipLeft\" id=\"dojoTooltip\"\n\t><div class=\"dijitTooltipContainer dijitTooltipContents\" data-dojo-attach-point=\"containerNode\" role='alert'></div\n\t><div class=\"dijitTooltipConnector\" data-dojo-attach-point=\"connectorNode\"></div\n></div>\n",
 'dojox/charting/widget/Sparkline':function(){
-define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/query",
-	"./Chart", "../themes/GreySkies", "../plot2d/Lines", "dojo/dom-prop"], 
-	function(lang, arrayUtil, declare, query, Chart, GreySkies, Lines, domProp){
+define(["dojo/_base/array", "dojo/_base/declare", "dojo/query",
+	"./Chart", "../themes/GreySkies", "../plot2d/Lines", "dojo/dom-prop"],
+	function(arrayUtil, declare, query, Chart, GreySkies, Lines, domProp){
 
 	declare("dojox.charting.widget.Sparkline", Chart, {
 		theme: GreySkies,
@@ -20530,26 +21276,25 @@ define(["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/query
 
 },
 'dojox/charting/themes/GreySkies':function(){
-define("dojox/charting/themes/GreySkies", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+define(["../SimpleTheme", "./common"], function(SimpleTheme, themes){
 	themes.GreySkies = new SimpleTheme();
 	return themes.GreySkies;
 });
 
 },
 'dojox/charting/themes/common':function(){
-define("dojox/charting/themes/common", ["dojo/_base/lang"], function(lang){
+define(["dojo/_base/lang"], function(lang){
 	return lang.getObject("dojox.charting.themes", true);
 });
 
 },
 'dojox/charting/widget/Legend':function(){
-define(["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx","dojo/_base/array",
-		"dojox/lang/functional", "dojox/lang/functional/array", "dojox/lang/functional/fold",
-		"dojo/dom", "dojo/dom-construct", "dojo/dom-class","dijit/registry"],
-		function(lang, declare, _WidgetBase, gfx, arrayUtil, df, dfa, dff,
-				dom, domFactory, domClass, registry){
+define(["dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx","dojo/_base/array", "dojo/has", "dojo/has!dojo-bidi?../bidi/widget/Legend",
+		"dojox/lang/functional", "dojo/dom", "dojo/dom-construct", "dojo/dom-class","dijit/registry"],
+		function(declare, _WidgetBase, gfx, arr, has, BidiLegend, df,
+				dom, domConstruct, domClass, registry){
 
-	return declare("dojox.charting.widget.Legend", _WidgetBase, {
+	var Legend = declare(has("dojo-bidi")? "dojox.charting.widget.NonBidiLegend" : "dojox.charting.widget.Legend", _WidgetBase, {
 		// summary:
 		//		A legend for a chart. A legend contains summary labels for
 		//		each series of data contained in the chart.
@@ -20582,14 +21327,14 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx
 			this.refresh();
 		},
 		buildRendering: function(){
-			this.domNode = domFactory.create("table",
+			this.domNode = domConstruct.create("table",
 					{role: "group", "aria-label": "chart legend", "class": "dojoxLegendNode"});
-			this.legendBody = domFactory.create("tbody", null, this.domNode);
+			this.legendBody = domConstruct.create("tbody", null, this.domNode);
 			this.inherited(arguments);
 		},
 		destroy: function(){
 			if(this._surfaces){
-				arrayUtil.forEach(this._surfaces, function(surface){
+				arr.forEach(this._surfaces, function(surface){
 					surface.destroy();
 				});
 			}
@@ -20601,19 +21346,19 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx
 
 			// cleanup
 			if(this._surfaces){
-				arrayUtil.forEach(this._surfaces, function(surface){
+				arr.forEach(this._surfaces, function(surface){
 					surface.destroy();
 				});
 			}
 			this._surfaces = [];
 			while(this.legendBody.lastChild){
-				domFactory.destroy(this.legendBody.lastChild);
+				domConstruct.destroy(this.legendBody.lastChild);
 			}
 
 			if(this.horizontal){
 				domClass.add(this.domNode, "dojoxLegendHorizontal");
 				// make a container <tr>
-				this._tr = domFactory.create("tr", null, this.legendBody);
+				this._tr = domConstruct.create("tr", null, this.legendBody);
 				this._inrow = 0;
 			}
 
@@ -20627,26 +21372,26 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx
 				if(typeof t.run.data[0] == "number"){
 					var filteredRun = df.map(t.run.data, "Math.max(x, 0)");
 					var slices = df.map(filteredRun, "/this", df.foldl(filteredRun, "+", 0));
-					arrayUtil.forEach(slices, function(x, i){
+					arr.forEach(slices, function(x, i){
 						this._addLabel(t.dyn[i], t._getLabel(x * 100) + "%");
 					}, this);
 				}else{
-					arrayUtil.forEach(t.run.data, function(x, i){
+					arr.forEach(t.run.data, function(x, i){
 						this._addLabel(t.dyn[i], x.legend || x.text || x.y);
 					}, this);
 				}
 			}else{
-				arrayUtil.forEach(s, function(x){
+				arr.forEach(s, function(x){
 					this._addLabel(x.dyn, x.legend || x.name);
 				}, this);
 			}
 		},
 		_addLabel: function(dyn, label){
 			// create necessary elements
-			var wrapper = domFactory.create("td"),
-				icon = domFactory.create("div", null, wrapper),
-				text = domFactory.create("label", null, wrapper),
-				div  = domFactory.create("div", {
+			var wrapper = domConstruct.create("td"),
+				icon = domConstruct.create("div", null, wrapper),
+				text = domConstruct.create("label", null, wrapper),
+				div  = domConstruct.create("div", {
 					style: {
 						"width": this.swatchSize + "px",
 						"height":this.swatchSize + "px",
@@ -20661,19 +21406,21 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx
 				this._tr.appendChild(wrapper);
 				if(++this._inrow === this.horizontal){
 					// make a fresh container <tr>
-					this._tr = domFactory.create("tr", null, this.legendBody);
+					this._tr = domConstruct.create("tr", null, this.legendBody);
 					this._inrow = 0;
 				}
 			}else{
 				// vertical
-				var tr = domFactory.create("tr", null, this.legendBody);
+				var tr = domConstruct.create("tr", null, this.legendBody);
 				tr.appendChild(wrapper);
 			}
 
 			// populate the skeleton
 			this._makeIcon(div, dyn);
 			text.innerHTML = String(label);
-			text.dir = this.getTextDir(label, text.dir);
+			if(has("dojo-bidi")){
+				text.dir = this.getTextDir(label, text.dir);
+			}
 		},
 		_makeIcon: function(div, dyn){
 			var mb = { h: this.swatchSize, w: this.swatchSize };
@@ -20704,9 +21451,12 @@ define(["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx
 			}
 		}
 	});
+	return has("dojo-bidi")? declare("dojox.charting.widget.Legend", [Legend, BidiLegend]) : Legend;
+	
 });
 
-}}});
+},
+'url:dijit/templates/Tooltip.html':"<div class=\"dijitTooltip dijitTooltipLeft\" id=\"dojoTooltip\" data-dojo-attach-event=\"mouseenter:onMouseEnter,mouseleave:onMouseLeave\"\n\t><div class=\"dijitTooltipConnector\" data-dojo-attach-point=\"connectorNode\"></div\n\t><div class=\"dijitTooltipContainer dijitTooltipContents\" data-dojo-attach-point=\"containerNode\" role='alert'></div\n></div>\n"}});
 define("dojox/charting/widget/Chart2D", ["dojo/_base/kernel", "dojo/_base/lang", "./Chart", "../Chart2D",
 	"../action2d/Highlight", "../action2d/Magnify", 
 	"../action2d/MoveSlice", "../action2d/Shake", "../action2d/Tooltip"], function(kernel, lang, Chart) {

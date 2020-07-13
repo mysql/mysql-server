@@ -10,7 +10,7 @@ define("dojox/editor/plugins/Save", [
 	"dojo/i18n!dojox/editor/plugins/nls/Save"
 ], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.Save", _Plugin, {
+var Save = dojo.declare("dojox.editor.plugins.Save", _Plugin, {
 	// summary:
 	//		This plugin provides Save capability to the editor.  When
 	//		clicked, the document in the editor frame will be posted to the URL
@@ -132,13 +132,13 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "save"){
-		o.plugin = new dojox.editor.plugins.Save({
+		o.plugin = new Save({
 			url: ("url" in o.args)?o.args.url:"",
 			logResults: ("logResults" in o.args)?o.args.logResults:true
 		});
 	}
 });
 
-return dojox.editor.plugins.Save;
+return Save;
 
 });

@@ -34,18 +34,19 @@ define("dojox/mobile/SpinWheelDatePicker", [
 			this.inherited(arguments);
 			domClass.add(this.domNode, "mblSpinWheelDatePicker");
 			this._conn = [
-				this.connect(this.slots[0], "onFlickAnimationEnd", "onYearSet"),
-				this.connect(this.slots[1], "onFlickAnimationEnd", "onMonthSet"),
-				this.connect(this.slots[2], "onFlickAnimationEnd", "onDaySet")
+				this.connect(this.slots[0], "onFlickAnimationEnd", "_onYearSet"),
+				this.connect(this.slots[1], "onFlickAnimationEnd", "_onMonthSet"),
+				this.connect(this.slots[2], "onFlickAnimationEnd", "_onDaySet")
 			];
 		},
 
-		disableValues: function(/*Number*/nDays){
+		disableValues: function(/*Number*/daysInMonth){
 			// summary:
-			//		Makes the specified items grayed out.
+			//		Disables the end days of the month to match the specified
+			//		number of days of the month.
 			array.forEach(this.slots[2].panelNodes, function(panel){
 				for(var i = 27; i < 31; i++){
-					domClass.toggle(panel.childNodes[i], "mblSpinWheelSlotLabelGray", i >= nDays);
+					domClass.toggle(panel.childNodes[i], "mblSpinWheelSlotLabelGray", i >= daysInMonth);
 				}
 			});
 		}

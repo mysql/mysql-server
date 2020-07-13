@@ -37,7 +37,6 @@ Created 2018-01-27 by Sunny Bains. */
 
 #include "os0thread-create.h"
 #include "row0sel.h"
-#include "univ.i"
 
 // Forward declarations
 struct trx_t;
@@ -111,13 +110,13 @@ class Parallel_reader {
   // Forward declaration.
   class Ctx;
   class Scan_ctx;
+  struct Thread_ctx;
 
   /** Callback to initialise callers state. */
-  using Start = std::function<dberr_t(size_t thread_id)>;
+  using Start = std::function<dberr_t(Thread_ctx *thread_ctx)>;
 
   /** Callback to finalise callers state. */
-  using Finish =
-      std::function<dberr_t(Parallel_reader::Ctx *ctx, size_t thread_id)>;
+  using Finish = std::function<dberr_t(Thread_ctx *thread_ctx)>;
 
   /** Callback to process the rows. */
   using F = std::function<dberr_t(const Ctx *)>;
@@ -151,13 +150,12 @@ class Parallel_reader {
   /** Scan (Scan_ctx) configuration. */
   struct Config {
     /** Constructor.
-    @param[in] scan_range   Range to scan.
-    @param[in] index        Cluster index to scan.
-    @param[in] read_level   Btree level from which records need to be read.
-    @param[in] partition_id Partition id if it the index to be scanned belongs
-    to a partitioned table.
-    @param[in] read_ahead   If true then start read ahead threads.
-  */
+    @param[in] scan_range     Range to scan.
+    @param[in] index          Cluster index to scan.
+    @param[in] read_level     Btree level from which records need to be read.
+    @param[in] partition_id   Partition id if it the index to be scanned.
+    belongs to a partitioned table.
+    @param[in] read_ahead       If true then start read ahead threads. */
     Config(const Scan_range &scan_range, dict_index_t *index,
            size_t read_level = 0,
            size_t partition_id = std::numeric_limits<size_t>::max(),
@@ -202,6 +200,62 @@ class Parallel_reader {
 
     /** if true then enable separate read ahead threads. */
     bool m_read_ahead{false};
+  };
+
+  /** Thread related context information. */
+  struct Thread_ctx {
+    /** Constructor.
+    @param[in]  id  Thread ID */
+    explicit Thread_ctx(size_t id) noexcept : m_thread_id(id) {}
+
+    /** Destructor. */
+    ~Thread_ctx() noexcept {
+      ut_a(m_callback_ctx == nullptr);
+
+      if (m_blob_heap != nullptr) {
+        mem_heap_free(m_blob_heap);
+      }
+    }
+
+    /** Set thread related callback information.
+    @param[in]  ctx callback context */
+    template <typename T>
+    void set_callback_ctx(T *ctx) noexcept {
+      ut_ad(m_callback_ctx == nullptr || ctx == nullptr);
+      m_callback_ctx = ctx;
+    }
+
+    /** Get the thread related callback information/
+    @return return context. */
+    template <typename T>
+    T *get_callback_ctx() noexcept {
+      return static_cast<T *>(m_callback_ctx);
+    }
+
+    /** Create BLOB heap. */
+    void create_blob_heap() noexcept {
+      ut_a(m_blob_heap == nullptr);
+      /* Keep the size small because it's currently not used. */
+      m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE / 64);
+    }
+
+    /** Thread ID. */
+    size_t m_thread_id{std::numeric_limits<size_t>::max()};
+
+    /** Partition ID of the index the thread had processed earlier. */
+    size_t m_prev_partition_id{std::numeric_limits<size_t>::max()};
+
+    /** Callback information related to the thread.
+    @note Needs to be created and destroyed by the callback itself. */
+    void *m_callback_ctx{};
+
+    /** BLOB heap per thread. */
+    mem_heap_t *m_blob_heap{};
+
+    Thread_ctx(Thread_ctx &&) = delete;
+    Thread_ctx(const Thread_ctx &) = delete;
+    Thread_ctx &operator=(Thread_ctx &&) = delete;
+    Thread_ctx &operator=(const Thread_ctx &) = delete;
   };
 
   /** Constructor.
@@ -319,8 +373,8 @@ class Parallel_reader {
   bool is_queue_empty() const MY_ATTRIBUTE((warn_unused_result));
 
   /** Poll for requests and execute.
-  @param[in]      id            Thread ID */
-  void worker(size_t id);
+  @param[in]  thread_ctx  thread related context information */
+  void worker(Thread_ctx *thread_ctx);
 
   /** Create the threads and do a parallel read across the partitions. */
   void parallel_read();
@@ -426,16 +480,19 @@ class Parallel_reader {
   std::atomic<dberr_t> m_err{DB_SUCCESS};
 
   /** List of threads used for read_ahead purpose. */
-  std::vector<IB_thread> m_read_ahead_threads;
+  std::vector<IB_thread, ut_allocator<IB_thread>> m_read_ahead_threads;
 
   /** List of threads used for paralle_read purpose. */
-  std::vector<IB_thread> m_parallel_read_threads;
+  std::vector<IB_thread, ut_allocator<IB_thread>> m_parallel_read_threads;
 
   /** Number of threads currently doing parallel reads. */
   static std::atomic_size_t s_active_threads;
 
   /** If the caller wants to wait for the parallel_read to finish it's run */
   bool m_sync;
+
+  /** Context information related to each parallel reader thread. */
+  std::vector<Thread_ctx *, ut_allocator<Thread_ctx *>> m_thread_ctxs;
 
   friend class Ctx;
   friend class Scan_ctx;
@@ -708,11 +765,36 @@ class Parallel_reader::Ctx {
     return (m_scan_ctx->m_config.m_index);
   }
 
+  /** @return ID of the thread processing this context */
+  size_t thread_id() const MY_ATTRIBUTE((warn_unused_result)) {
+    return m_thread_ctx->m_thread_id;
+  }
+
+  /** @return context information related to the thread processing this
+  context */
+  Thread_ctx *thread_ctx() const MY_ATTRIBUTE((warn_unused_result)) {
+    return m_thread_ctx;
+  }
+
   /** @return the partition id of the index.
   @note this is std::numeric_limits<size_t>::max() if the index does not
   belong to a partition. */
   size_t partition_id() const MY_ATTRIBUTE((warn_unused_result)) {
     return m_scan_ctx->m_config.m_partition_id;
+  }
+
+  /** Build an old version of the row if required.
+  @param[in,out]  rec           Current row read from the index. This can
+                                be modified by this method if an older version
+                                needs to be built.
+  @param[in,out]  offsets       Same as above but pertains to the rec offsets
+  @param[in,out]  heap          Heap to use if a previous version needs to be
+                                built from the undo log.
+  @param[in,out]  mtr           Mini transaction covering the read.
+  @return true if row is visible to the transaction. */
+  bool is_rec_visible(const rec_t *&rec, ulint *&offsets, mem_heap_t *&heap,
+                      mtr_t *mtr) {
+    return (m_scan_ctx->check_visibility(rec, offsets, heap, mtr));
   }
 
  private:
@@ -756,8 +838,8 @@ class Parallel_reader::Ctx {
   Scan_ctx *m_scan_ctx{};
 
  public:
-  /** Current executing thread ID. */
-  size_t m_thread_id{std::numeric_limits<size_t>::max()};
+  /** Context information related to executing thread ID. */
+  Thread_ctx *m_thread_ctx{};
 
   /** Current block. */
   const buf_block_t *m_block{};

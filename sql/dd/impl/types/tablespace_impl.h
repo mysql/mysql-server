@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/tablespace.h"       // dd::Tablespace
 #include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
+#include "sql/strfunc.h"
 
 class THD;
 
@@ -126,6 +127,13 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
 
   virtual void set_engine(const String_type &engine) { m_engine = engine; }
 
+  virtual LEX_CSTRING engine_attribute() const {
+    return lex_cstring_handle(m_engine_attribute);
+  }
+  virtual void set_engine_attribute(LEX_CSTRING a) {
+    m_engine_attribute.assign(a.str, a.length);
+  }
+
   /////////////////////////////////////////////////////////////////////////
   // Tablespace file collection.
   /////////////////////////////////////////////////////////////////////////
@@ -157,6 +165,7 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   Properties_impl m_options;
   Properties_impl m_se_private_data;
   String_type m_engine;
+  String_type m_engine_attribute;
 
   // Collections.
 

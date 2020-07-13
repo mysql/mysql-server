@@ -234,6 +234,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
   bool m_add_star{false};
 };
 
+// This class is unused and kept here for future use.
 class System_view_union_definition_impl : public System_view_definition_impl {
  public:
   /**

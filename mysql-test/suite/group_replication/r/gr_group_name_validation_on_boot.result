@@ -12,4 +12,4 @@ include/start_and_bootstrap_group_replication.inc
 Occurrences of 'is not a valid UUID' in the input file: 1
 # restart:--group-replication-start-on-boot=0 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1
 SET GLOBAL group_replication_group_name="aaaaaaaa-aaaa-aaaa-aaaa-invalidvalueused";
-ERROR 42000: The group name is not a valid UUID, its length is too big
+ERROR 42000: The group_replication_group_name is not a valid UUID, its length is too big

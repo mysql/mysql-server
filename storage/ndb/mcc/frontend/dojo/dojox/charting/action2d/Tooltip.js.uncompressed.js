@@ -1,6 +1,7 @@
-define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip","dojo/_base/lang", "dojo/_base/declare", "dojo/dom-style", "./PlotAction",
-	"dojox/gfx/matrix", "dojox/lang/functional", "dojox/lang/functional/scan", "dojox/lang/functional/fold"], 
-	function(dojo, Tooltip, lang, declare, domStyle, PlotAction, m, df, dfs, dff){
+define("dojox/charting/action2d/Tooltip", ["dijit/Tooltip", "dojo/_base/lang", "dojo/_base/declare", "dojo/_base/window", "dojo/_base/connect", "dojo/dom-style",
+	"./PlotAction", "dojox/gfx/matrix", "dojo/has", "dojo/has!dojo-bidi?../bidi/action2d/Tooltip", 
+	"dojox/lang/functional", "dojox/lang/functional/scan", "dojox/lang/functional/fold"],
+	function(DijitTooltip, lang, declare, win, hub, domStyle, PlotAction, m, has, BidiTooltip, df){
 	
 	/*=====
 	var __TooltipCtorArgs = {
@@ -14,35 +15,34 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			// text: Function?
 			//		The function that produces the text to be shown within a tooltip.  By default this will be
 			//		set by the plot in question, by returning the value of the element.
+			// mouseOver: Boolean?
+            //		Whether the tooltip is enabled on mouse over or on mouse click / touch down. Default is true.
 	};
 	=====*/
 
-	var DEFAULT_TEXT = function(o){
+	var DEFAULT_TEXT = function(o, plot){
 		var t = o.run && o.run.data && o.run.data[o.index];
 		if(t && typeof t != "number" && (t.tooltip || t.text)){
 			return t.tooltip || t.text;
 		}
-		if(o.element == "candlestick"){
-			return '<table cellpadding="1" cellspacing="0" border="0" style="font-size:0.9em;">'
-				+ '<tr><td>Open:</td><td align="right"><strong>' + o.data.open + '</strong></td></tr>'
-				+ '<tr><td>High:</td><td align="right"><strong>' + o.data.high + '</strong></td></tr>'
-				+ '<tr><td>Low:</td><td align="right"><strong>' + o.data.low + '</strong></td></tr>'
-				+ '<tr><td>Close:</td><td align="right"><strong>' + o.data.close + '</strong></td></tr>'
-				+ (o.data.mid !== undefined ? '<tr><td>Mid:</td><td align="right"><strong>' + o.data.mid + '</strong></td></tr>' : '')
-				+ '</table>';
+		if(plot.tooltipFunc){
+			return plot.tooltipFunc(o);
+		}else{
+			return o.y;
 		}
-		return o.element == "bar" ? o.x : o.y;
 	};
 
 	var pi4 = Math.PI / 4, pi2 = Math.PI / 2;
 	
-	return declare("dojox.charting.action2d.Tooltip", PlotAction, {
+	var Tooltip = declare(has("dojo-bidi")? "dojox.charting.action2d.NonBidiTooltip" : "dojox.charting.action2d.Tooltip", PlotAction, {
 		// summary:
 		//		Create an action on a plot where a tooltip is shown when hovering over an element.
 
 		// the data description block for the widget parser
 		defaultParams: {
-			text: DEFAULT_TEXT	// the function to produce a tooltip from the object
+			text: DEFAULT_TEXT,	// the function to produce a tooltip from the object
+            mouseOver: true,
+			defaultPosition: ["after-centered", "before-centered"]
 		},
 		optionalParams: {},	// no optional parameters
 
@@ -56,7 +56,8 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			// kwArgs: __TooltipCtorArgs?
 			//		Optional keyword arguments object for setting parameters.
 			this.text = kwArgs && kwArgs.text ? kwArgs.text : DEFAULT_TEXT;
-			
+			this.mouseOver = kwArgs && kwArgs.mouseOver != undefined ? kwArgs.mouseOver : true;
+			this.defaultPosition = kwArgs && kwArgs.defaultPosition != undefined ? kwArgs.defaultPosition : ["after-centered", "before-centered"];
 			this.connect();
 		},
 		
@@ -66,7 +67,7 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			// o: dojox/gfx/shape.Shape
 			//		The object on which to process the highlighting action.
 			if(o.type === "onplotreset" || o.type === "onmouseout"){
-                Tooltip.hide(this.aroundRect);
+                DijitTooltip.hide(this.aroundRect);
 				this.aroundRect = null;
 				if(o.type === "onplotreset"){
 					delete this.angles;
@@ -74,10 +75,10 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 				return;
 			}
 			
-			if(!o.shape || o.type !== "onmouseover"){ return; }
+			if(!o.shape || (this.mouseOver && o.type !== "onmouseover") || (!this.mouseOver && o.type !== "onclick")){ return; }
 			
 			// calculate relative coordinates and the position
-			var aroundRect = {type: "rect"}, position = ["after-centered", "before-centered"];
+			var aroundRect = {type: "rect"}, position = this.defaultPosition;
 			switch(o.element){
 				case "marker":
 					aroundRect.x = o.cx;
@@ -114,13 +115,10 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 				//case "slice":
 					if(!this.angles){
 						// calculate the running total of slice angles
-						if(typeof o.run.data[0] == "number"){
-							this.angles = df.map(df.scanl(o.run.data, "+", 0),
-								"* 2 * Math.PI / this", df.foldl(o.run.data, "+", 0));
-						}else{
-							this.angles = df.map(df.scanl(o.run.data, "a + b.y", 0),
-								"* 2 * Math.PI / this", df.foldl(o.run.data, "a + b.y", 0));
-						}
+						var filteredRun = typeof o.run.data[0] == "number" ?
+								df.map(o.run.data, "x ? Math.max(x, 0) : 0") : df.map(o.run.data, "x ? Math.max(x.y, 0) : 0");
+						this.angles = df.map(df.scanl(filteredRun, "+", 0),
+							"* 2 * Math.PI / this", df.foldl(filteredRun, "+", 0));
 					}
 					var startAngle = m._degToRad(o.plot.opt.startAngle),
 						angle = (this.angles[o.index] + this.angles[o.index + 1]) / 2 + startAngle;
@@ -128,7 +126,7 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 					aroundRect.y = o.cy + o.cr * Math.sin(angle);
 					aroundRect.w = aroundRect.h = 1;
                     // depending on startAngle we might go out of the 0-2*PI range, normalize that
-					if(startAngle && (angle < 0 || angle > 2 * Math.PI)){
+                    if(startAngle && (angle < 0 || angle > 2 * Math.PI)){
 						angle = Math.abs(2 * Math.PI  - Math.abs(angle));
 					}
 					// calculate the position
@@ -148,7 +146,9 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 					*/
 					break;
 			}
-			
+			if(has("dojo-bidi")){
+				this._recheckPosition(o,aroundRect,position);
+			}
 			// adjust relative coordinates to absolute, and remove fractions
 			var lt = this.chart.getCoords();
 			aroundRect.x += lt.x;
@@ -159,21 +159,22 @@ define("dojox/charting/action2d/Tooltip", ["dojo/_base/kernel", "dijit/Tooltip",
 			aroundRect.h = Math.ceil(aroundRect.h);
 			this.aroundRect = aroundRect;
 
-			var tooltip = this.text(o);
-			if(this.chart.getTextDir){
-				var isChartDirectionRtl = (domStyle.get(this.chart.node, "direction") == "rtl");
-				var isBaseTextDirRtl = (this.chart.getTextDir(tooltip) == "rtl");
+			var tooltipText = this.text(o, this.plot);
+			if(tooltipText){
+				DijitTooltip.show(this._format(tooltipText), this.aroundRect, position);
 			}
-			if(tooltip){
-				if(isBaseTextDirRtl && !isChartDirectionRtl){
-					Tooltip.show("<span dir = 'rtl'>" + tooltip +"</span>", this.aroundRect, position);
-				}
-				else if(!isBaseTextDirRtl && isChartDirectionRtl){
-					Tooltip.show("<span dir = 'ltr'>" + tooltip +"</span>", this.aroundRect, position);
-				}else{
-					Tooltip.show(tooltip, this.aroundRect, position);
-				}
+			if(!this.mouseOver){
+				this._handle = hub.connect(win.doc, "onclick", this, "onClick");
 			}
+		},
+		onClick: function(){
+			this.process({ type: "onmouseout"});
+		},
+		_recheckPosition: function(obj,rect,position){			
+		},
+		_format: function(tooltipText){
+			return tooltipText;
 		}
 	});
+	return has("dojo-bidi")? declare("dojox.charting.action2d.Tooltip", [Tooltip, BidiTooltip]) : Tooltip;
 });

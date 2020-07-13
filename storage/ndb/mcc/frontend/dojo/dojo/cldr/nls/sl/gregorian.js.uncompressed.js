@@ -1,6 +1,7 @@
 define(
 "dojo/cldr/nls/sl/gregorian", //begin v1.x content
 {
+	"dateFormatItem-Ehm": "E h:mm a",
 	"days-standAlone-short": [
 		"ned.",
 		"pon.",
@@ -24,6 +25,7 @@ define(
 		"n",
 		"d"
 	],
+	"field-second-relative+0": "zdaj",
 	"quarters-standAlone-narrow": [
 		"1",
 		"2",
@@ -33,11 +35,16 @@ define(
 	"field-weekday": "Dan v tednu",
 	"dateFormatItem-yQQQ": "QQQ y",
 	"dateFormatItem-yMEd": "E, d. M. y",
+	"field-wed-relative+0": "To sredo",
+	"field-wed-relative+1": "Naslednjo sredo",
+	"dateFormatItem-GyMMMEd": "E, d. MMM y G",
 	"dateFormatItem-MMMEd": "E, d. MMM",
 	"eraNarrow": [
 		"pr. n. št.",
-		"po Kr."
+		"po Kr.",
+		"po n. št."
 	],
+	"field-tue-relative+-1": "Prejšnji torek",
 	"days-format-short": [
 		"ned.",
 		"pon.",
@@ -48,6 +55,8 @@ define(
 		"sob."
 	],
 	"dateFormat-long": "dd. MMMM y",
+	"field-fri-relative+-1": "Prejšnji petek",
+	"field-wed-relative+-1": "Prejšnjo sredo",
 	"months-format-wide": [
 		"januar",
 		"februar",
@@ -65,6 +74,7 @@ define(
 	"dateTimeFormat-medium": "{1} {0}",
 	"dayPeriods-format-wide-pm": "pop.",
 	"dateFormat-full": "EEEE, dd. MMMM y",
+	"field-thu-relative+-1": "Prejšnji četrtek",
 	"dateFormatItem-Md": "d. M.",
 	"dateFormatItem-yMd": "d. M. y",
 	"field-era": "Doba",
@@ -90,11 +100,10 @@ define(
 		"3. četrtletje",
 		"4. četrtletje"
 	],
+	"dateFormatItem-yQQQQ": "QQQQ y",
 	"timeFormat-long": "HH:mm:ss z",
 	"field-year": "Leto",
 	"dateFormatItem-yMMM": "MMM y",
-	"dateFormatItem-yQ": "Q y",
-	"dateFormatItem-yyyyMMMM": "MMMM y",
 	"field-hour": "Ura",
 	"months-format-abbr": [
 		"jan.",
@@ -110,11 +119,15 @@ define(
 		"nov.",
 		"dec."
 	],
-	"dateFormatItem-yyQ": "Q/yy",
+	"field-sat-relative+0": "To soboto",
+	"field-sat-relative+1": "Naslednjo soboto",
 	"timeFormat-full": "HH:mm:ss zzzz",
-	"field-day-relative+0": "Danes",
-	"field-day-relative+1": "Jutri",
-	"field-day-relative+2": "Pojutrišnjem",
+	"field-day-relative+0": "danes",
+	"field-thu-relative+0": "Ta četrtek",
+	"field-day-relative+1": "jutri",
+	"field-thu-relative+1": "Naslednji četrtek",
+	"dateFormatItem-GyMMMd": "d. MMM y G",
+	"field-day-relative+2": "pojutrišnjem",
 	"dateFormatItem-H": "HH",
 	"months-standAlone-abbr": [
 		"jan",
@@ -142,6 +155,7 @@ define(
 		"3. četrtletje",
 		"4. četrtletje"
 	],
+	"dateFormatItem-Gy": "y G",
 	"dateFormatItem-M": "L",
 	"days-standAlone-wide": [
 		"nedelja",
@@ -153,10 +167,19 @@ define(
 		"sobota"
 	],
 	"timeFormat-medium": "HH:mm:ss",
+	"field-sun-relative+0": "to nedeljo",
 	"dateFormatItem-Hm": "HH:mm",
+	"field-sun-relative+1": "naslednjo nedeljo",
+	"quarters-standAlone-abbr": [
+		"Q1",
+		"Q2",
+		"Q3",
+		"Q4"
+	],
 	"eraAbbr": [
 		"pr. n. št.",
-		"po Kr."
+		"po Kr.",
+		"po n. št."
 	],
 	"field-minute": "Minuta",
 	"field-dayperiod": "Čas dneva",
@@ -177,13 +200,16 @@ define(
 		"3",
 		"4"
 	],
-	"field-day-relative+-1": "Včeraj",
+	"field-day-relative+-1": "včeraj",
 	"dateFormatItem-h": "h a",
 	"dateTimeFormat-long": "{1} {0}",
-	"field-day-relative+-2": "Predvčerajšnjim",
+	"field-day-relative+-2": "predvčerajšnjim",
 	"dateFormatItem-MMMd": "d. MMM",
 	"dateFormatItem-MEd": "E, d. MM.",
 	"dateTimeFormat-full": "{1} {0}",
+	"field-fri-relative+0": "Ta petek",
+	"dateFormatItem-yMMMM": "MMMM y",
+	"field-fri-relative+1": "Naslednji petek",
 	"field-day": "Dan",
 	"days-format-wide": [
 		"nedelja",
@@ -194,7 +220,7 @@ define(
 		"petek",
 		"sobota"
 	],
-	"field-zone": "Območje",
+	"field-zone": "Časovni pas",
 	"dateFormatItem-y": "y",
 	"months-standAlone-narrow": [
 		"j",
@@ -210,8 +236,8 @@ define(
 		"n",
 		"d"
 	],
-	"field-year-relative+-1": "Lani",
-	"field-month-relative+-1": "Prejšnji mesec",
+	"field-year-relative+-1": "lani",
+	"field-month-relative+-1": "prejšnji mesec",
 	"dateFormatItem-hm": "h:mm a",
 	"days-format-abbr": [
 		"ned.",
@@ -222,10 +248,12 @@ define(
 		"pet.",
 		"sob."
 	],
-	"dateFormatItem-yMMMd": "MMM d, y",
+	"dateFormatItem-GyM": "M/y G",
+	"dateFormatItem-yMMMd": "d. MMM y",
 	"eraNames": [
 		"pred našim štetjem",
-		"naše štetje"
+		"naše štetje",
+		"po n. št."
 	],
 	"days-format-narrow": [
 		"n",
@@ -236,7 +264,6 @@ define(
 		"p",
 		"s"
 	],
-	"field-month": "Mesec",
 	"days-standAlone-narrow": [
 		"n",
 		"p",
@@ -247,25 +274,36 @@ define(
 		"s"
 	],
 	"dateFormatItem-MMM": "LLL",
+	"field-month": "Mesec",
+	"field-tue-relative+0": "Ta torek",
+	"field-tue-relative+1": "Naslednji torek",
 	"dayPeriods-format-wide-am": "dop.",
+	"dateFormatItem-EHm": "E HH:mm",
+	"field-mon-relative+0": "ta ponedeljek",
+	"field-mon-relative+1": "naslednji ponedeljek",
 	"dateFormat-short": "d. MM. yy",
+	"dateFormatItem-EHms": "E HH:mm:ss",
+	"dateFormatItem-Ehms": "E h:mm:ss a",
 	"field-second": "Sekunda",
+	"field-sat-relative+-1": "Prejšnjo soboto",
 	"dateFormatItem-yMMMEd": "E, d. MMM y",
-	"field-month-relative+0": "Ta mesec",
-	"field-month-relative+1": "Naslednji mesec",
+	"field-sun-relative+-1": "prejšnjo nedeljo",
+	"field-month-relative+0": "ta mesec",
+	"field-month-relative+1": "naslednji mesec",
 	"dateFormatItem-Ed": "E, d.",
+	"dateTimeFormats-appendItem-Timezone": "{0} {1}",
 	"field-week": "Teden",
-	"dateFormat-medium": "d. MMM yyyy",
-	"field-year-relative+0": "Letos",
-	"field-week-relative+-1": "Prejšnji teden",
-	"dateFormatItem-yyyyM": "M/yyyy",
-	"field-year-relative+1": "Naslednje leto",
-	"dateFormatItem-mmss": "mm:ss",
+	"dateFormat-medium": "d. MMM y",
+	"field-year-relative+0": "letos",
+	"field-week-relative+-1": "prejšnji teden",
+	"field-year-relative+1": "naslednje leto",
 	"dateTimeFormat-short": "{1} {0}",
 	"dateFormatItem-Hms": "HH:mm:ss",
 	"dateFormatItem-hms": "h:mm:ss a",
-	"field-week-relative+0": "Ta teden",
-	"field-week-relative+1": "Naslednji teden"
+	"dateFormatItem-GyMMM": "MMM y G",
+	"field-mon-relative+-1": "prejšnji ponedeljek",
+	"field-week-relative+0": "ta teden",
+	"field-week-relative+1": "naslednji teden"
 }
 //end v1.x content
 );

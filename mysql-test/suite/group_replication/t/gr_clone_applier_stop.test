@@ -236,7 +236,7 @@ call mtr.add_suppression("Unable to confirm whether the server has left the grou
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
 call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of 1, this member will start distributed recovery using clone.");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
 call mtr.add_suppression("Clone removing all user data for provisioning: *");
 call mtr.add_suppression("Internal query: CLONE INSTANCE FROM *");
 call mtr.add_suppression("There was an issue when cloning from another server: *");
@@ -245,6 +245,11 @@ call mtr.add_suppression("Timeout while waiting for the group communication engi
 call mtr.add_suppression("The group communication engine is not ready for the member to join. .*");
 call mtr.add_suppression("The member was unable to join the group.*");
 set session sql_log_bin=1;
+
+RESET PERSIST group_replication_group_name;
+RESET PERSIST group_replication_local_address;
+RESET PERSIST group_replication_group_seeds;
+RESET PERSIST group_replication_start_on_boot;
 
 --source include/clean_monitoring_process.inc
 --source include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,8 @@
 #ifndef SITE_STRUCT_H
 #define SITE_STRUCT_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xcom/server_struct.h"
+#include "xcom/xcom_detector.h"
 
 struct site_def {
   synode_no start;    /* Config is active from this message number */
@@ -47,9 +43,5 @@ struct site_def {
   xcom_event_horizon event_horizon;
 };
 typedef struct site_def site_def;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

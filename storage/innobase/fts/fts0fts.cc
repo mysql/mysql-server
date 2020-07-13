@@ -556,7 +556,7 @@ fts_cache_t *fts_cache_create(
       static_cast<fts_sync_t *>(mem_heap_zalloc(heap, sizeof(fts_sync_t)));
 
   cache->sync->table = table;
-  cache->sync->event = os_event_create(nullptr);
+  cache->sync->event = os_event_create();
 
   /* Create the index cache vector that will hold the inverted indexes. */
   cache->indexes =
@@ -1811,17 +1811,17 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
                                             FTS_DELETED_TABLE_NUM_COLS);
 
     dict_mem_table_add_col(new_table, heap, "doc_id", DATA_INT, DATA_UNSIGNED,
-                           FTS_DELETED_TABLE_COL_LEN);
+                           FTS_DELETED_TABLE_COL_LEN, true);
   } else {
     /* Config table has different schema. */
     new_table = fts_create_in_mem_aux_table(fts_table_name, table,
                                             FTS_CONFIG_TABLE_NUM_COLS);
 
     dict_mem_table_add_col(new_table, heap, "key", DATA_VARCHAR, 0,
-                           FTS_CONFIG_TABLE_KEY_COL_LEN);
+                           FTS_CONFIG_TABLE_KEY_COL_LEN, true);
 
     dict_mem_table_add_col(new_table, heap, "value", DATA_VARCHAR,
-                           DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN);
+                           DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN, true);
   }
 
   error = row_create_table_for_mysql(new_table, nullptr, trx);
@@ -1996,19 +1996,19 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
   dict_mem_table_add_col(
       new_table, heap, "word",
       charset == &my_charset_latin1 ? DATA_VARCHAR : DATA_VARMYSQL,
-      field->col->prtype, FTS_INDEX_WORD_LEN);
+      field->col->prtype, FTS_INDEX_WORD_LEN, true);
 
   dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
                          DATA_NOT_NULL | DATA_UNSIGNED,
-                         FTS_INDEX_FIRST_DOC_ID_LEN);
+                         FTS_INDEX_FIRST_DOC_ID_LEN, true);
 
   dict_mem_table_add_col(new_table, heap, "last_doc_id", DATA_INT,
                          DATA_NOT_NULL | DATA_UNSIGNED,
-                         FTS_INDEX_LAST_DOC_ID_LEN);
+                         FTS_INDEX_LAST_DOC_ID_LEN, true);
 
   dict_mem_table_add_col(new_table, heap, "doc_count", DATA_INT,
-                         DATA_NOT_NULL | DATA_UNSIGNED,
-                         FTS_INDEX_DOC_COUNT_LEN);
+                         DATA_NOT_NULL | DATA_UNSIGNED, FTS_INDEX_DOC_COUNT_LEN,
+                         true);
 
   /* The precise type calculation is as follows:
   least signficiant byte: MySQL type code (not applicable for sys cols)
@@ -2017,7 +2017,7 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
 
   dict_mem_table_add_col(new_table, heap, "ilist", DATA_BLOB,
                          (DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
-                         FTS_INDEX_ILIST_LEN);
+                         FTS_INDEX_ILIST_LEN, true);
 
   error = row_create_table_for_mysql(new_table, nullptr, trx);
 
@@ -5344,7 +5344,7 @@ void fts_add_doc_id_column(
       dtype_form_prtype(
           DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE | DATA_FTS_DOC_ID,
           0),
-      sizeof(doc_id_t));
+      sizeof(doc_id_t), false);
   DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 }
 

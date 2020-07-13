@@ -51,10 +51,10 @@ this.toPropertyName=_17[i]+"ransformOrigin";
 }
 if(this.tPropertyName){
 this.setTransform=function(_18,_19){
-return _9.set(_18,this.tPropertyName,_19);
+return _11(_18,this.tPropertyName,_19);
 };
 this.getTransform=function(_1a){
-return _9.get(_1a,this.tPropertyName);
+return _10(_1a,this.tPropertyName);
 };
 }else{
 if(_5("ie")){

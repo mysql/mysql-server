@@ -11,9 +11,9 @@ if(_1.isString(_d)){
 return _d;
 }
 return _6.format(_d,{selector:"time",formatLength:"short"});
-},serialize:_7.toISOString,value:"12:00 AM",_onKeyPress:function(e){
-if((e.charOrCode==_4.HOME||e.charOrCode==_4.END)&&!(e.ctrlKey||e.altKey||e.metaKey)&&typeof this.get("value")!="undefined"){
-var _f=this.constraints[(e.charOrCode==_4.HOME?"min":"max")];
+},serialize:_7.toISOString,value:"12:00 AM",_onKeyDown:function(e){
+if((e.keyCode==_4.HOME||e.keyCode==_4.END)&&!(e.ctrlKey||e.altKey||e.metaKey)&&typeof this.get("value")!="undefined"){
+var _f=this.constraints[(e.keyCode==_4.HOME?"min":"max")];
 if(_f){
 this._setValueAttr(_f,true);
 }

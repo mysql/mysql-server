@@ -1426,7 +1426,7 @@
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
   Warnings:
-  Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+  Warning 1366  Incorrect integer value: 'hej' for column 'a' at row 1
   DROP TABLE t1;
   @endverbatim
 
@@ -2905,11 +2905,10 @@
       supports fractions of a second. For example, <b>sleep 0.2</b>;
       sleeps 0.2 seconds.
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands
-      more than necessary. The more of them there are, the slower the
-      test suite becomes. In some cases, heavy reliance on sleep
-      operations is an indicator that the logic of a test should be
-      reconsidered.
+      Try not to use the <b>sleep</b> command more than necessary.
+      The more of them there are, the slower the test suite becomes.
+      In some cases, heavy reliance on sleep operations is an indicator
+      that the logic of a test should be reconsidered.
     </li>
 
     <li>
@@ -3375,17 +3374,6 @@
       <tt>`--skip-safemalloc`</tt>
 
       Do not use memory allocation checking.
-    </li>
-
-    <li>
-      <tt>`--sleep`=<b>num</b>, -T <b>num</b></tt>
-
-      Cause all <b>sleep</b> commands in the test case file to sleep
-      <b><em>num</em></b> seconds. This option does not affect
-      <b>real_sleep</b> commands.
-
-      An option value of 0 can also be used, which effectively
-      disables <b>sleep</b> commands in the test case.
     </li>
 
     <li>
@@ -4946,13 +4934,6 @@
     </li>
 
     <li>
-      <tt>`--sleep`=<b>N</b></tt>
-
-      Pass <b>`--sleep`=<em>N</em></b> to @ref PAGE_MYSQLTEST
-      "mysqltest".
-    </li>
-
-    <li>
       <tt>`--sp-protocol`</tt>
 
       Pass the <b>`--sp-protocol`</b> option to @ref PAGE_MYSQLTEST
@@ -5966,6 +5947,10 @@
             </li>
 
             <li>
+              <tt>SSL</tt>:Use SSL network protocol to have encrypted connection.
+            </li>
+
+            <li>
               <tt>TCP</tt>: Use the TCP/IP connection protocol.
             </li>
 
@@ -5998,13 +5983,6 @@
           to be applied when zstd compression algorithm is used. It is passed to
           the <b>mysql_options()</b> C API function using the
           <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
-        </li>
-
-        <li>
-          <b><em>compression algorithm</em></b> is the name of compression
-          algorithm to be used to comrpess data transferred between client
-          server. It is passed to the <b>mysql_options()</b> C API function
-          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
         </li>
 
         <li>
@@ -6231,6 +6209,23 @@
       @verbatim
   --disable_abort_on_error
   --enable_abort_on_error
+      @endverbatim
+    </li>
+
+    <li>
+      <tt>disable_async_client</tt>, <tt>enable_async_client</tt>
+
+      Disable or enable asynchronous communication between the client and
+      the server. With this setting enabled, @ref PAGE_MYSQLTEST "mysqltest"
+      uses non-blocking C API's to communicate with the server.<br> Please
+      note that <b>disable_async_client</b> disables asynchronous
+      communication if it had been enabled either by the
+      <b>--enable_async_client</b> command or the <b>--async-client</b>
+      command line option.
+
+      @verbatim
+  --disable_async_client
+  --enable_async_client
       @endverbatim
     </li>
 
@@ -7127,24 +7122,6 @@
     </li>
 
     <li>
-      <tt>real_sleep <b>num</b></tt>
-
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. Unlike the <b>sleep</b> command,
-      <b>real_sleep</b> is not affected by the
-      <b>`--sleep command-line`</b> option.
-
-      @verbatim
-  --real_sleep 10
-  real_sleep 5;
-     @endverbatim
-
-     Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-     than necessary. The more of them there are, the slower the test
-     suite becomes.
-    </li>
-
-    <li>
       <tt>reap</tt>
 
       Receive the result of the statement sent with the <b>send</b>
@@ -7483,21 +7460,17 @@
     <li>
       <tt>sleep <b>num</b></tt>
 
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. If the <b>`--sleep`</b> command-line option
-      was given, the option value overrides the value given in the
-      <b>sleep</b> command. For example, if @ref PAGE_MYSQLTEST
-      "mysqltest" is started with <b>`--sleep`=10</b>, the command
-      <b>sleep 15</b> sleeps 10 seconds, not 15.
+      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> need not be
+      a whole number and can have a fractional part as well i.e., the
+      command supports sleeping for intervals shorter than 1 second.
 
       @verbatim
   --sleep 10
   sleep 0.5;
       @endverbatim
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-      than necessary. The more of them there are, the slower the test
-      suite becomes.
+      Try not to use <b>sleep</b> command more than necessary. The
+      more of them there are, the slower the test suite becomes.
     </li>
 
     <li>

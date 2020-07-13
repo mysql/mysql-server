@@ -1431,7 +1431,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from <constant table> left join `test`.`t2` on((`test`.`t2`.`a` = '1')) where true group by rollup_const('1') with rollup
+Note	1003	/* select#1 */ select '1' AS `a`,rollup_sum_switcher(count(`test`.`t2`.`b`)) AS `COUNT( t2.b )`,rollup_sum_switcher(sum(`test`.`t2`.`b`)) AS `SUM( t2.b )`,rollup_sum_switcher(max(`test`.`t2`.`b`)) AS `MAX( t2.b )` from <constant table> left join `test`.`t2` on((`test`.`t2`.`a` = '1')) where true group by '1' with rollup
 SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 LEFT JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
@@ -1446,7 +1446,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Using filesort
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select rollup_const('1') AS `a`,count(`test`.`t2`.`b`) AS `COUNT( t2.b )`,sum(`test`.`t2`.`b`) AS `SUM( t2.b )`,max(`test`.`t2`.`b`) AS `MAX( t2.b )` from `test`.`t2` where (`test`.`t2`.`a` = '1') group by rollup_const('1') with rollup
+Note	1003	/* select#1 */ select rollup_group_item('1',0) AS `a`,rollup_sum_switcher(count(`test`.`t2`.`b`)) AS `COUNT( t2.b )`,rollup_sum_switcher(sum(`test`.`t2`.`b`)) AS `SUM( t2.b )`,rollup_sum_switcher(max(`test`.`t2`.`b`)) AS `MAX( t2.b )` from `test`.`t2` where (`test`.`t2`.`a` = '1') group by '1' with rollup
 SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
@@ -3687,4 +3687,30 @@ EXPLAIN
 
 DROP TABLE t1, t2;
 set optimizer_switch='block_nested_loop=on';
+#
+# Bug #31252625: DATA IN WRONG ROW ON LEFT JOIN
+#
+CREATE TABLE t1 (
+id INTEGER NOT NULL,
+b INTEGER,
+PRIMARY KEY (id)
+);
+INSERT INTO t1 VALUES (17,NULL);
+INSERT INTO t1 VALUES (136,564);
+INSERT INTO t1 VALUES (137,NULL);
+CREATE TABLE t2 (
+id INTEGER NOT NULL,
+PRIMARY KEY (id)
+);
+INSERT INTO t2 VALUES (564);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t1 LEFT JOIN t2 ON t1.b = t2.id GROUP BY t1.id;
+id	b	id
+17	NULL	NULL
+136	564	564
+137	NULL	NULL
+DROP TABLE t1, t2;
 set optimizer_switch=default;

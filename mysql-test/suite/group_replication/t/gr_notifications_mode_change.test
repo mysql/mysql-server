@@ -1,0 +1,191 @@
+################################################################################
+#
+# This test proves notifications are transmitted during mode change.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Start server M1 and M2 with gms_listener service implementation.
+#    Set M2 member weight to 90. M2 becomes primary during mode change.
+#    Delete all notifications on M1 and M2.
+# 2. Change mode to SPM. M2 becomes primary due to weight.
+#    Assert ROLE notification is broadcasted.
+# 3. Change mode to MPM.
+#    Assert ROLE notification is broadcasted.
+# 4. Change mode to SPM specifying server1 as primary.
+#    Assert ROLE notification is broadcasted.
+# 5. Switch primary.
+#    Assert ROLE notification is broadcasted.
+# 6. Cleanup.
+################################################################################
+
+--source include/have_debug.inc
+--source include/not_have_privilege_checks_user.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start server M1 and M2 with gms_listener service implementation.
+--echo #    Set M2 member weight to 90. M2 becomes primary during mode change.
+--echo #    Delete all notifications on M1 and M2.
+--echo
+
+--let $truncate_notification_table= 1
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+--let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+
+--source include/start_group_replication.inc
+
+--let $expected_notifications= 2,STATE %:2|1,VIEW %:%
+--source ../include/assert_notifications.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $expected_notifications= 2,STATE %:2|2,STATE %:1|2,VIEW %:%
+--source ../include/assert_notifications.inc
+
+--echo
+--echo # 2. Change mode to SPM. M2 becomes primary due to weight.
+--echo #    Assert ROLE notification is broadcasted.
+--echo
+
+SELECT group_replication_switch_to_single_primary_mode();
+
+--source include/gr_assert_secondary_member.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--echo
+--echo # 3. Change mode to MPM.
+--echo #    Assert ROLE notification is broadcasted.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--source include/gr_assert_multi_primary_mode.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--echo
+--echo # 4. Change mode to SPM specifying server1 as primary.
+--echo #    Assert ROLE notification is broadcasted.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid");
+
+--source include/gr_assert_primary_member.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--echo
+--echo # 5. Switch primary.
+--echo #    Assert ROLE notification is broadcasted.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid MEMBER2_UUID
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--source include/gr_assert_secondary_member.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+# role changed
+--let $expected_notifications= 1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+--echo
+--echo # 6. Cleanup.
+--echo
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+SET SQL_LOG_BIN=0;
+DROP TABLE test.gms_listener_example;
+SET SQL_LOG_BIN=1;
+
+SET @@GLOBAL.group_replication_member_weight= @member_weight2_save;
+
+--source include/stop_group_replication.inc
+--let $debug_point= register_gms_listener_example
+--source include/remove_debug_point.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SQL_LOG_BIN=0;
+DROP TABLE test.gms_listener_example;
+SET SQL_LOG_BIN=1;
+
+--source include/stop_group_replication.inc
+--let $debug_point= register_gms_listener_example
+--source include/remove_debug_point.inc
+
+--let $truncate_notification_table=
+
+--source include/group_replication_end.inc

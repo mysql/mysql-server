@@ -50,12 +50,10 @@ var _13=map[_12],_14=_4.getObject(_12,false,_f);
 if(_14===undefined){
 continue;
 }
-if(!_4.isArray(_14)){
-_14=[_14];
-}
+_14=[].concat(_14);
 if(typeof _13[0].checked=="boolean"){
 _1.forEach(_13,function(w){
-w.set("value",_1.indexOf(_14,w.value)!=-1);
+w.set("value",_1.indexOf(_14,w._get("value"))!=-1);
 });
 }else{
 if(_13[0].multiple){

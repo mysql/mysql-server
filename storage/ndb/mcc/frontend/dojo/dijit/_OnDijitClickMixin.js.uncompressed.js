@@ -4,42 +4,23 @@ define("dijit/_OnDijitClickMixin", [
 	"dojo/keys", // keys.ENTER keys.SPACE
 	"dojo/_base/declare", // declare
 	"dojo/has", // has("dom-addeventlistener")
-	"dojo/_base/unload", // unload.addOnWindowUnload
-	"dojo/_base/window", // win.doc.addEventListener win.doc.attachEvent win.doc.detachEvent
 	"./a11yclick"
-], function(on, array, keys, declare, has, unload, win, a11yclick){
+], function(on, array, keys, declare, has, a11yclick){
 
 	// module:
 	//		dijit/_OnDijitClickMixin
 
 	var ret = declare("dijit._OnDijitClickMixin", null, {
-		connect: function(
-				/*Object|null*/ obj,
-				/*String|Function*/ event,
-				/*String|Function*/ method){
-			// summary:
-			//		Connects specified obj/event to specified method of this object
-			//		and registers for disconnect() on widget destroy.
-			// description:
-			//		Provide widget-specific analog to connect.connect, except with the
-			//		implicit use of this widget as the target object.
-			//		This version of connect also provides a special "ondijitclick"
-			//		event which triggers on a click or space or enter keyup.
-			//		Events connected with `this.connect` are disconnected upon
-			//		destruction.
-			// returns:
-			//		A handle that can be passed to `disconnect` in order to disconnect before
-			//		the widget is destroyed.
-			// example:
-			//	|	var btn = new Button();
-			//	|	// when foo.bar() is called, call the listener we're going to
-			//	|	// provide in the scope of btn
-			//	|	btn.connect(foo, "bar", function(){
-			//	|		console.debug(this.toString());
-			//	|	});
-			// tags:
-			//		protected
+		// summary:
+		//		Deprecated.   New code should access the dijit/a11yclick event directly, ex:
+		//		|	this.own(on(node, a11yclick, function(){ ... }));
+		//
+		//		Mixing in this class will make _WidgetBase.connect(node, "ondijitclick", ...) work.
+		//		It also used to be necessary to make templates with ondijitclick work, but now you can just require
+		//		dijit/a11yclick.
 
+		connect: function(obj, event, method){
+			// override _WidgetBase.connect() to make this.connect(node, "ondijitclick", ...) work
 			return this.inherited(arguments, [obj, event == "ondijitclick" ? a11yclick : event, method]);
 		}
 	});

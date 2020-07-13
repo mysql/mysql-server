@@ -25,6 +25,8 @@
 #ifndef MYSQL_HARNESS_STDX_TYPE_TRAITS_H_
 #define MYSQL_HARNESS_STDX_TYPE_TRAITS_H_
 
+#include <type_traits>
+
 namespace stdx {
 
 // from http://wg21.link/P0463 (part of C++20)
@@ -76,6 +78,25 @@ struct disjunction<P1> : P1 {};
 template <class P1, class... Pn>
 struct disjunction<P1, Pn...>
     : std::conditional_t<P1::value, P1, disjunction<Pn...>> {};
+
+// void_t from C++17
+//
+// see: https://en.cppreference.com/w/cpp/types/void_t
+// see: http::/wg21.link/n3911
+// seealso: http::/wg21.link/n4436
+
+#if defined(__GNUC__) && __GNUC__ < 5
+// GCC 4.x needs this verbose form, GCC 5.0 has the fix applied
+template <typename... Ts>
+struct make_void {
+  using type = void;
+};
+template <typename... Ts>
+using void_t = typename make_void<Ts...>::type;
+#else
+template <class...>
+using void_t = void;
+#endif
 
 }  // namespace stdx
 

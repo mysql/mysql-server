@@ -22,8 +22,6 @@
   _background-image: none;
   border-top: solid 1px #b5bcc7;
   border-bottom: solid 1px #b5bcc7;
-  margin-right: -1px;
-  margin-left: -1px;
   margin-top: -1px;
 }
 .claro .dijitTimePickerTick {
@@ -43,28 +41,11 @@
 .claro .dijitTimePickerMarkerSelected,
 .claro .dijitTimePickerTickSelected {
   background-color: #7dbdfa;
-  border: solid 1px #b5bcc7;
-  margin-left: -7px;
-  margin-right: -7px;
   color: #000000;
 }
-.claro .dijitTimePickerMarkerSelected, .claro .dijitTimePickerTickSelected {
+.claro .dijitTimePickerMarkerSelected,
+.claro .dijitTimePickerTickSelected {
   font-size: 1em;
-}
-.dj_ie .claro .dijitTimePickerTickHover,
-.dj_ie .claro .dijitTimePickerMarkerHover,
-.dj_ie .claro .dijitTimePickerMarkerSelected,
-.dj_ie .claro .dijitTimePickerTickSelected {
-  width: 114%;
-}
-.dj_ie6 .claro .dijitTimePickerTickHover,
-.dj_ie6 .claro .dijitTimePickerMarkerHover,
-.dj_ie6 .claro .dijitTimePickerMarkerSelected,
-.dj_ie6 .claro .dijitTimePickerTickSelected {
-  position: relative;
-  
-  zoom: 1;
-  
 }
 .claro .dijitTimePickerTick .dijitTimePickerItemInner {
   padding: 1px;
@@ -93,7 +74,8 @@
 .claro .dijitTimePicker .dijitDownArrowButton .dijitArrowButtonInner {
   background-position: -35px 45%;
 }
-.claro .dijitTimePicker .dijitUpArrowHover, .claro .dijitTimePicker .dijitDownArrowHover {
+.claro .dijitTimePicker .dijitUpArrowHover,
+.claro .dijitTimePicker .dijitDownArrowHover {
   background-color: #abd6ff;
 }
 .claro .dijitTimePicker .dijitUpArrowHover .dijitArrowButtonInner {

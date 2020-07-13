@@ -8,6 +8,9 @@ this.connect();
 if(!o.shape||!(o.type in this.overOutEvents)||!("cx" in o)||!("cy" in o)){
 return;
 }
+if(o.element=="spider_plot"||o.element=="spider_poly"){
+return;
+}
 var _9=o.run.name,_a=o.index,_b=[],_c,_d,_e;
 if(_9 in this.anim){
 _c=this.anim[_9][_a];

@@ -1,6 +1,6 @@
 define("dijit/Declaration", [
 	"dojo/_base/array", // array.forEach array.map
-	"dojo/_base/connect", // connect.connect
+	"dojo/aspect",	// aspect.after
 	"dojo/_base/declare", // declare
 	"dojo/_base/lang", // lang.getObject
 	"dojo/parser", // parser._functionFromScript
@@ -9,7 +9,7 @@ define("dijit/Declaration", [
 	"./_TemplatedMixin",
 	"./_WidgetsInTemplateMixin",
 	"dojo/NodeList-dom"
-], function(array, connect, declare, lang, parser, query, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin){
+], function(array, aspect, declare, lang, parser, query, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin){
 
 	// module:
 	//		dijit/Declaration
@@ -43,8 +43,9 @@ define("dijit/Declaration", [
 
 		buildRendering: function(){
 			var src = this.srcNodeRef.parentNode.removeChild(this.srcNodeRef),
-				methods = query("> script[type^='dojo/method']", src).orphan(),
-				connects = query("> script[type^='dojo/connect']", src).orphan(),
+				methods = query("> script[type='dojo/method']", src).orphan(),
+				connects = query("> script[type='dojo/connect']", src).orphan(), // remove for 2.0
+				aspects = query("> script[type='dojo/aspect']", src).orphan(),
 				srcType = src.nodeName;
 
 			var propList = this.defaults || {};
@@ -54,12 +55,12 @@ define("dijit/Declaration", [
 			// If there's no "event" specified then it's code to run on instantiation,
 			// so it becomes a connection to "postscript" (handled below).
 			array.forEach(methods, function(s){
-				var evt = s.getAttribute("event") || s.getAttribute("data-dojo-event"),
-					func = parser._functionFromScript(s);
+				var evt = s.getAttribute("event") || s.getAttribute("data-dojo-event"), // remove "event" for 2.0
+					func = parser._functionFromScript(s, "data-dojo-");
 				if(evt){
 					propList[evt] = func;
 				}else{
-					connects.push(s);
+					aspects.push(s);
 				}
 			});
 
@@ -89,16 +90,25 @@ define("dijit/Declaration", [
 			);
 
 			// Handle <script> blocks of form:
-			//		<script type="dojo/connect" data-dojo-event="foo">
+			//		<script type="dojo/aspect" data-dojo-advice="after" data-dojo-method="foo">
 			// and
 			//		<script type="dojo/method">
-			// (Note that the second one is just shorthand for a dojo/connect to postscript)
+			// (Note that the second one is just shorthand for a dojo/aspect to postscript)
 			// Since this is a connect in the declaration, we are actually connection to the method
 			// in the _prototype_.
-			array.forEach(connects, function(s){
-				var evt = s.getAttribute("event") || s.getAttribute("data-dojo-event") || "postscript",
+			array.forEach(aspects, function(s){
+				var advice = s.getAttribute("data-dojo-advice") || "after",
+					method = s.getAttribute("data-dojo-method") || "postscript",
 					func = parser._functionFromScript(s);
-				connect.connect(wc.prototype, evt, func);
+				aspect.after(wc.prototype, method, func, true);
+			});
+
+			// Handle legacy <script type="dojo/connect" data-dojo-event="foo">.
+			// Remove for 2.0.
+			array.forEach(connects, function(s){
+				var evt = s.getAttribute("event") || s.getAttribute("data-dojo-event"),
+					func = parser._functionFromScript(s);
+				aspect.after(wc.prototype, evt, func, true);
 			});
 		}
 	});

@@ -4296,13 +4296,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t2`.`a` = `test`.`t3`.`a`)
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) where (cast(`test`.`t2`.`a` as double) = cast(`test`.`t3`.`a` as double))
 explain select * from t1 where a in (select a from t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Start temporary
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3`) where (`test`.`t1`.`a` = `test`.`t3`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3`) where (`test`.`t1`.`a` = cast(`test`.`t3`.`a` as date))
 drop table t1, t2, t3;
 create table t1 (a decimal);
 insert into t1 values (1),(2);
@@ -4849,7 +4849,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -7173,7 +7173,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or (`test`.`t2`.`one` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or (`test`.`t2`.`two` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or (`test`.`t2`.`one` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or (`test`.`t2`.`two` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 explain SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
@@ -7186,7 +7186,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or (`test`.`t2`.`one` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or (`test`.`t2`.`two` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or (`test`.`t2`.`one` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or (`test`.`t2`.`two` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
@@ -8945,7 +8945,7 @@ WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	43	test.t3.col_varchar_10_latin1_key	1	100.00	NULL
-2	MATERIALIZED	alias1	NULL	ALL	PRIMARY,col_varchar_10_latin1_key	NULL	NULL	NULL	4	81.25	Using where
+2	MATERIALIZED	alias1	NULL	range	PRIMARY,col_varchar_10_latin1_key	PRIMARY	4	NULL	5	100.00	Using where
 2	MATERIALIZED	alias3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
 2	MATERIALIZED	alias2	NULL	index	NULL	col_varchar_10_latin1_key	43	NULL	4	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
@@ -11246,7 +11246,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived7>	NULL	ALL	<auto_distinct_key>	NULL	NULL	NULL	2	100.00	Using where
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (hash join)
 1	PRIMARY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	8	test.alias2.col_varchar_nokey,view_inline_2.p	1	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	view_inline_2.p,view_inline_2.My_exp_p	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	view_inline_2.p,view_inline_2.Name_exp_p	2	100.00	NULL
 3	MATERIALIZED	<derived6>	NULL	ALL	NULL	NULL	NULL	NULL	30	100.00	NULL
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -11256,7 +11256,7 @@ NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`view_inline_2` join `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) where ((`<subquery3>`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`My_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`<subquery3>`.`sq2_field2` = `view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`view_inline_2` join `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) where ((`<subquery3>`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`Name_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`<subquery3>`.`sq2_field2` = `view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -13144,7 +13144,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 f1	f2
 08:35:24	X
-14:51:13	S
 11:22:33	Q
+14:51:13	S
 DROP TABLE t1, t2;
 set optimizer_switch=default;

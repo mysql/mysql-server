@@ -118,8 +118,7 @@ static inline struct innodb_engine *innodb_handle(
 
 /*******************************************************************/ /**
  Cleanup idle connections if "clear_all" is false, and clean up all
- connections if "clear_all" is true.
- @return number of connection cleaned */
+ connections if "clear_all" is true. */
 static void innodb_conn_clean_data(
     /*===================*/
     innodb_conn_data_t *conn_data, bool has_lock, bool free_all);
@@ -202,7 +201,7 @@ static bool innodb_sdi_get(innodb_conn_data_t *conn_data,
 @param[in,out]	conn_data	innodb connection data
 @param[in,out]	err_ret		error code
 @param[in]	value		memcached value
-@param[in]	value_len	memcached value length
+@param[in]	val_len		memcached value length
 @param[in]	nkey		memcached key length
 @return true if key is SDI key else false */
 static bool innodb_sdi_store(struct innodb_engine *innodb_eng,
@@ -508,8 +507,7 @@ void innodb_close_mysql_table(
 
 /*******************************************************************/ /**
  Cleanup idle connections if "clear_all" is false, and clean up all
- connections if "clear_all" is true.
- @return number of connection cleaned */
+ connections if "clear_all" is true. */
 static void innodb_conn_clean_data(
     /*===================*/
     innodb_conn_data_t *conn_data, bool has_lock, bool free_all) {
@@ -2086,8 +2084,7 @@ static ENGINE_ERROR_CODE innodb_get_stats(
 }
 
 /*******************************************************************/ /**
- reset statistics
- @return ENGINE_SUCCESS if successfully, otherwise error code */
+ reset statistics */
 static void innodb_reset_stats(
     /*===============*/
     ENGINE_HANDLE *handle, /*!< in: Engine Handle */

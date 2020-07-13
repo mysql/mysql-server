@@ -30,7 +30,7 @@ define("dojox/editor/plugins/AutoSave", [
 
 dojo.experimental("dojox.editor.plugins.AutoSave");
 
-dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
+var AutoSaveSettingDialog = dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
 	
 	// dialogTitle [public] String
 	//		The tile of the Auto-Save setting dialog
@@ -177,7 +177,7 @@ dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [_Widget, _Templated
 	}
 });
 
-dojo.declare("dojox.editor.plugins.AutoSave", Save, {
+var AutoSave = dojo.declare("dojox.editor.plugins.AutoSave", Save, {
 	// summary:
 	//		This plugin provides the auto save capability to the editor. The
 	//		plugin saves the content of the editor in interval. When
@@ -235,7 +235,7 @@ dojo.declare("dojox.editor.plugins.AutoSave", Save, {
 		this._strings = dojo.i18n.getLocalization("dojox.editor.plugins", "AutoSave");
 		this._initButton();
 		
-		this._saveSettingDialog = new dojox.editor.plugins._AutoSaveSettingDialog({
+		this._saveSettingDialog = new AutoSaveSettingDialog({
 			"dialogTitle": this._strings["saveSettingdialogTitle"],
 			"dialogDescription": this._strings["saveSettingdialogDescription"],
 			"paramName": this._strings["saveSettingdialogParamName"],
@@ -419,12 +419,15 @@ dojo.declare("dojox.editor.plugins.AutoSave", Save, {
 	}
 });
 
+// For monkey patching
+AutoSave._AutoSaveSettingDialog = AutoSaveSettingDialog;
+
 // Register this plugin.
 dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name == "autosave"){
-		o.plugin = new dojox.editor.plugins.AutoSave({
+		o.plugin = new AutoSave({
 			url: ("url" in o.args) ? o.args.url : "",
 			logResults: ("logResults" in o.args) ? o.args.logResults : true,
 			interval: ("interval" in o.args) ? o.args.interval : 5
@@ -432,6 +435,6 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	}
 });
 
-return dojox.editor.plugins.AutoSave;
+return AutoSave;
 
 });

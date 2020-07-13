@@ -164,6 +164,8 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Breaks: libmysqlclient-dev (<< 5.7.14),
  mysql-@DEB_PRODUCTNAME@-client (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-client (<< 8.0.1),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
 Conflicts: mysql,
  mysql-client-core-5.7,
  mysql-client-core-8.0,
@@ -179,7 +181,9 @@ Replaces: mysql,
  mysql-@DEB_PRODUCTNAME@-client (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-client (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-client-core,
- libmysqlclient-dev (<< 5.7.14)
+ libmysqlclient-dev (<< 5.7.14),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
 Provides: virtual-mysql-client-core
 Description: MySQL Client Core Binaries
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -261,7 +265,7 @@ Description: MySQL Testsuite meta package depending on latest version
 Package: mysql-@DEB_PRODUCTNAME@-test
 Architecture: any
 Depends: mysql-@DEB_PRODUCTNAME@-server (= ${binary:Version}),
- mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}), python,
+ mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}),
  libmysqlclient-dev, libjson-perl, mecab-ipadic-utf8,
  ${shlibs:Depends}, ${misc:Depends}, @DEB_NDB_CONTROL_TEST_DEPS@
 Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 8.0),

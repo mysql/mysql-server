@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -201,7 +201,11 @@ inline void log_free_check() {
                              latches + sizeof(latches) / sizeof(*latches));
 
   if (sync_check_iterate(check)) {
+#ifndef UNIV_NO_ERR_MSGS
+    ib::error(ER_IB_MSG_1381)
+#else
     ib::error()
+#endif
         << "log_free_check() was called while holding an un-listed latch.";
     ut_error;
   }

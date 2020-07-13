@@ -616,7 +616,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	c	p0,p1,p2,p3,p4,p5,p6,p7	ALL	i0008	NULL	NULL	NULL	2	50.00	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	Table 'b' is not pushable: select list can't contain BLOB columns
-Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ 1 AS `c` from `test`.`t` `c` join `test`.`t` `b` where ((`test`.`b`.`b` > `test`.`c`.`a`) and (`test`.`b`.`a` > `test`.`c`.`c`))
+Note	1003	/* select#1 */ select /*+ BKA(@`select#1`) */ 1 AS `c` from `test`.`t` `c` join `test`.`t` `b` where ((cast(`test`.`b`.`b` as double) > cast(`test`.`c`.`a` as double)) and (cast(`test`.`b`.`a` as double) > cast(`test`.`c`.`c` as double)))
 SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
 WHERE b.b>c.a;
 c
@@ -1006,7 +1006,7 @@ Warnings:
 Note	1276	Field or reference 'test.t2.i1' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where ((`test`.`t4`.`c1` < 'o') and (`test`.`t4`.`i1` < (`test`.`t2`.`i1` + 1)) and (<cache>(`test`.`t3`.`pk`) = `test`.`t4`.`i1`)))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where ((`test`.`t4`.`c1` < 'o') and (`test`.`t4`.`i1` < (`test`.`t2`.`i1` + 1)) and (<cache>(`test`.`t3`.`pk`) = `test`.`t4`.`i1`)))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 

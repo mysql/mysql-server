@@ -6,11 +6,6 @@ UNIQUE ib(b),
 INDEX ic(c)
 ) ENGINE NDB;
 INSERT INTO t1 VALUES (1,2,3),(2,3,5),(3,4,6),(4,5,8),(5,6,2),(6,7,2);
-CREATE TABLE t2 (
-a INT,
-b VARCHAR(10)
-) ENGINE NDB;
-INSERT INTO t2 VALUES (1,'Number 4'),(2,'Privet'),(3,'Drive');
 CREATE TABLE parent (
 c1 INT PRIMARY KEY
 ) ENGINE NDB;
@@ -24,27 +19,18 @@ REFERENCES parent(c1)
 ON DELETE CASCADE
 ) ENGINE NDB;
 INSERT INTO child VALUES (1,1),(2,2);
-DROP TABLE t1,t2,child,parent;
+DROP TABLE t1,child,parent;
+Restore with --disable-indexes
+include/assert.inc [Synced count has remained unchanged]
 SHOW TABLES;
 Tables_in_test
-t2
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a` int DEFAULT NULL,
-  `b` varchar(10) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT * FROM t2;
-a	b
-1	Number 4
-2	Privet
-3	Drive
+Rebuild indexes in NDB
+Wait until the objects are synced
 SHOW TABLES;
 Tables_in_test
 child
 parent
 t1
-t2
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -54,7 +40,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `ib` (`b`),
   KEY `ic` (`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b	c
 1	2	3
@@ -68,7 +54,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `c1` int NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM parent;
 c1
 1
@@ -81,9 +67,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`c1`),
   KEY `xc2` (`c2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM child;
 c1	c2
 1	1
 2	2
-DROP TABLE t1,t2,child,parent;
+DROP TABLE t1,child,parent;

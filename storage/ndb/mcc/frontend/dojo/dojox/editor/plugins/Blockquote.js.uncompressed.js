@@ -2,17 +2,15 @@ define("dojox/editor/plugins/Blockquote", [
 	"dojo",
 	"dijit",
 	"dojox",
-	"dijit/_editor/range",
-	"dijit/_editor/selection",
 	"dijit/_editor/_Plugin",
 	"dijit/form/ToggleButton",
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/i18n",
 	"dojo/i18n!dojox/editor/plugins/nls/Blockquote"
-], function(dojo, dijit, dojox, range, selection, _Plugin) {
+], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.Blockquote", _Plugin, {
+var Blockquote = dojo.declare("dojox.editor.plugins.Blockquote", _Plugin, {
 	// summary:
 	//		This plugin provides Blockquote capability to the editor.
 	//		window/tab
@@ -506,10 +504,10 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "blockquote"){
-		o.plugin = new dojox.editor.plugins.Blockquote({});
+		o.plugin = new Blockquote({});
 	}
 });
 
-return dojox.editor.plugins.Blockquote;
+return Blockquote;
 
 });

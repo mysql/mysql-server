@@ -341,8 +341,8 @@ int table_replication_applier_status_by_coordinator::read_row_values(
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* channel_name */
           set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
           break;

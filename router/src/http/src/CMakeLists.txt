@@ -22,13 +22,8 @@
 
 INCLUDE(GenerateExportHeader)
 
-IF(WITH_LIBEVENT STREQUAL "system")
-  MYSQL_CHECK_LIBEVENT_VERSION()
-  IF(SYSTEM_LIBEVENT_FOUND)
-    IF(SYSTEM_LIBEVENT_VERSION VERSION_LESS "2.1")
-      MESSAGE(FATAL_ERROR "At least version 2.1 is needed for libevent.")
-    ENDIF()
-  ENDIF()
+IF(LIBEVENT_VERSION VERSION_LESS "2.1")
+  MESSAGE(FATAL_ERROR "At least version 2.1 is needed for libevent.")
 ENDIF()
 
 ADD_LIBRARY(http_common
@@ -173,7 +168,9 @@ ADD_HARNESS_PLUGIN(http_server
   http_server_plugin.cc
   static_files.cc
   tls_server_context.cc
-  REQUIRES router_lib;http_common;http_auth_realm;${LIBRT};${LIBEVENT_OPENSSL}
+  REQUIRES router_lib;http_common;http_auth_realm;
+    ${LIBRT};
+    harness_stdx_io;harness_stdx_filesystem
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE
@@ -189,7 +186,6 @@ ADD_LIBRARY(http_client
   )
 TARGET_LINK_LIBRARIES(http_client
   ${LIBEVENT_LIBRARIES}
-  ${LIBEVENT_OPENSSL}
   ${LIBRT}
   http_common)
 

@@ -822,11 +822,37 @@ define("dojo/selector/acme", [
 	};
 
 	// get an array of child *elements*, skipping text and comment nodes
-	var _childElements = function(filterFunc){
+	var _childElements = function(filterFunc, recursive){
+
+		var _toArray = function (iterable) {
+			var result = [];
+
+			try {
+				result = Array.prototype.slice.call(iterable);
+			} catch(e) {
+				// IE8- throws an error when we try convert HTMLCollection
+				// to array using Array.prototype.slice.call
+				for(var i = 0, len = iterable.length; i < len; i++) {
+					result.push(iterable[i]);
+				}
+			}
+
+			return result;
+		};
+
 		filterFunc = filterFunc||yesman;
 		return function(root, ret, bag){
 			// get an array of child elements, skipping text and comment nodes
-			var te, x = 0, tret = root.children || root.childNodes;
+			var te, x = 0, tret = []; tret = _toArray(root.children || root.childNodes);
+
+			if(recursive) {
+				array.forEach(tret, function (node) {
+					if(node.nodeType === 1) {
+						tret = tret.concat(_toArray(node.getElementsByTagName("*")));
+					}
+				});
+			}
+
 			while(te = tret[x++]){
 				if(
 					_simpleNodeTest(te) &&
@@ -934,6 +960,26 @@ define("dojo/selector/acme", [
 
 				retFunc = function(root, arr){
 					var te = dom.byId(query.id, (root.ownerDocument||root));
+
+					// We can't look for ID inside a detached dom.
+					// loop over all elements searching for specified id.
+					if(root.ownerDocument && !_isDescendant(root, root.ownerDocument)) {
+
+						// document-fragment or regular HTMLElement
+						var roots = root.nodeType === 11? root.childNodes: [root];
+
+						array.some(roots, function (currentRoot) {
+							var elems = _childElements(function (node) {
+								return node.id === query.id;
+							}, true)(currentRoot, []);
+
+							if(elems.length) {
+								te = elems[0];
+								return false;
+							}
+						});
+					}
+
 					if(!te || !filterFunc(te)){ return; }
 					if(9 == root.nodeType){ // if root's a doc, we just return directly
 						return getArr(te, arr);
@@ -1194,26 +1240,28 @@ define("dojo/selector/acme", [
 			var tq = (specials.indexOf(query.charAt(query.length-1)) >= 0) ?
 						(query + " *") : query;
 			return _queryFuncCacheQSA[query] = function(root){
-				try{
-					// the QSA system contains an egregious spec bug which
-					// limits us, effectively, to only running QSA queries over
-					// entire documents.  See:
-					//		http://ejohn.org/blog/thoughts-on-queryselectorall/
-					//	despite this, we can also handle QSA runs on simple
-					//	selectors, but we don't want detection to be expensive
-					//	so we're just checking for the presence of a space char
-					//	right now. Not elegant, but it's cheaper than running
-					//	the query parser when we might not need to
-					if(!((9 == root.nodeType) || nospace)){ throw ""; }
-					var r = root[qsa](tq);
-					// skip expensive duplication checks and just wrap in a NodeList
-					r[noZip] = true;
-					return r;
-				}catch(e){
-					// else run the DOM branch on this query, ensuring that we
-					// default that way in the future
-					return getQueryFunc(query, true)(root);
+				// the QSA system contains an egregious spec bug which
+				// limits us, effectively, to only running QSA queries over
+				// entire documents.  See:
+				//		http://ejohn.org/blog/thoughts-on-queryselectorall/
+				//	despite this, we can also handle QSA runs on simple
+				//	selectors, but we don't want detection to be expensive
+				//	so we're just checking for the presence of a space char
+				//	right now. Not elegant, but it's cheaper than running
+				//	the query parser when we might not need to
+				if(9 == root.nodeType || nospace){
+					try{
+						var r = root[qsa](tq);
+						// skip expensive duplication checks and just wrap in a NodeList
+						r[noZip] = true;
+						return r;
+					}catch(e){
+						// if root[qsa](tq), fall through to getQueryFunc() branch below
+					}
 				}
+				// else run the DOM branch on this query, ensuring that we
+				// default that way in the future
+				return getQueryFunc(query, true)(root);
 			};
 		}else{
 			// DOM branch
@@ -1271,15 +1319,12 @@ define("dojo/selector/acme", [
 	// returning a list of "uniques", hopefully in document order
 	var _zipIdxName = "_zipIdx";
 	var _zip = function(arr){
-		if(arr && arr.nozip){
-			return arr;
-		}
+		if(arr && arr.nozip){ return arr; }
+
+		if(!arr || !arr.length){ return []; }
+		if(arr.length < 2){ return [arr[0]]; }
+
 		var ret = [];
-		if(!arr || !arr.length){ return ret; }
-		if(arr[0]){
-			ret.push(arr[0]);
-		}
-		if(arr.length < 2){ return ret; }
 
 		_zipIdx++;
 
@@ -1288,28 +1333,26 @@ define("dojo/selector/acme", [
 		var x, te;
 		if(has("ie") && caseSensitive){
 			var szidx = _zipIdx+"";
-			arr[0].setAttribute(_zipIdxName, szidx);
-			for(x = 1; te = arr[x]; x++){
-				if(arr[x].getAttribute(_zipIdxName) != szidx){
+			for(x = 0; x < arr.length; x++){
+				if((te = arr[x]) && te.getAttribute(_zipIdxName) != szidx){
 					ret.push(te);
+					te.setAttribute(_zipIdxName, szidx);
 				}
-				te.setAttribute(_zipIdxName, szidx);
 			}
 		}else if(has("ie") && arr.commentStrip){
 			try{
-				for(x = 1; te = arr[x]; x++){
-					if(_isElement(te)){
+				for(x = 0; x < arr.length; x++){
+					if((te = arr[x]) && _isElement(te)){
 						ret.push(te);
 					}
 				}
 			}catch(e){ /* squelch */ }
 		}else{
-			if(arr[0]){ arr[0][_zipIdxName] = _zipIdx; }
-			for(x = 1; te = arr[x]; x++){
-				if(arr[x][_zipIdxName] != _zipIdx){
+			for(x = 0; x < arr.length; x++){
+				if((te = arr[x]) && te[_zipIdxName] != _zipIdx){
 					ret.push(te);
+					te[_zipIdxName] = _zipIdx;
 				}
-				te[_zipIdxName] = _zipIdx;
 			}
 		}
 		return ret;
@@ -1410,14 +1453,19 @@ define("dojo/selector/acme", [
 		// returns: Array
 		// example:
 		//		search the entire document for elements with the class "foo":
-		//	|	dojo.query(".foo");
+		//	|	require(["dojo/query"], function(query) {
+		//	|	    query(".foo").forEach(function(q) { console.log(q); });
+		//	|	});
 		//		these elements will match:
 		//	|	<span class="foo"></span>
 		//	|	<span class="foo bar"></span>
 		//	|	<p class="thud foo"></p>
 		// example:
 		//		search the entire document for elements with the classes "foo" *and* "bar":
-		//	|	dojo.query(".foo.bar");
+		//	|	require(["dojo/query"], function(query) {
+		//	|	    query(".foo.bar").forEach(function(q) { console.log(q); });
+		//	|	});
+
 		//		these elements will match:
 		//	|	<span class="foo bar"></span>
 		//		while these will not:
@@ -1426,7 +1474,9 @@ define("dojo/selector/acme", [
 		// example:
 		//		find `<span>` elements which are descendants of paragraphs and
 		//		which have a "highlighted" class:
-		//	|	dojo.query("p span.highlighted");
+		//	|	require(["dojo/query"], function(query) {
+		//	|	    query("p span.highlighted").forEach(function(q) { console.log(q); });
+		//	|	});
 		//		the innermost span in this fragment matches:
 		//	|	<p class="foo">
 		//	|		<span>...
@@ -1437,28 +1487,32 @@ define("dojo/selector/acme", [
 		//		set an "odd" class on all odd table rows inside of the table
 		//		`#tabular_data`, using the `>` (direct child) selector to avoid
 		//		affecting any nested tables:
-		//	|	dojo.query("#tabular_data > tbody > tr:nth-child(odd)").addClass("odd");
+		//	|	require(["dojo/query"], function(query) {
+		//	|	    query("#tabular_data > tbody > tr:nth-child(odd)").addClass("odd");
+		//	|	);
 		// example:
-		//		remove all elements with the class "error" from the document
-		//		and store them in a list:
-		//	|	var errors = dojo.query(".error").orphan();
+		//		remove all elements with the class "error" from the document:
+		//	|	require(["dojo/query"], function(query) {
+		//	|	    query(".error").orphan();
+		//	|	);
 		// example:
 		//		add an onclick handler to every submit button in the document
 		//		which causes the form to be sent via Ajax instead:
-		//	|	dojo.query("input[type='submit']").onclick(function(e){
-		//	|		dojo.stopEvent(e); // prevent sending the form
-		//	|		var btn = e.target;
-		//	|		dojo.xhrPost({
-		//	|			form: btn.form,
-		//	|			load: function(data){
-		//	|				// replace the form with the response
-		//	|				var div = dojo.doc.createElement("div");
-		//	|				dojo.place(div, btn.form, "after");
-		//	|				div.innerHTML = data;
-		//	|				dojo.style(btn.form, "display", "none");
-		//	|			}
-		//	|		});
+		//	|	require(["dojo/query", "dojo/request", "dojo/dom-construct", "dojo/dom-style"
+		//	|	], function (query, request, domConstruct, domStyle) {
+		//	|	    query("input[type='submit']").on("click", function (e) {
+		//	|	        e.stopPropagation();
+		//	|	        e.preventDefault();
+		//	|	        var btn = e.target;
+		//	|	        request.post("", { data: btn.form, timeout: 2000 })
+		//	|	        .then(function (data) {
+		//	|	            // replace the form with the response
+		//	|	            domConstruct.create("div", { innerHTML: data }, btn.form, "after");
+		//	|	            domStyle.set(btn.form, "display", "none");
+		//	|	        });
+		//	|	    });
 		//	|	});
+
 
 		root = root || getDoc();
 

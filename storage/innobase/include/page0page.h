@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -108,15 +108,17 @@ static const byte supremum_extra_data[] = {
 };
 
 /** Gets the start of a page.
- @return start of the page */
+@param[in]  ptr     pointer to page frame
+@return start of the page */
 UNIV_INLINE
-page_t *page_align(const void *ptr) /*!< in: pointer to page frame */
-    MY_ATTRIBUTE((const));
+page_t *page_align(const void *ptr);
+
 /** Gets the offset within a page.
- @return offset from the start of the page */
+@param[in]  ptr     pointer to page frame
+@return offset from the start of the page */
 UNIV_INLINE
-ulint page_offset(const void *ptr) /*!< in: pointer to page frame */
-    MY_ATTRIBUTE((const));
+ulint page_offset(const void *ptr);
+
 /** Returns the max trx id field value. */
 UNIV_INLINE
 trx_id_t page_get_max_trx_id(const page_t *page); /*!< in: page */
@@ -251,6 +253,12 @@ page_no_t page_get_page_no(const page_t *page); /*!< in: page */
  @return space id */
 UNIV_INLINE
 space_id_t page_get_space_id(const page_t *page); /*!< in: page */
+
+/** Gets the space id and page number identifying the page.
+ @return page number */
+UNIV_INLINE
+page_id_t page_get_page_id(const page_t *page);
+
 /** Gets the number of user records on page (the infimum and supremum records
  are not user records).
  @return number of user records */
@@ -419,20 +427,22 @@ UNIV_INLINE
 rec_t *page_rec_get_prev(rec_t *rec); /*!< in: pointer to record,
                                       must not be page infimum */
 /** TRUE if the record is a user record on the page.
- @return true if a user record */
+@param[in]  offset      record offset on page
+@return true if a user record */
 UNIV_INLINE
-ibool page_rec_is_user_rec_low(ulint offset) /*!< in: record offset on page */
-    MY_ATTRIBUTE((const));
+ibool page_rec_is_user_rec_low(ulint offset);
+
 /** TRUE if the record is the supremum record on a page.
- @return true if the supremum record */
+@param[in]  offset      record offset on page
+@return true if the supremum record */
 UNIV_INLINE
-ibool page_rec_is_supremum_low(ulint offset) /*!< in: record offset on page */
-    MY_ATTRIBUTE((const));
+ibool page_rec_is_supremum_low(ulint offset);
+
 /** TRUE if the record is the infimum record on a page.
- @return true if the infimum record */
+@param[in]  offset      record offset on page
+@return true if the infimum record */
 UNIV_INLINE
-ibool page_rec_is_infimum_low(ulint offset) /*!< in: record offset on page */
-    MY_ATTRIBUTE((const));
+ibool page_rec_is_infimum_low(ulint offset);
 
 /** TRUE if the record is a user record on the page.
  @return true if a user record */
@@ -522,11 +532,11 @@ ulint page_get_max_insert_size_after_reorganize(const page_t *page,
                                                 ulint n_recs);
 
 /** Calculates free space if a page is emptied.
- @return free space */
+@param[in]  comp    nonzero=compact page format
+@return free space */
 UNIV_INLINE
-ulint page_get_free_space_of_empty(
-    ulint comp) /*!< in: nonzero=compact page format */
-    MY_ATTRIBUTE((const));
+ulint page_get_free_space_of_empty(ulint comp);
+
 /** Returns the base extra size of a physical record.  This is the
  size of the fixed header, independent of the record size.
  @return REC_N_NEW_EXTRA_BYTES or REC_N_OLD_EXTRA_BYTES */

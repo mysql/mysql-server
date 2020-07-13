@@ -34,4 +34,4 @@ call mtr.add_suppression("WARNING: The option --database has been used. It may f
 
 --eval SET BINLOG_FORMAT=$saved_binlog_format
 
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ SQL_LOAD_MB*
+--remove_files_wildcard $MYSQL_TMP_DIR/ SQL_LOAD_MB*

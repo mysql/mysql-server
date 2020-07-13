@@ -13405,13 +13405,13 @@ include/show_binlog_events.inc
 CREATE TABLE tt_xx_1 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -13425,13 +13425,13 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_1`,`nt_xx_
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->T CS-T->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -13493,13 +13493,13 @@ include/show_binlog_events.inc
 CREATE TABLE tt_xx_3 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM nt_1;;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_3)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -13513,13 +13513,13 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_3`,`nt_xx_
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->N CS-T->N drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_3)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -13669,13 +13669,13 @@ rpl_mixing_engines.inc [commands=CS-T->T]
 CREATE TABLE tt_xx_7 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -13683,13 +13683,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -13891,13 +13891,13 @@ rpl_mixing_engines.inc [commands=CS-T->T]
 CREATE TABLE tt_xx_8 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM tt_1;;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -13905,13 +13905,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->T << -b-b-b-b-b-b-b-b-b-b-b-
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
   `trans_id` int NOT NULL,
   `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Query	#	#	BEGIN
+) START TRANSACTION ENGINE=InnoDB
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */

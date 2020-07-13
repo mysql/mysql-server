@@ -298,7 +298,7 @@ declare("dojox.layout._RadioButton",[Widget,Templated,Contained],{
 
 lang.extend(Widget,{
 	// slideFrom: String
-	//		A parameter needed by RadioGroupSlide only. An optional paramter to force
+	//		A parameter needed by RadioGroupSlide only. An optional parameter to force
 	//		the ContentPane to slide in from a set direction. Defaults
 	//		to "random", or specify one of "top", "left", "right", "bottom"
 	//		to slideFrom top, left, right, or bottom.

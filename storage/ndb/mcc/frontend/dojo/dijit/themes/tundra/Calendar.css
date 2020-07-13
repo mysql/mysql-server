@@ -23,17 +23,16 @@
 	font-size: 100%;
 	border-spacing: 0;
 	border-collapse: separate;
-	border: 1px solid #ccc;
 	margin: 0;
 }
-.tundra .dijitCalendarMonthContainer th {
+.tundra .dijitCalendarMonthContainer {
 	
 	background:#d3d3d3 url("images/titleBar.png") repeat-x top;
 	padding-top:.3em;
 	padding-bottom:.2em;
 	text-align:center;
 }
-.dj_ie6 .tundra .dijitCalendarMonthContainer th {
+.dj_ie6 .tundra .dijitCalendarMonthContainer {
 	padding-top:.2em;
 	padding-bottom:.1em;
 }
@@ -96,7 +95,6 @@
 .tundra .dijitCalendarYearContainer {
 	
 	background:white url("images/calendarYearLabel.png") repeat-x bottom;
-	border-top:1px solid #ccc;
 }
 .tundra .dijitCalendarYearLabel {
 	

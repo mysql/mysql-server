@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ FOREACH(TEST ${TESTS})
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/src/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/tests/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/tests/
-    LIB_DEPENDS test-helpers)
+    LIB_DEPENDS test-helpers;harness_stdx_filesystem)
 ENDFOREACH()
 
 SET(TESTS
@@ -94,13 +94,27 @@ FOREACH(TEST ${TESTS})
 ENDFOREACH()
 
 SET(TESTS
+  test_stdx_bit.cc
   test_stdx_expected.cc
   test_stdx_string_view.cc
+  test_net_ts_buffer.cc
+  test_net_ts_impl_file.cc
+  test_net_ts_impl_resolver.cc
+  test_net_ts_impl_socket.cc
 )
 
 FOREACH(TEST ${TESTS})
   ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
-    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/)
+    LIB_DEPENDS harness_net_ts)
+ENDFOREACH()
+
+SET(TESTS
+  test_stdx_io_file_handle.cc
+)
+
+FOREACH(TEST ${TESTS})
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
+    LIB_DEPENDS harness_stdx_io)
 ENDFOREACH()
 
 

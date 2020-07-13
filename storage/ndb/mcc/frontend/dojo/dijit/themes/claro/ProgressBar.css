@@ -22,7 +22,8 @@
   background-image: none;
 }
 .claro .dijitProgressBarFull {
-  border-right: 1px solid #759dc0;
+  border: 0px solid #759dc0;
+  border-right-width: 1px;
   -webkit-transition-property: width;
   -moz-transition-property: width;
   transition-property: width;

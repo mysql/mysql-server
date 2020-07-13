@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -475,6 +475,24 @@ bool rename_check_constraints(const char *old_table_name, dd::Table *new_tab);
   @returns true if table users general tablespace, false otherwise.
 */
 bool uses_general_tablespace(const Table &t);
+
+/**
+  Throw deprecation warnings if table uses prefix keys in the partitioning
+  function.
+
+  @param  thd             Thread handler
+  @param  schema_name     Schema name
+  @param  orig_table_name Original table name (required in case of ALTER TABLE,
+  since temporary table name is created)
+  @param  table           dd::Table instance
+  @param  is_upgrade      True if this is called during upgrade. Warning will be
+  sent to error log instead of the client.
+
+*/
+void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
+                                             const char *orig_table_name,
+                                             const Table *table,
+                                             const bool is_upgrade);
 
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

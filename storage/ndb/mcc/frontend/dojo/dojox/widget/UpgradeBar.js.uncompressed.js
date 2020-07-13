@@ -1,3 +1,5 @@
+require({cache:{
+'url:dojox/widget/UpgradeBar/UpgradeBar.html':"<div class=\"dojoxUpgradeBar\">\n\t<div class=\"dojoxUpgradeBarMessage\" dojoAttachPoint=\"messageNode\">message</div>\n\t<div class=\"dojoxUpgradeBarReminderButton\" dojoAttachPoint=\"dontRemindButtonNode\" dojoAttachEvent=\"onclick:_onDontRemindClick\">${noRemindButton}</div>\n\t<span dojoAttachPoint=\"closeButtonNode\" class=\"dojoxUpgradeBarCloseIcon\" dojoAttachEvent=\"onclick: hide, onmouseenter: _onCloseEnter, onmouseleave: _onCloseLeave\" title=\"${buttonCancel}\"></span>\n</div>"}});
 define("dojox/widget/UpgradeBar", [
 	"dojo/_base/kernel", // dojo.eval
 	"dojo/_base/array", // array.forEach
@@ -12,16 +14,16 @@ define("dojox/widget/UpgradeBar", [
 	"dojo/dom-construct", // domConstruct.destroy
 	"dojo/dom-geometry", // domGeo.getContentBox
 	"dojo/dom-style", // style.get, style.set
-	"dojo/cache", // cache
 	"dojo/cookie", // cookie
 	"dojo/domReady", // domReady
 	"dojo/fx", // fx.combine
 	"dojo/window", // win.getBox
 	"dijit/_WidgetBase", // _WidgetBase
-	"dijit/_TemplatedMixin" // _TemplatedMixin
+	"dijit/_TemplatedMixin", // _TemplatedMixin
+	"dojo/text!./UpgradeBar/UpgradeBar.html"
 ], function(dojo, array, connect, declare, baseFx, lang, has, baseWin,
-            domAttr, domClass, domConstruct, domGeo, style, cache, cookie,
-            domReady, fx, win, _WidgetBase, _TemplatedMixin){
+            domAttr, domClass, domConstruct, domGeo, style, cookie,
+            domReady, fx, win, _WidgetBase, _TemplatedMixin, template){
 
 dojo.experimental("dojox.widget.UpgradeBar");
 
@@ -70,7 +72,7 @@ var UpgradeBar = declare("dojox.widget.UpgradeBar", [_WidgetBase, _TemplatedMixi
 	//		link is not displayed.
 	noRemindButton:"Don't Remind Me Again",
 
-	templateString: cache("dojox.widget","UpgradeBar/UpgradeBar.html"),
+	templateString: template,
 
 	constructor: function(props, node){
 

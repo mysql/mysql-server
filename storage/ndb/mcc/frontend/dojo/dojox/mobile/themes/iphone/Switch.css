@@ -21,7 +21,9 @@
 }
 .mblSwitchAnimation .mblSwitchInner {
   -webkit-transition-property: left;
-  -webkit-transition-duration: .1s;
+  transition-property: left;
+  -webkit-transition-duration: 0.1s;
+  transition-duration: 0.1s;
 }
 .mblSwitchOn .mblSwitchInner {
   left: 0;
@@ -36,6 +38,7 @@
   font-weight: bold;
   line-height: 29px;
   -webkit-box-sizing: border-box;
+  box-sizing: border-box;
   border-width: 1px;
   border-style: solid;
   border-color: #939393 #aaaaaa #cbcbcb #767676;
@@ -45,18 +48,22 @@
   color: white;
   background-color: #3f84eb;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#2859b1), to(#75acfb), color-stop(0.5, #3f84eb), color-stop(0.5, #4c8eee));
+  background-image: linear-gradient(to bottom, #2859b1 0%, #3f84eb 50%, #4c8eee 50%, #75acfb 100%);
 }
 .mblSwitchBgRight {
   color: #7f7f7f;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#cecece), to(#fdfdfd), color-stop(0.5, #eeeeee), color-stop(0.5, #f8f8f8));
+  background-image: linear-gradient(to bottom, #cecece 0%, #eeeeee 50%, #f8f8f8 50%, #fdfdfd 100%);
 }
 .mblSwitchKnob {
   position: absolute;
   top: 0;
   height: 27px;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#cccccc), to(#fafafa));
+  background-image: linear-gradient(to bottom, #cccccc 0%, #fafafa 100%);
   font-size: 1px;
   -webkit-box-sizing: border-box;
+  box-sizing: border-box;
   border-width: 1px;
   border-style: solid;
   border-color: #5e5e5e #9e9e9e #828282 #797979;
@@ -216,4 +223,9 @@
 }
 .mblSwDefaultShape .mblSwitchTextRight {
   left: 26px;
+}
+.dj_ios6 .mblSwitchBgLeft {
+  background-color: #007fea;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#0060b1), to(#73b3ea), color-stop(0.5, #007fea), color-stop(0.5, #218fec));
+  background-image: linear-gradient(to bottom, #0060b1 0%, #007fea 50%, #218fec 50%, #73b3ea 100%);
 }

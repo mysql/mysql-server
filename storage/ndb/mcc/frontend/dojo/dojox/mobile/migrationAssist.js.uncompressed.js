@@ -313,7 +313,7 @@ define("dojox/mobile/migrationAssist", [
 	};
 
 
-	extendSelectFunction = function(obj) {
+	var extendSelectFunction = function(obj) {
 		lang.extend(obj, {
 			select: function(){
 				console.log('[MIG:fixed] ' + this.declaredClass + '(id='+this.id+'): Use set("selected", boolean) instead of select/deselect.');

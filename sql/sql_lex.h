@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,14 +98,14 @@ class Item_cond;
 class Item_exists_subselect;
 class Item_subselect;
 class Item_sum;
+class Item_rollup_group_item;
+class Item_rollup_sum_switcher;
 class Event_parse_data;
 class Item_func_match;
 class Parse_tree_root;
 class Query_result_interceptor;
 class Window;
 class sp_pcontext;
-enum class enum_jt_column;
-enum class enum_jtc_on : uint16;
 struct sql_digest_state;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
@@ -238,6 +238,12 @@ enum class enum_view_create_mode {
   VIEW_CREATE_OR_REPLACE  // check only that there are not such table
 };
 
+enum class enum_alter_user_attribute {
+  ALTER_USER_COMMENT_NOT_USED,  // No user metadata ALTER in the AST
+  ALTER_USER_COMMENT,           // A text comment is expected
+  ALTER_USER_ATTRIBUTE          // A JSON object is expected
+};
+
 /* Options to add_table_to_list() */
 #define TL_OPTION_UPDATING 1
 #define TL_OPTION_FORCE_INDEX 2
@@ -245,9 +251,6 @@ enum class enum_view_create_mode {
 #define TL_OPTION_ALIAS 8
 
 /* Structure for db & table in sql_yacc */
-extern LEX_CSTRING EMPTY_CSTR;
-extern LEX_CSTRING NULL_CSTR;
-
 class Table_function;
 
 class Table_ident {
@@ -614,7 +617,7 @@ class SELECT_LEX_UNIT {
   bool optimized;  ///< All query blocks in query expression are optimized
   bool executed;   ///< Query expression has been executed
 
-  TABLE_LIST result_table_list;
+  TABLE_LIST result_table_list{};
   Query_result_union *union_result;
   /// Temporary table using for appending UNION results.
   /// Not used if we materialize directly into a parent query expression's
@@ -683,7 +686,7 @@ class SELECT_LEX_UNIT {
   enum_clean_state cleaned;  ///< cleanliness state
 
   // list of fields which points to temporary table for union
-  List<Item> item_list;
+  List<Item> item_list{};
   /*
     list of types of items inside union (used for union & derived tables)
 
@@ -723,10 +726,10 @@ class SELECT_LEX_UNIT {
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
   /**
-    Used by transform_scalar_subqueries_to_derived to remember where we came
-    from, i.e. the place value of SELECT_LEX_UNIT::item. This is needed because
-    at EXECUTE time, we re-resolve the subquery that was transformed into
-    a derived table during PREPARE, in the position where it was originally
+    Used by transform_scalar_subqueries_to_join_with_derived to remember where
+    we came from, i.e. the place value of SELECT_LEX_UNIT::item. This is needed
+    because at EXECUTE time, we re-resolve the subquery that was transformed
+    into a derived table during PREPARE, in the position where it was originally
     located, i.e. in the SELECT list. For this resolution to work, we need the
     correct place information. This helps us get that, cf.
     SELECT_LEX_UNIT::place. Can be removed after WL#6570.
@@ -970,6 +973,7 @@ class SELECT_LEX_UNIT {
 };
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
+class Semijoin_decorrelation;
 
 /**
   SELECT_LEX type enum
@@ -996,6 +1000,14 @@ enum class enum_explain_type {
 */
 class SELECT_LEX {
  public:
+  /**
+    @note the group_by and order_by lists below will probably be added to the
+          constructor when the parser is converted into a true bottom-up design.
+
+          //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
+  */
+  SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having);
+
   Item *where_cond() const { return m_where_cond; }
   Item **where_cond_ref() { return &m_where_cond; }
   void set_where_cond(Item *cond) { m_where_cond = cond; }
@@ -1059,367 +1071,16 @@ class SELECT_LEX {
   /// @returns a map of all tables references in the query block
   table_map all_tables_map() const { return (1ULL << leaf_table_count) - 1; }
 
-  TABLE_LIST *synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
-                                 Item *join_cond, uint i, bool left_outer);
   bool field_of_table_present(TABLE_LIST *tl, bool *found);
   void remove_derived(THD *thd, TABLE_LIST *tl);
   bool remove_aggregates(THD *thd, SELECT_LEX *select);
-
- private:
-  /**
-    Intrusive double-linked list of all query blocks within the same
-    query expression.
-  */
-  SELECT_LEX *next;
-  SELECT_LEX **prev;
-
-  /// The query expression containing this query block.
-  SELECT_LEX_UNIT *master;
-  /// The first query expression contained within this query block.
-  SELECT_LEX_UNIT *slave;
-
-  /// Intrusive double-linked global list of query blocks.
-  SELECT_LEX *link_next;
-  SELECT_LEX **link_prev;
-
-  /// Result of this query block
-  Query_result *m_query_result;
-
-  /**
-    Options assigned from parsing and throughout resolving,
-    should not be modified after resolving is done.
-  */
-  ulonglong m_base_options;
-  /**
-    Active options. Derived from base options, modifiers added during
-    resolving and values from session variable option_bits. Since the latter
-    may change, active options are refreshed per execution of a statement.
-  */
-  ulonglong m_active_options;
-
- public:
-  /**
-    result of this query can't be cached, bit field, can be :
-      UNCACHEABLE_DEPENDENT
-      UNCACHEABLE_RAND
-      UNCACHEABLE_SIDEEFFECT
-  */
-  uint8 uncacheable;
-
-  /// True: skip local transformations during prepare() call (used by INSERT)
-  bool skip_local_transforms;
-
-  /// Describes context of this query block (e.g if it is a derived table).
-  enum sub_select_type linkage;
-  bool no_table_names_allowed;  ///< used for global order by
-  /**
-    Context for name resolution for all column references except columns
-    from joined tables.
-  */
-  Name_resolution_context context;
-  /**
-    Pointer to first object in list of Name res context objects that have
-    this query block as the base query block.
-    Includes field "context" which is embedded in this query block.
-  */
-  Name_resolution_context *first_context;
-  /**
-    Three fields used by semi-join transformations to know when semi-join is
-    possible, and in which condition tree the subquery predicate is located.
-  */
-  enum Resolve_place {
-    RESOLVE_NONE,
-    RESOLVE_JOIN_NEST,
-    RESOLVE_CONDITION,
-    RESOLVE_HAVING,
-    RESOLVE_SELECT_LIST
-  };
-  Resolve_place resolve_place;  ///< Indicates part of query being resolved
-  TABLE_LIST *resolve_nest;     ///< Used when resolving outer join condition
-  /**
-    Disables semi-join flattening when resolving a subtree in which flattening
-    is not allowed. The flag should be true while resolving items that are not
-    on the AND-top-level of a condition tree.
-  */
-  bool semijoin_disallowed;
-  char *db;
-
- private:
-  /**
-    Condition to be evaluated after all tables in a query block are joined.
-    After all permanent transformations have been conducted by
-    SELECT_LEX::prepare(), this condition is "frozen", any subsequent changes
-    to it must be done with change_item_tree(), unless they only modify AND/OR
-    items and use a copy created by SELECT_LEX::get_optimizable_conditions().
-    Same is true for 'having_cond'.
-  */
-  Item *m_where_cond;
-
-  /// Condition to be evaluated on grouped rows after grouping.
-  Item *m_having_cond;
-
- public:
-  /**
-    Saved values of the WHERE and HAVING clauses. Allowed values are:
-     - COND_UNDEF if the condition was not specified in the query or if it
-       has not been optimized yet
-     - COND_TRUE if the condition is always true
-     - COND_FALSE if the condition is impossible
-     - COND_OK otherwise
-  */
-  Item::cond_result cond_value;
-  Item::cond_result having_value;
-
-  /// Reference to LEX that this query block belongs to
-  LEX *parent_lex;
-  /// Indicates whether this query block contains the WITH ROLLUP clause
-  enum olap_type olap;
-  /// List of tables in FROM clause - use TABLE_LIST::next_local to traverse
-  SQL_I_List<TABLE_LIST> table_list;
-
-  /**
-    GROUP BY clause.
-    This list may be mutated during optimization (by remove_const()),
-    so for prepared statements, we keep a copy of the ORDER.next pointers in
-    group_list_ptrs, and re-establish the original list before each execution.
-  */
-  SQL_I_List<ORDER> group_list;
-  Group_list_ptrs *group_list_ptrs;
-
-  /**
-    All windows defined on the select, both named and inlined
-  */
-  List<Window> m_windows;
-
-  /**
-    List of columns and expressions:
-    SELECT: Columns and expressions in the SELECT list.
-    UPDATE: Columns in the SET clause.
-  */
-  List<Item> item_list;
-  bool is_item_list_lookup;
-
-  /// Number of GROUP BY expressions added to all_fields
-  int hidden_group_field_count;
-
-  List<Item> &fields_list;  ///< hold field list
-
-  /**
-    All expressions needed after join and filtering, ie
-    select list, group by list, having clause, window clause, order by clause.
-    Does not include join conditions nor where clause.
-  */
-  List<Item> all_fields;
-  /**
-    Usually a pointer to ftfunc_list_alloc, but in UNION this is used to create
-    fake select_lex that consolidates result fields of UNION
-  */
-  List<Item_func_match> *ftfunc_list;
-  List<Item_func_match> ftfunc_list_alloc;
-  /**
-    After optimization it is pointer to corresponding JOIN. This member
-    should be changed only when THD::LOCK_query_plan mutex is taken.
-  */
-  JOIN *join;
-  /// join list of the top level
-  mem_root_deque<TABLE_LIST *> top_join_list;
-  /// list for the currently parsed join
-  mem_root_deque<TABLE_LIST *> *join_list;
-  /// table embedding the above list
-  TABLE_LIST *embedding;
-  /// List of semi-join nests generated for this query block
-  mem_root_deque<TABLE_LIST *> sj_nests;
-  /**
-    Points to first leaf table of query block. After setup_tables() is done,
-    this is a list of base tables and derived tables. After derived tables
-    processing is done, this is a list of base tables only.
-    Use TABLE_LIST::next_leaf to traverse the list.
-  */
-  TABLE_LIST *leaf_tables;
-  /// Number of leaf tables in this query block.
-  uint leaf_table_count;
-  /// Number of derived tables and views in this query block.
-  uint derived_table_count;
-  /// Number of table functions in this query block
-  uint table_func_count;
-  /// Number of materialized derived tables and views in this query block.
-  uint materialized_derived_table_count;
-  /**
-    True if query block has semi-join nests merged into it. Notice that this
-    is updated earlier than sj_nests, so check this if info is needed
-    before the full resolver process is complete.
-  */
-  bool has_sj_nests;
-  bool has_aj_nests;  ///< @see has_sj_nests; counts antijoin nests.
-  /// Number of partitioned tables
-  uint partitioned_table_count;
-
-  /**
-    ORDER BY clause.
-    This list may be mutated during optimization (by remove_const()),
-    so for prepared statements, we keep a copy of the ORDER.next pointers in
-    order_list_ptrs, and re-establish the original list before each execution.
-  */
-  SQL_I_List<ORDER> order_list;
-  Group_list_ptrs *order_list_ptrs;
-
-  /// LIMIT clause, NULL if no limit is given
-  Item *select_limit;
-  /// LIMIT ... OFFSET clause, NULL if no offset is given
-  Item *offset_limit;
-
-  /**
-    Array of pointers to "base" items; one each for every selected expression
-    and referenced item in the query block. All references to fields are to
-    buffers associated with the primary input tables.
-  */
-  Ref_item_array base_ref_items;
-
-  /**
-    number of items in select_list and HAVING clause used to get number
-    bigger then can be number of entries that will be added to all item
-    list during split_sum_func
-  */
-  uint select_n_having_items;
-  uint cond_count;     ///< number of arguments of and/or/xor in where/having/on
-  uint between_count;  ///< number of between predicates in where/having/on
-  uint max_equal_elems;  ///< maximal number of elements in multiple equalities
-  /**
-    Number of fields used in select list or where clause of current select
-    and all inner subselects.
-  */
-  uint select_n_where_fields;
-
-  /// Parse context: indicates where the current expression is being parsed
-  enum_parsing_context parsing_place;
-  /// Parse context: is inside a set function if this is positive
-  uint in_sum_expr;
-
-  /**
-    True if contains or aggregates set functions.
-    @note this is wrong when a locally found set function is aggregated
-    in an outer query block.
-  */
-  bool with_sum_func;
-  /**
-    Number of Item_sum-derived objects in this SELECT. Keeps count of
-    aggregate functions and window functions(to allocate items in ref array).
-    See SELECT_LEX::setup_base_ref_items.
-  */
-  uint n_sum_items;
-  /// Number of Item_sum-derived objects in children and descendant SELECTs
-  uint n_child_sum_items;
-
-  uint select_number;  ///< Query block number (used for EXPLAIN)
-  /**
-    Nesting level of query block, outer-most query block has level 0,
-    its subqueries have level 1, etc. @see also sql/item_sum.h.
-  */
-  int nest_level;
-  /// Circular linked list of sum func in nested selects
-  Item_sum *inner_sum_func_list;
-  /**
-    Number of wildcards used in the SELECT list. For example,
-    SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-    has 3 wildcards.
-  */
-  uint with_wild;
-
-  /// true when having fix field called in processing of this query block
-  bool having_fix_field;
-  /// true when GROUP BY fix field called in processing of this query block
-  bool group_fix_field;
-
-  /// explicit LIMIT clause is used
-  bool explicit_limit;
-  /**
-    HAVING clause contains subquery => we can't close tables before
-    query processing end even if we use temporary table
-  */
-  bool subquery_in_having;
-  /**
-    This variable is required to ensure proper work of subqueries and
-    stored procedures. Generally, one should use the states of
-    Query_arena to determine if it's a statement prepare or first
-    execution of a stored procedure. However, in case when there was an
-    error during the first execution of a stored procedure, the SP body
-    is not expelled from the SP cache. Therefore, a deeply nested
-    subquery might be left unoptimized. So we need this per-subquery
-    variable to inidicate the optimization/execution state of every
-    subquery. Prepared statements work OK in that regard, as in
-    case of an error during prepare the PS is not created.
-  */
-  bool first_execution;
-  /// True when semi-join pull-out processing is complete
-  bool sj_pullout_done;
-  /// exclude this query block from unique_table() check
-  bool exclude_from_table_unique_test;
-  /// Allow merge of immediate unnamed derived tables
-  bool allow_merge_derived;
-  /**
-     If this query block is a recursive member of a recursive unit: the
-     TABLE_LIST, in this recursive member, referencing the query
-     name.
-  */
-
-  /// Used by nested scalar_to_derived transformations
-  bool m_was_implicitly_grouped{false};
-
-  /// Keep track for allocation of base_ref_items: scalar subqueries may be
-  /// replaced by a field during scalar_to_derived transformation
-  uint n_scalar_subqueries{0};
-
-  List<TABLE_LIST> m_scalar_to_derived;
-
-  TABLE_LIST *recursive_reference;
-  /**
-     To pass the first steps of resolution, a recursive reference is made to
-     be a dummy derived table; after the temporary table is created based on
-     the non-recursive members' types, the recursive reference is made to be a
-     reference to the tmp table. Its dummy-derived-table unit is saved in this
-     member, so that when the statement's execution ends, the reference can be
-     restored to be a dummy derived table for the next execution, which is
-     necessary if we have a prepared statement.
-     WL#6570 should allow to remove this.
-  */
-  SELECT_LEX_UNIT *recursive_dummy_unit;
-  /**
-    The set of those tables whose fields are referenced in the select list of
-    this select level.
-  */
-  table_map select_list_tables;
-  table_map outer_join;  ///< Bitmap of all inner tables from outer joins
-
-  /// Query-block-level hints, for this query block
-  Opt_hints_qb *opt_hints_qb;
-
-  // Last table for LATERAL join, used by table functions
-  TABLE_LIST *end_lateral_table;
-
-  /// If set, the query block is of the form VALUES row_list.
-  bool is_table_value_constructor{false};
-  /// The VALUES items of a table value constructor.
-  List<List<Item>> *row_value_list{nullptr};
-  bool resolve_table_value_constructor_values(THD *thd);
-
-  /// @returns true if this query block outputs at most one row.
-  bool source_table_is_one_row() const {
-    return (table_list.size() == 0 &&
-            (!is_table_value_constructor || row_value_list->size() == 1));
-  }
-
-  /**
-    @note the group_by and order_by lists below will probably be added to the
-          constructor when the parser is converted into a true bottom-up design.
-
-          //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
-  */
-  SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having);
 
   SELECT_LEX_UNIT *master_unit() const { return master; }
   SELECT_LEX_UNIT *first_inner_unit() const { return slave; }
   SELECT_LEX *outer_select() const { return master->outer_select(); }
   SELECT_LEX *next_select() const { return next; }
+
+  TABLE_LIST *find_table_by_name(const Table_ident *ident);
 
   /**
     @return true  If STRAIGHT_JOIN applies to all tables.
@@ -1490,6 +1151,26 @@ class SELECT_LEX {
   */
   bool is_ordered() const { return order_list.elements > 0; }
 
+  /**
+    Based on the structure of the query at resolution time, it is possible to
+    conclude that DISTINCT is useless and remove it.
+    This is the case if:
+    - all GROUP BY expressions are in SELECT list, so resulting group rows are
+    distinct,
+    - and ROLLUP is not specified, so it adds no row for NULLs.
+
+    @returns true if we can remove DISTINCT.
+
+    @todo could refine this to if ROLLUP were specified and all GROUP
+    expressions were non-nullable, because ROLLUP then adds only NULL values.
+    Currently, ROLLUP+DISTINCT is rejected because executor cannot handle
+    it in all cases.
+  */
+  bool can_skip_distinct() const {
+    return is_grouped() && hidden_group_field_count == 0 &&
+           olap == UNSPECIFIED_OLAP_TYPE;
+  }
+
   /// @return true if this query block has a LIMIT clause
   bool has_limit() const { return select_limit != nullptr; }
 
@@ -1501,6 +1182,21 @@ class SELECT_LEX {
 
   /// @returns true if query block is a recursive member of a recursive unit
   bool is_recursive() const { return recursive_reference != nullptr; }
+
+  bool is_in_select_list(Item *i);
+
+  /**
+    Finds a group expression matching the given item, or nullptr if
+    none. When there are multiple candidates, ones that match in name are
+    given priority (such that “a AS c GROUP BY a,b,c” resolves to c, not a);
+    if there is still a tie, the leftmost is given priority.
+
+    @param item The item to search for.
+    @param [out] rollup_level If not nullptr, will be set to the group
+      expression's index (0-based).
+   */
+  ORDER *find_in_group_list(Item *item, int *rollup_level) const;
+  int group_list_size() const;
 
   /// @returns true if query block contains window functions
   bool has_windows() const { return m_windows.elements > 0; }
@@ -1520,13 +1216,23 @@ class SELECT_LEX {
                                 List<String> *partition_names = nullptr,
                                 LEX_STRING *option = nullptr,
                                 Parse_context *pc = nullptr);
+
+  /**
+    Add item to the hidden part of select list
+
+    @param item  item to add
+
+    @return Pointer to reference of the added item
+  */
+  Item **add_hidden_item(Item *item);
+
   TABLE_LIST *get_table_list() const { return table_list.first; }
   bool init_nested_join(THD *thd);
   TABLE_LIST *end_nested_join();
   TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt = 2);
   bool add_joined_table(TABLE_LIST *table);
   TABLE_LIST *convert_right_join();
-  List<Item> *get_item_list() { return &item_list; }
+  List<Item> *get_fields_list() { return &fields_list; }
 
   // Check privileges for views that are merged into query block
   bool check_view_privileges(THD *thd, ulong want_privilege_first,
@@ -1540,6 +1246,63 @@ class SELECT_LEX {
 
   // Propagate exclusion from table uniqueness test into subqueries
   void propagate_unique_test_exclusion();
+
+  /// Merge name resolution context objects of a subquery into its parent
+  void merge_contexts(SELECT_LEX *inner);
+
+  /// Merge derived table into query block
+  bool merge_derived(THD *thd, TABLE_LIST *derived_table);
+
+  bool flatten_subqueries(THD *thd);
+
+  /**
+    Update available semijoin strategies for semijoin nests.
+
+    Available semijoin strategies needs to be updated on every execution since
+    optimizer_switch setting may have changed.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+  */
+  void update_semijoin_strategies(THD *thd);
+
+  /**
+    Returns which subquery execution strategies can be used for this query
+    block.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @retval SUBQ_MATERIALIZATION  Subquery Materialization should be used
+    @retval SUBQ_EXISTS           In-to-exists execution should be used
+    @retval CANDIDATE_FOR_IN2EXISTS_OR_MAT A cost-based decision should be made
+  */
+  Subquery_strategy subquery_strategy(const THD *thd) const;
+
+  /**
+    Returns whether semi-join is enabled for this query block
+
+    @see @c Opt_hints_qb::semijoin_enabled for details on how hints
+    affect this decision.  If there are no hints for this query block,
+    optimizer_switch setting determines whether semi-join is used.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @return true if semijoin is enabled,
+            false otherwise
+  */
+  bool semijoin_enabled(const THD *thd) const;
+
+  void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
+    sj_candidates = sj_cand;
+  }
+
+  bool has_sj_candidates() const {
+    return sj_candidates != nullptr && !sj_candidates->empty();
+  }
+
+  void remove_semijoin_candidate(Item_exists_subselect *sub_query);
 
   // Add full-text function elements from a list into this query block
   bool add_ftfunc_list(List<Item_func_match> *ftfuncs);
@@ -1855,6 +1618,12 @@ class SELECT_LEX {
   bool is_dependent() const { return uncacheable & UNCACHEABLE_DEPENDENT; }
   bool is_cacheable() const { return !uncacheable; }
 
+  /// @returns true if this query block outputs at most one row.
+  bool source_table_is_one_row() const {
+    return (table_list.size() == 0 &&
+            (!is_table_value_constructor || row_value_list->size() == 1));
+  }
+
   /// Include query block inside a query expression.
   void include_down(LEX *lex, SELECT_LEX_UNIT *outer);
 
@@ -1887,63 +1656,358 @@ class SELECT_LEX {
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
 
- private:
-  // Delete unused columns from merged derived tables
-  void delete_unused_merged_columns(mem_root_deque<TABLE_LIST *> *tables);
+  bool add_tables(THD *thd, const Mem_root_array<Table_ident *> *tables,
+                  ulong table_options, thr_lock_type lock_type,
+                  enum_mdl_type mdl_type);
 
-  bool m_agg_func_used;
-  bool m_json_agg_func_used;
+  bool resolve_rollup_wfs(THD *thd);
+
+  bool setup_conds(THD *thd);
+  bool prepare(THD *thd);
+  bool optimize(THD *thd);
+  void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
+
+  bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
+  bool change_group_ref_for_cond(THD *thd, Item_cond *cond, bool *changed);
+
+  // ************************************************
+  // * Members (most of these should not be public) *
+  // ************************************************
 
   /**
-    True if query block does not generate any rows before aggregation,
-    determined during preparation (not optimization).
+    List of columns and expressions:
+    SELECT: Columns and expressions in the SELECT list.
+    UPDATE: Columns in the SET clause.
+
+    @see is_item_list_lookup
   */
-  bool m_empty_query;
+  List<Item> fields_list{};  ///< hold field list
+  /**
+    All expressions needed after join and filtering, ie
+    select list, group by list, having clause, window clause, order by clause.
+    Does not include join conditions nor where clause.
+  */
+  List<Item> all_fields{};
 
-  /// Helper for fix_prepare_information()
-  void fix_prepare_information_for_order(THD *thd, SQL_I_List<ORDER> *list,
-                                         Group_list_ptrs **list_ptrs);
-  static const char
-      *type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)];
+  /**
+    All windows defined on the select, both named and inlined
+  */
+  List<Window> m_windows;
 
+  /**
+    Usually a pointer to ftfunc_list_alloc, but in UNION this is used to create
+    fake select_lex that consolidates result fields of UNION
+  */
+  List<Item_func_match> *ftfunc_list;
+  List<Item_func_match> ftfunc_list_alloc{};
+
+  /// The VALUES items of a table value constructor.
+  List<List<Item>> *row_value_list{nullptr};
+
+  /// List of semi-join nests generated for this query block
+  mem_root_deque<TABLE_LIST *> sj_nests;
+
+  /// List of tables in FROM clause - use TABLE_LIST::next_local to traverse
+  SQL_I_List<TABLE_LIST> table_list{};
+
+  /**
+    ORDER BY clause.
+    This list may be mutated during optimization (by remove_const()),
+    so for prepared statements, we keep a copy of the ORDER.next pointers in
+    order_list_ptrs, and re-establish the original list before each execution.
+  */
+  SQL_I_List<ORDER> order_list{};
+  Group_list_ptrs *order_list_ptrs{nullptr};
+
+  /**
+    GROUP BY clause.
+    This list may be mutated during optimization (by remove_const()),
+    so for prepared statements, we keep a copy of the ORDER.next pointers in
+    group_list_ptrs, and re-establish the original list before each execution.
+  */
+  SQL_I_List<ORDER> group_list{};
+  Group_list_ptrs *group_list_ptrs{nullptr};
+
+  // Used so that AggregateIterator knows which items to signal when the rollup
+  // level changes. Obviously only used in the presence of rollup.
+  Prealloced_array<Item_rollup_group_item *, 4> rollup_group_items{
+      PSI_NOT_INSTRUMENTED};
+  Prealloced_array<Item_rollup_sum_switcher *, 4> rollup_sums{
+      PSI_NOT_INSTRUMENTED};
+
+  /// Query-block-level hints, for this query block
+  Opt_hints_qb *opt_hints_qb{nullptr};
+
+  char *db{nullptr};
+
+  /**
+     If this query block is a recursive member of a recursive unit: the
+     TABLE_LIST, in this recursive member, referencing the query
+     name.
+  */
+  TABLE_LIST *recursive_reference{nullptr};
+
+  /**
+     To pass the first steps of resolution, a recursive reference is made to
+     be a dummy derived table; after the temporary table is created based on
+     the non-recursive members' types, the recursive reference is made to be a
+     reference to the tmp table. Its dummy-derived-table unit is saved in this
+     member, so that when the statement's execution ends, the reference can be
+     restored to be a dummy derived table for the next execution, which is
+     necessary if we have a prepared statement.
+     WL#6570 should allow to remove this.
+  */
+  SELECT_LEX_UNIT *recursive_dummy_unit{nullptr};
+
+  /// Reference to LEX that this query block belongs to
+  LEX *parent_lex{nullptr};
+
+  /**
+    The set of those tables whose fields are referenced in the select list of
+    this select level.
+  */
+  table_map select_list_tables{0};
+  table_map outer_join{0};  ///< Bitmap of all inner tables from outer joins
+
+  /**
+    Context for name resolution for all column references except columns
+    from joined tables.
+  */
+  Name_resolution_context context{};
+
+  /**
+    Pointer to first object in list of Name res context objects that have
+    this query block as the base query block.
+    Includes field "context" which is embedded in this query block.
+  */
+  Name_resolution_context *first_context;
+
+  /**
+    After optimization it is pointer to corresponding JOIN. This member
+    should be changed only when THD::LOCK_query_plan mutex is taken.
+  */
+  JOIN *join{nullptr};
+  /// join list of the top level
+  mem_root_deque<TABLE_LIST *> top_join_list;
+  /// list for the currently parsed join
+  mem_root_deque<TABLE_LIST *> *join_list;
+  /// table embedding the above list
+  TABLE_LIST *embedding{nullptr};
+  /**
+    Points to first leaf table of query block. After setup_tables() is done,
+    this is a list of base tables and derived tables. After derived tables
+    processing is done, this is a list of base tables only.
+    Use TABLE_LIST::next_leaf to traverse the list.
+  */
+  TABLE_LIST *leaf_tables{nullptr};
+  // Last table for LATERAL join, used by table functions
+  TABLE_LIST *end_lateral_table{nullptr};
+
+  /// LIMIT clause, NULL if no limit is given
+  Item *select_limit{nullptr};
+  /// LIMIT ... OFFSET clause, NULL if no offset is given
+  Item *offset_limit{nullptr};
+
+  /// Circular linked list of sum func in nested selects
+  Item_sum *inner_sum_func_list{nullptr};
+
+  /**
+    Array of pointers to "base" items; one each for every selected expression
+    and referenced item in the query block. All references to fields are to
+    buffers associated with the primary input tables.
+  */
+  Ref_item_array base_ref_items;
+
+  uint select_number{0};  ///< Query block number (used for EXPLAIN)
+
+  /**
+    Saved values of the WHERE and HAVING clauses. Allowed values are:
+     - COND_UNDEF if the condition was not specified in the query or if it
+       has not been optimized yet
+     - COND_TRUE if the condition is always true
+     - COND_FALSE if the condition is impossible
+     - COND_OK otherwise
+  */
+  Item::cond_result cond_value{Item::COND_UNDEF};
+  Item::cond_result having_value{Item::COND_UNDEF};
+
+  /// Parse context: indicates where the current expression is being parsed
+  enum_parsing_context parsing_place{CTX_NONE};
+  /// Parse context: is inside a set function if this is positive
+  uint in_sum_expr{0};
+
+  /**
+    Three fields used by semi-join transformations to know when semi-join is
+    possible, and in which condition tree the subquery predicate is located.
+  */
+  enum Resolve_place {
+    RESOLVE_NONE,
+    RESOLVE_JOIN_NEST,
+    RESOLVE_CONDITION,
+    RESOLVE_HAVING,
+    RESOLVE_SELECT_LIST
+  };
+  Resolve_place resolve_place{
+      RESOLVE_NONE};  ///< Indicates part of query being resolved
+
+  /**
+    Number of fields used in select list or where clause of current select
+    and all inner subselects.
+  */
+  uint select_n_where_fields{0};
+  /**
+    number of items in select_list and HAVING clause used to get number
+    bigger then can be number of entries that will be added to all item
+    list during split_sum_func
+  */
+  uint select_n_having_items{0};
+  uint cond_count{0};  ///< number of arguments of and/or/xor in where/having/on
+  uint between_count{0};  ///< number of between predicates in where/having/on
+  uint max_equal_elems{
+      0};  ///< maximal number of elements in multiple equalities
+
+  /**
+    Number of Item_sum-derived objects in this SELECT. Keeps count of
+    aggregate functions and window functions(to allocate items in ref array).
+    See SELECT_LEX::setup_base_ref_items.
+  */
+  uint n_sum_items{0};
+  /// Number of Item_sum-derived objects in children and descendant SELECTs
+  uint n_child_sum_items{0};
+
+  /// Keep track for allocation of base_ref_items: scalar subqueries may be
+  /// replaced by a field during scalar_to_derived transformation
+  uint n_scalar_subqueries{0};
+
+  /// Number of materialized derived tables and views in this query block.
+  uint materialized_derived_table_count{0};
+  /// Number of partitioned tables
+  uint partitioned_table_count{0};
+
+  /**
+    Number of wildcards used in the SELECT list. For example,
+    SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
+    has 3 wildcards.
+  */
+  uint with_wild{0};
+
+  /// Number of leaf tables in this query block.
+  uint leaf_table_count{0};
+  /// Number of derived tables and views in this query block.
+  uint derived_table_count{0};
+  /// Number of table functions in this query block
+  uint table_func_count{0};
+
+  /**
+    Nesting level of query block, outer-most query block has level 0,
+    its subqueries have level 1, etc. @see also sql/item_sum.h.
+  */
+  int nest_level{0};
+
+  /// Indicates whether this query block contains the WITH ROLLUP clause
+  olap_type olap{UNSPECIFIED_OLAP_TYPE};
+
+  /// @see enum_condition_context
+  enum_condition_context condition_context{enum_condition_context::ANDS};
+
+  /// If set, the query block is of the form VALUES row_list.
+  bool is_table_value_constructor{false};
+
+  /// Describes context of this query block (e.g if it is a derived table).
+  sub_select_type linkage{UNSPECIFIED_TYPE};
+
+  /**
+    result of this query can't be cached, bit field, can be :
+      UNCACHEABLE_DEPENDENT
+      UNCACHEABLE_RAND
+      UNCACHEABLE_SIDEEFFECT
+  */
+  uint8 uncacheable{0};
+
+  /**
+    This variable is required to ensure proper work of subqueries and
+    stored procedures. Generally, one should use the states of
+    Query_arena to determine if it's a statement prepare or first
+    execution of a stored procedure. However, in case when there was an
+    error during the first execution of a stored procedure, the SP body
+    is not expelled from the SP cache. Therefore, a deeply nested
+    subquery might be left unoptimized. So we need this per-subquery
+    variable to inidicate the optimization/execution state of every
+    subquery. Prepared statements work OK in that regard, as in
+    case of an error during prepare the PS is not created.
+  */
+  bool first_execution{true};
+
+  /// True when semi-join pull-out processing is complete
+  bool sj_pullout_done{false};
+
+  /// Used by nested scalar_to_derived transformations
+  bool m_was_implicitly_grouped{false};
+
+  /// True: skip local transformations during prepare() call (used by INSERT)
+  bool skip_local_transforms{false};
+
+  bool is_item_list_lookup{false};
+
+  /// true when having fix field called in processing of this query block
+  bool having_fix_field{false};
+  /// true when GROUP BY fix field called in processing of this query block
+  bool group_fix_field{false};
+
+  /**
+    True if contains or aggregates set functions.
+    @note this is wrong when a locally found set function is aggregated
+    in an outer query block.
+  */
+  bool with_sum_func{false};
+
+  /**
+    HAVING clause contains subquery => we can't close tables before
+    query processing end even if we use temporary table
+  */
+  bool subquery_in_having{false};
+
+  /// explicit LIMIT clause is used
+  bool explicit_limit{false};
+
+  /// exclude this query block from unique_table() check
+  bool exclude_from_table_unique_test{false};
+
+  bool no_table_names_allowed{false};  ///< used for global order by
+
+ private:
   friend class SELECT_LEX_UNIT;
+  friend class Condition_context;
+
   bool record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables);
   bool simplify_joins(THD *thd, mem_root_deque<TABLE_LIST *> *join_list,
                       bool top, bool in_sj, Item **new_conds,
                       uint *changelog = nullptr);
-  /// Merge derived table into query block
- public:
-  bool merge_derived(THD *thd, TABLE_LIST *derived_table);
   /// Remove semijoin condition for this query block
   void clear_sj_expressions(NESTED_JOIN *nested_join);
   ///  Build semijoin condition for th query block
   bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
                      SELECT_LEX *subq_select, table_map outer_tables_map,
                      Item **sj_cond);
-  bool decorrelate_condition(TABLE_LIST *sj_nest, TABLE_LIST *join_nest);
+  bool decorrelate_condition(Semijoin_decorrelation &sj_decor,
+                             TABLE_LIST *join_nest);
 
- private:
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
+  TABLE_LIST *synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
+                                 Item *join_cond, bool left_outer,
+                                 bool use_inner_join);
+  bool transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
+                                     SELECT_LEX_UNIT *subs_unit,
+                                     Item_subselect *subq, bool use_inner_join,
+                                     Item *join_condition);
+  bool transform_table_subquery_to_join_with_derived(
+      THD *thd, Item_exists_subselect *subq_pred);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
-  bool resolve_rollup_item(THD *thd, Item *item);
+  void mark_item_as_maybe_null_if_rollup_item(Item *item);
+  Item *resolve_rollup_item(THD *thd, Item *item);
   bool resolve_rollup(THD *thd);
 
- public:
-  bool resolve_rollup_wfs(THD *thd);
-  bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
-  bool change_group_ref_for_cond(THD *thd, Item_cond *cond, bool *changed);
-  bool flatten_subqueries(THD *thd);
-  void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
-    sj_candidates = sj_cand;
-  }
-
-  bool has_sj_candidates() const {
-    return sj_candidates != nullptr && !sj_candidates->empty();
-  }
-  bool is_in_select_list(Item *i);
-
- private:
   bool setup_wild(THD *thd);
   bool setup_order_final(THD *thd);
   bool setup_group(THD *thd);
@@ -1956,28 +2020,6 @@ class SELECT_LEX {
                        bool in_update);
   bool find_common_table_expr(THD *thd, Table_ident *table_id, TABLE_LIST *tl,
                               Parse_context *pc, bool *found);
-
-  /**
-    Pointer to collection of subqueries candidate for semi/antijoin
-    conversion.
-    Template parameter is "true": no need to run DTORs on pointers.
-  */
-  Mem_root_array<Item_exists_subselect *> *sj_candidates;
-
- public:
-  /// How many expressions are part of the order by but not select list.
-  int hidden_order_field_count;
-
-  bool setup_conds(THD *thd);
-  bool prepare(THD *thd);
-  bool prepare_values(THD *thd);
-  bool optimize(THD *thd);
-  void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
-  bool check_only_full_group_by(THD *thd);
-
-  /// Merge name resolution context objects of a subquery into its parent
-  void merge_contexts(SELECT_LEX *inner);
-
   /**
     Transform eligible scalar subqueries in the SELECT list, WHERE condition,
     HAVING condition or JOIN conditions of a query block[*] to an equivalent
@@ -2006,7 +2048,7 @@ class SELECT_LEX {
     @param[in,out] thd the session context
     @returns       true on error
   */
-  bool transform_scalar_subqueries_to_derived(THD *thd);
+  bool transform_scalar_subqueries_to_join_with_derived(THD *thd);
   bool transform_grouped_to_derived(THD *thd, bool *break_off);
   bool replace_subquery_in_expr(THD *thd, Item_singlerow_subselect *subquery,
                                 Item **expr);
@@ -2015,59 +2057,107 @@ class SELECT_LEX {
                            TABLE_LIST *new_derived_table);
   void update_join_cond_context(SELECT_LEX *new_context,
                                 mem_root_deque<TABLE_LIST *> *join_list);
-  /**
-    Returns which subquery execution strategies can be used for this query
-    block.
 
-    @param thd  Pointer to THD object for session.
-                Used to access optimizer_switch
+  bool resolve_table_value_constructor_values(THD *thd);
 
-    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
-    @retval EXEC_EXISTS           In-to-exists execution should be used
-    @retval EXEC_EXISTS_OR_MAT    A cost-based decision should be made
-  */
-  SubqueryExecMethod subquery_strategy(THD *thd) const;
+  // Delete unused columns from merged derived tables
+  void delete_unused_merged_columns(mem_root_deque<TABLE_LIST *> *tables);
 
-  /**
-    Returns whether semi-join is enabled for this query block
+  /// Helper for fix_prepare_information()
+  void fix_prepare_information_for_order(THD *thd, SQL_I_List<ORDER> *list,
+                                         Group_list_ptrs **list_ptrs);
 
-    @see @c Opt_hints_qb::semijoin_enabled for details on how hints
-    affect this decision.  If there are no hints for this query block,
-    optimizer_switch setting determines whether semi-join is used.
+  bool prepare_values(THD *thd);
+  bool check_only_full_group_by(THD *thd);
 
-    @param thd  Pointer to THD object for session.
-                Used to access optimizer_switch
-
-    @return true if semijoin is enabled,
-            false otherwise
-  */
-  bool semijoin_enabled(THD *thd) const;
-  /**
-    Update available semijoin strategies for semijoin nests.
-
-    Available semijoin strategies needs to be updated on every execution since
-    optimizer_switch setting may have changed.
-
-    @param thd  Pointer to THD object for session.
-                Used to access optimizer_switch
-  */
-  void update_semijoin_strategies(THD *thd);
-  void remove_semijoin_candidate(Item_exists_subselect *sub_query);
+  //
+  // Members:
+  //
 
   /**
-    Add item to the hidden part of select list
-
-    @param item  item to add
-
-    @return Pointer to reference of the added item
+    Pointer to collection of subqueries candidate for semi/antijoin
+    conversion.
+    Template parameter is "true": no need to run DTORs on pointers.
   */
-  Item **add_hidden_item(Item *item);
+  Mem_root_array<Item_exists_subselect *> *sj_candidates{nullptr};
 
-  bool add_tables(THD *thd, const Mem_root_array<Table_ident *> *tables,
-                  ulong table_options, thr_lock_type lock_type,
-                  enum_mdl_type mdl_type);
+  /// How many expressions are part of the order by but not select list.
+  int hidden_order_field_count{0};
 
-  TABLE_LIST *find_table_by_name(const Table_ident *ident);
+  /**
+    Intrusive double-linked list of all query blocks within the same
+    query expression.
+  */
+  SELECT_LEX *next{nullptr};
+  SELECT_LEX **prev{nullptr};
+
+  /// The query expression containing this query block.
+  SELECT_LEX_UNIT *master{nullptr};
+  /// The first query expression contained within this query block.
+  SELECT_LEX_UNIT *slave{nullptr};
+
+  /// Intrusive double-linked global list of query blocks.
+  SELECT_LEX *link_next{nullptr};
+  SELECT_LEX **link_prev{nullptr};
+
+  /// Result of this query block
+  Query_result *m_query_result{nullptr};
+
+  /**
+    Options assigned from parsing and throughout resolving,
+    should not be modified after resolving is done.
+  */
+  ulonglong m_base_options{0};
+  /**
+    Active options. Derived from base options, modifiers added during
+    resolving and values from session variable option_bits. Since the latter
+    may change, active options are refreshed per execution of a statement.
+  */
+  ulonglong m_active_options{0};
+
+  TABLE_LIST *resolve_nest{
+      nullptr};  ///< Used when resolving outer join condition
+
+  /**
+    Condition to be evaluated after all tables in a query block are joined.
+    After all permanent transformations have been conducted by
+    SELECT_LEX::prepare(), this condition is "frozen", any subsequent changes
+    to it must be done with change_item_tree(), unless they only modify AND/OR
+    items and use a copy created by SELECT_LEX::get_optimizable_conditions().
+    Same is true for 'having_cond'.
+  */
+  Item *m_where_cond;
+
+  /// Condition to be evaluated on grouped rows after grouping.
+  Item *m_having_cond;
+
+  List<TABLE_LIST> m_scalar_to_derived;
+
+  /// Number of GROUP BY expressions added to all_fields
+  int hidden_group_field_count;
+
+  /**
+    True if query block has semi-join nests merged into it. Notice that this
+    is updated earlier than sj_nests, so check this if info is needed
+    before the full resolver process is complete.
+  */
+  bool has_sj_nests{false};
+  bool has_aj_nests{false};  ///< @see has_sj_nests; counts antijoin nests.
+
+  /// Allow merge of immediate unnamed derived tables
+  bool allow_merge_derived{true};
+
+  bool m_agg_func_used{false};
+  bool m_json_agg_func_used{false};
+
+  /**
+    True if query block does not generate any rows before aggregation,
+    determined during preparation (not optimization).
+  */
+  bool m_empty_query{false};
+
+  static const char
+      *type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)];
 };
 
 inline bool SELECT_LEX_UNIT::is_union() const {
@@ -2075,27 +2165,30 @@ inline bool SELECT_LEX_UNIT::is_union() const {
          first_select()->next_select()->linkage == UNION_TYPE;
 }
 
-/**
-  Utility RAII class to save/modify/restore the
-  semijoin_disallowed flag.
-*/
-class Disable_semijoin_flattening {
+/// Utility RAII class to save/modify/restore the condition_context information
+/// of a query block. @see enum_condition_context.
+class Condition_context {
  public:
-  Disable_semijoin_flattening(SELECT_LEX *select_ptr, bool apply)
+  Condition_context(SELECT_LEX *select_ptr, enum_condition_context new_type =
+                                                enum_condition_context::NEITHER)
       : select(nullptr), saved_value() {
-    if (select_ptr && apply) {
+    if (select_ptr) {
       select = select_ptr;
-      saved_value = select->semijoin_disallowed;
-      select->semijoin_disallowed = true;
+      saved_value = select->condition_context;
+      // More restrictive wins over less restrictive:
+      if (new_type == enum_condition_context::NEITHER ||
+          (new_type == enum_condition_context::ANDS_ORS &&
+           saved_value == enum_condition_context::ANDS))
+        select->condition_context = new_type;
     }
   }
-  ~Disable_semijoin_flattening() {
-    if (select) select->semijoin_disallowed = saved_value;
+  ~Condition_context() {
+    if (select) select->condition_context = saved_value;
   }
 
  private:
   SELECT_LEX *select;
-  bool saved_value;
+  enum_condition_context saved_value;
 };
 
 bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
@@ -2731,6 +2824,11 @@ class Query_tables_list {
   void set_using_match() { using_match = true; }
   bool get_using_match() { return using_match; }
 
+  void set_stmt_unsafe_with_mixed_mode() { stmt_unsafe_with_mixed_mode = true; }
+  bool is_stmt_unsafe_with_mixed_mode() const {
+    return stmt_unsafe_with_mixed_mode;
+  }
+
  private:
   /**
     Enumeration listing special types of statements.
@@ -2775,6 +2873,14 @@ class Query_tables_list {
      It will be set true if 'MATCH () AGAINST' is used in the statement.
   */
   bool using_match;
+
+  /**
+    This flag is set to true if statement is unsafe to be binlogged in STATEMENT
+    format, when in MIXED mode.
+    Currently this flag is set to true if stored program used in statement has
+    CREATE/DROP temporary table operation(s) as sub-statement(s).
+  */
+  bool stmt_unsafe_with_mixed_mode{false};
 };
 
 /*
@@ -3340,6 +3446,8 @@ struct LEX : public Query_tables_list {
   LEX_STRING ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
+  enum_alter_user_attribute alter_user_attribute;
+  LEX_STRING alter_user_comment_text;
   LEX_GRANT_AS grant_as;
   THD *thd;
   Value_generator *gcol_info;
@@ -3524,7 +3632,6 @@ struct LEX : public Query_tables_list {
     expression is usable for partitioning.
   */
   bool safe_to_cache_query;
-  bool subqueries;
 
  private:
   bool ignore;
@@ -4080,7 +4187,7 @@ struct st_lex_local : public LEX {
     TRASH(ptr, size);
   }
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* Never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* Never called */
   }
 };
 

@@ -11,7 +11,7 @@ define("dijit/form/CheckBox", [
 	"./_CheckBoxMixin",
 	"dojo/text!./templates/CheckBox.html",
 	"dojo/NodeList-dom", // NodeList.addClass/removeClass
-	"dijit/a11yclick"	// template uses ondijitclick
+	"../a11yclick"	// template uses ondijitclick
 ], function(require, declare, domAttr, has, query, ready, ToggleButton, _CheckBoxMixin, template){
 
 	// module:
@@ -80,11 +80,12 @@ define("dijit/form/CheckBox", [
 			// description:
 			//		If the CheckBox is checked, returns the value attribute.
 			//		Otherwise returns false.
-			return (this.checked ? this.value : false);
+			return this.checked && this._get("value");
 		},
 
-		// Override behavior from Button, since we don't have an iconNode
+		// Override behavior from Button, since we don't have an iconNode or valueNode
 		_setIconClassAttr: null,
+		_setNameAttr: "focusNode",
 
 		postMixInProperties: function(){
 			this.inherited(arguments);

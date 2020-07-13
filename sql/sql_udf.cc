@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,10 +69,11 @@
 #include "sql/sql_base.h"   // close_mysql_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
-#include "sql/sql_parse.h"   // check_string_char_length
-#include "sql/sql_plugin.h"  // check_valid_path
-#include "sql/sql_table.h"   // write_bin_log
-#include "sql/table.h"       // TABLE_LIST
+#include "sql/sql_parse.h"               // check_string_char_length
+#include "sql/sql_plugin.h"              // check_valid_path
+#include "sql/sql_system_table_check.h"  // System_table_intact
+#include "sql/sql_table.h"               // write_bin_log
+#include "sql/table.h"                   // TABLE_LIST
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_*
@@ -109,6 +110,21 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
                          Item_udftype typ);
 static void udf_hash_delete(udf_func *udf);
 static void *find_udf_dl(const char *dl);
+
+// mysql.func table definition.
+static const int MYSQL_UDF_TABLE_FIELD_COUNT = 4;
+static const TABLE_FIELD_TYPE
+    mysql_udf_table_fields[MYSQL_UDF_TABLE_FIELD_COUNT] = {
+        {{STRING_WITH_LEN("name")},
+         {STRING_WITH_LEN("char(64)")},
+         {nullptr, 0}},
+        {{STRING_WITH_LEN("ret")}, {STRING_WITH_LEN("tinyint")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("dl")}, {STRING_WITH_LEN("char(128)")}, {nullptr, 0}},
+        {{STRING_WITH_LEN("type")},
+         {STRING_WITH_LEN("enum('function','aggregate')")},
+         {STRING_WITH_LEN("utf8")}}};
+static const TABLE_FIELD_DEF mysql_udf_table_def = {MYSQL_UDF_TABLE_FIELD_COUNT,
+                                                    mysql_udf_table_fields};
 
 static char *init_syms(udf_func *tmp, char *nm) {
   char *end;
@@ -617,6 +633,26 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;
   table = tables.table;
+
+  /*
+    System table mysql.func is supported by only InnoDB engine. Changing system
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. CREATE FUNCTION operation is
+    *not* allowed in this case.
+  */
+  if ((table->file->ht->is_supported_system_table != nullptr) &&
+      !table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return error;
+  }
+
+  // CREATE FUNCTION operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_udf_table_def)) return error;
+
   /*
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for CREATE FUNCTION command.
@@ -723,6 +759,25 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;
   table = tables.table;
+
+  /*
+    System table mysql.func is supported by only InnoDB engine. Changing system
+    table's engine is not allowed. But to support logical upgrade creating
+    system table is allowed in MyISAM engine. DROP and CREATE FUNCTION
+    operations are not allowed in this case.
+  */
+  if (!table->file->ht->is_supported_system_table(tables.db, tables.table_name,
+                                                  true)) {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(table->file->ht), tables.db,
+             tables.table_name);
+    return error;
+  }
+
+  // DROP FUNCTION operation is *not* allowed if table structure is changed.
+  System_table_intact table_intact(thd);
+  if (table_intact.check(thd, table, &mysql_udf_table_def)) return error;
+
   /*
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for DROP FUNCTION command.
@@ -748,8 +803,8 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   table->use_all_columns();
   table->field[0]->store(udf->name.str, udf->name.length, &my_charset_bin);
   if (!table->file->ha_index_read_idx_map(table->record[0], 0,
-                                          table->field[0]->ptr, HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT)) {
+                                          table->field[0]->field_ptr(),
+                                          HA_WHOLE_KEY, HA_READ_KEY_EXACT)) {
     int delete_err;
     if ((delete_err = table->file->ha_delete_row(table->record[0])))
       table->file->print_error(delete_err, MYF(0));

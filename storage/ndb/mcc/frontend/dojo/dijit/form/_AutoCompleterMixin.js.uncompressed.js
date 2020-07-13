@@ -1,25 +1,21 @@
 define("dijit/form/_AutoCompleterMixin", [
-	"dojo/data/util/filter", // patternToRegExp
+	"dojo/aspect",
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.get
-	"dojo/_base/event", // event.stop
 	"dojo/keys",
 	"dojo/_base/lang", // lang.clone lang.hitch
 	"dojo/query", // query
 	"dojo/regexp", // regexp.escapeString
 	"dojo/sniff", // has("ie")
-	"dojo/string", // string.substitute
 	"./DataList",
-	"../registry",	// registry.byId
-	"./_TextBoxMixin",	// defines _TextBoxMixin.selectInputText
+	"./_TextBoxMixin", // defines _TextBoxMixin.selectInputText
 	"./_SearchMixin"
-], function(filter, declare, domAttr, event, keys, lang, query, regexp, has, string,
-			DataList, registry, _TextBoxMixin, SearchMixin){
+], function(aspect, declare, domAttr, keys, lang, query, regexp, has, DataList, _TextBoxMixin, SearchMixin){
 
 	// module:
 	//		dijit/form/_AutoCompleterMixin
 
-	return declare("dijit.form._AutoCompleterMixin", SearchMixin, {
+	var AutoCompleterMixin = declare("dijit.form._AutoCompleterMixin", SearchMixin, {
 		// summary:
 		//		A mixin that implements the base functionality for `dijit/form/ComboBox`/`dijit/form/FilteringSelect`
 		// description:
@@ -74,19 +70,19 @@ define("dijit/form/_AutoCompleterMixin", [
 				pos = element.selectionStart;
 			}else if(has("ie")){
 				// in the case of a mouse click in a popup being handled,
-				// then the win.doc.selection is not the textarea, but the popup
-				// var r = win.doc.selection.createRange();
+				// then the document.selection is not the textarea, but the popup
+				// var r = document.selection.createRange();
 				// hack to get IE 6 to play nice. What a POS browser.
 				var tr = element.ownerDocument.selection.createRange().duplicate();
 				var ntr = element.createTextRange();
-				tr.move("character",0);
-				ntr.move("character",0);
+				tr.move("character", 0);
+				ntr.move("character", 0);
 				try{
 					// If control doesn't have focus, you get an exception.
 					// Seems to happen on reverse-tab, but can also happen on tab (seems to be a race condition - only happens sometimes).
 					// There appears to be no workaround for this - googled for quite a while.
 					ntr.setEndPoint("EndToEnd", tr);
-					pos = String(ntr.text).replace(/\r/g,"").length;
+					pos = String(ntr.text).replace(/\r/g, "").length;
 				}catch(e){
 					// If focus has shifted, 0 is fine for caret pos.
 				}
@@ -110,7 +106,9 @@ define("dijit/form/_AutoCompleterMixin", [
 			// summary:
 			//		Handles keyboard events
 
-			if(evt.charCode >= 32){ return; } // alphanumeric reserved for searching
+			if(evt.charCode >= 32){
+				return;
+			} // alphanumeric reserved for searching
 
 			var key = evt.charCode || evt.keyCode;
 
@@ -132,7 +130,9 @@ define("dijit/form/_AutoCompleterMixin", [
 			//		- otherwise, call dropDown.handleKey() to process the keystroke
 			this.inherited(arguments);
 
-			if(evt.altKey || evt.ctrlKey || evt.metaKey){ return; } // don't process keys with modifiers  - but we want shift+TAB
+			if(evt.altKey || evt.ctrlKey || evt.metaKey){
+				return;
+			} // don't process keys with modifiers  - but we want shift+TAB
 
 			if(this._opened){
 				highlighted = pw.getHighlightedOption();
@@ -147,7 +147,8 @@ define("dijit/form/_AutoCompleterMixin", [
 					if(this._opened){
 						this._announceOption(highlighted);
 					}
-					event.stop(evt);
+					evt.stopPropagation();
+					evt.preventDefault();
 					break;
 
 				case keys.ENTER:
@@ -158,35 +159,38 @@ define("dijit/form/_AutoCompleterMixin", [
 						// only stop event on prev/next
 						if(highlighted == pw.nextButton){
 							this._nextSearch(1);
-							event.stop(evt); // prevent submit
+							// prevent submit
+							evt.stopPropagation();
+							evt.preventDefault();
 							break;
 						}else if(highlighted == pw.previousButton){
 							this._nextSearch(-1);
-							event.stop(evt); // prevent submit
+							// prevent submit
+							evt.stopPropagation();
+							evt.preventDefault();
 							break;
 						}
-						event.stop(evt); // prevent submit if ENTER was to choose an item
+						// prevent submit if ENTER was to choose an item
+						evt.stopPropagation();
+						evt.preventDefault();
 					}else{
 						// Update 'value' (ex: KY) according to currently displayed text
 						this._setBlurValue(); // set value if needed
 						this._setCaretPos(this.focusNode, this.focusNode.value.length); // move cursor to end and cancel highlighting
 					}
-					// fall through
+				// fall through
 
 				case keys.TAB:
 					var newvalue = this.get('displayedValue');
 					//	if the user had More Choices selected fall into the
 					//	_onBlur handler
-					if(pw && (
-						newvalue == pw._messages["previousMessage"] ||
-						newvalue == pw._messages["nextMessage"])
-					){
+					if(pw && (newvalue == pw._messages["previousMessage"] || newvalue == pw._messages["nextMessage"])){
 						break;
 					}
 					if(highlighted){
 						this._selectOption(highlighted);
 					}
-					// fall through
+				// fall through
 
 				case keys.ESCAPE:
 					if(this._opened){
@@ -210,11 +214,11 @@ define("dijit/form/_AutoCompleterMixin", [
 			// IE7: clear selection so next highlight works all the time
 			_TextBoxMixin.selectInputText(fn, fn.value.length);
 			// does text autoComplete the value in the textbox?
-			var caseFilter = this.ignoreCase? 'toLowerCase' : 'substr';
+			var caseFilter = this.ignoreCase ? 'toLowerCase' : 'substr';
 			if(text[caseFilter](0).indexOf(this.focusNode.value[caseFilter](0)) == 0){
 				var cpos = this.autoComplete ? this._getCaretPos(fn) : fn.value.length;
 				// only try to extend if we added the last character at the end of the input
-				if((cpos+1) > fn.value.length){
+				if((cpos + 1) > fn.value.length){
 					// only add to input node as we would overwrite Capitalisation of chars
 					// actually, that is ok
 					fn.value = text;//.substr(cpos);
@@ -279,7 +283,7 @@ define("dijit/form/_AutoCompleterMixin", [
 				// it does not make sense to autocomplete
 				// if they are just previewing the options available.
 				&& !/^[*]+$/.test(query[this.searchAttr].toString())){
-					this._announceOption(this.dropDown.containerNode.firstChild.nextSibling); // 1st real item
+				this._announceOption(this.dropDown.containerNode.firstChild.nextSibling); // 1st real item
 			}
 		},
 
@@ -324,11 +328,7 @@ define("dijit/form/_AutoCompleterMixin", [
 			//		the value
 			var newvalue = this.get('displayedValue');
 			var pw = this.dropDown;
-			if(pw && (
-				newvalue == pw._messages["previousMessage"] ||
-				newvalue == pw._messages["nextMessage"]
-				)
-			){
+			if(pw && (newvalue == pw._messages["previousMessage"] || newvalue == pw._messages["nextMessage"])){
 				this._setValueAttr(this._lastValueReported, true);
 			}else if(typeof this.item == "undefined"){
 				// Update 'value' (ex: KY) according to currently displayed text
@@ -356,7 +356,7 @@ define("dijit/form/_AutoCompleterMixin", [
 			var value = '';
 			if(item){
 				if(!displayedValue){
-					displayedValue = this.store._oldAPI ?	// remove getValue() for 2.0 (old dojo.data API)
+					displayedValue = this.store._oldAPI ? // remove getValue() for 2.0 (old dojo.data API)
 						this.store.getValue(item, this.searchAttr) : item[this.searchAttr];
 				}
 				value = this._getValueField() != this.searchAttr ? this.store.getIdentity(item) : displayedValue;
@@ -382,7 +382,7 @@ define("dijit/form/_AutoCompleterMixin", [
 				this.value = '';
 			}else{
 				var item = this.dropDown.items[node.getAttribute("item")];
-				newValue = (this.store._oldAPI ?	// remove getValue() for 2.0 (old dojo.data API)
+				newValue = (this.store._oldAPI ? // remove getValue() for 2.0 (old dojo.data API)
 					this.store.getValue(item, this.searchAttr) : item[this.searchAttr]).toString();
 				this.set('item', item, false, newValue);
 			}
@@ -447,7 +447,7 @@ define("dijit/form/_AutoCompleterMixin", [
 
 		postMixInProperties: function(){
 			this.inherited(arguments);
-			if(!this.store){
+			if(!this.store && this.srcNodeRef){
 				var srcNodeRef = this.srcNodeRef;
 				// if user didn't specify store, then assume there are option tags
 				this.store = new DataList({}, srcNodeRef);
@@ -476,14 +476,16 @@ define("dijit/form/_AutoCompleterMixin", [
 			//		protected
 
 			// find any associated label element and add to ComboBox node.
-			var label=query('label[for="'+this.id+'"]');
+			var label = query('label[for="' + this.id + '"]');
 			if(label.length){
-				if(!label[0].id){ label[0].id = this.id + "_label"; }
+				if(!label[0].id){
+					label[0].id = this.id + "_label";
+				}
 				this.domNode.setAttribute("aria-labelledby", label[0].id);
 
 			}
 			this.inherited(arguments);
-			this.connect(this, "onSearch", "_openResultList");
+			aspect.after(this, "onSearch", lang.hitch(this, "_openResultList"), true);
 		},
 
 		_getMenuLabelFromItem: function(/*Item*/ item){
@@ -506,18 +508,18 @@ define("dijit/form/_AutoCompleterMixin", [
 			//		protected
 
 			var
-				// Add (g)lobal modifier when this.highlightMatch == "all" and (i)gnorecase when this.ignoreCase == true
+			// Add (g)lobal modifier when this.highlightMatch == "all" and (i)gnorecase when this.ignoreCase == true
 				modifiers = (this.ignoreCase ? "i" : "") + (this.highlightMatch == "all" ? "g" : ""),
 				i = this.queryExpr.indexOf("${0}");
 			find = regexp.escapeString(find); // escape regexp special chars
 			//If < appears in label, and user presses t, we don't want to highlight the t in the escaped "&lt;"
-			//first find out every occurences of "find", wrap each occurence in a pair of "\uFFFF" characters (which
+			//first find out every occurrences of "find", wrap each occurrence in a pair of "\uFFFF" characters (which
 			//should not appear in any string). then html escape the whole string, and replace '\uFFFF" with the
-			//HTML highlight markup. 
+			//HTML highlight markup.
 			return this._escapeHtml(label.replace(
-				new RegExp((i == 0 ? "^" : "") + "("+ find +")" + (i == (this.queryExpr.length - 4) ? "$" : ""), modifiers),
+				new RegExp((i == 0 ? "^" : "") + "(" + find + ")" + (i == (this.queryExpr.length - 4) ? "$" : ""), modifiers),
 				'\uFFFF$1\uFFFF')).replace(
-					/\uFFFF([^\uFFFF]+)\uFFFF/g, '<span class="dijitComboBoxHighlightMatch">$1</span>'
+				/\uFFFF([^\uFFFF]+)\uFFFF/g, '<span class="dijitComboBoxHighlightMatch">$1</span>'
 			); // returns String, (almost) valid HTML (entities encoded)
 		},
 
@@ -561,23 +563,32 @@ define("dijit/form/_AutoCompleterMixin", [
 			//		Hook so set('value', value) works.
 			// description:
 			//		Sets the value of the select.
-			this._set("item", item||null); // value not looked up in store
-			if(value == null /* or undefined */){ value = ''; } // null translates to blank
+			this._set("item", item || null); // value not looked up in store
+			if(value == null /* or undefined */){
+				value = '';
+			} // null translates to blank
 			this.inherited(arguments);
-		},
-		_setTextDirAttr: function(/*String*/ textDir){
-			// summary:
-			//		Setter for textDir, needed for the dropDown's textDir update.
-			// description:
-			//		Users shouldn't call this function; they should be calling
-			//		set('textDir', value)
-			// tags:
-			//		private
-			this.inherited(arguments);
-			// update the drop down also (_ComboBoxMenuMixin)
-			if(this.dropDown){
-				this.dropDown._set("textDir", textDir);
-			}
 		}
 	});
+
+	if(has("dojo-bidi")){
+		AutoCompleterMixin.extend({
+			_setTextDirAttr: function(/*String*/ textDir){
+				// summary:
+				//		Setter for textDir, needed for the dropDown's textDir update.
+				// description:
+				//		Users shouldn't call this function; they should be calling
+				//		set('textDir', value)
+				// tags:
+				//		private
+				this.inherited(arguments);
+				// update the drop down also (_ComboBoxMenuMixin)
+				if(this.dropDown){
+					this.dropDown._set("textDir", textDir);
+				}
+			}
+		});
+	}
+
+	return AutoCompleterMixin;
 });

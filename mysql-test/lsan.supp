@@ -35,6 +35,5 @@ leak:ldap_initialize
 
 # sasl_client_init will load all available plugins with _sasl_load_plugins().
 # It seems some of the SASL plugin have leaks.
-# We *do* call sasl_client_done, which calls _sasl_done_with_plugins
 # Both LSAN and Valgrind report leaks.
 leak:sasl_client_add_plugin

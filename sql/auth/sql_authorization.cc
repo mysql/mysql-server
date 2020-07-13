@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -724,10 +724,10 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
 
 /**
   Used by @ref mysql_drop_user. Will drop all
-  @param thd
-  @param edge_table
-  @param defaults_table
-  @param user_name
+  @param thd             THD handle
+  @param edge_table      Handle to table that stores role grants
+  @param defaults_table  Handle to table that stores default role information
+  @param user_name       User being dropped
 
   @retval true An error occurred
   @retval false Success
@@ -985,7 +985,7 @@ void make_global_privilege_statement(THD *thd, ulong want_access,
     }
   }
   global->append(STRING_WITH_LEN(" ON *.* TO "));
-  size_t len = acl_user->user == nullptr ? 0 : strlen(acl_user->user);
+  size_t len = acl_user->get_username_length();
   append_identifier(thd, global, acl_user->user, len);
   global->append('@');
   append_identifier(thd, global, acl_user->host.get_host(),
@@ -1042,8 +1042,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       db.append(STRING_WITH_LEN(" ON "));
       append_identifier(thd, &db, db_name.c_str(), db_name.length());
       db.append(STRING_WITH_LEN(".* TO "));
-      append_identifier(thd, &db, role->user,
-                        role->user ? strlen(role->user) : 0);
+      append_identifier(thd, &db, role->user, role->get_username_length());
       db.append('@');
       // host and lex_user->host are equal except for case
       append_identifier(thd, &db, role->host.get_host(),
@@ -1064,14 +1063,14 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       */
       Mem_root_array<std::pair<std::string, ulong>> restrictions_array(
           thd->mem_root);
-      for (const auto rl_itr : restrictions.get()) {
+      for (const auto &rl_itr : restrictions.get()) {
         restrictions_array.push_back({rl_itr.first, rl_itr.second});
       }
       std::sort(restrictions_array.begin(), restrictions_array.end(),
                 [](const auto &p1, const auto &p2) -> bool {
                   return (p1.first.compare(p2.first) <= 0);
                 });
-      for (const auto rl_itr : restrictions_array) {
+      for (const auto &rl_itr : restrictions_array) {
         String db;
         db.length(0);
         db.append(STRING_WITH_LEN("REVOKE "));
@@ -1091,7 +1090,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
                           rl_itr.first.length());
         db.append(STRING_WITH_LEN(".* FROM "));
         append_identifier(thd, &db, acl_user->user,
-                          acl_user->user ? strlen(acl_user->user) : 0);
+                          acl_user->get_username_length());
         db.append('@');
         // host and lex_user->host are equal except for case
         append_identifier(thd, &db, acl_user->host.get_host(),
@@ -1180,8 +1179,7 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
       db.append(STRING_WITH_LEN("FUNCTION "));
     db.append(sp_name.c_str(), sp_name.length());
     db.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &db, role->user,
-                      role->user ? strlen(role->user) : 0);
+    append_identifier(thd, &db, role->user, role->get_username_length());
     db.append(STRING_WITH_LEN("@"));
     // host and lex_user->host are equal except for case
     append_identifier(thd, &db, role->host.get_host(),
@@ -1223,7 +1221,8 @@ void make_with_admin_privilege_statement(
   }
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, acl_user->user, strlen(acl_user->user));
+    append_identifier(thd, &global, acl_user->user,
+                      acl_user->get_username_length());
     global.append('@');
     append_identifier(thd, &global, acl_user->host.get_host(),
                       acl_user->host.get_host_len());
@@ -1259,7 +1258,8 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
       /* Dynamic privileges are always applied on global level */
       global.append(STRING_WITH_LEN(" ON *.* TO "));
       if (role->user != nullptr)
-        append_identifier(thd, &global, role->user, strlen(role->user));
+        append_identifier(thd, &global, role->user,
+                          role->get_username_length());
       else
         global.append(STRING_WITH_LEN("''"));
       global.append('@');
@@ -1326,8 +1326,7 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
   }  // end while
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user,
-                      role->user ? strlen(role->user) : 0);
+    append_identifier(thd, &global, role->user, role->get_username_length());
     global.append('@');
     append_identifier(thd, &global, role->host.get_host(),
                       role->host.get_host_len());
@@ -1399,7 +1398,7 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
     global.append(STRING_WITH_LEN(" ON "));
     global.append(qualified_table_name.c_str(), qualified_table_name.length());
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user, strlen(role->user));
+    append_identifier(thd, &global, role->user, role->get_username_length());
     global.append('@');
     // host and lex_user->host are equal except for case
     append_identifier(thd, &global, role->host.get_host(),
@@ -1589,7 +1588,7 @@ class Get_access_maps : public boost::default_bfs_visitor {
         m_with_admin_acl(with_admin_acl),
         m_dynamic_acl(dyn_acl),
         m_restrictions(restrictions),
-        m_grantee{acl_user->user, strlen(acl_user->user),
+        m_grantee{acl_user->user, acl_user->get_username_length(),
                   acl_user->host.get_host(), acl_user->host.get_host_len()} {}
   template <typename Vertex, typename Graph>
   void discover_vertex(Vertex u, const Graph &) const {
@@ -1787,7 +1786,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   want_priv =
       (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
           ? CREATE_TMP_ACL
-          : (CREATE_ACL | (select_lex->item_list.elements ? INSERT_ACL : 0));
+          : (CREATE_ACL | (select_lex->fields_list.elements ? INSERT_ACL : 0));
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
@@ -1841,7 +1840,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       check_grant(thd, want_priv, create_table, false, 1, false))
     goto err;
 
-  if (select_lex->item_list.elements) {
+  if (select_lex->fields_list.elements) {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
     if (tables &&
         check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
@@ -1971,8 +1970,13 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables) {
 
 bool check_single_table_access(THD *thd, ulong privilege,
                                TABLE_LIST *all_tables, bool no_errors) {
-  if (all_tables->is_internal()) {
-    // Optimizer internal tables does not need any privilege checking.
+  /*
+    Optimizer internal tables and the DD tables used under the
+    INFORMATION_SCHEMA system views does not need any privilege checking.
+  */
+  if (all_tables->is_internal() ||
+      (all_tables->referencing_view &&
+       all_tables->referencing_view->is_system_view)) {
     all_tables->set_privileges(privilege);
     return false;
   }
@@ -2560,37 +2564,56 @@ bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table) {
   Handle GRANT commands
 ****************************************************************************/
 
-bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
-                              const LEX_CSTRING &role_host) {
+bool has_grant_role_privilege(THD *thd, const List<LEX_USER> *roles) {
   DBUG_TRACE;
   Security_context *sctx = thd->security_context();
+
+  /* 1. user has global ROLE_ADMIN or SUPER_ACL privileges */
   if (sctx->check_access(SUPER_ACL) ||
       sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first) {
-    DBUG_PRINT("info", ("`%s`@`%s` has with admin privileges for `%s`@`%s` "
-                        "through super privileges or ROLE_ADMIN",
-                        sctx->priv_user().str, sctx->priv_host().str,
-                        role_name.str, role_host.str));
-    return true;
-  }
-  /*
-    1. user has global ROLE_ADMIN or SUPER_ACL privileges
-    2. user has inherited the GRANT r TO CURRENT_USER WITH ADMIN OPTION
-       privileges, where r is a node in some active role graph R granted to
-       CURRENT_USER.
-  */
-
-  if (sctx->has_with_admin_acl(role_name, role_host)) {
-    DBUG_PRINT("info", ("`%s`@`%s` has with admin privileges for `%s`@`%s` by "
-                        " WITH ADMIN from granted roles",
-                        sctx->priv_user().str, sctx->priv_host().str,
-                        role_name.str, role_host.str));
     return true;
   }
 
-  DBUG_PRINT("info", ("`%s`@`%s` doesn't have admin privileges for `%s`@`%s`",
-                      sctx->priv_user().str, sctx->priv_host().str,
-                      role_name.str, role_host.str));
-  return false;
+  LEX_USER *role, *tmp_role_name;
+  List_iterator<LEX_USER> role_list(const_cast<List<LEX_USER> &>(*roles));
+  std::vector<LEX_USER *> remaining_roles;
+
+  while ((tmp_role_name = role_list++)) {
+    if (!(role = get_current_user(thd, tmp_role_name))) {
+      remaining_roles.push_back(tmp_role_name);
+      continue;
+    }
+    /*
+      2. user has inherited the GRANT r TO CURRENT_USER WITH ADMIN OPTION
+         privileges, where r is a node in some active role graph R granted
+         to CURRENT_USER.
+    */
+
+    if (!sctx->has_with_admin_acl(role->user, role->host)) {
+      remaining_roles.push_back(tmp_role_name);
+    }
+  }
+
+  if (remaining_roles.size() == 0) return true;
+
+  /* Check if role was granted with WITH ADMIN option */
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false)) return false;
+  List_of_granted_roles granted_roles;
+  LEX_USER user;
+  user.user = sctx->priv_user();
+  user.host = sctx->priv_host();
+  get_granted_roles(&user, &granted_roles);
+
+  for (auto tmp_role : remaining_roles) {
+    if (!(role = get_current_user(thd, tmp_role))) return false;
+    std::string role_id(create_authid_str_from(role));
+    auto it = find(granted_roles.begin(), granted_roles.end(), role_id);
+    if (it == granted_roles.end()) return false;
+    if (it->second != true) return false;
+  }
+
+  return true;
 }
 
 /*
@@ -3142,8 +3165,6 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
                               role->user.str, role->host.str));
           Security_context *sctx = thd->security_context();
           if (sctx->can_operate_with({role}, consts::system_user)) {
-            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                     consts::system_user.c_str());
             errors = true;
             break;
           }
@@ -3278,8 +3299,6 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
                               role->user.str, role->host.str));
           Security_context *sctx = thd->security_context();
           if (sctx->can_operate_with({role}, consts::system_user)) {
-            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                     consts::system_user.c_str());
             errors = true;
             break;
           }
@@ -4637,8 +4656,8 @@ void get_privilege_access_maps(
 
 /**
   SHOW GRANTS FOR user USING [ALL | role [,role ...]]
-  @param thd
-  @param lex_user
+  @param thd         thread handler
+  @param lex_user    The user,host descriptor
   @param using_roles An forward iterable container of LEX_STRING std::pair
   @param show_mandatory_roles true means mandatory roles are listed
   @param have_using_clause true means there's a non-empty USING clause specified
@@ -5980,7 +5999,7 @@ bool find_if_granted_role(Role_vertex_descriptor v, LEX_CSTRING role,
     ACL_USER acl_user =
         get(boost::vertex_acl_user_t(),
             *g_granted_roles)[boost::target(*ei, *g_granted_roles)];
-    if ((role.length == strlen(acl_user.user)) &&
+    if ((role.length == acl_user.get_username_length()) &&
         (role_host.length == acl_user.host.get_host_len()) &&
         !strncmp(role.str, acl_user.user, role.length) &&
         (role_host.length == 0 ||
@@ -6011,7 +6030,7 @@ void get_granted_roles(Role_vertex_descriptor &v,
     int with_admin_opt = edge_with_admin[*ei];
     LEX_CSTRING tmp_user, tmp_host;
     tmp_user.str = acl_user.user;
-    tmp_user.length = strlen(acl_user.user);
+    tmp_user.length = acl_user.get_username_length();
     tmp_host.str = acl_user.host.get_host();
     tmp_host.length = acl_user.host.get_host_len();
     Role_id id(tmp_user, tmp_host);
@@ -6522,7 +6541,7 @@ Auth_id_ref create_authid_from(const LEX_CSTRING &user,
 */
 std::string create_authid_str_from(const ACL_USER *user) {
   String tmp;
-  size_t length = user->user == nullptr ? 0 : strlen(user->user);
+  size_t length = user->get_username_length();
   append_identifier(&tmp, user->user, length);
   tmp.append("@");
   append_identifier(&tmp, user->host.get_host(), user->host.get_host_len());
@@ -6542,10 +6561,7 @@ Auth_id_ref create_authid_from(const ACL_USER *user) {
   LEX_CSTRING username;
   LEX_CSTRING host;
   username.str = user->user;
-  if (user->user != nullptr)
-    username.length = strlen(user->user);
-  else
-    username.length = 0;
+  username.length = user->get_username_length();
   host.str = user->host.get_host();
   host.length = user->host.get_host_len();
   id = std::make_pair(username, host);
@@ -6678,11 +6694,12 @@ bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
 
 /**
   Grant one privilege to one user
-  @param str_priv
-  @param str_user
-  @param str_host
-  @param with_grant_option
-  @param update_table
+  @param str_priv           Dynamic privilege being granted
+  @param str_user           Username part of the grantee
+  @param str_host           Hostname part of the grantee
+  @param with_grant_option  Flag that determines if grantee can manage the
+  dynamic privilege
+  @param update_table       Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.
@@ -6736,9 +6753,9 @@ bool grant_dynamic_privilege(const LEX_CSTRING &str_priv,
 
 /**
   Grant grant option to one user for all dynamic privileges
-  @param str_user
-  @param str_host
-  @param update_table
+  @param str_user      Username part of the grantee
+  @param str_host      Hostname part of the grantee
+  @param update_table  Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.
@@ -6786,9 +6803,9 @@ bool grant_grant_option_for_all_dynamic_privileges(
 
 /**
   Revoke grant option to one user for all dynamic privileges
-  @param str_user
-  @param str_host
-  @param update_table
+  @param str_user      Username part of the grantee
+  @param str_host      Hostname part of the grantee
+  @param update_table  Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.
@@ -6877,11 +6894,12 @@ void revoke_dynamic_privileges_from_auth_id(
 }
 
 /**
-  Revoke one privilege from one user
-  @param str_priv
-  @param str_user
-  @param str_host
-  @param update_table
+  Revoke one privilege from one user.
+
+  @param str_priv      Privilege being revoked
+  @param str_user      Username part of the grantee
+  @param str_host      Hostname part of the grantee
+  @param update_table  Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.

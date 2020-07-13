@@ -5,7 +5,7 @@ define("dojox/dtl/DomInline", [
 	"dijit/_WidgetBase"
 ], function(lang,ddd,dd,Widget){
 
-	dd.DomInline = lang.extend(function(args, node){
+	return dd.DomInline = lang.extend(function(args, node){
 			this.create(args, node);
 		},
 		Widget.prototype,
@@ -36,5 +36,4 @@ define("dojox/dtl/DomInline", [
 				this.context = (this.context.get === dojox.dtl._Context.prototype.get) ? this.context : new dojox.dtl.Context(this.context);
 			}
 		});
-	return dojox.dtl.DomInline;
 });

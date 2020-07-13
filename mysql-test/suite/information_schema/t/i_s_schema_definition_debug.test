@@ -95,9 +95,10 @@
 --echo ########################################################################
 
 --source include/have_debug.inc
+SET debug = '+d,skip_dd_table_access_check';
 
 # Total number of system views in MySQL server.
-let $expected_system_view_count = 38;
+let $expected_system_view_count = 43;
 
 --echo ########################################################################
 --echo # PART 1
@@ -112,6 +113,30 @@ eval CREATE TABLE $I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 --echo # PART 2. Verify the I_S_VERSION and the CREATE VIEW statements of the
 --echo #         I_S system views.
 --echo ########################################################################
+
+--echo # Print the actual I_S version stored on disk.
+let $current_i_s_version = `SELECT SUBSTRING_INDEX(
+                            SUBSTRING_INDEX(SUBSTRING(properties,
+                            LOCATE('IS_VERSION', properties), 30), ';', 1)
+                           , '=', -1) AS I_S_VERSION
+                      FROM mysql.dd_properties`;
+--echo Current I_S_VERSION=$current_i_s_version
+
+let $current_mysqld_version = `SELECT SUBSTRING_INDEX(
+                            SUBSTRING_INDEX(SUBSTRING(properties,
+                            LOCATE('MYSQLD_VERSION', properties), 30), ';', 1)
+                           , '=', -1) AS MYSQLD_VERSION
+                      FROM mysql.dd_properties`;
+
+# Check if the I_S version on disk is greater than MYSQLD_VERSION.
+let $value = `SELECT $current_i_s_version > $current_mysqld_version`;
+if ($value) {
+  echo Error: I_S_VERSION ($current_i_s_version) version found in
+    sql/dd/info_schema/metadata.h is greater than MYSQLD_VERSION
+    ($current_i_s_version). I_S_VERSION should be <= MYSQLD_VERSION.;
+  die;
+}
+
 # We also store the defs in following table in order to calculate the
 # checksum later.
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -124,7 +149,6 @@ CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 --echo #         the current I_S version number.
 --echo ########################################################################
 
-SET debug = '+d,skip_dd_table_access_check';
 --disable_query_log
 
 # Verify number of system views stored in DD.
@@ -223,60 +247,137 @@ let $assert_cond = "[SELECT LENGTH(row_checksums) FROM whole_schema]"
 # (lctn = lower case table names).
 
 CREATE TABLE I_S_published_schema(
-  version VARCHAR(20),
+  mysqld_version VARCHAR(20),
+  i_s_version VARCHAR(20),
   lctn BOOL,
   checksum VARCHAR(64),
-  PRIMARY KEY (version, lctn));
+  PRIMARY KEY (i_s_version, lctn));
 
 # Checksums with ids.
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('80017', 0,
     '172ff4fb1366414e3fb16c0175eefe861a493dab30d59e299f6186f4abc8d13a');
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('80017', 1,
     '23dbc025dda0dfba52a9e9f09061290347c868735a01258396a55525e894b69b');
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('80018', 0,
     'b0077c83e03d640dcf26fc717accd5081269ea7ff3e6c3282914380a1246c1af');
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('80018', 1,
     'ca7b69e91a233bab7856f491e7dab6caff7f0fd4f56218ece438e95375ff2392');
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('80020', 0,
     'e74c98084d3f83870cd69ec351542ac2bdfe18275fcee10ad4e4f27c35d2c150');
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('80020', 1,
     '1223657a2f27ecdbea64f024eba5799275acd91fd23ef6696696ecf9f64161ec');
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('800201', 0,
     'db2c2bdf36bc5fd81f7f888ab9706774921ff5160b0543936559855f27e8ea51');
-INSERT INTO I_S_published_schema
+INSERT INTO I_S_published_schema (i_s_version, lctn, checksum)
   VALUES ('800201', 1,
     'b3cc231594350f18af9144d492687ca0c16a490b132096671a20b712ee19af76');
+INSERT INTO I_S_published_schema
+  VALUES ('80021', '80021', 0,
+    'be6f4d15dd5f5c817a9e589af721a23319d4e33e62093b00cb240e3fc84e68aa');
+INSERT INTO I_S_published_schema
+  VALUES ('80021', '80021', 1,
+    'b1359fbef2feecf8dfc688dc0716cea8686905aeee15a0115bcbfdbc0dc8f456');
 
---sorted_result
-SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
-                     version, '.'),
-              CONCAT('No I_S version found with schema checksum ',
-                     whole_schema.checksum, '.')) AS CHECK_STATUS
-  FROM I_S_published_schema
-    RIGHT OUTER JOIN whole_schema
-    ON I_S_published_schema.checksum= whole_schema.checksum;
+LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
+                  FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w
+                  ON i.checksum = w.checksum`;
+
+# Check if i_s_version in I_S_published_schema is greater than I_S version
+# on disk.
+let $value = `SELECT $checksum_version > $current_i_s_version`;
+if ($value) {
+  echo Error: The checksum in above INSERT is updated for I_S_VERSION
+    $checksum_version, but the version in sql/dd/info_schema/metadata.h
+    $current_i_s_version is different.;
+  die;
+}
+
+# If this is unknown checksum, ask to update valid checksum and I_S version
+# of server.
+if ($checksum_version == "0") {
+  let $action = `SELECT IF(COUNT(*) > 0,
+                           "update_checksum", "insert_checksum") as ACTION
+                 FROM I_S_published_schema i
+                 WHERE i.mysqld_version = '$current_mysqld_version' AND
+                       i.i_s_version = '$current_mysqld_version'`;
+
+  # Make sure that we always bump the I_S version equal to latest MySQLD
+  # version.
+  let $bump_version = `SELECT $current_mysqld_version != $current_i_s_version`;
+  if ($bump_version == "1") {
+    echo Please increase the I_S_VERSION in sql/dd/info_schema/metadata.h
+         to $current_mysqld_version.;
+  }
+
+  if ($action == "update_checksum") {
+    echo The given checksum is a new change for I_S version
+      $current_mysqld_version. Please update the existing INSERT
+      command above as follows:;
+  }
+
+  if ($action == "insert_checksum") {
+    echo There is no known I_S version with the given checksum. Please
+         add a new INSERT command above as follows:;
+  }
+
+  let $whole_checksum = `SELECT checksum FROM whole_schema`;
+  let $lctn = `SELECT @@global.lower_case_file_system`;
+  echo "INSERT INTO I_S_published_schema
+         VALUES ('$current_mysqld_version', '$current_mysqld_version', $lctn,
+                 '$whole_checksum');";
+
+  echo Note: If you are working on patch that is pushed for more than one
+    source tree. e.g., to mysql-8.0 and mysql-trunk. Then there may be
+    cases where checksum would differ in both the tree based on development
+    state. Please take this into consideration.;
+
+  die Error: Please take suggested action below and re-run the test.;
+}
+
+# We found known checksum.
+if ($checksum_version != "0") {
+  echo The schema checksum corresponds to I_S version $checksum_version.;
+}
 
 # Please read the comments at the beginning of the test file to make sure an
 # error in the assert below is handled correctly.
 
-let $assert_cond = "[SELECT COUNT(version)
-                       FROM I_S_published_schema, whole_schema
-                       WHERE I_S_published_schema.checksum =
-                             whole_schema.checksum
+# Make sure that the current checksum is already published.
+let $assert_cond = "[SELECT COUNT(i_s_version)
+                       FROM I_S_published_schema i, whole_schema w
+                       WHERE i.checksum = w.checksum
                        AND lctn = @@global.lower_case_file_system]" >= 1;
 --let $assert_text = The schema checksum corresponds to a known I_S version.
+--source include/assert.inc
+
+# Make sure that the current checksum is published with latest I_S version
+# stored in disk.
+let $assert_cond = "[SELECT COUNT(i_s_version)
+                       FROM I_S_published_schema i, whole_schema w
+                       WHERE i.checksum = w.checksum
+                       AND lctn = @@global.lower_case_file_system
+                       AND i_s_version = \'$current_i_s_version\']" >= 1;
+let $assert_text = The schema checksum corresponds to
+                       IS_VERSION $current_i_s_version stored on on disk.;
+--source include/assert.inc
+
+# Make sure that the I_S version stored on disk is the latest known I_S version
+# in I_S_published_schema.
+let $assert_cond = "[SELECT COUNT(i_s_version) FROM I_S_published_schema i
+                     WHERE i.i_s_version > $current_i_s_version AND
+                           i.i_s_version != \'800201\']" = 0;
+let $assert_text = The stored I_S version is the latest published I_S version.;
 --source include/assert.inc
 
 SET group_concat_max_len = @old_group_concat_max_len;
 eval DROP TABLES I_S_check_table, whole_schema, I_S_published_schema,
             $I_S_view_names;
 SET debug = '-d,skip_dd_table_access_check';
-
 --enable_query_log

@@ -3,7 +3,7 @@
 #
 CREATE TABLE t1 (c1 INT, KEY(c1));
 CREATE TABLE t2 (c1 BIGINT, KEY(c1));
-CREATE TABLE t3 (c1 DECIMAL(5,2), KEY(c1));
+CREATE TABLE t3 (c1 DECIMAL(10,2), KEY(c1));
 CREATE TABLE t4 (c1 FLOAT, KEY(c1));
 CREATE TABLE t5 (c1 DOUBLE, KEY(c1));
 CREATE TABLE t6 (c1 CHAR(60), KEY(c1));
@@ -12,22 +12,26 @@ CREATE TABLE t8 (c1 TIME, KEY(c1));
 CREATE TABLE t9 (c1 TIMESTAMP, KEY(c1));
 CREATE TABLE t10 (c1 DATE, KEY(c1));
 CREATE TABLE t11 (c1 DATETIME, KEY(c1));
-CREATE TABLE t12 (c1 CHAR(5) CHARACTER SET UTF16, KEY(c1));
+CREATE TABLE t12 (c1 CHAR(10) CHARACTER SET UTF16, KEY(c1));
 CREATE TABLE t13 (c1 BIGINT UNSIGNED, KEY(c1));
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (64);
-INSERT INTO t2 VALUES (3), (9), (64), (-1), (-64);
-INSERT INTO t3 VALUES (3.0), (10.0), (64.0), (64.1);
-INSERT INTO t4 VALUES (3.3), (9.9), (64e0), (64.1e0);
-INSERT INTO t5 VALUES (3.3), (9.9), (64e0), (64.1e0);
-INSERT INTO t6 VALUES ('11'), ('21'), ('3'), ('64'), ('64.1');
-INSERT INTO t7 VALUES ('11'), ('21'), ('3'), ('64'), ('64.1');
+INSERT INTO t1 VALUES (19910113), (20010514), (19930513), (19970416), (19960416),
+(19950414);
+INSERT INTO t2 VALUES (19930513), (19990419), (19950414), (-1), (-19950414);
+INSERT INTO t3 VALUES (19930513.3), (19990519), (19950414.0), (19950414.1);
+INSERT INTO t4 VALUES (19930513.3), (19990419.2), (19950414e0), (19950414.1e0);
+INSERT INTO t5 VALUES (19930513.3), (19990419.2), (19950414e0), (19950414.1e0);
+INSERT INTO t6 VALUES ('19910111'), ('20010513'), ('19930513'), ('19950414'),
+('19950414.1');
+INSERT INTO t7 VALUES ('19910111'), ('20010513'), ('19930513'), ('19950414'),
+('19950414.1');
 INSERT INTO t8 VALUES ('10:22:33'), ('12:34:56'), ('33:22:33');
 INSERT INTO t9 VALUES (20150413102233), (19990102123456);
 INSERT INTO t10 VALUES ('1998-01-01'), ('2015-04-13');
 INSERT INTO t11 VALUES ('1999-08-14 01:00:00'), ('2015-04-13 10:22:33'),
 ('2015-04-14 09:22:33');
-INSERT INTO t12 VALUES ('11'), ('3'), ('21'), ('64'), ('64.1');
-INSERT INTO t13 VALUES (64),(18446744073709551615);
+INSERT INTO t12 VALUES ('19910111'), ('19930513'), ('20010513'), ('19950414')
+, ('19950414.1');
+INSERT INTO t13 VALUES (19950414),(18446744073709551615);
 ANALYZE TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -51,24 +55,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t2 WHERE t1.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -84,24 +88,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t3 WHERE t1.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
+19950414	19950414.00
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -117,21 +118,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t4 WHERE t1.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -147,21 +149,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t5 WHERE t1.c1=t5.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -177,24 +179,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t6 WHERE t1.c1=t6.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -216,24 +218,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t7 WHERE t1.c1=t7.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -381,24 +383,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t12 WHERE t1.c1=t12.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -414,21 +416,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t13 WHERE t1.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -444,24 +446,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t1 WHERE t2.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -477,24 +479,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t3 WHERE t2.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
+19950414	19950414.00
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -510,21 +509,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t4 WHERE t2.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -540,21 +540,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t5 WHERE t2.c1=t5.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -570,24 +570,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t6 WHERE t2.c1=t6.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -603,24 +603,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t7 WHERE t2.c1=t7.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -744,24 +744,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t12 WHERE t2.c1=t12.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -777,21 +777,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t13 WHERE t2.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -807,24 +807,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t1 WHERE t3.c1=t1.c1;
 c1	c1
-3.00	3
-64.00	64
+19950414.00	19950414
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -840,24 +837,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t2 WHERE t3.c1=t2.c1;
 c1	c1
-3.00	3
-64.00	64
+19950414.00	19950414
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -873,21 +867,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t4 WHERE t3.c1=t4.c1;
 c1	c1
-64.00	64
+19950414.00	19950400
+19950414.00	19950400
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -903,24 +898,27 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t5 WHERE t3.c1=t5.c1;
 c1	c1
-64.00	64
-64.10	64.1
+19930513.30	19930513.3
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64.00
-64.10
+19930513.30
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64.00
-64.10
+19930513.30
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -936,27 +934,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t6 WHERE t3.c1=t6.c1;
 c1	c1
-3.00	3
-64.00	64
-64.10	64.1
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -972,27 +967,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t7 WHERE t3.c1=t7.c1;
 c1	c1
-3.00	3
-64.00	64
-64.10	64.1
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1116,27 +1108,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t12 WHERE t3.c1=t12.c1;
 c1	c1
-3.00	3
-64.00	64
-64.10	64.1
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1152,21 +1141,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t13 WHERE t3.c1=t13.c1;
 c1	c1
-64.00	64
+19950414.00	19950414
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1182,21 +1171,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t1 WHERE t4.c1=t1.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1212,21 +1203,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t2 WHERE t4.c1=t2.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1242,21 +1235,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t3 WHERE t4.c1=t3.c1;
 c1	c1
-64	64.00
+19950400	19950414.00
+19950400	19950414.00
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1272,21 +1267,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t5 WHERE t4.c1=t5.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1302,21 +1299,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t6 WHERE t4.c1=t6.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1332,21 +1331,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t7 WHERE t4.c1=t7.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1470,21 +1471,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t12 WHERE t4.c1=t12.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1500,21 +1503,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t13 WHERE t4.c1=t13.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1530,21 +1535,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t1 WHERE t5.c1=t1.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1560,21 +1565,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t2 WHERE t5.c1=t2.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1590,24 +1595,27 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t3 WHERE t5.c1=t3.c1;
 c1	c1
-64	64.00
-64.1	64.10
+19930513.3	19930513.30
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-64
-64.1
+19930513.3
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-64
-64.1
+19930513.3
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1623,21 +1631,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t4 WHERE t5.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1653,24 +1662,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t6 WHERE t5.c1=t6.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1686,24 +1695,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t7 WHERE t5.c1=t7.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1827,24 +1836,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t12 WHERE t5.c1=t12.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1860,21 +1869,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t13 WHERE t5.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1890,24 +1899,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t1 WHERE t6.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1928,24 +1937,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t2 WHERE t6.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1961,27 +1970,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t3 WHERE t6.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
-64.1	64.10
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1997,21 +2003,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t4 WHERE t6.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2027,24 +2034,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t5 WHERE t6.c1=t5.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2060,33 +2067,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t7 WHERE t6.c1=t7.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2230,33 +2237,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t12 WHERE t6.c1=t12.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2272,21 +2279,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t13 WHERE t6.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2302,24 +2309,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t1 WHERE t7.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2340,24 +2347,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t2 WHERE t7.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2373,27 +2380,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t3 WHERE t7.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
-64.1	64.10
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2409,21 +2413,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t4 WHERE t7.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2439,24 +2444,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t5 WHERE t7.c1=t5.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2472,33 +2477,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t6 WHERE t7.c1=t6.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2642,33 +2647,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t12 WHERE t7.c1=t12.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2684,21 +2689,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t13 WHERE t7.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4160,24 +4165,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t1 WHERE t12.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4193,24 +4198,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t2 WHERE t12.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4226,27 +4231,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t3 WHERE t12.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
-64.1	64.10
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4262,21 +4264,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t4 WHERE t12.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4292,24 +4295,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t5 WHERE t12.c1=t5.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4325,33 +4328,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t6 WHERE t12.c1=t6.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4367,33 +4370,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t7 WHERE t12.c1=t7.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4517,21 +4520,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t13 WHERE t12.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4547,21 +4550,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t1 WHERE t13.c1=t1.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4577,21 +4580,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t2 WHERE t13.c1=t2.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4607,21 +4610,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t3 WHERE t13.c1=t3.c1;
 c1	c1
-64	64.00
+19950414	19950414.00
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4637,21 +4640,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t4 WHERE t13.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4667,21 +4671,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t5 WHERE t13.c1=t5.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4697,21 +4701,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t6 WHERE t13.c1=t6.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4727,21 +4731,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t7 WHERE t13.c1=t7.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4865,21 +4869,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t12 WHERE t13.c1=t12.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4922,8 +4926,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t2 WHERE t1.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -4931,16 +4935,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4956,8 +4960,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t3 WHERE t1.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
+19950414	19950414.00
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -4965,16 +4968,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4990,7 +4991,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t4 WHERE t1.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -4998,14 +5000,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5021,7 +5023,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t5 WHERE t1.c1=t5.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5029,14 +5031,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5052,24 +5054,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t6 WHERE t1.c1=t6.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5091,24 +5093,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t7 WHERE t1.c1=t7.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5256,24 +5258,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t12 WHERE t1.c1=t12.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5289,7 +5291,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 STRAIGHT_JOIN t13 WHERE t1.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5297,14 +5299,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5320,8 +5322,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t1 WHERE t2.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5329,16 +5331,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5353,8 +5355,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t3 WHERE t2.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
+19950414	19950414.00
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5362,16 +5363,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5386,7 +5385,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t4 WHERE t2.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5394,14 +5394,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5416,7 +5416,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t5 WHERE t2.c1=t5.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5424,14 +5424,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5446,24 +5446,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t6 WHERE t2.c1=t6.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5478,24 +5478,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t7 WHERE t2.c1=t7.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5614,24 +5614,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t12 WHERE t2.c1=t12.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5646,7 +5646,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 STRAIGHT_JOIN t13 WHERE t2.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5654,14 +5654,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t2 WHERE (SELECT 1 FROM t2 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5676,8 +5676,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t1 WHERE t3.c1=t1.c1;
 c1	c1
-3.00	3
-64.00	64
+19950414.00	19950414
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5685,16 +5684,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5709,8 +5706,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t2 WHERE t3.c1=t2.c1;
 c1	c1
-3.00	3
-64.00	64
+19950414.00	19950414
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5718,16 +5714,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3.00
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5742,7 +5736,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t4 WHERE t3.c1=t4.c1;
 c1	c1
-64.00	64
+19950414.00	19950400
+19950414.00	19950400
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5750,14 +5745,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5772,8 +5767,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t5 WHERE t3.c1=t5.c1;
 c1	c1
-64.00	64
-64.10	64.1
+19930513.30	19930513.3
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -5781,16 +5777,18 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64.00
-64.10
+19930513.30
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64.00
-64.10
+19930513.30
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5805,27 +5803,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t6 WHERE t3.c1=t6.c1;
 c1	c1
-3.00	3
-64.00	64
-64.10	64.1
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5840,27 +5835,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t7 WHERE t3.c1=t7.c1;
 c1	c1
-3.00	3
-64.00	64
-64.10	64.1
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5979,27 +5971,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t12 WHERE t3.c1=t12.c1;
 c1	c1
-3.00	3
-64.00	64
-64.10	64.1
+19950414.00	19950414
+19950414.10	19950414.1
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-3.00
-64.00
-64.10
+19950414.00
+19950414.10
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6014,7 +6003,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 STRAIGHT_JOIN t13 WHERE t3.c1=t13.c1;
 c1	c1
-64.00	64
+19950414.00	19950414
 EXPLAIN SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6022,14 +6011,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64.00
+19950414.00
 EXPLAIN SELECT 1 FROM t3 WHERE (SELECT 1 FROM t3 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6044,7 +6033,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t1 WHERE t4.c1=t1.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6052,14 +6042,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6074,7 +6065,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t2 WHERE t4.c1=t2.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6082,14 +6074,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6104,7 +6097,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t3 WHERE t4.c1=t3.c1;
 c1	c1
-64	64.00
+19950400	19950414.00
+19950400	19950414.00
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6112,14 +6106,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6134,7 +6129,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t5 WHERE t4.c1=t5.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6142,14 +6138,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6164,21 +6161,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t6 WHERE t4.c1=t6.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6193,21 +6192,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t7 WHERE t4.c1=t7.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6326,21 +6327,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t12 WHERE t4.c1=t12.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6355,7 +6358,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 STRAIGHT_JOIN t13 WHERE t4.c1=t13.c1;
 c1	c1
-64	64
+19950400	19950414
+19950400	19950414
 EXPLAIN SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6363,14 +6367,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950400
+19950400
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950400
 EXPLAIN SELECT 1 FROM t4 WHERE (SELECT 1 FROM t4 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6385,7 +6390,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t1 WHERE t5.c1=t1.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6393,14 +6398,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6415,7 +6420,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t2 WHERE t5.c1=t2.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6423,14 +6428,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6445,8 +6450,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t3 WHERE t5.c1=t3.c1;
 c1	c1
-64	64.00
-64.1	64.10
+19930513.3	19930513.30
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6454,16 +6460,18 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-64
-64.1
+19930513.3
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-64
-64.1
+19930513.3
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6478,7 +6486,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t4 WHERE t5.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6486,14 +6495,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6508,24 +6517,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t6 WHERE t5.c1=t6.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6540,24 +6549,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t7 WHERE t5.c1=t7.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6676,24 +6685,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t12 WHERE t5.c1=t12.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6708,7 +6717,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 STRAIGHT_JOIN t13 WHERE t5.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6716,14 +6725,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t5 WHERE (SELECT 1 FROM t5 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6738,8 +6747,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t1 WHERE t6.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6747,16 +6756,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6777,8 +6786,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t2 WHERE t6.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6786,16 +6795,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6811,9 +6820,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t3 WHERE t6.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
-64.1	64.10
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6821,18 +6829,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6848,7 +6854,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t4 WHERE t6.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6856,14 +6863,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6879,8 +6886,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t5 WHERE t6.c1=t5.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6888,16 +6895,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -6913,11 +6920,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t7 WHERE t6.c1=t7.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -6925,22 +6932,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7084,33 +7091,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t12 WHERE t6.c1=t12.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7126,7 +7133,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 STRAIGHT_JOIN t13 WHERE t6.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7134,14 +7141,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t6 WHERE (SELECT 1 FROM t6 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7157,8 +7164,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t1 WHERE t7.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7166,16 +7173,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7196,8 +7203,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t2 WHERE t7.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7205,16 +7212,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7230,9 +7237,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t3 WHERE t7.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
-64.1	64.10
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7240,18 +7246,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7267,7 +7271,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t4 WHERE t7.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7275,14 +7280,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7298,8 +7303,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t5 WHERE t7.c1=t5.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7307,16 +7312,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7332,11 +7337,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t6 WHERE t7.c1=t6.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7344,22 +7349,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7503,33 +7508,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t12 WHERE t7.c1=t12.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7545,7 +7550,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 STRAIGHT_JOIN t13 WHERE t7.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -7553,14 +7558,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t7 WHERE (SELECT 1 FROM t7 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9043,8 +9048,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t1 WHERE t12.c1=t1.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9052,16 +9057,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9076,8 +9081,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t2 WHERE t12.c1=t2.c1;
 c1	c1
-3	3
-64	64
+19930513	19930513
+19950414	19950414
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9085,16 +9090,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-3
-64
+19930513
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9109,9 +9114,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t3 WHERE t12.c1=t3.c1;
 c1	c1
-3	3.00
-64	64.00
-64.1	64.10
+19950414	19950414.00
+19950414.1	19950414.10
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9119,18 +9123,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-3
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9145,7 +9147,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t4 WHERE t12.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9153,14 +9156,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9175,8 +9178,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t5 WHERE t12.c1=t5.c1;
 c1	c1
-64	64
-64.1	64.1
+19950414	19950414
+19950414.1	19950414.1
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9184,16 +9187,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
-64.1
+19950414
+19950414.1
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9208,33 +9211,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t6 WHERE t12.c1=t6.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9249,33 +9252,33 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t7 WHERE t12.c1=t7.c1;
 c1	c1
-11	11
-21	21
-3	3
-64	64
-64.1	64.1
+19910111	19910111
+19930513	19930513
+19950414	19950414
+19950414.1	19950414.1
+20010513	20010513
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-11
-21
-3
-64
-64.1
+19910111
+19930513
+19950414
+19950414.1
+20010513
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9394,7 +9397,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 STRAIGHT_JOIN t13 WHERE t12.c1=t13.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9402,14 +9405,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 WHERE c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t12 WHERE (SELECT 1 FROM t12 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t13 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9424,7 +9427,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t1 WHERE t13.c1=t1.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9432,14 +9435,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t1 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9454,7 +9457,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t2 WHERE t13.c1=t2.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9462,14 +9465,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t2 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9484,7 +9487,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t3 WHERE t13.c1=t3.c1;
 c1	c1
-64	64.00
+19950414	19950414.00
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9492,14 +9495,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t3 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9514,7 +9517,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t4 WHERE t13.c1=t4.c1;
 c1	c1
-64	64
+19950414	19950400
+19950414	19950400
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9522,14 +9526,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t4 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9544,7 +9548,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t5 WHERE t13.c1=t5.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
@@ -9552,14 +9556,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	MATERIALIZED	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t5 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9574,21 +9578,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t6 WHERE t13.c1=t6.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t6 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9603,21 +9607,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t7 WHERE t13.c1=t7.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t7 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -9736,21 +9740,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 STRAIGHT_JOIN t12 WHERE t13.c1=t12.c1;
 c1	c1
-64	64
+19950414	19950414
 EXPLAIN SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 #	SIMPLE	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 WHERE c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950414
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 #	PRIMARY	#	#	#	#	#	#	#	#	#	#
 #	DEPENDENT SUBQUERY	#	#	#	#	#	#	#	#	#	#
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t12);
 c1
-64
+19950414
 EXPLAIN SELECT 1 FROM t13 WHERE (SELECT 1 FROM t13 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t12 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

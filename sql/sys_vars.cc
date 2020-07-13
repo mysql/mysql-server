@@ -128,7 +128,7 @@
 #include "sql/sql_locale.h"     // my_locale_by_number
 #include "sql/sql_parse.h"      // killall_non_super_threads
 #include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_acceptor_context_operator.h"
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
 #include "sql/transaction.h"  // trans_commit_stmt
@@ -1749,7 +1749,10 @@ static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_database(
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var) {
   if (check_charset_not_null(self, thd, var)) return true;
 
-  // Currently, UCS-2 cannot be used as a client character set
+  // We don't currently support any variable-width character set with a minumum
+  // length greater than 1. If we ever do, we have to revisit
+  // is_supported_parser_charset(). See Item_func_statement_digest::val_str()
+  // and Item_func_statement_digest_text::val_str().
   return (static_cast<const CHARSET_INFO *>(var->save_result.ptr))->mbminlen >
          1;
 }
@@ -2424,10 +2427,10 @@ static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
 static Sys_var_charptr Sys_log_error_services(
     "log_error_services",
     "Services that should be called when an error event is received",
-    GLOBAL_VAR(opt_log_error_services), CMD_LINE(REQUIRED_ARG),
-    IN_SYSTEM_CHARSET, DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_log_error_services),
-    ON_UPDATE(fix_log_error_services));
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_log_error_services),
+    CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
+    DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services));
 
 static bool check_log_error_suppression_list(sys_var *self, THD *thd,
                                              set_var *var) {
@@ -2466,9 +2469,9 @@ static Sys_var_charptr Sys_log_error_suppression_list(
     "or Error severity will always be included. Requires the filter "
     "\'log_filter_internal\' to be set in @@global.log_error_services, which "
     "is the default.",
-    GLOBAL_VAR(opt_log_error_suppression_list), CMD_LINE(REQUIRED_ARG),
-    IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_log_error_suppression_list),
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_log_error_suppression_list),
+    CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_log_error_suppression_list),
     ON_UPDATE(fix_log_error_suppression_list));
 
 static Sys_var_bool Sys_log_queries_not_using_indexes(
@@ -2523,9 +2526,9 @@ static Sys_var_ulong Sys_log_error_verbosity(
     "2, log errors and warnings. "
     "3, log errors, warnings, and notes. "
     "Messages sent to the client are unaffected by this setting.",
-    GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 3),
-    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(update_log_error_verbosity));
+    PERSIST_AS_READONLY GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(update_log_error_verbosity));
 
 static Sys_var_enum Sys_log_timestamps(
     "log_timestamps",
@@ -3116,6 +3119,8 @@ static const char *optimizer_switch_names[] = {
     "use_invisible_indexes",
     "skip_scan",
     "hash_join",
+    "subquery_to_derived",
+    "prefer_ordering_index",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3125,9 +3130,10 @@ static Sys_var_flagset Sys_optimizer_switch(
     "index_merge_intersection, engine_condition_pushdown, "
     "index_condition_pushdown, mrr, mrr_cost_based"
     ", materialization, semijoin, loosescan, firstmatch, duplicateweedout,"
-    " subquery_materialization_cost_based, skip_scan"
-    ", block_nested_loop, batched_key_access, use_index_extensions,"
-    " condition_fanout_filter, derived_merge, hash_join} and val is one of "
+    " subquery_materialization_cost_based, skip_scan,"
+    " block_nested_loop, batched_key_access, use_index_extensions,"
+    " condition_fanout_filter, derived_merge, hash_join,"
+    " subquery_to_derived, prefer_ordering_index} and val is one of "
     "{on, off, default}",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
@@ -3268,7 +3274,7 @@ static bool check_require_secure_transport(
   */
 
   if (!var->save_result.ulonglong_value) return false;
-  if (SslAcceptorContext::have_ssl() || opt_enable_shared_memory) return false;
+  if (have_ssl() || opt_enable_shared_memory) return false;
   /* reject if SSL and shared memory are both disabled: */
   my_error(ER_NO_SECURE_TRANSPORTS_CONFIGURED, MYF(0));
   return true;
@@ -3751,6 +3757,13 @@ static bool check_binlog_transaction_dependency_tracking(sys_var *, THD *,
 static bool update_binlog_transaction_dependency_tracking(sys_var *, THD *,
                                                           enum_var_type) {
   /*
+    m_opt_tracking_mode is read and written in an atomic way based
+    on the value of m_opt_tracking_mode_value that is associated
+    with the sys_var variable.
+  */
+  set_mysqld_opt_tracking_mode();
+
+  /*
     the writeset_history_start needs to be set to 0 whenever there is a
     change in the transaction dependency source so that WS and COMMIT
     transition smoothly.
@@ -3769,7 +3782,7 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
     "assess which transactions can be executed in parallel by the "
     "slave's multi-threaded applier. "
     "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
-    GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
+    GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode_value),
     CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
     DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_slave_trans_dep_tracker,
     NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
@@ -3923,15 +3936,15 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
 
 */
 static void issue_deprecation_warnings_gtid_mode(
-    THD *thd, enum_gtid_mode oldmode MY_ATTRIBUTE((unused)),
-    enum_gtid_mode newmode) {
+    THD *thd, Gtid_mode::value_type oldmode MY_ATTRIBUTE((unused)),
+    Gtid_mode::value_type newmode) {
   channel_map.assert_some_lock();
 
   /*
     Check that if changing to gtid_mode=on no channel is configured
     to ignore server ids. If it is, issue a deprecation warning.
   */
-  if (newmode == GTID_MODE_ON) {
+  if (newmode == Gtid_mode::ON) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
       Master_info *mi = it->second;
@@ -3985,16 +3998,16 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     Hold global_sid_lock.wrlock so that:
     - other transactions cannot acquire ownership of any gtid.
 
-    Hold gtid_mode_lock so that all places that don't want to hold
+    Hold Gtid_mode::lock so that all places that don't want to hold
     any of the other locks, but want to read gtid_mode, don't need
     to take the other locks.
   */
 
-  enum_gtid_mode new_gtid_mode =
-      (enum_gtid_mode)var->save_result.ulonglong_value;
+  auto new_gtid_mode =
+      static_cast<Gtid_mode::value_type>(var->save_result.ulonglong_value);
 
-  if (gtid_mode_lock->trywrlock()) {
-    my_error(ER_CANT_SET_GTID_MODE, MYF(0), get_gtid_mode_string(new_gtid_mode),
+  if (Gtid_mode::lock.trywrlock()) {
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0), Gtid_mode::to_string(new_gtid_mode),
              "there is a concurrent operation that disallows changes to "
              "@@GLOBAL.GTID_MODE");
     return ret;
@@ -4005,8 +4018,8 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
   global_sid_lock->wrlock();
   int lock_count = 4;
 
-  enum_gtid_mode old_gtid_mode = get_gtid_mode(GTID_MODE_LOCK_SID);
-  DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
+  auto old_gtid_mode = global_gtid_mode.get();
+  DBUG_ASSERT(new_gtid_mode <= Gtid_mode::ON);
 
   DBUG_PRINT("info", ("old_gtid_mode=%d new_gtid_mode=%d", old_gtid_mode,
                       new_gtid_mode));
@@ -4026,28 +4039,28 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
 
   // Not allowed with slave_sql_skip_counter
   DBUG_PRINT("info", ("sql_slave_skip_counter=%d", sql_slave_skip_counter));
-  if (new_gtid_mode == GTID_MODE_ON && sql_slave_skip_counter > 0) {
+  if (new_gtid_mode == Gtid_mode::ON && sql_slave_skip_counter > 0) {
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
              "@@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero");
     goto err;
   }
 
-  if (new_gtid_mode != GTID_MODE_ON && replicate_same_server_id &&
+  if (new_gtid_mode != Gtid_mode::ON && replicate_same_server_id &&
       opt_log_slave_updates && opt_bin_log) {
-    std::string mode = get_gtid_mode_string(new_gtid_mode);
     std::stringstream ss;
 
     ss << "replicate_same_server_id is set together with log_slave_updates"
-       << " and log_bin. Thus, setting @@global.GTID_MODE = " << mode
-       << " would lead to infinite loops in case this server is part of a"
+       << " and log_bin. Thus, any anonymous transactions"
+       << " would circulate infinitely in case this server is part of a"
        << " circular replication topology";
 
-    my_error(ER_CANT_SET_GTID_MODE, MYF(0), mode.c_str(), ss.str().c_str());
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0), Gtid_mode::to_string(new_gtid_mode),
+             ss.str().c_str());
     goto err;
   }
 
   // Cannot set OFF when some channel uses AUTO_POSITION.
-  if (new_gtid_mode == GTID_MODE_OFF) {
+  if (new_gtid_mode == Gtid_mode::OFF) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
       Master_info *mi = it->second;
@@ -4070,9 +4083,9 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
 
   // Can't set GTID_MODE != ON when group replication is enabled.
   if (is_group_replication_running()) {
-    DBUG_ASSERT(old_gtid_mode == GTID_MODE_ON);
-    DBUG_ASSERT(new_gtid_mode == GTID_MODE_ON_PERMISSIVE);
-    my_error(ER_CANT_SET_GTID_MODE, MYF(0), get_gtid_mode_string(new_gtid_mode),
+    DBUG_ASSERT(old_gtid_mode == Gtid_mode::ON);
+    DBUG_ASSERT(new_gtid_mode == Gtid_mode::ON_PERMISSIVE);
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0), Gtid_mode::to_string(new_gtid_mode),
              "group replication requires @@GLOBAL.GTID_MODE=ON");
     goto err;
   }
@@ -4082,7 +4095,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
                       gtid_state->get_anonymous_ownership_count(),
                       gtid_state->get_owned_gtids()->is_empty()));
   gtid_state->get_owned_gtids()->dbug_print("global owned_gtids");
-  if (new_gtid_mode == GTID_MODE_ON &&
+  if (new_gtid_mode == Gtid_mode::ON &&
       gtid_state->get_anonymous_ownership_count() > 0) {
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
              "there are ongoing, anonymous transactions. Before "
@@ -4096,7 +4109,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
-  if (new_gtid_mode == GTID_MODE_OFF &&
+  if (new_gtid_mode == Gtid_mode::OFF &&
       !gtid_state->get_owned_gtids()->is_empty()) {
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
              "there are ongoing transactions that have a GTID. "
@@ -4113,7 +4126,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
   DBUG_PRINT("info",
              ("automatic_gtid_violating_transaction_count=%d",
               gtid_state->get_automatic_gtid_violating_transaction_count()));
-  if (new_gtid_mode >= GTID_MODE_ON_PERMISSIVE &&
+  if (new_gtid_mode >= Gtid_mode::ON_PERMISSIVE &&
       gtid_state->get_automatic_gtid_violating_transaction_count() > 0) {
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON_PERMISSIVE",
              "there are ongoing transactions that use "
@@ -4127,7 +4140,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
   }
 
   // Compatible with ENFORCE_GTID_CONSISTENCY.
-  if (new_gtid_mode == GTID_MODE_ON &&
+  if (new_gtid_mode == Gtid_mode::ON &&
       get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON) {
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
              "ENFORCE_GTID_CONSISTENCY is not ON");
@@ -4139,7 +4152,8 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
   // WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
   DBUG_PRINT("info",
              ("gtid_wait_count=%d", gtid_state->get_gtid_wait_count() > 0));
-  if (new_gtid_mode == GTID_MODE_OFF && gtid_state->get_gtid_wait_count() > 0) {
+  if (new_gtid_mode == Gtid_mode::OFF &&
+      gtid_state->get_gtid_wait_count() > 0) {
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
              "there are ongoing calls to "
              "WAIT_FOR_EXECUTED_GTID_SET or "
@@ -4152,13 +4166,14 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
 
   // Update the mode
   global_var(ulong) = new_gtid_mode;
-  gtid_mode_counter++;
+  global_gtid_mode.set(new_gtid_mode);
   global_sid_lock->unlock();
   lock_count = 3;
 
   // Generate note in log
-  LogErr(SYSTEM_LEVEL, ER_CHANGED_GTID_MODE, gtid_mode_names[old_gtid_mode],
-         gtid_mode_names[new_gtid_mode]);
+  LogErr(SYSTEM_LEVEL, ER_CHANGED_GTID_MODE,
+         Gtid_mode::to_string(old_gtid_mode),
+         Gtid_mode::to_string(new_gtid_mode));
 
   // Rotate
   {
@@ -4177,7 +4192,7 @@ err:
   if (lock_count == 4) global_sid_lock->unlock();
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   channel_map.unlock();
-  gtid_mode_lock->unlock();
+  Gtid_mode::lock.unlock();
   return ret;
 }
 
@@ -4196,7 +4211,7 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
   enum_gtid_consistency_mode new_mode =
       (enum_gtid_consistency_mode)var->save_result.ulonglong_value;
   enum_gtid_consistency_mode old_mode = get_gtid_consistency_mode();
-  enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_SID);
+  auto gtid_mode = global_gtid_mode.get();
 
   DBUG_ASSERT(new_mode <= GTID_CONSISTENCY_MODE_WARN);
 
@@ -4208,7 +4223,7 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
   if (new_mode == old_mode) goto end;
 
   // Can't turn off GTID-consistency when GTID_MODE=ON.
-  if (new_mode != GTID_CONSISTENCY_MODE_ON && gtid_mode == GTID_MODE_ON) {
+  if (new_mode != GTID_CONSISTENCY_MODE_ON && gtid_mode == Gtid_mode::ON) {
     my_error(ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
     goto err;
   }
@@ -5397,8 +5412,7 @@ static Sys_var_have Sys_have_geometry(
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_geometry), NO_CMD_LINE);
 
 static SHOW_COMP_OPTION have_ssl_func(THD *thd MY_ATTRIBUTE((unused))) {
-  return SslAcceptorContext::have_ssl() ? SHOW_OPTION_YES
-                                        : SHOW_OPTION_DISABLED;
+  return have_ssl() ? SHOW_OPTION_YES : SHOW_OPTION_DISABLED;
 }
 
 enum SHOW_COMP_OPTION Sys_var_have_func::dummy_;
@@ -5679,11 +5693,11 @@ static Sys_var_uint Sys_slave_net_timeout(
 static bool check_slave_skip_counter(sys_var *, THD *, set_var *) {
   /*
     @todo: move this check into the set function and hold the lock on
-    gtid_mode_lock until the operation has completed, so that we are
+    Gtid_mode::lock until the operation has completed, so that we are
     sure a concurrent connection does not change gtid_mode between
     check and fix.
   */
-  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) {
+  if (global_gtid_mode.get() == Gtid_mode::ON) {
     my_error(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE, MYF(0));
     return true;
   }
@@ -5979,11 +5993,11 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var) {
     return true;
   /*
     @todo: move this check into the set function and hold the lock on
-    gtid_mode_lock until the operation has completed, so that we are
+    Gtid_mode::lock until the operation has completed, so that we are
     sure a concurrent connection does not change gtid_mode between
     check and fix - if we ever implement this variable.
   */
-  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF &&
+  if (global_gtid_mode.get() == Gtid_mode::OFF &&
       var->save_result.string_value.str != NULL)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
              MYF(0));
@@ -6129,8 +6143,9 @@ static Sys_var_gtid_mode Sys_gtid_mode(
     "ON_PERMISSIVE, then wait for all transactions without a GTID to "
     "be replicated and executed on all servers, and finally set all "
     "servers to GTID_MODE = ON.",
-    PERSIST_AS_READONLY GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG),
-    gtid_mode_names, DEFAULT(DEFAULT_GTID_MODE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    PERSIST_AS_READONLY GLOBAL_VAR(Gtid_mode::sysvar_mode),
+    CMD_LINE(REQUIRED_ARG), Gtid_mode::names, DEFAULT(Gtid_mode::DEFAULT),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_session_admin_outside_trx_outside_sf_outside_sp));
 
 static Sys_var_uint Sys_gtid_executed_compression_period(

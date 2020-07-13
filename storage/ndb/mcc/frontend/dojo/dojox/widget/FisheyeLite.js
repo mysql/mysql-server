@@ -20,7 +20,7 @@ this._runningOut.play();
 },_makeAnims:function(){
 var _a={},_b={},cs=_5.getComputedStyle(this._target);
 for(var p in this.properties){
-var _c=this.properties[p],_d=_3.isObject(_c),v=parseInt(cs[p]);
+var _c=this.properties[p],_d=_3.isObject(_c),v=parseFloat(cs[p]);
 _b[p]={end:v,units:this.units};
 _a[p]=_d?_c:{end:_c*v,units:this.units};
 }

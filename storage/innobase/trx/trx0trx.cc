@@ -557,8 +557,7 @@ static void trx_validate_state_before_free(trx_t *trx) {
 
   if (trx->n_mysql_tables_in_use != 0 || trx->mysql_n_tables_locked != 0) {
     ib::error(ER_IB_MSG_1203)
-        << "MySQL is freeing a thd though"
-           " trx->n_mysql_tables_in_use is "
+        << "MySQL is freeing a thd though trx->n_mysql_tables_in_use is "
         << trx->n_mysql_tables_in_use << " and trx->mysql_n_tables_locked is "
         << trx->mysql_n_tables_locked << ".";
 
@@ -589,16 +588,22 @@ void trx_free_for_background(trx_t *trx) {
   trx_free(trx);
 }
 
-/** At shutdown, frees a transaction object that is in the PREPARED state. */
-void trx_free_prepared(trx_t *trx) /*!< in, own: trx object */
-{
-  ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
+void trx_free_prepared_or_active_recovered(trx_t *trx) {
   ut_a(trx->magic_n == TRX_MAGIC_N);
+  ulint expected_undo_state;
+  if (trx->state == TRX_STATE_ACTIVE) {
+    ut_a(trx_state_eq(trx, TRX_STATE_ACTIVE));
+    ut_a(trx->is_recovered);
+    expected_undo_state = TRX_UNDO_ACTIVE;
+  } else {
+    ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
+    expected_undo_state = TRX_UNDO_PREPARED;
+  }
 
   assert_trx_in_rw_list(trx);
 
   trx_release_impl_and_expl_locks(trx, false);
-  trx_undo_free_prepared(trx);
+  trx_undo_free_trx_with_prepared_or_active_logs(trx, expected_undo_state);
 
   ut_ad(!trx->in_rw_trx_list);
   ut_a(!trx->read_only);
@@ -1820,7 +1825,7 @@ written */
     ut_ad(trx->rsegs.m_redo.rseg == nullptr);
     ut_ad(!trx->in_rw_trx_list);
 
-    /* Note: We are asserting without holding the lock mutex. But
+    /* Note: We are asserting without holding the locksys latch. But
     that is OK because this transaction is not waiting and cannot
     be rolled back and no new locks can (or should not) be added
     because it is flagged as a non-locking read-only transaction. */
@@ -2488,16 +2493,10 @@ state_ok:
   }
 }
 
-/** Prints info about a transaction.
- The caller must hold lock_sys->mutex and trx_sys->mutex.
- When possible, use trx_print() instead. */
-void trx_print_latched(
-    FILE *f,             /*!< in: output stream */
-    const trx_t *trx,    /*!< in: transaction */
-    ulint max_query_len) /*!< in: max query length to print,
-                         or 0 to use the default max length */
-{
-  ut_ad(lock_mutex_own());
+void trx_print_latched(FILE *f, const trx_t *trx, ulint max_query_len) {
+  /* We need exclusive access to lock_sys for lock_number_of_rows_locked(),
+  and accessing trx->lock fields without trx->mutex.*/
+  ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
   trx_print_low(f, trx, max_query_len, lock_number_of_rows_locked(&trx->lock),
@@ -2505,27 +2504,11 @@ void trx_print_latched(
                 mem_heap_get_size(trx->lock.lock_heap));
 }
 
-/** Prints info about a transaction.
- Acquires and releases lock_sys->mutex and trx_sys->mutex. */
-void trx_print(FILE *f,             /*!< in: output stream */
-               const trx_t *trx,    /*!< in: transaction */
-               ulint max_query_len) /*!< in: max query length to print,
-                                    or 0 to use the default max length */
-{
-  ulint n_rec_locks;
-  ulint n_trx_locks;
-  ulint heap_size;
-
-  lock_mutex_enter();
-  n_rec_locks = lock_number_of_rows_locked(&trx->lock);
-  n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
-  heap_size = mem_heap_get_size(trx->lock.lock_heap);
-  lock_mutex_exit();
-
+void trx_print(FILE *f, const trx_t *trx, ulint max_query_len) {
+  /* trx_print_latched() requires exclusive global latch */
+  locksys::Global_exclusive_latch_guard guard{};
   mutex_enter(&trx_sys->mutex);
-
-  trx_print_low(f, trx, max_query_len, n_rec_locks, n_trx_locks, heap_size);
-
+  trx_print_latched(f, trx, max_query_len);
   mutex_exit(&trx_sys->mutex);
 }
 
@@ -2547,8 +2530,7 @@ ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
 
   /* trx->state can change from or to NOT_STARTED while we are holding
   trx_sys->mutex for non-locking autocommit selects but not for other
-  types of transactions. It may change from ACTIVE to PREPARED. Unless
-  we are holding lock_sys->mutex, it may also change to COMMITTED. */
+  types of transactions. It may change from ACTIVE to PREPARED. */
 
   switch (trx->state) {
     case TRX_STATE_PREPARED:
@@ -2565,6 +2547,145 @@ ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
 
   ut_error;
 }
+
+/*
+Interaction between Lock-sys and trx->mutex-es is rather complicated.
+In particular we allow a thread performing Lock-sys operations to request
+another trx->mutex even though it already holds one for a different trx.
+Therefore one has to prove that it is impossible to form a deadlock cycle in the
+imaginary wait-for-graph in which edges go from thread trying to obtain
+trx->mutex to a thread which holds it at the moment.
+
+In the past it was simple, because Lock-sys was protected by a global mutex,
+which meant that there was at most one thread which could try to posses more
+than one trx->mutex - one can not form a cycle in a graph in which only
+one node has both incoming and outgoing edges.
+
+Today it is much harder to prove, because we have sharded the Lock-sys mutex,
+and now multiple threads can perform Lock-sys operations in parallel, as long
+as they happen in different shards.
+
+Here's my attempt at the proof.
+
+Assumption 1.
+  If a thread attempts to acquire more then one trx->mutex, then it either has
+  exclusive global latch, or it attempts to acquire exactly two of them, and at
+  just before calling mutex_enter for the second time it saw
+  trx1->lock.wait_lock==nullptr, trx2->lock.wait_lock!=nullptr, and it held the
+  latch for the shard containing trx2->lock.wait_lock.
+
+@see asserts in trx_before_mutex_enter
+
+Assumption 2.
+  The Lock-sys latches are taken before any trx->mutex.
+
+@see asserts in sync0debug.cc
+
+Assumption 3.
+  Changing trx->lock.wait_lock from NULL to non-NULL requires latching
+  trx->mutex and the shard containing new wait_lock value.
+
+@see asserts in lock_set_lock_and_trx_wait()
+
+Assumption 4.
+  Changing trx->lock.wait_lock from non-NULL to NULL requires latching the shard
+  containing old wait_lock value.
+
+@see asserts in lock_reset_lock_and_trx_wait()
+
+Assumption 5.
+  If a thread is latching two Lock-sys shards then it's acquiring and releasing
+  both shards together (that is, without interleaving it with trx->mutex
+  operations).
+
+@see Shard_latches_guard
+
+Theorem 1.
+  If the Assumptions 1-5 hold, then it's impossible for trx_mutex_enter() call
+  to deadlock.
+
+By proving the theorem, and observing that the assertions hold for multiple runs
+of test suite on debug build, we gain more and more confidence that
+trx_mutex_enter() calls can not deadlock.
+
+The intuitive, albeit imprecise, version of the proof is that by Assumption 1
+each edge of the deadlock cycle leads from a trx with NULL trx->lock.wait_lock
+to one with non-NULL wait_lock, which means it has only one edge.
+
+The difficulty lays in that wait_lock is a field which can be modified over time
+from several threads, so care must be taken to clarify at which moment in time
+we make our observations and from whose perspective.
+
+We will now formally prove Theorem 1.
+Assume otherwise, that is that we are in a thread which have just started a call
+to mutex_enter(trx_a->mutex) and caused a deadlock.
+
+Fact 0. There is no thread which possesses exclusive Lock-sys latch, since to
+        form a deadlock one needs at least two threads inside Lock-sys
+Fact 1. Each thread participating in the deadlock holds one trx mutex and waits
+        for the second one it tried to acquire
+Fact 2. Thus each thread participating in the deadlock had gone through "else"
+        branch inside trx_before_mutex_enter(), so it verifies Assumption 1.
+Fact 3.	Our thread owns_lock_shard(trx_a->lock.wait_lock)
+Fact 4. Another thread has latched trx_a->mutex as the first of its two latches
+
+Consider the situation from the point of view of this other thread, which is now
+in the deadlock waiting for mutex_enter(trx_b->mutex) for some trx_b!=trx_a.
+By Fact 2 and assumption 1, it had to take the "else" branch on the way there,
+and thus it has saw: trx_a->lock.wait_lock == nullptr at some moment in time.
+This observation was either before or after our observation that
+trx_a->lock.wait_lock != nullptr (again Fact 2 and Assumption 1).
+
+If our thread observed non-NULL value first, then it means a change from
+non-NULL to NULL has happened, which by Assumption 4 requires a shard latch,
+which only our thread posses - and we couldn't manipulate the wait_lock as we
+are in a deadlock.
+
+If the other thread observed NULL first, then it means that the value has
+changed to non-NULL, which requires trx_a->mutex according to Assumption 3, yet
+this mutex was held entire time by the other thread, since it observed the NULL
+just before it deadlock, so it could not change it, either.
+
+So, there is no way the value of wait_lock has changed from NULL to non-NULL or
+vice-versa, yet one thread sees NULL and the other non-NULL - contradiction ends
+the proof.
+*/
+
+static thread_local const trx_t *trx_first_latched_trx = nullptr;
+static thread_local int32_t trx_latched_count = 0;
+static thread_local bool trx_allowed_two_latches = false;
+
+void trx_before_mutex_enter(const trx_t *trx, bool first_of_two) {
+  if (0 == trx_latched_count++) {
+    ut_a(trx_first_latched_trx == nullptr);
+    trx_first_latched_trx = trx;
+    if (first_of_two) {
+      trx_allowed_two_latches = true;
+    }
+  } else {
+    ut_a(!first_of_two);
+    if (!locksys::owns_exclusive_global_latch()) {
+      ut_a(trx_allowed_two_latches);
+      ut_a(trx_latched_count == 2);
+      ut_a(trx_first_latched_trx->lock.wait_lock == nullptr);
+      ut_a(trx_first_latched_trx != trx);
+      /* This is not very safe, because to read trx->lock.wait_lock we
+      should already either latch trx->mutex (which we don't) or shard with
+      trx->lock.wait_lock. But our claim is precisely that we have latched
+      this shard, and we want to check that here. */
+      ut_a(trx->lock.wait_lock != nullptr);
+      ut_a(locksys::owns_lock_shard(trx->lock.wait_lock));
+    }
+  }
+}
+void trx_before_mutex_exit(const trx_t *trx) {
+  ut_a(0 < trx_latched_count);
+  if (0 == --trx_latched_count) {
+    ut_a(trx_first_latched_trx == trx);
+    trx_first_latched_trx = nullptr;
+    trx_allowed_two_latches = false;
+  }
+}
 #endif /* UNIV_DEBUG */
 
 /** Compares the "weight" (or size) of two transactions. Transactions that
@@ -2574,6 +2695,8 @@ ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
 bool trx_weight_ge(const trx_t *a, /*!< in: transaction to be compared */
                    const trx_t *b) /*!< in: transaction to be compared */
 {
+  /* To read TRX_WEIGHT we need a exclusive global lock_sys latch */
+  ut_ad(locksys::owns_exclusive_global_latch());
   ibool a_notrans_edit;
   ibool b_notrans_edit;
 
@@ -2646,7 +2769,7 @@ static lsn_t trx_prepare_low(
 
     if (!noredo_logging) {
       const lsn_t lsn = mtr.commit_lsn();
-      ut_ad(lsn > 0);
+      ut_ad(lsn > 0 || !mtr_t::s_logging.is_enabled());
       return lsn;
     }
   }
@@ -2861,7 +2984,7 @@ int trx_recover_for_mysql(
     /* The state of a read-write transaction cannot change
     from or to NOT_STARTED while we are holding the
     trx_sys->mutex. It may change to PREPARED, but not if
-    trx->is_recovered. It may also change to COMMITTED. */
+    trx->is_recovered. */
     if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
       if (get_info_about_prepared_transaction(&txn_list[count], trx, mem_root))
         break;
@@ -2899,8 +3022,7 @@ int trx_recover_for_mysql(
 /** This function is used to find one X/Open XA distributed transaction
  which is in the prepared state
  @return trx on match, the trx->xid will be invalidated;
- note that the trx may have been committed, unless the caller is
- holding lock_sys->mutex */
+ */
 static MY_ATTRIBUTE((warn_unused_result)) trx_t *trx_get_trx_by_xid_low(
     const XID *xid) /*!< in: X/Open XA transaction
                     identifier */
@@ -2930,14 +3052,7 @@ static MY_ATTRIBUTE((warn_unused_result)) trx_t *trx_get_trx_by_xid_low(
   return (trx);
 }
 
-/** This function is used to find one X/Open XA distributed transaction
- which is in the prepared state
- @return trx or NULL; on match, the trx->xid will be invalidated;
- note that the trx may have been committed, unless the caller is
- holding lock_sys->mutex */
-trx_t *trx_get_trx_by_xid(
-    const XID *xid) /*!< in: X/Open XA transaction identifier */
-{
+trx_t *trx_get_trx_by_xid(const XID *xid) {
   trx_t *trx;
 
   if (xid == nullptr) {

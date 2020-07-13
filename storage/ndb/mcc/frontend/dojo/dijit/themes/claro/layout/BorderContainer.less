@@ -70,6 +70,9 @@ Splitters and gutters:
 	border:0;
 	height:5px;
 }
+.dj_ios .claro .dijitSplitterH, .dj_android .claro .dijitSplitterH {
+  height: 11px;
+}
 
 .claro .dijitSplitterH .dijitSplitterThumb {
 	background:@border-color none;
@@ -77,13 +80,18 @@ Splitters and gutters:
 	top:2px;
 	width:19px;
 }
-
+.dj_ios .claro .dijitSplitterH .dijitSplitterThumb, .dj_android .claro .dijitSplitterH .dijitSplitterThumb{
+  top:5px;
+}
 .claro .dijitSplitterV,
 .claro .dijitGutterV {
 	background:none;
 	border:0;
 	width:5px;
 	margin: 0;
+}
+.dj_ios .claro .dijitSplitterV, .dj_android .claro .dijitSplitterV {
+  width: 11px;
 }
 
 .claro .dijitSplitterV .dijitSplitterThumb {
@@ -92,6 +100,9 @@ Splitters and gutters:
 	left:2px;
 	width:1px;
 	margin: 0;
+}
+.dj_ios .claro .dijitSplitterV .dijitSplitterThumb, .dj_android .claro .dijitSplitterV .dijitSplitterThumb{
+  left:5px;
 }
 
 /* hovered splitter */

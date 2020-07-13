@@ -18,11 +18,12 @@
 					"id": {
 						"type": "string"
 					},
-					"view": "$ref": "/jdoe/test/schema/view",
+					"view": {"$ref": "/jdoe/test/schema/view"},
 					"params": {
 						"type": "object"
 					}
 				}
+			}
 		}
 	},
 	"additionalProperties": true

@@ -12,6 +12,7 @@
 --source include/not_sparc_debug.inc
 --source include/not_ndb_default.inc
 --source include/not_group_replication_plugin.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 # Since this test generates row-based events in the binary log, the

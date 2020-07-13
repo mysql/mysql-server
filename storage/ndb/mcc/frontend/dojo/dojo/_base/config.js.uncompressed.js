@@ -1,4 +1,4 @@
-define("dojo/_base/config", ["../has", "require"], function(has, require){
+define("dojo/_base/config", ["../global", "../has", "require"], function(global, has, require){
 	// module:
 	//		dojo/_base/config
 
@@ -37,14 +37,7 @@ return {
 
 	// isDebug: Boolean
 	//		Defaults to `false`. If set to `true`, ensures that Dojo provides
-	//		extended debugging feedback via Firebug. If Firebug is not available
-	//		on your platform, setting `isDebug` to `true` will force Dojo to
-	//		pull in (and display) the version of Firebug Lite which is
-	//		integrated into the Dojo distribution, thereby always providing a
-	//		debugging/logging console when `isDebug` is enabled. Note that
-	//		Firebug's `console.*` methods are ALWAYS defined by Dojo. If
-	//		`isDebug` is false and you are on a platform without Firebug, these
-	//		methods will be defined as no-ops.
+	//		extended debugging feedback to the console.
 	isDebug: false,
 
 	// locale: String
@@ -122,12 +115,6 @@ return {
 	//		of topics that are published.
 	ioPublish: false,
 
-	// useCustomLogger: Anything?
-	//		If set to a value that evaluates to true such as a string or array and
-	//		isDebug is true and Firebug is not available or running, then it bypasses
-	//		the creation of Firebug Lite allowing you to define your own console object.
-	useCustomLogger: undefined,
-
 	// transparentColor: Array
 	//		Array containing the r, g, b components used as transparent color in dojo.Color;
 	//		if undefined, [255,255,255] (white) will be used.
@@ -174,7 +161,6 @@ return {
 				p!="has" && has.add(prefix + p, featureSet[p], 0, booting);
 			}
 		};
-		var global = (function () { return this; })();
 		result =  1  ?
 			// must be a built version of the dojo loader; all config stuffed in require.rawConfig
 			require.rawConfig :
@@ -183,6 +169,16 @@ return {
 		adviseHas(result, "config", 1);
 		adviseHas(result.has, "", 1);
 	}
+
+	if(!result.locale && typeof navigator != "undefined"){
+		// Default locale for browsers (ensure it's read from user-settings not download locale).
+		var language = (navigator.languages && navigator.languages.length) ? navigator.languages[0] :
+			(navigator.language || navigator.userLanguage);
+		if(language){
+			result.locale = language.toLowerCase();
+		}
+	}
+
 	return result;
 });
 

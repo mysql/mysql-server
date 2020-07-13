@@ -1,11 +1,10 @@
 define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", "dojo/_base/array",
-	"dojo/dom-geometry", "dojo/_base/fx", "dojo/fx", "dojo/_base/sniff", 
-	"./Base", "./_PlotEvents", "dojo/_base/Color", "dojox/color/_base", "./common", "../axis2d/common",
-	"../scaler/primitive", "dojox/gfx", "dojox/gfx/matrix", "dojox/gfx/fx", "dojox/lang/functional", 
+	"dojo/dom-geometry", "dojo/_base/fx", "dojo/fx", "dojo/sniff",
+	"./Base", "./_PlotEvents", "./common", "../axis2d/common",
+	"dojox/gfx", "dojox/gfx/matrix", "dojox/gfx/fx", "dojox/lang/functional",
 	"dojox/lang/utils", "dojo/fx/easing"],
 	function(lang, declare, hub, arr, domGeom, baseFx, coreFx, has,
-			Base, PlotEvents, Color, dxcolor, dc, da, primitive,
-			g, m, gfxfx, df, du, easing){
+			Base, PlotEvents, dc, da, g, m, gfxfx, df, du, easing){
 
 	var FUDGE_FACTOR = 0.2; // use to overlap fans
 
@@ -32,6 +31,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			markerSize:		 3,			// radius of plot vertex (px)
 			spiderType:		 "polygon", //"circle"
 			animationType:	 easing.backOut,
+			animate: null,
 			axisTickFont:		"",
 			axisTickFontColor:	"",
 			axisFont:			"",
@@ -57,6 +57,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			this.datas = {};
 			this.labelKey = [];
 			this.oldSeriePoints = {};
+			this.animate = this.opt.animate === null ? {} : this.opt.animate;
 			this.animations = {};
 		},
 		clear: function(){
@@ -97,9 +98,9 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//		The series to be added.
 			// returns: dojox/charting/plot2d/Base
 			//		A reference to this plot for functional chaining.
-			var matched = false;
 			this.series.push(run);
-			for(var key in run.data){
+			var key;
+			for(key in run.data){
 				var val = run.data[key],
 					data = this.datas[key];
 				if(data){
@@ -114,7 +115,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				}
 			}
 			if(this.labelKey.length <= 0){
-				for (var key in run.data){
+				for(key in run.data){
 					this.labelKey.push(key);
 				}
 			}
@@ -125,7 +126,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//		Calculate the min/max on all attached series in both directions.
 			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
-			return dc.collectSimpleStats(this.series); // Object
+			return dc.collectSimpleStats(this.series, function(v){ return v === null; }); // Object
 		},
 		render: function(dim, offsets){
 			// summary:
@@ -162,17 +163,18 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				seriesWidth = o.seriesWidth || (ta.stroke && ta.stroke.width) || 2,
 				asize = g.normalizedLength(g.splitFontString(axisFont).size),
 				startAngle = m._degToRad(o.startAngle),
-				start = startAngle, step, filteredRun, slices, labels, shift, labelR,
+				start = startAngle, labels, shift, labelR,
 				outerPoints, innerPoints, divisionPoints, divisionRadius, labelPoints,
 				ro = o.spiderOrigin, dv = o.divisions >= 3 ? o.divisions : 3, ms = o.markerSize,
 				spt = o.spiderType, at = o.animationType, lboffset = o.labelOffset < -10 ? o.labelOffset : -10,
-				axisExtra = 0.2;
+				axisExtra = 0.2,
+				i, j, point, len, fontWidth, render, serieEntry, run, data, min, max, distance;
 			
 			if(o.labels){
 				labels = arr.map(this.series, function(s){
 					return s.name;
 				}, this);
-				shift = df.foldl1(df.map(labels, function(label, i){
+				shift = df.foldl1(df.map(labels, function(label){
 					var font = t.series.font;
 					return g._base._getTextBox(label, {
 						font: font
@@ -191,28 +193,28 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				cy: offsets.t + ry,
 				r: r
 			};
-			
-			for (var i = this.series.length - 1; i >= 0; i--){
-				var serieEntry = this.series[i];
+
+			for(var i = 0; i < this.series.length; i++){
+				serieEntry = this.series[i];
 				if(!this.dirty && !serieEntry.dirty){
 					t.skip();
 					continue;
 				}
 				serieEntry.cleanGroup();
-				var run = serieEntry.data;
+				run = serieEntry.data;
 				if(run !== null){
-					var len = this._getObjectLength(run);
+					len = this._getObjectLength(run);
 					//construct connect points
 					if(!outerPoints || outerPoints.length <= 0){
 						outerPoints = [], innerPoints = [], labelPoints = [];
-						this._buildPoints(outerPoints, len, circle, r, start, true);
-						this._buildPoints(innerPoints, len, circle, r*ro, start, true);
-						this._buildPoints(labelPoints, len, circle, labelR, start);
+						this._buildPoints(outerPoints, len, circle, r, start, true, dim);
+						this._buildPoints(innerPoints, len, circle, r*ro, start, true, dim);
+						this._buildPoints(labelPoints, len, circle, labelR, start, false, dim);
 						if(dv > 2){
 							divisionPoints = [], divisionRadius = [];
-							for (var j = 0; j < dv - 2; j++){
+							for (j = 0; j < dv - 2; j++){
 								divisionPoints[j] = [];
-								this._buildPoints(divisionPoints[j], len, circle, r*(ro + (1-ro)*(j+1)/(dv-1)), start, true);
+								this._buildPoints(divisionPoints[j], len, circle, r*(ro + (1-ro)*(j+1)/(dv-1)), start, true, dim);
 								divisionRadius[j] = r*(ro + (1-ro)*(j+1)/(dv-1));
 							}
 						}
@@ -224,9 +226,9 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//axis
 			var axisGroup = s.createGroup(), axisStroke = {color: axisColor, width: axisWidth},
 				spiderStroke = {color: spiderColor, width: spiderWidth};
-			for (var j = outerPoints.length - 1; j >= 0; --j){
-				var point = outerPoints[j],
-					st = {
+			for (j = outerPoints.length - 1; j >= 0; --j){
+				point = outerPoints[j];
+				var st = {
 						x: point.x + (point.x - circle.cx) * axisExtra,
 						y: point.y + (point.y - circle.cy) * axisExtra
 					},
@@ -246,11 +248,11 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			
 			// draw the label
 			var labelGroup = s.createGroup();
-			for (var j = labelPoints.length - 1; j >= 0; --j){
-				var point = labelPoints[j],
-					fontWidth = g._base._getTextBox(this.labelKey[j], {font: axisFont}).w || 0,
-					render = this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx",
-					elem = da.createText[render](this.chart, labelGroup, (!domGeom.isBodyLtr() && render == "html") ? (point.x + fontWidth - dim.width) : point.x, point.y,
+			for (j = labelPoints.length - 1; j >= 0; --j){
+				point = labelPoints[j];
+				fontWidth = g._base._getTextBox(this.labelKey[j], {font: axisFont}).w || 0;
+				render = this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx";
+				var elem = da.createText[render](this.chart, labelGroup, (!domGeom.isBodyLtr() && render == "html") ? (point.x + fontWidth - dim.width) : point.x, point.y,
 							"middle", this.labelKey[j], axisFont, axisFontColor);
 				if(this.opt.htmlLabels){
 					this.htmlElements.push(elem);
@@ -263,29 +265,33 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 				spiderGroup.createPolyline(outerPoints).setStroke(spiderStroke);
 				spiderGroup.createPolyline(innerPoints).setStroke(spiderStroke);
 				if(divisionPoints.length > 0){
-					for (var j = divisionPoints.length - 1; j >= 0; --j){
+					for (j = divisionPoints.length - 1; j >= 0; --j){
 						spiderGroup.createPolyline(divisionPoints[j]).setStroke(spiderStroke);
 					}
 				}
 			}else{//circle
-				var ccount = this._getObjectLength(this.datas);
 				spiderGroup.createCircle({cx: circle.cx, cy: circle.cy, r: r}).setStroke(spiderStroke);
 				spiderGroup.createCircle({cx: circle.cx, cy: circle.cy, r: r*ro}).setStroke(spiderStroke);
 				if(divisionRadius.length > 0){
-					for (var j = divisionRadius.length - 1; j >= 0; --j){
+					for (j = divisionRadius.length - 1; j >= 0; --j){
 						spiderGroup.createCircle({cx: circle.cx, cy: circle.cy, r: divisionRadius[j]}).setStroke(spiderStroke);
 					}
 				}
 			}
 			//text
-			var textGroup = s.createGroup(), len = this._getObjectLength(this.datas), k = 0;
+			len = this._getObjectLength(this.datas);
+			var textGroup = s.createGroup(), k = 0;
 			for(var key in this.datas){
-				var data = this.datas[key], min = data.min, max = data.max, distance = max - min,
+				data = this.datas[key];
+				min = data.min;
+				max = data.max;
+				distance = max - min;
 					end = start + 2 * Math.PI * k / len;
-				for (var i = 0; i < dv; i++){
-					var text = min + distance*i/(dv-1), point = this._getCoordinate(circle, r*(ro + (1-ro)*i/(dv-1)), end);
+				for (i = 0; i < dv; i++){
+					var text = min + distance*i/(dv-1);
+					point = this._getCoordinate(circle, r*(ro + (1-ro)*i/(dv-1)), end, dim);
 					text = this._getLabel(text);
-					var fontWidth = g._base._getTextBox(text, {font: axisTickFont}).w || 0,
+					fontWidth = g._base._getTextBox(text, {font: axisTickFont}).w || 0;
 						render = this.opt.htmlLabels && g.renderer != "vml" ? "html" : "gfx";
 					if(this.opt.htmlLabels){
 						this.htmlElements.push(da.createText[render]
@@ -298,16 +304,28 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			
 			//draw series (animation)
 			this.chart.seriesShapes = {};
-			var animationConnections = [];
-			for (var i = this.series.length - 1; i >= 0; i--){
-				var serieEntry = this.series[i], run = serieEntry.data;
+			for (i = this.series.length - 1; i >= 0; i--){
+				serieEntry = this.series[i];
+				run = serieEntry.data;
 				if(run !== null){
+					var theme = t.next("spider", [o, serieEntry]),
+						f = g.normalizeColor(theme.series.fill), 
+						sk = {color: theme.series.fill, width: seriesWidth};
+					f.a = o.seriesFillAlpha;
+					serieEntry.dyn = {fill: f, stroke: sk};
+					if(serieEntry.hidden){
+						continue;
+					}
 					//series polygon
-					var seriePoints = [], k = 0, tipData = [];
-					for(var key in run){
-						var data = this.datas[key], min = data.min, max = data.max, distance = max - min,
-							entry = run[key], end = start + 2 * Math.PI * k / len,
-							point = this._getCoordinate(circle, r*(ro + (1-ro)*(entry-min)/distance), end);
+					var seriePoints = [], tipData = [];
+					k = 0;
+					for(key in run){
+						data = this.datas[key];
+						min = data.min;
+						max = data.max;
+						distance = max - min;
+						var entry = run[key], end = start + 2 * Math.PI * k / len;
+							point = this._getCoordinate(circle, r*(ro + (1-ro)*(entry-min)/distance), end, dim);
 						seriePoints.push(point);
 						tipData.push({sname: serieEntry.name, key: key, data: entry});
 						k++;
@@ -315,10 +333,8 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 					seriePoints[seriePoints.length] = seriePoints[0];
 					tipData[tipData.length] = tipData[0];
 					var polygonBoundRect = this._getBoundary(seriePoints),
-						theme = t.next("spider", [o, serieEntry]), ts = serieEntry.group,
-						f = g.normalizeColor(theme.series.fill), sk = {color: theme.series.fill, width: seriesWidth};
-					f.a = o.seriesFillAlpha;
-					serieEntry.dyn = {fill: f, stroke: sk};
+						ts = serieEntry.group;
+			         
 					
 					var osps = this.oldSeriePoints[serieEntry.name];
 					var cs = this._createSeriesEntry(ts, (osps || innerPoints), seriePoints, f, sk, r, ro, ms, at);
@@ -353,8 +369,7 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 					this._connectEvents(so);
 					
 					arr.forEach(cs.circles, function(c, i){
-						var shape = c.getShape(),
-							co = {
+						var co = {
 								element: "spider_circle",
 								index:	 i,
 								id:		 "spider_circle_"+serieEntry.name+i,
@@ -376,58 +391,60 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 		},
 		_createSeriesEntry: function(ts, osps, sps, f, sk, r, ro, ms, at){
 			//polygon
-			var spoly = ts.createPolyline(osps).setFill(f).setStroke(sk), scircle = [];
-			for (var j = 0; j < osps.length; j++){
-				var point = osps[j], cr = ms;
+			var initpoints = this.animate?osps:sps;
+			var spoly = ts.createPolyline(initpoints).setFill(f).setStroke(sk), scircle = [];
+			for (var j = 0; j < initpoints.length; j++){
+				var point = initpoints[j], cr = ms;
 				var circle = ts.createCircle({cx: point.x, cy: point.y, r: cr}).setFill(f).setStroke(sk);
 				scircle.push(circle);
 			}
-			
-			var anims = arr.map(sps, function(np, j){
-				// create animation
-				var sp = osps[j],
-					anim = new baseFx.Animation({
-					duration: 1000,
-					easing:	  at,
-					curve:	  [sp.y, np.y]
-				});
-				var spl = spoly, sc = scircle[j];
-				hub.connect(anim, "onAnimate", function(y){
-					//apply poly
-					var pshape = spl.getShape();
-					pshape.points[j].y = y;
-					spl.setShape(pshape);
-					//apply circle
-					var cshape = sc.getShape();
-					cshape.cy = y;
-					sc.setShape(cshape);
-				});
-				return anim;
-			});
-			
-			var anims1 = arr.map(sps, function(np, j){
-				// create animation
-				var sp = osps[j],
-					anim = new baseFx.Animation({
-					duration: 1000,
-					easing:	  at,
-					curve:	  [sp.x, np.x]
-				});
-				var spl = spoly, sc = scircle[j];
-				hub.connect(anim, "onAnimate", function(x){
-					//apply poly
-					var pshape = spl.getShape();
-					pshape.points[j].x = x;
-					spl.setShape(pshape);
-					//apply circle
-					var cshape = sc.getShape();
-					cshape.cx = x;
-					sc.setShape(cshape);
-				});
-				return anim;
-			});
-			var masterAnimation = coreFx.combine(anims.concat(anims1)); //dojo.fx.chain(anims);
-			masterAnimation.play();
+			if(this.animate) {
+				var anims = arr.map(sps, function (np, j) {
+					// create animation
+					var sp = osps[j],
+						anim = new baseFx.Animation(lang.delegate({
+							duration: 1000,
+							easing: at,
+							curve: [sp.y, np.y]
+						}, this.animate));
+					var spl = spoly, sc = scircle[j];
+					hub.connect(anim, "onAnimate", function (y) {
+						//apply poly
+						var pshape = spl.getShape();
+						pshape.points[j].y = y;
+						spl.setShape(pshape);
+						//apply circle
+						var cshape = sc.getShape();
+						cshape.cy = y;
+						sc.setShape(cshape);
+					});
+					return anim;
+				}, this);
+
+				var anims1 = arr.map(sps, function (np, j) {
+					// create animation
+					var sp = osps[j],
+						anim = new baseFx.Animation(lang.delegate({
+							duration: 1000,
+							easing: at,
+							curve: [sp.x, np.x]
+						}, this.animate));
+					var spl = spoly, sc = scircle[j];
+					hub.connect(anim, "onAnimate", function (x) {
+						//apply poly
+						var pshape = spl.getShape();
+						pshape.points[j].x = x;
+						spl.setShape(pshape);
+						//apply circle
+						var cshape = sc.getShape();
+						cshape.cx = x;
+						sc.setShape(cshape);
+					});
+					return anim;
+				}, this);
+				var masterAnimation = coreFx.combine(anims.concat(anims1)); //dojo.fx.chain(anims);
+				masterAnimation.play();
+			}
 			return {group :ts, poly: spoly, circles: scircle};
 		},
 		plotEvent: function(o){
@@ -435,83 +452,22 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			//		Stub function for use by specific plots.
 			// o: Object
 			//		An object intended to represent event parameters.
-			var runName = o.id ? o.id : "default", a;
-			if(runName in this.animations){
-				a = this.animations[runName];
-				a.anim && a.anim.stop(true);
-			}else{
-				a = this.animations[runName] = {};
-			}
-			if(o.element == "spider_poly"){
-				if(!a.color){
-					var color = o.shape.getFill();
-					if(!color || !(color instanceof Color)){
-						return;
-					}
-					a.color = {
-						start: color,
-						end:   transColor(color)
-					};
-				}
-				var start = a.color.start, end = a.color.end;
-				if(o.type == "onmouseout"){
-					// swap colors
-					var t = start; start = end; end = t;
-				}
-				a.anim = gfxfx.animateFill({
-					shape:	  o.shape,
-					duration: 800,
-					easing:	  easing.backOut,
-					color:	  {start: start, end: end}
-				});
-				a.anim.play();
-			}else if(o.element == "spider_circle"){
-				var init, scale, defaultScale = 1.5;
-				if(o.type == "onmouseover"){
-					init  = m.identity;
-					scale = defaultScale;
-					//show tooltip
-					var aroundRect = {type: "rect"};
-					aroundRect.x = o.cx;
-					aroundRect.y = o.cy;
-					aroundRect.w = aroundRect.h = 1;
-					var lt = this.chart.getCoords();
-					aroundRect.x += lt.x;
-					aroundRect.y += lt.y;
-					aroundRect.x = Math.round(aroundRect.x);
-					aroundRect.y = Math.round(aroundRect.y);
-					this.aroundRect = aroundRect;
-					var position = ["after-centered", "before-centered"];
-					dc.doIfLoaded("dijit/Tooltip", lang.hitch(this, function(Tooltip){
-						Tooltip.show(o.tdata.sname + "<br/>" + o.tdata.key + "<br/>" + o.tdata.data, this.aroundRect, position);
-					}));
-				}else{
-					init  = m.scaleAt(defaultScale, o.cx, o.cy);
-					scale = 1/defaultScale;
-					dc.doIfLoaded("dijit/Tooltip", lang.hitch(this, function(Tooltip){
-						this.aroundRect && Tooltip.hide(this.aroundRect);
-					}));
-				}
-				var cs = o.shape.getShape(),
-					init = m.scaleAt(defaultScale, cs.cx, cs.cy),
-					kwArgs = {
-						shape: o.shape,
-						duration: 200,
-						easing:	  easing.backOut,
-						transform: [
-							{name: "scaleAt", start: [1, cs.cx, cs.cy], end: [scale, cs.cx, cs.cy]},
-							init
-						]
-					};
-				a.anim = gfxfx.animateTransform(kwArgs);
-				a.anim.play();
-			}else if(o.element == "spider_plot"){
+			if(o.element == "spider_plot"){
 				//dojo gfx function "moveToFront" not work in IE
 				if(o.type == "onmouseover" && !has("ie")){
 					o.shape.moveToFront();
 				}
 			}
 		},
+
+		tooltipFunc: function(o){
+			if(o.element == "spider_circle"){
+				return o.tdata.sname + "<br/>" + o.tdata.key + "<br/>" + o.tdata.data;
+			}else{
+				return null;
+			}
+		},
+
 		_getBoundary: function(points){
 			var xmax = points[0].x,
 				xmin = points[0].x,
@@ -540,19 +496,23 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			s.createPolyline([start, point2, point3]).setFill(stroke.color).setStroke(stroke);
 		},
 		
-		_buildPoints: function(points, count, circle, radius, angle, recursive){
+		_buildPoints: function(points, count, circle, radius, angle, recursive, dim){
 			for(var i = 0; i < count; i++){
 				var end = angle + 2 * Math.PI * i / count;
-				points.push(this._getCoordinate(circle, radius, end));
+				points.push(this._getCoordinate(circle, radius, end, dim));
 			}
 			if(recursive){
-				points.push(this._getCoordinate(circle, radius, angle + 2 * Math.PI));
+				points.push(this._getCoordinate(circle, radius, angle + 2 * Math.PI, dim));
 			}
 		},
 		
-		_getCoordinate: function(circle, radius, angle){
+		_getCoordinate: function(circle, radius, angle, dim){
+			var x = circle.cx + radius * Math.cos(angle);
+			if(has("dojo-bidi") && this.chart.isRightToLeft() && dim){
+				x = dim.width - x;
+			}
 			return {
-				x: circle.cx + radius * Math.cos(angle),
+				x: x,
 				y: circle.cy + radius * Math.sin(angle)
 			}
 		},
@@ -572,27 +532,6 @@ define("dojox/charting/plot2d/Spider", ["dojo/_base/lang", "dojo/_base/declare",
 			return dc.getLabel(number, this.opt.fixed, this.opt.precision);
 		}
 	});
-	
-	function transColor(color){
-		var a = new dxcolor.Color(color),
-			x = a.toHsl();
-		if(x.s == 0){
-			x.l = x.l < 50 ? 100 : 0;
-		}else{
-			x.s = 100;
-			if(x.l < 50){
-				x.l = 75;
-			}else if(x.l > 75){
-				x.l = 50;
-			}else{
-				x.l = x.l - 50 > 75 - x.l ?
-					50 : 75;
-			}
-		}
-		var color = dxcolor.fromHsl(x);
-		color.a = 0.7;
-		return color;
-	}
-	
+
 	return Spider; // dojox/plot2d/Spider
 });

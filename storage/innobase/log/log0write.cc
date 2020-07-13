@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -2756,7 +2756,7 @@ bool log_rotate_encryption() {
 void redo_rotate_default_master_key() {
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
-  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
     return;
   }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -180,6 +180,10 @@ cmd: testBackup
 args: -n ConsistencyUnderLoadStallGCP T1
 max-time: 1200
 
+cmd: testSystemRestart
+args : -n LaggardShutdown T1
+max-time : 240
+
 cmd: test_event
 args: -n checkParallelTriggerDropReqHandling T1
 max-time: 120
@@ -223,4 +227,16 @@ max-time: 360
 cmd: testBasic
 args: -n CheckCompletedLCPStats T1
 max-time: 240
+
+cmd: testNodeRestart
+args: -n InplaceCharPkChangeCS T1
+max-time: 1200
+
+cmd: testNodeRestart
+args: -n InplaceCharPkChangeCI T1
+max-time: 1200
+
+cmd: testPartitioning
+args : -n startTransactionHint_orderedIndex_MaxKey T1
+max-time: 60
 

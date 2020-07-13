@@ -23,30 +23,27 @@
 */
 
 #include "mysqlrouter/routing.h"
-#include "common.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/utils.h"
-#include "router_config.h"
-#include "utils.h"
 
-#include <climits>
-#include <cstring>
+#include <array>
+#include <chrono>
+#include <string>
 
 #ifndef _WIN32
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/tcp.h>
-#include <poll.h>
-#include <sys/socket.h>
+#include <netdb.h>        // addrinfo
+#include <netinet/tcp.h>  // TCP_NODELAY
+#include <sys/socket.h>   // SOCK_NONBLOCK, ...
 #else
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
 
-using mysql_harness::TCPAddress;
-using mysqlrouter::string_format;
-using mysqlrouter::to_string;
+#include "common.h"  // serial_comma
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/resolver.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
+
 IMPORT_LOG_FUNCTIONS()
 
 namespace routing {
@@ -66,13 +63,15 @@ const std::chrono::seconds kDefaultClientConnectTimeout{
 // const int kMaxConnectTimeout = INT_MAX / 1000;
 
 // keep in-sync with enum AccessMode
-const std::vector<const char *> kAccessModeNames{nullptr, "read-write",
-                                                 "read-only"};
+static const std::array<const char *, 3> kAccessModeNames{{
+    nullptr,
+    "read-write",
+    "read-only",
+}};
 
 AccessMode get_access_mode(const std::string &value) {
   for (unsigned int i = 1; i < kAccessModeNames.size(); ++i)
-    if (strcmp(kAccessModeNames[i], value.c_str()) == 0)
-      return static_cast<AccessMode>(i);
+    if (kAccessModeNames[i] == value) return static_cast<AccessMode>(i);
   return AccessMode::kUndefined;
 }
 
@@ -90,25 +89,35 @@ std::string get_access_mode_name(AccessMode access_mode) noexcept {
 }
 
 // keep in-sync with enum RoutingStrategy
-const std::vector<const char *> kRoutingStrategyNames{
-    nullptr, "first-available", "next-available", "round-robin",
-    "round-robin-with-fallback"};
+static const std::array<const char *, 5> kRoutingStrategyNames{{
+    nullptr,
+    "first-available",
+    "next-available",
+    "round-robin",
+    "round-robin-with-fallback",
+}};
 
 RoutingStrategy get_routing_strategy(const std::string &value) {
   for (unsigned int i = 1; i < kRoutingStrategyNames.size(); ++i)
-    if (strcmp(kRoutingStrategyNames[i], value.c_str()) == 0)
+    if (kRoutingStrategyNames[i] == value)
       return static_cast<RoutingStrategy>(i);
   return RoutingStrategy::kUndefined;
 }
 
 std::string get_routing_strategy_names(bool metadata_cache) {
   // round-robin-with-fallback is not supported for static routing
-  const std::vector<const char *> kRoutingStrategyNamesStatic{
-      "first-available", "next-available", "round-robin"};
+  const std::array<const char *, 3> kRoutingStrategyNamesStatic{{
+      "first-available",
+      "next-available",
+      "round-robin",
+  }};
 
   // next-available is not supported for metadata-cache routing
-  const std::vector<const char *> kRoutingStrategyNamesMetadataCache{
-      "first-available", "round-robin", "round-robin-with-fallback"};
+  const std::array<const char *, 3> kRoutingStrategyNamesMetadataCache{{
+      "first-available",
+      "round-robin",
+      "round-robin-with-fallback",
+  }};
 
   const auto &v = metadata_cache ? kRoutingStrategyNamesMetadataCache
                                  : kRoutingStrategyNamesStatic;
@@ -129,105 +138,90 @@ RoutingSockOps *RoutingSockOps::instance(
   return &routing_sock_ops;
 }
 
-routing::native_handle_type RoutingSockOps::get_mysql_socket(
-    mysql_harness::TCPAddress addr,
-    std::chrono::milliseconds connect_timeout_ms, bool log) noexcept {
-  struct addrinfo *servinfo, *info, hints;
+stdx::expected<routing::native_handle_type, std::error_code>
+RoutingSockOps::get_mysql_socket(mysql_harness::TCPAddress addr,
+                                 std::chrono::milliseconds connect_timeout_ms,
+                                 bool log) noexcept {
+  struct addrinfo hints;
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  bool timeout_expired = false;
 
-  int err;
-  if ((err = ::getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(),
-                           &hints, &servinfo)) != 0) {
+  const auto addrinfo_res = net::impl::resolver::getaddrinfo(
+      addr.addr.c_str(), std::to_string(addr.port).c_str(), &hints);
+  if (!addrinfo_res) {
     if (log) {
-#ifndef _WIN32
-      std::string errstr{(err == EAI_SYSTEM)
-                             ? get_message_error(so_->get_errno())
-                             : gai_strerror(err)};
-#else
-      std::string errstr = get_message_error(err);
-#endif
       log_debug("Failed getting address information for '%s' (%s)",
-                addr.addr.c_str(), errstr.c_str());
+                addr.addr.c_str(), addrinfo_res.error().message().c_str());
     }
-    return -1;
+    return stdx::make_unexpected(addrinfo_res.error());
   }
 
-  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
-    if (servinfo) freeaddrinfo(servinfo);
-  });
-
   routing::native_handle_type sock{routing::kInvalidSocket};
+  bool timeout_expired = false;
 
-  for (info = servinfo; info != nullptr; info = info->ai_next) {
+  struct addrinfo *info = addrinfo_res.value().get();
+  for (; info != nullptr; info = info->ai_next) {
     auto sock_type = info->ai_socktype;
 #if defined(__linux__) || defined(__FreeBSD__)
     // linux|freebsd allows to set NONBLOCK as part of the socket() call to safe
     // the extra syscall
     sock_type |= SOCK_NONBLOCK;
 #endif
-    if ((sock = ::socket(info->ai_family, sock_type, info->ai_protocol)) ==
-        kInvalidSocket) {
+    const auto socket_res = net::impl::socket::socket(
+        info->ai_family, sock_type, info->ai_protocol);
+    if (!socket_res) {
       log_error("Failed opening socket: %s",
-                get_message_error(so_->get_errno()).c_str());
+                socket_res.error().message().c_str());
     } else {
-      bool connection_is_good = true;
+      sock = socket_res.value();
 
       so_->set_socket_blocking(sock, false);
 
-      if (::connect(sock, info->ai_addr, info->ai_addrlen) < 0) {
-        switch (so_->get_errno()) {
-#ifdef _WIN32
-          case WSAEINPROGRESS:
-          case WSAEWOULDBLOCK:
-#else
-          case EINPROGRESS:
-#endif
-            if (0 != so_->connect_non_blocking_wait(sock, connect_timeout_ms)) {
-              log_warning(
-                  "Timeout reached trying to connect to MySQL Server %s: %s",
-                  addr.str().c_str(),
-                  get_message_error(so_->get_errno()).c_str());
-              connection_is_good = false;
-              timeout_expired = (so_->get_errno() == ETIMEDOUT);
+      const auto connect_res =
+          net::impl::socket::connect(sock, info->ai_addr, info->ai_addrlen);
+      if (!connect_res) {
+        if (connect_res.error() ==
+                make_error_condition(std::errc::operation_in_progress) ||
+            connect_res.error() ==
+                make_error_condition(std::errc::operation_would_block)) {
+          const auto wait_res =
+              so_->connect_non_blocking_wait(sock, connect_timeout_ms);
+
+          if (!wait_res) {
+            log_warning(
+                "Timeout reached trying to connect to MySQL Server %s: %s",
+                addr.str().c_str(), wait_res.error().message().c_str());
+            timeout_expired =
+                (wait_res.error() == make_error_code(std::errc::timed_out));
+          } else {
+            const auto status_res = so_->connect_non_blocking_status(sock);
+            if (status_res) {
+              // success, we can continue
               break;
             }
-
-            {
-              int so_error = 0;
-              if (0 != so_->connect_non_blocking_status(sock, so_error)) {
-                connection_is_good = false;
-                break;
-              }
-            }
-
-            // success, we can continue
-            break;
-          default:
-            log_debug("Failed connect() to %s: %s", addr.str().c_str(),
-                      get_message_error(so_->get_errno()).c_str());
-            connection_is_good = false;
-            break;
+          }
+        } else {
+          log_debug("Failed connect() to %s: %s", addr.str().c_str(),
+                    connect_res.error().message().c_str());
         }
       } else {
         // everything is fine, we are connected
-      }
-
-      if (connection_is_good) {
         break;
       }
 
       // some error, close the socket again and try the next one
       so_->close(sock);
+      sock = kInvalidSocket;
     }
   }
 
   if (info == nullptr) {
     // all connects failed.
-    return timeout_expired ? -2 : -1;
+    return stdx::make_unexpected(
+        make_error_code(timeout_expired ? std::errc::timed_out
+                                        : std::errc::connection_refused));
   }
 
   // set blocking; MySQL protocol is blocking and we do not take advantage of
@@ -235,15 +229,14 @@ routing::native_handle_type RoutingSockOps::get_mysql_socket(
   so_->set_socket_blocking(sock, true);
 
   int opt_nodelay = 1;
-  if (setsockopt(
-          sock, IPPROTO_TCP, TCP_NODELAY,
-          reinterpret_cast<const char *>(
-              &opt_nodelay),  // cast keeps Windows happy (const void* on Unix)
-          static_cast<socklen_t>(sizeof(int))) == -1) {
-    log_debug("Failed setting TCP_NODELAY on client socket");
+  const auto sockopt_res = so_->setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+                                           &opt_nodelay, sizeof opt_nodelay);
+  if (!sockopt_res) {
+    log_debug("Failed setting TCP_NODELAY on client socket: %s",
+              sockopt_res.error().message().c_str());
     so_->close(sock);
 
-    return -1;
+    return stdx::make_unexpected(sockopt_res.error());
   }
 
   return sock;

@@ -786,3 +786,26 @@ ALTER TABLESPACE ts1 RENAME TO ts11;
 
 DROP TABLESPACE ts11;
 
+--echo #
+--echo # WL#13341: Store options for secondary engines.
+--echo # Testing engine and secondary engine attributes on tablespaces.
+--echo #
+
+CREATE TABLESPACE ts1 ENGINE_ATTRIBUTE='';
+CREATE TABLESPACE ts2 ENGINE_ATTRIBUTE='{"c": "v"}';
+SELECT * FROM information_schema.tablespaces_extensions WHERE tablespace_name = 'ts2';
+
+--error ER_INVALID_JSON_ATTRIBUTE
+CREATE TABLESPACE ts3 ENGINE_ATTRIBUTE='{"c": v}';
+
+--error ER_INVALID_JSON_ATTRIBUTE
+ALTER TABLESPACE ts1 ENGINE_ATTRIBUTE='{"foo": "bar}';
+
+ALTER TABLESPACE ts1 ENGINE_ATTRIBUTE='{"foo": "bar"}';
+SELECT * FROM information_schema.tablespaces_extensions WHERE tablespace_name = 'ts1';
+ALTER TABLESPACE ts1 RENAME TO ts11;
+SELECT * FROM information_schema.tablespaces_extensions WHERE tablespace_name = 'ts11';
+
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts11;
+

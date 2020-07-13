@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,7 @@ namespace xpl {
 class Insert_statement_builder : public Crud_statement_builder {
  public:
   using Insert = ::Mysqlx::Crud::Insert;
-  using Document_id_list =
-      iface::Document_id_aggregator::Document_id_list;
+  using Document_id_list = iface::Document_id_aggregator::Document_id_list;
 
   explicit Insert_statement_builder(
       const Expression_generator &gen,

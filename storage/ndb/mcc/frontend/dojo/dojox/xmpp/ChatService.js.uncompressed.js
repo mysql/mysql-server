@@ -20,7 +20,7 @@ dojo.declare("dojox.xmpp.ChatService", null, {
 		this.chatid = Math.round(Math.random() * 1000000000000000);
 	},
 	
-	recieveMessage: function(msg,initial){
+	receiveMessage: function(msg,initial){
 		if (msg&&!initial){
 			this.onNewMessage(msg);
 		}

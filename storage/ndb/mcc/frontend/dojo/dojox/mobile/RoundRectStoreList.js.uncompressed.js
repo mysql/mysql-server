@@ -11,7 +11,7 @@ define("dojox/mobile/RoundRectStoreList", [
 		// summary:
 		//		A dojo/store-enabled version of RoundRectList.
 		// description:
-		//		RoundRectStoreList is an enhanced version of RoundRectList. It
+		//		RoundRectStoreList is a subclass of RoundRectList which
 		//		can generate ListItems according to the given dojo/store store.
 	});
 });

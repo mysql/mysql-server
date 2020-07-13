@@ -319,7 +319,7 @@ var FeedViewer = declare("dojox.atom.widget.FeedViewer", [_Widget, _Templated, _
 
 	onEntrySelected: function(/*object*/entry){
 		// summary:
-		//		Function intended for over-riding/replacement as an attachpoint to for other items to recieve
+		//		Function intended for over-riding/replacement as an attachpoint to for other items to receive
 		//		selection notification.
 		// entry:
 		//		The dojox.atom.io.model.Entry object selected.
@@ -392,7 +392,7 @@ var FeedViewer = declare("dojox.atom.widget.FeedViewer", [_Widget, _Templated, _
 					baseURL = fullURL;
 				}
 			}else{
-				//We want to find the first occurance of / after the <protocol>://
+				//We want to find the first occurrence of / after the <protocol>://
 				index = fullURL.indexOf("://");
 				if(index > 0){
 					index = index + 3;

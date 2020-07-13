@@ -742,28 +742,45 @@ void DB_restrictions_aggregator::aggregate_restrictions(
     if (test_all_bits(m_grantee_global_access, m_requested_access) &&
         m_grantee_rl.is_empty()) {
       /*
-        If grantee does not have any restrictions but grantor has, that implies
-        grantee already has more privileges, therefore retain its restrictions
+        If grantee does not have any restrictions but grantor has, that
+        implies grantee already has more privileges, therefore don't do
+        any further processing. Keep the empty restrictions list.
       */
       restrictions = m_grantee_rl;
     } else {
       ulong restrictions_mask;
+      DB_restrictions grantee_rl = m_grantee_rl;
       for (const auto &grantor_rl_itr : m_grantor_rl()) {
         ulong grantee_revokes;
-        if (m_grantee_rl.find(grantor_rl_itr.first.c_str(), grantee_revokes)) {
+        if (grantee_rl.find(grantor_rl_itr.first, grantee_revokes)) {
           /*
             If grantor and grantee both have restriction list then aggregration
             of them will be OR operation of the following :
-              - Grantor's global privileges negates grantee's restrictions
-              - Grantee's global privileges negates grantor's restrictions
-              - Grantor and grantee both might have same restrictions as well
-                as global privileges
+             - Grantee's global privileges negates grantor's restrictions
+               (consider relevant restrictions in context of privileges
+                specified in statement i.e. requested_access)
+             - Grantor and Grantee both might have same restrictions as well
+               as global privileges. Remaining restrictions after negation
+               by Grantor and Grantee's global privileges.
           */
-          ulong rm1 = (grantor_rl_itr.second & ~m_grantee_global_access);
-          ulong rm2 = (grantee_revokes & ~m_grantor_global_access);
-          ulong rm3 = (grantor_rl_itr.second & m_grantee_global_access &
-                       m_grantor_global_access & grantee_revokes);
-          restrictions_mask = rm1 | rm2 | rm3;
+          ulong rm1 = ((grantor_rl_itr.second & m_requested_access) &
+                       ~m_grantee_global_access);
+          ulong rm2 = (grantor_rl_itr.second & m_grantee_global_access &
+                       grantee_revokes & m_grantor_global_access);
+          restrictions_mask = rm1 | rm2;
+
+          /*
+            Retain restrictions that are not applicable w.r.t.
+            requested operation in the restrictions list.
+            For instance :
+            Grantee may have restrictions SELECT, INSERT on db,
+            the GRANT statement has only SELECT on db, then
+            retain INSERT on db.
+          */
+          ulong remove_mask = grantee_revokes & m_requested_access;
+          grantee_rl.remove(grantor_rl_itr.first, remove_mask);
+          /* Remove the schemas without any restrictions remaining */
+          grantee_rl.remove(0);
         } else {
           /*
             Filter restrictions relevant to access from the grantor's
@@ -773,8 +790,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
 
           ulong grantee_db_access = 0;
           if (sql_op == SQL_OP::GLOBAL_GRANT) {
-            grantee_db_access =
-                get_grantee_db_access(grantor_rl_itr.first.c_str());
+            grantee_db_access = get_grantee_db_access(grantor_rl_itr.first);
           } else if (sql_op == SQL_OP::SET_ROLE && db_map != nullptr) {
             const std::string key(grantor_rl_itr.first.c_str(),
                                   grantor_rl_itr.first.length());
@@ -788,13 +804,28 @@ void DB_restrictions_aggregator::aggregate_restrictions(
           */
           restrictions_mask &= ~grantee_db_access;
 
-          /*
-            Remove any global privilege that grantee already has
-          */
+          /* Remove any global privilege that grantee already has */
           restrictions_mask &= ~m_grantee_global_access;
         }
         if (restrictions_mask)
-          restrictions.add(grantor_rl_itr.first.c_str(), restrictions_mask);
+          restrictions.add(grantor_rl_itr.first, restrictions_mask);
+      }
+      /*
+       We are left with two types of grantee's restrictions to process.
+       (1) Grantee's schemas that did not match grantor's restrictions but
+           restrictions on these schemas could be negated due to grantor's
+           global privileges.
+       (2) Restrictions in grantee's schemas which are not relevant with
+           the requested access. Grantee must retain these restrictions.
+      */
+      if (grantee_rl.is_not_empty()) {
+        for (auto &grantee_rl_itr : grantee_rl()) {
+          grantee_rl_itr.second &=
+              ~(m_grantor_global_access & m_requested_access);
+        }
+        /* Remove the schemas without any restrictions remaining */
+        grantee_rl.remove(0);
+        restrictions.add(grantee_rl);
       }
     }
   } else if (m_grantee_rl.is_not_empty()) {
@@ -1095,25 +1126,18 @@ DB_restrictions_aggregator_global_revoke::validate() {
 }
 
 /**
-  Generates DB_restrictions based on the requested access, grantor and
-  grantee's DB_restrictions in the ACL cache.
   - If grantee has the restriction list
     - Remove only requested restrictions from restriction_list
-  - Else clear the DB_restrictions paramater
 
-  @param  [out]  restrictions  Fills the paramter with the aggregated
-                                  DB_restrictions
+  @param  [out]  restrictions  Fills the parater with the aggregated
+                               DB_restrictions
 */
 void DB_restrictions_aggregator_global_revoke::aggregate(
     DB_restrictions &restrictions) {
   DBUG_ASSERT(m_status == Status::Validated);
+  restrictions = m_grantee_rl;
   if (test_all_bits(m_grantee_global_access, m_requested_access)) {
-    if (m_grantee_rl.is_not_empty()) {
-      restrictions = m_grantee_rl;
-      restrictions.remove(m_requested_access);
-    } else {
-      restrictions.clear();
-    }
+    restrictions.remove(m_requested_access);
   }
   m_status = Status::Aggregated;
 }
@@ -1437,8 +1461,6 @@ Restrictions::Restrictions(const Restrictions &restrictions)
 
 /**
   Move constructor for Restrictions
-
-  @param [in] restrictions
 */
 Restrictions::Restrictions(Restrictions &&restrictions)
     : m_db_restrictions(restrictions.m_db_restrictions) {}

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1760,7 +1760,7 @@ NdbImportImpl::CsvInputWorker::do_init()
         log_debug(1, "file " << file.get_path() << ": "
              "seek to pos " << seekpos << " done");
         m_csvinput->do_resume(range_in);
-        (void)ranges_in.pop_front();
+        rowmap_in.free_range(ranges_in.pop_front());
       }
       else
       {
@@ -1894,7 +1894,16 @@ NdbImportImpl::CsvInputWorker::state_parse()
   log_debug(2, "state_parse");
   m_csvinput->do_parse();
   log_debug(2, "lines parsed:" << m_csvinput->m_line_list.cnt());
-  m_inputstate = InputState::State_movetail;
+  if(m_csvinput->has_error())
+  {
+    /* Cannot recover from parser error */
+    m_util.copy_error(m_error, m_csvinput->m_error);
+    m_team.m_job.m_fatal = true;
+  }
+  else
+  {
+    m_inputstate = InputState::State_movetail;
+  }
 }
 
 void
@@ -2124,6 +2133,11 @@ NdbImportImpl::Op::Op()
   m_rowop = 0;
   m_opcnt = 0;
   m_opsize = 0;
+}
+
+NdbImportImpl::Op::~Op()
+{
+  delete m_row;
 }
 
 NdbImportImpl::OpList::OpList()
@@ -2745,6 +2759,14 @@ NdbImportImpl::ExecOpWorker::state_receive()
 }
 
 void
+NdbImportImpl::ExecOpWorker::handle_error(Op *op)
+{
+  m_rows_free.push_back(op->m_row);
+  op->m_row = NULL;
+  free_op(op);
+}
+
+void
 NdbImportImpl::ExecOpWorker::reject_row(Row* row, const Error& error)
 {
   const Opt& opt = m_util.c_opt;
@@ -2790,11 +2812,26 @@ NdbImportImpl::ExecOpWorkerSynch::do_end()
   {
     require(m_tx_open.cnt() == 0);
   }
-  else if (m_tx_open.cnt() != 0)
+  else if (m_tx_open.cnt() != 0 &&
+           m_execstate == ExecState::State_prepare)
   {
+    // Error occurred in State_define:
+    //   1) Close the txs
     require(m_tx_open.cnt() == 1);
     Tx* tx = m_tx_open.front();
     close_trans(tx);
+  }
+  //   2) Release the ops not called with insertTuple()
+  //      These will be taken care of when import resumes
+  Op* one_op = NULL;
+  while ((one_op = m_ops.pop_front()) != NULL)
+  {
+    if (one_op->m_row != NULL)
+    {
+      m_rows_free.push_back(one_op->m_row);
+      one_op->m_row = NULL;
+    }
+    free_op(one_op);
   }
 }
 
@@ -2926,11 +2963,25 @@ NdbImportImpl::ExecOpWorkerAsynch::do_end()
   }
   else if (m_execstate == ExecState::State_prepare)
   {
-    // error in State_define, simply close the txs
+    // Error occurred in State_define:
+    //   1) Close the txs
     while (m_tx_open.cnt() != 0)
     {
       Tx* tx = m_tx_open.front();
       close_trans(tx);
+    }
+    //   2) Release the ops not called with insertTuple()
+    //      These will be taken care of when import resumes
+    Op* one_op = NULL;
+    log_debug(1, "Mai async do_end ops " << m_ops.cnt());
+    while ((one_op = m_ops.pop_front()) != NULL)
+    {
+      if (one_op->m_row != NULL)
+      {
+        m_rows_free.push_back(one_op->m_row);
+        one_op->m_row = NULL;
+      }
+      free_op(one_op);
     }
   }
   else
@@ -2990,6 +3041,8 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
       require(row != 0);
       log_debug(1, "push back to input: rowid " << row->m_rowid);
       rows_in.push_back_force(row);
+      op->m_row = NULL;
+      free_op(op);
     }
     rows_in.unlock();
   }
@@ -3031,9 +3084,10 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
    * don't want to get stuck here on "permanent" temporary errors.
    * So we limit them by opt.m_tmperrors (counted per op).
    */
+  Op* op = NULL;
   while (m_ops.cnt() != 0)
   {
-    Op* op = m_ops.pop_front();
+    op = m_ops.pop_front();
     Row* row = op->m_row;
     require(row != 0);
     const Table& table = m_util.get_table(row->m_tabid);
@@ -3158,8 +3212,16 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
         break;
       }
     }
+    if (has_error())
+    {
+      break;
+    }
     op->m_rowop = rowop;
     tx->m_ops.push_back(op);
+  }
+  if (has_error())
+  {
+    handle_error(op);
   }
   m_execstate = ExecState::State_prepare;
 }
@@ -3341,7 +3403,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     return;
   }
   // csv input requires at least 2 instances
-  Buf* buf[2];
+  Buf buf[2] = {{true}, {true}};
   CsvInput* csvinput[2];
   RowList rows_reject;
   RowMap rowmap_in[] = {m_util, m_util};
@@ -3349,13 +3411,12 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
   {
     uint pagesize = opt.m_pagesize;
     uint pagecnt = opt.m_pagecnt;
-    buf[i] = new Buf(true);
-    buf[i]->alloc(pagesize, 2 * pagecnt);
+    buf[i].alloc(pagesize, 2 * pagecnt);
     csvinput[i] = new CsvInput(m_impl.m_csv,
                                Name(name, i),
                                csvspec,
                                table,
-                               *buf[i],
+                               buf[i],
                                rows_out,
                                rows_reject,
                                rowmap_in[i],
@@ -3369,8 +3430,8 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     {
       uint j = 1 - i;
       CsvInput& csvinput1 = *csvinput[i];
-      Buf& b1 = *buf[i];
-      Buf& b2 = *buf[j];
+      Buf& b1 = buf[i];
+      Buf& b2 = buf[j];
       b1.reset();
       if (file.do_read(b1) == -1)
       {
@@ -3408,6 +3469,12 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     }
     log_debug(1, "read_old_diags: " << name << " count=" << rows_out.cnt());
   }
+
+  for (uint i = 0; i < 2; i++)
+  {
+    delete csvinput[i];
+  }
+
   // XXX diag errors not yet handled
   require(rows_reject.cnt() == 0);
 }

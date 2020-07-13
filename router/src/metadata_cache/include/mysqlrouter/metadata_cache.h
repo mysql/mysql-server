@@ -70,6 +70,11 @@ extern const std::string kDefaultMetadataCluster;
 extern const unsigned int kDefaultConnectTimeout;
 extern const unsigned int kDefaultReadTimeout;
 
+extern const std::string kNodeTagHidden;
+extern const std::string kNodeTagDisconnectWhenHidden;
+extern const bool kNodeTagHiddenDefault;
+extern const bool kNodeTagDisconnectWhenHiddenDefault;
+
 enum class ReplicasetStatus {
   AvailableWritable,
   AvailableReadOnly,
@@ -95,10 +100,8 @@ class METADATA_API ManagedInstance {
   ManagedInstance() = default;
   ManagedInstance(const std::string &p_replicaset_name,
                   const std::string &p_mysql_server_uuid,
-                  const std::string &p_role, const ServerMode p_mode,
-                  const float p_weight, const unsigned int p_version_token,
-                  const std::string &p_host, const uint16_t p_port,
-                  const uint16_t p_xport);
+                  const ServerMode p_mode, const std::string &p_host,
+                  const uint16_t p_port, const uint16_t p_xport);
 
   using TCPAddress = mysql_harness::TCPAddress;
   explicit ManagedInstance(const TCPAddress &addr);
@@ -109,20 +112,20 @@ class METADATA_API ManagedInstance {
   std::string replicaset_name;
   /** @brief The uuid of the MySQL server */
   std::string mysql_server_uuid;
-  /** @brief The role of the server */
-  std::string role;
   /** @brief The mode of the server */
   ServerMode mode;
-  /** @brief The server weight */
-  float weight;
-  /** @brief The version token of the server */
-  unsigned int version_token;
   /** @brief The host name on which the server is running */
   std::string host;
   /** The port number in which the server is running */
   uint16_t port;
   /** The X protocol port number in which the server is running */
   uint16_t xport;
+  /** Should the node be hidden from the application to use it */
+  bool hidden{kNodeTagHiddenDefault};
+  /** Should the Router disconnect existing client sessions to the node when it
+   * is hidden */
+  bool disconnect_existing_sessions_when_hidden{
+      kNodeTagDisconnectWhenHiddenDefault};
 };
 
 /** @class ManagedReplicaSet

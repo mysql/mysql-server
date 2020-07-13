@@ -57,8 +57,11 @@
 	padding: 3px 5px 2px 7px;
 	text-align: right;
 	border-top: 1px solid @minor-border-color;
-	margin: 10px -8px -10px;
 }
+.claro .dijitDialogPaneContent .dijitDialogPaneActionBar {
+	margin: 10px -8px -10px;	// Offsets 10px padding on dijitDialogPaneContent
+}
+
 .claro .dijitTooltipDialog .dijitDialogPaneActionBar {
   -webkit-border-bottom-right-radius: 4px;
   -webkit-border-bottom-left-radius: 4px;
@@ -103,7 +106,7 @@
 .claro .dijitDialogCloseIconHover {
 	background-position:-21px;
 }
-.claro .dijitDialogCloseIconActive {
+.claro .dijitDialogCloseIcon:active {
 	background-position:-42px;
 }
 
@@ -153,12 +156,6 @@
 .dj_ie6 .claro .dijitTooltipConnector {
 	background-image:url(@image-tooltip-ie6);
 }
-.claro .dijitTooltipABRight .dijitTooltipConnector {
-	/* above or below tooltip, but the arrow appears on the right,
-		and the right edges of target and tooltip are aligned rather than the left */
-	left: auto !important;
-	right: 3px;
-}
 
 .claro .dijitTooltipBelow .dijitTooltipConnector {
 	/* the arrow piece for tooltips below an element */
@@ -181,6 +178,15 @@
 .dj_ie6 .claro .dijitTooltipAbove .dijitTooltipConnector {
 	bottom: -1px;
 }
+
+.claro .dijitTooltipABRight .dijitTooltipConnector {
+	/* above or below tooltip, but the arrow appears on the right,
+		and the right edges of target and tooltip are aligned rather than the left.
+		Override above rules for .dijitTooltipBelow, .dijitTooltipAbove */
+	left: auto;
+	right: 3px;
+}
+
 
 .claro .dijitTooltipLeft {
 	padding-right: 14px;

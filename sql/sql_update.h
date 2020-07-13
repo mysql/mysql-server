@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,9 @@ struct TABLE_LIST;
 
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
+bool should_switch_to_multi_table_if_subqueries(const THD *thd,
+                                                const SELECT_LEX *select,
+                                                const TABLE_LIST *table_list);
 
 class Query_result_update final : public Query_result_interceptor {
   /// Number of tables being updated
@@ -144,6 +147,8 @@ class Query_result_update final : public Query_result_interceptor {
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
   void cleanup(THD *thd) override;
+
+  bool immediate_update(TABLE_LIST *t) const override;
 };
 
 class Sql_cmd_update final : public Sql_cmd_dml {

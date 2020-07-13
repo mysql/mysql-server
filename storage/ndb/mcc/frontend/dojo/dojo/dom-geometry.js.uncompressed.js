@@ -49,8 +49,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -78,8 +78,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -108,8 +108,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -143,8 +143,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -177,37 +177,17 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
 		node = dom.byId(node);
 		var s = computedStyle || style.getComputedStyle(node), me = geom.getMarginExtents(node, s),
 			l = node.offsetLeft - me.l, t = node.offsetTop - me.t, p = node.parentNode, px = style.toPixelValue, pcs;
-		if(has("mozilla")){
-			// Mozilla:
-			// If offsetParent has a computed overflow != visible, the offsetLeft is decreased
-			// by the parent's border.
-			// We don't want to compute the parent's style, so instead we examine node's
-			// computed left/top which is more stable.
-			var sl = parseFloat(s.left), st = parseFloat(s.top);
-			if(!isNaN(sl) && !isNaN(st)){
-				l = sl;
-				t = st;
-			}else{
-				// If child's computed left/top are not parseable as a number (e.g. "auto"), we
-				// have no choice but to examine the parent's computed style.
-				if(p && p.style){
-					pcs = style.getComputedStyle(p);
-					if(pcs.overflow != "visible"){
-						l += pcs.borderLeftStyle != none ? px(node, pcs.borderLeftWidth) : 0;
-						t += pcs.borderTopStyle != none ? px(node, pcs.borderTopWidth) : 0;
-					}
-				}
-			}
-		}else if(has("opera") || (has("ie") == 8 && !has("quirks"))){
-			// On Opera and IE 8, offsetLeft/Top includes the parent's border
+
+		if((has("ie") == 8 && !has("quirks"))){
+			// IE 8 offsetLeft/Top includes the parent's border
 			if(p){
 				pcs = style.getComputedStyle(p);
 				l -= pcs.borderLeftStyle != none ? px(node, pcs.borderLeftWidth) : 0;
@@ -226,8 +206,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -235,20 +215,26 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// fallback to offsetWidth/Height for special cases (see #3378)
 		node = dom.byId(node);
 		var s = computedStyle || style.getComputedStyle(node), w = node.clientWidth, h,
-			pe = geom.getPadExtents(node, s), be = geom.getBorderExtents(node, s);
+			pe = geom.getPadExtents(node, s), be = geom.getBorderExtents(node, s), l = node.offsetLeft + pe.l + be.l,
+			t = node.offsetTop + pe.t + be.t;
 		if(!w){
-			w = node.offsetWidth;
-			h = node.offsetHeight;
+			w = node.offsetWidth - be.w;
+			h = node.offsetHeight - be.h;
 		}else{
 			h = node.clientHeight;
-			be.w = be.h = 0;
 		}
-		// On Opera, offsetLeft includes the parent's border
-		if(has("opera")){
-			pe.l += be.l;
-			pe.t += be.t;
+
+		if((has("ie") == 8 && !has("quirks"))){
+			// IE 8 offsetLeft/Top includes the parent's border
+			var p = node.parentNode, px = style.toPixelValue, pcs;
+			if(p){
+				pcs = style.getComputedStyle(p);
+				l -= pcs.borderLeftStyle != none ? px(node, pcs.borderLeftWidth) : 0;
+				t -= pcs.borderTopStyle != none ? px(node, pcs.borderTopWidth) : 0;
+			}
 		}
-		return {l: pe.l, t: pe.t, w: w - pe.w - be.w, h: h - pe.h - be.h};
+
+		return {l: l, t: t, w: w - pe.w, h: h - pe.h};
 	};
 
 	// Box setters depend on box context because interpretation of width/height styles
@@ -333,8 +319,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -367,8 +353,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -425,56 +411,20 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// returns: Object
 
 		doc = doc || win.doc;
-		var node = win.doc.parentWindow || win.doc.defaultView;   // use UI window, not dojo.global window.   TODO: use dojo/window::get() except for circular dependency problem
+		var node = doc.parentWindow || doc.defaultView;   // use UI window, not dojo.global window.   TODO: use dojo/window::get() except for circular dependency problem
 		return "pageXOffset" in node ? {x: node.pageXOffset, y: node.pageYOffset } :
 			(node = has("quirks") ? win.body(doc) : doc.documentElement) &&
 				{x: geom.fixIeBiDiScrollLeft(node.scrollLeft || 0, doc), y: node.scrollTop || 0 };
 	};
 
-	if(has("ie")){
-		geom.getIeDocumentElementOffset = function getIeDocumentElementOffset(/*Document?*/ doc){
-			// summary:
-			//		returns the offset in x and y from the document body to the
-			//		visual edge of the page for IE
-			// doc: Document?
-			//		Optional document to query.   If unspecified, use win.doc.
-			// description:
-			//		The following values in IE contain an offset:
-			//	|		event.clientX
-			//	|		event.clientY
-			//	|		node.getBoundingClientRect().left
-			//	|		node.getBoundingClientRect().top
-			//		But other position related values do not contain this offset,
-			//		such as node.offsetLeft, node.offsetTop, node.style.left and
-			//		node.style.top. The offset is always (2, 2) in LTR direction.
-			//		When the body is in RTL direction, the offset counts the width
-			//		of left scroll bar's width.  This function computes the actual
-			//		offset.
-
-			//NOTE: assumes we're being called in an IE browser
-
-			doc = doc || win.doc;
-			var de = doc.documentElement; // only deal with HTML element here, position() handles body/quirks
-
-			if(has("ie") < 8){
-				var r = de.getBoundingClientRect(), // works well for IE6+
-					l = r.left, t = r.top;
-				if(has("ie") < 7){
-					l += de.clientLeft;	// scrollbar size in strict/RTL, or,
-					t += de.clientTop;	// HTML border size in strict
-				}
-				return {
-					x: l < 0 ? 0 : l, // FRAME element border size can lead to inaccurate negative values
-					y: t < 0 ? 0 : t
-				};
-			}else{
-				return {
-					x: 0,
-					y: 0
-				};
-			}
+	geom.getIeDocumentElementOffset = function(/*Document?*/ doc){
+		// summary:
+		//		Deprecated method previously used for IE6-IE7.  Now, just returns `{x:0, y:0}`.
+		return {
+			x: 0,
+			y: 0
 		};
-	}
+	};
 
 	geom.fixIeBiDiScrollLeft = function fixIeBiDiScrollLeft(/*Integer*/ scrollLeft, /*Document?*/ doc){
 		// summary:
@@ -530,12 +480,9 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		ret = {x: ret.left, y: ret.top, w: ret.right - ret.left, h: ret.bottom - ret.top};
 
 		if(has("ie") < 9){
-			// On IE<9 there's a 2px offset that we need to adjust for, see dojo.getIeDocumentElementOffset()
-			var offset = geom.getIeDocumentElementOffset(node.ownerDocument);
-
 			// fixes the position in IE, quirks mode
-			ret.x -= offset.x + (has("quirks") ? db.clientLeft + db.offsetLeft : 0);
-			ret.y -= offset.y + (has("quirks") ? db.clientTop + db.offsetTop : 0);
+			ret.x -= (has("quirks") ? db.clientLeft + db.offsetLeft : 0);
+			ret.y -= (has("quirks") ? db.clientTop + db.offsetTop : 0);
 		}
 
 		// account for document scrolling
@@ -560,8 +507,8 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 		// computedStyle: Object?
 		//		This parameter accepts computed styles object.
 		//		If this parameter is omitted, the functions will call
-		//		dojo.getComputedStyle to get one. It is a better way, calling
-		//		dojo.computedStyle once, and then pass the reference to this
+		//		dojo/dom-style.getComputedStyle to get one. It is a better way, calling
+		//		dojo/dom-style.getComputedStyle once, and then pass the reference to this
 		//		computedStyle parameter. Wherever possible, reuse the returned
 		//		object of dojo/dom-style.getComputedStyle().
 
@@ -583,19 +530,18 @@ define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"]
 			event.layerX = event.offsetX;
 			event.layerY = event.offsetY;
 		}
-		if(!has("dom-addeventlistener")){
-			// old IE version
-			// FIXME: scroll position query is duped from dojo.html to
+
+		if(!("pageX" in event)){
+			// FIXME: scroll position query is duped from dojo/_base/html to
 			// avoid dependency on that entire module. Now that HTML is in
 			// Base, we should convert back to something similar there.
 			var se = event.target;
 			var doc = (se && se.ownerDocument) || document;
-			// DO NOT replace the following to use dojo.body(), in IE, document.documentElement should be used
+			// DO NOT replace the following to use dojo/_base/window.body(), in IE, document.documentElement should be used
 			// here rather than document.body
 			var docBody = has("quirks") ? doc.body : doc.documentElement;
-			var offset = geom.getIeDocumentElementOffset(doc);
-			event.pageX = event.clientX + geom.fixIeBiDiScrollLeft(docBody.scrollLeft || 0, doc) - offset.x;
-			event.pageY = event.clientY + (docBody.scrollTop || 0) - offset.y;
+			event.pageX = event.clientX + geom.fixIeBiDiScrollLeft(docBody.scrollLeft || 0, doc);
+			event.pageY = event.clientY + (docBody.scrollTop || 0);
 		}
 	};
 

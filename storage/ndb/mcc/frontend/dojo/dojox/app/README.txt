@@ -1,13 +1,7 @@
 -------------------------------------------------------------------------------
-DojoX app 
+dojox/app 
 -------------------------------------------------------------------------------
-Version 0.1
-Release date: 05/08/2011
--------------------------------------------------------------------------------
-Project state: EXPERIMENTAL / Under Construction
-
-This project is under active development with increasing capabilities beginning
-in dojo 1.7, but is not yet capable or stable enough to use in production.
+Project state: stable
 
 This project is licensed under the Dojo Tookit licensing scheme and contributions
 provided under the Dojo CLA.
@@ -65,14 +59,13 @@ Example Config:
 		"my/custom/appController"
 	],
 
-	/* The Application level HTML template. template files store in application's templates folder by default */
-	template: "./templates/example.html",
+	/* The Application level HTML template. */
+	template: "./views/example.html",
 	
-	/* Application level view definition. Application will have a root view even if it has no template.
-	  "none" -- no definition for this view,
-	  "./views/myView.js" -- load definition from "./views/myView.js",
-	  no definition (by default) -- load definition from "./views/example.js" */
-	"definition": "none",
+	/* Application level view controller. Application will have a root view even if it has no template.
+	  "./views/myView.js" -- load controller from "./views/myView.js",
+	  no controller -- no controller for this view */
+	"controller": "./views/myView.js",
 
 	/* the view to start on by default */
 	"defaultView": "home",
@@ -93,20 +86,17 @@ Example Config:
 			],
 
 			/* template to use for this view */
-			template: "./templates/home.html",
+			template: "./views/home.html"
 
-			/* view definition. "none" -- no definition for this view,
-			  "./views/myHome.js" -- load definition from "./views/myHome.js",
-			  no definition (by default) -- load definition from "./views/home.js" */
-			"definition": "none"
+			/* view controller. "none" -- ,
+			  "./views/myHome.js" -- load controller from "./views/myHome.js",
+			  no controller -- no controller for this view */
 		},
 	
 		/* tabs view contains three child views */
 		"tabs": { 
 			/* the tabs view template */
-			"template": "./templates/tabScene.html",
-
-			"definition": "none",
+			"template": "./views/tabScene.html",
 
 			/* the default view within tabs view */	
 			"defaultView": "tab1",
@@ -117,14 +107,14 @@ Example Config:
 			//the views available to tabs view
 			"views": { 
 				"tab1":{
-					"template": "./templates/tabs/tab1.html"
-					/* no definition define for tab1 view, load tab1 view definition from "views/tabs/tab1.js" */
+					"template": "./views/tabs/tab1.html"
+					/* no controller define for tab1 view, load tab1 view controller from the same location as the template. */
 				},
 				"tab2":{
-					"template": "./templates/tabs/tab2.html" 
+					"template": "./views/tabs/tab2.html" 
 				},
 				"tab3":{
-					"template": "./templates/tabs/tab3.html" 
+					"template": "./views/tabs/tab3.html" 
 				}
 			},
 
@@ -146,12 +136,12 @@ Property descriptions
 
 	- modules -  The modules property defines application modules that will mixed into the Application class to control the lifecycle and behavior of the application. This property will become the array of mixins provided to a dojo/declare extending the base Application class. In other words, the Application class that is instantiated dynamically is created at run time using the base class and this list of modules.
 
-	- controllers -  The controllers property defines application controllers that will be loaded during application startup to respond to events of the application. The controllers bind events on application's root domNode and the events can be triggered by application's trigger() method and documented actions.
+	- controllers -  The controllers property defines application controllers that will be loaded during application startup to respond to events of the application. The controllers bind events on application's root domNode and the events can be triggered by application's emit() method and documented actions.
 
 	- template -  This is the template/HTML that is used for the application when defined at the root of the configuration.
 	 Within the context of a view, it is the template/HTML for defining the view.
 
-	- definition -  This is the view definition that is used for the application template view when defined at the root of the configuration. It implements the view's life cycle interface like init(), beforeActivate(), destroy(), etc. and allows one to control the view.
+	- controller -  This is the view controller that is used for the application template view when defined at the root of the configuration. It implements the view's life cycle interface like init(), beforeActivate(), destroy(), etc. and allows one to control the view.
 
 	- defaultView -  The defaultView defines the startup view for the application.
 
@@ -182,13 +172,13 @@ This module exports a generation function, which when provided a configuration f
 The View module:
 
 The View module provides a View class to construct View instances, a template rendering engine to render view template and view lifecycle APIs. Each View can have one parent view and several children views. It provides a templated container to host the domNodes for the children views. Its purpose is to allow the layout of the view to be provided through an html template and to have a set of children views which the view transitions between. For example, to display a set of tabs, you would use a View with a child view for each tab. The view's template would define where within the view the children views are displayed and where any tab buttons and such are displayed.
-In this case the  "template", for the base View is pretty simple. It is a simple HTML content. However, nodes within the template can be tagged with data-app-region="top" (bottom, left, right) to define where that node and its children should be displayed.
+In this case the  "template", for the base View is pretty simple. It is a simple HTML content. However, nodes within the template can be tagged with data-app-constraint="top" (bottom, left, right) to define where that node and its children should be displayed.
 For example:
 
 ```html
 <div  style="background:#c5ccd3;" class="view mblView"> 
-	<div data-app-region="top" data-dojo-type="dojox/mobile/Heading">Tab View</div>
-	<ul data-app-region="top" data-dojo-type="dojox/mobile/TabBar" barType="segmentedControl">
+	<div data-app-constraint="top" data-dojo-type="dojox/mobile/Heading">Tab View</div>
+	<ul data-app-constraint="top" data-dojo-type="dojox/mobile/TabBar" barType="segmentedControl">
 		<li data-dojo-type="dojox/mobile/TabBarButton" icon1="images/tab-icon-16.png" icon2="images/tab-icon-16h.png"
 			transitionOptions='{title:"TabScene-Tab1",target:"tabscene,tab1",url: "#tabscene,tab1"}' selected="true">Tab 1</li>
 		<li data-dojo-type="dojox/mobile/TabBarButton" icon1="images/tab-icon-15.png" icon2="images/tab-icon-15h.png"
@@ -201,15 +191,15 @@ For example:
 
 This template for the tabs view defines two areas with region top, a header and the tab buttons. The will be placed at the top of this main view when rendered.
 
-Normally, when using a BorderContainer, one would also have a data-app-region="center" section. In the case of a View however, the "center" region will be applied to the currently active view (the current tab for example).
+Normally, when using a BorderContainer, one would also have a data-app-constraint="center" section. In the case of a View however, the "center" region will be applied to the currently active view (the current tab for example).
 
-The application can also provide view definition modules to implement the View lifecyle APIs (like init(), destory(),...) for each view. The Transition controller controls the transition from one child view to another. This includes propagating transition events on to children if the active child is itself another view.
+The application can also provide view controller modules to implement the View lifecyle APIs (like init(), destory(),...) for each view. The Transition controller controls the transition from one child view to another. This includes propagating transition events on to children if the active child is itself another view.
 
 The Controller module:
 
 The Controller module provides a base Class to control the application by binding events on application's root domNode. Several controllers required by the framework are implemented in dojox/app/controllers package:
 	
-   * Load controller: load view templates and view definitions
+   * Load controller: load view templates and view controllers
    * Transition controller: respond to "startTransition" event and do transition between views
    * Layout controller: perform views layout
    * History controller: maintain application's history. This is based on HTML5 history APIs and will not work on platforms that do not support it like IE, Android 3 & 4, iOS4, etc.
@@ -255,16 +245,3 @@ define(["dojo/_base/lang", "dojo/_base/declare"], function(lang, declare){
 	});
 });
 ```
-
-TODO:
-
-dojox/app is still an experimental framework with several key pieces still under design and development before a final release. This final release is expected to occur prior to the Dojo 2.0 release. The following items are piece that are under development and testing and we see as requirements prior to the final release:
-
-- Model/Store support. We have a couple of preliminary implementations of model/store support, including one for dojox/mvc.
-However, additional work and testing are required to come to a simple and agreed up on API for these components.  While MVC systems such as dojox/mvc should be supported with first class capabilities, they should not be required. An application developer can 'control' the html of any one view by simply extending the view class and using javascript if they so desired.
-
-- Desktop/Mobile Branching -  Dojox/app is not to be specific to any one particular web platform.
-Using css media selectors and definitions within the config, there will be support for choosing which set of views and parameters to use based on the users browser.
-
-- Intelligent build support -  For performance, especially on the mobile side, an appropriate build of the application is required.
-Rather than adding a build profile for the app, there will be a wrapper utility that runs the build from the config.json. This will allow us to intelligently build the base layers and dynamically loaded layers which should be defined by dependencies and default views as well as other information.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,11 @@
 #include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
 #include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
-#include "sql/dd/impl/system_views/collations.h"           // Collations
-#include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
-#include "sql/dd/impl/system_views/columns.h"              // Columns
+#include "sql/dd/impl/system_views/collations.h"          // Collations
+#include "sql/dd/impl/system_views/column_statistics.h"   // Column_statistics
+#include "sql/dd/impl/system_views/columns.h"             // Columns
+#include "sql/dd/impl/system_views/columns_extensions.h"  // Columns_extensions
+
 #include "sql/dd/impl/system_views/enabled_roles.h"        // Enabled_roles
 #include "sql/dd/impl/system_views/events.h"               // Events
 #include "sql/dd/impl/system_views/files.h"                // Files
@@ -56,12 +58,16 @@
 #include "sql/dd/impl/system_views/table_constraints.h"    // Table_constraints
 #include "sql/dd/impl/system_views/tables.h"               // Tables
 #include "sql/dd/impl/system_views/triggers.h"             // Triggers
-#include "sql/dd/impl/system_views/view_routine_usage.h"   // View_routine_usage
-#include "sql/dd/impl/system_views/view_table_usage.h"     // View_table_usage
-#include "sql/dd/impl/system_views/views.h"                // Views
+#include "sql/dd/impl/system_views/user_attributes.h"
+#include "sql/dd/impl/system_views/view_routine_usage.h"  // View_routine_usage
+#include "sql/dd/impl/system_views/view_table_usage.h"    // View_table_usage
+#include "sql/dd/impl/system_views/views.h"               // Views
 
-#include "sql/dd/impl/tables/catalogs.h"              // Catalog
-#include "sql/dd/impl/tables/character_sets.h"        // Character_sets
+#include "sql/dd/impl/system_views/table_constraints_extensions.h"  // Table_constraints_extensions
+#include "sql/dd/impl/system_views/tables_extensions.h"  // Tables_extensions
+#include "sql/dd/impl/system_views/tablespaces_extensions.h"  // Tablespaces_extensions
+#include "sql/dd/impl/tables/catalogs.h"                      // Catalog
+#include "sql/dd/impl/tables/character_sets.h"                // Character_sets
 #include "sql/dd/impl/tables/check_constraints.h"     // Check_constraints
 #include "sql/dd/impl/tables/collations.h"            // Collations
 #include "sql/dd/impl/tables/column_statistics.h"     // Column_statistics
@@ -200,6 +206,7 @@ void System_tables::add_remaining_dd_tables() {
   */
   register_table("backup_history", system);
   register_table("backup_progress", system);
+  register_table("backup_sbt_history", system);
   register_table("columns_priv", system);
   register_table("component", system);
   register_table("db", system);
@@ -212,7 +219,6 @@ void System_tables::add_remaining_dd_tables() {
   register_table("help_keyword", system);
   register_table("help_relation", system);
   register_table("help_topic", system);
-  register_table("host", system);
   register_table("ndb_binlog_index", system);
   register_table("plugin", system);
   register_table("password_history", system);
@@ -226,14 +232,21 @@ void System_tables::add_remaining_dd_tables() {
   register_table("slave_worker_info", system);
   register_table("slave_relay_log_info", system);
   register_table("tables_priv", system);
-  register_table("temp_user", system);
-  register_table("tmp_user", system);
   register_table("time_zone", system);
   register_table("time_zone_name", system);
   register_table("time_zone_leap_second", system);
   register_table("time_zone_transition", system);
   register_table("time_zone_transition_type", system);
   register_table("user", system);
+
+  /*
+    MTR tests expects following tables to be created in the 'mysql' tablespace.
+    So tables are listed here.
+
+    TODO: Try to re-write test cases and remove these tables from here.
+  */
+  register_table("temp_user", system);
+  register_table("tmp_user", system);
   register_table("user_backup", system);
 }
 
@@ -252,6 +265,7 @@ void System_views::init() {
   register_view<dd::system_views::Collations>(is);
   register_view<dd::system_views::Collation_charset_applicability>(is);
   register_view<dd::system_views::Columns>(is);
+  register_view<dd::system_views::Columns_extensions>(is);
   register_view<dd::system_views::Column_statistics>(is);
   register_view<dd::system_views::Events>(is);
   register_view<dd::system_views::Files>(is);
@@ -277,11 +291,15 @@ void System_views::init() {
   register_view<dd::system_views::St_geometry_columns>(is);
   register_view<dd::system_views::Statistics>(is);
   register_view<dd::system_views::Table_constraints>(is);
+  register_view<dd::system_views::Table_constraints_extensions>(is);
   register_view<dd::system_views::Tables>(is);
+  register_view<dd::system_views::Tables_extensions>(is);
+  register_view<dd::system_views::Tablespaces_extensions>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::View_routine_usage>(is);
   register_view<dd::system_views::View_table_usage>(is);
   register_view<dd::system_views::Views>(is);
+  register_view<dd::system_views::User_attributes>(non_dd_based_is);
 }
 
 }  // namespace dd

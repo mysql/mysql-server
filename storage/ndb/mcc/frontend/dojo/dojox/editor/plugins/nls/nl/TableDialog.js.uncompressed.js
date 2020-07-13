@@ -11,14 +11,14 @@ define(
 	backgroundColor: "Achtergrondkleur:",
 	borderColor: "Randkleur",
 	borderThickness: "Randdikte:",
-	percent: "procent",
+	percent: "percent",
 	pixels: "pixels",
 	"default": "standaard",
 	left: "links",
 	center: "gecentreerd",
 	right: "rechts",
 	buttonSet: "Instellen", // translated elsewhere?
-	buttonInsert: "Invoegen",
+	buttonInsert: "invoegen",
 	buttonCancel: "Annuleren",
 	selectTableLabel: "Tabel selecteren",
 	insertTableRowBeforeLabel: "Rij boven toevoegen",
@@ -26,6 +26,8 @@ define(
 	insertTableColumnBeforeLabel: "Kolom voor toevoegen",
 	insertTableColumnAfterLabel: "Kolom achter toevoegen",
 	deleteTableRowLabel: "Rij wissen",
-	deleteTableColumnLabel: "Kolom wissen"
+	deleteTableColumnLabel: "Kolom wissen",
+	colorTableCellTitle: "Achtergrondkleur van tabelcel",
+	tableContextMenuTitle: "Contextmenu voor tabel"
 })
 );

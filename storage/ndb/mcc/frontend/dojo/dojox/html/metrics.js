@@ -48,6 +48,7 @@ _8.getTextBox=function(_11,_12,_13){
 var m,s;
 if(!_f){
 m=_f=_6.doc.createElement("div");
+m.style.whiteSpace="nowrap";
 var c=_6.doc.createElement("div");
 c.appendChild(m);
 s=c.style;
