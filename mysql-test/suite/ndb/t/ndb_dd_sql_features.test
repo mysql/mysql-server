@@ -50,6 +50,7 @@ DROP TABLE IF EXISTS test.t3;
  ADD DATAFILE './table_space1/datafile.dat'
  USE LOGFILE GROUP lg
  INITIAL_SIZE 30M
+ EXTENT_SIZE 256K
  ENGINE NDB;
 
  CREATE TABLESPACE ts2
@@ -384,6 +385,12 @@ delimiter //;
                        a2 VARCHAR(256), a3 BLOB) 
                        TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
 
+select distinct tablespace_name, file_type, file_name, free_extents
+from information_schema.files
+where engine = 'ndbcluster' and
+tablespace_name = 'ts1' and file_type = 'DATAFILE'
+order by file_type, file_name;
+
  START TRANSACTION;
  INSERT INTO test.t1 VALUES(NULL, "aaaaa1", "bbbbb1");
  COMMIT;
@@ -512,6 +519,13 @@ select length(@x0),length(@b2),length(@d2) from dual;
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256),
                        a3 BLOB, a4 DATE, a5 CHAR(250))
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+
+select distinct tablespace_name, file_type, file_name, free_extents
+from information_schema.files
+where engine = 'ndbcluster' and
+tablespace_name = 'ts1' and file_type = 'DATAFILE'
+order by file_type, file_name;
+
  let $1=100;
  disable_query_log;
  while ($1)
