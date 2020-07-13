@@ -1065,6 +1065,11 @@ XProtocol::Message *Protocol_impl::read_compressed(Server_message_type_id *mid,
   return message.release();
 }
 
+void Protocol_impl::reset_buffering() {
+  m_connection_input_stream.reset(
+      new Connection_input_stream(m_connection.get()));
+}
+
 XProtocol::Message *Protocol_impl::recv_message_with_header(
     Server_message_type_id *mid, XError *out_error) {
   DBUG_TRACE;

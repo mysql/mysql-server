@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -59,8 +59,13 @@ class Waiting_for_io {
 
     * IO code read packet header
     * IO code is waiting for a header
+    * long-executing-sql
+
+    @return
+      @retval == true     OK
+      @retval == false     I/O error
    */
-  virtual void on_idle_or_before_read() = 0;
+  virtual bool on_idle_or_before_read() = 0;
 };
 
 }  // namespace iface

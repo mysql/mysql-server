@@ -29,10 +29,15 @@
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_error.h"
 
-const uint32_t k_on_idle_timeout_value = 500;
+#ifdef _WIN32
+#define SOCKET_TIMEOUT_ROUNDUP(X) (X < 1000 ? 1000 : X)
+#else
+#define SOCKET_TIMEOUT_ROUNDUP(X) X
+#endif
+
+const uint32_t k_on_idle_timeout_value = SOCKET_TIMEOUT_ROUNDUP(500);
 
 namespace ngs {
-
 Protocol_decoder::Protocol_decoder(
     Message_dispatcher_interface *dispatcher,
     std::shared_ptr<xpl::iface::Vio> vio,
@@ -67,7 +72,8 @@ bool Protocol_decoder::read_header(uint8_t *message_type,
   m_vio_input_stream.mark_vio_as_idle();
 
   while (header_copied < 4) {
-    if (needs_idle_check) wait_for_io->on_idle_or_before_read();
+    if (needs_idle_check)
+      if (!wait_for_io->on_idle_or_before_read()) return false;
 
     if (!m_vio_input_stream.Next((const void **)&input, &input_size)) {
       int out_error_code = 0;

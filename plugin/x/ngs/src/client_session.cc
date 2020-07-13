@@ -70,11 +70,12 @@ Session::~Session() {
   check_thread();
 }
 
-void Session::on_close(const bool update_old_state) {
+void Session::on_close(const Session::Close_flags flags) {
   if (m_state != State::k_closing) {
-    if (update_old_state) m_state_before_close = m_state;
+    if (flags & Close_flags::k_update_old_state) m_state_before_close = m_state;
     m_state = State::k_closing;
-    m_client->on_session_close(this);
+    if (flags & Close_flags::k_force_close_client)
+      m_client->on_session_close(this);
   }
 }
 
@@ -108,7 +109,8 @@ bool Session::handle_ready_message(const Message_request &command) {
 
     case Mysqlx::ClientMessages::CON_CLOSE:
       m_encoder->send_ok("bye!");
-      on_close(true);
+      on_close(Close_flags::k_force_close_client |
+               Close_flags::k_update_old_state);
       return true;
 
     case Mysqlx::ClientMessages::SESS_RESET: {

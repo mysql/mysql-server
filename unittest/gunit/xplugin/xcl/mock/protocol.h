@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -135,6 +135,7 @@ class Mock_protocol : public XProtocol {
   MOCK_METHOD1(use_compression, void(const Compression_algorithm algo));
   MOCK_METHOD2(use_compression,
                void(const Compression_algorithm algo, const int32_t level));
+  MOCK_METHOD0(reset_buffering, void());
 
  private:
   using XQuery_result_ptr = std::unique_ptr<XQuery_result>;

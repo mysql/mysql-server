@@ -4,9 +4,9 @@
 ## Test runs covers below scenarios:                                 #
 ##  - listing client with single session and multiple sessions       #
 ##  - killing own session and x_root user session with privileged user #
-##  - killing own session and x_root user session with unprivileged user
+##  - killing own session and x_root user session with unprivileged user #
 ##  - killing session with value of different data types than UINT   #
-##  - killing x_root session with user has only process privilege      #
+##  - killing x_root session with user has only process privilege    #
 ##  - listing and killing session with password expired user         #
 ##  - killing valid sql_session id with xprotocol connection         #
 ##  - listing and killing default mysqlx_max_connections ie 100      #

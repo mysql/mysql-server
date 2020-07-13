@@ -80,7 +80,7 @@ void Crud_command_handler::notice_handling_common(
   const auto &notice_config = m_session->get_notice_configuration();
   if (info.num_warnings > 0 &&
       notice_config.is_notice_enabled(ngs::Notice_type::k_warning))
-    notices::send_warnings(m_session->data_context(), m_session->proto());
+    notices::send_warnings(&m_session->data_context(), &m_session->proto());
 
   if (!info.message.empty())
     m_session->proto().send_notice_txt_message(info.message);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ namespace ngs {
   event, where notice is the report.
 */
 enum class Notice_type {
+  k_first_element = 0,
   k_warning = 0,
   k_group_replication_quorum_loss,
   k_group_replication_view_changed,
@@ -52,14 +53,15 @@ enum class Notice_type {
  */
 struct Notice_descriptor {
   /**
-    Notice identifiers which can be dispatched
+    Checks if given notice-type can be dispatched
 
-    Array containing global notices that can be dispatched by broker
-    and placed inside per session queue, which later on will be delivered
-    the client.
+    All notices that can be dispatched, are processed by broker
+    and placed inside per session queue, which later on will be
+    delivered the client.
   */
-  const static std::array<Notice_type, 4> dispatchables;
+  static bool is_dispatchable(const Notice_type notice_type);
 
+  explicit Notice_descriptor(const Notice_type notice_type);
   Notice_descriptor(const Notice_type notice_type, const std::string &payload);
 
   Notice_type m_notice_type;

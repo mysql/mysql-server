@@ -76,7 +76,7 @@ ngs::Error_code Stmt_command_handler::sql_stmt_execute(
       da.execute(m_qb.get().data(), m_qb.get().length(), &resultset);
 
   if (error) {
-    if (show_warnings) notices::send_warnings(da, proto, true);
+    if (show_warnings) notices::send_warnings(&da, &proto, true);
     return error;
   }
 

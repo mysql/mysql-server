@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -167,6 +167,10 @@ bool Protocol_encoder_compression::send_column_metadata(
     const Encode_column_info *column_info) {
   handle_compression(protocol::tags::ColumnMetaData::server_id, true);
   return m_encoder->send_column_metadata(column_info);
+}
+
+bool Protocol_encoder_compression::is_building_row() const {
+  return m_encoder->is_building_row();
 }
 
 protocol::XMessage_encoder *Protocol_encoder_compression::raw_encoder() {

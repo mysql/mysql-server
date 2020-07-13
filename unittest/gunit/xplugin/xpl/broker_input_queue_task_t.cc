@@ -73,6 +73,8 @@ class Broker_input_queue_testsuite : public Test {
       m_sut_queue.create_broker_task()};
 };
 
+MATCHER_P(EqNoticeType, expected, "") { return expected == arg->m_notice_type; }
+
 TEST_F(Broker_input_queue_testsuite, does_nothing) {}
 
 TEST_F(Broker_input_queue_testsuite, client_doesnt_have_session) {
@@ -87,7 +89,7 @@ TEST_F(Broker_input_queue_testsuite, queues_all_until_looped2) {
   m_sut_queue.emplace(kId1, "payload");
   m_sut_queue.emplace(kId2, "payload");
 
-  EXPECT_CALL(mock_notice_out_queue, emplace(_, _)).Times(2);
+  EXPECT_CALL(mock_notice_out_queue, emplace(_)).Times(2);
 
   sut_task->loop();
 }
@@ -97,7 +99,7 @@ TEST_F(Broker_input_queue_testsuite, queues_all_until_looped4) {
   m_sut_queue.emplace(kId2, "payload");
   m_sut_queue.emplace(kId2, "payload");
 
-  EXPECT_CALL(mock_notice_out_queue, emplace(_, _)).Times(3);
+  EXPECT_CALL(mock_notice_out_queue, emplace(_)).Times(3);
 
   sut_task->loop();
 }
@@ -110,26 +112,31 @@ TEST_F(Broker_input_queue_testsuite, publish_sequence_is_same_as_queue) {
   m_sut_queue.emplace(kId2, "payload");
 
   InSequence s;
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _)).RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _)).RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _)).RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _)).RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _)).RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)))
+      .RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)))
+      .RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)))
+      .RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)))
+      .RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)))
+      .RetiresOnSaturation();
 
   sut_task->loop();
 }
 
 TEST_F(Broker_input_queue_testsuite, queues_one_by_one) {
   m_sut_queue.emplace(kId1, "payload");
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _));
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)));
   assert_do_loop();
 
   m_sut_queue.emplace(kId2, "payload");
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _));
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)));
   assert_do_loop();
 
   m_sut_queue.emplace(kId1, "payload");
-  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _));
+  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)));
   assert_do_loop();
 }
 

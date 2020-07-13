@@ -39,6 +39,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
+#include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/notices.h"
@@ -345,9 +346,10 @@ int Streaming_command_delegate::end_row() {
   if (m_streaming_metadata) return false;
 
   if (m_proto->send_row()) {
-    if (m_notice_queue) {
-      const bool dont_force_flush_on_last_item = false;
-      m_notice_queue->encode_queued_items(dont_force_flush_on_last_item);
+    auto idle_processing = m_session->client().get_idle_processing();
+    if (idle_processing) {
+      if (idle_processing->has_to_report_idle_waiting())
+        idle_processing->on_idle_or_before_read();
     }
     return false;
   }
@@ -568,7 +570,7 @@ bool Streaming_command_delegate::defer_on_warning(
       return true;
     }
   } else {
-    notices::send_warnings(m_session->data_context(), *m_proto);
+    notices::send_warnings(&m_session->data_context(), m_proto);
   }
   return false;
 }
@@ -601,9 +603,18 @@ void Streaming_command_delegate::handle_out_param_in_handle_ok(
 }
 
 bool Streaming_command_delegate::connection_alive() {
+  log_debug("%u: connection_alive",
+            static_cast<unsigned>(m_session->client().client_id_num()));
   auto connection = m_proto->get_flusher()->get_connection();
 
-  return vio_is_connected(connection->get_vio());
+  auto idle_processing = m_session->client().get_idle_processing();
+
+  if (!vio_is_connected(connection->get_vio())) return false;
+
+  if (idle_processing->has_to_report_idle_waiting())
+    return idle_processing->on_idle_or_before_read();
+
+  return true;
 }
 
 }  // namespace xpl

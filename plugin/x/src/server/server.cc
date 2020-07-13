@@ -79,7 +79,7 @@ Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
 void Server::run_task(std::shared_ptr<xpl::iface::Server_task> handler) {
   handler->pre_loop();
 
-  while (m_state.is(State_running)) {
+  while (m_state.is(State_running) && !m_gracefull_shutdown) {
     handler->loop();
   }
 
@@ -176,6 +176,22 @@ bool Server::prepare() {
   return true;
 }
 
+void Server::gracefull_shutdown() {
+  log_debug("Server::graceful_shutdown state=%i",
+            static_cast<int>(m_state.get()));
+  m_gracefull_shutdown = true;
+
+  if (m_state.exchange(State::State_initializing, State_failure)) {
+    start_failed();
+  }
+
+  for (auto &task : m_tasks) {
+    task->stop(Stop_cause::k_normal_shutdown);
+  }
+
+  graceful_close_all_clients();
+}
+
 /** Stop the network acceptor loop */
 void Server::stop() {
   m_stop_called = true;
@@ -194,7 +210,7 @@ void Server::stop() {
     task->stop(Stop_cause::k_normal_shutdown);
   }
 
-  close_all_clients();
+  graceful_close_all_clients();
   wait_for_clients_closure();
 
   if (m_worker_scheduler) {
@@ -240,7 +256,7 @@ void Server::go_through_all_clients(
   }
 }
 
-void Server::close_all_clients() {
+void Server::graceful_close_all_clients() {
   using Client_ptr = std::shared_ptr<xpl::iface::Client>;
   go_through_all_clients(
       [](Client_ptr client) { client->on_server_shutdown(); });

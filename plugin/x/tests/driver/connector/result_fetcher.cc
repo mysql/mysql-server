@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +103,12 @@ inline std::string get_flags(const xcl::Column_type &field, uint32_t flags) {
 }
 
 }  // namespace
+
+std::ostream &operator<<(std::ostream &os, const xcl::Column_metadata &meta) {
+  os << meta.name << ":" << get_typename(meta.type) << ':'
+     << get_flags(meta.type, meta.flags);
+  return os;
+}
 
 std::ostream &operator<<(std::ostream &os,
                          const std::vector<xcl::Column_metadata> &meta) {

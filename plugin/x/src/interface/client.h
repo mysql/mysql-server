@@ -113,6 +113,8 @@ class Client {
       const Mysqlx::Connection::CapabilitiesGet &msg) = 0;
   virtual void set_capabilities(
       const Mysqlx::Connection::CapabilitiesSet &msg) = 0;
+
+  virtual xpl::iface::Waiting_for_io *get_idle_processing() = 0;
 };
 
 }  // namespace iface

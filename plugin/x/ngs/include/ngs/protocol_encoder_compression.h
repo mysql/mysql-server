@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/compression_types.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
@@ -54,6 +54,7 @@ class Protocol_encoder_compression : public xpl::iface::Protocol_encoder {
 
  public:  // Protocol_encoder_interface
   xpl::iface::Protocol_flusher *get_flusher() override;
+  bool is_building_row() const override;
   std::unique_ptr<xpl::iface::Protocol_flusher> set_flusher(
       std::unique_ptr<xpl::iface::Protocol_flusher> flusher) override;
   Metadata_builder *get_metadata_builder() override;

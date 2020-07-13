@@ -114,6 +114,8 @@ class Mock_server : public iface::Server {
   MOCK_METHOD0(prepare, bool());
   MOCK_METHOD0(start_tasks, void());
   MOCK_METHOD0(stop, void());
+  MOCK_METHOD0(gracefull_shutdown, void());
+
   MOCK_METHOD0(delayed_start_tasks, void());
 
   MOCK_CONST_METHOD0(get_config,
@@ -201,6 +203,7 @@ class Mock_sql_data_context : public iface::Sql_session {
 
 class Mock_protocol_encoder : public iface::Protocol_encoder {
  public:
+  MOCK_CONST_METHOD0(is_building_row, bool());
   MOCK_METHOD1(send_result, bool(const ngs::Error_code &));
   MOCK_METHOD0(send_ok, bool());
   MOCK_METHOD1(send_ok, bool(const std::string &));
@@ -245,6 +248,7 @@ class Mock_protocol_encoder : public iface::Protocol_encoder {
   MOCK_METHOD0(send_notice_account_expired, void());
   MOCK_METHOD1(send_notice_generated_document_ids,
                void(const std::vector<std::string> &ids));
+
   MOCK_METHOD1(send_notice_txt_message, void(const std::string &message));
   MOCK_METHOD1(set_flusher_raw,
                iface::Protocol_flusher *(iface::Protocol_flusher *flusher));
@@ -261,7 +265,7 @@ class Mock_session : public iface::Session {
  public:
   MOCK_CONST_METHOD0(session_id, Session_id());
   MOCK_METHOD0(init, ngs::Error_code());
-  MOCK_METHOD1(on_close, void(const bool));
+  MOCK_METHOD1(on_close, void(const Close_flags));
   MOCK_METHOD0(on_kill, void());
   MOCK_METHOD1(on_auth_success, void(const iface::Authentication::Response &));
   MOCK_METHOD1(on_auth_failure, void(const iface::Authentication::Response &));
@@ -333,13 +337,12 @@ class Mock_id_generator : public iface::Document_id_generator {
 class Mock_wait_for_io : public iface::Waiting_for_io {
  public:
   MOCK_METHOD0(has_to_report_idle_waiting, bool());
-  MOCK_METHOD0(on_idle_or_before_read, void());
+  MOCK_METHOD0(on_idle_or_before_read, bool());
 };
 
 class Mock_notice_output_queue : public iface::Notice_output_queue {
  public:
-  MOCK_METHOD2(emplace, void(const ngs::Notice_type type,
-                             const Buffer_shared &binary_notice));
+  MOCK_METHOD1(emplace, void(const Buffer_shared &binary_notice));
   MOCK_METHOD0(get_callbacks_waiting_for_io, iface::Waiting_for_io *());
   MOCK_METHOD1(encode_queued_items,
                void(const bool last_notice_does_force_fulsh));
@@ -368,6 +371,12 @@ class Mock_ngs_client : public ngs::Client {
   using ngs::Client::Client;
   using ngs::Client::read_one_message_and_dispatch;
   using ngs::Client::set_encoder;
+  void set_session(const std::shared_ptr<xpl::iface::Session> &session) {
+    m_session = session;
+  }
+  void set_idle_reporting(xpl::iface::Waiting_for_io *reporter) {
+    m_idle_reporting.reset(reporter);
+  }
 
   MOCK_METHOD0(resolve_hostname, std::string());
   MOCK_CONST_METHOD0(is_interactive, bool());
@@ -418,6 +427,8 @@ class Mock_client : public iface::Client {
                void(const Mysqlx::Connection::CapabilitiesGet &));
   MOCK_METHOD1(set_capabilities,
                void(const Mysqlx::Connection::CapabilitiesSet &));
+
+  MOCK_METHOD0(get_idle_processing, xpl::iface::Waiting_for_io *());
 
  public:
   MOCK_METHOD1(on_session_reset_void, bool(iface::Session &));

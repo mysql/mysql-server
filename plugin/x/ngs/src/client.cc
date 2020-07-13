@@ -58,6 +58,7 @@
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/ssl_context.h"
+#include "plugin/x/src/notices.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/variables/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_error.h"
@@ -65,23 +66,57 @@
 
 namespace ngs {
 
-namespace details {
-
-class No_idle_processing : public xpl::iface::Waiting_for_io {
+class Client::Client_idle_reporting : public xpl::iface::Waiting_for_io {
  public:
-  bool has_to_report_idle_waiting() override { return false; }
-  void on_idle_or_before_read() override {}
+  using Waiting_for_io = xpl::iface::Waiting_for_io;
+  explicit Client_idle_reporting(Client *client,
+                                 Waiting_for_io *global_idle_reporting)
+      : m_client(client), m_global_idle_reporting(global_idle_reporting) {}
+
+  bool has_to_report_idle_waiting() override {
+    m_global_need_reporting =
+        m_global_idle_reporting &&
+        m_global_idle_reporting->has_to_report_idle_waiting();
+
+    return true;
+  }
+
+  bool on_idle_or_before_read() override {
+    DBUG_TRACE;
+    if (m_is_killed) return false;
+
+    if (m_client->server().is_running() &&
+        m_client->session()->data_context().is_killed() &&
+        m_client->session()->state() >
+            xpl::iface::Session::State::k_authenticating) {
+      m_client->queue_up_disconnection_notice(SQLError(ER_SESSION_WAS_KILLED));
+      m_is_killed = true;
+      return false;
+    }
+
+    const auto state = m_client->get_state();
+    if (state == Client::State::k_closed || state == Client::State::k_closing)
+      return false;
+
+    if (m_global_need_reporting && !m_client->protocol().is_building_row())
+      return m_global_idle_reporting->on_idle_or_before_read();
+
+    return true;
+  }
 
  private:
+  Client *m_client;
+  Waiting_for_io *m_global_idle_reporting;
+  bool m_global_need_reporting = false;
+  bool m_is_killed = false;
 };
-
-}  // namespace details
 
 Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
                xpl::iface::Server &server, Client_id client_id,
                xpl::iface::Protocol_monitor *pmon)
     : m_client_id(client_id),
       m_server(server),
+      m_idle_reporting(new Client_idle_reporting(this, nullptr)),
       m_connection(connection),
       m_config(std::make_shared<Protocol_config>(m_server.get_config())),
       m_dispatcher(this),
@@ -138,7 +173,6 @@ void Client::activate_tls() {
 void Client::on_auth_timeout() {
   set_close_reason_if_non_fatal(Close_reason::k_connect_timeout);
 
-  // XXX send an ERROR notice when it's available
   disconnect_and_trigger_close();
 }
 
@@ -206,7 +240,7 @@ bool Client::handle_session_connect_attr_set(ngs::Message_request &command) {
 void Client::handle_message(Message_request *request) {
   auto s(session());
 
-  log_message_recv(request);
+  log_message_recv(m_client_id, request);
 
   if (m_state == State::k_accepted_with_session &&
       request->get_message_type() ==
@@ -263,8 +297,7 @@ void Client::handle_message(Message_request *request) {
           s->handle_message(*request);
         }
         break;
-      }
-      // Fall through.
+      }  // Fall through.
 
     default:
       // invalid message at this time
@@ -293,6 +326,8 @@ void Client::set_close_reason_if_non_fatal(const Close_reason reason) {
 void Client::disconnect_and_trigger_close() {
   set_close_reason_if_non_fatal(Close_reason::k_normal);
 
+  if (m_session) m_session->get_notice_output_queue().encode_queued_items(true);
+
   m_state = State::k_closing;
 
   m_connection->shutdown();
@@ -305,19 +340,9 @@ const char *Client::client_hostname_or_address() const {
 }
 
 void Client::on_read_timeout() {
-  Mysqlx::Notice::Warning warning;
-  const bool force_flush = true;
-
   set_close_reason_if_non_fatal(Close_reason::k_read_timeout);
-
-  warning.set_level(Mysqlx::Notice::Warning::ERROR);
-  warning.set_code(ER_IO_READ_ERROR);
-  warning.set_msg("IO Read error: read_timeout exceeded");
-  std::string warning_data;
-  warning.SerializeToString(&warning_data);
-  m_encoder->send_notice(xpl::iface::Frame_type::k_warning,
-                         xpl::iface::Frame_scope::k_global, warning_data,
-                         force_flush);
+  queue_up_disconnection_notice(ngs::Error_code(
+      ER_IO_READ_ERROR, "IO Read error: read_timeout exceeded"));
 }
 
 // this will be called on socket errors, but also when halt_and_wait() is called
@@ -482,14 +507,30 @@ void Client::on_session_reset(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
 }
 
 void Client::on_server_shutdown() {
+  DBUG_TRACE;
   log_debug("%s: closing client because of shutdown (state: %" PRIu32 ")",
             client_id(), static_cast<uint32_t>(m_state.load()));
-  std::shared_ptr<xpl::iface::Session> local_copy = m_session;
+  if (m_session) {
+    const bool queue_up_notice = m_state > State::k_authenticating_first;
+    if (m_state != State::k_closed) {
+      set_close_reason_if_non_fatal(Close_reason::k_normal);
+      m_state = State::k_closing;
+    }
+    if (queue_up_notice)
+      queue_up_disconnection_notice(SQLError(ER_SERVER_SHUTDOWN));
+    m_session->on_close(xpl::iface::Session::Close_flags::k_update_old_state);
+  }
+}
 
-  if (local_copy) local_copy->on_kill();
-
-  // XXX send a server shutdown notice
-  disconnect_and_trigger_close();
+void Client::kill() {
+  DBUG_TRACE;
+  if (m_session) {
+    if (m_state != State::k_closed) {
+      set_close_reason_if_non_fatal(Close_reason::k_normal);
+      m_state = State::k_closing;
+    }
+    m_session->on_kill();
+  }
 }
 
 xpl::iface::Protocol_monitor &Client::get_protocol_monitor() {
@@ -547,6 +588,7 @@ void Client::run() {
   } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FORCE_STOP_CLIENT, client_id(), e.what());
   }
+  if (m_session) m_session->get_notice_output_queue().encode_queued_items(true);
 
   {
     MUTEX_LOCK(lock, server().get_client_exit_mutex());
@@ -573,13 +615,7 @@ void Client::set_wait_timeout(const uint32_t wait_timeout) {
 }
 
 xpl::iface::Waiting_for_io *Client::get_idle_processing() {
-  if (nullptr == m_session) {
-    static details::No_idle_processing no_idle;
-
-    return &no_idle;
-  }
-
-  return m_session->get_notice_output_queue().get_callbacks_waiting_for_io();
+  return m_idle_reporting.get();
 }
 
 Protocol_encoder_compression *Client::get_protocol_compression_or_install_it() {
@@ -637,15 +673,19 @@ bool Client::create_session() {
     }
 #endif  // defined(ENABLED_DEBUG_SYNC)
     m_session = session;
+
+    m_idle_reporting.reset(new Client_idle_reporting(
+        this,
+        m_session->get_notice_output_queue().get_callbacks_waiting_for_io()));
   }
 
   return true;
 }
 
 namespace {
-inline int32_t adjust_level(const xpl::Optional_value<int64_t> &level,
-                            const int32_t default_, const int32_t min,
-                            const int32_t max) {
+int32_t adjust_level(const xpl::Optional_value<int64_t> &level,
+                     const int32_t default_, const int32_t min,
+                     const int32_t max) {
   if (!level.has_value()) return default_ > max ? max : default_;
   if (level.value() < min) return min;
   if (level.value() > max) return max;
@@ -686,4 +726,11 @@ int32_t Client::get_adjusted_compression_level(
   return 1;
 }
 
+void Client::queue_up_disconnection_notice(const Error_code &error) {
+  auto notice = std::make_shared<Notice_descriptor>(
+      Notice_type::k_warning,
+      xpl::notices::serialize_warning(xpl::iface::Warning_level::k_error,
+                                      error.error, error.message));
+  m_session->get_notice_output_queue().emplace(notice);
+}
 }  // namespace ngs

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,8 @@ class Session : public xpl::iface::Session {
   Session_id session_id() const override { return m_id; }
 
  public:
-  void on_close(const bool update_old_state = false) override;
+  void on_close(
+      const Close_flags flags = Close_flags::k_force_close_client) override;
   void on_auth_success(
       const xpl::iface::Authentication::Response &response) override;
   void on_auth_failure(

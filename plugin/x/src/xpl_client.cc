@@ -43,6 +43,7 @@
 #include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/notices.h"
 #include "plugin/x/src/ssl_session_options.h"
 #include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/xpl_session.h"
@@ -105,7 +106,7 @@ void Client::kill() {
     return;
   }
 
-  m_session->on_kill();
+  ngs::Client::kill();
   ++Global_status_variables::instance().m_killed_sessions_count;
 }
 

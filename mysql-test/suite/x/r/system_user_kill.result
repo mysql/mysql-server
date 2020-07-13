@@ -41,10 +41,6 @@ Try to kill a x_root session from unpriv
 
 command ok
 switched to session default
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
 Should two sessions
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
@@ -53,10 +49,6 @@ command ok
 Now kill one power_session from another power_session
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
 Should list only x_root session
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION

@@ -97,7 +97,12 @@ class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
 
 class Auth_chaining_test_suite
     : public Auth_chaining_test_suite_base,
-      public ::testing::WithParamInterface<std::vector<std::string>> {};
+      public ::testing::WithParamInterface<std::vector<std::string>> {
+  void SetUp() override {
+    Auth_chaining_test_suite_base::SetUp();
+    EXPECT_CALL(*m_mock_protocol, reset_buffering());
+  }
+};
 
 TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_nothing) {
   set_ssl_state(true);
@@ -701,6 +706,7 @@ TEST_P(Auth_chaining_fatal_errors, break_chain_on_fatal_errors) {
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
   EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering());
 
   ASSERT_EQ(GetParam().error(),
             m_sut->connect("host", 1290, "user", "pass", "schema").error());

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -400,7 +400,6 @@ Param_mysql_functions documentation_mysql_functions_param[] = {
     {"NOT REGEXP", OPERATOR},
     {"NOW", PASS},
     {"NTH_VALUE", PASS},
-    {"NTILE", PASS},
     {"NULLIF", PASS},
     {"OCT", PASS},
     {"OCTET_LENGTH", PASS},

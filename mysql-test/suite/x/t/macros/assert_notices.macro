@@ -130,9 +130,10 @@ echo [ASSERT notice session state change - %PARAM%, %VALUE%];
 query_result;
 -->endmacro
 
--->macro Assert_notice_warning	%LEVEL%	%CODE%
+-->macro_varg Assert_notice_warning	%LEVEL%	%CODE%
 noquery_result;
 echo [ASSERT notice warning - %LEVEL%, %CODE%];
--->recvmessage Mysqlx.Notice.Frame {type:1 scope:LOCAL payload:"level:%LEVEL% code:%CODE%"}
+-->recvmessage Mysqlx.Notice.Frame {type:1 %VAR_ARGS% payload:"level:%LEVEL% code:%CODE%"}
 query_result;
 -->endmacro
+

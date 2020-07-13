@@ -1,0 +1,95 @@
+################################################################################
+#
+# WL#14166 - xproto: notify on connection close
+#
+## Verify that MySQL Server send notice on X Protocol connections
+## when clients on read timeout
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest1_file= $MYSQL_TMP_DIR/check_notice_on_io_read_timeout_connections.xpl
+--let $xtest2_file= $MYSQL_TMP_DIR/check_no_close_notice_for_not_authenticted_connections.xpl
+
+## Test case description:
+--echo ## I. Validate that X Plugin sends IO Read notice on read timeout for authenticted connections
+--echo #
+--echo ## II. Validate that X Plugin sends only ServerHello notice on read timeout for not authenticted connections
+--echo #
+--echo
+
+
+--write_file $xtest1_file
+import assert_notices.macro;
+
+echo;
+echo #;
+echo # I;
+
+-->binparse %RAW_STMT_EXECUTE% Mysqlx.Sql.StmtExecute {
+  stmt: "select 1"
+}
+
+echo;
+echo #;
+echo # Creating sessions;
+
+repeat 10	%SESSION_ID%;
+newsession session_%SESSION_ID%	x_root;
+binsendoffset %RAW_STMT_EXECUTE% 0 4;
+endrepeat;
+
+echo;
+echo #;
+echo # Reciving close notices;
+
+varlet %ER_IO_READ_ERROR% 1810;
+
+repeat 10	%SESSION_ID%;
+setsession session_%SESSION_ID%;
+callmacro Assert_notice_warning	ERROR	%ER_IO_READ_ERROR%;
+recvuntildisc show-received;
+endrepeat;
+
+EOF
+
+
+
+--write_file $xtest2_file
+echo;
+echo #;
+echo # II;
+
+echo;
+echo #;
+echo # Creating sessions;
+
+repeat 10	%SESSION_ID%;
+newsession session_%SESSION_ID%	-;
+# reciving ServerHello notice
+recvtype Mysqlx.Notice.Frame type 5;
+endrepeat;
+
+
+echo;
+echo #;
+echo # Closing connection;
+repeat 10	%SESSION_ID%;
+setsession session_%SESSION_ID%;
+recvuntildisc show-received;
+endrepeat;
+
+EOF
+
+
+SET GLOBAL mysqlx_read_timeout=5;
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest1_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest2_file 2>&1
+
+
+## Cleanup
+SET GLOBAL mysqlx_read_timeout= DEFAULT;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

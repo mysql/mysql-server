@@ -58,6 +58,7 @@ class Server {
   virtual void delayed_start_tasks() = 0;
   virtual void start_tasks() = 0;
   virtual void stop() = 0;
+  virtual void gracefull_shutdown() = 0;
 
   virtual iface::Authentication_container &get_authentications() = 0;
 

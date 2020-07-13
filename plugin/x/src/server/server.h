@@ -92,8 +92,9 @@ class Server : public xpl::iface::Server {
   void start_tasks() override;
   void start_failed() override;
   void stop() override;
+  void gracefull_shutdown() override;
 
-  void close_all_clients();
+  void graceful_close_all_clients();
 
   bool is_terminating();
   bool is_running() override;
@@ -148,6 +149,7 @@ class Server : public xpl::iface::Server {
   std::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
   std::shared_ptr<Protocol_global_config> m_config;
   std::unique_ptr<xpl::iface::Document_id_generator> m_id_generator;
+  std::atomic<bool> m_gracefull_shutdown{false};
 
   std::unique_ptr<xpl::iface::Ssl_context> m_ssl_context;
   xpl::Sync_variable<State> m_state;

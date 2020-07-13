@@ -383,7 +383,6 @@ const char *const other_mysql_functions[] = {
     "MULTIPOINT",
     "MULTIPOLYGON",
     "NTH_VALUE",
-    "NTILE",
     "PASSWORD",
     "PERCENT_RANK",
     "POINT",

@@ -52,12 +52,15 @@ class Protocol_encoder : public xpl::iface::Protocol_encoder {
                    Error_handler ehandler, xpl::iface::Protocol_monitor *pmon,
                    Memory_block_pool *memory_block);
 
+  bool is_building_row() const override { return m_row; }
+
   xpl::iface::Protocol_flusher *get_flusher() override {
     return m_flusher.get();
   }
   std::unique_ptr<xpl::iface::Protocol_flusher> set_flusher(
       std::unique_ptr<xpl::iface::Protocol_flusher> flusher) override;
 
+  protocol::XMessage_encoder *raw_encoder() override;
   bool send_result(const Error_code &result) override;
 
   bool send_ok() override;
@@ -88,7 +91,6 @@ class Protocol_encoder : public xpl::iface::Protocol_encoder {
 
   bool send_column_metadata(const Encode_column_info *column_info) override;
 
-  protocol::XMessage_encoder *raw_encoder() override;
   protocol::XRow_encoder *row_builder() override { return &m_row_builder; }
   Metadata_builder *get_metadata_builder() override;
 
@@ -103,10 +105,11 @@ class Protocol_encoder : public xpl::iface::Protocol_encoder {
 
   xpl::iface::Protocol_monitor &get_protocol_monitor() override;
 
-  static void log_protobuf(const char *direction_name, const uint8_t type,
-                           const ngs::Message *msg);
-  static void log_protobuf(const char *direction_name, const Message *request);
-  static void log_protobuf(uint8_t type);
+  static void log_protobuf(const unsigned id, const char *direction_name,
+                           const uint8_t type, const ngs::Message *msg);
+  static void log_protobuf(const unsigned id, const char *direction_name,
+                           const Message *request);
+  static void log_protobuf(const unsigned id, uint8_t type);
 
  private:
   Protocol_encoder(const Protocol_encoder &) = delete;
@@ -122,27 +125,30 @@ class Protocol_encoder : public xpl::iface::Protocol_encoder {
   protocol::XRow_encoder m_row_builder{&m_xproto_encoder};
   std::unique_ptr<xpl::iface::Protocol_flusher> m_flusher;
   uint32_t m_messages_sent{0};
+  uint64_t m_id{0};
+  bool m_row{false};
 
   bool on_message(const uint8_t type);
   bool send_raw_buffer(const uint8_t type);
 };  // namespace ngs
 
 #ifdef XPLUGIN_LOG_PROTOBUF
-#define log_message_send(MESSAGE) \
-  ::ngs::Protocol_encoder::log_protobuf("SEND", MESSAGE);
-#define log_raw_message_send(ID) ::ngs::Protocol_encoder::log_protobuf(ID);
-#define log_message_recv(REQUEST)                                            \
-  ::ngs::Protocol_encoder::log_protobuf("RECV", REQUEST->get_message_type(), \
-                                        REQUEST->get_message());
+#define log_message_send(CID, MESSAGE) \
+  ::ngs::Protocol_encoder::log_protobuf(CID, "SEND", MESSAGE);
+#define log_raw_message_send(CID, ID) \
+  ::ngs::Protocol_encoder::log_protobuf(CID, ID);
+#define log_message_recv(CID, REQUEST)   \
+  ::ngs::Protocol_encoder::log_protobuf( \
+      CID, "RECV", REQUEST->get_message_type(), REQUEST->get_message());
 #else
-#define log_message_send(MESSAGE) \
-  do {                            \
+#define log_message_send(CID, MESSAGE) \
+  do {                                 \
   } while (0)
-#define log_raw_message_send(ID) \
-  do {                           \
+#define log_raw_message_send(CID, ID) \
+  do {                                \
   } while (0)
-#define log_message_recv(MESSAGE) \
-  do {                            \
+#define log_message_recv(CID, MESSAGE) \
+  do {                                 \
   } while (0)
 #endif  // XPLUGIN_LOG_PRTOBUF
 

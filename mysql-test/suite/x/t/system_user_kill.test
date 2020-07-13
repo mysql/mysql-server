@@ -64,9 +64,10 @@ set role sys_user_role;
 
 -->setsession
 
--->sql
-select sleep(0.5);
--->endsql
+-->quiet
+-->wait_for 2	SELECT count(*) FROM information_schema.processlist WHERE info LIKE "PLUGIN%"
+-->noquiet
+
 -->echo Should two sessions
 -->stmtadmin list_clients
 -->recvresult
@@ -76,9 +77,10 @@ select sleep(0.5);
 -->stmtadmin kill_client	{"id": 3}
 -->recvresult
 
--->sql
-select sleep(0.5);
--->endsql
+-->quiet
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE info LIKE "PLUGIN%"
+-->noquiet
+
 -->echo Should list only x_root session
 -->stmtadmin list_clients
 -->recvresult

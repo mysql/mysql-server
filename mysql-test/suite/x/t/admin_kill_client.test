@@ -27,6 +27,8 @@ set password for unpriv@localhost = 'x';
 
 -->varlet %CLIENT_ID2% %ACTIVE_CLIENT_ID%
 
+-->wait_for 2	SELECT COUNT(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' AND (command LIKE 'Sleep%' OR command LIKE 'Query%');
+
 -->stmtadmin list_clients
 -->recvresult
 
@@ -37,15 +39,18 @@ set password for unpriv@localhost = 'x';
 -->recvresult
 
 -->stmtadmin kill_client
--->expecterror 5015
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
 -->recvresult
 
 
 -->stmtadmin kill_client	{"id": %CLIENT_ID2% }
 -->recvresult
 
--->sleep 1
+-->setsession aux
+-->recvuntildisc show-received
 
+-->setsession
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
 
 -->stmtadmin list_clients
 -->recvresult
@@ -56,6 +61,8 @@ set password for unpriv@localhost = 'x';
 
 -->varlet %CLIENT_ID3% %ACTIVE_CLIENT_ID%
 
+-->wait_for 1	SELECT COUNT(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' AND (command LIKE 'Sleep%' OR command LIKE 'Query%');
+
 -->echo Should list unprivs session only
 -->stmtadmin list_clients
 -->recvresult
@@ -63,7 +70,7 @@ set password for unpriv@localhost = 'x';
 
 ## Try to kill a x_root session from unpriv
 -->stmtadmin kill_client	{"id": %CLIENT_ID1% }
--->expecterror 1095
+-->expecterror ER_KILL_DENIED_ERROR
 -->recvresult
 
 -->echo switched to session default
@@ -81,8 +88,11 @@ set password for unpriv@localhost = 'x';
 -->stmtadmin kill_client	{"id": %CLIENT_ID3% }
 -->recvresult
 
--->sleep 1;
+-->setsession unpriv
+-->recvuntildisc show-received
 
+-->setsession
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
 
 ## Should list only x_root session
 -->stmtadmin list_clients

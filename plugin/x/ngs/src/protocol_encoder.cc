@@ -72,13 +72,20 @@ std::unique_ptr<xpl::iface::Protocol_flusher> Protocol_encoder::set_flusher(
   return result;
 }
 
-void Protocol_encoder::start_row() { m_row_builder.begin_row(); }
+void Protocol_encoder::start_row() {
+  m_row_builder.begin_row();
+  m_row = true;
+}
 
-void Protocol_encoder::abort_row() { m_row_builder.abort_row(); }
+void Protocol_encoder::abort_row() {
+  m_row_builder.abort_row();
+  m_row = false;
+}
 
 bool Protocol_encoder::send_row() {
   m_row_builder.end_row();
   get_protocol_monitor().on_row_send();
+  m_row = false;
 
   return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_ROW);
 }
@@ -194,7 +201,7 @@ xpl::iface::Protocol_monitor &Protocol_encoder::get_protocol_monitor() {
 bool Protocol_encoder::send_protobuf_message(const uint8_t type,
                                              const Message &message,
                                              bool force_buffer_flush) {
-  log_message_send(&message);
+  log_message_send(m_id, &message);
 
   if (!message.IsInitialized()) {
     log_warning(ER_XPLUGIN_UNINITIALIZED_MESSAGE,
@@ -217,18 +224,19 @@ bool Protocol_encoder::send_protobuf_message(const uint8_t type,
 
 void Protocol_encoder::on_error(int error) { m_error_handler(error); }
 
-void Protocol_encoder::log_protobuf(const char *direction_name,
+void Protocol_encoder::log_protobuf(const unsigned id,
+                                    const char *direction_name,
                                     const uint8_t type, const Message *msg) {
   if (nullptr == msg) {
-    log_protobuf(type);
+    log_protobuf(id, type);
     return;
   }
 
-  log_protobuf(direction_name, msg);
+  log_protobuf(id, direction_name, msg);
 }
 
 void Protocol_encoder::log_protobuf(
-    const char *direction_name MY_ATTRIBUTE((unused)),
+    const unsigned id, const char *direction_name MY_ATTRIBUTE((unused)),
     const Message *message MY_ATTRIBUTE((unused))) {
 #ifdef USE_MYSQLX_FULL_PROTO
   std::string text_message;
@@ -241,13 +249,14 @@ void Protocol_encoder::log_protobuf(
 
     text_message.resize(index_of_last_enter);
 
-    log_debug("%s: Type: %s, Payload:\n%s", direction_name,
+    log_debug("%u: %s, Type: %s, Payload:\n%s", id, direction_name,
               message->GetTypeName().c_str(), text_message.c_str());
   } else {
-    log_debug("%s: Type: ??, Payload: (none)", direction_name);
+    log_debug("%u: %s, Type: ??, Payload: (none)", id, direction_name);
   }
 #else
-  log_debug("%s: Type: %s", direction_name, message->GetTypeName().c_str());
+  log_debug("%u: %s, Type: %s", id, direction_name,
+            message->GetTypeName().c_str());
 #endif
 }
 
@@ -286,16 +295,40 @@ std::string message_type_to_string(const uint8_t type_id) {
 }
 
 // for message sent as raw buffer only logging its type tag now
-void Protocol_encoder::log_protobuf(uint8_t type MY_ATTRIBUTE((unused))) {
-  log_debug("SEND RAW: Type: %s", message_type_to_string(type).c_str());
+void Protocol_encoder::log_protobuf(const unsigned id,
+                                    uint8_t type MY_ATTRIBUTE((unused))) {
+  log_debug("%u: SEND RAW- Type: %s", id, message_type_to_string(type).c_str());
 }
+
+#ifdef XPLUGIN_LOG_DEBUG
+static std::string get_name(const xpl::iface::Frame_type type) {
+  using Type = xpl::iface::Frame_type;
+  switch (type) {
+    case Type::k_warning:
+      return "warning";
+    case Type::k_group_replication_state_changed:
+      return "group_replication_state_changed";
+    case Type::k_server_hello:
+      return "server_hello";
+    case Type::k_session_state_changed:
+      return "session_state_changed";
+    case Type::k_session_variable_changed:
+      return "session_variable_changed";
+
+    default:
+      DBUG_ASSERT(0 && "This shouldn't happen.");
+      return "unknown";
+  }
+}
+#endif
 
 bool Protocol_encoder::send_notice(const xpl::iface::Frame_type type,
                                    const xpl::iface::Frame_scope scope,
                                    const std::string &data,
                                    const bool force_flush) {
   const bool is_global = xpl::iface::Frame_scope::k_global == scope;
-  DBUG_LOG("debug", "send_notice, global: " << (is_global ? "yes" : "no"));
+  log_debug("send_notice, global: %s, name: %s", (is_global ? "yes" : "no"),
+            get_name(type).c_str());
 
   if (xpl::iface::Frame_type::k_warning == type)
     get_protocol_monitor().on_notice_warning_send();
@@ -323,6 +356,7 @@ void Protocol_encoder::send_notice_rows_affected(uint64_t value) {
 }
 
 void Protocol_encoder::send_notice_client_id(const uint64_t id) {
+  m_id = id;
   get_protocol_monitor().on_notice_other_send();
 
   m_xproto_encoder.encode_notice_client_id(id);
@@ -378,7 +412,7 @@ bool Protocol_encoder::send_column_metadata(
 }
 
 bool Protocol_encoder::send_raw_buffer(const uint8_t type) {
-  log_raw_message_send(type);
+  log_raw_message_send(m_id, type);
 
   return on_message(type);
 }

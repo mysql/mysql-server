@@ -46,6 +46,11 @@ Session::Session(iface::Client *client, iface::Protocol_encoder *proto,
 
 Session::~Session() {
   m_sql.deinit();
+  DBUG_LOG("debug", "~Session(m_was_authenticated:"
+                        << m_was_authenticated
+                        << ", m_failed_auth_count: " << (int)m_failed_auth_count
+                        << ", m_state_before_close: "
+                        << static_cast<int>(state_before_close()));
 
   if (m_was_authenticated)
     --Global_status_variables::instance().m_sessions_count;
@@ -106,13 +111,14 @@ ngs::Error_code Session::init() {
 }
 
 void Session::on_kill() {
+  DBUG_TRACE;
   if (!m_sql.is_killed()) {
     if (!m_sql.kill())
       log_debug("%s: Could not interrupt client session",
                 m_client->client_id());
   }
 
-  on_close(true);
+  on_close(Close_flags::k_update_old_state);
 }
 
 void Session::on_auth_success(const iface::Authentication::Response &response) {

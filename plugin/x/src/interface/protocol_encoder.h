@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -64,13 +64,20 @@ enum class Frame_type {
   k_session_state_changed = Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED,
   k_group_replication_state_changed =
       Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED,
-  k_server_hello = Mysqlx::Notice::Frame_Type_SERVER_HELLO
+  k_server_hello = Mysqlx::Notice::Frame_Type_SERVER_HELLO,
+};
+
+enum class Warning_level {
+  k_note = Mysqlx::Notice::Warning_Level_NOTE,
+  k_warning = Mysqlx::Notice::Warning_Level_WARNING,
+  k_error = Mysqlx::Notice::Warning_Level_ERROR,
 };
 
 class Protocol_encoder {
  public:
   virtual ~Protocol_encoder() = default;
 
+  virtual bool is_building_row() const = 0;
   virtual bool send_result(const ngs::Error_code &result) = 0;
 
   virtual bool send_ok() = 0;

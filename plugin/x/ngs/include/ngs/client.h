@@ -71,6 +71,7 @@ class Client : public xpl::iface::Client {
 
   void on_auth_timeout() override;
   void on_server_shutdown() override;
+  void kill() override;
 
   xpl::iface::Server &server() const override { return m_server; }
   xpl::iface::Protocol_encoder &protocol() const override { return *m_encoder; }
@@ -92,6 +93,8 @@ class Client : public xpl::iface::Client {
 
   Client::State get_state() const override { return m_state.load(); }
   xpl::chrono::Time_point get_accept_time() const override;
+
+  xpl::iface::Waiting_for_io *get_idle_processing() override;
 
   void set_supports_expired_passwords(bool flag) {
     m_supports_expired_passwords = flag;
@@ -130,11 +133,14 @@ class Client : public xpl::iface::Client {
     xpl::iface::Client *m_client;
   };
 
+  class Client_idle_reporting;
+
  protected:
   char m_id[2 + sizeof(Client_id) * 2 + 1];  // 64bits in hex, plus 0x plus \0
   Client_id m_client_id;
   xpl::iface::Server &m_server;
 
+  std::unique_ptr<xpl::iface::Waiting_for_io> m_idle_reporting;
   std::shared_ptr<xpl::iface::Vio> m_connection;
   std::shared_ptr<Protocol_config> m_config;
   // TODO(lkotula): benchmark m_memory_block_pool as global in Xpl (shouldn't be
@@ -214,10 +220,10 @@ class Client : public xpl::iface::Client {
   Client(const Client &) = delete;
   Client &operator=(const Client &) = delete;
 
-  xpl::iface::Waiting_for_io *get_idle_processing();
   void get_last_error(int *out_error_code, std::string *out_message);
   void set_close_reason_if_non_fatal(const Close_reason reason);
   void update_counters();
+  void queue_up_disconnection_notice(const Error_code &error);
 
   void on_client_addr();
   void on_accept();

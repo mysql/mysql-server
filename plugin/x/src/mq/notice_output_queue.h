@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <memory>
 #include <queue>
+#include <string>
 
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
@@ -51,18 +52,15 @@ namespace xpl {
 class Notice_output_queue : public iface::Notice_output_queue {
  public:
   Notice_output_queue(iface::Protocol_encoder *encoder,
-                      iface::Notice_configuration *notice_configuration)
-      : m_encoder(encoder), m_notice_configuration(notice_configuration) {}
+                      iface::Notice_configuration *notice_configuration);
 
-  void emplace(const ngs::Notice_type type,
-               const Buffer_shared &binary_notice) override;
+  void emplace(const Buffer_shared &notice) override;
   xpl::iface::Waiting_for_io *get_callbacks_waiting_for_io() override;
   void encode_queued_items(const bool last_notice_does_force_fulsh) override;
   void set_encoder(iface::Protocol_encoder *encoder) override;
 
  private:
   class Idle_reporting;
-
   iface::Protocol_encoder *m_encoder;
   iface::Notice_configuration *m_notice_configuration;
   std::queue<Buffer_shared> m_queue;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,8 @@ class Result_fetcher {
   xcl::XError m_error;
   const xcl::XRow *m_cached_row{nullptr};
 };
+
+std::ostream &operator<<(std::ostream &os, const xcl::Column_metadata &meta);
 
 std::ostream &operator<<(std::ostream &os,
                          const std::vector<xcl::Column_metadata> &meta);

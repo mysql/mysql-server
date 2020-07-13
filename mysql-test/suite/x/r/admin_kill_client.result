@@ -18,6 +18,14 @@ command ok
 Got expected error: Invalid number of arguments, expected value for 'id' (code 5015)
 
 command ok
+Mysqlx.Notice.Frame {
+  type: 1
+  payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 3169\nmsg: \"Session was killed\"\n }"
+}
+
+Server disconnected
+closing session aux
+switched to session default
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
 command ok
@@ -35,6 +43,14 @@ client_id	user	host	sql_session
 command ok
 
 command ok
+Mysqlx.Notice.Frame {
+  type: 1
+  payload: "Mysqlx.Notice.Warning { level: ERROR\ncode: 3169\nmsg: \"Session was killed\"\n }"
+}
+
+Server disconnected
+closing session unpriv
+switched to session default
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
 command ok

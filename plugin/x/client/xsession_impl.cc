@@ -584,6 +584,8 @@ XError Session_impl::connect(const char *host, const uint16_t port,
                                          m_context->m_internet_protocol);
   if (result) return result;
 
+  get_protocol().reset_buffering();
+
   const auto connection_type = connection.state().get_connection_type();
   details::Notice_server_hello_ignore notice_ignore(m_protocol.get());
 
@@ -603,6 +605,8 @@ XError Session_impl::connect(const char *socket_file, const char *user,
       details::value_or_default_string(socket_file, MYSQLX_UNIX_ADDR));
 
   if (result) return result;
+
+  get_protocol().reset_buffering();
 
   const auto connection_type = connection.state().get_connection_type();
 

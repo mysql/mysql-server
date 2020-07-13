@@ -122,6 +122,9 @@ class Command {
                   const std::string &args);
   Result cmd_abort(std::istream &input, Execution_context *context,
                    const std::string &args);
+  Result cmd_shutdown_on_classic(std::istream &input,
+                                 Execution_context *context,
+                                 const std::string &args);
   Result cmd_shutdown_server(std::istream &input, Execution_context *context,
                              const std::string &args);
   Result cmd_reconnect(std::istream &input, Execution_context *context,
@@ -235,6 +238,8 @@ class Command {
                        Value_callback value_callback, const bool quiet,
                        const bool print_column_info);
 
+  Result get_sql_variable(Execution_context *context, const std::string &name,
+                          std::string *out_var);
   static void try_result(Result result);
 
   template <typename Equal_operator>

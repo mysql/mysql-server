@@ -22,9 +22,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <memory>
+#include <my_macros.h>
 
 #include <cstdint>
+#include <memory>
 
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/src/operations_factory.h"
@@ -51,15 +52,15 @@ ACTION_P2(SetSocketErrnoAndReturn, err, result) {
   return result;
 }
 
-const uint32_t k_max_wait_timeout_in_sec = 2;
-const uint32_t k_max_read_timeout_in_sec = 2;
+const uint32_t k_max_wait_timeout_in_sec = IF_WIN(4, 2);
+const uint32_t k_max_read_timeout_in_sec = IF_WIN(4, 2);
 
 class Protocol_decoder_test_suite : public ::testing::Test {
  public:
   using Strict_mock_client = StrictMock<xpl::test::Mock_client>;
   using Strict_mock_vio = StrictMock<Mock_vio>;
   using Strict_mock_pmonitor = StrictMock<Mock_protocol_monitor>;
-  using Strict_Mock_wait_for_io = Mock_wait_for_io;
+  using Strict_Mock_wait_for_io = StrictMock<Mock_wait_for_io>;
 
  public:
   void SetUp() override {
@@ -67,6 +68,7 @@ class Protocol_decoder_test_suite : public ::testing::Test {
     EXPECT_CALL(*m_mock_vio, get_mysql_socket())
         .WillRepeatedly(ReturnRef(m_socket));
     EXPECT_CALL(*m_mock_vio, set_timeout_in_ms(_, _)).Times(AtLeast(1));
+
     m_config_global->m_timeouts.m_wait_timeout = k_max_wait_timeout_in_sec;
     m_config_global->m_timeouts.m_read_timeout = k_max_read_timeout_in_sec;
 
@@ -122,7 +124,8 @@ TEST_F(Protocol_decoder_test_suite, need_idle_reporting_read_msg) {
     InSequence s;
     EXPECT_CALL(m_mock_wait_for_io, has_to_report_idle_waiting())
         .WillOnce(Return(true));
-    EXPECT_CALL(m_mock_wait_for_io, on_idle_or_before_read());
+    EXPECT_CALL(m_mock_wait_for_io, on_idle_or_before_read())
+        .WillOnce(Return(true));
     EXPECT_CALL(*m_mock_vio, read(_, _))
         .WillOnce(DoAll(SetArrayArgument<0>(m_msg.begin(), m_msg.end()),
                         Return(m_msg.size())));
@@ -145,6 +148,7 @@ TEST_F(Protocol_decoder_test_suite,
     EXPECT_CALL(m_mock_wait_for_io, has_to_report_idle_waiting())
         .WillOnce(Return(true));
     EXPECT_CALL(m_mock_wait_for_io, on_idle_or_before_read())
+        .WillOnce(Return(true))
         .RetiresOnSaturation();
 
     // the `wait_timeout` is exceeded after 4 `read` calls
@@ -154,6 +158,7 @@ TEST_F(Protocol_decoder_test_suite,
           .WillOnce(SetSocketErrnoAndReturn(SOCKET_ETIMEDOUT, -1))
           .RetiresOnSaturation();
       EXPECT_CALL(m_mock_wait_for_io, on_idle_or_before_read())
+          .WillOnce(Return(true))
           .RetiresOnSaturation();
     }
 
