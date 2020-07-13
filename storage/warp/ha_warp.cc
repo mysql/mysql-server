@@ -236,7 +236,7 @@ int ha_warp::encode_quote(uchar *) {
       
 
       case MYSQL_TYPE_YEAR:
-        attribute.append((*field)->ptr[0]);
+        attribute.append((*field)->data_ptr()[0]);
         
         no_quote = true;
         break;
@@ -254,7 +254,7 @@ int ha_warp::encode_quote(uchar *) {
       case MYSQL_TYPE_DATETIME2: 
       case MYSQL_TYPE_TIME2:  {
         uint64_t tmp=0;
-        memcpy(&tmp, (*field)->ptr, (*field)->data_length());
+        memcpy(&tmp, (*field)->data_ptr(), (*field)->data_length());
         attribute.append(std::to_string(tmp).c_str());
         no_quote = true;
       }
@@ -409,15 +409,15 @@ int ha_warp::set_column_set() {
   //read_all = !bitmap_is_clear_all(table->write_set);
   int count = 0;
   for (Field **field = table->field; *field; field++) {
-    if (bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->read_set, (*field)->field_index())) {
       ++count;
       
       /* this column must be read from disk */
-      column_set += std::string("c") + std::to_string((*field)->field_index);
+      column_set += std::string("c") + std::to_string((*field)->field_index());
       
       /* Add the NULL bitmap for the column if the column is NULLable */
       if((*field)->is_nullable()) {
-        column_set += "," + std::string("n") + std::to_string((*field)->field_index);
+        column_set += "," + std::string("n") + std::to_string((*field)->field_index());
       }
       column_set += ",";
     }    
@@ -447,7 +447,7 @@ int ha_warp::set_column_set(uint32_t idxno) {
   uint32_t count=0;
 
   for(uint32_t i=0; i < table->key_info[idxno].actual_key_parts;++i) {
-    uint16_t fieldno = table->key_info[idxno].key_part[i].field->field_index;
+    uint16_t fieldno = table->key_info[idxno].key_part[i].field->field_index();
     bool may_be_null = table->key_info[idxno].key_part[i].field->is_nullable();
     ++count;
     
@@ -494,11 +494,11 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
   */
   for (Field **field = table->field; *field; field++) {
     buffer.length(0);
-    if (bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (bitmap_is_set(table->read_set, (*field)->field_index())) {
       //DBUG_PRINT("ha_warp::find_current_row", ("Getting value for field: %s",(*field)->field_name));
-      bool is_unsigned = (*field)->flags & UNSIGNED_FLAG;
-      std::string cname = "c" + std::to_string((*field)->field_index);
-      std::string nname = "n" + std::to_string((*field)->field_index);
+      bool is_unsigned = (*field)->all_flags() & UNSIGNED_FLAG;
+      std::string cname = "c" + std::to_string((*field)->field_index());
+      std::string nname = "n" + std::to_string((*field)->field_index());
       
       if((*field)->is_nullable()) {
         unsigned char is_null=0;
@@ -581,7 +581,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
             rc = HA_ERR_CRASHED_ON_USAGE;
             goto err;
           }
-          if ((*field)->flags & BLOB_FLAG) {
+          if ((*field)->all_flags() & BLOB_FLAG) {
             Field_blob *blob_field = down_cast<Field_blob *>(*field);
             //size_t length = blob_field->get_length(blob_field->ptr);
             size_t length = blob_field->get_length();
@@ -592,7 +592,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
             if (length > 0) {
               const unsigned char *old_blob;
               //blob_field->get_ptr(&old_blob);
-              old_blob = blob_field->get_ptr();
+              old_blob = blob_field->data_ptr();
               unsigned char *new_blob = new (&blobroot) unsigned char[length];
               if (new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
               memcpy(new_blob, old_blob, length);
@@ -643,7 +643,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
         case MYSQL_TYPE_DATETIME2: {
             uint64_t tmp;
             rc = cursor->getColumnAsULong(cname.c_str(),tmp);
-            memcpy((*field)->ptr, &tmp, (*field)->data_length());
+            memcpy(const_cast<uchar*>((*field)->data_ptr()), &tmp, (*field)->data_length());
         }
         break;
         /* the following are stored as strings in Fastbit */
@@ -1007,7 +1007,7 @@ void ha_warp::maintain_indexes(char* datadir, TABLE* table) {
   ibis::mensa::table* base_table = ibis::mensa::create(datadir);
 
   for(uint16_t idx = 0; idx < table->s->keys ; ++idx) {
-     std::string cname = "c" + std::to_string(table->key_info[idx].key_part[0].field->field_index);
+     std::string cname = "c" + std::to_string(table->key_info[idx].key_part[0].field->field_index());
 
      // a field can have an index= comment that indicates an index spec.  
      //See here: https://sdm.lbl.gov/fastbit/doc/indexSpec.html
@@ -1100,7 +1100,7 @@ void ha_warp::create_writer(TABLE* table_arg) {
     ++column_count;
 
     ibis::TYPE_T datatype = ibis::UNKNOWN_TYPE;
-    bool is_unsigned = (*field)->flags & UNSIGNED_FLAG;
+    bool is_unsigned = (*field)->all_flags() & UNSIGNED_FLAG;
     bool is_nullable = (*field)->is_nullable();
 
     /* create a tablex object to create the metadata for the table */
@@ -1593,7 +1593,7 @@ int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map, enum 
     if(where_clause != "") where_clause += " AND ";
 
     /* Which column number does this correspond to? */
-    where_clause += "c" + std::to_string(table->key_info[active_index].key_part[partno].field->field_index);
+    where_clause += "c" + std::to_string(table->key_info[active_index].key_part[partno].field->field_index());
     
     switch(find_flag) {
       case HA_READ_AFTER_KEY:
@@ -1620,7 +1620,7 @@ int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map, enum 
         DBUG_RETURN(-1);
     }
 
-    bool is_unsigned = f->flags & UNSIGNED_FLAG;
+    bool is_unsigned = f->all_flags() & UNSIGNED_FLAG;
   
     switch(f->real_type()) {
       case MYSQL_TYPE_TINY:
@@ -1739,7 +1739,7 @@ int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map, enum 
 
     /* exclude NULL columns */
     //if(f->is_nullable()) {
-    //  where_clause += " and n" + std::to_string(f->field_index) + " = 0";
+    //  where_clause += " and n" + std::to_string(f->field_index()) + " = 0";
     //}
   }
   DBUG_PRINT("ha_warp::make_where_clause",("WHERE CLAUSE: %s", where_clause.c_str()));
@@ -2024,7 +2024,7 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
          so there is special handling if the column is NOT NULL.
       */
       if((*arg)->type() == Item::Type::FIELD_ITEM) {
-        auto field_index = ((Item_field*)(*arg))->field->field_index;
+        auto field_index = ((Item_field*)(*arg))->field->field_index();
         field_may_be_null = ((Item_field*)(*arg))->field->is_nullable();
 
         /* this is the common case, where just the ordinal position is emitted */
@@ -2068,7 +2068,9 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
         String s;
         String* val = (*arg)->val_str(&s);
         std::string escaped;
-        char *ptr = val->ptr();
+        //char *ptr = val->data_ptr();
+        //char *ptr = val->ptr;
+        char *ptr = val->c_ptr();
         for(unsigned int i = 0; i< val->length(); ++i) {
           char c = *(ptr + i);
           if(c == '\'') {
