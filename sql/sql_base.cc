@@ -6640,7 +6640,44 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
     if (!(ptr = start = (TABLE **)thd->alloc(sizeof(TABLE *) * count)))
       return true;
     for (table = tables; table; table = table->next_global) {
-      if (!table->is_placeholder()) *(ptr++) = table->table;
+      if (!table->is_placeholder() &&
+          /*
+            Do not call handler::store_lock()/external_lock() for temporary
+            tables from prelocking list.
+
+            Prelocking algorithm does not add element for a table to the
+            prelocking list if it finds that the routine that uses the table can
+            create it as a temporary during its execution. Note that such
+            routine actually can use existing temporary table if its CREATE
+            TEMPORARY TABLE has IF NOT EXISTS clause. For such tables we rely on
+            calls to handler::start_stmt() done by routine's substatement when
+            it accesses the table to inform storage engine about table
+            participation in transaction and type of operation carried out,
+            instead of calls to handler::store_lock()/external_lock() done at
+            prelocking stage.
+
+            In cases when statement uses two routines one of which can create
+            temporary table and modifies it, while another only reads from this
+            table, storage engine might be confused about real operation type
+            performed by the whole statement. Calls to
+            handler::store_lock()/external_lock() done at prelocking stage will
+            inform SE only about read part, while information about modification
+            will be delayed until handler::start_stmt() call during execution of
+            the routine doing modification. InnoDB considers this breaking of
+            promise about operation type and fails on assertion.
+
+            To avoid this problem we try to handle both the cases when temporary
+            table can be created by routine and the case when it is created
+            outside of routine and only accessed by it, uniformly. We don't call
+            handler::store_lock()/external_lock() for temporary tables used by
+            routines at prelocking stage and rely on calls to
+            handler::start_stmt(), which happen during substatement execution,
+            to pass correct information about operation type instead.
+          */
+          !(table->prelocking_placeholder &&
+            table->table->s->tmp_table != NO_TMP_TABLE)) {
+        *(ptr++) = table->table;
+      }
     }
 
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
