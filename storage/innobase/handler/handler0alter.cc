@@ -6297,6 +6297,7 @@ static void innobase_rename_or_enlarge_columns_cache(
       ha_alter_info->alter_info->create_list);
   uint i = 0;
   ulint num_v = 0;
+  ulint unsigned_flag = 0;
 
   for (Field **fp = table->field; *fp; fp++, i++) {
     bool is_virtual = innobase_is_v_fld(*fp);
@@ -6319,7 +6320,11 @@ static void innobase_rename_or_enlarge_columns_cache(
         }
         col->len = cf->max_display_width_in_bytes();
 
-        if (cf->sql_type == MYSQL_TYPE_STRING &&
+        ulint innodb_data_type =
+            get_innobase_type_from_mysql_type(&unsigned_flag, cf->field);
+        ut_ad(innodb_data_type != DATA_MISSING);
+
+        if (dtype_is_non_binary_string_type(innodb_data_type, col->prtype) &&
             (*fp)->charset()->number != cf->charset->number) {
           ulint old_charset = (*fp)->charset()->number;
           ulint new_charset = cf->charset->number;
