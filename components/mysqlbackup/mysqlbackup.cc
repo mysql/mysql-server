@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -21,27 +21,25 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysqlbackup.h"
+
+#include <atomic>
+
 #include "backup_comp_constants.h"
 #include "backup_page_tracker.h"
-#include "m_string.h"
-#include "my_dbug.h"
-#include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/service_mysql_alloc.h"
 #include "mysql/service_security_context.h"
-#include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
-#include "sql/sql_const.h"
 
-/**
-  This file contains a definition of the mysqlbackup component.
-*/
+/// This file contains a definition of the mysqlbackup component.
 
-/**
-  Component global variables.
-*/
-static char *mysqlbackup_component_version = nullptr;
+// Component global variables.
+static char *mysqlbackup_component_version{nullptr};
 char *mysqlbackup_backup_id = nullptr;  // non-static is used in other files
+
+// Status of registration of the system variable. Note that there should
+// be multiple such flags, if more system variables are intoduced, so
+// that we can keep track of the register/unregister status for each
+// variable.
+static std::atomic<bool> mysqlbackup_component_sys_var_registered{false};
 
 /**
    Method to check if the current user has got backup privilege.
@@ -97,9 +95,10 @@ mysql_service_status_t unregister_udfs() {
   return (retval);
 }
 
-/**
-  Server status variables defined by this component.
-*/
+// Server status variables defined by this component. Note that there
+// should be multiple such arrays, each null-terminated, if more status
+// variables are introduced, so that we can keep track of the
+// register/unregister status for each variable.
 static SHOW_VAR mysqlbackup_status_variables[] = {
     {Backup_comp_constants::backup_component_version.c_str(),
      (char *)&mysqlbackup_component_version, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
@@ -113,16 +112,41 @@ static SHOW_VAR mysqlbackup_status_variables[] = {
   @retval true failure
 */
 static bool register_status_variables() {
+  if (mysqlbackup_component_version) {
+    std::string msg{
+        "Status variable mysqlbackup.component_version is not NULL. Most "
+        "likely the status variable does already exist."};
+    LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+    return (true);
+  }
+
+  // Give the global variable a valid value before registering.
+  mysqlbackup_component_version =
+      my_strdup(PSI_NOT_INSTRUMENTED, MYSQL_SERVER_VERSION, MYF(MY_WME));
+
+  if (mysqlbackup_component_version == nullptr) {
+    std::string msg{"Cannot register status variable '" +
+                    mysqlbackup_status_variables[0].name +
+                    "' due to insufficient memory."};
+    LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+    return (true);
+  }
+
   if (mysql_service_status_variable_registration->register_variable(
           (SHOW_VAR *)&mysqlbackup_status_variables)) {
+    std::string msg{std::string(mysqlbackup_status_variables[0].name) +
+                    " register failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .lookup(ER_MYSQLBACKUP_MSG,
-                "mysqlbackup status variables registration failed.");
+        .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
+
+    // Free the memory allocated for the global variable
+    my_free(mysqlbackup_component_version);
+    mysqlbackup_component_version = nullptr;
     return (true);
   }
-  mysqlbackup_component_version = strdup(MYSQL_SERVER_VERSION);
+
   return (false);
 }
 
@@ -136,13 +160,23 @@ static bool register_status_variables() {
 static bool unregister_status_variables() {
   if (mysql_service_status_variable_registration->unregister_variable(
           (SHOW_VAR *)&mysqlbackup_status_variables)) {
+    if (mysqlbackup_component_version == nullptr) {
+      // Status variable is already un-registered.
+      return false;
+    }
+
+    std::string msg{std::string(mysqlbackup_status_variables[0].name) +
+                    " unregister failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .lookup(ER_MYSQLBACKUP_MSG,
-                "mysqlbackup status variables unregistration failed.");
+        .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
     return (true);
   }
+
+  // Free the global variable only after a successful unregister.
+  my_free(mysqlbackup_component_version);
+  mysqlbackup_component_version = nullptr;
 
   return (false);
 }
@@ -184,8 +218,14 @@ static void mysqlbackup_backup_id_update(MYSQL_THD, SYS_VAR *, void *var_ptr,
   @retval true failure
 */
 static bool register_system_variables() {
+  if (mysqlbackup_component_sys_var_registered) {
+    // System variable is already registered.
+    return (false);
+  }
+
   STR_CHECK_ARG(str) str_arg;
   str_arg.def_val = nullptr;
+
   if (mysql_service_component_sys_variable_register->register_variable(
           Backup_comp_constants::mysqlbackup.c_str(),
           Backup_comp_constants::backupid.c_str(),
@@ -194,15 +234,18 @@ static bool register_system_variables() {
           "Backup id of an ongoing backup.", mysqlbackup_backup_id_check,
           mysqlbackup_backup_id_update, (void *)&str_arg,
           (void *)&mysqlbackup_backup_id)) {
-    std::string msg = "Variable " + Backup_comp_constants::mysqlbackup +
-                      Backup_comp_constants::backupid + " registration failed.";
+    std::string msg{Backup_comp_constants::mysqlbackup + "." +
+                    Backup_comp_constants::backupid + " register failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
         .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
-    /* More backup variables to be registered here */
+    // More backup variables to be registered here
     return (true);
   }
+
+  // System variable is registered successfully.
+  mysqlbackup_component_sys_var_registered = true;
 
   return (false);
 }
@@ -218,15 +261,22 @@ static bool unregister_system_variables() {
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
           Backup_comp_constants::mysqlbackup.c_str(),
           Backup_comp_constants::backupid.c_str())) {
-    std::string msg = "Un registration of variable " +
-                      Backup_comp_constants::mysqlbackup +
-                      Backup_comp_constants::backupid + " failed.";
+    if (!mysqlbackup_component_sys_var_registered) {
+      // System variable is already un-registered.
+      return (false);
+    }
+
+    std::string msg{Backup_comp_constants::mysqlbackup + "." +
+                    Backup_comp_constants::backupid + " unregister failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
         .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
     return (true);
   }
+
+  // System variable is un-registered successfully.
+  mysqlbackup_component_sys_var_registered = false;
 
   return (false);
 }
@@ -305,7 +355,6 @@ mysql_service_status_t mysqlbackup_deinit() {
   if (unregister_status_variables()) failed = 1;
   if (unregister_system_variables()) failed = 1;
   if (deinitialize_log_service()) failed = 1;
-  free(mysqlbackup_component_version);
   return (failed);
 }
 
