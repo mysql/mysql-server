@@ -354,6 +354,13 @@ SET AUTOCOMMIT=1;
 CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 a2 VARCHAR(256), a3 BLOB) 
 TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+select distinct tablespace_name, file_type, file_name, free_extents
+from information_schema.files
+where engine = 'ndbcluster' and
+tablespace_name = 'ts1' and file_type = 'DATAFILE'
+order by file_type, file_name;
+tablespace_name	file_type	file_name	free_extents
+ts1	DATAFILE	./table_space1/datafile.dat	120
 START TRANSACTION;
 INSERT INTO test.t1 VALUES(NULL, "aaaaa1", "bbbbb1");
 COMMIT;
@@ -470,6 +477,13 @@ DROP TABLE test.t1;
 CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256),
 a3 BLOB, a4 DATE, a5 CHAR(250))
 TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+select distinct tablespace_name, file_type, file_name, free_extents
+from information_schema.files
+where engine = 'ndbcluster' and
+tablespace_name = 'ts1' and file_type = 'DATAFILE'
+order by file_type, file_name;
+tablespace_name	file_type	file_name	free_extents
+ts1	DATAFILE	./table_space1/datafile.dat	120
 SELECT COUNT(*) from test.t1;
 COUNT(*)
 100
