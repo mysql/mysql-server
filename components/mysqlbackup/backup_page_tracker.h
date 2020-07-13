@@ -1,6 +1,6 @@
 /************************************************************************
                       Mysql Enterprise Backup
- Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,9 @@
 #define BACKUP_PAGE_TRACKER_SERVICE_H
 
 #include <mysql/components/services/page_track_service.h>
+
 #include <list>
+
 #include "mysqlbackup.h"
 
 #ifdef __cplusplus
@@ -51,6 +53,7 @@ struct udf_data_t {
   Udf_func_any m_function;
   Udf_func_init m_init_function;
   Udf_func_deinit m_deinit_function;
+  bool m_is_registered;
 
   udf_data_t(const std::string name, Item_result return_type,
              Udf_func_any function, Udf_func_init init_function,
@@ -59,14 +62,14 @@ struct udf_data_t {
         m_return_type(return_type),
         m_function(function),
         m_init_function(init_function),
-        m_deinit_function(deinit_function) {}
+        m_deinit_function(deinit_function),
+        m_is_registered(false) {}
 };
 
 class Backup_page_tracker {
  private:
   static uchar *m_changed_pages_buf;
   static std::list<udf_data_t *> m_udf_list;
-  static mysql_service_status_t unregister_udfs(std::list<udf_data_t *> list);
   static void initialize_udf_list();
 
  public:

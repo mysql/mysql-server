@@ -1,6 +1,6 @@
 /************************************************************************
                       Mysql Enterprise Backup
- Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,15 +24,15 @@
  *************************************************************************/
 
 #include "backup_page_tracker.h"
-#include "backup_comp_constants.h"
+
+#include <algorithm>
 #if defined _MSC_VER
 #include <direct.h>
 #endif
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <algorithm>
-#include "m_string.h"
-#include "my_io.h"
+
+#include "backup_comp_constants.h"
 #include "mysql/plugin.h"
 #include "mysqld_error.h"
 
@@ -93,48 +93,38 @@ void Backup_page_tracker::initialize_udf_list() {
    @retval non-zero failure
 */
 mysql_service_status_t Backup_page_tracker::register_udfs() {
+  if (!m_udf_list.empty()) {
+    std::string msg{"UDF list for mysqlbackup_component is not empty."};
+    LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+    return (1);
+  }
+
+  // Initialize the UDF list
   initialize_udf_list();
-  std::list<udf_data_t *> success_list;
+
   for (auto udf : m_udf_list) {
+    if (udf->m_is_registered) {
+      std::string msg{udf->m_name + " is already registered."};
+      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+      // un-register the already registered UDFs
+      unregister_udfs();
+      return (1);
+    }
+
     if (mysql_service_udf_registration->udf_register(
             udf->m_name.c_str(), udf->m_return_type, udf->m_function,
             udf->m_init_function, udf->m_deinit_function)) {
-      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG,
-             std::string(udf->m_name + " registration failed.").c_str());
-      // un-register already successful UDFs
-      unregister_udfs(success_list);
+      std::string msg{udf->m_name + " register failed."};
+      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+      // un-register the already registered UDFs
+      unregister_udfs();
       return (1);
     }
-    // add the udf into success list
-    success_list.push_back(udf);
-  }
-  return (0);
-}
 
-/**
-   Un-Register a given list of UDFs
-
-   @return Status of UDF un-registration
-   @retval 0 success
-   @retval non-zero failure
-*/
-mysql_service_status_t Backup_page_tracker::unregister_udfs(
-    std::list<udf_data_t *> list) {
-  int was_present;
-  std::list<udf_data_t *> fail_list;
-
-  for (auto udf : list) {
-    if (mysql_service_udf_registration->udf_unregister(udf->m_name.c_str(),
-                                                       &was_present) ||
-        !was_present) {
-      LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG,
-             std::string(udf->m_name + " un-register failed").c_str());
-      fail_list.push_back(udf);
-    }
-    delete (udf);
+    // UDF is registered successfully
+    udf->m_is_registered = true;
   }
 
-  if (!fail_list.empty()) return (1);
   return (0);
 }
 
@@ -146,7 +136,33 @@ mysql_service_status_t Backup_page_tracker::unregister_udfs(
    @retval non-zero failure
 */
 mysql_service_status_t Backup_page_tracker::unregister_udfs() {
-  return (unregister_udfs(m_udf_list));
+  mysql_service_status_t fail_status{0};
+
+  for (auto udf : m_udf_list) {
+    int was_present;
+    if (mysql_service_udf_registration->udf_unregister(udf->m_name.c_str(),
+                                                       &was_present) &&
+        was_present) {
+      if (udf->m_is_registered) {
+        std::string msg{udf->m_name + " unregister failed."};
+        LogErr(ERROR_LEVEL, ER_MYSQLBACKUP_MSG, msg.c_str());
+        fail_status = 1;
+      }
+    } else {
+      // UDF is un-registered successfully
+      udf->m_is_registered = false;
+    }
+  }
+
+  if (fail_status == 0) {
+    // UDFs are un-registered successfully, clear the UDF list.
+    while (!m_udf_list.empty()) {
+      delete (m_udf_list.back());
+      m_udf_list.pop_back();
+    }
+  }
+
+  return fail_status;
 }
 
 /**
