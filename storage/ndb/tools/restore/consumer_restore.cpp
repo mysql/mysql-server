@@ -36,6 +36,7 @@
 #include "../ndb_lib_move_data.hpp"
 
 #define NDB_ANYVALUE_FOR_NOLOGGING 0x8000007f
+static const int MAX_RETRIES = 11;
 
 /**
  * PK mapping index has a known name.
@@ -1075,20 +1076,9 @@ BackupRestore::prepare_staging(const TableS & tableS)
   }
   stagingTable->setName(table_name.c_str());
 
-  // using defaults
-  const Ndb_move_data::Opts::Tries ot;
-  int createtries = 0;
-  int createdelay = 0;
-  while (1)
+  int retries;
+  for (retries = 0; retries < MAX_RETRIES; retries++)
   {
-    if (!(ot.maxtries == 0 || createtries < ot.maxtries))
-    {
-      err << "Create table " << tablename
-          << ": too many temporary errors: " << createtries << endl;
-      return false;
-    }
-    createtries++;
-
     m_ndb->setDatabaseName(db_name.c_str());
     m_ndb->setSchemaName(schema_name.c_str());
     if (dict->createTable(*stagingTable) != 0)
@@ -1103,18 +1093,20 @@ BackupRestore::prepare_staging(const TableS & tableS)
       err << "Temporary: Failed to create staging source " << tablename
           << ": " << error << endl;
 
-      createdelay *= 2;
-      if (createdelay < ot.mindelay)
-        createdelay = ot.mindelay;
-      if (createdelay > ot.maxdelay)
-        createdelay = ot.maxdelay;
-
+      int createdelay = 100 + retries * 300;
       info << "Sleeping " << createdelay << "ms" << endl;
       NdbSleep_MilliSleep(createdelay);
       continue;
     }
     info << "Created staging source " << tablename << endl;
     break;
+  }
+
+  if (retries == MAX_RETRIES)
+  {
+      err << "Create table " << tablename <<
+          ": too many temporary errors: " << MAX_RETRIES << endl;
+      return false;
   }
 
   const NdbDictionary::Table* tab = dict->getTable(table_name.c_str());
@@ -1186,27 +1178,16 @@ BackupRestore::finalize_staging(const TableS & tableS)
 
   md.set_opts_flags(tableS.m_stagingFlags);
 
-  // using defaults
-  const Ndb_move_data::Opts::Tries ot;
-  int tries = 0;
-  int delay = 0;
-  while (1)
+  int retries;
+  for (retries = 0; retries < MAX_RETRIES; retries++)
   {
-    if (!(ot.maxtries == 0 || tries < ot.maxtries))
-    {
-      err << "Move data " << stablename << " to " << ttablename
-          << ": too many temporary errors: " << tries << endl;
-      return false;
-    }
-    tries++;
-
     if (md.move_data(m_ndb) != 0)
     {
       const Ndb_move_data::Error& error = md.get_error();
       err
           << "Move data " << stablename << " to " << ttablename << " "
           << (error.is_temporary() ? "temporary error" : "permanent error")
-          << " at try " << tries // default is no limit
+          << " at try " << retries // default is no limit
           << " at rows moved " << stat.rows_moved
           << " total " << stat.rows_total
           << ": " << error << endl;
@@ -1214,15 +1195,7 @@ BackupRestore::finalize_staging(const TableS & tableS)
       if (!error.is_temporary())
         return false;
 
-      if (stat.rows_moved == 0) // this try
-        delay *= 2;
-      else
-        delay /= 2;
-      if (delay < ot.mindelay)
-        delay = ot.mindelay;
-      if (delay > ot.maxdelay)
-        delay = ot.maxdelay;
-
+      int delay = 100 + retries * 300;
       info << "Sleeping " << delay << "ms" << endl;
       NdbSleep_MilliSleep(delay);
       continue;
@@ -1236,18 +1209,15 @@ BackupRestore::finalize_staging(const TableS & tableS)
     break;
   }
 
-  int droptries = 0;
-  int dropdelay = 0;
-  while (1)
+  if (retries == MAX_RETRIES)
   {
-    if (!(ot.maxtries == 0 || droptries < ot.maxtries))
-    {
-      err << "Drop table " << stablename
-          << ": too many temporary errors: " << droptries << endl;
-      return false;
-    }
-    droptries++;
+     err << "Move data " << stablename << " to " << ttablename
+         << ": too many temporary errors: " << MAX_RETRIES << endl;
+     return false;
+  }
 
+  for (retries = 0; retries < MAX_RETRIES; retries++)
+  {
     // dropTable(const Table&) is not defined ...
     m_ndb->setDatabaseName(sdb_name.c_str());
     m_ndb->setSchemaName(sschema_name.c_str());
@@ -1263,18 +1233,20 @@ BackupRestore::finalize_staging(const TableS & tableS)
       err << "Temporary: Failed to drop staging source " << stablename
           << ": " << error << endl;
 
-      dropdelay *= 2;
-      if (dropdelay < ot.mindelay)
-        dropdelay = ot.mindelay;
-      if (dropdelay > ot.maxdelay)
-        dropdelay = ot.maxdelay;
-
+      int dropdelay = 100 + retries * 300;
       info << "Sleeping " << dropdelay << "ms" << endl;
       NdbSleep_MilliSleep(dropdelay);
       continue;
     }
     info << "Dropped staging source " << stablename << endl;
     break;
+  }
+
+  if (retries == MAX_RETRIES)
+  {
+     err << "Drop table " << stablename
+         << ": too many temporary errors: " << MAX_RETRIES << endl;
+     return false;
   }
 
   /* Replace staging table with real target table in m_new_tables */
@@ -1298,7 +1270,8 @@ BackupRestore::finalize_table(const TableS & table){
 
   const Uint32 orig_table_id = table.m_dictTable->getTableId();
   const Uint64 restore_next_val = m_auto_values[orig_table_id];
-  do
+
+  for (int retries = 0; retries < MAX_RETRIES; retries++)
   {
     Uint64 db_next_val = ~(Uint64)0;
     int r= m_ndb->readAutoIncrementValue(get_table(table), db_next_val);
@@ -1306,7 +1279,7 @@ BackupRestore::finalize_table(const TableS & table){
     {
       if (m_ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        NdbSleep_MilliSleep(50);
+        NdbSleep_MilliSleep(100 + retries * 300);
         continue; // retry
       }
       err << "Finalize_table failed to read auto increment value for table "
@@ -1328,13 +1301,14 @@ BackupRestore::finalize_table(const TableS & table){
       if (r == -1 &&
             m_ndb->getNdbError().status == NdbError::TemporaryError)
       {
-        NdbSleep_MilliSleep(50);
+        NdbSleep_MilliSleep(100 + retries * 300);
         continue; // retry
       }
       ret = (r == 0);
     }
     return (ret);
-  } while (1);
+  }
+  return (ret);
 }
 
 bool
@@ -1373,16 +1347,17 @@ BackupRestore::rebuild_indexes(const TableS& table)
     info << "Rebuilding index `" << idx_name << "` on table `"
       << tab_name << "` ..." << flush;
     bool done = false;
-    for(int retries = 0; retries<11; retries++)
+    for(int retries = 0; retries < MAX_RETRIES; retries++)
     {
       if ((dict->getIndex(idx_name, tab_name) == NULL)
           && (dict->createIndex(* idx, 1) != 0))
       {
         if(dict->getNdbError().status == NdbError::TemporaryError)
         {
-          err << "retry sleep 50 ms on error " <<
+          int sleep_duration = 100 + retries * 300;
+          err << "retry sleep " << sleep_duration << " ms on error " <<
                       dict->getNdbError().code << endl;
-          NdbSleep_MilliSleep(50);
+          NdbSleep_MilliSleep(sleep_duration);
           continue;  // retry on temporary error
         }
         else
@@ -1978,11 +1953,11 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
   char empty_string[1];
   empty_string[0]= 0;
   int retries;
-  for (retries = 0; retries <10; retries++)
+  for (retries = 0; retries < MAX_RETRIES; retries++)
   {
     if (retries > 0)
     {
-      NdbSleep_MilliSleep(100 + (retries - 1) * 100);
+      NdbSleep_MilliSleep(100 + retries * 300);
     }
     NdbTransaction * trans= m_ndb->startTransaction();
     if (!trans)
@@ -3274,7 +3249,7 @@ BackupRestore::table(const TableS & table){
     if (tab->getNoOfAutoIncrementColumns())
     {
       // Ensure that auto-inc metadata is created in database
-      Uint32 retries = 10;
+      Uint32 retries = MAX_RETRIES;
       while (retries--)
       {
         int res = m_ndb->setAutoIncrementValue(tab,
@@ -3287,7 +3262,7 @@ BackupRestore::table(const TableS & table){
 
         if (m_ndb->getNdbError().status == NdbError::TemporaryError)
         {
-          NdbSleep_MilliSleep(50);
+          NdbSleep_MilliSleep(100 + retries * 300);
           continue;
         }
         err << "Failed to create auto increment value for table : "
@@ -3424,7 +3399,7 @@ BackupRestore::endOfTables(){
     if (m_restore_meta && !m_disable_indexes && !m_rebuild_indexes)
     {
       bool done = false;
-      for(unsigned int retries = 0; retries < 11; retries++)
+      for(unsigned int retries = 0; retries < MAX_RETRIES; retries++)
       {
         if(dict->createIndex(* idx) == 0)
         {
@@ -3433,9 +3408,10 @@ BackupRestore::endOfTables(){
         }
         else if(dict->getNdbError().status == NdbError::TemporaryError)
         {
-          err << "retry sleep 50 ms on error " <<
+          int sleep_duration = 100 + retries * 300;
+          err << "retry sleep " << sleep_duration << " ms on error " <<
                       dict->getNdbError().code << endl;
-          NdbSleep_MilliSleep(50);
+          NdbSleep_MilliSleep(sleep_duration);
           continue;  // retry on temporary error
         }
         else
@@ -3745,7 +3721,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 {
   Uint32 partition_id = cb->fragId;
   Uint32 n_bytes;
-  while (cb->retries < 10) 
+  while (cb->retries < MAX_RETRIES)
   {
     /**
      * start transactions
@@ -4206,12 +4182,10 @@ BackupRestore::tryCreatePkMappingIndex(TableS* table,
     info << "Build PK mapping index : System busy with "
          << "other schema operation, retrying."
          << endl;
-    NdbSleep_MilliSleep(1000);
     return true;
   }
   else if (createError.status == NdbError::TemporaryError)
   {
-    NdbSleep_MilliSleep(500);
     return true;
   }
   else
@@ -4249,7 +4223,6 @@ BackupRestore::getPkMappingIndex(TableS* table)
    *      --rebuild-indexes step
    */
   const NdbDictionary::Index* dbIdx = NULL;
-  const Uint32 Max_Retries = 20;
   Uint32 retry_count = 0;
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
@@ -4296,7 +4269,7 @@ BackupRestore::getPkMappingIndex(TableS* table)
         info << "Build PK mapping index : System busy with "
              << "other schema operation, retrying."
              << endl;
-        NdbSleep_MilliSleep(1000);
+        NdbSleep_MilliSleep(100 + retry_count * 300);
         continue;
       }
 
@@ -4319,7 +4292,7 @@ BackupRestore::getPkMappingIndex(TableS* table)
       }
       else if (getErr.status == NdbError::TemporaryError)
       {
-        NdbSleep_MilliSleep(500);
+        NdbSleep_MilliSleep(100 + retry_count * 300);
 
         /* Retry lookup */
         continue;
@@ -4333,7 +4306,7 @@ BackupRestore::getPkMappingIndex(TableS* table)
         return false;
       }
     }
-  } while (retry_count++ < Max_Retries);
+  } while (retry_count++ < MAX_RETRIES);
 
   err << "Failure to lookup / create PK mapping index after "
       << Max_Retries << " attempts." << endl;
@@ -4357,7 +4330,7 @@ BackupRestore::dropPkMappingIndex(const TableS* table)
 
   /* Drop any support indexes */
   bool dropped = false;
-  int attempts = 11;
+  int attempts = MAX_RETRIES;
   while (!dropped && attempts--)
   {
     dict->dropIndex(PK_MAPPING_IDX_NAME,
@@ -4371,7 +4344,7 @@ BackupRestore::dropPkMappingIndex(const TableS* table)
       break;
     case NdbError::TemporaryError:
       err << "Temporary error: " << dropErr << endl;
-      NdbSleep_MilliSleep(500);
+      NdbSleep_MilliSleep(100 + retry_count * 300);
       continue;
     case NdbError::PermanentError:
       if (dropErr.code == 723 ||
@@ -4470,14 +4443,14 @@ BackupRestore::logEntry(const LogEntry & tup)
 retry:
   Uint32 mapping_idx_key_count = 0;
 
-  if (retries == 11)
+  if (retries == MAX_RETRIES)
   {
     err << "execute failed: " << errobj << endl;
     exitHandler();
   }
   else if (retries > 0)
   {
-    NdbSleep_MilliSleep(100 + (retries - 1) * 100);
+    NdbSleep_MilliSleep(100 + retries * 300);
   }
   
   retries++;
