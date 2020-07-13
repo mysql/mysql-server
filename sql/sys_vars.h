@@ -2381,8 +2381,7 @@ class Sys_var_gtid_purged : public sys_var {
     String str(buf, sizeof(buf), system_charset_info);
     String *res = var->value->val_str(&str);
     if (!res) return true;
-    var->save_result.string_value.str =
-        thd->strmake(res->c_ptr(), res->length());
+    var->save_result.string_value.str = thd->strmake(res->ptr(), res->length());
     if (!var->save_result.string_value.str) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // thd->strmake failed
       return true;
