@@ -1949,6 +1949,11 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   }
 
   row_upd_rec_in_place(rec, index, offsets, node->update, nullptr);
+
+  /* Set the changed pages as modified, so that if the page is
+  evicted from the buffer pool it is flushed and we don't lose
+  the changes */
+  mtr.set_modified();
   mtr_commit(&mtr);
 
   return (DB_SUCCESS);
