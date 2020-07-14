@@ -253,9 +253,7 @@ int ha_warp::encode_quote(uchar *) {
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_DATETIME2: 
       case MYSQL_TYPE_TIME2:  {
-        uint64_t tmp=0;
-        memcpy(&tmp, (*field)->data_ptr(), (*field)->data_length());
-        attribute.append(std::to_string(tmp).c_str());
+        attribute.append(std::to_string((*field)->val_int()).c_str());
         no_quote = true;
       }
         break;
@@ -643,7 +641,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
         case MYSQL_TYPE_DATETIME2: {
             uint64_t tmp;
             rc = cursor->getColumnAsULong(cname.c_str(),tmp);
-            memcpy(const_cast<uchar*>((*field)->data_ptr()), &tmp, (*field)->data_length());
+            rc = (*field)->store(tmp, true);
         }
         break;
         /* the following are stored as strings in Fastbit */
@@ -1541,6 +1539,7 @@ int ha_warp::index_first(uchar * buf) {
   } else{
     where_clause = "1=1";
   }
+
   idx_filtered_table = base_table->select(column_set.c_str(), where_clause.c_str());
   if(idx_filtered_table == NULL) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -1716,9 +1715,7 @@ int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map, enum 
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_DATETIME2: 
       case MYSQL_TYPE_TIME2: {
-        uint64_t tmp=0;
-        memcpy(&tmp, key_offset, f->data_length());
-        where_clause += std::to_string(tmp);
+        where_clause += std::to_string(f->val_int());
         key_offset += f->data_length();
       }
       
@@ -1969,7 +1966,6 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
     }
       
     Item** arg = tmp->arguments();
-    
     if(tmp->arg_count == 2 && arg[0]->type() == Item::Type::FIELD_ITEM && arg[0]->type() == arg[1]->type()) {
       /* can't push down joins just yet */
       return false;
@@ -2004,9 +2000,14 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
          can be done at some point, as it will speed things up.
       */
       if((*arg)->type() == Item::Type::FUNC_ITEM) {
-        return false;
+        if((dynamic_cast<Item_func*>(*arg))->functype() == Item_func::DATE_FUNC) {
+          push_where_clause += std::to_string((*arg)->val_uint());
+          continue;
+        } else {
+          push_where_clause = "";
+          return false;
+        }
       }
-      
       if((*arg)->type() == Item::Type::INT_ITEM) {
         push_where_clause += std::to_string((*arg)->val_int());
         continue;
@@ -2042,10 +2043,10 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
           if(field_may_be_null) {
             if(is_is_null) {
               /* the NULL marker will be one if the value is NULL */
-              push_where_clause += "n" + std::to_string(field_index) + " = 1";
+              push_where_clause += "(n" + std::to_string(field_index) + " = 1";
             } else if (is_isnot_null) {
               /* the NULL marker will be zero if the value is NOT NULL */
-              push_where_clause += "n" + std::to_string(field_index) + " = 0";
+              push_where_clause += "(n" + std::to_string(field_index) + " = 0";
             }
           } else {
             if(is_is_null) {
