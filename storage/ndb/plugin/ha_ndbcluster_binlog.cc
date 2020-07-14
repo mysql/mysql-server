@@ -940,6 +940,16 @@ class Ndb_binlog_setup {
                                                ndb_schema_dist_upgrade_allowed))
       return false;
 
+    // Schema distributions that get aborted by the coordinator due to a cluster
+    // failure (or) a MySQL Server shutdown, can leave behind rows in
+    // ndb_schema_result table. Clear the ndb_schema_result table. This is safe
+    // as the binlog thread has the GSL now and no other schema op distribution
+    // can be active.
+    if (!initial_system_restart && !schema_result_table.delete_all_rows()) {
+      ndb_log_warning("Failed to remove obsolete rows from ndb_schema_result");
+      return false;
+    }
+
     Ndb_apply_status_table apply_status_table(thd_ndb);
     if (!apply_status_table.create_or_upgrade(m_thd, true)) return false;
 
@@ -2164,6 +2174,7 @@ class Ndb_schema_event_handler {
   }
 
   void remove_schema_result_rows(uint32 schema_op_id) {
+    DBUG_TRACE;
     Ndb *ndb = m_thd_ndb->ndb;
 
     // Open ndb_schema_result table
@@ -2174,101 +2185,35 @@ class Ndb_schema_event_handler {
       ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
       return;
     }
-    const NdbDictionary::Table *ndbtab = schema_result_table.get_table();
-    const uint nodeid = own_nodeid();
 
-    // Function for deleting all rows from ndb_schema_result matching
-    // the given nodeid and schema operation id
-    std::function<const NdbError *(NdbTransaction *)>
-        remove_schema_result_rows_func =
-            [nodeid, schema_op_id,
-             ndbtab](NdbTransaction *trans) -> const NdbError * {
-      DBUG_TRACE;
-      DBUG_PRINT("enter",
-                 ("nodeid: %d, schema_op_id: %d", nodeid, schema_op_id));
+    const NdbDictionary::Table *ndb_table = schema_result_table.get_table();
+    const uint node_id = own_nodeid();
+    const int node_id_col =
+        schema_result_table.get_column_num(Ndb_schema_result_table::COL_NODEID);
+    const int schema_op_id_col = schema_result_table.get_column_num(
+        Ndb_schema_result_table::COL_SCHEMA_OP_ID);
 
-      NdbScanOperation *scan_op = trans->getNdbScanOperation(ndbtab);
-      if (scan_op == nullptr) return &trans->getNdbError();
-
-      if (scan_op->readTuples(NdbOperation::LM_Read,
-                              NdbScanOperation::SF_KeyInfo) != 0)
-        return &scan_op->getNdbError();
-
-      // Read the columns to compare
-      uint32 read_node_id, read_schema_op_id;
-      if (scan_op->getValue(Ndb_schema_result_table::COL_NODEID,
-                            (char *)&read_node_id) == nullptr ||
-          scan_op->getValue(Ndb_schema_result_table::COL_SCHEMA_OP_ID,
-                            (char *)&read_schema_op_id) == nullptr)
-        return &scan_op->getNdbError();
-
-      // Start the scan
-      if (trans->execute(NdbTransaction::NoCommit) != 0)
-        return &trans->getNdbError();
-
-      // Loop through all rows
-      unsigned deleted = 0;
-      bool fetch = true;
-      while (true) {
-        const int r = scan_op->nextResult(fetch);
-        if (r < 0) {
-          // Failed to fetch next row
-          return &scan_op->getNdbError();
-        }
-        fetch = false;  // Don't fetch more until nextResult returns 2
-
-        switch (r) {
-          case 0:  // Found row
-            DBUG_PRINT("info", ("Found row"));
-            // Delete rows if equal to nodeid and schema_op_id
-            if (read_schema_op_id == schema_op_id && read_node_id == nodeid) {
-              DBUG_PRINT("info", ("Deleting row"));
-              if (scan_op->deleteCurrentTuple() != 0) {
-                // Failed to delete row
-                return &scan_op->getNdbError();
-              }
-              deleted++;
-            }
-            continue;
-
-          case 1:
-            DBUG_PRINT("info", ("No more rows"));
-            // No more rows, commit the transation
-            if (trans->execute(NdbTransaction::Commit) != 0) {
-              // Failed to commit
-              return &trans->getNdbError();
-            }
-            return nullptr;
-
-          case 2:
-            // Need to fetch more rows, first send the deletes
-            DBUG_PRINT("info", ("Need to fetch more rows"));
-            if (deleted > 0) {
-              DBUG_PRINT("info", ("Sending deletes"));
-              if (trans->execute(NdbTransaction::NoCommit) != 0) {
-                // Failed to send
-                return &trans->getNdbError();
-              }
-            }
-            fetch = true;  // Fetch more rows
-            continue;
-        }
-      }
-      // Never reached
-      ndbcluster::ndbrequire(false);
-      return nullptr;
+    // Lambda function to filter out the rows based on
+    // node id and the given schema op id
+    auto ndb_scan_filter_defn = [=](NdbScanFilter &scan_filter) {
+      scan_filter.begin(NdbScanFilter::AND);
+      scan_filter.eq(node_id_col, node_id);
+      scan_filter.eq(schema_op_id_col, schema_op_id);
+      scan_filter.end();
     };
 
     NdbError ndb_err;
-    if (!ndb_trans_retry(ndb, m_thd, ndb_err, remove_schema_result_rows_func)) {
+    if (!ndb_table_scan_and_delete_rows(ndb, m_thd, ndb_table, ndb_err,
+                                        ndb_scan_filter_defn)) {
       log_NDB_error(ndb_err);
       ndb_log_error("Failed to remove rows from ndb_schema_result");
       return;
     }
+
     ndb_log_verbose(19,
                     "Deleted all rows from ndb_schema_result, nodeid: %d, "
                     "schema_op_id: %d",
-                    nodeid, schema_op_id);
+                    node_id, schema_op_id);
     return;
   }
 

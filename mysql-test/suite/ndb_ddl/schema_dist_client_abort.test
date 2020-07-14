@@ -32,6 +32,10 @@ set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
 # Wait until ready again
 --source include/ndb_not_readonly.inc
 
+--echo # Verify that there are no leftover entries in
+--echo # mysql.ndb_schema_result table
+--exec $NDB_SELECT_ALL --no-defaults -d mysql ndb_schema_result
+
 --echo # Cleanup
 DROP TABLE t1;
 
@@ -132,12 +136,13 @@ let $mysqld_name=mysqld.1.1;
 --connection mysqld2
 set GLOBAL debug="-d,ndb_skip_participant_ack";
 --connection mysqld1
-# Workaround for Bug#31601674
---source suite/ndb/include/ndb_find_tools.inc
---exec $NDB_DELETE_ALL -d mysql ndb_schema_result > /dev/null
 
 # Wait until ready again
 --source include/ndb_not_readonly.inc
+
+--echo # Verify that there are no leftover entries in
+--echo # mysql.ndb_schema_result table
+--exec $NDB_SELECT_ALL --no-defaults -d mysql ndb_schema_result
 
 --echo # Verify table exists
 show create table t1;

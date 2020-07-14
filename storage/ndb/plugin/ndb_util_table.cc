@@ -456,6 +456,32 @@ bool Ndb_util_table::unpack_blob_not_null(NdbBlob *ndb_blob_handle,
   return true;
 }
 
+int Ndb_util_table::get_column_num(const char *col_name) const {
+  const NdbDictionary::Table *tab = get_table();
+  DBUG_ASSERT(tab != nullptr);
+  const NdbDictionary::Column *column = tab->getColumn(col_name);
+  DBUG_ASSERT(column != nullptr);
+  return column->getColumnNo();
+}
+
+bool Ndb_util_table::delete_all_rows() {
+  DBUG_TRACE;
+
+  const NdbDictionary::Table *ndb_table = get_table();
+  DBUG_ASSERT(ndb_table != nullptr);
+
+  NdbError ndb_err;
+  Ndb *ndb = m_thd_ndb->ndb;
+  const THD *thd = m_thd_ndb->get_thd();
+  if (!ndb_table_scan_and_delete_rows(ndb, thd, ndb_table, ndb_err)) {
+    push_ndb_error_warning(ndb_err);
+    push_warning("Failed to remove all rows from %s.%s", m_db_name.c_str(),
+                 m_table_name.c_str());
+    return false;
+  }
+  return true;
+}
+
 //
 //  Util_table_creator
 //
