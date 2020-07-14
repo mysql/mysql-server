@@ -26,5 +26,5 @@ MYSQL_ADD_COMPONENT(mysqlbackup
   mysqlbackup.cc
   backup_page_tracker.cc
   MODULE_ONLY
-  LINK_LIBRARIES mysys
+  LINK_LIBRARIES library_mysys
   )
