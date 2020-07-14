@@ -26,6 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "backup_comp_constants.h"
 #include "backup_page_tracker.h"
+#include "mysql/components/library_mysys/my_memory.h"
+#include "mysql/components/services/psi_memory.h"
 #include "mysql/service_security_context.h"
 #include "mysqld_error.h"
 
@@ -121,8 +123,10 @@ static bool register_status_variables() {
   }
 
   // Give the global variable a valid value before registering.
-  mysqlbackup_component_version =
-      my_strdup(PSI_NOT_INSTRUMENTED, MYSQL_SERVER_VERSION, MYF(MY_WME));
+  mysqlbackup_component_version = static_cast<char *>(my_malloc(
+      PSI_NOT_INSTRUMENTED, strlen(MYSQL_SERVER_VERSION) + 1, MYF(0)));
+  strncpy(mysqlbackup_component_version, MYSQL_SERVER_VERSION,
+          strlen(MYSQL_SERVER_VERSION) + 1);
 
   if (mysqlbackup_component_version == nullptr) {
     std::string msg{std::string("Cannot register status variable '") +
@@ -380,6 +384,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_page_track);
 REQUIRES_SERVICE_PLACEHOLDER(global_grants_check);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
+REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
 
 /**
   A list of dependencies.
@@ -396,7 +401,8 @@ REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
     REQUIRES_SERVICE(mysql_thd_security_context),
     REQUIRES_SERVICE(mysql_security_context_options),
     REQUIRES_SERVICE(mysql_page_track), REQUIRES_SERVICE(global_grants_check),
-    REQUIRES_SERVICE(mysql_current_thread_reader), END_COMPONENT_REQUIRES();
+    REQUIRES_SERVICE(mysql_current_thread_reader),
+    REQUIRES_SERVICE(psi_memory_v2), END_COMPONENT_REQUIRES();
 
 /**
   A list of metadata to describe the Component.
