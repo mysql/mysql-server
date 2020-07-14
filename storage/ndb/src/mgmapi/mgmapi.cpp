@@ -2811,8 +2811,6 @@ ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
     DBUG_RETURN(-1);
 
   bool sendBackupPoint = (handle->mgmd_version() >= NDB_MAKE_VERSION(6,4,0));
-  bool sendEncryptionPassword =
-      ndbd_support_backup_file_encryption(handle->mgmd_version());
 
   Properties args;
   args.put("completed", wait_completed);
@@ -2820,9 +2818,9 @@ ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
     args.put("backupid", input_backupId);
   if (sendBackupPoint)
     args.put("backuppoint", backuppoint);
-  if (sendEncryptionPassword)
+  if (encryption_password != nullptr)
   {
-    if (encryption_password != nullptr)
+    if (ndbd_support_backup_file_encryption(handle->mgmd_version()))
     {
       for (Uint32 i = 0; i < password_length; i++)
       {
@@ -2841,13 +2839,13 @@ ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
       args.put("encryption_password", encryption_password);
       args.put("password_length", password_length);
     }
-  }
-  else
-  {
-    SET_ERROR(handle, NDB_MGM_COULD_NOT_START_BACKUP,
-              "MGM server does not support encrypted backup, "
-              "try without ENCRYPT PASSWORD=<password>");
-    DBUG_RETURN(-1);
+    else
+    {
+      SET_ERROR(handle, NDB_MGM_COULD_NOT_START_BACKUP,
+                "MGM server does not support encrypted backup, "
+                "try without ENCRYPT PASSWORD=<password>");
+      DBUG_RETURN(-1);
+    }
   }
   const Properties *reply;
   { // start backup can take some time, set timeout high
