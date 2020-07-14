@@ -122,7 +122,6 @@ int Sasl_client::read_method_name_from_server() {
   if (rc_server_read >= 0 && rc_server_read <= max_method_name_len) {
     strncpy(m_mechanism, (const char *)packet, rc_server_read);
     m_mechanism[rc_server_read] = '\0';
-
     if (strcmp(m_mechanism, SASL_GSSAPI) == 0) {
       /*
         If user tries to use kerberos without kerberos libs are installed,
@@ -135,8 +134,16 @@ int Sasl_client::read_method_name_from_server() {
       m_sasl_mechanism = NULL;
       log_info("Kerberos lib not installed, not creting kerberos objects.");
 #endif
-    } else {
+    } else if (strcmp(m_mechanism, SASL_SCRAM_SHA1) == 0) {
       m_sasl_mechanism = new Sasl_mechanism();
+    } else {
+      rc_server_read = SASL_ERROR_INVALID_METHOD;
+      log_stream << "SASL METHOD:" << m_mechanism[0];
+      log_stream << " is not supported, please make sure correct "
+                    "method is set in "
+                 << "LDAP SASL server side plug-in";
+      m_mechanism[0] = '\0';
+      log_error(log_stream.str());
     }
     log_stream << "Sasl_client::read_method_name_from_server : " << m_mechanism;
     log_dbg(log_stream.str());

@@ -35,6 +35,8 @@
 #include "log_client.h"
 
 const char SASL_GSSAPI[] = "GSSAPI";
+const char SASL_SCRAM_SHA1[] = "SCRAM-SHA-1";
+const int SASL_ERROR_INVALID_METHOD = -2;
 
 class Sasl_mechanism {
  public:
