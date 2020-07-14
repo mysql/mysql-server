@@ -122,6 +122,7 @@ SET(XPL_TEST_SRC
   xpl/xmessage_buffer_t.cc
   xpl/xrow_buffer_t.cc
   xpl/xpl_regex_t.cc
+  xpl/socket_events_t.cc
 )
 # This compiler fails to handle some of the mock functions involved.
 IF(MY_COMPILER_IS_SUNPRO)
@@ -148,6 +149,7 @@ MYSQL_ADD_EXECUTABLE(${XPL_UNIT_TESTS}
   ${XPL_TEST_SRC}
   ADD_TEST xplugin
 )
+SET_TESTS_PROPERTIES(xplugin PROPERTIES TIMEOUT 180)
 
 ADD_COMPILE_FLAGS(${XPL_TEST_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
@@ -246,6 +248,7 @@ MYSQL_ADD_EXECUTABLE(${XCL_UNIT_TESTS}
   ${XCL_SRC}
   ADD_TEST xclient
 )
+SET_TESTS_PROPERTIES(xclient PROPERTIES TIMEOUT 180)
 
 ADD_DEPENDENCIES(${XCL_UNIT_TESTS}
   ${MYSQLX_CLIENT_FULL_LIB}
