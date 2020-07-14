@@ -1816,6 +1816,7 @@ int ha_warp::index_read_idx_map (uchar *buf, uint idxno, const uchar *key, key_p
 int ha_warp::engine_push(AQP::Table_access *table_aqp) {
   DBUG_TRACE;
   const Item* remainder = NULL;
+  push_where_clause = "";
 
   THD const* thd = table->in_use;
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
