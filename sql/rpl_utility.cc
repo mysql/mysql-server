@@ -25,6 +25,7 @@
 #include <string.h>
 #include <iterator>
 #include <new>
+#include <regex>
 #include <utility>
 
 #include "lex_string.h"
@@ -1254,6 +1255,33 @@ bool evaluate_command_row_only_restrictions(THD *thd) {
   }
 
   return false;
+}
+
+void rename_fields_use_old_replica_source_terms(
+    THD *thd, mem_root_deque<Item *> &field_list) {
+  static const std::regex replica(
+      "(.*)(Replica_)(.*)",
+      std::regex_constants::icase | std::regex_constants::optimize);
+  static const std::regex master(
+      "(.*)(Source)(.*)",
+      std::regex_constants::icase | std::regex_constants::optimize);
+
+  for (auto &item : field_list) {
+    std::string name{item->full_name()};
+    name = std::regex_replace(name, replica, "$1Slave_$3");
+    name = std::regex_replace(name, master, "$1Master$3");
+
+    // fix for the fact that one of the fields had a field starting
+    // with a lower case character :/
+    if (name.compare("Get_Master_public_key") == 0)
+      name = "Get_master_public_key";
+
+    if (name.compare("Master_Id") == 0) name = "Master_id";
+
+    if (name.compare("Server_Id") == 0) name = "Server_id";
+
+    item->rename(thd->mem_strdup(name.c_str()));
+  }
 }
 
 #endif  // MYSQL_SERVER

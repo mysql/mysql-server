@@ -68,7 +68,9 @@
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_handler.h"  // RUN_HOOK
-#include "sql/sql_class.h"    // THD
+#include "sql/rpl_utility.h"
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
@@ -217,15 +219,19 @@ bool show_slave_hosts(THD *thd) {
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
-  field_list.push_back(new Item_return_int("Server_id", 10, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Server_Id", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   if (opt_show_slave_auth_info) {
     field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
     field_list.push_back(new Item_empty_string("Password", 20));
   }
   field_list.push_back(new Item_return_int("Port", 7, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_return_int("Master_id", 10, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Slave_UUID", UUID_LENGTH));
+  field_list.push_back(new Item_return_int("Source_Id", 10, MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Replica_UUID", UUID_LENGTH));
+
+  // TODO: once the old syntax is removed, remove this as well.
+  if (thd->lex->is_replication_deprecated_syntax_used())
+    rename_fields_use_old_replica_source_terms(thd, field_list);
 
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))

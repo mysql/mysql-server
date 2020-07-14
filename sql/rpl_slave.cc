@@ -64,6 +64,7 @@
 #include <atomic>
 #include <deque>
 #include <map>
+#include <regex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -3140,10 +3141,10 @@ static int register_slave_on_master(MYSQL *mysql, Master_info *mi,
 }
 
 /**
-    Function that fills the metadata required for SHOW SLAVE STATUS.
+    Function that fills the metadata required for SHOW REPLICA STATUS.
     This function shall be used in two cases:
-     1) SHOW SLAVE STATUS FOR ALL CHANNELS
-     2) SHOW SLAVE STATUS for a channel
+     1) SHOW REPLICA STATUS FOR ALL CHANNELS
+     2) SHOW REPLICA STATUS for a channel
 
      @param[in,out]  field_list        field_list to fill the metadata
      @param[in]      io_gtid_set_size  the size to be allocated to store
@@ -3158,24 +3159,24 @@ static int register_slave_on_master(MYSQL *mysql, Master_info *mi,
 static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
                                        int io_gtid_set_size,
                                        int sql_gtid_set_size) {
-  field_list->push_back(new Item_empty_string("Slave_IO_State", 14));
+  field_list->push_back(new Item_empty_string("Replica_IO_State", 14));
   field_list->push_back(
-      new Item_empty_string("Master_Host", HOSTNAME_LENGTH + 1));
+      new Item_empty_string("Source_Host", HOSTNAME_LENGTH + 1));
   field_list->push_back(
-      new Item_empty_string("Master_User", USERNAME_LENGTH + 1));
-  field_list->push_back(new Item_return_int("Master_Port", 7, MYSQL_TYPE_LONG));
+      new Item_empty_string("Source_User", USERNAME_LENGTH + 1));
+  field_list->push_back(new Item_return_int("Source_Port", 7, MYSQL_TYPE_LONG));
   field_list->push_back(
       new Item_return_int("Connect_Retry", 10, MYSQL_TYPE_LONG));
-  field_list->push_back(new Item_empty_string("Master_Log_File", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_Log_File", FN_REFLEN));
   field_list->push_back(
-      new Item_return_int("Read_Master_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
+      new Item_return_int("Read_Source_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Relay_Log_File", FN_REFLEN));
   field_list->push_back(
       new Item_return_int("Relay_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
   field_list->push_back(
-      new Item_empty_string("Relay_Master_Log_File", FN_REFLEN));
-  field_list->push_back(new Item_empty_string("Slave_IO_Running", 3));
-  field_list->push_back(new Item_empty_string("Slave_SQL_Running", 3));
+      new Item_empty_string("Relay_Source_Log_File", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Replica_IO_Running", 3));
+  field_list->push_back(new Item_empty_string("Replica_SQL_Running", 3));
   field_list->push_back(new Item_empty_string("Replicate_Do_DB", 20));
   field_list->push_back(new Item_empty_string("Replicate_Ignore_DB", 20));
   field_list->push_back(new Item_empty_string("Replicate_Do_Table", 20));
@@ -3188,23 +3189,23 @@ static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
   field_list->push_back(
       new Item_return_int("Skip_Counter", 10, MYSQL_TYPE_LONG));
   field_list->push_back(
-      new Item_return_int("Exec_Master_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
+      new Item_return_int("Exec_Source_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
   field_list->push_back(
       new Item_return_int("Relay_Log_Space", 10, MYSQL_TYPE_LONGLONG));
   field_list->push_back(new Item_empty_string("Until_Condition", 6));
   field_list->push_back(new Item_empty_string("Until_Log_File", FN_REFLEN));
   field_list->push_back(
       new Item_return_int("Until_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
-  field_list->push_back(new Item_empty_string("Master_SSL_Allowed", 7));
-  field_list->push_back(new Item_empty_string("Master_SSL_CA_File", FN_REFLEN));
-  field_list->push_back(new Item_empty_string("Master_SSL_CA_Path", FN_REFLEN));
-  field_list->push_back(new Item_empty_string("Master_SSL_Cert", FN_REFLEN));
-  field_list->push_back(new Item_empty_string("Master_SSL_Cipher", FN_REFLEN));
-  field_list->push_back(new Item_empty_string("Master_SSL_Key", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_SSL_Allowed", 7));
+  field_list->push_back(new Item_empty_string("Source_SSL_CA_File", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_SSL_CA_Path", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_SSL_Cert", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_SSL_Cipher", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_SSL_Key", FN_REFLEN));
   field_list->push_back(
-      new Item_return_int("Seconds_Behind_Master", 10, MYSQL_TYPE_LONGLONG));
+      new Item_return_int("Seconds_Behind_Source", 10, MYSQL_TYPE_LONGLONG));
   field_list->push_back(
-      new Item_empty_string("Master_SSL_Verify_Server_Cert", 3));
+      new Item_empty_string("Source_SSL_Verify_Server_Cert", 3));
   field_list->push_back(
       new Item_return_int("Last_IO_Errno", 4, MYSQL_TYPE_LONG));
   field_list->push_back(new Item_empty_string("Last_IO_Error", 20));
@@ -3214,22 +3215,22 @@ static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
   field_list->push_back(
       new Item_empty_string("Replicate_Ignore_Server_Ids", FN_REFLEN));
   field_list->push_back(
-      new Item_return_int("Master_Server_Id", sizeof(ulong), MYSQL_TYPE_LONG));
-  field_list->push_back(new Item_empty_string("Master_UUID", UUID_LENGTH));
+      new Item_return_int("Source_Server_Id", sizeof(ulong), MYSQL_TYPE_LONG));
+  field_list->push_back(new Item_empty_string("Source_UUID", UUID_LENGTH));
   field_list->push_back(
-      new Item_empty_string("Master_Info_File", 2 * FN_REFLEN));
+      new Item_empty_string("Source_Info_File", 2 * FN_REFLEN));
   field_list->push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
   field_list->push_back(
       new Item_return_int("SQL_Remaining_Delay", 8, MYSQL_TYPE_LONG));
-  field_list->push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
+  field_list->push_back(new Item_empty_string("Replica_SQL_Running_State", 20));
   field_list->push_back(
-      new Item_return_int("Master_Retry_Count", 10, MYSQL_TYPE_LONGLONG));
+      new Item_return_int("Source_Retry_Count", 10, MYSQL_TYPE_LONGLONG));
   field_list->push_back(
-      new Item_empty_string("Master_Bind", HOSTNAME_LENGTH + 1));
+      new Item_empty_string("Source_Bind", HOSTNAME_LENGTH + 1));
   field_list->push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
   field_list->push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
-  field_list->push_back(new Item_empty_string("Master_SSL_Crl", FN_REFLEN));
-  field_list->push_back(new Item_empty_string("Master_SSL_Crlpath", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_SSL_Crl", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_SSL_Crlpath", FN_REFLEN));
   field_list->push_back(
       new Item_empty_string("Retrieved_Gtid_Set", io_gtid_set_size));
   field_list->push_back(
@@ -3239,10 +3240,10 @@ static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
   field_list->push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
   field_list->push_back(
       new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
-  field_list->push_back(new Item_empty_string("Master_TLS_Version", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Source_TLS_Version", FN_REFLEN));
   field_list->push_back(
-      new Item_empty_string("Master_public_key_path", FN_REFLEN));
-  field_list->push_back(new Item_return_int("Get_master_public_key",
+      new Item_empty_string("Source_public_key_path", FN_REFLEN));
+  field_list->push_back(new Item_return_int("Get_Source_public_key",
                                             sizeof(ulong), MYSQL_TYPE_LONG));
   field_list->push_back(
       new Item_empty_string("Network_Namespace", NAME_LEN + 1));
@@ -3351,7 +3352,10 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
       until_type = "None";
       break;
     case Relay_log_info::UNTIL_MASTER_POS:
-      until_type = "Master";
+      if (thd->lex->is_replication_deprecated_syntax_used())
+        until_type = "Master";
+      else
+        until_type = "Source";
       break;
     case Relay_log_info::UNTIL_RELAY_POS:
       until_type = "Relay";
@@ -3432,7 +3436,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
         it is at the very end of second 1, and (a very short time later) when
         the slave's timestamp is read it is at the very beginning of second
         2. Then the recorded value for master is 1 and the recorded value for
-        slave is 2. At SHOW SLAVE STATUS time, assume that the difference
+        slave is 2. At SHOW REPLICA STATUS time, assume that the difference
         between timestamp of slave and rli->last_master_timestamp is 0
         (i.e. they are in the same second), then we get 0-(2-1)=-1 as a result.
         This confuses users, so we don't go below 0: hence the max().
@@ -3626,6 +3630,10 @@ bool show_slave_status(THD *thd) {
   show_slave_status_metadata(&field_list, max_io_gtid_set_size,
                              sql_gtid_set_size);
 
+  // TODO: once the old syntax is removed, remove this as well.
+  if (thd->lex->is_replication_deprecated_syntax_used())
+    rename_fields_use_old_replica_source_terms(thd, field_list);
+
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     goto err;
@@ -3661,7 +3669,7 @@ err:
 }
 
 /**
-  Execute a SHOW SLAVE STATUS statement.
+  Execute a SHOW REPLICA STATUS statement.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -3705,6 +3713,10 @@ bool show_slave_status(THD *thd, Master_info *mi) {
   mem_root_deque<Item *> field_list(thd->mem_root);
   show_slave_status_metadata(&field_list, io_gtid_set_size, sql_gtid_set_size);
 
+  // TODO: once the old syntax is removed, remove this as well.
+  if (thd->lex->is_replication_deprecated_syntax_used())
+    rename_fields_use_old_replica_source_terms(thd, field_list);
+
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     my_free(sql_gtid_set_buffer);
@@ -3730,7 +3742,7 @@ bool show_slave_status(THD *thd, Master_info *mi) {
 }
 
 /**
-  Entry point for SHOW SLAVE STATUS command. Function displayes
+  Entry point for SHOW REPLICA STATUS command. Function displayes
   the slave status for all channels or for a single channel
   based on the FOR CHANNEL  clause.
 
@@ -3765,7 +3777,7 @@ bool show_slave_status_cmd(THD *thd) {
 
     /*
       If the channel being used is a group replication applier channel we
-      need to disable the SHOW SLAVE STATUS commannd as its output is not
+      need to disable the SHOW REPLICA STATUS command as its output is not
       compatible with this command.
     */
     if (channel_map.is_group_replication_channel_name(mi->get_channel(),
@@ -7648,7 +7660,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
          any history with the master (and thereafter mi->get_master_log_pos() is
          NULL).
 
-         TODO: handling `when' for SHOW SLAVE STATUS' snds behind
+         TODO: handling `when' for SHOW REPLICA STATUS' snds behind
       */
       if (memcmp(const_cast<char *>(mi->get_master_log_name()),
                  hb.get_log_ident(), hb.get_ident_len()) ||
@@ -8149,7 +8161,7 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
                                          nullptr, mi->port, nullptr,
                                          client_flag) == nullptr)) {
     /*
-       SHOW SLAVE STATUS will display the number of retries which
+       SHOW REPLICA STATUS will display the number of retries which
        would be real retry counts instead of mi->retry_count for
        each connection attempt by 'Last_IO_Error' entry.
     */
@@ -8262,7 +8274,7 @@ int rotate_relay_log(Master_info *mi, bool log_master_fd, bool need_lock,
     Even if this will be corrected as soon as a query is replicated on the
     slave (because the I/O thread will then call harvest_bytes_written() which
     will harvest all these BIN_LOG_HEADER_SIZE we forgot), it may give strange
-    output in SHOW SLAVE STATUS meanwhile. So we harvest now.
+    output in SHOW REPLICA STATUS meanwhile. So we harvest now.
     If the log is closed, then this will just harvest the last writes, probably
     0 as they probably have been harvested.
   */
@@ -8465,7 +8477,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
         (memcmp(fixed_in, master_ver, 3) > 0) &&
         (pred == nullptr || (*pred)(param))) {
       if (!report) return true;
-      // a short message for SHOW SLAVE STATUS (message length constraints)
+      // a short message for SHOW REPLICA STATUS (message length constraints)
       my_printf_error(ER_UNKNOWN_ERROR,
                       "master may suffer from"
                       " http://bugs.mysql.com/bug.php?id=%u"

@@ -209,9 +209,14 @@
 #define REFRESH_HOSTS 8    /**< Flush host cache, FLUSH HOSTS */
 #define REFRESH_STATUS 16  /**< Flush status variables, FLUSH STATUS */
 #define REFRESH_THREADS 32 /**< Flush thread cache */
-#define REFRESH_SLAVE                         \
-  64 /**< Reset master info and restart slave \
-        thread, RESET SLAVE */
+#define REFRESH_REPLICA                         \
+  64 /**< Reset master info and restart replica \
+        thread, RESET REPLICA */
+#define REFRESH_SLAVE                                        \
+  REFRESH_REPLICA /**< Reset master info and restart replica \
+        thread, RESET REPLICA. This is deprecated,           \
+        use REFRESH_REPLICA instead. */
+
 #define REFRESH_MASTER                                                 \
   128                            /**< Remove all bin logs in the index \
                                     and truncate the index, RESET MASTER */
