@@ -4897,7 +4897,7 @@ class Item_float : public Item_num {
   }
   longlong val_int() override {
     DBUG_ASSERT(fixed == 1);
-    if (value <= (double)LLONG_MIN) {
+    if (value <= LLONG_MIN) {
       return LLONG_MIN;
     } else if (value > LLONG_MAX_DOUBLE) {
       return LLONG_MAX;

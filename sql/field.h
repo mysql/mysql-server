@@ -4472,7 +4472,11 @@ class Field_set final : public Field_enum {
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final;
   type_conversion_status store(double nr) final {
-    return Field_set::store((longlong)nr, false);
+    if (nr < LLONG_MIN)
+      return Field_set::store(static_cast<longlong>(LLONG_MIN), false);
+    if (nr > LLONG_MAX_DOUBLE)
+      return Field_set::store(static_cast<longlong>(LLONG_MAX), false);
+    return Field_set::store(static_cast<longlong>(nr), false);
   }
   type_conversion_status store(longlong nr, bool unsigned_val) final;
   bool zero_pack() const final { return true; }

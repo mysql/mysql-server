@@ -111,3 +111,22 @@ SELECT * FROM bar;
 id
 3,6,7
 DROP TABLE bar;
+#
+# Bug #31019130 CASTING DOUBLE TO LONGLONG CAUSES UB
+#               IN FIELD_*::STORE(DOUBLE)
+#
+CREATE TABLE t_double (a double not null);
+INSERT INTO t_double (a) VALUES
+(-20000000000000000000000000000.0001), (20000000000000000000000000000.0001);
+CREATE TABLE t_set (
+b set('up', 'down')
+);
+INSERT IGNORE INTO t_set (b) SELECT a from t_double;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+SELECT b FROM t_set;
+b
+
+up,down
+DROP TABLE t_double, t_set;

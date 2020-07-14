@@ -2845,9 +2845,9 @@ longlong Json_wrapper::coerce_int(const char *msgnam,
       double j = get_double();
       longlong res;
 
-      if (j <= (double)LLONG_MIN) {
+      if (j <= LLONG_MIN) {
         res = LLONG_MIN;
-      } else if (j >= (double)(ulonglong)LLONG_MAX) {
+      } else if (j >= LLONG_MAX_DOUBLE) {
         res = LLONG_MAX;
       } else {
         return (longlong)rint(j);
