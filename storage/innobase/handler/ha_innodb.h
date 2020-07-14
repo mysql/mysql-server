@@ -704,6 +704,12 @@ Allocates an InnoDB transaction for a MySQL handler object.
 @return InnoDB transaction handle */
 trx_t *innobase_trx_allocate(THD *thd); /*!< in: user thread handle */
 
+/** Maps a MySQL trx isolation level code to the InnoDB isolation level code.
+@param[in]  iso MySQL isolation level code
+@return	InnoDB isolation level */
+trx_t::isolation_level_t innobase_trx_map_isolation_level(
+    enum_tx_isolation iso);
+
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
 is consistent between KEY info from mysql and that from innodb index.

@@ -2031,6 +2031,9 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
 
   auto trx = m_prebuilt->trx;
 
+  ut_ad(innobase_trx_map_isolation_level(thd_get_trx_isolation(ha_thd())) ==
+        trx->isolation_level);
+
   /* Since histogram sampling does not have any correlation to transactions
   we're setting the isolation level to read uncommitted to avoid unnecessarily
   looking up old versions of a record as the version list can be very long. */
@@ -2111,7 +2114,16 @@ int ha_innopart::sample_end(void *scan_ctx) {
   auto sampler = static_cast<Histogram_sampler *>(scan_ctx);
   UT_DELETE(sampler);
 
-  return (0);
+  auto trx = m_prebuilt->trx;
+
+  ut_ad(trx->isolation_level == TRX_ISO_READ_UNCOMMITTED);
+
+  /* Reset the transaction isolation level which was set to
+  READ_UNCOMMITED in sample_init. */
+  trx->isolation_level =
+      innobase_trx_map_isolation_level(thd_get_trx_isolation(ha_thd()));
+
+  return 0;
 }
 
 /** Initialize a table scan in a specific partition.

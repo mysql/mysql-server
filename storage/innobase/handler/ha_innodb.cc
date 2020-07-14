@@ -870,11 +870,6 @@ static int innodb_tmpdir_validate(THD *thd, SYS_VAR *var, void *save,
   return (0);
 }
 
-/** Maps a MySQL trx isolation level code to the InnoDB isolation level code
- @return	InnoDB isolation level */
-static inline ulint innobase_map_isolation_level(
-    enum_tx_isolation iso); /*!< in: MySQL isolation level code */
-
 /** Gets field offset for a field in a table.
 @param[in]	table	MySQL table object
 @param[in]	field	MySQL field object
@@ -5252,7 +5247,7 @@ static int innobase_start_trx_and_assign_read_view(
   Do this only if transaction is using REPEATABLE READ isolation
   level. */
   trx->isolation_level =
-      innobase_map_isolation_level(thd_get_trx_isolation(thd));
+      innobase_trx_map_isolation_level(thd_get_trx_isolation(thd));
 
   if (trx->isolation_level == TRX_ISO_REPEATABLE_READ) {
     trx_assign_read_view(trx);
@@ -10167,6 +10162,9 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
 
   auto trx = m_prebuilt->trx;
 
+  ut_ad(innobase_trx_map_isolation_level(thd_get_trx_isolation(ha_thd())) ==
+        trx->isolation_level);
+
   /* Since histogram sampling does not have any correlation to transactions
   we're setting the isolation level to read uncommitted to avoid unnecessarily
   looking up old versions of a record as the version list can be very long. */
@@ -10232,7 +10230,16 @@ int ha_innobase::sample_end(void *scan_ctx) {
 
   UT_DELETE(sampler);
 
-  return (0);
+  auto trx = m_prebuilt->trx;
+
+  ut_ad(trx->isolation_level == TRX_ISO_READ_UNCOMMITTED);
+
+  /* Reset the transaction isolation level which was set to
+  READ_UNCOMMITED in sample_init. */
+  trx->isolation_level =
+      innobase_trx_map_isolation_level(thd_get_trx_isolation(ha_thd()));
+
+  return 0;
 }
 
 int ha_innobase::read_range_first(const key_range *start_key,
@@ -17715,25 +17722,28 @@ int ha_innobase::start_stmt(THD *thd, thr_lock_type lock_type) {
   return 0;
 }
 
-/** Maps a MySQL trx isolation level code to the InnoDB isolation level code
- @return InnoDB isolation level */
-static inline ulint innobase_map_isolation_level(
-    enum_tx_isolation iso) /*!< in: MySQL isolation level code */
-{
+trx_t::isolation_level_t innobase_trx_map_isolation_level(
+    enum_tx_isolation iso) {
+  trx_t::isolation_level_t trx_isolation_level;
+
   switch (iso) {
     case ISO_REPEATABLE_READ:
-      return (TRX_ISO_REPEATABLE_READ);
+      trx_isolation_level = TRX_ISO_REPEATABLE_READ;
+      break;
     case ISO_READ_COMMITTED:
-      return (TRX_ISO_READ_COMMITTED);
+      trx_isolation_level = TRX_ISO_READ_COMMITTED;
+      break;
     case ISO_SERIALIZABLE:
-      return (TRX_ISO_SERIALIZABLE);
+      trx_isolation_level = TRX_ISO_SERIALIZABLE;
+      break;
     case ISO_READ_UNCOMMITTED:
-      return (TRX_ISO_READ_UNCOMMITTED);
+      trx_isolation_level = TRX_ISO_READ_UNCOMMITTED;
+      break;
+    default:
+      ut_error;
   }
 
-  ut_error;
-
-  return (0);
+  return trx_isolation_level;
 }
 
 /** As MySQL will execute an external lock for every new table it uses when it
@@ -18566,7 +18576,7 @@ THR_LOCK_DATA **ha_innobase::store_lock(
 
   if (lock_type != TL_IGNORE && trx->n_mysql_tables_in_use == 0) {
     trx->isolation_level =
-        innobase_map_isolation_level((enum_tx_isolation)thd_tx_isolation(thd));
+        innobase_trx_map_isolation_level(thd_get_trx_isolation(thd));
 
     if (trx->isolation_level <= TRX_ISO_READ_COMMITTED &&
         MVCC::is_view_active(trx->read_view)) {
