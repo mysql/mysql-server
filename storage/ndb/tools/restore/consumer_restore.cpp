@@ -3103,7 +3103,7 @@ BackupRestore::endOfTables(){
     if (m_restore_meta && !m_disable_indexes && !m_rebuild_indexes)
     {
       bool done = false;
-      for(unsigned int retries = 0; retries < MAX_RETRIES; retries++)
+      for(int retries = 0; retries < MAX_RETRIES; retries++)
       {
         if(dict->createIndex(* idx) == 0)
         {
@@ -3807,7 +3807,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     return;
   }
 
-  Uint32 retries = 0;
+  int retries = 0;
   NdbError errobj;
 retry:
   if (retries == MAX_RETRIES)
