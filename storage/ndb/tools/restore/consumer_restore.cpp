@@ -3399,7 +3399,7 @@ BackupRestore::endOfTables(){
     if (m_restore_meta && !m_disable_indexes && !m_rebuild_indexes)
     {
       bool done = false;
-      for(unsigned int retries = 0; retries < MAX_RETRIES; retries++)
+      for(int retries = 0; retries < MAX_RETRIES; retries++)
       {
         if(dict->createIndex(* idx) == 0)
         {
@@ -4223,7 +4223,7 @@ BackupRestore::getPkMappingIndex(TableS* table)
    *      --rebuild-indexes step
    */
   const NdbDictionary::Index* dbIdx = NULL;
-  Uint32 retry_count = 0;
+  int retry_count = 0;
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
 
@@ -4309,7 +4309,7 @@ BackupRestore::getPkMappingIndex(TableS* table)
   } while (retry_count++ < MAX_RETRIES);
 
   err << "Failure to lookup / create PK mapping index after "
-      << Max_Retries << " attempts." << endl;
+      << MAX_RETRIES << " attempts." << endl;
   return false;
 }
 
@@ -4344,7 +4344,7 @@ BackupRestore::dropPkMappingIndex(const TableS* table)
       break;
     case NdbError::TemporaryError:
       err << "Temporary error: " << dropErr << endl;
-      NdbSleep_MilliSleep(100 + retry_count * 300);
+      NdbSleep_MilliSleep(100 + attempts * 300);
       continue;
     case NdbError::PermanentError:
       if (dropErr.code == 723 ||
@@ -4438,7 +4438,7 @@ BackupRestore::logEntry(const LogEntry & tup)
     return;
   }
 
-  Uint32 retries = 0;
+  int retries = 0;
   NdbError errobj;
 retry:
   Uint32 mapping_idx_key_count = 0;
