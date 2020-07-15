@@ -3031,6 +3031,7 @@ Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
 
   requestPtr.p->m_state |= Request::RS_ABORTING;
   requestPtr.p->m_errCode = errCode;
+  requestPtr.p->m_suspended_tree_nodes.clear();
 
   {
     Ptr<TreeNode> nodePtr;
@@ -4530,6 +4531,11 @@ Dbspj::resumeCongestedNode(Signal* signal,
     if (resumed > ResumeCongestedQuota)
     {
       jam();
+      DEBUG("resumeCongestedNode, RT-break"
+        << ", node: " << scanAncestorPtr.p->m_node_no
+        << ", resumed: " << resumed
+        << ", outstanding: " << requestPtr.p->m_outstanding
+      );
       return;  // -> will re-resume when below MildlyCongestedLimit again
     }
 
