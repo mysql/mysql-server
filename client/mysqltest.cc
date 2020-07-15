@@ -310,7 +310,7 @@ static size_t delimiter_length = 1;
 static char TMPDIR[FN_REFLEN];
 
 /* Block stack */
-enum block_cmd { cmd_none, cmd_if, cmd_while };
+enum block_cmd { cmd_none, cmd_if, cmd_while, cmd_assert };
 
 struct st_block {
   int line;                         /* Start line of block */
@@ -501,6 +501,7 @@ enum enum_commands {
   Q_COPY_FILE,
   Q_PERL,
   Q_DIE,
+  Q_ASSERT,
   Q_EXIT,
   Q_SKIP,
   Q_CHMOD_FILE,
@@ -552,7 +553,7 @@ const char *command_names[] = {
     "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
     "disable_testcase", "enable_testcase", "replace_regex",
     "replace_numeric_round", "remove_file", "file_exists", "write_file",
-    "copy_file", "perl", "die",
+    "copy_file", "perl", "die", "assert",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -6722,10 +6723,14 @@ static enum block_op find_operand(const char *start) {
   <block statements>
   }
 
+  assert (expr)
+
   Evaluates the <expr> and if it evaluates to
   greater than zero executes the following code block.
   A '!' can be used before the <expr> to indicate it should
   be executed if it evaluates to zero.
+
+  In the assert() case, the block is an implied { die [query]; }
 
   <expr> can also be a simple comparison condition:
 
@@ -6741,7 +6746,11 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
   const char *expr_start;
   const char *expr_end;
   VAR v;
-  const char *cmd_name = (cmd == cmd_while ? "while" : "if");
+  const char *cmd_name;
+  if (cmd == cmd_assert)
+    cmd_name = "assert";
+  else
+    cmd_name = (cmd == cmd_while ? "while" : "if");
   bool not_expr = false;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("%s", cmd_name));
@@ -6781,7 +6790,12 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
   p = expr_end + 1;
 
   while (*p && my_isspace(charset_info, *p)) p++;
-  if (*p && *p != '{') die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
+  if (*p) {
+    if (cmd == cmd_assert)
+      die("End of line junk detected: \"%s\"", p);
+    else if (*p != '{')
+      die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
+  }
 
   var_init(&v, nullptr, 0, nullptr, 0);
 
@@ -6865,16 +6879,15 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
     var_free()(&v2);
   } else {
     if (*expr_start != '`' && !my_isdigit(charset_info, *expr_start))
-      die("Expression in if/while must beging with $, ` or a number");
+      die("Expression in %s() must begin with $, ` or a number", cmd_name);
     eval_expr(&v, expr_start, &expr_end);
   }
 
 NO_COMPARE:
-  /* Define inner block */
-  cur_block++;
-  cur_block->cmd = cmd;
+  /* Evaluate the expression */
+  bool v_val_bool;
   if (v.is_int) {
-    cur_block->ok = (v.int_val != 0);
+    v_val_bool = (v.int_val != 0);
   } else
   /* Any non-empty string which does not begin with 0 is also true */
   {
@@ -6882,21 +6895,30 @@ NO_COMPARE:
     /* First skip any leading white space or unary -+ */
     while (*p && ((my_isspace(charset_info, *p) || *p == '-' || *p == '+')))
       p++;
-
-    cur_block->ok = (*p && *p != '0') ? true : false;
+    v_val_bool = (*p && *p != '0');
   }
+  if (not_expr) v_val_bool = !v_val_bool;
 
-  if (not_expr) cur_block->ok = !cur_block->ok;
-
-  if (cur_block->ok) {
-    cur_block->delim[0] = '\0';
+  /* Finally, handle assert/if/while */
+  if (cmd == cmd_assert) {
+    if (!v_val_bool) {
+      die("Assertion failed: %s", command->query);
+    }
   } else {
-    /* Remember "old" delimiter if entering a false if block */
-    strcpy(cur_block->delim, delimiter);
+    /* Define inner block */
+    cur_block++;
+    cur_block->cmd = cmd;
+    cur_block->ok = v_val_bool;
+
+    if (v_val_bool) {
+      cur_block->delim[0] = '\0';
+    } else {
+      /* Remember "old" delimiter if entering a false if block */
+      strcpy(cur_block->delim, delimiter);
+    }
   }
 
-  DBUG_PRINT("info", ("OK: %d", cur_block->ok));
-
+  DBUG_PRINT("info", ("OK: %d", v_val_bool));
   var_free()(&v);
 }
 
@@ -9873,6 +9895,9 @@ int main(int argc, char **argv) {
           break;
         case Q_IF:
           do_block(cmd_if, command);
+          break;
+        case Q_ASSERT:
+          do_block(cmd_assert, command);
           break;
         case Q_END_BLOCK:
           do_done(command);

@@ -5808,6 +5808,22 @@
       @endverbatim
     </li>
 
+     <li>
+       <tt>assert (<b>expr</b>)</tt>
+
+       Assert that <b>expr</b> is true; otherwise terminate the test program
+       with an error message indicating that <b>expr</b> failed.
+       <b>expr</b> is parsed as it is for <tt>if()</tt> and <tt>while()</tt>,
+       as described at @ref PAGE_MYSQL_TEST_FLOW_CONTROL.
+
+       @verbatim
+         assert(1);
+         assert($x);
+         assert(!$x);
+         assert(`select count(*) from t1`);
+      @endverbatim
+    </li>
+
     <li>
       <tt>cat_file <b>file_name</b></tt>
 

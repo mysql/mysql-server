@@ -4919,3 +4919,32 @@ EOF
 
 --remove_file $MYSQLTEST_VARDIR/tmp/bug29769715.txt
 --remove_file $MYSQLTEST_VARDIR/tmp/600chars.txt
+
+##
+## Test assert()
+##
+assert(1);
+
+let $x= 1;
+assert($x);
+
+let $y= 0;
+assert(! $y);
+
+CREATE TABLE t1 (i int primary key not null);
+INSERT INTO t1 values(3);
+assert(`select count(*) from t1`);
+assert(! `select count(*) from t1 where i = 4`);
+DROP TABLE t1;
+
+if(1)
+{
+--assert(2)
+}
+
+if(1)
+{
+  assert(3);
+}
+
+--assert(4)
