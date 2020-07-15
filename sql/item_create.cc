@@ -1551,6 +1551,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator)},
     {"ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator)},
     {"ST_LINEINTERPOLATEPOINT", SQL_FN(Item_func_lineinterpolatepoint, 2)},
+    {"ST_LINEINTERPOLATEPOINTS", SQL_FN(Item_func_lineinterpolatepoints, 2)},
     {"ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator)},
     {"ST_LINESTRINGFROMWKB", SQL_FACTORY(Linestringfromwkb_instantiator)},
     {"ST_LONGFROMGEOHASH", SQL_FN(Item_func_longfromgeohash, 1)},
