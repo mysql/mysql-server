@@ -56,7 +56,7 @@ private:
 class LessThanFilter : public ScanFilter {
 public:
   LessThanFilter(int records){ compare_value = records / 100; }
-  virtual ~LessThanFilter(){}
+  ~LessThanFilter() override {}
 private:
   Uint32 compare_value;
   int filterOp(NdbOperation* pOp) override;
@@ -65,7 +65,7 @@ private:
 
 class EqualFilter : public ScanFilter {
 public:
-  virtual ~EqualFilter(){}
+  ~EqualFilter() override {}
 
   static const Uint32 compare_value = 100;
   int filterOp(NdbOperation* pOp) override;
@@ -74,7 +74,7 @@ public:
 
 class NoFilter : public ScanFilter {
 public:
-  virtual ~NoFilter(){}
+  ~NoFilter() override {}
   int filterOp(NdbOperation* pOp) override;
   int verifyRecord(NDBT_ResultRow&) override;
 };

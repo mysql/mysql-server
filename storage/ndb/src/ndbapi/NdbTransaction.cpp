@@ -202,11 +202,11 @@ public:
      */
     reset();
     DBUG_VOID_RETURN;
-  };
+  }
 
   ~BlobBatchChecker()
   {
-  };
+  }
 
   /**
    * Reset, ready for next (sub) batch

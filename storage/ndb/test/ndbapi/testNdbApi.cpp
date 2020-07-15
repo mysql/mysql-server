@@ -5374,7 +5374,7 @@ public:
     init();
   }
 
-  ~BasicSectionStore()
+  ~BasicSectionStore() override
   {
     freeStorage();
   }
