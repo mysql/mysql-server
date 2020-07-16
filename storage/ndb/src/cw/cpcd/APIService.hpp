@@ -48,7 +48,7 @@ class CPCDAPISession : public SocketServer::Session {
  public:
   CPCDAPISession(NDB_SOCKET_TYPE, class CPCD &);
   CPCDAPISession(FILE *f, CPCD &cpcd);
-  ~CPCDAPISession();
+  ~CPCDAPISession() override;
 
   void runSession() override;
   void stopSession() override;

@@ -5105,7 +5105,7 @@ struct ST_Trg : public ST_Obj {
     ST_Obj(a_db, a_name) {
     ind = 0;
   }
-  virtual ~ST_Trg() {}
+  ~ST_Trg() override {}
 };
 
 template class Vector<ST_Trg*>;
@@ -5138,7 +5138,7 @@ struct ST_Ind : public ST_Obj {
     trglist = new ST_Trglist;
     trgcount = 0;
   }
-  virtual ~ST_Ind() {
+  ~ST_Ind() override {
     delete ind;
     delete trglist;
     ind = 0;
@@ -5188,7 +5188,7 @@ struct ST_Tab : public ST_Obj {
     induniquecount = 0;
     indorderedcount = 0;
   }
-  virtual ~ST_Tab() {
+  ~ST_Tab() override {
     delete tab;
     delete indlist;
     tab = 0;
