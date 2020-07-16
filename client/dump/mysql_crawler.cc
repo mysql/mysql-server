@@ -89,6 +89,7 @@ void Mysql_crawler::enumerate_objects()
   m_tables_definition_ready_dump_task=
     new Tables_definition_ready_dump_task();
 
+  m_dump_end_task->add_dependency(m_dump_start_task);
   this->process_dump_task(m_dump_start_task);
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> databases;
