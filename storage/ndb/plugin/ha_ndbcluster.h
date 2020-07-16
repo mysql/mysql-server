@@ -424,7 +424,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool parse_comment_changes(NdbDictionary::Table *new_tab,
                              const NdbDictionary::Table *old_tab,
                              HA_CREATE_INFO *create_info, THD *thd,
-                             bool &max_rows_changed) const;
+                             bool &max_rows_changed,
+                             bool *partition_balance_in_comment = NULL) const;
 
  public:
   bool prepare_inplace_alter_table(TABLE *altered_table,

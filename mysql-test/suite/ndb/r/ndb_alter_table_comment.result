@@ -134,6 +134,56 @@ t30	CREATE TABLE `t30` (
   `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,FULLY_REPLICATED=0,PARTITION_BALANCE=FOR_RA_BY_LDM'
+drop table t30;
+
+# Check if changing the comment gives assertion error on fullyreplicated table#
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=1;
+CREATE TABLE t (x int primary key)
+ENGINE=ndbcluster;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t ALGORITHM=inplace, comment="A comment";
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='A comment'
+
+# Perform an alter of an already existing NDB table option
+ALTER TABLE t ALGORITHM=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int NOT NULL,
+  PRIMARY KEY (`x`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+DROP TABLE t;
+
+# Change PB to the existing value
+CREATE TABLE t (a int primary key)
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM" engine=ndb;
+ALTER TABLE t ALGORITHM=inplace,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM'
+
+# Changing PB to a new value should fail for inplace alter#
+# and pass for copy alter#
+ALTER TABLE t ALGORITHM=inplace,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Changing PARTITION_BALANCE with FULLY_REPLICATED on. Try ALGORITHM=COPY.
+ALTER TABLE t ALGORITHM=copy,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+DROP TABLE t;
 set global ndb_fully_replicated=@global_fully_replicated;
 set global ndb_read_backup=@global_read_backup;
-drop table t30;
