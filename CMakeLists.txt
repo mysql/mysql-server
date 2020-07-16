@@ -603,6 +603,13 @@ OPTION(WITH_AUTHENTICATION_LDAP
   "Report error if the LDAP authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_LDAP_DEFAULT})
 
+# On windows we need a non-standard package for CURL.
+IF(WITH_INTERNAL AND UNIX)
+  SET(WITH_CURL_DEFAULT "system")
+ELSE()
+  SET(WITH_CURL_DEFAULT "none")
+ENDIF()
+
 OPTION(WITH_LOCK_ORDER
   "Build the lock order mutex instrumentation code." OFF)
 
@@ -1393,6 +1400,14 @@ ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
 MYSQL_CHECK_CURL_DLLS()
+SET(CURL_WARN_GIVEN)
+WARN_MISSING_SYSTEM_CURL(CURL_WARN_GIVEN)
+IF(CURL_WARN_GIVEN)
+  MESSAGE(FATAL_ERROR
+    "-DWITH_CURL=system, but missing system libraries.\n"
+    "You can disable CURL with -DWITH_CURL=0"
+    )
+ENDIF()
 # Add RapidJSON library.
 MYSQL_CHECK_RAPIDJSON()
 
