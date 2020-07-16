@@ -769,7 +769,7 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
   unsigned backuppoint= 0;
   Uint32 completed= 2;
   const char* encryption_password = nullptr;
-  Uint32 password_length;
+  Uint32 password_length = 0;
   int result;
 
   args.get("completed", &completed);
