@@ -1566,6 +1566,24 @@ class basic_socket_acceptor : public socket_base,
     return __base::wait(wt);
   }
 
+#if defined(ALL_COMPILERS_FULLY_SUPPORT_CPP14)
+  // the define ALL_COMPILERS_FULLY_SUPPORT_CPP14 is a placeholder.
+  //
+  // The code below assumes the compiler supports generalized lambda
+  // capture from C++14, allowing use move the ownership into the lambda.
+  //
+  // The code works with:
+  //
+  // - gcc 5.x and later
+  // - clang 4 and later
+  // - MSVC ...
+  //
+  // but it fails for move-only completion handlers with:
+  //
+  // - sun pro 15.6
+  //
+  // As soon as sun pro is fixed or supported for it is dropped,
+  // C++11 implementation below and this comment can be removed.
   template <typename CompletionToken>
   auto async_wait(wait_type w, CompletionToken &&token) {
     async_completion<CompletionToken, void(std::error_code)> init{token};
@@ -1577,6 +1595,48 @@ class basic_socket_acceptor : public socket_base,
 
     return init.result.get();
   }
+#else
+  // C++11 compatible implementation of async_wait() which allows move-only
+  // completion handlers
+  //
+  // to be removed, once all supported compilers fully support C++14 generalized
+  // lambda capture
+
+  template <typename CompletionToken>
+  typename async_result<std::decay_t<CompletionToken>,
+                        void(std::error_code)>::return_type
+  async_wait(wait_type w, CompletionToken &&token) {
+    async_completion<CompletionToken, void(std::error_code)> init{token};
+
+    using async_completion_handler_type =
+        typename decltype(init)::completion_handler_type;
+
+    // capture the completion handler
+    class ClosureType {
+     public:
+      explicit ClosureType(async_completion_handler_type &&compl_handler)
+          : compl_handler_{
+                std::forward<decltype(compl_handler)>(compl_handler)} {}
+
+      void operator()(std::error_code ec) { compl_handler_(ec); }
+
+     private:
+      async_completion_handler_type compl_handler_;
+    };
+
+    // get native-handle before std::move()ing the completion handler into the
+    // async_wait(). Otherwise the native_handle() may refer to the moved-from
+    // object
+    const auto handle = native_handle();
+
+    get_executor().context().async_wait(
+        handle, w,
+        ClosureType(std::forward<async_completion_handler_type>(
+            init.completion_handler)));
+
+    return init.result.get();
+  }
+#endif
 
  private:
   protocol_type protocol_;
