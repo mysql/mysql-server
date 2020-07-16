@@ -1,0 +1,9 @@
+# restart:--log-error=MYSQLD_LOG
+#
+# Flush the log by sending SIGHUP from perl script.
+#
+# Check that both files still exists
+call mtr.add_suppression("mysqld startup An incident event has been written");
+# CLEAN UP
+# Restore default settings
+# restart:
