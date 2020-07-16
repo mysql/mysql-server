@@ -10162,9 +10162,6 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
 
   auto trx = m_prebuilt->trx;
 
-  ut_ad(innobase_trx_map_isolation_level(thd_get_trx_isolation(ha_thd())) ==
-        trx->isolation_level);
-
   /* Since histogram sampling does not have any correlation to transactions
   we're setting the isolation level to read uncommitted to avoid unnecessarily
   looking up old versions of a record as the version list can be very long. */
