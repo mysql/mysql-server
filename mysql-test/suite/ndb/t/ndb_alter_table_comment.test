@@ -122,6 +122,45 @@ ALTER TABLE t30 ALGORITHM=COPY, COMMENT="NDB_TABLE=FULLY_REPLICATED=0";
 SHOW CREATE TABLE t30;
 #--exec $NDB_DESC -dtest t30;
 
+drop table t30;
+
+--echo
+--echo # Check if changing the comment gives assertion error on fullyreplicated table#
+
+set global ndb_fully_replicated=1;
+set global ndb_read_backup=1;
+
+CREATE TABLE t (x int primary key)
+  ENGINE=ndbcluster;
+SHOW CREATE TABLE t;
+ALTER TABLE t ALGORITHM=inplace, comment="A comment";
+
+SHOW CREATE TABLE t;
+
+--echo
+--echo # Perform an alter of an already existing NDB table option
+ALTER TABLE t ALGORITHM=inplace, comment="NDB_TABLE=READ_BACKUP=1";
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+--echo
+--echo # Change PB to the existing value
+CREATE TABLE t (a int primary key)
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM" engine=ndb;
+ALTER TABLE t ALGORITHM=inplace,
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+SHOW CREATE TABLE t;
+
+--echo
+--echo # Changing PB to a new value should fail for inplace alter#
+--echo # and pass for copy alter#
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ALGORITHM=inplace,
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+ALTER TABLE t ALGORITHM=copy,
+ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+DROP TABLE t;
+
 set global ndb_fully_replicated=@global_fully_replicated;
 set global ndb_read_backup=@global_read_backup;
-drop table t30;
+
