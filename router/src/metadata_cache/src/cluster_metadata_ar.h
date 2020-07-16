@@ -68,29 +68,29 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    */
   ~ARClusterMetadata() override;
 
-  /** @brief Returns replicasets defined in the metadata server
+  /** @brief Returns cluster defined in the metadata server
    *
    * Only to satisfy the API, not used for the ReplicaSet cluster
    *
    * @throws logic_error
    */
-  ReplicaSetsByName fetch_instances(
+  metadata_cache::ManagedCluster fetch_instances(
       const std::string & /*cluster_name*/,
       const std::string & /*cluster_type_specific_id*/) override {
     throw std::logic_error("Call to unexpected fetch_instances overload");
   }
 
-  /** @brief Returns replicasets defined in the metadata given set of the
+  /** @brief Returns cluster defined in the metadata given set of the
    *         metadata servers (cluster members)
    *
    * @param instances  set of the metadata servers to use to fetch the metadata
    * @param cluster_type_specific_id  (GR ID for GR cluster, cluster_id for AR
    * cluster)
    * @param [out] instance_id of the server the metadata was fetched from
-   * @return Map of replicaset ID, server list pairs.
+   * @return object containing cluster topology information
    * @throws metadata_cache::metadata_error
    */
-  ReplicaSetsByName fetch_instances(
+  metadata_cache::ManagedCluster fetch_instances(
       const std::vector<metadata_cache::ManagedInstance> &instances,
       const std::string &cluster_type_specific_id,
       std::size_t &instance_id) override;

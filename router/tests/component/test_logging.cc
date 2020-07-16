@@ -2114,7 +2114,7 @@ TEST_F(MetadataCacheLoggingTest,
     return line.find("metadata_cache WARNING") != line.npos &&
            line.find(
                "While updating metadata, could not establish a connection to "
-               "replicaset") != line.npos;
+               "cluster") != line.npos;
   };
   EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
                            warning_matcher, 10s));

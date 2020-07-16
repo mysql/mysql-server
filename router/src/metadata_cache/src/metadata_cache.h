@@ -52,7 +52,7 @@ class ClusterMetadata;
  *
  */
 class METADATA_API MetadataCache
-    : public metadata_cache::ReplicasetStateNotifierInterface {
+    : public metadata_cache::ClusterStateNotifierInterface {
  public:
   /**
    * Initialize a connection to the MySQL Metadata server.
@@ -98,18 +98,17 @@ class METADATA_API MetadataCache
 
   using metadata_servers_list_t = std::vector<metadata_cache::ManagedInstance>;
 
-  /** @brief Returns list of managed servers in a replicaset
+  /** @brief Returns list of managed servers in a cluster
    *
-   * Returns list of managed servers in a replicaset.
+   * Returns list of managed servers in a cluster.
    *
-   * @param replicaset_name The ID of the replicaset being looked up
    * @return std::vector containing ManagedInstance objects
    */
-  metadata_servers_list_t replicaset_lookup(const std::string &replicaset_name);
+  metadata_servers_list_t get_cluster_nodes();
 
   /** @brief Update the status of the instance
    *
-   * Called when an instance from a replicaset cannot be reached for one reason
+   * Called when an instance from a cluster cannot be reached for one reason
    * or another. When an instance becomes unreachable, an emergency mode is set
    * (the rate of refresh of the metadata cache increases to once per second if
    * currently lower) and lasts until disabled after a suitable change in the
@@ -122,7 +121,7 @@ class METADATA_API MetadataCache
   void mark_instance_reachability(const std::string &instance_id,
                                   metadata_cache::InstanceStatus status);
 
-  /** Wait until PRIMARY changes in a replicaset.
+  /** Wait until cluster PRIMARY changes.
    *
    * wait until a change of the PRIMARY is noticed
    *
@@ -142,16 +141,14 @@ class METADATA_API MetadataCache
    * Therefore, if the connection to PRIMARY fails, wait for change of the
    * membership or timeout, whatever happens earlier.
    *
-   * @param replicaset_name name of the replicaset
    * @param server_uuid server-uuid of the PRIMARY that we failed to connect
    * @param timeout - amount of time to wait for a failover
    * @return true if a primary member exists
    */
-  bool wait_primary_failover(const std::string &replicaset_name,
-                             const std::string &server_uuid,
+  bool wait_primary_failover(const std::string &server_uuid,
                              const std::chrono::seconds &timeout);
 
-  /** @brief refresh replicaset information */
+  /** @brief refresh cluster information */
   void refresh_thread();
 
   /** @brief run refresh thread */
@@ -159,47 +156,39 @@ class METADATA_API MetadataCache
 
   /**
    * @brief Register observer that is notified when there is a change in the
-   * replicaset nodes setup/state discovered.
+   * cluster nodes setup/state discovered.
    *
-   * @param replicaset_name name of the replicaset
-   * @param listener Observer object that is notified when replicaset nodes
+   * @param listener Observer object that is notified when cluster nodes
    * state is changed.
    */
   void add_state_listener(
-      const std::string &replicaset_name,
-      metadata_cache::ReplicasetStateListenerInterface *listener) override;
+      metadata_cache::ClusterStateListenerInterface *listener) override;
 
   /**
    * @brief Unregister observer previously registered with add_state_listener()
    *
-   * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
   void remove_state_listener(
-      const std::string &replicaset_name,
-      metadata_cache::ReplicasetStateListenerInterface *listener) override;
+      metadata_cache::ClusterStateListenerInterface *listener) override;
 
   /**
    * @brief Register observer that is notified when the state of listening
    * socket acceptors should be updated on the next metadata refresh.
    *
-   * @param replicaset_name name of the replicaset
    * @param listener Observer object that is notified when replicaset nodes
    * state is changed.
    */
   void add_acceptor_handler_listener(
-      const std::string &replicaset_name,
       metadata_cache::AcceptorUpdateHandlerInterface *listener);
 
   /**
    * @brief Unregister observer previously registered with
    * add_acceptor_handler_listener()
    *
-   * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
   void remove_acceptor_handler_listener(
-      const std::string &replicaset_name,
       metadata_cache::AcceptorUpdateHandlerInterface *listener);
 
   metadata_cache::MetadataCacheAPIBase::RefreshStatus refresh_status() {
@@ -271,9 +260,8 @@ class METADATA_API MetadataCache
   // Update rest users authentication data
   bool update_auth_cache();
 
-  // Stores the list replicasets and their server instances.
-  // Keyed by replicaset name
-  std::map<std::string, metadata_cache::ManagedReplicaSet> replicaset_data_;
+  // Stores the list of cluster's server instances.
+  metadata_cache::ManagedCluster cluster_data_;
 
   // The name of the cluster in the topology.
   std::string cluster_name_;
@@ -333,11 +321,7 @@ class METADATA_API MetadataCache
   // is consistent with the use of the server list.
   std::mutex metadata_servers_mutex_;
 
-  // Contains a set of replicaset names that have at least one unreachable
-  // (primary or secondary) node appearing in the routing table
-  std::set<std::string> replicasets_with_unreachable_nodes_;
-
-  std::mutex replicasets_with_unreachable_nodes_mtx_;
+  std::atomic<bool> has_unreachable_nodes{false};
 
   // Flag used to terminate the refresh thread.
   std::atomic<bool> terminated_{false};
@@ -352,18 +336,13 @@ class METADATA_API MetadataCache
   std::condition_variable refresh_completed_;
   std::mutex refresh_completed_mtx_;
 
-  // map of lists (per each replicaset name) of registered callbacks to be
-  // called on selected replicaset instances change event
-  std::mutex replicaset_instances_change_callbacks_mtx_;
+  std::mutex cluster_instances_change_callbacks_mtx_;
 
   std::mutex acceptor_handler_callbacks_mtx_;
 
-  std::map<std::string,
-           std::set<metadata_cache::ReplicasetStateListenerInterface *>>
-      state_listeners_;
+  std::set<metadata_cache::ClusterStateListenerInterface *> state_listeners_;
 
-  std::map<std::string,
-           std::set<metadata_cache::AcceptorUpdateHandlerInterface *>>
+  std::set<metadata_cache::AcceptorUpdateHandlerInterface *>
       acceptor_update_listeners_;
 
   struct Stats {
@@ -390,11 +369,11 @@ class METADATA_API MetadataCache
   std::atomic<bool> trigger_acceptor_update_on_next_refresh_{false};
 };
 
-bool operator==(const MetaData::ReplicaSetsByName &map_a,
-                const MetaData::ReplicaSetsByName &map_b);
+bool operator==(const metadata_cache::ManagedCluster &cluster_a,
+                const metadata_cache::ManagedCluster &cluster_b);
 
-bool operator!=(const MetaData::ReplicaSetsByName &map_a,
-                const MetaData::ReplicaSetsByName &map_b);
+bool operator!=(const metadata_cache::ManagedCluster &cluster_a,
+                const metadata_cache::ManagedCluster &cluster_b);
 
 std::string to_string(metadata_cache::ServerMode mode);
 

@@ -292,7 +292,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
                     .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
-        "// Make our metadata server to return single node as a replicaset "
+        "// Make our metadata server to return single node as a cluster "
         "member (meaning single metadata server)");
     set_mock_metadata(cluster_http_ports[i], kGroupId,
                       std::vector<uint16_t>{cluster_nodes_ports[i]}, 0, 0,
@@ -422,7 +422,7 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
       MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready());
 
   SCOPED_TRACE(
-      "// Make our metadata server return single node as a replicaset "
+      "// Make our metadata server return single node as a cluster "
       "member (meaning single metadata server)");
 
   set_mock_metadata(cluster_http_port, kGroupId,
@@ -495,13 +495,13 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
   auto cluster_node_port = port_pool_.get_next_available();
   auto cluster_http_port = port_pool_.get_next_available();
 
-  SCOPED_TRACE("// Launch  server mock that will act as our metadata server");
+  SCOPED_TRACE("// Launch server mock that will act as our metadata server");
   const auto trace_file = get_data_dir().join(param.trace_file).str();
   /*auto &cluster_node =*/ProcessManager::launch_mysql_server_mock(
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
 
   SCOPED_TRACE(
-      "// Make our metadata server to return single node as a replicaset "
+      "// Make our metadata server to return single node as a cluster "
       "member (meaning single metadata server)");
 
   set_mock_metadata(cluster_http_port, kClusterFileGroupId,

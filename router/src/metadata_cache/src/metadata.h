@@ -43,20 +43,18 @@
  */
 class METADATA_API MetaData {
  public:
-  using ReplicaSetsByName =
-      std::map<std::string, metadata_cache::ManagedReplicaSet>;
   using JsonAllocator = rapidjson::CrtAllocator;
   using JsonDocument = rapidjson::Document;
   // username as key, password hash and priviliges as value
   using auth_credentials_t =
       std::map<std::string, std::pair<std::string, JsonDocument>>;
   // fetch instances from connected server
-  virtual ReplicaSetsByName fetch_instances(
+  virtual metadata_cache::ManagedCluster fetch_instances(
       const std::string &cluster_name,
       const std::string &cluster_type_specific_id) = 0;
 
   // fetch instances from vector of servers
-  virtual ReplicaSetsByName fetch_instances(
+  virtual metadata_cache::ManagedCluster fetch_instances(
       const std::vector<metadata_cache::ManagedInstance> &instances,
       const std::string &cluster_type_specific_id,
       std::size_t &instance_id) = 0;

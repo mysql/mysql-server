@@ -67,8 +67,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
   virtual uint64_t last_insert_id() noexcept override;
   virtual unsigned warning_count() noexcept override;
 
-  virtual std::string quote(const std::string &s,
-                            char qchar = '\'') noexcept override;
+  virtual std::string quote(const std::string &s, char qchar = '\'') override;
 
   virtual const char *last_error() override;
   virtual unsigned int last_errno() override;

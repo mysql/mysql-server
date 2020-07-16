@@ -50,10 +50,10 @@ class GRMetadataBackend {
 
   virtual ~GRMetadataBackend();
 
-  /** @brief Queries the metadata server for the list of instances and
-   * replicasets that belong to the desired cluster.
+  /** @brief Queries the metadata server for the list of instances that belong
+   * to the desired cluster.
    */
-  virtual MetaData::ReplicaSetsByName fetch_instances_from_metadata_server(
+  virtual metadata_cache::ManagedCluster fetch_instances_from_metadata_server(
       const std::string &cluster_name,
       const std::string &cluster_type_specific_id) = 0;
 
@@ -72,10 +72,10 @@ class GRMetadataBackendV1 : public GRMetadataBackend {
   GRMetadataBackendV1(MetaData *metadata, ConnectCallback &connect_clb)
       : GRMetadataBackend(metadata, connect_clb) {}
 
-  /** @brief Queries the metadata server for the list of instances and
-   * replicasets that belong to the desired cluster.
+  /** @brief Queries the metadata server for the list of instances that belong
+   * to the desired cluster.
    */
-  MetaData::ReplicaSetsByName fetch_instances_from_metadata_server(
+  metadata_cache::ManagedCluster fetch_instances_from_metadata_server(
       const std::string &cluster_name,
       const std::string &cluster_type_specific_id) override;
 
@@ -90,10 +90,10 @@ class GRMetadataBackendV2 : public GRMetadataBackend {
   GRMetadataBackendV2(MetaData *metadata, ConnectCallback &connect_clb)
       : GRMetadataBackend(metadata, connect_clb) {}
 
-  /** @brief Queries the metadata server for the list of instances and
-   * replicasets that belong to the desired cluster.
+  /** @brief Queries the metadata server for the list of instances that belong
+   * to the desired cluster.
    */
-  MetaData::ReplicaSetsByName fetch_instances_from_metadata_server(
+  metadata_cache::ManagedCluster fetch_instances_from_metadata_server(
       const std::string &cluster_name,
       const std::string &cluster_type_specific_id) override;
 
@@ -116,18 +116,18 @@ GRClusterMetadata::GRClusterMetadata(const std::string &user,
   }
 }
 
-void GRClusterMetadata::update_replicaset_status(
+void GRClusterMetadata::update_cluster_status(
     const std::string &name,
-    metadata_cache::ManagedReplicaSet
-        &replicaset) {  // throws metadata_cache::metadata_error
+    metadata_cache::ManagedCluster
+        &cluster) {  // throws metadata_cache::metadata_error
 
-  log_debug("Updating replicaset status from GR for '%s'", name.c_str());
+  log_debug("Updating cluster status from GR for '%s'", name.c_str());
 
   // iterate over all cadidate nodes until we find the node that is part of
   // quorum
   bool found_quorum = false;
   std::shared_ptr<MySQLSession> gr_member_connection;
-  for (const metadata_cache::ManagedInstance &mi : replicaset.members) {
+  for (const metadata_cache::ManagedInstance &mi : cluster.members) {
     std::string mi_addr = (mi.host == "localhost" ? "127.0.0.1" : mi.host) +
                           ":" + std::to_string(mi.port);
 
@@ -154,13 +154,13 @@ void GRClusterMetadata::update_replicaset_status(
       if (!do_connect(*gr_member_connection, mi)) {
         log_warning(
             "While updating metadata, could not establish a connection to "
-            "replicaset '%s' through %s",
+            "cluster '%s' through %s",
             name.c_str(), mi_addr.c_str());
         continue;  // server down, next!
       }
     }
 
-    log_debug("Connected to replicaset '%s' through %s", name.c_str(),
+    log_debug("Connected to cluster '%s' through %s", name.c_str(),
               mi_addr.c_str());
 
     try {
@@ -171,79 +171,78 @@ void GRClusterMetadata::update_replicaset_status(
           fetch_group_replication_members(
               *gr_member_connection,
               single_primary_mode);  // throws metadata_cache::metadata_error
-      log_debug(
-          "Replicaset '%s' has %zu members in metadata, %zu in status table",
-          name.c_str(), replicaset.members.size(), member_status.size());
+      log_debug("Cluster '%s' has %zu members in metadata, %zu in status table",
+                name.c_str(), cluster.members.size(), member_status.size());
 
       // check status of all nodes; updates instances
       // ------------------vvvvvvvvvvvvvvvvvv
       bool metadata_gr_discrepancy{false};
-      metadata_cache::ReplicasetStatus status = check_replicaset_status(
-          replicaset.members, member_status, metadata_gr_discrepancy);
+      metadata_cache::ClusterStatus status = check_cluster_status(
+          cluster.members, member_status, metadata_gr_discrepancy);
       switch (status) {
-        case metadata_cache::ReplicasetStatus::AvailableWritable:  // we have
-                                                                   // quorum,
-                                                                   // good!
+        case metadata_cache::ClusterStatus::AvailableWritable:  // we have
+                                                                // quorum,
+                                                                // good!
           found_quorum = true;
           break;
-        case metadata_cache::ReplicasetStatus::AvailableReadOnly:  // have
-                                                                   // quorum,
-                                                                   // but only
-                                                                   // RO
+        case metadata_cache::ClusterStatus::AvailableReadOnly:  // have
+                                                                // quorum,
+                                                                // but only
+                                                                // RO
           found_quorum = true;
           break;
-        case metadata_cache::ReplicasetStatus::
+        case metadata_cache::ClusterStatus::
             UnavailableRecovering:  // have quorum, but only with recovering
                                     // nodes (cornercase)
           log_warning(
-              "quorum for replicaset '%s' consists only of recovering nodes!",
+              "quorum for cluster '%s' consists only of recovering nodes!",
               name.c_str());
           found_quorum = true;  // no point in futher search
           break;
-        case metadata_cache::ReplicasetStatus::Unavailable:  // we have nothing
-          log_warning("%s is not part of quorum for replicaset '%s'",
+        case metadata_cache::ClusterStatus::Unavailable:  // we have nothing
+          log_warning("%s is not part of quorum for cluster '%s'",
                       mi_addr.c_str(), name.c_str());
           continue;  // this server is no good, next!
       }
 
       if (found_quorum) {
-        replicaset.single_primary_mode = single_primary_mode;
-        replicaset.md_discrepancy = metadata_gr_discrepancy;
+        cluster.single_primary_mode = single_primary_mode;
+        cluster.md_discrepancy = metadata_gr_discrepancy;
         break;  // break out of the member iteration loop
       }
 
     } catch (const metadata_cache::metadata_error &e) {
       log_warning(
           "Unable to fetch live group_replication member data from %s from "
-          "replicaset '%s': %s",
+          "cluster '%s': %s",
           mi_addr.c_str(), name.c_str(), e.what());
       continue;  // faulty server, next!
     } catch (const std::exception &e) {
       log_warning(
           "Unable to fetch live group_replication member data from %s from "
-          "replicaset '%s': %s",
+          "cluster '%s': %s",
           mi_addr.c_str(), name.c_str(), e.what());
       continue;  // faulty server, next!
     }
 
   }  // for (const metadata_cache::ManagedInstance& mi : instances)
-  log_debug("End updating replicaset for '%s'", name.c_str());
+  log_debug("End updating cluster for '%s'", name.c_str());
 
   if (!found_quorum) {
     std::string msg(
         "Unable to fetch live group_replication member data from any server in "
-        "replicaset '");
+        "cluster '");
     msg += name + "'";
     log_error("%s", msg.c_str());
 
     // if we don't have a quorum, we want to give "nothing" to the Routing
     // plugin, so it doesn't route anything. Routing plugin is dumb, it has no
     // idea what a quorum is, etc.
-    replicaset.members.clear();
+    cluster.members.clear();
   }
 }
 
-metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
+metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
     std::vector<metadata_cache::ManagedInstance> &instances,
     const std::map<std::string, GroupReplicationMember> &member_status,
     bool &metadata_gr_discrepancy) const noexcept {
@@ -256,14 +255,14 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
 
   // Therefore, this code will work well only under one assumption:
   // All nodes in `member_status` are present in `instances`. This assumption
-  // should hold unless a user "manually" adds new nodes to the replicaset
+  // should hold unless a user "manually" adds new nodes to the cluster
   // without adding them to metadata (and the user is not allowed to do that).
 
   // Detect violation of above assumption (alarm if there's a node in
   // `member_status` not present in `instances`). It's O(n*m), but the CPU time
   // is negligible while keeping code simple.
 
-  using metadata_cache::ReplicasetStatus;
+  using metadata_cache::ClusterStatus;
   using metadata_cache::ServerMode;
   using GR_State = GroupReplicationMember::State;
   using GR_Role = GroupReplicationMember::Role;
@@ -345,7 +344,7 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
       metadata_gr_discrepancy = true;
       log_warning(
           "Member %s:%d (%s) defined in metadata not found in actual "
-          "replicaset",
+          "Group Replication",
           member.host.c_str(), member.port, member.mysql_server_uuid.c_str());
     }
   }
@@ -357,19 +356,19 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
 
   // if we don't have quorum, we don't allow any access. Some configurations
   // might allow RO access in this case, but we don't support it at the momemnt
-  if (!have_quorum) return ReplicasetStatus::Unavailable;
+  if (!have_quorum) return ClusterStatus::Unavailable;
 
   // if we have quorum but no primary/secondary instances, it means the quorum
   // is composed purely of recovering nodes (this is an unlikey cornercase)
   if (!(have_primary_instance || have_secondary_instance))
-    return ReplicasetStatus::UnavailableRecovering;
+    return ClusterStatus::UnavailableRecovering;
 
   // if primary node was not elected yet, we can only allow reads (typically
   // this is a temporary state shortly after a node failure, but could also be
   // more permanent)
   return have_primary_instance
-             ? ReplicasetStatus::AvailableWritable   // typical case
-             : ReplicasetStatus::AvailableReadOnly;  // primary not elected yet
+             ? ClusterStatus::AvailableWritable   // typical case
+             : ClusterStatus::AvailableReadOnly;  // primary not elected yet
 }
 
 void GRClusterMetadata::reset_metadata_backend(const ClusterType type) {
@@ -414,7 +413,7 @@ GRClusterMetadata::auth_credentials_t GRClusterMetadata::fetch_auth_credentials(
   }
 }
 
-GRClusterMetadata::ReplicaSetsByName
+metadata_cache::ManagedCluster
 GRClusterMetadata::fetch_instances_from_metadata_server(
     const std::string &cluster_name,
     const std::string &cluster_type_specific_id) {
@@ -441,7 +440,7 @@ void GRClusterMetadata::update_backend(
   }
 }
 
-ClusterMetadata::ReplicaSetsByName GRClusterMetadata::fetch_instances(
+metadata_cache::ManagedCluster GRClusterMetadata::fetch_instances(
     const std::string &cluster_name,
     const std::string &cluster_type_specific_id) {
   log_debug("Updating metadata information for cluster '%s'",
@@ -452,33 +451,27 @@ ClusterMetadata::ReplicaSetsByName GRClusterMetadata::fetch_instances(
       get_and_check_metadata_schema_version(*metadata_connection_.get());
   update_backend(version);
 
-  // fetch existing replicasets in the cluster from the metadata server (this is
+  // fetch cluster topology from the metadata server (this is
   // the topology that was configured, it will be compared later against current
-  // topology reported by (a server in) replicaset)
-  ReplicaSetsByName replicasets(fetch_instances_from_metadata_server(
+  // topology reported by (a server in) Group Replication)
+  auto managed_cluster = fetch_instances_from_metadata_server(
       cluster_name,
-      cluster_type_specific_id));  // throws metadata_cache::metadata_error
+      cluster_type_specific_id);  // throws metadata_cache::metadata_error
 
   // we are done with querying metadata
   transaction.commit();
 
-  if (replicasets.empty())
-    log_warning("No replicasets defined for cluster '%s'",
-                cluster_name.c_str());
-
-  // now connect to each replicaset and query it for the list and status of its
-  // members. (more precisely, foreach replicaset: search and connect to a
+  // now connect to the cluster and query it for the list and status of its
+  // members. (more precisely: search and connect to a
   // member which is part of quorum to retrieve this data)
-  for (auto &&rs : replicasets) {
-    update_replicaset_status(
-        rs.first, rs.second);  // throws metadata_cache::metadata_error
-  }
+  update_cluster_status(
+      cluster_name, managed_cluster);  // throws metadata_cache::metadata_error
 
-  return replicasets;
+  return managed_cluster;
 }
 
 // throws metadata_cache::metadata_error
-ClusterMetadata::ReplicaSetsByName
+metadata_cache::ManagedCluster
 GRMetadataBackendV1::fetch_instances_from_metadata_server(
     const std::string &cluster_name,
     const std::string &cluster_type_specific_id) {
@@ -526,20 +519,9 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
   // +-----------------+--------------------------------------+--------------------------------+--------------------------+
   // clang-format on
   //
-  // The following instance map stores a list of servers mapped to every
-  // replicaset name.
-  // {
-  //   {replicaset_1:[host1:port1, host2:port2, host3:port3]},
-  //   {replicaset_2:[host4:port4, host5:port5, host6:port6]},
-  //   ...
-  //   {replicaset_n:[hostj:portj, hostk:portk, hostl:portl]}
-  // }
-  MetaData::ReplicaSetsByName replicaset_map;
 
-  // Deserialize the resultset into a map that stores a list of server
-  // instance objects mapped to each replicaset.
-  auto result_processor =
-      [&replicaset_map](const MySQLSession::Row &row) -> bool {
+  metadata_cache::ManagedCluster result;
+  auto result_processor = [&result](const MySQLSession::Row &row) -> bool {
     if (row.size() != 4) {
       throw metadata_cache::metadata_error(
           "Unexpected number of fields in the resultset. "
@@ -548,16 +530,13 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
     }
 
     metadata_cache::ManagedInstance s;
-    s.replicaset_name = get_string(row[0]);
     s.mysql_server_uuid = get_string(row[1]);
     if (!set_instance_ports(s, row, 2, 3)) {
       return true;  // next row
     }
 
-    auto &rset(replicaset_map[s.replicaset_name]);
-    rset.members.push_back(s);
-    rset.name = s.replicaset_name;
-    rset.single_primary_mode =
+    result.members.push_back(s);
+    result.single_primary_mode =
         true;  // actual value set elsewhere from GR metadata
 
     return true;  // false = I don't want more rows
@@ -571,11 +550,11 @@ GRMetadataBackendV1::fetch_instances_from_metadata_server(
     throw metadata_cache::metadata_error(e.what());
   }
 
-  return replicaset_map;
+  return result;
 }
 
 // throws metadata_cache::metadata_error
-ClusterMetadata::ReplicaSetsByName
+metadata_cache::ManagedCluster
 GRMetadataBackendV2::fetch_instances_from_metadata_server(
     const std::string &cluster_name,
     const std::string &cluster_type_specific_id) {
@@ -611,20 +590,8 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
   //  +--------------------------------------+----------------+-----------------+--------------------------------------------------------------------+
   // clang-format on
   //
-  // The following instance map stores a list of servers mapped to every
-  // replicaset name.
-  // {
-  //   {replicaset_1:[host1:port1, host2:port2, host3:port3]},
-  //   {replicaset_2:[host4:port4, host5:port5, host6:port6]},
-  //   ...
-  //   {replicaset_n:[hostj:portj, hostk:portk, hostl:portl]}
-  // }
-  MetaData::ReplicaSetsByName replicaset_map;
-
-  // Deserialize the resultset into a map that stores a list of server
-  // instance objects mapped to each replicaset.
-  auto result_processor =
-      [&replicaset_map](const MySQLSession::Row &row) -> bool {
+  metadata_cache::ManagedCluster result;
+  auto result_processor = [&result](const MySQLSession::Row &row) -> bool {
     if (row.size() != 4) {
       throw metadata_cache::metadata_error(
           "Unexpected number of fields in the resultset. "
@@ -639,12 +606,8 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
     }
     set_instance_attributes(instance, get_string(row[3]));
 
-    instance.replicaset_name = "default";
-
-    auto &rset(replicaset_map[instance.replicaset_name]);
-    rset.members.push_back(instance);
-    rset.name = instance.replicaset_name;
-    rset.single_primary_mode =
+    result.members.push_back(instance);
+    result.single_primary_mode =
         true;  // actual value set elsewhere from GR metadata
 
     return true;  // false = I don't want more rows
@@ -656,7 +619,7 @@ GRMetadataBackendV2::fetch_instances_from_metadata_server(
     throw metadata_cache::metadata_error(e.what());
   }
 
-  return replicaset_map;
+  return result;
 }
 
 GRClusterMetadata::~GRClusterMetadata() = default;

@@ -61,8 +61,8 @@ const std::string kNodeTagDisconnectWhenHidden{
 const bool kNodeTagHiddenDefault{false};
 const bool kNodeTagDisconnectWhenHiddenDefault{true};
 
-ReplicasetStateListenerInterface::~ReplicasetStateListenerInterface() = default;
-ReplicasetStateNotifierInterface::~ReplicasetStateNotifierInterface() = default;
+ClusterStateListenerInterface::~ClusterStateListenerInterface() = default;
+ClusterStateNotifierInterface::~ClusterStateNotifierInterface() = default;
 
 MetadataCacheAPIBase *MetadataCacheAPI::instance() {
   static MetadataCacheAPI instance_;
@@ -184,22 +184,19 @@ void MetadataCacheAPI::cache_stop() noexcept {
 }
 
 /**
- * Lookup the servers that belong to the given replicaset.
+ * Lookup the servers that belong to the cluster.
  *
- * @param replicaset_name The name of the replicaset whose servers need
- *                      to be looked up.
  *
  * @return An object that encapsulates a list of managed MySQL servers.
  *
  */
-LookupResult MetadataCacheAPI::lookup_replicaset(
-    const std::string &replicaset_name) {
+LookupResult MetadataCacheAPI::get_cluster_nodes() {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // replicaset_lookup.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
-  return LookupResult(g_metadata_cache->replicaset_lookup(replicaset_name));
+  return LookupResult(g_metadata_cache->get_cluster_nodes());
 }
 
 void MetadataCacheAPI::mark_instance_reachability(
@@ -210,51 +207,47 @@ void MetadataCacheAPI::mark_instance_reachability(
 }
 
 bool MetadataCacheAPI::wait_primary_failover(
-    const std::string &replicaset_name, const std::string &primary_server_uuid,
+    const std::string &primary_server_uuid,
     const std::chrono::seconds &timeout) {
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
-  return g_metadata_cache->wait_primary_failover(replicaset_name,
-                                                 primary_server_uuid, timeout);
+  return g_metadata_cache->wait_primary_failover(primary_server_uuid, timeout);
 }
 
 void MetadataCacheAPI::add_state_listener(
-    const std::string &replicaset_name,
-    ReplicasetStateListenerInterface *listener) {
+    ClusterStateListenerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // add_state_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->add_state_listener(replicaset_name, listener);
+  g_metadata_cache->add_state_listener(listener);
 }
+
 void MetadataCacheAPI::remove_state_listener(
-    const std::string &replicaset_name,
-    ReplicasetStateListenerInterface *listener) {
+    ClusterStateListenerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // remove_state_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->remove_state_listener(replicaset_name, listener);
+  g_metadata_cache->remove_state_listener(listener);
 }
 
 void MetadataCacheAPI::add_acceptor_handler_listener(
-    const std::string &replicaset_name,
     AcceptorUpdateHandlerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // add_acceptor_handler_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->add_acceptor_handler_listener(replicaset_name, listener);
+  g_metadata_cache->add_acceptor_handler_listener(listener);
 }
 
 void MetadataCacheAPI::remove_acceptor_handler_listener(
-    const std::string &replicaset_name,
     AcceptorUpdateHandlerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
   // remove_acceptor_handler_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->remove_acceptor_handler_listener(replicaset_name, listener);
+  g_metadata_cache->remove_acceptor_handler_listener(listener);
 }
 
 MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {

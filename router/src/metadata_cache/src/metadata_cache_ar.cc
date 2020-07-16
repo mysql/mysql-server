@@ -34,16 +34,16 @@ bool ARMetadataCache::refresh() {
   unsigned view_id{0};
 
   size_t metadata_server_id;
-  auto replicaset_data_temp = meta_data_->fetch_instances(
+  auto cluster_data_temp = meta_data_->fetch_instances(
       metadata_servers_, cluster_type_specific_id_, metadata_server_id);
 
   {
     // Ensure that the refresh does not result in an inconsistency during the
     // lookup.
     std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-    fetched = !replicaset_data_temp.empty();
-    if (fetched && (replicaset_data_ != replicaset_data_temp)) {
-      replicaset_data_ = replicaset_data_temp;
+    fetched = !cluster_data_temp.empty();
+    if (fetched && (cluster_data_ != cluster_data_temp)) {
+      cluster_data_ = cluster_data_temp;
       changed = true;
     }
   }
@@ -58,37 +58,26 @@ bool ARMetadataCache::refresh() {
         "Potential changes detected in cluster '%s' after metadata refresh",
         cluster_name_.c_str());
     // dump some debugging info about the cluster
-    if (replicaset_data_.empty())
+    if (cluster_data_.empty())
       log_error("Metadata for cluster '%s' is empty!", cluster_name_.c_str());
     else {
-      // there is only one replicaset
-      auto &cluster_data = replicaset_data_["default"];
-      view_id = cluster_data.view_id;
+      view_id = cluster_data_.view_id;
       log_info("view_id = %u, (%i members)", view_id,
-               (int)cluster_data.members.size());
-      for (auto &mi : cluster_data.members) {
+               (int)cluster_data_.members.size());
+      for (auto &mi : cluster_data_.members) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),
                  get_hidden_info(mi).c_str());
 
         if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-          std::lock_guard<std::mutex> lock(
-              replicasets_with_unreachable_nodes_mtx_);
-          auto rs_with_unreachable_node =
-              replicasets_with_unreachable_nodes_.find("default");
-          if (rs_with_unreachable_node !=
-              replicasets_with_unreachable_nodes_.end()) {
-            // disable "emergency mode" for this replicaset
-            replicasets_with_unreachable_nodes_.erase(rs_with_unreachable_node);
-          }
+          has_unreachable_nodes = false;
         }
       }
     }
 
     on_instances_changed(/*md_servers_reachable=*/true, view_id);
 
-    auto metadata_servers_tmp =
-        replicaset_lookup(/*cluster_name_ (all clusters)*/ "");
+    auto metadata_servers_tmp = get_cluster_nodes();
     // never let the list that we iterate over become empty as we would
     // not recover from that
     on_refresh_succeeded(metadata_servers_[metadata_server_id]);

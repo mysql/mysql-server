@@ -277,8 +277,7 @@ const char *MySQLSessionReplayer::last_error() {
 
 unsigned int MySQLSessionReplayer::last_errno() { return last_error_code; }
 
-std::string MySQLSessionReplayer::quote(const std::string &s,
-                                        char qchar) noexcept {
+std::string MySQLSessionReplayer::quote(const std::string &s, char qchar) {
   std::string quoted;
   quoted.push_back(qchar);
   quoted.append(mysqlrouter::escape_sql_string(s));

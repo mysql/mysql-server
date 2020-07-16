@@ -37,7 +37,7 @@ IMPORT_LOG_FUNCTIONS()
 
 ARClusterMetadata::~ARClusterMetadata() = default;
 
-ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
+metadata_cache::ManagedCluster ARClusterMetadata::fetch_instances(
     const std::vector<metadata_cache::ManagedInstance> &instances,
     const std::string &cluster_type_specific_id, std::size_t &instance_id) {
   std::vector<metadata_cache::ManagedInstance> new_instances;
@@ -107,16 +107,10 @@ ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
     return {};
   }
 
-  // pack the result into ManagedReplicaSet to satisfy the API
-  metadata_cache::ManagedReplicaSet replicaset;
-  ClusterMetadata::ReplicaSetsByName result;
-
-  replicaset.name = "default";
-  replicaset.single_primary_mode = true;
-  replicaset.members = std::move(new_instances);
-  replicaset.view_id = this->view_id_;
-
-  result["default"] = replicaset;
+  metadata_cache::ManagedCluster result;
+  result.single_primary_mode = true;
+  result.members = std::move(new_instances);
+  result.view_id = this->view_id_;
 
   return result;
 }
@@ -193,10 +187,6 @@ ARClusterMetadata::fetch_instances_from_member(
                         : metadata_cache::ServerMode::ReadOnly;
 
     set_instance_attributes(instance, get_string(row[4]));
-
-    // remainig fields are for compatibility with existing interface so we go
-    // with defaults
-    instance.replicaset_name = "default";
 
     result.push_back(instance);
     return true;  // get next row if available

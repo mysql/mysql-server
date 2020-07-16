@@ -58,26 +58,18 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
   metadata_cache::ManagedInstance ms1;
   metadata_cache::ManagedInstance ms2;
   metadata_cache::ManagedInstance ms3;
-  metadata_cache::ManagedInstance ms4;
-  metadata_cache::ManagedInstance ms5;
-  metadata_cache::ManagedInstance ms6;
-  metadata_cache::ManagedInstance ms7;
-  metadata_cache::ManagedInstance ms8;
-  metadata_cache::ManagedInstance ms9;
 
   /**
-   * Server list for each replicaset in the topology. Each server object
+   * Server list for clusters in the topology. Each server object
    * represents all relevant information about the server that is
    * part of the topology.
    */
-  std::vector<metadata_cache::ManagedInstance> replicaset_1_vector;
-  std::vector<metadata_cache::ManagedInstance> replicaset_2_vector;
-  std::vector<metadata_cache::ManagedInstance> replicaset_3_vector;
+  std::vector<metadata_cache::ManagedInstance> cluster_instances_vector;
 
   /**
    * The information about the HA topology being managed.
    */
-  ReplicaSetsByName replicaset_map;
+  metadata_cache::ManagedCluster cluster_info;
 
   /** @brief Constructor
    * @param user The user name used to authenticate to the metadata server.
@@ -123,16 +115,15 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
 
   /**
    *
-   * Returns relation as a std::map between replicaset ID and list of managed
-   * servers.
+   * Returns cluster topology object.
    *
-   * @return Map of replicaset ID, server list pairs.
+   * @return Cluster topology object.
    */
-  ReplicaSetsByName fetch_instances(
-      const std::string &farm_name,
-      const std::string &group_replication_id) override;
+  metadata_cache::ManagedCluster fetch_instances(
+      const std::string &cluster_name,
+      const std::string &cluster_type_specific_id) override;
 
-  ReplicaSetsByName fetch_instances(
+  metadata_cache::ManagedCluster fetch_instances(
       const std::vector<metadata_cache::ManagedInstance> &instances,
       const std::string &group_replication_id, size_t &instance_id) override;
 

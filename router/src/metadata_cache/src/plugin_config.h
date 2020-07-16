@@ -122,7 +122,7 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   /** @brief  Id of the router in the metadata. */
   const unsigned int router_id;
 
-  /** @brief Gets (Replication Group ID for GR cluster or cluster_id for
+  /** @brief Gets (Group Replication ID for GR cluster or cluster_id for
    * ReplicaSet cluster) if preset in the dynamic configuration.
    *
    * @note  If there is no dynamic configuration (backward compatibility) it

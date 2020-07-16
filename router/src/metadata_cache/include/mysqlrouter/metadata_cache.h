@@ -76,7 +76,7 @@ extern const std::string kNodeTagDisconnectWhenHidden;
 extern const bool kNodeTagHiddenDefault;
 extern const bool kNodeTagDisconnectWhenHiddenDefault;
 
-enum class ReplicasetStatus {
+enum class ClusterStatus {
   AvailableWritable,
   AvailableReadOnly,
   UnavailableRecovering,
@@ -99,8 +99,7 @@ enum class InstanceStatus {
 class METADATA_API ManagedInstance {
  public:
   ManagedInstance() = default;
-  ManagedInstance(const std::string &p_replicaset_name,
-                  const std::string &p_mysql_server_uuid,
+  ManagedInstance(const std::string &p_mysql_server_uuid,
                   const ServerMode p_mode, const std::string &p_host,
                   const uint16_t p_port, const uint16_t p_xport);
 
@@ -109,8 +108,6 @@ class METADATA_API ManagedInstance {
   operator TCPAddress() const;
   bool operator==(const ManagedInstance &other) const;
 
-  /** @brief The name of the replicaset to which the server belongs */
-  std::string replicaset_name;
   /** @brief The uuid of the MySQL server */
   std::string mysql_server_uuid;
   /** @brief The mode of the server */
@@ -129,24 +126,26 @@ class METADATA_API ManagedInstance {
       kNodeTagDisconnectWhenHiddenDefault};
 };
 
-/** @class ManagedReplicaSet
- * Represents a replicaset (a GR group or AR members)
+/** @class ManagedCluster
+ * Represents a cluster (a GR group or AR members)
  */
-class METADATA_API ManagedReplicaSet {
+class METADATA_API ManagedCluster {
  public:
-  /** @brief The name of the replica set */
-  std::string name;
-  /** @brief List of the members that belong to the replicaset */
+  /** @brief List of the members that belong to the cluster */
   std::vector<metadata_cache::ManagedInstance> members;
-  /** @brief Whether replicaset is in single_primary_mode (from PFS in case of
+  /** @brief Whether the cluster is in single_primary_mode (from PFS in case of
    * GR) */
   bool single_primary_mode;
   /** @brief Id of the view this metadata represents (only used for AR now)*/
   unsigned view_id{0};
-  /** @brief Metadata for the replicaset is not consistent (only applicable for
+  /** @brief Metadata for the cluster is not consistent (only applicable for
    * the GR cluster when the data in the GR metadata is not consistent with the
    * cluster metadata)*/
   bool md_discrepancy{false};
+
+  bool empty() const noexcept { return members.empty(); }
+
+  void clear() noexcept { members.clear(); }
 };
 
 /** @class connection_error
@@ -188,14 +187,14 @@ class METADATA_API LookupResult {
 
 /**
  * @brief Abstract class that provides interface for listener on
- *        replicaset status changes.
+ *        cluster status changes.
  *
- *        When state of replicaset is changed, notify function is called.
+ *        When state of cluster is changed, notify function is called.
  */
-class METADATA_API ReplicasetStateListenerInterface {
+class METADATA_API ClusterStateListenerInterface {
  public:
   /**
-   * @brief Callback function that is called when state of replicaset is
+   * @brief Callback function that is called when state of cluster is
    * changed.
    *
    * @param instances allowed nodes
@@ -207,14 +206,14 @@ class METADATA_API ReplicasetStateListenerInterface {
                                         const bool md_servers_reachable,
                                         const unsigned view_id) = 0;
 
-  ReplicasetStateListenerInterface() = default;
+  ClusterStateListenerInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
-  explicit ReplicasetStateListenerInterface(
-      const ReplicasetStateListenerInterface &) = delete;
-  ReplicasetStateListenerInterface &operator=(
-      const ReplicasetStateListenerInterface &) = delete;
-  virtual ~ReplicasetStateListenerInterface();
+  explicit ClusterStateListenerInterface(
+      const ClusterStateListenerInterface &) = delete;
+  ClusterStateListenerInterface &operator=(
+      const ClusterStateListenerInterface &) = delete;
+  virtual ~ClusterStateListenerInterface();
 };
 
 /**
@@ -247,52 +246,46 @@ class METADATA_API AcceptorUpdateHandlerInterface {
 
 /**
  * @brief Abstract class that provides interface for adding and removing
- *        observers on replicaset status changes.
+ *        observers on cluster status changes.
  *
- *        When state of replicaset is changed, then
- * ReplicasetStateListenerInterface::notify_instances_changed function is called
+ * When state of cluster is changed, then
+ * ClusterStateListenerInterface::notify_instances_changed function is called
  * for every registered observer.
  */
-class METADATA_API ReplicasetStateNotifierInterface {
+class METADATA_API ClusterStateNotifierInterface {
  public:
   /**
    * @brief Register observer that is notified when there is a change in the
-   * replicaset nodes setup/state discovered.
+   * cluster nodes setup/state discovered.
    *
-   * @param replicaset_name name of the replicaset
-   * @param listener Observer object that is notified when replicaset nodes
+   * @param listener Observer object that is notified when cluster nodes
    * state is changed.
    *
    * @throw std::runtime_error if metadata cache not initialized
    */
-  virtual void add_state_listener(
-      const std::string &replicaset_name,
-      ReplicasetStateListenerInterface *listener) = 0;
+  virtual void add_state_listener(ClusterStateListenerInterface *listener) = 0;
 
   /**
    * @brief Unregister observer previously registered with add_state_listener()
    *
-   * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    *
    * @throw std::runtime_error if metadata cache not initialized
    */
   virtual void remove_state_listener(
-      const std::string &replicaset_name,
-      ReplicasetStateListenerInterface *listener) = 0;
+      ClusterStateListenerInterface *listener) = 0;
 
-  ReplicasetStateNotifierInterface() = default;
+  ClusterStateNotifierInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
-  explicit ReplicasetStateNotifierInterface(
-      const ReplicasetStateNotifierInterface &) = delete;
-  ReplicasetStateNotifierInterface &operator=(
-      const ReplicasetStateNotifierInterface &) = delete;
-  virtual ~ReplicasetStateNotifierInterface();
+  explicit ClusterStateNotifierInterface(
+      const ClusterStateNotifierInterface &) = delete;
+  ClusterStateNotifierInterface &operator=(
+      const ClusterStateNotifierInterface &) = delete;
+  virtual ~ClusterStateNotifierInterface();
 };
 
-class METADATA_API MetadataCacheAPIBase
-    : public ReplicasetStateNotifierInterface {
+class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
  public:
   /** @brief Initialize a MetadataCache object and start caching
    *
@@ -367,19 +360,17 @@ class METADATA_API MetadataCacheAPIBase
    */
   virtual void cache_stop() noexcept = 0;
 
-  /** @brief Returns list of managed server in a HA replicaset
+  /** @brief Returns list of managed server in a HA cluster
    * * Returns a list of MySQL servers managed by the topology for the given
-   * HA replicaset.
+   * HA cluster.
    *
-   * @param replicaset_name ID of the HA replicaset
    * @return List of ManagedInstance objects
    */
-  virtual LookupResult lookup_replicaset(
-      const std::string &replicaset_name) = 0;
+  virtual LookupResult get_cluster_nodes() = 0;
 
   /** @brief Update the status of the instance
    *
-   * Called when an instance from a replicaset cannot be reached for one reason
+   * Called when an instance from a cluster cannot be reached for one reason
    * or another. When an instance becomes unreachable, an emergency mode is set
    * (the rate of refresh of the metadata cache increases to once per second)
    * and lasts until disabled after a suitable change in the metadata cache is
@@ -392,64 +383,53 @@ class METADATA_API MetadataCacheAPIBase
   virtual void mark_instance_reachability(const std::string &instance_id,
                                           InstanceStatus status) = 0;
 
-  /** @brief Wait until there's a primary member in the replicaset
+  /** @brief Wait until there's a primary member in the cluster
    *
-   * To be called when the primary member of a single-primary replicaset is down
+   * To be called when the primary member of a single-primary cluster is down
    * and we want to wait until one becomes elected.
    *
-   * @param replicaset_name - the name of the replicaset
    * @param primary_server_uuid - server_uuid of the PRIMARY that shall be
    * failover from.
    * @param timeout - amount of time to wait for a failover, in seconds
    * @return true if a primary member exists
    */
-  virtual bool wait_primary_failover(const std::string &replicaset_name,
-                                     const std::string &primary_server_uuid,
+  virtual bool wait_primary_failover(const std::string &primary_server_uuid,
                                      const std::chrono::seconds &timeout) = 0;
 
   /**
    * @brief Register observer that is notified when there is a change in the
-   * replicaset nodes setup/state discovered.
+   * cluster nodes setup/state discovered.
    *
-   * @param replicaset_name name of the replicaset
-   * @param listener Observer object that is notified when replicaset nodes
+   * @param listener Observer object that is notified when cluster nodes
    * state is changed.
    */
-  void add_state_listener(const std::string &replicaset_name,
-                          ReplicasetStateListenerInterface *listener) override =
-      0;
+  void add_state_listener(ClusterStateListenerInterface *listener) override = 0;
 
   /**
    * @brief Unregister observer previously registered with add_state_listener()
    *
-   * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
-  void remove_state_listener(
-      const std::string &replicaset_name,
-      ReplicasetStateListenerInterface *listener) override = 0;
+  void remove_state_listener(ClusterStateListenerInterface *listener) override =
+      0;
 
   /**
    * @brief Register observer that is notified when the state of listening
    * socket acceptors should be updated on the next metadata refresh.
    *
-   * @param replicaset_name name of the replicaset
    * @param listener Observer object that is notified when replicaset nodes
    * state is changed.
    */
   virtual void add_acceptor_handler_listener(
-      const std::string &replicaset_name,
       AcceptorUpdateHandlerInterface *listener) = 0;
 
   /**
    * @brief Unregister observer previously registered with
    * add_acceptor_handler_listener()
    *
-   * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
   virtual void remove_acceptor_handler_listener(
-      const std::string &replicaset_name,
       AcceptorUpdateHandlerInterface *listener) = 0;
 
   /** @brief Get authentication data (password hash and privileges) for the
@@ -545,28 +525,22 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
 
   void cache_stop() noexcept override;
 
-  LookupResult lookup_replicaset(const std::string &replicaset_name) override;
+  LookupResult get_cluster_nodes() override;
 
   void mark_instance_reachability(const std::string &instance_id,
                                   InstanceStatus status) override;
 
-  bool wait_primary_failover(const std::string &replicaset_name,
-                             const std::string &primary_server_uuid,
+  bool wait_primary_failover(const std::string &primary_server_uuid,
                              const std::chrono::seconds &timeout) override;
 
-  void add_state_listener(const std::string &replicaset_name,
-                          ReplicasetStateListenerInterface *listener) override;
+  void add_state_listener(ClusterStateListenerInterface *listener) override;
 
-  void remove_state_listener(
-      const std::string &replicaset_name,
-      ReplicasetStateListenerInterface *listener) override;
+  void remove_state_listener(ClusterStateListenerInterface *listener) override;
 
   void add_acceptor_handler_listener(
-      const std::string &replicaset_name,
       AcceptorUpdateHandlerInterface *listener) override;
 
   void remove_acceptor_handler_listener(
-      const std::string &replicaset_name,
       AcceptorUpdateHandlerInterface *listener) override;
 
   RefreshStatus get_refresh_status() override;

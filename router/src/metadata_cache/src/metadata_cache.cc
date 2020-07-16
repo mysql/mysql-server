@@ -131,18 +131,16 @@ void MetadataCache::refresh_thread() {
       // we want to update the router version in the routers table once
       // when we start
       if (!version_updated_) {
-        if (!replicaset_data_.empty()) {
-          const auto &instances = replicaset_data_.begin()->second.members;
-          const metadata_cache::ManagedInstance *rw_instance;
-          if (find_rw_instance(instances, &rw_instance)) {
-            try {
-              meta_data_->update_router_version(*rw_instance, router_id_);
-              version_updated_ = true;
-            } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
-            } catch (...) {
-              // we only attempt it once, if it fails we will not try again
-              version_updated_ = true;
-            }
+        const auto &instances = cluster_data_.members;
+        const metadata_cache::ManagedInstance *rw_instance;
+        if (find_rw_instance(instances, &rw_instance)) {
+          try {
+            meta_data_->update_router_version(*rw_instance, router_id_);
+            version_updated_ = true;
+          } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+          } catch (...) {
+            // we only attempt it once, if it fails we will not try again
+            version_updated_ = true;
           }
         }
       }
@@ -155,15 +153,13 @@ void MetadataCache::refresh_thread() {
       // we want to update the router.last_check_in every 10 ttl queries
       if (last_check_in_updated_ % 10 == 0) {
         last_check_in_updated_ = 0;
-        if (!replicaset_data_.empty()) {
-          const auto &instances = replicaset_data_.begin()->second.members;
-          const metadata_cache::ManagedInstance *rw_instance;
-          if (find_rw_instance(instances, &rw_instance)) {
-            try {
-              meta_data_->update_router_last_check_in(*rw_instance, router_id_);
-            } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
-            } catch (...) {
-            }
+        const auto &instances = cluster_data_.members;
+        const metadata_cache::ManagedInstance *rw_instance;
+        if (find_rw_instance(instances, &rw_instance)) {
+          try {
+            meta_data_->update_router_last_check_in(*rw_instance, router_id_);
+          } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+          } catch (...) {
           }
         }
       }
@@ -171,7 +167,7 @@ void MetadataCache::refresh_thread() {
     }
 
     auto ttl_left = ttl_;
-    // wait for up to TTL until next refresh, unless some replicaset loses an
+    // wait for up to TTL until next refresh, unless cluster loses an
     // online (primary or secondary) server - in that case, "emergency mode" is
     // enabled and we refresh every 1s until "emergency mode" is called off.
     while (ttl_left > 0ms) {
@@ -214,16 +210,12 @@ void MetadataCache::refresh_thread() {
       }
 
       {
-        std::lock_guard<std::mutex> lock(
-            replicasets_with_unreachable_nodes_mtx_);
-
-        if (!replicasets_with_unreachable_nodes_.empty())
+        if (has_unreachable_nodes)
           break;  // we're in "emergency mode", don't wait until TTL expires
 
         // if the metadata is not consistent refresh it at a higher rate (if the
         // ttl>1s) until it becomes consistent again
-        if ((!replicaset_data_.empty()) &&
-            replicaset_data_.begin()->second.md_discrepancy) {
+        if (cluster_data_.md_discrepancy) {
           break;
         }
       }
@@ -255,25 +247,19 @@ void MetadataCache::stop() noexcept {
   refresh_thread_.join();
 }
 
-MetadataCache::metadata_servers_list_t MetadataCache::replicaset_lookup(
-    const std::string &replicaset_name) {
+/**
+ * Return a list of servers that are part of a cluster.
+ *
+ * TODO: this is not needed, get rid of this API
+ */
+MetadataCache::metadata_servers_list_t MetadataCache::get_cluster_nodes() {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  auto replicaset = (replicaset_name.empty())
-                        ? replicaset_data_.begin()
-                        : replicaset_data_.find(replicaset_name);
-
-  if (replicaset == replicaset_data_.end()) {
-    log_warning("Replicaset '%s' not available", replicaset_name.c_str());
-    return {};
-  }
-
-  return replicaset->second.members;
+  return cluster_data_.members;
 }
 
 bool metadata_cache::ManagedInstance::operator==(
     const ManagedInstance &other) const {
-  return mysql_server_uuid == other.mysql_server_uuid &&
-         replicaset_name == other.replicaset_name && mode == other.mode &&
+  return mysql_server_uuid == other.mysql_server_uuid && mode == other.mode &&
          host == other.host && port == other.port && xport == other.xport &&
          hidden == other.hidden &&
          disconnect_existing_sessions_when_hidden ==
@@ -281,11 +267,9 @@ bool metadata_cache::ManagedInstance::operator==(
 }
 
 metadata_cache::ManagedInstance::ManagedInstance(
-    const std::string &p_replicaset_name,
     const std::string &p_mysql_server_uuid, const ServerMode p_mode,
     const std::string &p_host, const uint16_t p_port, const uint16_t p_xport)
-    : replicaset_name(p_replicaset_name),
-      mysql_server_uuid(p_mysql_server_uuid),
+    : mysql_server_uuid(p_mysql_server_uuid),
       mode(p_mode),
       host(p_host),
       port(p_port),
@@ -302,32 +286,25 @@ metadata_cache::ManagedInstance::operator TCPAddress() const {
   return result;
 }
 
-bool operator==(const MetaData::ReplicaSetsByName &map_a,
-                const MetaData::ReplicaSetsByName &map_b) {
-  if (map_a.size() != map_b.size()) return false;
-  auto ai = map_a.begin();
-  auto bi = map_b.begin();
-  for (; ai != map_a.end(); ++ai, ++bi) {
-    if ((ai->first != bi->first)) return false;
-    if (ai->second.md_discrepancy != bi->second.md_discrepancy) return false;
-    // we need to compare 2 vectors if their content is the same
-    // but order of their elements can be different as we use
-    // SQL with no "ORDER BY" to fetch them from different nodes
-    if (ai->second.members.size() != bi->second.members.size()) return false;
-    if (ai->second.view_id != bi->second.view_id) return false;
-    if (!std::is_permutation(ai->second.members.begin(),
-                             ai->second.members.end(),
-                             bi->second.members.begin())) {
-      return false;
-    }
+bool operator==(const metadata_cache::ManagedCluster &cluster_a,
+                const metadata_cache::ManagedCluster &cluster_b) {
+  if (cluster_a.md_discrepancy != cluster_b.md_discrepancy) return false;
+  // we need to compare 2 vectors if their content is the same
+  // but order of their elements can be different as we use
+  // SQL with no "ORDER BY" to fetch them from different nodes
+  if (cluster_a.members.size() != cluster_b.members.size()) return false;
+  if (cluster_a.view_id != cluster_b.view_id) return false;
+  if (!std::is_permutation(cluster_a.members.begin(), cluster_a.members.end(),
+                           cluster_b.members.begin())) {
+    return false;
   }
 
   return true;
 }
 
-bool operator!=(const MetaData::ReplicaSetsByName &map_a,
-                const MetaData::ReplicaSetsByName &map_b) {
-  return !(map_a == map_b);
+bool operator!=(const metadata_cache::ManagedCluster &cluster_a,
+                const metadata_cache::ManagedCluster &cluster_b) {
+  return !(cluster_a == cluster_b);
 }
 
 std::string to_string(metadata_cache::ServerMode mode) {
@@ -372,8 +349,8 @@ void MetadataCache::on_refresh_failed(bool terminated) {
     bool clearing;
     {
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      clearing = !replicaset_data_.empty();
-      if (clearing) replicaset_data_.clear();
+      clearing = !cluster_data_.empty();
+      if (clearing) cluster_data_.clear();
     }
     if (clearing) {
       log_info("... cleared current routing table as a precaution");
@@ -398,18 +375,12 @@ void MetadataCache::on_instances_changed(const bool md_servers_reachable,
   // information.
   trigger_acceptor_update_on_next_refresh_ = false;
 
-  auto instances = replicaset_lookup("" /*cluster_name_*/);
+  auto instances = get_cluster_nodes();
   {
-    std::lock_guard<std::mutex> lock(
-        replicaset_instances_change_callbacks_mtx_);
+    std::lock_guard<std::mutex> lock(cluster_instances_change_callbacks_mtx_);
 
-    for (auto &replicaset_clb : state_listeners_) {
-      const std::string replicaset_name = replicaset_clb.first;
-
-      for (auto each : state_listeners_[replicaset_name]) {
-        each->notify_instances_changed(instances, md_servers_reachable,
-                                       view_id);
-      }
+    for (auto &each : state_listeners_) {
+      each->notify_instances_changed(instances, md_servers_reachable, view_id);
     }
   }
 
@@ -420,19 +391,15 @@ void MetadataCache::on_instances_changed(const bool md_servers_reachable,
 }
 
 void MetadataCache::on_handle_sockets_acceptors() {
-  auto instances = replicaset_lookup("" /*cluster_name_*/);
+  auto instances = get_cluster_nodes();
   {
     std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
 
     trigger_acceptor_update_on_next_refresh_ = false;
-    for (auto &callbacks_info : acceptor_update_listeners_) {
-      const std::string replicaset_name = callbacks_info.first;
-
-      for (const auto &callback : acceptor_update_listeners_[replicaset_name]) {
-        // If setting up any acceptor failed we should retry on next md refresh
-        if (!callback->update_socket_acceptor_state(instances)) {
-          trigger_acceptor_update_on_next_refresh_ = true;
-        }
+    for (const auto &callback : acceptor_update_listeners_) {
+      // If setting up any acceptor failed we should retry on next md refresh
+      if (!callback->update_socket_acceptor_state(instances)) {
+        trigger_acceptor_update_on_next_refresh_ = true;
       }
     }
   }
@@ -452,48 +419,41 @@ void MetadataCache::mark_instance_reachability(
     const std::string &instance_id, metadata_cache::InstanceStatus status) {
   // If the status is that the primary or secondary instance is physically
   // unreachable, we enable "emergency mode" (temporarily increase the refresh
-  // rate to 1/s if currently lower) until the replicaset routing table
+  // rate to 1/s if currently lower) until the GR routing table
   // reflects this reality (or at least that is the the intent; in practice
   // this mechanism is buggy - see Metadata Cache module documentation in
   // Doxygen, section "Emergency mode")
 
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  // the replicaset that the given instance belongs to
   metadata_cache::ManagedInstance *instance = nullptr;
-  metadata_cache::ManagedReplicaSet *replicaset = nullptr;
-  for (auto &rs : replicaset_data_) {
-    for (auto &inst : rs.second.members) {
-      if (inst.mysql_server_uuid == instance_id) {
-        instance = &inst;
-        replicaset = &rs.second;
-        break;
-      }
+  for (auto &inst : cluster_data_.members) {
+    if (inst.mysql_server_uuid == instance_id) {
+      instance = &inst;
+      break;
     }
-    if (replicaset) break;
   }
 
   // If the instance got marked as invalid we want to trigger metadata-cache
   // update ASAP to aviod keeping try to route to that instance
-  if (replicaset) {
-    std::lock_guard<std::mutex> lplock(replicasets_with_unreachable_nodes_mtx_);
+  if (instance) {
     switch (status) {
       case metadata_cache::InstanceStatus::Reachable:
         break;
       case metadata_cache::InstanceStatus::InvalidHost:
         log_warning(
-            "Instance '%s:%i' [%s] of replicaset '%s' is invalid. Increasing "
+            "Instance '%s:%i' [%s] of cluster '%s' is invalid. Increasing "
             "metadata cache refresh frequency.",
             instance->host.c_str(), instance->port, instance_id.c_str(),
-            replicaset->name.c_str());
-        replicasets_with_unreachable_nodes_.insert(replicaset->name);
+            cluster_name().c_str());
+        has_unreachable_nodes = true;
         break;
       case metadata_cache::InstanceStatus::Unreachable:
         log_warning(
-            "Instance '%s:%i' [%s] of replicaset '%s' is unreachable. "
+            "Instance '%s:%i' [%s] of cluster '%s' is unreachable. "
             "Increasing metadata cache refresh frequency.",
             instance->host.c_str(), instance->port, instance_id.c_str(),
-            replicaset->name.c_str());
-        replicasets_with_unreachable_nodes_.insert(replicaset->name);
+            cluster_name().c_str());
+        has_unreachable_nodes = true;
         break;
       case metadata_cache::InstanceStatus::Unusable:
         break;
@@ -526,14 +486,10 @@ static bool primary_has_changed(
   return false;
 }
 
-bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
-                                          const std::string &server_uuid,
+bool MetadataCache::wait_primary_failover(const std::string &server_uuid,
                                           const std::chrono::seconds &timeout) {
-  log_debug(
-      "Waiting for PRIMARY of replicaset '%s' to change from [%s] to another "
-      "member for %lds",
-      replicaset_name.c_str(), server_uuid.c_str(),
-      static_cast<long>(timeout.count()));
+  log_debug("Waiting for failover to happen in '%s' for %lds",
+            cluster_name().c_str(), static_cast<long>(timeout.count()));
 
   using clock_type = std::chrono::steady_clock;
   const auto end_time = clock_type::now() + timeout;
@@ -541,7 +497,7 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
     if (terminated_) return false;
 
     // if we have a member, that's PRIMARY and not "server_uuid" -> success
-    if (primary_has_changed(replicaset_lookup(replicaset_name), server_uuid)) {
+    if (primary_has_changed(get_cluster_nodes(), server_uuid)) {
       return true;
     }
 
@@ -558,35 +514,31 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
   } while (clock_type::now() < end_time);
 
   // if we have a member, that's PRIMARY and not "server_uuid" -> success
-  return primary_has_changed(replicaset_lookup(replicaset_name), server_uuid);
+  return primary_has_changed(get_cluster_nodes(), server_uuid);
 }
 
 void MetadataCache::add_state_listener(
-    const std::string &replicaset_name,
-    metadata_cache::ReplicasetStateListenerInterface *listener) {
-  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  state_listeners_[replicaset_name].insert(listener);
+    metadata_cache::ClusterStateListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(cluster_instances_change_callbacks_mtx_);
+  state_listeners_.insert(listener);
 }
 
 void MetadataCache::remove_state_listener(
-    const std::string &replicaset_name,
-    metadata_cache::ReplicasetStateListenerInterface *listener) {
-  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  state_listeners_[replicaset_name].erase(listener);
+    metadata_cache::ClusterStateListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(cluster_instances_change_callbacks_mtx_);
+  state_listeners_.erase(listener);
 }
 
 void MetadataCache::add_acceptor_handler_listener(
-    const std::string &replicaset_name,
     metadata_cache::AcceptorUpdateHandlerInterface *listener) {
   std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
-  acceptor_update_listeners_[replicaset_name].insert(listener);
+  acceptor_update_listeners_.insert(listener);
 }
 
 void MetadataCache::remove_acceptor_handler_listener(
-    const std::string &replicaset_name,
     metadata_cache::AcceptorUpdateHandlerInterface *listener) {
   std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
-  acceptor_update_listeners_[replicaset_name].erase(listener);
+  acceptor_update_listeners_.erase(listener);
 }
 
 void MetadataCache::check_auth_metadata_timers() const {

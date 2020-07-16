@@ -63,7 +63,7 @@ bool RestMetadataCacheConfig::on_handle_request(
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
     auto md_api = metadata_cache::MetadataCacheAPI::instance();
-    auto group_members = md_api->lookup_replicaset("");
+    auto group_members = md_api->get_cluster_nodes();
 
     rapidjson::Value members(rapidjson::kArrayType);
 
