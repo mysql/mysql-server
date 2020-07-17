@@ -18650,7 +18650,7 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     new_tab->setFragmentCount(0);
     new_tab->setFragmentData(0,0);
     new_tab->setPartitionBalance(part_bal);
-    if (partition_balance_in_comment != nullptr) {
+    if (partition_balance_in_comment != NULL) {
       *partition_balance_in_comment = true;
     }
     DBUG_PRINT("info", ("parse_comment_changes: PartitionBalance: %s",
