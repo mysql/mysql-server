@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
 
 void Rpl_transaction_write_set_ctx::add_write_set(uint64 hash) {
   DBUG_TRACE;
+  DBUG_EXECUTE_IF("add_write_set_crash_no_memory", throw std::bad_alloc(););
   write_set.push_back(hash);
 }
 
