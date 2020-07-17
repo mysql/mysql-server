@@ -4614,10 +4614,12 @@
       tests are run. An excluded list (<b>excludenoskip.list</b>) is
       maintained to track which tests should continue to be skipped.
       The <b>`--no-skip`</b> option continues to skip the tests that
-      are named in the excluded list. The default value of
-      <b>--no-skip</b> introduced variable is OFF, which implies users
-      are not forced to run all tests unless the <b>--no-skip</b> is
-      explicitly used.
+      are named in the excluded list. In case the test or file invoking
+      the <b>`--skip`</b> command is not present in the excluded list, the
+      outcome of the test will be identified as <b>[ noskip-pass ]</b> or
+      <b>[ noskip-fail ]</b> .The default value of <b>--no-skip</b>
+      introduced variable is OFF, which implies users are not forced to
+      run all tests unless the <b>--no-skip</b> is explicitly used.
 
       @verbatim
   shell> mysql-test-run.pl --suite=innodb --no-skip

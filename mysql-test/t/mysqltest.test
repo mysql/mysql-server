@@ -3997,6 +3997,7 @@ DROP TABLE t1;
 EOF
 
 # Run the test
+--error 63
 --exec $MYSQL_TEST --no-skip -x $MYSQLTEST_VARDIR/tmp/bug26090322.test 2>&1
 
 # Cleanup

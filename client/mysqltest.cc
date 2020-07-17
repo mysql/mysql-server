@@ -203,6 +203,7 @@ static bool opt_mark_progress = false;
 static bool ps_protocol = false, ps_protocol_enabled = false;
 static bool sp_protocol = false, sp_protocol_enabled = false;
 static bool no_skip = false;
+static bool skip_ignored = false;
 static bool view_protocol = false, view_protocol_enabled = false;
 static bool opt_trace_protocol = false, opt_trace_protocol_enabled = false;
 static bool explain_protocol = false, explain_protocol_enabled = false;
@@ -1521,16 +1522,27 @@ static void cleanup_and_exit(int exit_code) {
   free_used_memory();
   my_end(my_end_arg);
 
+  enum test_exit_code { PASS, FAIL, SKIPPED = 62, NOSKIP_PASS, NOSKIP_FAIL };
+  if (skip_ignored) {
+    exit_code = (exit_code == PASS) ? NOSKIP_PASS : NOSKIP_FAIL;
+  }
+
   if (!silent) {
     switch (exit_code) {
-      case 1:
+      case FAIL:
         printf("not ok\n");
         break;
-      case 0:
+      case PASS:
         printf("ok\n");
         break;
-      case 62:
+      case SKIPPED:
         printf("skipped\n");
+        break;
+      case NOSKIP_PASS:
+        printf("noskip-passed\n");
+        break;
+      case NOSKIP_FAIL:
+        printf("noskip-failed\n");
         break;
       default:
         printf("unknown exit code: %d\n", exit_code);
@@ -9867,6 +9879,7 @@ int main(int argc, char **argv) {
               // File is not present in excluded list, ignore the skip
               // and continue running the test case
               command->last_argument = command->end;
+              skip_ignored = true;  // Mark as noskip pass or fail.
             }
           }
         } break;
