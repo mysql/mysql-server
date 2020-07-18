@@ -42,6 +42,8 @@ DROP ROLE r1, r2;
 DROP USER foo;
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection slave]
 include/start_slave.inc
 include/rpl_diff.inc
@@ -97,6 +99,8 @@ DROP ROLE r1, r2;
 DROP USER foo;
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection slave]
 include/start_slave.inc
 include/rpl_diff.inc

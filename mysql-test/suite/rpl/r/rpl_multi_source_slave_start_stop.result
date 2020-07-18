@@ -13,26 +13,36 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # 1) Execute START SLAVE IO_THREAD; io_threads of all channels shall start
 #
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 #
 # 2) Execute START SLAVE SQL_THREAD; sql_threads of all channels shall start
 #
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_start.inc]
 #
 #  Do stop slave IO_thread.  SQL threads must still be running
 #
 STOP SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_stop.inc]
 #
 #  Do  start slave.  IO threads should be up independently.
 #
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 #
 #  Do STOP SLAVE. All slave threads for all channnels must be down.
 #
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/rpl_for_each_connection.inc [include/wait_for_slave_to_stop.inc]
 #
 # 3) Check start and stop FOR CHANNEL, the inc files wait till
@@ -47,5 +57,5 @@ include/stop_slave_io.inc [FOR CHANNEL 'channel_1']
 # 3.d) Test STOP SLAVE SQL_THREAD FOR CHANNEL
 include/stop_slave_sql.inc [FOR CHANNEL 'channel_1']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

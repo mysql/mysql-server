@@ -9,6 +9,8 @@ include/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001
 ==== Test ====
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
 # Result on slave
 SELECT * FROM t1;
@@ -39,6 +41,8 @@ id
 19
 ==== Clean up ====
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/cleanup_fake_relay_log.inc
 DROP TABLE t1, t2;
 DROP PROCEDURE p1;

@@ -24,6 +24,8 @@ CALL mtr.add_suppression(".*The slave coordinator and worker threads are "
                          "stopped, possibly leaving data in inconsistent.*");
 include/assert.inc [count_transactions_retries should be greater than 0]
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [count_transactions_retries should be 0]
 [connection slave]
 ROLLBACK;

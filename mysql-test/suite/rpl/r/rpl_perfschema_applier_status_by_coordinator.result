@@ -55,6 +55,8 @@ include/stop_slave.inc
 drop table t;
 reset master;
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 reset master;
 
 # Restarting servers and setting up MTS now. Since, SQL thread and

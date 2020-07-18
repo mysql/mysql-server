@@ -92,6 +92,8 @@ Stopping slave
 RUN STOP SLAVE;
 
 0 rows affected
+Warnings generated:
+WARNING | 1287 | 'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Mysqlx.Ok {
   msg: "bye!"
 }

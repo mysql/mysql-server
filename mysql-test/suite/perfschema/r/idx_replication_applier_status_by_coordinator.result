@@ -84,6 +84,8 @@ SERVICE_STATE
 OK: handler_read_key incremented
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
 include/start_slave.inc
 include/rpl_end.inc

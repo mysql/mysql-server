@@ -7,8 +7,12 @@ create table t1 (n int);
 insert into t1 values(1);
 include/sync_slave_sql_with_master.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 insert into t1 values(2);
 include/sync_slave_sql_with_master.inc

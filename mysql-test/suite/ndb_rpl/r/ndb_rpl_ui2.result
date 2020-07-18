@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CREATE TABLE t1 (pk int primary key, uk int not null, unique(uk)) engine=ndb;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 insert into t1 values (1,1);
 insert into t1 values (2,2);
 begin;
@@ -17,6 +19,8 @@ insert into t1 values (1,1);
 insert into t1 values (2,2);
 commit;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 select * from t1;
 pk	uk
 1	1

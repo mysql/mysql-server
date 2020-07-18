@@ -76,4 +76,4 @@ include/assert.inc [server4 immediate_server_version must be equal to its own se
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
 include/rpl_reset_slave.inc
 include/group_replication_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';

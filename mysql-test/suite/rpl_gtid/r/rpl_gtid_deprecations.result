@@ -26,6 +26,8 @@ Warnings:
 Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
 CHANGE MASTER TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
 RESET SLAVE ALL FOR CHANNEL 'ch1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
 [connection master]
 include/rpl_reset.inc

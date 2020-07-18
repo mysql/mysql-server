@@ -200,6 +200,8 @@ channel_2	REPLICATE_WILD_DO_TABLE	te%.t%	CHANGE_REPLICATION_FILTER	0
 channel_2	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS	0
 channel_2	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS	0
 RESET SLAVE ALL FOR CHANNEL 'channel_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 7

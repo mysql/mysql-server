@@ -74,7 +74,7 @@ include/stop_group_replication.inc
 # 7. Check that it is not possible to modify/query write_concurrency value when server is in RECOVERING state.
 [connection server1]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 include/start_group_replication.inc
 SELECT group_replication_set_write_concurrency(111);
@@ -85,7 +85,7 @@ ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'
 # 8. Check that it is not possible to update wc value when a member is in ERROR state.
 [connection server1]
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 Wait until server2 becomes ONLINE
 CREATE TABLE t2 (a INT PRIMARY KEY);
 include/rpl_sync.inc

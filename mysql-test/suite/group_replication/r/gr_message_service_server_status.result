@@ -28,7 +28,7 @@ The tag and message was sent to the group.
 
 # 2.1. Stop applier on server2 to server1 be blocked when doing recovery
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 2.2. Start GR on server 1 and wait status is RECOVERING
 [connection server1]
@@ -49,7 +49,7 @@ The tag and message was sent to the group.
 
 # 3.1. Start applier on server2 to server1 finish recovery
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 3.2. Wait server1 change is status to ONLINE
 [connection server1]

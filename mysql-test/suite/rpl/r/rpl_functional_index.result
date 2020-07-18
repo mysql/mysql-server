@@ -101,6 +101,8 @@ INSERT INTO t1 (col1) VALUES (1), (2);
 include/wait_for_slave_sql_error.inc [errno=1062]
 DELETE FROM t1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 INSERT INTO t1 (col1) VALUES (3), (4);
 SELECT col1 FROM t1;
 col1

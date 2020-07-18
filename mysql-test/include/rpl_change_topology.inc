@@ -7,7 +7,7 @@
 # This file sets up variables needed by include/rpl_sync.inc and many
 # other replication scripts in the include/ directory.  It also issues
 # CHANGE MASTER on all servers where the configuration changes from
-# what it was before.  It does not issue START SLAVE (use
+# what it was before.  It does not issue START REPLICA (use
 # include/rpl_start_slaves.inc for that).
 #
 # Note: it is not currently possible to change the number of servers

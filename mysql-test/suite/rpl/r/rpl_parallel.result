@@ -6,8 +6,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression('Slave: Error dropping database');
 include/stop_slave.inc
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 insert into test0.benchmark set state='slave is processing load';
 start slave sql_thread;
 use test;

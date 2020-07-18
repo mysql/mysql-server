@@ -21,10 +21,14 @@ DROP TEMPORARY TABLE tmp2;
 ERROR 42S02: Unknown table 'test.tmp2'
 DROP TEMPORARY TABLE t1;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 **** On Master ****
 CREATE TEMPORARY TABLE tmp3 (a int);
 DROP TEMPORARY TABLE tmp3;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_reset.inc
 CREATE TABLE t1 ( i INT );
 SHOW STATUS LIKE 'Slave_open_temp_tables';

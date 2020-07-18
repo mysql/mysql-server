@@ -7,6 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 *** Heartbeat over SSL ***
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO 
 MASTER_HOST='127.0.0.1',
 MASTER_PORT=MASTER_PORT,

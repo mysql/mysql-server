@@ -8764,9 +8764,8 @@ stop_replica_stmt:
             lex->sql_command = SQLCOM_SLAVE_STOP;
             lex->type = 0;
             lex->slave_thd_opt= $3;
-            // TODO: enable the deprecation warning when test suites are fixed.
-            // if (lex->is_replication_deprecated_syntax_used())
-            //   push_deprecated_warn(YYTHD, "STOP SLAVE", "STOP REPLICA");
+            if (lex->is_replication_deprecated_syntax_used())
+              push_deprecated_warn(YYTHD, "STOP SLAVE", "STOP REPLICA");
           }
         ;
 
@@ -8781,9 +8780,8 @@ start_replica_stmt:
             /* We'll use mi structure for UNTIL options */
             lex->mi.set_unspecified();
             lex->slave_thd_opt= $3;
-            // TODO: enable the deprecation warning when test suites are fixed.
-            // if (lex->is_replication_deprecated_syntax_used())
-            //   push_deprecated_warn(YYTHD, "START SLAVE", "START REPLICA");
+            if (lex->is_replication_deprecated_syntax_used())
+              push_deprecated_warn(YYTHD, "START SLAVE", "START REPLICA");
           }
           opt_replica_until
           opt_user_option opt_password_option
@@ -13151,8 +13149,7 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
             Lex->set_replication_deprecated_syntax_used();
-            // TODO: enable deprecation warning when the test suites are to be fixed.
-            // push_deprecated_warn(YYTHD, "SHOW SLAVE HOSTS", "SHOW REPLICAS");
+            push_deprecated_warn(YYTHD, "SHOW SLAVE HOSTS", "SHOW REPLICAS");
           }
         | REPLICAS_SYM
           {
@@ -13375,10 +13372,8 @@ show_param:
         | replica STATUS_SYM opt_channel
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
-            // TODO: enable replication warning when fixing the test suites.
-            // if (Lex->is_replication_deprecated_syntax_used()) {
-            //   push_deprecated_warn(YYTHD, "SHOW SLAVE STATUS", "SHOW REPLICA STATUS");
-            // }
+            if (Lex->is_replication_deprecated_syntax_used())
+              push_deprecated_warn(YYTHD, "SHOW SLAVE STATUS", "SHOW REPLICA STATUS");
           }
         | CREATE PROCEDURE_SYM sp_name
           {
@@ -13744,8 +13739,7 @@ reset_option:
             {
               Lex->type|= REFRESH_SLAVE;
               Lex->set_replication_deprecated_syntax_used();
-              // TODO: enable deprecation warning when the test suites are to be fixed.
-              // push_deprecated_warn(YYTHD, "RESET SLAVE", "RESET REPLICA");
+              push_deprecated_warn(YYTHD, "RESET SLAVE", "RESET REPLICA");
             }
           opt_replica_reset_options opt_channel
         | REPLICA_SYM             { Lex->type|= REFRESH_REPLICA; }

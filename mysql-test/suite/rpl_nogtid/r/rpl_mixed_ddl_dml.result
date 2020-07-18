@@ -15,9 +15,13 @@ n
 SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id	Slave_UUID
 2	127.0.0.1	SLAVE_PORT	1	SLAVE_UUID
+Warnings:
+Warning	1287	'SHOW SLAVE HOSTS' is deprecated and will be removed in a future release. Please use SHOW REPLICAS instead
 drop table t1;
 include/sync_slave_sql_with_master.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 create table t2(id int auto_increment primary key, created datetime);
 set timestamp=12345;
@@ -29,6 +33,8 @@ create table t3 like t2;
 create temporary table t4 like t2;
 create table t5 select * from t4;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 select * from t2;
 id	created

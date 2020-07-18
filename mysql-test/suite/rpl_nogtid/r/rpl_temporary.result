@@ -94,6 +94,8 @@ include/sync_slave_sql_with_master.inc
 stop slave;
 insert into t5 select * from t4;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 select * from t5 /* must be 1 after reconnection */;
 f
 drop temporary table t4;

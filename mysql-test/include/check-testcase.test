@@ -13,32 +13,32 @@
 --disable_query_log
 
 # We want to ensure all slave configuration is restored. But SHOW
-# SLAVE STATUS returns nothing for servers not configured as slaves,
+# REPLICA STATUS returns nothing for servers not configured as slaves,
 # and (after BUG#28796 was fixed) there is no way to de-configure a
 # slave. Hence, it is impossible to clean up the replication state at
 # the end. But we want to check that the slave is stopped, there is
-# no error, and a few other invariants. So we issue SHOW SLAVE
+# no error, and a few other invariants. So we issue SHOW REPLICA
 # STATUS, and if it returns no rows we fake the result.
 --let $tmp= 0
 if (`SELECT @@server_id <> 0`) {
-  --let $tmp= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
+  --let $tmp= query_get_value(SHOW REPLICA STATUS, Replica_IO_Running, 1)
   --let $tmp= `SELECT '$tmp' = 'No such row'`
 }
 
 if ($tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
-  --echo Slave_IO_State	
-  --echo Master_Host	127.0.0.1
-  --echo Master_User	root
-  --echo Master_Port	#
+  --echo Replica_IO_State	
+  --echo Source_Host	127.0.0.1
+  --echo Source_User	root
+  --echo Source_Port	#
   --echo Connect_Retry	#
-  --echo Master_Log_File	#
-  --echo Read_Master_Log_Pos	#
+  --echo Source_Log_File	#
+  --echo Read_Source_Log_Pos	#
   --echo Relay_Log_File	#
   --echo Relay_Log_Pos	#
-  --echo Relay_Master_Log_File	#
-  --echo Slave_IO_Running	No
-  --echo Slave_SQL_Running	No
+  --echo Relay_Source_Log_File	#
+  --echo Replica_IO_Running	No
+  --echo Replica_SQL_Running	No
   --echo Replicate_Do_DB	#
   --echo Replicate_Ignore_DB	#
   --echo Replicate_Do_Table	#
@@ -48,44 +48,44 @@ if ($tmp) {
   --echo Last_Errno	0
   --echo Last_Error	
   --echo Skip_Counter	0
-  --echo Exec_Master_Log_Pos	#
+  --echo Exec_Source_Log_Pos	#
   --echo Relay_Log_Space	#
   --echo Until_Condition	#
   --echo Until_Log_File	#
   --echo Until_Log_Pos	#
-  --echo Master_SSL_Allowed	No
-  --echo Master_SSL_CA_File	
-  --echo Master_SSL_CA_Path	
-  --echo Master_SSL_Cert	
-  --echo Master_SSL_Cipher	
-  --echo Master_SSL_Key	
-  --echo Seconds_Behind_Master	NULL
-  --echo Master_SSL_Verify_Server_Cert	No
+  --echo Source_SSL_Allowed	No
+  --echo Source_SSL_CA_File	
+  --echo Source_SSL_CA_Path	
+  --echo Source_SSL_Cert	
+  --echo Source_SSL_Cipher	
+  --echo Source_SSL_Key	
+  --echo Seconds_Behind_Source	NULL
+  --echo Source_SSL_Verify_Server_Cert	No
   --echo Last_IO_Errno	0
   --echo Last_IO_Error	
   --echo Last_SQL_Errno	0
   --echo Last_SQL_Error	
   --echo Replicate_Ignore_Server_Ids	
-  --echo Master_Server_Id	#
-  --echo Master_UUID	#
-  --echo Master_Info_File	#
+  --echo Source_Server_Id	#
+  --echo Source_UUID	#
+  --echo Source_Info_File	#
   --echo SQL_Delay	0
   --echo SQL_Remaining_Delay	NULL
-  --echo Slave_SQL_Running_State	
-  --echo Master_Retry_Count	#
-  --echo Master_Bind	
+  --echo Replica_SQL_Running_State	
+  --echo Source_Retry_Count	#
+  --echo Source_Bind	
   --echo Last_IO_Error_Timestamp	
   --echo Last_SQL_Error_Timestamp	
-  --echo Master_SSL_Crl	
-  --echo Master_SSL_Crlpath	
+  --echo Source_SSL_Crl	
+  --echo Source_SSL_Crlpath	
   --echo Retrieved_Gtid_Set	#
   --echo Executed_Gtid_Set	#
   --echo Auto_Position	0
   --echo Replicate_Rewrite_DB	#
   --echo Channel_Name	#
-  --echo Master_TLS_Version	
-  --echo Master_public_key_path	
-  --echo Get_master_public_key	0
+  --echo Source_TLS_Version	
+  --echo Source_public_key_path	
+  --echo Get_Source_public_key	0
   --echo Network_Namespace	
 }
 
@@ -93,7 +93,7 @@ if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
   --replace_column 4 # 5 # 6 # 7 # 8 # 9 # 10 # 13 # 14 # 15 # 16 # 17 # 18 # 22 # 23 # 24 # 25 # 26 # 40 # 41 # 42 # 46 # 52 # 53 # 55 # 56 #
   query_vertical
-  SHOW SLAVE STATUS;
+  SHOW REPLICA STATUS;
 }
 
 # Check that the backup directory used for ndb tests have been

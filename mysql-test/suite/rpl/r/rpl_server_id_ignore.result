@@ -5,6 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 master_id: 1
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 *** --replicate-same-server-id and change master option can clash ***
 change master to IGNORE_SERVER_IDS= (2, 1);
 ERROR HY000: The requested server id 2 clashes with the slave startup option --replicate-same-server-id
@@ -14,6 +16,8 @@ change master to IGNORE_SERVER_IDS= (10, 100);
 *** must be 10, 100 ***
 ignore server id list: 10, 100
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 *** must be still (10,100) after reset slave ***
 ignore server id list: 10, 100
 change master to IGNORE_SERVER_IDS= (10, 100);
@@ -31,8 +35,12 @@ show tables;
 Tables_in_test
 *** allowing events from master ***
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 change master to IGNORE_SERVER_IDS= (10, 100);
 *** the list must remain (10, 100) after reset slave ***
 change master to IGNORE_SERVER_IDS= ();
@@ -42,6 +50,8 @@ ignore server id list:
 CHANGE MASTER TO IGNORE_SERVER_IDS= (10, 100);
 ignore server id list: 10, 100
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 change master to master_host='127.0.0.1', master_port=MASTER_PORT, master_user='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

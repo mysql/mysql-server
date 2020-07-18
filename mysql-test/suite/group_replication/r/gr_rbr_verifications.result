@@ -83,4 +83,6 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch2_1']
 [connection server1]
 include/stop_slave.inc [FOR CHANNEL 'ch2_1']
 RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/group_replication_end.inc

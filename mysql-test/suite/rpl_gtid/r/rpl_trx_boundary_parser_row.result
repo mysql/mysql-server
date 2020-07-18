@@ -295,6 +295,8 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
 RESET MASTER;
 [connection slave]

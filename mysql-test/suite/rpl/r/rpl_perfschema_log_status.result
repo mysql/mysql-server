@@ -35,6 +35,8 @@ ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privileg
 [connection slave]
 DROP USER user1@'%';
 RESET SLAVE ALL FOR CHANNEL 'ch1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 # Third step
 [connection slave1]
 LOCK INSTANCE FOR BACKUP;

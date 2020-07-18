@@ -32,6 +32,8 @@ include/assert.inc [PURGE BINARY LOGS successfully removed all but the latest fi
 [connection slave]
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
 include/stop_slave_sql.inc
 [connection master]
@@ -39,6 +41,8 @@ SET @saved_debug= @@GLOBAL.DEBUG;
 SET GLOBAL DEBUG= '+d,simulate_long_missing_gtids';
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
 include/stop_slave_sql.inc
 [connection master]
@@ -69,6 +73,8 @@ CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missin
 [connection slave]
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
 RESET MASTER;
 [connection slave]

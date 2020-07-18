@@ -10,6 +10,8 @@ set session sql_log_bin=1;
 SET @debug_saved= @@GLOBAL.DEBUG;
 include/start_group_replication.inc
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/rpl_gr_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
@@ -47,7 +49,11 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;

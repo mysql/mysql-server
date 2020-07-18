@@ -49,12 +49,16 @@ reset master;
 include/stop_slave.inc
 change master to master_port=SLAVE_PORT;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 *** must be having the replicate-same-server-id IO thread error ***
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).'
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave_sql.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_PORT=MASTER_PORT;;
 # Adding debug point 'dbug.simulate_no_such_var_server_uuid' to @@GLOBAL.debug
 include/start_slave_io.inc

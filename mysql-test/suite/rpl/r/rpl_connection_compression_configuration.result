@@ -347,22 +347,58 @@ Note	3084	Replication thread(s) for channel 'c7' are already stopped.
 Note	3084	Replication thread(s) for channel 'c8' are already stopped.
 Note	3084	Replication thread(s) for channel 'c9' are already stopped.
 RESET SLAVE ALL FOR CHANNEL 'c1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c10';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c11';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c12';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c13';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c14';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c15';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c16';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c17';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c21';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c3';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c4';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c5';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c6';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c7';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c8';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'c9';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
 include/rpl_end.inc

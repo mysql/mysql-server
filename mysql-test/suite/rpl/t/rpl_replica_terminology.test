@@ -1,5 +1,30 @@
+--let $rpl_skip_start_slave=1
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
+
+# Add data on source
+CREATE TABLE t1(a INT PRIMARY KEY);
+DROP TABLE t1;
+
+--let $source_pos=query_get_value('SHOW BINARY LOGS','File_size',1)
+--let $source_file=query_get_value('SHOW BINARY LOGS','Log_name',1)
+
+--source include/rpl_connection_slave.inc
+
+# Execute START REPLICA with MASTER_LOG_FILE and MASTER_LOG_POS param
+--replace_result $source_file source_file $source_pos source_pos
+--eval START REPLICA UNTIL MASTER_LOG_FILE='$source_file',MASTER_LOG_POS=$source_pos
+
+# Check Until_Condition value is 'Source' in the output of
+# SHOW REPLICA STATUS
+--let $replica_until_cond=query_get_value('SHOW REPLICA STATUS','Until_Condition',1)
+--let $assert_cond= "$replica_until_cond" = "Source"
+--let $assert_text= Until condition is 'source' on replica
+--source include/assert.inc
+
+--source include/wait_for_slave_sql_to_stop.inc
+# Start replication to continue
+--source include/start_slave.inc
 
 #
 # SHOW REPLICAS
