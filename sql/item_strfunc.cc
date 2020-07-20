@@ -3683,8 +3683,9 @@ bool Item_func_export_set::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 4)) return true;
   if (param_type_is_default(thd, 4, 5, MYSQL_TYPE_LONGLONG)) return true;
 
-  uint32 length = max(args[1]->max_char_length(), args[2]->max_char_length());
-  uint32 sep_length = (arg_count > 3 ? args[3]->max_char_length() : 1);
+  ulonglong length =
+      max(args[1]->max_char_length(), args[2]->max_char_length());
+  ulonglong sep_length = (arg_count > 3 ? args[3]->max_char_length() : 1);
 
   if (agg_arg_charsets_for_string_result(collation, args + 1,
                                          min(4U, arg_count) - 1))
