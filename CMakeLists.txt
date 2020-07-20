@@ -870,8 +870,9 @@ ELSE()
   OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
 ENDIF()
 
-IF(LINUX)
-  # ON by default in pushbuild.
+IF(LINUX_STANDALONE)
+  # ON by default in pushbuild, but only for standalone builds.
+  # The comression does not play well with some RPM/DEB packaging.
   # Developers can set default in environment.
   # Compressing debug sections will shink binaries significantly, esp
   # for RelWithDebInfo builds, at the cost of some extra link time.
