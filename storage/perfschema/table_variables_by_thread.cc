@@ -101,9 +101,9 @@ PFS_engine_table *table_variables_by_thread::create(PFS_engine_table_share *) {
 
 ha_rows table_variables_by_thread::get_row_count(void) {
   mysql_mutex_lock(&LOCK_plugin_delete);
-  mysql_mutex_lock(&LOCK_system_variables_hash);
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   ulong system_var_count = get_system_variable_hash_records();
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return (global_thread_container.get_row_count() * system_var_count);
 }

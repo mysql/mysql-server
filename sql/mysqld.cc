@@ -1007,7 +1007,6 @@ static PSI_mutex_key key_LOCK_manager;
 static PSI_mutex_key key_LOCK_crypt;
 static PSI_mutex_key key_LOCK_user_conn;
 static PSI_mutex_key key_LOCK_global_system_variables;
-static PSI_mutex_key key_LOCK_system_variables_hash;
 static PSI_mutex_key key_LOCK_prepared_stmt_count;
 static PSI_mutex_key key_LOCK_sql_slave_skip_counter;
 static PSI_mutex_key key_LOCK_slave_net_timeout;
@@ -1035,6 +1034,7 @@ static PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 static PSI_mutex_key key_BINLOG_LOCK_xids;
 static PSI_rwlock_key key_rwlock_global_sid_lock;
 PSI_rwlock_key key_rwlock_gtid_mode_lock;
+static PSI_rwlock_key key_rwlock_LOCK_system_variables_hash;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_connect;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_slave;
 static PSI_cond_key key_BINLOG_COND_done;
@@ -1439,11 +1439,6 @@ Rpl_filter *binlog_filter;
 Rpl_async_conn_failover_add_primary rpl_async_conn_failover_add_primary;
 Rpl_async_conn_failover_delete_primary rpl_async_conn_failover_delete_primary;
 
-/**
-  Global system variables.
-
-  Protected by @ref LOCK_global_system_variables.
-*/
 struct System_variables global_system_variables;
 struct System_variables max_system_variables;
 struct System_status_var global_status_var;
@@ -1467,31 +1462,9 @@ SHOW_COMP_OPTION have_statement_timeout = SHOW_OPTION_DISABLED;
 
 thread_local MEM_ROOT **THR_MALLOC = nullptr;
 
-mysql_mutex_t LOCK_status, LOCK_uuid_generator, LOCK_crypt, LOCK_user_conn,
-    LOCK_error_messages;
+mysql_mutex_t LOCK_status, LOCK_uuid_generator, LOCK_crypt,
+    LOCK_global_system_variables, LOCK_user_conn, LOCK_error_messages;
 mysql_mutex_t LOCK_sql_rand;
-
-/**
-  Serialize access to global system variables data.
-
-  This lock protects the data:
-  - @ref global_system_variables
-*/
-mysql_mutex_t LOCK_global_system_variables;
-
-/**
-  Serialize access to global system variables meta data.
-
-  This lock protects the metadata:
-  - @ref all_sys_vars
-  - @ref system_variable_hash
-  - @ref system_variable_hash_version
-  - @ref sys_var entries in the hash.
-  - @ref global_variables_dynamic_size
-  - @ref bookmark_hash
-  - @ref malloced_string_type_sysvars_bookmark_hash
-*/
-mysql_mutex_t LOCK_system_variables_hash;
 
 /**
   The below lock protects access to two global server variables:
@@ -1513,7 +1486,7 @@ mysql_mutex_t LOCK_slave_net_timeout;
 mysql_mutex_t LOCK_slave_trans_dep_tracker;
 mysql_mutex_t LOCK_log_throttle_qni;
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
-
+mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
 sigset_t mysqld_signal_mask;
 my_thread_attr_t connection_attrib;
@@ -2559,7 +2532,7 @@ static void clean_up_mutexes() {
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
-  mysql_mutex_destroy(&LOCK_system_variables_hash);
+  mysql_rwlock_destroy(&LOCK_system_variables_hash);
   mysql_mutex_destroy(&LOCK_uuid_generator);
   mysql_mutex_destroy(&LOCK_sql_rand);
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
@@ -4695,8 +4668,6 @@ int init_common_variables() {
   }
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
 
-  mysql_mutex_lock(&LOCK_system_variables_hash);
-
   longlong default_value;
   sys_var *var;
   /* Calculate and update default value for thread_cache_size. */
@@ -4710,8 +4681,6 @@ int init_common_variables() {
     default_value = 2000;
   var = intern_find_sys_var(STRING_WITH_LEN("host_cache_size"));
   var->update_default(default_value);
-
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
 
   /* Fix thread_cache_size. */
   if (!thread_cache_size_specified &&
@@ -4950,8 +4919,8 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_user_conn, &LOCK_user_conn, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_global_system_variables,
                    &LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_system_variables_hash, &LOCK_system_variables_hash,
-                   MY_MUTEX_INIT_FAST);
+  mysql_rwlock_init(key_rwlock_LOCK_system_variables_hash,
+                    &LOCK_system_variables_hash);
   mysql_mutex_init(key_LOCK_prepared_stmt_count, &LOCK_prepared_stmt_count,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_sql_slave_skip_counter,
@@ -5449,8 +5418,6 @@ static int setup_error_log_components() {
 
       flush_error_log_messages();
 
-      mysql_mutex_lock(&LOCK_system_variables_hash);
-
       /*
         We could not set the requested pipeline.
         Try to fall back to default error logging stack
@@ -5480,8 +5447,6 @@ static int setup_error_log_components() {
           low-level write diagnostics, then abort.
         */
       }
-
-      mysql_mutex_unlock(&LOCK_system_variables_hash);
 
       /*
         We failed to set the default error logging stack (or failed to look
@@ -5513,16 +5478,12 @@ static int setup_error_log_components() {
       will render correct results.
     */
 
-    mysql_mutex_lock(&LOCK_system_variables_hash);
-
     sys_var *var = intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
     char *default_services = nullptr;
 
     if ((var != nullptr) &&
         ((default_services = (char *)var->get_default()) != nullptr))
       log_builtins_error_stack(default_services, false, nullptr);
-
-    mysql_mutex_unlock(&LOCK_system_variables_hash);
 
     // Report that we're falling back to the default value.
     LogErr(WARNING_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
@@ -6610,24 +6571,13 @@ int mysqld_main(int argc, char **argv)
 
   heo_error = handle_early_options();
 
-  /* Perform the bare minimum initialization to setup system variables. */
-  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_system_variables_hash,
-                   MY_MUTEX_INIT_FAST);
-
   init_sql_statement_names();
   sys_var_init();
   ulong requested_open_files = 0;
 
   //  Init error log subsystem. This does not actually open the log yet.
   if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
-
-  if (!opt_validate_config) {
-    /* This changes default values in system variables. */
-    adjust_related_options(&requested_open_files);
-  }
-
-  /* This mutex will be re initialized with instrumentation later. */
-  mysql_mutex_destroy(&LOCK_system_variables_hash);
+  if (!opt_validate_config) adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (heo_error == 0) {
@@ -6818,7 +6768,7 @@ int mysqld_main(int argc, char **argv)
 
   /*
     Now that some instrumentation is in place,
-    recreate objects which were initialized early,
+    recreate objects which were initialised early,
     so that they are instrumented as well.
   */
   my_thread_global_reinit();
@@ -7380,8 +7330,8 @@ int mysqld_main(int argc, char **argv)
   start_signal_handler();
 #endif
 
-  /* set all (non plugin) persistent options */
-  if (persisted_variables_cache.set_persist_options(false)) {
+  /* set all persistent options */
+  if (persisted_variables_cache.set_persist_options()) {
     LogErr(ERROR_LEVEL, ER_CANT_SET_UP_PERSISTED_VALUES);
     flush_error_log_messages();
     return 1;
@@ -8028,14 +7978,10 @@ static void adjust_table_def_size() {
   ulong default_value;
   sys_var *var;
 
-  mysql_mutex_lock(&LOCK_system_variables_hash);
-
   default_value = min<ulong>(400 + table_cache_size / 2, 2000);
   var = intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
   DBUG_ASSERT(var != nullptr);
   var->update_default(default_value);
-
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
 
   if (!table_definition_cache_specified) table_def_size = default_value;
 }
@@ -10163,8 +10109,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
       LogErr(ERROR_LEVEL, ER_CANT_SET_ERROR_SUPPRESSION_LIST_FROM_COMMAND_LINE,
              "log_error_suppression_list", &opt_log_error_suppression_list[rr]);
 
-      mysql_mutex_lock(&LOCK_system_variables_hash);
-
       /*
         We were given an illegal value at start-up, so the default will be
         used instead. We have reported the problem (and the dodgy value);
@@ -10191,7 +10135,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
           DBUG_ASSERT(false); /* purecov: inspected */
         }
       }
-      mysql_mutex_unlock(&LOCK_system_variables_hash);
     }
   }
 
@@ -10967,7 +10910,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #if defined(_WIN32)
   { &key_LOCK_handler_count, "LOCK_handler_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #endif
@@ -11052,6 +10994,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_channel_map_lock, "channel_map_lock", 0, 0, PSI_DOCUMENT_ME},

@@ -145,39 +145,34 @@ static int get_utf8_config(THD *thd, std::string config_name,
   char val_buf[1024];
   SHOW_VAR show;
   show.type = SHOW_SYS;
-  int rc;
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_system_variables_hash);
 
   /* Get system configuration parameter. */
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   auto var = intern_find_sys_var(config_name.c_str(), config_name.length());
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   if (var == nullptr) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Clone failed to get system configuration parameter.");
-    rc = ER_INTERNAL_ERROR;
-  } else {
-    show.value = reinterpret_cast<char *>(var);
-    show.name = var->name.str;
-
-    size_t val_length;
-    const CHARSET_INFO *fromcs;
-    uint dummy_err;
-    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-
-    auto value = get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr,
-                                  &fromcs, val_buf, &val_length);
-
-    utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
-
-    rc = 0;
+    return (ER_INTERNAL_ERROR);
   }
 
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
+  show.value = reinterpret_cast<char *>(var);
+  show.name = var->name.str;
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  size_t val_length;
+  const CHARSET_INFO *fromcs;
+
+  auto value = get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr,
+                                &fromcs, val_buf, &val_length);
+
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
-  return rc;
+  uint dummy_err;
+  const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
+  utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
+  return (0);
 }
 
 DEFINE_METHOD(int, mysql_clone_get_configs,

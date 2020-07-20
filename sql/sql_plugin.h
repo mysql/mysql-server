@@ -44,7 +44,6 @@ class I_List;
 
 extern const char *global_plugin_typelib_names[];
 extern mysql_mutex_t LOCK_plugin;
-extern mysql_mutex_t LOCK_plugin_ref;
 extern mysql_mutex_t LOCK_plugin_delete;
 
 #ifdef DBUG_OFF
@@ -185,7 +184,7 @@ extern void plugin_thdvar_cleanup(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_safe_update(THD *thd, SYS_VAR *var, char **dest,
                                       const char *value);
 extern bool check_valid_path(const char *path, size_t length);
-extern void alloc_and_copy_thd_dynamic_variables(THD *thd);
+extern void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock);
 
 typedef bool(plugin_foreach_func)(THD *thd, plugin_ref plugin, void *arg);
 #define plugin_foreach(A, B, C, D) \
@@ -194,6 +193,8 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);
 extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
+int lock_plugin_data();
+int unlock_plugin_data();
 
 bool end_transaction(THD *thd, bool error);
 

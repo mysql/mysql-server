@@ -71,21 +71,9 @@
 using std::min;
 using std::string;
 
-/**
-  Collection of all system variables.
-
-  Protected by @ref LOCK_system_variables_hash.
-*/
 static collation_unordered_map<string, sys_var *> *system_variable_hash;
-
 static PolyLock_mutex PLock_global_system_variables(
     &LOCK_global_system_variables);
-
-/**
-  Version number for @ref system_variable_hash.
-
-  Protected by @ref LOCK_system_variables_hash.
-*/
 ulonglong system_variable_hash_version = 0;
 
 collation_unordered_map<string, sys_var *> *get_system_variable_hash(void) {
@@ -105,7 +93,7 @@ bool get_sysvar_source(const char *name, uint length,
   bool ret = false;
   sys_var *sysvar = nullptr;
 
-  mysql_mutex_lock(&LOCK_system_variables_hash);
+  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
   /* system_variable_hash should have been initialized. */
   DBUG_ASSERT(get_system_variable_hash() != nullptr);
@@ -118,23 +106,14 @@ bool get_sysvar_source(const char *name, uint length,
     *source = sysvar->get_source();
   }
 
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
-
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
   return ret;
 }
 
-/**
-  List of all system variables.
-
-  Protected by @ref LOCK_system_variables_hash.
-*/
 sys_var_chain all_sys_vars = {nullptr, nullptr};
 
 int sys_var_init() {
   DBUG_TRACE;
-  int rc;
-
-  mysql_mutex_lock(&LOCK_system_variables_hash);
 
   /* Must be already initialized. */
   DBUG_ASSERT(system_charset_info != nullptr);
@@ -146,16 +125,13 @@ int sys_var_init() {
       {PERSIST_ONLY_ADMIN_X509_SUBJECT, PERSISTED_GLOBALS_LOAD},
       system_charset_info, PSI_INSTRUMENT_ME);
 
-  rc = mysql_add_sys_var_chain(all_sys_vars.first);
-
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
-
-  if (rc) {
-    LogErr(ERROR_LEVEL, ER_FAILED_TO_INIT_SYS_VAR);
-    return 1;
-  }
+  if (mysql_add_sys_var_chain(all_sys_vars.first)) goto error;
 
   return 0;
+
+error:
+  LogErr(ERROR_LEVEL, ER_FAILED_TO_INIT_SYS_VAR);
+  return 1;
 }
 
 int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags) {
@@ -318,23 +294,8 @@ bool sys_var::update(THD *thd, set_var *var) {
     */
     AutoWLock lock1(&PLock_global_system_variables);
     AutoWLock lock2(guard);
-
-    /*
-      Flag that this code now executes a global system variable update function.
-      Some system functions are very complex,
-      and involves a lot of code, including:
-      - reading other system variables,
-      - performing table io, which executes code in a storage engine,
-      which can result in reentrant calls to system variables.
-
-    */
-    DBUG_ASSERT(thd != nullptr);
-    DBUG_ASSERT(!thd->m_inside_system_variable_global_update);
-    thd->m_inside_system_variable_global_update = true;
-    bool rc = global_update(thd, var) ||
-              (on_update && on_update(this, thd, OPT_GLOBAL));
-    thd->m_inside_system_variable_global_update = false;
-    return rc;
+    return global_update(thd, var) ||
+           (on_update && on_update(this, thd, OPT_GLOBAL));
   } else {
     /* Block reads from other threads. */
     mysql_mutex_lock(&thd->LOCK_thd_sysvar);
@@ -619,7 +580,7 @@ const CHARSET_INFO *get_old_charset_by_name(const char *name) {
 int mysql_add_sys_var_chain(sys_var *first) {
   sys_var *var;
 
-  mysql_mutex_assert_owner(&LOCK_system_variables_hash);
+  /* A write lock should be held on LOCK_system_variables_hash */
 
   for (var = first; var; var = var->next) {
     /* this fails if there is a conflicting variable name. */
@@ -654,7 +615,7 @@ error:
 int mysql_del_sys_var_chain(sys_var *first) {
   int result = 0;
 
-  mysql_mutex_assert_owner(&LOCK_system_variables_hash);
+  /* A write lock should be held on LOCK_system_variables_hash */
 
   for (sys_var *var = first; var; var = var->next)
     result |= !system_variable_hash->erase(to_string(var->name));
@@ -680,19 +641,19 @@ static int show_cmp(const void *a, const void *b) {
                 static_cast<const SHOW_VAR *>(b)->name);
 }
 
-/**
+/*
   Number of records in the system_variable_hash.
+  Requires lock on LOCK_system_variables_hash.
 */
 ulong get_system_variable_hash_records(void) {
-  mysql_mutex_assert_owner(&LOCK_system_variables_hash);
   return (system_variable_hash->size());
 }
 
-/**
+/*
   Current version of the system_variable_hash.
+  Requires lock on LOCK_system_variables_hash.
 */
 ulonglong get_system_variable_hash_version(void) {
-  mysql_mutex_assert_owner(&LOCK_system_variables_hash);
   return (system_variable_hash_version);
 }
 
@@ -775,7 +736,10 @@ bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
 sys_var *intern_find_sys_var(const char *str, size_t length) {
   sys_var *var;
 
-  mysql_mutex_assert_owner(&LOCK_system_variables_hash);
+  /*
+    This function is only called from the sql_plugin.cc.
+    A lock on LOCK_system_variable_hash should be held
+  */
   var = find_or_nullptr(*system_variable_hash,
                         string(str, length ? length : strlen(str)));
 

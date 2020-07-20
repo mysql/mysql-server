@@ -1548,14 +1548,18 @@ static void validate_user_plugin_records() {
   DBUG_TRACE;
   if (!validate_user_plugins) return;
 
+  lock_plugin_data();
   for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
        ++acl_user) {
+    struct st_plugin_int *plugin;
+
     if (acl_user->plugin.length) {
       /* rule 1 : plugin does exit */
       if (!auth_plugin_is_built_in(acl_user->plugin.str)) {
-        bool ready =
-            plugin_is_ready(acl_user->plugin, MYSQL_AUTHENTICATION_PLUGIN);
-        if (!ready) {
+        plugin =
+            plugin_find_by_type(acl_user->plugin, MYSQL_AUTHENTICATION_PLUGIN);
+
+        if (!plugin) {
           LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_MISSING,
                  (int)acl_user->plugin.length, acl_user->plugin.str,
                  acl_user->user,
@@ -1572,6 +1576,7 @@ static void validate_user_plugin_records() {
       }
     }
   }
+  unlock_plugin_data();
 }
 
 /**

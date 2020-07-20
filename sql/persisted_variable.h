@@ -106,7 +106,7 @@ class Persisted_variables_cache {
   /**
     Set persisted options
   */
-  bool set_persist_options(bool plugin_options);
+  bool set_persist_options(bool plugin_options = false);
   /**
     Reset persisted options
   */

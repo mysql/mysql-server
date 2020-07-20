@@ -659,6 +659,9 @@ void transaction_cache_free();
 
 bool applier_reset_xa_trans(THD *thd);
 
+/* interface to randomly access plugin data */
+struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
+
 /**
   The function detaches existing storage engines transaction
   context from thd. Backup area to save it is provided to low level

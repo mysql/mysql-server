@@ -679,7 +679,6 @@ extern mysql_mutex_t LOCK_collect_instance_log;
 extern mysql_mutex_t LOCK_tls_ctx_options;
 extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
-extern mysql_mutex_t LOCK_system_variables_hash;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -687,6 +686,7 @@ extern mysql_cond_t COND_manager;
 
 extern mysql_rwlock_t LOCK_sys_init_connect;
 extern mysql_rwlock_t LOCK_sys_init_slave;
+extern mysql_rwlock_t LOCK_system_variables_hash;
 
 extern ulong opt_ssl_fips_mode;
 

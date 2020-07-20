@@ -367,8 +367,6 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
   args.m_file_name = file_name;
   args.m_file = file;
 
-  mysql_mutex_lock(&LOCK_system_variables_hash);
-
   // Set server default sql_mode irrespective of mysqld server command line
   // argument.
   thd->variables.sql_mode = intern_find_sys_var("sql_mode", 0)->get_default();
@@ -394,8 +392,6 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
   */
   thd->variables.explicit_defaults_for_timestamp =
       intern_find_sys_var("explicit_defaults_for_timestamp", 0)->get_default();
-
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
 
   /*
     The global table encryption default setting applies to user threads.

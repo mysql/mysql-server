@@ -90,9 +90,9 @@ PFS_engine_table *table_session_variables::create(PFS_engine_table_share *) {
 
 ha_rows table_session_variables::get_row_count(void) {
   mysql_mutex_lock(&LOCK_plugin_delete);
-  mysql_mutex_lock(&LOCK_system_variables_hash);
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   ha_rows system_var_count = get_system_variable_hash_records();
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return system_var_count;
 }

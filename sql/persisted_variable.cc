@@ -665,8 +665,6 @@ bool Persisted_variables_cache::load_persist_file() {
     @retval false Success
 */
 bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
-  mysql_mutex_assert_not_owner(&LOCK_global_system_variables);
-
   THD *thd;
   LEX lex_tmp, *sav_lex = nullptr;
   List<set_var_base> tmp_var_list;
@@ -715,10 +713,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     thd->set_security_context(ctx.get());
     thd->real_id = my_thread_self();
     new_thd = true;
-
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    alloc_and_copy_thd_dynamic_variables(thd);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
+    alloc_and_copy_thd_dynamic_variables(thd, !plugin_options);
   }
   /*
    locking is not needed as this function is executed only during server
@@ -747,8 +742,6 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
 
     LEX_CSTRING base_name = {var_name.c_str(), var_name.length()};
 
-    mysql_mutex_lock(&LOCK_system_variables_hash);
-
     sysvar = intern_find_sys_var(var_name.c_str(), var_name.length());
     if (sysvar == nullptr) {
       /*
@@ -759,7 +752,6 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
       m_persist_plugin_variables.push_back(*iter);
       LogErr(WARNING_LEVEL, ER_UNKNOWN_VARIABLE_IN_PERSISTED_CONFIG_FILE,
              var_name.c_str());
-      mysql_mutex_unlock(&LOCK_system_variables_hash);
       continue;
     }
     switch (sysvar->show_type()) {
@@ -798,14 +790,11 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
       default:
         my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
         result = true;
-        mysql_mutex_unlock(&LOCK_global_system_variables);
         goto err;
     }
 
     var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, base_name, res);
     tmp_var_list.push_back(var);
-
-    mysql_mutex_unlock(&LOCK_system_variables_hash);
 
     if (sql_set_variables(thd, &tmp_var_list, false)) {
       /*

@@ -190,9 +190,8 @@ uchar *intern_sys_var_ptr(THD *thd, int offset, bool global_lock) {
   DBUG_ASSERT(offset >= 0);
   DBUG_ASSERT((uint)offset <= global_system_variables.dynamic_variables_head);
 
-  if (!thd) {
+  if (!thd)
     return (uchar *)global_system_variables.dynamic_variables_ptr + offset;
-  }
 
   /*
     dynamic_variables_head points to the largest valid offset
@@ -200,15 +199,9 @@ uchar *intern_sys_var_ptr(THD *thd, int offset, bool global_lock) {
   if (!thd->variables.dynamic_variables_ptr ||
       (uint)offset > thd->variables.dynamic_variables_head) {
     /* Current THD only. Don't trigger resync on remote THD. */
-    if (current_thd == thd) {
-      if (global_lock) {
-        mysql_mutex_lock(&LOCK_global_system_variables);
-      }
-      alloc_and_copy_thd_dynamic_variables(thd);
-      if (global_lock) {
-        mysql_mutex_unlock(&LOCK_global_system_variables);
-      }
-    } else
+    if (current_thd == thd)
+      alloc_and_copy_thd_dynamic_variables(thd, global_lock);
+    else
       return (uchar *)global_system_variables.dynamic_variables_ptr + offset;
   }
 
@@ -365,7 +358,6 @@ bool sys_var_pluginvar::session_update(THD *thd, set_var *var) {
 bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
   bool rc = false;
   DBUG_ASSERT(!is_readonly());
-
   mysql_mutex_assert_owner(&LOCK_global_system_variables);
 
   void *tgt = real_value_ptr(thd, var->type);
@@ -800,7 +792,7 @@ void update_func_double(THD *, SYS_VAR *, void *tgt, const void *save) {
 /*
   called by register_var, construct_options and test_plugin_options.
   Returns the 'bookmark' for the named variable.
-  LOCK_global_system_variables should be locked.
+  LOCK_system_variables_hash should be at least read locked
 */
 st_bookmark *find_bookmark(const char *plugin, const char *name, int flags) {
   size_t namelen, length, pluginlen = 0;
