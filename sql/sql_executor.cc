@@ -1270,8 +1270,15 @@ static AccessPath *NewWeedoutAccessPathForTables(
       // See JOIN::add_sorting_to_table() for rationale.
       Filesort *filesort = qep_tabs[i].filesort;
       if (filesort != nullptr) {
-        DBUG_ASSERT(filesort->m_sort_param.m_addon_fields_status ==
-                    Addon_fields_status::unknown_status);
+        if (filesort->m_sort_param.m_addon_fields_status !=
+            Addon_fields_status::unknown_status) {
+          // This can happen in the exceptional case that there's an extra
+          // weedout added after-the-fact due to nonhierarchical weedouts
+          // (see FindSubstructure for details). Note that our caller will
+          // call FindTablesToGetRowidFor() if needed, which should overwrite
+          // the previous (now wrong) decision there.
+          filesort->clear_addon_fields();
+        }
         filesort->m_force_sort_positions = true;
       }
     }

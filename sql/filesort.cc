@@ -215,6 +215,11 @@ void Sort_param::decide_addon_fields(Filesort *file_sort,
   }
 }
 
+void Sort_param::clear_addon_fields() {
+  m_addon_fields_status = Addon_fields_status::unknown_status;
+  addon_fields = nullptr;
+}
+
 void Sort_param::init_for_filesort(Filesort *file_sort,
                                    Bounds_checked_array<st_sort_field> sf_array,
                                    uint sortlen,
@@ -2262,6 +2267,8 @@ bool Filesort::using_addon_fields() {
   }
   return m_sort_param.using_addon_fields();
 }
+
+void Filesort::clear_addon_fields() { m_sort_param.clear_addon_fields(); }
 
 /*
 ** functions to change a double or float to a sortable string

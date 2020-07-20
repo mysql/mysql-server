@@ -328,6 +328,10 @@ class Sort_param {
                            const Prealloced_array<TABLE *, 4> &tables,
                            bool sort_positions);
 
+  /// Reset the decision made in decide_addon_fields(). Only used in exceptional
+  /// circumstances (see NewWeedoutAccessPathForTables()).
+  void clear_addon_fields();
+
   /**
     Initialize this struct for filesort() usage.
     @see description of record layout above

@@ -89,6 +89,10 @@ class Filesort {
   /// order is properly set up.
   bool using_addon_fields();
 
+  /// Reset the decision made in using_addon_fields(). Only used in exceptional
+  /// circumstances (see NewWeedoutAccessPathForTables()).
+  void clear_addon_fields();
+
  private:
   /* Prepare ORDER BY list for sorting. */
   uint make_sortorder(ORDER *order, bool unwrap_rollup);
