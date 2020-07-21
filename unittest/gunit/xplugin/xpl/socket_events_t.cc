@@ -40,7 +40,7 @@ TEST_F(Socket_events_task_suite, loop_doesnt_block_when_no_events) {
 }
 
 TEST_F(Socket_events_task_suite, execute_loop_until_no_events) {
-  int execution_count = 4;
+  std::atomic<uint64_t> execution_count{4};
   m_sut.add_timer(10, [&execution_count]() { return --execution_count; });
   m_sut.loop();
   ASSERT_EQ(0, execution_count);
@@ -48,7 +48,7 @@ TEST_F(Socket_events_task_suite, execute_loop_until_no_events) {
 
 TEST_F(Socket_events_task_suite,
        break_loop_is_queued_and_ignores_active_events) {
-  int execution_count = 0;
+  std::atomic<uint64_t> execution_count{0};
 
   m_sut.break_loop();
   m_sut.add_timer(10, [&execution_count]() {
@@ -60,10 +60,11 @@ TEST_F(Socket_events_task_suite,
 }
 
 TEST_F(Socket_events_task_suite, break_loop_from_thread) {
-  std::atomic<int> execution_count;
+  std::atomic<uint64_t> execution_count{0};
 
   std::thread break_thread{[this, &execution_count]() {
     while (execution_count.load() < 10) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(0));
     }
     m_sut.break_loop();
   }};
@@ -78,10 +79,11 @@ TEST_F(Socket_events_task_suite, break_loop_from_thread) {
 }
 
 TEST_F(Socket_events_task_suite, break_loop_from_thread_always_active) {
-  std::atomic<int> execution_count;
+  std::atomic<uint64_t> execution_count{0};
 
   std::thread break_thread{[this, &execution_count]() {
     while (execution_count.load() < 10) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(0));
     }
     m_sut.break_loop();
   }};
