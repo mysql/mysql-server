@@ -219,7 +219,12 @@ static AccessPath *FindSingleAccessPathOfType(AccessPath *path,
 
 static RowIterator *FindSingleIteratorOfType(AccessPath *path,
                                              AccessPath::Type type) {
-  return FindSingleAccessPathOfType(path, type)->iterator->real_iterator();
+  AccessPath *found_path = FindSingleAccessPathOfType(path, type);
+  if (found_path == nullptr) {
+    return nullptr;
+  } else {
+    return found_path->iterator->real_iterator();
+  }
 }
 
 table_map GetUsedTables(const AccessPath *path) {
