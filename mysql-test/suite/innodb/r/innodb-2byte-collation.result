@@ -69,10 +69,11 @@ ucs2_vn_ci	ucs2	359
 ucs2_5624_1	ucs2	360
 utf8_5624_5	utf8	368
 utf32_test_ci	utf32	391
+latin1_test	latin1	1025
 utf8_maxuserid_ci	utf8	2047
 show collation like '%test%';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-latin1_test	latin1	99		Yes	1	PAD SPACE
+latin1_test	latin1	1025			0	PAD SPACE
 ucs2_test_ci	ucs2	358			8	PAD SPACE
 utf16_test_ci	utf16	327			8	PAD SPACE
 utf32_test_ci	utf32	391			8	PAD SPACE

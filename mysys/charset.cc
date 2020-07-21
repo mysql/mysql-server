@@ -209,18 +209,28 @@ static void copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from) {
   to->state |= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_STRNXFRM | MY_CS_UNICODE;
 }
 
-static int add_collation(CHARSET_INFO *cs) {
-  // Disallow overwriting internal character sets.
-  if (cs->name == nullptr || get_collation_number_internal(cs->name) != 0) {
-    return MY_XML_OK;  // Just ignore it.
-  }
+static void clear_cs_info(CHARSET_INFO *cs) {
+  cs->number = 0;
+  cs->primary_number = 0;
+  cs->binary_number = 0;
+  cs->name = nullptr;
+  cs->state = 0;
+  cs->sort_order = nullptr;
+}
 
-  if (cs->number != 0 && cs->number < array_elements(all_charsets)) {
+static int add_collation(CHARSET_INFO *cs) {
+  if (cs->name &&
+      (cs->number || (cs->number = get_collation_number_internal(cs->name))) &&
+      cs->number < array_elements(all_charsets)) {
     if (!all_charsets[cs->number]) {
       if (!(all_charsets[cs->number] =
                 (CHARSET_INFO *)my_once_alloc(sizeof(CHARSET_INFO), MYF(0))))
         return MY_XML_ERROR;
       memset(all_charsets[cs->number], 0, sizeof(CHARSET_INFO));
+    } else if (all_charsets[cs->number]->state & MY_CS_COMPILED) {
+      // Disallow overwriting compiled character sets
+      clear_cs_info(cs);
+      return MY_XML_OK;  // Just ignore it.
     }
 
     if (cs->primary_number == cs->number) cs->state |= MY_CS_PRIMARY;
@@ -306,13 +316,7 @@ static int add_collation(CHARSET_INFO *cs) {
         if (!(dst->name = my_once_strdup(cs->name, MYF(MY_WME))))
           return MY_XML_ERROR;
     }
-    cs->number = 0;
-    cs->primary_number = 0;
-    cs->binary_number = 0;
-    cs->name = nullptr;
-    cs->state = 0;
-    cs->sort_order = nullptr;
-    cs->state = 0;
+    clear_cs_info(cs);
   }
   return MY_XML_OK;
 }
@@ -922,7 +926,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
 
 void charset_uninit() {
   for (CHARSET_INFO *cs : all_charsets) {
-    if (cs && cs->coll->uninit) {
+    if (cs && cs->coll && cs->coll->uninit) {
       cs->coll->uninit(cs);
     }
   }
