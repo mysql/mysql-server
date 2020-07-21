@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -6340,6 +6340,7 @@ struct fil_iterator_t {
 	byte*		io_buffer;		/*!< Buffer to use for IO */
 	byte*		encryption_key;		/*!< Encryption key */
 	byte*		encryption_iv;		/*!< Encryption iv */
+	size_t		block_size;		/*!< FS Block Size */
 };
 
 /********************************************************************//**
@@ -6414,6 +6415,7 @@ fil_iterate(
 
 		dberr_t		err;
 		IORequest	read_request(read_type);
+		read_request.block_size(iter.block_size);
 
 		/* For encrypted table, set encryption information. */
 		if (iter.encryption_key != NULL && offset != 0) {
@@ -6460,6 +6462,7 @@ fil_iterate(
 		}
 
 		IORequest	write_request(write_type);
+		write_request.block_size(iter.block_size);
 
 		/* For encrypted table, set encryption information. */
 		if (iter.encryption_key != NULL && offset != 0) {
@@ -6567,6 +6570,17 @@ fil_tablespace_iterate(
 		err = DB_SUCCESS;
 	}
 
+	/* Set File System Block Size */
+	size_t block_size;
+	{
+		os_file_stat_t stat_info;
+
+		ut_d(dberr_t err =) os_file_get_status(filepath, &stat_info, false, false);
+		ut_ad(err == DB_SUCCESS);
+
+		block_size = stat_info.block_size;
+	}
+
 	callback.set_file(filepath, file);
 
 	os_offset_t	file_size = os_file_get_size(file);
@@ -6609,6 +6623,7 @@ fil_tablespace_iterate(
 		iter.file_size = file_size;
 		iter.n_io_buffers = n_io_buffers;
 		iter.page_size = callback.get_page_size().physical();
+		iter.block_size = block_size;
 
 		/* Set encryption info. */
 		iter.encryption_key = table->encryption_key;
