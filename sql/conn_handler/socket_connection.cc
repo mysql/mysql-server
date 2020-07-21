@@ -1227,6 +1227,16 @@ static inline bool spawn_admin_thread(MYSQL_SOCKET admin_socket,
   return false;
 }
 
+bool Mysqld_socket_listener::check_and_spawn_admin_connection_handler_thread()
+    const {
+  if (m_use_separate_thread_for_admin) {
+    if (spawn_admin_thread(m_admin_interface_listen_socket,
+                           m_admin_bind_address.network_namespace))
+      return true;
+  }
+  return false;
+}
+
 bool Mysqld_socket_listener::setup_listener() {
   /*
     It's matter to add a socket for admin connection listener firstly,
@@ -1244,11 +1254,7 @@ bool Mysqld_socket_listener::setup_listener() {
 
     m_admin_interface_listen_socket = mysql_socket;
 
-    if (m_use_separate_thread_for_admin) {
-      if (spawn_admin_thread(m_admin_interface_listen_socket,
-                             m_admin_bind_address.network_namespace))
-        return true;
-    } else {
+    if (!m_use_separate_thread_for_admin) {
       m_socket_vector.emplace_back(mysql_socket, Socket_type::TCP_SOCKET,
                                    &m_admin_bind_address.network_namespace,
                                    Socket_interface_type::ADMIN_INTERFACE);

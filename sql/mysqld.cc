@@ -7489,6 +7489,7 @@ int mysqld_main(int argc, char **argv)
     mysqld::runtime::signal_parent(pipe_write_fd, 1);
   }
 
+  mysqld_socket_acceptor->check_and_spawn_admin_connection_handler_thread();
   mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
   server_operational_state = SERVER_SHUTTING_DOWN;

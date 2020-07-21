@@ -52,7 +52,6 @@ extern PSI_statement_info stmt_info_new_packet;
 
 // Enum denoting type of socket whether unix socket or tcp socket.
 enum class Socket_type { UNIX_SOCKET, TCP_SOCKET };
-
 // Enum denoting the interface which the socket listens to.
 enum class Socket_interface_type { DEFAULT_INTERFACE, ADMIN_INTERFACE };
 // Listen socket and it's attributes.
@@ -199,6 +198,14 @@ class Mysqld_socket_listener {
   ~Mysqld_socket_listener() {
     if (!m_socket_vector.empty()) close_listener();
   }
+
+  /**
+    Spawn admin connection handler thread if separate thread is required to
+    accept admin connections.
+
+    @return true unable to spawn admin connect handler thread else false
+  */
+  bool check_and_spawn_admin_connection_handler_thread() const;
 
  private:
   /**
