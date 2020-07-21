@@ -51,6 +51,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/basic_row_iterators.h"  // ZeroRowsIterator
 #include "sql/check_stack.h"
 #include "sql/composite_iterators.h"  // FilterIterator
@@ -2918,6 +2919,10 @@ bool SubqueryWithResult::exec(THD *thd) {
  */
 bool ExecuteExistsQuery(THD *thd, SELECT_LEX_UNIT *unit, RowIterator *iterator,
                         bool *found) {
+  SELECT_LEX *saved_select = thd->lex->current_select();
+  auto restore_select = create_scope_guard(
+      [thd, saved_select]() { thd->lex->set_current_select(saved_select); });
+
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_exec(trace, "join_execution");
