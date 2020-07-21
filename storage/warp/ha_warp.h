@@ -164,7 +164,9 @@ class ha_warp : public handler {
   int set_column_set(uint32_t idxno);
   int find_current_row(uchar *buf, ibis::table::cursor* cursor);
   void create_writer(TABLE *table_arg);
-  static void background_write(ibis::tablex* writer,  char* datadir, TABLE* table, ha_statistics* stats, WARP_SHARE* share);
+  static int get_writer_partno(ibis::tablex* writer, char* datadir);
+  static void background_write(ibis::tablex* writer,  char* datadir, TABLE* table, WARP_SHARE* share);
+  void foreground_write();
   bool append_column_filter(const Item* cond, std::string& push_where_clause); 
   static void maintain_indexes(char* datadir, TABLE* table);
   void open_deleted_bitmap(int lock_mode = LOCK_SH);
@@ -246,6 +248,7 @@ class ha_warp : public handler {
            const dd::Table *table_def);
   int close(void);
 
+  std::string make_unique_check_clause();
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
   int delete_row(const uchar *buf);

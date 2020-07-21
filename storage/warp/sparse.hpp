@@ -29,10 +29,11 @@
 // 64 bits
 #define BLOCK_SIZE 8
 #define MAX_BITS 64
+//#define WARP_DEBUG
 #ifdef WARP_DEBUG
 #define dbug(x) std::cerr << __LINE__ << ": " << x << "\n";
 #else
-#define dbug(x) /*x*/
+#define dbug(x) /* would write (x) to debug log*/
 #endif
 
 
@@ -168,7 +169,7 @@ private:
       dirty=0;
       return -1; 
     }
-
+    dbug("STARTING RECOVERY");
     // start recovery
     int mode=MODE_SET;
     fseek(log,-BLOCK_SIZE,SEEK_END);
@@ -252,6 +253,15 @@ public:
       log = fopen(lname.c_str(),"w");
     }
 
+    /* read in the first block of bits */
+    bits = 0;
+    size_t sz = fread(&bits, BLOCK_SIZE, 1, fp);
+    assert(sz == 1);
+    fseek(fp, 0, SEEK_SET);
+    fpos = 0;
+    dirty = 0;
+    dbug("bits at open: " + std::to_string(bits));
+
     return 0;
   }
 
@@ -259,6 +269,7 @@ public:
   int close(int unlink_log = 0) {
     dbug("close");
     /* this will UNDO all the changes made to the index because commit() was not called*/
+    dbug("dirty flag: " + std::to_string(dirty));
     if(!recovering && dirty) do_recovery();
 
     if(fp) fsync(fileno(fp));
@@ -281,13 +292,17 @@ public:
    * and then the data file */
   int commit() {
     dbug("commit");
-    int zero=0;
-    int sz = fwrite(&zero, BLOCK_SIZE, 1, log);
-    fsync(fileno(log));
-    fsync(fileno(fp));
-    close(1);
-    dirty = 0;
-    return !(sz == BLOCK_SIZE);
+    if(dirty) {
+      dbug("bitmap is dirty - writing commit marker");
+      int zero=0;
+      int sz = fwrite(&zero, BLOCK_SIZE, 1, log);
+      fsync(fileno(log));
+      fsync(fileno(fp));
+      close(1);
+      dirty = 0;
+      return !(sz == 1);
+    }
+    return 0;
   }
 
   int rollback() {
@@ -298,18 +313,21 @@ public:
 
   /* check to see if a particular bit is set */
   inline int is_set(unsigned long long bitnum) {
-    dbug("is_set");
+    dbug("is_set: bit " + std::to_string(bitnum));
     if(!fp) open(fname, LOCK_SH);
     lock(LOCK_SH);
     int bit_offset;
     unsigned long long at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
-    if(at_byte == 0 || at_byte != fpos) {
+    if(at_byte != fpos) {
       fseek(fp, at_byte, SEEK_SET);
       fpos = at_byte;
-      size_t sz = fread(&bits, 8, 1, fp);
+      size_t sz = fread(&bits, BLOCK_SIZE, 1, fp);
       if(sz == 0 || feof(fp)) return 0;
     }
-    return (bits >> bit_offset) & 1; 
+    dbug("IN IS SET bits: " + std::to_string(bits));
+    int retval =  (bits >> bit_offset) & 1; 
+    dbug("IN IS SET retval: " + std::to_string(retval));
+    return retval;
   }
 
   /* set a bit in the index */
@@ -319,16 +337,18 @@ public:
   inline int set_bit(unsigned long long bitnum, int mode = MODE_SET) {
     dbug("set_bit");
     if(!fp || have_lock != LOCK_EX) open(fname, LOCK_EX);
+    /*
     bool force_read = false;
     if(dirty == 0) {
       force_read = true;
-    }
+    } 
+    */
     dirty = 1;
     // write-ahead-log (only write when not in recovery mode) 
     // sz2 will be <1 on write error
     size_t sz=0;
-    if(!recovering) sz = fwrite(&bitnum, 1, 8, log);
-    if(!recovering && sz != 8) return -1;
+    if(!recovering) sz = fwrite(&bitnum, BLOCK_SIZE, 1, log);
+    if(!recovering && sz != BLOCK_SIZE) return -1;
 
     if(lock_type != LOCK_EX) lock(LOCK_EX);
 
@@ -339,7 +359,8 @@ public:
     unsigned long long at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
 
     /* read the bits into memory */
-    if(force_read || at_byte != fpos) {
+    //if(force_read || at_byte != fpos) {
+    if(at_byte != fpos) {
       fpos = at_byte;
       fseek(fp, at_byte, SEEK_SET);
       sz = fread(&bits, BLOCK_SIZE, 1, fp);
