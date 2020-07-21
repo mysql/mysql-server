@@ -55,6 +55,7 @@
 #include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"
 #include "sql/sql_table.h"  // primary_key_name
 #include "sql/table.h"
 #include "sql_string.h"
@@ -587,7 +588,7 @@ static bool prepare_simple_select(THD *thd, Item *cond, TABLE *table,
   const bool impossible =
       test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
                         ORDER_NOT_RELEVANT, tab, cond, &needed_reg_dummy, &qck,
-                        tab->table()->force_index) < 0;
+                        tab->table()->force_index, thd->lex->select_lex) < 0;
   tab->set_quick(qck);
 
   return impossible || (tab->quick() && tab->quick()->reset());
