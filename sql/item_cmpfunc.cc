@@ -5375,7 +5375,13 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
         continue;
       }
       Cleanup_after_removal_context ctx(select);
-      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+      // By doing a prefix walk, we ensure that in case of Item_view_ref, we
+      // return early. Removing a subquery referenced by its alias is
+      // forbidden. This is made sure by checking for the subquery's presence
+      // in the projection list. However if the subquery is part of projection
+      // list of a merged derived table but not the outer select, the above
+      // check fails. Hence the special handling for Item_view_ref.
+      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_PREFIX,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
       continue;
@@ -5409,7 +5415,9 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     li.rewind();
     while ((item = li++)) {
       Cleanup_after_removal_context ctx(select);
-      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+      // We do a prefix walk here to handle Item_view_ref. For details, check
+      // the comment before the call to clean_up_after_removal above.
+      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_PREFIX,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
     }

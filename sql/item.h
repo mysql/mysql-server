@@ -5683,6 +5683,7 @@ class Item_view_ref final : public Item_ref {
   bool send(Protocol *prot, String *tmp) override;
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   Item *replace_item_view_ref(uchar *arg) override;
+  bool clean_up_after_removal(uchar *) override { return true; }
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
