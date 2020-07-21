@@ -1056,8 +1056,7 @@ class AIOHandler {
     const byte *src = slot->buf;
 
     version = mach_read_from_1(src + FIL_PAGE_VERSION);
-
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
 
     /* Includes the page header size too */
     ulint size = compressed_page_size(slot);
@@ -1136,7 +1135,7 @@ ulint os_file_compressed_page_size(const byte *buf) {
 
   if (type == FIL_PAGE_COMPRESSED) {
     ulint version = mach_read_from_1(buf + FIL_PAGE_VERSION);
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
     return (mach_read_from_2(buf + FIL_PAGE_COMPRESS_SIZE_V1));
   }
 
@@ -1152,7 +1151,7 @@ ulint os_file_original_page_size(const byte *buf) {
 
   if (type == FIL_PAGE_COMPRESSED) {
     ulint version = mach_read_from_1(buf + FIL_PAGE_VERSION);
-    ut_a(version == 1);
+    ut_a(Compression::is_valid_page_version(version));
 
     return (mach_read_from_2(buf + FIL_PAGE_ORIGINAL_SIZE_V1));
   }
@@ -1414,7 +1413,7 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
   /* Add compression control information. Required for decompressing. */
   mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_COMPRESSED);
 
-  mach_write_to_1(dst + FIL_PAGE_VERSION, 1);
+  mach_write_to_1(dst + FIL_PAGE_VERSION, Compression::FIL_PAGE_VERSION_2);
 
   mach_write_to_1(dst + FIL_PAGE_ALGORITHM_V1, compression.m_type);
 

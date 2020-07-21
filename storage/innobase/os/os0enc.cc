@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "log0log.h"
 #include "mach0data.h"
 #include "os0file.h"
+#include "page0page.h"
 #include "ut0crc32.h"
 
 #include <errno.h>
@@ -752,14 +753,7 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
 
 byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
                           byte *dst, ulint *dst_len) noexcept {
-  ulint len = 0;
-  ulint page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
-  ulint data_len;
-  ulint main_len;
-  ulint remain_len;
-  byte remain_buf[MY_AES_BLOCK_SIZE * 2];
-
-  /* For encrypting redo log, take another way. */
+  ut_ad(m_type != NONE);
   ut_ad(!type.is_log());
 
 #ifdef UNIV_ENCRYPT_DEBUG
@@ -772,17 +766,20 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   ut_print_buf(stderr, m_iv, 32);
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  /* Shouldn't encrypte an already encrypted page. */
-  ut_ad(page_type != FIL_PAGE_ENCRYPTED &&
-        page_type != FIL_PAGE_COMPRESSED_AND_ENCRYPTED &&
-        page_type != FIL_PAGE_ENCRYPTED_RTREE);
+  /* Shouldn't encrypt an already encrypted page. */
+  ut_ad(!is_encrypted_page(src));
 
-  ut_ad(m_type != NONE);
+  const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
 
   /* This is data size which need to encrypt. */
-  data_len = src_len - FIL_PAGE_DATA;
-  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  remain_len = data_len - main_len;
+  auto src_enc_len = src_len;
+
+  /* In FIL_PAGE_VERSION_2, we encrypt the actual compressed data length. */
+  if (page_type == FIL_PAGE_COMPRESSED) {
+    src_enc_len =
+        mach_read_from_2(src + FIL_PAGE_COMPRESS_SIZE_V1) + FIL_PAGE_DATA;
+    ut_ad(src_enc_len <= src_len);
+  }
 
   /* Only encrypt the data + trailer, leave the header alone */
 
@@ -791,58 +788,66 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
       ut_error;
 
     case AES: {
-      lint elen;
-
       ut_ad(m_klen == KEY_LEN);
 
-      elen = my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(main_len),
-                            dst + FIL_PAGE_DATA,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
+      /* Total length of the data to encrypt. */
+      const auto data_len = src_enc_len - FIL_PAGE_DATA;
+
+      /* Server encryption functions expect input data to be in multiples
+      of MY_AES_BLOCK SIZE. Therefore we encrypt the overlapping data of
+      the chunk_len and trailer_len twice. First we encrypt the bigger
+      chunk of data then we do the trailer. The trailer encryption block
+      starts at 2 * MY_AES_BLOCK_SIZE bytes offset from the end of the
+      enc_len.  During decryption we do the reverse of the above process. */
+      ut_ad(data_len >= 2 * MY_AES_BLOCK_SIZE);
+
+      const auto chunk_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
+      const auto remain_len = data_len - chunk_len;
+
+      auto elen =
+          my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(chunk_len),
+                         dst + FIL_PAGE_DATA, reinterpret_cast<byte *>(m_key),
+                         static_cast<uint32>(m_klen), my_aes_256_cbc,
+                         reinterpret_cast<byte *>(m_iv), false);
 
       if (elen == MY_AES_BAD_DATA) {
-        ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-        ulint space_id =
-            mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+        const auto page_id = page_get_page_id(src);
+
+        ib::error(ER_IB_MSG_844) << " Can't encrypt data of page " << page_id;
         *dst_len = src_len;
-        ib::error(ER_IB_MSG_844)
-            << " Can't encrypt data of page,"
-            << " page no:" << page_no << " space id:" << space_id;
-        return (src);
+        return src;
       }
 
-      len = static_cast<ulint>(elen);
-      ut_ad(len == main_len);
+      const auto len = static_cast<size_t>(elen);
+      ut_a(len == chunk_len);
 
-      /* Copy remain bytes and page tailer. */
-      memcpy(dst + FIL_PAGE_DATA + len, src + FIL_PAGE_DATA + len,
-             src_len - FIL_PAGE_DATA - len);
-
-      /* Encrypt the remain bytes. */
+      /* Encrypt the trailing bytes. */
       if (remain_len != 0) {
-        remain_len = MY_AES_BLOCK_SIZE * 2;
+        /* Copy remaining bytes and page tailer. */
+        memcpy(dst + FIL_PAGE_DATA + len, src + FIL_PAGE_DATA + len,
+               remain_len);
 
-        elen = my_aes_encrypt(dst + FIL_PAGE_DATA + data_len - remain_len,
-                              static_cast<uint32>(remain_len), remain_buf,
-                              reinterpret_cast<unsigned char *>(m_key),
+        constexpr size_t trailer_len = MY_AES_BLOCK_SIZE * 2;
+        byte buf[trailer_len];
+
+        elen = my_aes_encrypt(dst + FIL_PAGE_DATA + data_len - trailer_len,
+                              static_cast<uint32>(trailer_len), buf,
+                              reinterpret_cast<byte *>(m_key),
                               static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
+                              reinterpret_cast<byte *>(m_iv), false);
 
         if (elen == MY_AES_BAD_DATA) {
-          ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-          ulint space_id =
-              mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+          const auto page_id = page_get_page_id(src);
 
-          ib::error(ER_IB_MSG_845)
-              << " Can't encrypt data of page,"
-              << " page no:" << page_no << " space id:" << space_id;
+          ib::error(ER_IB_MSG_845) << " Can't encrypt data of page," << page_id;
           *dst_len = src_len;
-          return (src);
+          return src;
         }
 
-        memcpy(dst + FIL_PAGE_DATA + data_len - remain_len, remain_buf,
-               remain_len);
+        const auto len = static_cast<size_t>(elen);
+        ut_ad(len == trailer_len);
+
+        memcpy(dst + FIL_PAGE_DATA + data_len - trailer_len, buf, trailer_len);
       }
 
       break;
@@ -864,8 +869,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     ut_ad(memcmp(src + FIL_PAGE_TYPE + 2, dst + FIL_PAGE_TYPE + 2,
                  FIL_PAGE_DATA - FIL_PAGE_TYPE - 2) == 0);
   } else if (page_type == FIL_PAGE_RTREE) {
-    /* If the page is R-tree page, we need to save original
-    type. */
+    /* If the page is R-tree page, we need to save original type. */
     mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED_RTREE);
   } else {
     mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED);
@@ -894,7 +898,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
   *dst_len = src_len;
 
-  return (dst);
+  return dst;
 }
 
 dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
@@ -1061,7 +1065,12 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     src_len = static_cast<uint16_t>(
                   mach_read_from_2(src + FIL_PAGE_COMPRESS_SIZE_V1)) +
               FIL_PAGE_DATA;
-    src_len = ut_calc_align(src_len, type.block_size());
+
+    Compression::meta_t header;
+    Compression::deserialize_header(src, &header);
+    if (header.m_version == Compression::FIL_PAGE_VERSION_1) {
+      src_len = ut_calc_align(src_len, type.block_size());
+    }
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG

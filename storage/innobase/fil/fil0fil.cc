@@ -8551,6 +8551,9 @@ struct Fil_page_iterator {
 
   /** Encruption iv */
   byte *m_encryption_iv;
+
+  /** FS Block Size */
+  size_t block_size;
 };
 
 /** TODO: This can be made parallel trivially by chunking up the file
@@ -8616,6 +8619,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
 
     dberr_t err;
     IORequest read_request(read_type);
+    read_request.block_size(iter.block_size);
 
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
@@ -8661,6 +8665,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     }
 
     IORequest write_request(write_type);
+    write_request.block_size(iter.block_size);
 
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
@@ -8833,6 +8838,17 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     err = DB_SUCCESS;
   }
 
+  /* Set File System Block Size */
+  size_t block_size;
+  {
+    os_file_stat_t stat_info;
+
+    ut_d(dberr_t err =) os_file_get_status(filepath, &stat_info, false, false);
+    ut_ad(err == DB_SUCCESS);
+
+    block_size = stat_info.block_size;
+  }
+
   callback.set_file(filepath, file);
 
   os_offset_t file_size = os_file_get_size(file);
@@ -8875,6 +8891,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     iter.m_file_size = file_size;
     iter.m_n_io_buffers = n_io_buffers;
     iter.m_page_size = callback.get_page_size().physical();
+    iter.block_size = block_size;
 
     /* Set encryption info. */
     iter.m_encryption_key = table->encryption_key;
