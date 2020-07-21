@@ -93,5 +93,5 @@ reap;
 SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_switch_to_user_execute";
 SET SESSION DEBUG_SYNC="RESET";
 
---remove_file $xtest_file
+--remove_file $xtest_file 30
 --source include/xplugin_drop_user.inc
