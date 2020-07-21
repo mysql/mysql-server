@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <mutex>
 #include <new>
 
 #include "my_io.h"    // NOLINT(build/include_subdir)
@@ -38,11 +39,24 @@
 #ifdef WIN32
 #pragma warning(push)
 #pragma warning(disable : 4005)
-#endif              // WIN32
-#include <event.h>  // libevent
+#endif                     // WIN32
+#include <event2/event.h>  // libevent
+#include <event2/event_compat.h>
+#include <event2/event_struct.h>
+#include <event2/thread.h>
 #ifdef WIN32
 #pragma warning(pop)
 #endif  // WIN32
+
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
+#define XPL_EVTHREAD_INITIALIZE() evthread_use_windows_threads()
+#elif EVTHREAD_USE_PTHREADS_IMPLEMENTED
+#define XPL_EVTHREAD_INITIALIZE() evthread_use_pthreads()
+#else
+#define XPL_EVTHREAD_INITIALIZE() \
+  do {                            \
+  } while (0)
+#endif
 
 namespace ngs {
 
@@ -116,6 +130,11 @@ struct Socket_events::Socket_data {
 };
 
 Socket_events::Socket_events() {
+  static std::once_flag flag_event_threads_initialized;
+
+  std::call_once(flag_event_threads_initialized,
+                 []() { XPL_EVTHREAD_INITIALIZE(); });
+
   m_evbase = event_base_new();
 
   if (!m_evbase) throw std::bad_alloc();
@@ -173,7 +192,7 @@ void Socket_events::add_timer(const std::size_t delay_ms,
 
 void Socket_events::loop() { event_base_loop(m_evbase, 0); }
 
-void Socket_events::break_loop() { event_base_loopbreak(m_evbase); }
+void Socket_events::break_loop() { event_base_loopexit(m_evbase, nullptr); }
 
 void Socket_events::timeout_call(socket_type, short, void *arg) {
   Timer_data *data = static_cast<Timer_data *>(arg);

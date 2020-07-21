@@ -396,8 +396,8 @@ void Client::on_client_addr() {
 
 void Client::on_accept() {
   DBUG_TRACE;
-  log_debug("%s: Accepted client connection from %s", client_id(),
-            client_address());
+  log_debug("%s: Accepted client connection from %s (sock:%i)", client_id(),
+            client_address(), m_connection->get_fd());
 
   DBUG_EXECUTE_IF("client_accept_timeout", {
     int32_t i = 0;
@@ -462,11 +462,6 @@ void Client::on_session_close(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
 
   // no more open sessions, disconnect
   disconnect_and_trigger_close();
-
-  if (s->state_before_close() != xpl::iface::Session::State::k_authenticating) {
-    ++xpl::Global_status_variables::instance().m_closed_sessions_count;
-  }
-
   remove_client_from_server();
 }
 

@@ -2265,6 +2265,11 @@ class Fill_process_list : public Do_THD_Impl {
   Fill_process_list(THD *thd_value, TABLE_LIST *tables_value)
       : m_client_thd(thd_value), m_tables(tables_value) {}
 
+  ~Fill_process_list() override {
+    DBUG_EXECUTE_IF("test_fill_proc_with_x_root",
+                    { DEBUG_SYNC(m_client_thd, "fill_proc_list_ended"); });
+  }
+
   void operator()(THD *inspect_thd) override {
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
@@ -2282,6 +2287,12 @@ class Fill_process_list : public Do_THD_Impl {
         (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                   strcmp(inspect_sctx_user.str, user))))
       return;
+
+    DBUG_EXECUTE_IF(
+        "test_fill_proc_with_x_root",
+        if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
+          DEBUG_SYNC(m_client_thd, "fill_proc_list_with_x_root");
+        });
 
     TABLE *table = m_tables->table;
     restore_record(table, s->default_values);
