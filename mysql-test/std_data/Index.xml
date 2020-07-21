@@ -320,7 +320,7 @@
     <alias>iso_8859-1:1987</alias>
     <alias>l1</alias>
     <alias>latin1</alias>
-    <collation name="latin1_test" id="99" order="test"/>
+    <collation name="latin1_test" id="1025" order="test"/>
   </charset>
 
   <charset name="utf8">
