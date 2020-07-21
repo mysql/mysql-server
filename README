@@ -14,39 +14,6 @@ interface.  WARP both horizontally and vertically partitions data sets
 automatically.  Standard MySQL partitioning is not yet supported. 
 Data compression is not yet supported.
 
-WarpSQL parallel query
-------------------------------------------------------------------------------------
-Not yet released is generic parallel processing of queries using a pre-parse 
-rewrite plugin which in turn utilizes an internal SQL client interface which 
-is unique to WarpSQL.  Parallel query will be able to leverage processing of
-read queries on mulitple nodes in InnoDB cluster deployments.
-
-Distributed columnar storage
-------------------------------------------------------------------------------------
-Also not yet released, the WARP storage engine will support distributed 
-columnar storage using NDB cluster as a robust data layer for the 
-distribution of redundant columnar data to multiple nodes.
-
-Materialized views and change data capture
-------------------------------------------------------------------------------------
-Also not yet released, but avaiable in preview form as the lastest version of 
-Flexviews, are incrementally refreshable materialized views.  WarpSQL will
-leverage the group replication plugin interface to implement a change data
-capture plugin. The CDC plugin is prmarily just a collector of binary log 
-events which publishes those events to binlog consumer plugins.
-
-
-Binlog consumer plugins
--------------------------------------------------------------------------------------
-This plugin interface will primarily be used to update materialized views immediately 
-after row changes are committed and to record row changes to materialized view log 
-tables for asynchronous view maintainance. As part of the requirements for materialized 
-views, binlog plugins provide an interface for processing binlog changes in real time.  
-Binlog plugins interface with and are executed by the change data capture plugin.  
-It is not hard to imagine how binlog plugins can be used to construct modules which 
-can do things like publish row changes to a message queue, or replicate to an external 
-data source, etc.  
-
 For further information on MySQL or additional documentation, visit
 http://dev.mysql.com/doc/
 
