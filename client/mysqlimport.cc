@@ -376,7 +376,8 @@ static int write_to_table(char *filename, MYSQL *mysql) {
       fprintf(stdout, "Loading data from SERVER file: %s into %s\n", hard_path,
               tablename);
   }
-  mysql_options(mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR, filename);
+  if (opt_local_file)
+    mysql_options(mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR, filename);
   mysql_real_escape_string_quote(mysql, escaped_name, hard_path,
                                  (unsigned long)strlen(hard_path), '\'');
   sprintf(sql_statement, "LOAD DATA %s %s INFILE '%s'",
@@ -457,8 +458,6 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
   mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
                 &opt_zstd_compress_level);
 
-  if (opt_local_file)
-    mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_file);
   if (SSL_SET_OPTIONS(mysql)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
     return nullptr;
