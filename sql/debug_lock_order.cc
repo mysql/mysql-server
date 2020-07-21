@@ -264,9 +264,9 @@ static bool g_with_rwlock = true;
   - priority read write lock (@c mysql_prlock_t)
   - shared exclusive locks (@c rw_lock_t in innodb)
 
-  The lock @c mysql_rwlock_t @c LOCK_sys_init_connect, which is a read write lock,
-  is named "wait/synch/rwlock/sql/LOCK_sys_init_connect" in the performance schema,
-  simplified as "rwlock/sql/LOCK_sys_init_connect" in LOCK ORDER.
+  The lock @c mysql_rwlock_t @c LOCK_system_variables_hash, which is a read write lock,
+  is named "wait/synch/rwlock/sql/LOCK_system_variables_hash" in the performance schema,
+  simplified as "rwlock/sql/LOCK_system_variables_hash" in LOCK ORDER.
 
   Read write locks are recursive, but only on read operations.
   Due to the scheduling behavior in the underlying implementation,
@@ -6359,7 +6359,7 @@ void *lo_spawn_thread_fct(void *arg) {
 
   set_THR_LO(lo);
 
-  if ((lo != nullptr) && (g_thread_chain != nullptr)) {
+  if (g_thread_chain != nullptr) {
     /* [2] Get the chained thread instrumentation created by [1]. */
     lo->m_chain = g_thread_chain->get_thread();
   }
@@ -6395,8 +6395,6 @@ static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
   PSI_thread_key chain_key = PSI_NOT_INSTRUMENTED;
   if (klass != nullptr) {
     chain_key = klass->get_chain_key();
-  } else {
-    /* TODO: DBUG_ASSERT(false); */
   }
 
   psi_arg->m_child_key = key;

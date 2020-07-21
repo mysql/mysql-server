@@ -387,12 +387,8 @@ bool update_plugins_I_S_metadata(THD *thd) {
       DBUG_EXECUTE_IF("test_i_s_metadata_version",
                       { plugin_version = UNKNOWN_PLUGIN_VERSION; });
 
-      mysql_mutex_lock(&LOCK_plugin_ref);
-      uint state = plugin_int->get_state();
-      mysql_mutex_unlock(&LOCK_plugin_ref);
-
       if (plugin_int->plugin->version == plugin_version &&
-          state == PLUGIN_IS_READY) {
+          plugin_int->state == PLUGIN_IS_READY) {
         plugin_names.push_back(view->name());
         continue;
       }

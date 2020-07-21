@@ -52,7 +52,6 @@
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_plugin.h"
 #include "sql/sql_show.h"
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
@@ -487,7 +486,13 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
   token = my_strtok_r(variables_list, separator, &lasts);
 
   track_all = false;
-
+  /*
+    If Lock to the plugin mutex is not acquired here itself, it results
+    in having to acquire it multiple times in find_sys_var_ex for each
+    token value. Hence the mutex is handled here to avoid a performance
+    overhead.
+  */
+  if (!thd || session_created) lock_plugin_mutex();
   while (token) {
     LEX_STRING var;
     var.str = token;
@@ -497,9 +502,10 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
     trim_whitespace(char_set, &var);
 
     if (!thd || session_created) {
-      if (find_sys_var_ex(thd, var.str, var.length, throw_error)) {
+      if (find_sys_var_ex(thd, var.str, var.length, throw_error, true)) {
         if (insert(nullptr, to_lex_cstring(var)) == true) {
           /* Error inserting into the hash. */
+          unlock_plugin_mutex();
           return true; /* Error */
         }
       }
@@ -510,6 +516,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
             thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
             "%s is not a valid system variable and will be ignored.", token);
       } else {
+        unlock_plugin_mutex();
         return true;
       }
     } else {
@@ -521,6 +528,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
 
     token = my_strtok_r(nullptr, separator, &lasts);
   }
+  if (!thd || session_created) unlock_plugin_mutex();
 
   return false;
 }
@@ -648,7 +656,7 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf) {
   for (sysvar_node_st *node : vars) {
     if (node->m_changed &&
         (var = find_sys_var_ex(thd, node->m_sysvar_name.str,
-                               node->m_sysvar_name.length, true))) {
+                               node->m_sysvar_name.length, true, false))) {
       show->name = var->name.str;
       show->value = (char *)var;
 

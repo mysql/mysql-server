@@ -510,9 +510,11 @@ extern bool get_sysvar_source(const char *name, uint length,
 
 bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
                         enum enum_var_type type, bool strict);
+void lock_plugin_mutex();
+void unlock_plugin_mutex();
 sys_var *find_sys_var(THD *thd, const char *str, size_t length = 0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length = 0,
-                         bool throw_error = false);
+                         bool throw_error = false, bool locked = false);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
 bool keyring_access_test();
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);

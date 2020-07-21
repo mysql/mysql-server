@@ -448,8 +448,7 @@ THD::THD(bool enable_plugins)
       m_stmt_da(&main_da),
       duplicate_slave_id(false),
       is_a_srv_session_thd(false),
-      m_is_plugin_fake_ddl(false),
-      m_inside_system_variable_global_update(false) {
+      m_is_plugin_fake_ddl(false) {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -729,13 +728,6 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
 
   Diagnostics_area *da = get_stmt_da();
   if (level == Sql_condition::SL_ERROR) {
-    /*
-      An error reported is given to mysql_audit_notify(),
-      possibly invoking an AUDIT plugin.
-      So, the caller should never hold LOCK_plugin when raising an error.
-    */
-    mysql_mutex_assert_not_owner(&LOCK_plugin);
-
     /*
       Reporting an error invokes audit API call that notifies the error
       to the plugin. Audit API that generate the error adds a protection

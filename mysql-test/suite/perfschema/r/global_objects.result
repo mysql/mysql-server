@@ -20,9 +20,9 @@ where NAME = "wait/synch/mutex/sql/tz_LOCK";
 NAME
 wait/synch/mutex/sql/tz_LOCK
 select NAME from performance_schema.rwlock_instances
-where NAME = "wait/synch/rwlock/sql/LOCK_sys_init_connect";
+where NAME = "wait/synch/rwlock/sql/LOCK_system_variables_hash";
 NAME
-wait/synch/rwlock/sql/LOCK_sys_init_connect
+wait/synch/rwlock/sql/LOCK_system_variables_hash
 select NAME from performance_schema.cond_instances
 where NAME = "wait/synch/cond/sql/COND_server_started";
 NAME

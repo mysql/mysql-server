@@ -441,13 +441,6 @@ void Plugin_system_variables::fetch_plugin_variables() {
 }
 
 const Timeouts_config Plugin_system_variables::get_global_timeouts() {
-  /*
-    WARNING:
-    This code actually causes reentrancy problems in system variables,
-    because THDVAR is used within a system variable update function,
-    already protected under LOCK_global_system_variables.
-    See comments in intern_sys_var_ptr().
-  */
   return {xpl_sys_var::m_interactive_timeout, THDVAR(nullptr, wait_timeout),
           THDVAR(nullptr, read_timeout), THDVAR(nullptr, write_timeout)};
 }

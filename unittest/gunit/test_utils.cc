@@ -57,7 +57,6 @@
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"
-#include "sql/sql_plugin.h"
 #include "sql/xa.h"
 #include "unicode/uclean.h"
 
@@ -87,14 +86,7 @@ void setup_server_for_unit_tests() {
                   nullptr};
   set_remaining_args(6, argv);
   system_charset_info = &my_charset_utf8_general_ci;
-
-  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_plugin, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &LOCK_system_variables_hash,
-                   MY_MUTEX_INIT_FAST);
   sys_var_init();
-  /* Re initialized later. */
-  mysql_mutex_destroy(&LOCK_system_variables_hash);
-
   init_common_variables();
   test_flags |= TEST_SIGINT;
   test_flags &= ~TEST_CORE_ON_SIGNAL;

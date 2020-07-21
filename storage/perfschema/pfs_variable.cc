@@ -94,7 +94,7 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
   DBUG_ASSERT(!m_initialized);
   m_query_scope = scope;
 
-  mysql_mutex_lock(&LOCK_system_variables_hash);
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   DEBUG_SYNC(m_current_thd, "acquired_LOCK_system_variables_hash");
 
   /* Record the system variable hash version to detect subsequent changes. */
@@ -103,7 +103,7 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
   /* Build the SHOW_VAR array from the system variable hash. */
   enumerate_sys_vars(&m_show_var_array, true, m_query_scope, strict);
 
-  mysql_mutex_unlock(&LOCK_system_variables_hash);
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   /* Increase cache size if necessary. */
   m_cache.reserve(m_show_var_array.size());

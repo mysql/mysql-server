@@ -523,8 +523,8 @@ bool PT_hint_sys_var::contextualize(Parse_context *pc) {
     return false;
   }
 
-  sys_var *sys_var =
-      find_sys_var_ex(pc->thd, sys_var_name.str, sys_var_name.length, true);
+  sys_var *sys_var = find_sys_var_ex(pc->thd, sys_var_name.str,
+                                     sys_var_name.length, true, false);
   if (!sys_var) {
     String str;
     str.append(STRING_WITH_LEN("'"));

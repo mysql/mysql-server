@@ -39,34 +39,14 @@ enum enum_plugin_load_option {
   PLUGIN_FORCE_PLUS_PERMANENT
 };
 
-/** A handle of a plugin. */
+/* A handle of a plugin */
+
 struct st_plugin_int {
- public:
   LEX_CSTRING name{nullptr, 0};
   st_mysql_plugin *plugin{nullptr};
   st_plugin_dl *plugin_dl{nullptr};
-
-  void set_state(uint state);
-  uint get_state() const;
-
-  void set_ref_count(uint ref_count);
-  uint get_ref_count() const;
-  void inc_ref_count();
-  uint dec_ref_count();
-
- private:
-  /**
-    The state of this plugin.
-    Protected by @ref LOCK_plugin_ref.
-  */
-  uint m_state{0};
-  /**
-    Number of threads using the plugin.
-    Protected by @ref LOCK_plugin_ref.
-  */
-  uint m_ref_count{0};
-
- public:
+  uint state{0};
+  uint ref_count{0};             /* number of threads using the plugin */
   void *data{nullptr};           /* plugin type specific, e.g. handlerton */
   MEM_ROOT mem_root;             /* memory for dynamic plugin structures */
   sys_var *system_vars{nullptr}; /* server variables for this plugin */
@@ -89,7 +69,7 @@ inline T plugin_data(st_plugin_int *ref) {
   return static_cast<T>(ref->data);
 }
 inline LEX_CSTRING *plugin_name(st_plugin_int *ref) { return &(ref->name); }
-uint plugin_state(st_plugin_int *ref);
+inline uint plugin_state(st_plugin_int *ref) { return ref->state; }
 inline enum_plugin_load_option plugin_load_option(st_plugin_int *ref) {
   return ref->load_option;
 }
@@ -112,7 +92,7 @@ inline T plugin_data(st_plugin_int **ref) {
   return static_cast<T>(ref[0]->data);
 }
 inline LEX_CSTRING *plugin_name(st_plugin_int **ref) { return &(ref[0]->name); }
-uint plugin_state(st_plugin_int **ref);
+inline uint plugin_state(st_plugin_int **ref) { return ref[0]->state; }
 inline enum_plugin_load_option plugin_load_option(st_plugin_int **ref) {
   return ref[0]->load_option;
 }
