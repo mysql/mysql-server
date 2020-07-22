@@ -844,8 +844,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
           return src;
         }
 
-        const auto len = static_cast<size_t>(elen);
-        ut_ad(len == trailer_len);
+        ut_a(static_cast<size_t>(elen) == trailer_len);
 
         memcpy(dst + FIL_PAGE_DATA + data_len - trailer_len, buf, trailer_len);
       }
