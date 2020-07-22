@@ -42,7 +42,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
 #    TRANSACTIONS_COMMITTED_ALL_MEMBERS values on all servers.
 [connection server3]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server1]
 include/assert.inc ['Count_transactions_rows_validating must be equal to 10 on server1']
 include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server1']
@@ -53,7 +53,7 @@ include/assert.inc ['Transactions_committed_all_members must be equal to "" on s
 include/assert.inc ['Count_transactions_rows_validating must be equal to 10 on server3']
 include/assert.inc ['Transactions_committed_all_members must be equal to aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-4 on server3']
 include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+START REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 ############################################################
 # 7. Assert COUNT_TRANSACTIONS_ROWS_VALIDATING and

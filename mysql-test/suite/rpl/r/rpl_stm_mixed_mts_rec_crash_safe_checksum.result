@@ -496,9 +496,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -548,9 +552,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -617,9 +625,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -652,9 +664,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -704,9 +720,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -773,9 +793,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -825,9 +849,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -911,9 +939,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1031,9 +1063,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1083,9 +1119,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1169,9 +1209,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1289,9 +1333,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1358,9 +1406,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1478,9 +1530,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1649,9 +1705,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1718,9 +1778,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -1838,9 +1902,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2009,9 +2077,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2061,9 +2133,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2130,9 +2206,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2182,9 +2262,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2251,9 +2335,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2303,9 +2391,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2372,9 +2464,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2458,9 +2554,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2578,9 +2678,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2664,9 +2768,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2784,9 +2892,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2870,9 +2982,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -2990,9 +3106,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -3110,9 +3230,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -3281,9 +3405,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -3401,9 +3529,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -3572,9 +3704,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -3692,9 +3828,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -3863,9 +4003,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -3932,9 +4076,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4001,9 +4149,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4070,9 +4222,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4139,9 +4295,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4259,9 +4419,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4379,9 +4543,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4499,9 +4667,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4619,9 +4791,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4790,9 +4966,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -4961,9 +5141,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -5132,9 +5316,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
@@ -5303,9 +5491,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ** fixing gaps **
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **

@@ -19,18 +19,26 @@ Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=1227]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t_system, slave:t_system]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM 'u1'@'localhost';
 #
 # TC2. Verify that replication only succeeds with
@@ -46,8 +54,12 @@ Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=1227]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 GRANT SUPER ON *.* TO 'u1'@'localhost';
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
@@ -56,10 +68,14 @@ Grants for u1@localhost
 GRANT INSERT, CREATE, DROP, SUPER ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t_super, slave:t_super]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 REVOKE SUPER ON *.* FROM 'u1'@'localhost';
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
@@ -77,18 +93,26 @@ Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER ON *.* TO `u1`@`localhost`
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=1227]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t_session, slave:t_session]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 #
 # TC4. Verify that setting `default_table_encryption` only succeeds on
 #      the slave when having `SUPER` or `SYSTEM_VARIABLES_ADMIN` and
@@ -103,14 +127,20 @@ REVOKE SUPER, SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* FROM 'u1'@'l
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=1227]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 GRANT SYSTEM_VARIABLES_ADMIN, TABLE_ENCRYPTION_ADMIN ON *.* TO 'u1'@'localhost';
 SHOW GRANTS FOR 'u1'@'localhost';
 Grants for u1@localhost
 GRANT INSERT, CREATE, DROP ON *.* TO `u1`@`localhost`
 GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN ON *.* TO `u1`@`localhost`
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_sql_with_master.inc
 include/assert.inc [Database new_db exists on slave]

@@ -35,7 +35,7 @@
 # here, we avoid a internal failure on START GROUP_REPLICATION that would
 # fail while reseting this channel leading to a unclean channel state.
   --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
-RESET SLAVE FOR CHANNEL "group_replication_applier";
+RESET REPLICA FOR CHANNEL "group_replication_applier";
 
 # Suppression of error messages
 SET sql_log_bin=0;

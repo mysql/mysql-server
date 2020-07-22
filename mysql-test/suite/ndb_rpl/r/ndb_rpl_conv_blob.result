@@ -12,8 +12,12 @@ PRIMARY KEY (id)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set global slave_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 use test;
 drop table t1;
 CREATE TABLE t1 (

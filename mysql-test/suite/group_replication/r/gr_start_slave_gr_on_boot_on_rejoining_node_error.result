@@ -84,6 +84,8 @@ DROP TABLE test.t2;
 DROP TABLE test.t1;
 [connection server1]
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP TABLE test.t1;
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");

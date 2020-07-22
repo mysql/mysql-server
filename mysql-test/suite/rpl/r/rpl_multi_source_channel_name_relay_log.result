@@ -27,6 +27,8 @@ include/rpl_stop_slaves.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel1' are already stopped.
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # 2. Shutdown server. Remove relay log files. Start server with
 #     --relay-log-index
@@ -46,6 +48,8 @@ include/rpl_stop_slaves.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel1' are already stopped.
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # 3. Shutdown server. Remove relay log files. Start server with
 #    --relay-log-index and --relay-log with extensions.
@@ -65,6 +69,8 @@ include/rpl_stop_slaves.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel1' are already stopped.
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # We have to reset the --relay-log and --relay-log-index options,
 # so that in the  next test case if the server restarts there is no mismatch

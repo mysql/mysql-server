@@ -40,15 +40,21 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 
 # 8. start slave and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 9. start slave io and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE IO_THREAD FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 10. start slave sql and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 11. Verify occurrence of error message
@@ -83,7 +89,13 @@ Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group repli
 [connection server1]
 include/stop_slave.inc [FOR CHANNEL 'ch3_1']
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server2]
 RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/group_replication_end.inc

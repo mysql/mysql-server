@@ -30,6 +30,8 @@ SET sql_log_bin=1;
 START GROUP_REPLICATION;
 include/assert.inc [The default values of the User_name and User_password are empty without a previous change master.]
 RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET sql_log_bin=0;
 DROP USER manish;
 SET sql_log_bin=1;

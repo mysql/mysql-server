@@ -14,7 +14,11 @@ call mtr.add_suppression("The member is leaving a group without being on one");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 #
 # Phase 1:
 # Start recovery on a new member and kill both donors
@@ -45,6 +49,8 @@ include/stop_group_replication.inc
 #
 include/start_and_bootstrap_group_replication.inc
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 # Start recovery on the other 2 members
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("No suitable donor found, group replication recovery aborting.");

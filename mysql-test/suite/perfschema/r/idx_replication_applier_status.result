@@ -41,5 +41,7 @@ REMAINING_DELAY
 OK: handler_read_key incremented
 include/stop_slave.inc
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
 include/rpl_end.inc

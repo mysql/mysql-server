@@ -85,6 +85,8 @@ UNINSTALL PLUGIN clone;
 include/clean_monitoring_process.inc
 include/stop_slave.inc
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP USER 'u1'@'localhost';
 set session sql_log_bin=0;
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
@@ -95,5 +97,5 @@ call mtr.add_suppression("Relay log information for channel 'channel_1' was foun
 call mtr.add_suppression("Relay log information for channel 'channel_3' was found after a clone operation. Relay log recovery*");
 set session sql_log_bin=1;
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

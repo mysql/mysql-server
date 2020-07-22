@@ -21,7 +21,7 @@ include/start_group_replication.inc
 # 3. Stop the applier sql thread on server2
 [connection server2]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 # 4. Set server2 weight higher to be new primary server
 SET GLOBAL group_replication_member_weight= 90;

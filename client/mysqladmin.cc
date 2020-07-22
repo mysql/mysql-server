@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -752,7 +752,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         break;
       case ADMIN_REFRESH:
         if (mysql_refresh(mysql, (uint) ~(REFRESH_GRANT | REFRESH_STATUS |
-                                          REFRESH_READ_LOCK | REFRESH_SLAVE |
+                                          REFRESH_READ_LOCK | REFRESH_REPLICA |
                                           REFRESH_MASTER))) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));

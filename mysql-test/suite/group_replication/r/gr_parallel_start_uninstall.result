@@ -11,6 +11,8 @@ include/start_and_bootstrap_group_replication.inc
 # 2. Set parameters for server 2 for start gr.
 [connection server2]
 RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET @saved_group_replication_group_seeds = @@GLOBAL.group_replication_group_seeds;
 SET @saved_group_replication_local_address = @@GLOBAL.group_replication_local_address;
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";

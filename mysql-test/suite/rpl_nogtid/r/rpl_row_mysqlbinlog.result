@@ -85,8 +85,12 @@ stop slave;
 include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 reset master;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 
 --- Test 1 Load from Dump binlog file --
@@ -257,8 +261,12 @@ stop slave;
 include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 reset master;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 SELECT COUNT(*) from t1;
 COUNT(*)
@@ -343,8 +351,12 @@ stop slave;
 include/wait_for_slave_to_stop.inc
 reset master;
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 reset master;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 create table t4 (f text character set utf8);
 Warnings:

@@ -31,6 +31,8 @@ a
 ---- Resolve the conflict on the slave and restart SQL thread ----
 DELETE FROM t1 WHERE a = 1;
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 ---- Sync slave and verify that there is no error ----
 include/check_slave_no_error.inc

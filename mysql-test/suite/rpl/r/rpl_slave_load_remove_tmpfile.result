@@ -17,6 +17,8 @@ drop table t1;
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 drop table t1;
 call mtr.add_suppression("Slave: Can't get stat of .*");
 call mtr.add_suppression("Slave SQL for channel '': .*Error .Can.t get stat of.* Error_code: MY-000013");

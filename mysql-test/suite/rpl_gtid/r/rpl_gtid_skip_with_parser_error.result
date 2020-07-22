@@ -11,6 +11,8 @@ include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=1064]
 include/assert.inc [Only 1st transaction is applied on slave]
 SET GTID_NEXT='11111111-1111-1111-1111-111111111111:2';

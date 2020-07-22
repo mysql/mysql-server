@@ -55,9 +55,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -73,9 +77,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -91,9 +99,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -109,9 +121,13 @@ INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}'), (2, '{"id": 2, 
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -133,9 +149,13 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 ## Removing debug point 'simulate_oom_in_apply_json_diffs' from @@GLOBAL.debug
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -165,9 +185,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading operation type (invalid operation code) while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -193,9 +217,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -221,9 +249,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping path while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -249,9 +281,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -277,9 +313,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, 'ÿ$.i', '[1]')
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -305,9 +345,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -333,9 +377,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -361,9 +409,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -389,9 +441,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, '$.id', Error parsing json value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -428,9 +484,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ###   @1=NULL
 ### SET
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -467,6 +527,8 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -483,6 +545,8 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -499,6 +563,8 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -515,6 +581,8 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -537,6 +605,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 ## Removing debug point 'simulate_oom_in_apply_json_diffs' from @@GLOBAL.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -562,6 +632,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_op' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -583,6 +655,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -604,6 +678,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -625,6 +701,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -646,6 +724,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_char' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -667,6 +747,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -688,6 +770,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_length' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -709,6 +793,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -730,6 +816,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_char' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -751,6 +839,8 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_omit_last_column_from_table_map_event' from @@SESSION.debug
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -787,9 +877,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -805,9 +899,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -823,9 +921,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -842,6 +944,8 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -863,9 +967,13 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 ## Removing debug point 'simulate_oom_in_apply_json_diffs' from @@GLOBAL.debug
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -895,9 +1003,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading operation type (invalid operation code) while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -923,9 +1035,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -951,9 +1067,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping path while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -979,9 +1099,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading path length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -1007,9 +1131,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, 'ÿ$.i', '[1]')
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -1035,9 +1163,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -1063,9 +1195,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error skipping value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -1091,9 +1227,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=Error reading value length to skip while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -1119,9 +1259,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ### SET
 ###   @2=JSON_REPLACE(@2, '$.id', Error parsing json value while printing JSON diff
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
@@ -1158,9 +1302,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ###   @1=NULL
 ### SET
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE test.t;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';

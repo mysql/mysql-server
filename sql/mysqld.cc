@@ -4170,9 +4170,17 @@ SHOW_VAR com_status_vars[] = {
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_SHOW_RELAYLOG_EVENTS]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"show_replicas",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_SHOW_SLAVE_HOSTS]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"show_slave_hosts",
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_SHOW_SLAVE_HOSTS]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"show_replica_status",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_SHOW_SLAVE_STAT]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"show_slave_status",
      (char *)offsetof(System_status_var,
@@ -4208,8 +4216,14 @@ SHOW_VAR com_status_vars[] = {
     {"shutdown",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_SHUTDOWN]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"replica_start",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_SLAVE_START]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"slave_start",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_SLAVE_START]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"replica_stop",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_SLAVE_STOP]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"slave_stop",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_SLAVE_STOP]),
@@ -4538,12 +4552,19 @@ int init_common_variables() {
       Com_stmt_reset           => com_stmt_reset
       Com_stmt_send_long_data  => com_stmt_send_long_data
 
+    We also have aliases for 4 com_status_vars:
+
+      Com_slave_start              => Com_replica_start
+      Com_slave_stop               => Com_replica_stop
+      Com_show_slave_status        => Com_show_replica_status
+      Com_show_slave_hosts         => Com_show_replicas
+
     With this correction the number of Com_ variables (number of elements in
     the array, excluding the last element - terminator) must match the number
     of SQLCOM_ constants.
   */
   static_assert(sizeof(com_status_vars) / sizeof(com_status_vars[0]) - 1 ==
-                    SQLCOM_END + 7,
+                    SQLCOM_END + 11,
                 "");
 #endif
 

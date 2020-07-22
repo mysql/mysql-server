@@ -6,7 +6,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/stop_slave.inc
 CHANGE MASTER TO master_retry_count=3, master_host='300.1.1.1', master_connect_retry=1;
 START SLAVE io_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_stop.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO master_host = '127.0.0.1';
 include/rpl_end.inc

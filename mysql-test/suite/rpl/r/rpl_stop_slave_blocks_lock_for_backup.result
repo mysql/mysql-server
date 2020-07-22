@@ -19,7 +19,11 @@ LOCK INSTANCE FOR BACKUP;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
 [connection slave]
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
 SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
 [connection slave1]
@@ -40,7 +44,11 @@ LOCK INSTANCE FOR BACKUP;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
 [connection slave]
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
 SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
 [connection slave1]

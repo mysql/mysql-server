@@ -22,7 +22,7 @@ include/start_group_replication.inc
 #    Execute an action, it shall fail
 [connection server2]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 SELECT group_replication_set_as_primary("MEMBER2_UUID");
 ERROR HY000: The function 'group_replication_set_as_primary' failed. A critical error occurred during the local execution of this action. The member will now leave the group.
 

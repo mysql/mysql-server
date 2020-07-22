@@ -26,6 +26,8 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 include/stop_group_replication.inc
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc ['The group replication applier channel is not present']
 server2
 INSERT INTO t1 VALUES (4);
@@ -41,12 +43,16 @@ include/assert.inc ['The group replication recovery channel is present']
 include/stop_group_replication.inc
 RESET SLAVE command clears master and slave info repositories and will flush master info
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc ['mysql.slave_relay_log_info contains flushed group replication channel information']
 include/assert.inc ['mysql.slave_master_info contains flushed group replication channel information']
 include/start_group_replication.inc
 include/assert.inc ['The group replication applier and recovery channel are present']
 include/stop_group_replication.inc
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc ['mysql.slave_relay_log_info does not contrain group replication channel information']
 include/assert.inc ['mysql.slave_master_info does not contrain group replication channel information']
 CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";

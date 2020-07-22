@@ -41,6 +41,8 @@ set @save.debug= @@global.debug;
 SET @@global.debug= "d,mts_worker_thread_fails";
 set @@global.slave_parallel_workers= 2;
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117]
 set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
@@ -66,6 +68,8 @@ include/rpl_reset.inc
 include/stop_slave.inc
 SET @@global.debug= "d,inject_init_worker_init_info_fault";
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117]
 SET @@global.debug= @save.debug;
 set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
@@ -83,6 +87,8 @@ change master to RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
 ERROR HY000: Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log.
 set @@global.debug= "d,mts_debug_recovery_reset_fails";
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117]
 set @@global.debug= @save.debug;
 set @@global.slave_parallel_workers= 2;

@@ -33,6 +33,8 @@ MASTER_TLS_CIPHERSUITES = NULL,
 MASTER_BIND = 'eth4n', MASTER_RETRY_COUNT = 7,
 MASTER_DELAY = 4711, MASTER_AUTO_POSITION = 0 FOR CHANNEL 'chan_jackie';
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET GLOBAL master_info_repository = DEFAULT;
 SET GLOBAL relay_log_info_repository = DEFAULT;
 CREATE USER 'test_user4'@'localhost';

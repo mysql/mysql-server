@@ -2,11 +2,11 @@
 #
 # Shut down replication initialized by include/rpl_init.inc.
 #
-# This syncs all servers, executes STOP SLAVE on all servers, executes
+# This syncs all servers, executes STOP REPLICA on all servers, executes
 # CHANGE MASTER on all servers, and disconnects all connections
 # configured by rpl_init.inc.
 #
-# It does not execute RESET MASTER or RESET SLAVE, because that would
+# It does not execute RESET MASTER or RESET REPLICA, because that would
 # remove binlogs which are possibly useful debug information in case
 # the test case later fails with a result mismatch.  If you need that,
 # source include/rpl_reset.inc before you source this file.
@@ -64,7 +64,7 @@
 #
 #     --source include/wait_for_slave_sql_error.inc
 #     --source include/stop_slave_io.inc
-#     RESET SLAVE;
+#     RESET REPLICA;
 #     --let $rpl_only_running_threads= 1
 #     --source include/rpl_end.inc
 #

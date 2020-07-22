@@ -1,6 +1,8 @@
 include/have_replication_observers_example_plugin.inc
 include/rpl_init.inc [topology=1->2]
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_1_PORT, MASTER_AUTO_POSITION=1 FOR CHANNEL "example_channel";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -16,6 +18,8 @@ INSERT INTO t1 VALUES(1);
 include/assert.inc ['The example_channel is OFF']
 SET @@GLOBAL.DEBUG= @debug_saved;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP TABLE t1;
 include/uninstall_replication_observers_example.inc
 DROP TABLE t1;

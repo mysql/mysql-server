@@ -50,6 +50,8 @@ include/assert.inc [Verify server2 MEMBER_STATE is OFFLINE]
 # 7. Start Group Replication on server2 and after
 #    resetting slave, verify it is running.
 RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_group_replication.inc
 include/assert.inc [Verify server2 MEMBER_STATE is ONLINE]
 include/group_replication_end.inc

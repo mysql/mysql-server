@@ -8,8 +8,12 @@ create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
 reset master;
 call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO MASTER_LOG_POS=4;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Capture current count of epoch decline warnings
 insert into test.t1 values (6, repeat('B', 1000));
 insert into test.t1 values (5, repeat('B', 1000));
@@ -34,8 +38,12 @@ skipped_err_count
 0
 Now stop and manually replay old binlog.
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 change master to master_log_pos=4;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Any slave positioning warnings?
 Should be one
 lower_warn_count
@@ -48,8 +56,12 @@ skipped_err_count
 0
 Repeat
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 change master to master_log_pos=4;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Any slave positioning warnings?
 Should be two
 lower_warn_count
@@ -62,7 +74,11 @@ skipped_err_count
 0
 Now try re-positioning after RESET SLAVE
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_start_slaves.inc
 Any slave positioning warnings?
 Should be two, e.g. no extras after the RESET SLAVE
@@ -109,8 +125,12 @@ Now check that we can manually restart the slave
 set global debug = @old_debug;
 reset master;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 change master to master_log_pos=4;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 insert into test.t1 values (13, repeat('A', 1000));
 Check slave warnings now, should be no extras
 e.g. 2 warnings, 1 error
@@ -157,8 +177,12 @@ Now check that we can manually restart the slave
 set global debug = @old_debug;
 reset master;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 change master to master_log_pos=4;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 insert into test.t1 values (13, repeat('A', 1000));
 Check slave warnings now, should be no extras
 lower_warn_count
@@ -203,8 +227,12 @@ Now check that we can manually restart the slave
 set global debug = @old_debug;
 reset master;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 change master to master_log_pos=4;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 insert into test.t1 values (13, repeat('A', 1000));
 Check slave warnings now, should be no extras
 lower_warn_count

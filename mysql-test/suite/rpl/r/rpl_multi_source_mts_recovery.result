@@ -50,4 +50,4 @@ SET @@global.innodb_lock_wait_timeout=@save.innodb_lock_wait_timeout;
 SET @@global.slave_transaction_retries= @save.slave_transaction_retries;
 SET @@global.max_relay_log_size= @save.max_relay_log_size;
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';

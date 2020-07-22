@@ -5,9 +5,15 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 INSERT INTO t1 VALUES ("row1","will go away",1);
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -35,9 +41,13 @@ row3	C	3
 row4	D	4
 include/check_slave_is_running.inc
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/check_slave_no_error.inc
 call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row3	C	3
@@ -47,11 +57,17 @@ c1	c2	c3
 row3	C	3
 row4	D	4
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DROP TABLE t1;
 RESET master;
 DROP TABLE t1;
 RESET slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 CREATE TABLE t1 (c1 CHAR(15) NOT NULL, c2 CHAR(15) NOT NULL, c3 INT NOT NULL, PRIMARY KEY (c3)) ENGINE = NDB ;
 INSERT INTO t1 VALUES ("row1","remove on slave",1);
 DELETE FROM t1;
@@ -65,9 +81,15 @@ row2	new on slave	2
 include/check_slave_is_running.inc
 DROP TABLE IF EXISTS t1;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Let's interleave some DDL and DML in the Binlog
 Some DDL
 create table t1(a int primary key) engine=ndb;
@@ -96,16 +118,26 @@ commit;
 include/check_slave_is_running.inc
 Stop slave and reset position to start of the applied epoch
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/check_slave_no_error.inc
 call mtr.add_suppression("Slave: Table \'t2\' already exists .*");
 call mtr.add_suppression("Slave SQL for channel '': Error \'Table \'t2\' already exists\' .*");
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=1050]
 Last_SQL_Error = 'Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb''
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET MASTER;
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 DROP TABLE t1;
 DROP TABLE t2;
 include/rpl_end.inc

@@ -440,4 +440,4 @@ include/rpl_reset_slave.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 include/group_replication_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';

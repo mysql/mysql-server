@@ -10,6 +10,8 @@ SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
 # Test for Single Threaded Slave
 SET GLOBAL slave_parallel_workers= 0;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # 1) Create a database on server_1.
 [connection server_1]
 CREATE DATABASE db1;
@@ -79,8 +81,12 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 # Test for Multi Threaded Slave
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET GLOBAL slave_parallel_workers = 2;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # 1) Create a database on server_1.
 [connection server_1]
 CREATE DATABASE db1;
@@ -162,8 +168,12 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 [connection server_3]
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';

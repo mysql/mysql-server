@@ -30,6 +30,8 @@ INSERT INTO t1 VALUES (2);
 [connection slave]
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
 include/stop_slave_sql.inc
 #
