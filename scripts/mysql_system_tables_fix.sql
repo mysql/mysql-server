@@ -848,7 +848,7 @@ ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTE
 
 ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.';
 
-ALTER TABLE slave_master_info ADD Managed BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel is monitored on failures.';
+ALTER TABLE slave_master_info ADD Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.';
 
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
@@ -870,8 +870,8 @@ ALTER TABLE slave_master_info
   AFTER Master_zstd_compression_level;
 
 ALTER TABLE slave_master_info
-  MODIFY COLUMN Managed BOOLEAN NOT NULL DEFAULT FALSE
-  COMMENT 'Indicates whether the channel is monitored on failures.'
+  MODIFY COLUMN Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE
+  COMMENT 'Indicates whether the channel connection failover is enabled.'
   AFTER Tls_ciphersuites;
 
 # Columns added to keep information about the replication applier thread

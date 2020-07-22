@@ -151,7 +151,7 @@
   performance_schema tables changed in MySQL 8.0.21
   - tls_channel_status (created)
   - replication_connection_configuration, added column
-  MANAGED
+  SOURCE_CONNECTION_AUTO_FAILOVER
 
   80022:
 

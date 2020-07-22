@@ -23,13 +23,13 @@
 --echo #    table.
 --echo #
 
-SELECT asynchronous_connection_failover_add_primary('ch1', '127.0.0.1', 3101, 'net1');
-SELECT asynchronous_connection_failover_add_primary('ch1', '127.0.0.1', 3102, 'net2');
-SELECT asynchronous_connection_failover_add_primary('ch1', '192.168.0.1', 3101, 'net2', 40);
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3101, 'net1');
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3102, 'net2');
+SELECT asynchronous_connection_failover_add_source('ch1', '192.168.0.1', 3101, 'net2', 40);
 
-SELECT asynchronous_connection_failover_add_primary('ch2', '127.0.0.1', 3102);
-SELECT asynchronous_connection_failover_add_primary('ch2', '127.0.0.1', 3103);
-SELECT asynchronous_connection_failover_add_primary('ch2', '192.168.0.1', 3101, 'net1', 40);
+SELECT asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3102);
+SELECT asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3103);
+SELECT asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, 'net1', 40);
 
 
 --echo #
@@ -136,13 +136,13 @@ SELECT asynchronous_connection_failover_add_primary('ch2', '192.168.0.1', 3101, 
 --echo # 3. Cleanup
 --echo #
 
-SELECT asynchronous_connection_failover_delete_primary('ch1', '127.0.0.1', 3101, 'net1');
-SELECT asynchronous_connection_failover_delete_primary('ch1', '127.0.0.1', 3102, 'net2');
-SELECT asynchronous_connection_failover_delete_primary('ch1', '192.168.0.1', 3101, 'net2');
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3101, 'net1');
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3102, 'net2');
+SELECT asynchronous_connection_failover_delete_source('ch1', '192.168.0.1', 3101, 'net2');
 
-SELECT asynchronous_connection_failover_delete_primary('ch2', '127.0.0.1', 3102);
-SELECT asynchronous_connection_failover_delete_primary('ch2', '127.0.0.1', 3103);
-SELECT asynchronous_connection_failover_delete_primary('ch2', '192.168.0.1', 3101, 'net1');
+SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3102);
+SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3103);
+SELECT asynchronous_connection_failover_delete_source('ch2', '192.168.0.1', 3101, 'net1');
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

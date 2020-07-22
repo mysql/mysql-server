@@ -500,17 +500,23 @@ class Master_info : public Rpl_info {
                     enabled.
              false  otherwise.
   */
-  bool is_managed() { return m_managed; }
+  bool is_source_connection_auto_failover() {
+    return m_source_connection_auto_failover;
+  }
 
   /**
     Enable Asynchronous Replication Connection Failover feature.
   */
-  void set_managed() { m_managed = true; }
+  void set_source_connection_auto_failover() {
+    m_source_connection_auto_failover = true;
+  }
 
   /**
     Disable Asynchronous Replication Connection Failover feature.
   */
-  void unset_managed() { m_managed = false; }
+  void unset_source_connection_auto_failover() {
+    m_source_connection_auto_failover = false;
+  }
 
   /**
     Checks if network error has occurred.
@@ -587,7 +593,7 @@ class Master_info : public Rpl_info {
   bool write_info(Rpl_info_handler *to) override;
 
   bool auto_position{false};
-  bool m_managed{false};
+  bool m_source_connection_auto_failover{false};
   bool m_network_error{false};
 
   Master_info(

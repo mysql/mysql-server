@@ -53,10 +53,10 @@ class Rpl_async_conn_failover_table_operations {
 
   /**
     Insert row provided by
-    asynchronous_connection_failover_add_primary() UDF to
+    asynchronous_connection_failover_add_source() UDF to
     replication_asynchronous_connection_failover table.
 
-    @param[in] master_conn_detail  std::tuple containing <channel, host, port,
+    @param[in] source_conn_detail  std::tuple containing <channel, host, port,
                                    network_namespace, weight>
 
     @returns std::tuple<bool, std::string> where each element has
@@ -69,14 +69,14 @@ class Rpl_async_conn_failover_table_operations {
               second element of tuple is error message.
   */
   std::tuple<bool, std::string> insert_row(
-      SENDER_CONN_TUPLE master_conn_detail);
+      SENDER_CONN_TUPLE source_conn_detail);
 
   /**
     Delete row provided by
-    asynchronous_connection_failover_delete_primary() UDF in
+    asynchronous_connection_failover_delete_source() UDF in
     replication_asynchronous_connection_failover table.
 
-    @param[in] master_conn_detail  std::tuple containing <channel, host, port,
+    @param[in] source_conn_detail  std::tuple containing <channel, host, port,
                             network_namespace, weight>
 
     @returns std::tuple<bool, std::string> where each element has
@@ -89,10 +89,10 @@ class Rpl_async_conn_failover_table_operations {
               second element of tuple is error message.
   */
   std::tuple<bool, std::string> delete_row(
-      SENDER_CONN_TUPLE master_conn_detail);
+      SENDER_CONN_TUPLE source_conn_detail);
 
   /**
-    Get primary network configuration details (<hostname, port,
+    Get source network configuration details (<hostname, port,
     network_namespace>) from replication_asynchronous_connection_failover table
     for the channel. It uses index scan (ha_index_read_idx_map) to fetch rows
     for the channel name.
@@ -106,7 +106,7 @@ class Rpl_async_conn_failover_table_operations {
                false  Successful
                true   Error
 
-             second element of the tuple is list of primary network
+             second element of the tuple is list of source network
              configuration details (<hostname, port, network_namespace>).
   */
   std::tuple<bool, SENDER_CONN_LIST> read_rows(std::string channel_name);
@@ -122,7 +122,7 @@ class Rpl_async_conn_failover_table_operations {
                false  Successful
                true   Error
 
-             second element of the tuple is list of primary network
+             second element of the tuple is list of source network
              configuration details (<hostname, port, network_namespace>).
   */
   std::tuple<bool, SENDER_CONN_LIST> read_all_rows();
@@ -138,7 +138,7 @@ class Rpl_async_conn_failover_table_operations {
                false  Successful
                true   Error
 
-             second element of the tuple is list of primary network
+             second element of the tuple is list of source network
              configuration details (<hostname, port, network_namespace>).
   */
   std::tuple<bool, SENDER_CONN_LIST> read_random_rows();
@@ -155,7 +155,7 @@ class Rpl_async_conn_failover_table_operations {
                false  Successful
                true   Error
 
-             second element of the tuple contains primary network configuration
+             second element of the tuple contains source network configuration
              details (<hostname, port, network_namespace>).
   */
   std::tuple<bool, SENDER_CONN_TUPLE> read_random_rows_pos(std::string pos);
@@ -194,7 +194,7 @@ class Rpl_async_conn_failover_table_operations {
   /**
     Get stored data in table.
 
-    @returns SENDER_CONN_TUPLE where tuple is list of primary network
+    @returns SENDER_CONN_TUPLE where tuple is list of source network
              configuration details (<hostname, port, network_namespace>).
   */
   SENDER_CONN_TUPLE get_data(TABLE *table);

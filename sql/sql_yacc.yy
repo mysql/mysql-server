@@ -1321,14 +1321,13 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> ENGINE_ATTRIBUTE_SYM 1154         /* MYSQL */
 %token<lexer.keyword> SECONDARY_ENGINE_ATTRIBUTE_SYM 1155 /* MYSQL */
-%token<lexer.keyword> MANAGED_SYM 1156                  /* MYSQL */
+%token<lexer.keyword> SOURCE_CONNECTION_AUTO_FAILOVER_SYM 1156 /* MYSQL */
 %token<lexer.keyword> ZONE_SYM 1157                     /* SQL-2003-N */
 %token<lexer.keyword> GRAMMAR_SELECTOR_DERIVED_EXPR 1158  /* synthetic token:
                                                             starts derived
                                                             table expressions. */
 %token<lexer.keyword> REPLICA_SYM 1159
 %token<lexer.keyword> REPLICAS_SYM 1160
-
 
 
 /*
@@ -2770,14 +2769,16 @@ master_def:
             }
           }
         | REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM EQ table_primary_key_check_def
-        | MANAGED_SYM EQ real_ulong_num
+        | SOURCE_CONNECTION_AUTO_FAILOVER_SYM EQ real_ulong_num
           {
             switch($3) {
             case 0:
-                Lex->mi.m_managed = LEX_MASTER_INFO::LEX_MI_DISABLE;
+                Lex->mi.m_source_connection_auto_failover =
+                  LEX_MASTER_INFO::LEX_MI_DISABLE;
                 break;
             case 1:
-                Lex->mi.m_managed = LEX_MASTER_INFO::LEX_MI_ENABLE;
+                Lex->mi.m_source_connection_auto_failover =
+                  LEX_MASTER_INFO::LEX_MI_ENABLE;
                 break;
             default:
                 YYTHD->syntax_error_at(@3);
@@ -14854,7 +14855,6 @@ ident_keywords_unambiguous:
         | LOCKS_SYM
         | LOGFILE_SYM
         | LOGS_SYM
-        | MANAGED_SYM
         | MASTER_AUTO_POSITION_SYM
         | MASTER_COMPRESSION_ALGORITHM_SYM
         | MASTER_CONNECT_RETRY_SYM
@@ -15023,6 +15023,7 @@ ident_keywords_unambiguous:
         | SOCKET_SYM
         | SONAME_SYM
         | SOUNDS_SYM
+        | SOURCE_CONNECTION_AUTO_FAILOVER_SYM
         | SOURCE_SYM
         | SQL_AFTER_GTIDS
         | SQL_AFTER_MTS_GAPS

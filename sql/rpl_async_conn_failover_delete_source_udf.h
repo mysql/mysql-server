@@ -20,21 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef RPL_ASYNC_CONN_FAILOVER_ADD_PRIMARY_UDF_H
-#define RPL_ASYNC_CONN_FAILOVER_ADD_PRIMARY_UDF_H
+#ifndef RPL_ASYNC_CONN_FAILOVER_DELETE_SOURCE_UDF_H
+#define RPL_ASYNC_CONN_FAILOVER_DELETE_SOURCE_UDF_H
 
 #include "sql/udf_service_impl.h"
 #include "sql/udf_service_util.h"
 
-class Rpl_async_conn_failover_add_primary : public Udf_service_impl {
+class Rpl_async_conn_failover_delete_source : public Udf_service_impl {
  private:
   Udf_charset_service m_charset_service;
-  std::string m_udf_name{"asynchronous_connection_failover_add_primary"};
+  std::string m_udf_name{"asynchronous_connection_failover_delete_source"};
   bool m_initialized{false};
 
  public:
-  Rpl_async_conn_failover_add_primary() {}
-  ~Rpl_async_conn_failover_add_primary() override {}
+  Rpl_async_conn_failover_delete_source() {}
+  ~Rpl_async_conn_failover_delete_source() override {}
 
   /**
     Initialize variables, acquires the mysql_service_mysql_udf_metadata from the
@@ -56,7 +56,7 @@ class Rpl_async_conn_failover_add_primary : public Udf_service_impl {
   bool deinit();
 
   /**
-    Add primary network configuration details
+    Deletes source network configuration details
 
     @param[in] init_id     UDF_INIT structure
     @param[in] args       UDF_ARGS structure containing argument details
@@ -67,9 +67,9 @@ class Rpl_async_conn_failover_add_primary : public Udf_service_impl {
 
     @return error message
   */
-  static char *add_primary(UDF_INIT *init_id, UDF_ARGS *args, char *result,
-                           unsigned long *length, unsigned char *is_null,
-                           unsigned char *error);
+  static char *delete_source(UDF_INIT *init_id, UDF_ARGS *args, char *result,
+                             unsigned long *length, unsigned char *is_null,
+                             unsigned char *error);
 
   /**
     Initialize and verifies UDF's arguments. Also sets argument and result
@@ -81,14 +81,14 @@ class Rpl_async_conn_failover_add_primary : public Udf_service_impl {
 
     @return True if error, false otherwise.
   */
-  static bool add_primary_init(UDF_INIT *init_id, UDF_ARGS *args,
-                               char *message);
+  static bool delete_source_init(UDF_INIT *init_id, UDF_ARGS *args,
+                                 char *message);
 
   /**
     Deinitialize variables initalized during init function.
 
     @param[in] init_id     UDF_INIT structure
   */
-  static void add_primary_deinit(UDF_INIT *init_id);
+  static void delete_source_deinit(UDF_INIT *init_id);
 };
-#endif /* RPL_ASYNC_CONN_FAILOVER_ADD_PRIMARY_UDF_H */
+#endif /* RPL_ASYNC_CONN_FAILOVER_DELETE_SOURCE_UDF_H */

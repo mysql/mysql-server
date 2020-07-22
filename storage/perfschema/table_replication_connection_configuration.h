@@ -114,7 +114,7 @@ struct st_row_connect_config {
       second: the string value when first is false
   */
   std::pair<bool, std::string> tls_ciphersuites = {true, ""};
-  enum_rpl_yes_no managed{PS_RPL_NO};
+  enum_rpl_yes_no source_connection_auto_failover{PS_RPL_NO};
 };
 
 class PFS_index_rpl_connection_config : public PFS_engine_index {

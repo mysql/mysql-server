@@ -24,7 +24,7 @@
 #    inserted successfully in
 #    performance_schema.replication_asynchronous_connection_failover.
 # 5. Initialize async_conn_failover_wait_new_sender dbug sync point
-#    and stop server 2. The initialized dbug sync point will block slave
+#    and stop server 2. The initialized dbug sync point will block replica
 #    IO thread after getting sender list from
 #    performance_schema.replication_asynchronous_connection_failover. Add one
 #    more sender configuration detail and verify total four sender details
@@ -65,7 +65,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin= 1;
 
---let $assert_text= 'There is one row on slave'
+--let $assert_text= 'There is one row on replica'
 --let $assert_cond= [SELECT  COUNT(*) count FROM t1, count, 1] = 1
 --source include/assert.inc
 
@@ -76,7 +76,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    connected to server 3.
 --echo #
 --let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 0
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
 --source include/assert.inc
 
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$MASTER_MYPORT
@@ -89,12 +89,12 @@ SET SESSION sql_log_bin= 1;
 --echo #    performance_schema.replication_connection_configuration.
 --echo #
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
+CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 --source include/start_slave.inc
 
 # Verify Asynchronous Replication Connection Failover is enabled.
 --let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 1
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 1
 --source include/assert.inc
 
 
@@ -106,10 +106,10 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 --echo #
 
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', $SERVER_MYPORT_1, '', 70);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_1, '', 70);
 --replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', $SERVER_MYPORT_3, '', 50);
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', 40001, '', 40);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_3, '', 50);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 40001, '', 40);
 
 --let $assert_text= 'There are three rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 3
@@ -118,7 +118,7 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 
 --echo #
 --echo # 5. Initialize async_conn_failover_wait_new_sender dbug sync point
---echo #    and stop server 2. The initialized dbug sync point will block slave
+--echo #    and stop server 2. The initialized dbug sync point will block replica
 --echo #    IO thread after getting sender list from
 --echo #    performance_schema.replication_asynchronous_connection_failover. Add
 --echo #    one more sender configuration detail and verify total four sender
@@ -143,7 +143,7 @@ SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender';
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
 
 # add a new sender with higher weight
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', 50001, '', 80);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 50001, '', 80);
 
 --let $assert_text= 'There are four rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 4
@@ -231,7 +231,7 @@ SET GLOBAL debug= @old_debug;
 --source include/stop_slave.inc
 --source include/rpl_reset_slave.inc
 
-CHANGE MASTER TO MANAGED=0;
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
 
 DROP TABLE t1;
 

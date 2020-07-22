@@ -80,10 +80,10 @@ class PFS_index_rpl_async_conn_failover : public PFS_engine_index {
   /**
     Match fetched row with searched values.
 
-    @param master_conn_detail  the tuple contains primary network configuration
+    @param source_conn_detail  the tuple contains source network configuration
                                details to be matched.
   */
-  virtual bool match(SENDER_CONN_TUPLE master_conn_detail);
+  virtual bool match(SENDER_CONN_TUPLE source_conn_detail);
 
  private:
   PFS_key_name m_key_1;  // channel_name key
@@ -102,7 +102,7 @@ class table_replication_asynchronous_connection_failover
   typedef PFS_simple_index pos_t;
 
  private:
-  int make_row(SENDER_CONN_TUPLE master_tuple);
+  int make_row(SENDER_CONN_TUPLE source_tuple);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -213,8 +213,8 @@ class table_replication_asynchronous_connection_failover
   /* Index object to get match searched values */
   PFS_index_rpl_async_conn_failover *m_opened_index;
 
-  /* Stores the data being read i.e. master connection details. */
-  SENDER_CONN_LIST master_conn_detail;
+  /* Stores the data being read i.e. source connection details. */
+  SENDER_CONN_LIST source_conn_detail;
 
   /* Stores error happened while reading rows */
   bool read_error;

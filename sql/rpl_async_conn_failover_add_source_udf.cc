@@ -25,24 +25,24 @@
 #include "sql/sql_class.h"
 
 #include "sql/auth/auth_acls.h"
-#include "sql/rpl_async_conn_failover_add_primary_udf.h"
+#include "sql/rpl_async_conn_failover_add_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
 
 const int DEFAULT_WEIGHT_VAL = 50;
 
-bool Rpl_async_conn_failover_add_primary::init() {
+bool Rpl_async_conn_failover_add_source::init() {
   DBUG_TRACE;
 
   Udf_data udf(m_udf_name, STRING_RESULT,
-               Rpl_async_conn_failover_add_primary::add_primary,
-               Rpl_async_conn_failover_add_primary::add_primary_init,
-               Rpl_async_conn_failover_add_primary::add_primary_deinit);
+               Rpl_async_conn_failover_add_source::add_source,
+               Rpl_async_conn_failover_add_source::add_source_init,
+               Rpl_async_conn_failover_add_source::add_source_deinit);
 
   m_initialized = !register_udf(udf);
   return !m_initialized;
 }
 
-bool Rpl_async_conn_failover_add_primary::deinit() {
+bool Rpl_async_conn_failover_add_source::deinit() {
   DBUG_TRACE;
 
   if (m_initialized && !unregister_udf(m_udf_name)) {
@@ -52,9 +52,11 @@ bool Rpl_async_conn_failover_add_primary::deinit() {
   return m_initialized;
 }
 
-char *Rpl_async_conn_failover_add_primary::add_primary(
-    UDF_INIT *, UDF_ARGS *args, char *result, unsigned long *length,
-    unsigned char *, unsigned char *error) {
+char *Rpl_async_conn_failover_add_source::add_source(UDF_INIT *, UDF_ARGS *args,
+                                                     char *result,
+                                                     unsigned long *length,
+                                                     unsigned char *,
+                                                     unsigned char *error) {
   DBUG_TRACE;
   *error = 0;
   Rpl_async_conn_failover_table_operations sql_operations(TL_WRITE,
@@ -76,20 +78,20 @@ char *Rpl_async_conn_failover_add_primary::add_primary(
   uint weight = (args->arg_count > 4) ? *((long long *)args->args[4])
                                       : DEFAULT_WEIGHT_VAL;
 
-  auto primary_conn_details =
+  auto source_conn_details =
       std::make_tuple(weight, channel, host, port, network_namespace);
 
   /* add row */
-  std::tie(err_val, err_msg) = sql_operations.insert_row(primary_conn_details);
+  std::tie(err_val, err_msg) = sql_operations.insert_row(source_conn_details);
 
   strcpy(result, err_msg.c_str());
   *length = err_msg.length();
   return result;
 }
 
-bool Rpl_async_conn_failover_add_primary::add_primary_init(UDF_INIT *init_id,
-                                                           UDF_ARGS *args,
-                                                           char *message) {
+bool Rpl_async_conn_failover_add_source::add_source_init(UDF_INIT *init_id,
+                                                         UDF_ARGS *args,
+                                                         char *message) {
   DBUG_TRACE;
   if (args->arg_count < 3) {
     my_stpcpy(message,
@@ -167,7 +169,7 @@ bool Rpl_async_conn_failover_add_primary::add_primary_init(UDF_INIT *init_id,
   return false;
 }
 
-void Rpl_async_conn_failover_add_primary::add_primary_deinit(UDF_INIT *) {
+void Rpl_async_conn_failover_add_source::add_source_deinit(UDF_INIT *) {
   DBUG_TRACE;
   return;
 }

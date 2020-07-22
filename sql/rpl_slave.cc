@@ -5582,12 +5582,12 @@ ignore_log_space_limit=%d",
     // error = 0;
   err:
     /*
-      If Managed (async connection failover) is enabled and Slave IO thread is
-      not killed but failed due to network error and AUTO_POSITION is enabled,
-      then async_failover_enabled is enabled so that it can setup connection to
-      new primary after cleanup.
+      If source_connection_auto_failover (async connection failover) is enabled
+      and Replica IO thread is not killed but failed due to network error, then
+      async_failover_enabled is enabled so that it can setup a connection to the
+      new source after cleanup.
     */
-    if (!io_slave_killed(thd, mi) && mi->is_managed() &&
+    if (!io_slave_killed(thd, mi) && mi->is_source_connection_auto_failover() &&
         mi->is_network_error()) {
       DBUG_EXECUTE_IF("async_conn_failover_crash", DBUG_SUICIDE(););
       async_failover_enabled = true;
@@ -5672,7 +5672,7 @@ ignore_log_space_limit=%d",
 
     /*
       Setup channel if async conn failover has replaced network configuration
-      details with new choosen primary.
+      details with new choosen source.
     */
     if (async_failover_enabled &&
         !async_conn_failover_manager.do_auto_conn_failover(mi)) {
@@ -8183,7 +8183,7 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
     if (++err_count == mi->retry_count) {
       if (is_network_error(last_errno)) mi->set_network_error();
       slave_was_killed = 1;
-      DBUG_EXECUTE_IF("slave_retry_count_exceed", {
+      DBUG_EXECUTE_IF("replica_retry_count_exceed", {
         rpl_slave_debug_point(DBUG_RPL_S_RETRY_COUNT_EXCEED, thd);
       });
       break;
@@ -9761,14 +9761,17 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   */
   if (lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
     /*
-      auto_position cannot be disable if either managed option is enabled or
-      getting enabled in current CHANGE MASTER statement.
+      auto_position cannot be disable if either source_connection_auto_failover
+      option is enabled or getting enabled in current CHANGE MASTER statement.
     */
     if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_DISABLE &&
-        mi->is_managed() &&
-        (lex_mi->m_managed == LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-         (lex_mi->m_managed != LEX_MASTER_INFO::LEX_MI_UNCHANGED &&
-          lex_mi->m_managed != LEX_MASTER_INFO::LEX_MI_DISABLE))) {
+        mi->is_source_connection_auto_failover() &&
+        (lex_mi->m_source_connection_auto_failover ==
+             LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+         (lex_mi->m_source_connection_auto_failover !=
+              LEX_MASTER_INFO::LEX_MI_UNCHANGED &&
+          lex_mi->m_source_connection_auto_failover !=
+              LEX_MASTER_INFO::LEX_MI_DISABLE))) {
       error = ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF;
       my_error(ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF, MYF(0));
       goto err;
@@ -9779,19 +9782,22 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   }
 
   /*
-    managed option doesn't affect any of receive and execute sections of
-    replication. It is only useful after IO thread fails so its code is kept
-    outside both if (have_receive_option) and if (have_execute_option)
+    source_connection_auto_failover option doesn't affect any of receive and
+    execute sections of replication. It is only useful after IO thread fails so
+    its code is kept outside both if (have_receive_option) and if
+    (have_execute_option).
   */
-  if (lex_mi->m_managed != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
-    if (lex_mi->m_managed == LEX_MASTER_INFO::LEX_MI_ENABLE) {
+  if (lex_mi->m_source_connection_auto_failover !=
+      LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+    if (lex_mi->m_source_connection_auto_failover ==
+        LEX_MASTER_INFO::LEX_MI_ENABLE) {
       /*
-        Enable the Managed option only if gtid_mode=ON and
-        AUTO_POSITION is enabled.
+        Enable the source_connection_auto_failover option only if gtid_mode=ON
+        and AUTO_POSITION is enabled.
       */
       auto gtid_mode = global_gtid_mode.get();
       if (gtid_mode == Gtid_mode::ON && mi->is_auto_position()) {
-        mi->set_managed();
+        mi->set_source_connection_auto_failover();
       } else {
         error = (gtid_mode == Gtid_mode::ON)
                     ? ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
@@ -9800,7 +9806,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         goto err;
       }
     } else {
-      mi->unset_managed();
+      mi->unset_source_connection_auto_failover();
     }
   }
 
@@ -10062,7 +10068,8 @@ static bool is_invalid_change_master_for_group_replication_recovery(
       lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
       lex_mi->require_row_format != -1 ||
-      lex_mi->m_managed != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+      lex_mi->m_source_connection_auto_failover !=
+          LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;
@@ -10107,7 +10114,8 @@ static bool is_invalid_change_master_for_group_replication_applier(
       lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
       lex_mi->require_row_format != -1 ||
-      lex_mi->m_managed != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+      lex_mi->m_source_connection_auto_failover !=
+          LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;

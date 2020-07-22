@@ -18,7 +18,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_repl
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 CHANGE MASTER TO MASTER_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
-CHANGE MASTER TO MANAGED=1 FOR CHANNEL "group_replication_recovery";
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 
 # ERROR when executing STOP SLAVE on GR recovery channel

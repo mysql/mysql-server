@@ -100,11 +100,11 @@ enum {
   /* line for tls_ciphersuites */
   LINE_FOR_TLS_CIPHERSUITES = 31,
 
-  /* line for managed */
-  LINE_FOR_MANAGED = 32,
+  /* line for source_connection_auto_failover */
+  LINE_FOR_SOURCE_CONNECTION_AUTO_FAILOVER = 32,
 
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO = LINE_FOR_MANAGED
+  LINES_IN_MASTER_INFO = LINE_FOR_SOURCE_CONNECTION_AUTO_FAILOVER
 
 };
 
@@ -144,7 +144,7 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "master_compression_algorithm",
                                 "master_zstd_compression_level",
                                 "tls_ciphersuites",
-                                "managed"};
+                                "source_connection_auto_failover"};
 
 const uint info_mi_table_pk_field_indexes[] = {
     LINE_FOR_CHANNEL - 1,
@@ -655,10 +655,10 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     }
   }
 
-  if (lines >= LINE_FOR_MANAGED) {
-    auto temp_managed{0};
-    if (!!from->get_info(&temp_managed, 0)) return true;
-    m_managed = temp_managed;
+  if (lines >= LINE_FOR_SOURCE_CONNECTION_AUTO_FAILOVER) {
+    auto temp_source_connection_auto_failover{0};
+    if (!!from->get_info(&temp_source_connection_auto_failover, 0)) return true;
+    m_source_connection_auto_failover = temp_source_connection_auto_failover;
   }
 
   return false;
@@ -700,7 +700,7 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info((int)zstd_compression_level) ||
       to->set_info(tls_ciphersuites.first ? nullptr
                                           : tls_ciphersuites.second.c_str()) ||
-      to->set_info((int)m_managed))
+      to->set_info((int)m_source_connection_auto_failover))
     return true;
 
   return false;

@@ -14,7 +14,7 @@ include/rpl_sync.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin= 1;
-include/assert.inc ['There is one row on slave']
+include/assert.inc ['There is one row on replica']
 #
 # 2. Verify Asynchronous Replication Connection Failover is initially
 #    disabled. Also verify Asynchronous Replication is initially
@@ -27,7 +27,7 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    performance_schema.replication_connection_configuration.
 #
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
+CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/start_slave.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
@@ -36,19 +36,19 @@ include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #    inserted successfully in
 #    performance_schema.replication_asynchronous_connection_failover.
 #
-SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', SERVER_MYPORT_1, '', 70);;
-asynchronous_connection_failover_add_primary('', '127.0.0.1', SERVER_MYPORT_1, '', 70)
-The UDF asynchronous_connection_failover_add_primary() executed successfully.
-SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', SERVER_MYPORT_3, '', 50);;
-asynchronous_connection_failover_add_primary('', '127.0.0.1', SERVER_MYPORT_3, '', 50)
-The UDF asynchronous_connection_failover_add_primary() executed successfully.
-SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', 40001, '', 40);;
-asynchronous_connection_failover_add_primary('', '127.0.0.1', 40001, '', 40)
-The UDF asynchronous_connection_failover_add_primary() executed successfully.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_1, '', 70);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_1, '', 70)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 50);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 40001, '', 40);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', 40001, '', 40)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
 include/assert.inc ['There are three rows in performance_schema.replication_asynchronous_connection_failover']
 #
 # 5. Initialize async_conn_failover_wait_new_sender dbug sync point
-#    and stop server 2. The initialized dbug sync point will block slave
+#    and stop server 2. The initialized dbug sync point will block replica
 #    IO thread after getting sender list from
 #    performance_schema.replication_asynchronous_connection_failover. Add
 #    one more sender configuration detail and verify total four sender
@@ -63,9 +63,9 @@ SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender';
 include/rpl_stop_server.inc [server_number=1]
 [connection server_2]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
-SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', 50001, '', 80);;
-asynchronous_connection_failover_add_primary('', '127.0.0.1', 50001, '', 80)
-The UDF asynchronous_connection_failover_add_primary() executed successfully.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 50001, '', 80);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', 50001, '', 80)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
 include/assert.inc ['There are four rows in performance_schema.replication_asynchronous_connection_failover']
 #
 # 6. Now unblock async_conn_failover_wait_new_sender dbug sync point.
@@ -109,7 +109,7 @@ DROP TABLE t1;
 SET GLOBAL debug= @old_debug;
 include/stop_slave.inc
 include/rpl_reset_slave.inc
-CHANGE MASTER TO MANAGED=0;
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
 DROP TABLE t1;
 include/rpl_start_server.inc [server_number=3]
 include/rpl_end.inc

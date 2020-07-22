@@ -17,7 +17,7 @@
 #    performance_schema.replication_connection_configuration.
 # 5. Stop server 3.
 # 6. Verify that asynchronous replication fails with error
-#    ER_RPL_ASYNC_RECONNECT_FAIL_NO_PRIMARIES as there is no primary added to
+#    ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE as there is no source added to
 #    table performance_schema.replication_asynchronous_connection_failover to
 #    connect.
 # 7. Verify that asynchronous replication tries connecting to server 3
@@ -25,8 +25,8 @@
 # 8. Add three asynchronous connection failover servers and
 #    verify that they are inserted successfully in
 #    performance_schema.replication_asynchronous_connection_failover.
-# 9. Restart slave IO so asynchronous replication connection failover
-#    can execute and connect to new sender/primary.
+# 9. Restart replica IO so asynchronous replication connection failover
+#    can execute and connect to new sender/source.
 # 10. Verify that asynchronous replication channel gets connected to
 #     server 2 and also verify that asynchronous replication tries
 #     connecting to server 3 two (retry_count=2) times.
@@ -39,11 +39,11 @@
 # 14. Insert more data on server1 and verify that its synced to the
 #     server 4.
 # 15. Stop server 1.
-# 16. Even after all primaries are stopped the slave IO thread keeps
-#     on re-trying to connect with all logged primaries in
+# 16. Even after all source are stopped the replica IO thread keeps
+#     on re-trying to connect with all logged source in
 #     performance_schema.replication_asynchronous_connection_failover
 #     table. It tries connecting to server 3, 2 and again server 3.
-# 17. Stop slave IO
+# 17. Stop replica IO
 # 18. Clean up
 #
 --source include/big_test.inc
@@ -76,7 +76,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin= 1;
 
---let $assert_text= 'There is one row on slave'
+--let $assert_text= 'There is one row on replica'
 --let $assert_cond= [SELECT  COUNT(*) count FROM t1, count, 1] = 1
 --source include/assert.inc
 
@@ -87,7 +87,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    connected to server 3.
 --echo #
 --let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 0
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
 --source include/assert.inc
 
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_3
@@ -100,12 +100,12 @@ SET SESSION sql_log_bin= 1;
 --echo #    performance_schema.replication_connection_configuration.
 --echo #
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
+CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 --source include/start_slave.inc
 
 # Verify Asynchronous Replication Connection Failover is enabled.
 --let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 1
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 1
 --source include/assert.inc
 
 
@@ -118,7 +118,7 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 
 --echo #
 --echo # 6. Verify that asynchronous replication fails with error
---echo #    ER_RPL_ASYNC_RECONNECT_FAIL_NO_PRIMARIES as there is no primary
+--echo #    ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE as there is no source
 --echo #    added to table
 --echo #    performance_schema.replication_asynchronous_connection_failover to
 --echo #    connect.
@@ -129,9 +129,9 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 --let $slave_io_errno=2003
 --source include/wait_for_slave_io_error.inc
 
---let $assert_text= Assert that the IO thread fails with as there is not alternative primaries to connect.
+--let $assert_text= Assert that the IO thread fails with as there is not alternative source to connect.
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= Failed to automatically re-connect to a different primary, for channel.*, because no alternative primary is specified. To fix this add new primary details for the channel.
+--let $assert_select= Failed to automatically re-connect to a different source, for channel.*, because no alternative source is specified. To fix this add new source details for the channel.
 --let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
 --let $assert_count= 1
 --source include/assert_grep.inc
@@ -157,11 +157,11 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 --echo #
 
 --replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', $SERVER_MYPORT_3, '', 60);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_3, '', 60);
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', $SERVER_MYPORT_2, '', 50);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_2, '', 50);
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', $SERVER_MYPORT_1, '', 40);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_1, '', 40);
 
 --let $assert_text= 'There are three rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 3
@@ -169,8 +169,8 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 
 
 --echo #
---echo # 9. Restart slave IO so asynchronous replication connection failover
---echo #    can execute and connect to new sender/primary.
+--echo # 9. Restart replica IO so asynchronous replication connection failover
+--echo #    can execute and connect to new sender/source.
 --echo #
 --source include/start_slave_io.inc
 
@@ -264,15 +264,15 @@ INSERT INTO t1 VALUES (3);
 --source include/rpl_connection.inc
 
 SET @old_debug= @@GLOBAL.DEBUG;
-SET GLOBAL debug = '+d,slave_retry_count_exceed';
+SET GLOBAL debug = '+d,replica_retry_count_exceed';
 
 --let $rpl_server_number= 1
 --source include/rpl_stop_server.inc
 
 
 --echo #
---echo # 16. Even after all primaries are stopped the slave IO thread keeps
---echo #     on re-trying to connect with all logged primaries in
+--echo # 16. Even after all source are stopped the replica IO thread keeps
+--echo #     on re-trying to connect with all logged source in
 --echo #     performance_schema.replication_asynchronous_connection_failover
 --echo #     table. It tries connecting to server 3, 2 and again server 3.
 --echo #
@@ -341,7 +341,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
 
 --echo #
---echo # 17. Stop slave IO
+--echo # 17. Stop replica IO
 --echo #
 SET @@GLOBAL.DEBUG= @old_debug;
 --source include/stop_slave_io.inc
@@ -351,7 +351,7 @@ SET @@GLOBAL.DEBUG= @old_debug;
 --echo # 18. Clean up
 --echo #
 
-CHANGE MASTER TO MANAGED=0;
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
 
 --let $rpl_server_number=1
 --source include/rpl_start_server.inc
