@@ -81,7 +81,7 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "  COMMENT 'Compression level associated with zstd compression "
     "algorithm.',\n"
     "  TLS_CIPHERSUITES TEXT CHARACTER SET utf8 COLLATE utf8_bin NULL,\n"
-    "  MANAGED ENUM('1','0') not null,\n"
+    "  SOURCE_CONNECTION_AUTO_FAILOVER ENUM('1','0') not null,\n"
     "  PRIMARY KEY (channel_name) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -314,10 +314,10 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
 
   m_row.tls_ciphersuites = mi->tls_ciphersuites;
 
-  if (mi->is_managed()) {
-    m_row.managed = PS_RPL_YES;
+  if (mi->is_source_connection_auto_failover()) {
+    m_row.source_connection_auto_failover = PS_RPL_YES;
   } else {
-    m_row.managed = PS_RPL_NO;
+    m_row.source_connection_auto_failover = PS_RPL_NO;
   }
 
   mysql_mutex_unlock(&mi->rli->data_lock);
@@ -426,8 +426,8 @@ int table_replication_connection_configuration::read_row_values(
                            m_row.tls_ciphersuites.second.length(),
                            &my_charset_utf8mb4_bin);
           break;
-        case 25: /** managed */
-          set_field_enum(f, m_row.managed);
+        case 25: /** source_connection_auto_failover */
+          set_field_enum(f, m_row.source_connection_auto_failover);
           break;
         default:
           DBUG_ASSERT(false);

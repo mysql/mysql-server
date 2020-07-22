@@ -27,20 +27,20 @@
 #include "sql/rpl_mi.h"
 
 /*
-  The class is used to connect to new primary/master in case the
-  current slave IO connection gets interrupted.
+  The class is used to connect to new source in case the
+  current replica IO connection gets interrupted.
 */
 class Async_conn_failover_manager {
  private:
   /*
-    Current position in m_master_conn_detail_list list, whose value it will read
+    Current position in m_source_conn_detail_list list, whose value it will read
     and re-establish connection. It increments this value each time connection
     is unsuccessful.
   */
   uint m_pos{0};
 
-  /* The list of different master connection details. */
-  SENDER_CONN_LIST m_master_conn_detail_list{};
+  /* The list of different source connection details. */
+  SENDER_CONN_LIST m_source_conn_detail_list{};
 
  public:
   Async_conn_failover_manager() {}
@@ -53,26 +53,26 @@ class Async_conn_failover_manager {
       delete;
 
   /**
-    Re-establishes connection to next available primary/master.
+    Re-establishes connection to next available source.
 
     @param[in] mi   the Master_info object of the failed connection which
-                    needs to be reconnected to the new primary.
+                    needs to be reconnected to the new source.
 
-    @retval true   Error connecting to new primary/master.
-    @retval false  Success connecting to new primary/master.
+    @retval true   Error connecting to new source.
+    @retval false  Success connecting to new source.
  */
   bool do_auto_conn_failover(Master_info *mi);
 
   /**
-    Sets primary network configuration details <host, port, network_namespace>
+    Sets source network configuration details <host, port, network_namespace>
     for the provided Master_info object. The function is used by async conn
-    failure to set configuration details of new primary.
+    failure to set configuration details of new source.
 
     @param[in] mi   the Master_info object of the failed connection which
-                    needs to be reconnected to the new primary.
-    @param[in] host the primary hostname to be set for Master_info object
-    @param[in] port the primary port to be set for Master_info object
-    @param[in] network_namespace the primary network_namespace to be set for
+                    needs to be reconnected to the new source.
+    @param[in] host the source hostname to be set for Master_info object
+    @param[in] port the source port to be set for Master_info object
+    @param[in] network_namespace the source network_namespace to be set for
                                  Master_info object
 
     @retval true   Error
@@ -83,8 +83,8 @@ class Async_conn_failover_manager {
                                 const std::string network_namespace);
 
   /**
-    Reset position to start so that all master/primary can be considered on
-    next slave IO failure.
+    Reset position to start so that all source can be considered on
+    next replica IO failure.
   */
   void reset_pos() { m_pos = 0; }
 };

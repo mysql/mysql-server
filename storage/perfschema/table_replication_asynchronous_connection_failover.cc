@@ -54,22 +54,22 @@ Plugin_table table_replication_asynchronous_connection_failover::m_table_def(
     "replication_asynchronous_connection_failover",
     /* Definition */
     "  CHANNEL_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci "
-    "NOT NULL COMMENT 'The replication channel name that connects primary and "
-    "secondary.',\n"
-    "  HOST CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The primary "
-    "hostname that the secondary will attempt to switch over the replication "
+    "NOT NULL COMMENT 'The replication channel name that connects source and "
+    "replica.',\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The source "
+    "hostname that the replica will attempt to switch over the replication "
     "connection to in case of a failure.',\n"
-    "  PORT INTEGER NOT NULL COMMENT 'The primary port that the secondary "
-    " will attempt to switch over the replication connection to in case of a "
+    "  PORT INTEGER NOT NULL COMMENT 'The source port that the replica "
+    "will attempt to switch over the replication connection to in case of a "
     "failure.',\n"
-    "  NETWORK_NAMESPACE CHAR(64) COMMENT 'The primary network namespace that "
-    "the secondary will attempt to switch over the replication connection to "
+    "  NETWORK_NAMESPACE CHAR(64) COMMENT 'The source network namespace that "
+    "the replica will attempt to switch over the replication connection to "
     "in case of a failure. If its value is empty, connections use the default "
     "(global) namespace.',\n"
     "  WEIGHT INTEGER UNSIGNED NOT NULL COMMENT 'The order in which the "
-    "secondary shall try to switch the connection over to when there are "
-    "failures. Weights can be set to a number between 1 and 100, where 100 is "
-    "the highest weigth and 1 the lowest.',\n"
+    "replica shall try to switch the connection over to when there are "
+    "failures. Weight can be set to a number between 1 and 100, where 100 is "
+    "the highest weight and 1 the lowest.',\n"
     "  PRIMARY KEY(CHANNEL_NAME, HOST, PORT, NETWORK_NAMESPACE) \n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -95,7 +95,7 @@ PFS_engine_table_share
 };
 
 bool PFS_index_rpl_async_conn_failover::match(
-    SENDER_CONN_TUPLE master_conn_detail) {
+    SENDER_CONN_TUPLE source_conn_detail) {
   DBUG_TRACE;
   st_row_rpl_async_conn_failover row;
   std::string channel_name;
@@ -104,7 +104,7 @@ bool PFS_index_rpl_async_conn_failover::match(
   std::string network_namespace;
 
   std::tie(std::ignore, channel_name, host, port, network_namespace) =
-      master_conn_detail;
+      source_conn_detail;
 
   row.channel_name_length = channel_name.length();
   memcpy(row.channel_name, channel_name.c_str(), row.channel_name_length);
@@ -163,7 +163,7 @@ ha_rows table_replication_asynchronous_connection_failover::get_row_count() {
 int table_replication_asynchronous_connection_failover::rnd_init(bool) {
   DBUG_TRACE;
   Rpl_async_conn_failover_table_operations table_op;
-  std::tie(read_error, master_conn_detail) = table_op.read_random_rows();
+  std::tie(read_error, source_conn_detail) = table_op.read_random_rows();
   return 0;
 }
 
@@ -172,13 +172,13 @@ int table_replication_asynchronous_connection_failover::rnd_next(void) {
   if (read_error) return 1;
 
   table_replication_asynchronous_connection_failover::num_rows =
-      master_conn_detail.size();
+      source_conn_detail.size();
 
-  for (m_pos.set_at(&m_next_pos); m_pos.m_index < master_conn_detail.size();
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < source_conn_detail.size();
        m_pos.next()) {
-    auto master_conn_tuple = master_conn_detail[m_pos.m_index];
+    auto source_conn_tuple = source_conn_detail[m_pos.m_index];
     m_next_pos.set_after(&m_pos);
-    return make_row(master_conn_tuple);
+    return make_row(source_conn_tuple);
   }
 
   return HA_ERR_END_OF_FILE;
@@ -187,19 +187,19 @@ int table_replication_asynchronous_connection_failover::rnd_next(void) {
 int table_replication_asynchronous_connection_failover::rnd_pos(
     const void *pos) {
   DBUG_TRACE;
-  SENDER_CONN_TUPLE master_conn_tuple;
+  SENDER_CONN_TUPLE source_conn_tuple;
   bool error{false};
   int res{HA_ERR_RECORD_DELETED};
 
   set_position(pos);
   auto upos = std::to_string(m_pos.m_index);
   Rpl_async_conn_failover_table_operations table_op;
-  std::tie(error, master_conn_tuple) = table_op.read_random_rows_pos(upos);
+  std::tie(error, source_conn_tuple) = table_op.read_random_rows_pos(upos);
 
   table_replication_asynchronous_connection_failover::num_rows = 1;
   if (error) return res;
 
-  res = make_row(master_conn_tuple);
+  res = make_row(source_conn_tuple);
   return res;
 }
 
@@ -213,7 +213,7 @@ int table_replication_asynchronous_connection_failover::index_init(
   m_index = result;
 
   Rpl_async_conn_failover_table_operations table_op;
-  std::tie(read_error, master_conn_detail) = table_op.read_all_rows();
+  std::tie(read_error, source_conn_detail) = table_op.read_all_rows();
 
   return 0;
 }
@@ -223,14 +223,14 @@ int table_replication_asynchronous_connection_failover::index_next(void) {
   if (read_error) return 1;
 
   table_replication_asynchronous_connection_failover::num_rows =
-      master_conn_detail.size();
+      source_conn_detail.size();
 
-  for (m_pos.set_at(&m_next_pos); m_pos.m_index < master_conn_detail.size();
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < source_conn_detail.size();
        m_pos.next()) {
-    auto master_conn_tuple = master_conn_detail[m_pos.m_index];
-    if (m_opened_index->match(master_conn_tuple)) {
+    auto source_conn_tuple = source_conn_detail[m_pos.m_index];
+    if (m_opened_index->match(source_conn_tuple)) {
       m_next_pos.set_after(&m_pos);
-      return make_row(master_conn_tuple);
+      return make_row(source_conn_tuple);
     }
   }
 
@@ -238,7 +238,7 @@ int table_replication_asynchronous_connection_failover::index_next(void) {
 }
 
 int table_replication_asynchronous_connection_failover::make_row(
-    SENDER_CONN_TUPLE master_tuple) {
+    SENDER_CONN_TUPLE source_tuple) {
   DBUG_TRACE;
   std::string channel{};
   std::string host{};
@@ -246,7 +246,7 @@ int table_replication_asynchronous_connection_failover::make_row(
   std::string network_namespace{};
   uint weight;
 
-  std::tie(weight, channel, host, port, network_namespace) = master_tuple;
+  std::tie(weight, channel, host, port, network_namespace) = source_tuple;
 
   m_row.channel_name_length = channel.length();
   memcpy(m_row.channel_name, channel.c_str(), channel.length());

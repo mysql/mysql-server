@@ -35,7 +35,7 @@
 --source include/assert.inc
 
 --let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 0
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
 --source include/assert.inc
 
 
@@ -45,10 +45,10 @@
 --echo #    ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF.
 --echo #
 --error ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF
-CHANGE MASTER TO MANAGED=1;
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 
 --let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 0
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
 --source include/assert.inc
 
 
@@ -78,10 +78,10 @@ SET GLOBAL GTID_MODE = ON;
 --source include/assert.inc
 
 --error ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
-CHANGE MASTER TO MANAGED=1;
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
 
 --let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 0
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
 --source include/assert.inc
 
 
@@ -89,11 +89,11 @@ CHANGE MASTER TO MANAGED=1;
 --echo # 5. Enabling MASTER_AUTO_POSITION and then enable Asynchronous
 --echo #    Replication Connection Failover and verify its enabled.
 --echo #
-CHANGE MASTER TO MASTER_AUTO_POSITION=1, MANAGED=1;
+CHANGE MASTER TO MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 
 # Verify Asynchronous Replication Connection Failover is enabled.
 --let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 1
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 1
 --source include/assert.inc
 
 
@@ -119,7 +119,7 @@ SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 --echo # 8. Clean up
 --echo #
 
-CHANGE MASTER TO MASTER_AUTO_POSITION=0, MANAGED=0;
+CHANGE MASTER TO MASTER_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=0;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;

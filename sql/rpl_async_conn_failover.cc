@@ -34,47 +34,47 @@
 bool Async_conn_failover_manager::do_auto_conn_failover(Master_info *mi) {
   DBUG_TRACE;
 
-  /* Current position in m_master_conn_detail_list list */
+  /* Current position in m_source_conn_detail_list list */
   auto current_pos{m_pos++};
   auto error{false};
-  auto ignore_rm_last_primary{false};
+  auto ignore_rm_last_source{false};
 
   /*
     When sender list is exhausted reset position and enable
-    ignore_rm_last_primary so that all the senders are considered without
+    ignore_rm_last_source so that all the senders are considered without
     ignoring last failed sender.
   */
-  if (current_pos >= m_master_conn_detail_list.size()) {
+  if (current_pos >= m_source_conn_detail_list.size()) {
     current_pos = 0;
     reset_pos();
-    ignore_rm_last_primary = true;  // for endless loop add all primaries
+    ignore_rm_last_source = true;  // for endless loop add all source
   }
 
   if (current_pos == 0) {
-    m_master_conn_detail_list.clear();
+    m_source_conn_detail_list.clear();
 
-    /* Get network configuration details of primaries. */
+    /* Get network configuration details of all source. */
     {
       Rpl_async_conn_failover_table_operations table_op(TL_READ);
-      std::tie(error, m_master_conn_detail_list) =
+      std::tie(error, m_source_conn_detail_list) =
           table_op.read_rows(mi->get_channel());
     }
 
-    if (!error && Master_info::is_configured(mi) && !ignore_rm_last_primary) {
+    if (!error && Master_info::is_configured(mi) && !ignore_rm_last_source) {
       /*
-       Remove the connection details of last failed master from the list
+       Remove the connection details of last failed source from the list
        as it was already tried MASTER_RETRY_COUNT times.
       */
       auto it = std::find_if(
-          m_master_conn_detail_list.begin(), m_master_conn_detail_list.end(),
+          m_source_conn_detail_list.begin(), m_source_conn_detail_list.end(),
           [mi](const SENDER_CONN_TUPLE &e) {
             return (strcmp((std::get<2>(e)).c_str(), mi->host) == 0 &&
                     std::get<3>(e) == mi->port &&
                     strcmp((std::get<4>(e)).c_str(),
                            mi->network_namespace_str()) == 0);
           });
-      if (it != m_master_conn_detail_list.end()) {
-        m_master_conn_detail_list.erase(it);
+      if (it != m_source_conn_detail_list.end()) {
+        m_source_conn_detail_list.erase(it);
       }
     }
 
@@ -83,29 +83,29 @@ bool Async_conn_failover_manager::do_auto_conn_failover(Master_info *mi) {
           "now SIGNAL wait_for_new_sender_selection "
           "WAIT_FOR continue_connect_new_sender";
       Auto_THD thd;
-      DBUG_ASSERT(m_master_conn_detail_list.size() == 3UL);
+      DBUG_ASSERT(m_source_conn_detail_list.size() == 3UL);
       DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
-    /* if there are no primaries to connect */
-    if (m_master_conn_detail_list.size() == 0) {
-      LogErr(SYSTEM_LEVEL, ER_RPL_ASYNC_RECONNECT_FAIL_NO_PRIMARIES,
+    /* if there are no source to connect */
+    if (m_source_conn_detail_list.size() == 0) {
+      LogErr(SYSTEM_LEVEL, ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE,
              mi->get_channel(),
-             "no alternative primary is"
+             "no alternative source is"
              " specified",
-             "add new primary details for the channel");
+             "add new source details for the channel");
       return true;
     }
   }
 
   /*
     reset current network configuration details with new network
-    configuration details of choosen primary.
+    configuration details of choosen source.
   */
   if (!set_channel_conn_details(
-          mi, std::get<2>(m_master_conn_detail_list[current_pos]),
-          std::get<3>(m_master_conn_detail_list[current_pos]),
-          std::get<4>(m_master_conn_detail_list[current_pos]))) {
+          mi, std::get<2>(m_source_conn_detail_list[current_pos]),
+          std::get<3>(m_source_conn_detail_list[current_pos]),
+          std::get<4>(m_source_conn_detail_list[current_pos]))) {
     return false;
   }
 
@@ -117,7 +117,7 @@ bool Async_conn_failover_manager::set_channel_conn_details(
     const std::string network_namespace) {
   DBUG_TRACE;
 
-  /* used as a bit mask to indicate running slave threads. */
+  /* used as a bit mask to indicate running replica threads. */
   int thread_mask{0};
   bool error{false};
 
@@ -161,7 +161,7 @@ bool Async_conn_failover_manager::set_channel_conn_details(
   mi->set_master_log_name("");
 
   /*
-    Get a bit mask for the slave threads that are running.
+    Get a bit mask for the replica threads that are running.
     Since the third argument is false, thread_mask after the function
     returns stands for running threads.
   */

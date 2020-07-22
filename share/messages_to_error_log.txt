@@ -11052,8 +11052,8 @@ ER_IB_MSG_UNDO_INJECT_FAILURE
 ER_GRP_RPL_TIMEOUT_RECEIVED_VC_LEAVE_ON_REJOIN
   eng "Timeout while waiting for a view change event during the leave step before a auto-rejoin attempt."
 
-ER_RPL_ASYNC_RECONNECT_FAIL_NO_PRIMARIES
-  eng "Failed to automatically re-connect to a different primary, for channel '%s', because %s. To fix this %s."
+ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE
+  eng "Failed to automatically re-connect to a different source, for channel '%s', because %s. To fix this %s."
 
 ER_UDF_REGISTER_SERVICE_ERROR
   eng "Could not execute the installation of UDF functions. Check for other errors in the log"

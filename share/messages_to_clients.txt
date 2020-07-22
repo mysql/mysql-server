@@ -9382,16 +9382,16 @@ ER_SCHEMA_READ_ONLY
   eng "Schema '%s' is in read only mode."
 
 ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF
-  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO MANAGED = 1 can only be set when @@GLOBAL.GTID_MODE = ON."
+  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON."
 
 ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
-  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO MANAGED = 1 can only be set when MASTER_AUTO_POSITION option of CHANGE MASTER TO is enabled."
+  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when MASTER_AUTO_POSITION option of CHANGE MASTER TO is enabled."
 
 ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF
-  eng "The @@GLOBAL.GTID_MODE = %-.64s cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO MANAGED = 1."
+  eng "The @@GLOBAL.GTID_MODE = %-.64s cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
 
 ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
-  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO MANAGED = 1."
+  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
 
 ER_INVALID_PARAMETER_USE
   eng "Invalid use of parameters in '%s'"

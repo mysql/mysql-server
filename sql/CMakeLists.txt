@@ -909,8 +909,8 @@ SET (SLAVE_SOURCE
   rpl_applier_reader.cc
   rpl_async_conn_failover.cc
   rpl_async_conn_failover_table_operations.cc
-  rpl_async_conn_failover_add_primary_udf.cc
-  rpl_async_conn_failover_delete_primary_udf.cc
+  rpl_async_conn_failover_add_source_udf.cc
+  rpl_async_conn_failover_delete_source_udf.cc
   rpl_channel_service_interface.cc
   rpl_channel_credentials.cc
   rpl_info.cc

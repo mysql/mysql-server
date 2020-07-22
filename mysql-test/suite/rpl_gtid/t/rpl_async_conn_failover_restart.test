@@ -2,9 +2,9 @@
 #
 # WL#12649: Automatic reconnection for Async replication between InnoDB Clusters
 #
-# It verifies that slave does connects to sender added to
+# It verifies that replica does connects to sender added to
 # performance_schema.replication_asynchronous_connection_failover even after
-# slave restart after crash.
+# replica restart after crash.
 #
 # ==== Implementation ====
 #
@@ -20,7 +20,7 @@
 #    performance_schema.replication_asynchronous_connection_failover.
 # 5. Initialize rpl_async_conn_failover_crash dbug sync point and stop
 #    server 1. The initialized dbug sync point will crash server 2.
-#    Reconnect to server 2 and start slave on it.
+#    Reconnect to server 2 and start replica on it.
 # 6. Verify that asynchronous replication channel gets connected to
 #    server 3 and also verify that asynchronous replication tries
 #    connecting to server 1 two (retry_count=2) times.
@@ -52,7 +52,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin= 1;
 
---let $assert_text= 'There is one row on slave'
+--let $assert_text= 'There is one row on replica'
 --let $assert_cond= [SELECT  COUNT(*) count FROM t1, count, 1] = 1
 --source include/assert.inc
 
@@ -63,7 +63,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    connected to server 1.
 --echo #
 --let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 0
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
 --source include/assert.inc
 
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$MASTER_MYPORT
@@ -76,12 +76,12 @@ SET SESSION sql_log_bin= 1;
 --echo #    performance_schema.replication_connection_configuration.
 --echo #
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
+CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 --source include/start_slave.inc
 
 # Verify Asynchronous Replication Connection Failover is enabled.
 --let $assert_text= 'Asynchronous Replication Connection Failover is enabled'
---let $assert_cond= [SELECT MANAGED FROM performance_schema.replication_connection_configuration, MANAGED, 1] = 1
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 1
 --source include/assert.inc
 
 
@@ -92,7 +92,7 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 --echo #
 
 --replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
---eval SELECT asynchronous_connection_failover_add_primary('', '127.0.0.1', $SERVER_MYPORT_3, '', 50);
+--eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', $SERVER_MYPORT_3, '', 50);
 
 --let $assert_text= 'There are three rows in performance_schema.replication_asynchronous_connection_failover'
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
@@ -102,7 +102,7 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, MANAGED=1;
 --echo #
 --echo # 5. Initialize rpl_async_conn_failover_crash dbug sync point and stop
 --echo #    server 1. The initialized dbug sync point will crash server 2.
---echo #    Reconnect to server 2 and start slave on it.
+--echo #    Reconnect to server 2 and start replica on it.
 --echo #
 
 --let $rpl_server_number= 2
@@ -114,7 +114,7 @@ SET GLOBAL debug = '+d,async_conn_failover_crash';
 --let $rpl_server_number= 1
 --source include/rpl_stop_server.inc
 
-# reconnect and start slave on server 2
+# reconnect and start replica on server 2
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 
@@ -148,7 +148,7 @@ SET GLOBAL debug = '+d,async_conn_failover_crash';
 --source include/rpl_connection.inc
 
 SET @@GLOBAL.DEBUG= @debug_saved;
-CHANGE MASTER TO MANAGED=0;
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
 
 --let $rpl_server_number=1
 --source include/rpl_start_server.inc

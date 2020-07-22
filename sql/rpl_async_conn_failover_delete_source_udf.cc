@@ -25,27 +25,27 @@
 #include "sql/sql_class.h"
 
 #include "sql/auth/auth_acls.h"
-#include "sql/rpl_async_conn_failover_delete_primary_udf.h"
+#include "sql/rpl_async_conn_failover_delete_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
 
-bool Rpl_async_conn_failover_delete_primary::init() {
+bool Rpl_async_conn_failover_delete_source::init() {
   DBUG_TRACE;
 
   Udf_data udf(m_udf_name, STRING_RESULT,
-               Rpl_async_conn_failover_delete_primary::delete_primary,
-               Rpl_async_conn_failover_delete_primary::delete_primary_init,
-               Rpl_async_conn_failover_delete_primary::delete_primary_deinit);
+               Rpl_async_conn_failover_delete_source::delete_source,
+               Rpl_async_conn_failover_delete_source::delete_source_init,
+               Rpl_async_conn_failover_delete_source::delete_source_deinit);
 
   m_initialized = !register_udf(udf);
   return !m_initialized;
 }
 
-bool Rpl_async_conn_failover_delete_primary::deinit() {
+bool Rpl_async_conn_failover_delete_source::deinit() {
   DBUG_TRACE;
   return !(m_initialized && !unregister_udf(m_udf_name));
 }
 
-char *Rpl_async_conn_failover_delete_primary::delete_primary(
+char *Rpl_async_conn_failover_delete_source::delete_source(
     UDF_INIT *, UDF_ARGS *args, char *result, unsigned long *length,
     unsigned char *is_null, unsigned char *error) {
   DBUG_TRACE;
@@ -68,12 +68,11 @@ char *Rpl_async_conn_failover_delete_primary::delete_primary(
     if (args->arg_count > 3 && args->lengths[3])
       network_namespace.assign(args->args[3], args->lengths[3]);
 
-    auto primary_conn_details =
+    auto source_conn_details =
         std::make_tuple(0, channel, host, port, network_namespace);
 
     /* delete row */
-    std::tie(err_val, err_msg) =
-        sql_operations.delete_row(primary_conn_details);
+    std::tie(err_val, err_msg) = sql_operations.delete_row(source_conn_details);
   }
 
   my_stpcpy(result, err_msg.c_str());
@@ -81,7 +80,7 @@ char *Rpl_async_conn_failover_delete_primary::delete_primary(
   return result;
 }
 
-bool Rpl_async_conn_failover_delete_primary::delete_primary_init(
+bool Rpl_async_conn_failover_delete_source::delete_source_init(
     UDF_INIT *init_id, UDF_ARGS *args, char *message) {
   DBUG_TRACE;
   if (args->arg_count < 3) {
@@ -151,7 +150,7 @@ bool Rpl_async_conn_failover_delete_primary::delete_primary_init(
   return false;
 }
 
-void Rpl_async_conn_failover_delete_primary::delete_primary_deinit(UDF_INIT *) {
+void Rpl_async_conn_failover_delete_source::delete_source_deinit(UDF_INIT *) {
   DBUG_TRACE;
   return;
 }

@@ -4180,12 +4180,15 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     }
   }
 
-  // Cannot set OFF when MANGED is enabled for any channel.
+  /*
+    Cannot set OFF when source_connection_auto_failover is enabled for any
+    channel.
+  */
   if (new_gtid_mode != Gtid_mode::ON) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
       Master_info *mi = it->second;
-      if (mi != nullptr && mi->is_managed()) {
+      if (mi != nullptr && mi->is_source_connection_auto_failover()) {
         my_error(ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF, MYF(0),
                  Gtid_mode::to_string(new_gtid_mode));
         goto err;

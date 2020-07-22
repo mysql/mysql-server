@@ -10,7 +10,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_repl
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
-CHANGE MASTER TO MANAGED=1 FOR CHANNEL "group_replication_applier";
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # CHANGE MASTER command is blocked for option `PRIVILEGE_CHECKS_USER` when GR is running
@@ -69,7 +69,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_repl
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
-CHANGE MASTER TO MANAGED=1 FOR CHANNEL "group_replication_applier";
+CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_applier";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # CHANGE MASTER command allows option `PRIVILEGE_CHECKS_USER` when GR is stopped
