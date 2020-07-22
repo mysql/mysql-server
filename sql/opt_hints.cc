@@ -540,8 +540,9 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
   */
   if (keyinfo_array.size()) return;
 
-  if (tr->is_view_or_derived())
-    return;  // Names of keys are not known for derived tables
+  // Names of keys are not known for
+  // derived/internal temp/table_function tables.
+  if (!tr->is_base_table()) return;
 
   TABLE *table = tr->table;
   keyinfo_array.resize(table->s->keys, nullptr);
