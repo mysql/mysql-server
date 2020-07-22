@@ -55,8 +55,8 @@ native_mutex_t init_mutex;
 native_mutex_t counter_mutex;
 native_cond_t count_threshold;
 
-static void db_error_with_table(MYSQL *mysql, char *table);
-static void db_error(MYSQL *mysql);
+static int db_error_with_table(MYSQL *mysql, char *table);
+static int db_error(MYSQL *mysql);
 static char *field_escape(char *to, const char *from, uint length);
 static char *add_load_option(char *ptr, const char *object,
                              const char *statement);
@@ -364,10 +364,8 @@ static int write_to_table(char *filename, MYSQL *mysql) {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
     snprintf(sql_statement, FN_REFLEN * 16 + 256, "DELETE FROM %s", tablename);
-    if (mysql_query(mysql, sql_statement)) {
-      db_error_with_table(mysql, tablename);
-      return 1;
-    }
+    if (mysql_query(mysql, sql_statement))
+      return db_error_with_table(mysql, tablename);
   }
   to_unix_path(hard_path);
   if (verbose) {
@@ -410,10 +408,8 @@ static int write_to_table(char *filename, MYSQL *mysql) {
     end = my_stpcpy(my_stpcpy(my_stpcpy(end, " ("), opt_columns), ")");
   *end = '\0';
 
-  if (mysql_query(mysql, sql_statement)) {
-    db_error_with_table(mysql, tablename);
-    return 1;
-  }
+  if (mysql_query(mysql, sql_statement))
+    return db_error_with_table(mysql, tablename);
   if (!silent) {
     if (mysql_info(mysql)) /* If NULL-pointer, print nothing */
     {
@@ -423,7 +419,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
   return 0;
 }
 
-static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {
+static int lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {
   DYNAMIC_STRING query;
   int i;
   char tablename[FN_REFLEN];
@@ -436,7 +432,8 @@ static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {
     dynstr_append(&query, " WRITE,");
   }
   if (mysql_real_query(mysql, query.str, (ulong)(query.length - 1)))
-    db_error(mysql); /* We shall countinue here, if --force was given */
+    return db_error(mysql); /* We shall countinue here, if --force was given */
+  return 0;
 }
 
 static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
@@ -495,12 +492,14 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
                            opt_mysql_unix_port, 0))) {
     ignore_errors = false; /* NO RETURN FROM db_error */
     db_error(mysql);
+    return nullptr;
   }
   mysql->reconnect = false;
   if (verbose) fprintf(stdout, "Selecting database %s\n", database);
   if (mysql_select_db(mysql, database)) {
     ignore_errors = false;
     db_error(mysql);
+    return nullptr;
   }
   return mysql;
 }
@@ -511,22 +510,22 @@ static void db_disconnect(char *host, MYSQL *mysql) {
   mysql_close(mysql);
 }
 
-static void safe_exit(int error, MYSQL *mysql) {
-  if (ignore_errors) return;
+static int safe_exit(int error, MYSQL *mysql) {
+  if (ignore_errors) return 0;
   if (mysql) mysql_close(mysql);
-  exit(error);
+  return error;
 }
 
-static void db_error_with_table(MYSQL *mysql, char *table) {
+static int db_error_with_table(MYSQL *mysql, char *table) {
   my_printf_error(0, "Error: %d, %s, when using table: %s", MYF(0),
                   mysql_errno(mysql), mysql_error(mysql), table);
-  safe_exit(1, mysql);
+  return safe_exit(1, mysql);
 }
 
-static void db_error(MYSQL *mysql) {
+static int db_error(MYSQL *mysql) {
   my_printf_error(0, "Error: %d %s", MYF(0), mysql_errno(mysql),
                   mysql_error(mysql));
-  safe_exit(1, mysql);
+  return safe_exit(1, mysql);
 }
 
 static char *add_load_option(char *ptr, const char *object,
@@ -586,20 +585,24 @@ static void *worker_thread(void *arg) {
     goto error;
   }
 
-  if (mysql_query(mysql, "/*!40101 set @@character_set_database=binary */;")) {
-    db_error(mysql); /* We shall countinue here, if --force was given */
+  if (mysql_query(mysql, "/*!40101 set @@character_set_database=binary */;") &&
+      (error = db_error(mysql))) {
+    if (exitcode == 0) exitcode = error;
+    /* We shall countinue here, if --force was given */
     goto error;
   }
 
   /*
     We are not currently catching the error here.
   */
-  if ((error = write_to_table(raw_table_name, mysql)))
+  if ((error = write_to_table(raw_table_name, mysql))) {
     if (exitcode == 0) exitcode = error;
+    goto error;
+  }
 
-error:
   if (mysql) db_disconnect(current_host, mysql);
 
+error:
   native_mutex_lock(&counter_mutex);
   counter--;
   native_cond_signal(&count_threshold);
@@ -644,8 +647,10 @@ int main(int argc, char **argv) {
 
     if (!(worker_threads = (my_thread_handle *)my_malloc(
               PSI_NOT_INSTRUMENTED, table_count * sizeof(*worker_threads),
-              MYF(0))))
-      return -2;
+              MYF(0)))) {
+      exitcode = -2;
+      goto end;
+    }
 
     for (counter = 0; *argv != nullptr; argv++) /* Loop through tables */
     {
@@ -697,21 +702,30 @@ int main(int argc, char **argv) {
     MYSQL *mysql = nullptr;
     if (!(mysql = db_connect(current_host, current_db, current_user,
                              opt_password))) {
-      return (1); /* purecov: deadcode */
+      exitcode = 1;
+      goto end;
     }
 
     if (mysql_query(mysql,
-                    "/*!40101 set @@character_set_database=binary */;")) {
-      db_error(mysql); /* We shall countinue here, if --force was given */
-      return (1);
+                    "/*!40101 set @@character_set_database=binary */;") &&
+        (error = db_error(mysql))) {
+      if (exitcode == 0) exitcode = error;
+      /* We shall countinue here, if --force was given */
+      goto end;
     }
 
-    if (lock_tables) lock_table(mysql, argc, argv);
+    if (lock_tables && (error = lock_table(mysql, argc, argv))) {
+      if (exitcode == 0) exitcode = error;
+      goto end;
+    }
     for (; *argv != nullptr; argv++)
-      if ((error = write_to_table(*argv, mysql)))
+      if ((error = write_to_table(*argv, mysql))) {
         if (exitcode == 0) exitcode = error;
+        break;
+      }
     db_disconnect(current_host, mysql);
   }
+end:
   my_free(opt_password);
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
