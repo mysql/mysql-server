@@ -11,6 +11,7 @@ call mtr.add_suppression("New log files created");
 --enable_query_log
 
 --source include/have_lowercase0.inc
+--source include/have_innodb_16k.inc
 
 --echo # SETUP
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
