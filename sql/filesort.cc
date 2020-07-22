@@ -667,9 +667,12 @@ void filesort_free_buffers(TABLE *table, bool full) {
   if (full) {
     if (table->sorting_iterator != nullptr) {
       table->sorting_iterator->CleanupAfterQuery();
+      table->sorting_iterator = nullptr;  // The TABLE object can be reused.
     }
     if (table->duplicate_removal_iterator != nullptr) {
       table->duplicate_removal_iterator->CleanupAfterQuery();
+      table->duplicate_removal_iterator =
+          nullptr;  // The TABLE object can be reused.
     }
   }
 }
