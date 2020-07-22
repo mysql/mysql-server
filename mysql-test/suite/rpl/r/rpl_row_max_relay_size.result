@@ -4,12 +4,16 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 #
 # Generate a big enough master's binlog to cause relay log rotations
 #
 create table t1 (a int);
 drop table t1;
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # Test 1
 #
@@ -22,38 +26,60 @@ select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/check_slave_is_running.inc
 #
 # Test 2
 #
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 set global max_relay_log_size=(5*4096);
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	20480
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/check_slave_is_running.inc
 #
 # Test 3: max_relay_log_size = 0
 #
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 set global max_relay_log_size=0;
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size	0
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/check_slave_is_running.inc
 #
 # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
 #
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 flush logs;
 #
 # Test 5
 #
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 flush logs;
 create table t1 (a int);
 include/sync_slave_sql_with_master.inc

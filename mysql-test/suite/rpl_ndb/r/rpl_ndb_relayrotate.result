@@ -5,11 +5,21 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 include/sync_slave_sql_with_master.inc
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 create table t1 (a int) engine=NDB;
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 select max(a) from t1;
 max(a)
 loop_max

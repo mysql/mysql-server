@@ -66,6 +66,8 @@ set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
 set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Slave can not handle replication events with the checksum that master is configured to log; the first event 'master-bin.000009' at XXX, the last event read from './master-bin.000010' at XXX, the last byte read from './master-bin.000010' at XXX.''
 select count(*) as zero from t1;
@@ -84,13 +86,19 @@ include/stop_slave.inc
 create table t2 (a int);
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122, 13115]
 set @@global.debug='';
 start slave io_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_io_with_master.inc
 set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117]
 Last_SQL_Error = 'Event crc check failed! Most likely there is event corruption.'
 include/stop_slave.inc
@@ -100,7 +108,11 @@ select count(*) as 'must be zero' from t2;
 must be zero
 0
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 reset master;
 set @@global.binlog_checksum= IF(floor((rand()*1000)%2), "CRC32", "NONE");
 flush logs;

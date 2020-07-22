@@ -26,9 +26,15 @@ check_pfs.inc [Privilege_checks_user column in performance_schema.replication_ap
 CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '4']
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '2']
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '3']
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '4']
 include/rpl_end.inc

@@ -37,5 +37,5 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/assert_grep.inc [Invalid replication timestamps warning is present in log]
 include/assert_grep.inc [Normalized replication timestamps warning is present in log]
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

@@ -15,6 +15,8 @@ include/diff_tables.inc [master:t0, slave:t0]
 # Stop the slave, so that we enable debug flag and apply binlog events
 # after master generates binlog events for CREATE TABLE ... SELECT.
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 [connection master]
 include/save_master_pos.inc
 CREATE TABLE t1 AS SELECT * FROM t0;
@@ -26,6 +28,8 @@ master-bin.000002	156			####
 # Crash slave server when applying row event (the INSERT)
 SET global DEBUG='+d, crash_on_transactional_ddl_insert';
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 # Wait for server to stop
 # Restart the server.
 include/rpl_start_server.inc [server_number=2]

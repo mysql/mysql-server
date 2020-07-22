@@ -55,7 +55,7 @@ include/assert.inc [Clone must be completed]
 #    Create some transactions on M1 to create applier backlog on M2.
 
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server1]
 UNINSTALL PLUGIN clone;
 INSERT INTO t1 values (3);

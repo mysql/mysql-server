@@ -51,6 +51,8 @@ update t1 set a=21 where a=2;
 rollback;
 include/sync_slave_sql_with_master.inc
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 set @@global.sql_slave_skip_counter=7;
 begin;
 select max(a) + 1 from t1 into @a;
@@ -65,11 +67,15 @@ select max(a) + 1 from t1 into @a;
 insert into t1 set a=@a;
 commit;
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 create table t2 (a int);
 insert into t2 values (1);
 start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc
 drop table t1;
@@ -118,6 +124,8 @@ update d1.t1 set a=21 where a=2;
 include/wait_for_slave_sql_error.inc [errno=1213, 1205]
 rollback;
 start slave until sql_after_mts_gaps;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/start_slave.inc

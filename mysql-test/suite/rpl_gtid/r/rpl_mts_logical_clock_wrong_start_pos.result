@@ -23,6 +23,8 @@ include/stop_slave.inc
 CHANGE MASTER TO MASTER_LOG_POS=QUERY_POS, MASTER_AUTO_POSITION=0;
 include/start_slave_io.inc
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc

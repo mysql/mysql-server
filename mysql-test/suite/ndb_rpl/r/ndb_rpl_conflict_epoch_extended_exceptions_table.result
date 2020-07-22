@@ -11,6 +11,8 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 MASTER_SERVER_ID: 1
 Setup ndb_replication and exceptions tables
 Populate ndb_replication table as necessary
@@ -122,6 +124,8 @@ e int,
 primary key(a,b)) engine=ndb CHARACTER SET latin1;
 Add some data
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Slave contents
 select * from t1 order by a;
 a	b	c
@@ -223,6 +227,8 @@ x	a	b	c	d	e
 21	9	10	11	Master updated data 9	17
 21	10	11	12	Master updated data 10	17
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Secondary should have been realigned to Primary
 Slave contents
 select * from t1 order by a;
@@ -380,5 +386,9 @@ SET NAMES latin1;
 flush logs;
 drop table mysql.ndb_replication;
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 reset slave;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc

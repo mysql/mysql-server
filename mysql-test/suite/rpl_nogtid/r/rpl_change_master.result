@@ -8,6 +8,8 @@ create table t1(n int);
 select * from t1;
 n
 stop slave sql_thread;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 insert into t1 values(1);
 insert into t1 values(2);
 include/wait_for_slave_param.inc [Read_Master_Log_Pos]
@@ -17,6 +19,8 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 select * from t1;
 n
 1
@@ -32,9 +36,13 @@ include/stop_slave.inc
 delete from t1 where a=2;
 CHANGE MASTER TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
 start slave sql_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 include/diff_tables.inc [master:t1, slave:t1]
 start slave io_thread;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_start.inc
 set global relay_log_purge=1;
 drop table t1;
@@ -81,6 +89,8 @@ create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to master_host=<master_bind>, master_bind=<master_bind>;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
@@ -88,11 +98,15 @@ create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to  master_bind=<master_bind>;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=2003]
 got expected error 2003
 include/stop_slave.inc
 change master to master_bind='';
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
@@ -100,6 +114,8 @@ create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to master_host=<master_bind>, master_bind=<master_bind>;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
@@ -107,6 +123,8 @@ create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to  master_bind=<master_bind>;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc

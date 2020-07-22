@@ -10,7 +10,7 @@ connection master;
 DROP TABLE IF EXISTS t1;
 
 sync_slave_with_master;
-STOP SLAVE;
+STOP REPLICA;
 eval $test_table_slave;
 
 connection master;
@@ -27,6 +27,6 @@ connection slave;
 
 # The following should be 0
 SELECT COUNT(*) FROM t1;
-STOP SLAVE;
+STOP REPLICA;
 --source include/rpl_reset.inc
 --let $rpl_only_running_threads= 0

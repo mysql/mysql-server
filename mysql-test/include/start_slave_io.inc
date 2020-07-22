@@ -1,9 +1,9 @@
 # ==== Purpose ====
 #
-# Issues START SLAVE IO_THREAD on the current connection. Then waits
+# Issues START REPLICA IO_THREAD on the current connection. Then waits
 # until the IO thread has started, or until a timeout is reached.
 #
-# Please use this instead of 'START SLAVE IO_THREAD', to reduce the
+# Please use this instead of 'START REPLICA IO_THREAD', to reduce the
 # risk of races in test cases.
 #
 #
@@ -41,7 +41,7 @@ if (!$rpl_debug)
 }
 
 
---eval START SLAVE IO_THREAD $_for_channel_clause
+--eval START REPLICA IO_THREAD $_for_channel_clause
 
 --source include/wait_for_slave_io_to_start.inc
 

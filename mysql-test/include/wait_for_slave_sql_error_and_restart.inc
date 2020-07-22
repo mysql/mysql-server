@@ -76,7 +76,7 @@ if (!$rpl_channel_name)
 --source include/stop_slave.inc
 
 --disable_query_log
---eval RESET SLAVE FOR CHANNEL $rpl_channel_name
+--eval RESET REPLICA FOR CHANNEL $rpl_channel_name
 
 # skip $rpl_skip_gtid transaction
 if ($rpl_skip_gtid)

@@ -28,6 +28,8 @@ GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 
 ############################################################
 # 3. Configure member 2 to use replication user, so that it

@@ -16,6 +16,8 @@ RESET SLAVE ALL;
 [connection server_2]
 SET debug_sync = "now signal wait_func_continue";
 [connection slave1]
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET debug_sync = 'RESET';
 [connection slave]
 master_pos_wait("master-bin.000001", 10000)
@@ -44,6 +46,8 @@ RESET SLAVE ALL;
 [connection server_2]
 SET debug_sync = "now signal wait_func_continue";
 [connection slave1]
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET debug_sync = 'RESET';
 [connection slave]
 wait_until_sql_thread_after_gtids(CONCAT(@@GLOBAL.server_uuid, ":100"))

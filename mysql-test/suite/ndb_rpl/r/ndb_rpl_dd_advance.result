@@ -171,9 +171,15 @@ c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 DROP TABLE t1;
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 ******** Create additional TABLESPACE test 2 **************
 CREATE TABLESPACE ts2
 ADD DATAFILE 'datafile03.dat'
@@ -232,7 +238,11 @@ COUNT(*)
 ***** Time to try slave sync ***********
 **** Must make sure slave is clean *****
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 DROP PROCEDURE IF EXISTS tpcb.load;
 DROP PROCEDURE IF EXISTS tpcb.trans;
 DROP TABLE IF EXISTS tpcb.account;
@@ -282,6 +292,8 @@ master_log_pos = <the_pos> ;
 * 4. *
 * 5. *
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 **** We should be ready to continue on *************
 ****** Let's make sure we match *******
 ***** MASTER *******

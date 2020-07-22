@@ -29,6 +29,8 @@ zero
 0
 stop slave;
 rollback;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 *** sql thread is *not* running: No ***
 *** the prove: the stopped slave has finished the current transaction ***
@@ -58,6 +60,8 @@ STOP SLAVE;
 # Slave1: unlock the table
 UNLOCK TABLES;
 # Slave: wait for the slave to stop
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 # Start slave again
 include/start_slave.inc
@@ -67,11 +71,15 @@ RESET MASTER;
 include/stop_slave.inc
 CHANGE MASTER TO master_log_pos=MASTER_POS;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_param.inc [Last_IO_Errno]
 Last_IO_Errno = '13114'
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Client requested master to start replication from position > file size''
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");

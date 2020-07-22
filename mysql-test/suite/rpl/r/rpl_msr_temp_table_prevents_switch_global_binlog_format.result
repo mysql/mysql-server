@@ -68,5 +68,5 @@ connection_server_1
 DROP TEMPORARY TABLE temp1;
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

@@ -41,11 +41,15 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
 include/diff_tables.inc [master:t1, slave:t1]
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # CREATE TEMPORARY TABLE ... SELECT with InnoDB engine
@@ -69,11 +73,15 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
 include/diff_tables.inc [master:t1, slave:t1]
 START SLAVE SQL_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_start.inc
 
 # Test end

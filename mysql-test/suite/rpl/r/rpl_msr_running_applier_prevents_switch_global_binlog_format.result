@@ -23,5 +23,5 @@ set global binlog_format=@saved_binlog_format;
 include/assert.inc [assert that @@global.binlog_format is set to @saved_binlog_format]
 include/rpl_start_slaves.inc
 include/rpl_end.inc
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

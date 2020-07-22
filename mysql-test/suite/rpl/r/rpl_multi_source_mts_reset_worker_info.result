@@ -9,6 +9,8 @@ call mtr.add_suppression("Corrupted table mysql.slave_worker_info");
 call mtr.add_suppression("Could not delete from Slave Workers info repository");
 include/stop_slave.inc
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
 CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch_a';
@@ -20,9 +22,17 @@ Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE FOR CHANNEL 'ch_b';
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 RESET SLAVE FOR CHANNEL 'ch_b';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 STOP SLAVE FOR CHANNEL 'ch_a';
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 ALTER TABLE mysql.slave_worker_info DROP PRIMARY KEY;
 RESET SLAVE ALL FOR CHANNEL 'ch_a';
 ERROR HY000: Unknown error
@@ -30,6 +40,7 @@ ALTER TABLE mysql.slave_worker_info ADD PRIMARY KEY (`channel_name`,`id`);
 DELETE FROM mysql.slave_worker_info WHERE channel_name like 'ch_a';
 STOP SLAVE IO_THREAD;
 Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 Note	3084	Replication thread(s) for channel 'ch_a' are already stopped.
 Note	3084	Replication thread(s) for channel 'ch_b' are already stopped.
 CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch_b';
@@ -44,5 +55,9 @@ include/rpl_restart_server.inc [server_number=1 parameters: --gtid-mode=off]
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --gtid-mode=off]
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/stop_slave.inc [FOR CHANNEL 'ch_b']
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

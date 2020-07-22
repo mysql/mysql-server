@@ -11,7 +11,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # 1.1. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
 #      Check the performance_schema table and file repository are correct
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is ON]
 include/assert_grep.inc [In the file the field is set to 2]
@@ -19,8 +23,12 @@ include/assert_grep.inc [In the file the field is set to 2]
 # 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
 #      Check the performance_schema table and file repository are correct
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is OFF]
 include/assert_grep.inc [In the file the field is set to 3]
@@ -28,8 +36,12 @@ include/assert_grep.inc [In the file the field is set to 3]
 # 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
 #      Check the performance_schema table and file repository are correct
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
 include/assert_grep.inc [In the file the field is set to 1]
@@ -75,7 +87,11 @@ include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start -
 include/assert.inc [Check the number of channels with REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
 include/assert.inc [Check that mysql.slave_relay_log_info entries all have REQUIRE_TABLE_PRIMARY_KEY_CHECK set to STREAM]
 RESET SLAVE ALL FOR CHANNEL "ch1";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 
 # 5.1. Change REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
 #      Execute a RESET SLAVE command.
@@ -84,6 +100,8 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start --relay-log-info-repository=TABLE]
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
@@ -91,6 +109,8 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 # 5.2. Execute a RESET SLAVE ALL command.
 #      The table line was removed.
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 
 # 5.3. Make RESET SLAVE fail due to persistence issues
@@ -105,9 +125,13 @@ include/assert.inc [Check entry for default channel "" is unchanged in performan
 # 6. Cleanup
 SET @@GLOBAL.DEBUG = '-d,rpl_rli_clear_info_error';
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CALL mtr.add_suppression("Error reading relay log configuration.");
 CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
 CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_end.inc

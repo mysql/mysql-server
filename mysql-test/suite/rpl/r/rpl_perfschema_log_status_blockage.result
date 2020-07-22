@@ -53,6 +53,8 @@ LOAD DATA INFILE 'ILS_DUMP' INTO TABLE ils_copy;
 [connection server_2_2]
 [connection server_2_3]
 [connection server_2_4]
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection server_2_5]
 [connection server_2_6]
 [connection slave1]
@@ -73,6 +75,8 @@ include/assert.inc [Collected InnoDB LSN_checkpoint is in correct boundaries]
 [connection slave]
 # Removing debug point 'pause_collecting_instance_logs_info' from @@GLOBAL.debug
 RESET SLAVE ALL FOR CHANNEL 'ch2';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 [connection master]
 DROP TABLE ils_copy, t1_innodb, t2_myisam;
 include/rpl_end.inc

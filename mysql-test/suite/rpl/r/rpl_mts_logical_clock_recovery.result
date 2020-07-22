@@ -40,9 +40,13 @@ INSERT INTO t3 (a) VALUES (4);
 INSERT INTO t4 (a) VALUES (4);
 [connection slave]
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/rpl_start_server.inc [server_number=2]
 # Reconnecting to the slave server
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 CREATE TABLE t5 (a int);
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc

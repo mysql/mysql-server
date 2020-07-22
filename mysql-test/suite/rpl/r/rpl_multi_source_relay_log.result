@@ -103,6 +103,8 @@ ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 # RESET SLAVE FOR CHANNEL "ch1" deletes all relay log files of ch1.
 #
 RESET SLAVE FOR CHANNEL "ch1";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" retains
 # replication filters of the channel.
@@ -132,6 +134,8 @@ slave-relay-bin-ch1.index
 #
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # Verify that "RESET SLAVE" retains all replication filters from
 # all replication channels.
@@ -170,6 +174,8 @@ slave-relay-bin-ch2.index
 # Relay log files for all channels are recreated automatically.
 #
 RESET SLAVE ALL FOR CHANNEL 'ch1';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
 # the replication channel specified by 'FOR CHANNEL' clause and all
@@ -190,6 +196,8 @@ CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
 ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 RESET SLAVE ALL FOR CHANNEL '';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # "RESET SLAVE ALL FOR CHANNEL ''" removes the default channel and all
 # replication filters of the channel firstly, but then create a new
@@ -244,6 +252,8 @@ Replicate_Rewrite_DB = ''
 # replication filters).
 #
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SHOW SLAVE STATUS FOR CHANNEL 'ch1';
 ERROR HY000: Slave channel 'ch1' does not exist.
 SHOW SLAVE STATUS FOR CHANNEL 'ch2';

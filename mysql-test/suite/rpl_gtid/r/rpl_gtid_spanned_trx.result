@@ -23,16 +23,24 @@ INSERT INTO t1 VALUES (3 + 1);
 include/wait_for_slave_io_to_stop.inc
 include/assert.inc [Exactly one GTID should have been retrieved before having all the transaction]
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_stop.inc
 include/assert.inc [Exactly one GTID should have been retrieved before having all the transaction]
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_stop.inc
 include/assert.inc [Exactly one GTID should have been retrieved before having all the transaction]
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_to_stop.inc
 include/assert.inc [Exactly one GTID should have been retrieved before having all the transaction]
 # Removing debug point 'stop_io_after_reading_query_log_event' from @@GLOBAL.debug
 START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection master]
 include/sync_slave_io_with_master.inc
 include/assert.inc [Exactly three GTIDs should have been retrieved from master before restarting]

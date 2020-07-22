@@ -4,7 +4,11 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 START SLAVE;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 CREATE TABLE t1_int (a INT PRIMARY KEY, b INT) ENGINE='InnoDB';
 CREATE TABLE t1_bit (a INT PRIMARY KEY, b INT) ENGINE='InnoDB';
 CREATE TABLE t1_char (a INT PRIMARY KEY, b INT) ENGINE='InnoDB';

@@ -91,6 +91,8 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 RESET MASTER;
 FLUSH LOGS;

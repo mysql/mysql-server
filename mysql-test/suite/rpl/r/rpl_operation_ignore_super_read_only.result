@@ -32,8 +32,14 @@ CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
 # commands
 ####################################################################
 RESET SLAVE FOR CHANNEL 'aaa';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'aaa';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ####################################################################
 # Test Case5: START SLAVE command
 ####################################################################
@@ -102,8 +108,14 @@ CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
 # commands
 ####################################################################
 RESET SLAVE FOR CHANNEL 'aaa';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL 'aaa';
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ####################################################################
 # Test Case5: START SLAVE command
 ####################################################################

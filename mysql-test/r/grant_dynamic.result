@@ -1152,6 +1152,8 @@ binlog.000001	#	Query	#	#	use `test`; GRANT GRANT OPTION ON *.* TO 'u1'@'%' WITH
 DROP USER u1;
 RESET MASTER;
 RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 #
 # WRITING EMPTY PRIVILEGES INTO GLOBAL_GRANTS TABLE
 #

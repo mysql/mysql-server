@@ -4229,6 +4229,18 @@ struct LEX : public Query_tables_list {
   */
   void set_secondary_engine_execution_context(
       Secondary_engine_execution_context *context);
+
+ private:
+  bool m_is_replication_deprecated_syntax_used{false};
+
+ public:
+  bool is_replication_deprecated_syntax_used() {
+    return m_is_replication_deprecated_syntax_used;
+  }
+
+  void set_replication_deprecated_syntax_used() {
+    m_is_replication_deprecated_syntax_used = true;
+  }
 };
 
 /**

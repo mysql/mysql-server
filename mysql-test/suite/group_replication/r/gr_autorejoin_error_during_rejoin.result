@@ -39,7 +39,7 @@ include/start_group_replication.inc
 ####
 [connection server1]
 include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 INSERT INTO t1 VALUES(1);
 [connection server3]
@@ -96,6 +96,8 @@ SET SESSION sql_log_bin= 0;
 DROP TABLE t1;
 SET SESSION sql_log_bin= 1;
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.group_replication_autorejoin_tries = default;

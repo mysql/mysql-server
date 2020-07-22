@@ -1326,6 +1326,9 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> GRAMMAR_SELECTOR_DERIVED_EXPR 1158  /* synthetic token:
                                                             starts derived
                                                             table expressions. */
+%token<lexer.keyword> REPLICA_SYM 1159
+%token<lexer.keyword> REPLICAS_SYM 1160
+
 
 
 /*
@@ -1634,9 +1637,9 @@ void warn_about_deprecated_binary(THD *thd)
 /*
   A bit field of SLAVE_IO, SLAVE_SQL flags.
 */
-%type <num> opt_slave_thread_option_list
-%type <num> slave_thread_option_list
-%type <num> slave_thread_option
+%type <num> opt_replica_thread_option_list
+%type <num> replica_thread_option_list
+%type <num> replica_thread_option
 
 %type <key_usage_element> key_usage_element
 
@@ -2251,8 +2254,9 @@ simple_statement:
         | signal_stmt                   { $$= nullptr; }
         | show                          { $$= nullptr; }
         | shutdown_stmt
-        | slave                         { $$= nullptr; }
         | start                         { $$= nullptr; }
+        | start_replica_stmt            { $$= nullptr; }
+        | stop_replica_stmt             { $$= nullptr; }
         | truncate_stmt
         | uninstall                     { $$= nullptr; }
         | unlock                        { $$= nullptr; }
@@ -8748,34 +8752,40 @@ group_replication_plugin_auth:
           }
         ;
 
-slave:
-        slave_start start_slave_opts{}
-      | STOP_SYM SLAVE opt_slave_thread_option_list opt_channel
-        {
-          LEX *lex=Lex;
-          lex->sql_command = SQLCOM_SLAVE_STOP;
-          lex->type = 0;
-          lex->slave_thd_opt= $3;
-        }
+replica:
+        SLAVE { Lex->set_replication_deprecated_syntax_used(); }
+      | REPLICA_SYM
       ;
 
-slave_start:
-          START_SYM SLAVE opt_slave_thread_option_list
+stop_replica_stmt:
+          STOP_SYM replica opt_replica_thread_option_list opt_channel
           {
             LEX *lex=Lex;
-            /* Clean previous slave connection values */
+            lex->sql_command = SQLCOM_SLAVE_STOP;
+            lex->type = 0;
+            lex->slave_thd_opt= $3;
+            if (lex->is_replication_deprecated_syntax_used())
+              push_deprecated_warn(YYTHD, "STOP SLAVE", "STOP REPLICA");
+          }
+        ;
+
+start_replica_stmt:
+          START_SYM replica opt_replica_thread_option_list
+          {
+            LEX *lex=Lex;
+            /* Clean previous replica connection values */
             lex->slave_connection.reset();
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
             lex->mi.set_unspecified();
             lex->slave_thd_opt= $3;
+            if (lex->is_replication_deprecated_syntax_used())
+              push_deprecated_warn(YYTHD, "START SLAVE", "START REPLICA");
           }
-         ;
-
-start_slave_opts:
-          slave_until
-          slave_connection_opts
+          opt_replica_until
+          opt_user_option opt_password_option
+          opt_default_auth_option opt_plugin_dir_option
           {
             /*
               It is not possible to set user's information when
@@ -8793,7 +8803,7 @@ start_slave_opts:
             }
           }
           opt_channel
-          ;
+        ;
 
 start:
           START_SYM TRANSACTION_SYM opt_start_transaction_option_list
@@ -8848,12 +8858,7 @@ start_transaction_option:
           }
         ;
 
-slave_connection_opts:
-          slave_user_name_opt slave_user_pass_opt
-          slave_plugin_auth_opt slave_plugin_dir_opt
-        ;
-
-slave_user_name_opt:
+opt_user_option:
           {
             /* empty */
           }
@@ -8863,7 +8868,7 @@ slave_user_name_opt:
           }
         ;
 
-slave_user_pass_opt:
+opt_password_option:
           {
             /* empty */
           }
@@ -8873,7 +8878,7 @@ slave_user_pass_opt:
             Lex->contains_plaintext_password= true;
           }
 
-slave_plugin_auth_opt:
+opt_default_auth_option:
           {
             /* empty */
           }
@@ -8883,7 +8888,7 @@ slave_plugin_auth_opt:
           }
         ;
 
-slave_plugin_dir_opt:
+opt_plugin_dir_option:
           {
             /* empty */
           }
@@ -8893,29 +8898,29 @@ slave_plugin_dir_opt:
           }
         ;
 
-opt_slave_thread_option_list:
+opt_replica_thread_option_list:
           /* empty */
           {
             $$= 0;
           }
-        | slave_thread_option_list
+        | replica_thread_option_list
           {
             $$= $1;
           }
         ;
 
-slave_thread_option_list:
-          slave_thread_option
+replica_thread_option_list:
+          replica_thread_option
           {
             $$= $1;
           }
-        | slave_thread_option_list ',' slave_thread_option
+        | replica_thread_option_list ',' replica_thread_option
           {
             $$= $1 | $3;
           }
         ;
 
-slave_thread_option:
+replica_thread_option:
           SQL_THREAD
           {
             $$= SLAVE_SQL;
@@ -8926,13 +8931,13 @@ slave_thread_option:
           }
         ;
 
-slave_until:
+opt_replica_until:
           /*empty*/
           {
             LEX *lex= Lex;
             lex->mi.slave_until= false;
           }
-        | UNTIL_SYM slave_until_opts
+        | UNTIL_SYM replica_until
           {
             LEX *lex=Lex;
             if (((lex->mi.log_file_name || lex->mi.pos) &&
@@ -8956,9 +8961,9 @@ slave_until:
           }
         ;
 
-slave_until_opts:
+replica_until:
           master_file_def
-        | slave_until_opts ',' master_file_def
+        | replica_until ',' master_file_def
         | SQL_BEFORE_GTIDS EQ TEXT_STRING_sys
           {
             Lex->mi.gtid= $3.str;
@@ -13143,6 +13148,12 @@ show_param:
         | SLAVE HOSTS_SYM
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
+            Lex->set_replication_deprecated_syntax_used();
+            push_deprecated_warn(YYTHD, "SHOW SLAVE HOSTS", "SHOW REPLICAS");
+          }
+        | REPLICAS_SYM
+          {
+            Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
           }
         | BINLOG_SYM EVENTS_SYM binlog_in binlog_from
           {
@@ -13358,9 +13369,11 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
           }
-        | SLAVE STATUS_SYM opt_channel
+        | replica STATUS_SYM opt_channel
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
+            if (Lex->is_replication_deprecated_syntax_used())
+              push_deprecated_warn(YYTHD, "SHOW SLAVE STATUS", "SHOW REPLICA STATUS");
           }
         | CREATE PROCEDURE_SYM sp_name
           {
@@ -13722,8 +13735,15 @@ opt_if_exists_ident:
         ;
 
 reset_option:
-          SLAVE               { Lex->type|= REFRESH_SLAVE; }
-          slave_reset_options opt_channel
+          SLAVE
+            {
+              Lex->type|= REFRESH_SLAVE;
+              Lex->set_replication_deprecated_syntax_used();
+              push_deprecated_warn(YYTHD, "RESET SLAVE", "RESET REPLICA");
+            }
+          opt_replica_reset_options opt_channel
+        | REPLICA_SYM             { Lex->type|= REFRESH_REPLICA; }
+          opt_replica_reset_options opt_channel
         | MASTER_SYM
           {
             Lex->type|= REFRESH_MASTER;
@@ -13743,7 +13763,7 @@ reset_option:
           master_reset_options
         ;
 
-slave_reset_options:
+opt_replica_reset_options:
           /* empty */ { Lex->reset_slave_info.all= false; }
         | ALL         { Lex->reset_slave_info.all= true; }
         ;
@@ -14955,6 +14975,7 @@ ident_keywords_unambiguous:
         | REMOVE_SYM
         | REORGANIZE_SYM
         | REPEATABLE_SYM
+        | REPLICAS_SYM
         | REPLICATE_DO_DB
         | REPLICATE_DO_TABLE
         | REPLICATE_IGNORE_DB
@@ -14962,6 +14983,7 @@ ident_keywords_unambiguous:
         | REPLICATE_REWRITE_DB
         | REPLICATE_WILD_DO_TABLE
         | REPLICATE_WILD_IGNORE_TABLE
+        | REPLICA_SYM
         | REQUIRE_ROW_FORMAT_SYM
         | REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM
         | RESOURCES

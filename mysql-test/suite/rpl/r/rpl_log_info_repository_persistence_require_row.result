@@ -14,6 +14,8 @@ FLUSH PRIVILEGES;
 # 1.1. Set REQUIRE_ROW_FORMAT to 1
 #      Check the performance_schema table and file repository are correct
 STOP SLAVE;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 CHANGE MASTER TO MASTER_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_ROW_FORMAT enabled for default channel "" in performance_schema.replication_applier_configuration]
@@ -85,7 +87,11 @@ include/assert.inc [Check that mysql.slave_relay_log_info has an entry with REQU
 # 5. Cleanup
 DROP USER 'replication_applier'@'localhost';
 RESET SLAVE ALL FOR CHANNEL "ch1";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

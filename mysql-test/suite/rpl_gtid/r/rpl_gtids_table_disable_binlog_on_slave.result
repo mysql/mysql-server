@@ -173,4 +173,6 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 DROP TABLE t3;
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/rpl_end.inc

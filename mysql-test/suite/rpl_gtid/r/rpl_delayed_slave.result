@@ -121,6 +121,8 @@ include/start_slave.inc
 include/assert.inc [Delay should be 71 when we set it to 71]
 include/stop_slave.inc
 RESET SLAVE;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/start_slave.inc
 include/assert.inc [Delay should be 0 after RESET SLAVE]
 ==== Set an invalid value for the delay ====

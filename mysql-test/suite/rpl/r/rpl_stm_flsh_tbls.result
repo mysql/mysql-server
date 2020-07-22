@@ -21,10 +21,14 @@ include/sync_slave_sql_with_master.inc
 select * from t3;
 a
 stop slave;
+Warnings:
+Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
 drop table t1;
 flush tables with read lock;
 start slave;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_to_start.inc
 stop slave;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
