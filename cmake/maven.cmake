@@ -20,43 +20,51 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE(java)
-
-IF (WIN32)
-  IF (DEFINED ENV{MAVEN_HOME_WIN})
-    FIND_PROGRAM(MAVEN_EXECUTABLE
-      mvn
-      PATHS "$ENV{MAVEN_HOME_WIN}/bin"
-      )
+FUNCTION(FIND_MAVEN)
+  IF (MAVEN_FOUND)
+    MESSAGE(STATUS "Using cached maven: ${MAVEN_EXECUTABLE} (${MAVEN_VERSION})")
+    RETURN()
+  ENDIF()
+  ## Lab defines MAVEN_HOME_WIN on Windows and MAVEN_HOME on unices.
+  IF (WIN32)
+    IF (DEFINED ENV{MAVEN_HOME_WIN})
+      FIND_PROGRAM(MAVEN_EXECUTABLE mvn
+        PATHS "$ENV{MAVEN_HOME_WIN}/bin")
+    ELSE()
+      FIND_PROGRAM(MAVEN_EXECUTABLE mvn)
+    ENDIF()
   ELSE()
-    FIND_PROGRAM(MAVEN_EXECUTABLE
-      mvn
-      )
+    IF (DEFINED ENV{MAVEN_HOME})
+      FIND_PROGRAM(MAVEN_EXECUTABLE mvn
+        PATHS "$ENV{MAVEN_HOME}/bin")
+    ELSE()
+      FIND_PROGRAM(MAVEN_EXECUTABLE mvn
+        ## Include the standard lab maven installation
+        PATHS /usr/global/share/java/maven/bin)
+    ENDIF()
   ENDIF()
-ELSE()
-  IF (DEFINED ENV{MAVEN_HOME})
-    FIND_PROGRAM(MAVEN_EXECUTABLE
-      mvn
-      PATHS "$ENV{MAVEN_HOME}/bin"
-      )
-  ELSE()
-    FIND_PROGRAM(MAVEN_EXECUTABLE
-      mvn
-      PATHS /usr/global/share/java/maven/bin
-      )
-  ENDIF()
-ENDIF()
 
-IF(MAVEN_EXECUTABLE)
-  IF(UNIX)
-    FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/mavenversion.sh"
-      "${MAVEN_EXECUTABLE} --version | head -1\n")
-    EXECUTE_PROCESS(COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/mavenversion.sh"
-      OUTPUT_VARIABLE MAVEN_VERSION_OUTPUT)
-    FILE(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/mavenversion.sh")
-    STRING(STRIP "${MAVEN_VERSION_OUTPUT}" MAVEN_VERSION)
+  IF(MAVEN_EXECUTABLE)
+    EXECUTE_PROCESS(COMMAND ${MAVEN_EXECUTABLE} --version
+      OUTPUT_VARIABLE MAVEN_VERSION_OUTPUT
+      ERROR_VARIABLE MAVEN_VERSION_OUTPUT)
+    STRING(REGEX MATCH "[0-9]+.[0-9]+.[0-9]+"
+      _maven_version "${MAVEN_VERSION_OUTPUT}")
+    SET(MAVEN_VERSION "${_maven_version}" CACHE STRING "")
+    MESSAGE(STATUS "Found maven: ${MAVEN_EXECUTABLE} (${MAVEN_VERSION})")
+    SET(MAVEN_FOUND "TRUE" CACHE BOOL "")
   ENDIF()
-  MESSAGE(STATUS "Found maven: ${MAVEN_EXECUTABLE} (${MAVEN_VERSION})")
-ELSE()
-  MESSAGE(FATAL_ERROR "Maven not found!")
-ENDIF()
+ENDFUNCTION()
+
+FUNCTION(WARN_MISSING_MAVEN)
+  IF (NOT MAVEN_FOUND)
+    MESSAGE(WARNING "Maven not found.\n"
+      " Either\n"
+      "  1) set MAVEN_HOME/MAVEN_HOME_WIN to point to a maven installation,\n"
+      "  2) install a maven package:\n"
+      "    RHEL/Fedora/Oracle linux : yum install maven\n"
+      "    Debian/Ubuntu: apt install maven\n"
+      "    SLES/openSUSE: zypper install maven\n"
+      "  3) or download from https://maven.apache.org/download.cgi and follow instructions")
+  ENDIF()
+ENDFUNCTION()
