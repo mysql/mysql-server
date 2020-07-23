@@ -29,9 +29,9 @@
 // 64 bits
 #define BLOCK_SIZE 8
 #define MAX_BITS 64
-//#define WARP_DEBUG
+#define WARP_DEBUG
 #ifdef WARP_DEBUG
-#define dbug(x) std::cerr << __LINE__ << ": " << x << "\n";
+#define dbug(x) std::cerr << __LINE__ << ": " << x << "\n"; 
 #else
 #define dbug(x) /* would write (x) to debug log*/
 #endif
@@ -158,7 +158,7 @@ private:
 
     /* open the log if it is not open */
     if(!log) {
-      log = fopen(lname.c_str(), "r+");
+      log = fopen(lname.c_str(), "rb+");
     }
 
     /* FIXME: 
@@ -227,14 +227,14 @@ public:
 
     reopen:
     /* open and/or create the file */
-    fp = fopen(filename.c_str(),"r+");
+    fp = fopen(filename.c_str(),"rb+");
     if(!fp) { 
-      fp = fopen(filename.c_str(),"w");
+      fp = fopen(filename.c_str(),"wb");
       unlink(lname.c_str());
     }
     if(!fp) return -2;    
     fclose(fp);
-    fp = fopen(filename.c_str(),"r+");
+    fp = fopen(filename.c_str(),"rb+");
     if(!fp) return -3;    
 
 
@@ -250,14 +250,14 @@ public:
 
     /* open the log */ 
     if(lock_mode == LOCK_EX) {
-      log = fopen(lname.c_str(),"w");
+      log = fopen(lname.c_str(),"wb");
     }
 
     /* read in the first block of bits */
     bits = 0;
-    size_t sz = fread(&bits, BLOCK_SIZE, 1, fp);
-    assert(sz == 1);
+    fread(&bits, BLOCK_SIZE, 1, fp);
     fseek(fp, 0, SEEK_SET);
+    
     fpos = 0;
     dirty = 0;
     dbug("bits at open: " + std::to_string(bits));
