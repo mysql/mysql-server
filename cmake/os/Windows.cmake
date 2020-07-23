@@ -53,7 +53,7 @@ INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 MESSAGE(STATUS "MSVC_VERSION is ${MSVC_VERSION}")
 IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1924)
   MESSAGE(FATAL_ERROR
-    "Visual Studio 2019 Update 4 or newer is required!");
+    "Visual Studio 2019 Update 4 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
