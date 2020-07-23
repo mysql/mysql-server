@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,22 @@ ENDFUNCTION()
 
 
 IF(WIN32)
+  IF(NOT WIN32_CLANG AND NOT EXISTS "${CMAKE_LINKER}")
+    MESSAGE(WARNING "CMAKE_LINKER not found:\n ${CMAKE_LINKER}")
+    MESSAGE(WARNING "It seems you have upgraded Visual Studio")
+    MESSAGE(WARNING "You should do a clean build")
+    MESSAGE(WARNING
+      "\n or remove these files:"
+      "\n CMakeFiles/${CMAKE_VERSION}/CMakeCCompiler.cmake"
+      "\n CMakeFiles/${CMAKE_VERSION}/CMakeCXXCompiler.cmake"
+      "\n and re-run cmake"
+      "\n"
+      )
+    UNSET(DUMPBIN_EXECUTABLE)
+    UNSET(DUMPBIN_EXECUTABLE CACHE)
+    UNSET(CMAKE_LINKER)
+    UNSET(CMAKE_LINKER CACHE)
+  ENDIF()
   GET_FILENAME_COMPONENT(CMAKE_LINKER_PATH "${CMAKE_LINKER}" DIRECTORY)
   FIND_PROGRAM(DUMPBIN_EXECUTABLE dumpbin PATHS "${CMAKE_LINKER_PATH}")
 
