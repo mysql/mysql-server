@@ -549,6 +549,8 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
 
+    NdbSleep_SecSleep(5); // TODO, handle arbitration
+
     // Restart ndbd(s)
     SqlResultSet ndbds;
     if (!atrt.getNdbds(clusterId, ndbds))
