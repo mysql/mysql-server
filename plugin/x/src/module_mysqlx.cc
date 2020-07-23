@@ -24,6 +24,7 @@
 
 #include "plugin/x/src/module_mysqlx.h"
 
+#include <event2/event.h>
 #include <memory>
 #include <string>
 #include <utility>
@@ -217,6 +218,8 @@ int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   unrequire_services();
   unprovide_services();
   unregister_udfs();
+
+  libevent_global_shutdown();
 
   xpl::plugin_handle = nullptr;
 
