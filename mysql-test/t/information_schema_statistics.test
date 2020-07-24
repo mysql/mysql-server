@@ -68,7 +68,7 @@ DROP DATABASE abc;
 --echo # db1.t1.  This can lead to DUPLICATE KEY error.
 
 --echo #
---echo # Test using InnoDB table.
+--echo # Case 1: Test using InnoDB table.
 --echo #
 
 CREATE TABLE t0 (c0 INT);
@@ -112,7 +112,7 @@ SET GLOBAL DEBUG=DEFAULT;
 SET DEBUG_SYNC = 'RESET';
 
 --echo #
---echo # Testing MYISAM table path.
+--echo # Case 2: Testing MYISAM table path.
 --echo #
 
 CREATE TABLE t0 (c0 INT) ENGINE=MyISAM;
@@ -154,3 +154,47 @@ DROP TABLE t0;
 disconnect con1;
 SET GLOBAL DEBUG=DEFAULT;
 SET DEBUG_SYNC = 'RESET';
+
+--echo #
+--echo # Case 3: Test Case1 with ANALYZE TABLE and a I_S query running in
+--echo #         parallel. This is for Bug#31582758.
+--echo #
+
+CREATE TABLE t0 (c0 INT);
+INSERT INTO t0 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+
+--echo # Wait just before inserting dynamic statistics for t0.
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC='before_insert_into_dd SIGNAL parked WAIT_FOR cont1';
+send ANALYZE TABLE t0;
+
+--echo # In another connection, query I_S.TABLES to cause
+--echo # dynamic statistics to be inserted before con1.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+  INTO @v1, @v2, @v3
+  FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+
+SET DEBUG_SYNC= 'now SIGNAL cont1';
+
+connection con1;
+# Without this fix we would have expected a ER_DUP_ENTRY warning here.
+--reap
+
+# Verify that we have latest statistics stored.
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+  INTO @v1, @v2, @v3
+  FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+
+--echo # Cleanup
+connection default;
+DROP TABLE t0;
+disconnect con1;
+SET GLOBAL DEBUG=DEFAULT;
+SET DEBUG_SYNC = 'RESET';
+
