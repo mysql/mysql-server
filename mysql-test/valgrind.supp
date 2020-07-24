@@ -2582,3 +2582,14 @@
    ...
    fun:_ZN16HashJoinIterator4InitEv
 }
+
+# Libevent initialization
+
+{
+   MySQL Server needs global init/deinit of libevent, in case when multiple components use it
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:evthread_use_pthreads
+}
