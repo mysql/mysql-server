@@ -17125,6 +17125,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_SAVE(c_theIndexOperationPool);
 #ifdef ERROR_INSERT
     rss_cconcurrentOp = c_counters.cconcurrentOp;
+    g_eventLogger->info("Snapshot val: %u", c_counters.cconcurrentOp);
 #endif
     // Below not tested in 7.6.6 and earlier
     // ApiConnectRecord and ApiConTimers excluded since API never releases
@@ -17144,6 +17145,9 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK(m_commitAckMarkerPool);
     RSS_AP_SNAPSHOT_CHECK(c_theIndexOperationPool);
 #ifdef ERROR_INSERT
+    g_eventLogger->info("Snapshot check val: %u, old_val: %u",
+                        c_counters.cconcurrentOp,
+                        rss_cconcurrentOp);
     ndbrequire(rss_cconcurrentOp == c_counters.cconcurrentOp);
 #endif
     RSS_AP_SNAPSHOT_CHECK(c_theAttributeBufferPool);

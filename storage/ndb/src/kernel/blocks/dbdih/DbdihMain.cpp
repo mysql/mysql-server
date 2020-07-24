@@ -27902,6 +27902,10 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == DumpStateOrd::SchemaResourceSnapshot)
   {
+    g_eventLogger->info("SchemaResourceSnapshot: remainingfrags: %u"
+                        ", free replicas: %u",
+                        cremainingfrags,
+                        cnoFreeReplicaRec);
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
     RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
@@ -27915,12 +27919,17 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
         cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
       }
       RSS_OP_SNAPSHOT_SAVE(cnghash);
+      g_eventLogger->info("Snapshot: cnghash: %u", cnghash);
     }
     return;
   }
 
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
+    g_eventLogger->info("SchemaResourceCheckLeak: remainingfrags: %u"
+                        ", free replicas: %u",
+                        cremainingfrags,
+                        cnoFreeReplicaRec);
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
     RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
@@ -27933,6 +27942,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
         ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
         cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
       }
+      g_eventLogger->info("CheckLeak: cnghash: %u", cnghash);
       RSS_OP_SNAPSHOT_CHECK(cnghash);
     }
   }
