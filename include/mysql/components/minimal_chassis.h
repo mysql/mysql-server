@@ -26,8 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/component_implementation.h>
 
 /**
-  This is the entry function for minimal_chassis static library, called by
-  the application code.
+  This is the entry function for minimal_chassis static library, which has to be
+  called by the application code.
   Bootstraps service registry and dynamic loader. And registry handle will be
   assigned, if provided empty handle address. And loads provided component
   services into the registry, if provided component reference which is
@@ -43,8 +43,8 @@ bool minimal_chassis_init(SERVICE_TYPE_NO_CONST(registry) * *registry,
                           mysql_component_t *comp_ref);
 
 /**
-  This is the exit function for minimal_chassis static library, called just
-  before the exit of the application.
+  This is the exit function for minimal_chassis static library, which has to be
+  called just before the exit of the application.
   Releases the service registry and dynamic loader services.
   Releases the registry handle, which is acquired at the time of
   minimal_chassis_init(), if provided the handle address.
@@ -65,7 +65,7 @@ bool minimal_chassis_deinit(SERVICE_TYPE_NO_CONST(registry) * registry,
   flag.
   The global services are mysql_runtime_error, mysql_psi_system_v1 and
   mysql_rwlock_v1.
-  If the use_related is ON then the globals are leaded with minimal chassis
+  If the use_related is ON then the globals are loaded with minimal chassis
   service implementations else they are loaded with the default service
   implementations
 
