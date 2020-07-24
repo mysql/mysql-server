@@ -7442,6 +7442,8 @@ int mysqld_main(int argc, char **argv)
   (void)RUN_HOOK(server_state, before_handle_connection, (nullptr));
 
 #if defined(_WIN32)
+  if (mysqld_socket_acceptor != nullptr)
+    mysqld_socket_acceptor->check_and_spawn_admin_connection_handler_thread();
   setup_conn_event_handler_threads();
 #else
   mysql_mutex_lock(&LOCK_socket_listener_active);
