@@ -226,13 +226,12 @@ This packages contains the special debug build of MySQL server.
 
 %package        client
 Summary:        MySQL database client applications and tools
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-community-client < %{version}-%{release}
 Requires:       mysql-commercial-libs%{?_isa} >= %{min}
-Conflicts:      mysql-commercial-server < 8.0.21
 %else
 Requires:       mysql-community-libs%{?_isa} >= %{min}
-Conflicts:      mysql-community-server < 8.0.21
 %endif
 Obsoletes:      mariadb
 Obsoletes:      community-mysql < %{version}-%{release}
@@ -338,6 +337,7 @@ to develop MySQL client applications.
 
 %package        libs
 Summary:        Shared libraries for MySQL database client applications
+Requires:       %{name}-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
 Requires:       mysql-commercial-common%{?_isa} >= %{min}
@@ -354,6 +354,20 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 %description    libs
 This package contains the shared libraries for MySQL client
 applications.
+
+%package        client-plugins
+Summary:        Shared plugins for MySQL client applications
+Group:          Applications/Databases
+%if 0%{?commercial}
+Conflicts:      mysql-commercial-server < 8.0.21
+Conflicts:      mysql-commercial-client < 8.0.22
+%else
+Conflicts:      mysql-community-server < 8.0.21
+Conflicts:      mysql-community-client < 8.0.22
+%endif
+
+%description    client-plugins
+This package contains the client-plugins libraries used by MySQL client applications.
 
 %if 0%{?with_router}
 %package  -n   mysql-router-%{product_suffix}
@@ -841,8 +855,6 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
-
 %if 0%{?cluster}
 %attr(755, root, root) %{_bindir}/ndb_blob_tool
 %attr(755, root, root) %{_bindir}/ndb_config
@@ -922,6 +934,11 @@ rm -r $(readlink var) var
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
+
+%files client-plugins
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 
 %files test
 %doc %{?license_files_server}
@@ -1170,6 +1187,9 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Sun Jul 12 2020 Sreedhar S <sreedhar.sreedhargadda@oracle.com> - 8.0.22-1
+- Add a new subpackage client-plugins
+
 * Mon May 11 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.21-1
 - Added component_test_component_deinit.so test component
 
