@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,9 +117,10 @@ int
 NdbBackup::start(unsigned int & _backup_id,
 		 int flags,
 		 unsigned int user_backup_id,
-		 unsigned int logtype){
+		 unsigned int logtype,
+		 const char* encryption_password,
+		 unsigned int password_length) {
 
-  
   if (!isConnected())
     return -1;
 
@@ -129,12 +130,14 @@ NdbBackup::start(unsigned int & _backup_id,
   bool any = _backup_id == 0;
 
 loop:
-  if (ndb_mgm_start_backup3(handle,
+  if (ndb_mgm_start_backup4(handle,
 			   flags,
 			   &_backup_id,
 			   &reply,
 			   user_backup_id,
-			   logtype) == -1) {
+			   logtype,
+			   encryption_password,
+			   password_length) == -1) {
 
     if (ndb_mgm_get_latest_error(handle) == NDB_MGM_COULD_NOT_START_BACKUP &&
         strstr(ndb_mgm_get_latest_error_desc(handle), "file already exists") &&
