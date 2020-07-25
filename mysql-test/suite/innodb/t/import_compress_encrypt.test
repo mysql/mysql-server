@@ -1,5 +1,9 @@
 # Test "ALTER TABLE ... IMPORT TABLESPACE" in InnoDB
 
+--source include/have_lowercase0.inc
+--source include/have_innodb_16k.inc
+--source include/have_punch_hole.inc
+
 --echo #
 --echo # Bug#31313533 : IMPORT FAILS FOR ENCRYPT AND COMPRESSION ENABLED TDE TABLES
 --echo #
@@ -10,9 +14,6 @@ call mtr.add_suppression("Starting to delete and rewrite log files");
 call mtr.add_suppression("New log files created");
 --enable_query_log
 
---source include/have_lowercase0.inc
---source include/have_innodb_16k.inc
-
 --echo # SETUP
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
@@ -20,41 +21,6 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
 --source include/restart_mysqld.inc
-
---echo #
---echo # Try to create a table with ZLib compression with strict mode OFF.
---echo # If there is an error about Punch Hole not supported, make InnoDB
---echo # think that Punch Hole is working but actually ignore the calls.
---echo #
-LET MYSQLD_DATADIR = `SELECT @@datadir`;
---disable_warnings
-CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB";
-let COMPR_ZIP_WARN= `SHOW WARNINGS`;
---enable_warnings
-
-perl;
-  use strict;
-  my $no_holes = ($ENV{COMPR_ZIP_WARN} =~ /Punch hole not supported/)? 1 : 0;
-### we do not expect any other warning
-  printf("Unexpected warning: %s\n",$ENV{COMPR_ZIP_WARN})
-    if (not $no_holes and $ENV{COMPR_ZIP_WARN} ne '');
-  open(DHF,">$ENV{'MYSQLD_DATADIR'}/compr.inc");
-  printf DHF "let \$no_holes= %s;\n",$no_holes;
-  close(DHF);
-EOF
-
---source $MYSQLD_DATADIR/compr.inc
---remove_file $MYSQLD_DATADIR/compr.inc
-LET IGNORE_PUNCH_HOLE=1;
-if ($no_holes)
-{
-  --source include/have_debug.inc
-  --disable_query_log
-  LET IGNORE_PUNCH_HOLE=1;
-  SET DEBUG='+d,ignore_punch_hole';
-  --enable_query_log
-}
-DROP TABLE t1;
 
 --echo
 --echo # Test 1 : Check that EXPORT and IMPORT is working fine on same FS
@@ -218,13 +184,6 @@ let $DATADIR = $MYSQL_TMP_DIR/data;
 --let $restart_parameters = restart: --datadir=$DATADIR --innodb-page-size=16k --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/data/keyring $KEYRING_PLUGIN_OPT
 --let $wait_counter=3000
 --source include/start_mysqld.inc
-
-if ($no_holes)
-{
-  --disable_query_log
-  SET DEBUG='+d,ignore_punch_hole';
-  --enable_query_log
-}
 
 --echo # Verify tables after upgrade
 USE test;
