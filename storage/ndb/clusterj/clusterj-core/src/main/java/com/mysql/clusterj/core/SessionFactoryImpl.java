@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -338,11 +338,15 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     protected ClusterConnection createClusterConnection(
             ClusterConnectionService service, Map<?, ?> props, int nodeId, int connectionId) {
         ClusterConnection result = null;
+        boolean connected = false;
         try {
             result = service.create(CLUSTER_CONNECT_STRING, nodeId, CLUSTER_CONNECT_TIMEOUT_MGM);
             result.setByteBufferPoolSizes(CLUSTER_BYTE_BUFFER_POOL_SIZES);
             result.connect(CLUSTER_CONNECT_RETRIES, CLUSTER_CONNECT_DELAY,true);
             result.waitUntilReady(CLUSTER_CONNECT_TIMEOUT_BEFORE,CLUSTER_CONNECT_TIMEOUT_AFTER);
+            // Cluster connection successful.
+            // The connection has to be closed if the method fails after this point.
+            connected = true;
             if (CLUSTER_RECV_THREAD_ACTIVATION_THRESHOLD !=
                     DEFAULT_PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD) {
                 // set the activation threshold iff the value passed is not default
@@ -353,6 +357,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 result.setRecvThreadCPUid(recvThreadCPUids[connectionId]);
             }
         } catch (Exception ex) {
+            // close result if it has connected already
+            if (connected) {
+                result.closing();
+                result.close();
+            }
             // need to clean up if some connections succeeded
             for (ClusterConnection connection: pooledConnections) {
                 connection.close();
