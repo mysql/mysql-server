@@ -63,6 +63,14 @@ ELSEIF(APPLE)
   ELSE()
     CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)
   ENDIF()
+  # If this is macOS 11, we need cmake 3.18
+  # System libraries like
+  #    /usr/lib/libresolv.dylib
+  # are no longer present in the file system.
+  # cmake >= 3.18 will look for .tbd files in the SDK instead
+  # So we end up linking with:
+  #    /Applications/Xcode.app/.../usr/lib/libresolv.tbd
+  # We must postpone the version test until we have called 'uname -r' below.
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
   IF(CMAKE_VERSION VERSION_LESS 3.5.1)
@@ -234,6 +242,11 @@ IF(UNIX)
       RESULT_VARIABLE MY_RPM_RESULT
       )
   ENDIF()
+ENDIF()
+
+# See comments above, about CMAKE_MINIMUM_REQUIRED VERSION and macOS 11.
+IF(APPLE AND MY_HOST_SYSTEM_VERSION VERSION_GREATER_EQUAL 20)
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
 ENDIF()
 
 IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER

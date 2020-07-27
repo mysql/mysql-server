@@ -127,8 +127,12 @@ SET(LIBS_TO_MERGE
   strings
   )
 
+SET(LIBS_TO_LINK)
+
 IF(WITH_ZLIB STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
+ELSE()
+  LIST(APPEND LIBS_TO_LINK ${ZLIB_LIBRARY})
 ENDIF()
 
 
@@ -137,7 +141,7 @@ MESSAGE(STATUS "NDBCLIENT_LIBS ${NDBCLIENT_LIBS}")
 
 MERGE_CONVENIENCE_LIBRARIES(
   ndbclient_static ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(ndbclient_static PRIVATE ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(ndbclient_static PRIVATE ${SSL_LIBRARIES} ${LIBS_TO_LINK})
 
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
