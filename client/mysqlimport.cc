@@ -509,22 +509,21 @@ static void db_disconnect(char *host, MYSQL *mysql) {
   mysql_close(mysql);
 }
 
-static int safe_exit(int error, MYSQL *mysql) {
+static int safe_exit(int error) {
   if (ignore_errors) return 0;
-  if (mysql) mysql_close(mysql);
   return error;
 }
 
 static int db_error_with_table(MYSQL *mysql, char *table) {
   my_printf_error(0, "Error: %d, %s, when using table: %s", MYF(0),
                   mysql_errno(mysql), mysql_error(mysql), table);
-  return safe_exit(1, mysql);
+  return safe_exit(1);
 }
 
 static int db_error(MYSQL *mysql) {
   my_printf_error(0, "Error: %d %s", MYF(0), mysql_errno(mysql),
                   mysql_error(mysql));
-  return safe_exit(1, mysql);
+  return safe_exit(1);
 }
 
 static char *add_load_option(char *ptr, const char *object,
@@ -599,9 +598,8 @@ static void *worker_thread(void *arg) {
     goto error;
   }
 
-  if (mysql) db_disconnect(current_host, mysql);
-
 error:
+  if (mysql) db_disconnect(current_host, mysql);
   native_mutex_lock(&counter_mutex);
   counter--;
   native_cond_signal(&count_threshold);
@@ -615,7 +613,7 @@ error:
 int main(int argc, char **argv) {
   int error = 0;
   MY_INIT(argv[0]);
-
+  MYSQL *mysql = nullptr;
   my_getopt_use_args_separator = true;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my", load_default_groups, &argc, &argv, &alloc)) return 1;
@@ -698,7 +696,6 @@ int main(int argc, char **argv) {
 
     my_free(worker_threads);
   } else {
-    MYSQL *mysql = nullptr;
     if (!(mysql = db_connect(current_host, current_db, current_user,
                              opt_password))) {
       exitcode = 1;
@@ -722,9 +719,9 @@ int main(int argc, char **argv) {
         if (exitcode == 0) exitcode = error;
         break;
       }
-    db_disconnect(current_host, mysql);
   }
 end:
+  db_disconnect(current_host, mysql);
   my_free(opt_password);
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
