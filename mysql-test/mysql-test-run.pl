@@ -170,7 +170,7 @@ my $initial_bootstrap_cmd;
 my $mysql_base_version;
 my $mysqlx_baseport;
 my $path_config_file;       # The generated config file, var/my.cnf
-my $path_vardir_trace;      # Unix formatted opt_vardir for trace files
+my $path_vardir_trace;
 my $test_fail;
 
 my $build_thread       = 0;
@@ -1445,10 +1445,6 @@ sub set_vardir {
 
   $opt_vardir        = $vardir;
   $path_vardir_trace = $opt_vardir;
-
-  # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
-  $path_vardir_trace =~ s/^\w://;
-
   # Location of my.cnf that all clients use
   $path_config_file = "$opt_vardir/my.cnf";
 
