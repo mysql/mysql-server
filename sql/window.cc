@@ -1079,6 +1079,15 @@ void Window::remove_unused_windows(THD *thd, List<Window> &windows) {
       if (!window_used) {
         w1->cleanup(thd);
         w1->destroy();
+        for (auto it : {w1->m_partition_by, w1->m_order_by}) {
+          if (it != nullptr) {
+            for (ORDER *o = it->value.first; o != nullptr; o = o->next) {
+              Item *item = *o->item;
+              item->walk(&Item::clean_up_after_removal,
+                         enum_walk::SUBQUERY_POSTFIX, nullptr);
+            }
+          }
+        }
         wi1.remove();
       }
     }
