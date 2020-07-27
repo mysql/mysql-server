@@ -1446,11 +1446,13 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
   if (strategy == Subquery_strategy::SUBQ_EXISTS) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     /*
-      We need only 1 row to determine existence.
+      We need only 1 row to determine existence if LIMIT is not 0.
       Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
       working optimally (Bug#14215895).
     */
-    unit->global_parameters()->select_limit = new Item_int(1);
+    if (unit->global_parameters()->select_limit == nullptr ||
+        unit->global_parameters()->select_limit->val_uint() > 0)
+      unit->global_parameters()->select_limit = new Item_int(1);
   }
   return false;
 }

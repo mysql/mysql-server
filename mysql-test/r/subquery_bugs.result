@@ -1803,3 +1803,75 @@ SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
 1
 1
 DROP TABLE t1;
+#
+# Bug#31096309 - 8.0.16+ DIFFERENT RESULTSET THAN 5.7 AND <=8.0.15
+#
+CREATE TABLE t1 (c1 int, c2 char(10));
+INSERT INTO t1 VALUES (1, 'name1');
+INSERT INTO t1 VALUES (2, 'name2');
+SET optimizer_switch='semijoin=on';
+explain format = tree SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 1,1);
+EXPLAIN
+-> Filter: exists(select #2)  (cost=0.45 rows=2)
+    -> Table scan on a  (cost=0.45 rows=2)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit/Offset: 1/1 row(s)  (cost=0.35 rows=1)
+            -> Filter: (b.c2 = a.c2)  (cost=0.35 rows=1)
+                -> Table scan on b  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.a.c2' of SELECT #2 was resolved in SELECT #1
+SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 1,1);
+c2
+explain format=tree SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,1);
+EXPLAIN
+-> Hash semijoin (b.c2 = a.c2)  (cost=0.83 rows=2)
+    -> Table scan on a  (cost=0.45 rows=2)
+    -> Hash
+        -> Table scan on b  (cost=0.18 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.a.c2' of SELECT #2 was resolved in SELECT #1
+SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,1);
+c2
+name1
+name2
+SET @offset_value=0;
+PREPARE explain_stmt FROM "EXPLAIN format = tree SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT ?,1)";
+Warnings:
+Note	1276	Field or reference 'test.a.c2' of SELECT #2 was resolved in SELECT #1
+EXECUTE explain_stmt USING @offset_value;
+EXPLAIN
+-> Filter: exists(select #2)  (cost=0.45 rows=2)
+    -> Table scan on a  (cost=0.45 rows=2)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (cost=0.35 rows=1)
+            -> Filter: (b.c2 = a.c2)  (cost=0.35 rows=1)
+                -> Table scan on b  (cost=0.35 rows=2)
+
+PREPARE stmt FROM "SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT ?,1)";
+EXECUTE stmt USING @offset_value;
+c2
+name1
+name2
+explain format = tree SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,0);
+EXPLAIN
+-> Filter: exists(select #2)  (cost=0.45 rows=2)
+    -> Table scan on a  (cost=0.45 rows=2)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (Zero limit)
+
+Warnings:
+Note	1276	Field or reference 'test.a.c2' of SELECT #2 was resolved in SELECT #1
+SELECT a.c2 FROM  t1 AS a WHERE
+EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,0);
+c2
+DROP TABLE t1;
+SET optimizer_switch=default;
