@@ -18,7 +18,7 @@ echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
 --connection master
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
-START SLAVE;
+START REPLICA;
 let $MASTER_SERVER_ID= `select @@server_id`;
 echo MASTER_SERVER_ID: $MASTER_SERVER_ID;
 
@@ -120,12 +120,12 @@ insert into test.t2 values
 -- echo Test 1, read-update conflict without read tracking
 
 --connection slave
---echo Stopping secondary slave
-stop slave;
+--echo Stopping secondary replica
+stop replica;
 
 --connection master
---echo Stopping primary slave
-stop slave;
+--echo Stopping primary replica
+stop replica;
 
 begin;
 update test.t1 set b="Primary first change 1" where a=1;
@@ -146,8 +146,8 @@ commit;
 select * from test.t1 order by a;
 select * from test.t2 order by a;
 
---echo Starting primary slave
-start slave;
+--echo Starting primary replica
+start replica;
 
 --connection slave
 --echo **** Secondary ****
@@ -171,8 +171,8 @@ select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
 order by a;
 
 --connection slave
--- Echo starting secondary slave
-start slave;
+-- Echo starting secondary replica
+start replica;
 
 --connection master
 --sync_slave_with_master slave
@@ -203,12 +203,12 @@ delete from test.t2$EX;
 -- echo Test 2, read-update conflict with read tracking
 
 --connection slave
---echo Stopping secondary slave
-stop slave;
+--echo Stopping secondary replica
+stop replica;
 
 --connection master
---echo Stopping primary slave
-stop slave;
+--echo Stopping primary replica
+stop replica;
 
 begin;
 update test.t1 set b="Primary first change 1" where a=1;
@@ -229,8 +229,8 @@ commit;
 select * from test.t1 order by a;
 select * from test.t2 order by a;
 
---echo Starting primary slave
-start slave;
+--echo Starting primary replica
+start replica;
 
 --connection slave
 --echo **** Secondary ****
@@ -254,8 +254,8 @@ select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
 order by a;
 
 --connection slave
--- Echo starting secondary slave
-start slave;
+-- Echo starting secondary replica
+start replica;
 
 --connection master
 --sync_slave_with_master slave
@@ -287,12 +287,12 @@ delete from test.t2$EX;
 -- echo Test 3, read-read conflict without read tracking
 
 --connection slave
---echo Stopping secondary slave
-stop slave;
+--echo Stopping secondary replica
+stop replica;
 
 --connection master
---echo Stopping primary slave
-stop slave;
+--echo Stopping primary replica
+stop replica;
 
 SET ndb_log_exclusive_reads= 0;
 begin;
@@ -314,8 +314,8 @@ commit;
 select * from test.t1 order by a;
 select * from test.t2 order by a;
 
---echo Starting primary slave
-start slave;
+--echo Starting primary replica
+start replica;
 
 --connection slave
 --echo **** Secondary ****
@@ -339,8 +339,8 @@ select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
 order by a;
 
 --connection slave
--- Echo starting secondary slave
-start slave;
+-- Echo starting secondary replica
+start replica;
 
 --connection master
 --sync_slave_with_master slave
@@ -372,12 +372,12 @@ delete from test.t2$EX;
 -- echo Test 4, read-read conflict with read tracking
 
 --connection slave
---echo Stopping secondary slave
-stop slave;
+--echo Stopping secondary replica
+stop replica;
 
 --connection master
---echo Stopping primary slave
-stop slave;
+--echo Stopping primary replica
+stop replica;
 
 SET ndb_log_exclusive_reads= 1;
 begin;
@@ -399,8 +399,8 @@ commit;
 select * from test.t1 order by a;
 select * from test.t2 order by a;
 
---echo Starting primary slave
-start slave;
+--echo Starting primary replica
+start replica;
 
 --connection slave
 --echo **** Secondary ****
@@ -424,8 +424,8 @@ select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
 order by a;
 
 --connection slave
--- Echo starting secondary slave
-start slave;
+-- Echo starting secondary replica
+start replica;
 
 --connection master
 --sync_slave_with_master slave
@@ -508,12 +508,12 @@ insert into test.t3 values
 --sync_slave_with_master slave
 
 --connection slave
---echo Stopping secondary slave
-stop slave;
+--echo Stopping secondary replica
+stop replica;
 
 --connection master
---echo Stopping primary slave
-stop slave;
+--echo Stopping primary replica
+stop replica;
 
 begin;
 update test.t3 set b="Primary first change 1" where a=1;
@@ -534,8 +534,8 @@ commit;
 select * from test.t2 order by a;
 select * from test.t3 order by a;
 
---echo Starting primary slave
-start slave;
+--echo Starting primary replica
+start replica;
 
 --connection slave
 --echo **** Secondary ****
@@ -557,8 +557,8 @@ select NDB$OP_TYPE, b$old, b$new, c$old, c$new, NDB$CFT_CAUSE from test.t3$EX
 order by a;
 
 --connection slave
--- Echo starting secondary slave
-start slave;
+-- Echo starting secondary replica
+start replica;
 
 --connection master
 --sync_slave_with_master slave
@@ -594,12 +594,12 @@ delete from test.t3$EX;
 --sync_slave_with_master slave
 
 --connection slave
---echo Stopping secondary slave
-stop slave;
+--echo Stopping secondary replica
+stop replica;
 
 --connection master
---echo Stopping primary slave
-stop slave;
+--echo Stopping primary replica
+stop replica;
 
 begin;
 update test.t3 set b="Primary first change 1" where a=1;
@@ -620,8 +620,8 @@ commit;
 select * from test.t2 order by a;
 select * from test.t3 order by a;
 
---echo Starting primary slave
-start slave;
+--echo Starting primary replica
+start replica;
 
 --connection slave
 --echo **** Secondary ****
@@ -643,8 +643,8 @@ select NDB$OP_TYPE, b$old, b$new, c$old, c$new, NDB$CFT_CAUSE from test.t3$EX
 order by a;
 
 --connection slave
--- Echo starting secondary slave
-start slave;
+-- Echo starting secondary replica
+start replica;
 
 --connection master
 --sync_slave_with_master slave
@@ -680,12 +680,12 @@ delete from test.t3$EX;
 --sync_slave_with_master slave
 
 --connection slave
---echo Stopping secondary slave
-stop slave;
+--echo Stopping secondary replica
+stop replica;
 
 --connection master
---echo Stopping primary slave
-stop slave;
+--echo Stopping primary replica
+stop replica;
 
 begin;
 update test.t3 set b="Primary first change 1" where a=1;
@@ -706,8 +706,8 @@ commit;
 select * from test.t2 order by a;
 select * from test.t3 order by a;
 
---echo Starting primary slave
-start slave;
+--echo Starting primary replica
+start replica;
 
 --connection slave
 --echo **** Secondary ****
@@ -729,8 +729,8 @@ select NDB$OP_TYPE, b$old, b$new, c$old, c$new, NDB$CFT_CAUSE from test.t3$EX
 order by a;
 
 --connection slave
--- Echo starting secondary slave
-start slave;
+-- Echo starting secondary replica
+start replica;
 
 --connection master
 --sync_slave_with_master slave
@@ -771,6 +771,6 @@ drop table test.t1$EX, test.t2$EX, test.t3$EX;
 SET ndb_log_exclusive_reads= 0;
 flush logs;
 --sync_slave_with_master master
-stop slave;
-reset slave;
+stop replica;
+reset replica;
 --source include/rpl_end.inc
