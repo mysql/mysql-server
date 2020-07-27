@@ -69,15 +69,18 @@ class Ndb_binlog_thread : public Ndb_component {
   void validate_sync_excluded_objects(THD *thd);
 
   /*
-    @brief Iterate through the retry list of objects and check the present
-           status of the objects. The object is removed if the mismatch no
-           longer exists or if the object has been excluded
-
-    @param thd  Thread handle
+    @brief Clear the list of objects excluded from sync
 
     @return void
   */
-  void validate_sync_retry_list(THD *thd);
+  void clear_sync_excluded_objects();
+
+  /*
+    @brief Clear the list of objects whose sync has been retried
+
+    @return void
+  */
+  void clear_sync_retry_objects();
 
   /*
     @brief Pass the logfile group object detected to the internal implementation

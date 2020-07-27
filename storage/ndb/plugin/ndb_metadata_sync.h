@@ -78,7 +78,6 @@ class Ndb_metadata_sync {
   std::list<Detected_object> m_objects;
   mutable std::mutex m_excluded_objects_mutex;  // protects m_excluded_objects
   std::vector<Detected_object> m_excluded_objects;
-  std::mutex m_retry_objects_mutex;  // protects m_retry_objects
   std::vector<Detected_object> m_retry_objects;
 
   /*
@@ -179,38 +178,6 @@ class Ndb_metadata_sync {
     @return void
   */
   void reset_excluded_objects_state();
-
-  /*
-    @brief Get details of an object pending validation from the current
-           list of objects whose sync is being retried
-
-    @param schema_name [out]  Name of the schema
-    @param name        [out]  Name of the object
-    @param type        [out]  Type of the object
-
-    @return true if an object pending validation was found, false if not
-  */
-  bool get_retry_object_for_validation(std::string &schema_name,
-                                       std::string &name,
-                                       object_detected_type &type);
-
-  /*
-    @brief Validate object in the retry list. The object is removed if the
-           mismatch no longer exists or if it's an excluded object
-
-    @param remove_retry_object  Denotes whether the object should be removed
-
-    @return void
-  */
-  void validate_retry_object(bool remove_retry_object);
-
-  /*
-    @brief Reset the state of all retry objects to pending validation at the
-           end of a validation cycle
-
-    @return void
-  */
-  void reset_retry_objects_state();
 
  public:
   Ndb_metadata_sync() {}
@@ -317,6 +284,13 @@ class Ndb_metadata_sync {
   void validate_excluded_objects(THD *thd);
 
   /*
+    @brief Clear all excluded objects
+
+    @return void
+  */
+  void clear_excluded_objects();
+
+  /*
     @brief Retrieve information about currently excluded objects
 
     @param excluded_table  Pointer to excluded objects table object
@@ -348,14 +322,11 @@ class Ndb_metadata_sync {
                             const std::string &name, object_detected_type type);
 
   /*
-    @brief Iterate through the retry list of objects and check if the objects
-           are still being retried due to temporary errors or not
-
-    @param thd  Thread handle
+    @brief Clear all retry objects
 
     @return void
   */
-  void validate_retry_list(THD *thd);
+  void clear_retry_objects();
 
   /*
     @brief Synchronize a logfile group object between NDB Dictionary and DD

@@ -76,10 +76,14 @@ int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
 void ndbcluster_binlog_validate_sync_excluded_objects(THD *thd);
 
 /**
- @brief Validate the list of objects whose synchronization have been retried
- @param thd  Thread handle
+ @brief Clear the list of objects excluded from sync
 */
-void ndbcluster_binlog_validate_sync_retry_list(THD *thd);
+void ndbcluster_binlog_clear_sync_excluded_objects();
+
+/**
+ @brief Clear the list of objects whose synchronization have been retried
+*/
+void ndbcluster_binlog_clear_sync_retry_objects();
 
 /**
  @brief Queue up tables which the ndb binlog thread needs to check for changes

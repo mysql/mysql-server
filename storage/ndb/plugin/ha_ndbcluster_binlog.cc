@@ -5531,8 +5531,12 @@ void ndbcluster_binlog_validate_sync_excluded_objects(THD *thd) {
   ndb_binlog_thread.validate_sync_excluded_objects(thd);
 }
 
-void ndbcluster_binlog_validate_sync_retry_list(THD *thd) {
-  ndb_binlog_thread.validate_sync_retry_list(thd);
+void ndbcluster_binlog_clear_sync_excluded_objects() {
+  ndb_binlog_thread.clear_sync_excluded_objects();
+}
+
+void ndbcluster_binlog_clear_sync_retry_objects() {
+  ndb_binlog_thread.clear_sync_retry_objects();
 }
 
 bool ndbcluster_binlog_check_table_async(const std::string &db_name,

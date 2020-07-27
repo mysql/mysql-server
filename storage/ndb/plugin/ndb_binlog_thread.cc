@@ -76,8 +76,12 @@ void Ndb_binlog_thread::validate_sync_excluded_objects(THD *thd) {
   metadata_sync.validate_excluded_objects(thd);
 }
 
-void Ndb_binlog_thread::validate_sync_retry_list(THD *thd) {
-  metadata_sync.validate_retry_list(thd);
+void Ndb_binlog_thread::clear_sync_excluded_objects() {
+  metadata_sync.clear_excluded_objects();
+}
+
+void Ndb_binlog_thread::clear_sync_retry_objects() {
+  metadata_sync.clear_retry_objects();
 }
 
 bool Ndb_binlog_thread::add_logfile_group_to_check(
