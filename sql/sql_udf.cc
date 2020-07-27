@@ -255,6 +255,14 @@ void udf_read_functions_table() {
     DBUG_PRINT("info", ("init udf record"));
     LEX_STRING name;
     name.str = get_field(&mem, table->field[0]);
+
+    // Check the name.str is NULL or not.
+    if (name.str == nullptr)
+    {
+      LogErr(ERROR_LEVEL, ER_UDF_INVALID_ROW_IN_FUNCTION_TABLE, name.str);
+      continue;
+    }
+
     name.length = strlen(name.str);
     char *dl_name = get_field(&mem, table->field[2]);
     bool new_dl = false;
