@@ -1261,6 +1261,27 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
 }
 
 /**
+
+  Check if the offset and limit are valid for a semijoin. A semijoin
+  can be used only if OFFSET is 0 and select LIMIT is not 0.
+
+  @retval false  if OFFSET and LIMIT does not permit a semijoin,
+  @retval true   otherwise.
+*/
+
+bool SELECT_LEX::is_row_count_valid_for_semi_join() {
+  if (offset_limit != nullptr &&
+      (!offset_limit->const_item() || offset_limit->val_int() != 0))
+    return false;
+
+  if (select_limit != nullptr &&
+      (!select_limit->const_item() || select_limit->val_int() == 0))
+    return false;
+
+  return true;
+}
+
+/**
   @brief Resolve predicate involving subquery
 
   @param thd     Pointer to THD.
@@ -1398,6 +1419,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       14. The surrounding truth test, and the nullability of expressions,
       are compatible with the conversion.
       15. Antijoins are supported, or it's not an antijoin (it's a semijoin).
+      16. OFFSET starts from the first row and LIMIT is not 0.
   */
   if (semijoin_enabled(thd) &&                                     // 0
       predicate != nullptr &&                                      // 1
@@ -1416,7 +1438,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       !(outer->active_options() & SELECT_NO_SEMI_JOIN) &&          // 12
       deterministic &&                                             // 13
       predicate->choose_semijoin_or_antijoin() &&                  // 14
-      (!cannot_do_antijoin || !predicate->can_do_aj)) {            // 15
+      (!cannot_do_antijoin || !predicate->can_do_aj) &&            // 15
+      is_row_count_valid_for_semi_join()) {                        // 16
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
     /* Notify in the subquery predicate where it belongs in the query graph */

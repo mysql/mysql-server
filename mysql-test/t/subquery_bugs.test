@@ -1472,3 +1472,45 @@ INSERT INTO t1 VALUES (1,'1'), (2,'2');
 EXPLAIN FORMAT=tree SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
 SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#31096309 - 8.0.16+ DIFFERENT RESULTSET THAN 5.7 AND <=8.0.15
+--echo #
+
+CREATE TABLE t1 (c1 int, c2 char(10));
+INSERT INTO t1 VALUES (1, 'name1');
+INSERT INTO t1 VALUES (2, 'name2');
+SET optimizer_switch='semijoin=on';
+
+# non-zero OFFSET expect a non-semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 1,1);
+eval explain format = tree $query;
+eval $query;
+
+# zero OFFSET expect a semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,1);
+eval explain format=tree $query;
+eval $query;
+
+# non-constant OFFSET expect a non-semijoin plan
+SET @offset_value=0;
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT ?,1);
+let $explain_query = PREPARE explain_stmt FROM "EXPLAIN format = tree $query";
+eval $explain_query;
+EXECUTE explain_stmt USING @offset_value;
+
+let $execute_query = PREPARE stmt FROM "$query";
+eval $execute_query;
+EXECUTE stmt USING @offset_value;
+
+# zero LIMIT expect a non-semijoin plan
+let $query = SELECT a.c2 FROM  t1 AS a WHERE
+                      EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,0);
+eval explain format = tree $query;
+eval $query;
+
+DROP TABLE t1;
+SET optimizer_switch=default;

@@ -2211,6 +2211,7 @@ class SELECT_LEX {
 
   bool prepare_values(THD *thd);
   bool check_only_full_group_by(THD *thd);
+  bool is_row_count_valid_for_semi_join();
 
   //
   // Members:
