@@ -1020,23 +1020,58 @@ static const String tz_SYSTEM_name("SYSTEM", 6, &my_charset_latin1);
 
 Time_zone *my_tz_find(const int64 displacement);
 
+static void raise_time_zone_conversion_error(const MYSQL_TIME &mt) {
+  char str[MAX_DATE_STRING_REP_LENGTH];
+  // TODO(mhansson) Get the correct number of decimal places into the error
+  // message.  This is non-trivial, as this is part of the meta-data, which
+  // (for some reason) is not included in a MYSQL_TIME.
+  my_datetime_to_str(mt, str, 0);
+
+  my_error(ER_TRUNCATED_WRONG_VALUE, myf(0), "temporal", str);
+}
+
+/**
+  Checks that this temporal value can be converted from its specified time
+  zone (if any) to the current time zone. Specifically, temporal values with
+  zero months or days cannot be converted between time zones.
+
+  @param mt The time to check.
+  @retval false The temporal value has no time zone or can be converted.
+  @retval true Otherwise, and an error was raised.
+*/
+bool check_time_zone_convertibility(const MYSQL_TIME &mt) {
+  if (mt.time_type == MYSQL_TIMESTAMP_DATETIME_TZ &&
+      (mt.month < 1 || mt.day < 1)) {
+    raise_time_zone_conversion_error(mt);
+    return true;
+  }
+  return false;
+}
+
 /**
   Converts a date/time value with time zone to the corresponding date/time value
-  without time zone, adjusted to be in time zone specified by argument @p tz.
+  without time zone, converted to be in time zone specified by argument @p tz.
 
-  This function is intended only for the types with time zone, and is a no-op
+  Since MySQL doesn't have a data type for temporal values with time zone
+  information, all such values are converted to a value without time zone
+  using this function.
+
+  This function is intended only for values with a time zone, and is a no-op
   for all other types.
 
-  If the adjusted value falls outside the range of the `DATETIME` type, an error
-  is raised and `true` returned.
+  The converted value may not fall outside the range of the `DATETIME` type.
+  Also some invalid values cannot be converted because the conversion result
+  would be undefined. In these cases an error is raised.
 
-  @param tz The time zone to adjust according to.
-  @param[in,out] mt Date/Time value to be adjusted.
+  @param tz The time zone to convert according to.
+  @param[in,out] mt Date/Time value to be converted.
 
   @return false on success. true if an error was raised.
 */
-bool adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
+bool convert_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
   if (mt->time_type != MYSQL_TIMESTAMP_DATETIME_TZ) return false;
+
+  if (check_time_zone_convertibility(*mt)) return true;
 
   MYSQL_TIME out;
   std::int64_t epoch_secs_in_utc =
@@ -1048,10 +1083,7 @@ bool adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
   out.second_part = microseconds;
 
   if (check_datetime_range(out)) {
-    char str[MAX_DATE_STRING_REP_LENGTH];
-    // to do: Get the correct number of decimal places into the error message.
-    my_datetime_to_str(out, str, 0);
-    my_error(ER_TRUNCATED_WRONG_VALUE, myf(0), "temporal", str);
+    raise_time_zone_conversion_error(out);
     return true;
   }
 

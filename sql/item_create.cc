@@ -80,7 +80,7 @@
 #include "sql/sql_udf.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
-#include "tztime.h"  // adjust_time_zone
+#include "tztime.h"  // convert_time_zone_displacement
 
 /**
   @addtogroup GROUP_PARSER
@@ -2075,7 +2075,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
           (ltime.time_type == MYSQL_TIMESTAMP_DATETIME ||
            ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) &&
           !status.warnings) {
-        if (adjust_time_zone_displacement(thd->time_zone(), &ltime))
+        if (convert_time_zone_displacement(thd->time_zone(), &ltime))
           return nullptr;
         item = new (thd->mem_root) Item_datetime_literal(
             &ltime, status.fractional_digits, thd->time_zone());

@@ -4609,7 +4609,7 @@ type_conversion_status Field_temporal::store(const char *str, size_t len,
       error = TYPE_ERR_BAD_VALUE;
   } else {
     if (ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
-      if (adjust_time_zone_displacement(current_thd->time_zone(), &ltime))
+      if (convert_time_zone_displacement(current_thd->time_zone(), &ltime))
         return TYPE_ERR_BAD_VALUE;
     }
     error = time_warning_to_type_conversion_status(status.warnings);
@@ -5951,7 +5951,7 @@ type_conversion_status Field_datetimef::store_internal(const MYSQL_TIME *ltime,
     - convert to the local time zone
   */
   MYSQL_TIME temp_t = *ltime;
-  if (adjust_time_zone_displacement(current_thd->time_zone(), &temp_t))
+  if (convert_time_zone_displacement(current_thd->time_zone(), &temp_t))
     return TYPE_ERR_BAD_VALUE;
   store_packed(TIME_to_longlong_datetime_packed(temp_t));
 

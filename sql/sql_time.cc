@@ -185,7 +185,7 @@ bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
   }
 
   if (ret_val) return true;
-  return adjust_time_zone_displacement(thd->time_zone(), l_time);
+  return convert_time_zone_displacement(thd->time_zone(), l_time);
 }
 
 /**
@@ -532,7 +532,7 @@ bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
   }
 
   if (!ret_val)
-    if (adjust_time_zone_displacement(thd->time_zone(), l_time)) return true;
+    if (convert_time_zone_displacement(thd->time_zone(), l_time)) return true;
 
   return ret_val;
 }
