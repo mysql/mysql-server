@@ -4459,5 +4459,17 @@ a	b	c	d	id
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 DROP TABLE test_ref;
+#
+# Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
+#                WHERE_CLAUSE
+#
+CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
+INSERT INTO t VALUES(0,0);
+SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
+f1	f2
+0	0
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+DROP TABLE t;
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= DEFAULT;
 # End of test for Bug#17769777 and Bug#17413040
