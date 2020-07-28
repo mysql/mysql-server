@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3290,6 +3290,7 @@ void Qmgr::initData(Signal* signal)
     arbitRec.method = ArbitRec::DISABLED;
   }
 
+  setNodeInfo(getOwnNodeId()).m_version = NDB_VERSION;
   setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 
   ndb_mgm_configuration_iterator * iter =
@@ -3890,6 +3891,7 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
      *   so that no block risks reading 0 as node-version
      */
     setNodeInfo(failedNodePtr.i).m_version = 0;
+    setNodeInfo(failedNodePtr.i).m_mysql_version = 0;
     recompute_version_info(getNodeInfo(failedNodePtr.i).m_type);
   }
   return;
@@ -4026,6 +4028,7 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
    *   so that no block risks reading 0 as node version
    */
   setNodeInfo(failedNodePtr.i).m_version = 0;
+  setNodeInfo(failedNodePtr.i).m_mysql_version = 0;
   recompute_version_info(NodeInfo::DB);
 
   /** 
@@ -4649,10 +4652,11 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   ApiVersionConf * conf = (ApiVersionConf *)req;
   static_assert(sizeof(in6_addr) <= 16,
                 "Cannot fit in6_inaddr into ApiVersionConf:m_inet6_addr");
-  if(getNodeInfo(nodeId).m_connected)
+  NodeInfo nodeInfo = getNodeInfo(nodeId);
+  if(nodeInfo.m_connected)
   {
-    conf->version = getNodeInfo(nodeId).m_version;
-    conf->mysql_version = getNodeInfo(nodeId).m_mysql_version;
+    conf->version = nodeInfo.m_version;
+    conf->mysql_version = nodeInfo.m_mysql_version;
     struct in6_addr in= globalTransporterRegistry.get_connect_address(nodeId);
     memcpy(conf->m_inet6_addr, in.s6_addr, sizeof(conf->m_inet6_addr));
     if (IN6_IS_ADDR_V4MAPPED(&in))
