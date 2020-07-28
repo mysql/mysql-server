@@ -17762,3 +17762,12 @@ Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '999999999999999999999999999999999999999999.9999999999999'
 Warning	1441	Datetime function: time field overflow
 DROP TABLE t;
+#
+# Bug #30324587 	ASSERTION FAILED: (*REF)->IS_TEMPORAL()
+#
+SELECT current_date IN ( MAX(NULL), 1 );
+current_date IN ( MAX(NULL), 1 )
+NULL
+SELECT current_time IN ( MAX(NULL), 1 );
+current_time IN ( MAX(NULL), 1 )
+NULL

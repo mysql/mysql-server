@@ -8074,7 +8074,7 @@ longlong Item_ref::val_int() {
 
 longlong Item_ref::val_time_temporal() {
   DBUG_ASSERT(fixed);
-  DBUG_ASSERT((*ref)->is_temporal());
+  DBUG_ASSERT((*ref)->is_temporal() || (*ref)->is_null());
   longlong tmp = (*ref)->val_time_temporal();
   null_value = (*ref)->null_value;
   return tmp;
