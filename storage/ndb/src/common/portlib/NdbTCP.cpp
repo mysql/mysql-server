@@ -26,6 +26,8 @@
 #include <ndb_global.h>
 #include <NdbTCP.h>
 
+#include <string.h>
+
 
 /* On some operating systems (e.g. Solaris) INADDR_NONE is not defined */
 #ifndef INADDR_NONE
@@ -38,29 +40,107 @@
 #define EAI_NODATA EAI_NONAME
 #endif
 
+static void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
+                                    const struct sockaddr_in* src);
+
+void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
+                             const struct sockaddr_in* src)
+{
+  /*
+   * IPv4 mapped to IPv6 is ::ffff:a.b.c.d or expanded as full hex
+   * 0000:0000:0000:0000:0000:ffff:AABB:CCDD
+   */
+  dst->sin6_family = AF_INET6;
+  memset(&dst->sin6_addr.s6_addr[0], 0, 10);
+  memset(&dst->sin6_addr.s6_addr[10], 0xff, 2);
+  memcpy(&dst->sin6_addr.s6_addr[12], &src->sin_addr.s_addr, 4);
+}
+
+static struct addrinfo * get_preferred_address(struct addrinfo * ai_list)
+{
+  struct addrinfo* ai_pref = nullptr;
+
+  /*
+   * If a hostname resolves to multiple addresses:
+   * 1) the first IPv4 address is used.  This for as smooth upgrade from old
+   *    IPv4 only Ndb nodes.
+   * 2) if no IPv4 address the first IPv6 address without scope is used.
+   */
+  while (ai_list != nullptr)
+  {
+    if (ai_list->ai_family == AF_INET)
+    {
+      ai_pref = ai_list;
+      // Found first IPv4 address.
+      break;
+    }
+    else if (ai_pref == nullptr && ai_list->ai_family == AF_INET6)
+    {
+      struct sockaddr_in6* addr = (struct sockaddr_in6*)ai_list->ai_addr;
+      if (addr->sin6_scope_id == 0)
+      {
+        ai_pref = ai_list;
+        // Continue look for IPv4 address
+      }
+    }
+    ai_list = ai_list->ai_next;
+  }
+  return ai_pref;
+}
+
+static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
+{
+  if (src == nullptr)
+  {
+    return -1;
+  }
+
+  struct sockaddr_in6* addr6_ptr;
+  sockaddr_in6 addr6;
+
+  if (src->ai_family == AF_INET)
+  {
+    struct sockaddr_in* addr4_ptr = (struct sockaddr_in*)src->ai_addr;
+    Ndb_make_ipv6_from_ipv4(&addr6, addr4_ptr);
+    addr6_ptr = &addr6;
+  }
+  else if (src->ai_family == AF_INET6)
+  {
+    addr6_ptr = (struct sockaddr_in6*)src->ai_addr;
+  }
+  else
+  {
+    return -1;
+  }
+  memcpy(dst, &addr6_ptr->sin6_addr, sizeof(struct in6_addr));
+  return 0;
+}
+
 extern "C"
 int
 Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
-  hints.ai_flags = AI_V4MAPPED;
-  hints.ai_family = AF_INET6; // IPv6 or IPv4-mapped address
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_flags = AI_ADDRCONFIG;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
 
   struct addrinfo* ai_list;
+
   if (getaddrinfo(address, NULL, &hints, &ai_list) != 0)
   {
     return -1;
   }
 
-  /* Return sin_addr for the first address returned */
-  struct sockaddr_in6* sin = (struct sockaddr_in6*)ai_list->ai_addr;
-  memcpy(dst, &sin->sin6_addr, sizeof(struct in6_addr));
+  struct addrinfo* ai_pref = get_preferred_address(ai_list);
+
+  int ret = get_in6_addr(dst, ai_pref);
 
   freeaddrinfo(ai_list);
-  return 0;
+
+  return ret;
 }
 
 extern "C"
