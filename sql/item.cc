@@ -2154,6 +2154,8 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     */
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
 
+    const bool old_hidden = hidden;  // May be overwritten below.
+
     // See if the item is already there. If it's not there
     // (the common case), we put it at the end.
     //
@@ -2190,6 +2192,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
         &base_select->context, &ref_item_array[el], nullptr, nullptr,
         item_name.ptr(), depended_from);
     if (!item_ref) return; /* purecov: inspected */
+    item_ref->hidden = old_hidden;
     if (ref == nullptr) {
       DBUG_ASSERT(is_sum_func);
       // Let 'ref' be the two elements of referenced_by[].
