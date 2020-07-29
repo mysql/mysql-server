@@ -1514,3 +1514,12 @@ eval $query;
 
 DROP TABLE t1;
 SET optimizer_switch=default;
+
+--echo #
+--echo # Bug #31586937: REGRESSION: CRASH IN FILESORT::MAKE_SORTORDER
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
+SELECT ( SELECT b FROM t2 ORDER BY a, MIN(a) LIMIT 1 ) FROM t1 GROUP BY a;
+DROP TABLE t1, t2;
