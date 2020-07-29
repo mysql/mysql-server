@@ -648,10 +648,7 @@ class LatchCounter {
   ~LatchCounter() UNIV_NOTHROW {
     m_mutex.destroy();
 
-    for (Counters::iterator it = m_counters.begin(); it != m_counters.end();
-         ++it) {
-      Count *count = *it;
-
+    for (Count *count : m_counters) {
       UT_DELETE(count);
     }
   }
@@ -663,10 +660,8 @@ class LatchCounter {
   void reset() UNIV_NOTHROW {
     m_mutex.enter();
 
-    Counters::iterator end = m_counters.end();
-
-    for (Counters::iterator it = m_counters.begin(); it != end; ++it) {
-      (*it)->reset();
+    for (Count *count : m_counters) {
+      count->reset();
     }
 
     m_mutex.exit();
@@ -693,7 +688,7 @@ class LatchCounter {
 
   /** Deregister the count. We don't do anything
   @param[in]	count		The count instance to deregister */
-  void sum_deregister(Count *count) UNIV_NOTHROW { /* Do nothing */
+  void sum_deregister(Count *count) const UNIV_NOTHROW { /* Do nothing */
   }
 
   /** Register a single instance counter */
@@ -718,22 +713,20 @@ class LatchCounter {
 
   /** Iterate over the counters */
   template <typename Callback>
-  void iterate(Callback &callback) const UNIV_NOTHROW {
-    Counters::const_iterator end = m_counters.end();
-
-    for (Counters::const_iterator it = m_counters.begin(); it != end; ++it) {
-      callback(*it);
+  void iterate(Callback &&callback) const UNIV_NOTHROW {
+    m_mutex.enter();
+    for (const Count *count : m_counters) {
+      std::forward<Callback>(callback)(count);
     }
+    m_mutex.exit();
   }
 
   /** Disable the monitoring */
   void enable() UNIV_NOTHROW {
     m_mutex.enter();
 
-    Counters::const_iterator end = m_counters.end();
-
-    for (Counters::const_iterator it = m_counters.begin(); it != end; ++it) {
-      (*it)->m_enabled = true;
+    for (Count *count : m_counters) {
+      count->m_enabled = true;
     }
 
     m_active = true;
@@ -745,10 +738,8 @@ class LatchCounter {
   void disable() UNIV_NOTHROW {
     m_mutex.enter();
 
-    Counters::const_iterator end = m_counters.end();
-
-    for (Counters::const_iterator it = m_counters.begin(); it != end; ++it) {
-      (*it)->m_enabled = false;
+    for (Count *count : m_counters) {
+      count->m_enabled = false;
     }
 
     m_active = false;
@@ -769,7 +760,7 @@ class LatchCounter {
   typedef std::vector<Count *> Counters;
 
   /** Mutex protecting m_counters */
-  Mutex m_mutex;
+  mutable Mutex m_mutex;
 
   /** Counters for the latches */
   Counters m_counters;
@@ -1183,9 +1174,8 @@ struct sync_allowed_latches : public sync_check_functor_t {
   @param[in]	level	The latch level to check
   @return true if there is a latch ordering violation */
   virtual bool operator()(const latch_level_t level) override {
-    for (latches_t::const_iterator it = m_latches.begin();
-         it != m_latches.end(); ++it) {
-      if (level == *it) {
+    for (latch_level_t allowed_level : m_latches) {
+      if (level == allowed_level) {
         m_result = false;
 
         /* No violation */
