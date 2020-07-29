@@ -154,6 +154,7 @@ INSERT INTO t1 SELECT col1 + 32 FROM t1;
 INSERT INTO t1 SELECT col1 + 64 FROM t1;
 INSERT INTO t1 SELECT col1 + 128 FROM t1;
 INSERT INTO t1 SELECT col1 + 256 FROM t1;
+INSERT INTO t1 SELECT col1 + 512 FROM t1;
 INSERT INTO t2 SELECT col1 FROM t1;
 
 ANALYZE TABLE t1, t2;
@@ -303,7 +304,7 @@ SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 
 --echo # Increase the data volume, and reduce the join_buffer_size, in order to
 --echo # test that we can keep the row ID in case of GRACE hash join as well.
-let $count=8;
+let $count=9;
 while ($count)
 {
   eval INSERT INTO t1 SELECT * FROM t1;
@@ -1234,6 +1235,7 @@ INSERT INTO t1 SELECT col1 + 32 FROM t1;
 INSERT INTO t1 SELECT col1 + 64 FROM t1;
 INSERT INTO t1 SELECT col1 + 128 FROM t1;
 INSERT INTO t1 SELECT col1 + 256 FROM t1;
+INSERT INTO t1 SELECT col1 + 512 FROM t1;
 
 CREATE TABLE t2 SELECT col1 FROM t1;
 
@@ -1818,6 +1820,8 @@ SET join_buffer_size = 128;
 SET optimizer_switch="materialization=off";
 
 --skip_if_hypergraph  # Depends on the query plan.
+# Mask out the cost estimates, since they will differ by how much of the data is in RAM.
+--replace_regex /cost=\d+.\d+/cost=***/
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
