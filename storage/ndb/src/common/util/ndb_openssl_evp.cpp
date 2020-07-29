@@ -813,7 +813,6 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
       r = EVP_DecryptFinal_ex(m_evp_context, out->begin(), &outl);
       if (r != 1)
       {
-        ERR_print_errors_fp(stderr);
         RETURN(-1);
       }
       if (m_context->m_padding)
@@ -870,7 +869,6 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
                                 data_unit_size);
       if (r != 1)
       {
-        ERR_print_errors_fp(stderr);
         RETURN(-1);
       }
 
@@ -884,7 +882,6 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
       r = EVP_DecryptFinal_ex(m_evp_context, out->begin(), &outl);
       if (r != 1)
       {
-        ERR_print_errors_fp(stderr);
         RETURN(-1);
       }
 
