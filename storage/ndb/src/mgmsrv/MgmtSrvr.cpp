@@ -4004,21 +4004,24 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
   return 0;
 }
 
+inline struct in6_addr * get_in6_addr(const struct sockaddr *clnt_addr) {
+  return clnt_addr ? &((sockaddr_in6*)clnt_addr)->sin6_addr : nullptr;
+}
+
+inline bool is_loopback(const struct in6_addr *addr) {
+  return (IN6_IS_ADDR_LOOPBACK(addr) ||
+         (IN6_IS_ADDR_V4MAPPED(addr) && addr->s6_addr[12] == 0x7f));
+}
+
 static HostnameMatch
 match_hostname(const struct sockaddr *clnt_addr,
                const char *config_hostname,
                LocalDnsCache & dnsCache)
 {
-  if (clnt_addr == nullptr) {
-    if(SocketServer::tryBind(0, config_hostname))
-      return HostnameMatch::ok_exact_match;
-    return HostnameMatch::no_match;
-  }
+  const struct in6_addr *clnt_in6_addr = get_in6_addr(clnt_addr);
 
-  const struct in6_addr *clnt_in_addr = &((sockaddr_in6*)clnt_addr)->sin6_addr;
-
-  if(IN6_IS_ADDR_LOOPBACK(clnt_in_addr)) {
-    if(SocketServer::tryBind(0, config_hostname))
+  if ((clnt_addr == nullptr) || is_loopback(clnt_in6_addr)) {
+    if (SocketServer::tryBind(0, config_hostname))
       return HostnameMatch::ok_exact_match;
     return HostnameMatch::no_match;
   }
@@ -4027,7 +4030,8 @@ match_hostname(const struct sockaddr *clnt_addr,
   if(dnsCache.getAddress(&resolved_addr, config_hostname) != 0)
     return HostnameMatch::no_resolve;
 
-  if(memcmp(&resolved_addr, clnt_in_addr, sizeof(resolved_addr)) != 0)
+  // Bitwise comparison of the two IPv6 addresses
+  if (memcmp(&resolved_addr, clnt_in6_addr, sizeof(resolved_addr)) != 0)
     return HostnameMatch::no_match;
 
   return HostnameMatch::ok_exact_match;

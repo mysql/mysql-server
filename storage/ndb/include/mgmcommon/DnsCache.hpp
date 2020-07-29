@@ -51,8 +51,8 @@ public:
 
 protected:
   /* no heap allocation */
-  static void * operator new(std::size_t);
-  static void * operator new[](std::size_t);
+  static void * operator new(std::size_t) = delete;
+  static void * operator new[](std::size_t) = delete;
 
 private:
   std::unordered_set<std::string> m_failed_lookups;

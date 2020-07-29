@@ -24,7 +24,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbTCP.h>
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
