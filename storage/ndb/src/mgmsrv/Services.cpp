@@ -373,7 +373,11 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
                                    static_cast<void*>(&addr.sin6_addr),
                                    addr_buf,
                                    sizeof(addr_buf));
-    m_name.assfmt("%s %d", addr_str, ntohs(addr.sin6_port));
+    char buf[512];
+    char *sockaddr_string = Ndb_combine_address_port(buf, sizeof(buf),
+                                                     addr_str,
+                                                     ntohs(addr.sin6_port));
+    m_name.assfmt("%s", sockaddr_string);
   }
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
 
