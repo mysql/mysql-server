@@ -56,11 +56,10 @@ SocketClient::init()
   if (ndb_socket_valid(m_sockfd))
     ndb_socket_close(m_sockfd);
 
-  m_sockfd= ndb_socket_create(AF_INET6, SOCK_STREAM, 0);
+  m_sockfd= ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(m_sockfd)) {
     return false;
   }
-
   DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
                      MY_SOCKET_FORMAT_VALUE(m_sockfd)));
 

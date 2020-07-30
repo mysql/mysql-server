@@ -77,11 +77,40 @@ static inline int ndb_socket_errno()
 }
 
 static inline
+int ndb_getsockopt(ndb_socket_t s, int level, int optname,
+                   void *optval, ndb_socket_len_t *optlen)
+{
+  return getsockopt(s.s, level, optname, (char*)optval, optlen);
+}
+
+static inline
+int ndb_setsockopt(ndb_socket_t s, int level, int optname,
+                   void *optval, ndb_socket_len_t optlen)
+{
+  return setsockopt(s.s, level, optname, (char*)optval, optlen);
+}
+
+static inline
 ndb_socket_t ndb_socket_create(int domain, int type,int protocol)
 {
   ndb_socket_t s;
   s.s= socket(domain, type, protocol);
 
+  return s;
+}
+
+static inline
+ndb_socket_t ndb_socket_create_dual_stack(int type, int protocol)
+{
+  ndb_socket_t s;
+  int on = 0;
+  s.s= socket(AF_INET6, type, protocol);
+
+  if (ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
+                     (char *)&on, sizeof(on)) == -1)
+  {
+    ndb_socket_invalidate(&s);
+  }
   return s;
 }
 
@@ -168,20 +197,6 @@ int ndb_connect_inet6(ndb_socket_t s, const struct sockaddr_in6 *addr)
 {
   return connect(s.s, (const struct sockaddr*) addr,
                  sizeof(struct sockaddr_in6));
-}
-
-static inline
-int ndb_getsockopt(ndb_socket_t s, int level, int optname,
-                   void *optval, ndb_socket_len_t *optlen)
-{
-  return getsockopt(s.s, level, optname, (char*)optval, optlen);
-}
-
-static inline
-int ndb_setsockopt(ndb_socket_t s, int level, int optname,
-                   void *optval, ndb_socket_len_t optlen)
-{
-  return setsockopt(s.s, level, optname, (char*)optval, optlen);
 }
 
 static inline

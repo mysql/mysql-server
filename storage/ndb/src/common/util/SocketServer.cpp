@@ -78,7 +78,8 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
       return false;
   }
 
-  const NDB_SOCKET_TYPE sock = ndb_socket_create(AF_INET6, SOCK_STREAM, 0);
+  const NDB_SOCKET_TYPE sock =
+      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(sock))
     return false;
 
@@ -118,7 +119,8 @@ SocketServer::setup(SocketServer::Service * service,
       DBUG_RETURN(false);
   }
 
-  const NDB_SOCKET_TYPE sock = ndb_socket_create(AF_INET6, SOCK_STREAM, 0);
+  const NDB_SOCKET_TYPE sock =
+      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(sock))
   {
     DBUG_PRINT("error",("socket() - %d - %s",

@@ -4132,10 +4132,10 @@ MgmtSrvr::find_node_type(NodeId node_id,
     alias= ndb_mgm_get_node_type_alias_string(type, &str);
     type_string.assfmt("%s(%s)", alias, str);
 
-    struct in_addr conn_addr =
-      ((struct sockaddr_in*)(client_addr))->sin_addr;
+    struct in6_addr conn_addr =
+      ((struct sockaddr_in6*)(client_addr))->sin6_addr;
     char* addr_str =
-        Ndb_inet_ntop(AF_INET,
+        Ndb_inet_ntop(AF_INET6,
                       static_cast<void*>(&conn_addr),
                       addr_buf,
                       sizeof(addr_buf));

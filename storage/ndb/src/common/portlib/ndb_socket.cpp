@@ -41,7 +41,7 @@ int ndb_socketpair(ndb_socket_t s[2])
   ndb_socket_invalidate(&s[0]);
   ndb_socket_invalidate(&s[1]);
 
-  listener= ndb_socket_create(AF_INET6, SOCK_STREAM, 0);
+  listener= ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(listener))
     return -1;
 

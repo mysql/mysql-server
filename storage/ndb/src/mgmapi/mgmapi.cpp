@@ -3198,9 +3198,13 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
       unsigned port=  ndb_mgm_get_connected_port(handle);
       Uint32 error_code= NDB_MGM_ALLOCID_ERROR;
       prop->get("error_code", &error_code);
+      char sockaddr_buf[512];
+      char* sockaddr_string = Ndb_combine_address_port(sockaddr_buf,
+                                                       sizeof(sockaddr_buf),
+                                                       hostname, port);
       setError(handle, error_code, __LINE__,
-              "Could not alloc node id at %s port %d: %s",
-               hostname, port, buf);
+              "Could not alloc node id at %s: %s",
+               sockaddr_string, buf);
       break;
     }
     Uint32 _nodeid;

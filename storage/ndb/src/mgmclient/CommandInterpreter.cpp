@@ -1829,12 +1829,6 @@ print_nodes(ndb_mgm_cluster_state2 *state, ndb_mgm_configuration_iterator *it,
 	  ndbout << " ";
 	else
 	{
-	  // Display IPv4 address in w.x.y.z format
-	  const char* mapped_prefix = "::ffff:";
-	  if (strncmp(mapped_prefix, hostname, strlen(mapped_prefix)) == 0)
-	  {
-	    hostname += strlen(mapped_prefix);
-	  }
 	  ndbout << "\t@" << hostname;
 	}
 
