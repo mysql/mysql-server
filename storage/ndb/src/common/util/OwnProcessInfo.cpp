@@ -49,7 +49,8 @@ void setOwnProcessInfoAngelPid(Uint32 pid)
 void setOwnProcessInfoServerAddress(struct sockaddr * addr)
 {
   theApiMutex.lock();
-  singletonInfo.setHostAddress(addr, sizeof(sockaddr_in6));
+  sockaddr_in6 *addr_in6 = (sockaddr_in6 *)addr;
+  singletonInfo.setHostAddress(&addr_in6->sin6_addr);
   theApiMutex.unlock();
 }
 

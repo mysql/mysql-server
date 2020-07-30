@@ -185,10 +185,6 @@ void ProcessInfo::setHostAddress(Uint32 * signal_data) {
   setHostAddress((const char *) signal_data);
 }
 
-void ProcessInfo::setHostAddress(const struct sockaddr * addr, socklen_t len) {
-  getnameinfo(addr, len, host_address, AddressStringLength, 0, 0, NI_NUMERICHOST);
-}
-
 void ProcessInfo::setHostAddress(const struct in6_addr * addr) {
   /* If address passed in is a wildcard address, do not use it. */
   if (!IN6_IS_ADDR_UNSPECIFIED(addr))
@@ -235,36 +231,27 @@ int ProcessInfo::getServiceUri(char * buffer, size_t buf_len) const {
     path_prefix = "/";
   }
 
-  int ipv4_mapped_ipv6_prefix_len = strlen("::ffff:");
-  const char* host_address_copy = host_address;
-  if ((strncmp("::ffff:", host_address, ipv4_mapped_ipv6_prefix_len) == 0) &&
-      (strchr(host_address + ipv4_mapped_ipv6_prefix_len, ':') == nullptr) &&
-      (strchr(host_address + ipv4_mapped_ipv6_prefix_len, '.') != nullptr))
-  {
-    host_address_copy += ipv4_mapped_ipv6_prefix_len;
-  }
-
   char buf[512];
   if (application_port > 0)
   {
     char* sockaddr_string = Ndb_combine_address_port(buf,
                                                      sizeof(buf),
-                                                     host_address_copy,
+                                                     host_address,
                                                      application_port);
     len = BaseString::snprintf(buffer, buf_len, "%s://%s%s%s", uri_scheme,
                                sockaddr_string, path_prefix, uri_path);
   }
   else
   {
-    if (strchr(host_address_copy, ':') == nullptr)
+    if (strchr(host_address, ':') == nullptr)
     {
       len = BaseString::snprintf(buffer, buf_len, "%s://%s%s%s", uri_scheme,
-                                 host_address_copy, path_prefix, uri_path);
+                                 host_address, path_prefix, uri_path);
     }
     else
     {
       len = BaseString::snprintf(buffer, buf_len, "%s://[%s]%s%s", uri_scheme,
-                                 host_address_copy, path_prefix, uri_path);
+                                 host_address, path_prefix, uri_path);
     }
   }
   return len;

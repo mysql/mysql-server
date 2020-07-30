@@ -1138,7 +1138,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   version.assfmt("%u", NDB_VERSION_D);
   BaseString mysql_version;
   mysql_version.assfmt("%u", NDB_MYSQL_VERSION_D);
-  BaseString address("127.0.0.1");
+  BaseString address_ipv4("127.0.0.1");
+  BaseString address_ipv6("::1");
 
   NDBT_Workingdir wd("test_mgmd"); // temporary working directory
 
@@ -1170,7 +1171,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status1, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status1, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status1, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status1, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status1, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status1, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status1, nodeid1, "startphase", "0"));
   CHECK(value_equal(status1, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status1, nodeid1, "node_group", "0"));
@@ -1204,7 +1206,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status2, nodeid2, "status", "CONNECTED"));
   CHECK(value_equal(status2, nodeid2, "version", version.c_str()));
   CHECK(value_equal(status2, nodeid2, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status2, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid2, "address", address_ipv4.c_str()) ||
+        value_equal(status2, nodeid2, "address", address_ipv6.c_str()));
   CHECK(value_equal(status2, nodeid2, "startphase", "0"));
   CHECK(value_equal(status2, nodeid2, "dynamic_id", "0"));
   CHECK(value_equal(status2, nodeid2, "node_group", "0"));
@@ -1216,7 +1219,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status2, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status2, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status2, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status2, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status2, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status2, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status2, nodeid1, "startphase", "0"));
   CHECK(value_equal(status2, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status2, nodeid1, "node_group", "0"));
@@ -1230,7 +1234,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status3, nodeid1, "status", "CONNECTED"));
   CHECK(value_equal(status3, nodeid1, "version", version.c_str()));
   CHECK(value_equal(status3, nodeid1, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status3, nodeid1, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid1, "address", address_ipv4.c_str()) ||
+        value_equal(status3, nodeid1, "address", address_ipv6.c_str()));
   CHECK(value_equal(status3, nodeid1, "startphase", "0"));
   CHECK(value_equal(status3, nodeid1, "dynamic_id", "0"));
   CHECK(value_equal(status3, nodeid1, "node_group", "0"));
@@ -1242,7 +1247,8 @@ int runTestBug12352191(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(value_equal(status3, nodeid2, "status", "CONNECTED"));
   CHECK(value_equal(status3, nodeid2, "version", version.c_str()));
   CHECK(value_equal(status3, nodeid2, "mysql_version", mysql_version.c_str()));
-  CHECK(value_equal(status3, nodeid2, "address", address.c_str()));
+  CHECK(value_equal(status3, nodeid2, "address", address_ipv4.c_str()) ||
+        value_equal(status3, nodeid2, "address", address_ipv6.c_str()));
   CHECK(value_equal(status3, nodeid2, "startphase", "0"));
   CHECK(value_equal(status3, nodeid2, "dynamic_id", "0"));
   CHECK(value_equal(status3, nodeid2, "node_group", "0"));
