@@ -32,6 +32,7 @@
 #include "my_config.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/module_mysqlx.h"
 #include "plugin/x/src/variables/system_variables.h"
@@ -246,7 +247,7 @@ void Socket_acceptors_task::stop(const Stop_cause cause) {
 
   m_event->break_loop();
 
-  for (auto &listener : listeners) listener->close_listener();
+  XSYNC_POINT_CHECK("xacceptor_stop_wait", "xacceptor_pre_loop_wait");
 
   switch (cause) {
     case Stop_cause::k_abort:
@@ -260,6 +261,7 @@ void Socket_acceptors_task::stop(const Stop_cause cause) {
     case Stop_cause::k_server_task_triggered_event:
       break;
   }
+  XSYNC_POINT_CHECK(nullptr, "xacceptor_post_loop_wait");
 }
 
 void Socket_acceptors_task::show_startup_log(
@@ -297,12 +299,14 @@ Socket_acceptors_task::get_array_of_listeners() {
 
 void Socket_acceptors_task::pre_loop() {
   log_debug("Socket_acceptors_task::pre_loop");
+
   m_time_and_event_state.set(xpl::iface::Listener::State::k_running);
   auto listeners = get_array_of_listeners();
 
+  XSYNC_POINT_CHECK("xacceptor_pre_loop_wait");
+
   for (auto &listener : listeners) {
     listener->pre_loop();
-    listener->set_state(xpl::iface::Listener::State::k_running);
   }
 }
 
@@ -312,8 +316,9 @@ void Socket_acceptors_task::post_loop() {
 
   m_time_and_event_state.set(xpl::iface::Listener::State::k_stopped);
 
-  for (auto &l : listeners)
-    l->set_state(xpl::iface::Listener::State::k_stopped);
+  for (auto &listener : listeners) listener->close_listener();
+
+  XSYNC_POINT_CHECK("xacceptor_post_loop_wait", "xacceptor_stop_wait");
 }
 
 void Socket_acceptors_task::loop() { m_event->loop(); }

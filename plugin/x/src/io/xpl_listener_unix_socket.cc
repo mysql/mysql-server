@@ -344,8 +344,6 @@ Listener_unix_socket::~Listener_unix_socket() {
   close_listener();
 }
 
-void Listener_unix_socket::set_state(const State state) { m_state.set(state); }
-
 const Listener_unix_socket::Sync_variable_state &
 Listener_unix_socket::get_state() const {
   return m_state;
@@ -400,6 +398,7 @@ void Listener_unix_socket::close_listener() {
 
 void Listener_unix_socket::pre_loop() {
   if (m_unix_socket) m_unix_socket->set_socket_thread_owner();
+  m_state.set(xpl::iface::Listener::State::k_running);
 }
 
 void Listener_unix_socket::loop() {}
