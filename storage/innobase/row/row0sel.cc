@@ -4640,7 +4640,7 @@ static inline rec_t *row_search_debug_copy_rec_order_prefix(
 	const rec_t*	rec,
 	ulint*	n_fields,
 	byte**	buf,
-	size_t*	buf_size)
+	ulint*	buf_size)
 {
 	if (btr_pcur_get_rec(pcur) == rec) {
 		return dict_index_copy_rec_order_prefix(
@@ -4692,7 +4692,7 @@ row_search_mvcc(
 	const rec_t*	prev_rec_debug = NULL;
 	ulint prev_rec_debug_n_fields = 0;
 	byte *prev_rec_debug_buf = NULL;
-	size_t prev_rec_debug_buf_size = 0;
+	ulint prev_rec_debug_buf_size = 0;
 #endif /* UNIV_DEBUG */
 	const rec_t*	rec = NULL;
 	byte*		end_range_cache = NULL;
