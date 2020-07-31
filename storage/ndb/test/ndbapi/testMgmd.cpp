@@ -1403,7 +1403,7 @@ runTestUnresolvedHosts1(NDBT_Context* ctx, NDBT_Step* step)
   Properties config, mgm, ndb, api;
   mgm.put("NodeId", 1);
   mgm.put("HostName", hostname);
-  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port());
+  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
   ndb.put("NodeId", 2);
   ndb.put("HostName", "xx-no-such-host.no.oracle.com.");
   ndb.put("NoOfReplicas", 1);
@@ -1412,8 +1412,10 @@ runTestUnresolvedHosts1(NDBT_Context* ctx, NDBT_Step* step)
   config.put("ndbd", 2, &ndb);
   config.put("mysqld", 3, &api);
 
-  const char * cf_path=path(wd.path(), "config.ini", nullptr).c_str();
-  CHECK(ConfigFactory::write_config_ini(config, cf_path));
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
 
   Mgmd mgmd(1);
   int exit_value;
@@ -1441,7 +1443,7 @@ runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
   Properties config, mgm, tcp, api;
   mgm.put("NodeId", 145);
   mgm.put("HostName", hostname);
-  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port());
+  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
   tcp.put("AllowUnresolvedHostnames", "true");
   api.put("NodeId", 151);
   config.put("ndb_mgmd", 145, &mgm);
@@ -1462,8 +1464,10 @@ runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
     config.put("ndbd", i, &ndb);
   }
 
-  const char * cf_path=path(wd.path(), "config.ini", nullptr).c_str();
-  CHECK(ConfigFactory::write_config_ini(config, cf_path));
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
 
   /* Start the management node and data node 1 together, and expect this to
      succeed despite the unresolvable host names and large configuration.
