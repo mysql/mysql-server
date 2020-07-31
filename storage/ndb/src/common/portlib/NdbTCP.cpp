@@ -197,15 +197,6 @@ Ndb_inet_ntop(int af,
                         NULL,
                         0,
                         NI_NUMERICHOST);
-      const char* mapped_prefix = "::ffff:";
-      size_t mapped_prefix_len = strlen(mapped_prefix);
-      if ((dst != nullptr) &&
-          (strncmp(mapped_prefix, dst, mapped_prefix_len) == 0))
-      {
-        memmove(dst, dst + mapped_prefix_len,
-                strlen(dst) - mapped_prefix_len + 1);
-      }
-
       if (ret != 0)
       {
         break;
@@ -225,6 +216,15 @@ Ndb_inet_ntop(int af,
                         NULL,
                         0,
                         NI_NUMERICHOST);
+      const char* mapped_prefix = "::ffff:";
+      size_t mapped_prefix_len = strlen(mapped_prefix);
+      if ((dst != nullptr) &&
+          (strncmp(mapped_prefix, dst, mapped_prefix_len) == 0))
+      {
+        memmove(dst, dst + mapped_prefix_len,
+                strlen(dst) - mapped_prefix_len + 1);
+      }
+
       if (ret != 0)
       {
         break;
