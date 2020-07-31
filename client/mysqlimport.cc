@@ -491,6 +491,7 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
                            opt_mysql_unix_port, 0))) {
     ignore_errors = false; /* NO RETURN FROM db_error */
     db_error(mysql);
+    if (mysql) mysql_close(mysql);
     return nullptr;
   }
   mysql->reconnect = false;
@@ -498,6 +499,7 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
   if (mysql_select_db(mysql, database)) {
     ignore_errors = false;
     db_error(mysql);
+    if (mysql) mysql_close(mysql);
     return nullptr;
   }
   return mysql;
@@ -506,7 +508,7 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
 static void db_disconnect(char *host, MYSQL *mysql) {
   if (verbose)
     fprintf(stdout, "Disconnecting from %s\n", host ? host : "localhost");
-  mysql_close(mysql);
+  if (mysql) mysql_close(mysql);
 }
 
 static int safe_exit(int error) {
