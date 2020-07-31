@@ -91,7 +91,7 @@ class Server : public xpl::iface::Server {
   void delayed_start_tasks() override;
   void start_tasks() override;
   void start_failed() override;
-  void stop(const bool is_called_from_timeout_handler = false) override;
+  void stop() override;
 
   void close_all_clients();
 

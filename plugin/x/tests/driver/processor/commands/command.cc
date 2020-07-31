@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -2144,9 +2144,9 @@ Command::Result Command::cmd_wait_for(std::istream &input,
                            return true;
                          }));
 
-      try_result(cmd_sleep(input, context, "1"));
-
       match = has_row && (value == expected_value);
+
+      if (!match) try_result(cmd_sleep(input, context, "1"));
     } while (!match && --countdown_retries);
   } catch (const Result result) {
     context->print_error(

@@ -24,11 +24,13 @@
 
 #include "plugin/x/src/module_mysqlx.h"
 
-#include <event2/event.h>
 #include <memory>
 #include <string>
 #include <utility>
 
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
+
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/module_cache.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/server/builder/server_builder.h"
@@ -127,6 +129,10 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
   xpl::plugin_handle = plugin_handle;
 
   try {
+    DBUG_EXECUTE_IF("xplugin_shutdown_unixsocket", {
+      XSYNC_POINT_ENABLE({"xacceptor_stop_wait", "xacceptor_pre_loop_wait",
+                          "xacceptor_post_loop_wait"});
+    });
     xpl::init_performance_schema();
 
     provide_udfs();
@@ -198,7 +204,6 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
 int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   // this flag will trigger the on_verify_server_state() timer to trigger an
   // acceptor thread exit
-
   if (m_server) m_server->stop();
 
   xpl::Plugin_system_variables::cleanup();
@@ -218,8 +223,6 @@ int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
   unrequire_services();
   unprovide_services();
   unregister_udfs();
-
-  libevent_global_shutdown();
 
   xpl::plugin_handle = nullptr;
 
