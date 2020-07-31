@@ -74,7 +74,16 @@ bool Session::handle_ready_message(const ngs::Message_request &command) {
   if (ngs::Session::handle_ready_message(command)) return true;
 
   try {
-    return m_dispatcher.execute(command);
+    const auto error = m_dispatcher.execute(command);
+    switch (error.severity) {
+      case ngs::Error_code::OK:
+        return true;
+      case ngs::Error_code::ERROR:
+        return error.error != ER_UNKNOWN_COM_ERROR;
+      case ngs::Error_code::FATAL:
+        on_close();
+        return true;
+    }
   } catch (ngs::Error_code &err) {
     m_encoder->send_result(err);
     on_close();

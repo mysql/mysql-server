@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Session;
 class Dispatcher {
  public:
   explicit Dispatcher(iface::Session *session) : m_session{session} {}
-  bool execute(const ngs::Message_request &command);
+  ngs::Error_code execute(const ngs::Message_request &command);
   void reset();
 
   const Prepare_command_handler::Prepared_stmt_info_list &
