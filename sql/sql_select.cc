@@ -971,7 +971,7 @@ void Sql_cmd_dml::set_query_result(Query_result *result_arg) {
 */
 static bool check_locking_clause_access(THD *thd, Global_tables_list tables) {
   for (TABLE_LIST *table_ref : tables)
-    if (table_ref->lock_descriptor().action != THR_DEFAULT) {
+    if (table_ref->lock_descriptor().type == TL_WRITE) {  // i.e. FOR UPDATE
       bool access_is_granted = false;
       /*
         If either of these privileges is present along with SELECT, access is

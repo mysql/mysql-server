@@ -5572,15 +5572,6 @@ static bool set_non_locking_read_for_IS_view(THD *thd, TABLE_LIST *tl) {
         tl->referencing_view->is_system_view))
     return false;
 
-  /*
-    SELECT using a I_S system view with 'FOR UPDATE' and
-    'LOCK IN SHARED MODE' clause is not allowed.
-   */
-  if (tl->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS) {
-    my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "LOCK IN SHARE MODE");
-    return true;
-  }
-
   // Allow I_S system views to be locked by LOCK TABLE command.
   if (thd->lex->sql_command != SQLCOM_LOCK_TABLES &&
       tl->lock_descriptor().type >= TL_READ_NO_INSERT) {
@@ -5993,6 +5984,17 @@ restart:
             thd, thd->lex, tables, some_routine_modifies_data);
       else
         tbl->reginfo.lock_type = tables->lock_descriptor().type;
+    }
+
+    /*
+      SELECT using a I_S system view with 'FOR UPDATE' and
+      'LOCK IN SHARED MODE' clause is not allowed.
+    */
+    if (tables->is_system_view &&
+        tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS) {
+      my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "LOCK IN SHARE MODE");
+      error = true;
+      goto err;
     }
 
     // Setup lock type for DD tables used under I_S view.

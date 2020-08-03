@@ -165,7 +165,7 @@ UPDATE mysql.tables SET comment='mno' where name='t1';
 connection default;
 
 # Test that SELECT on a system view with LOCK IN SHARE MODE fails.
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_IS_QUERY_INVALID_CLAUSE
 SELECT table_name, table_comment
   FROM INFORMATION_SCHEMA.TABLES
   WHERE table_name='t1'
@@ -189,7 +189,7 @@ rollback;
 connection default;
 
 # Test that SELECT on a system view with LOCK IN SHARE MODE fails.
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_IS_QUERY_INVALID_CLAUSE
 SELECT table_name, table_comment
   FROM INFORMATION_SCHEMA.TABLES
   WHERE table_name='t1'
