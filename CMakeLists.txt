@@ -639,6 +639,10 @@ OPTION(WITH_LTO
   ${WITH_LTO_DEFAULT}
   )
 
+IF(CMAKE_C_FLAGS MATCHES " -flto" OR CMAKE_CXX_FLAGS MATCHES " -flto")
+  SET(CMAKE_COMPILER_FLAG_WITH_LTO 1)
+ENDIF()
+
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
 # We need some extra FAIL_REGEX patterns
@@ -848,7 +852,7 @@ ENDIF()
 # Use lld for Clang if available and not explicitly disabled.
 # Also works for gcc on Debian/Ubuntu. Do 'apt install lld'.
 # LTO build fails with lld, so turn it off by default.
-IF(LINUX AND NOT WITH_LTO)
+IF(LINUX AND NOT WITH_LTO AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
   OPTION(USE_LD_LLD "Use llvm lld linker" ON)
 ELSE()
   OPTION(USE_LD_LLD "Use llvm lld linker" OFF)
@@ -879,7 +883,11 @@ IF(USE_LD_LLD)
 ENDIF()
 
 # Use gold on x86 if available and not explicitly disabled.
-IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT WIN32)
+# LTO build fails with gold, so turn it off by default.
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64"
+    AND NOT WIN32
+    AND NOT WITH_LTO
+    AND NOT CMAKE_COMPILER_FLAG_WITH_LTO)
   OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
 ELSE()
   OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
