@@ -433,7 +433,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
 ST_GeomFromGeoJSON(col_varchar_key) ));
-ERROR HY000: Functional index 'ind320' cannot refer to an auto-increment column.
+ERROR HY000: Incorrect arguments to like
 DROP TABLE t1;
 #
 # Bug#28218591 WRONG ERROR MESSAGE WHILE CREATING FUNCTIONAL INDEX

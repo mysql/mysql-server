@@ -683,6 +683,8 @@ bool Item_func_like::resolve_type(THD *thd) {
 
   if (Item_bool_func::resolve_type(thd)) return true;
 
+  if (reject_geometry_args(arg_count, args, this)) return true;
+
   /*
     See agg_item_charsets() in item.cc for comments
     on character set and collation aggregation.
