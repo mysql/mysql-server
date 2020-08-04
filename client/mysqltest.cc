@@ -6876,7 +6876,7 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
     }
 
     v.is_int = true;
-    var_free()(&v2);
+    my_free(v2.str_val);
   } else {
     if (*expr_start != '`' && !my_isdigit(charset_info, *expr_start))
       die("Expression in %s() must begin with $, ` or a number", cmd_name);
@@ -6919,7 +6919,7 @@ NO_COMPARE:
   }
 
   DBUG_PRINT("info", ("OK: %d", v_val_bool));
-  var_free()(&v);
+  my_free(v.str_val);
 }
 
 static void do_delimiter(struct st_command *command) {

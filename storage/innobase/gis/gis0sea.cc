@@ -1581,12 +1581,12 @@ bool rtr_cur_search_with_match(
           break;
         case PAGE_CUR_RTREE_INSERT:
           double increase;
-          double area;
 
           cmp = cmp_dtuple_rec_with_gis(tuple, rec, offsets, PAGE_CUR_WITHIN,
                                         index->rtr_srs.get());
 
           if (cmp != 0) {
+            double area{0.0};
             increase = rtr_rec_cal_increase(tuple, rec, offsets, &area,
                                             index->rtr_srs.get());
             /* Once it goes beyond DBL_MAX or

@@ -831,7 +831,7 @@ char *normalize_filename(const char *filename, uint name_len, char *buffer,
     Also note that, when creating files, this name resolution
     works properly for files that do not exist (yet) on the file system.
   */
-  char dirbuffer[FN_REFLEN];
+  char dirbuffer[FN_REFLEN + 1];
   size_t dirlen = dirname_length(safe_filename);
 
   if (dirlen == 0) {

@@ -6806,7 +6806,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
                                  dd_tablespaces_name.c_str(), &dd_spaces);
        rec != nullptr; rec = dd_getnext_system_rec(&pcur, &mtr)) {
     space_id_t space;
-    char *name;
+    char *name{nullptr};
     uint32_t flags;
     uint32 server_version;
     uint32 space_version;
@@ -6985,7 +6985,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
   MDL_ticket *mdl = nullptr;
   dict_table_t *dd_indexes;
   space_id_t space_id;
-  space_index_t index_id;
+  space_index_t index_id{0};
 
   DBUG_TRACE;
 

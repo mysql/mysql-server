@@ -615,7 +615,7 @@ bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
                                       bool with_lock_data) {
   int record_type;
   uint64_t trx_immutable_id;
-  ulint heap_id;
+  ulint heap_id{0};
   uint64_t lock_immutable_id;
   const trx_t *trx;
 

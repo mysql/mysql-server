@@ -3903,7 +3903,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
 bool make_schema_select(THD *thd, SELECT_LEX *sel,
                         enum enum_schema_tables schema_table_idx) {
   ST_SCHEMA_TABLE *schema_table = get_schema_table(schema_table_idx);
-  LEX_STRING db, table;
+  LEX_STRING db{nullptr, 0}, table{nullptr, 0};
   DBUG_TRACE;
   DBUG_PRINT("enter", ("mysql_schema_select: %s", schema_table->table_name));
   /*
