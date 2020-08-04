@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ CHECK_FUNCTION_EXISTS(epoll_create HAVE_EPOLL_CREATE)
 CHECK_FUNCTION_EXISTS(memalign HAVE_MEMALIGN)
 CHECK_FUNCTION_EXISTS(sysconf HAVE_SYSCONF)
 CHECK_FUNCTION_EXISTS(directio HAVE_DIRECTIO)
-CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP32)
+CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP_32)
 CHECK_FUNCTION_EXISTS(mlock HAVE_MLOCK)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_init HAVE_PTHREAD_MUTEXATTR_INIT)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_settype HAVE_PTHREAD_MUTEXATTR_SETTYPE)
@@ -79,6 +79,7 @@ CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
 CHECK_SYMBOL_EXISTS(bzero "strings.h" HAVE_BZERO)
 CHECK_SYMBOL_EXISTS(ffs "strings.h" HAVE_FFS)
 
+CHECK_INCLUDE_FILES(atomic.h HAVE_ATOMIC_H)
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
 CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
