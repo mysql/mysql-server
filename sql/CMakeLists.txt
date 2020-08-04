@@ -803,7 +803,10 @@ SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 # This typically saves a few hundred megabytes of disk space.
 IF(COMPRESS_DEBUG_SECTIONS)
-  TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -gz)
+  MY_CHECK_CXX_COMPILER_FLAG("-gz" HAVE_COMPRESS_GZ_OPTION)
+  IF(HAVE_COMPRESS_GZ_OPTION)
+    TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -gz)
+  ENDIF()
 ENDIF()
 
 # A class with a reference member lacks a user-defined constructor,
