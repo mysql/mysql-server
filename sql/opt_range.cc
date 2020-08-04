@@ -1287,10 +1287,9 @@ class SEL_TREE {
 
 class RANGE_OPT_PARAM {
  public:
-  THD *thd;               /* Current thread handle */
-  TABLE *table;           /* Table being analyzed */
-  SELECT_LEX *select_lex; /* Query block the table is part of */
-  Item *cond;             /* Used inside get_mm_tree(). */
+  THD *thd;     /* Current thread handle */
+  TABLE *table; /* Table being analyzed */
+  Item *cond;   /* Used inside get_mm_tree(). */
   table_map prev_tables;
   table_map read_tables;
   table_map current_table; /* Bit of the table being analyzed */
@@ -3114,7 +3113,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
                       const enum_order interesting_order,
                       const QEP_shared_owner *tab, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
-                      bool ignore_table_scan, SELECT_LEX *select_lex) {
+                      bool ignore_table_scan) {
   DBUG_TRACE;
 
   *quick = nullptr;
@@ -3192,7 +3191,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.read_tables = read_tables | INNER_TABLE_BIT;
     param.current_table = head->pos_in_table_list->map();
     param.table = head;
-    param.select_lex = select_lex;
     param.keys = 0;
     param.is_ror_scan = false;
     param.mem_root = &alloc;
@@ -3710,8 +3708,7 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
     @retval false Success
 */
 
-bool prune_partitions(THD *thd, TABLE *table, SELECT_LEX *select_lex,
-                      Item *pprune_cond) {
+bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond) {
   partition_info *part_info = table->part_info;
   DBUG_TRACE;
 
@@ -3768,7 +3765,6 @@ bool prune_partitions(THD *thd, TABLE *table, SELECT_LEX *select_lex,
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
   range_par->thd = thd;
   range_par->table = table;
-  range_par->select_lex = select_lex;
   /* range_par->cond doesn't need initialization */
   range_par->prev_tables = range_par->read_tables = INNER_TABLE_BIT;
   range_par->current_table = table->pos_in_table_list->map();
@@ -4923,7 +4919,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
   /* Calculate cost(rowid_to_row_scan) */
   {
     Cost_estimate sweep_cost;
-    JOIN *join = param->select_lex->join;
+    JOIN *join = param->thd->lex->select_lex->join;
     const bool is_interrupted = join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
@@ -5058,7 +5054,7 @@ skip_to_ror_scan:
   */
   Cost_estimate roru_total_cost;
   {
-    JOIN *join = param->select_lex->join;
+    JOIN *join = param->thd->lex->select_lex->join;
     const bool is_interrupted = join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &roru_total_cost);
@@ -5619,7 +5615,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
 
   if (!info->is_covering) {
     Cost_estimate sweep_cost;
-    JOIN *join = info->param->select_lex->join;
+    JOIN *join = info->param->thd->lex->select_lex->join;
     const bool is_interrupted = join && join->tables != 1;
 
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
@@ -7242,8 +7238,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
                                              const Item_func::Functype comp_op,
                                              Field *field,
                                              const char **impossible_cond_cause,
-                                             MEM_ROOT *memroot,
-                                             SELECT_LEX *select_lex) {
+                                             MEM_ROOT *memroot) {
   // A SEL_ARG should not have been created for this predicate yet.
   DBUG_ASSERT(*tree == nullptr);
 
@@ -7265,8 +7260,9 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
     we only want to disable subquery evaluation during optimization, so check if
     we're in the optimization phase by calling SELECT_LEX_UNIT::is_optimized().
   */
-  if (!select_lex->master_unit()->is_optimized() &&
-      !evaluate_during_optimization(value, select_lex))
+  const SELECT_LEX *const select = thd->lex->current_select();
+  if (!select->master_unit()->is_optimized() &&
+      !evaluate_during_optimization(value, select))
     return true;
 
   // For comparison purposes allow invalid dates like 2000-01-32
@@ -7673,8 +7669,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     }
 
     bool always_true_or_false = save_value_and_handle_conversion(
-        &tree, value, type, field, &impossible_cond_cause, alloc,
-        param->select_lex);
+        &tree, value, type, field, &impossible_cond_cause, alloc);
 
     if (field->type() == MYSQL_TYPE_GEOMETRY &&
         save_geom_type != Field::GEOM_GEOMETRY) {
@@ -11658,7 +11653,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_est) {
   THD *thd = param->thd;
-  JOIN *join = param->select_lex->join;
+  JOIN *join = thd->lex->current_select()->join;
   TABLE *table = param->table;
   bool have_min = false; /* true if there is a MIN function. */
   bool have_max = false; /* true if there is a MAX function. */
@@ -12922,7 +12917,7 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
   DBUG_TRACE;
 
   quick = new QUICK_GROUP_MIN_MAX_SELECT(
-      param->table, param->select_lex->join, have_min, have_max,
+      param->table, param->thd->lex->current_select()->join, have_min, have_max,
       have_agg_distinct, min_max_arg_part, group_prefix_len, group_key_parts,
       used_key_parts, index_info, index, &cost_est, records, key_infix_len,
       parent_alloc, is_index_scan);
@@ -14266,9 +14261,9 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(PARAM *param, bool,
   DBUG_TRACE;
 
   quick = new QUICK_SKIP_SCAN_SELECT(
-      param->table, param->select_lex->join, index_info, index, range_key_part,
-      index_range_tree, eq_prefix_len, eq_prefix_parts, used_key_parts,
-      &cost_est, records, parent_alloc, has_aggregate_function);
+      param->table, param->thd->lex->current_select()->join, index_info, index,
+      range_key_part, index_range_tree, eq_prefix_len, eq_prefix_parts,
+      used_key_parts, &cost_est, records, parent_alloc, has_aggregate_function);
 
   if (!quick) return nullptr;
 
@@ -14338,7 +14333,8 @@ static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
 
 static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
                                          bool force_skip_scan) {
-  JOIN *join = param->select_lex->join;
+  THD *thd = param->thd;
+  JOIN *join = thd->lex->current_select()->join;
   TABLE *table = param->table;
   const char *cause = nullptr;
   TRP_SKIP_SCAN *read_plan = nullptr;

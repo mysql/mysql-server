@@ -768,7 +768,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
         This will only prune constant conditions, which will be used for
         lock pruning.
       */
-      if (prune_partitions(thd, tbl->table, this,
+      if (prune_partitions(thd, tbl->table,
                            tbl->join_cond() ? tbl->join_cond() : m_where_cond))
         return true; /* purecov: inspected */
 

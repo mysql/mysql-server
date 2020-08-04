@@ -2153,16 +2153,16 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
               .add_utf8("index", table->key_info[new_ref_key].name);
           QUICK_SELECT_I *qck;
           const bool no_quick =
-              test_quick_select(
-                  thd, new_ref_key_map,
-                  0,  // empty table_map
-                  join->calc_found_rows ? HA_POS_ERROR
-                                        : join->unit->select_limit_cnt,
-                  false,  // don't force quick range
-                  order.order->direction, tab,
-                  // we are after make_join_select():
-                  tab->condition(), &tab->needed_reg, &qck,
-                  tab->table()->force_index, join->select_lex) <= 0;
+              test_quick_select(thd, new_ref_key_map,
+                                0,  // empty table_map
+                                join->calc_found_rows
+                                    ? HA_POS_ERROR
+                                    : join->unit->select_limit_cnt,
+                                false,  // don't force quick range
+                                order.order->direction, tab,
+                                // we are after make_join_select():
+                                tab->condition(), &tab->needed_reg, &qck,
+                                tab->table()->force_index) <= 0;
           DBUG_ASSERT(tab->quick() == save_quick);
           tab->set_quick(qck);
           if (no_quick) {
@@ -2270,7 +2270,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           join->calc_found_rows ? HA_POS_ERROR : join->unit->select_limit_cnt,
           true,  // force quick range
           order.order->direction, tab, tab->condition(), &tab->needed_reg, &qck,
-          tab->table()->force_index, join->select_lex);
+          tab->table()->force_index);
       if (order_direction < 0 && tab->quick() != nullptr &&
           tab->quick() != save_quick) {
         /*
@@ -2547,8 +2547,7 @@ bool JOIN::prune_table_partitions() {
     if (!tbl->embedding) {
       Item *prune_cond =
           tbl->join_cond_optim() ? tbl->join_cond_optim() : where_cond;
-      if (prune_partitions(thd, tbl->table, select_lex, prune_cond))
-        return true;
+      if (prune_partitions(thd, tbl->table, prune_cond)) return true;
     }
   }
 
@@ -2639,8 +2638,7 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                 thd, new_ref_key_map, 0,  // empty table_map
                 tab->join()->row_limit, false, ordering, tab,
                 tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
-                &tab->needed_reg, &qck, recheck_range,
-                tab->join()->select_lex) > 0) {
+                &tab->needed_reg, &qck, recheck_range) > 0) {
           if (length < qck->max_used_key_length) {
             delete tab->quick();
             tab->set_quick(qck);
@@ -5835,8 +5833,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab,
         tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
-        &tab->needed_reg, &qck, tab->table()->force_index,
-        tab->join()->select_lex);
+        &tab->needed_reg, &qck, tab->table()->force_index);
     tab->set_quick(qck);
 
     if (error == 1) return qck->records;
@@ -9506,8 +9503,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
                                             : join->unit->select_limit_cnt,
                       false,  // don't force quick range
                       interesting_order, tab, tab->condition(),
-                      &tab->needed_reg, &qck, tab->table()->force_index,
-                      join->select_lex) < 0;
+                      &tab->needed_reg, &qck, tab->table()->force_index) < 0;
               tab->set_quick(qck);
             }
             tab->set_condition(orig_cond);
@@ -9531,8 +9527,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
                                             : join->unit->select_limit_cnt,
                       false,  // don't force quick range
                       ORDER_NOT_RELEVANT, tab, tab->condition(),
-                      &tab->needed_reg, &qck, tab->table()->force_index,
-                      join->select_lex) < 0;
+                      &tab->needed_reg, &qck, tab->table()->force_index) < 0;
               tab->set_quick(qck);
               if (impossible_where) return true;  // Impossible WHERE
             }

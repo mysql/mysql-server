@@ -427,7 +427,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     stored programs can be evaluated.
   */
   if (table->part_info && !no_rows) {
-    if (prune_partitions(thd, table, select_lex, conds))
+    if (prune_partitions(thd, table, conds))
       return true; /* purecov: inspected */
     if (table->all_partitions_pruned_away) {
       no_rows = true;
@@ -474,7 +474,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       no_rows = test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                   ORDER_NOT_RELEVANT, &qep_tab, conds,
                                   &needed_reg_dummy, &qck,
-                                  qep_tab.table()->force_index, select_lex) < 0;
+                                  qep_tab.table()->force_index) < 0;
       qep_tab.set_quick(qck);
       if (thd->is_error()) return true;
     }
