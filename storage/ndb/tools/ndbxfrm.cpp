@@ -44,7 +44,7 @@ static size_t g_decrypt_password_length = 0;
 static char* g_encrypt_password = nullptr;
 static size_t g_encrypt_password_length = 0;
 static int g_info = 0;
-static int g_encrypt_kdf_iter_count = 100000;
+static int g_encrypt_kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
 #if defined(TODO_READ_REVERSE)
 static int g_read_reverse = 0;
 #endif
@@ -71,7 +71,8 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "encrypt-kdf-iter-count", 'k', "Iteration count to used in key definition",
     (uchar**) &g_encrypt_kdf_iter_count, (uchar**) &g_encrypt_kdf_iter_count, 0,
-    GET_INT, REQUIRED_ARG, 100000, 0, INT_MAX, 0, 0, 0 },
+    GET_INT, REQUIRED_ARG, ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT, 0, INT_MAX,
+    0, 0, 0 },
   { "encrypt-password", NDB_OPT_NOSHORT, "Encryption password",
     (uchar**) &g_encrypt_password, (uchar**) &g_encrypt_password, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },

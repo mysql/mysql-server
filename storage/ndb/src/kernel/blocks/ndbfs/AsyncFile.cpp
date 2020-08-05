@@ -559,7 +559,7 @@ require(!"m_file.sync() != -1");
       byte salt[ndb_openssl_evp::SALT_LEN];
       openssl_evp.generate_salt256(salt);
       ndbxfrm1.set_encryption_salts(salt, ndb_openssl_evp::SALT_LEN, 1);
-      Uint32 kdf_iter_count = 100000;
+      Uint32 kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
 #if !defined(DUMMY_PASSWORD)
       int pwd_len = m_password.password_length;
       ndb_openssl_evp::byte* pwd =
