@@ -684,7 +684,7 @@ protected:
    * Finally also the ability to query for send thread information.
    */
   void getSendBufferLevel(NodeId node, SB_LevelType &level);
-  Uint32 getSignalsInJBB();
+  Uint32 getEstimatedJobBufferLevel();
   void setOverloadStatus(OverloadStatus new_status);
   void setWakeupThread(Uint32 wakeup_instance);
   void setNodeOverloadStatus(OverloadStatus new_status);

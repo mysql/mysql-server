@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -16246,7 +16246,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
        * by number of rows executed per microsecond which we estimate to
        * 2.
        */
-      Uint32 jbb_level = getSignalsInJBB();
+      Uint32 jbb_level = getEstimatedJobBufferLevel();
       Uint32 tot_scan_direct_count = m_tot_scan_direct_count +
                                        scan_direct_count;
       Uint32 tot_scan_limit = ZABS_MAX_SCAN_DIRECT_COUNT;

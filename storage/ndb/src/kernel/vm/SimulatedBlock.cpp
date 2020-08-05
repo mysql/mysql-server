@@ -557,11 +557,11 @@ SimulatedBlock::getSendBufferLevel(NodeId node, SB_LevelType &level)
 }
 
 Uint32
-SimulatedBlock::getSignalsInJBB()
+SimulatedBlock::getEstimatedJobBufferLevel()
 {
   Uint32 num_signals;
 #ifdef NDBD_MULTITHREADED
-  num_signals = mt_getSignalsInJBB(m_threadId);
+  num_signals = mt_getEstimatedJobBufferLevel(m_threadId);
 #else
   num_signals = globalScheduler.getBOccupancy();
 #endif

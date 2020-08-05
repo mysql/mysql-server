@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8357,7 +8357,7 @@ Backup::init_file_for_lcp(Signal *signal,
  */
 void Backup::init_scan_prio_level(Signal *signal, BackupRecordPtr ptr)
 {
-  Uint32 level = getSignalsInJBB();
+  Uint32 level = getEstimatedJobBufferLevel();
   if ((level * NUMBER_OF_SIGNALS_PER_SCAN_BATCH) > HIGH_LOAD_LEVEL)
   {
     /* Ensure we use prio A and only 1 signal at prio A */

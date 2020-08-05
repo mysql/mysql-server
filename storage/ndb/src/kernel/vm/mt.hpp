@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,8 @@ void mt_execSTOP_FOR_CRASH();
  * Interface methods to SimulatedBlock for ndbtmd.
  */
 void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
-Uint32 mt_getSignalsInJBB(Uint32 self);
+Uint32 mt_getEstimatedJobBufferLevel(Uint32 self);
+bool mt_isEstimatedJobBufferLevelChanged(Uint32 self);
 NDB_TICKS mt_getHighResTimer(Uint32 self);
 void mt_setNoSend(Uint32 self);
 void mt_startChangeNeighbourNode();
