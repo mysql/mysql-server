@@ -108,7 +108,7 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_NODE_STOP 1
 //#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_LCP 1
-#define DEBUG_LCP_COMP 1
+//#define DEBUG_LCP_COMP 1
 #endif
 
 #ifdef DEBUG_MULTI_TRP
@@ -485,10 +485,101 @@ void Dbdih::sendUPDATE_TOREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   sendSignal(ref, GSN_UPDATE_TOREQ, signal, UpdateToReq::SignalLength, JBB);
 }//sendUPDATE_TOREQ()
 
+void Dbdih::print_lcp_state(void)
+{
+  if (c_lcpState.lcpStatus == LCP_STATUS_ACTIVE)
+  {
+    TabRecordPtr tabPtr;
+    g_eventLogger->info("c_lcpState.lcpStatus = LCP_STATUS_ACTIVE");
+    for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+    {
+      ptrAss(tabPtr, tabRecord);
+      if ((tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) &&
+          (tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE))
+      {
+        g_eventLogger->info("Table(%u) tabStatus: %u, tabLcpStatus: %u",
+                            tabPtr.i,
+                            tabPtr.p->tabStatus,
+                            tabPtr.p->tabLcpStatus);
+        return;
+      }//if
+    }//for
+  }
+  else if (c_lcpState.lcpStatus == LCP_TAB_COMPLETED)
+  {
+    g_eventLogger->info("c_lcpState.lcpStatus = LCP_TAB_COMPLETED");
+    if (c_lcp_id_paused != RNIL)
+    {
+      g_eventLogger->info("c_lcp_id_paused stops us from completing LCP");
+      return;
+    }
+    TabRecordPtr tabPtr;
+    for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+    {
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabLcpStatus != TabRecord::TLS_COMPLETED)
+      {
+        g_eventLogger->info("Table(%u) tabStatus: %u, tabLcpStatus: %u",
+                            tabPtr.i,
+                            tabPtr.p->tabStatus,
+                            tabPtr.p->tabLcpStatus);
+        return;
+      }
+    }
+  }
+  else if (c_lcpState.lcpStatus == LCP_TAB_SAVED)
+  {
+    g_eventLogger->info("c_lcpState.lcpStatus = LCP_TAB_SAVED");
+    bool is_complete = true;
+    if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.done())
+    {
+      jam();
+      is_complete = false;
+      DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, LQH not done"));
+    }
+    if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.done())
+    {
+      jam();
+      is_complete = false;
+      DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, DIH not done"));
+    }
+
+    if (!isMaster() && 
+        c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false)
+    {
+      jam();
+      is_complete = false;
+      DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, Master not done"));
+    }
+
+    if(c_lcpMasterTakeOverState.state != LMTOS_IDLE)
+    {
+      is_complete = false;
+      g_eventLogger->info("c_lcpMasterTakeOverState.state not IDLE");
+    }
+    if (is_complete)
+    {
+      g_eventLogger->info("LCP is suppposed to be completed");
+    }
+  }
+  else if (c_lcpState.lcpStatus != LCP_STATUS_IDLE)
+  {
+    g_eventLogger->info("c_lcpState.lcpStatus = %u", c_lcpState.lcpStatus);
+  }
+  return;
+}
+
 void Dbdih::execCONTINUEB(Signal* signal)
 {
   jamEntry();
   switch ((DihContinueB::Type)signal->theData[0]) {
+  case DihContinueB::ZPRINT_LCP_STATE:
+    {
+      jam();
+      print_lcp_state();
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+      return;
+    }
   case DihContinueB::ZPACK_TABLE_INTO_PAGES:
     {
       jam();
@@ -614,7 +705,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   case DihContinueB::ZCHECK_LCP_COMPLETED:
     {
       jam();
-      checkLcpCompletedLab(signal);
+      checkLcpCompletedLab(signal, __LINE__);
       return;
     }
   case DihContinueB::ZINIT_LCP:
@@ -1552,6 +1643,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     ok = true;
     jam();
     c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
+    DEB_LCP_COMP(("c_lcpState.setLcpStatus = LCP_COPY_GCI"));
     c_lcpState.m_masterLcpDihRef = cmasterdihref;
     setNodeActiveStatus();
     break;
@@ -2361,6 +2453,10 @@ void Dbdih::execSTTOR(Signal* signal)
     jam();
     createMutexes(signal, 0);
     init_lcp_pausing_module();
+#ifdef DEBUG_LCP_COMP
+    signal->theData[0] = DihContinueB::ZPRINT_LCP_STATE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+#endif
     return;
   case 3:
     jam();
@@ -4306,7 +4402,7 @@ void Dbdih::stop_pause(Signal *signal)
   ndbassert(check_pause_state_sanity());
   dequeue_lcp_rep(signal);
 
-  checkLcpCompletedLab(signal);
+  checkLcpCompletedLab(signal, __LINE__);
 }
 
 /**
@@ -4434,6 +4530,7 @@ void Dbdih::dequeue_lcp_rep(Signal *signal)
    */
   c_dequeue_lcp_rep_ongoing = false;
   c_lcp_id_paused = RNIL;
+  checkLcpCompletedLab(signal, __LINE__);
   ndbassert(check_pause_state_sanity());
 }
 
@@ -12090,7 +12187,7 @@ Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId)
   /**
    * Check if we "accidently" completed a LCP
    */
-  checkLcpCompletedLab(signal);
+  checkLcpCompletedLab(signal, __LINE__);
   
   /**
    * Check if we (DIH) are finished with node fail handling
@@ -14900,7 +14997,7 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
 	 * Then check if saving of tab info is done for all tables
 	 */
 	LcpStatus a = c_lcpState.lcpStatus;
-	checkLcpCompletedLab(signal);
+	checkLcpCompletedLab(signal, __LINE__);
 
         if(a != c_lcpState.lcpStatus)
         {
@@ -18880,6 +18977,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
       c_lcpState.m_participatingDIH = req->participatingDIH;
       c_lcpState.m_participatingLQH = req->participatingLQH;
       c_lcpState.m_masterLcpDihRef = cmasterdihref;
+      DEB_LCP_COMP(("(1)Set to LCP_STATUS_ACTIVE"));
       c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
       /**
        * We need to update the SYSFILE since it can take some time before we
@@ -19003,6 +19101,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
 
   c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received = false;  
 
+  DEB_LCP_COMP(("Set to LCP_INIT_TABLES"));
   c_lcpState.setLcpStatus(LCP_INIT_TABLES, __LINE__);
   
   ndbrequire(c_lcpState.m_masterLcpDihRef == req->senderRef);
@@ -19215,6 +19314,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
     return;
   }
 
+  DEB_LCP_COMP(("(2)Set to LCP_STATUS_ACTIVE"));
   c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
 
   CRASH_INSERTION2(7023, isMaster());
@@ -21004,6 +21104,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
     checkLcpStart(signal, __LINE__, 100);
     return;
   }//if 
+  DEB_LCP_COMP(("Set to LCP_TCGET"));
   c_lcpState.setLcpStatus(LCP_TCGET, __LINE__);
   
   c_lcpState.ctcCounter = c_lcpState.ctimer;
@@ -21134,6 +21235,7 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
 
   CRASH_INSERTION(7014);
+  DEB_LCP_COMP(("Set to LCP_TC_CLOPSIZE"));
   c_lcpState.setLcpStatus(LCP_TC_CLOPSIZE, __LINE__);
   sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ, RNIL);
 }
@@ -21150,6 +21252,7 @@ void Dbdih::execTC_CLOPSIZECONF(Signal* signal)
   /*       UPDATE THE NEW LATEST LOCAL CHECKPOINT ID.                        */
   /* ----------------------------------------------------------------------- */
   cnoOfActiveTables = 0;
+  DEB_LCP_COMP(("Set to LCP_WAIT_MUTEX"));
   c_lcpState.setLcpStatus(LCP_WAIT_MUTEX, __LINE__);
   ndbrequire(((int)c_lcpState.oldestRestorableGci) > 0);
 
@@ -21218,6 +21321,7 @@ void Dbdih::start_lcp(Signal *signal)
  
   setLcpActiveStatusStart(signal);
 
+  DEB_LCP_COMP(("Set to LCP_CALCULATE_KEEP_GCI"));
   c_lcpState.setLcpStatus(LCP_CALCULATE_KEEP_GCI, __LINE__);
   c_lcpState.keepGci = m_micro_gcp.m_old_gci >> 32;
   c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
@@ -21343,6 +21447,7 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
    */
   setNodeRestartInfoBits(signal);
 
+  DEB_LCP_COMP(("Set to LCP_COPY_GCI"));
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
   //#ifdef VM_TRACE
   //  infoEvent("LocalCheckpoint %d started", SYSFILE->latestLCP_ID);
@@ -21560,6 +21665,7 @@ Dbdih::startLcpMutex_unlocked(Signal* signal, Uint32 data, Uint32 retVal){
     mutex.unlock();
   }
   CRASH_INSERTION(7015);
+  DEB_LCP_COMP(("Set to LCP_START_ROUND"));
   c_lcpState.setLcpStatus(LCP_START_LCP_ROUND, __LINE__);
   startLcpRoundLoopLab(signal, 0, 0);
 }
@@ -22273,7 +22379,8 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 }
 
 bool
-Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
+Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line)
+{
   TabRecordPtr tabPtr;
 
   /**
@@ -22296,6 +22403,7 @@ Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
   CRASH_INSERTION2(7026, isMaster());
   CRASH_INSERTION2(7017, !isMaster());
   
+  DEB_LCP_COMP(("Set to LCP_TAB_COMPLETED, line: %u", line));
   c_lcpState.setLcpStatus(LCP_TAB_COMPLETED, line);
 
   if (ERROR_INSERTED(7194))
@@ -22555,11 +22663,12 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   sendSignal(ref, GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
 }
 
-void Dbdih::checkLcpCompletedLab(Signal* signal) 
+void Dbdih::checkLcpCompletedLab(Signal* signal, Uint32 line) 
 {
   if (c_lcp_id_paused != RNIL)
   {
     jam();
+    DEB_LCP_COMP(("c_lcp_id_paused = %u", c_lcp_id_paused));
     return;
   }
 
@@ -22594,7 +22703,7 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
     /**
      * We're done
      */
-
+    DEB_LCP_COMP(("c_lcpState.setLcpStatus = LCP_TAB_SAVED, line: %u", line));
     c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
     sendLCP_COMPLETE_REP(signal);
     return;
@@ -23216,7 +23325,9 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
     tabPtr.p->tabUpdateState = TabRecord::US_IDLE;
     tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
-
+    jam();
+    signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
     /* Check whether there's some queued table definition flush op to start */
     if (c_lcpTabDefWritesControl.releaseMustStartQueued())
     {
@@ -23251,12 +23362,7 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
                              c_lcpTabDefWritesControl.totalResources);
       ndbabort();
     }
-    jam();
-    signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-
     return;
-    break;
   case TabRecord::US_REMOVE_NODE:
     jam();
     releaseTabPages(tabPtr.i);
