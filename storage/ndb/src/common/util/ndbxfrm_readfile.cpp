@@ -425,7 +425,8 @@ int ndbxfrm_readfile::read_forward(ndbxfrm_output_iterator* out)
       }
     }
 
-    require(!out->empty() && !out->last());
+    // out can be passed in as empty, else could require(!out->empty()).
+    require(!out->last());
 
     if (m_compressed)
     {  // decompress compressed_buffer into callers buffer

@@ -906,14 +906,10 @@ main(int argc, const char * argv[])
 
   switch(fileHeader.FileType){
   case BackupFormat::DATA_FILE:
-#if 0
-    while(file.eof()) // TODO: should check fo?
+  {
+    BackupFormat::DataFile::FragmentHeader fragHeader;
+    while (readFragHeader(f, &fragHeader))
     {
-      BackupFormat::DataFile::FragmentHeader fragHeader;
-      if(!readFragHeader(f, &fragHeader))
-      {
-	break;
-      }
       ndbout << fragHeader << endl;
       
       Uint32 len, * data, header_type;
@@ -937,8 +933,8 @@ main(int argc, const char * argv[])
       }
       ndbout << fragFooter << endl;
     }
-#endif
-    break;
+  }
+  break;
   case BackupFormat::CTL_FILE:{
     BackupFormat::CtlFile::TableList * tabList;
     if(!readTableList(f, &tabList)){
