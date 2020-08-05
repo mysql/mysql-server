@@ -49,6 +49,10 @@ std::atomic_size_t Parallel_reader::s_active_threads{};
 /** Tree depth at which we decide to split blocks further. */
 static constexpr size_t SPLIT_THRESHOLD{3};
 
+/** No. of pages to scan, in the case of large tables, before the check for
+trx interrupted is made as the call is expensive. */
+static constexpr size_t TRX_IS_INTERRUPTED_PROBE{50000};
+
 std::string Parallel_reader::Scan_range::to_string() const {
   std::ostringstream os;
 
@@ -160,19 +164,24 @@ dberr_t Parallel_reader::Ctx::split() {
     ranges.back().second = m_range.second;
   }
 
+  dberr_t err{DB_SUCCESS};
+
   /* Create the partitioned scan execution contexts. */
   for (auto &range : ranges) {
-    auto err = m_scan_ctx->create_context(range, false);
+    err = m_scan_ctx->create_context(range, false);
 
     if (err != DB_SUCCESS) {
-      m_scan_ctx->index_s_unlock();
-      return (err);
+      break;
     }
+  }
+
+  if (err != DB_SUCCESS) {
+    m_scan_ctx->set_error_state(err);
   }
 
   m_scan_ctx->index_s_unlock();
 
-  return (DB_SUCCESS);
+  return err;
 }
 
 Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
@@ -525,13 +534,21 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
 
   dberr_t err{DB_SUCCESS};
 
-  for (;;) {
+  while (err == DB_SUCCESS) {
     if (page_cur_is_after_last(cur)) {
       mem_heap_empty(heap);
 
-      if (!move_to_next_node(pcursor, mtr) || is_error_set()) {
+      if (!(m_n_pages % TRX_IS_INTERRUPTED_PROBE) &&
+          trx_is_interrupted(trx())) {
+        err = DB_INTERRUPTED;
         break;
       }
+
+      if (is_error_set() || !move_to_next_node(pcursor, mtr)) {
+        break;
+      }
+
+      ++m_n_pages;
       m_first_rec = true;
     }
 
@@ -571,11 +588,11 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
 
     m_first_rec = false;
 
-    if (err != DB_SUCCESS) {
-      break;
-    }
-
     page_cur_move_to_next(cur);
+  }
+
+  if (err != DB_SUCCESS) {
+    m_scan_ctx->set_error_state(err);
   }
 
   m_thread_ctx->m_prev_partition_id = partition_id();
@@ -654,6 +671,15 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
         err = ctx->traverse();
       }
 
+      /* Check for trx interrupted (useful in the case of small tables). */
+      if (err == DB_SUCCESS && trx_is_interrupted(ctx->trx())) {
+        err = DB_INTERRUPTED;
+        scan_ctx->set_error_state(err);
+        break;
+      }
+
+      ut_ad(err == DB_SUCCESS || scan_ctx->is_error_set());
+
       ++n_completed;
     }
 
@@ -689,14 +715,12 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
   if (m_finish_callback) {
     dberr_t finish_err = m_finish_callback(thread_ctx);
 
-    /* Keep the err status from previous failed operations */
     if (finish_err != DB_SUCCESS) {
-      err = finish_err;
+      set_error_state(finish_err);
     }
   }
 
-  ut_a(err != DB_SUCCESS || is_error_set() ||
-       (m_n_completed == m_ctx_id && is_queue_empty()));
+  ut_a(is_error_set() || (m_n_completed == m_ctx_id && is_queue_empty()));
 }
 
 page_no_t Parallel_reader::Scan_ctx::search(const buf_block_t *block,
@@ -1082,6 +1106,8 @@ void Parallel_reader::parallel_read() {
     }
   }
 
+  DEBUG_SYNC_C("parallel_read_wait_for_kill_query");
+
   DBUG_EXECUTE_IF("innodb_pread_thread_OOR", err = DB_OUT_OF_RESOURCES;
                   set_error_state(err););
 
@@ -1104,20 +1130,21 @@ dberr_t Parallel_reader::run() {
 
   /* Don't wait for the threads to finish if the read is not synchronous. */
   if (!m_sync) {
-    return (DB_SUCCESS);
+    return DB_SUCCESS;
+  }
+
+  if (is_error_set()) {
+    return m_err;
   }
 
   for (auto &scan_ctx : m_scan_ctxs) {
-    if (m_err != DB_SUCCESS) {
-      return (m_err);
-    }
-    if (scan_ctx->m_err != DB_SUCCESS) {
+    if (scan_ctx->is_error_set()) {
       /* Return the state of the first Scan context that is in state ERROR. */
-      return (scan_ctx->m_err);
+      return scan_ctx->m_err;
     }
   }
 
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 dberr_t Parallel_reader::add_scan(trx_t *trx,
