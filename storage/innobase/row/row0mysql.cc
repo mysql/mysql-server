@@ -4442,10 +4442,6 @@ dberr_t row_mysql_parallel_select_count_star(
         check.m_prev_block = ctx->m_block;
 
         ++check.m_count;
-
-        if (!(check.m_count % 64) && trx_is_interrupted(trx)) {
-          return (DB_INTERRUPTED);
-        }
       }
       return (DB_SUCCESS);
     });

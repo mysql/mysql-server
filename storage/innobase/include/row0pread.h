@@ -755,8 +755,7 @@ class Parallel_reader::Ctx {
 
   /** @return true if in error state. */
   bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_scan_ctx->m_reader->m_err.load(std::memory_order_relaxed) !=
-            DB_SUCCESS);
+    return m_scan_ctx->m_reader->is_error_set() || m_scan_ctx->is_error_set();
   }
 
  private:
@@ -781,6 +780,9 @@ class Parallel_reader::Ctx {
 
   /** Current row. */
   const rec_t *m_rec{};
+
+  /** Number of pages traversed by the context. */
+  size_t m_n_pages{};
 
   /** True if m_rec is the first record in the page. */
   bool m_first_rec{true};
