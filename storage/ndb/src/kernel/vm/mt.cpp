@@ -145,13 +145,11 @@ static constexpr Uint32 MAX_LOCAL_BUFFER_USAGE = 8140;
 
 //#define NDB_MT_LOCK_TO_CPU
 
-/* If this is too small it crashes before first signal. */
-#define MAX_INSTANCES_PER_THREAD (16 + 8 * MAX_NDBMT_LQH_THREADS)
-
 static Uint32 glob_num_threads = 0;
 static Uint32 glob_num_tc_threads = 1;
 static Uint32 first_receiver_thread_no = 0;
 static Uint32 max_send_delay = 0;
+static Uint32 glob_ndbfs_thr_no = 0;
 static Uint32 glob_wakeup_latency = 25;
 static Uint32 glob_num_job_buffers_per_thread = 0;
 static bool glob_use_write_lock_mutex = false;
@@ -1048,14 +1046,20 @@ struct alignas(NDB_CL) thr_job_queue
 static bool
 is_main_thread(unsigned thr_no)
 {
-  return thr_no < NUM_MAIN_THREADS;
+  if (globalData.ndbMtMainThreads > 0)
+    return (thr_no < globalData.ndbMtMainThreads);
+  unsigned first_recv_thread = globalData.ndbMtLqhThreads +
+                               globalData.ndbMtTcThreads;
+  return (thr_no == first_recv_thread);
 }
 
 static bool
 is_ldm_thread(unsigned thr_no)
 {
-  return thr_no >= NUM_MAIN_THREADS && 
-         thr_no <  NUM_MAIN_THREADS+globalData.ndbMtLqhThreads;
+  if (glob_num_threads == 1)
+    return (thr_no == 0);
+  return thr_no >= globalData.ndbMtMainThreads &&
+         thr_no <  globalData.ndbMtMainThreads + globalData.ndbMtLqhThreads;
 }
 
 /**
@@ -1066,25 +1070,27 @@ is_ldm_thread(unsigned thr_no)
 static bool
 is_first_ldm_thread(unsigned thr_no)
 {
-  return thr_no == NUM_MAIN_THREADS;
+  return thr_no == globalData.ndbMtMainThreads;
 }
 
 static bool
 is_tc_thread(unsigned thr_no)
 {
-  unsigned tc_base = NUM_MAIN_THREADS+globalData.ndbMtLqhThreads;
-  return thr_no >= tc_base && 
+  if (globalData.ndbMtTcThreads == 0)
+    return false;
+  unsigned tc_base = globalData.ndbMtMainThreads + globalData.ndbMtLqhThreads;
+  return thr_no >= tc_base &&
          thr_no <  tc_base+globalData.ndbMtTcThreads;
 }
 
 static bool
 is_recv_thread(unsigned thr_no)
 {
-  unsigned recv_base = NUM_MAIN_THREADS +
-                       globalData.ndbMtLqhThreads +
-                       globalData.ndbMtTcThreads;
+  unsigned recv_base = globalData.ndbMtMainThreads +
+                         globalData.ndbMtLqhThreads +
+                         globalData.ndbMtTcThreads;
   return thr_no >= recv_base &&
-         thr_no <  recv_base+globalData.ndbMtReceiveThreads;
+         thr_no <  recv_base + globalData.ndbMtReceiveThreads;
 }
 
 /**
@@ -6292,7 +6298,7 @@ check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
 static bool
 check_queues_empty(thr_data *selfptr)
 {
-  if (selfptr->m_thr_no == 0)
+  if (selfptr->m_thr_no == glob_ndbfs_thr_no)
   {
     if (check_for_input_from_ndbfs(selfptr, selfptr->m_signal))
       return false;
@@ -6769,10 +6775,41 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
 void
 mt_init_thr_map()
 {
-  /* Keep mt-classic assignments in MT LQH. */
-  const Uint32 thr_GLOBAL = 0;
-  const Uint32 thr_LOCAL = 1;
+  /**
+   * Keep mt-classic assignments in MT LQH.
+   *
+   * thr_GLOBAL refers to the main thread blocks, thus they are located
+   * where the main thread blocks are located.
+   *
+   * thr_LOCAL refers to the rep thread blocks, thus they are located
+   * where the rep thread blocks are located.
+   */
+  Uint32 thr_GLOBAL = 0;
+  Uint32 thr_LOCAL = 1;
 
+  if (globalData.ndbMtMainThreads == 1)
+  {
+    /**
+     * No rep thread is created, this means that we will put all blocks
+     * into the main thread that are not multi-threaded.
+     */
+    thr_LOCAL = 0;
+  }
+  else if (globalData.ndbMtMainThreads == 0)
+  {
+    Uint32 main_thread_no = globalData.ndbMtLqhThreads +
+                            globalData.ndbMtTcThreads;
+    thr_LOCAL = main_thread_no;
+    thr_GLOBAL = main_thread_no;
+  }
+
+  /**
+   * For multithreaded blocks we will assign the
+   * Proxy blocks below to their thread.
+   *
+   * The mapping of instance to block object is handled
+   * by the call to create the block object.
+   */
   add_thr_map(BACKUP, 0, thr_LOCAL);
   add_thr_map(DBTC, 0, thr_GLOBAL);
   add_thr_map(DBDIH, 0, thr_GLOBAL);
@@ -6815,7 +6852,7 @@ mt_get_instance_count(Uint32 block)
     break;
   case DBTC:
   case DBSPJ:
-    return globalData.ndbMtTcThreads;
+    return globalData.ndbMtTcWorkers;
     break;
   case TRPMAN:
     return globalData.ndbMtReceiveThreads;
@@ -6832,9 +6869,21 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
 {
   Uint32 num_lqh_threads = globalData.ndbMtLqhThreads;
   Uint32 num_tc_threads = globalData.ndbMtTcThreads;
+  Uint32 thr_no = globalData.ndbMtMainThreads;
 
+  if (num_lqh_threads == 0)
+  {
+    /**
+     * ndbd emulation, all blocks are in the receive thread.
+     */
+    thr_no = 0;
+    require(num_tc_threads == 0);
+    require(globalData.ndbMtMainThreads == 0);
+    require(globalData.ndbMtReceiveThreads == 1);
+    add_thr_map(block, instance, thr_no);
+    return;
+  }
   require(instance != 0);
-  Uint32 thr_no = NUM_MAIN_THREADS;
   switch(block){
   case DBLQH:
   case DBACC:
@@ -6857,8 +6906,10 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
     break;
   case DBTC:
   case DBSPJ:
+  {
     thr_no += num_lqh_threads + (instance - 1);
     break;
+  }
   case THRMAN:
     thr_no = instance - 1;
     break;
@@ -7244,10 +7295,13 @@ mt_receiver_thread_main(void *thr_arg)
     bool dummy3 = false;
 
     Uint32 sum = run_job_buffers(selfptr, signal, dummy1, dummy2, dummy3);
-
+    /**
+     * Need to call sendpacked even when no signals have been executed since
+     * it can be used for NDBFS communication.
+     */
+    sendpacked(selfptr, signal);
     if (sum || has_received)
     {
-      sendpacked(selfptr, signal);
       watchDogCounter = 6;
       flush_all_local_signals_and_wakeup(selfptr);
       check_congestion(selfptr);
@@ -7269,7 +7323,8 @@ mt_receiver_thread_main(void *thr_arg)
      * Only allow to sleep in pollReceive when:
      * 1) We are not lagging behind in handling timer events.
      * 2) No more pending sends, or no send progress.
-     * 3) There are no 'min_spin' configured or min_spin has elapsed
+     * 3) There are no jobs waiting to be executed in the job buffer
+     * 4) There are no 'min_spin' configured or min_spin has elapsed
      * We will not check spin timer until we have checked the
      * transporters at least one loop and discovered no data. We also
      * ensure that we have not executed any signals before we start
@@ -7281,9 +7336,10 @@ mt_receiver_thread_main(void *thr_arg)
     update_spin_config(selfptr, min_spin_timer);
     before = NdbTick_getCurrentTicks();
 
-    if (lagging_timers == 0 &&       // 1)
-        pending_send  == false &&    // 2)
-        (min_spin_timer == 0 ||      // 3)
+    if (lagging_timers == 0 &&          // 1)
+        pending_send  == false &&       // 2)
+        check_queues_empty(selfptr) &&  // 3)
+        (min_spin_timer == 0 ||         // 4)
          (sum == 0 &&
           !has_received &&
           check_recv_yield(selfptr,
@@ -7703,7 +7759,7 @@ mt_job_thread_main(void *thr_arg)
               pending_send = true;
             }         
             waits = loops = 0;
-            if (selfptr->m_thr_no == 0)
+            if (selfptr->m_thr_no == glob_ndbfs_thr_no)
             {
               /**
                * NDBFS is using thread 0, here we need to call SEND_PACKED
@@ -7973,10 +8029,21 @@ mt_getThreadDescription(Uint32 self)
 {
   if (is_main_thread(self))
   {
-    if (self == 0)
-      return "main thread, schema and distribution handling";
-    else if (self == 1)
-      return "rep thread, asynch replication and proxy block handling";
+    if (globalData.ndbMtMainThreads == 2)
+    {
+      if (self == 0)
+        return "main thread, schema and distribution handling";
+      else if (self == 1)
+        return "rep thread, asynch replication and proxy block handling";
+    }
+    else if (globalData.ndbMtMainThreads == 1)
+    {
+      return "main and rep thread, schema, distribution, proxy block and asynch replication handling";
+    }
+    else if (globalData.ndbMtMainThreads == 0)
+    {
+      return "main, rep and recv thread, schema, distribution, proxy block and asynch replication handling and handling receive and polling for new receives";
+    }
     require(false);
   }
   else if (is_ldm_thread(self))
@@ -8004,10 +8071,21 @@ mt_getThreadName(Uint32 self)
 {
   if (is_main_thread(self))
   {
-    if (self == 0)
-      return "main";
-    else if (self == 1)
-      return "rep";
+    if (globalData.ndbMtMainThreads == 2)
+    {
+      if (self == 0)
+        return "main";
+      else if (self == 1)
+        return "rep";
+    }
+    else if (globalData.ndbMtMainThreads == 1)
+    {
+      return "main_rep";
+    }
+    else if (globalData.ndbMtMainThreads == 0)
+    {
+      return "main_rep_recv";
+    }
     require(false);
   }
   else if (is_ldm_thread(self))
@@ -8413,6 +8491,21 @@ insert_local_signal(struct thr_data *selfptr,
     flush_local_signals(selfptr, dst);
     selfptr->m_local_signals_mask.clear(dst);
   }
+}
+
+Uint32
+mt_getMainThrmanInstance()
+{
+  if (globalData.ndbMtMainThreads == 2 ||
+      globalData.ndbMtMainThreads == 1)
+    return 1;
+  else if (globalData.ndbMtMainThreads == 0)
+    return 1 +
+           globalData.ndbMtLqhThreads +
+           globalData.ndbMtTcThreads;
+  else
+    require(false);
+  return 0;
 }
 
 void
@@ -8883,7 +8976,7 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
 static Uint32
 get_total_number_of_block_threads(void)
 {
-  return (NUM_MAIN_THREADS +
+  return (globalData.ndbMtMainThreads +
           globalData.ndbMtLqhThreads + 
           globalData.ndbMtTcThreads +
           globalData.ndbMtReceiveThreads);
@@ -8963,7 +9056,7 @@ compute_jb_pages(struct EmulatorData * ed)
   Uint32 tot = 0;
   Uint32 cnt = get_total_number_of_block_threads();
   Uint32 num_job_buffers_per_thread = MIN(cnt, NUM_JOB_BUFFERS_PER_THREAD);
-  Uint32 num_main_threads = NUM_MAIN_THREADS;
+  Uint32 num_main_threads = globalData.ndbMtMainThreads;
   Uint32 num_receive_threads = globalData.ndbMtReceiveThreads;
   Uint32 num_lqh_threads = globalData.ndbMtLqhThreads > 0 ?
                            globalData.ndbMtLqhThreads : 1;
@@ -9127,9 +9220,13 @@ ThreadConfig::init()
   Uint32 num_tc_threads = globalData.ndbMtTcThreads;
   Uint32 num_recv_threads = globalData.ndbMtReceiveThreads;
   first_receiver_thread_no =
-    NUM_MAIN_THREADS + num_tc_threads + num_lqh_threads;
+    globalData.ndbMtMainThreads + num_tc_threads + num_lqh_threads;
   glob_num_threads = first_receiver_thread_no + num_recv_threads;
   glob_unused[0] = 0; //Silence compiler
+  if (globalData.ndbMtMainThreads == 0)
+    glob_ndbfs_thr_no = first_receiver_thread_no;
+  else
+    glob_ndbfs_thr_no = 0;
   require(glob_num_threads <= MAX_BLOCK_THREADS);
   glob_num_job_buffers_per_thread =
     MIN(glob_num_threads, NUM_JOB_BUFFERS_PER_THREAD);
@@ -10012,10 +10109,17 @@ mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
 static bool
 may_communicate(unsigned from, unsigned to)
 {
-  if (is_main_thread(from))
+  if (is_main_thread(from) ||
+      is_main_thread(to))
   {
     // Main threads communicates with all other threads
     return true;
+  }
+  else if (is_tc_thread(from))
+  {
+    // TC threads can communicate with SPJ-, LQH-, main- and itself
+    return is_ldm_thread(to)  ||
+           is_tc_thread(to);      // Cover both SPJs and itself 
   }
   else if (is_ldm_thread(from))
   {
@@ -10026,17 +10130,9 @@ may_communicate(unsigned from, unsigned to)
 
     // All LDM threads can communicates with TC-, main-
     // itself, and the BACKUP client (above)
-    return is_main_thread(to) ||
-           is_tc_thread(to)   ||
+    return is_tc_thread(to)   ||
            is_first_ldm_thread(to) ||
            (to == from);
-  }
-  else if (is_tc_thread(from))
-  {
-    // TC threads can communicate with SPJ-, LQH-, main- and itself
-    return is_main_thread(to) ||
-           is_ldm_thread(to)  ||
-           is_tc_thread(to);      // Cover both SPJs and itself
   }
   else
   {
@@ -10099,6 +10195,7 @@ mt_get_blocklist(SimulatedBlock * block, Uint32 arr[], Uint32 len)
   Uint32 thr_no = block->getThreadId();
   struct thr_data *thr_ptr = &g_thr_repository->m_thread[thr_no];
 
+  require(len >= thr_ptr->m_instance_count);
   for (Uint32 i = 0; i < thr_ptr->m_instance_count; i++)
   {
     arr[i] = thr_ptr->m_instance_list[i];

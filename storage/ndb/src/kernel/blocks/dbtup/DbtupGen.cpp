@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -610,13 +610,13 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_MT_BUILD_INDEX,
                             &m_max_parallel_index_build);
 
-  if (isNdbMtLqh() && globalData.ndbMtLqhThreads > 1)
+  if (isNdbMtLqh() && globalData.ndbMtLqhWorkers > 1)
   {
     /**
      * Divide by LQH threads
      */
     Uint32 val = m_max_parallel_index_build;
-    val = (val + instance() - 1) / globalData.ndbMtLqhThreads;
+    val = (val + instance() - 1) / globalData.ndbMtLqhWorkers;
     m_max_parallel_index_build = val;
   }
   

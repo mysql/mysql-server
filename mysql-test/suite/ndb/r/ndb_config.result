@@ -40,7 +40,7 @@ tcp,1,2,55,2 tcp,1,3,55,1 tcp,1,4,55,1 tcp,1,5,55,1 tcp,1,6,55,1 tcp,2,3,55,2 tc
 1
 1
 == 21 == ThreadConfig
- WARNING  -- at line 12: WARNING: Too few CPU's specified with LockExecuteThreadToCPU. Only 4 specified  but 7 was needed, this may cause contention.
+ WARNING  -- at line 12: WARNING: Too few CPU's specified with LockExecuteThreadToCPU. Only 4 specified  but 5 was needed, this may cause contention.
 Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
 
  WARNING  -- at line 17: Assigning each thread its own CPU

@@ -817,6 +817,16 @@ SimulatedBlock::is_recv_thread_for_new_trp(NodeId node_id, TrpId trp_id)
 #endif
 }
 
+Uint32
+SimulatedBlock::getMainThrmanInstance()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getMainThrmanInstance();
+#else
+  return 1;
+#endif
+}
+
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 

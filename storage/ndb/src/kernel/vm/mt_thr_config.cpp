@@ -42,13 +42,23 @@ static const struct ParseEntries m_parse_entries[] =
   { "idxbld",THRConfig::T_IXBLD}
 };
 
+/**
+ * The min and max values for T_IO (IO threads) and T_WD (watchdog threads)
+ * will always be 1, thus count must always be set to 1. These threads
+ * ignore the count setting but since ThreadConfig is designed around
+ * setting thread counts, it still needs to be set. The number of IO
+ * threads and watchdog threads is handled without configuration.
+ *
+ * There are other properties such as thread priority that can be set on those
+ * thread types.
+ */
 static const struct THRConfig::Entries m_entries[] =
 {
   //type               min max                        exec thread   permanent
-  { THRConfig::T_MAIN,  1, 1,                         true,         true },
-  { THRConfig::T_LDM,   1, MAX_NDBMT_LQH_THREADS,     true,         true },
+  { THRConfig::T_MAIN,  0, 1,                         true,         true },
+  { THRConfig::T_LDM,   0, MAX_NDBMT_LQH_THREADS,     true,         true },
   { THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS, true,         true },
-  { THRConfig::T_REP,   1, 1,                         true,         true },
+  { THRConfig::T_REP,   0, 1,                         true,         true },
   { THRConfig::T_IO,    1, 1,                         false,        true },
   { THRConfig::T_WD,    1, 1,                         false,        true },
   { THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS,      true,         true },
@@ -526,8 +536,17 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
         }
 
         cpu = mask.find(0);
-        bind_unbound(m_threads[T_MAIN], cpu);
-        bind_unbound(m_threads[T_REP], cpu);
+        Uint32 num_main_threads = getThreadCount(T_REP) +
+                                  getThreadCount(T_MAIN);
+        if (num_main_threads == 2)
+        {
+          bind_unbound(m_threads[T_MAIN], cpu);
+          bind_unbound(m_threads[T_REP], cpu);
+        }
+        else
+        {
+          bind_unbound(m_threads[T_MAIN], cpu);
+        }
         if ((cpu = mask.find(cpu + 1)) == mask.NotFound)
         {
           cpu = mask.find(0);
@@ -541,8 +560,17 @@ THRConfig::do_bindings(bool allow_too_few_cpus)
         unsigned cpu = mask.find(0);
         m_info_msg.appfmt("Assigning LQH threads round robin to CPU(s) and "
                           "other threads will share CPU %u\n", cpu);
-        bind_unbound(m_threads[T_MAIN], cpu); // TC
-        bind_unbound(m_threads[T_REP], cpu);
+        Uint32 num_main_threads = getThreadCount(T_REP) +
+                                  getThreadCount(T_MAIN);
+        if (num_main_threads == 2)
+        {
+          bind_unbound(m_threads[T_MAIN], cpu);
+          bind_unbound(m_threads[T_REP], cpu);
+        }
+        else
+        {
+          bind_unbound(m_threads[T_MAIN], cpu);
+        }
         bind_unbound(m_threads[T_RECV], cpu);
         mask.clear(cpu);
 
@@ -650,9 +678,10 @@ THRConfig::do_validate()
   }
 
   /**
-   * LDM can be 1 2 4 6 8 10 12 16 20 24 32
+   * LDM can be 0 1 2 4 6 8 10 12 16 20 24 32
    */
-  if (m_threads[T_LDM].size() != 1 &&
+  if (m_threads[T_LDM].size() != 0 &&
+      m_threads[T_LDM].size() != 1 &&
       m_threads[T_LDM].size() != 2 &&
       m_threads[T_LDM].size() != 4 &&
       m_threads[T_LDM].size() != 6 &&
@@ -664,7 +693,7 @@ THRConfig::do_validate()
       m_threads[T_LDM].size() != 24 &&
       m_threads[T_LDM].size() != 32)
   {
-    m_err_msg.assfmt("No of LDM-instances can be 1,2,4,6,8,12,16,24 or 32. Specified: %u",
+    m_err_msg.assfmt("No of LDM-instances can be 0,1,2,4,6,8,12,16,24 or 32. Specified: %u",
                      m_threads[T_LDM].size());
     return -1;
   }
@@ -1093,19 +1122,28 @@ THRConfigApplier::find_thread(const unsigned short instancelist[], unsigned cnt)
   int instanceNo;
   if ((instanceNo = findBlock(SUMA, instancelist, cnt)) >= 0)
   {
-    return &m_threads[T_REP][instanceNo];
+    Uint32 num_main_threads = getThreadCount(T_REP) +
+                              getThreadCount(T_MAIN);
+    if (num_main_threads == 2)
+      return &m_threads[T_REP][instanceNo];
+    else if (num_main_threads == 1)
+      return &m_threads[T_MAIN][instanceNo];
+    else if (num_main_threads == 0)
+      return &m_threads[T_RECV][instanceNo];
+    else
+      abort();
   }
   else if ((instanceNo = findBlock(DBDIH, instancelist, cnt)) >= 0)
   {
     return &m_threads[T_MAIN][instanceNo];
   }
-  else if ((instanceNo = findBlock(DBTC, instancelist, cnt)) >= 0)
-  {
-    return &m_threads[T_TC][instanceNo - 1]; // remove proxy
-  }
   else if ((instanceNo = findBlock(DBLQH, instancelist, cnt)) >= 0)
   {
     return &m_threads[T_LDM][instanceNo - 1]; // remove proxy...
+  }
+  else if ((instanceNo = findBlock(DBTC, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_TC][instanceNo - 1]; // remove proxy
   }
   else if ((instanceNo = findBlock(TRPMAN, instancelist, cnt)) >= 0)
   {
@@ -1636,49 +1674,49 @@ TAPTEST(mt_thr_config)
       "1-8",
       "ldm={count=4}",
       "OK",
-      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7}",
+      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5}",
 
       "1-5",
       "ldm={count=4}",
       "OK",
-      "main={cpubind=5},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},rep={cpubind=5}",
+      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5}",
 
       "1-3",
       "ldm={count=4}",
       "OK",
-      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=2},ldm={cpubind=3},recv={cpubind=1},rep={cpubind=1}",
+      "ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=2},ldm={cpubind=3},recv={cpubind=1}",
 
       "1-4",
       "ldm={count=4}",
       "OK",
-      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=2},recv={cpubind=1},rep={cpubind=1}",
+      "ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=2},recv={cpubind=1}",
 
       "1-8",
       "ldm={count=4},io={cpubind=8}",
       "OK",
-      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8},idxbld={cpuset=1,2,3,4,5,6,7,8}",
+      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},io={cpubind=8},idxbld={cpuset=1,2,3,4,5,6,7,8}",
 
       "1-8",
       "ldm={count=4},io={cpubind=8},idxbld={cpuset=5,6,8}",
       "OK",
-      "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8},idxbld={cpuset=5,6,8}",
+      "ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},io={cpubind=8},idxbld={cpuset=5,6,8}",
 
       "1-8",
       "ldm={count=4,cpubind=1,4,5,6}",
       "OK",
-      "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7}",
+      "ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2}",
 
-      "1-9",
+      "1-7",
       "ldm={count=4,cpubind=1,4,5,6},tc,tc",
       "OK",
-      "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7},tc={cpubind=8},tc={cpubind=9}",
+      "ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2},tc={cpubind=3},tc={cpubind=7}",
 
-      "1-8",
+      "1-6",
       "ldm={count=4,cpubind=1,4,5,6},tc",
       "OK",
-      "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7},tc={cpubind=8}",
+      "ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=2},tc={cpubind=3}",
 
-      "1-8",
+      "1-6",
       "ldm={count=4,cpubind=1,4,5,6},tc,tc",
       "FAIL",
       "Too few CPU's specifed with LockExecuteThreadToCPU. This is not supported when using multiple TC threads",

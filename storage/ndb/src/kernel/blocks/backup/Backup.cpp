@@ -1774,7 +1774,7 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
    * When the Backup completes, balance is restored.
    */
 
-  const Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+  const Uint32 num_ldm_threads = globalData.ndbMtLqhWorkers;
 
   if (m_is_backup_running && m_skew_disk_speed &&
       num_ldm_threads > 1)

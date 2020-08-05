@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,9 +88,11 @@ struct GlobalData {
   bool       isNdbMtLqh; // ndbd multithreaded, LQH workers
   Uint32     ndbMtLqhWorkers;
   Uint32     ndbMtLqhThreads;
+  Uint32     ndbMtTcWorkers;
   Uint32     ndbMtTcThreads;
   Uint32     ndbMtSendThreads;
   Uint32     ndbMtReceiveThreads;
+  Uint32     ndbMtMainThreads;
   Uint32     ndbLogParts;
   Uint32     num_io_laggers; // Protected by theIO_lag_mutex
   
@@ -109,9 +111,11 @@ struct GlobalData {
     isNdbMtLqh = false;
     ndbMtLqhWorkers = 0;
     ndbMtLqhThreads = 0;
+    ndbMtTcWorkers = 0;
     ndbMtTcThreads = 0;
     ndbMtSendThreads = 0;
     ndbMtReceiveThreads = 0;
+    ndbMtMainThreads = 0;
     ndbLogParts = 0;
     num_io_laggers = 0;
     theMicrosSleep = 0;

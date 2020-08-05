@@ -710,6 +710,7 @@ protected:
   void setWakeupLatency(Uint32);
   Uint32 getNumSendThreads();
   Uint32 getNumThreads();
+  Uint32 getMainThrmanInstance();
   const char * getThreadName();
   const char * getThreadDescription();
   void flush_send_buffers();

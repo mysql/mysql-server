@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,6 @@
 
 #define JAM_FILE_ID 440
 
-#define MAIN_THRMAN_INSTANCE 1
 #define NUM_MEASUREMENTS 20
 #define NUM_MEASUREMENT_RECORDS (3 * NUM_MEASUREMENTS)
 
@@ -137,7 +136,7 @@ Thrman::set_configured_spintime(Uint32 val, bool specific)
   if (val > MAX_SPIN_TIME)
   {
     if (specific ||
-        instance() == MAIN_THRMAN_INSTANCE)
+        instance() == m_main_thrman_instance)
     {
       g_eventLogger->info("(%u)Attempt to set spintime > 500 not possible",
                           instance());
@@ -167,7 +166,7 @@ Thrman::set_allowed_spin_overhead(Uint32 val)
 {
   if (val > MAX_SPIN_OVERHEAD)
   {
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       g_eventLogger->info("AllowedSpinOverhead is max 10000");
     }
@@ -231,7 +230,7 @@ Thrman::set_enable_adaptive_spinning(bool val)
 {
   m_enable_adaptive_spinning = val;
   setSpintime(m_configured_spintime);
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     g_eventLogger->info("(%u) %s adaptive spinning",
                         instance(),
@@ -242,7 +241,7 @@ Thrman::set_enable_adaptive_spinning(bool val)
 void
 Thrman::set_spintime_per_call(Uint32 val)
 {
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     if (val < MIN_SPINTIME_PER_CALL || val > MAX_SPINTIME_PER_CALL)
     {
@@ -298,7 +297,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       jam();
       if (native_strcasecmp(conf, "staticspinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using StaticSpinning according to spintime"
                               " configuration");
@@ -306,7 +305,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       }
       else if (native_strcasecmp(conf, "costbasedspinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using CostBasedSpinning with max spintime = 100"
                               " and allowed spin overhead 70 percent");
@@ -317,7 +316,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       }
       else if (native_strcasecmp(conf, "latencyoptimisedspinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using LatencyOptimisedSpinning with max"
                               " spintime = 200 and allowed spin"
@@ -329,7 +328,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       }
       else if (native_strcasecmp(conf, "databasemachinespinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using DatabaseMachineSpinning with max"
                               " spintime = 500 and"
@@ -403,9 +402,10 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
    */
   m_num_send_threads = getNumSendThreads();
   m_num_threads = getNumThreads();
+  m_main_thrman_instance = getMainThrmanInstance();
 
   c_measurementRecordPool.setSize(NUM_MEASUREMENT_RECORDS);
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     jam();
     c_sendThreadRecordPool.setSize(m_num_send_threads);
@@ -434,7 +434,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
     measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_20sec_measure.addFirst(measurePtr);
   }
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     jam();
     for (Uint32 send_instance = 0;
@@ -557,7 +557,7 @@ Thrman::execSTTOR(Signal *signal)
     m_last_1sec_base_measure = m_last_50ms_base_measure;
     m_last_20sec_base_measure = m_last_50ms_base_measure;
 
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       jam();
       for (Uint32 send_instance = 0;
@@ -621,7 +621,7 @@ Thrman::execSTTOR(Signal *signal)
           send_elapsed_time_os;
       }
     }
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       if (getNumThreads() > 1 && NdbSpin_is_supported())
       {
@@ -653,7 +653,7 @@ Thrman::execSTTOR(Signal *signal)
   case 2:
   {
     m_gain_spintime_in_us = getWakeupLatency();
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       g_eventLogger->info("Set wakeup latency to %u microseconds",
                           m_gain_spintime_in_us);
@@ -741,7 +741,7 @@ Thrman::measure_wakeup_time(Signal *signal, Uint32 count)
   }
   m_measured_wait_time = NdbTick_getCurrentTicks();
   BlockReference ref = numberToRef(THRMAN,
-                                   MAIN_THRMAN_INSTANCE + 1, // rep thread
+                                   m_main_thrman_instance + 1, // rep thread
                                    getOwnNodeId());
   signal->theData[0] = count;
   signal->theData[1] = reference();
@@ -755,7 +755,7 @@ Thrman::execMEASURE_WAKEUP_TIME_ORD(Signal *signal)
 {
   Uint32 count = signal->theData[0];
   BlockReference ref = signal->theData[1];
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     measure_wakeup_time(signal, count);
     return;
@@ -1772,7 +1772,7 @@ Thrman::measure_cpu_usage(Signal *signal)
     c_next_20sec_measure.addLast(measurePtr);
     prev_20sec_tick = curr_time;
   }
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     jam();
     for (Uint32 send_instance = 0;
@@ -2840,7 +2840,7 @@ Thrman::sendOVERLOAD_STATUS_REP(Signal *signal)
   signal->theData[0] = instance();
   signal->theData[1] = m_current_overload_status;
   BlockReference ref = numberToRef(THRMAN,
-                                   MAIN_THRMAN_INSTANCE,
+                                   m_main_thrman_instance,
                                    getOwnNodeId());
   sendSignal(ref, GSN_OVERLOAD_STATUS_REP, signal, 2, JBB);
 }
@@ -3141,7 +3141,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         row.write_string(m_thread_description);
         ndbinfo_send_row(signal, req, row, rl);
       }
-      if (instance() != MAIN_THRMAN_INSTANCE)
+      if (instance() != m_main_thrman_instance)
       {
         jam();
         break;
@@ -3178,7 +3178,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
     break;
   }
   case Ndbinfo::THREADBLOCKS_TABLEID: {
-    Uint32 arr[NO_OF_BLOCKS];
+    Uint32 arr[MAX_INSTANCES_PER_THREAD];
     Uint32 len = mt_get_blocklist(this, arr, NDB_ARRAY_SIZE(arr));
     Uint32 pos = cursor->data[0];
     for (; ; )
@@ -3311,7 +3311,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
          * main thread.
          */
         jam();
-        if (instance() != MAIN_THRMAN_INSTANCE)
+        if (instance() != m_main_thrman_instance)
         {
           g_eventLogger->info("pos_thread_id = %u in non-main thread",
                               pos_thread_id);
@@ -3403,7 +3403,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
          * We are done with this thread, we need to either move on to next
          * send thread or stop.
          */
-        if (instance() != MAIN_THRMAN_INSTANCE)
+        if (instance() != m_main_thrman_instance)
         {
           jam();
           break;
@@ -3711,7 +3711,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
 
         ndbinfo_send_row(signal, req, row, rl);
-        if (instance() != MAIN_THRMAN_INSTANCE ||
+        if (instance() != m_main_thrman_instance ||
             m_num_send_threads == 0)
         {
           jam();
@@ -3980,7 +3980,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104000 spintime");
       }
@@ -3992,7 +3992,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 3)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104001 thr_no spintime");
       }
@@ -4009,7 +4009,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104002 AllowedSpinOverhead");
       }
@@ -4021,7 +4021,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104003 SpintimePerCall");
       }
@@ -4033,7 +4033,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104004 0/1"
                             " (Enable/Disable Adaptive Spinning");

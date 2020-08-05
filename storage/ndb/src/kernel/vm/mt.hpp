@@ -33,7 +33,7 @@
 #define JAM_FILE_ID 275
 
 
-#define NUM_MAIN_THREADS 2 // except receiver
+#define MAX_MAIN_THREADS 2 // except receiver
 /*
   MAX_BLOCK_THREADS need not include the send threads since it's
   used to set size of arrays used by all threads that contains a
@@ -41,10 +41,20 @@
   messages directed to other nodes and contains no blocks and
   executes thus no signals.
 */
-#define MAX_BLOCK_THREADS (NUM_MAIN_THREADS +       \
+#define MAX_BLOCK_THREADS (MAX_MAIN_THREADS +       \
                            MAX_NDBMT_LQH_THREADS +  \
                            MAX_NDBMT_TC_THREADS +   \
                            MAX_NDBMT_RECEIVE_THREADS)
+
+/**
+ * The worst case is the single thread instance running the receive thread,
+ * ldm thread, tc thread, main thread, rep thread. This contains the one
+ * block instance plus the proxy block instance for each block. In addition
+ * it contains the extra block instance used by PGMAN. Not all blocks have
+ * proxy blocks, so this is overestimated, but this limit will work even
+ * if all blocks are converted to using proxy blocks.
+ */
+#define MAX_INSTANCES_PER_THREAD ((2 * NO_OF_BLOCKS) + 1)
 
 static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
 
@@ -109,6 +119,7 @@ bool mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id);
 bool mt_is_recv_thread_for_new_trp(Uint32 self,
                                    NodeId node_id,
                                    TrpId trp_id);
+Uint32 mt_getMainThrmanInstance();
 
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,

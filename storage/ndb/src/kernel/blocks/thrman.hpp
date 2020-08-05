@@ -249,6 +249,7 @@ private:
   Int32 m_warning_level;
   Uint32 m_max_warning_level;
   Uint32 m_burstiness;
+  Uint32 m_main_thrman_instance;
   OverloadStatus m_current_overload_status;
 
   struct ThreadOverloadStatus

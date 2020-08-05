@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -375,13 +375,13 @@ Dbdih::Dbdih(Block_context& ctx):
   memset(c_next_replica_node, 0, sizeof(c_next_replica_node));
   c_fragments_per_node_ = 0;
   memset(c_node_groups, 0, sizeof(c_node_groups));
-  if (globalData.ndbMtTcThreads == 0)
+  if (globalData.ndbMtTcWorkers == 0)
   {
     c_diverify_queue_cnt = 1;
   }
   else
   {
-    c_diverify_queue_cnt = globalData.ndbMtTcThreads;
+    c_diverify_queue_cnt = globalData.ndbMtTcWorkers;
   }
 }//Dbdih::Dbdih()
 

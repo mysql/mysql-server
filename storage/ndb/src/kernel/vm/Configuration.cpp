@@ -536,10 +536,34 @@ Configuration::setupConfiguration(){
       break;
 
     globalData.ndbMtTcThreads = m_thr_config.getThreadCount(THRConfig::T_TC);
+    globalData.ndbMtTcWorkers = globalData.ndbMtTcThreads;
+    if (globalData.ndbMtTcWorkers == 0)
+    {
+      globalData.ndbMtTcWorkers = 1;
+    }
     globalData.ndbMtSendThreads =
       m_thr_config.getThreadCount(THRConfig::T_SEND);
     globalData.ndbMtReceiveThreads =
       m_thr_config.getThreadCount(THRConfig::T_RECV);
+    /**
+     * ndbMtMainThreads is the total number of main and rep threads.
+     * There can be 0 or 1 main threads, 0 or 1 rep threads. If there
+     * is 0 main threads then the blocks handled by the main thread is
+     * handled by the receive thread and so is the rep thread blocks.
+     *
+     * When there is one main thread, then we will have both the main
+     * thread blocks and the rep thread blocks handled by this single
+     * main thread. With two main threads we will have one main thread
+     * that handles the main thread blocks and one thread handling the
+     * rep thread blocks.
+     *
+     * The nomenclature can be a bit confusing that we have a main thread
+     * that is separate from the main threads. So possibly one could have
+     * called this variable globalData.ndbMtMainRepThreads instead.
+     */
+    globalData.ndbMtMainThreads =
+      m_thr_config.getThreadCount(THRConfig::T_MAIN) +
+      m_thr_config.getThreadCount(THRConfig::T_REP);
 
     globalData.isNdbMtLqh = true;
     {
@@ -554,27 +578,23 @@ Configuration::setupConfiguration(){
 
     Uint32 threads = m_thr_config.getThreadCount(THRConfig::T_LDM);
     Uint32 workers = threads;
-    iter.get(CFG_NDBMT_LQH_WORKERS, &workers);
-
-#ifdef VM_TRACE
-#ifdef NDB_USE_GET_ENV
-    // testing
-    {
-      const char* p;
-      p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
-      if (p != 0)
-        workers = atoi(p);
-    }
-#endif
-#endif
-
-
-    assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
-    assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
-    assert(workers % threads == 0);
+    if (threads == 0)
+      workers = 1;
 
     globalData.ndbMtLqhWorkers = workers;
     globalData.ndbMtLqhThreads = threads;
+    if (threads == 0)
+    {
+      if (globalData.ndbMtTcThreads != 0 ||
+          globalData.ndbMtMainThreads != 0 ||
+          globalData.ndbMtReceiveThreads != 1)
+      {
+        ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                  "Invalid configuration fetched",
+                  "Setting number of ldm threads to 0 must be combined"
+                  " with 0 tc, rep and main threads and 1 recv thread");
+      }
+    }
   } while (0);
 
   calcSizeAlt(cf);

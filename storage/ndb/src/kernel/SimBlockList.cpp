@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ SimBlockList::load(EmulatorData& data){
     theList[8]  = NEW_BLOCK(Dblqh)(ctx);
   else
     theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
-  if (globalData.ndbMtTcThreads == 0)
+  if (globalData.ndbMtTcWorkers == 0)
     theList[9]  = NEW_BLOCK(Dbtc)(ctx);
   else
     theList[9] = NEW_BLOCK(DbtcProxy)(ctx);
@@ -138,7 +138,7 @@ SimBlockList::load(EmulatorData& data){
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   theList[19] = NEW_BLOCK(Dbinfo)(ctx);
-  if (globalData.ndbMtTcThreads == 0)
+  if (globalData.ndbMtTcWorkers == 0)
     theList[20]  = NEW_BLOCK(Dbspj)(ctx);
   else
     theList[20]  = NEW_BLOCK(DbspjProxy)(ctx);
