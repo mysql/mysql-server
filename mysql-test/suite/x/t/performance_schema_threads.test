@@ -7,7 +7,7 @@
 
 # Tests
 
---write_file $MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp
+--write_file $MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 -->login %ARG_USER%	%ARG_PASS%	%ARG_DB%	mysql41
@@ -39,15 +39,15 @@ GRANT SELECT ON *.* TO 'user_on_127_0_0_1'@127.0.0.1;
 
 --source ../include/performance_schema_assert_empty_worker_threads.inc
 
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp --no-auth
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl --no-auth
                  -v%ARG_USER%=x_root -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=performance_schema
                  2>&1;
 
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp --no-auth
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl --no-auth
                  -v%ARG_USER%=user_on_127_0_0_1 -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=mysql
                  2>&1;
 
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp --no-auth
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.xpl --no-auth
                  -v%ARG_USER%=user_on_localhost -v%ARG_PASS%= -v%ARG_HOST%=localhost -v%ARG_DB%=sys
                  2>&1;
 
@@ -56,5 +56,4 @@ exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp -
 ## Cleanup
 DROP USER 'user_on_localhost'@localhost;
 DROP USER 'user_on_127_0_0_1'@127.0.0.1;
---remove_file $MYSQL_TMP_DIR/verify_process_data_in_thread_table.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

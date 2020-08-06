@@ -42,7 +42,7 @@ USE xplugintest;
 CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
 
 
---write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+--write_file $MYSQL_TMP_DIR/stmtexecute_insert.xpl
 
 -->sql
 SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
@@ -124,7 +124,7 @@ EOF
 
 
 
---write_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+--write_file $MYSQL_TMP_DIR/stmtexecute_select.xpl
 -->sql
 SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
 SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx%';
@@ -163,28 +163,28 @@ SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx%';
 EOF
 
 ## New session will not show values from other session
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+--exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_insert.xpl
 
---write_file $MYSQL_TMP_DIR/stmtexecute_second_client.tmp
+--write_file $MYSQL_TMP_DIR/stmtexecute_second_client.xpl
 -->sql
 SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
 SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx%';
 -->endsql
 EOF
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_second_client.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/stmtexecute_second_client.tmp
+--exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_second_client.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_second_client.xpl
 
 
 SELECT * FROM `xplugintest`.`scalar_types`;
 
 
 # Run command
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+--exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_select.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_select.xpl
 
 
---write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+--write_file $MYSQL_TMP_DIR/stmtexecute_insert.xpl
 -->sql
 SHOW STATUS like 'Mysqlx_stmt_execute_sql%';
 SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx%';
@@ -274,8 +274,8 @@ SHOW STATUS like 'Mysqlx_stmt_list_objects%';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+--exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_insert.xpl
 
 
 ## Cleanup
@@ -310,7 +310,7 @@ USE xplugintest;
 CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
 
 
---write_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
+--write_file $MYSQL_TMP_DIR/stmtexecute_insert.xpl
 
 SHOW STATUS like 'Mysqlx_stmt_create_collection';
 SHOW STATUS like 'Mysqlx_stmt_create_collection_index%';
@@ -565,10 +565,9 @@ SHOW STATUS like 'Mysqlx_expect_open%';
 EOF
 
 ## Test starts here
---exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --mysql41-auth --file=$MYSQL_TMP_DIR/stmtexecute_insert.xpl 2>&1
 
 ## Cleanup
 DROP DATABASE xplugintest;
 DROP DATABASE xplugintest_1;
---remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -7,7 +7,7 @@ create user unpriv@localhost;
 set password for unpriv@localhost = 'x';
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.xpl
 --write_file $xtest_file
 -->quiet
 ## Test data
@@ -104,5 +104,4 @@ EOF
 
 ## Cleanup
 drop user unpriv@localhost;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

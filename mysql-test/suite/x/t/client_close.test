@@ -28,7 +28,8 @@ select sleep(1);
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/client_close.tmp
+--write_file $MYSQL_TMP_DIR/client_close.xpl
+-->import assert_status_variable.macro
 -->import connection.macro
 # number of seconds to sleep... increase to a higher value once killing sessions on disconnect works
 -->varlet %SLEEP% 2
@@ -81,8 +82,8 @@ Mysqlx.Sql.StmtExecute {
 -->recv
 
 -->closesession abort
+-->callmacro Wait_for_global_status_variable	mysqlx_connections_closed	2
 -->sql
-select sleep(%SLEEP%);
 show global status like 'mysqlx_connections_%';
 -->endsql
 
@@ -96,9 +97,10 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->closesession abort
--->sleep 2
+
+-->callmacro Wait_for_global_status_variable	mysqlx_connections_closed	3
+
 -->sql
-select sleep(%SLEEP%);
 show global status like 'mysqlx_connections_%';
 -->endsql
 
@@ -115,7 +117,8 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->closesession abort
--->sleep 4
+-->callmacro Wait_for_global_status_variable	mysqlx_connections_closed	4
+
 -->sql
 show global status like 'mysqlx_connections_%';
 -->endsql
@@ -406,7 +409,7 @@ EOF
 
 
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close.xpl 2>&1
 
 # sleep for a while to ensure clean up finished
 select sleep(10);
@@ -418,5 +421,4 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 drop procedure test.get_stuck;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/client_close.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

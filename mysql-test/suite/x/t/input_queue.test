@@ -7,7 +7,7 @@ USE `test`;
 SET GLOBAL Mysqlx_max_allowed_packet=1024;
 CREATE TABLE IF NOT EXISTS `first_table`(`column_name` INTEGER DEFAULT 0 NOT NULL);
 
---write_file $MYSQL_TMP_DIR/mysqlx-input-queue.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-input-queue.xpl
 -->sql
 USE test;
 -->endsql
@@ -158,10 +158,9 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --echo Test case
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-input-queue.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-input-queue.xpl 2>&1
 
 ## Cleanup
 SET GLOBAL Mysqlx_max_allowed_packet=DEFAULT;
 DROP TABLE `first_table`;
---remove_file $MYSQL_TMP_DIR/mysqlx-input-queue.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

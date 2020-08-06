@@ -7,7 +7,7 @@
 create user insertsqluser@localhost identified by 'insertsqluser';
 grant all on *.* to insertsqluser@localhost;
 
---write_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-undo_sql.xpl
 -->sql
 
 DROP SCHEMA if EXISTS mysqlxplugin;
@@ -30,8 +30,8 @@ SELECT * FROM tab2;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-undo_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-undo_sql.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-undo_sql.xpl
 
 # Check metadata info
 let $inactive_undo_space = undo_003;
@@ -40,7 +40,7 @@ source include/wait_until_undo_space_is_empty.inc;
 SELECT name,space_type,state FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
                              WHERE space_type = 'Undo';
 
---write_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-undo_sql.xpl
 -->sql
 
 USE mysqlxplugin;
@@ -52,6 +52,7 @@ DROP USER insertsqluser@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-undo_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
---remove_files_wildcard $MYSQL_TMP_DIR [mysqlx.1*]
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-undo_sql.xpl 2>&1
+
+# Cleanup
+--source ../include/xplugin_cleanup.inc

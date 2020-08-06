@@ -31,7 +31,7 @@ LET $orig_sql_safe_updates = `select @@global.sql_safe_updates`;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 -->sql
  DROP SCHEMA if EXISTS MySQLXplugin;
  CREATE SCHEMA MySQLXplugin DEFAULT CHARSET='utf8';
@@ -120,15 +120,14 @@ LET $orig_sql_safe_updates = `select @@global.sql_safe_updates`;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u deletesqluser --password='deletesqluser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--exec $MYSQLXTEST -u deletesqluser --password='deletesqluser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.xpl 2>&1
 
 --echo .
 --echo #---------- SAFE MODE OFF ----------#
 --echo .
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.xpl
 -->sql
 
  USE MySQLXplugin;
@@ -217,10 +216,10 @@ EOF
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u deletesqluser --password='deletesqluser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.tmp 2>&1
+--exec $MYSQLXTEST -u deletesqluser --password='deletesqluser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.tmp
+--source ../include/xplugin_cleanup.inc
 
 --disable_query_log
 EVAL SET global sql_safe_updates = $orig_sql_safe_updates;

@@ -376,4 +376,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP DATABASE xtest;

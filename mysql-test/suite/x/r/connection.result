@@ -90,7 +90,7 @@ Application terminated with expected error: Authentication failed, check usernam
 ok
 Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
-# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
@@ -146,7 +146,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-# Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
@@ -538,6 +538,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 1 ]
+# Syncing with status [ 'Mysqlx_connections_closed' == 1 ]
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 nonblank@localhost	nonblank@localhost	localhost

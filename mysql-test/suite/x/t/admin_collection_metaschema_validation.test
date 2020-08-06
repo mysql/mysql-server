@@ -3,11 +3,11 @@
 ## Preamble
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
-## Tests start here
 
+## Tests start here
 create schema xtest default charset 'utf8mb4';
 
---let $xtest_file= $MYSQL_TMP_DIR/admin_collection_metaschema_validation.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_collection_metaschema_validation.xpl
 --write_file $xtest_file
 -->import assert_schema.macro
 
@@ -488,6 +488,4 @@ exec $MYSQLXTEST -ux_root --password=''
   --file=$xtest_file -v%COMMAND%=modify_collection_options 2>&1;
 
 ## Cleanup
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
-drop schema if exists xtest;
+--source ../include/xplugin_cleanup.inc

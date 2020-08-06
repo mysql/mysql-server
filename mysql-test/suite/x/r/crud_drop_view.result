@@ -40,4 +40,3 @@ Mysqlx.Ok {
 }
 ok
 include/assert.inc [Global status of 'Mysqlx_crud_drop_view']
-DROP SCHEMA IF EXISTS xtest;
