@@ -60,7 +60,8 @@ let $wait_condition = select connection_id() = @con_user0_id;
 --echo ## New SHOW PROCESSLIST
 let $pfs_spl = on;
 --source ../include/processlist_set.inc
---source ../include/processlist_load.inc
+# Disabled due to unstable result set ordering in PB2, non-essential
+#--source ../include/processlist_load.inc
 
 --echo
 --echo # Connection user1
