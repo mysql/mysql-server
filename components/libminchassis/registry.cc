@@ -368,8 +368,7 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::acquire,
 /**
   Finds a Service by name. If there is a Service Implementation with the same
   Component part of name as the input Service then the found Service is
-  returned. Otherwise the default Service Implementation for specified
-  Service is returned.
+  returned.
 
   @param service_name Name of Service or Service Implementation to acquire.
   @param service Service handle already acquired Service Implementation.
@@ -406,9 +405,8 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::acquire_related,
     /* Try to acquire such Service. */
     if (mysql_registry_imp::acquire_nolock(service_implementation_name.c_str(),
                                            out_service)) {
-      /* If desired Service Implementation is not found, return the default
-      one for Service specified. */
-      return mysql_registry_imp::acquire_nolock(service_name, out_service);
+      /* service is not found */
+      return true;
     }
     return false;
   } catch (...) {
