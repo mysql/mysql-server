@@ -544,7 +544,7 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
        If not, the peer will not process our request because something
        happened, e.g.:
          - The peer crashed;
-         - The peer killed the connection because we're not whitelisted;
+         - The peer killed the connection because we're not allowlist;
          - The peer rejected our request.
        In this case, we continue the loop and try again using the next peer.
       */

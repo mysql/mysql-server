@@ -50,7 +50,7 @@ class GcsParametersTest : public GcsBaseTest {
     m_params.add_parameter("poll_spin_loops", "100");
     m_params.add_parameter("compression", "on");
     m_params.add_parameter("compression_threshold", "1024");
-    m_params.add_parameter("ip_whitelist", "127.0.0.1,192.168.1.0/24");
+    m_params.add_parameter("ip_allowlist", "127.0.0.1,192.168.1.0/24");
     m_params.add_parameter("non_member_expel_timeout", "5");
     m_params.add_parameter("suspicions_processing_period", "25");
     m_params.add_parameter("member_expel_timeout", "120");
@@ -361,9 +361,9 @@ TEST_F(GcsParametersTest, InvalidLocalNodeAddress) {
   *p = save;
 }
 
-TEST_F(GcsParametersTest, InvalidWhitelistIPMask) {
+TEST_F(GcsParametersTest, InvalidAllowlistIPMask) {
   std::string *p =
-      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
+      const_cast<std::string *>(m_params.get_parameter("ip_allowlist"));
   std::string save = *p;
 
   *p = "192.168.1.1/33";
@@ -371,9 +371,9 @@ TEST_F(GcsParametersTest, InvalidWhitelistIPMask) {
   *p = save;
 }
 
-TEST_F(GcsParametersTest, InvalidWhitelistIP) {
+TEST_F(GcsParametersTest, InvalidAllowlistIP) {
   std::string *p =
-      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
+      const_cast<std::string *>(m_params.get_parameter("ip_allowlist"));
   std::string save = *p;
 
   *p = "192.168.1.256/24";
@@ -381,9 +381,9 @@ TEST_F(GcsParametersTest, InvalidWhitelistIP) {
   *p = save;
 }
 
-TEST_F(GcsParametersTest, InvalidWhitelistIPs) {
+TEST_F(GcsParametersTest, InvalidAllowlistIPs) {
   std::string *p =
-      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
+      const_cast<std::string *>(m_params.get_parameter("ip_allowlist"));
   std::string save = *p;
 
   *p = "192.168.1.222/24,255.257.256.255";
@@ -393,7 +393,7 @@ TEST_F(GcsParametersTest, InvalidWhitelistIPs) {
 
 TEST_F(GcsParametersTest, HalfBakedIP) {
   std::string *p =
-      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
+      const_cast<std::string *>(m_params.get_parameter("ip_allowlist"));
   std::string save = *p;
 
   *p = "192.168.";

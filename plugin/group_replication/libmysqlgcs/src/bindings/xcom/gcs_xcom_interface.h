@@ -229,11 +229,11 @@ class Gcs_xcom_interface : public Gcs_interface {
   }
 
   /**
-    Must return the white list.
+    Must return the allowlist.
 
-    @return the list of whitelisted IP addresses and subnet masks.
+    @return the list of allowlisted IP addresses and subnet masks.
    */
-  const Gcs_ip_whitelist &get_ip_whitelist();
+  const Gcs_ip_allowlist &get_ip_allowlist();
 
   /*
      Notify all controllers that XCOM's thread has finished.
@@ -397,9 +397,9 @@ class Gcs_xcom_interface : public Gcs_interface {
   Gcs_default_debugger *m_default_debugger;
 
   /**
-   The IP whitelist.
+   The IP allowlist.
    */
-  Gcs_ip_whitelist m_ip_whitelist;
+  Gcs_ip_allowlist m_ip_allowlist;
 
   /**
     Indicates whether SSL has been initialized and if that initialization was
