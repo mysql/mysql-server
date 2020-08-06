@@ -242,10 +242,7 @@ TEST_F(registry, acquire_related) {
 
     my_service<SERVICE_TYPE(registry)> another_service3("another_service",
                                                         service3, reg);
-    ASSERT_FALSE(another_service3);
-    ASSERT_EQ(static_cast<my_h_service_imp *>(
-                  static_cast<my_h_service>(another_service3)),
-              reinterpret_cast<my_h_service_imp *>(11));
+    ASSERT_TRUE(another_service3);
   }
 
   ASSERT_FALSE(registration_service->unregister("test.component1"));
