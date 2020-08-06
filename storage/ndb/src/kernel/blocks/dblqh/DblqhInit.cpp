@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,10 @@ void Dblqh::initData()
   c_send_gcp_saveref_needed = false;
   m_first_distributed_lcp_started = false;
   m_in_send_next_scan = 0;
+
+  initJobBufferLevels();
+  m_jbb_scan_level = 0;
+  m_jbb_scan_level_divisor = 1;
 
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;

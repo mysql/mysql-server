@@ -685,6 +685,7 @@ protected:
    */
   void getSendBufferLevel(NodeId node, SB_LevelType &level);
   Uint32 getEstimatedJobBufferLevel();
+  bool isEstimatedJobBufferLevelChanged();
   void setOverloadStatus(OverloadStatus new_status);
   void setWakeupThread(Uint32 wakeup_instance);
   void setNodeOverloadStatus(OverloadStatus new_status);

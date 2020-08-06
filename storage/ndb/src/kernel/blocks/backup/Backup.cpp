@@ -181,7 +181,6 @@ static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
  */
 #define HIGH_LOAD_LEVEL 32
 #define VERY_HIGH_LOAD_LEVEL 48
-#define NUMBER_OF_SIGNALS_PER_SCAN_BATCH 3
 #define MAX_RAISE_PRIO_MEMORY 16
 
 void
@@ -8238,7 +8237,7 @@ Backup::init_file_for_lcp(Signal *signal,
  * transporting 150 MBytes of data to the write buffers in the Backup block.
  * So we use a formula here where we assume that the fixed cost of scanning
  * a row is about 550 ns and cost per word of data is 4 ns. The reason we
- * a different formula for LCP scans compared to the formula we assume in
+ * use a different formula for LCP scans compared to the formula we assume in
  * DBLQH for generic scans is that the copy of data is per row for LCPs
  * whereas it is per column for generic scans. Similarly we never use any
  * scan filters for LCPs, we only check for LCP_SKIP bits and FREE bits.
@@ -8330,8 +8329,8 @@ Backup::init_file_for_lcp(Signal *signal,
  * in this overload situation.
  *
  * The following "magic" constants control these algorithms:
- * 1) ZMAX_SCAN_DIRECT_COUNT set to 5
- * Means that at most 6 rows will be scanned per execute direct, set in
+ * 1) ZMAX_SCAN_DIRECT_COUNT set to 16
+ * Means that at most 16 rows will be scanned per execute direct, set in
  * Dblqh.hpp. This applies to all scan types, not only to LCP scans.
  *
  * 2) ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO set to 1600
@@ -8377,12 +8376,6 @@ Backup::init_file_for_lcp(Signal *signal,
  * normal priority mode.
  * Defined in this block Backup.cpp.
  *
- * 8) NUMBER_OF_SIGNALS_PER_SCAN_BATCH set to 3
- * When starting up the algorithm we check how many signals are in the
- * B-level job buffer. Based on this number we set the initial value to
- * high priority or not. This is based on that we expect a set of 16
- * rows to be executed in 3 signals with 6 rows, 6 rows and last signal
- * 4 rows.
  * Defined in this block Backup.cpp.
  */
 
@@ -8394,13 +8387,15 @@ Backup::init_file_for_lcp(Signal *signal,
 void Backup::init_scan_prio_level(Signal *signal, BackupRecordPtr ptr)
 {
   Uint32 level = getEstimatedJobBufferLevel();
-  if ((level * NUMBER_OF_SIGNALS_PER_SCAN_BATCH) > HIGH_LOAD_LEVEL)
+  Uint32 signal_id = signal->getSignalId();
+  if (likely(level < signal_id))
   {
-    /* Ensure we use prio A and only 1 signal at prio A */
-    jam();
-    level = VERY_HIGH_LOAD_LEVEL;
+    ptr.p->m_lastSignalId = signal_id - level;
   }
-  ptr.p->m_lastSignalId = signal->getSignalId() - level;
+  else
+  {
+    ptr.p->m_lastSignalId = 0;
+  }
   ptr.p->m_prioA_scan_batches_to_execute = 0;
 }
 

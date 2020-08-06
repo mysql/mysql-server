@@ -1415,6 +1415,7 @@ struct alignas(NDB_CL) thr_data
 
   Uint32 m_jbb_estimated_queue_size;
   bool m_read_jbb_state_consumed;
+  bool m_cpu_percentage_changed;
   /* Last read of current ticks */
   NDB_TICKS m_curr_ticks;
 
@@ -6246,6 +6247,7 @@ read_all_jbb_state(thr_data *selfptr)
     read_barrier_depends();
     r->m_read_end = read_end;
   }
+  selfptr->m_cpu_percentage_changed = true;
   selfptr->m_jbb_estimated_queue_size =
     MIN(tot_num_words, MAX_SIGNAL_SIZE * 100) / MAX_SIGNAL_SIZE;
   bool ret_state = (tot_num_words == 0);
@@ -7862,6 +7864,16 @@ mt_job_thread_main(void *thr_arg)
  * lock the job queue. This number is only used to control rates, so
  * a modest error here is ok.
  */
+bool
+mt_isEstimatedJobBufferLevelChanged(Uint32 self)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  bool changed = selfptr->m_cpu_percentage_changed;
+  selfptr->m_cpu_percentage_changed = false;
+  return changed;
+}
+
 Uint32
 mt_getEstimatedJobBufferLevel(Uint32 self)
 {
@@ -8849,7 +8861,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_wake_threads_mask.clear();
   selfptr->m_jbb_estimated_queue_size = 0;
   selfptr->m_read_jbb_state_consumed = true;
-
+  selfptr->m_cpu_percentage_changed = true;
   {
     char buf[100];
     BaseString::snprintf(buf, sizeof(buf), "jbalock thr: %u", thr_no);

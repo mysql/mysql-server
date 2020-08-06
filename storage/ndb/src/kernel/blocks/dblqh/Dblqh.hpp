@@ -277,6 +277,7 @@ class Lgman;
 #define ZLQH_SHRINK_TRANSIENT_POOLS 31
 #define ZLQH_TRANSIENT_POOL_STAT 32
 #define ZPGMAN_PREP_LCP_ACTIVE_CHECK 33
+#define ZSET_JOB_BUFFER_LEVEL 34
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -2607,9 +2608,28 @@ public:
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
   typedef TransientPool<TcConnectionrec> TcConnectionrec_pool;
   TcConnectionrec_pool tcConnect_pool;
-  TcConnectionrecPtr m_tc_connect_ptr;
+
+  alignas(NDB_CL) TcConnectionrecPtr m_tc_connect_ptr;
   UintR cfirstfreeTcConrec;
   Uint32 ctcNumFree;
+
+  /**
+   * Statistical counters to assess how much load is coming from
+   * DBTC and how much comes from DBSPJ. DBTC is considered more
+   * real-time.
+   */
+  Uint32 m_num_lqhkeyreq_read[2];
+  Uint32 m_num_scan_frag_next_req[2];
+  Uint32 m_num_tc_lqhkeyreq_write;
+
+  Uint64 m_num_tc_spj_scanned_rows;
+
+  Uint32 m_jbb_scan_level;
+  Uint32 m_jbb_scan_level_divisor;
+
+  void jobBufferLevelChanged();
+  void initJobBufferLevels();
+  void setJobBufferLevels();
 
   struct TcNodeFailRecord {
     enum TcFailStatus {
@@ -2637,7 +2657,7 @@ public:
     Uint32 fileNo;
   };
   //for statistic information about redo log initialization
-  Uint32 totalLogFiles;
+  alignas (NDB_CL) Uint32 totalLogFiles;
   Uint32 logFileInitDone;
   Uint32 totallogMBytes;
   Uint32 logMBytesInitDone;

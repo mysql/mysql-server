@@ -568,6 +568,16 @@ SimulatedBlock::getEstimatedJobBufferLevel()
   return num_signals;
 }
 
+bool
+SimulatedBlock::isEstimatedJobBufferLevelChanged()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_isEstimatedJobBufferLevelChanged(m_threadId);
+#else
+  return false;
+#endif
+}
+
 void
 SimulatedBlock::startChangeNeighbourNode()
 {
