@@ -257,6 +257,8 @@
 #define CFG_DB_SPIN_METHOD            671
 #define CFG_DB_SPIN_TIME_PER_CALL     672
 
+#define CFG_DB_PARTITIONS_PER_NODE    673
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 #define CFG_EXTRA_SEND_BUFFER_MEMORY  203

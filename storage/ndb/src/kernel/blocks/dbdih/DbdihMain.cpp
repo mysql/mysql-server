@@ -2089,10 +2089,11 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
 
-  if (isNdbMtLqh())
   {
     jam();
     c_fragments_per_node_ = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_PARTITIONS_PER_NODE,
+                              &c_fragments_per_node_);
     // try to get some LQH workers which initially handle no fragments
     if (ERROR_INSERTED(7215)) {
       c_fragments_per_node_ = 1;
@@ -13104,7 +13105,9 @@ Dbdih::getFragmentsPerNode()
 
   c_fragments_per_node_ = getLqhWorkers();
   if (c_fragments_per_node_ == 0)
+  {
     c_fragments_per_node_ = 1; // ndbd
+  }
 
   NodeRecordPtr nodePtr;
   nodePtr.i = cfirstAliveNode;
@@ -13113,9 +13116,10 @@ Dbdih::getFragmentsPerNode()
     jam();
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     Uint32 workers = getNodeInfo(nodePtr.i).m_lqh_workers;
-    if (workers == 0) // ndbd
+    if (workers == 0)
+    {
       workers = 1;
-
+    }
     c_fragments_per_node_ = MIN(workers, c_fragments_per_node_);
     nodePtr.i = nodePtr.p->nextNode;
   } while (nodePtr.i != RNIL);

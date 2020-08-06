@@ -1226,6 +1226,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_PARTITIONS_PER_NODE,
+    "PartitionsPerNode",
+    DB_TOKEN,
+    "Partitions per node created for tables",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(NDB_MAX_LOG_PARTS)
+  },
+
+  {
     CFG_DB_NO_REDOLOG_PARTS,
     "NoOfFragmentLogParts",
     DB_TOKEN,
