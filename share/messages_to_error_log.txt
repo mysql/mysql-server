@@ -8994,7 +8994,7 @@ OBSOLETE_ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
 
 ER_IB_MSG_1154
-  eng "Query counter shows %llu queries still inside InnoDB at shutdown"
+  eng "Query counter shows %lld queries still inside InnoDB at shutdown"
 
 ER_IB_MSG_1155
   eng "Shutdown completed; log sequence number %llu"

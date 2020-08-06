@@ -1601,8 +1601,9 @@ static inline dberr_t innobase_srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
 
     } else if (trx->mysql_thd != nullptr &&
                thd_is_replication_slave_thread(trx->mysql_thd)) {
-      UT_WAIT_FOR(srv_conc_get_active_threads() < srv_thread_concurrency,
-                  srv_replication_delay * 1000);
+      UT_WAIT_FOR(
+          srv_conc_get_active_threads() < (int32_t)srv_thread_concurrency,
+          srv_replication_delay * 1000);
 
     } else {
       err = srv_conc_enter_innodb(prebuilt);
