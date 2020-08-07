@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,15 @@ public:
                                    * Part of direct signal, but sent as first
                                    * section for async signal.
 				   */
+  /**
+   * The set of nodes before failure, this is useful to discover if any node
+   * group is completely alive after the failure. Even if only one node in
+   * a node group is only alive before failure, if this node is still up
+   * after the failure we have a complete node group up and running.
+   *
+   * before_fail_mask is only used in Direct signal and in ArbitCheck.
+   */
+  NdbNodeBitmaskPOD before_fail_mask;
 
   enum RequestType {
     Direct              = 0x1,
@@ -71,7 +80,8 @@ public:
     GetNodeGroup        = 0x4,
     GetNodeGroupMembers = 0x8,
     GetDefaultFragments = 0x10,
-    GetDefaultFragmentsFullyReplicated = 0x20
+    GetDefaultFragmentsFullyReplicated = 0x20,
+    UseBeforeFailMask   = 0x40
   };
 
   enum Output {
@@ -80,7 +90,9 @@ public:
     Partitioning = 3            // possible network partitioning
   };
 
-  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size ); // Only for direct signal.
+  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size); // Only for direct signal.
+  STATIC_CONST( SignalLengthArbitCheckShort = 4 + NdbNodeBitmask::Size);
+  STATIC_CONST( SignalLengthArbitCheckLong = 4 + (2 * NdbNodeBitmask::Size));
   STATIC_CONST( SignalLengthNoBitmask = 4);
 };
 

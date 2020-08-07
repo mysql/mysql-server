@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2651,7 +2651,7 @@ Ndbcntr::checkNodeGroups(Signal* signal, const NdbNodeBitmask & mask){
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
   sd->mask = mask;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
+		 CheckNodeGroups::SignalLengthArbitCheckShort);
   jamEntry();
   return (CheckNodeGroups::Output)sd->output;
 }
@@ -4773,7 +4773,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   /**
    * Check if I can survive me stopping
    */
-  NdbNodeBitmask ndbMask; 
+  NdbNodeBitmask ndbMask;
   ndbMask.assign(cntr.c_startedNodeSet);
 
   if (StopReq::getStopNodes(stopReq.requestInfo))
@@ -4815,10 +4815,13 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   
   CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
   sd->blockRef = cntr.reference();
-  sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
+  sd->requestType = CheckNodeGroups::Direct |
+                    CheckNodeGroups::ArbitCheck |
+                    CheckNodeGroups::UseBeforeFailMask;
   sd->mask = ndbMask;
+  sd->before_fail_mask = cntr.c_startedNodeSet;
   cntr.EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		      CheckNodeGroups::SignalLength);
+		      CheckNodeGroups::SignalLengthArbitCheckLong);
   jamEntry();
   switch (sd->output) {
   case CheckNodeGroups::Win:

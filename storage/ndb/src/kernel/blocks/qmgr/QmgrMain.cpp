@@ -2265,7 +2265,7 @@ Qmgr::check_startup(Signal* signal)
       sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
       sd->mask = check;
       EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                     CheckNodeGroups::SignalLength);
+                     CheckNodeGroups::SignalLengthArbitCheckShort);
 
       if (sd->output == CheckNodeGroups::Lose)
       {
@@ -2278,7 +2278,7 @@ Qmgr::check_startup(Signal* signal)
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
     sd->mask = c_start.m_starting_nodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                   CheckNodeGroups::SignalLength);
+                   CheckNodeGroups::SignalLengthArbitCheckShort);
   
     const Uint32 result = sd->output;
   
@@ -2286,7 +2286,7 @@ Qmgr::check_startup(Signal* signal)
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
     sd->mask = c_start.m_starting_nodes_w_log;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                   CheckNodeGroups::SignalLength);
+                   CheckNodeGroups::SignalLengthArbitCheckShort);
   
     const Uint32 result_w_log = sd->output;
 
@@ -6404,6 +6404,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
   NdbNodeBitmask survivorNodes;
+  NdbNodeBitmask beforeFailureNodes;
   /**
    * computeArbitNdbMask will only count nodes in the state ZRUNNING, crashed
    * nodes are thus not part of this set of nodes. The method
@@ -6413,14 +6414,18 @@ Qmgr::handleArbitCheck(Signal* signal)
    * arbitration is required.
    */
   computeArbitNdbMask(survivorNodes);
+  computeBeforeFailNdbMask(beforeFailureNodes);
   {
     jam();
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
     sd->blockRef = reference();
-    sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
+    sd->requestType = CheckNodeGroups::Direct |
+                      CheckNodeGroups::ArbitCheck |
+                      CheckNodeGroups::UseBeforeFailMask;
     sd->mask = survivorNodes;
+    sd->before_fail_mask = beforeFailureNodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		   CheckNodeGroups::SignalLength);
+		   CheckNodeGroups::SignalLengthArbitCheckLong);
     jamEntry();
     if (ERROR_INSERTED(943))
     {
@@ -7331,6 +7336,25 @@ Qmgr::computeArbitNdbMask(NdbNodeBitmaskPOD& aMask)
     ptrAss(aPtr, nodeRec);
     if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
         aPtr.p->phase == ZRUNNING)
+    {
+      jam();
+      aMask.set(aPtr.i);
+    }
+  }
+}
+
+void
+Qmgr::computeBeforeFailNdbMask(NdbNodeBitmaskPOD& aMask)
+{
+  NodeRecPtr aPtr;
+  aMask.clear();
+  for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
+  {
+    jam();
+    ptrAss(aPtr, nodeRec);
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        (aPtr.p->phase == ZRUNNING ||
+         aPtr.p->phase == ZPREPARE_FAIL))
     {
       jam();
       aMask.set(aPtr.i);

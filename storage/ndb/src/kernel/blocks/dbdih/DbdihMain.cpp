@@ -25524,48 +25524,85 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     releaseSections(handle);
   }
 
+  bool use_before_fail_mask = false;
+  if (sd->requestType & CheckNodeGroups::UseBeforeFailMask)
+  {
+    ndbrequire(signal->length() >=
+               CheckNodeGroups::SignalLengthArbitCheckLong);
+    sd->requestType = sd->requestType & (~CheckNodeGroups::UseBeforeFailMask);
+    use_before_fail_mask = true;
+  }
   bool ok = false;
   switch(sd->requestType & ~CheckNodeGroups::Direct){
-  case CheckNodeGroups::ArbitCheck:{
+  case CheckNodeGroups::ArbitCheck:
+  {
     ok = true;
     jamNoBlock();
     unsigned missall = 0;
     unsigned haveall = 0;
-    for (Uint32 i = 0; i < cnoOfNodeGroups; i++) {
+    for (Uint32 i = 0; i < cnoOfNodeGroups; i++)
+    {
       jamNoBlock();
       NodeGroupRecordPtr ngPtr;
       ngPtr.i = c_node_groups[i];
       ptrCheckGuard(ngPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
       Uint32 count = 0;
-      for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++) {
+      bool all_up_in_nodegroup = true;
+      for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++)
+      {
 	jamNoBlock();
 	Uint32 nodeId = ngPtr.p->nodesInGroup[j];
-	if (sd->mask.get(nodeId)) {
+	if (sd->mask.get(nodeId))
+        {
 	  jamNoBlock();
 	  count++;
 	}//if
+        if (use_before_fail_mask &&
+            sd->before_fail_mask.get(nodeId) &&
+            !sd->mask.get(nodeId))
+        {
+          /* At least one node in node group have failed */
+	  jamNoBlock();
+          all_up_in_nodegroup = false;
+        }
       }//for
-      if (count == 0) {
+      if (count == 0)
+      {
 	jamNoBlock();
 	missall++;
       }//if
-      if (count == ngPtr.p->nodeCount) {
-	haveall++;
-      }//if
+      if (use_before_fail_mask)
+      {
+        if (all_up_in_nodegroup)
+        {
+	  haveall++;
+        }//if
+      }
+      else
+      {
+        if (count == ngPtr.p->nodeCount)
+        {
+          haveall++;
+        }
+      }
     }//for
-
-    if (missall) {
+    if (missall)
+    {
       jamNoBlock();
       sd->output = CheckNodeGroups::Lose;
-    } else if (haveall) {
+    }
+    else if (haveall)
+    {
       jamNoBlock();
       sd->output = CheckNodeGroups::Win;
-    } else {
+    }
+    else
+    {
       jamNoBlock();
       sd->output = CheckNodeGroups::Partitioning;
     }//if
-  }
     break;
+  }
   case CheckNodeGroups::GetNodeGroup:{
     ok = true;
     Uint32 ng = Sysfile::getNodeGroup(getOwnNodeId(), SYSFILE->nodeGroups);
