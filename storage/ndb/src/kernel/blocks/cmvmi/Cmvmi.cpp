@@ -1526,6 +1526,8 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
     else if (check_block(TC, val))
     {
+      sendSignal(DBTC_REF, GSN_DUMP_STATE_ORD, signal,
+                 signal->length(), JBB);
     }
     else if (check_block(LQH, val))
     {
@@ -1811,19 +1813,32 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     Uint32 cnt_dec = 0;
     Uint32 cnt_inc = 0;
     Uint32 cnt_same = 0;
-    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    Uint32 count = 0;
+    for (Uint32 i = start;
+         i != stop;
+         i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
     {
-      Uint32 prev = (i - 1) % NDB_ARRAY_SIZE(f_free_segments);
-      if (f_free_segments[prev] == f_free_segments[i])
-        cnt_same++;
-      else if (f_free_segments[prev] > f_free_segments[i])
-        cnt_dec++;
-      else if (f_free_segments[prev] < f_free_segments[i])
-        cnt_inc++;
+      /**
+       * Only check start of test with stop of test, avoid checks of what
+       * happened when test wasn't active.
+       */
+      if (count != 0 && ((count % 2) == 0))
+      {
+        Uint32 prev = (i - 1) % NDB_ARRAY_SIZE(f_free_segments);
+        if (f_free_segments[prev] == f_free_segments[i])
+          cnt_same++;
+        else if (f_free_segments[prev] > f_free_segments[i])
+          cnt_dec++;
+        else if (f_free_segments[prev] < f_free_segments[i])
+          cnt_inc++;
+      }
+      count++;
     }
 
     printf("snapshots: ");
-    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    for (Uint32 i = start;
+         i != stop;
+         i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
     {
       printf("%u ", f_free_segments[i]);
     }

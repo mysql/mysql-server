@@ -1027,4 +1027,21 @@ select *
 # use a hard limit as it will grow when someone add a new error message
 select count(*) > 700
   from ndbinfo.error_messages;
+
+desc hwinfo;
+desc cpuinfo;
+desc cpudata;
+desc cpudata_50ms;
+desc cpudata_1sec;
+desc cpudata_20sec;
+
+--disable_result_log
+select * from hwinfo;
+select * from cpuinfo;
+select * from cpudata;
+select * from cpudata_50ms;
+select * from cpudata_1sec;
+select * from cpudata_20sec;
+--enable_result_log
+
 #--remove_file $NDB_TOOLS_OUTPUT

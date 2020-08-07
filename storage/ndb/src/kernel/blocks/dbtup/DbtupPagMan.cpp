@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
+#include <dblqh/Dblqh.hpp>
 
 #define JAM_FILE_ID 407
 
@@ -179,9 +180,7 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
   }
 
   // Count number of allocated pages
-  m_pages_allocated += noOfPagesAllocated;
-  if (m_pages_allocated > m_pages_allocated_max)
-    m_pages_allocated_max = m_pages_allocated;
+  update_pages_allocated(noOfPagesAllocated);
 
   return;
 }//allocConsPages()
@@ -191,7 +190,7 @@ void Dbtup::returnCommonArea(Uint32 retPageRef, Uint32 retNo)
   m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo);
 
   // Count number of allocated pages
-  m_pages_allocated -= retNo;
+  update_pages_allocated(-retNo);
 }//Dbtup::returnCommonArea()
 
 bool Dbtup::returnCommonArea_for_reuse(Uint32 retPageRef, Uint32 retNo)
@@ -202,7 +201,63 @@ bool Dbtup::returnCommonArea_for_reuse(Uint32 retPageRef, Uint32 retNo)
   }
 
   // Count number of allocated pages
-  m_pages_allocated -= retNo;
-
+  update_pages_allocated(-retNo);
   return true;
+}
+
+void
+Dbtup::update_pages_allocated(int retNo)
+{
+  /**
+   * In normal operation mode we only update m_pages_allocated
+   * and m_pages_allocated_max from the LDM thread and this
+   * requires no protection.
+   * However during restore operations we can update this from
+   * both recover threads and LDM threads and thus we need to
+   * protect those changes with a mutex.
+   *
+   * Query threads should not be used here, only recover threads.
+   * When restore phase is done we no longer need to use a mutex.
+   */
+  bool lock_flag = false;
+  Dblqh *lqh_block;
+  Dbtup *tup_block;
+  if (m_is_query_block)
+  {
+    Uint32 instanceNo = c_lqh->m_current_ldm_instance;
+    ndbrequire(instanceNo != 0);
+    tup_block = (Dbtup*) globalData.getBlock(DBTUP, instanceNo);
+    lqh_block = (Dblqh*) globalData.getBlock(DBLQH, instanceNo);
+    ndbrequire(!lqh_block->is_restore_phase_done());
+    ndbrequire(c_lqh->m_is_recover_block);
+    lock_flag = true;
+  }
+  else
+  {
+    lqh_block = c_lqh;
+    tup_block = this;
+    if (!c_lqh->is_restore_phase_done() &&
+        (globalData.ndbMtRecoverThreads +
+         globalData.ndbMtQueryThreads) > 0)
+    {
+      lock_flag = true;
+    }
+  }
+  if (lock_flag)
+  {
+    NdbMutex_Lock(lqh_block->m_lock_tup_page_mutex);
+  }
+
+  tup_block->m_pages_allocated += retNo;
+  if (retNo > 0 &&
+      tup_block->m_pages_allocated >
+        tup_block->m_pages_allocated_max)
+  {
+    tup_block->m_pages_allocated_max = tup_block->m_pages_allocated;
+  }
+
+  if (lock_flag)
+  {
+    NdbMutex_Unlock(lqh_block->m_lock_tup_page_mutex);
+  }
 }

@@ -143,6 +143,7 @@ public:
 
 
   void print(FILE*) const;
+  void print_header(FILE*) const;
 
   /* ----------------------------------------------------------------------- */
 
@@ -362,6 +363,22 @@ void DataBuffer<sz, Pool, Type_id>::print(FILE* out) const
       }
     }
     ptr.i = ptr.p->nextPool;
+  }
+  fprintf(out, " ]\n");
+}
+
+template<Uint32 sz, typename Pool, Uint32 Type_id>
+inline
+void DataBuffer<sz, Pool, Type_id>::print_header(FILE* out) const
+{
+  fprintf(out, "[DataBuffer used=%d words, segmentsize=%d words",
+	  head.used, sz);
+
+  if (head.firstItem == RNIL) {
+    fprintf(out, ": No segments seized.]\n");
+    return;
+  } else {
+    fprintf(out, "\n");
   }
   fprintf(out, " ]\n");
 }

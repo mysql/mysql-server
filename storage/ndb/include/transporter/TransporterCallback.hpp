@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,7 @@ public:
    */
   virtual bool deliver_signal(SignalHeader * const header,
                               Uint8 prio,
+                              TransporterError &error_code,
                               Uint32 * const signalData,
                               LinearSectionPtr ptr[3]) = 0;
 

@@ -74,7 +74,12 @@ int runLoadTable2(NDBT_Context* ctx, NDBT_Step* step)
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
 {
+  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
@@ -132,9 +137,14 @@ int runInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
+  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
-  
+
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.pkDelRecords(GETNDB(step),  records, batchSize) != 0){
     return NDBT_FAILED;
@@ -186,6 +196,40 @@ int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runTimer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  sleep(120);
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runPkDirtyReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_records = ctx->getProperty("Records", Uint32(0));
+  int records = ctx->getNumRecords();
+  int batchSize = ctx->getProperty("BatchSize", 2);
+  int lm = ctx->getProperty("LockMode", NdbOperation::LM_CommittedRead);
+  int i = 0;
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) {
+    g_info << i << ": ";
+    if (hugoTrans.pkReadRecords(GETNDB(step),
+                                records,
+                                batchSize,
+                                (NdbOperation::LockMode)lm) != 0){
+      g_info << endl;
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  g_info << endl;
+  return NDBT_OK;
+}
+
 int runPkReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
@@ -221,10 +265,16 @@ int runPkUpdate(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
   int i = 0;
+  if (num_records != 0)
+  {
+    records = num_records;
+  }
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped()) {
     g_info << i << ": ";
@@ -4579,6 +4629,20 @@ TESTCASE("CheckCompletedLCPStats",
          "nReplicas * #records inserted" )
 {
   STEP(runCheckLCPStats);
+}
+TESTCASE("ParallelReadUpdate",
+         "Test interaction of read and updates for Query Thread")
+{
+  TC_PROPERTY("Records", Uint32(10));
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runPkDirtyReadUntilStopped);
+  STEP(runTimer);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testBasic)
 

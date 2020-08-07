@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2008 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,6 +221,34 @@ private:
   File_class (const File_class& aCopy);
   File_class operator = (const File_class&); 
   bool operator == (const File_class&);
+};
+
+/**
+ * simple File guard to make sure no file is left open
+ */
+class FileGuard
+{
+  FILE * f;
+public:
+
+  FileGuard(FILE * f1)
+    : f(f1)
+  {
+  }
+
+  void close()
+  {
+    if (f)
+    {
+      fclose(f);
+      f = 0;
+    }
+  }
+
+  ~FileGuard()
+  {
+    close();
+  }
 };
 #endif
 

@@ -80,7 +80,7 @@ max-time: 900
 
 cmd: testNodeRestart
 args: -n MultiSocketRestart T1
-max-time: 2500
+max-time: 3600
 
 cmd: testNodeRestart
 args: -n SumaHandover3rpl T1

@@ -32,6 +32,12 @@
 
 #define JAM_FILE_ID 275
 
+/**
+ * Debug define to use when debugging scheduling between LDM groups
+ * and Round robin groups.
+ * Needs to be defined in SimulatedBlock.hpp as well to work.
+ */
+//#define DEBUG_SCHED_STATS 1
 
 #define MAX_MAIN_THREADS 2 // except receiver
 /*
@@ -64,9 +70,17 @@ Uint32 mt_get_instance_count(Uint32 block);
 void mt_init_thr_map();
 void mt_add_thr_map(Uint32 block, Uint32 instance);
 void mt_finalize_thr_map();
+#ifdef DEBUG_SCHED_STATS
+void get_jbb_estimated_stats(Uint32, Uint32, Uint64**, Uint64**);
+#endif
+Uint32 get_qt_jbb_level(Uint32 instance);
+void prefetch_load_indicators(Uint32 *rr_groups, Uint32 rr_group);
+Uint32 get_load_indicator(Uint32 dst);
 
-void sendlocal(Uint32 self, const struct SignalHeader *s,
-               const Uint32 *data, const Uint32 secPtr[3]);
+void sendlocal(Uint32 self,
+               const struct SignalHeader *s,
+               const Uint32 *data,
+               const Uint32 secPtr[3]);
 void sendprioa(Uint32 self, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
 void senddelay(Uint32 thr_no, const struct SignalHeader*, Uint32 delay);

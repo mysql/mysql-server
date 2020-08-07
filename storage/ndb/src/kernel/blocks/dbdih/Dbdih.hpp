@@ -288,6 +288,7 @@ public:
     Uint32 partition_id;
     Uint32 nextCopyFragment;
     
+    Uint8 m_inc_used_log_parts;
     Uint8 distributionKey;
     Uint8 fragReplicas;
     Uint8 noOldStoredReplicas;  /* NUMBER OF "DEAD" STORED REPLICAS */
@@ -307,8 +308,10 @@ public:
     Uint32 activeTakeOver; // Which node...
     Uint32 activeTakeOverCount;
     Uint32 m_next_log_part;
+    Uint32 m_new_next_log_part;
     Uint32 nodegroupIndex;
     Uint32 m_ref_count;
+    Uint32 m_used_log_parts[MAX_INSTANCE_KEYS];
   };
   typedef Ptr<NodeGroupRecord> NodeGroupRecordPtr;
   /**
@@ -483,6 +486,7 @@ public:
     
     Uint8 dbtcFailCompleted;
     Uint8 dblqhFailCompleted;
+    Uint8 dbqlqhFailCompleted;
     Uint8 dbdihFailCompleted;
     Uint8 dbdictFailCompleted;
     Uint8 recNODE_FAILREP;
@@ -720,10 +724,10 @@ public:
     };
     Uint32 m_scan_reorg_flag;
     Uint32 m_flags;
+    Uint32 primaryTableId;
 
     Uint8 noOfBackups;
     Uint8 kvalue;
-    Uint16 primaryTableId;
 
     Uint16 noPages;
     Uint16 tableType;
@@ -1669,7 +1673,8 @@ private:
                           Uint32 tableId);
   Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
                          const Fragmentstore * fragPtr,
-                         Uint32 nodes[]);
+                         Uint32 nodes[],
+                         bool crash_on_error = true);
   Uint32 findLocalFragment(const TabRecord *,
                            Ptr<Fragmentstore> & fragPtr,
                            EmulatedJamBuffer *jambuf);
@@ -2402,6 +2407,7 @@ private:
   Uint32 cMinTcFailNo;            /* Minimum TC handled failNo allowed to close GCP */
 
   BlockReference clocallqhblockref;
+  BlockReference clocalqlqhblockref;
   BlockReference clocaltcblockref;
   BlockReference cmasterdihref;
   Uint16 cownNodeId;
@@ -2766,10 +2772,11 @@ private:
    * NDBMT_MAX_WORKER_INSTANCES inclusive.
    * 0 is the proxy block instance.
    */
-  Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
+  Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr)
+  {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    ndbrequire(log_part_id < NDBMT_MAX_WORKER_INSTANCES);
+    ndbrequire(log_part_id < MAX_INSTANCE_KEYS);
     return 1 + log_part_id;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
@@ -2806,6 +2813,25 @@ private:
   /* The highest data node id in the cluster. */
   Uint32 m_max_node_id;
   bool m_set_up_multi_trp_in_node_restart;
+  bool m_use_classic_fragmentation;
+
+  void find_min_used_log_part();
+  bool select_ng(Uint32 fragNo,
+                 Uint32 default_node_group,
+                 NodeGroupRecordPtr & NGPtr,
+                 Uint32 & err);
+  void inc_ng(Uint32 fragNo,
+              Uint32 noOfFragments,
+              Uint32 partitionCount,
+              Uint32 & default_node_group,
+              Uint32 numNodeGroups);
+  void add_nodes_to_fragment(Uint16 *fragments,
+                             Uint32 & node_index,
+                             Uint32 & count,
+                             NodeGroupRecordPtr NGPtr,
+                             Uint32 noOfReplicas);
+  bool find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part);
+  void getNodeGroupPtr(Uint32 nodeId, NodeGroupRecordPtr & NGPtr);
 public:
   bool is_master() { return isMaster(); }
   

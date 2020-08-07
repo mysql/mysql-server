@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,10 +122,11 @@ Dbtup::alloc_fix_rec(EmulatedJamBuffer* jamBuf,
     c_page_pool.getPtr(pagePtr);
   }
 
+  *out_frag_page_id= pagePtr.p->frag_page_id;
+  acquire_frag_mutex(regFragPtr, pagePtr.p->frag_page_id);
   Uint32 page_offset= alloc_tuple_from_page(regFragPtr, (Fix_page*)pagePtr.p);
 
   regFragPtr->m_fixedElemCount++;
-  *out_frag_page_id= pagePtr.p->frag_page_id;
   key->m_page_no = pagePtr.i;
   key->m_page_idx = page_offset;
   return pagePtr.p->m_data + page_offset;
@@ -236,7 +237,7 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
     free_pages.remove(pagePtr);
     releaseFragPage(regFragPtr, page_no, pagePtr);
   }
-}//Dbtup::freeTh()
+}
 
 Uint32*
 Dbtup::alloc_fix_rowid(Uint32 * err,
@@ -259,6 +260,7 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
   Local_Page_fifo free_pages(c_page_pool, regFragPtr->thFreeFirst);
   switch(state){
   case ZTH_MM_FREE:
+    acquire_frag_mutex(regFragPtr, page_no);
     if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)
     {
       DEB_899_ERROR(("(%u)899 error FREE: tab(%u,%u) row(%u,%u)",
@@ -268,6 +270,7 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
                       page_no,
                       idx));
       * err = ZROWID_ALLOCATED;
+      release_frag_mutex(regFragPtr, page_no);
       return 0;
     }
     

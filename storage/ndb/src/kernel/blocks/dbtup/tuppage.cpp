@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -500,11 +500,27 @@ operator<< (NdbOut& out, const Tup_fixsize_page& page)
   {
     cnt++;
     out << dec << "(" << (next & 0xFFFF) << " " << hex << next << ") " << flush;
-    assert(page.m_data[(next & 0xFFFF) + 1] == Dbtup::Tuple_header::FREE);
+    //assert(page.m_data[(next & 0xFFFF) + 1] == Dbtup::Tuple_header::FREE);
     next= * (page.m_data + ( next & 0xFFFF ));
   }
   assert(cnt == page.free_space);
 #endif
   out << "]";
+#if 0
+  bool print_out = false;
+  for (Uint32 i = 1; i < 8160; i+= 123)
+  {
+    if (page.m_data[i] >= 8160)
+      print_out = true;
+  }
+  if (!print_out)
+    return out;
+  for (Uint32 i = 0; i < 8160; i++)
+  {
+    if (i % 8 == 0)
+      out << endl;
+    out << "word[" << dec << i << "] = " << hex << page.m_data[i] << " ";
+  }
+#endif
   return out;
 }

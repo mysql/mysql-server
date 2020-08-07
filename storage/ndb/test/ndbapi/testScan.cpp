@@ -1684,15 +1684,6 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     printf("node: %u ", node);
     switch(loops % 2){
     case 0:
-      if (res.getNumDbNodes() >= 2)
-      {
-        err = 8088;
-        int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-        res.dumpStateOneNode(node, val, 2);
-        res.insertErrorInNode(node, 8088);
-        ndbout_c("error 8088");
-        break;
-      }
       // fall through
     case 1:
       err = 5057;
@@ -1732,14 +1723,6 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
       pCon->execute(NoCommit);
       pCon->close();
     } 
-    if (err == 8088)
-    {
-      res.waitNodesNoStart(&node, 1);
-      res.startAll();
-      res.waitClusterStarted();
-      if (pNdb->waitUntilReady() != 0)
-        return NDBT_FAILED;
-    }
   }
 
   return NDBT_OK;

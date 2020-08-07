@@ -244,7 +244,9 @@ TRACE_GSN(Uint32 gsn)
  */
 bool
 TransporterFacade::deliver_signal(SignalHeader * const header,
-                                  Uint8 prio, Uint32 * const theData,
+                                  Uint8 prio,
+                                  TransporterError &error_code,
+                                  Uint32 * const theData,
                                   LinearSectionPtr ptr[3])
 {
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;

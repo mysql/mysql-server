@@ -407,13 +407,19 @@ Configuration::setupConfiguration(){
    */  
   if (_fsPath)
     free(_fsPath);
-  _fsPath= get_and_validate_path(iter, CFG_DB_FILESYSTEM_PATH, "FileSystemPath");
+  _fsPath= get_and_validate_path(iter,
+                                 CFG_DB_FILESYSTEM_PATH,
+                                 "FileSystemPath");
   if (_backupPath)
     free(_backupPath);
-  _backupPath= get_and_validate_path(iter, CFG_DB_BACKUP_DATADIR, "BackupDataDir");
+  _backupPath= get_and_validate_path(iter,
+                                     CFG_DB_BACKUP_DATADIR,
+                                     "BackupDataDir");
 
   if(iter.get(CFG_DB_STOP_ON_ERROR_INSERT, &m_restartOnErrorInsert)){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
+    ERROR_SET(fatal,
+              NDBD_EXIT_INVALID_CONFIG,
+              "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
   }
   
@@ -453,18 +459,18 @@ Configuration::setupConfiguration(){
       m_thr_config.setLockIoThreadsToCPU(maintCPU);
   }
 
-#ifdef NDB_USE_GET_ENV
-  const char * thrconfigstring = NdbEnv_GetEnv("NDB_MT_THREAD_CONFIG",
-                                               (char*)0, 0);
-#else
-  const char * thrconfigstring = NULL;
-#endif
-  if (thrconfigstring ||
-      iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring) == 0)
+  const char * thrconfigstring = nullptr;
+  Uint32 mtthreads = 0;
+  Uint32 auto_thread_config = 0;
+  iter.get(CFG_DB_AUTO_THREAD_CONFIG, &auto_thread_config);
+  iter.get(CFG_DB_MT_THREADS, &mtthreads);
+  iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring);
+  if (thrconfigstring != nullptr && thrconfigstring[0] != 0)
   {
     int res = m_thr_config.do_parse(thrconfigstring,
                                     _realtimeScheduler,
-                                    _schedulerSpinTimer);
+                                    _schedulerSpinTimer,
+                                    globalData.ndbRRGroups);
     if (res != 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -474,46 +480,65 @@ Configuration::setupConfiguration(){
   }
   else
   {
-    Uint32 mtthreads = 0;
-    iter.get(CFG_DB_MT_THREADS, &mtthreads);
-
-    Uint32 classic = 0;
-    iter.get(CFG_NDBMT_CLASSIC, &classic);
-#ifdef NDB_USE_GET_ENV
-    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
-    if (p != 0)
+    if (auto_thread_config != 0)
     {
-      if (strstr(p, "NOPLEASE") != 0)
-        classic = 1;
+      Uint32 num_cpus = 0;
+      iter.get(CFG_DB_NUM_CPUS, &num_cpus);
+      g_eventLogger->info("Use automatic thread configuration");
+      m_thr_config.do_parse(_realtimeScheduler,
+                            _schedulerSpinTimer,
+                            num_cpus,
+                            globalData.ndbRRGroups);
     }
-#endif
-    Uint32 lqhthreads = 0;
-    iter.get(CFG_NDBMT_LQH_THREADS, &lqhthreads);
-
-    int res = m_thr_config.do_parse(mtthreads,
-                                    lqhthreads,
-                                    classic,
-                                    _realtimeScheduler,
-                                    _schedulerSpinTimer);
-    if (res != 0)
+    else
     {
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-                "Invalid configuration fetched, invalid thread configuration",
-                m_thr_config.getErrorMessage());
+      Uint32 classic = 0;
+      iter.get(CFG_NDBMT_CLASSIC, &classic);
+#ifdef NDB_USE_GET_ENV
+      const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
+      if (p != 0)
+      {
+        if (strstr(p, "NOPLEASE") != 0)
+          classic = 1;
+      }
+#endif
+      Uint32 lqhthreads = 0;
+      iter.get(CFG_NDBMT_LQH_THREADS, &lqhthreads);
+      int res = m_thr_config.do_parse(mtthreads,
+                                      lqhthreads,
+                                      classic,
+                                      _realtimeScheduler,
+                                      _schedulerSpinTimer,
+                                      globalData.ndbRRGroups);
+      if (res != 0)
+      {
+        ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+          "Invalid configuration fetched, invalid thread configuration",
+          m_thr_config.getErrorMessage());
+      }
     }
   }
   if (NdbIsMultiThreaded())
   {
     if (thrconfigstring)
     {
-      ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s => parsed: %s",
+      ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s =>"
+               " parsed: %s",
                thrconfigstring,
+               lockmask ? lockmask : "",
+               m_thr_config.getConfigString());
+    }
+    else if (mtthreads == 0)
+    {
+      ndbout_c("Automatic Thread Config: LockExecuteThreadToCPU: %s =>"
+               " parsed: %s",
                lockmask ? lockmask : "",
                m_thr_config.getConfigString());
     }
     else
     {
-      ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s => parsed: %s",
+      ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s =>"
+               " parsed: %s",
                lockmask ? lockmask : "",
                m_thr_config.getConfigString());
     }
@@ -535,6 +560,10 @@ Configuration::setupConfiguration(){
     if (!globalData.isNdbMt)
       break;
 
+    globalData.ndbMtQueryThreads =
+      m_thr_config.getThreadCount(THRConfig::T_QUERY);
+    globalData.ndbMtRecoverThreads =
+      m_thr_config.getThreadCount(THRConfig::T_RECOVER);
     globalData.ndbMtTcThreads = m_thr_config.getThreadCount(THRConfig::T_TC);
     globalData.ndbMtTcWorkers = globalData.ndbMtTcThreads;
     if (globalData.ndbMtTcWorkers == 0)
@@ -587,13 +616,29 @@ Configuration::setupConfiguration(){
     {
       if (globalData.ndbMtTcThreads != 0 ||
           globalData.ndbMtMainThreads != 0 ||
-          globalData.ndbMtReceiveThreads != 1)
+          globalData.ndbMtReceiveThreads != 1 ||
+          globalData.ndbMtQueryThreads != 0)
       {
         ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-                  "Invalid configuration fetched",
+                  "Invalid configuration fetched. ",
                   "Setting number of ldm threads to 0 must be combined"
-                  " with 0 tc, rep and main threads and 1 recv thread");
+                  " with 0 query, tc, rep and main threads and 1 recv thread");
       }
+    }
+    Uint32 query_threads_per_ldm = globalData.ndbMtQueryThreads / workers;
+    if (workers * query_threads_per_ldm != globalData.ndbMtQueryThreads)
+    {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Invalid configuration fetched. ",
+                "Number of query threads must be a multiple of the number"
+                " of LDM threads.");
+    }
+    globalData.QueryThreadsPerLdm = query_threads_per_ldm;
+    if (globalData.ndbMtRecoverThreads > MAX_NDBMT_QUERY_THREADS)
+    {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Invalid configuration fetched. ",
+                "Sum of recover threads and query threads can be max 127");
     }
   } while (0);
 

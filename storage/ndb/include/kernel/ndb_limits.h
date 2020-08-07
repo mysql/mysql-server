@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,11 @@
 #define MAX_NODES     256
 #define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF
+#define MAX_INSTANCE_KEYS 1024
+#define MAX_NUM_CPUS 2500
+#define MAX_QUERY_THREAD_PER_LDM 3
+#define MIN_RR_GROUP_SIZE 4
+#define MAX_RR_GROUP_SIZE 8
 
 /**************************************************************************
  * IT SHOULD BE (MAX_NDB_NODES - 1).
@@ -234,6 +239,12 @@
 #define NDB_SECTION_SEGMENT_SZ 60
 
 /*
+ * The maximum size of signal before we split it into a bunch of
+ * smaller signals. In words.
+ */
+#define MAX_SIZE_SINGLE_SIGNAL 7400
+
+/*
  * Restore Buffer in pages
  *   4M
  */
@@ -279,9 +290,7 @@
 #define NDBMT_BLOCK_BITS 9
 #define NDBMT_BLOCK_MASK ((1 << NDBMT_BLOCK_BITS) - 1)
 #define NDBMT_BLOCK_INSTANCE_BITS 7
-#define NDBMT_MAX_BLOCK_INSTANCES (1 << NDBMT_BLOCK_INSTANCE_BITS)
-/* Proxy block 0 is not a worker */
-#define NDBMT_MAX_WORKER_INSTANCES (NDBMT_MAX_BLOCK_INSTANCES - 1)
+#define NDBMT_MAX_INSTANCES 1024
 
 #define NDB_DEFAULT_LOG_PARTS 4
 
@@ -292,15 +301,36 @@
 #define MAX_NDBMT_TC_THREADS       2
 #define MAX_NDBMT_RECEIVE_THREADS  1
 #define MAX_NDBMT_SEND_THREADS     0
-#else
+#elif NDB_VERSION_D < NDB_MAKE_VERSION(8,0,22)
 #define NDB_MAX_LOG_PARTS         32
 #define MAX_NDBMT_TC_THREADS      32
 #define MAX_NDBMT_RECEIVE_THREADS 16 
-#define MAX_NDBMT_SEND_THREADS    16 
+#define MAX_NDBMT_SEND_THREADS    16
+#else
+#define NDB_MAX_LOG_PARTS         32
+#define MAX_NDBMT_TC_THREADS      129
+#define MAX_NDBMT_RECEIVE_THREADS 65
+#define MAX_NDBMT_SEND_THREADS    32
 #endif
 
-#define MAX_NDBMT_LQH_WORKERS NDB_MAX_LOG_PARTS
-#define MAX_NDBMT_LQH_THREADS NDB_MAX_LOG_PARTS
+#define MAX_NDBMT_LQH_WORKERS 129
+#define MAX_NDBMT_LQH_THREADS 129
+#define MAX_NDBMT_QUERY_THREADS 129
+
+#define NDBMT_MAX_BLOCK_INSTANCES (MAX_NDBMT_LQH_THREADS + \
+                                   MAX_NDBMT_QUERY_THREADS + \
+                                   MAX_NDBMT_TC_THREADS + \
+                                   MAX_NDBMT_RECEIVE_THREADS + \
+                                   NDBMT_MAIN_THREADS)
+/* Proxy block 0 is not a worker */
+#define NDBMT_MAX_WORKER_INSTANCES (NDBMT_MAX_BLOCK_INSTANCES - 1)
+
+#define MAX_THREADS_TO_WATCH (MAX_NDBMT_LQH_THREADS + \
+                              MAX_NDBMT_QUERY_THREADS + \
+                              MAX_NDBMT_TC_THREADS + \
+                              MAX_NDBMT_SEND_THREADS + \
+                              MAX_NDBMT_RECEIVE_THREADS + \
+                              NDBMT_MAIN_THREADS)
 
 #define NDB_FILE_BUFFER_SIZE (256*1024)
 
@@ -310,8 +340,10 @@
  */
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_FS_RW_PAGES 32
-#else
+#elif NDB_VERSION_D < NDB_MAKE_VERSION(8,0,20)
 #define NDB_FS_RW_PAGES 268 * 4
+#else
+#define NDB_FS_RW_PAGES 268 * 8
 #endif
 
 /**
@@ -407,10 +439,10 @@ static inline void ndb_limits_constraints()
   NDB_STATIC_ASSERT(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
 
   // Default partitioning is 1 partition per LDM
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= MAX_NDB_PARTITIONS);
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= MAX_NDB_PARTITIONS);
 
   // The default hashmap should atleast support the maximum default partitioning
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_MAX_HASHMAP_BUCKETS);
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= NDB_MAX_HASHMAP_BUCKETS);
 }
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,127 +41,148 @@ extern EventLogger * g_eventLogger;
 
 //extern const unsigned Ndbcntr::g_sysTableCount;
 
-Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
-  SimulatedBlock(BACKUP, ctx, instanceNumber),
+Backup::Backup(Block_context& ctx,
+               Uint32 instanceNumber,
+               Uint32 blockNo) :
+  SimulatedBlock(blockNo, ctx, instanceNumber),
   c_nodes(c_nodePool),
   c_backups(c_backupPool)
 {
   BLOCK_CONSTRUCTOR(Backup);
   
   c_masterNodeId = getOwnNodeId();
+
+  if (blockNo == BACKUP)
+  {
+    // Add received signals
+    addRecSignal(GSN_READ_CONFIG_REQ, &Backup::execREAD_CONFIG_REQ);
+    addRecSignal(GSN_STTOR, &Backup::execSTTOR);
+    addRecSignal(GSN_DUMP_STATE_ORD, &Backup::execDUMP_STATE_ORD);
+    addRecSignal(GSN_READ_NODESCONF, &Backup::execREAD_NODESCONF);
+    addRecSignal(GSN_NODE_FAILREP, &Backup::execNODE_FAILREP);
+    addRecSignal(GSN_INCL_NODEREQ, &Backup::execINCL_NODEREQ);
+    addRecSignal(GSN_CONTINUEB, &Backup::execCONTINUEB);
+    addRecSignal(GSN_READ_CONFIG_REQ, &Backup::execREAD_CONFIG_REQ, true);
+
+    addRecSignal(GSN_SCAN_HBREP, &Backup::execSCAN_HBREP);
+    addRecSignal(GSN_TRANSID_AI, &Backup::execTRANSID_AI);
+    addRecSignal(GSN_SCAN_FRAGREF, &Backup::execSCAN_FRAGREF);
+    addRecSignal(GSN_SCAN_FRAGCONF, &Backup::execSCAN_FRAGCONF);
+
+    addRecSignal(GSN_BACKUP_TRIG_REQ, &Backup::execBACKUP_TRIG_REQ);
+    addRecSignal(GSN_TRIG_ATTRINFO, &Backup::execTRIG_ATTRINFO);
+    addRecSignal(GSN_FIRE_TRIG_ORD, &Backup::execFIRE_TRIG_ORD);
+
+    addRecSignal(GSN_LIST_TABLES_CONF, &Backup::execLIST_TABLES_CONF);
+    addRecSignal(GSN_GET_TABINFOREF, &Backup::execGET_TABINFOREF);
+    addRecSignal(GSN_GET_TABINFO_CONF, &Backup::execGET_TABINFO_CONF);
+
+    addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Backup::execCREATE_TRIG_IMPL_REF);
+    addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Backup::execCREATE_TRIG_IMPL_CONF);
+
+    addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Backup::execDROP_TRIG_IMPL_REF);
+    addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Backup::execDROP_TRIG_IMPL_CONF);
+
+    addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Backup::execDIH_SCAN_TAB_CONF);
+
+    addRecSignal(GSN_FSOPENREF, &Backup::execFSOPENREF, true);
+    addRecSignal(GSN_FSOPENCONF, &Backup::execFSOPENCONF);
+
+    addRecSignal(GSN_FSCLOSEREF, &Backup::execFSCLOSEREF, true);
+    addRecSignal(GSN_FSCLOSECONF, &Backup::execFSCLOSECONF);
+
+    addRecSignal(GSN_FSAPPENDREF, &Backup::execFSAPPENDREF, true);
+    addRecSignal(GSN_FSAPPENDCONF, &Backup::execFSAPPENDCONF);
+
+    addRecSignal(GSN_FSREMOVEREF, &Backup::execFSREMOVEREF, true);
+    addRecSignal(GSN_FSREMOVECONF, &Backup::execFSREMOVECONF);
+
+    addRecSignal(GSN_FSREADREF, &Backup::execFSREADREF, true);
+    addRecSignal(GSN_FSREADCONF, &Backup::execFSREADCONF);
+
+    addRecSignal(GSN_FSWRITEREF, &Backup::execFSWRITEREF, true);
+    addRecSignal(GSN_FSWRITECONF, &Backup::execFSWRITECONF);
+
+    /*****/
+    addRecSignal(GSN_BACKUP_REQ, &Backup::execBACKUP_REQ);
+    addRecSignal(GSN_ABORT_BACKUP_ORD, &Backup::execABORT_BACKUP_ORD);
+
+    addRecSignal(GSN_DEFINE_BACKUP_REQ, &Backup::execDEFINE_BACKUP_REQ);
+    addRecSignal(GSN_DEFINE_BACKUP_REF, &Backup::execDEFINE_BACKUP_REF);
+    addRecSignal(GSN_DEFINE_BACKUP_CONF, &Backup::execDEFINE_BACKUP_CONF);
+
+    addRecSignal(GSN_START_BACKUP_REQ, &Backup::execSTART_BACKUP_REQ);
+    addRecSignal(GSN_START_BACKUP_REF, &Backup::execSTART_BACKUP_REF);
+    addRecSignal(GSN_START_BACKUP_CONF, &Backup::execSTART_BACKUP_CONF);
+
+    addRecSignal(GSN_BACKUP_FRAGMENT_REQ, &Backup::execBACKUP_FRAGMENT_REQ);
+    addRecSignal(GSN_BACKUP_FRAGMENT_REF, &Backup::execBACKUP_FRAGMENT_REF);
+    addRecSignal(GSN_BACKUP_FRAGMENT_CONF, &Backup::execBACKUP_FRAGMENT_CONF);
+
+    addRecSignal(GSN_BACKUP_FRAGMENT_COMPLETE_REP,
+                 &Backup::execBACKUP_FRAGMENT_COMPLETE_REP);
+
+    addRecSignal(GSN_STOP_BACKUP_REQ, &Backup::execSTOP_BACKUP_REQ);
+    addRecSignal(GSN_STOP_BACKUP_REF, &Backup::execSTOP_BACKUP_REF);
+    addRecSignal(GSN_STOP_BACKUP_CONF, &Backup::execSTOP_BACKUP_CONF);
   
-  // Add received signals
-  addRecSignal(GSN_READ_CONFIG_REQ, &Backup::execREAD_CONFIG_REQ);
-  addRecSignal(GSN_STTOR, &Backup::execSTTOR);
-  addRecSignal(GSN_DUMP_STATE_ORD, &Backup::execDUMP_STATE_ORD);
-  addRecSignal(GSN_READ_NODESCONF, &Backup::execREAD_NODESCONF);
-  addRecSignal(GSN_NODE_FAILREP, &Backup::execNODE_FAILREP);
-  addRecSignal(GSN_INCL_NODEREQ, &Backup::execINCL_NODEREQ);
-  addRecSignal(GSN_CONTINUEB, &Backup::execCONTINUEB);
-  addRecSignal(GSN_READ_CONFIG_REQ, &Backup::execREAD_CONFIG_REQ, true);  
-
-  addRecSignal(GSN_SCAN_HBREP, &Backup::execSCAN_HBREP);
-  addRecSignal(GSN_TRANSID_AI, &Backup::execTRANSID_AI);
-  addRecSignal(GSN_SCAN_FRAGREF, &Backup::execSCAN_FRAGREF);
-  addRecSignal(GSN_SCAN_FRAGCONF, &Backup::execSCAN_FRAGCONF);
-
-  addRecSignal(GSN_BACKUP_TRIG_REQ, &Backup::execBACKUP_TRIG_REQ);
-  addRecSignal(GSN_TRIG_ATTRINFO, &Backup::execTRIG_ATTRINFO);
-  addRecSignal(GSN_FIRE_TRIG_ORD, &Backup::execFIRE_TRIG_ORD);
-
-  addRecSignal(GSN_LIST_TABLES_CONF, &Backup::execLIST_TABLES_CONF);
-  addRecSignal(GSN_GET_TABINFOREF, &Backup::execGET_TABINFOREF);
-  addRecSignal(GSN_GET_TABINFO_CONF, &Backup::execGET_TABINFO_CONF);
-
-  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Backup::execCREATE_TRIG_IMPL_REF);
-  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Backup::execCREATE_TRIG_IMPL_CONF);
-
-  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Backup::execDROP_TRIG_IMPL_REF);
-  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Backup::execDROP_TRIG_IMPL_CONF);
-
-  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Backup::execDIH_SCAN_TAB_CONF);
-
-  addRecSignal(GSN_FSOPENREF, &Backup::execFSOPENREF, true);
-  addRecSignal(GSN_FSOPENCONF, &Backup::execFSOPENCONF);
-
-  addRecSignal(GSN_FSCLOSEREF, &Backup::execFSCLOSEREF, true);
-  addRecSignal(GSN_FSCLOSECONF, &Backup::execFSCLOSECONF);
-
-  addRecSignal(GSN_FSAPPENDREF, &Backup::execFSAPPENDREF, true);
-  addRecSignal(GSN_FSAPPENDCONF, &Backup::execFSAPPENDCONF);
-
-  addRecSignal(GSN_FSREMOVEREF, &Backup::execFSREMOVEREF, true);
-  addRecSignal(GSN_FSREMOVECONF, &Backup::execFSREMOVECONF);
-
-  addRecSignal(GSN_FSREADREF, &Backup::execFSREADREF, true);
-  addRecSignal(GSN_FSREADCONF, &Backup::execFSREADCONF);
-
-  addRecSignal(GSN_FSWRITEREF, &Backup::execFSWRITEREF, true);
-  addRecSignal(GSN_FSWRITECONF, &Backup::execFSWRITECONF);
-
-  /*****/
-  addRecSignal(GSN_BACKUP_REQ, &Backup::execBACKUP_REQ);
-  addRecSignal(GSN_ABORT_BACKUP_ORD, &Backup::execABORT_BACKUP_ORD);
-
-  addRecSignal(GSN_DEFINE_BACKUP_REQ, &Backup::execDEFINE_BACKUP_REQ);
-  addRecSignal(GSN_DEFINE_BACKUP_REF, &Backup::execDEFINE_BACKUP_REF);
-  addRecSignal(GSN_DEFINE_BACKUP_CONF, &Backup::execDEFINE_BACKUP_CONF);
-
-  addRecSignal(GSN_START_BACKUP_REQ, &Backup::execSTART_BACKUP_REQ);
-  addRecSignal(GSN_START_BACKUP_REF, &Backup::execSTART_BACKUP_REF);
-  addRecSignal(GSN_START_BACKUP_CONF, &Backup::execSTART_BACKUP_CONF);
+    //addRecSignal(GSN_BACKUP_STATUS_REQ, &Backup::execBACKUP_STATUS_REQ);
+    //addRecSignal(GSN_BACKUP_STATUS_CONF, &Backup::execBACKUP_STATUS_CONF);
   
-  addRecSignal(GSN_BACKUP_FRAGMENT_REQ, &Backup::execBACKUP_FRAGMENT_REQ);
-  addRecSignal(GSN_BACKUP_FRAGMENT_REF, &Backup::execBACKUP_FRAGMENT_REF);
-  addRecSignal(GSN_BACKUP_FRAGMENT_CONF, &Backup::execBACKUP_FRAGMENT_CONF);
+    addRecSignal(GSN_UTIL_SEQUENCE_REF, &Backup::execUTIL_SEQUENCE_REF);
+    addRecSignal(GSN_UTIL_SEQUENCE_CONF, &Backup::execUTIL_SEQUENCE_CONF);
 
-  addRecSignal(GSN_BACKUP_FRAGMENT_COMPLETE_REP,
-               &Backup::execBACKUP_FRAGMENT_COMPLETE_REP);
+    addRecSignal(GSN_REDO_STATE_REP, &Backup::execREDO_STATE_REP);
+
+    addRecSignal(GSN_WAIT_GCP_REF, &Backup::execWAIT_GCP_REF);
+    addRecSignal(GSN_WAIT_GCP_CONF, &Backup::execWAIT_GCP_CONF);
+    addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
+    addRecSignal(GSN_BACKUP_LOCK_TAB_REF, &Backup::execBACKUP_LOCK_TAB_REF);
+
+    addRecSignal(GSN_RESTORABLE_GCI_REP, &Backup::execRESTORABLE_GCI_REP);
+    addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_REQ,
+                 &Backup::execINFORM_BACKUP_DROP_TAB_REQ);
+    addRecSignal(GSN_WAIT_LCP_IDLE_REQ, &Backup::execWAIT_LCP_IDLE_REQ);
+
+    addRecSignal(GSN_LCP_STATUS_REQ, &Backup::execLCP_STATUS_REQ);
+
+    /**
+     * Testing
+     */
+    addRecSignal(GSN_BACKUP_REF, &Backup::execBACKUP_REF);
+    addRecSignal(GSN_BACKUP_CONF, &Backup::execBACKUP_CONF);
+    addRecSignal(GSN_BACKUP_ABORT_REP, &Backup::execBACKUP_ABORT_REP);
+    addRecSignal(GSN_BACKUP_COMPLETE_REP, &Backup::execBACKUP_COMPLETE_REP);
   
-  addRecSignal(GSN_STOP_BACKUP_REQ, &Backup::execSTOP_BACKUP_REQ);
-  addRecSignal(GSN_STOP_BACKUP_REF, &Backup::execSTOP_BACKUP_REF);
-  addRecSignal(GSN_STOP_BACKUP_CONF, &Backup::execSTOP_BACKUP_CONF);
-  
-  //addRecSignal(GSN_BACKUP_STATUS_REQ, &Backup::execBACKUP_STATUS_REQ);
-  //addRecSignal(GSN_BACKUP_STATUS_CONF, &Backup::execBACKUP_STATUS_CONF);
-  
-  addRecSignal(GSN_UTIL_SEQUENCE_REF, &Backup::execUTIL_SEQUENCE_REF);
-  addRecSignal(GSN_UTIL_SEQUENCE_CONF, &Backup::execUTIL_SEQUENCE_CONF);
+    addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
+    addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
 
-  addRecSignal(GSN_REDO_STATE_REP, &Backup::execREDO_STATE_REP);
+    addRecSignal(GSN_SYNC_PAGE_WAIT_REP, &Backup::execSYNC_PAGE_WAIT_REP);
+    addRecSignal(GSN_SYNC_PAGE_CACHE_CONF, &Backup::execSYNC_PAGE_CACHE_CONF);
+    addRecSignal(GSN_SYNC_EXTENT_PAGES_CONF,
+                 &Backup::execSYNC_EXTENT_PAGES_CONF);
 
-  addRecSignal(GSN_WAIT_GCP_REF, &Backup::execWAIT_GCP_REF);
-  addRecSignal(GSN_WAIT_GCP_CONF, &Backup::execWAIT_GCP_CONF);
-  addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
-  addRecSignal(GSN_BACKUP_LOCK_TAB_REF, &Backup::execBACKUP_LOCK_TAB_REF);
+    addRecSignal(GSN_DBINFO_SCANREQ, &Backup::execDBINFO_SCANREQ);
 
-  addRecSignal(GSN_RESTORABLE_GCI_REP, &Backup::execRESTORABLE_GCI_REP);
-  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_REQ,
-               &Backup::execINFORM_BACKUP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_LCP_IDLE_REQ, &Backup::execWAIT_LCP_IDLE_REQ);
+    addRecSignal(GSN_CHECK_NODE_RESTARTCONF,
+                 &Backup::execCHECK_NODE_RESTARTCONF);
+    m_is_query_block = false;
+  }
+  else
+  {
+    m_is_query_block = true;
+    ndbrequire(blockNo == QBACKUP);
 
-  addRecSignal(GSN_LCP_STATUS_REQ, &Backup::execLCP_STATUS_REQ);
+    addRecSignal(GSN_READ_CONFIG_REQ, &Backup::execREAD_CONFIG_REQ);
+    addRecSignal(GSN_STTOR, &Backup::execSTTOR);
+    addRecSignal(GSN_DUMP_STATE_ORD, &Backup::execDUMP_STATE_ORD);
+    addRecSignal(GSN_READ_NODESCONF, &Backup::execREAD_NODESCONF);
+    addRecSignal(GSN_NODE_FAILREP, &Backup::execNODE_FAILREP);
+    addRecSignal(GSN_INCL_NODEREQ, &Backup::execINCL_NODEREQ);
+    addRecSignal(GSN_CONTINUEB, &Backup::execCONTINUEB);
+    addRecSignal(GSN_READ_CONFIG_REQ, &Backup::execREAD_CONFIG_REQ, true);
+  }
 
-  /**
-   * Testing
-   */
-  addRecSignal(GSN_BACKUP_REF, &Backup::execBACKUP_REF);
-  addRecSignal(GSN_BACKUP_CONF, &Backup::execBACKUP_CONF);
-  addRecSignal(GSN_BACKUP_ABORT_REP, &Backup::execBACKUP_ABORT_REP);
-  addRecSignal(GSN_BACKUP_COMPLETE_REP, &Backup::execBACKUP_COMPLETE_REP);
-  
-  addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
-  addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
-
-  addRecSignal(GSN_SYNC_PAGE_WAIT_REP, &Backup::execSYNC_PAGE_WAIT_REP);
-  addRecSignal(GSN_SYNC_PAGE_CACHE_CONF, &Backup::execSYNC_PAGE_CACHE_CONF);
-  addRecSignal(GSN_SYNC_EXTENT_PAGES_CONF,
-               &Backup::execSYNC_EXTENT_PAGES_CONF);
-
-  addRecSignal(GSN_DBINFO_SCANREQ, &Backup::execDBINFO_SCANREQ);
-
-  addRecSignal(GSN_CHECK_NODE_RESTARTCONF,
-               &Backup::execCHECK_NODE_RESTARTCONF);
   {
     CallbackEntry& ce = m_callbackEntry[THE_NULL_CALLBACK];
     ce.m_function = TheNULLCallback.m_callbackFunction;
@@ -314,7 +335,13 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
                                         CFG_LQH_FRAG,
                                         &noDeleteLcpFile));
 
-  ndbrequire(noBackups == 1); /* To make sure we fix things if we allow other values */
+  if (m_is_query_block)
+  {
+    noTables = 0;
+    noFrags = 0;
+  }
+  /* To make sure we fix things if we allow other values */
+  ndbrequire(noBackups == 1);
 
   /**
    * On top of Backup records we need for LCP:

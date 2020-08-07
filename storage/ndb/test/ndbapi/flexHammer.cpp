@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,11 +154,11 @@ void
 resetThreads(ThreadNdb *threadArrayP) {
 
   for (int i = 0; i < tNoOfThreads ; i++)
-    {
-      threadArrayP[i].threadReady = 0;
-      threadArrayP[i].threadResult = 0;
-      threadArrayP[i].threadStart = stIdle;
-    }
+  {
+    threadArrayP[i].threadReady = 0;
+    threadArrayP[i].threadResult = 0;
+    threadArrayP[i].threadStart = stIdle;
+  }
 } // resetThreads
 
 void 
@@ -224,8 +224,11 @@ int main(int argc, char** argv)
 
   // Create thread data array
   pThreads = new ThreadNdb[tNoOfThreads];
-  // NdbThread_SetConcurrencyLevel(tNoOfThreads + 2);
-
+  if (pThreads == nullptr)
+  {
+    ndbout << "Failed to allocate pThreads" << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
   // Create and init Ndb object
   Ndb_cluster_connection con;
   if(con.connect(12, 5, 1) != 0)

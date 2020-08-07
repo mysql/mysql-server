@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -218,7 +218,6 @@ private:
     RI_NOWAIT_SHIFT      =  3,
 
     /* Currently unused */
-    RI_CLEAR_SHIFT4      =  4,
     RI_CLEAR_SHIFT5      =  5,
     RI_CLEAR_SHIFT6      =  6,
     RI_CLEAR_SHIFT7      =  7,
@@ -288,6 +287,7 @@ private:
  * T = no triggers            - 1  Bit (1)
  * U = Operation came from UTIL - 1 Bit (2)
  * w = NoWait flag            = 1 Bit (3)
+ * Q = Query Thread Flag      = 1 Bit (4)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -298,7 +298,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *   FTUw      llgnqpdisooorrAPDcumxz
+ *   FTUwQ     llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -719,7 +719,6 @@ UintR
 LqhKeyReq::getLongClearBits(const UintR& requestInfo)
 {
   const Uint32 mask =
-    (1 << RI_CLEAR_SHIFT4) |
     (1 << RI_CLEAR_SHIFT5) |
     (1 << RI_CLEAR_SHIFT6) |
     (1 << RI_CLEAR_SHIFT7) |

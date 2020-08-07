@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -377,7 +377,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
         redomem += (16 - tmp);
       }
 
-      filepages += lqhInstances * redomem; // Add to RG_FILE_BUFFERS
+      filepages += logParts * redomem; // Add to RG_FILE_BUFFERS
     }
   }
 
@@ -479,12 +479,15 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     /**
      * Disk page buffer memory
      */
+    Uint32 recoverInstances = globalData.ndbMtRecoverThreads +
+                              globalData.ndbMtQueryThreads;
     Uint64 page_buffer = 64*1024*1024;
     ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY,&page_buffer);
 
     Uint32 pages = 0;
     pages += Uint32(page_buffer / GLOBAL_PAGE_SIZE); // in pages
     pages += LCP_RESTORE_BUFFER * lqhInstances;
+    pages += LCP_RESTORE_BUFFER * recoverInstances;
 
     pgman_pages += pages;
     pgman_pages += 64;

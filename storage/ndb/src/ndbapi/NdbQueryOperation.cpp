@@ -3478,7 +3478,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   {
     Uint32 scan_flags = 0;  // TODO: Specify with ScanOptions::SO_SCANFLAGS
 
-    bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan);
+    bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan) || true;
     bool rangeScan = false;
 
     /* Handle IndexScan specifics */

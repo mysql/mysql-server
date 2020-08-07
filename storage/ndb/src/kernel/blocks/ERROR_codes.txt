@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -462,9 +462,6 @@ DBTC LONG SIGNAL TESTING
 8066: Consume all but 1 long section segments on next TCKEYREQ
 8067: Consume all long section segments on next TCKEYREQ
 8068: Free all segments hoarded by 8065, 8066, 8067
-
-8069: Always send 'short' LQHKEYREQ to LQH
-8070: Always send 'short' SCANFRAGREQ to LQH
 
 8074: Drop first fragment of fragmented SCANTABREQ
 8075: Drop middle fragments of fragmented SCANTABREQ

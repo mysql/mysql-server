@@ -60,6 +60,18 @@
 #include <DbspjProxy.hpp>
 #include <thrman.hpp>
 #include <trpman.hpp>
+#include <Dbqlqh.hpp>
+#include <Dbqacc.hpp>
+#include <Dbqtup.hpp>
+#include <Dbqtux.hpp>
+#include <QBackup.hpp>
+#include <QRestore.hpp>
+#include <DbqlqhProxy.hpp>
+#include <DbqaccProxy.hpp>
+#include <DbqtupProxy.hpp>
+#include <DbqtuxProxy.hpp>
+#include <QBackupProxy.hpp>
+#include <QRestoreProxy.hpp>
 #include <mt.hpp>
 #include "portlib/NdbMem.h"
 
@@ -150,7 +162,15 @@ SimBlockList::load(EmulatorData& data){
     theList[22] = NEW_BLOCK(Trpman)(ctx);
   else
     theList[22] = NEW_BLOCK(TrpmanProxy)(ctx);
-  assert(NO_OF_BLOCKS == 23);
+
+  /* Create Query/Recover Blocks */
+  theList[23] = NEW_BLOCK(DbqlqhProxy)(ctx);
+  theList[24] = NEW_BLOCK(DbqaccProxy)(ctx);
+  theList[25] = NEW_BLOCK(DbqtupProxy)(ctx);
+  theList[26] = NEW_BLOCK(DbqtuxProxy)(ctx);
+  theList[27] = NEW_BLOCK(QBackupProxy)(ctx);
+  theList[28] = NEW_BLOCK(QRestoreProxy)(ctx);
+  assert(NO_OF_BLOCKS == 29);
 
   // Check that all blocks could be created
   for (int i = 0; i < noOfBlocks; i++)
@@ -178,7 +198,10 @@ SimBlockList::load(EmulatorData& data){
     */
     mt_init_thr_map();
     for (int i = 0; i < noOfBlocks; i++)
-      theList[i]->loadWorkers();
+    {
+      if (theList[i])
+        theList[i]->loadWorkers();
+    }
     mt_finalize_thr_map();
   }
 }
@@ -229,6 +252,11 @@ Uint64 SimBlockList::getTransactionMemoryNeed(
     ldm_instance_count,
     mgm_cfg,
     use_reserved);
+
+  byte_count += Dbqacc::getTransactionMemoryNeed();
+  byte_count += Dbqlqh::getTransactionMemoryNeed();
+  byte_count += Dbqtup::getTransactionMemoryNeed();
+  byte_count += Dbqtux::getTransactionMemoryNeed();
   return byte_count;
 }
 

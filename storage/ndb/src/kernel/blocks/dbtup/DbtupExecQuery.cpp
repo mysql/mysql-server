@@ -51,6 +51,13 @@
 //#define DEBUG_DELETE_NR 1
 //#define DEBUG_LCP_LGMAN 1
 //#define DEBUG_LCP_SKIP_DELETE 1
+//#define DEBUG_DISK 1
+#endif
+
+#ifdef DEBUG_DISK
+#define DEB_DISK(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DISK(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -292,25 +299,50 @@ Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct, Tablerec *regTabPtr)
 /* -----------       INSERT_ACTIVE_OP_LIST            -------------- */
 /* ----------------------------------------------------------------- */
 bool 
-Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
-			  KeyReqStruct* req_struct)
+Dbtup::prepareActiveOpList(OperationrecPtr regOperPtr,
+                           KeyReqStruct* req_struct)
 {
+  /**
+   * We are executing in the LDM thread since this is a write operation.
+   * Thus we are protected from concurrent write activity from other
+   * threads. We are however not protected against READ activities in the
+   * query thread. Readers use the linked list of operations on the
+   * row to find out which version of the row to use.
+   *
+   * We cannot publish our new row version until it is fully written,
+   * thus it is ok to become the new leader of the write operations since
+   * we are protected from other write row activity, but it is not ok to
+   * change the linked list of operations on the row until we have completed
+   * the write of the row.
+   *
+   * Therefore we divide insertActiveOpList into a prepareActiveOpList and
+   * later call insertActiveOpList when the write is completed and we are
+   * ready to insert ourselves into the linked list of operations on the
+   * record.
+   *
+   * For initial inserts we place ourselves into the linked list immediately
+   * since REFRESH operations are always performed with exclusive
+   * access to the fragment and thus no interaction with query threads is
+   * possible.
+   */
+  jam();
   OperationrecPtr prevOpPtr;
   ndbrequire(!regOperPtr.p->op_struct.bit_field.in_active_list);
-  regOperPtr.p->op_struct.bit_field.in_active_list= true;
   req_struct->prevOpPtr.i= 
     prevOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
   regOperPtr.p->prevActiveOp= prevOpPtr.i;
-  regOperPtr.p->nextActiveOp= RNIL;
   regOperPtr.p->m_undo_buffer_space= 0;
-  req_struct->m_tuple_ptr->m_operation_ptr_i= regOperPtr.i;
-  if (prevOpPtr.i == RNIL) {
+  ndbrequire(!m_is_in_query_thread);
+  if (prevOpPtr.i == RNIL)
+  {
     return true;
-  } else {
+  }
+  else
+  {
     jam();
+    jamLineDebug(Uint16(prevOpPtr.i));
     ndbrequire(c_operation_pool.getValidPtr(prevOpPtr));
     req_struct->prevOpPtr.p = prevOpPtr.p;
-    prevOpPtr.p->nextActiveOp= regOperPtr.i;
 
     regOperPtr.p->op_struct.bit_field.m_wait_log_buffer= 
       prevOpPtr.p->op_struct.bit_field.m_wait_log_buffer;
@@ -373,6 +405,31 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
   }
 }
 
+void
+Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
+                          KeyReqStruct* req_struct,
+                          Tuple_header *tuple_ptr)
+
+{
+  /**
+   * We have already prepared inserting ourselves into the list by
+   * setting prevActiveOp to point to the previous leader.
+   * We have not yet put ourselves last in the list, this is done
+   * by updating the row operation pointer and by updating nextActiveOp
+   * to point to us. We do this after performing the changes to ensure
+   * that inserting us in the list happens after performing the changes
+   * related to the operation.
+   */
+  jam();
+  regOperPtr.p->op_struct.bit_field.in_active_list = true;
+  tuple_ptr->m_operation_ptr_i = regOperPtr.i;
+  if (req_struct->prevOpPtr.i != RNIL)
+  {
+    jam();
+    req_struct->prevOpPtr.p->nextActiveOp = regOperPtr.i;
+  }
+}
+
 bool
 Dbtup::setup_read(KeyReqStruct *req_struct,
 		  Operationrec* regOperPtr,
@@ -386,7 +443,8 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
   if (unlikely(req_struct->m_reorg != ScanFragReq::REORG_ALL))
   {
     const Uint32 moved = bits & Tuple_header::REORG_MOVE;
-    if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
+    if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED &&
+            moved == 0) ||
            (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
       /**
@@ -395,6 +453,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
        * only non-moved rows and this happens also in reorg delete phase,
        * but it is done for normal scans in this phase.
        */
+      jamDebug();
       terrorCode= ZTUPLE_DELETED_ERROR;
       return false;
     }
@@ -413,28 +472,43 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
   do {
     Uint32 savepointId= regOperPtr->savepointId;
     bool dirty= req_struct->dirty_op;
-    
-    ndbrequire(c_operation_pool.getValidPtr(currOpPtr));
-    const bool sameTrans= c_lqh->is_same_trans(currOpPtr.p->userpointer,
-                                               req_struct->trans_id1,
-                                               req_struct->trans_id2);
+    Dblqh *ldm_lqh = nullptr;
+    Dbtup *ldm_tup = this;
+
+    /**
+     * currOpPtr.i is an operation record in the LDM thread owning
+     * the fragment. We could however be a query thread, we have
+     * setup m_ldm_instance_used to always point to the owning
+     * LDM threads block instance for DBLQH, DBTUP and DBACC.
+     */
+    currOpPtr.p = m_ldm_instance_used->getOperationPtrP(currOpPtr.i);
+    ldm_lqh = c_lqh->m_ldm_instance_used;
+    ldm_tup = m_ldm_instance_used;
+
+    const bool sameTrans= ldm_lqh->is_same_trans(currOpPtr.p->userpointer,
+                                                 req_struct->trans_id1,
+                                                 req_struct->trans_id2);
     /**
      * Read committed in same trans reads latest copy
      */
     if(dirty && !sameTrans)
     {
+      jamDebug();
       savepointId= 0;
     }
     else if(sameTrans)
     {
       // Use savepoint even in read committed mode
+      jamDebug();
       dirty= false;
     }
 
     /* found == true indicates that savepoint is some state
      * within tuple's current transaction's uncommitted operations
      */
-    const bool found= find_savepoint(currOpPtr, savepointId);
+    const bool found = ldm_tup->find_savepoint(currOpPtr,
+                                               savepointId,
+                                               jamBuffer());
     
     const Uint32 currOp= currOpPtr.p->op_type;
     
@@ -457,6 +531,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
        ((dirty || !found) && is_insert))
     {
       /* Tuple not visible to this read operation */
+      jamDebug();
       terrorCode= ZTUPLE_DELETED_ERROR;
       break;
     }
@@ -464,15 +539,18 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     if(dirty || !found)
     {
       /* Read existing committed tuple */
+      jamDebug();
     }
     else
     {
+      jamDebug();
       req_struct->m_tuple_ptr=
         get_copy_tuple(&currOpPtr.p->m_copy_tuple_location);
     }
 
     if (regTabPtr->need_expand(disk))
     {
+      jamDebug();
       prepare_read(req_struct, regTabPtr, disk);
     }
     
@@ -734,6 +812,17 @@ void Dbtup::prepare_tab_pointers(Uint32 frag_id)
   prepare_tabptr = tabptr;
 }
 
+void Dbtup::prepare_tab_pointers_acc(Uint32 table_id, Uint32 frag_id)
+{
+  TablerecPtr tablePtr;
+  tablePtr.i = table_id;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  FragrecordPtr fragPtr;
+  getFragmentrec(fragPtr, frag_id, tablePtr.p);
+  prepare_fragptr = fragPtr;
+  prepare_tabptr = tablePtr;
+}
+
 void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
                              Uint32 page_idx,
                              Uint32 frag_id)
@@ -772,12 +861,14 @@ void Dbtup::prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx)
   {
     Uint32 fixed_part_size_in_words =
       prepare_tabptr.p->m_offsets[MM].m_fix_header_size;
+    acquire_frag_page_map_mutex_read(prepare_fragptr.p);
     page_id = getRealpid(prepare_fragptr.p, page_id);
+    release_frag_page_map_mutex_read(prepare_fragptr.p);
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
     Uint32 *tuple_ptr = get_ptr(&pagePtr,
-                                         &key,
-                                         prepare_tabptr.p);
+                                &key,
+                                prepare_tabptr.p);
     jamDebug();
     prepare_pageptr = pagePtr;
     prepare_page_idx = page_idx;
@@ -821,13 +912,14 @@ void Dbtup::prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx)
   }
 }
 
-bool Dbtup::execTUPKEYREQ(Signal* signal) 
+bool Dbtup::execTUPKEYREQ(Signal* signal)
 {
    TupKeyReq * tupKeyReq= (TupKeyReq *)signal->getDataPtr();
    Ptr<Operationrec> operPtr = prepare_oper_ptr;
    KeyReqStruct req_struct(this);
 
    jamEntryDebug();
+   jamLineDebug(Uint16(prepare_oper_ptr.i));
 
 #ifdef VM_TRACE
    {
@@ -902,6 +994,8 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.signal= signal;
    req_struct.operPtrP = regOperPtr;
    regOperPtr->fragmentPtr = prepare_fragptr.i;
+   regOperPtr->prevActiveOp = RNIL;
+   regOperPtr->nextActiveOp = RNIL;
    req_struct.num_fired_triggers= 0;
    req_struct.no_exec_instructions = 0;
    req_struct.read_length= 0;
@@ -1047,7 +1141,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
     * scan reads and for inserts and refreshs. So it is not used
     * for TUX scans.
     */
-   Uint32 pageid = req_struct.frag_page_id= keyRef1;
+   Uint32 pageid = regOperPtr->fragPageId = req_struct.frag_page_id = keyRef1;
    Uint32 pageidx = regOperPtr->m_tuple_location.m_page_idx= keyRef2;
 
    const Uint32 transId1 = tupKeyReq->transId1;
@@ -1083,6 +1177,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
         * Only LCP reads a copy-tuple "directly"
         */
        ndbassert(disk_page == RNIL);
+       ndbrequire(!m_is_query_block);
        setup_lcp_read_copy_tuple(&req_struct, regOperPtr, regTabPtr);
      }
      else
@@ -1094,12 +1189,23 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
        setup_fixed_tuple_ref_opt(&req_struct);
        setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
+       /**
+        * When coming here as a Query thread we must grab a mutex to ensure
+        * that the row version we see is written properly, once we have
+        * retrieved the row version we need no more protection since the
+        * next change either comes through an ABORT or a COMMIT operation
+        * and these are all exclusive access that first will ensure that no
+        * query threads are executing on the fragment before proceeding.
+        */
+       jamDebug();
+       acquire_frag_mutex_read(regFragPtr, pageid);
        if (unlikely(req_struct.m_tuple_ptr->m_header_bits &
                     Tuple_header::FREE))
        {
          jam();
          terrorCode = ZTUPLE_DELETED_ERROR;
          tupkeyErrorLab(&req_struct);
+         release_frag_mutex_read(regFragPtr, pageid);
          return false;
        }
        if (unlikely(setup_read(&req_struct, regOperPtr, regTabPtr, 
@@ -1107,8 +1213,20 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        {
          jam();
          tupkeyErrorLab(&req_struct);
+         release_frag_mutex_read(regFragPtr, pageid);
          return false;
        }
+       /* Check checksum with mutex protection. */
+       if (unlikely(((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+           (calculateChecksum(req_struct.m_tuple_ptr, regTabPtr) != 0)) ||
+            ERROR_INSERTED(4036)))
+       {
+         jam();
+         release_frag_mutex_read(regFragPtr, pageid);
+         corruptedTupleDetected(&req_struct, regTabPtr);
+         return false;
+       }
+       release_frag_mutex_read(regFragPtr, pageid);
      }
      if (handleReadReq(signal, regOperPtr, regTabPtr, &req_struct) != -1)
      {
@@ -1121,13 +1239,23 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        // Write operations set the state to STARTED indicating that they
        // are waiting for the Commit or Abort decision.
        /* ---------------------------------------------------------------- */
+       /**
+        * We could release fragment access here for read key readers, but not
+        * for scan operations.
+        */
        returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_IDLE);
        return true;
      }
      jamDebug();
      return false;
    }
+   /**
+    * DBQTUP can come here when executing restore, but query thread should
+    * not arrive here.
+    */
+   ndbrequire(!m_is_in_query_thread);
    req_struct.changeMask.clear();
+   Tuple_header *tuple_ptr = nullptr;
 
    if (!Local_key::isInvalid(pageid, pageidx))
    {
@@ -1135,17 +1263,22 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    }
    else
    {
+     regOperPtr->op_struct.bit_field.in_active_list = false;
      regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 0;
+     req_struct.prevOpPtr.i = RNIL;
      if (Roptype == ZINSERT)
      {
        // No tuple allocated yet
+       jamDebug();
        goto do_insert;
      }
      if (Roptype == ZREFRESH)
      {
        // No tuple allocated yet
+       jamDebug();
        goto do_refresh;
      }
+     ndbabort();
    }
    ndbassert(!isCopyTuple(pageid, pageidx));
    /**
@@ -1154,22 +1287,112 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
    setup_fixed_tuple_ref_opt(&req_struct);
    setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
+   tuple_ptr = req_struct.m_tuple_ptr;
 
-   if(insertActiveOpList(operPtr, &req_struct))
+   if (prepareActiveOpList(operPtr, &req_struct))
    {
+     m_base_header_bits = tuple_ptr->m_header_bits;
      if(Roptype == ZINSERT)
      {
        jam();
    do_insert:
        Local_key accminupdate;
        Local_key * accminupdateptr = &accminupdate;
-       if (unlikely(handleInsertReq(signal, operPtr,
-                                    prepare_fragptr, regTabPtr, &req_struct,
-                                    &accminupdateptr) == -1))
+       if (unlikely(handleInsertReq(signal,
+                                    operPtr,
+                                    prepare_fragptr,
+                                    regTabPtr,
+                                    &req_struct,
+                                    &accminupdateptr,
+                                    false) == -1))
        {
          return false;
        }
 
+       if (tuple_ptr != nullptr)
+       {
+         jam();
+         acquire_frag_mutex(regFragPtr, pageid);
+         /**
+          * Updates of checksum needs to be protected during non-initial
+          * INSERTs.
+          */
+         if (tuple_ptr->m_header_bits != m_base_header_bits)
+         {
+           /**
+            * The checksum is invalid if the ALLOC flag is set in the
+            * header bits, but there is no problem in recalculating a
+            * new incorrect checksum. So we will perform this calculation
+            * even when it isn't required to do it.
+            *
+            * The bits must still be updated as other threads can look
+            * at some bits even before checksum has been set.
+            * Updating header bits need always be protected by the TUP
+            * fragment mutex.
+            */
+           Uint32 old_header = tuple_ptr->m_header_bits;
+           tuple_ptr->m_header_bits = m_base_header_bits;
+           updateChecksum(tuple_ptr,
+                          regTabPtr,
+                          old_header,
+                          tuple_ptr->m_header_bits);
+         }
+
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+         /**
+          * Verify that we didn't mess up the checksum
+          * If the ALLOC flag is set it means that the row hasn't been
+          * committed yet, in this state the checksum isn't yet properly
+          * set. Thus it makes no sense to verify it.
+          */
+         if (tuple_ptr != nullptr &&
+             ((tuple_ptr->m_header_bits & Tuple_header::ALLOC) == 0) &&
+             (regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+             (calculateChecksum(tuple_ptr, regTabPtr) != 0))
+         {
+           ndbabort();
+         }
+#endif
+         /**
+          * Prepare of INSERT operations is different dependent on whether the
+          * row existed before or not (it can exist before if we had a DELETE
+          * operation before it in the same transaction). If the row didn't
+          * exist then no one can see the row until we have filled in the
+          * local key in DBACC which happens below in the call to accminupdate.
+          *
+          * If the row existed before we need to grab a mutex to ensure that
+          * concurrent key readers see a consistent view of the row. We need
+          * to update the row before we execute the TUX triggers since they
+          * make use of the linked list of operations on the row and this
+          * needs to be visible when executing the prepare insert triggers
+          * on the TUX index.
+          *
+          * The INSERT is made visible to other read operations through the
+          * call to insertActiveOpList, this includes making it visible to
+          * trigger code. If the INSERT is aborted, the inserted row will
+          * be visible to read operations from the same transaction for a
+          * short time, but first of all reading rows concurrently with an
+          * INSERT does not deliver guaranteed results in the first place
+          * and second if the transaction aborts, it should not consider
+          * the read value anyways. So it should be safe to release the
+          * mutex and make the new row visible immediately after
+          * completing the INSERT operation and before the actual trigger
+          * execution happens that in a rare case could cause the operation
+          * to be aborted.
+          */
+         insertActiveOpList(operPtr, &req_struct, tuple_ptr);
+         release_frag_mutex(regFragPtr, pageid);
+       }
+       else
+       {
+         /**
+          * An initial INSERT operation requires no mutex, and it is
+          * trivially already in the active list, even the flag is set
+          * in the handleInsertReq method. The insert operation
+          * is made visible through the call to execACCMINUPDATE later.
+          */
+         jam();
+       }
        terrorCode = 0;
        checkImmediateTriggersAfterInsert(&req_struct,
                                          regOperPtr,
@@ -1181,7 +1404,16 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
          if (!regTabPtr->tuxCustomTriggers.isEmpty()) 
          {
            jam();
-           
+           /**
+            * Ensure that no concurrent scans happens while I am
+            * updating the TUX indexes.
+            *
+            * It is vital that I don't hold any fragment mutex while making
+            * this call since that could cause a deadlock if any of the
+            * threads I am waiting on is requiring this lock to be able to
+            * complete its operation before allowing write key access.
+            */
+           c_lqh->upgrade_to_write_key_frag_access();
            executeTuxInsertTriggers(signal,
                                     regOperPtr,
                                     regFragPtr,
@@ -1206,12 +1438,24 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
           * skip TUX abort triggers since TUX is already aborted.  We
           * will dealloc the fixed and var parts if necessary.
           */
+         c_lqh->upgrade_to_exclusive_frag_access_no_return();
          signal->theData[0] = operPtr.i;
          do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS | ZABORT_DEALLOC);
          tupkeyErrorLab(&req_struct);
-           return false;
+         return false;
        }
-
+       /**
+        * It is ok to release fragment access already here since the
+        * call to ACCMINUPDATE will make the new row appear to other operations
+        * in the same transaction, but this is protected by the ACC fragment
+        * mutex and requires no special access to the table fragment. TUX
+        * index readers get access to the row by the above call to
+        * executeTuxInsertTriggers. Thus scanners get access to the new row
+        * slightly ahead of read key readers, but this only matters for the
+        * operations within the same transaction and we don't guarantee order
+        * of those operations towards each other anyways.
+        */
+       c_lqh->release_frag_access();
        if (accminupdateptr)
        {
          /**
@@ -1221,7 +1465,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
                              regOperPtr->userpointer,
                              accminupdateptr);
        }
-
        returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_STARTED);
        return true;
      }
@@ -1236,7 +1479,43 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        {
          return false;
        }
-
+       jamDebug();
+       acquire_frag_mutex(regFragPtr, pageid);
+       if (tuple_ptr->m_header_bits != m_base_header_bits)
+       {
+         jamDebug();
+         Uint32 old_header = tuple_ptr->m_header_bits;
+         tuple_ptr->m_header_bits = m_base_header_bits;
+         updateChecksum(tuple_ptr,
+                        regTabPtr,
+                        old_header,
+                        tuple_ptr->m_header_bits);
+       }
+       /**
+        * We can execute other key reads from the query thread concurrently,
+        * thus we need to acquire a mutex while inserting the operation
+        * into the linked list of operations on the row.
+        *
+        * Scans will not run in parallel with parallel updates. So the lock
+        * on triggers is since we need to set the operation record in the
+        * row header before executing the triggers.
+        *
+        * The lock on the TUP fragment is required to update header info on
+        * the base row, thus we acquire the mutex even before calling
+        * handleUpdateReq.
+        */
+       insertActiveOpList(operPtr, &req_struct, tuple_ptr);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+       /* Verify that we didn't mess up the checksum */
+       if (tuple_ptr != nullptr &&
+           ((tuple_ptr->m_header_bits & Tuple_header::ALLOC) == 0) &&
+           (regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+           (calculateChecksum(tuple_ptr, regTabPtr) != 0))
+       {
+         ndbabort();
+       }
+#endif
+       release_frag_mutex(regFragPtr, pageid);
        terrorCode = 0;
        checkImmediateTriggersAfterUpdate(&req_struct,
                                          regOperPtr,
@@ -1252,6 +1531,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        if (!regTabPtr->tuxCustomTriggers.isEmpty())
        {
          jam();
+         c_lqh->upgrade_to_write_key_frag_access();
          if (unlikely(executeTuxUpdateTriggers(signal,
                                                regOperPtr,
                                                regFragPtr,
@@ -1261,16 +1541,17 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
            /*
             * See insert case.
             */
+           c_lqh->upgrade_to_exclusive_frag_access_no_return();
            signal->theData[0] = operPtr.i;
            do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
            tupkeyErrorLab(&req_struct);
            return false;
          }
        }
-
+       c_lqh->release_frag_access();
        returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_STARTED);
        return true;
-     } 
+     }
      else if(Roptype == ZDELETE)
      {
        jam();
@@ -1284,6 +1565,21 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        }
 
        terrorCode = 0;
+       /**
+        * Prepare of DELETE operations only use shared access to fragments,
+        * thus we need to insert the DELETE operation into the list of
+        * of operations in a safe way to ensure that there is a well defined
+        * point where READ operations can see this row version.
+        *
+        * It is important to also hold mutex while calling tupkeyErrorLab in
+        * case something goes wrong in checking triggers, this ensures that
+        * we remove the tuple from the view of the readers before they get
+        * access to it.
+        */
+       jamDebug();
+       acquire_frag_mutex(regFragPtr, pageid);
+       insertActiveOpList(operPtr, &req_struct, tuple_ptr);
+       release_frag_mutex(regFragPtr, pageid);
        checkImmediateTriggersAfterDelete(&req_struct,
                                          regOperPtr,
                                          regTabPtr,
@@ -1294,12 +1590,24 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
          tupkeyErrorLab(&req_struct);
          return false;
        }
-
        /*
         * TUX doesn't need to check for triggers at delete since entries in
         * the index are kept until commit time.
         */
-
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+       /* Verify that we didn't mess up the checksum */
+       acquire_frag_mutex(regFragPtr, pageid);
+       if (tuple_ptr != nullptr &&
+           ((tuple_ptr->m_header_bits & Tuple_header::ALLOC) == 0) &&
+           (regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+           (calculateChecksum(tuple_ptr, regTabPtr) != 0))
+       {
+         release_frag_mutex(regFragPtr, pageid);
+         ndbabort();
+       }
+       release_frag_mutex(regFragPtr, pageid);
+#endif
+       c_lqh->release_frag_access();
        returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_STARTED);
        return true;
      }
@@ -1309,13 +1617,35 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
         * No TUX or immediate triggers, just detached triggers
         */
    do_refresh:
+       jamDebug();
+       c_lqh->upgrade_to_exclusive_frag_access_no_return();
        if (unlikely(handleRefreshReq(signal, operPtr,
                                      prepare_fragptr, regTabPtr,
                                      &req_struct, disk_page != RNIL) == -1))
        {
          return false;
        }
-
+       if (tuple_ptr)
+       {
+         jam();
+         insertActiveOpList(operPtr, &req_struct, tuple_ptr);
+       }
+       else
+       {
+         jam();
+         operPtr.p->op_struct.bit_field.in_active_list = true;
+       }
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+       /* Verify that we didn't mess up the checksum */
+       if (tuple_ptr != nullptr &&
+           ((tuple_ptr->m_header_bits & Tuple_header::ALLOC) == 0) &&
+           (regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+           (calculateChecksum(tuple_ptr, regTabPtr) != 0))
+       {
+         ndbabort();
+       }
+#endif
+       c_lqh->release_frag_access();
        returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_STARTED);
        return true;
      }
@@ -1324,15 +1654,14 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        ndbabort(); // Invalid op type
      }
    }
-
    tupkeyErrorLab(&req_struct);
    return false;
 }
 
 void
 Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
-			Operationrec* regOperPtr,
-			Tablerec* regTabPtr)
+                        Operationrec* regOperPtr,
+                        Tablerec* regTabPtr)
 {
   ndbassert(regOperPtr->op_type == ZINSERT ||
             (! (req_struct->m_tuple_ptr->m_header_bits & Tuple_header::FREE)));
@@ -1441,17 +1770,13 @@ int Dbtup::handleReadReq(Signal* signal,
   Uint32 *dst;
   Uint32 dstLen, start_index;
   const BlockReference sendBref= req_struct->rec_blockref;
-  if (unlikely(((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
-       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
-      ERROR_INSERTED(4036))) {
-    jam();
-    return corruptedTupleDetected(req_struct, regTabPtr);
-  }
-
   const Uint32 node = refToNode(sendBref);
-  if(node != 0 && node != getOwnNodeId()) {
+  if(node != 0 && node != getOwnNodeId())
+  {
     start_index= 25;
-  } else {
+  }
+  else
+  {
     jamDebug();
     /**
      * execute direct
@@ -1464,12 +1789,13 @@ int Dbtup::handleReadReq(Signal* signal,
   {
     jamDebug();
     int ret = readAttributes(req_struct,
-			     &cinBuffer[0],
-			     req_struct->attrinfo_len,
-			     dst,
-			     dstLen,
-			     false);
-    if (likely(ret >= 0)) {
+                             &cinBuffer[0],
+                             req_struct->attrinfo_len,
+                             dst,
+                             dstLen,
+                             false);
+    if (likely(ret >= 0))
+    {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
@@ -1543,6 +1869,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   change_mask_ptr = get_change_mask_ptr(regTabPtr, dst);
   if(operPtrP->is_first_operation())
   {
+    jamDebug();
     org= req_struct->m_tuple_ptr;
     tup_version= org->get_tuple_version();
     clear_change_mask_info(regTabPtr, change_mask_ptr);
@@ -1561,6 +1888,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
 
   /**
    * Check consistency before update/delete
+   * Any updates made to the row and checksum is performed by the LDM
+   * thread and thus protected by being in the same thread.
    */
   req_struct->m_tuple_ptr= org;
   if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
@@ -1580,6 +1909,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   disk = disk || (org->m_header_bits & Tuple_header::DISK_INLINE);
   if (regTabPtr->need_expand(disk))
   {
+    jamDebug();
     expand_tuple(req_struct, sizes, org, regTabPtr, disk);
     if(disk && operPtrP->m_undo_buffer_space == 0)
     {
@@ -1658,8 +1988,11 @@ int Dbtup::handleUpdateReq(Signal* signal,
        * big-free-size page list into small-free-size page list
        */
       if(base->m_header_bits & Tuple_header::VAR_PART)
+      {
+        jam();
         optimize_var_part(req_struct, base, operPtrP,
                           regFragPtr, regTabPtr);
+      }
       break;
     case AttributeHeader::OPTIMIZE_MOVE_FIXPART:
       //TODO: move fix part of tuple
@@ -1669,7 +2002,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
   }
 
   if (regTabPtr->need_shrink())
-  {  
+  {
+    jamDebug();
     shrink_tuple(req_struct, sizes+2, regTabPtr, disk);
     if (cmp[0] != cmp[1] && handle_size_change_after_update(req_struct,
 							    base,
@@ -1688,6 +2022,10 @@ int Dbtup::handleUpdateReq(Signal* signal,
   
   req_struct->m_tuple_ptr->set_tuple_version(tup_version);
 
+  /**
+   * We haven't made the tuple available for readers yet, so no need
+   * to protect this change.
+   */
   setChecksum(req_struct->m_tuple_ptr, regTabPtr);
 
   set_tuple_state(operPtrP, TUPLE_PREPARED);
@@ -1960,13 +2298,12 @@ shrink_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
 void
 Dbtup::prepare_initial_insert(KeyReqStruct *req_struct, 
 			      Operationrec* regOperPtr,
-			      Tablerec* regTabPtr)
+			      Tablerec* regTabPtr,
+                              bool is_refresh)
 {
-  Uint32 disk_undo = regTabPtr->m_no_of_disk_attributes ? 
+  Uint32 disk_undo = ((regTabPtr->m_no_of_disk_attributes > 0) &&
+                       !is_refresh) ? 
     sizeof(Dbtup::Disk_undo::Alloc) >> 2 : 0;
-  regOperPtr->nextActiveOp= RNIL;
-  regOperPtr->prevActiveOp= RNIL;
-  regOperPtr->op_struct.bit_field.in_active_list= true;
   regOperPtr->m_undo_buffer_space= disk_undo; 
   
   req_struct->check_offset[MM]= regTabPtr->get_check_offset(MM);
@@ -2023,7 +2360,8 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
       {
         * pos_ptr++ = pos;
         * len_ptr++ = pos;
-        pos += AttributeDescriptor::getSizeInBytes(tab_descr[*order++].tabDescr);
+        pos += AttributeDescriptor::getSizeInBytes(
+                 tab_descr[*order++].tabDescr);
       }
       
       // Disk/dynamic part is 32-bit aligned
@@ -2077,7 +2415,8 @@ int Dbtup::handleInsertReq(Signal* signal,
                            Ptr<Fragrecord> fragPtr,
                            Tablerec* regTabPtr,
                            KeyReqStruct *req_struct,
-                           Local_key ** accminupdateptr)
+                           Local_key ** accminupdateptr,
+                           bool is_refresh)
 {
   Uint32 tup_version = 1;
   Fragrecord* regFragPtr = fragPtr.p;
@@ -2086,7 +2425,7 @@ int Dbtup::handleInsertReq(Signal* signal,
   Tuple_header *base= req_struct->m_tuple_ptr, *org= base;
   Tuple_header *tuple_ptr;
     
-  bool disk = regTabPtr->m_no_of_disk_attributes > 0;
+  bool disk = regTabPtr->m_no_of_disk_attributes > 0 && !is_refresh;
   bool mem_insert = regOperPtr.p->is_first_operation();
   bool disk_insert = mem_insert && disk;
   bool vardynsize = (regTabPtr->m_attributes[MM].m_no_of_varsize ||
@@ -2121,7 +2460,7 @@ int Dbtup::handleInsertReq(Signal* signal,
   if(mem_insert)
   {
     jam();
-    prepare_initial_insert(req_struct, regOperPtr.p, regTabPtr);
+    prepare_initial_insert(req_struct, regOperPtr.p, regTabPtr, is_refresh);
   }
   else
   {
@@ -2134,8 +2473,13 @@ int Dbtup::handleInsertReq(Signal* signal,
       jam();
       org= get_copy_tuple(&prevOp->m_copy_tuple_location);
     }
+    else
+    {
+      jamDebug();
+    }
     if (regTabPtr->need_expand())
     {
+      jamDebug();
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
       memset(req_struct->m_disk_ptr->m_null_bits+
              regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
@@ -2152,6 +2496,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     } 
     else
     {
+      jamDebug();
       memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
       tuple_ptr->m_header_bits |= Tuple_header::COPY_TUPLE;
     }
@@ -2202,13 +2547,15 @@ int Dbtup::handleInsertReq(Signal* signal,
 
   if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
   {
+    jamDebug();
     Uint32 attrId =
       regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
 
     store_extra_row_bits(attrId, regTabPtr, tuple_ptr, /* default */ 0, false);
   }
   
-  if (!regTabPtr->m_default_value_location.isNull())
+  if (!(is_refresh ||
+        regTabPtr->m_default_value_location.isNull()))
   {
     jam();
     Uint32 default_values_len;
@@ -2239,7 +2586,9 @@ int Dbtup::handleInsertReq(Signal* signal,
   {
     goto null_check_error;
   }
-  if (unlikely(checkNullAttributes(req_struct, regTabPtr) == false))
+  if (unlikely(checkNullAttributes(req_struct,
+                                   regTabPtr,
+                                   is_refresh) == false))
   {
     goto null_check_error;
   }
@@ -2250,8 +2599,9 @@ int Dbtup::handleInsertReq(Signal* signal,
     sizes[2+MM] = req_struct->m_lcp_varpart_len;
   }
   else if (regTabPtr->need_shrink())
-  {  
-    shrink_tuple(req_struct, sizes+2, regTabPtr, true);
+  {
+    jamDebug();
+    shrink_tuple(req_struct, sizes+2, regTabPtr, !is_refresh);
   }
 
   if (ERROR_INSERTED(4025))
@@ -2349,11 +2699,22 @@ int Dbtup::handleInsertReq(Signal* signal,
 	goto alloc_rowid_error;
       }
     }
+    /**
+     * Arriving here we have acquired the fragment page mutex in
+     * either alloc_fix_rec (can be called from alloc_var_rec) or
+     * alloc_fix_rowid (can be called from alloc_var_rowid).
+     *
+     * Thus as soon as we release the fragment mutex the row will
+     * be visible to the TUP scan.
+     */
+    regOperPtr.p->fragPageId = frag_page_id;
     real_page_id = regOperPtr.p->m_tuple_location.m_page_no;
     update_acc = true; /* Will be updated later once success is known */
     
     base = (Tuple_header*)ptr;
+    regOperPtr.p->op_struct.bit_field.in_active_list = true;
     base->m_operation_ptr_i= regOperPtr.i;
+    ndbrequire(!m_is_in_query_thread);
 
 #ifdef DEBUG_DELETE
     char *insert_str;
@@ -2385,18 +2746,67 @@ int Dbtup::handleInsertReq(Signal* signal,
     base->m_header_bits= Tuple_header::ALLOC |
       (sizes[2+MM] > 0 ? Tuple_header::VAR_PART : 0) |
       old_header_keep;
+    if (disk_insert)
+    {
+      jam();
+      Local_key tmp;
+      Uint32 size= regTabPtr->m_attributes[DD].m_no_of_varsize == 0 ? 
+        1 : sizes[2+DD];
+ 
+      if (ERROR_INSERTED(4021))
+      {
+        terrorCode = 1601;
+        goto disk_prealloc_error;
+      }
 
+      int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
+      if (unlikely(ret < 0))
+      {
+        jam();
+        terrorCode = -ret;
+        goto disk_prealloc_error;
+      }
+    
+      regOperPtr.p->op_struct.bit_field.m_disk_preallocated= 1;
+      tmp.m_page_idx= size;
+      memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &tmp, sizeof(tmp));
+
+      /**
+       * Set ref from disk to mm
+       */
+      Local_key ref = regOperPtr.p->m_tuple_location;
+      ref.m_page_no = frag_page_id;
+
+      ndbrequire(ref.m_page_idx < Tup_page::DATA_WORDS);
+      Tuple_header* disk_ptr= req_struct->m_disk_ptr;
+      DEB_DISK(("(%u) set_base_record(%u,%u).%u on row(%u,%u)",
+                instance(),
+                tmp.m_file_no,
+                tmp.m_page_no,
+                tmp.m_page_idx,
+                ref.m_page_no,
+                ref.m_page_idx));
+
+      disk_ptr->set_base_record_ref(ref);
+    }
+    setChecksum(req_struct->m_tuple_ptr, regTabPtr);
     /**
-     * No need to set checksum here, the tuple is allocated, but contains
-     * no data, so if we attempt to read it in this state we even want the
-     * checksum to be wrong since it is not allowed to read the tuple in
-     * this state.
+     * At this point we hold the fragment mutex to ensure that TUP scans
+     * don't see the rows until the row is ready for reading.
+     *
+     * After releasing the mutex here the row becomes visible to TUP scans
+     * and thus checksum needs to be correct on the copy row, the checksum
+     * on the row itself isn't checked before reading or updating unless it
+     * is used for reading. So no need to update it already here. It will
+     * be set when we commit the change.
      */
+    release_frag_mutex(regFragPtr, frag_page_id);
   }
   else 
   {
     if (ERROR_INSERTED(4020))
     {
+      c_lqh->upgrade_to_exclusive_frag_access();
       goto size_change_error;
     }
 
@@ -2411,49 +2821,12 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto size_change_error;
     }
     req_struct->m_use_rowid = false;
-    Uint32 old_header = base->m_header_bits;
-    base->m_header_bits &= ~(Uint32)Tuple_header::FREE;
-    Uint32 new_header = base->m_header_bits;
-    if (old_header != new_header)
-    {
-      jam();
-      updateChecksum(base, regTabPtr, old_header, new_header);
-    }
-  }
-
-  if (disk_insert)
-  {
-    jam();
-    Local_key tmp;
-    Uint32 size= regTabPtr->m_attributes[DD].m_no_of_varsize == 0 ? 
-      1 : sizes[2+DD];
-    
-    if (ERROR_INSERTED(4021))
-    {
-      terrorCode = 1601;
-      goto disk_prealloc_error;
-    }
-
-    int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
-    if (unlikely(ret < 0))
-    {
-      jam();
-      terrorCode = -ret;
-      goto disk_prealloc_error;
-    }
-    
-    regOperPtr.p->op_struct.bit_field.m_disk_preallocated= 1;
-    tmp.m_page_idx= size;
-    memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &tmp, sizeof(tmp));
-
     /**
-     * Set ref from disk to mm
+     * The main row header bits are updated through a local variable
+     * such that we can do the change under mutex protection after
+     * finalizing the writes on the row.
      */
-    Local_key ref = regOperPtr.p->m_tuple_location;
-    ref.m_page_no = frag_page_id;
-    
-    Tuple_header* disk_ptr= req_struct->m_disk_ptr;
-    disk_ptr->set_base_record_ref(ref);
+    m_base_header_bits &= ~(Uint32)Tuple_header::FREE;
   }
 
   if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
@@ -2470,6 +2843,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     /* Acc stores the local key with the frag_page_id rather
      * than the real_page_id
      */
+    jamDebug();
     ndbassert(regOperPtr.p->m_tuple_location.m_page_no == real_page_id);
 
     Local_key accKey = regOperPtr.p->m_tuple_location;
@@ -2480,11 +2854,20 @@ int Dbtup::handleInsertReq(Signal* signal,
   {
     * accminupdateptr = 0; // No accminupdate should be performed
   }
-
-  setChecksum(req_struct->m_tuple_ptr, regTabPtr);
-
+  if (!mem_insert)
+  {
+    /**
+     * No need to protect this checksum write, we only perform it here for
+     * non-first inserts since first insert operations are handled above
+     * while holding the mutex. For non-first operations the row is not
+     * visible to others at this time, copy rows are not even visible to
+     * TUP scans, thus no need to protect it here. The row becomes visible
+     * when inserted into the active list after returning from this call.
+     */
+    jam();
+    setChecksum(req_struct->m_tuple_ptr, regTabPtr);
+  }
   set_tuple_state(regOperPtr.p, TUPLE_PREPARED);
-
   return 0;
   
 size_change_error:
@@ -2524,7 +2907,6 @@ update_error:
   jam();
   if (mem_insert)
   {
-    regOperPtr.p->op_struct.bit_field.in_active_list = false;
     regOperPtr.p->m_tuple_location.setNull();
   }
 exit_error:
@@ -2542,6 +2924,8 @@ disk_prealloc_error:
   jam();
   base->m_header_bits |= Tuple_header::FREE;
   setInvalidChecksum(base, regTabPtr);
+  release_frag_mutex(regFragPtr, frag_page_id);
+  c_lqh->upgrade_to_exclusive_frag_access_no_return();
   goto exit_error;
 }
 
@@ -2634,6 +3018,14 @@ int Dbtup::handleDeleteReq(Signal* signal,
   }
   
   {
+    /* Delete happens in LDM thread, so no need to protect it */
+    if (unlikely(((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+         (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
+        ERROR_INSERTED(4036)))
+    {
+      jam();
+      return corruptedTupleDetected(req_struct, regTabPtr);
+    }
     Uint32 RlogSize;
     int ret= handleReadReq(signal, regOperPtr, regTabPtr, req_struct);
     if (ret == 0 && (RlogSize= req_struct->log_size))
@@ -2692,32 +3084,19 @@ Dbtup::handleRefreshReq(Signal* signal,
         * We don't need ...in this scenario
         * - disk
         * - default values
+        *
+        * We signal this to handleInsertReq with is_refresh flag
+        * set to true.
         */
-       Uint32 save_disk = regTabPtr->m_no_of_disk_attributes;
-       Local_key save_defaults = regTabPtr->m_default_value_location;
-       Bitmask<MAXNROFATTRIBUTESINWORDS> save_mask =
-         regTabPtr->notNullAttributeMask;
-
-       regTabPtr->m_no_of_disk_attributes = 0;
-       regTabPtr->m_default_value_location.setNull();
        regOperPtr.p->op_type = ZINSERT;
 
-       /**
-        * Update notNullAttributeMask  to only include primary keys
-        */
-       regTabPtr->notNullAttributeMask.clear();
-       const Uint32 * primarykeys =
-         (Uint32*)&tableDescriptor[regTabPtr->readKeyArray].tabDescr;
-       for (Uint32 i = 0; i<regTabPtr->noOfKeyAttr; i++)
-         regTabPtr->notNullAttributeMask.set(primarykeys[i] >> 16);
-
-       int res = handleInsertReq(signal, regOperPtr,
-                                 regFragPtr, regTabPtr, req_struct,
-                                 &accminupdateptr);
-
-       regTabPtr->m_no_of_disk_attributes = save_disk;
-       regTabPtr->m_default_value_location = save_defaults;
-       regTabPtr->notNullAttributeMask = save_mask;
+       int res = handleInsertReq(signal,
+                                 regOperPtr,
+                                 regFragPtr,
+                                 regTabPtr,
+                                 req_struct,
+                                 &accminupdateptr,
+                                 true);
 
        if (unlikely(res == -1))
        {
@@ -2728,9 +3107,10 @@ Dbtup::handleRefreshReq(Signal* signal,
 
        if (accminupdateptr)
        {
-       /**
+         /**
           * Update ACC local-key, once *everything* has completed succesfully
           */
+         jamDebug();
          c_lqh->accminupdate(signal,
                              regOperPtr.p->userpointer,
                              accminupdateptr);
@@ -2752,6 +3132,7 @@ Dbtup::handleRefreshReq(Signal* signal,
         Uint32 new_header = origTuple->m_header_bits;
         updateChecksum(origTuple, regTabPtr, old_header, new_header);
       }
+      m_base_header_bits = origTuple->m_header_bits;
       int res = handleUpdateReq(signal, regOperPtr.p, regFragPtr.p,
                                 regTabPtr, req_struct, disk);
 
@@ -2768,10 +3149,12 @@ Dbtup::handleRefreshReq(Signal* signal,
        * row here.
        */
       {
-        Uint32 old_header = origTuple->m_header_bits;
+        origTuple->m_header_bits = m_base_header_bits;
+        Uint32 old_header = m_base_header_bits;
         origTuple->set_tuple_version(tup_version_save);
         Uint32 new_header = origTuple->m_header_bits;
         updateChecksum(origTuple, regTabPtr, old_header, new_header);
+        m_base_header_bits = origTuple->m_header_bits;
       }
       if (res == -1)
         return -1;
@@ -2799,33 +3182,22 @@ Dbtup::handleRefreshReq(Signal* signal,
        * - default values
        *
        * We keep disk attributes to avoid issues with 'insert'
+       * We signal this to handleInsertReq with is_refresh flag
+       * set to true.
        */
-      Local_key save_defaults = regTabPtr->m_default_value_location;
-      Bitmask<MAXNROFATTRIBUTESINWORDS> save_mask =
-        regTabPtr->notNullAttributeMask;
-
-      regTabPtr->m_default_value_location.setNull();
       regOperPtr.p->op_type = ZINSERT;
-
-      /**
-       * Update notNullAttributeMask  to only include primary keys
-       */
-      regTabPtr->notNullAttributeMask.clear();
-      const Uint32 * primarykeys =
-        (Uint32*)&tableDescriptor[regTabPtr->readKeyArray].tabDescr;
-      for (Uint32 i = 0; i<regTabPtr->noOfKeyAttr; i++)
-        regTabPtr->notNullAttributeMask.set(primarykeys[i] >> 16);
 
       /**
        * This is multi-update + DELETE + REFRESH
        */
       Local_key * accminupdateptr = 0;
-      res = handleInsertReq(signal, regOperPtr,
-                            regFragPtr, regTabPtr, req_struct,
-                            &accminupdateptr);
-
-      regTabPtr->m_default_value_location = save_defaults;
-      regTabPtr->notNullAttributeMask = save_mask;
+      res = handleInsertReq(signal,
+                            regOperPtr,
+                            regFragPtr,
+                            regTabPtr,
+                            req_struct,
+                            &accminupdateptr,
+                            true);
 
       if (unlikely(res == -1))
       {
@@ -2858,7 +3230,8 @@ Dbtup::handleRefreshReq(Signal* signal,
 
 bool
 Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
-                           Tablerec* regTabPtr)
+                           Tablerec* regTabPtr,
+                           bool is_refresh)
 {
 // Implement checking of updating all not null attributes in an insert here.
   Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;  
@@ -2874,9 +3247,27 @@ Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
    */
   attributeMask.clear();
   attributeMask.bitOR(req_struct->changeMask);
-  attributeMask.bitAND(regTabPtr->notNullAttributeMask);
-  attributeMask.bitXOR(regTabPtr->notNullAttributeMask);
-  if (!attributeMask.isclear()) {
+  if (unlikely(is_refresh))
+  {
+    /**
+     * Update notNullAttributeMask  to only include primary keys
+     */
+    Bitmask<MAXNROFATTRIBUTESINWORDS> tableMask;
+    tableMask.clear();
+    const Uint32 * primarykeys =
+      (Uint32*)&tableDescriptor[regTabPtr->readKeyArray].tabDescr;
+     for (Uint32 i = 0; i<regTabPtr->noOfKeyAttr; i++)
+       tableMask.set(primarykeys[i] >> 16);
+    attributeMask.bitAND(tableMask);
+    attributeMask.bitXOR(tableMask);
+  }
+  else
+  {
+    attributeMask.bitAND(regTabPtr->notNullAttributeMask);
+    attributeMask.bitXOR(regTabPtr->notNullAttributeMask);
+  }
+  if (!attributeMask.isclear())
+  {
     return false;
   }
   return true;
@@ -2962,9 +3353,12 @@ int Dbtup::interpreterStartLab(Signal* signal,
   const BlockReference sendBref= req_struct->rec_blockref;
 
   const Uint32 node = refToNode(sendBref);
-  if(node != 0 && node != getOwnNodeId()) {
+  if(node != 0 && node != getOwnNodeId())
+  {
     start_index= 25;
-  } else {
+  }
+  else
+  {
     jamDebug();
     /**
      * execute direct
@@ -3212,6 +3606,7 @@ int Dbtup::sendLogAttrinfo(Signal* signal,
    * to LQH
    */
   ndbrequire( TlogSize > 0 );
+  ndbrequire(!m_is_query_block);
   Uint32 longSectionIVal= RNIL;
   bool ok= appendToSection(longSectionIVal, 
                            &clogMemBuffer[0],
@@ -3232,7 +3627,7 @@ int Dbtup::sendLogAttrinfo(Signal* signal,
   signal->theData[1]= TlogSize;
   signal->theData[2]= longSectionIVal;
 
-  EXECUTE_DIRECT(DBLQH, 
+  EXECUTE_DIRECT(getDBLQH(), 
                  GSN_TUP_ATTRINFO, 
                  signal, 
                  3);
@@ -4239,7 +4634,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
 		    bool disk,
                     bool from_lcp_keep)
 {
-  Uint32 bits= src->m_header_bits;
+  Uint32 bits = src->m_header_bits;
   Uint32 extra_bits = bits;
   Tuple_header* ptr= req_struct->m_tuple_ptr;
   
@@ -4263,7 +4658,9 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
   sizes[MM]= 1;
   memcpy(ptr, src, 4*fix_size);
   if(mm_vars || mm_dyns)
-  { 
+  {
+    jamDebug();
+    ndbrequire(bits == src->m_header_bits);
     /*
      * Reserve place for initial length word and offset array (with one extra
      * offset). This will be filled-in in later, in shrink_tuple().
@@ -4276,6 +4673,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     const Uint32 *src_data;
     if (bits & Tuple_header::VAR_PART)
     {
+      jamDebug();
       KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
       if(! (bits & Tuple_header::COPY_TUPLE))
       {
@@ -4313,6 +4711,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
       }
       else
       {
+        jamDebug();
         /* This is for the re-expansion of a shrunken row (update2 ...) */
         Varpart_copy* vp = (Varpart_copy*)src_ptr;
         src_len = vp->m_len;
@@ -4324,6 +4723,8 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
 
       if (mm_vars)
       {
+        jamDebug();
+        ndbrequire(bits == src->m_header_bits);
         dst->m_data_ptr= (char*)(((Uint16*)dst_ptr)+mm_vars+1);
         dst->m_offset_array_ptr= req_struct->var_pos_array;
         dst->m_var_len_offset= mm_vars;
@@ -4345,6 +4746,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     }
     else
     {
+      ndbrequire(bits == src->m_header_bits);
       /**
        * No varpart...only allowed for dynattr
        */
@@ -4355,6 +4757,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
 
     if (mm_dyns)
     {
+      jamDebug();
       /**
        * dynattr needs to be expanded even if no varpart existed before
        */
@@ -4380,25 +4783,37 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
    * parts since the header is part of the checksum. This is not covered
    * by setting checksum normally since mostly we don't touch the
    * original tuple.
+   *
+   * This updates the checksum of the source row which has already been
+   * made available to the readers. Thus we need to ensure that this
+   * write is protected.
+   *
+   * TODO RONM, this updateChecksum seems to always be a NULL op.
+   * Verified with ndbrequire
    */
-  updateChecksum(src, tabPtrP, bits, src->m_header_bits);
+  ndbrequire(bits == src->m_header_bits);
+  //updateChecksum(src, tabPtrP, bits, src->m_header_bits);
 
   sizes[DD]= 0;
   if(disk && dd_tot)
   {
+    jamDebug();
     const Uint16 dd_vars= tabPtrP->m_attributes[DD].m_no_of_varsize;
     order+= mm_vars+mm_dynvar+mm_dynfix;
     
     if(bits & Tuple_header::DISK_INLINE)
     {
       // Only on copy tuple
+      jamDebug();
       ndbassert(bits & Tuple_header::COPY_TUPLE);
     }
     else
     {
+      jamDebug();
       Local_key key;
       memcpy(&key, disk_ref, sizeof(key));
       key.m_page_no= req_struct->m_disk_page_ptr.i;
+      ndbrequire(key.m_page_idx < Tup_page::DATA_WORDS);
       src_ptr= get_dd_ptr(&req_struct->m_disk_page_ptr, &key, tabPtrP);
     }
     extra_bits |= Tuple_header::DISK_INLINE;
@@ -4410,10 +4825,17 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     if (unlikely(req_struct->m_disk_ptr->m_base_record_page_idx >=
                  Tup_page::DATA_WORDS))
     {
-      g_eventLogger->info("(%u) Crash on error in disk ref on row(%u,%u)",
+      Local_key key;
+      memcpy(&key, disk_ref, sizeof(key));
+      g_eventLogger->info("(%u) Crash on error in disk ref on row(%u,%u)"
+                          ", disk_page(%u,%u).%u, disk_page_ptr.i = %u",
                           instance(),
                           req_struct->frag_page_id,
-                          req_struct->operPtrP->m_tuple_location.m_page_idx);
+                          req_struct->operPtrP->m_tuple_location.m_page_idx,
+                          key.m_file_no,
+                          key.m_page_no,
+                          key.m_page_idx,
+                          req_struct->m_disk_page_ptr.i);
       ndbrequire(req_struct->m_disk_ptr->m_base_record_page_idx <
                  Tup_page::DATA_WORDS);
     }
@@ -4622,6 +5044,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
       Local_key key;
       memcpy(&key, disk_ref, sizeof(key));
       key.m_page_no= req_struct->m_disk_page_ptr.i;
+      ndbrequire(key.m_page_idx < Tup_page::DATA_WORDS);
       src_ptr= get_dd_ptr(&req_struct->m_disk_page_ptr, &key, tabPtrP);
     }
     // Fix diskpart
@@ -4683,11 +5106,13 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
   sizes[DD] = 0;
   if(mm_vars || mm_dyns)
   {
+    jamDebug();
     Varpart_copy* vp = (Varpart_copy*)dst_ptr;
     Uint32* varstart = dst_ptr = vp->m_data;
 
     if (mm_vars)
     {
+      jamDebug();
       Uint16* dst_off_ptr= (Uint16*)dst_ptr;
       char*  dst_data_ptr= (char*)(dst_off_ptr + mm_vars + 1);
       char*  src_data_ptr= dst_data_ptr;
@@ -4709,6 +5134,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     
     if (mm_dyns)
     {
+      jamDebug();
       dst_ptr = shrink_dyn_part(dst, dst_ptr, tabPtrP, tabDesc,
                                 order, mm_dynvar, mm_dynfix, MM);
       ndbassert((Uint32*)dst_ptr <=
@@ -4721,10 +5147,12 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     sizes[MM] = varpart_len;
     if (varpart_len != 0)
     {
+      jamDebug();
       ptr->m_header_bits |= Tuple_header::VAR_PART;
     }
     else if ((ptr->m_header_bits & Tuple_header::VAR_PART) == 0)
     {
+      jamDebug();
       /*
        * No varpart present.
        * And this is not an update where the dynamic column is set to null.
@@ -4735,6 +5163,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     }
     else
     {
+      jamDebug();
       /*
        * varpart_len is now 0, but tuple already had a varpart.
        * It will be released at commit time.
@@ -4747,6 +5176,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
   
   if(disk && dd_tot)
   {
+    jamDebug();
     Uint32 * src_ptr = (Uint32*)req_struct->m_disk_ptr;
     req_struct->m_disk_ptr = (Tuple_header*)dst_ptr;
     ndbrequire(dd_vars == 0);
@@ -4857,8 +5287,8 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
 	   req_struct->m_tuple_ptr,
 	   regOperPtr->m_tuple_location.m_page_no,
 	   regOperPtr->m_tuple_location.m_page_idx);
-  
-  Uint32 bits= org->m_header_bits;
+
+  Uint32 bits = m_base_header_bits;
   Uint32 copy_bits= req_struct->m_tuple_ptr->m_header_bits;
   
   DEB_LCP(("size_change: tab(%u,%u), row_id(%u,%u), old: %u, new: %u",
@@ -4890,8 +5320,10 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     Uint32 idx= ref.m_page_idx;
     if (bits & Tuple_header::VAR_PART)
     {
+      jamDebug();
       if (copy_bits & Tuple_header::COPY_TUPLE)
       {
+        jamDebug();
         c_page_pool.getPtr(pagePtr, ref.m_page_no);
         pageP = (Var_page*)pagePtr.p;
       }
@@ -4899,11 +5331,13 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     }
     else
     {
+      jamDebug();
       alloc = 0;
     }
     Uint32 orig_size= alloc;
     if(bits & Tuple_header::MM_GROWN)
     {
+      jamDebug();
       /* Was grown before, so must fetch real original size from last word. */
       Uint32 *old_var_part= pageP->get_ptr(idx);
       ndbassert(alloc>0);
@@ -4912,6 +5346,7 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
 
     if (alloc)
     {
+      jamDebug();
 #ifdef VM_TRACE
       if(!pageP->get_entry_chain(idx))
         ndbout << *pageP << endl;
@@ -4928,25 +5363,82 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
       jam();
       return 0;
     }
-    Uint32 *new_var_part=realloc_var_part(&terrorCode,
-                                          regFragPtr, regTabPtr, pagePtr,
-                                          refptr, alloc, needed);
-    if (unlikely(new_var_part==NULL))
-      return -1;
-    /* Mark the tuple grown, store the original length at the end. */
-    DEB_LCP(("tab(%u,%u), row_id(%u,%u), set MM_GROWN",
-            req_struct->fragPtrP->fragTableId,
-            req_struct->fragPtrP->fragmentId,
-            regOperPtr->m_tuple_location.m_page_no,
-            regOperPtr->m_tuple_location.m_page_idx));
-    org->m_header_bits= bits | Tuple_header::MM_GROWN | Tuple_header::VAR_PART;
-    new_var_part[needed-1]= orig_size;
-
     /**
-     * Here we can change both header bits and the reference to the varpart,
-     * this means that we need to completely recalculate the checksum here.
+     * Reallocation of the variable sized part of the row is intruding
+     * on all readers from the query thread. It reorganises the rows
+     * visible to the readers and it can even reorganise an entire
+     * page.
+     *
+     * This can be solved in a number of ways. One could use some kind of
+     * read-write mutex on the TUP fragment in the same fashion as the
+     * protection of the table fragment.
+     *
+     * This kind of rearrangement happens when one grows the total size
+     * of the variable sized part of the row. In addition there should
+     * not be any space at the end of the page. This should be rare
+     * enough such that we can simply upgrade ourselves to use an
+     * exclusive fragment access during the time we perform this
+     * reallocation of the variable sized part.
      */
-    setChecksum(org, regTabPtr);
+    Uint32 add = needed - alloc;
+    Local_key oldref;
+    refptr->copyout(&oldref);
+    /**
+     * Important to check alloc == 0 first since if this is true then
+     * pageP is not initialised and points to garbage.
+     */
+    bool require_exclusive_access =
+      alloc == 0 ||
+      pageP->free_space < add ||
+      !pageP->is_space_behind_entry(oldref.m_page_idx, add);
+    if (require_exclusive_access)
+    {
+      jam();
+      c_lqh->upgrade_to_exclusive_frag_access();
+      Uint32 *new_var_part=realloc_var_part(&terrorCode,
+                                            regFragPtr, regTabPtr, pagePtr,
+                                            refptr, alloc, needed);
+      if (unlikely(new_var_part==NULL))
+      {
+        jam();
+        return -1;
+      }
+      /* Mark the tuple grown, store the original length at the end. */
+      DEB_LCP(("tab(%u,%u), row_id(%u,%u), set MM_GROWN",
+              req_struct->fragPtrP->fragTableId,
+              req_struct->fragPtrP->fragmentId,
+              regOperPtr->m_tuple_location.m_page_no,
+              regOperPtr->m_tuple_location.m_page_idx));
+      org->m_header_bits= bits | Tuple_header::MM_GROWN | Tuple_header::VAR_PART;
+      m_base_header_bits = org->m_header_bits;
+      new_var_part[needed-1]= orig_size;
+
+      /**
+       * Here we can change both header bits and the reference to the varpart,
+       * this means that we need to completely recalculate the checksum here.
+       *
+       * The source row is changed, this requires protection against readers.
+       *
+       * When reading we acquire the pointers to the variable parts when we
+       * call prepare_read, thus it is sufficient to protect this part with
+       * a mutex, we need not hold the mutex during the entire read operation.
+       * It is vital to not use the row reference to the variable part after
+       * releasing the mutex in query threads.
+       */
+      setChecksum(org, regTabPtr);
+      c_lqh->downgrade_from_exclusive_frag_access();
+    }
+    else
+    {
+      jamDebug();
+      Uint32 *new_var_part = pageP->get_ptr(oldref.m_page_idx);
+      regFragPtr->m_varWordsFree -= pageP->free_space;
+      pageP->grow_entry(oldref.m_page_idx, add);
+      update_free_page_list(regFragPtr, pagePtr);
+      m_base_header_bits= bits | Tuple_header::MM_GROWN |
+                          Tuple_header::VAR_PART;
+      new_var_part[needed-1]= orig_size;
+    }
   }
   return 0;
 }
@@ -4975,16 +5467,19 @@ Dbtup::optimize_var_part(KeyReqStruct* req_struct,
    * if the size of page list_index is MAX_FREE_LIST,
    * we think it as full page, then need not optimize
    */
-  if(pageP->list_index != MAX_FREE_LIST)
+  if (pageP->list_index != MAX_FREE_LIST)
   {
     jam();
     /*
      * optimize var part of tuple by moving varpart, 
      * then we possibly reclaim free pages
      */
-    move_var_part(regFragPtr, regTabPtr, pagePtr,
-                  refptr, var_part_size);
-    setChecksum(org, regTabPtr);
+    move_var_part(regFragPtr,
+                  regTabPtr,
+                  pagePtr,
+                  refptr,
+                  var_part_size,
+                  org);
   }
 
   return 0;
@@ -5015,7 +5510,12 @@ Dbtup::nr_update_gci(Uint32 fragPtrI,
    * this specific case, but not for WRITEs and
    * INSERTs, so we make this condition always
    * true.
+   *
+   * We don't use query threads during Copy fragment phase, thus we
+   * can skip mutex protection here.
    */
+  jamDebug();
+  ndbrequire(!m_is_in_query_thread);
   if (tablePtr.p->m_bits & Tablerec::TR_RowGCI || true)
   {
     Local_key tmp = *key;
@@ -5061,7 +5561,9 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
 
   Local_key tmp = *key;
   
+  ndbrequire(!m_is_in_query_thread);
   PagePtr pagePtr;
+  /* Mutex protection only required here for query threads. */
   pagePtr.i = getRealpidCheck(fragPtr.p, tmp.m_page_no);
   if (unlikely(pagePtr.i == RNIL))
   {
@@ -5162,6 +5664,13 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
+  ndbrequire(!m_is_in_query_thread);
+  /**
+   * We execute this function as part of RESTORE operations and as part
+   * of COPY fragment handling in the starting node. Thus there is no
+   * concurrency from query threads that will bother us at this point in
+   * time.
+   */
   Local_key tmp = * key;
   tmp.m_page_no= getRealpid(fragPtr.p, tmp.m_page_no); 
   
@@ -5248,8 +5757,15 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
                              &oprec,
                              fragPtr.p,
                              tablePtr.p);
+      jamDebug();
+      acquire_frag_mutex(fragPtr.p, key->m_page_no);
       ptr->m_header_bits |= Tuple_header::LCP_SKIP;
+      /**
+       * Updating checksum of stored row requires protection against
+       * readers in other threads.
+       */
       updateChecksum(ptr, tablePtr.p, bits, ptr->m_header_bits);
+      release_frag_mutex(fragPtr.p, key->m_page_no);
     }
   }
 
@@ -5274,6 +5790,10 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
                  *ptr->get_mm_gci(tablePtr.p),
                  fragPtr.p->m_row_count));
 
+  /**
+   * No query threads active when restore and copy fragment process
+   * is active. Thus no need to lock mutex here.
+   */
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)
   {

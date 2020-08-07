@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,13 +48,14 @@ struct DiGetNodesConf {
    */
   friend class Dbdih;
 
-  STATIC_CONST( SignalLength = 3 + MAX_REPLICAS );
+  STATIC_CONST( SignalLength = 4 + MAX_REPLICAS );
   STATIC_CONST( REORG_MOVING = 0x80000000);
 
   Uint32 zero;
   Uint32 fragId;
   Uint32 reqinfo;
-  Uint32 nodes[MAX_REPLICAS + (2 + MAX_REPLICAS)]; //+1
+  Uint32 instanceKey;
+  Uint32 nodes[MAX_REPLICAS + (3 + MAX_REPLICAS)]; //+1
 };
 /**
  * 

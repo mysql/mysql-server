@@ -36,6 +36,7 @@
 #include <signaldata/DbspjErr.hpp>
 #include <stat_utils.hpp>
 #include "../dbtup/tuppage.hpp"
+#include "../dbtc/Dbtc.hpp"
 
 #define JAM_FILE_ID 481
 
@@ -628,7 +629,8 @@ public:
       SFH_SCANNING     = 1, // in LQH
       SFH_WAIT_NEXTREQ = 2,
       SFH_COMPLETE     = 3,
-      SFH_WAIT_CLOSE   = 4
+      SFH_WAIT_CLOSE   = 4,
+      SFH_SCANNING_WAIT_CLOSE = 5
     };
 
     void init(Uint32 fid, bool readBackup)
@@ -646,6 +648,7 @@ public:
     Uint8 m_state;
     Uint8 m_readBackup;
     Uint32 m_ref;
+    Uint32 m_next_ref;
     Uint32 m_rangePtrI;
     union {
       Uint32 nextList;
@@ -1565,6 +1568,7 @@ private:
                          const Ptr<TreeNode> treeNodePtr);
 
   Uint32 check_own_location_domain(const Uint32 *nodes, Uint32 node_count);
+  void send_close_scan(Signal*, Ptr<ScanFragHandle>, Ptr<Request>);
   /**
    * Page manager
    */
@@ -1587,6 +1591,8 @@ private:
   bool appendToSection(Uint32& firstSegmentIVal,
                        const Uint32* src, Uint32 len);
 #endif
+
+  Dbtc *c_tc;
 
   Uint32 m_location_domain_id[MAX_NDB_NODES];
   Uint32 m_load_balancer_location;

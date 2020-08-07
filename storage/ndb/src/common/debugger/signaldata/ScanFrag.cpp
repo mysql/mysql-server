@@ -55,6 +55,8 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
     fprintf(output, "t");
   if (ScanFragReq::getFirstMatchFlag(sig->requestInfo))
     fprintf(output, "f");
+  if (ScanFragReq::getQueryThreadFlag(sig->requestInfo))
+    fprintf(output, "q");
   if (ScanFragReq::getNoDiskFlag(sig->requestInfo))
     fprintf(output, "(nodisk)");
   fprintf(output, " attrLen: %u",
@@ -105,7 +107,8 @@ printSCAN_FRAGCONF(FILE * output, const Uint32 * theData,
   if (len >= ScanFragConf::SignalLength_ext)
     fprintf(output, " activeMask: 0x%x\n", sig->activeMask);
   else
-    fprintf(output, " activeMask: 0(not an ext-signal)");
-
+    fprintf(output, " activeMask: 0(not an ext-signal)\n");
+  if (len >= ScanFragConf::SignalLength_query)
+    fprintf(output, " senderRef = %x\n", sig->senderRef);
   return true;
 }

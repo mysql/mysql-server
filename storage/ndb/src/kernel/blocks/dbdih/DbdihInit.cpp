@@ -51,8 +51,13 @@ void Dbdih::initData()
     allocRecord("NodeRecord", sizeof(NodeRecord), MAX_NDB_NODES);
 
   Uint32 i;
-  for(i = 0; i<MAX_NDB_NODES; i++){
+  for(i = 0; i<MAX_NDB_NODES; i++)
+  {
     new (&nodeRecord[i]) NodeRecord();
+    NodeRecordPtr nodePtr;
+    nodePtr.i = i;
+    ptrAss(nodePtr, nodeRecord);
+    initNodeRecord(nodePtr);
   }
   Uint32 max_takeover_threads = MAX(MAX_NDB_NODES,
                                     ZMAX_TAKE_OVER_THREADS);

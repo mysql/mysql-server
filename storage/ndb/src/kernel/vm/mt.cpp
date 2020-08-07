@@ -67,7 +67,7 @@
  *
  * Could define it based on number of threads in the node.
  */
-static constexpr Uint32 NUM_JOB_BUFFERS_PER_THREAD = 64;
+static constexpr Uint32 NUM_JOB_BUFFERS_PER_THREAD = 32;
 static constexpr Uint32 SIGNAL_RNIL = 0xFFFFFFFF;
 
 extern EventLogger * g_eventLogger;
@@ -942,7 +942,7 @@ struct alignas(NDB_CL) thr_job_queue
    * use & (size - 1) for modulo which only works when it is
    * on the form 2^n.
    */
-  static constexpr unsigned SIZE = 32;
+  static constexpr unsigned SIZE = 64;
   
   /**
    * There is a SAFETY limit on free buffers we never allocate,
@@ -1062,15 +1062,25 @@ is_ldm_thread(unsigned thr_no)
          thr_no <  globalData.ndbMtMainThreads + globalData.ndbMtLqhThreads;
 }
 
-/**
- * All LDM threads are not created equal: 
- * First LDMs BACKUP-thread act as client during BACKUP
- * (See usage of Backup::UserBackupInstanceKey)
- */
 static bool
-is_first_ldm_thread(unsigned thr_no)
+is_query_thread(unsigned thr_no)
 {
-  return thr_no == globalData.ndbMtMainThreads;
+  Uint32 num_query_threads = globalData.ndbMtQueryThreads;
+  unsigned query_base = globalData.ndbMtMainThreads +
+                        globalData.ndbMtLqhThreads;
+  return thr_no >= query_base &&
+         thr_no <  query_base + num_query_threads;
+}
+
+static bool
+is_recover_thread(unsigned thr_no)
+{
+  Uint32 num_recover_threads = globalData.ndbMtRecoverThreads;
+  unsigned query_base = globalData.ndbMtMainThreads +
+                        globalData.ndbMtLqhThreads +
+                        globalData.ndbMtQueryThreads;
+  return thr_no >= query_base && 
+         thr_no <  query_base + num_recover_threads;
 }
 
 static bool
@@ -1078,7 +1088,12 @@ is_tc_thread(unsigned thr_no)
 {
   if (globalData.ndbMtTcThreads == 0)
     return false;
-  unsigned tc_base = globalData.ndbMtMainThreads + globalData.ndbMtLqhThreads;
+  Uint32 num_query_threads =
+    globalData.ndbMtQueryThreads +
+    globalData.ndbMtRecoverThreads;
+  unsigned tc_base = globalData.ndbMtMainThreads +
+                     num_query_threads +
+                     globalData.ndbMtLqhThreads;
   return thr_no >= tc_base &&
          thr_no <  tc_base+globalData.ndbMtTcThreads;
 }
@@ -1086,8 +1101,12 @@ is_tc_thread(unsigned thr_no)
 static bool
 is_recv_thread(unsigned thr_no)
 {
+  Uint32 num_query_threads =
+    globalData.ndbMtQueryThreads +
+    globalData.ndbMtRecoverThreads;
   unsigned recv_base = globalData.ndbMtMainThreads +
                          globalData.ndbMtLqhThreads +
+                         num_query_threads +
                          globalData.ndbMtTcThreads;
   return thr_no >= recv_base &&
          thr_no <  recv_base + globalData.ndbMtReceiveThreads;
@@ -1413,7 +1432,26 @@ struct alignas(NDB_CL) thr_data
    */
   bool m_sent_local_prioa_signal;
 
-  Uint32 m_jbb_estimated_queue_size;
+  NDB_TICKS m_jbb_estimate_start;
+  Uint32 m_jbb_execution_steps;
+  Uint32 m_jbb_accumulated_queue_size;
+  Uint32 m_load_indicator;
+  Uint64 m_jbb_estimate_signal_count_start;
+
+  /**
+   * The following cache line is only written by the local thread.
+   * But it is read by all receive threads and TC threads frequently,
+   * so ensure that only updates of this cache line effects the
+   * other threads.
+   */
+  alignas (NDB_CL) Uint32 m_jbb_estimated_queue_size_in_words;
+  Uint32 m_ldm_multiplier;
+
+  alignas (NDB_CL) bool m_jbb_estimate_next_set;
+#ifdef DEBUG_SCHED_STATS
+  Uint64 m_jbb_estimated_queue_stats[10];
+  Uint64 m_jbb_total_words;
+#endif
   bool m_read_jbb_state_consumed;
   bool m_cpu_percentage_changed;
   /* Last read of current ticks */
@@ -3693,8 +3731,9 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
   /**
    * register watchdog
    */
-  globalEmulatorData.theWatchDog->
+  bool succ = globalEmulatorData.theWatchDog->
     registerWatchedThread(&this_send_thread->m_watchdog_counter, thr_no);
+  require(succ);
 
   NdbMutex_Lock(this_send_thread->send_thread_mutex);
   this_send_thread->m_awake = FALSE;
@@ -4269,7 +4308,7 @@ scan_time_queues_backtick(struct thr_data* selfptr, NDB_TICKS now)
 		           selfptr->m_thr_no, backward);
 
     /* Long backticks should never happen for monotonic timers */
-    assert(backward < 100 || !NdbTick_IsMonotonic()); 
+    //assert(backward < 100 || !NdbTick_IsMonotonic());
 
     /* Accept new time as current */
     selfptr->m_ticks = now;
@@ -6186,8 +6225,18 @@ insert_signal(thr_job_queue *q,
                         true);
 }
 
+//#define DEBUG_LOAD_INDICATOR 1
+#ifdef DEBUG_LOAD_INDICATOR
+#define debug_load_indicator(selfptr) \
+  g_eventLogger->info("thr_no:: %u, set load_indicator to %u", \
+                      selfptr->m_thr_no, \
+                      selfptr->m_load_indicator);
+#else
+#define debug_load_indicator(x)
+#endif
+
 static inline bool
-read_all_jbb_state(thr_data *selfptr)
+read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
 {
   if (!selfptr->m_read_jbb_state_consumed)
   {
@@ -6248,9 +6297,85 @@ read_all_jbb_state(thr_data *selfptr)
     r->m_read_end = read_end;
   }
   selfptr->m_cpu_percentage_changed = true;
-  selfptr->m_jbb_estimated_queue_size =
-    MIN(tot_num_words, MAX_SIGNAL_SIZE * 100) / MAX_SIGNAL_SIZE;
+  /**
+   * m_jbb_estimated_queue_size_in_words is the queue size when we started the
+   * last non-empty execution in this thread.
+   *
+   * The normal behaviour of our scheduler is to execute read_all_jbb_state
+   * twice before going to sleep, first in run_job_buffers and next in
+   * check_queues_empty. We always set the estimated queue size after
+   * waking up and when the queue size is non-empty. It is measured in
+   * words of signal. Thus we ignore the common checks where it is
+   * empty that can happen either just before going to sleep or when
+   * spinning.
+   */
   bool ret_state = (tot_num_words == 0);
+  if (!check_before_sleep)
+  {
+    selfptr->m_jbb_execution_steps++;
+    selfptr->m_jbb_accumulated_queue_size += tot_num_words;
+  }
+  else if (ret_state)
+  {
+    if (selfptr->m_load_indicator > 1)
+    {
+      selfptr->m_load_indicator = 1;
+      debug_load_indicator(selfptr);
+    }
+  }
+  if (!ret_state || selfptr->m_jbb_estimate_next_set)
+  {
+    selfptr->m_jbb_estimate_next_set = false;
+    Uint32 current_queue_size = selfptr->m_jbb_estimated_queue_size_in_words;
+    Uint32 new_queue_size = tot_num_words;
+    Uint32 diff = AVERAGE_SIGNAL_SIZE;
+    if (new_queue_size > 8 * AVERAGE_SIGNAL_SIZE)
+    {
+      diff = 3 * AVERAGE_SIGNAL_SIZE;
+    }
+    else if (new_queue_size > 4 * AVERAGE_SIGNAL_SIZE)
+    {
+      diff = 2 * AVERAGE_SIGNAL_SIZE;
+    }
+    if (new_queue_size >= (current_queue_size + diff) ||
+        (current_queue_size >= (new_queue_size + diff)))
+    {
+      if (!(new_queue_size < 2*AVERAGE_SIGNAL_SIZE &&
+            current_queue_size < 2*AVERAGE_SIGNAL_SIZE))
+      {
+        /**
+         * Update m_jbb_estimated_queue_size_in_words only if the new
+         * queue size has at least changed by AVERAGE_SIGNAL_SIZE and
+         * also if both the new and the current queue size is very
+         * low we can also ignore updating it. Similarly if both are
+         * very high we can also ignore updating it.
+         *
+         * The reason to avoid updating it is that it will cause a
+         * CPU cache miss in all readers of the variable. Readers
+         * are all receive threads and TC threads. So can cause a
+         * significant extra CPU load and memory load if it is
+         * updated to often.
+         */
+        selfptr->m_jbb_estimated_queue_size_in_words = new_queue_size;
+#ifdef DEBUG_SCHED_STATS
+        Uint32 inx = selfptr->m_jbb_estimated_queue_size_in_words /
+                     AVERAGE_SIGNAL_SIZE;
+        if (inx >= 10)
+        {
+          inx = 9;
+        }
+        selfptr->m_jbb_estimated_queue_stats[inx]++;
+#endif
+      }
+    }
+  }
+  else
+  {
+    selfptr->m_jbb_estimate_next_set = check_before_sleep;
+  }
+#ifdef DEBUG_SCHED_STATS
+  selfptr->m_jbb_total_words += tot_num_words;
+#endif
   selfptr->m_read_jbb_state_consumed = ret_state;
   return ret_state;
 }
@@ -6309,7 +6434,7 @@ check_queues_empty(thr_data *selfptr)
   if (!empty)
     return false;
 
-  return read_all_jbb_state(selfptr);
+  return read_all_jbb_state(selfptr, true);
 }
 
 static
@@ -6324,7 +6449,12 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
   {
     BlockReference block = thr_ptr->m_instance_list[i];
     Uint32 main = blockToMain(block);
-    if (main == DBLQH || main == DBTC || main == DBTUP || main == NDBFS)
+    if (main == DBLQH ||
+        main == DBQLQH ||
+        main == DBTC ||
+        main == DBTUP ||
+        main == DBQTUP ||
+        main == NDBFS)
     {
       Uint32 instance = blockToInstance(block);
       SimulatedBlock* b = globalData.getBlock(main, instance);
@@ -6443,7 +6573,6 @@ execute_signals(thr_data *selfptr,
         r->m_read_end = read_end;
       }
     }
-
     /*
      * These pre-fetching were found using OProfile to reduce cache misses.
      * (Though on Intel Core 2, they do not give much speedup, as apparently
@@ -6551,7 +6680,10 @@ run_job_buffers(thr_data *selfptr,
   Uint32 signal_count_since_last_zero_time_queue = 0;
   Uint32 perjb = selfptr->m_max_signals_per_jb;
 
-  read_all_jbb_state(selfptr);
+  if (read_all_jbb_state(selfptr, false) && read_jba_state(selfptr))
+  {
+    return 0;
+  }
   /*
    * A load memory barrier to ensure that we see any prio A signal sent later
    * than loaded prio B signals.
@@ -6835,6 +6967,12 @@ mt_init_thr_map()
   add_thr_map(DBSPJ, 0, thr_GLOBAL);
   add_thr_map(THRMAN, 0, thr_GLOBAL);
   add_thr_map(TRPMAN, 0, thr_GLOBAL);
+  add_thr_map(DBQLQH, 0, thr_LOCAL);
+  add_thr_map(DBQACC, 0, thr_LOCAL);
+  add_thr_map(DBQTUP, 0, thr_LOCAL);
+  add_thr_map(DBQTUX, 0, thr_LOCAL);
+  add_thr_map(QBACKUP, 0, thr_LOCAL);
+  add_thr_map(QRESTORE, 0, thr_LOCAL);
 }
 
 Uint32
@@ -6849,6 +6987,13 @@ mt_get_instance_count(Uint32 block)
   case RESTORE:
     return globalData.ndbMtLqhWorkers;
     break;
+  case DBQLQH:
+  case DBQACC:
+  case DBQTUP:
+  case DBQTUX:
+  case QBACKUP:
+  case QRESTORE:
+    return globalData.ndbMtQueryThreads + globalData.ndbMtRecoverThreads;
   case PGMAN:
     return globalData.ndbMtLqhWorkers + 1;
     break;
@@ -6872,6 +7017,9 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
   Uint32 num_lqh_threads = globalData.ndbMtLqhThreads;
   Uint32 num_tc_threads = globalData.ndbMtTcThreads;
   Uint32 thr_no = globalData.ndbMtMainThreads;
+  Uint32 num_query_threads =
+    globalData.ndbMtQueryThreads +
+    globalData.ndbMtRecoverThreads;
 
   if (num_lqh_threads == 0)
   {
@@ -6894,6 +7042,14 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
   case BACKUP:
   case RESTORE:
     thr_no += (instance - 1) % num_lqh_threads;
+    break;
+  case DBQLQH:
+  case DBQACC:
+  case DBQTUP:
+  case DBQTUX:
+  case QBACKUP:
+  case QRESTORE:
+    thr_no += num_lqh_threads + (instance - 1);
     break;
   case PGMAN:
     if (instance == num_lqh_threads + 1)
@@ -6921,8 +7077,10 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
     }
     else
     {
-      /* TC threads comes after LDM threads */
-      thr_no += num_lqh_threads + (instance - 1);
+      /* TC threads comes after LDM and Query threads */
+      thr_no += num_lqh_threads +
+                num_query_threads +
+                (instance - 1);
     }
     break;
   }
@@ -6930,7 +7088,10 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
     thr_no = instance - 1;
     break;
   case TRPMAN:
-    thr_no += num_lqh_threads + num_tc_threads + (instance - 1);
+    thr_no += num_lqh_threads +
+              num_query_threads +
+              num_tc_threads +
+              (instance - 1);
     break;
   default:
     require(false);
@@ -6964,21 +7125,24 @@ mt_finalize_thr_map()
     if (cnt != NDB_ARRAY_SIZE(thr_map[b]))
     {
       SimulatedBlock * main = globalData.getBlock(bno, 0);
-      for (Uint32 i = cnt; i < NDB_ARRAY_SIZE(thr_map[b]); i++)
+      if (main != nullptr)
       {
-        Uint32 dup = (cnt == 1) ? 0 : 1 + ((i - 1) % (cnt - 1));
-        if (thr_map[b][i].thr_no == thr_map_entry::NULL_THR_NO)
+        for (Uint32 i = cnt; i < NDB_ARRAY_SIZE(thr_map[b]); i++)
         {
-          thr_map[b][i] = thr_map[b][dup];
-          main->addInstance(globalData.getBlock(bno, dup), i);
-        }
-        else
-        {
-          /**
-           * extra pgman instance
-           */
-          require(bno == PGMAN);
-          require(false);
+          Uint32 dup = (cnt == 1) ? 0 : 1 + ((i - 1) % (cnt - 1));
+          if (thr_map[b][i].thr_no == thr_map_entry::NULL_THR_NO)
+          {
+            thr_map[b][i] = thr_map[b][dup];
+            main->addInstance(globalData.getBlock(bno, dup), i);
+          }
+          else
+          {
+            /**
+             * extra pgman instance
+             */
+            require(bno == PGMAN);
+            require(false);
+          }
         }
       }
     }
@@ -7061,8 +7225,9 @@ init_thread(thr_data *selfptr)
   NDB_THREAD_TLS_THREAD= selfptr;
 
   unsigned thr_no = selfptr->m_thr_no;
-  globalEmulatorData.theWatchDog->
+  bool succ = globalEmulatorData.theWatchDog->
     registerWatchedThread(&selfptr->m_watchdog_counter, thr_no);
+  require(succ);
   {
     while(selfptr->m_thread == 0)
       NdbSleep_MilliSleep(30);
@@ -7265,6 +7430,8 @@ mt_receiver_thread_main(void *thr_arg)
    */
   TransporterReceiveHandleKernel recvdata(thr_no, recv_thread_idx);
   recvdata.assign_trps(g_trp_to_recv_thr_map);
+  recvdata.assign_trpman((void*)globalData.getBlock(TRPMAN,
+                                                    recv_thread_idx+1));
   globalTransporterRegistry.init(recvdata);
 
   /**
@@ -7488,7 +7655,7 @@ has_full_in_queues(struct thr_data* selfptr)
  *     - this assumption is made the same in ndbd and ndbmtd and is
  *       mostly followed by block-code, although not in all places :-(
  *
- *   This function return true, if it it slept
+ *   This function return true, if it slept
  *     (i.e that it concluded that it could not execute *any* signals, wo/
  *      risking job-buffer-full)
  */
@@ -7586,6 +7753,89 @@ loop:
   return sleeploop > 0;
 }
 
+static void
+init_jbb_estimate(struct thr_data *selfptr, NDB_TICKS now)
+{
+  selfptr->m_jbb_estimate_signal_count_start =
+    selfptr->m_stat.m_exec_cnt;
+  selfptr->m_jbb_execution_steps = 0;
+  selfptr->m_jbb_accumulated_queue_size = 0;
+  selfptr->m_jbb_estimate_start = now;
+}
+
+#define NO_LOAD_INDICATOR 16
+#define LOW_LOAD_INDICATOR 24
+#define MEDIUM_LOAD_INDICATOR 34
+#define HIGH_LOAD_INDICATOR 48
+#define EXTREME_LOAD_INDICATOR 64
+static void
+handle_queue_size_stats(struct thr_data *selfptr, NDB_TICKS now)
+{
+  Uint32 mean_queue_size = 0;
+  Uint32 mean_execute_size = 0;
+  if (selfptr->m_jbb_execution_steps > 0)
+  {
+    mean_queue_size = selfptr->m_jbb_accumulated_queue_size /
+                      selfptr->m_jbb_execution_steps;
+    mean_execute_size = (selfptr->m_stat.m_exec_cnt - 
+                         selfptr->m_jbb_estimate_signal_count_start) /
+                        selfptr->m_jbb_execution_steps;
+  }
+  Uint32 calc_execute_size = mean_queue_size / AVERAGE_SIGNAL_SIZE;
+  if (calc_execute_size > mean_execute_size)
+  {
+    if (calc_execute_size < (2 * mean_execute_size))
+    {
+      mean_execute_size = calc_execute_size;
+    }
+    else
+    {
+      mean_execute_size *= 2;
+    }
+  }
+  if (mean_execute_size < NO_LOAD_INDICATOR)
+  {
+    if (selfptr->m_load_indicator != 1)
+    {
+      selfptr->m_load_indicator = 1;
+      debug_load_indicator(selfptr);
+    }
+  }
+  else if (mean_execute_size < LOW_LOAD_INDICATOR)
+  {
+    if (selfptr->m_load_indicator != 2)
+    {
+      selfptr->m_load_indicator = 2;
+      debug_load_indicator(selfptr);
+    }
+  }
+  else if (mean_execute_size < MEDIUM_LOAD_INDICATOR)
+  {
+    if (selfptr->m_load_indicator != 3)
+    {
+      selfptr->m_load_indicator = 3;
+      debug_load_indicator(selfptr);
+    }
+  }
+  else if (mean_execute_size < HIGH_LOAD_INDICATOR)
+  {
+    if (selfptr->m_load_indicator != 4)
+    {
+      selfptr->m_load_indicator = 4;
+      debug_load_indicator(selfptr);
+    }
+  }
+  else
+  {
+    if (selfptr->m_load_indicator != 5)
+    {
+      selfptr->m_load_indicator = 5;
+      debug_load_indicator(selfptr);
+    }
+  }
+  init_jbb_estimate(selfptr, now);
+}
+
 extern "C"
 void *
 mt_job_thread_main(void *thr_arg)
@@ -7624,6 +7874,7 @@ mt_job_thread_main(void *thr_arg)
   selfptr->m_signal = signal;
   selfptr->m_curr_ticks = now;
   Ndb_GetRUsage(&selfptr->m_scan_time_queue_rusage, false);
+  init_jbb_estimate(selfptr, now);
 
   while (globalData.theRestartFlag != perform_stop)
   {
@@ -7665,9 +7916,6 @@ mt_job_thread_main(void *thr_arg)
        * new signals to us and thus we avoid going back and forth to
        * sleep too often which otherwise would happen.
        *
-       * Many of the optimisations of having TC and LDM colocated
-       * for transactions would go away unless we use this principle.
-       *
        * No need to flush however if no signals have been executed since
        * last flush.
        *
@@ -7679,7 +7927,8 @@ mt_job_thread_main(void *thr_arg)
       watchDogCounter = 6;
       if (flush_sum > 0)
       {
-        flush_all_local_signals_and_wakeup(selfptr);  // OJA: Will not yield -> wakeup not needed yet
+        // OJA: Will not yield -> wakeup not needed yet
+        flush_all_local_signals_and_wakeup(selfptr);
         do_flush(selfptr);
         flush_sum = 0;
       }
@@ -7765,6 +8014,7 @@ mt_job_thread_main(void *thr_arg)
             selfptr->m_stat.m_wait_cnt += waits;
             selfptr->m_stat.m_loop_cnt += loops;
             selfptr->m_read_jbb_state_consumed = true;
+            init_jbb_estimate(selfptr, now);
             /* Always recalculate how many signals to execute after sleep */
             selfptr->m_max_exec_signals = 0;
             if (selfptr->m_overload_status <=
@@ -7833,6 +8083,32 @@ mt_job_thread_main(void *thr_arg)
     now = NdbTick_getCurrentTicks();
     selfptr->m_curr_ticks = now;
 
+    if (NdbTick_Elapsed(selfptr->m_jbb_estimate_start, now).microSec() > 400)
+    {
+      /**
+       * Report queue size to other threads in our data node after executing
+       * for at least 400 microseconds. We will always report idle mode when
+       * we go to sleep, thus the only manner to report higher load is if we
+       * execute without going to sleep for at least 400 microseconds. On top
+       * of that we need to have many jobs queued such that each job only gets
+       * a small portion of the used CPU.
+       *
+       * When CPU isn't fully utilised we use the CPU load measurements that
+       * shows long term behaviour. But if we start up a number of jobs that
+       * constantly execute we will run constantly (e.g. a scan on a very
+       * large table, or a number of complex queries that are evaluated by the
+       * SPJ block constantly. In these cases load can very quickly build up
+       * from an idle or a light load to a very high load in just a few
+       * microseconds.
+       *
+       * The action we perform here is to set a load indicator that all other
+       * threads can see. This means that each change will cause a cache miss
+       * where we will need to fetch the load indicator again. Thus we don't
+       * want to toggle this value frequently since this might cause high
+       * overhead.
+       */
+      handle_queue_size_stats(selfptr, now);
+    }
     if (loops > maxloops)
     {
       if (real_time)
@@ -7878,12 +8154,76 @@ mt_isEstimatedJobBufferLevelChanged(Uint32 self)
   return changed;
 }
 
+#define AVERAGE_SIGNAL_SIZE 16
 Uint32
 mt_getEstimatedJobBufferLevel(Uint32 self)
 {
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
-  return selfptr->m_jbb_estimated_queue_size;
+  return selfptr->m_jbb_estimated_queue_size_in_words / AVERAGE_SIGNAL_SIZE;
+}
+
+
+#ifdef DEBUG_SCHED_STATS
+void
+get_jbb_estimated_stats(Uint32 block,
+                        Uint32 instance,
+                        Uint64 **total_words,
+                        Uint64 **est_stats)
+{
+  struct thr_repository* rep = g_thr_repository;
+  Uint32 dst = block2ThreadId(block, instance);
+  struct thr_data *dstptr = &rep->m_thread[dst];
+  (*total_words) = &dstptr->m_jbb_total_words;
+  (*est_stats) = &dstptr->m_jbb_estimated_queue_stats[0];
+}
+#endif
+
+void
+prefetch_load_indicators(Uint32 *rr_groups, Uint32 rr_group)
+{
+  struct thr_repository* rep = g_thr_repository;
+  Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+  Uint32 first_ldm_instance = globalData.ndbMtMainThreads;
+  Uint32 num_query_threads = globalData.ndbMtQueryThreads;
+  Uint32 num_distr_threads = num_ldm_threads + num_query_threads;
+  for (Uint32 i = 0; i < num_ldm_threads; i++)
+  {
+    if (rr_groups[i] == rr_group)
+    {
+      Uint32 dst = i + first_ldm_instance;
+      struct thr_data *dstptr = &rep->m_thread[dst];
+      NDB_PREFETCH_READ(&dstptr->m_load_indicator);
+    }
+  }
+  for (Uint32 i = num_ldm_threads; i < num_distr_threads; i++)
+  {
+    if (rr_groups[i] == rr_group)
+    {
+      Uint32 dst = i + first_ldm_instance;
+      struct thr_data *dstptr = &rep->m_thread[dst];
+      NDB_PREFETCH_READ(&dstptr->m_load_indicator);
+    }
+  }
+}
+
+Uint32 get_load_indicator(Uint32 dst)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *dstptr = &rep->m_thread[dst];
+  return dstptr->m_load_indicator;
+}
+
+Uint32 get_qt_jbb_level(Uint32 instance_no)
+{
+  assert(instance_no > 0);
+  struct thr_repository* rep = g_thr_repository;
+  Uint32 num_main_threads = globalData.ndbMtMainThreads;
+  Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+  Uint32 first_qt = num_main_threads + num_ldm_threads;
+  Uint32 qt_thr_no = first_qt + (instance_no - 1);
+  struct thr_data *qt_ptr = &rep->m_thread[qt_thr_no];
+  return qt_ptr->m_jbb_estimated_queue_size_in_words;
 }
 
 NDB_TICKS
@@ -8079,6 +8419,14 @@ mt_getThreadDescription(Uint32 self)
   {
     return "ldm thread, handling a set of data partitions";
   }
+  else if (is_query_thread(self))
+  {
+    return "query thread, handling queries and recovery";
+  }
+  else if (is_recover_thread(self))
+  {
+    return "recover thread, handling restore of data";
+  }
   else if (is_tc_thread(self))
   {
     return "tc thread, transaction handling, unique index and pushdown join"
@@ -8120,6 +8468,14 @@ mt_getThreadName(Uint32 self)
   else if (is_ldm_thread(self))
   {
     return "ldm";
+  }
+  else if (is_query_thread(self))
+  {
+    return "query";
+  }
+  else if (is_recover_thread(self))
+  {
+    return "recover";
   }
   else if (is_tc_thread(self))
   {
@@ -8531,6 +8887,8 @@ mt_getMainThrmanInstance()
   else if (globalData.ndbMtMainThreads == 0)
     return 1 +
            globalData.ndbMtLqhThreads +
+           globalData.ndbMtQueryThreads +
+           globalData.ndbMtRecoverThreads +
            globalData.ndbMtTcThreads;
   else
     require(false);
@@ -8538,7 +8896,9 @@ mt_getMainThrmanInstance()
 }
 
 void
-sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
+sendlocal(Uint32 self,
+          const SignalHeader *s,
+          const Uint32 *data,
           const Uint32 secPtr[3])
 {
   Uint32 block = blockToMain(s->theReceiversBlockNumber);
@@ -8863,7 +9223,15 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_nosend = 1;
   selfptr->m_local_signals_mask.clear();
   selfptr->m_wake_threads_mask.clear();
-  selfptr->m_jbb_estimated_queue_size = 0;
+  selfptr->m_jbb_estimated_queue_size_in_words = 0;
+  selfptr->m_ldm_multiplier = 1;
+  selfptr->m_jbb_estimate_next_set = true;
+  selfptr->m_load_indicator = 1;
+#ifdef DEBUG_SCHED_STATS
+  for (Uint32 i = 0; i < 10; i++)
+    selfptr->m_jbb_estimated_queue_stats[i] = 0;
+  selfptr->m_jbb_total_words = 0;
+#endif
   selfptr->m_read_jbb_state_consumed = true;
   selfptr->m_cpu_percentage_changed = true;
   {
@@ -9007,6 +9375,8 @@ get_total_number_of_block_threads(void)
 {
   return (globalData.ndbMtMainThreads +
           globalData.ndbMtLqhThreads + 
+          globalData.ndbMtQueryThreads +
+          globalData.ndbMtRecoverThreads +
           globalData.ndbMtTcThreads +
           globalData.ndbMtReceiveThreads);
 }
@@ -9248,8 +9618,12 @@ ThreadConfig::init()
   Uint32 num_lqh_threads = globalData.ndbMtLqhThreads;
   Uint32 num_tc_threads = globalData.ndbMtTcThreads;
   Uint32 num_recv_threads = globalData.ndbMtReceiveThreads;
+  Uint32 num_query_threads = globalData.ndbMtQueryThreads;
+  Uint32 num_recover_threads = globalData.ndbMtRecoverThreads;
+
   first_receiver_thread_no =
-    globalData.ndbMtMainThreads + num_tc_threads + num_lqh_threads;
+    globalData.ndbMtMainThreads + num_tc_threads + num_lqh_threads +
+    num_query_threads + num_recover_threads;
   glob_num_threads = first_receiver_thread_no + num_recv_threads;
   glob_unused[0] = 0; //Silence compiler
   if (globalData.ndbMtMainThreads == 0)
@@ -10148,19 +10522,27 @@ may_communicate(unsigned from, unsigned to)
   {
     // TC threads can communicate with SPJ-, LQH-, main- and itself
     return is_ldm_thread(to)  ||
+           is_query_thread(to) ||
            is_tc_thread(to);      // Cover both SPJs and itself 
   }
   else if (is_ldm_thread(from))
   {
-    // First LDM is special as it may act as internal client
-    // during backup, and thus communicate with other LDMs:
-    if (is_first_ldm_thread(from) && is_ldm_thread(to))
-      return true;
-
-    // All LDM threads can communicates with TC-, main-
-    // itself, and the BACKUP client (above)
+    // All LDM threads can communicates with TC-, main- and ldm.
     return is_tc_thread(to)   ||
-           is_first_ldm_thread(to) ||
+           is_ldm_thread(to) ||
+           is_query_thread(to) ||
+           is_recover_thread(to) ||
+           (to == from);
+  }
+  else if (is_query_thread(from))
+  {
+    return is_tc_thread(to) ||
+           is_ldm_thread(to) ||
+           (to == from);
+  }
+  else if (is_recover_thread(from))
+  {
+    return is_ldm_thread(to) ||
            (to == from);
   }
   else

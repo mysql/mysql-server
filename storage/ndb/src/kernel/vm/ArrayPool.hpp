@@ -303,6 +303,23 @@ protected:
   void * alloc_ptr;
   // Call this function if a seize request fails.
   const ErrorHandler* const seizeErrHand;
+public:
+  T* getArrayPtr()
+  {
+    return theArray;
+  }
+  void setArrayPtr(T* newArray)
+  {
+    theArray = newArray;
+  }
+  Uint32 getSize()
+  {
+    return size;
+  }
+  void setNewSize(Uint32 newSize)
+  {
+    size = newSize;
+  }
 };
 
 template <class T>
@@ -348,7 +365,11 @@ template <class T>
 inline
 bool
 ArrayPool<T>::setSize(Uint32 noOfElements, 
-		      bool align, bool exit_on_error, bool guard, Uint32 paramId){
+		      bool align,
+                      bool exit_on_error,
+                      bool guard,
+                      Uint32 paramId)
+{
   if(size == 0)
   {
     if(noOfElements == 0)

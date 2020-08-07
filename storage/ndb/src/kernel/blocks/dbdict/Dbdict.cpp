@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1287,7 +1287,8 @@ Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
   Uint32 *theData = &signal->theData[0];
   const OpSection& fragSection =
     getOpSection(op_ptr, CreateTabReq::FRAGMENTATION);
-  LocalArenaPool<OpSectionSegment> op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
+  LocalArenaPool<OpSectionSegment>
+    op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
   copyOut(op_sec_pool, fragSection, &theData[25], ZNIL);
   theData[0] = 0;
 }
@@ -6996,7 +6997,8 @@ Dbdict::create_fragmentation(Signal* signal,
     return CreateTableRef::InvalidFormat;
   }
 
-  if (tabPtr.p->isOrderedIndex()) {
+  if (tabPtr.p->isOrderedIndex())
+  {
     jam();
     // ordered index has same fragmentation as the table
     frag_req->primaryTableId = tabPtr.p->primaryTableId;
@@ -7101,8 +7103,10 @@ Dbdict::createTable_parse(Signal* signal, bool master,
         releaseTableObject(parseRecord.tablePtr.i, true);
       }
       setError(error, parseRecord);
-      BaseString::snprintf(error.errorObjectName, sizeof(error.errorObjectName),
-                           "%s", c_tableDesc.TableName);
+      BaseString::snprintf(error.errorObjectName,
+                           sizeof(error.errorObjectName),
+                           "%s",
+                           c_tableDesc.TableName);
       return;
     }
 
@@ -22275,7 +22279,6 @@ ref:
     ref->userPtr = lockReq.senderData;
     ref->lockType = lockReq.extra;
     ref->errorCode = err;
-
     sendSignal(lockReq.senderRef, GSN_DICT_LOCK_REF, signal,
                DictLockRef::SignalLength, JBB);
   }

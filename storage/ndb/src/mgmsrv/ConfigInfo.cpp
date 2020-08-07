@@ -381,6 +381,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_CLASSIC_FRAGMENTATION,
+    "ClassicFragmentation",
+    DB_TOKEN,
+    "Use classic fragmentation technique",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true" },
+
+  {
     CFG_DB_SUBSCRIBERS,
     "MaxNoOfSubscribers",
     DB_TOKEN,
@@ -1885,6 +1897,32 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     "0",
     STR_VALUE(NDB_NO_NODEGROUP)
+  },
+
+  {
+    CFG_DB_AUTO_THREAD_CONFIG,
+    "AutomaticThreadConfig",
+    DB_TOKEN,
+    "Use automatic thread configuration, overrides MaxNoOfExecutionThreads",
+    ConfigInfo::CI_USED,
+    CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+  },
+
+  {
+    CFG_DB_NUM_CPUS,
+    "NumCPUs",
+    DB_TOKEN,
+    "Hard coded number of CPUs to use in automatic thread configuration",
+    ConfigInfo::CI_USED,
+    CI_RESTART_SYSTEM | CI_RESTART_INITIAL,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_NUM_CPUS)
   },
 
   {
@@ -5758,9 +5796,10 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
     ctx.reportError("NoOfLogParts must be 4,6,8,10,12,16,20,24 or 32");
     return false;
   }
+  Uint32 dummy;
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
   {
-    int ret = tmp.do_parse(thrconfig, realtimeScheduler, spinTimer);
+    int ret = tmp.do_parse(thrconfig, realtimeScheduler, spinTimer, dummy);
     if (ret)
     {
       ctx.reportError("Unable to parse ThreadConfig: %s",
@@ -5789,7 +5828,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
                            lqhThreads,
                            classic,
                            realtimeScheduler,
-                           spinTimer);
+                           spinTimer,
+                           dummy);
     if (ret)
     {
       ctx.reportError("Unable to set thread configuration: %s",

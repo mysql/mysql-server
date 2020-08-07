@@ -13,7 +13,7 @@ MaxNoOfAttributes=             2048
 TimeBetweenGlobalCheckpoints=  3000
 TimeBetweenEpochs=             100
 NoOfFragmentLogFiles=          4
-FragmentLogFileSize=           12M
+FragmentLogFileSize=           128M
 DiskPageBufferMemory=          4M
 SharedGlobalMemory=            20M
 LongMessageBuffer=             4M
@@ -47,7 +47,6 @@ DiskIOThreadPool=1
 # (Option is ignored for non-MT'ed NDB)
 #
 ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
-
 
 [ENV]
 # Use the multithreaded scheduler whenever available

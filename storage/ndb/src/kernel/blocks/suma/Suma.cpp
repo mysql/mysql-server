@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2877,7 +2877,8 @@ Suma::sendDIGETNODESREQ(Signal *signal,
     jamEntry();
     DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
     Uint32 errCode = conf->zero;
-    Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
+    Uint32 instanceKey = conf->instanceKey;
+    ndbrequire(instanceKey > 0);
     Uint32 nodeId = conf->nodes[0];
     Uint32 nodeCount = (conf->reqinfo & 0xFF) + 1;
     ndbrequire(errCode == 0);
@@ -2894,8 +2895,9 @@ Suma::sendDIGETNODESREQ(Signal *signal,
       fd.m_fragDesc.m_lqhInstanceKey = instanceKey;
       if (ptr.p->m_frag_id == ZNIL)
       {
-        signal->theData[2] = fd.m_dummy;
-        fragBuf.append(&signal->theData[2], 1);
+        signal->theData[2] = fd.m_dummy[0];
+        signal->theData[3] = fd.m_dummy[1];
+        fragBuf.append(&signal->theData[2], 2);
       }
       else if (ptr.p->m_frag_id == fragNo)
       {
@@ -2913,8 +2915,9 @@ Suma::sendDIGETNODESREQ(Signal *signal,
           return;
         }
         fd.m_fragDesc.m_nodeId = ownNodeId;
-        signal->theData[2] = fd.m_dummy;
-        fragBuf.append(&signal->theData[2], 1);
+        signal->theData[2] = fd.m_dummy[0];
+        signal->theData[3] = fd.m_dummy[1];
+        fragBuf.append(&signal->theData[2], 2);
       }
     }
     if (loopCount >= DiGetNodesReq::MAX_DIGETNODESREQS ||
@@ -3162,11 +3165,16 @@ Suma::SyncRecord::getNextFragment(TablePtr * tab,
   LocalSyncRecordBuffer fragBuf(suma.c_dataBufferPool,  m_fragments);
     
   fragBuf.position(fragIt, m_currentFragment);
-  for(; !fragIt.curr.isNull(); fragBuf.next(fragIt), m_currentFragment++)
+  for ( ;
+       !fragIt.curr.isNull();
+       fragBuf.next(fragIt), m_currentFragment += 2)
   {
     FragmentDescriptor tmp;
-    tmp.m_dummy = * fragIt.data;
-    if(tmp.m_fragDesc.m_nodeId == suma.getOwnNodeId()){
+    tmp.m_dummy[0] = * fragIt.data;
+    fragBuf.next(fragIt);
+    tmp.m_dummy[1] = * fragIt.data;
+    if(tmp.m_fragDesc.m_nodeId == suma.getOwnNodeId())
+    {
       * fd = tmp;
       * tab = tabPtr;
       return true;
@@ -3196,7 +3204,8 @@ Suma::SyncRecord::nextScan(Signal* signal)
   LocalSyncRecordBuffer attrBuf(suma.c_dataBufferPool, head);
 
   Uint32 instanceKey = fd.m_fragDesc.m_lqhInstanceKey;
-  BlockReference lqhRef = numberToRef(DBLQH, instanceKey, suma.getOwnNodeId());
+  Uint32 instanceNo = suma.getInstanceNo(suma.getOwnNodeId(), instanceKey);
+  BlockReference lqhRef = numberToRef(DBLQH, instanceNo, suma.getOwnNodeId());
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
   //const Uint32 attrLen = 5 + attrBuf.getSize();
@@ -3351,7 +3360,7 @@ Suma::execSCAN_FRAGCONF(Signal* signal){
 
   ndbrequire(completedOps == 0);
   
-  syncPtr.p->m_currentFragment++;
+  syncPtr.p->m_currentFragment+= 2;
   syncPtr.p->nextScan(signal);
   DBUG_VOID_RETURN;
 }
@@ -3376,6 +3385,7 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
 
   Uint32 batchSize;
   Uint32 instanceKey;
+  Uint32 instanceNo;
   {
     Ptr<SyncRecord> syncPtr;
     c_syncPool.getPtr(syncPtr, syncPtrI);
@@ -3385,10 +3395,13 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
     bool ok = fragBuf.position(fragIt, syncPtr.p->m_currentFragment);
     ndbrequire(ok);
     FragmentDescriptor tmp;
-    tmp.m_dummy = * fragIt.data;
+    tmp.m_dummy[0] = * fragIt.data;
+    fragBuf.next(fragIt);
+    tmp.m_dummy[1] = * fragIt.data;
     instanceKey = tmp.m_fragDesc.m_lqhInstanceKey;
+    instanceNo = getInstanceNo(getOwnNodeId(), instanceKey);
   }
-  BlockReference lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
+  BlockReference lqhRef = numberToRef(DBLQH, instanceNo, getOwnNodeId());
 
   ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
   req->senderData = syncPtrI;

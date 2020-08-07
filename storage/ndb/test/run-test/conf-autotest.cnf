@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -49,12 +49,15 @@ MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 SendBufferMemory = 2M
 NoOfFragmentLogFiles = 4
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 CompressedLCP=1
 CompressedBackup=1
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+PartitionsPerNode=1
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 SharedGlobalMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
@@ -77,12 +80,17 @@ MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 SendBufferMemory = 2M
 NoOfFragmentLogFiles = 4
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 CompressedLCP=1
 CompressedBackup=1
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+AutomaticThreadConfig=1
+NumCPUs=8
+PartitionsPerNode=2
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 SharedGlobalMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
@@ -105,7 +113,7 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfExecutionThreads=8
 SendBufferMemory=4M
@@ -117,6 +125,8 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .2node10thr
@@ -133,7 +143,7 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 CompressedLCP=1
 CompressedBackup=1
 ODirect=1
@@ -141,11 +151,14 @@ MaxNoOfAttributes=2000
 Checksum=1
 ThreadConfig=main={count=1},rep={count=1},ldm={count=2},tc={count=2},recv={count=2},send={count=2}
 SendBufferMemory=4M
+PartitionsPerNode=2
 
 SharedGlobalMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:128M;datafile02.dat:64M
 TimeBetweenWatchDogCheckInitial=60000
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .4node
@@ -163,10 +176,13 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+AutomaticThreadConfig=1
+NumCPUs=4
+PartitionsPerNode=1
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
@@ -176,6 +192,8 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .3node3rpl
@@ -193,16 +211,21 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+AutomaticThreadConfig=1
+NumCPUs=4
+PartitionsPerNode=1
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .6node3rpl
@@ -220,16 +243,21 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+AutomaticThreadConfig=1
+NumCPUs=2
+PartitionsPerNode=1
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .4node4rpl
@@ -247,10 +275,13 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
-FragmentLogFileSize = 128M
+FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+AutomaticThreadConfig=1
+NumCPUs=1
+PartitionsPerNode=1
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
@@ -260,6 +291,8 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .2node2mgm
@@ -277,8 +310,10 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
-FragmentLogFileSize = 64M
+FragmentLogFileSize = 128M
 Checksum=1
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .2node8thr2mgm
@@ -296,9 +331,11 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
-FragmentLogFileSize = 64M
+FragmentLogFileSize = 128M
 MaxNoOfExecutionThreads=8
 Checksum=1
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500
 
 #
 # .4node2mgm
@@ -316,5 +353,7 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
-FragmentLogFileSize = 64M
+FragmentLogFileSize = 128M
 Checksum=1
+HeartbeatIntervalDbApi=5000
+TransactionDeadlockDetectionTimeout=2500

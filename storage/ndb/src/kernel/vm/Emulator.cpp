@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -650,6 +650,30 @@ static const char* const jamFileNames[] =
    "SyncThreadViaReqConf.hpp",           // 514
    "TakeOverTcConf.hpp",                 // 515
    "GetNumMultiTrp.hpp",                 // 516
+   "Dbqlqh.hpp",                         // 517
+   "Dbqlqh.cpp",                         // 518
+   "DbqlqhProxy.hpp",                    // 519
+   "DbqlqhProxy.cpp",                    // 520
+   "Dbqacc.hpp",                         // 521
+   "Dbqacc.cpp",                         // 522
+   "DbqaccProxy.hpp",                    // 523
+   "DbqaccProxy.cpp",                    // 524
+   "Dbqtup.hpp",                         // 525
+   "Dbqtup.cpp",                         // 526
+   "DbqtupProxy.hpp",                    // 527
+   "DbqtupProxy.cpp",                    // 528
+   "Dbqtux.hpp",                         // 529
+   "Dbqtux.cpp",                         // 530
+   "DbqtuxProxy.hpp",                    // 531
+   "DbqtuxProxy.cpp",                    // 532
+   "QBackup.hpp",                        // 533
+   "QBackup.cpp",                        // 534
+   "QBackupProxy.hpp",                   // 535
+   "QBackupProxy.cpp",                   // 536
+   "QRestore.hpp",                       // 537
+   "QRestore.cpp",                       // 538
+   "QRestoreProxy.hpp",                  // 539
+   "QRestoreProxy.cpp",                  // 540
    };
 
 bool 
