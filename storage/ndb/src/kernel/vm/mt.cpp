@@ -6907,7 +6907,21 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
   case DBTC:
   case DBSPJ:
   {
-    thr_no += num_lqh_threads + (instance - 1);
+    if (globalData.ndbMtTcThreads == 0 &&
+        globalData.ndbMtMainThreads > 0)
+    {
+      /**
+       * No TC threads and not ndbd emulation and there is at
+       * at least one main thread, use the first main thread as
+       * thread to handle the the DBTC worker.
+       */
+      thr_no = 0;
+    }
+    else
+    {
+      /* TC threads comes after LDM threads */
+      thr_no += num_lqh_threads + (instance - 1);
+    }
     break;
   }
   case THRMAN:
@@ -6919,7 +6933,6 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
   default:
     require(false);
   }
-
   add_thr_map(block, instance, thr_no);
 }
 
