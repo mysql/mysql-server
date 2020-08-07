@@ -684,8 +684,11 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
   DBUG_TRACE;
 
-  if (high_level_read_only || srv_sys_space.created_new_raw() ||
-      srv_force_recovery) {
+  if (srv_sys_space.created_new_raw()) {
+    return HA_ALTER_INPLACE_NOT_SUPPORTED;
+  }
+
+  if (high_level_read_only || srv_force_recovery) {
     if (srv_force_recovery) {
       my_error(ER_INNODB_FORCED_RECOVERY, MYF(0));
     } else {

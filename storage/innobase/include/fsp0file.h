@@ -230,6 +230,12 @@ class Datafile {
   @return DB_SUCCESS or error code */
   dberr_t close();
 
+  /** Returns if the Datafile is created in raw partition
+  @return true if partition  used is raw , false otherwise */
+  bool is_raw_type() {
+    return (m_type == SRV_NEW_RAW || m_type == SRV_OLD_RAW);
+  }
+
   /** Make a full filepath from a directory path and a filename.
   Prepend the dirpath to filename using the extension given.
   If dirpath is nullptr, prepend the default datadir to filepath.
