@@ -82,6 +82,13 @@ static void ndb_openssl_lock(int mode, int n, const char*, int)
 }
 #endif
 
+/*
+ * OPENSSL library initialization and cleanup
+ *
+ * See ssl_start() and vio_ssl_end() in vio/viosslfactories.cc
+ * and https://wiki.openssl.org/index.php/Library_Initialization
+ */
+
 int ndb_openssl_evp::library_init()
 {
   SSL_library_init();

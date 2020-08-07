@@ -91,7 +91,6 @@ static int copy_file(const char src[], const char dst[]);
 
 int main(int argc, char* argv[])
 {
-  ndb_openssl_evp::library_init();
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   if (opts.handle_options())
@@ -166,7 +165,13 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  return copy_file(argv[0], argv[1]);
+  ndb_openssl_evp::library_init();
+
+  int rc = copy_file(argv[0], argv[1]);
+
+  ndb_openssl_evp::library_end();
+
+  return rc;
 }
 
 int dump_info(const char name[])
