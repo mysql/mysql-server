@@ -1675,7 +1675,7 @@ class PFS_key_object_instance : public PFS_engine_key {
   ~PFS_key_object_instance() override {}
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override {
-    ulonglong object_instance_begin;
+    ulonglong object_instance_begin{0};
     m_find_flag =
         reader.read_ulonglong(find_flag, m_is_null, &object_instance_begin);
     m_identity = (void *)object_instance_begin;
