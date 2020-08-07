@@ -5248,7 +5248,13 @@ void Dblqh::execLQHKEYREF(Signal* signal)
      *     not find an easy way to modify the code so that findTransaction
      *     is usable also for them
      */
-    if (findTransaction(transid1, transid2, tcOprec, 0, tcConnectptr) != ZOK)
+    if (findTransaction(transid1,
+                        transid2,
+                        tcOprec,
+                        regTcPtr->tcHashKeyHi,
+                        true,
+                        false,
+                        tcConnectptr) != ZOK)
     {
       jam();
       warningReport(signal, 14);
@@ -6191,6 +6197,24 @@ void Dblqh::execTUP_ATTRINFO(Signal* signal)
 /* the reception of the request signal (train). For non dirty operations it  */
 /* is unique for the lifecycle of the operation at TC.                       */
 /*                                                                           */
+/* We also include the TC block reference in the hash lookup. This is a      */
+/* requirement for SCAN operations, for key operations it makes it possible  */
+/* to use the same transaction id from different TC blocks and still be able */
+/* to distinguish the correct operation.                                     */
+/*                                                                           */
+/* There is one case where we might pick the wrong operation record. This    */
+/* is when it comes from a TC takeover operation. In this case we only       */
+/* know about the TC node and the TC operation record. We don't know the     */
+/* TC instance used. However it is not of any major concern, even if we      */
+/* did support multi-TC instance transactions they would still be committed  */
+/* or aborted as one unit and thus as long as all operations are treated     */
+/* the same way it is ok to sort of pick the wrong operation. The operation  */
+/* not picked will be picked by another operation instead.                   */
+/*                                                                           */
+/* The partial_fit_ok flag indicates that this is a search from TC takeover  */
+/* thread. In this case we only compare the node and block from the          */
+/* block reference, we ignore the block instance.                            */
+/*                                                                           */
 /* NOTE:                                                                     */
 /*   The internal clients of NDB does *not* guarantee hash uniqueness        */
 /*   for LQHKEYREQs as described above (SPJ, node restart ..). However,      */
@@ -6198,28 +6222,44 @@ void Dblqh::execTUP_ATTRINFO(Signal* signal)
 /*   inserted nor searched after in the hash table.                          */
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
-int Dblqh::findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec,
+int Dblqh::findTransaction(UintR Transid1,
+                           UintR Transid2,
+                           UintR TcOprec,
                            Uint32 hi,
+                           bool is_key_operation,
+                           bool partial_fit_ok,
                            TcConnectionrecPtr& tcConnectptr)
 {
   TcConnectionrecPtr locTcConnectptr;
 
+  ndbassert(partial_fit_ok == false || is_key_operation == true);
   Uint32 ThashIndex = (Transid1 ^ TcOprec) & (TRANSID_HASH_SIZE - 1);
   locTcConnectptr.i = ctransidHash[ThashIndex];
   while (locTcConnectptr.i != RNIL) {
     ndbrequire(tcConnect_pool.getUncheckedPtrRW(locTcConnectptr));
     if ((locTcConnectptr.p->transid[0] == Transid1) &&
         (locTcConnectptr.p->transid[1] == Transid2) &&
-        (locTcConnectptr.p->tcOprec == TcOprec) &&
-        (locTcConnectptr.p->tcHashKeyHi == hi)) {
+        (locTcConnectptr.p->tcOprec == TcOprec))
+    {
+      if (((partial_fit_ok == false) &&
+           locTcConnectptr.p->tcHashKeyHi == hi) ||
+           (partial_fit_ok == true))
+      {
+        if ((is_key_operation &&
+             locTcConnectptr.p->tcScanRec == RNIL) ||
+            (!is_key_operation &&
+             locTcConnectptr.p->tcScanRec != RNIL))
+        {
 /* FIRST PART OF TRANSACTION CORRECT */
 /* SECOND PART ALSO CORRECT */
 /* THE OPERATION RECORD POINTER IN TC WAS ALSO CORRECT */
-      jam();
-      tcConnectptr = locTcConnectptr;
-      ndbrequire(Magic::check_ptr(locTcConnectptr.p));
-      ndbassert(tcConnectptr.p->hashIndex == ThashIndex);
-      return (int)ZOK;
+          jam();
+          tcConnectptr = locTcConnectptr;
+          ndbrequire(Magic::check_ptr(locTcConnectptr.p));
+          ndbassert(tcConnectptr.p->hashIndex == ThashIndex);
+          return (int)ZOK;
+        }
+      }
     }//if
     jam();
 /* THIS WAS NOT THE TRANSACTION WHICH WAS SOUGHT */
@@ -6348,6 +6388,7 @@ void Dblqh::seizeTcrec(TcConnectionrecPtr& tcConnectptr)
   locTcConnectptr.p->m_committed_log_space = 0;
   locTcConnectptr.p->m_dealloc_state = TcConnectionrec::DA_IDLE;
   locTcConnectptr.p->m_dealloc_data.m_unused = RNIL;
+  locTcConnectptr.p->tcScanRec = RNIL;
   ndbrequire(Magic::check_ptr(locTcConnectptr.p));
 
   ctcNumFree = numFree - 1;
@@ -8334,7 +8375,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   Uint32 senderRef = regTcPtr->clientBlockref = signal->senderBlockRef();
   regTcPtr->clientConnectrec = sig0;
   regTcPtr->tcOprec = sig0;
-  regTcPtr->tcHashKeyHi = 0;
   regTcPtr->lqhKeyReqId = cTotalLqhKeyReqCount;
   regTcPtr->commitAckMarker = RNIL;
   regTcPtr->m_flags= 0;
@@ -8357,6 +8397,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   const Uint32 schemaVersion = regTcPtr->schemaVersion = LqhKeyReq::getSchemaVersion(sig4);
   tabptr.i = LqhKeyReq::getTableId(sig4);
   regTcPtr->tcBlockref = sig5;
+  regTcPtr->tcHashKeyHi = sig5;
 
   const Uint8 op = LqhKeyReq::getOperation(Treqinfo);
   if (ERROR_INSERTED(5080) ||
@@ -8561,7 +8602,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   UintR TitcKeyLen = 0;
-  Uint32 keyLenWithLQHReq = 0;
   UintR TreclenAiLqhkey   = 0;
 
   if (handle.m_cnt > 0)
@@ -8579,7 +8619,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
     regTcPtr->keyInfoIVal= keyInfoSection.i;
     TitcKeyLen= keyInfoSection.sz;
-    keyLenWithLQHReq= TitcKeyLen;
 
     Uint32 totalAttrInfoLen= 0;
     if (handle.getSection(attrInfoSection,
@@ -8626,7 +8665,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->currReclenAi = 0;
     regTcPtr->totReclenAi = 0;
     regTcPtr->primKeyLen = 0;
-    keyLenWithLQHReq = 0;
 
     if (! LqhKeyReq::getNrCopyFlag(Treqinfo))
     {
@@ -8699,15 +8737,17 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
    *
    * Thus we skip insertion in hashlist whenever not required.
    */
-  if (regTcPtr->dirtyOp == ZFALSE ||                  //Transactional operation
-      regTcPtr->primKeyLen > keyLenWithLQHReq ||      //Await more KEYINFO
-      regTcPtr->totReclenAi > regTcPtr->currReclenAi) //Await more ATTRINFO
+  if (regTcPtr->dirtyOp == ZFALSE) //Transactional operation
   {
     jamDebug();
     /* Check that no equal element exists */
-    ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
-                              regTcPtr->tcOprec, regTcPtr->tcHashKeyHi,
-                              tcConnectptr) == ZNOT_FOUND);
+    ndbrequire(findTransaction(regTcPtr->transid[0],
+                               regTcPtr->transid[1], 
+                               regTcPtr->tcOprec,
+                               regTcPtr->tcHashKeyHi,
+                               true,
+                               false,
+                               tcConnectptr) == ZNOT_FOUND);
 
     TcConnectionrecPtr localNextTcConnectptr;
     Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) &
@@ -8992,15 +9032,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   /* Handle any AttrInfo we received with the LQHKEYREQ */
   if (regTcPtr->currReclenAi != 0)
   {
+    /* Long LQHKEYREQ */
     jamDebug();
-    {
-      /* Long LQHKEYREQ */
-      jamDebug();
-      
-      regTcPtr->currTupAiLen= saveAttrInfo ?
-        regTcPtr->totReclenAi :
-        0;
-    }
+    regTcPtr->currTupAiLen= saveAttrInfo ?
+      regTcPtr->totReclenAi :
+      0;
   }//if
   ndbrequire(regTcPtr->totReclenAi == regTcPtr->currReclenAi);
   if (refToMain(regTcPtr->clientBlockref) != getRESTORE())
@@ -9993,7 +10029,9 @@ void Dblqh::handleUserUnlockRequest(Signal* signal,
   if (unlikely( findTransaction(regTcPtr->transid[0], 
                                 regTcPtr->transid[1], 
                                 tcOpRecIndex,
-                                0,
+                                regTcPtr->tcHashKeyHi,
+                                true,
+                                false,
                                 tcConnectptr) != ZOK))
   {
     jam();
@@ -11872,10 +11910,14 @@ void Dblqh::deleteTransidHash(Signal* signal, TcConnectionrecPtr& tcConnectptr)
   {
     jamDebug();
     /* If this operation is 'non-dirty', there should be no duplicates */
-    ndbassert(regTcPtr->dirtyOp == ZTRUE ||
-              findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
-                              regTcPtr->tcOprec, regTcPtr->tcHashKeyHi,
-                              tcConnectptr) == ZNOT_FOUND);
+    ndbrequire(regTcPtr->dirtyOp == ZTRUE ||
+               findTransaction(regTcPtr->transid[0],
+                               regTcPtr->transid[1], 
+                               regTcPtr->tcOprec,
+                               regTcPtr->tcHashKeyHi,
+                               (regTcPtr->tcScanRec == RNIL),
+                               false,
+                               tcConnectptr) == ZNOT_FOUND);
     return;
   }
 
@@ -12089,7 +12131,13 @@ Dblqh::execFIRE_TRIG_REQ(Signal* signal)
 
   Uint32 err;
   TcConnectionrecPtr tcConnectptr;
-  if (findTransaction(transid1, transid2, tcOprec, 0, tcConnectptr) == ZOK &&
+  if (findTransaction(transid1,
+                      transid2,
+                      tcOprec,
+                      senderRef,
+                      true,
+                      false,
+                      tcConnectptr) == ZOK &&
       !ERROR_INSERTED_CLEAR(5065) &&
       !ERROR_INSERTED(5070) &&
       !ERROR_INSERTED(5071))
@@ -12320,6 +12368,7 @@ void Dblqh::execCOMMITREQ(Signal* signal)
   Uint32 gci_hi = signal->theData[2];
   Uint32 transid1 = signal->theData[3];
   Uint32 transid2 = signal->theData[4];
+  BlockReference old_blockref = signal->theData[5];
   Uint32 tcOprec = signal->theData[6];
   Uint32 gci_lo = signal->theData[7];
 
@@ -12334,11 +12383,25 @@ void Dblqh::execCOMMITREQ(Signal* signal)
                         signal->getLength());
     return;
   }//if
+  bool partial_fit_ok;
+  if (reqBlockref == old_blockref)
+  {
+    jam();
+    partial_fit_ok = false;
+  }
+  else
+  {
+    jam();
+    partial_fit_ok = true;
+  }
   TcConnectionrecPtr tcConnectptr;
   ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec, 0,
+                      tcOprec,
+                      old_blockref,
+                      true,
+                      partial_fit_ok,
                       tcConnectptr) != ZOK)
   {
     warningReport(signal, 5);
@@ -12498,6 +12561,7 @@ void Dblqh::execCOMPLETEREQ(Signal* signal)
   BlockReference reqBlockref = signal->theData[1];
   Uint32 transid1 = signal->theData[2];
   Uint32 transid2 = signal->theData[3];
+  BlockReference old_blockref = signal->theData[4];
   Uint32 tcOprec = signal->theData[5];
   if (ERROR_INSERTED(5005)) {
     systemErrorLab(signal, __LINE__);
@@ -12507,11 +12571,25 @@ void Dblqh::execCOMPLETEREQ(Signal* signal)
     sendSignalWithDelay(cownref, GSN_COMPLETEREQ, signal, 2000, 6);
     return;
   }//if
+  bool partial_fit_ok;
+  if (reqBlockref == old_blockref)
+  {
+    jam();
+    partial_fit_ok = false;
+  }
+  else
+  {
+    jam();
+    partial_fit_ok = true;
+  }
   TcConnectionrecPtr tcConnectptr;
   ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec, 0,
+                      tcOprec,
+                      old_blockref,
+                      true,
+                      partial_fit_ok,
                       tcConnectptr) != ZOK)
   {
     jam();
@@ -13393,11 +13471,13 @@ void Dblqh::execABORT(Signal* signal)
   TcConnectionrecPtr tcConnectptr;
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec, 0,
+                      tcOprec,
+                      tcBlockref,
+                      true,
+                      false,
                       tcConnectptr) != ZOK)
   {
     jam();
-
     if(ERROR_INSERTED(5039) && 
        refToNode(signal->getSendersBlockRef()) != getOwnNodeId()){
       jam();
@@ -13478,6 +13558,7 @@ void Dblqh::execABORTREQ(Signal* signal)
   BlockReference reqBlockref = signal->theData[1];
   Uint32 transid1 = signal->theData[2];
   Uint32 transid2 = signal->theData[3];
+  BlockReference old_blockref = signal->theData[4];
   Uint32 tcOprec = signal->theData[5];
   if (ERROR_INSERTED(5006)) {
     systemErrorLab(signal, __LINE__);
@@ -13488,10 +13569,24 @@ void Dblqh::execABORTREQ(Signal* signal)
     return;
   }//if
   ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  bool partial_fit_ok;
+  if (reqBlockref == old_blockref)
+  {
+    jam();
+    partial_fit_ok = false;
+  }
+  else
+  {
+    jam();
+    partial_fit_ok = true;
+  }
   TcConnectionrecPtr tcConnectptr;
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec, 0,
+                      tcOprec,
+                      old_blockref,
+                      true,
+                      partial_fit_ok,
                       tcConnectptr) != ZOK)
   {
     signal->theData[0] = reqPtr;
@@ -15366,6 +15461,8 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
                                transid2,
                                senderData,
                                senderBlockRef,
+                               false,
+                               false,
                                tcConnectptr) != ZOK))
   {
     jam();
@@ -16531,6 +16628,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
                                regTcPtr->transid[1],
                                regTcPtr->tcOprec,
                                senderBlockRef,
+                               false,
+                               false,
                                tcConnectptr) == ZNOT_FOUND);
     hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) &
                  (TRANSID_HASH_SIZE - 1);
@@ -17954,8 +18053,8 @@ void Dblqh::handle_finish_scan(Signal* signal,
     ndbrequire(!m_is_query_block);
     scanptr.p->scanState = ScanRecord::QUIT_START_QUEUE_SCAN;
   }
-  tcConnectptr.p->tcScanRec = RNIL;
   deleteTransidHash(signal, tcConnectptr);
+  tcConnectptr.p->tcScanRec = RNIL;
   releaseOprec(signal, tcConnectptr);
   releaseTcrec(signal, tcConnectptr);
   if (restart_flag)

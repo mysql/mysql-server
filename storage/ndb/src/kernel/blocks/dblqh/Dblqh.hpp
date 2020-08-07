@@ -3335,6 +3335,8 @@ private:
                        UintR Transid2,
                        UintR TcOprec,
                        UintR hi,
+                       bool is_key_operation,
+                       bool partial_fit_ok,
                        TcConnectionrecPtr& tcConnectptr);
   void getFirstInLogQueue(Signal* signal,
                           TcConnectionrec **dst,
