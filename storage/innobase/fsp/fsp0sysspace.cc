@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -706,7 +706,7 @@ void SysTablespace::file_found(Datafile &file) {
 }
 
 /** Check the data file specification.
-@param[out] create_new_db	true if a new database is to be created
+@param[in] create_new_db	true if a new database is to be created
 @param[in] min_expected_size	Minimum expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
 dberr_t SysTablespace::check_file_spec(bool create_new_db,
@@ -760,7 +760,7 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
       ut_a(err != DB_FAIL);
       break;
 
-    } else if (create_new_db) {
+    } else if (create_new_db && !(*it).is_raw_type()) {
       ib::error(ER_IB_MSG_454)
           << "The " << name() << " data file '" << begin->m_name
           << "' was not found but"
@@ -771,6 +771,7 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
       break;
 
     } else {
+      ut_ad(err == DB_SUCCESS);
       file_found(*it);
     }
   }
