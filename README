@@ -1,3 +1,8 @@
+If you use WarpSQL, please consider supporting the project on Patreon:
+http://patreon.com/warpsql
+Patreon supporters can receive consulting and support for using WarpSQL
+or any other MySQL distribution.
+
 WarpSQL is a GPL v2 open source distribution of MySQL. WarpSQL is not 
 intended to be a hard fork of MySQL like MariaDB, but is more like 
 Percona Server, which is an enhanced MySQL server which strives to be 
