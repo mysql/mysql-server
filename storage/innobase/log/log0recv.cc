@@ -710,10 +710,9 @@ static recv_sys_t::Space *recv_get_page_map(space_id_t space_id, bool create) {
     heap = mem_heap_create_typed(256, MEM_HEAP_FOR_RECV_SYS);
 
     using Space = recv_sys_t::Space;
-    using value_type = recv_sys_t::Spaces::value_type;
+    using Value = recv_sys_t::Spaces::value_type;
 
-    auto where =
-        recv_sys->spaces->insert(it, value_type(space_id, Space(heap)));
+    auto where = recv_sys->spaces->insert(it, Value{space_id, Space(heap)});
 
     return (&where->second);
   }
@@ -2331,9 +2330,9 @@ static void recv_add_to_hash_table(mlog_id_t type, space_id_t space_id,
 
     UT_LIST_INIT(recv_addr->rec_list, &recv_t::rec_list);
 
-    using value_type = recv_sys_t::Pages::value_type;
+    using Value = recv_sys_t::Pages::value_type;
 
-    space->m_pages.insert(it, value_type(page_no, recv_addr));
+    space->m_pages.insert(it, Value{page_no, recv_addr});
 
     ++recv_sys->n_addrs;
   }

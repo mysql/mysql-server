@@ -935,7 +935,7 @@ bool fsp_header_write_encryption(space_id_t space_id, uint32_t space_flags,
 
   page = buf_block_get_frame(block);
 
-  /* Write the new fsp flags into be update to the header if needed */
+  /* Write the new fsp flags into the header if needed */
   if (update_fsp_flags) {
     mlog_write_ulint(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS, space_flags,
                      MLOG_4BYTES, mtr);

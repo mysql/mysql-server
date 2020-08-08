@@ -11043,10 +11043,10 @@ ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE
 ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_MDL
   eng "Delaying truncate of undo tablespace %s due to a metadata lock."
 
-ER_IB_MSG_UNDO_INJECT_CRASH
+ER_IB_MSG_INJECT_CRASH
   eng "Injected debug crash point: %s"
 
-ER_IB_MSG_UNDO_INJECT_FAILURE
+ER_IB_MSG_INJECT_FAILURE
   eng "Injected debug failure point: %s"
 
 ER_GRP_RPL_TIMEOUT_RECEIVED_VC_LEAVE_ON_REJOIN
@@ -11081,6 +11081,15 @@ ER_NO_ERROR_LOG_PARSER_CONFIGURED
 
 ER_UPGRADE_NONEXISTENT_SCHEMA
   eng "The schema \"%.64s\" referenced by %.16s \"%.128s\" does not exist. Please clean up any orphan %.16s before upgrading."
+
+ER_IB_MSG_CREATED_UNDO_SPACE
+  eng "Created undo tablespace '%s'."
+
+ER_IB_MSG_DROPPED_UNDO_SPACE
+  eng "Dropped undo tablespace '%s'."
+
+ER_IB_MSG_MASTER_KEY_ROTATED
+  eng "The InnoDB Encryption Master Key has been rotated in %d tablespaces."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -1825,8 +1825,10 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
 @return DB_SUCCESS or error code */
 dberr_t fil_reset_encryption(space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
-/** @return true if the re-encrypt success */
-bool fil_encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
+
+/** Rotate the tablespace keys by new master key.
+@return the number of tablespaces that failed to rotate. */
+size_t fil_encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
 
 /** During crash recovery, open a tablespace if it had not been opened
 yet, to get valid size and flags.

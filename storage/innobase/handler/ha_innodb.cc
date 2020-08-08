@@ -3925,6 +3925,9 @@ bool innobase_encryption_key_rotation() {
   byte *master_key = nullptr;
   bool ret = false;
 
+  /* Pause here to try other locks while this thread holds the backup locks. */
+  DEBUG_SYNC_C("ib_pause_encryption_rotate");
+
   if (srv_read_only_mode) {
     my_error(ER_INNODB_READ_ONLY, MYF(0));
     return (true);
@@ -3935,8 +3938,8 @@ bool innobase_encryption_key_rotation() {
 
   /* Check if keyring loaded and the currently master key
   can be fetched. */
-  if (Encryption::get_master_key_id() != 0) {
-    ulint master_key_id;
+  if (Encryption::get_master_key_id() != Encryption::DEFAULT_MASTER_KEY_ID) {
+    uint32_t master_key_id;
 
     Encryption::get_master_key(&master_key_id, &master_key);
 
@@ -3959,11 +3962,8 @@ bool innobase_encryption_key_rotation() {
     goto error_exit;
   }
 
-  /* Rotate normal tablespace */
-  ret = !fil_encryption_rotate();
-
-  /* If rotation failure, return error */
-  if (ret) {
+  /* Rotate all IBD and IBU tablespace that need it. */
+  if (fil_encryption_rotate() > 0) {
     my_free(master_key);
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
     goto error_exit;
@@ -11177,7 +11177,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
           (m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
         /* Set the encryption flag. */
         byte *master_key = nullptr;
-        ulint master_key_id;
+        uint32_t master_key_id;
 
         /* Check if keyring is ready. */
         Encryption::get_master_key(&master_key_id, &master_key);
@@ -15311,6 +15311,8 @@ cleanup:
 
   mutex_exit(&undo::ddl_mutex);
 
+  ib::info(ER_IB_MSG_CREATED_UNDO_SPACE, alter_info->tablespace_name);
+
   return error;
 }
 
@@ -15593,6 +15595,9 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   }
 
   mutex_exit(&undo::ddl_mutex);
+
+  ib::info(ER_IB_MSG_DROPPED_UNDO_SPACE, alter_info->tablespace_name);
+
   return error;
 }
 

@@ -4929,11 +4929,9 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
       if ((dirent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && recursive) {
         path.append("\\*");
 
-        using value_type = Stack::value_type;
+        using Value = Stack::value_type;
 
-        value_type dir(path, current.m_depth + 1);
-
-        directories.push(dir);
+        directories.push(Value{path, current.m_depth + 1});
 
       } else {
         f(path, current.m_depth + 1);

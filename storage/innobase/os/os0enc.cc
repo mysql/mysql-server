@@ -51,7 +51,7 @@ constexpr char Encryption::MASTER_KEY_PREFIX[];
 constexpr char Encryption::DEFAULT_MASTER_KEY[];
 
 /** Current master key id */
-ulint Encryption::s_master_key_id = 0;
+uint32_t Encryption::s_master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
 
 /** Current uuid of server instance */
 char Encryption::s_uuid[Encryption::SERVER_UUID_LEN + 1] = {0};
@@ -88,7 +88,7 @@ void Encryption::create_master_key(byte **master_key) noexcept {
   }
 
   /* Generate new master key */
-  snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" ULINTPF,
+  snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" UINT32PF,
            MASTER_KEY_PREFIX, s_uuid, s_master_key_id + 1);
 
   /* We call key ring API to generate master key here. */
@@ -114,7 +114,7 @@ void Encryption::create_master_key(byte **master_key) noexcept {
 #endif /* !UNIV_HOTBACKUP */
 }
 
-void Encryption::get_master_key(ulint master_key_id, char *srv_uuid,
+void Encryption::get_master_key(uint32_t master_key_id, char *srv_uuid,
                                 byte **master_key) noexcept {
   size_t key_len = 0;
   char *key_type = nullptr;
@@ -125,13 +125,13 @@ void Encryption::get_master_key(ulint master_key_id, char *srv_uuid,
   if (srv_uuid != nullptr) {
     ut_ad(strlen(srv_uuid) > 0);
 
-    snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" ULINTPF,
+    snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" UINT32PF,
              MASTER_KEY_PREFIX, srv_uuid, master_key_id);
   } else {
     /* For compitable with 5.7.11, we need to get master key with
     server id. */
 
-    snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%lu-" ULINTPF,
+    snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%lu-" UINT32PF,
              MASTER_KEY_PREFIX, server_id, master_key_id);
   }
 
@@ -168,7 +168,7 @@ void Encryption::get_master_key(ulint master_key_id, char *srv_uuid,
 #endif /* UNIV_ENCRYPT_DEBUG */
 }
 
-void Encryption::get_master_key(ulint *master_key_id,
+void Encryption::get_master_key(uint32_t *master_key_id,
                                 byte **master_key) noexcept {
 #ifndef UNIV_HOTBACKUP
   int ret;
@@ -225,7 +225,7 @@ void Encryption::get_master_key(ulint *master_key_id,
   } else {
     *master_key_id = s_master_key_id;
 
-    snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" ULINTPF,
+    snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" UINT32PF,
              MASTER_KEY_PREFIX, s_uuid, *master_key_id);
 
     /* We call key ring API to get master key here. */
@@ -240,7 +240,7 @@ void Encryption::get_master_key(ulint *master_key_id,
         my_free(key_type);
       }
 
-      snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%lu-" ULINTPF,
+      snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%lu-" UINT32PF,
                MASTER_KEY_PREFIX, server_id, *master_key_id);
 
       ret = my_key_fetch(key_name, &key_type, nullptr,
@@ -279,7 +279,7 @@ void Encryption::get_master_key(ulint *master_key_id,
 bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
                                       bool is_boot, bool encrypt_key) noexcept {
   byte *master_key = nullptr;
-  ulint master_key_id = 0;
+  uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
   bool is_default_master_key = false;
 
   /* Get master key from key ring. For bootstrap, we use a default
@@ -290,8 +290,6 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
         || (strlen(server_uuid) == 0)
 #endif
     ) {
-      master_key_id = 0;
-
       master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
 
       ut_ad(KEY_LEN >= sizeof(DEFAULT_MASTER_KEY));
@@ -319,7 +317,7 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
 
   /* Write master key id. */
   mach_write_to_4(ptr, master_key_id);
-  ptr += sizeof(uint32);
+  ptr += sizeof(uint32_t);
 
   /* Write server uuid. */
   memcpy(reinterpret_cast<char *>(ptr), s_uuid, sizeof(s_uuid));
@@ -456,7 +454,7 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
                                         bool decrypt_key) noexcept {
   byte *ptr;
   byte *master_key = nullptr;
-  uint32 master_key_id = 0;
+  uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
   byte key_info[KEY_LEN * 2];
   ulint crc1;
   ulint crc2;
@@ -517,7 +515,7 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
     auto len = my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
                               KEY_LEN, my_aes_256_ecb, nullptr, false);
 
-    if (master_key_id == 0) {
+    if (master_key_id == DEFAULT_MASTER_KEY_ID) {
       ut_free(master_key);
     } else {
       my_free(master_key);
@@ -1261,4 +1259,4 @@ byte *Encryption::get_initial_vector() const { return m_iv; }
 
 void Encryption::set_initial_vector(byte *iv) { m_iv = iv; }
 
-ulint Encryption::get_master_key_id() { return s_master_key_id; }
+uint32_t Encryption::get_master_key_id() { return s_master_key_id; }
