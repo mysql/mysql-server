@@ -551,7 +551,10 @@ class String {
   size_t charpos(size_t i, size_t offset = 0) const;
 
   bool reserve(size_t space_needed) {
-    return mem_realloc(m_length + space_needed);
+    if (m_alloced_length < m_length + space_needed) {
+      return mem_realloc(m_length + space_needed);
+    }
+    return false;
   }
   bool reserve(size_t space_needed, size_t grow_by);
 
