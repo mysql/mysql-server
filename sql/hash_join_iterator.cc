@@ -99,7 +99,7 @@ HashJoinIterator::HashJoinIterator(
 }
 
 bool HashJoinIterator::InitRowBuffer() {
-  if (m_row_buffer.Init(kHashTableSeed)) {
+  if (m_row_buffer.Init()) {
     DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
     return true;
   }

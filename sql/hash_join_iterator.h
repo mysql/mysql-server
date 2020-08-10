@@ -522,14 +522,13 @@ class HashJoinIterator final : public RowIterator {
   // It is incremented during the state LOADING_NEXT_CHUNK_PAIR.
   int m_current_chunk{-1};
 
-  // The seeds that are used by xxHash64 when calculating the hash from a join
-  // key. We need one seed for the hashing done in the in-memory hash table,
-  // and one seed when calculating the hash that is used for determining which
-  // chunk file a row should be placed in (in case of on-disk hash join). If we
-  // were to use the same seed for both operations, we would get a really bad
-  // hash table when loading a chunk file to the hash table. The numbers are
-  // chosen randomly and have no special meaning.
-  static constexpr uint32_t kHashTableSeed{156211};
+  // The seed that is by xxHash64 when calculating the hash from a join
+  // key. We use xxHash64 when calculating the hash that is used for
+  // determining which chunk file a row should be placed in (in case of
+  // on-disk hash join); if we used the same hash function (and seed) for
+  // both operation, we would get a really bad hash table when loading
+  // a chunk file to the hash table. The number is chosen randomly and have
+  // no special meaning.
   static constexpr uint32_t kChunkPartitioningHashSeed{899339};
 
   // Which row we currently are reading from each of the hash join chunk file.

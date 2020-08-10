@@ -287,7 +287,7 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
 
 LinkedImmutableString
 HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
-    LinkedImmutableString next_ptr) {
+    LinkedImmutableString next_ptr, bool *full) {
   size_t row_size_upper_bound = m_row_size_upper_bound;
   if (m_tables.has_blob_column()) {
     // The row size upper bound can have changed.
@@ -309,9 +309,13 @@ HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
   if (static_cast<size_t>(block.second - block.first) >= required_value_bytes) {
     dptr = start_of_value = block.first;
   } else {
-    // Fatal error; there's no maximum capacity yet (coming in a later patch).
-    // Later, this path will be used to signal buffer full.
-    return LinkedImmutableString{nullptr};
+    dptr = start_of_value =
+        pointer_cast<char *>(m_overflow_mem_root.Alloc(required_value_bytes));
+    if (dptr == nullptr) {
+      return LinkedImmutableString{nullptr};
+    }
+    committed = true;
+    *full = true;
   }
 
   ret = LinkedImmutableString::EncodeHeader(next_ptr, &dptr);
@@ -320,10 +324,7 @@ HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
 
   if (!committed) {
     const size_t actual_length = dptr - pointer_cast<char *>(start_of_value);
-    // The extra alignment is a temporary measure until the last patch
-    // of the worklog, where we pull m_hash_map out of the MEM_ROOT
-    // and thus no longer need Alloc().
-    m_mem_root.RawCommit(ALIGN_SIZE(actual_length));
+    m_mem_root.RawCommit(actual_length);
   }
   return ret;
 }
@@ -384,16 +385,23 @@ HashJoinRowBuffer::HashJoinRowBuffer(
     : m_join_conditions(move(join_conditions)),
       m_tables(std::move(tables)),
       m_mem_root(key_memory_hash_join, 16384 /* 16 kB */),
+      m_overflow_mem_root(key_memory_hash_join, 256),
       m_hash_map(nullptr),
       m_max_mem_available(
-          std::max<size_t>(max_mem_available, 16384 /* 16 kB */)) {}
+          std::max<size_t>(max_mem_available, 16384 /* 16 kB */)) {
+  // Limit is being applied only after the first row.
+  m_mem_root.set_max_capacity(0);
+}
 
-bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
+bool HashJoinRowBuffer::Init() {
   if (m_hash_map.get() != nullptr) {
     // Reset the unique_ptr, so that the hash map destructors are called before
     // clearing the MEM_ROOT.
     m_hash_map.reset(nullptr);
     m_mem_root.Clear();
+    // Limit is being applied only after the first row.
+    m_mem_root.set_max_capacity(0);
+    m_overflow_mem_root.ClearForReuse();
 
     // Now that the destructors are finished and the MEM_ROOT is cleared,
     // we can allocate a new hash map.
@@ -403,8 +411,8 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
   // table.
   m_row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
 
-  m_hash_map.reset(new (&m_mem_root)
-                       hash_map_type(&m_mem_root, KeyHasher(hash_seed)));
+  m_hash_map.reset(new hash_map_type(
+      /*bucket_count=*/10, KeyHasher()));
   if (m_hash_map == nullptr) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
     return true;
@@ -417,6 +425,8 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
 StoreRowResult HashJoinRowBuffer::StoreRow(
     THD *thd, bool reject_duplicate_keys,
     bool store_rows_with_null_in_condition) {
+  bool full = false;
+
   // Make the key from the join conditions.
   m_buffer.length(0);
   for (const HashJoinCondition &hash_join_condition : m_join_conditions) {
@@ -436,24 +446,63 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
     }
   }
 
-  // Allocate the join key on the same MEM_ROOT that the hash table is
-  // allocated on, so it has the same lifetime as the rest of the contents in
-  // the hash map (until Clear() is called on the HashJoinBuffer).
-  const size_t join_key_size = m_buffer.length();
-  uchar *join_key_data = nullptr;
-  if (join_key_size > 0) {
-    join_key_data = m_mem_root.ArrayAlloc<uchar>(join_key_size);
-    if (join_key_data == nullptr) {
+  // Store the key in the MEM_ROOT. Note that we will only commit the memory
+  // usage for it if the key was a new one (see the call to emplace() below)..
+  const size_t required_key_bytes =
+      ImmutableStringWithLength::RequiredBytesForEncode(m_buffer.length());
+  ImmutableStringWithLength key;
+
+  std::pair<char *, char *> block = m_mem_root.Peek();
+  if (static_cast<size_t>(block.second - block.first) < required_key_bytes) {
+    // No room in this block; ask for a new one and try again.
+    m_mem_root.ForceNewBlock(required_key_bytes);
+    block = m_mem_root.Peek();
+  }
+  size_t bytes_to_commit = 0;
+  if (static_cast<size_t>(block.second - block.first) >= required_key_bytes) {
+    char *ptr = block.first;
+    key = ImmutableStringWithLength::Encode(m_buffer.ptr(), m_buffer.length(),
+                                            &ptr);
+    assert(ptr < block.second);
+    bytes_to_commit = ptr - block.first;
+  } else {
+    char *ptr =
+        pointer_cast<char *>(m_overflow_mem_root.Alloc(required_key_bytes));
+    if (ptr == nullptr) {
       return StoreRowResult::FATAL_ERROR;
     }
-    memcpy(join_key_data, m_buffer.ptr(), join_key_size);
+    key = ImmutableStringWithLength::Encode(m_buffer.ptr(), m_buffer.length(),
+                                            &ptr);
+    // Keep bytes_to_commit == 0; the value is already committed.
   }
 
-  std::pair<hash_map_type::iterator, bool> key_it_and_inserted =
-      m_hash_map->emplace(Key(join_key_data, join_key_size),
-                          LinkedImmutableString{nullptr});
+  std::pair<hash_map_type::iterator, bool> key_it_and_inserted;
+  try {
+    key_it_and_inserted =
+        m_hash_map->emplace(key, LinkedImmutableString{nullptr});
+  } catch (const std::overflow_error &) {
+    // This can only happen if the hash function is extremely bad
+    // (should never happen in practice).
+    return StoreRowResult::FATAL_ERROR;
+  }
   LinkedImmutableString next_ptr{nullptr};
-  if (!key_it_and_inserted.second) {
+  if (key_it_and_inserted.second) {
+    // We inserted an element, so the hash table may have grown.
+    // Update the capacity available for the MEM_ROOT; our total may
+    // have gone slightly over already, and if so, we will signal
+    // that and immediately start spilling to disk.
+    size_t bytes_used = m_hash_map->calcNumBytesTotal(m_hash_map->mask() + 1);
+    if (bytes_used >= m_max_mem_available) {
+      // 0 means no limit, so set the minimum possible limit.
+      m_mem_root.set_max_capacity(1);
+      full = true;
+    } else {
+      m_mem_root.set_max_capacity(m_max_mem_available - bytes_used);
+    }
+
+    // We need to keep this key.
+    m_mem_root.RawCommit(bytes_to_commit);
+  } else {
     if (reject_duplicate_keys) {
       return StoreRowResult::ROW_STORED;
     }
@@ -465,10 +514,10 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
 
   // Save the contents of all columns marked for reading.
   m_last_row_stored = key_it_and_inserted.first->second =
-      StoreLinkedImmutableStringFromTableBuffers(next_ptr);
+      StoreLinkedImmutableStringFromTableBuffers(next_ptr, &full);
   if (m_last_row_stored == nullptr) {
     return StoreRowResult::FATAL_ERROR;
-  } else if (m_mem_root.allocated_size() > m_max_mem_available) {
+  } else if (full) {
     return StoreRowResult::BUFFER_FULL;
   } else {
     return StoreRowResult::ROW_STORED;

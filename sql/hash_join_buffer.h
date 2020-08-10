@@ -54,12 +54,6 @@
 /// buffer. As such, we will probably use a little bit more memory than
 /// specified by join_buffer_size.
 ///
-/// Some basic profiling shows that the majority of the time is used on
-/// constructing the hash table. It would be a future improvement to replace
-/// std::unordered_multimap with a more performant hash table, as the literature
-/// suggests that there are better alternatives (see e.g.
-/// https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/).
-///
 /// The primary use case for these classes is, as the name implies,
 /// for implementing hash join.
 
@@ -68,7 +62,7 @@
 #include <memory>
 #include <vector>
 
-#include "extra/lz4/my_xxhash.h"
+#include "extra/robin-hood-hashing/robin_hood.h"
 #include "field_types.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -222,28 +216,53 @@ class Key {
   const size_t m_size;
 };
 
+class KeyEquals {
+ public:
+  // This is a marker from C++17 that signals to the container that
+  // operator() can be called with arguments of which one of the types
+  // differs from the container's key type (ImmutableStringWithLength),
+  // and thus enables map.find(Key). The type itself does not matter.
+  using is_transparent = void;
+
+  bool operator()(const Key &str1,
+                  const ImmutableStringWithLength &other) const {
+    ImmutableStringWithLength::Decoded str2 = other.Decode();
+    if (str1.size() != str2.size) {
+      return false;
+    } else if (str1.size() == 0) {
+      return true;
+    } else {
+      return memcmp(str1.data(), str2.data, str1.size()) == 0;
+    }
+  }
+
+  bool operator()(const ImmutableStringWithLength &str1,
+                  const ImmutableStringWithLength &str2) const {
+    return str1 == str2;
+  }
+};
+
 // A row in the hash join buffer is generally the same as the Key class. In
 // C++17, both of them should most likely be replaced with std::string_view. For
 // now, we create an alias to distinguish between Key and a row.
 using BufferRow = Key;
 
-/// We rely on xxHash64 to do the hashing of the key. xxHash64 was chosen as it
-/// both is very fast _and_ produces reasonably good-quality hashes
-/// (see https://github.com/rurban/smhasher).
 class KeyHasher {
  public:
-  explicit KeyHasher(uint32_t seed) : m_seed(seed) {}
+  // This is a marker from C++17 that signals to the container that
+  // operator() can be called with an argument that differs from the
+  // container's key type (ImmutableStringWithLength), and thus enables
+  // map.find(Key). The type itself does not matter.
+  using is_transparent = void;
 
   size_t operator()(hash_join_buffer::Key key) const {
-    if (key.size() == 0) return kZeroKeyLengthHash;
-    return MY_XXH64(key.data(), key.size(), m_seed);
+    return robin_hood::hash_bytes(key.data(), key.size());
   }
 
- private:
-  // An arbitrary hash value for the empty string, to avoid the hash function
-  // from doing arithmetic on nullptr, which is undefined behavior.
-  static constexpr size_t kZeroKeyLengthHash = 2669509769;
-  const uint32_t m_seed;
+  size_t operator()(ImmutableStringWithLength key) const {
+    ImmutableStringWithLength::Decoded decoded = key.Decode();
+    return robin_hood::hash_bytes(decoded.data, decoded.size);
+  }
 };
 
 /// Take the data marked for reading in "tables" and store it in the provided
@@ -273,6 +292,9 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
 
 // A convenience form of the above that also verifies the end pointer for us.
 void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row);
+
+// A convenience form of the above that also decodes the LinkedImmutableString
+// for us.
 void LoadIntoTableBuffers(const TableCollection &tables,
                           LinkedImmutableString row);
 
@@ -289,7 +311,7 @@ class HashJoinRowBuffer {
   // Initialize the HashJoinRowBuffer so it is ready to store rows. This
   // function can be called multiple times; subsequent calls will only clear the
   // buffer for existing rows.
-  bool Init(uint32_t hash_seed);
+  bool Init();
 
   /// Store the row that is currently lying in the tables record buffers.
   /// The hash map key is extracted from the join conditions that the row buffer
@@ -313,8 +335,8 @@ class HashJoinRowBuffer {
 
   bool empty() const { return m_hash_map->empty(); }
 
-  using hash_map_type =
-      mem_root_unordered_map<Key, LinkedImmutableString, KeyHasher>;
+  using hash_map_type = robin_hood::unordered_flat_map<
+      ImmutableStringWithLength, LinkedImmutableString, KeyHasher, KeyEquals>;
 
   using hash_map_iterator = hash_map_type::const_iterator;
 
@@ -340,11 +362,20 @@ class HashJoinRowBuffer {
   // which tables that are involved.
   const TableCollection m_tables;
 
-  // The MEM_ROOT on which all of the hash table data is allocated.
+  // The MEM_ROOT on which all of the hash table keys and values are allocated.
+  // The actual hash map is on the regular heap.
   MEM_ROOT m_mem_root;
 
+  // A MEM_ROOT used only for storing the final row (possibly both key and
+  // value). The code assumes fairly deeply that inserting a row never fails, so
+  // when m_mem_root goes full (we set a capacity on it to ensure that the last
+  // allocated block does not get too big), we allocate the very last row on
+  // this MEM_ROOT and the signal fullness so that we can start spilling to
+  // disk.
+  MEM_ROOT m_overflow_mem_root;
+
   // The hash table where the rows are stored.
-  unique_ptr_destroy_only<hash_map_type> m_hash_map;
+  std::unique_ptr<hash_map_type> m_hash_map;
 
   // A buffer we can use when we are constructing a join key from a join
   // condition. In order to avoid reallocating memory, the buffer never shrinks.
@@ -362,8 +393,14 @@ class HashJoinRowBuffer {
   // See HashJoinIterator::BuildHashTable() for an example of this.
   LinkedImmutableString m_last_row_stored{nullptr};
 
+  // Fetch the relevant fields from each table, and pack them into m_mem_root
+  // as a LinkedImmutableString where the “next” pointer points to “next_ptr”.
+  // If that does not work (capacity reached), pack into m_overflow_mem_root
+  // instead and set “full” to true. If _that_ does not work (fatally out
+  // of memory), returns nullptr. Otherwise, returns a pointer to the newly
+  // packed string.
   LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
-      LinkedImmutableString next_ptr);
+      LinkedImmutableString next_ptr, bool *full);
 };
 
 }  // namespace hash_join_buffer
