@@ -288,9 +288,12 @@ struct MEM_ROOT {
 
   /**
     Allocate a new block of the given length (plus overhead for the block
-    header).
+    header). If the MEM_ROOT is near capacity, it may allocate less memory
+    than wanted_length, but if it cannot allocate at least minimum_length,
+    will return nullptr.
   */
-  Block *AllocBlock(size_t length);
+  std::pair<Block *, size_t> AllocBlock(size_t wanted_length,
+                                        size_t minimum_length);
 
   /** Allocate memory that doesn't fit into the current free block. */
   void *AllocSlow(size_t length);

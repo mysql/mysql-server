@@ -114,17 +114,21 @@ TEST_P(MyAllocTest, NoMemoryLimit) {
   m_num_objects = GetParam();
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      m_root.Alloc(100);
+      EXPECT_NE(nullptr, m_root.Alloc(8));
   }
+  // Normally larger, but with Valgrind/ASan, we'll get exact-sized blocks,
+  // so also allow equal.
+  EXPECT_GE(m_root.allocated_size(), num_iterations * m_num_objects * 8);
 }
 
 TEST_P(MyAllocTest, WithMemoryLimit) {
   m_num_objects = GetParam();
-  m_root.set_max_capacity(num_iterations * m_num_objects * 100);
+  m_root.set_max_capacity(num_iterations * m_num_objects * 8);
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      m_root.Alloc(100);
+      EXPECT_NE(nullptr, m_root.Alloc(8));
   }
+  EXPECT_EQ(m_root.allocated_size(), num_iterations * m_num_objects * 8);
 }
 
 TEST_F(MyAllocTest, CheckErrorReporting) {
