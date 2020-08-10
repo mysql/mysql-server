@@ -491,10 +491,11 @@ class HashJoinIterator final : public RowIterator {
   const unique_ptr_destroy_only<RowIterator> m_build_input;
   const unique_ptr_destroy_only<RowIterator> m_probe_input;
 
-  // An iterator for reading rows from the hash table.
-  // hash_join_buffer::HashJoinRowBuffer::Iterator m_hash_map_iterator;
-  hash_join_buffer::HashJoinRowBuffer::hash_map_iterator m_hash_map_iterator;
-  hash_join_buffer::HashJoinRowBuffer::hash_map_iterator m_hash_map_end;
+  // The last row that was read from the hash table, or nullptr if none.
+  // All rows under the same key are linked together (see the documentation
+  // for LinkedImmutableString), so this allows iterating through the rows
+  // until the end.
+  LinkedImmutableString m_current_row{nullptr};
 
   // These structures holds the tables and columns that are needed for the hash
   // join. Rows/columns that are not needed are filtered out in the constructor.

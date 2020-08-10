@@ -330,6 +330,11 @@ void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row) {
   DBUG_ASSERT(end == row.data() + row.size());
 }
 
+void LoadIntoTableBuffers(const TableCollection &tables,
+                          LinkedImmutableString row) {
+  LoadIntoTableBuffers(tables, pointer_cast<const uchar *>(row.Decode().data));
+}
+
 HashJoinRowBuffer::HashJoinRowBuffer(
     TableCollection tables, std::vector<HashJoinCondition> join_conditions,
     size_t max_mem_available)
@@ -342,12 +347,6 @@ HashJoinRowBuffer::HashJoinRowBuffer(
 
 bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
   if (m_hash_map.get() != nullptr) {
-    // Reset the iterator before clearing the data it may point to. Some
-    // platforms (Windows in particular) will access the old data the iterator
-    // pointed to in the assignment operator. So if we do not clear the
-    // iterator state, the assignment operator may access uninitialized data.
-    m_last_row_stored = hash_map_iterator();
-
     // Reset the unique_ptr, so that the hash map destructors are called before
     // clearing the MEM_ROOT.
     m_hash_map.reset(nullptr);
@@ -372,7 +371,7 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
     return true;
   }
 
-  m_last_row_stored = m_hash_map->end();
+  m_last_row_stored = LinkedImmutableString{nullptr};
   return false;
 }
 
@@ -398,14 +397,6 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
     }
   }
 
-  // TODO(efroseth): We should probably use an unordered_map instead of multimap
-  // for these cases so we do not have to hash and lookup twice.
-  if (reject_duplicate_keys &&
-      contains(Key(pointer_cast<const uchar *>(m_buffer.ptr()),
-                   m_buffer.length()))) {
-    return StoreRowResult::ROW_STORED;
-  }
-
   // Allocate the join key on the same MEM_ROOT that the hash table is
   // allocated on, so it has the same lifetime as the rest of the contents in
   // the hash map (until Clear() is called on the HashJoinBuffer).
@@ -419,6 +410,20 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
     memcpy(join_key_data, m_buffer.ptr(), join_key_size);
   }
 
+  std::pair<hash_map_type::iterator, bool> key_it_and_inserted =
+      m_hash_map->emplace(Key(join_key_data, join_key_size),
+                          LinkedImmutableString{nullptr});
+  LinkedImmutableString next_ptr{nullptr};
+  if (!key_it_and_inserted.second) {
+    if (reject_duplicate_keys) {
+      return StoreRowResult::ROW_STORED;
+    }
+    // We already have another element with the same key, so our insert
+    // failed, Put the new value in the hash bucket, but keep track of
+    // what the old one was; it will be our “next” pointer.
+    next_ptr = key_it_and_inserted.first->second;
+  }
+
   // Save the contents of all columns marked for reading.
   if (StoreFromTableBuffers(m_tables, &m_buffer)) {
     return StoreRowResult::FATAL_ERROR;
@@ -426,18 +431,19 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
 
   // Give the row the same lifetime as the hash map, by allocating it on the
   // same MEM_ROOT as the hash map is allocated on.
+  // NOTE: This isn't optimal with regards to memory usage,
+  // but the code will be replaced in a later patch in the worklog series.
   const size_t row_size = m_buffer.length();
-  uchar *row = nullptr;
-  if (row_size > 0) {
-    row = m_mem_root.ArrayAlloc<uchar>(row_size);
-    if (row == nullptr) {
-      return StoreRowResult::FATAL_ERROR;
-    }
-    memcpy(row, m_buffer.ptr(), row_size);
+  char *row = m_mem_root.ArrayAlloc<char>(
+      LinkedImmutableString::RequiredBytesForEncode(row_size));
+  if (row == nullptr) {
+    return StoreRowResult::FATAL_ERROR;
   }
-
-  m_last_row_stored = m_hash_map->emplace(Key(join_key_data, join_key_size),
-                                          BufferRow(row, row_size));
+  char *ptr = row;
+  LinkedImmutableString::EncodeHeader(next_ptr, &ptr);
+  memcpy(ptr, m_buffer.ptr(), row_size);
+  m_last_row_stored = key_it_and_inserted.first->second =
+      LinkedImmutableString(row);
 
   if (m_mem_root.allocated_size() > m_max_mem_available) {
     return StoreRowResult::BUFFER_FULL;
@@ -446,3 +452,17 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
 }
 
 }  // namespace hash_join_buffer
+
+// From protobuf.
+std::pair<const char *, uint64_t> VarintParseSlow64(const char *p,
+                                                    uint32_t res32) {
+  uint64_t res = res32;
+  for (std::uint32_t i = 2; i < 10; i++) {
+    uint64_t byte = static_cast<uint8_t>(p[i]);
+    res += (byte - 1) << (7 * i);
+    if (likely(byte < 128)) {
+      return {p + i + 1, res};
+    }
+  }
+  return {nullptr, 0};
+}

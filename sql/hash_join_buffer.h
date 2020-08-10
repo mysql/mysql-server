@@ -75,6 +75,7 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "prealloced_array.h"
+#include "sql/immutable_string.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/table.h"
 #include "sql_string.h"
@@ -272,6 +273,8 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
 
 // A convenience form of the above that also verifies the end pointer for us.
 void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row);
+void LoadIntoTableBuffers(const TableCollection &tables,
+                          LinkedImmutableString row);
 
 enum class StoreRowResult { ROW_STORED, BUFFER_FULL, FATAL_ERROR };
 
@@ -310,14 +313,10 @@ class HashJoinRowBuffer {
 
   bool empty() const { return m_hash_map->empty(); }
 
-  using hash_map_type = mem_root_unordered_multimap<Key, BufferRow, KeyHasher>;
+  using hash_map_type =
+      mem_root_unordered_map<Key, LinkedImmutableString, KeyHasher>;
 
   using hash_map_iterator = hash_map_type::const_iterator;
-
-  std::pair<hash_map_iterator, hash_map_iterator> equal_range(
-      const Key &key) const {
-    return m_hash_map->equal_range(key);
-  }
 
   hash_map_iterator find(const Key &key) const { return m_hash_map->find(key); }
 
@@ -325,7 +324,7 @@ class HashJoinRowBuffer {
 
   hash_map_iterator end() const { return m_hash_map->end(); }
 
-  hash_map_iterator LastRowStored() const {
+  LinkedImmutableString LastRowStored() const {
     DBUG_ASSERT(Initialized());
     return m_last_row_stored;
   }
@@ -354,13 +353,13 @@ class HashJoinRowBuffer {
   // The maximum size of the buffer, given in bytes.
   const size_t m_max_mem_available;
 
-  // The last row that was stored in the hash table, or end() if the hash table
-  // is empty. We may have to put this row back into the tables' record buffers
-  // if we have a child iterator that expects the record buffers to contain the
-  // last row returned by the storage engine (the probe phase of hash join may
-  // put any row in the hash table in the tables' record buffer). See
-  // HashJoinIterator::BuildHashTable() for an example of this.
-  hash_map_iterator m_last_row_stored;
+  // The last row that was stored in the hash table, or nullptr if the hash
+  // table is empty. We may have to put this row back into the tables' record
+  // buffers if we have a child iterator that expects the record buffers to
+  // contain the last row returned by the storage engine (the probe phase of
+  // hash join may put any row in the hash table in the tables' record buffer).
+  // See HashJoinIterator::BuildHashTable() for an example of this.
+  LinkedImmutableString m_last_row_stored{nullptr};
 };
 
 }  // namespace hash_join_buffer

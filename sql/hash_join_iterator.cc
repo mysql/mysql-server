@@ -99,29 +99,12 @@ HashJoinIterator::HashJoinIterator(
 }
 
 bool HashJoinIterator::InitRowBuffer() {
-  // After the row buffer is initialized, we want the row buffer iterators to
-  // point to the end of the row buffer in order to have a clean state. But on
-  // some platforms, especially windows, the iterator assignment operator will
-  // try to access the data it points to. This may be problematic if the hash
-  // join iterator is being re-inited; the iterators will point to data that has
-  // already been freed when doing the iterator assignment. To avoid the
-  // iterators to point to any data, call the destructors so that they have a
-  // clean state.
-  {
-    // Due to a bug in LLVM, we have to introduce a non-nested alias in order to
-    // call the destructor (https://bugs.llvm.org//show_bug.cgi?id=12350).
-    using iterator = hash_join_buffer::HashJoinRowBuffer::hash_map_iterator;
-    m_hash_map_iterator.iterator::~iterator();
-    m_hash_map_end.iterator::~iterator();
-  }
-
   if (m_row_buffer.Init(kHashTableSeed)) {
     DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
     return true;
   }
 
-  m_hash_map_iterator = m_row_buffer.end();
-  m_hash_map_end = m_row_buffer.end();
+  m_current_row = LinkedImmutableString{nullptr};
   return false;
 }
 
@@ -426,10 +409,9 @@ bool HashJoinIterator::BuildHashTable() {
   // hash table, and not the last row returned from t3. To ensure that the
   // filter is looking at the correct data, restore the last row that was
   // inserted into the hash table.
-  if (m_row_buffer.Initialized() &&
-      m_row_buffer.LastRowStored() != m_row_buffer.end()) {
-    hash_join_buffer::LoadIntoTableBuffers(
-        m_build_input_tables, m_row_buffer.LastRowStored()->second);
+  if (m_row_buffer.Initialized() && m_row_buffer.LastRowStored() != nullptr) {
+    hash_join_buffer::LoadIntoTableBuffers(m_build_input_tables,
+                                           m_row_buffer.LastRowStored());
   }
 
   if (InitRowBuffer()) {
@@ -845,10 +827,13 @@ bool HashJoinIterator::ReadRowFromProbeRowSavingFile() {
 
 void HashJoinIterator::LookupProbeRowInHashTable() {
   if (m_join_conditions.empty()) {
-    // Skip the call to equal_range in case we don't have any join conditions.
-    // This can save up to 20% in case of multi-table joins.
-    m_hash_map_iterator = m_row_buffer.begin();
-    m_hash_map_end = m_row_buffer.end();
+    // Skip the call to find() in case we don't have any join conditions.
+    // TODO(sgunders): Is this relevant for performance anymore?
+    if (m_row_buffer.empty()) {
+      m_current_row = LinkedImmutableString{nullptr};
+    } else {
+      m_current_row = m_row_buffer.begin()->second;
+    }
     m_state = State::READING_FIRST_ROW_FROM_HASH_TABLE;
     return;
   }
@@ -864,8 +849,7 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
       // SQL NULL was found, and we will never find a matching row in the hash
       // table. Let us indicate that, so that a null-complemented row is
       // returned.
-      m_hash_map_iterator = m_row_buffer.end();
-      m_hash_map_end = m_row_buffer.end();
+      m_current_row = LinkedImmutableString{nullptr};
       m_state = State::READING_FIRST_ROW_FROM_HASH_TABLE;
     } else {
       SetReadingProbeRowState();
@@ -873,32 +857,22 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
     return;
   }
 
-  hash_join_buffer::Key key(
-      pointer_cast<const uchar *>(m_temporary_row_and_join_key_buffer.ptr()),
-      m_temporary_row_and_join_key_buffer.length());
+  hash_join_buffer::Key key{
+      pointer_cast<uchar *>(m_temporary_row_and_join_key_buffer.ptr()),
+      m_temporary_row_and_join_key_buffer.length()};
 
-  if ((m_join_type == JoinType::SEMI || m_join_type == JoinType::ANTI) &&
-      m_extra_condition == nullptr) {
-    // find() has a better average complexity than equal_range() (constant vs.
-    // linear in the number of matching elements). And for semijoins, we are
-    // only interested in the first match anyways, so this may give a nice
-    // speedup. An exception to this is if we have any "extra" conditions that
-    // needs to be evaluated after the hash table lookup, but before the row is
-    // returned; we may need to read through the entire hash table to find a row
-    // that satisfies the extra condition(s).
-    m_hash_map_iterator = m_row_buffer.find(key);
-    m_hash_map_end = m_row_buffer.end();
+  auto it = m_row_buffer.find(key);
+  if (it == m_row_buffer.end()) {
+    m_current_row = LinkedImmutableString{nullptr};
   } else {
-    auto range = m_row_buffer.equal_range(key);
-    m_hash_map_iterator = range.first;
-    m_hash_map_end = range.second;
+    m_current_row = it->second;
   }
 
   m_state = State::READING_FIRST_ROW_FROM_HASH_TABLE;
 }
 
 int HashJoinIterator::ReadJoinedRow() {
-  if (m_hash_map_iterator == m_hash_map_end) {
+  if (m_current_row == nullptr) {
     // Signal that we have reached the end of hash table entries. Let the caller
     // determine which state we end up in.
     return -1;
@@ -906,8 +880,7 @@ int HashJoinIterator::ReadJoinedRow() {
 
   // A row is ready in the hash table, so put the data from the hash table row
   // into the record buffers of the build input tables.
-  hash_join_buffer::LoadIntoTableBuffers(m_build_input_tables,
-                                         m_hash_map_iterator->second);
+  hash_join_buffer::LoadIntoTableBuffers(m_build_input_tables, m_current_row);
   return 0;
 }
 
@@ -921,7 +894,7 @@ bool HashJoinIterator::WriteProbeRowToDiskIfApplicable() {
   // even if the join condition contains SQL NULL.
   const bool write_rows_with_null_in_join_key = m_join_type == JoinType::OUTER;
   if (m_state == State::READING_FIRST_ROW_FROM_HASH_TABLE) {
-    const bool found_match = m_hash_map_iterator != m_hash_map_end;
+    const bool found_match = m_current_row != nullptr;
 
     if ((m_join_type == JoinType::INNER || m_join_type == JoinType::OUTER) ||
         !found_match) {
@@ -981,7 +954,7 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
         // because WriteProbeRowToDiskIfApplicable() needs to know if this is
         // the first row that matches both the join condition and any extra
         // conditions; only unmatched rows will be written to disk.
-        ++m_hash_map_iterator;
+        m_current_row = m_current_row.Decode().next;
       }
     }
   } while (res == 0 && !passes_extra_conditions);
@@ -1052,7 +1025,7 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
       break;
   }
 
-  ++m_hash_map_iterator;
+  m_current_row = m_current_row.Decode().next;
   return 0;
 }
 

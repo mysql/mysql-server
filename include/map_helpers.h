@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,25 +309,9 @@ class mem_root_unordered_map
           Key, Value, Hash, KeyEqual,
           Mem_root_allocator<std::pair<const Key, Value>>> {
  public:
-  mem_root_unordered_map(MEM_ROOT *mem_root)
+  explicit mem_root_unordered_map(MEM_ROOT *mem_root, Hash hash = Hash())
       : std::unordered_map<Key, Value, Hash, KeyEqual,
                            Mem_root_allocator<std::pair<const Key, Value>>>(
-            /*bucket_count=*/10, Hash(), KeyEqual(),
-            Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
-};
-
-// std::unordered_multimap, but allocated on a MEM_ROOT.
-template <class Key, class Value, class Hash,
-          class KeyEqual = std::equal_to<Key>>
-class mem_root_unordered_multimap
-    : public std::unordered_multimap<
-          Key, Value, Hash, KeyEqual,
-          Mem_root_allocator<std::pair<const Key, Value>>> {
- public:
-  mem_root_unordered_multimap(MEM_ROOT *mem_root, Hash hash)
-      : std::unordered_multimap<
-            Key, Value, Hash, KeyEqual,
-            Mem_root_allocator<std::pair<const Key, Value>>>(
             /*bucket_count=*/10, hash, KeyEqual(),
             Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
 };
