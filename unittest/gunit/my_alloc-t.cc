@@ -170,4 +170,32 @@ TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations) {
   EXPECT_NE(ptr, ptr2);
 }
 
+TEST_F(MyAllocTest, RawInterface) {
+  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
+
+  // Nothing allocated yet.
+  std::pair<char *, char *> block = alloc.Peek();
+  EXPECT_EQ(0, block.second - block.first);
+
+  // Create a block.
+  alloc.ForceNewBlock(16);
+  block = alloc.Peek();
+  EXPECT_EQ(512, block.second - block.first);
+
+  // Write and commit some memory.
+  char *store_ptr = reinterpret_cast<char *>(block.first);
+  strcpy(store_ptr, "12345");
+  alloc.RawCommit(6);
+  block = alloc.Peek();
+  EXPECT_EQ(506, block.second - block.first);
+
+  // Get a new block.
+  alloc.ForceNewBlock(512);
+  block = alloc.Peek();
+  EXPECT_EQ(768, block.second - block.first);
+
+  // The value should still be there.
+  EXPECT_STREQ("12345", store_ptr);
+}
+
 }  // namespace my_alloc_unittest

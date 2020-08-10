@@ -136,21 +136,30 @@ void *MEM_ROOT::AllocSlow(size_t length) {
   } else {
     // The normal case: Throw away the current block, allocate a new block,
     // and use that to satisfy the new allocation.
-    std::pair<Block *, size_t> block_and_length =
-        AllocBlock(/*wanted_length=*/ALIGN_SIZE(m_block_size),
-                   /*minimum_length=*/length);  // Will modify block_size.
-    Block *new_block = block_and_length.first;
-    if (new_block == nullptr) return nullptr;
-
-    new_block->prev = m_current_block;
-    m_current_block = new_block;
-
-    char *new_mem =
-        pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
-    m_current_free_start = new_mem + length;
-    m_current_free_end = new_mem + block_and_length.second;
+    if (ForceNewBlock(/*minimum_length=*/length)) {
+      return nullptr;
+    }
+    char *new_mem = m_current_free_start;
+    m_current_free_start += length;
     return new_mem;
   }
+}
+
+bool MEM_ROOT::ForceNewBlock(size_t minimum_length) {
+  std::pair<Block *, size_t> block_and_length =
+      AllocBlock(/*wanted_length=*/ALIGN_SIZE(m_block_size),
+                 minimum_length);  // Will modify block_size.
+  Block *new_block = block_and_length.first;
+  if (new_block == nullptr) return true;
+
+  new_block->prev = m_current_block;
+  m_current_block = new_block;
+
+  char *new_mem =
+      pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
+  m_current_free_start = new_mem;
+  m_current_free_end = new_mem + block_and_length.second;
+  return false;
 }
 
 void MEM_ROOT::Clear() {
