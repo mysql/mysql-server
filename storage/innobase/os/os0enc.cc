@@ -893,6 +893,11 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
 #endif /* UNIV_ENCRYPT_DEBUG */
 
+  /* Add padding 0 for unused portion */
+  if (src_len > src_enc_len) {
+    memset(dst + src_enc_len, 0, src_len - src_enc_len);
+  }
+
   *dst_len = src_len;
 
   return dst;
