@@ -386,14 +386,6 @@ require(!"m_file.sync() != -1");
   use_enc = (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
 #endif
 
-  // Turn off O_DIRECT for raw backup, empty data file may have bad size
-  if (!use_gz && !use_enc &&
-      (flags & FsOpenReq::OM_DIRECT) &&
-      (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP))
-  {
-    flags &= ~FsOpenReq::OM_DIRECT;
-  }
-
   // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC)
   if (flags & FsOpenReq::OM_DIRECT)
   {
@@ -906,6 +898,29 @@ void AsyncFile::syncReq(Request *request)
   }
 }
 
+bool AsyncFile::check_odirect_request(const char* buf,
+                                           size_t sz,
+                                           off_t offset)
+{
+  if (m_open_flags & FsOpenReq::OM_DIRECT)
+  {
+    if ((sz % NDB_O_DIRECT_WRITE_ALIGNMENT) ||
+        (((UintPtr)buf) % NDB_O_DIRECT_WRITE_ALIGNMENT) ||
+        (offset % NDB_O_DIRECT_WRITE_ALIGNMENT))
+    {
+      fprintf(stderr,
+              "Error r/w of size %llu using buf %p to offset %llu in "
+              "file %s not O_DIRECT aligned\n",
+              (long long unsigned) sz,
+              buf,
+              (long long unsigned) offset,
+              theFileName.c_str());
+      return false;
+    }
+  }
+  return true;
+}
+
 int AsyncFile::readBuffer(Request *req, char *buf,
                           size_t size, off_t offset)
 {
@@ -913,6 +928,10 @@ int AsyncFile::readBuffer(Request *req, char *buf,
   // TODO ensure OM_THREAD_POOL is respected!
   int return_value;
   req->par.readWrite.pages[0].size = 0;
+
+  if (!check_odirect_request(buf, size, offset))
+    return FsRef::fsErrInvalidParameters;
+
   if (use_gz)
   {
     /*
@@ -1019,6 +1038,9 @@ int AsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
   size_t chunk_size = 256*1024;
   size_t bytes_to_write = chunk_size;
   int return_value;
+
+  if (!check_odirect_request(buf, size, offset))
+    return FsRef::fsErrInvalidParameters;
 
   while (size > 0)
   {
@@ -1184,6 +1206,9 @@ void AsyncFile::appendReq(Request *request)
 {
   const byte * buf = reinterpret_cast<const byte*>(request->par.append.buf);
   Uint32 size = request->par.append.size;
+
+  if (!check_odirect_request(request->par.append.buf, size, 0))
+    request->error = FsRef::fsErrInvalidParameters;
 
   int Guard = 80;
   while (size > 0)

@@ -26,8 +26,7 @@ TransactionDeadlockDetectionTimeout=3000
 Checksum=1
 SpinMethod=CostBasedSpinning
 
-# O_DIRECT has issues on 2.4 which have not been handled, Bug #29612
-#ODirect= 1
+ODirect= 1
 CompressedLCP= 1
 CompressedBackup= 1
 # the following parametes just function as a small regression

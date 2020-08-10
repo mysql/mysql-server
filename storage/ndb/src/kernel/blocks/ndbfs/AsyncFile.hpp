@@ -132,6 +132,7 @@ protected:
 private:
   void attach(AsyncIoThread* thr);
   void detach(AsyncIoThread* thr);
+  bool check_odirect_request(const char* buf, size_t sz, off_t offset);
 
   AsyncIoThread* m_thread; // For bound files
   // Whether this file is one that will be/is bound to a thread
