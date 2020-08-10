@@ -1131,9 +1131,10 @@ int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
                       const enum_order interesting_order,
                       const QEP_shared_owner *tab, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
-                      bool ignore_table_scan);
+                      bool ignore_table_scan, SELECT_LEX *select_lex);
 
-bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
+bool prune_partitions(THD *thd, TABLE *table, SELECT_LEX *select_lex,
+                      Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 
 extern String null_string;
