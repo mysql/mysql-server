@@ -20,7 +20,7 @@
 --echo
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
---partially_sorted_result 2
+--sorted_result
 SHOW FULL PROCESSLIST;
 
 --echo
