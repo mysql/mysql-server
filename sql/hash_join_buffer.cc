@@ -225,22 +225,8 @@ static bool ShouldCopyRowId(const TABLE *table) {
   return !table->const_table && !(table->is_nullable() && table->null_row);
 }
 
-bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
-  buffer->length(0);
-
-  if (tables.has_blob_column()) {
-    const size_t upper_data_length = ComputeRowSizeUpperBound(tables);
-    if (buffer->alloced_length() < upper_data_length + buffer->length() &&
-        buffer->reserve(upper_data_length)) {
-      return true;
-    }
-  } else {
-    // If the table doesn't have any blob columns, we expect that the caller
-    // already has reserved enough space in the provided buffer.
-    DBUG_ASSERT(buffer->alloced_length() >= ComputeRowSizeUpperBound(tables));
-  }
-
-  uchar *dptr = pointer_cast<uchar *>(buffer->ptr());
+static ALWAYS_INLINE uchar *StoreFromTableBuffersRaw(
+    const TableCollection &tables, uchar *dptr) {
   for (const Table &tbl : tables.tables()) {
     const TABLE *table = tbl.table;
 
@@ -273,10 +259,28 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
       }
     }
   }
+  return dptr;
+}
 
-  DBUG_ASSERT(dptr <=
-              pointer_cast<uchar *>(buffer->ptr()) + buffer->alloced_length());
-  const size_t actual_length = dptr - pointer_cast<uchar *>(buffer->ptr());
+bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
+  buffer->length(0);
+
+  if (tables.has_blob_column()) {
+    const size_t upper_data_length = ComputeRowSizeUpperBound(tables);
+    if (buffer->alloced_length() < upper_data_length + buffer->length() &&
+        buffer->reserve(upper_data_length)) {
+      return true;
+    }
+  } else {
+    // If the table doesn't have any blob columns, we expect that the caller
+    // already has reserved enough space in the provided buffer.
+    DBUG_ASSERT(buffer->alloced_length() >= ComputeRowSizeUpperBound(tables));
+  }
+
+  char *dptr = pointer_cast<char *>(
+      StoreFromTableBuffersRaw(tables, pointer_cast<uchar *>(buffer->ptr())));
+  DBUG_ASSERT(dptr <= buffer->ptr() + buffer->alloced_length());
+  const size_t actual_length = dptr - buffer->ptr();
   buffer->length(actual_length);
   return false;
 }
