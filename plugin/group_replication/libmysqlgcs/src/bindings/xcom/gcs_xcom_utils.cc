@@ -153,10 +153,10 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       interface_params.get_parameter("compression_threshold"));
   std::string *wait_time_str =
       const_cast<std::string *>(interface_params.get_parameter("wait_time"));
-  std::string *ip_whitelist_str =
-      const_cast<std::string *>(interface_params.get_parameter("ip_whitelist"));
-  std::string *ip_whitelist_reconfigure_str = const_cast<std::string *>(
-      interface_params.get_parameter("reconfigure_ip_whitelist"));
+  std::string *ip_allowlist_str =
+      const_cast<std::string *>(interface_params.get_parameter("ip_allowlist"));
+  std::string *ip_allowlist_reconfigure_str = const_cast<std::string *>(
+      interface_params.get_parameter("reconfigure_ip_allowlist"));
   std::string *join_attempts_str = const_cast<std::string *>(
       interface_params.get_parameter("join_attempts"));
   std::string *join_sleep_time_str = const_cast<std::string *>(
@@ -187,15 +187,15 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     interface_params.add_parameter("wait_time", ss.str());
   }
 
-  bool should_configure_whitelist = true;
-  if (ip_whitelist_reconfigure_str) {
-    should_configure_whitelist =
-        ip_whitelist_reconfigure_str->compare("on") == 0 ||
-        ip_whitelist_reconfigure_str->compare("true") == 0;
+  bool should_configure_allowlist = true;
+  if (ip_allowlist_reconfigure_str) {
+    should_configure_allowlist =
+        ip_allowlist_reconfigure_str->compare("on") == 0 ||
+        ip_allowlist_reconfigure_str->compare("true") == 0;
   }
 
-  // sets the default ip whitelist
-  if (should_configure_whitelist && !ip_whitelist_str) {
+  // sets the default ip allowlist
+  if (should_configure_allowlist && !ip_allowlist_str) {
     std::stringstream ss;
     std::string iplist;
     std::map<std::string, int> out;
@@ -216,9 +216,9 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     iplist.erase(iplist.end() - 1);  // remove trailing comma
 
     MYSQL_GCS_LOG_INFO("Added automatically IP ranges " << iplist
-                                                        << " to the whitelist");
+                                                        << " to the allowlist");
 
-    interface_params.add_parameter("ip_whitelist", iplist);
+    interface_params.add_parameter("ip_allowlist", iplist);
   }
 
   // sets the default join attempts
@@ -341,8 +341,8 @@ bool is_parameters_syntax_correct(
       interface_params.get_parameter("suspicions_processing_period");
   const std::string *member_expel_timeout_str =
       interface_params.get_parameter("member_expel_timeout");
-  const std::string *reconfigure_ip_whitelist_str =
-      interface_params.get_parameter("reconfigure_ip_whitelist");
+  const std::string *reconfigure_ip_allowlist_str =
+      interface_params.get_parameter("reconfigure_ip_allowlist");
   const std::string *fragmentation_threshold_str =
       interface_params.get_parameter("fragmentation_threshold");
   const std::string *fragmentation_str =
@@ -553,11 +553,11 @@ bool is_parameters_syntax_correct(
     goto end;
   }
 
-  // Validate whitelist reconfiguration parameter
-  if (reconfigure_ip_whitelist_str != nullptr) {
+  // Validate allowlist reconfiguration parameter
+  if (reconfigure_ip_allowlist_str != nullptr) {
     std::string &flag =
-        const_cast<std::string &>(*reconfigure_ip_whitelist_str);
-    error = is_valid_flag("reconfigure_ip_whitelist", flag);
+        const_cast<std::string &>(*reconfigure_ip_allowlist_str);
+    error = is_valid_flag("reconfigure_ip_allowlist", flag);
     if (error == GCS_NOK) goto end;
   }
 

@@ -55,7 +55,7 @@ if ( ($found == 0) && (not $line =~ m{$search_pattern}) ) {
 &mySubroutine('group_replication_components_stop_timeout');
 &mySubroutine('group_replication_compression_threshold');
 &mySubroutine('group_replication_force_members');
-&mySubroutine('group_replication_ip_whitelist');
+&mySubroutine('group_replication_ip_allowlist');
 &mySubroutine('group_replication_poll_spin_loops');
 &mySubroutine('group_replication_recovery_complete_at');
 &mySubroutine('group_replication_recovery_reconnect_interval');

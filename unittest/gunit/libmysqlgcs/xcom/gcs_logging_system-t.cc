@@ -119,8 +119,8 @@ TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle) {
 
   // just to make the log entries count below deterministic, otherwise,
   // there would be additional info messages due to automatically adding
-  // addresses to the whitelist
-  if_params.add_parameter("ip_whitelist", Gcs_ip_whitelist::DEFAULT_WHITELIST);
+  // addresses to the allowlist
+  if_params.add_parameter("ip_allowlist", Gcs_ip_allowlist::DEFAULT_ALLOWLIST);
 
   Gcs_interface *xcom_if = Gcs_xcom_interface::get_interface();
   enum_gcs_error initialized = xcom_if->initialize(if_params);
