@@ -6385,7 +6385,9 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl) {
       if (tbl->s->keynames.type_names == nullptr ||
           (pos = find_type(&tbl->s->keynames, hint->key_name.str,
                            hint->key_name.length, true)) <= 0 ||
-          !tbl->s->key_info[pos - 1].is_visible) {
+          (!tbl->s->key_info[pos - 1].is_visible &&
+           !thd->optimizer_switch_flag(
+               OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))) {
         my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
         return true;
       }

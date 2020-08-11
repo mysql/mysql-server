@@ -108,3 +108,23 @@ EXPLAIN SELECT a FROM t1;
 EXPLAIN SELECT a FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#31550839 OPTIMIZER SWITCH USE_INVISIBLE_INDEXES=ON DOES NOT ALLOW FORCE INDEX
+--echo #
+
+CREATE TABLE t1 (
+ id INT NOT NULL PRIMARY KEY,
+ b INT NOT NULL,
+ INDEX (b) INVISIBLE
+);
+INSERT INTO t1 VALUES (1, 1), (2,2),(3,3),(4,4),(5,5);
+ANALYZE TABLE t1;
+
+SET optimizer_switch="use_invisible_indexes=on";
+EXPLAIN SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
+SET optimizer_switch="use_invisible_indexes=default";
+--error ER_KEY_DOES_NOT_EXITS
+EXPLAIN SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
+
+DROP TABLE t1;
