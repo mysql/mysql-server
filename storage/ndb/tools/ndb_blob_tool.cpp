@@ -132,7 +132,8 @@ static int doconnect() {
   do {
     g_ncc = new Ndb_cluster_connection(opt_ndb_connectstring);
     g_ncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
-    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay) == 0,
+    CHK2(g_ncc->connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) ==
+             0,
          getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
