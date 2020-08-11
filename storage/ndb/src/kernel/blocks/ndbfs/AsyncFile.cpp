@@ -47,6 +47,7 @@
 #define JAM_FILE_ID 387
 
 //#define DUMMY_PASSWORD
+//#define DEBUG_ODIRECT
 
 AsyncFile::AsyncFile(SimulatedBlock& fs) :
   theFileName(),
@@ -401,7 +402,7 @@ require(!"m_file.sync() != -1");
       ndbout_c("%s Failed to set ODirect errno: %u",
                theFileName.c_str(), get_last_os_error());
     }
-#ifdef VM_TRACE
+#ifdef DEBUG_ODIRECT
     else
     {
       ndbout_c("%s ODirect is set.", theFileName.c_str());
