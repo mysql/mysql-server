@@ -157,6 +157,9 @@ IF(MSVC)
   ELSE()
     ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
+    # Also disable 'identifier' : unreferenced local variable warnings
+    # Compiler warning C4101
+    ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES} COMPILE_FLAGS "/wd4101")
   ENDIF()
 ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(
