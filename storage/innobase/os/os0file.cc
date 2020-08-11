@@ -1940,7 +1940,8 @@ static file::Block *os_file_compress_page(IORequest &type, void *&buf,
     buf = buf_ptr;
     *n = compressed_len;
 
-    if (compressed_len >= old_compressed_len) {
+    if (compressed_len >= old_compressed_len &&
+        !type.is_punch_hole_optimisation_disabled()) {
       ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
 
       type.clear_punch_hole();

@@ -295,7 +295,12 @@ class IORequest {
     This can be used to force a read and write without any
     compression e.g., for redo log, merge sort temporary files
     and the truncate redo log. */
-    NO_COMPRESSION = 512
+    NO_COMPRESSION = 512,
+
+    /** We optimise cases where punch hole is not done if the compressed length
+    of the page is the same as the original size of the page. Ignore such
+    optimisations if this flag is set. */
+    DISABLE_PUNCH_HOLE_OPTIMISATION = 1024
   };
 
   /** Default constructor */
@@ -369,6 +374,16 @@ class IORequest {
     return ((m_type & PUNCH_HOLE) == PUNCH_HOLE);
   }
 
+  /** @return true if punch hole needs to be done always if it's supported and
+  if the page is to be compressed. */
+  bool is_punch_hole_optimisation_disabled() const
+      MY_ATTRIBUTE((warn_unused_result)) {
+    ut_ad(is_compressed() && punch_hole());
+
+    return (m_type & DISABLE_PUNCH_HOLE_OPTIMISATION) ==
+           DISABLE_PUNCH_HOLE_OPTIMISATION;
+  }
+
   /** @return true if the read should be validated */
   bool validate() const MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(is_read() ^ is_write());
@@ -380,6 +395,13 @@ class IORequest {
   void set_punch_hole() {
     if (is_punch_hole_supported()) {
       m_type |= PUNCH_HOLE;
+    }
+  }
+
+  /** Set the force punch hole flag */
+  void disable_punch_hole_optimisation() {
+    if (is_punch_hole_supported()) {
+      m_type |= DISABLE_PUNCH_HOLE_OPTIMISATION;
     }
   }
 

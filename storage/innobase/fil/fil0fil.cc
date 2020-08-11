@@ -5837,7 +5837,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   we pass the 0 below */
 
   const fil_node_t *file =
-      shard->create_node(df.filepath(), 0, space, false, atomic_write, false);
+      shard->create_node(df.filepath(), 0, space, false,
+                         IORequest::is_punch_hole_supported(), atomic_write);
 
   if (file == nullptr) {
     return (DB_ERROR);
@@ -8585,6 +8586,9 @@ struct Fil_page_iterator {
 
   /** FS Block Size */
   size_t block_size;
+
+  /** Compression algorithm to be used if the table needs to be compressed. */
+  Compression::Type m_compression_type{Compression::NONE};
 };
 
 /** TODO: This can be made parallel trivially by chunking up the file
@@ -8706,9 +8710,20 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
       write_request.encryption_algorithm(Encryption::AES);
     }
 
-    /* A page was updated in the set, write back to disk.
-    Note: We don't have the compression algorithm, we write
-    out the imported file as uncompressed. */
+    /* For compressed table, set compressed information. */
+    if (iter.m_compression_type != Compression::Type::NONE &&
+        IORequest::is_punch_hole_supported()) {
+      write_request.set_punch_hole();
+
+      /* In the case of import since we're doing compression for the first time
+      we would like to ignore any optimisations to not do punch hole. So force
+      the punch hole. */
+      write_request.disable_punch_hole_optimisation();
+
+      write_request.compression_algorithm(iter.m_compression_type);
+    }
+
+    /* A page was updated in the set, write back to disk. */
 
     if (updated && (err = os_file_write(write_request, iter.m_filepath,
                                         iter.m_file, io_buffer, offset,
@@ -8808,12 +8823,8 @@ void fil_adjust_name_import(dict_table_t *table, const char *path,
   return;
 }
 
-/** Iterate over all the pages in the tablespace.
-@param[in,out]	table		the table definiton in the server
-@param[in]	n_io_buffers	number of blocks to read and write together
-@param[in]	callback	functor that will do the page updates
-@return DB_SUCCESS or error code */
 dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
+                               Compression::Type compression_type,
                                PageCallback &callback) {
   dberr_t err;
   pfs_os_file_t file;
@@ -8927,6 +8938,8 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     /* Set encryption info. */
     iter.m_encryption_key = table->encryption_key;
     iter.m_encryption_iv = table->encryption_iv;
+
+    iter.m_compression_type = compression_type;
 
     /* Check encryption is matched or not. */
     ulint space_flags = callback.get_space_flags();
