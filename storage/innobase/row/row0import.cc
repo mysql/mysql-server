@@ -3576,6 +3576,14 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     return (row_import_cleanup(prebuilt, trx, err));
   }
 
+  /* Check and store compression type. */
+  Compression compression;
+
+  err = Compression::check(prebuilt->m_mysql_table->s->compress.str,
+                           &compression);
+
+  ut_a(err == DB_SUCCESS);
+
   prebuilt->trx->op_info = "read meta-data file";
 
   /* Prevent DDL operations while we are checking. */
@@ -3654,7 +3662,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     err = fil_tablespace_iterate(
         table,
         IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
-        fetchIndexRootPages);
+        compression.m_type, fetchIndexRootPages);
 
     if (err == DB_SUCCESS) {
       err = fetchIndexRootPages.build_row_import(&cfg);
@@ -3713,7 +3721,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   err = fil_tablespace_iterate(
       table,
       IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
-      converter);
+      compression.m_type, converter);
 
   DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
                   err = DB_TOO_MANY_CONCURRENT_TRXS;);
@@ -3799,6 +3807,10 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   if (FSP_FLAGS_GET_ENCRYPTION(fsp_flags)) {
     err = fil_set_encryption(table->space, Encryption::AES,
                              table->encryption_key, table->encryption_iv);
+  }
+
+  if (compression.m_type != Compression::Type::NONE) {
+    err = fil_set_compression(table, prebuilt->m_mysql_table->s->compress.str);
   }
 
   row_mysql_unlock_data_dictionary(trx);

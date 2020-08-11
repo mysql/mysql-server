@@ -1748,11 +1748,14 @@ struct PageCallback {
 };
 
 /** Iterate over all the pages in the tablespace.
-@param table the table definiton in the server
-@param n_io_buffers number of blocks to read and write together
-@param callback functor that will do the page updates
+@param[in]  table the table definiton in the server
+@param[in]  n_io_buffers number of blocks to read and write together
+@param[in]  compression_type compression type if compression is enabled,
+else Compression::Type::NONE
+@param[in,out]  callback functor that will do the page updates
 @return DB_SUCCESS or error code */
 dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
+                               Compression::Type compression_type,
                                PageCallback &callback)
     MY_ATTRIBUTE((warn_unused_result));
 
