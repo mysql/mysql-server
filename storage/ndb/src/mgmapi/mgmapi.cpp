@@ -720,8 +720,9 @@ extern "C" int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
             // retry with next mgmt server
             continue;
           }
-          fprintf(handle->errstream,
-                  "Unable to resolve local bind address: %s\n", bind_address);
+          if (verbose > 0)
+            fprintf(handle->errstream,
+                    "Unable to resolve local bind address: %s\n", bind_address);
 
           setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
                    "Unable to resolve local bind address: %s\n", bind_address);
@@ -735,10 +736,11 @@ extern "C" int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       if (Ndb_getAddr(&addr, cfg.ids[i].name.c_str()) != 0) {
         invalid_Address++;
         if (cfg.ids.size() - invalid_Address == 0) {
-          fprintf(handle->errstream,
-                  "Unable to resolve any of the address"
-                  " in connect string: %s\n",
-                  cfg.makeConnectString(buf, sizeof(buf)));
+          if (verbose > 0)
+            fprintf(handle->errstream,
+                    "Unable to resolve any of the address"
+                    " in connect string: %s\n",
+                    cfg.makeConnectString(buf, sizeof(buf)));
 
           setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
                    "Unable to resolve any of the address"
@@ -753,10 +755,11 @@ extern "C" int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       SocketClient s;
       s.set_connect_timeout(handle->timeout);
       if (!s.init(addr.get_address_family())) {
-        fprintf(handle->errstream,
-                "Unable to create socket, "
-                "while trying to connect with connect string: %s\n",
-                cfg.makeConnectString(buf, sizeof(buf)));
+        if (verbose > 0)
+          fprintf(handle->errstream,
+                  "Unable to create socket, "
+                  "while trying to connect with connect string: %s\n",
+                  cfg.makeConnectString(buf, sizeof(buf)));
 
         setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
                  "Unable to create socket, "
@@ -776,11 +779,12 @@ extern "C" int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
           char *sockaddr_string = Ndb_combine_address_port(
               buf, sizeof(buf), bind_address, bind_address_port);
 
-          fprintf(handle->errstream,
-                  "Unable to bind local address '%s' errno: %d, "
-                  "while trying to connect with connect string: '%s'\n",
-                  sockaddr_string, err,
-                  cfg.makeConnectString(buf, sizeof(buf)));
+          if (verbose > 0)
+            fprintf(handle->errstream,
+                    "Unable to bind local address '%s' errno: %d, "
+                    "while trying to connect with connect string: '%s'\n",
+                    sockaddr_string, err,
+                    cfg.makeConnectString(buf, sizeof(buf)));
 
           setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
                    "Unable to bind local address '%s' errno: %d, "
