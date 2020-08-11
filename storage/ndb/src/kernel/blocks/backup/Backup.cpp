@@ -3715,7 +3715,7 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 
     {
       BackupFilePtr filePtr;
-      ptr.p->files.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+      ptr.p->files.getPtr(filePtr, ptr.p->dataFilePtr);
       /**
        * If we are using O_DIRECT, may need to align file
        * size to a boundary
