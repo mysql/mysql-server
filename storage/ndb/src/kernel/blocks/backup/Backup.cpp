@@ -3715,6 +3715,42 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 
     {
       BackupFilePtr filePtr;
+      ptr.p->files.getPtr(filePtr, ptr.p->dataFilePtr[0]);
+      /**
+       * If we are using O_DIRECT, may need to align file
+       * size to a boundary
+       */
+      if (c_defaults.m_o_direct)
+      {
+        jam();
+        Uint32 fillerWords = 0;
+        Uint32* nextPos;
+        ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&nextPos, 1));
+
+        if((UintPtr)nextPos & (sizeof(Page32)-1))
+        {
+          /* Need to pad the data file to get correct size for O_DIRECT */
+          Uint32* alignedPos = nextPos + 2; /* Space for space filler header */
+          alignedPos = (Uint32*)(((UintPtr)alignedPos + sizeof(Page32)-1) &
+                              ~(UintPtr)(sizeof(Page32)-1));
+          fillerWords = Uint32(alignedPos - nextPos);
+        }
+
+        if (fillerWords)
+        {
+          Uint32* filler;
+          ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&filler, fillerWords));
+          memset(filler, 0, fillerWords * 4);
+          *filler = htonl(BackupFormat::EMPTY_ENTRY);
+          filler++;
+          *filler = htonl(fillerWords);
+          filePtr.p->operation.dataBuffer.updateWritePtr(fillerWords);
+        }
+      }
+    }
+
+    {
+      BackupFilePtr filePtr;
       ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
 
       const Uint32 gcpSz = sizeof(BackupFormat::CtlFile::GCPEntry) >> 2;
@@ -6716,8 +6752,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
                        !ptr.p->is_lcp() &&    // during backup
                        eof &&    // last chunk of data to write to file
                        (sz % 128 != 0) &&     // too small for O_DIRECT
-                       (ptr.p->slaveState.getState() == STOPPING) &&
-                       ptr.p->checkError());  // backup to be aborted
+                       (ptr.p->slaveState.getState() == STOPPING));
 
     if(likely(!skip_write))
     {
