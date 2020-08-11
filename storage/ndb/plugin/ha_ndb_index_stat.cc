@@ -1063,32 +1063,35 @@ void ndb_index_stat_free(NDB_SHARE *share) {
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-/* Find entry across shares */
-/* wl4124_todo mutex overkill, hash table, can we find table share */
-static Ndb_index_stat *ndb_index_stat_find_entry(int index_id,
-                                                 int index_version) {
-  DBUG_TRACE;
-  mysql_mutex_lock(&ndbcluster_mutex);
-  mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  DBUG_PRINT("index_stat",
-             ("find, id: %d version: %d", index_id, index_version));
+/**
+   @brief Find first Ndb_index_stat entry matching id and version in any of the
+   ndb_index_stat_lists
 
-  int lt;
-  for (lt = 1; lt < Ndb_index_stat::LT_Count; lt++) {
+   @param index_id Id of the index stat to find
+   @param index_version Version of the index stat to find
+
+   @return Pointer to Ndb_index_stat or nullptr if no matching index stat found
+*/
+static Ndb_index_stat *find_entry(int index_id, int index_version) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("id: %d version: %d", index_id, index_version));
+
+  mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  // Iterate through array of Ndb_index_stat_list
+  for (int lt = Ndb_index_stat::LT_New; lt < Ndb_index_stat::LT_Count; lt++) {
     Ndb_index_stat *st = ndb_index_stat_list[lt].head;
-    while (st != 0) {
+    // Iterate the linked list of Ndb_index_stat
+    while (st != nullptr) {
       if (st->index_id == index_id && st->index_version == index_version) {
+        // Found Ndb_index_stat with matching id and version
         mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-        mysql_mutex_unlock(&ndbcluster_mutex);
         return st;
       }
       st = st->list_next;
     }
   }
-
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  mysql_mutex_unlock(&ndbcluster_mutex);
-  return 0;
+  return nullptr;
 }
 
 /* Statistics thread sub-routines */
@@ -1755,8 +1758,7 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr) {
     DBUG_PRINT("index_stat", ("next_listener eventType: %d indexId: %u",
                               head.m_eventType, head.m_indexId));
 
-    Ndb_index_stat *st =
-        ndb_index_stat_find_entry(head.m_indexId, head.m_indexVersion);
+    Ndb_index_stat *st = find_entry(head.m_indexId, head.m_indexVersion);
     /*
       Another process can update stats for an index which is not found
       in this mysqld.  Ignore it.
