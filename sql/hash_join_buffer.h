@@ -349,6 +349,7 @@ class HashJoinRowBuffer {
   // A buffer we can use when we are constructing a join key from a join
   // condition. In order to avoid reallocating memory, the buffer never shrinks.
   String m_buffer;
+  size_t m_row_size_upper_bound;
 
   // The maximum size of the buffer, given in bytes.
   const size_t m_max_mem_available;
@@ -360,6 +361,9 @@ class HashJoinRowBuffer {
   // hash join may put any row in the hash table in the tables' record buffer).
   // See HashJoinIterator::BuildHashTable() for an example of this.
   LinkedImmutableString m_last_row_stored{nullptr};
+
+  LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
+      LinkedImmutableString next_ptr);
 };
 
 }  // namespace hash_join_buffer

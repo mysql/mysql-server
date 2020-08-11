@@ -285,6 +285,49 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
   return false;
 }
 
+LinkedImmutableString
+HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
+    LinkedImmutableString next_ptr) {
+  size_t row_size_upper_bound = m_row_size_upper_bound;
+  if (m_tables.has_blob_column()) {
+    // The row size upper bound can have changed.
+    row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
+  }
+
+  const size_t required_value_bytes =
+      LinkedImmutableString::RequiredBytesForEncode(row_size_upper_bound);
+
+  std::pair<char *, char *> block = m_mem_root.Peek();
+  if (static_cast<size_t>(block.second - block.first) < required_value_bytes) {
+    // No room in this block; ask for a new one and try again.
+    m_mem_root.ForceNewBlock(required_value_bytes);
+    block = m_mem_root.Peek();
+  }
+  bool committed = false;
+  char *start_of_value, *dptr;
+  LinkedImmutableString ret{nullptr};
+  if (static_cast<size_t>(block.second - block.first) >= required_value_bytes) {
+    dptr = start_of_value = block.first;
+  } else {
+    // Fatal error; there's no maximum capacity yet (coming in a later patch).
+    // Later, this path will be used to signal buffer full.
+    return LinkedImmutableString{nullptr};
+  }
+
+  ret = LinkedImmutableString::EncodeHeader(next_ptr, &dptr);
+  dptr = pointer_cast<char *>(
+      StoreFromTableBuffersRaw(m_tables, pointer_cast<uchar *>(dptr)));
+
+  if (!committed) {
+    const size_t actual_length = dptr - pointer_cast<char *>(start_of_value);
+    // The extra alignment is a temporary measure until the last patch
+    // of the worklog, where we pull m_hash_map out of the MEM_ROOT
+    // and thus no longer need Alloc().
+    m_mem_root.RawCommit(ALIGN_SIZE(actual_length));
+  }
+  return ret;
+}
+
 // Take the contents of this row and put it back in the tables' record buffers
 // (record[0]). The row ID and NULL flags will also be restored, if needed.
 // Returns a pointer to where we ended reading.
@@ -356,13 +399,9 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
     // we can allocate a new hash map.
   }
 
-  if (!m_tables.has_blob_column()) {
-    const size_t row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
-    if (m_buffer.reserve(row_size_upper_bound)) {
-      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), row_size_upper_bound);
-      return true;  // oom
-    }
-  }
+  // NOTE: Will be ignored and re-calculated if there are any blobs in the
+  // table.
+  m_row_size_upper_bound = ComputeRowSizeUpperBound(m_tables);
 
   m_hash_map.reset(new (&m_mem_root)
                        hash_map_type(&m_mem_root, KeyHasher(hash_seed)));
@@ -425,30 +464,15 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
   }
 
   // Save the contents of all columns marked for reading.
-  if (StoreFromTableBuffers(m_tables, &m_buffer)) {
-    return StoreRowResult::FATAL_ERROR;
-  }
-
-  // Give the row the same lifetime as the hash map, by allocating it on the
-  // same MEM_ROOT as the hash map is allocated on.
-  // NOTE: This isn't optimal with regards to memory usage,
-  // but the code will be replaced in a later patch in the worklog series.
-  const size_t row_size = m_buffer.length();
-  char *row = m_mem_root.ArrayAlloc<char>(
-      LinkedImmutableString::RequiredBytesForEncode(row_size));
-  if (row == nullptr) {
-    return StoreRowResult::FATAL_ERROR;
-  }
-  char *ptr = row;
-  LinkedImmutableString::EncodeHeader(next_ptr, &ptr);
-  memcpy(ptr, m_buffer.ptr(), row_size);
   m_last_row_stored = key_it_and_inserted.first->second =
-      LinkedImmutableString(row);
-
-  if (m_mem_root.allocated_size() > m_max_mem_available) {
+      StoreLinkedImmutableStringFromTableBuffers(next_ptr);
+  if (m_last_row_stored == nullptr) {
+    return StoreRowResult::FATAL_ERROR;
+  } else if (m_mem_root.allocated_size() > m_max_mem_available) {
     return StoreRowResult::BUFFER_FULL;
+  } else {
+    return StoreRowResult::ROW_STORED;
   }
-  return StoreRowResult::ROW_STORED;
 }
 
 }  // namespace hash_join_buffer
