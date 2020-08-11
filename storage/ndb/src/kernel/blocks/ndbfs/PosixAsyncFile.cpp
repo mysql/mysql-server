@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -627,6 +627,29 @@ no_odirect:
   request->m_fileinfo = get_fileinfo();
 }
 
+bool PosixAsyncFile::check_odirect_request(const char* buf,
+                                           size_t sz,
+                                           off_t offset)
+{
+  if (m_open_flags & FsOpenReq::OM_DIRECT)
+  {
+    if ((sz % NDB_O_DIRECT_WRITE_ALIGNMENT) ||
+        (((UintPtr)buf) % NDB_O_DIRECT_WRITE_ALIGNMENT) ||
+        (offset % NDB_O_DIRECT_WRITE_ALIGNMENT))
+    {
+      fprintf(stderr,
+              "Error r/w of size %llu using buf %p to offset %llu in "
+              "file %s not O_DIRECT aligned\n",
+              (long long unsigned) sz,
+              buf,
+              (long long unsigned) offset,
+              theFileName.c_str());
+      return false;
+    }
+  }
+  return true;
+}
+
 int PosixAsyncFile::readBuffer(Request *req, char *buf,
                                size_t size, off_t offset)
 {
@@ -645,6 +668,10 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     }
   }
 #endif
+
+  if (!check_odirect_request(buf, size, offset))
+    return FsRef::fsErrInvalidParameters;
+
   if(use_gz)
   {
     while((seek_val= ndbzseek(&nzf, offset, SEEK_SET)) == (off_t)-1
@@ -744,6 +771,9 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
   size_t chunk_size = 256*1024;
   size_t bytes_to_write = chunk_size;
   int return_value;
+
+  if (!check_odirect_request(buf, size, offset))
+    return FsRef::fsErrInvalidParameters;
 
   m_write_wo_sync += size;
 
@@ -876,6 +906,9 @@ void PosixAsyncFile::appendReq(Request *request)
   set_or_check_filetype(false);
   const char * buf = request->par.append.buf;
   Uint32 size = request->par.append.size;
+
+  if (!check_odirect_request(request->par.append.buf, size, 0))
+    request->error = FsRef::fsErrInvalidParameters;
 
   m_write_wo_sync += size;
 
