@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,6 +90,7 @@ private:
 
   int check_odirect_read(Uint32 flags, int&new_flags, int mode);
   int check_odirect_write(Uint32 flags, int&new_flags, int mode);
+  bool check_odirect_request(const char* buf, size_t sz, off_t offset);
 
 #ifndef HAVE_PREAD
   struct FileGuard;
