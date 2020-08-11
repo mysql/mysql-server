@@ -6101,6 +6101,9 @@ sub mysqld_arguments ($$$) {
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s", $opt_debug_sync_timeout)
     unless $opt_user_args;
+  if (-e "$bindir/plugin_output_directory") {
+    mtr_add_arg($args, "--plugin-dir=$bindir/plugin_output_directory");
+  }
 
   # Options specified in .opt files should be added last so they can
   # override defaults above.
