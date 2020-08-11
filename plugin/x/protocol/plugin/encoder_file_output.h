@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,13 @@
 #include <string>
 #include <vector>
 
+#include "my_compiler.h"
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
+// to be used by clients of class 'type2'
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
 #include "plugin/x/generated/protobuf/mysqlx.pb.h"
+MY_COMPILER_DIAGNOSTIC_POP()
 #include "plugin/x/protocol/plugin/file_output.h"
 
 class Encoder_file_output : public File_output {

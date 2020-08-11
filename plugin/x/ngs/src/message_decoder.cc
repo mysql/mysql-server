@@ -20,8 +20,14 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+#include "my_compiler.h"
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
+// to be used by clients of class 'type2'
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/wire_format_lite.h>
+MY_COMPILER_DIAGNOSTIC_POP()
 
 #include "plugin/x/generated/encoding_descriptors.h"
 #include "plugin/x/generated/mysqlx_error.h"
