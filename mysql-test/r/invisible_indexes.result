@@ -565,3 +565,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
+#
+# Bug#31550839 OPTIMIZER SWITCH USE_INVISIBLE_INDEXES=ON DOES NOT ALLOW FORCE INDEX
+#
+CREATE TABLE t1 (
+id INT NOT NULL PRIMARY KEY,
+b INT NOT NULL,
+INDEX (b) INVISIBLE
+);
+INSERT INTO t1 VALUES (1, 1), (2,2),(3,3),(4,4),(5,5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET optimizer_switch="use_invisible_indexes=on";
+EXPLAIN SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	b	b	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`) where (`test`.`t1`.`b` = 3)
+SET optimizer_switch="use_invisible_indexes=default";
+EXPLAIN SELECT * FROM t1 FORCE INDEX (b) WHERE b = 3;
+ERROR 42000: Key 'b' doesn't exist in table 't1'
+DROP TABLE t1;
