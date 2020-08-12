@@ -972,12 +972,25 @@ bool Item_field::check_column_in_group_by(uchar *arg) {
 
 Item *Item_field::replace_with_derived_expr(uchar *arg) {
   TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
-  return dt->get_clone_for_derived_expr(
-      current_thd, dt->get_derived_expr(field->field_index()));
+  // This column's table reference should be same as the derived table from
+  // where the replacement is retrieved. If not, it is presumed that the
+  // column has already been replaced with derived table expression (Maybe
+  // there was an earlier reference to the same column in the condition that
+  // is being pushed down). There is no need to do anything in such a case.
+  return (dt == table_ref)
+             ? dt->get_clone_for_derived_expr(
+                   current_thd, dt->get_derived_expr(field->field_index()))
+             : this;
 }
 
 Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
   TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
+  // This column's table reference should be same as the derived table from
+  // where the replacement is retrieved. If not, it is presumed that the
+  // column has already been replaced with derived table expression (Maybe
+  // there was an earlier reference to the same column in the condition that
+  // is being pushed down). There is no need to do anything in such a case.
+  if (dt != table_ref) return this;
   SELECT_LEX *select = dt->derived_unit()->first_select();
   // Get the expression in the derived table and find the right ref item to
   // point to.

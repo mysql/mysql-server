@@ -1117,6 +1117,7 @@ SELECT /*+ DERIVED_CONDITION_PUSHDOWN(dt2) */ * FROM
 f1	f2	f3
 4	44	444
 4	44	444
+set optimizer_switch=default;
 # Bug#31491972: WL8084: SERVER CRASH FROM JOIN::UPDATE_SARGABLE_FROM_CONST()
 SELECT f1 FROM (SELECT DISTINCT * FROM t1 WHERE f2 = 4) AS alias1
 WHERE ( alias1 . f1 = 24 AND alias1 . f3 = 101 );
@@ -1125,3 +1126,18 @@ SELECT f1 FROM (SELECT DISTINCT * FROM t1 WHERE f2 = 4) AS alias1
 WHERE ( alias1 . f1 BETWEEN 24 AND 30 AND alias1 . f3 BETWEEN 101 and 103);
 f1
 DROP TABLE t0, t1;
+#
+# Bug#31603289:CRASH IN TABLE_LIST::GET_CLONE_FOR_DERIVED_EXPR,
+#              ASSERTION `FALSE' IN TABLE_LIST::GET_DERIVED_EXPR
+#
+CREATE TABLE t(f0 INTEGER PRIMARY KEY, f1 INTEGER,f2 INTEGER);
+SELECT NULL IN(SELECT (f1 between 0 and 1)
+FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
+);
+NULL IN(SELECT (f1 between 0 and 1)
+FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
+)
+0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t;
