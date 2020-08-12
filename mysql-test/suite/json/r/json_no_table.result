@@ -3920,3 +3920,9 @@ ERROR 22007: Truncated incorrect DOUBLE value: 'bad'
 INSERT INTO sink SELECT 'x'= JSON_ARRAY(ST_GEOMFROMTEXT('MULTIPOINT(1 2 3 4)'));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 DROP TABLE sink;
+#
+# Bug#31393934 ASSERTION `OTHER_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+#
+SELECT JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()));
+JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()))
+NULL
