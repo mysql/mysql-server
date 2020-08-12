@@ -4424,7 +4424,8 @@ int cmp_item_json::cmp(Item *arg) {
     if (arg->val_json(&wr) || arg->null_value) return UNKNOWN;
   } else {
     String tmp, str;
-    if (get_json_atom_wrapper(&arg, 0, "IN", &str, &tmp, &wr, &holder, true))
+    if (get_json_atom_wrapper(&arg, 0, "IN", &str, &tmp, &wr, &holder, true) ||
+        arg->null_value)
       return UNKNOWN; /* purecov: inspected */
   }
   return m_value->compare(wr) ? 1 : 0;
