@@ -358,9 +358,14 @@ applications.
 %package        client-plugins
 Summary:        Shared plugins for MySQL client applications
 Group:          Applications/Databases
+Provides:       mysql-client-plugins = %{version}-%{release}
 %if 0%{?commercial}
 Conflicts:      mysql-commercial-server < 8.0.21
 Conflicts:      mysql-commercial-client < 8.0.22
+Obsoletes:      mysql-community-client-plugins < %{version}-%{release}
+%if 0%{?cluster}
+Obsoletes:      mysql-commercial-client-plugins < %{version}-%{release}
+%endif
 %else
 Conflicts:      mysql-community-server < 8.0.21
 Conflicts:      mysql-community-client < 8.0.22
