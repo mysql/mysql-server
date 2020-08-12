@@ -551,6 +551,7 @@ let query = SELECT /*+ DERIVED_CONDITION_PUSHDOWN(dt2) */ * FROM
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
+set optimizer_switch=default;
 
 --echo # Bug#31491972: WL8084: SERVER CRASH FROM JOIN::UPDATE_SARGABLE_FROM_CONST()
 
@@ -560,3 +561,16 @@ SELECT f1 FROM (SELECT DISTINCT * FROM t1 WHERE f2 = 4) AS alias1
 WHERE ( alias1 . f1 BETWEEN 24 AND 30 AND alias1 . f3 BETWEEN 101 and 103);
 
 DROP TABLE t0, t1;
+
+--echo #
+--echo # Bug#31603289:CRASH IN TABLE_LIST::GET_CLONE_FOR_DERIVED_EXPR,
+--echo #              ASSERTION `FALSE' IN TABLE_LIST::GET_DERIVED_EXPR
+--echo #
+
+CREATE TABLE t(f0 INTEGER PRIMARY KEY, f1 INTEGER,f2 INTEGER);
+
+SELECT NULL IN(SELECT (f1 between 0 and 1)
+ FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
+);
+
+DROP TABLE t;
