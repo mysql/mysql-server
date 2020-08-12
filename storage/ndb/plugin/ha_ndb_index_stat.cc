@@ -986,12 +986,11 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
   uint found = 0;
   while (st_loop != 0) {
     if (st == st_loop) {
+      // Unlink entry from NDB_SHARE and request it to be released
       DBUG_PRINT("index_stat", ("st %s stat free one", st->id));
       st_loop = st_loop->share_next;
       st->share_next = 0;
       st->share = 0;
-      assert(st->array_index != Ndb_index_stat::LT_Undef);
-      assert(st->array_index != Ndb_index_stat::LT_Delete);
       assert(!st->to_delete);
       st->to_delete = true;
       st->abort_request = true;
@@ -1044,12 +1043,11 @@ void ndb_index_stat_free(NDB_SHARE *share) {
 
   Ndb_index_stat *st;
   while ((st = share->index_stat_list) != 0) {
+    // Unlink entry from NDB_SHARE and request it to be released
     DBUG_PRINT("index_stat", ("st %s stat free all", st->id));
     share->index_stat_list = st->share_next;
     st->share_next = 0;
     st->share = 0;
-    assert(st->array_index != Ndb_index_stat::LT_Undef);
-    assert(st->array_index != Ndb_index_stat::LT_Delete);
     assert(!st->to_delete);
     st->to_delete = true;
     st->abort_request = true;
