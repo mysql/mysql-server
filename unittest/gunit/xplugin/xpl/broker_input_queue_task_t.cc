@@ -75,6 +75,14 @@ class Broker_input_queue_testsuite : public Test {
 
 TEST_F(Broker_input_queue_testsuite, does_nothing) {}
 
+TEST_F(Broker_input_queue_testsuite, client_doesnt_have_session) {
+  m_sut_queue.emplace(kId1, "payload");
+
+  EXPECT_CALL(*mock_client, session()).WillOnce(Return(nullptr));
+
+  sut_task->loop();
+}
+
 TEST_F(Broker_input_queue_testsuite, queues_all_until_looped2) {
   m_sut_queue.emplace(kId1, "payload");
   m_sut_queue.emplace(kId2, "payload");
