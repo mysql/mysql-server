@@ -68,7 +68,7 @@ touch_mem(void* arg)
 {
   struct AllocTouchMem* touch_mem_ptr = (struct AllocTouchMem*)arg;
 
-#if defined(VM_TRACE_MEM) || defined(VM_TRACE) || defined(ERROR_INSERT)
+#if defined(VM_TRACE_MEM)
   g_eventLogger->info("Touching memory: %zu bytes at %p, thread index %u, "
                       "watch dog %p",
                       touch_mem_ptr->sz,
