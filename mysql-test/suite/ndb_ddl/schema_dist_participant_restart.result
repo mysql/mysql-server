@@ -1,0 +1,45 @@
+#
+# Test participants' restart during a schema distribution
+#
+# Case 1 : Participant restarts before the coordinator starts waiting on a schema op
+# Activate the sync points required for the test
+SET DEBUG_SYNC="ndb_schema_before_write WAIT_FOR reached_check_wakeup_clients";
+SET GLOBAL DEBUG="+d,ndb_check_wakeup_clients_syncpoint";
+SET DEBUG_SYNC="ndb_schema_after_write SIGNAL continue_check_wakeup_clients";
+# Execute a DDL through send which will cause the
+# client to wait until a participant (mysqld6) unsubscribes
+CREATE TABLE t1 (a INT) ENGINE NDB;
+# Shutdown a participant Server
+# Verify that the DDL was successful
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Cleanup
+# restart
+set GLOBAL debug="-d,ndb_check_wakeup_clients_syncpoint";
+set debug_sync="RESET";
+DROP TABLE t1;
+# Case 2 : Participant restarts after replying to the
+# schema op but the coordinator is waiting on other participants
+# Defer sending schema op ack from mysqld2
+# to make the coordinator wait for it
+set GLOBAL debug="+d,ndb_defer_sending_participant_ack";
+# Execute a DDL through send on mysqld1
+CREATE TABLE t1 (a INT) ENGINE NDB;
+# Wait for the participant mysqld6 to send the ack so
+# that we can restart it and test the coordinator
+# Shutdown a participant Server
+# Resume sending the ack from participant mysqld2
+set GLOBAL debug="-d,ndb_defer_sending_participant_ack";
+SET DEBUG_SYNC="now SIGNAL resume_sending_participant_ack";
+# Verify that the DDL was successful without any warnings
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Cleanup
+# restart
+DROP TABLE t1;

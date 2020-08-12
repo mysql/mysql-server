@@ -33,6 +33,7 @@
 #include "sql/binlog.h"
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type
 #include "sql/dd/types/tablespace.h"      // dd::Tablespace
+#include "sql/debug_sync.h"               // debug_sync_set_action, DEBUG_SYNC
 #include "sql/derror.h"                   // ER_THD
 #include "sql/mysqld.h"                   // opt_bin_log
 #include "sql/mysqld_thd_manager.h"       // Global_THD_manager
@@ -1146,6 +1147,8 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     return false;
   }
 
+  DEBUG_SYNC(m_thd, "ndb_schema_before_write");
+
   // Write schema operation to the table
   if (DBUG_EVALUATE_IF("ndb_schema_write_fail", true, false) ||
       !write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
@@ -1156,6 +1159,8 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     ndb_log_warning("Failed to write the schema op into the ndb_schema table");
     return false;
   }
+
+  DEBUG_SYNC(m_thd, "ndb_schema_after_write");
 
   if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed_after_write", true,
                        false)) {
@@ -2104,6 +2109,13 @@ class Ndb_schema_event_handler {
       return true;
     }
 
+    DBUG_EXECUTE_IF("ndb_defer_sending_participant_ack", {
+      ndb_log_info("sending participant ack deferred");
+      const char action[] = "now WAIT_FOR resume_sending_participant_ack";
+      DBUG_ASSERT(!debug_sync_set_action(m_thd, action, strlen(action)));
+      ndb_log_info("continuing..");
+    });
+
     // Should only call this function if ndb_schema has a schema_op_id
     // column which enabled the client to send schema->schema_op_id != 0
     ndbcluster::ndbrequire(schema->schema_op_id);
@@ -2221,20 +2233,22 @@ class Ndb_schema_event_handler {
 
   void check_wakeup_clients(Ndb_schema_dist::Schema_op_result_code result,
                             const char *message) const {
+    DBUG_EXECUTE_IF("ndb_check_wakeup_clients_syncpoint", {
+      const char action[] =
+          "now SIGNAL reached_check_wakeup_clients "
+          "WAIT_FOR continue_check_wakeup_clients NO_CLEAR_EVENT";
+      DBUG_ASSERT(!debug_sync_set_action(m_thd, action, strlen(action)));
+    });
+
     // Build list of current subscribers
     std::unordered_set<uint32> subscribers;
     m_schema_dist_data.get_subscriber_list(subscribers);
 
-    // Check all NDB_SCHEMA_OBJECTS for wakeup
-    std::vector<uint32> schema_op_ids;
-    NDB_SCHEMA_OBJECT::get_schema_op_ids(schema_op_ids);
-    for (auto schema_op_id : schema_op_ids) {
-      // Lookup NDB_SCHEMA_OBJECT from nodeid + schema_op_id
-      std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
-          schema_object(NDB_SCHEMA_OBJECT::get(own_nodeid(), schema_op_id),
-                        NDB_SCHEMA_OBJECT::release);
-      if (schema_object == nullptr) {
-        // The schema operation has already completed on this node
+    // Check all active NDB_SCHEMA_OBJECTS for wakeup
+    for (const NDB_SCHEMA_OBJECT *schema_object :
+         m_schema_dist_data.active_schema_ops()) {
+      if (schema_object->check_all_participants_completed()) {
+        // all participants have completed and the final ack has been sent
         continue;
       }
 

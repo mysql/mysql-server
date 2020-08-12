@@ -92,14 +92,6 @@ void NDB_SCHEMA_OBJECT::init(uint32 nodeid) {
   active_schema_clients.m_own_nodeid = nodeid;
 }
 
-void NDB_SCHEMA_OBJECT::get_schema_op_ids(std::vector<uint32> &ids) {
-  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
-  for (const auto &entry : active_schema_clients.m_hash) {
-    NDB_SCHEMA_OBJECT *schema_object = entry.second;
-    ids.push_back(schema_object->schema_op_id());
-  }
-}
-
 static uint32 next_schema_op_id() {
   static std::atomic<uint32> schema_op_id_sequence{1};
   uint32 id = schema_op_id_sequence++;
@@ -367,8 +359,12 @@ void NDB_SCHEMA_OBJECT::fail_participants_not_in_list(
       continue;
     }
 
-    // Participant is not in list, mark it as failed
+    // Participant is not in list.
     State::Participant &participant = it.second;
+    // Mark it as failed if it has not completed already
+    if (participant.m_completed) {
+      continue;
+    }
     participant.m_completed = true;
     participant.m_result = result;
     participant.m_message = message;
@@ -379,6 +375,8 @@ bool NDB_SCHEMA_OBJECT::check_for_failed_subscribers(
     const std::unordered_set<uint32> &new_subscribers, uint32 result,
     const char *message) const {
   std::unique_lock<std::mutex> lock_state(state.m_lock);
+  // Can be called only after the coordinator has registered participants
+  DBUG_ASSERT(state.m_participants.size() > 0);
 
   // Fail participants not in list of nodes
   fail_participants_not_in_list(new_subscribers, result, message);

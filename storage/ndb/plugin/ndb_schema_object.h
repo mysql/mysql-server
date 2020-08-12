@@ -145,15 +145,6 @@ class NDB_SCHEMA_OBJECT {
   static void init(uint32 nodeid);
 
   /**
-     @brief Return list of the schema operation id's for the currently active
-     NDB_SCHEMA_OBJECTS
-     @note Normally there is only one NDB_SCHEMA_OBJECT activa at a time
-
-     @param ids The list to populate
-   */
-  static void get_schema_op_ids(std::vector<uint32> &ids);
-
-  /**
     @brief Get NDB_SCHEMA_OBJECT to be used for communication between Client
            and Coordinator. The Client is usually the one to create an instance
            while the Coordinator simple uses it.
