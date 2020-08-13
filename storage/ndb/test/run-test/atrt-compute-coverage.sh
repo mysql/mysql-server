@@ -27,7 +27,7 @@
 #  * RESULTS_BASE_DIR = Directory holding "result/result.N" directories.
 
 # Runs lcov tool on LCOV_FILES_DIR to merge info files of every test case
-# to generate final_coverage.info file. This file will then be used by genhtml
+# to generate coverage.info file. This file will then be used by genhtml
 # tool to generate html coverage report for the test run.
 
 set -e
@@ -41,9 +41,9 @@ LCOV_FILES_DIR="$1"
 RESULTS_BASE_DIR="$2"
 
 find "$LCOV_FILES_DIR" -name "*.info" -exec echo "-a {}" \; | \
- xargs -r -x lcov --no-external -o "$RESULTS_BASE_DIR/final_coverage.info"
+ xargs -r -x lcov --no-external -o "$RESULTS_BASE_DIR/coverage.info"
 
-genhtml "$RESULTS_BASE_DIR/final_coverage.info" --show-details \
+genhtml "$RESULTS_BASE_DIR/coverage.info" --show-details \
   --ignore-errors source -o "$RESULTS_BASE_DIR/coverage_report"
 RESULT="$?"
 
