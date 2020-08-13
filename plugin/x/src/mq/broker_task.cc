@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/variables/xpl_global_status_variables.h"
 
 namespace xpl {
@@ -99,7 +100,10 @@ void Broker_task::loop() {
   while (!workers_queue.empty()) {
     const auto &notice_description = workers_queue.front();
 
+    XSYNC_POINT_CHECK(XSYNC_WAIT("gr_notice_bug_broker_dispatch"));
     distribute(notice_description);
+    XSYNC_POINT_CHECK(XSYNC_WAIT_NONE,
+                      XSYNC_WAKE("gr_notice_bug_client_accept"));
 
     workers_queue.pop();
   }
@@ -128,7 +132,10 @@ void Broker_task::distribute(const Notice_descriptor &notice_descriptor) {
   m_task_context.m_client_list->enumerate(
       [&notice_descriptor,
        &binary_notice](std::shared_ptr<iface::Client> &client) -> bool {
-        auto &session_out_queue = client->session()->get_notice_output_queue();
+        auto session = client->session();
+        if (!session) return false;
+
+        auto &session_out_queue = session->get_notice_output_queue();
 
         session_out_queue.emplace(notice_descriptor.m_notice_type,
                                   binary_notice);

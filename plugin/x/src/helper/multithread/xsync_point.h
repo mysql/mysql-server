@@ -114,6 +114,9 @@ void xdbug_sync_point_check(const char *const sync_point_name,
     6. receive resultset for 2.             | SELECT do_something_other();
 */
 void dbug_sync_point_check(const char *const sync_point_name);
+#define XSYNC_WAIT_NONE nullptr
+#define XSYNC_WAIT(NAME) NAME
+#define XSYNC_WAKE(NAME) NAME
 
 #define XSYNC_POINT_ENABLE(...) ::xpl::xdbug_sync_points_enable({__VA_ARGS__})
 #define XSYNC_POINT_CHECK(...) ::xpl::xdbug_sync_point_check(__VA_ARGS__)

@@ -154,4 +154,5 @@ SET(xplugin_SRC
 
 SET(xplugin_global_reset_SRC
   src/components/global_status_reset.cc
+  src/components/test_emit_gr_notifications.cc
 )
