@@ -3896,8 +3896,9 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
     : TableRowIterator(thd, table),
       m_qep_tab(qep_tab),
       m_examined_rows(examined_rows),
-      m_original_read_set(table->read_set) {
-  add_virtual_gcol_base_cols(table, thd->mem_root, &m_table_scan_read_set);
+      m_read_set_without_base_columns(table->read_set) {
+  add_virtual_gcol_base_cols(table, thd->mem_root,
+                             &m_read_set_with_base_columns);
 }
 
 bool DynamicRangeIterator::Init() {
@@ -3959,14 +3960,28 @@ bool DynamicRangeIterator::Init() {
     return false;
   }
 
+  // Create the required Iterator based on the strategy chosen. Also set the
+  // read set to be used while accessing the table. Unlike a regular range
+  // scan, as the access strategy keeps changing for a dynamic range scan,
+  // optimizer cannot know if the read set should include base columns of
+  // virtually generated columns or not. As a result, this Iterator maintains
+  // two different read sets, to be used once the access strategy is chosen
+  // here.
   if (qck) {
     m_iterator = NewIterator<IndexRangeScanIterator>(
         thd(), table(), qck, m_qep_tab, m_examined_rows);
-    table()->read_set = m_original_read_set;
+    // If the range optimizer chose index merge scan or a range scan with
+    // covering index, use the read set without base columns. Otherwise we use
+    // the read set with base columns included.
+    if (qck->index == MAX_KEY || table()->covering_keys.is_set(qck->index))
+      table()->read_set = m_read_set_without_base_columns;
+    else
+      table()->read_set = &m_read_set_with_base_columns;
   } else {
     m_iterator = NewIterator<TableScanIterator>(thd(), table(), m_qep_tab,
                                                 m_examined_rows);
-    table()->read_set = &m_table_scan_read_set;
+    // For a table scan, include base columns in read set.
+    table()->read_set = &m_read_set_with_base_columns;
   }
   return m_iterator->Init();
 }
