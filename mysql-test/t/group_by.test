@@ -54,13 +54,20 @@ INSERT INTO t2 VALUES (5,'name','pass','mail','Y','v','n','adr','1','1','1');
 ANALYZE TABLE t1,t2;
 
 # Tests printing of TemptableAggregateIterator.
+--skip_if_hypergraph  # TemptableAggregateIterator not supported.
 EXPLAIN FORMAT=tree SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 
+--sorted_result
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
+--sorted_result
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid ORDER BY NULL;
+--sorted_result
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+--sorted_result
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+--sorted_result
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
+--sorted_result
 EXPLAIN SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
 drop table t1,t2;
 
@@ -233,9 +240,13 @@ INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
 INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
 --source include/turn_off_only_full_group_by.inc
 
+--sorted_result
 select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
+--sorted_result
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
+--sorted_result
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+--sorted_result
 select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -296,19 +307,31 @@ CREATE TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
 --source include/turn_off_only_full_group_by.inc
 
+--sorted_result
 SELECT a FROM t1 GROUP BY a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY a;
+--sorted_result
 SELECT a FROM t1 GROUP BY binary a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY binary a;
+--sorted_result
 SELECT binary a FROM t1 GROUP BY 1;
+--sorted_result
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
 # Do the same tests with MyISAM temporary tables
 SET BIG_TABLES=1;
+--sorted_result
 SELECT a FROM t1 GROUP BY a ORDER BY a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY a ORDER BY a;
+--sorted_result
 SELECT a FROM t1 GROUP BY binary a ORDER BY binary a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY binary a ORDER BY binary a;
+--sorted_result
 SELECT binary a FROM t1 GROUP BY 1 ORDER BY 1;
+--sorted_result
 SELECT binary a,count(*) FROM t1 GROUP BY 1 ORDER BY 1;
 SET BIG_TABLES=0;
 
@@ -338,6 +361,7 @@ DROP TABLE t1;
 
 create table t1 (One int unsigned, Two int unsigned, Three int unsigned, Four int unsigned);
 insert into t1 values (1,2,1,4),(1,2,2,4),(1,2,3,4),(1,2,4,4),(1,1,1,4),(1,1,2,4),(1,1,3,4),(1,1,4,4),(1,3,1,4),(1,3,2,4),(1,3,3,4),(1,3,4,4);
+--sorted_result
 select One, Two, sum(Four) from t1 group by One,Two;
 drop table t1;
 
@@ -514,9 +538,11 @@ SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a;
 # reference it from the tmp table's field (pre-computed since it's an alias).
 # This requires a certain order of evaluation in copy_funcs
 # ("aliased Item" before "referencing Item")
+--skip_if_hypergraph   # Different query plan (and also does not give any single-evaluation guarantees).
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
   HAVING r1>=1 AND r2<=7 AND r2 > 0;
 # Referencing item might be in a subquery:
+--skip_if_hypergraph   # Different query plan (and also does not give any single-evaluation guarantees).
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
   HAVING r1>=1 AND (SELECT r2<=7 AND r2 > 0 FROM t1 AS t2 LIMIT 1);
 
@@ -538,6 +564,7 @@ SELECT a AS d,SUM(b) FROM t1 WHERE a=1 GROUP BY c HAVING d=1;
 SELECT SUM(a)*SUM(b) AS d FROM t1 WHERE a=1 GROUP BY c HAVING d > 0;
 
 SELECT a, ROUND(RAND(100)*10) r2 FROM t1;
+--skip_if_hypergraph   # Depends on the query plan.
 SELECT ROUND(RAND(100)*10) r2 FROM t1 GROUP BY r2;
 
 DROP TABLE t1;
@@ -1085,6 +1112,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
+--skip_if_hypergraph  # Does not use indexes for GROUP BY yet.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 --let $query=SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a
 --eval EXPLAIN $query
@@ -1092,6 +1120,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
+--skip_if_hypergraph  # Does not use indexes for GROUP BY yet.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY)
@@ -1422,10 +1451,13 @@ DROP TABLE t1;
 SET BIG_TABLES=1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
+--skip_if_hypergraph  # Does not use MyISAM temp tables, so no such restriction.
 --error ER_WRONG_KEY_COLUMN
 SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
+--skip_if_hypergraph  # Different warnings.
 SELECT 1 FROM t1 GROUP BY SUBSTRING('',SLEEP(0),'');
+--skip_if_hypergraph  # Different warnings.
 SELECT 1 FROM t1 GROUP BY SUBSTRING(SYSDATE() FROM 'K' FOR 'jxW<');
 DROP TABLE t1;
 SET BIG_TABLES=0;
@@ -2090,8 +2122,11 @@ DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values (1, 2), (1, 3), (null, null);
 
+--sorted_result
 select sum(a), count(*) from t1 group by a;
+--sorted_result
 select round(sum(a)), count(*) from t1 group by a;
+--sorted_result
 select ifnull(a, 'xyz') from t1 group by a;
 
 DROP TABLE t1;
@@ -2782,6 +2817,7 @@ INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 --source include/turn_off_only_full_group_by.inc
 # Verify that we get streaming.
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--skip_if_hypergraph   # Does not use streaming (just sorts directly).
 EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 --sorted_result
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;

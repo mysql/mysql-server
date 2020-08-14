@@ -176,6 +176,7 @@ analyze table t3;
 
 # plans
 explain select a1, min(a2) from t1 group by a1;
+--skip_if_hypergraph  # Does not support indexes for MIN/MAX.
 explain format=tree select a1, min(a2) from t1 group by a1;  # Also demonstrates lack of AggregateIterator.
 explain select a1, max(a2) from t1 group by a1;
 explain select a1, min(a2), max(a2) from t1 group by a1;

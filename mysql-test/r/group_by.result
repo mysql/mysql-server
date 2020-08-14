@@ -63,22 +63,22 @@ userid	MIN(t1.score)
 3	3
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 userid	MIN(t1.score)
-2	2
 1	1
+2	2
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 userid	MIN(t1.score+0.0)
-2	2.0
 1	1.0
+2	2.0
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
 userid	MIN(t1.score+0.0)
-2	2.0
 1	1.0
+2	2.0
 EXPLAIN SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using temporary
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.userID	1	100.00	Using index
-Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`userID` AS `userid`,min((`test`.`t1`.`score` + 0.0)) AS `MIN(t1.score+0.0)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`spID` = 2) and (`test`.`t2`.`userID` = `test`.`t1`.`userID`)) group by `test`.`t2`.`userID` order by NULL
+Warnings:
 drop table t1,t2;
 CREATE TABLE t1 (
 PID int(10) unsigned NOT NULL auto_increment,
@@ -249,34 +249,34 @@ INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
 INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
 select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
 value	description	bug_id
-BBBBBBBBBBBBB - conversion		9
 BBBBBBBBBBBBB - conversion		10
-BBBBBBBBBBBBB - generic		7
-BBBBBBBBBBBBB - generic		14
+BBBBBBBBBBBBB - conversion		9
 BBBBBBBBBBBBB - eeeeeeeee		NULL
-kkkkkkkkkkk lllllllllll		6
-kkkkkkkkkkk lllllllllll		8
-kkkkkkkkkkk lllllllllll		12
-Test Procedures		NULL
+BBBBBBBBBBBBB - generic		14
+BBBBBBBBBBBBB - generic		7
 Documentation		NULL
 Host communication		NULL
+Test Procedures		NULL
+kkkkkkkkkkk lllllllllll		12
+kkkkkkkkkkk lllllllllll		6
+kkkkkkkkkkk lllllllllll		8
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
 value	description	COUNT(bug_id)
 BBBBBBBBBBBBB - conversion		2
-BBBBBBBBBBBBB - generic		2
 BBBBBBBBBBBBB - eeeeeeeee		0
-kkkkkkkkkkk lllllllllll		3
-Test Procedures		0
+BBBBBBBBBBBBB - generic		2
 Documentation		0
 Host communication		0
+Test Procedures		0
+kkkkkkkkkkk lllllllllll		3
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
 value	description	COUNT(bug_id)
 BBBBBBBBBBBBB - conversion		2
-BBBBBBBBBBBBB - generic		2
 BBBBBBBBBBBBB - eeeeeeeee		0
-Test Procedures		0
+BBBBBBBBBBBBB - generic		2
 Documentation		0
 Host communication		0
+Test Procedures		0
 select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
 row_number() over ()	value	description	COUNT(bug_id)
 1	BBBBBBBBBBBBB - conversion		2
@@ -437,40 +437,40 @@ b	1
 SET BIG_TABLES=1;
 SELECT a FROM t1 GROUP BY a ORDER BY a;
 a
-NULL
 A
 B
+NULL
 SELECT a,count(*) FROM t1 GROUP BY a ORDER BY a;
 a	count(*)
-NULL	3
 A	5
 B	5
+NULL	3
 SELECT a FROM t1 GROUP BY binary a ORDER BY binary a;
 a
-NULL
 A
 B
+NULL
 a
 b
 SELECT a,count(*) FROM t1 GROUP BY binary a ORDER BY binary a;
 a	count(*)
-NULL	3
 A	4
 B	4
+NULL	3
 a	1
 b	1
 SELECT binary a FROM t1 GROUP BY 1 ORDER BY 1;
 binary a
-NULL
 A
 B
+NULL
 a
 b
 SELECT binary a,count(*) FROM t1 GROUP BY 1 ORDER BY 1;
 binary a	count(*)
-NULL	3
 A	4
 B	4
+NULL	3
 a	1
 b	1
 SET BIG_TABLES=0;
@@ -506,8 +506,8 @@ create table t1 (One int unsigned, Two int unsigned, Three int unsigned, Four in
 insert into t1 values (1,2,1,4),(1,2,2,4),(1,2,3,4),(1,2,4,4),(1,1,1,4),(1,1,2,4),(1,1,3,4),(1,1,4,4),(1,3,1,4),(1,3,2,4),(1,3,3,4),(1,3,4,4);
 select One, Two, sum(Four) from t1 group by One,Two;
 One	Two	sum(Four)
-1	2	16
 1	1	16
+1	2	16
 1	3	16
 drop table t1;
 create table t1 (id integer primary key not null auto_increment, gender char(1));
