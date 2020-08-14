@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ void Ndb_index_stat_thread::wakeup() {
 }
 
 struct Ndb_index_stat {
-  enum {
+  enum List_type {
     LT_Undef = 0,
     LT_New = 1,    /* new entry added by a table handler */
     LT_Update = 2, /* force kernel update from analyze table */
@@ -117,8 +117,8 @@ struct Ndb_index_stat {
   time_t error_time;
   uint error_count;                  /* forever increasing */
   struct Ndb_index_stat *share_next; /* per-share list */
-  int lt;
-  int lt_old; /* for info only */
+  int array_index{LT_Undef}; /* Index indicating which of the lists in the
+                                "ndb_index_stat_list" array is used */
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
   struct NDB_SHARE *share;
@@ -129,12 +129,13 @@ struct Ndb_index_stat {
 };
 
 struct Ndb_index_stat_list {
-  const char *name;
-  int lt;
-  struct Ndb_index_stat *head;
-  struct Ndb_index_stat *tail;
-  uint count;
-  Ndb_index_stat_list(int the_lt, const char *the_name);
+  const char *const name;                    /* name of list */
+  const Ndb_index_stat::List_type list_type; /* type of list */
+  struct Ndb_index_stat *head{nullptr};
+  struct Ndb_index_stat *tail{nullptr};
+  uint count{0}; /* number of entries in list, i.e between "head" and "tail" */
+  Ndb_index_stat_list(Ndb_index_stat::List_type the_list_type,
+                      const char *the_name);
 };
 
 extern Ndb_index_stat_list ndb_index_stat_list[];
@@ -583,7 +584,7 @@ void Ndb_index_stat_glob::set_status() {
   strcpy(p, ",list:(");
   p += strlen(p);
   uint list_count = 0;
-  for (int lt = 1; lt < Ndb_index_stat::LT_Count; lt++) {
+  for (int lt = Ndb_index_stat::LT_New; lt < Ndb_index_stat::LT_Count; lt++) {
     const Ndb_index_stat_list &list = ndb_index_stat_list[lt];
     sprintf(p, "%s:%u,", list.name, list.count);
     p += strlen(p);
@@ -685,8 +686,6 @@ Ndb_index_stat::Ndb_index_stat() {
   error_time = 0;
   error_count = 0;
   share_next = 0;
-  lt = 0;
-  lt_old = 0;
   list_next = 0;
   list_prev = 0;
   share = 0;
@@ -730,16 +729,12 @@ static void ndb_index_stat_clear_error(Ndb_index_stat *st) {
 
 /* Lists across shares */
 
-Ndb_index_stat_list::Ndb_index_stat_list(int the_lt, const char *the_name) {
-  lt = the_lt;
-  name = the_name;
-  head = 0;
-  tail = 0;
-  count = 0;
-}
+Ndb_index_stat_list::Ndb_index_stat_list(
+    Ndb_index_stat::List_type the_list_type, const char *the_name)
+    : name(the_name), list_type(the_list_type) {}
 
 Ndb_index_stat_list ndb_index_stat_list[Ndb_index_stat::LT_Count] = {
-    Ndb_index_stat_list(0, 0),
+    Ndb_index_stat_list(Ndb_index_stat::LT_Undef, nullptr),
     Ndb_index_stat_list(Ndb_index_stat::LT_New, "new"),
     Ndb_index_stat_list(Ndb_index_stat::LT_Update, "update"),
     Ndb_index_stat_list(Ndb_index_stat::LT_Read, "read"),
@@ -749,9 +744,9 @@ Ndb_index_stat_list ndb_index_stat_list[Ndb_index_stat::LT_Count] = {
     Ndb_index_stat_list(Ndb_index_stat::LT_Error, "error")};
 
 static void ndb_index_stat_list_add(Ndb_index_stat *st, int lt) {
-  assert(st != 0 && st->lt == 0);
+  assert(st != nullptr && st->array_index == Ndb_index_stat::LT_Undef);
   assert(st->list_next == 0 && st->list_prev == 0);
-  assert(1 <= lt && lt < Ndb_index_stat::LT_Count);
+  assert(Ndb_index_stat::LT_New <= lt && lt < Ndb_index_stat::LT_Count);
   Ndb_index_stat_list &list = ndb_index_stat_list[lt];
 
   DBUG_PRINT("index_stat", ("st %s -> %s", st->id, list.name));
@@ -768,13 +763,13 @@ static void ndb_index_stat_list_add(Ndb_index_stat *st, int lt) {
   }
   list.count++;
 
-  st->lt = lt;
+  st->array_index = lt;
 }
 
 static void ndb_index_stat_list_remove(Ndb_index_stat *st) {
   assert(st != 0);
-  int lt = st->lt;
-  assert(1 <= lt && lt < Ndb_index_stat::LT_Count);
+  const int lt = st->array_index;
+  assert(Ndb_index_stat::LT_New <= lt && lt < Ndb_index_stat::LT_Count);
   Ndb_index_stat_list &list = ndb_index_stat_list[lt];
 
   DBUG_PRINT("index_stat", ("st %s <- %s", st->id, list.name));
@@ -790,8 +785,7 @@ static void ndb_index_stat_list_remove(Ndb_index_stat *st) {
   if (next != 0) next->list_prev = prev;
   if (prev != 0) prev->list_next = next;
 
-  st->lt = 0;
-  st->lt_old = 0;
+  st->array_index = Ndb_index_stat::LT_Undef;
   st->list_next = 0;
   st->list_prev = 0;
 }
@@ -992,12 +986,11 @@ static void ndb_index_stat_free(Ndb_index_stat *st) {
   uint found = 0;
   while (st_loop != 0) {
     if (st == st_loop) {
+      // Unlink entry from NDB_SHARE and request it to be released
       DBUG_PRINT("index_stat", ("st %s stat free one", st->id));
       st_loop = st_loop->share_next;
       st->share_next = 0;
       st->share = 0;
-      assert(st->lt != 0);
-      assert(st->lt != Ndb_index_stat::LT_Delete);
       assert(!st->to_delete);
       st->to_delete = true;
       st->abort_request = true;
@@ -1026,12 +1019,10 @@ void ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
-  uint found = 0;
   Ndb_index_stat *st = share->index_stat_list;
   while (st != 0) {
     if (st->index_id == index_id && st->index_version == index_version) {
       ndb_index_stat_free(st);
-      found++;
       glob.drop_count++;
       assert(st->drop_bytes == 0);
       st->drop_bytes = st->query_bytes + st->clean_bytes;
@@ -1052,12 +1043,11 @@ void ndb_index_stat_free(NDB_SHARE *share) {
 
   Ndb_index_stat *st;
   while ((st = share->index_stat_list) != 0) {
+    // Unlink entry from NDB_SHARE and request it to be released
     DBUG_PRINT("index_stat", ("st %s stat free all", st->id));
     share->index_stat_list = st->share_next;
     st->share_next = 0;
     st->share = 0;
-    assert(st->lt != 0);
-    assert(st->lt != Ndb_index_stat::LT_Delete);
     assert(!st->to_delete);
     st->to_delete = true;
     st->abort_request = true;
@@ -1071,32 +1061,35 @@ void ndb_index_stat_free(NDB_SHARE *share) {
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-/* Find entry across shares */
-/* wl4124_todo mutex overkill, hash table, can we find table share */
-static Ndb_index_stat *ndb_index_stat_find_entry(int index_id,
-                                                 int index_version) {
-  DBUG_TRACE;
-  mysql_mutex_lock(&ndbcluster_mutex);
-  mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  DBUG_PRINT("index_stat",
-             ("find, id: %d version: %d", index_id, index_version));
+/**
+   @brief Find first Ndb_index_stat entry matching id and version in any of the
+   ndb_index_stat_lists
 
-  int lt;
-  for (lt = 1; lt < Ndb_index_stat::LT_Count; lt++) {
+   @param index_id Id of the index stat to find
+   @param index_version Version of the index stat to find
+
+   @return Pointer to Ndb_index_stat or nullptr if no matching index stat found
+*/
+static Ndb_index_stat *find_entry(int index_id, int index_version) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("id: %d version: %d", index_id, index_version));
+
+  mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  // Iterate through array of Ndb_index_stat_list
+  for (int lt = Ndb_index_stat::LT_New; lt < Ndb_index_stat::LT_Count; lt++) {
     Ndb_index_stat *st = ndb_index_stat_list[lt].head;
-    while (st != 0) {
+    // Iterate the linked list of Ndb_index_stat
+    while (st != nullptr) {
       if (st->index_id == index_id && st->index_version == index_version) {
+        // Found Ndb_index_stat with matching id and version
         mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-        mysql_mutex_unlock(&ndbcluster_mutex);
         return st;
       }
       st = st->list_next;
     }
   }
-
   mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  mysql_mutex_unlock(&ndbcluster_mutex);
-  return 0;
+  return nullptr;
 }
 
 /* Statistics thread sub-routines */
@@ -1198,8 +1191,7 @@ static void ndb_index_stat_proc_new(Ndb_index_stat_proc &pr,
 static void ndb_index_stat_proc_new(Ndb_index_stat_proc &pr) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  const int lt = Ndb_index_stat::LT_New;
-  Ndb_index_stat_list &list = ndb_index_stat_list[lt];
+  Ndb_index_stat_list &list = ndb_index_stat_list[Ndb_index_stat::LT_New];
 
   Ndb_index_stat *st_loop = list.head;
   while (st_loop != 0) {
@@ -1207,7 +1199,7 @@ static void ndb_index_stat_proc_new(Ndb_index_stat_proc &pr) {
     st_loop = st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
     ndb_index_stat_proc_new(pr, st);
-    assert(pr.lt != lt);
+    assert(pr.lt != Ndb_index_stat::LT_New);
     ndb_index_stat_list_move(st, pr.lt);
   }
   glob.set_status();
@@ -1248,8 +1240,7 @@ static void ndb_index_stat_proc_update(Ndb_index_stat_proc &pr,
 
 static void ndb_index_stat_proc_update(Ndb_index_stat_proc &pr) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
-  const int lt = Ndb_index_stat::LT_Update;
-  Ndb_index_stat_list &list = ndb_index_stat_list[lt];
+  Ndb_index_stat_list &list = ndb_index_stat_list[Ndb_index_stat::LT_Update];
   const Ndb_index_stat_opt &opt = ndb_index_stat_opt;
   const uint batch = opt.get(Ndb_index_stat_opt::Iupdate_batch);
 
@@ -1260,7 +1251,7 @@ static void ndb_index_stat_proc_update(Ndb_index_stat_proc &pr) {
     st_loop = st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
     ndb_index_stat_proc_update(pr, st);
-    assert(pr.lt != lt);
+    assert(pr.lt != Ndb_index_stat::LT_Update);
     ndb_index_stat_list_move(st, pr.lt);
     // db op so update status after each
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
@@ -1317,8 +1308,7 @@ static void ndb_index_stat_proc_read(Ndb_index_stat_proc &pr,
 
 static void ndb_index_stat_proc_read(Ndb_index_stat_proc &pr) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
-  const int lt = Ndb_index_stat::LT_Read;
-  Ndb_index_stat_list &list = ndb_index_stat_list[lt];
+  Ndb_index_stat_list &list = ndb_index_stat_list[Ndb_index_stat::LT_Read];
   const Ndb_index_stat_opt &opt = ndb_index_stat_opt;
   const uint batch = opt.get(Ndb_index_stat_opt::Iread_batch);
 
@@ -1329,7 +1319,7 @@ static void ndb_index_stat_proc_read(Ndb_index_stat_proc &pr) {
     st_loop = st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
     ndb_index_stat_proc_read(pr, st);
-    assert(pr.lt != lt);
+    assert(pr.lt != Ndb_index_stat::LT_Read);
     ndb_index_stat_list_move(st, pr.lt);
     // db op so update status after each
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
@@ -1377,8 +1367,8 @@ static void ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr,
   }
   if (check_wait <= 0) {
     // avoid creating "idle" entries on Check list
-    const int lt_check = Ndb_index_stat::LT_Check;
-    const Ndb_index_stat_list &list_check = ndb_index_stat_list[lt_check];
+    const Ndb_index_stat_list &list_check =
+        ndb_index_stat_list[Ndb_index_stat::LT_Check];
     const uint check_batch = opt.get(Ndb_index_stat_opt::Icheck_batch);
     if (list_check.count < check_batch) {
       pr.lt = Ndb_index_stat::LT_Check;
@@ -1390,15 +1380,14 @@ static void ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr,
 
 static void ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
-  const int lt = Ndb_index_stat::LT_Idle;
-  Ndb_index_stat_list &list = ndb_index_stat_list[lt];
+  Ndb_index_stat_list &list = ndb_index_stat_list[Ndb_index_stat::LT_Idle];
   const Ndb_index_stat_opt &opt = ndb_index_stat_opt;
   uint batch = opt.get(Ndb_index_stat_opt::Iidle_batch);
   {
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     const Ndb_index_stat_glob &glob = ndb_index_stat_glob;
-    const int lt_update = Ndb_index_stat::LT_Update;
-    const Ndb_index_stat_list &list_update = ndb_index_stat_list[lt_update];
+    const Ndb_index_stat_list &list_update =
+        ndb_index_stat_list[Ndb_index_stat::LT_Update];
     if (glob.force_update > list_update.count) {
       // probably there is a force update waiting on Idle list
       batch = ~(uint)0;
@@ -1459,8 +1448,7 @@ static void ndb_index_stat_proc_check(Ndb_index_stat_proc &pr,
 
 static void ndb_index_stat_proc_check(Ndb_index_stat_proc &pr) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
-  const int lt = Ndb_index_stat::LT_Check;
-  Ndb_index_stat_list &list = ndb_index_stat_list[lt];
+  Ndb_index_stat_list &list = ndb_index_stat_list[Ndb_index_stat::LT_Check];
   const Ndb_index_stat_opt &opt = ndb_index_stat_opt;
   const uint batch = opt.get(Ndb_index_stat_opt::Icheck_batch);
 
@@ -1471,7 +1459,7 @@ static void ndb_index_stat_proc_check(Ndb_index_stat_proc &pr) {
     st_loop = st_loop->list_next;
     DBUG_PRINT("index_stat", ("st %s proc %s", st->id, list.name));
     ndb_index_stat_proc_check(pr, st);
-    assert(pr.lt != lt);
+    assert(pr.lt != Ndb_index_stat::LT_Check);
     ndb_index_stat_list_move(st, pr.lt);
     // db op so update status after each
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
@@ -1485,7 +1473,7 @@ static void ndb_index_stat_proc_check(Ndb_index_stat_proc &pr) {
 /* Check if need to evict more */
 static bool ndb_index_stat_proc_evict() {
   const Ndb_index_stat_opt &opt = ndb_index_stat_opt;
-  Ndb_index_stat_glob &glob = ndb_index_stat_glob;
+  const Ndb_index_stat_glob &glob = ndb_index_stat_glob;
   uint curr_size = glob.cache_query_bytes + glob.cache_clean_bytes;
 
   /* Subtract bytes already scheduled for evict */
@@ -1609,8 +1597,7 @@ static void ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr) {
 
 static void ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
-  const int lt = Ndb_index_stat::LT_Delete;
-  Ndb_index_stat_list &list = ndb_index_stat_list[lt];
+  Ndb_index_stat_list &list = ndb_index_stat_list[Ndb_index_stat::LT_Delete];
   const Ndb_index_stat_opt &opt = ndb_index_stat_opt;
   const uint delete_batch = opt.get(Ndb_index_stat_opt::Idelete_batch);
   const uint batch = !pr.end ? delete_batch : ~(uint)0;
@@ -1690,8 +1677,7 @@ static void ndb_index_stat_proc_error(Ndb_index_stat_proc &pr,
 
 static void ndb_index_stat_proc_error(Ndb_index_stat_proc &pr) {
   Ndb_index_stat_glob &glob = ndb_index_stat_glob;
-  const int lt = Ndb_index_stat::LT_Error;
-  Ndb_index_stat_list &list = ndb_index_stat_list[lt];
+  Ndb_index_stat_list &list = ndb_index_stat_list[Ndb_index_stat::LT_Error];
   const Ndb_index_stat_opt &opt = ndb_index_stat_opt;
   uint batch = opt.get(Ndb_index_stat_opt::Ierror_batch);
   // entry may be moved to end of this list
@@ -1726,8 +1712,9 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr,
     for loop_idle time since the entry moves to LT_Check temporarily.
     Ignore the event if an update was done near this processing slice.
    */
-  pr.lt = st->lt;
-  if (st->lt == Ndb_index_stat::LT_Idle || st->lt == Ndb_index_stat::LT_Error) {
+  pr.lt = st->array_index;
+  if (st->array_index == Ndb_index_stat::LT_Idle ||
+      st->array_index == Ndb_index_stat::LT_Error) {
     if (st->update_time < pr.start) {
       DBUG_PRINT("index_stat", ("st %s accept event for check", st->id));
       pr.lt = Ndb_index_stat::LT_Check;
@@ -1735,7 +1722,8 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr,
       DBUG_PRINT("index_stat", ("st %s ignore likely event to self", st->id));
     }
   } else {
-    DBUG_PRINT("index_stat", ("st %s ignore event on lt=%d", st->id, st->lt));
+    DBUG_PRINT("index_stat", ("st %s ignore event on array_index=%d", st->id,
+                              st->array_index));
   }
 }
 
@@ -1768,8 +1756,7 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr) {
     DBUG_PRINT("index_stat", ("next_listener eventType: %d indexId: %u",
                               head.m_eventType, head.m_indexId));
 
-    Ndb_index_stat *st =
-        ndb_index_stat_find_entry(head.m_indexId, head.m_indexVersion);
+    Ndb_index_stat *st = find_entry(head.m_indexId, head.m_indexVersion);
     /*
       Another process can update stats for an index which is not found
       in this mysqld.  Ignore it.
@@ -1777,7 +1764,7 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr) {
     if (st != 0) {
       DBUG_PRINT("index_stat", ("st %s proc %s", st->id, "event"));
       ndb_index_stat_proc_event(pr, st);
-      if (pr.lt != st->lt) {
+      if (pr.lt != st->array_index) {
         ndb_index_stat_list_move(st, pr.lt);
         glob.event_act++;
       } else
@@ -1887,7 +1874,7 @@ static void ndb_index_stat_list_verify(Ndb_index_stat_proc &pr) {
   pr.cache_query_bytes = 0;
   pr.cache_clean_bytes = 0;
 
-  for (int lt = 1; lt < Ndb_index_stat::LT_Count; lt++)
+  for (int lt = Ndb_index_stat::LT_New; lt < Ndb_index_stat::LT_Count; lt++)
     ndb_index_stat_list_verify(pr, lt);
 
   assert(glob.cache_query_bytes == pr.cache_query_bytes);
@@ -1947,10 +1934,8 @@ void ndb_index_stat_end() {
    * Shares have been freed so any index stat entries left should be
    * in LT_Delete.  The first two steps here should be unnecessary.
    */
-
-  int lt;
-  for (lt = 1; lt < Ndb_index_stat::LT_Count; lt++) {
-    if (lt == (int)Ndb_index_stat::LT_Delete) continue;
+  for (int lt = Ndb_index_stat::LT_New; lt < Ndb_index_stat::LT_Count; lt++) {
+    if (lt == Ndb_index_stat::LT_Delete) continue;
     Ndb_index_stat_list &list = ndb_index_stat_list[lt];
     Ndb_index_stat *st_loop = list.head;
     while (st_loop != 0) {

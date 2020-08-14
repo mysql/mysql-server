@@ -106,6 +106,8 @@ void ndb_index_stat_restart();
 
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
 
+extern mysql_mutex_t ndbcluster_mutex;
+
 /*
   Timeout for syncing schema events between
   mysql servers, and between mysql server and the binlog

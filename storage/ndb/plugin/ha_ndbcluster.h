@@ -767,7 +767,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 };
 
 // Global handler synchronization
-extern mysql_mutex_t ndbcluster_mutex;
 extern mysql_cond_t ndbcluster_cond;
 
 extern int ndb_setup_complete;
