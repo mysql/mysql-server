@@ -25,10 +25,10 @@
 # Input parameters:
 #  * LCOV_FILES_DIR = Directory that stores lcov file of each test case.
 #  * RESULTS_BASE_DIR = Directory holding "result/result.N" directories.
+#  * BUILD_DIR = Directory where source code was built.
 
 # Runs lcov tool on LCOV_FILES_DIR to merge info files of every test case
-# to generate coverage.info file. This file will then be used by genhtml
-# tool to generate html coverage report for the test run.
+# to generate coverage.info file.
 
 set -e
 
@@ -49,12 +49,9 @@ lcov --remove "${RESULTS_BASE_DIR}/coverage.info" "${BUILD_DIR}*" \
 
 lcov --extract "${RESULTS_BASE_DIR}/coverage_reduced.info" '*/storage/ndb/*' \
   -o "${RESULTS_BASE_DIR}/coverage.info"
-
-genhtml "${RESULTS_BASE_DIR}/coverage.info" --show-details \
-  --ignore-errors source -o "${RESULTS_BASE_DIR}/coverage_report"
 RESULT="$?"
 
 if [ "${RESULT}" -ne 0 ]; then
-  echo "Html report could not be generated: ${RESULT}" >&2
+  echo "Coverage report could not be generated: ${RESULT}" >&2
   exit 1
 fi
