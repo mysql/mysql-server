@@ -7291,17 +7291,17 @@ ERROR 42000: Undeclared variable: a
 # Try to use data types not allowed in LIMIT 
 #
 create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2' at line 1
 create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2' at line 1
 create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2' at line 1
 #
 # Finally, test the valid case.
 #
@@ -7369,7 +7369,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 create function f1(p1 integer, p2 float)
 returns int
 begin
@@ -7377,7 +7379,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2);
+return a;
+end' at line 5
 create function f1(p1 integer, p2 char(1))
 returns int
 begin
@@ -7385,7 +7389,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p2" has a non-integer based type near 'p2);
+return a;
+end' at line 5
 create function f1(p1 varchar(5), p2 char(1))
 returns int
 begin
@@ -7393,7 +7399,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 create function f1(p1 decimal, p2 decimal)
 returns int
 begin
@@ -7401,7 +7409,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 create function f1(p1 double, p2 double)
 returns int
 begin
@@ -7409,7 +7419,9 @@ declare a int;
 set a = (select count(*) from t1 limit p1, p2);
 return a;
 end|
-ERROR HY000: A variable of a non-integer based type in LIMIT clause
+ERROR 42000: The variable "p1" has a non-integer based type near 'p1, p2);
+return a;
+end' at line 5
 #
 # Finally, test the valid case.
 #

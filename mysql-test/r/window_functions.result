@@ -2545,28 +2545,14 @@ DROP TABLE td;
 SELECT id, NTILE(0) OVER w FROM t1 WINDOW w AS ();
 ERROR HY000: Incorrect arguments to ntile
 SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
-ERROR HY000: Incorrect arguments to ntile
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id)' at line 1
 PREPARE s FROM
 'SELECT id, NTILE(?) OVER w FROM t1 WINDOW w AS (ORDER BY id)';
 SET @a=NULL;
 EXECUTE s USING @a;
-id	NTILE(?) OVER w
-1	NULL
-2	NULL
-3	NULL
-4	NULL
-5	NULL
-10	NULL
-11	NULL
+ERROR HY000: Incorrect arguments to ntile
 SELECT id, NTILE(@s) OVER w FROM t1 WINDOW w AS (ORDER BY id);
-id	NTILE(@s) OVER w
-1	NULL
-2	NULL
-3	NULL
-4	NULL
-5	NULL
-10	NULL
-11	NULL
+ERROR HY000: Incorrect arguments to ntile
 SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS ();
 id	NTILE(1) OVER w
 1	1
@@ -2659,14 +2645,7 @@ EXECUTE p USING @p1;
 ERROR HY000: Incorrect arguments to EXECUTE
 SET @p1= NULL;
 EXECUTE p USING @p1;
-id	NTILE(?) OVER w
-1	NULL
-2	NULL
-3	NULL
-4	NULL
-5	NULL
-10	NULL
-11	NULL
+ERROR HY000: Incorrect arguments to ntile
 DROP PREPARE p;
 Simulated NTILE via other SQL window functions. Exercises an
 an expression containing window functions defined on different
@@ -9450,3 +9429,74 @@ a	SUM(a) OVER (ROWS BETWEEN
 3	4
 4	NULL
 DROP TABLE t;
+#
+# Bug#31393719: SIGFPE, ARITHMETIC EXCEPTION IN ITEM_NTILE::VAL_INT
+#
+DO NTILE(MAX(NOT 1)) OVER();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX(NOT 1)) OVER()' at line 1
+DO LAG(1, 9223372036854775807) OVER();
+DO LEAD(1, 9223372036854775807) OVER();
+DO NTILE(9223372036854775807) OVER();
+DO LAG(1, 18446744073709551615) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, 18446744073709551615) OVER();
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(18446744073709551615) OVER();
+ERROR HY000: Incorrect arguments to ntile
+CREATE PROCEDURE p1(n INT) DO NTILE(n) OVER();
+CALL p1(NULL);
+ERROR HY000: Incorrect arguments to ntile
+DROP PROCEDURE p1;
+SET @v = NULL;
+PREPARE stmt FROM 'DO NTILE(?) OVER()';
+EXECUTE stmt USING @v;
+ERROR HY000: Incorrect arguments to ntile
+EXECUTE stmt USING @undefined;
+ERROR HY000: Incorrect arguments to ntile
+DO NTILE(@v) OVER();
+ERROR HY000: Incorrect arguments to ntile
+DO NTILE(@undefined) OVER();
+ERROR HY000: Incorrect arguments to ntile
+CREATE PROCEDURE p2(n INT) DO LEAD(1, n) OVER();
+CALL p2(NULL);
+ERROR HY000: Incorrect arguments to lead
+DROP PROCEDURE p2;
+CREATE PROCEDURE p3(n INT) DO LAG(1, n) OVER();
+CALL p3(NULL);
+ERROR HY000: Incorrect arguments to lag
+DROP PROCEDURE p3;
+PREPARE stmt FROM 'DO LAG(1, ?) OVER()';
+EXECUTE stmt USING @v;
+ERROR HY000: Incorrect arguments to lag
+PREPARE stmt FROM 'DO LEAD(1, ?) OVER()';
+EXECUTE stmt USING @v;
+ERROR HY000: Incorrect arguments to lead
+DO LAG(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lead
+SET @v = '1';
+DO LAG(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(@v) OVER();
+ERROR HY000: Incorrect arguments to ntile
+SET @v = 1.2;
+DO LAG(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(@v) OVER();
+ERROR HY000: Incorrect arguments to ntile
+SET @v = 10;
+DO LAG(1, @v) OVER();
+DO LAG(1, @v) OVER(), @v:=20;
+ERROR HY000: Incorrect arguments to lag
+DO LEAD(1, @v) OVER();
+DO LEAD(1, @v) OVER(), @v:=20;
+ERROR HY000: Incorrect arguments to lead
+DO NTILE(@v) OVER();
+DO NTILE(@v) OVER(), @v:=20;
+ERROR HY000: Incorrect arguments to ntile
+# End of test for Bug#31393719

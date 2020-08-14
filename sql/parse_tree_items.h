@@ -372,12 +372,11 @@ class PTI_variable_aux_set_var final : public Item_func_set_user_var {
   bool itemize(Parse_context *pc, Item **res) override;
 };
 
-class PTI_variable_aux_ident_or_text final : public Item_func_get_user_var {
+class PTI_user_variable final : public Item_func_get_user_var {
   typedef Item_func_get_user_var super;
 
  public:
-  PTI_variable_aux_ident_or_text(const POS &pos, const LEX_STRING &var)
-      : super(pos, var) {}
+  PTI_user_variable(const POS &pos, const LEX_STRING &var) : super(pos, var) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
@@ -501,16 +500,29 @@ class PTI_expr_with_alias : public Parse_tree_item {
   bool itemize(Parse_context *pc, Item **res) override;
 };
 
-class PTI_limit_option_ident : public Parse_tree_item {
-  typedef Parse_tree_item super;
-
-  LEX_CSTRING ident;
-  Symbol_location ident_loc;
+class PTI_int_splocal : public Parse_tree_item {
+  using super = Parse_tree_item;
 
  public:
-  PTI_limit_option_ident(const POS &pos, const LEX_CSTRING &ident_arg,
-                         const Symbol_location &ident_loc_arg)
-      : super(pos), ident(ident_arg), ident_loc(ident_loc_arg) {}
+  PTI_int_splocal(const POS &pos, const LEX_CSTRING &name)
+      : super(pos), m_location{pos}, m_name{name} {}
+
+  bool itemize(Parse_context *pc, Item **res) override;
+
+ private:
+  /// Location of the variable name.
+  const POS m_location;
+
+  /// Same data as in PTI_in_sum_expr#m_location but 0-terminated "for free".
+  const LEX_CSTRING m_name;
+};
+
+class PTI_limit_option_ident : public PTI_int_splocal {
+  using super = PTI_int_splocal;
+
+ public:
+  PTI_limit_option_ident(const POS &pos, const LEX_CSTRING &name)
+      : super{pos, name} {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
