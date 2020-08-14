@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ bool gather_coverage_results(atrt_config &,
                              const atrt_testcase &);
 void set_coverage_parameters(atrt_coverage_config &, const char *, const char *);
 int compute_path_level(const char *);
-int compute_test_coverage(atrt_coverage_config &);
+int compute_test_coverage(atrt_coverage_config &, const char *);
 
 bool do_command(ProcessManagement& processManagement,
                 atrt_config& config);
@@ -490,7 +490,7 @@ int main(int argc, char **argv) {
       g_logger.debug("No testcases were run to compute coverage report");
     } else {
       g_logger.debug("Computing coverage report..");
-      if (compute_test_coverage(coverage_config) == 0) {
+      if (compute_test_coverage(coverage_config, g_build_dir) == 0) {
         g_logger.debug("Coverage report generated for the run!!");
       }
     }
@@ -1058,11 +1058,13 @@ int compute_path_level(const char *g_build_dir) {
   return path_level;
 }
 
-int compute_test_coverage(atrt_coverage_config &coverage_config) {
+int compute_test_coverage(atrt_coverage_config &coverage_config,
+                          const char *build_dir) {
   BaseString compute_coverage_progname = g_compute_coverage_progname;
   compute_coverage_progname.appfmt(" %s",
                                    coverage_config.m_lcov_files_dir.c_str());
   compute_coverage_progname.appfmt(" %s", g_cwd);
+  compute_coverage_progname.appfmt(" %s", build_dir);
   const int result = sh(compute_coverage_progname.c_str());
   if (result != 0) {
     g_logger.critical("Failed to compute coverage report");

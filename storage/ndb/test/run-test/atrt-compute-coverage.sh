@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2020 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020 Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,22 +32,29 @@
 
 set -e
 
-if [ $# -lt 2 ]; then
-  echo "Usage: atrt-compute-coverage lcov-files-dir result-base-dir" >&2
+if [ $# -lt 3 ]; then
+  echo "Usage: ${0} lcov-files-dir result-base-dir build-dir" >&2
   exit 1
 fi
 
-LCOV_FILES_DIR="$1"
-RESULTS_BASE_DIR="$2"
+LCOV_FILES_DIR="${1}"
+RESULTS_BASE_DIR="${2}"
+BUILD_DIR="${3}"
 
-find "$LCOV_FILES_DIR" -name "*.info" -exec echo "-a {}" \; | \
- xargs -r -x lcov --no-external -o "$RESULTS_BASE_DIR/coverage.info"
+find "${LCOV_FILES_DIR}" -name "*.info" -exec echo "-a {}" \; | \
+  xargs -r -x lcov --no-external -o "${RESULTS_BASE_DIR}/coverage.info"
 
-genhtml "$RESULTS_BASE_DIR/coverage.info" --show-details \
-  --ignore-errors source -o "$RESULTS_BASE_DIR/coverage_report"
+lcov --remove "${RESULTS_BASE_DIR}/coverage.info" "${BUILD_DIR}*" \
+  -o "${RESULTS_BASE_DIR}/coverage_reduced.info"
+
+lcov --extract "${RESULTS_BASE_DIR}/coverage_reduced.info" '*/storage/ndb/*' \
+  -o "${RESULTS_BASE_DIR}/coverage.info"
+
+genhtml "${RESULTS_BASE_DIR}/coverage.info" --show-details \
+  --ignore-errors source -o "${RESULTS_BASE_DIR}/coverage_report"
 RESULT="$?"
 
-if [ "$RESULT" -ne 0 ]; then
-  echo "Html report could not be generated: $RESULT" >&2
+if [ "${RESULT}" -ne 0 ]; then
+  echo "Html report could not be generated: ${RESULT}" >&2
   exit 1
 fi
