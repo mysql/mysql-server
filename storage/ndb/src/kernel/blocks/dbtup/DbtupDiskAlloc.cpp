@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2473,6 +2473,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
                                     pendingPage->m_apply_undo_head);
       undoList.removeFirst(pending_undo);
       undo = pending_undo.p;
+      undo->m_ptr = &undo->m_data[0];
     }
 
     /**
