@@ -28276,6 +28276,7 @@ void Dbdih::execDIH_SWITCH_REPLICA_REQ(Signal* signal)
     ref->errorCode = StopPermRef::NF_CausedAbortOfStopProcedure;
     sendSignal(senderRef, GSN_DIH_SWITCH_REPLICA_REF, signal,
                DihSwitchReplicaRef::SignalLength, JBB);
+    return;
   }//if
 
   make_table_use_new_node_order(tabPtr,
