@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,15 +51,16 @@ static void hint_lex_init_maps(CHARSET_INFO *cs,
     } else
       hint_map[i] = HINT_CHR_CHAR;
   }
-  hint_map[(uchar)'*'] = HINT_CHR_ASTERISK;
-  hint_map[(uchar)'@'] = HINT_CHR_AT;
-  hint_map[(uchar)'`'] = HINT_CHR_BACKQUOTE;
-  hint_map[(uchar)'"'] = HINT_CHR_DOUBLEQUOTE;
-  hint_map[(uchar)'_'] = HINT_CHR_IDENT;
-  hint_map[(uchar)'$'] = HINT_CHR_IDENT;
-  hint_map[(uchar)'/'] = HINT_CHR_SLASH;
-  hint_map[(uchar)'\n'] = HINT_CHR_NL;
-  hint_map[(uchar)'\''] = HINT_CHR_QUOTE;
+  hint_map[u'*'] = HINT_CHR_ASTERISK;
+  hint_map[u'@'] = HINT_CHR_AT;
+  hint_map[u'`'] = HINT_CHR_BACKQUOTE;
+  hint_map[u'.'] = HINT_CHR_DOT;
+  hint_map[u'"'] = HINT_CHR_DOUBLEQUOTE;
+  hint_map[u'$'] = HINT_CHR_IDENT;
+  hint_map[u'_'] = HINT_CHR_IDENT;
+  hint_map[u'\n'] = HINT_CHR_NL;
+  hint_map[u'\''] = HINT_CHR_QUOTE;
+  hint_map[u'/'] = HINT_CHR_SLASH;
 }
 
 bool init_state_maps(CHARSET_INFO *cs) {

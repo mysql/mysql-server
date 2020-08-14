@@ -128,6 +128,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token NO_ORDER_INDEX_HINT 1046
 %token DERIVED_CONDITION_PUSHDOWN_HINT 1047
 %token NO_DERIVED_CONDITION_PUSHDOWN_HINT 1048
+%token HINT_ARG_FLOATING_POINT_NUMBER 1049
 
 /*
   YYUNDEF in internal to Bison. Please don't change its number, or change
@@ -178,6 +179,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %type <lexer.hint_string>
   HINT_ARG_IDENT
   HINT_ARG_NUMBER
+  HINT_ARG_FLOATING_POINT_NUMBER
   HINT_ARG_QB_NAME
   HINT_ARG_TEXT
   HINT_IDENT_OR_NUMBER_WITH_SCALE
@@ -656,6 +658,10 @@ set_var_num_item:
               if ($$ == NULL)
                 YYABORT; // OOM
             }
+          }
+        | HINT_ARG_FLOATING_POINT_NUMBER
+          {
+            $$= NEW_PTN Item_float($1.str, $1.length);
           }
         | HINT_IDENT_OR_NUMBER_WITH_SCALE
           {

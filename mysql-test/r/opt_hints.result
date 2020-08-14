@@ -1636,6 +1636,7 @@ SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
 Warnings:
 Warning	1064	Optimizer hint syntax error near '`?`) */ 1 FROM t1' at line 1
 DROP TABLE таблица;
+SET NAMES DEFAULT;
 
 # derived tables and other subqueries:
 
@@ -2202,7 +2203,7 @@ a	b
 drop view v1;
 drop table t1,t2,t3;
 #
-# Unbalanced commentary test
+# Non-terminated comment test
 #
-SELECT /*+ 10;
+PREPARE stmt FROM 'SELECT /*+ 10';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*+ 10' at line 1
