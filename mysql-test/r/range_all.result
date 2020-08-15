@@ -3892,4 +3892,14 @@ LIMIT 1;
 a	b	c	d	id
 1770649	D003	gheennse	S	3
 DROP TABLE test_ref;
+#
+# Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
+#                WHERE_CLAUSE
+#
+CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
+INSERT INTO t VALUES(0,0);
+SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
+f1	f2
+0	0
+DROP TABLE t;
 set optimizer_switch=default;

@@ -3043,3 +3043,19 @@ eval EXPLAIN $query2;
 eval $query2;
 
 DROP TABLE test_ref;
+
+--echo #
+--echo # Bug #30988735: SELECT QUERY WITH ERROR RESULT WITH "NOT IN"
+--echo #                WHERE_CLAUSE
+--echo #
+
+CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
+INSERT INTO t VALUES(0,0);
+
+# Test if adjacent ranges when rounded off to the same value by range
+# optimizer return correct results. Note that range scan is not chosen as the
+# final range would be 0 < id <= 0 which is "where true". So range optimizer
+# will not have any range to work on.
+SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
+
+DROP TABLE t;

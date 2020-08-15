@@ -6353,7 +6353,28 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
                 ((last_val = tree->keys[idx]->root->last()))) {
               SEL_ARG *new_interval = tree2->keys[idx]->root;
               new_interval->min_value = last_val->max_value;
-              new_interval->min_flag = NEAR_MIN;
+              // We set the max value of the previous range as the beginning
+              // for this range interval. However we need values higher than
+              // this value:
+              // For ex: If the range is "not in (1,2)" we first construct
+              // X < 1 before this loop and add 1 < X < 2 in this loop and
+              // follow it up with X > 2 below.
+              // While fetching values for the second interval, we set
+              // "NEAR_MIN" flag so that we fetch values higher than "1".
+              // However, when the values specified are not compatible
+              // with the field that is being compared to, they are rounded
+              // off.
+              // For the example above, if the range given was "not in (0.9,
+              // 1.9)", range optimizer rounds of the values to (1,2). In such
+              // a case, setting the flag to "NEAR_MIN" is not right. Because
+              // we need values higher than "0.9" not "1". We check this
+              // before we set the flag below.
+              Item_basic_constant *val_item =
+                  op->array->create_item(param->old_root);
+              op->array->value_to_item(i - 1, val_item);
+              const int cmp_value =
+                  stored_field_cmp_to_item(param->thd, field, val_item);
+              if (cmp_value <= 0) new_interval->min_flag = NEAR_MIN;
 
               /*
                 If the interval is over a partial keypart, the
