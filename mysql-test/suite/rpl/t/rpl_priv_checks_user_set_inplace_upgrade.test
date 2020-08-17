@@ -94,7 +94,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=TABLE --upgrade=FORCE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_start_server.inc
 --source include/start_slave.inc
 

@@ -131,7 +131,7 @@ SELECT VARIABLE_VALUE AS LOG_FILES_IN_GROUP
 --echo #  innodb_log_files_in_group = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 ###############################################################################
@@ -249,7 +249,7 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo #  innodb_log_files_in_group = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -290,7 +290,7 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo #  innodb_log_files_in_group = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log

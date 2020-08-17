@@ -132,7 +132,7 @@ SELECT VARIABLE_VALUE AS INNODB_FLUSH_METHOD
 --echo #  innodb_flush_method       = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 
 --source include/restart_mysqld.inc
 
@@ -214,7 +214,7 @@ SELECT VARIABLE_VALUE AS INNODB_FLUSH_METHOD
 --echo #  innodb_flush_method       = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -261,7 +261,7 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo #  innodb_flush_method       = autoscaled #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -308,7 +308,7 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo #  innodb_flush_method       = explicit   #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_flush_method=nosync;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -358,7 +358,7 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo #  innodb_flush_method       = explicit   #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M --innodb_log_files_in_group=3 --innodb_flush_method=nosync;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log
@@ -403,7 +403,7 @@ let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is 
 --echo #  innodb_flush_method       = explicit   #
 --echo ###########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M --innodb_log_files_in_group=4 --innodb_flush_method=nosync;
-let $explicit_default_counter=100000;
+let $explicit_default_wait_counter=100000;
 --source include/restart_mysqld.inc
 
 --disable_query_log

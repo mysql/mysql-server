@@ -263,7 +263,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'STREAM'`
@@ -303,7 +303,7 @@ RESET SLAVE;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
