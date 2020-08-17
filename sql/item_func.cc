@@ -5802,15 +5802,12 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref) {
 
   null_item = (args[0]->type() == NULL_ITEM);
 
-  cached_result_type = args[0]->result_type();
-
   return false;
 }
 
 bool Item_func_set_user_var::resolve_type(THD *thd) {
   if (Item_var_func::resolve_type(thd)) return true;
   maybe_null = args[0]->maybe_null;
-  decimals = args[0]->decimals;
   collation.set(DERIVATION_IMPLICIT);
   /*
      this sets the character set of the item immediately; rules for the
@@ -5825,10 +5822,11 @@ bool Item_func_set_user_var::resolve_type(THD *thd) {
   else
     collation.collation = args[0]->collation.collation;
 
-  enum_field_types data_type = Item::type_for_variable(args[0]->data_type());
-  switch (data_type) {
+  enum_field_types type = Item::type_for_variable(args[0]->data_type());
+  switch (type) {
     case MYSQL_TYPE_LONGLONG:
       set_data_type_longlong();
+      unsigned_flag = args[0]->unsigned_flag;
       max_length =
           args[0]->max_length;  // Preserves "length" of integer constants
       break;
@@ -5848,7 +5846,7 @@ bool Item_func_set_user_var::resolve_type(THD *thd) {
       break;
   }
 
-  unsigned_flag = args[0]->unsigned_flag;
+  cached_result_type = Item::type_to_result(data_type());
 
   return false;
 }

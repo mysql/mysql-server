@@ -954,6 +954,7 @@ class Item : public Parse_tree_node {
       case MYSQL_TYPE_INT24:
       case MYSQL_TYPE_LONG:
       case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_BIT:
         return MYSQL_TYPE_LONGLONG;
       case MYSQL_TYPE_DECIMAL:
       case MYSQL_TYPE_NEWDECIMAL:
@@ -972,7 +973,6 @@ class Item : public Parse_tree_node {
       case MYSQL_TYPE_TIME:
       case MYSQL_TYPE_DATETIME:
       case MYSQL_TYPE_NEWDATE:
-      case MYSQL_TYPE_BIT:
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_DATETIME2:
       case MYSQL_TYPE_TIME2:
@@ -1502,36 +1502,6 @@ class Item : public Parse_tree_node {
     collation.set_numeric();
     fix_char_length(21);
     unsigned_flag = true;
-  }
-
-  /**
-    Set type information of Item from "result" information.
-    For String types, type is set based on maximum string size.
-    For other types, the associated type with the largest precision is set.
-
-    @param result Either Integer, Decimal, Double or String
-    @param length Maximum string size, used only for String result.
-  */
-  void set_data_type_from_result(Item_result result, uint32 length) {
-    switch (result) {
-      case INT_RESULT:
-        set_data_type(MYSQL_TYPE_LONGLONG);
-        break;
-      case DECIMAL_RESULT:
-        set_data_type(MYSQL_TYPE_NEWDECIMAL);
-        break;
-      case REAL_RESULT:
-        set_data_type(MYSQL_TYPE_DOUBLE);
-        break;
-      case STRING_RESULT:
-        set_data_type_string(length);
-        break;
-      case ROW_RESULT:
-      case INVALID_RESULT:
-      default:
-        DBUG_ASSERT(false);
-        break;
-    }
   }
 
   /**

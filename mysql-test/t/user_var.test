@@ -729,3 +729,10 @@ INSERT INTO t1 VALUES ('2018-05-12 07:43:04'), ('2018-05-12 07:43:04');
 SELECT 1 FROM t1 WHERE @f<>'3761-03-28' XOR (@f:='5570-12-30') > a;
 DROP TABLE t1;
 
+--echo # Bug#31599885: Global-buffer-overflow in decimal_bin_size_inline
+
+CREATE TABLE t(a BIT(4), b INTEGER);
+SELECT AVG((@e:= a)) FROM t;
+SELECT AVG((@e:= a)) FROM t GROUP BY b;
+DROP TABLE t;
+

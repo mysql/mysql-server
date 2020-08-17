@@ -3182,7 +3182,7 @@ class user_var_entry {
 
 class Item_func_set_user_var : public Item_var_func {
   enum Item_result cached_result_type;
-  user_var_entry *entry;
+  user_var_entry *entry{nullptr};
   String value;
   my_decimal decimal_buff;
   bool null_item;
@@ -3196,16 +3196,9 @@ class Item_func_set_user_var : public Item_var_func {
  public:
   Name_string name;  // keep it public
 
-  Item_func_set_user_var(Name_string a, Item *b)
-      : Item_var_func(b),
-        cached_result_type(INT_RESULT),
-        entry(nullptr),
-        name(a) {}
+  Item_func_set_user_var(Name_string a, Item *b) : Item_var_func(b), name(a) {}
   Item_func_set_user_var(const POS &pos, Name_string a, Item *b)
-      : Item_var_func(pos, b),
-        cached_result_type(INT_RESULT),
-        entry(nullptr),
-        name(a) {}
+      : Item_var_func(pos, b), name(a) {}
 
   Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
       : Item_var_func(thd, item),
