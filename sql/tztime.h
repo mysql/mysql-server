@@ -24,10 +24,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-typedef long my_time_t;
-
-#if !defined(TESTTIME) && !defined(TZINFO2SQL)
-
 #include "my_inttypes.h"
 
 #ifdef HAVE_SYS_TIME_H
@@ -37,7 +33,8 @@ typedef long my_time_t;
 #include <winsock2.h>
 #endif
 
-#include "mysql_time.h"  // MYSQL_TIME
+#include "mysql_time.h"        // MYSQL_TIME
+#include "time_zone_common.h"  // my_time_t
 
 class String;
 class THD;
@@ -111,5 +108,4 @@ void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset);
 
 static const int MY_TZ_TABLES_COUNT = 4;
 
-#endif /* !defined(TESTTIME) && !defined(TZINFO2SQL) */
 #endif /* TZTIME_INCLUDED */
