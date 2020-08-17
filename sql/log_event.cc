@@ -8179,7 +8179,7 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
           (key == table->s->primary_key) ||
           ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
            keyinfo->is_functional_index()) ||
-          keyinfo->flags & HA_MULTI_VALUED_KEY) {
+          keyinfo->flags & HA_MULTI_VALUED_KEY || !keyinfo->is_visible) {
         continue;
       }
       res = are_all_columns_signaled_for_key(keyinfo, bi_cols) ? key : MAX_KEY;
