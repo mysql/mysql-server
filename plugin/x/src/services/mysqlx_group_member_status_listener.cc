@@ -22,13 +22,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/src/services/mysqlx_group_member_status_listener.h"
 
+#include <my_dbug.h>
 #include <mysql/components/service_implementation.h>
 
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/module_mysqlx.h"
 
 DEFINE_BOOL_METHOD(notify_member_role_change, (const char *view_id)) {
   auto queue = modules::Module_mysqlx::get_instance_notice_queue();
+
+  DBUG_EXECUTE_IF("xsync_gr_notice_bug", {
+    XSYNC_POINT_ENABLE(
+        {"gr_notice_bug_client_accept", "gr_notice_bug_broker_dispatch"});
+  });
 
   if (queue.container()) {
     queue->emplace(ngs::Notice_type::k_group_replication_member_role_changed,
