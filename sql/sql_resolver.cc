@@ -4024,7 +4024,7 @@ void SELECT_LEX::remove_redundant_subquery_clauses(
   uint possible_changes;
 
   if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS) {
-    if (explicit_limit) return;
+    if (has_limit()) return;
     possible_changes = REMOVE_ORDER;
   } else {
     DBUG_ASSERT(subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
@@ -4464,7 +4464,7 @@ bool SELECT_LEX::setup_order_final(THD *thd) {
   }
 
   if ((master_unit()->is_union() || master_unit()->fake_select_lex) &&
-      this != master_unit()->fake_select_lex && !explicit_limit) {
+      this != master_unit()->fake_select_lex && !has_limit()) {
     // Part of UNION which requires global ordering may skip local order
     empty_order_list(this);
     return false;

@@ -729,3 +729,47 @@ EXPLAIN
 
 DROP TABLE a;
 DROP TABLE b;
+# Bug#31667061: Inconsistent behavior of @@SQL_SELECT_LIMIT
+#               with prepared statements
+CREATE TABLE t1(id INTEGER);
+INSERT INTO t1 (id) VALUES (1), (2), (3);
+SET @@sql_select_limit=1;
+PREPARE stmt FROM "SELECT * FROM t1 WHERE id > ?";
+SET @a = 0;
+EXECUTE stmt using @a;
+id
+1
+set @@sql_select_limit=2;
+EXECUTE stmt using @a;
+id
+1
+2
+set @@sql_select_limit=DEFAULT;
+EXECUTE stmt USING @a;
+id
+1
+2
+3
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+CREATE TABLE t1(id INTEGER, c1 INTEGER, c2 INTEGER, c3 INTEGER);
+INSERT INTO t1 VALUES(1,1,1,1),(2,2,2,2),(3,9,9,9),(4,10,10,10),(6,1,2,888);
+PREPARE stmt FROM
+"(SELECT * FROM t1 LIMIT 2) UNION ALL (SELECT * FROM t1 ORDER BY 1)";
+SET @@sql_select_limit=2;
+EXECUTE stmt;
+id	c1	c2	c3
+1	1	1	1
+2	2	2	2
+SET @@sql_select_limit=DEFAULT;
+EXECUTE stmt;
+id	c1	c2	c3
+1	1	1	1
+2	2	2	2
+1	1	1	1
+2	2	2	2
+3	9	9	9
+4	10	10	10
+6	1	2	888
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;

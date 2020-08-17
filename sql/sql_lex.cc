@@ -2388,59 +2388,25 @@ void SELECT_LEX_UNIT::set_explain_marker_from(THD *thd,
   thd->unlock_query_plan();
 }
 
-ha_rows SELECT_LEX::get_offset(THD *thd) {
-  ulonglong val = 0;
-
-  if (offset_limit) {
-    // see comment for st_select_lex::get_limit()
-    bool fix_fields_successful = true;
-    if (!offset_limit->fixed) {
-      fix_fields_successful = !offset_limit->fix_fields(thd, nullptr);
-      DBUG_ASSERT(fix_fields_successful);
-    }
-    val = fix_fields_successful ? offset_limit->val_uint() : HA_POS_ERROR;
-  }
-
-  return ha_rows(val);
+ha_rows SELECT_LEX::get_offset(THD *) {
+  if (offset_limit != nullptr)
+    return ha_rows{offset_limit->val_uint()};
+  else
+    return ha_rows{0};
 }
 
 ha_rows SELECT_LEX::get_limit(THD *thd) {
-  ulonglong val = HA_POS_ERROR;
-
-  if (select_limit) {
-    /*
-      fix_fields() has not been called for select_limit. That's due to the
-      historical reasons -- this item could be only of type Item_int, and
-      Item_int does not require fix_fields(). Thus, fix_fields() was never
-      called for select_limit.
-
-      Some time ago, Item_splocal was also allowed for LIMIT / OFFSET clauses.
-      However, the fix_fields() behavior was not updated, which led to a crash
-      in some cases.
-
-      There is no single place where to call fix_fields() for LIMIT / OFFSET
-      items during the fix-fields-phase. Thus, for the sake of readability,
-      it was decided to do it here, on the evaluation phase (which is a
-      violation of design, but we chose the lesser of two evils).
-
-      We can call fix_fields() here, because select_limit can be of two
-      types only: Item_int and Item_splocal. Item_int::fix_fields() is trivial,
-      and Item_splocal::fix_fields() (or rather Item_sp_variable::fix_fields())
-      has the following properties:
-        1) it does not affect other items;
-        2) it does not fail.
-      Nevertheless DBUG_ASSERT was added to catch future changes in
-      fix_fields() implementation. Also added runtime check against a result
-      of fix_fields() in order to handle error condition in non-debug build.
-    */
-    bool fix_fields_successful = true;
-    if (!select_limit->fixed) {
-      fix_fields_successful = !select_limit->fix_fields(thd, nullptr);
-      DBUG_ASSERT(fix_fields_successful);
-    }
-    val = fix_fields_successful ? select_limit->val_uint() : HA_POS_ERROR;
-  }
-  return ha_rows(val);
+  /*
+    If m_use_select_limit is set in the query block, return the value
+    of the variable select_limit, unless an explicit limit is set.
+    This is used to implement SQL_SELECT_LIMIT for SELECT statements.
+  */
+  if (select_limit != nullptr)
+    return ha_rows{select_limit->val_uint()};
+  else if (m_use_select_limit)
+    return ha_rows{thd->variables.select_limit};
+  else
+    return ha_rows{HA_POS_ERROR};
 }
 
 void SELECT_LEX::add_order_to_list(ORDER *order) {
@@ -2575,9 +2541,10 @@ void SELECT_LEX_UNIT::print(const THD *thd, String *str,
         union_all = true;
     }
     bool parentheses_are_needed =
-        sl->has_explicit_limit_or_order() &&
-        (is_union() || (fake_select_lex != nullptr &&
-                        fake_select_lex->has_explicit_limit_or_order()));
+        (sl->has_limit() || sl->is_ordered()) &&
+        (is_union() ||
+         (fake_select_lex != nullptr &&
+          (fake_select_lex->has_limit() || fake_select_lex->is_ordered())));
     if (parentheses_are_needed) str->append('(');
     sl->print(thd, str, query_type);
     if (parentheses_are_needed) str->append(')');
@@ -2614,7 +2581,7 @@ void SELECT_LEX::print_limit(const THD *thd, String *str,
         subs_type == Item_subselect::ALL_SUBS)
       return;
   }
-  if (explicit_limit) {
+  if (has_limit() && !m_internal_limit) {
     str->append(STRING_WITH_LEN(" limit "));
     if (offset_limit) {
       offset_limit->print(thd, str, query_type);
@@ -3447,10 +3414,10 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
   if (accept_for_order(order_list, visitor)) return true;
 
   // Limit clause
-  if (explicit_limit)
+  if (has_limit()) {
     if (walk_item(offset_limit, visitor) || walk_item(select_limit, visitor))
       return true;
-
+  }
   return visitor->visit(this);
 }
 
@@ -3712,15 +3679,8 @@ bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
   @returns false if success, true if error
 */
 bool SELECT_LEX_UNIT::set_limit(THD *thd, SELECT_LEX *provider) {
-  if (provider->offset_limit)
-    offset_limit_cnt = provider->get_offset(thd);
-  else
-    offset_limit_cnt = 0;
-
-  if (provider->select_limit)
-    select_limit_cnt = provider->get_limit(thd);
-  else
-    select_limit_cnt = HA_POS_ERROR;
+  offset_limit_cnt = provider->get_offset(thd);
+  select_limit_cnt = provider->get_limit(thd);
 
   if (select_limit_cnt + offset_limit_cnt >= select_limit_cnt)
     select_limit_cnt += offset_limit_cnt;

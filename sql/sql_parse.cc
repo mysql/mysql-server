@@ -5071,14 +5071,11 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables) {
   bool statement_timer_armed = false;
   bool res;
 
-  /* assign global limit variable if limit is not given */
-  {
-    SELECT_LEX *param = lex->unit->global_parameters();
-    if (!param->explicit_limit)
-      param->select_limit =
-          new Item_int((ulonglong)thd->variables.select_limit);
+  // Specify to use global limit variable if explicit limit is not given
+  SELECT_LEX *params = lex->unit->global_parameters();
+  if (params->select_limit == nullptr) {
+    params->m_use_select_limit = true;
   }
-
   // check if timer is applicable to statement, if applicable then set timer.
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed = set_statement_timer(thd);

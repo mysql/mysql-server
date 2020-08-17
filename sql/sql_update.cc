@@ -2833,8 +2833,8 @@ bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
   if (accept_for_order(select->order_list, visitor)) return true;
 
   // Limit clause
-  if (select->explicit_limit)
+  if (select->has_limit()) {
     if (walk_item(select->select_limit, visitor)) return true;
-
+  }
   return visitor->visit(select);
 }
