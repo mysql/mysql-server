@@ -408,10 +408,7 @@ void Client::on_accept() {
       ++i;
     }
   });
-  DBUG_EXECUTE_IF("xsync_gr_notice_bug", {
-    XSYNC_POINT_ENABLE(
-        {"gr_notice_bug_client_accept", "gr_notice_bug_broker_dispatch"});
-  });
+
   XSYNC_POINT_CHECK(XSYNC_WAIT("gr_notice_bug_client_accept"),
                     XSYNC_WAKE("gr_notice_bug_broker_dispatch"));
 
