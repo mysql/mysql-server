@@ -650,10 +650,14 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
   */
   if (parsing_place == CTX_NONE)  // Outer-most query block
   {
-  } else if (parsing_place == CTX_INSERT_VALUES) {
+  } else if ((parsing_place == CTX_INSERT_VALUES) ||
+             (parsing_place == CTX_INSERT_UPDATE &&
+              curr_select->master_unit()->is_union())) {
     /*
       Outer references are not allowed for
       - subqueries in INSERT ... VALUES clauses
+      - subqueries in INSERT ... ON DUPLICATE KEY UPDATE clauses,
+        when the outer query expression is a UNION.
     */
     DBUG_ASSERT(select->context.outer_context == nullptr);
   } else {
