@@ -134,7 +134,7 @@ int ndbxfrm_readfile::open(ndb_file& file,
       Uint32 data_unit_size = 0;
       Uint32 kdf = 0;
       Uint32 kdf_iter_count = 0;
-      byte salt[openssl_evp.SALT_LEN];
+      byte salt[ndb_openssl_evp::SALT_LEN];
       size_t salt_size = 0;
       size_t salt_count = 0;
 
