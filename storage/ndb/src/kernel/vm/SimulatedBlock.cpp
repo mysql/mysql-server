@@ -2059,7 +2059,7 @@ SimulatedBlock::allocRecordAligned(const char * type, size_t s, size_t n, void *
   Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s) + over_alloc;
   refresh_watch_dog(9);
   if (real_size > 0){
-#if defined(VM_TRACE_MEM) || defined(VM_TRACE) || defined(ERROR_INSERT)
+#if defined(VM_TRACE_MEM)
     g_eventLogger->info("%s::allocRecord(%s, %zu, %zu) = %llu bytes",
 	                getBlockName(number()),
 	                type,
