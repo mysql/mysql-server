@@ -20,9 +20,12 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <my_dbug.h>
+
 #include <string>
 
 #include "plugin/x/src/components/test_emit_gr_notifications.h"
+#include "plugin/x/src/helper/multithread/xsync_point.h"
 
 bool udf_func_init(UDF_INIT *, UDF_ARGS *udf_args, char *) {
   if (udf_args->arg_count != 1) return true;
@@ -50,6 +53,11 @@ long long udf_emit_member_role_change(  // NOLINT(runtime/int)
   const auto arg1 = get_arg0_string(args);
 
   if (arg1.empty()) return 0;
+
+  DBUG_EXECUTE_IF("xsync_gr_notice_bug", {
+    XSYNC_POINT_ENABLE(
+        {"gr_notice_bug_client_accept", "gr_notice_bug_broker_dispatch"});
+  });
 
   return mysql_service_group_member_status_listener->notify_member_role_change(
              arg1.c_str())

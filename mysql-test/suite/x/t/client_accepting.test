@@ -20,31 +20,32 @@ import connection.macro;
 -->echo
 -->echo ## I. Scenario that triggers issue described under: Bug#31742798
 -->echo #
--->echo # 1. Make a new X Connection (X2), and hang in after accepting.
--->echo #    This prevents the session from being created.
--->echo # 2. Simulate Group-Replication notification, while X2 is hanging
--->echo #    without SQL Session. Observe crash on code without fix.
+-->echo # 1. Simulate Group-Replication notification (D1), and hang it
+-->echo #    before processing clients
+-->echo # 2. Make a new X Connection (X2), and hang in after accepting.
+-->echo #    This prevents the session from being created. Synchronization
+-->echo #    points are going to execute thread in order causin crash
 -->echo # 3. Unblock X2, and validate that its possible to authenticate.
 
 -->echo
 -->echo #
 -->echo # I.1
-# This DEBUG point is going to hang next X Connection
+# This DEBUG point is going to hang next X Connection and notice-dispatch
 callmacro Add_debug_point	GLOBAL	xsync_gr_notice_bug;
-
-newsession X2	-;
+DO emit_member_role_change("VIEW-ID");
 
 
 -->echo
 -->echo #
 -->echo # I.2
-# Go back to default session (this one is not blocked)
-setsession;
-DO emit_member_role_change("VIEW-ID");
+# Make a new session X2 that is going to execute in sync with D1
+newsession X2	-;
 
 -->echo
 -->echo #
 -->echo # I.3
+# Go back to default session (this one is not blocked)
+setsession;
 # Unblock X Connection (X2)
 callmacro Remove_debug_point	GLOBAL	xsync_gr_notice_bug;
 
