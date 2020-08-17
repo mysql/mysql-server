@@ -1188,8 +1188,6 @@ Thd_ndb::~Thd_ndb() {
   free_root(&m_batch_mem_root, MYF(0));
 }
 
-Ndb *ha_ndbcluster::get_ndb(THD *thd) const { return get_thd_ndb(thd)->ndb; }
-
 /*
  * manage uncommitted insert/deletes during transactio to get records correct
  */
@@ -2945,7 +2943,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd, const uchar *old_data,
   if (table->found_next_number_field &&
       bitmap_is_set(table->write_set,
                     table->found_next_number_field->field_index()) &&
-      (error = set_auto_inc(thd, table->found_next_number_field))) {
+      (error = set_auto_inc(m_thd_ndb->ndb, table->found_next_number_field))) {
     return error;
   }
 
@@ -4038,17 +4036,16 @@ int ha_ndbcluster::full_table_scan(const KEY *key_info,
   return next_result(buf);
 }  // ha_ndbcluster::full_table_scan()
 
-int ha_ndbcluster::set_auto_inc(THD *thd, Field *field) {
+int ha_ndbcluster::set_auto_inc(Ndb *ndb, Field *field) {
   DBUG_TRACE;
   bool read_bit = bitmap_is_set(table->read_set, field->field_index());
   bitmap_set_bit(table->read_set, field->field_index());
   Uint64 next_val = (Uint64)field->val_int() + 1;
   if (!read_bit) bitmap_clear_bit(table->read_set, field->field_index());
-  return set_auto_inc_val(thd, next_val);
+  return set_auto_inc_val(ndb, next_val);
 }
 
-inline int ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value) {
-  Ndb *ndb = get_ndb(thd);
+inline int ha_ndbcluster::set_auto_inc_val(Ndb *ndb, Uint64 value) const {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Trying to set auto increment value to %llu", value));
   {
@@ -4910,7 +4907,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
     if (error) {
       if ((has_auto_increment) && (m_skip_auto_increment)) {
         int ret_val;
-        if ((ret_val = set_auto_inc(thd, table->next_number_field))) {
+        if ((ret_val =
+                 set_auto_inc(m_thd_ndb->ndb, table->next_number_field))) {
           return ret_val;
         }
       }
@@ -4925,7 +4923,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   const uchar *key_row;
   if (table_share->primary_key == MAX_KEY) {
     /* Table has hidden primary key. */
-    Ndb *ndb = get_ndb(thd);
+    Ndb *ndb = m_thd_ndb->ndb;
     uint retries = NDB_AUTO_INCREMENT_RETRIES;
     for (;;) {
       NDB_SHARE::Tuple_id_range_guard g(m_share);
@@ -5163,7 +5161,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   }
   if ((has_auto_increment) && (m_skip_auto_increment)) {
     int ret_val;
-    if ((ret_val = set_auto_inc(thd, table->next_number_field))) {
+    if ((ret_val = set_auto_inc(m_thd_ndb->ndb, table->next_number_field))) {
       return ret_val;
     }
   }
@@ -5670,7 +5668,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   if (table->found_next_number_field &&
       bitmap_is_set(table->write_set,
                     table->found_next_number_field->field_index()) &&
-      (error = set_auto_inc(thd, table->found_next_number_field))) {
+      (error = set_auto_inc(m_thd_ndb->ndb, table->found_next_number_field))) {
     return error;
   }
   /*
@@ -6824,7 +6822,7 @@ int ha_ndbcluster::info(uint flag) {
     if (m_table && table->found_next_number_field) {
       if (!thd) thd = current_thd;
       if (check_ndb_connection(thd)) return HA_ERR_NO_CONNECTION;
-      Ndb *ndb = get_ndb(thd);
+      Ndb *ndb = get_thd_ndb(thd)->ndb;
       NDB_SHARE::Tuple_id_range_guard g(m_share);
 
       Uint64 auto_increment_value64;
@@ -9290,7 +9288,7 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
   if (check_ndb_connection(thd)) return HA_ERR_NO_CONNECTION;
 
   Ndb_create_helper create(thd, form->s->table_name.str);
-  Ndb *ndb = get_ndb(thd);
+  Ndb *ndb = get_thd_ndb(thd)->ndb;
   NDBDICT *dict = ndb->getDictionary();
 
   table = form;
@@ -10202,7 +10200,7 @@ int ha_ndbcluster::create_index_in_NDB(THD *thd, const char *name,
                                        KEY *key_info,
                                        const NdbDictionary::Table *ndbtab,
                                        bool unique) const {
-  Ndb *ndb = get_ndb(thd);
+  Ndb *ndb = get_thd_ndb(thd)->ndb;
   NdbDictionary::Dictionary *dict = ndb->getDictionary();
   KEY_PART_INFO *key_part = key_info->key_part;
   KEY_PART_INFO *end = key_part + key_info->user_defined_key_parts;
@@ -10771,7 +10769,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   }
 
   // Open the table which is to be renamed(aka. the old)
-  Ndb *ndb = get_ndb(thd);
+  Ndb *ndb = get_thd_ndb(thd)->ndb;
   ndb->setDatabaseName(old_dbname);
   NDBDICT *dict = ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict, m_tabname);
@@ -11229,7 +11227,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   THD *thd = current_thd;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
-  Ndb *ndb = get_ndb(table->in_use);
+  Ndb *ndb = get_thd_ndb(thd)->ndb;
   uint retries = NDB_AUTO_INCREMENT_RETRIES;
   for (;;) {
     NDB_SHARE::Tuple_id_range_guard g(m_share);
@@ -11598,8 +11596,9 @@ int ha_ndbcluster::analyze(THD *thd, HA_CHECK_OPT *) {
 
   // handle any errors
   if (error != 0) {
-    // Push the ndb error into stack before returning
-    NdbError ndberr = (get_ndb(thd))->getNdbError(error);
+    // Push the NDB error into stack before returning
+    Ndb *ndb = get_thd_ndb(thd)->ndb;
+    const NdbError &ndberr = ndb->getNdbError(error);
     my_error(ER_GET_ERRMSG, MYF(0), error, ndberr.message, "NDB");
     return HA_ADMIN_FAILED;
   }
@@ -15167,8 +15166,8 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
 }
 
 enum_alter_inplace_result ha_ndbcluster::supported_inplace_column_change(
-    THD *thd, TABLE *altered_table, uint field_position, Field *old_field,
-    Alter_inplace_info *ha_alter_info) const {
+    NdbDictionary::Dictionary *dict, TABLE *altered_table, uint field_position,
+    Field *old_field, Alter_inplace_info *ha_alter_info) const {
   /*
     Alter_inplace_info flags indicate a column has been modified
     we need to check if usupported field type change is found,
@@ -15207,11 +15206,11 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_column_change(
         "Unsupported change involving generated stored/virtual column");
   }
 
-  bool is_index_on_column =
+  const bool is_index_on_column =
       column_has_index(table, field_position, 0, table->s->keys);
 
   // Check if storage type or format are changed from Ndb's point of view
-  enum_alter_inplace_result ndb_column_change_result =
+  const enum_alter_inplace_result ndb_column_change_result =
       supported_inplace_ndb_column_change(
           field_position, altered_table, ha_alter_info,
           is_table_storage_changed, is_index_on_column);
@@ -15221,11 +15220,11 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_column_change(
     return ndb_column_change_result;
   }
 
-  bool field_fk_reference =
-      has_fk_dependency(thd, m_table->getColumn(field_position));
+  const bool field_fk_reference =
+      has_fk_dependency(dict, m_table->getColumn(field_position));
 
   // Check if table field properties are changed
-  enum_alter_inplace_result field_change_result =
+  const enum_alter_inplace_result field_change_result =
       supported_inplace_field_change(ha_alter_info, old_field, new_field,
                                      field_fk_reference, is_index_on_column);
 
@@ -15369,7 +15368,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
     }
   }
 
-  Ndb *ndb = get_ndb(thd);
+  Ndb *ndb = get_thd_ndb(thd)->ndb;
   NDBDICT *dict = ndb->getDictionary();
   ndb->setDatabaseName(m_dbname);
   NdbDictionary::Table new_tab = *old_tab;
@@ -15380,8 +15379,8 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
    */
   for (uint i = 0; i < table->s->fields; i++) {
     Field *field = table->field[i];
-    enum_alter_inplace_result column_change_result =
-        supported_inplace_column_change(thd, altered_table, i, field,
+    const enum_alter_inplace_result column_change_result =
+        supported_inplace_column_change(dict, altered_table, i, field,
                                         ha_alter_info);
 
     switch (column_change_result) {
@@ -15825,7 +15824,7 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
   int error = 0;
   THD *thd = current_thd;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  Ndb *ndb = get_ndb(thd);
+  Ndb *ndb = thd_ndb->ndb;
   NDBDICT *dict = ndb->getDictionary();
   ndb->setDatabaseName(m_dbname);
 
@@ -16139,7 +16138,7 @@ bool ha_ndbcluster::inplace_alter_table(TABLE *,
       goto err;
     }
     if (auto_increment_value_changed)
-      error = set_auto_inc_val(thd, create_info->auto_increment_value);
+      error = set_auto_inc_val(thd_ndb->ndb, create_info->auto_increment_value);
     if (error) {
       DBUG_PRINT("info", ("Failed to set auto_increment value"));
       goto err;
@@ -16279,46 +16278,16 @@ bool ha_ndbcluster::abort_inplace_alter_table(
 void ha_ndbcluster::notify_table_changed(Alter_inplace_info *alter_info) {
   DBUG_TRACE;
 
-  /*
-    all mysqld's will read frms from disk and setup new
-    event operation for the table (new_op)
-  */
-  THD *thd = current_thd;
+  // Tell particpants that alter has completed and it's time to use
+  // the new event operations
   const char *db = table->s->db.str;
   const char *name = table->s->table_name.str;
-  uint32 table_id = 0, table_version = 0;
-
-  /*
-    Get table id/version for new table
-  */
-  {
-    Ndb *ndb = get_ndb(thd);
-    DBUG_ASSERT(ndb != 0);
-    if (ndb) {
-      ndb->setDatabaseName(db);
-      Ndb_table_guard ndbtab(ndb->getDictionary(), name);
-      const NDBTAB *new_tab = ndbtab.get_table();
-      DBUG_ASSERT(new_tab != 0);
-      if (new_tab) {
-        table_id = new_tab->getObjectId();
-        table_version = new_tab->getObjectVersion();
-        // NOTE! There is already table id, version etc. in NDB_ALTER_DATA,
-        // why not take it from there instead of doing an additional
-        // NDB roundtrip to fetch the table definition
-      }
-    }
-  }
-
-  /*
-    all mysqld's will switch to using the new_op, and delete the old
-    event operation
-  */
   NDB_ALTER_DATA *alter_data =
       static_cast<NDB_ALTER_DATA *>(alter_info->handler_ctx);
   Ndb_schema_dist_client &schema_dist_client = alter_data->schema_dist_client;
-  if (!schema_dist_client.alter_table_inplace_commit(db, name, table_id,
-                                                     table_version)) {
-    // Failed to distribute the prepare of this alter table to the
+  if (!schema_dist_client.alter_table_inplace_commit(
+          db, name, alter_data->table_id, alter_data->old_table_version)) {
+    // Failed to distribute the commit of this alter table to the
     // other MySQL Servers, just log error and continue
     ndb_log_error("Failed to distribute inplace alter table commit of '%s'",
                   name);
