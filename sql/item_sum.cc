@@ -1440,7 +1440,7 @@ bool Item_sum_bit::fix_fields(THD *thd, Item **ref) {
 
   if (resolve_type(thd)) return true;
 
-  if (thd->is_error()) return true;
+  assert(!thd->is_error());
 
   if (check_sum_func(thd, ref)) return true;
 
@@ -1858,24 +1858,27 @@ void Item_sum_sum::clear() {
 bool Item_sum_sum::resolve_type(THD *thd) {
   DBUG_TRACE;
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
+  if (reject_geometry_args(arg_count, args, this)) return true;
+
   maybe_null = true;
   null_value = true;
-  decimals = args[0]->decimals;
-  max_length = float_length(decimals);
 
   switch (args[0]->numeric_context_result_type()) {
     case REAL_RESULT:
-      hybrid_type = REAL_RESULT;
+      set_data_type_double();
+      // If argument has specified precision and scale, copy those values:
+      if (args[0]->decimals != DECIMAL_NOT_SPECIFIED) {
+        decimals = args[0]->decimals;
+        max_length = float_length(decimals);
+      }
       sum = 0.0;
       break;
     case INT_RESULT:
     case DECIMAL_RESULT: {
-      /* SUM result can't be longer than length(arg) + length(MAX_ROWS) */
+      // SUM result cannot be longer than length(arg) + length(MAX_ROWS)
       int precision = args[0]->decimal_precision() + DECIMAL_LONGLONG_DIGITS;
-      max_length = my_decimal_precision_to_length_no_truncation(
-          precision, decimals, unsigned_flag);
+      set_data_type_decimal(precision, args[0]->decimals);
       curr_dec_buff = 0;
-      hybrid_type = DECIMAL_RESULT;
       my_decimal_set_zero(dec_buffs);
       break;
     }
@@ -1885,9 +1888,7 @@ bool Item_sum_sum::resolve_type(THD *thd) {
       DBUG_ASSERT(0);
   }
 
-  if (reject_geometry_args(arg_count, args, this)) return true;
-
-  set_data_type_from_result(hybrid_type, max_length);
+  hybrid_type = Item::type_to_result(data_type());
 
   DBUG_PRINT("info",
              ("Type: %s (%d, %d)",
@@ -2208,19 +2209,21 @@ bool Item_sum_avg::resolve_type(THD *thd) {
   prec_increment = thd->variables.div_precincrement;
   if (hybrid_type == DECIMAL_RESULT) {
     int precision = args[0]->decimal_precision() + prec_increment;
-    decimals = min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
-    max_length = my_decimal_precision_to_length_no_truncation(
-        precision, decimals, unsigned_flag);
+    int scale =
+        min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+    set_data_type_decimal(precision, scale);
     f_precision =
         min(precision + DECIMAL_LONGLONG_DIGITS, DECIMAL_MAX_PRECISION);
     f_scale = args[0]->decimals;
     dec_bin_size = my_decimal_get_binary_size(f_precision, f_scale);
   } else {
-    decimals =
-        min<uint>(args[0]->decimals + prec_increment, DECIMAL_NOT_SPECIFIED);
-    max_length = args[0]->max_length + prec_increment;
+    assert(hybrid_type == REAL_RESULT);
+    // If type has specified precision and scale, adjust according to increment:
+    if (decimals != DECIMAL_NOT_SPECIFIED) {
+      decimals = min<uint>(decimals + prec_increment, DECIMAL_NOT_SPECIFIED);
+      max_length = float_length(decimals);
+    }
   }
-  set_data_type_from_result(hybrid_type, max_length);
   return false;
 }
 

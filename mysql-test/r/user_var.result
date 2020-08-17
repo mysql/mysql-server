@@ -1070,3 +1070,15 @@ SELECT 1 FROM t1 WHERE @f<>'3761-03-28' XOR (@f:='5570-12-30') > a;
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
+# Bug#31599885: Global-buffer-overflow in decimal_bin_size_inline
+CREATE TABLE t(a BIT(4), b INTEGER);
+SELECT AVG((@e:= a)) FROM t;
+AVG((@e:= a))
+NULL
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT AVG((@e:= a)) FROM t GROUP BY b;
+AVG((@e:= a))
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t;
