@@ -1261,9 +1261,6 @@ class SELECT_LEX {
   /// @return true if this query block has a LIMIT clause
   bool has_limit() const { return select_limit != nullptr; }
 
-  bool has_explicit_limit_or_order() const {
-    return explicit_limit || order_list.elements > 0;
-  }
   /// @return true if query block references full-text functions
   bool has_ft_funcs() const { return ftfunc_list->elements > 0; }
 
@@ -2102,8 +2099,15 @@ class SELECT_LEX {
   */
   bool subquery_in_having{false};
 
-  /// explicit LIMIT clause is used
-  bool explicit_limit{false};
+  /**
+    If true, use select_limit to limit number of rows selected.
+    Applicable when no explicit limit is supplied, and only for the
+    outermost query block of a SELECT statement.
+  */
+  bool m_use_select_limit{false};
+
+  /// If true, limit object is added internally
+  bool m_internal_limit{false};
 
   /// exclude this query block from unique_table() check
   bool exclude_from_table_unique_test{false};

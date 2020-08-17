@@ -585,11 +585,8 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
 
   SELECT_LEX_UNIT *const unit = lex->unit;
   SELECT_LEX *parameters = unit->global_parameters();
-  if (!parameters->explicit_limit) {
-    parameters->select_limit =
-        new (thd->mem_root) Item_uint(ulonglong(thd->variables.select_limit));
-    if (parameters->select_limit == nullptr)
-      return true; /* purecov: inspected */
+  if (!parameters->has_limit()) {
+    parameters->m_use_select_limit = true;
   }
   if (unit->is_simple()) {
     SELECT_LEX *const select = unit->first_select();

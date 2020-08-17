@@ -373,6 +373,7 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
     working optimally (Bug#14215895).
   */
   if (!(unit->global_parameters()->select_limit = new Item_int(1))) return true;
+  unit->global_parameters()->m_internal_limit = true;
 
   if (unit->set_limit(thd, unit->global_parameters()))
     return true; /* purecov: inspected */
@@ -1451,8 +1452,11 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
       working optimally (Bug#14215895).
     */
     if (unit->global_parameters()->select_limit == nullptr ||
-        unit->global_parameters()->select_limit->val_uint() > 0)
+        unit->global_parameters()->select_limit->val_uint() > 0) {
       unit->global_parameters()->select_limit = new Item_int(1);
+      if (unit->global_parameters()->select_limit == nullptr) return true;
+      unit->global_parameters()->m_internal_limit = true;
+    }
   }
   return false;
 }

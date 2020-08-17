@@ -793,7 +793,6 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
       return nullptr;
     select->select_limit = opt_delete_limit_clause;
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    select->explicit_limit = true;
   }
 
   if (is_multitable() && multi_delete_link_tables(&pc, &delete_tables))
@@ -852,7 +851,6 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
     if (opt_limit_clause->itemize(&pc, &opt_limit_clause)) return nullptr;
     select->select_limit = opt_limit_clause;
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
-    select->explicit_limit = true;
   }
 
   if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
@@ -1141,7 +1139,8 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
       if (unit->add_fake_select_lex(lex->thd)) {
         return true;  // OOM
       }
-    } else if (unit->fake_select_lex->has_explicit_limit_or_order()) {
+    } else if (unit->fake_select_lex->has_limit() ||
+               unit->fake_select_lex->is_ordered()) {
       /*
         Make sure that we don't silently overwrite intermediate ORDER BY
         and/or LIMIT clauses, but reject unsupported levels of nesting
@@ -2717,7 +2716,6 @@ bool PT_limit_clause::contextualize(Parse_context *pc) {
 
   pc->select->select_limit = limit_options.limit;
   pc->select->offset_limit = limit_options.opt_offset;
-  pc->select->explicit_limit = true;
 
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
   return false;
