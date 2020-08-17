@@ -106,6 +106,7 @@ static const char* g_password = nullptr;
 [[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {
   ndb_end(0);
+  ndb_openssl_evp::library_end();
   exit(exitcode);
 }
 

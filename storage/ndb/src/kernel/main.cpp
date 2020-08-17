@@ -251,6 +251,8 @@ int
 main(int argc, char** argv)
 {
   ndb_openssl_evp::library_init();
-  return ndb_daemon_init(argc, argv, real_main, angel_stop,
-                         "ndbd", "MySQL Cluster Data Node Daemon");
+  int rc = ndb_daemon_init(argc, argv, real_main, angel_stop,
+                           "ndbd", "MySQL Cluster Data Node Daemon");
+  ndb_openssl_evp::library_end();
+  return rc;
 }

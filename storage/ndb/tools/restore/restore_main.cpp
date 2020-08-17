@@ -2045,6 +2045,7 @@ free_include_excludes_vector()
 
 static void exitHandler(int code)
 {
+  ndb_openssl_evp::library_end();
   free_include_excludes_vector();
   if (opt_core)
     abort();
@@ -3286,6 +3287,7 @@ main(int argc, char** argv)
     exitHandler(NdbToolsProgramExitCode::FAILED);
   }
 
+  ndb_openssl_evp::library_end();
   return NdbToolsProgramExitCode::OK;
 }  // main
 
