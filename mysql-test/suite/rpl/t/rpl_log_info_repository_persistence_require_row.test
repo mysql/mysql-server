@@ -200,7 +200,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --relay-log-info-repository=FILE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
@@ -241,7 +241,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 10;
 
 --let $rpl_server_number = 2
 --let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 
 # We have only 1 table here as group_replication_recovery does not show up

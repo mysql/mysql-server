@@ -181,7 +181,7 @@ if ($sub_testcase == invalid_require_table_primary_key_check) {
 
 --let $rpl_server_parameters= $rpl_server_restart_parameters
 
---let $explicit_default_counter = 15000
+--let $explicit_default_wait_counter = 15000
 --source include/rpl_start_server.inc
 
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_no_priv_user.inc
