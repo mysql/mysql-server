@@ -27,6 +27,25 @@ SHOW CREATE TABLE t8;
 --source verify_mysql_dd.inc
 --source count_temp_tables.inc
 
+--echo # Bug#31546868 NDB : HA_NDBCLUSTER NOT ROLLING BACK TRANSACTION BEFORE ROLLING BACK DDL
+# Another testcase that fails during row copy
+USE ndb_ddl_test;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 ORDER BY a;
+
+--echo # Following alter should fail with ER_CHECK_CONSTRAINT_VIOLATED
+--echo # as a row violates the check constraint it is trying to enforce
+--error ER_CHECK_CONSTRAINT_VIOLATED
+ALTER TABLE t1
+  ADD CONSTRAINT t1_c1 CHECK(a < 5),
+  ALGORITHM = COPY;
+
+--echo # Verify that the table is intact locally and across all servers.
+--echo # Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+--source verify_mysql_dd.inc
+--source count_temp_tables.inc
+
 --echo #
 --echo # Failure during the first rename
 --echo #

@@ -44,7 +44,6 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/mysqld.h"  // global_system_variables table_alias_charset ...
-#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/partition_info.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_lex.h"
@@ -64,7 +63,6 @@
 #include "storage/ndb/plugin/ndb_binlog_extra_row_info.h"
 #include "storage/ndb/plugin/ndb_binlog_thread.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
-#include "storage/ndb/plugin/ndb_component.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_create_helper.h"
 #include "storage/ndb/plugin/ndb_ddl_definitions.h"
@@ -73,7 +71,6 @@
 #include "storage/ndb/plugin/ndb_event_data.h"
 #include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock.h"
-#include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_metadata.h"
@@ -7873,6 +7870,21 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
 }
 
 /**
+ * @brief Rollback any ongoing DDL transaction
+ * @param thd_ndb   The Thd_ndb object
+ */
+static void ndbcluster_rollback_ddl(Thd_ndb *thd_ndb) {
+  Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx();
+  if (ddl_ctx != nullptr && ddl_ctx->has_uncommitted_schema_changes()) {
+    /* There is an ongoing DDL transaction that needs to be rolled back.
+       Call rollback on the DDL transaction context. */
+    if (!ddl_ctx->rollback()) {
+      thd_ndb->push_warning("DDL rollback failed.");
+    }
+  }
+}
+
+/**
   Rollback a transaction started in NDB.
 */
 
@@ -7887,19 +7899,13 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
                        thd_ndb->save_point_count));
   DBUG_ASSERT(ndb);
 
-  Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx();
-  if (ddl_ctx != nullptr && ddl_ctx->has_uncommitted_schema_changes()) {
-    /* There is an ongoing DDL transaction that needs to be rollbacked.
-       Call rollback on the DDL transaction context. */
-    if (!ddl_ctx->rollback()) {
-      thd_ndb->push_warning("DDL rollback failed.");
-    }
-  }
-
   thd_ndb->start_stmt_count = 0;
-  if (trans == NULL) {
-    /* Ignore end-of-statement until real rollback or commit is called */
+  if (trans == nullptr) {
+    // NdbTransaction was never started
     DBUG_PRINT("info", ("trans == NULL"));
+    // Rollback any DDL changes made as a part of this transaction if this
+    // rollback has been called at the end of transaction
+    if (all) ndbcluster_rollback_ddl(thd_ndb);
     return 0;
   }
   if (!all && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) &&
@@ -7925,13 +7931,16 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
     res = ndbcluster_print_error(trans, thd_ndb->m_handler);
   }
   ndb->closeTransaction(trans);
-  thd_ndb->trans = NULL;
-  thd_ndb->m_handler = NULL;
+  thd_ndb->trans = nullptr;
+  thd_ndb->m_handler = nullptr;
 
   if (thd->slave_thread) {
     // Copy-out slave thread statistics
     update_slave_api_stats(thd_ndb->ndb);
   }
+
+  // Rollback any DDL changes made as a part of this transaction
+  ndbcluster_rollback_ddl(thd_ndb);
 
   return res;
 }
@@ -7947,7 +7956,7 @@ static void ndbcluster_post_ddl(THD *thd) {
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx();
   if (ddl_ctx != nullptr) {
-    /* Run the post_ddl_hooks to wrap up the rollback */
+    /* Run the post_ddl_hooks to wrap up the ddl commit or rollback */
     if (!ddl_ctx->run_post_ddl_hooks()) {
       thd_ndb->push_warning("Post DDL hooks failed to update schema.");
     }
