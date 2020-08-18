@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,6 @@ bool Thd_ndb::valid_ndb(void) const {
 }
 
 void Thd_ndb::init_open_tables() {
-  count = 0;
   m_error = false;
   open_tables.clear();
 }

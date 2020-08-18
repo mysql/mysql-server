@@ -54,7 +54,6 @@ class Thd_ndb {
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;
   class ha_ndbcluster *m_handler;
-  ulong count;
   uint lock_count;
   uint start_stmt_count;
   uint save_point_count;

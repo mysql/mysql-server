@@ -127,7 +127,6 @@ struct NDB_INDEX_DATA {
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
-  ulong last_count;
   ha_rows records;
 };
 
