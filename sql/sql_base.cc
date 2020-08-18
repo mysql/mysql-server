@@ -315,6 +315,7 @@ static TABLE *find_temporary_table(THD *thd, const char *table_key,
                                    size_t table_key_length);
 static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
                           const char *cache_key, size_t cache_key_length);
+static bool add_view_place_holder(THD *thd, TABLE_LIST *table_list);
 
 /**
   Create a table cache/table definition cache key for a table. The
@@ -2719,6 +2720,28 @@ static bool tdc_wait_for_old_version(THD *thd, const char *db,
 }
 
 /**
+  Add a dummy LEX object for a view.
+
+  @param       thd     Thread context
+  @param       table   Table list element
+
+  @retval  true   error occurred
+  @retval  false  view place holder successfully added
+*/
+
+bool add_view_place_holder(THD *thd, TABLE_LIST *table_list) {
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  LEX *lex_obj = new (thd->mem_root) st_lex_local;
+  if (lex_obj == nullptr) return true;
+  table_list->set_view_query(lex_obj);
+  // Create empty list of view_tables.
+  table_list->view_tables =
+      new (thd->mem_root) mem_root_deque<TABLE_LIST *>(thd->mem_root);
+  if (table_list->view_tables == nullptr) return true;
+  return false;
+}
+
+/**
   Open a base table.
 
   @param thd            Thread context.
@@ -2935,6 +2958,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
           my_error(ER_WRONG_MRG_TABLE, MYF(0));
           return true;
         }
+
+        /*
+          In the case of a CREATE, add a dummy LEX object to
+          indicate the presence of a view amd skip processing the
+          existing view.
+        */
+        if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
+          return add_view_place_holder(thd, table_list);
 
         if (!tdc_open_view(thd, table_list, key, key_length)) {
           DBUG_ASSERT(table_list->is_view());
@@ -3201,27 +3232,17 @@ retry_share : {
       mysql_mutex_unlock(&LOCK_open);
 
       /*
-        For SP and PS, LEX objects are created at the time of statement prepare.
-        And open_table() is called for every execute after that. Skip creation
-        of LEX objects if it is already present.
+        The LEX object is used by the executor and other parts of the
+        code to detect the presence of a view. As this is
+        OPEN_FOR_CREATE we skip the call to open_and_read_view(),
+        which creates the LEX object, and create a dummy LEX object.
+
+        For SP and PS, LEX objects are created at the time of
+        statement prepare and open_table() is called for every execute
+        after that. Skip creation of LEX objects if it is already
+        present.
       */
-      if (!table_list->is_view()) {
-        Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-        /*
-          Since we are skipping parse_view_definition(), which creates view LEX
-          object used by the executor and other parts of the code to detect the
-          presence of a view, a dummy LEX object needs to be created.
-        */
-        table_list->set_view_query((LEX *)new (thd->mem_root) st_lex_local);
-        if (!table_list->is_view()) return true;
-
-        // Create empty list of view_tables.
-        table_list->view_tables =
-            new (thd->mem_root) mem_root_deque<TABLE_LIST *>(thd->mem_root);
-        if (table_list->view_tables == nullptr) return true;
-      }
-
+      if (!table_list->is_view()) return add_view_place_holder(thd, table_list);
       return false;
     } else {
       /*
