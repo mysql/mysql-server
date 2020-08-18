@@ -1382,9 +1382,8 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
 
   const uint tab_no = table->get_access_no();
   const uint first_inner = m_tables[tab_no].m_first_inner;
-  const ndb_table_access_map embedding_nests(
-      m_tables[tab_no].embedding_nests());
-  DBUG_ASSERT(!embedding_nests.contain(depend_parents));
+  // Check that embedding nests does not already contain dependent parents
+  DBUG_ASSERT(!m_tables[tab_no].embedding_nests().contain(depend_parents));
 
   /**
    * Include nest-level ancestor dependencies already enforced.
