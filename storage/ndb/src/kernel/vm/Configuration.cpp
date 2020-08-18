@@ -1381,7 +1381,8 @@ Configuration::setLockCPU(NdbThread * pThread,
   }
   else if (!NdbIsMultiThreaded())
   {
-    BlockNumber list[] = { DBDIH };
+    BlockNumber list[1];
+    list[0] = numberToRef(TRPMAN, 1);
     res = m_thr_config.do_bind(pThread, list, 1);
   }
 
@@ -1434,7 +1435,8 @@ Configuration::setThreadPrio(NdbThread * pThread,
   }
   else if (!NdbIsMultiThreaded())
   {
-    BlockNumber list[] = { DBDIH };
+    BlockNumber list[1];
+    list[0] = numberToRef(TRPMAN, 1);
     res = m_thr_config.do_thread_prio(pThread, list, 1, thread_prio);
   }
 
