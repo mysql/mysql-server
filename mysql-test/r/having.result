@@ -796,9 +796,12 @@ val	c
 UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 r	MIN(u)
-1	11
-1	15
-1	17
+0	11
+0	12
+0	15
+0	16
+0	17
+0	18
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
 DROP TABLE series, seq_calls;

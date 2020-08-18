@@ -186,7 +186,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) < 1 ORDER BY ABS(col1) DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	functional_index	functional_index	5	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) < 1) order by abs(`col1`) desc
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) < 1) order by abs(`test`.`t1`.`col1`) desc
 DROP TABLE t1;
 # Test integer index over a JSON key
 CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->"$.id" AS UNSIGNED))));

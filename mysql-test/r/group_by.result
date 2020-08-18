@@ -781,11 +781,11 @@ a	r2	r1
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
 GROUP BY a HAVING r1>1 AND r2<=2;
 a	r2	r1
-1	2	2
+1	7	2
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
 GROUP BY a HAVING r1>1 AND r2<=2 ORDER BY a+r2+r1;
 a	r2	r1
-1	2	2
+1	7	2
 SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c;
 a	SUM(b)
 1	5
@@ -2039,7 +2039,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1249	Select 2 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by (`test`.`t1`.`a` + 0)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by (`a` + 0)
 EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2047,7 +2047,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1249	Select 2 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -(`test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -(`a`)
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
@@ -3601,13 +3601,20 @@ SELECT 1 FROM t HAVING (SELECT SUM(a)) > 0;
 SELECT (SELECT SUM(a)) FROM t;
 (SELECT SUM(a))
 4
-# These queries where accepted before the fix, and they still are,
-# but their results are wrong both before and after the fix
-# because of bug#22588319.
-# Returns (4, NULL), should have returned (4, 1):
-SELECT SUM(a) s, (SELECT 1 HAVING s > 0) s2 FROM t;
-s	s2
+# Bug #22588319: OUTER REFERENCE TO AGGREGATE INCORRECTLY 0 OR NULL IN SUBQUERY
+SELECT SUM(a) AS s, (SELECT 1 HAVING s) FROM t;
+s	(SELECT 1 HAVING s)
+4	1
+SELECT SUM(a) AS s, (SELECT 1 HAVING s IS NULL) FROM t;
+s	(SELECT 1 HAVING s IS NULL)
 4	NULL
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c) FROM t;
+c	(SELECT 1 HAVING c)
+4	1
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c = 0) FROM t;
+c	(SELECT 1 HAVING c = 0)
+4	NULL
+# Shows that #22588319 isn't fixed for ORDER BY.
 # Should have ordered ascending on -a, but comes out in random order
 # because the ORDER BY clause always evaluates to NULL. Have to use
 # the --sorted_result directive to produce stable test results.
@@ -3786,7 +3793,7 @@ INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
-    -> Sort: `-(t.a)`
+    -> Sort: `-(a)`
         -> Stream results  (cost=*** rows=***)
             -> Table scan on t  (cost=*** rows=***)
 
@@ -3820,7 +3827,7 @@ INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
-    -> Sort: `-(t.a)`
+    -> Sort: `-(a)`
         -> Stream results  (cost=*** rows=***)
             -> Table scan on t  (cost=*** rows=***)
 

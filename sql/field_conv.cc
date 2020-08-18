@@ -98,18 +98,6 @@ static void set_to_is_null(Field *to_field, bool is_null) {
   }
 }
 
-static void do_field_to_null_str(Copy_field *, const Field *from_field,
-                                 Field *to_field) {
-  if (from_field->is_null()) {
-    to_field->reset();
-    set_to_is_null(to_field, true);
-  } else {
-    memcpy(to_field->field_ptr(), from_field->field_ptr(),
-           from_field->pack_length());
-    set_to_is_null(to_field, false);
-  }
-}
-
 type_conversion_status set_field_to_null(Field *field) {
   if (field->is_nullable() || field->is_tmp_nullable()) {
     field->set_null();
@@ -567,48 +555,6 @@ void Copy_field::invoke_do_copy(bool reverse) {
 void Copy_field::invoke_do_copy2(const Field *from, Field *to) {
   // from will be m_to_field if invoke_do_copy was called with reverse = true
   (*(m_do_copy2))(this, from, to);
-}
-
-/**
-  copy of field to maybe null string.
-  If field is null then the all bytes are set to 0.
-  if field is not null then the first byte is set to 1 and the rest of the
-  string is the field value.
-*/
-
-Copy_field::Copy_field(MEM_ROOT *mem_root, Item_field *item) : Copy_field() {
-  /*
-     Set up the record buffer and change result_field to point at
-     the saved value.
-  */
-  m_from_field = item->field->new_field(mem_root, item->field->table);
-  if (m_from_field == nullptr) return;
-
-  if (m_from_field->is_nullable() || m_from_field->table->is_nullable()) {
-    // We need to allocate one extra byte for null handling.
-    uchar *ptr = mem_root->ArrayAlloc<uchar>(m_from_field->pack_length() + 1);
-    m_to_field =
-        item->field->new_field(mem_root, item->field->table, ptr + 1, ptr, 1);
-    if (m_to_field == nullptr) return;
-    m_to_field->set_null();  // Null as default value
-    m_do_copy = do_field_to_null_str;
-  } else {
-    uchar *ptr = mem_root->ArrayAlloc<uchar>(m_from_field->pack_length());
-    m_to_field =
-        item->field->new_field(mem_root, item->field->table, ptr, nullptr, 1);
-    if (m_to_field == nullptr) return;
-    m_do_copy = do_field_eq;
-  }
-
-  /*
-    We have created a new Item_field; its field points into the
-    previous table; its result_field points into a memory area
-    (REF_SLICE_ORDERED_GROUP_BY) which represents the pseudo-tmp-table
-    from where aggregates' values can be read. So does 'field'. A
-    Copy_field manages copying from 'field' to the memory area.
-  */
-  item->field = m_to_field;
-  item->set_result_field(m_to_field);
 }
 
 void Copy_field::set(Field *to, Field *from, bool save) {

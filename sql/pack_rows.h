@@ -86,6 +86,9 @@ class TableCollection {
   TableCollection(const JOIN *join, table_map tables, bool store_rowids,
                   table_map tables_to_get_rowid_for);
 
+  // A single table (typically one for which there is no map bit).
+  explicit TableCollection(TABLE *table) { AddTable(table); }
+
   const Prealloced_array<Table, 4> &tables() const { return m_tables; }
 
   table_map tables_bitmap() const { return m_tables_bitmap; }

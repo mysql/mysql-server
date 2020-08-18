@@ -127,7 +127,6 @@ struct AccessPath {
     FILTER,
     SORT,
     AGGREGATE,
-    PRECOMPUTED_AGGREGATE,
     TEMPTABLE_AGGREGATE,
     LIMIT_OFFSET,
     STREAM,
@@ -360,14 +359,6 @@ struct AccessPath {
     assert(type == AGGREGATE);
     return u.aggregate;
   }
-  auto &precomputed_aggregate() {
-    assert(type == PRECOMPUTED_AGGREGATE);
-    return u.precomputed_aggregate;
-  }
-  const auto &precomputed_aggregate() const {
-    assert(type == PRECOMPUTED_AGGREGATE);
-    return u.precomputed_aggregate;
-  }
   auto &temptable_aggregate() {
     assert(type == TEMPTABLE_AGGREGATE);
     return u.temptable_aggregate;
@@ -596,15 +587,8 @@ struct AccessPath {
     } sort;
     struct {
       AccessPath *child;
-      Temp_table_param *temp_table_param;
-      int output_slice;
       bool rollup;
     } aggregate;
-    struct {
-      AccessPath *child;
-      Temp_table_param *temp_table_param;
-      int output_slice;
-    } precomputed_aggregate;
     struct {
       AccessPath *subquery_path;
       Temp_table_param *temp_table_param;
@@ -627,7 +611,6 @@ struct AccessPath {
       JOIN *join;
       Temp_table_param *temp_table_param;
       TABLE *table;
-      bool copy_fields_and_items_in_materialize;
       bool provide_rowid;
       int ref_slice;
     } stream;
@@ -903,25 +886,11 @@ AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
                               bool count_examined_rows);
 
 inline AccessPath *NewAggregateAccessPath(THD *thd, AccessPath *child,
-                                          Temp_table_param *temp_table_param,
-                                          int output_slice, bool rollup) {
+                                          bool rollup) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::AGGREGATE;
   path->aggregate().child = child;
-  path->aggregate().temp_table_param = temp_table_param;
-  path->aggregate().output_slice = output_slice;
   path->aggregate().rollup = rollup;
-  return path;
-}
-
-inline AccessPath *NewPrecomputedAggregateAccessPath(
-    THD *thd, AccessPath *child, Temp_table_param *temp_table_param,
-    int output_slice) {
-  AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::PRECOMPUTED_AGGREGATE;
-  path->precomputed_aggregate().child = child;
-  path->precomputed_aggregate().temp_table_param = temp_table_param;
-  path->precomputed_aggregate().output_slice = output_slice;
   return path;
 }
 
@@ -993,17 +962,16 @@ inline AccessPath *NewZeroRowsAggregatedAccessPath(THD *thd,
   return path;
 }
 
-inline AccessPath *NewStreamingAccessPath(
-    THD *thd, AccessPath *child, JOIN *join, Temp_table_param *temp_table_param,
-    TABLE *table, bool copy_fields_and_items_in_materialize, int ref_slice) {
+inline AccessPath *NewStreamingAccessPath(THD *thd, AccessPath *child,
+                                          JOIN *join,
+                                          Temp_table_param *temp_table_param,
+                                          TABLE *table, int ref_slice) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::STREAM;
   path->stream().child = child;
   path->stream().join = join;
   path->stream().temp_table_param = temp_table_param;
   path->stream().table = table;
-  path->stream().copy_fields_and_items_in_materialize =
-      copy_fields_and_items_in_materialize;
   path->stream().ref_slice = ref_slice;
   // Will be set later if we get a weedout access path as parent.
   path->stream().provide_rowid = false;
@@ -1149,6 +1117,17 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               const POSITION *pos, bool is_after_filter,
                               AccessPath *path);
 
+/**
+  Returns a map of all tables read when `path` or any of its children are
+  exectued. Only iterators that are part of the same query block as `path`
+  are considered.
+
+  If a table is read that doesn't have a map, specifically the temporary
+  tables made as part of materialization within the same query block,
+  RAND_TABLE_BIT will be set as a convention and none of that access path's
+  children will be included in the map. In this case, the caller will need to
+  manually go in and find said access path, to ask it for its TABLE object.
+ */
 table_map GetUsedTables(const AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

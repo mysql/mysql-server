@@ -138,8 +138,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`t1` group by `test`.`t1`.`a1`
 explain format=tree select a1, min(a2) from t1 group by a1;
 EXPLAIN
--> Group aggregate (computed in earlier step): min(t1.a2)
-    -> Index range scan on t1 using index_for_group_by(idx_t1_1)  (cost=3.25 rows=5)
+-> Index range scan on t1 using index_for_group_by(idx_t1_1)  (cost=3.25 rows=5)
 
 explain select a1, max(a2) from t1 group by a1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1697,9 +1696,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a2` < 'b')) and (`test`.`t1`.`b` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
--> Group (computed in earlier step, no aggregates)
-    -> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.05 rows=17)
-        -> Index range scan on t1 using index_for_group_by(idx_t1_1)  (cost=11.05 rows=17)
+-> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.05 rows=17)
+    -> Index range scan on t1 using index_for_group_by(idx_t1_1)  (cost=11.05 rows=17)
 
 explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

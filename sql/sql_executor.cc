@@ -327,9 +327,7 @@ bool has_rollup_result(Item *item) {
     return true;
   }
 
-  if (item->type() == Item::COPY_STR_ITEM) {
-    return has_rollup_result(down_cast<Item_copy *>(item)->get_item());
-  } else if (item->type() == Item::CACHE_ITEM) {
+  if (item->type() == Item::CACHE_ITEM) {
     return has_rollup_result(down_cast<Item_cache *>(item)->example);
   } else if (item->type() == Item::FUNC_ITEM) {
     Item_func *item_func = down_cast<Item_func *>(item);
@@ -489,13 +487,6 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
       case CFT_WF:
         do_copy = item->m_is_window_function;
         break;
-      case CFT_DEPENDING_ON_AGGREGATE:
-        do_copy =
-            item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM;
-        break;
-      case CFT_ROLLUP_NULLS:
-        do_copy = has_rollup_result(item);
-        break;
     }
 
     if (do_copy) {
@@ -612,15 +603,19 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
     description = "write_group_row_when_complete";
     DBUG_PRINT("info", ("Using end_write_group"));
     tab->op_type = QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE;
+
+    for (Item_sum **func_ptr = join->sum_funcs; *func_ptr != nullptr;
+         ++func_ptr) {
+      tmp_tbl->items_to_copy->push_back(Func_ptr(*func_ptr));
+    }
   } else {
     description = "write_all_rows";
     tab->op_type = (phase >= REF_SLICE_WIN_1 ? QEP_TAB::OT_WINDOWING_FUNCTION
                                              : QEP_TAB::OT_MATERIALIZE);
     if (tmp_tbl->precomputed_group_by) {
-      Item_sum **func_ptr = join->sum_funcs;
-      Item_sum *func;
-      while ((func = *(func_ptr++))) {
-        tmp_tbl->items_to_copy->push_back(Func_ptr(func));
+      for (Item_sum **func_ptr = join->sum_funcs; *func_ptr != nullptr;
+           ++func_ptr) {
+        tmp_tbl->items_to_copy->push_back(Func_ptr(*func_ptr));
       }
     }
   }
@@ -1526,14 +1521,6 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
   }
   ConvertItemsToCopy(*unit->get_field_list(),
                      qep_tab->table()->visible_field_ptr(), tmp_table_param);
-  bool copy_fields_and_items_in_materialize = true;
-  if (unit->is_simple()) {
-    // See if AggregateIterator already does this for us.
-    JOIN *join = unit->first_select()->join;
-    copy_fields_and_items_in_materialize =
-        !join->streaming_aggregation ||
-        join->tmp_table_param.precomputed_group_by;
-  }
 
   AccessPath *path;
 
@@ -1573,7 +1560,6 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
     // only once, we could still stream without losing performance.
     path = NewStreamingAccessPath(thd, unit->root_access_path(), subjoin,
                                   &subjoin->tmp_table_param, qep_tab->table(),
-                                  copy_fields_and_items_in_materialize,
                                   /*ref_slice=*/-1);
     CopyCosts(*unit->root_access_path(), path);
   } else {
@@ -1582,7 +1568,7 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
         thd,
         SingleMaterializeQueryBlock(
             thd, unit->root_access_path(), select_number, join,
-            copy_fields_and_items_in_materialize, tmp_table_param),
+            /*copy_fields_and_items=*/true, tmp_table_param),
         qep_tab->invalidators, qep_tab->table(), table_path,
         qep_tab->table_ref->common_table_expr(), unit,
         /*ref_slice=*/-1, qep_tab->rematerialize,
@@ -1666,7 +1652,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
                                         &conditions_depend_on_outer_tables);
 
     bool copy_fields_and_items_in_materialize =
-        true;  // We never have aggregation within semijoins.
+        true;  // We never have windowing functions within semijoins.
     table_path = NewMaterializeAccessPath(
         thd,
         SingleMaterializeQueryBlock(
@@ -2914,13 +2900,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       // Aggregate as we go, with output into a temporary table.
       // (We can also aggregate as we go after the materialization step;
       // see below. We won't be aggregating twice, though.)
-      if (qep_tab->tmp_table_param->precomputed_group_by) {
-        DBUG_ASSERT(rollup_state == RollupState::NONE);
-        path = NewPrecomputedAggregateAccessPath(
-            thd, path, qep_tab->tmp_table_param, qep_tab->ref_item_slice);
-      } else {
-        path = NewAggregateAccessPath(thd, path, qep_tab->tmp_table_param,
-                                      qep_tab->ref_item_slice,
+      if (!qep_tab->tmp_table_param->precomputed_group_by) {
+        path = NewAggregateAccessPath(thd, path,
                                       rollup_state != RollupState::NONE);
       }
     }
@@ -3063,8 +3044,6 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     } else {
       DBUG_ASSERT(qep_tab->op_type == QEP_TAB::OT_MATERIALIZE ||
                   qep_tab->op_type == QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
-      bool copy_fields_and_items =
-          (qep_tab->op_type != QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
 
       // If we don't need the row IDs, and don't have some sort of deduplication
       // (e.g. for GROUP BY) on the table, filesort can take in the data
@@ -3087,12 +3066,12 @@ AccessPath *JOIN::create_root_access_path_for_join() {
           !MaterializeIsDoingDeduplication(qep_tab->table())) {
         path = NewStreamingAccessPath(
             thd, path, /*join=*/this, qep_tab->tmp_table_param,
-            qep_tab->table(), copy_fields_and_items, qep_tab->ref_item_slice);
+            qep_tab->table(), qep_tab->ref_item_slice);
       } else {
         path = NewMaterializeAccessPath(
             thd,
             SingleMaterializeQueryBlock(thd, path, select_lex->select_number,
-                                        this, copy_fields_and_items,
+                                        this, /*copy_fields_and_items=*/true,
                                         qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
@@ -3150,14 +3129,9 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       DBUG_ASSERT(qep_tab->op_type != QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
     }
 #endif
-    if (tmp_table_param.precomputed_group_by) {
-      path = NewPrecomputedAggregateAccessPath(thd, path, &tmp_table_param,
-                                               REF_SLICE_ORDERED_GROUP_BY);
-      DBUG_ASSERT(rollup_state == RollupState::NONE);
-    } else {
-      path = NewAggregateAccessPath(thd, path, &tmp_table_param,
-                                    REF_SLICE_ORDERED_GROUP_BY,
-                                    rollup_state != RollupState::NONE);
+    if (!tmp_table_param.precomputed_group_by) {
+      path =
+          NewAggregateAccessPath(thd, path, rollup_state != RollupState::NONE);
     }
   }
 
@@ -6135,136 +6109,10 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
 }
 
 /**
-  Sets up caches for holding the values of non-aggregated expressions. The
-  values are saved at the start of every new group.
-
-  This code path is used in the cases when aggregation can be performed
-  without a temporary table. Why it still uses a Temp_table_param is a
-  mystery.
-
-  Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
-  Change old item_field to use a new field with points at saved fieldvalue
-  This function is only called before use of send_result_set_metadata.
-
-  @param fields                      list of all fields; should really be const,
-                                       but Item does not always respect
-                                       constness
-  @param thd                         THD pointer
-  @param [in,out] param              temporary table parameters
-  @param [out] ref_item_array        array of pointers to top elements of field
-                                       list
-  @param [out] res_fields            new list of items of select item list
-
-  @todo
-    In most cases this result will be sent to the user.
-    This should be changed to use copy_int or copy_real depending
-    on how the value is to be used: In some cases this may be an
-    argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
-
-  @returns false if success, true if error
-*/
-
-bool setup_copy_fields(const mem_root_deque<Item *> &fields, THD *thd,
-                       Temp_table_param *param, Ref_item_array ref_item_array,
-                       mem_root_deque<Item *> *res_fields) {
-  DBUG_TRACE;
-
-  res_fields->clear();
-  size_t num_hidden_fields = CountHiddenFields(fields);
-  Mem_root_vector<Item_copy *> extra_funcs(
-      Mem_root_allocator<Item_copy *>(thd->mem_root));
-
-  param->grouped_expressions.clear();
-  DBUG_ASSERT(param->copy_fields.empty());
-
-  try {
-    param->grouped_expressions.reserve(fields.size());
-    param->copy_fields.reserve(param->field_count);
-    extra_funcs.reserve(num_hidden_fields);
-  } catch (std::bad_alloc &) {
-    return true;
-  }
-
-  for (size_t i = 0; i < fields.size(); i++) {
-    Item *pos = fields[i];
-    Item *real_pos = pos->real_item();
-    if (real_pos->type() == Item::FIELD_ITEM) {
-      Item_field *item = new Item_field(thd, ((Item_field *)real_pos));
-      if (item == nullptr) return true;
-      if (pos->type() == Item::REF_ITEM) {
-        /* preserve the names of the ref when dereferncing */
-        Item_ref *ref = (Item_ref *)pos;
-        item->db_name = ref->db_name;
-        item->table_name = ref->table_name;
-        item->item_name = ref->item_name;
-      }
-      pos = item;
-      if (item->field->is_flag_set(BLOB_FLAG)) {
-        Item_copy *item_copy = Item_copy::create(pos);
-        if (item_copy == nullptr) return true;
-        pos = item_copy;
-        /*
-          Item_copy_string::copy for function can call
-          Item_copy_string::val_int for blob via Item_ref.
-          But if Item_copy_string::copy for blob isn't called before,
-          it's value will be wrong
-          so let's insert Item_copy_string for blobs in the beginning of
-          copy_funcs
-          (to see full test case look at having.test, BUG #4358)
-        */
-        param->grouped_expressions.push_back(item_copy);
-      } else {
-        DBUG_ASSERT(param->field_count > param->copy_fields.size());
-        param->copy_fields.emplace_back(thd->mem_root, item);
-
-        /*
-          Even though the field doesn't point into field->table->record[0], we
-          must still link it to 'table' through field->table because that's an
-          existing way to access some type info (e.g. nullability from
-          table->nullable).
-        */
-      }
-    } else if (((real_pos->type() == Item::FUNC_ITEM ||
-                 real_pos->type() == Item::SUBSELECT_ITEM ||
-                 real_pos->type() == Item::CACHE_ITEM ||
-                 real_pos->type() == Item::COND_ITEM) &&
-                !real_pos->has_aggregation())) {
-      pos = real_pos;
-      /* TODO:
-         In most cases this result will be sent to the user.
-         This should be changed to use copy_int or copy_real depending
-         on how the value is to be used: In some cases this may be an
-         argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
-      */
-      Item_copy *item_copy = Item_copy::create(pos);
-      if (item_copy == nullptr) return true;
-      pos = item_copy;
-      if (fields[i]->hidden)  // HAVING, ORDER and GROUP BY
-        extra_funcs.push_back(item_copy);
-      else
-        param->grouped_expressions.push_back(item_copy);
-    }
-    pos->hidden = fields[i]->hidden;
-    res_fields->push_back(pos);
-    ref_item_array[fields[i]->hidden ? fields.size() - i - 1
-                                     : i - num_hidden_fields] = pos;
-  }
-
-  /*
-    Put elements from HAVING, ORDER BY and GROUP BY last to ensure that any
-    reference used in these will resolve to a item that is already calculated
-  */
-  param->grouped_expressions.insert(param->grouped_expressions.end(),
-                                    extra_funcs.begin(), extra_funcs.end());
-  return false;
-}
-
-/**
   Make a copy of all simple SELECT'ed fields.
 
-  This is done at the start of a new group so that we can retrieve
-  these later when the group changes. It is also used in materialization,
-  to copy the values into the temporary table's fields.
+  This is used in materialization, to copy the values into the temporary
+  table's fields.
 
   @param param     Represents the current temporary file being produced
   @param thd       The current thread
@@ -6282,10 +6130,6 @@ bool copy_fields(Temp_table_param *param, const THD *thd, bool reverse_copy) {
   for (Copy_field &ptr : param->copy_fields) ptr.invoke_do_copy(reverse_copy);
 
   if (thd->is_error()) return true;
-
-  for (Item_copy *item : param->grouped_expressions) {
-    if (item->copy(thd)) return true;
-  }
   return false;
 }
 
@@ -6645,7 +6489,6 @@ bool JOIN::clear_fields(table_map *save_nullinfo) {
       table->set_null_row();  // All fields are NULL
     }
   }
-  if (copy_fields(&tmp_table_param, thd)) return true;
 
   if (sum_funcs) {
     Item_sum *func, **func_ptr = sum_funcs;

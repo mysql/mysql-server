@@ -208,22 +208,6 @@ enum Copy_func_type {
     Copies all window functions.
   */
   CFT_WF,
-  /**
-    Copies all items that are expressions containing aggregates, but are not
-    themselves aggregates. Such expressions are typically split into their
-    constituent parts during setup_fields(), such that the parts that are
-    _not_ aggregates are replaced by Item_refs that point into a slice.
-    See AggregateIterator::Read() for more details.
-   */
-  CFT_DEPENDING_ON_AGGREGATE,
-  /**
-    Copies all items that depend on rollup group items that are NULL at the
-    current rollup level. These are necessary to copy when we decrease the
-    rollup level. (Other rollup group items may not be safe to copy in all
-    cases, as they may have been overwritten with the elements from the next
-    group.)
-   */
-  CFT_ROLLUP_NULLS
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
@@ -267,9 +251,6 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
-bool setup_copy_fields(const mem_root_deque<Item *> &fields, THD *thd,
-                       Temp_table_param *param, Ref_item_array ref_item_array,
-                       mem_root_deque<Item *> *res_fields);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(const Field *field, ulonglong *hash);
 

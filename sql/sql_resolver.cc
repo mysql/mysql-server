@@ -4292,18 +4292,8 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
 
-    group_fix_field= true is to resolve aliases from the SELECT list
-    without creating of Item_ref-s: JOIN::exec() wraps aliased items
-    in SELECT list with Item_copy items. To re-evaluate such a tree
-    that includes Item_copy items we have to refresh Item_copy caches,
-    but:
-      - filesort() never refresh Item_copy items,
-      - end_send_group() checks every record for group boundary by the
-        test_if_group_changed function that obtain data from these
-        Item_copy items, but the copy_fields function that
-        refreshes Item copy items is called after group boundaries only -
-        that is a vicious circle.
-    So we prevent inclusion of Item_copy items.
+    group_fix_field = true is so that we properly reject GROUP BY on
+    subqueries with references to group fields.
   */
   bool save_group_fix_field = thd->lex->current_select()->group_fix_field;
   if (is_group_field) thd->lex->current_select()->group_fix_field = true;

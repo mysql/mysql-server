@@ -521,6 +521,10 @@ SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
   HAVING r1>=1 AND (SELECT r2<=7 AND r2 > 0 FROM t1 AS t2 LIMIT 1);
 
 # rand(100)*10 will be < 2 only for the first row (of 3)
+# NOTE: This currently gives the wrong result, because HAVING
+# and send() both evaluate RAND() instead
+# of sharing the result between them. See the comment in
+# JOIN::create_root_access_path_for_join() for more details.
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
  GROUP BY a HAVING r1>1 AND r2<=2;
 --skip_if_hypergraph   # Different query plan (and also does not give any single-evaluation guarantees).
@@ -2610,12 +2614,13 @@ SELECT (SELECT SUM(t1.a) s FROM t t2 WHERE t2.a = 0 HAVING s > 3) FROM t t1;
 SELECT 1 FROM t HAVING (SELECT SUM(a)) > 0;
 SELECT (SELECT SUM(a)) FROM t;
 
---echo # These queries where accepted before the fix, and they still are,
---echo # but their results are wrong both before and after the fix
---echo # because of bug#22588319.
+--echo # Bug #22588319: OUTER REFERENCE TO AGGREGATE INCORRECTLY 0 OR NULL IN SUBQUERY
+SELECT SUM(a) AS s, (SELECT 1 HAVING s) FROM t;
+SELECT SUM(a) AS s, (SELECT 1 HAVING s IS NULL) FROM t;
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c) FROM t;
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c = 0) FROM t;
 
---echo # Returns (4, NULL), should have returned (4, 1):
-SELECT SUM(a) s, (SELECT 1 HAVING s > 0) s2 FROM t;
+--echo # Shows that #22588319 isn't fixed for ORDER BY.
 --echo # Should have ordered ascending on -a, but comes out in random order
 --echo # because the ORDER BY clause always evaluates to NULL. Have to use
 --echo # the --sorted_result directive to produce stable test results.

@@ -377,7 +377,7 @@ WHERE f1 IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize
-        -> Filter: (t1.f1 is null)
+        -> Filter: (rollup_group_item(t1.f1,0) is null)
             -> Group aggregate with rollup: sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -394,7 +394,7 @@ j IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize
-        -> Filter: (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null))
+        -> Filter: (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))
             -> Group aggregate with rollup: sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -415,7 +415,7 @@ j IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize
-        -> Filter: ((avg(t1.f2) > 1) and (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null)))
+        -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)))
             -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -472,11 +472,10 @@ EXPLAIN
 -> Filter: (dt.f1 > 2)
     -> Table scan on dt  (cost=*** rows=***)
         -> Materialize
-            -> Group (computed in earlier step, no aggregates)
-                -> Window aggregate with buffering: sum(t1.f2) OVER () 
-                    -> Table scan on <temporary>
-                        -> Temporary table with deduplication  (cost=*** rows=***)
-                            -> Index range scan on t1 using index_for_group_by(f1_2)  (cost=*** rows=***)
+            -> Window aggregate with buffering: sum(t1.f2) OVER () 
+                -> Table scan on <temporary>
+                    -> Temporary table with deduplication  (cost=*** rows=***)
+                        -> Index range scan on t1 using index_for_group_by(f1_2)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;

@@ -613,30 +613,6 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       children.push_back({path->sort().child});
       break;
     }
-    case AccessPath::PRECOMPUTED_AGGREGATE: {
-      // If precomputed_group_by is set, there's always grouping; thus, our
-      // EXPLAIN output should always say “group”, unlike AggregateIterator.
-      // Do note that neither path->precomputed_aggregate.join->grouped nor
-      // path->precomputed_aggregate.join->group_optimized_away need to be set
-      // (in particular, this seems to be the case for skip index scan).
-      string ret;
-      if (*join->sum_funcs == nullptr) {
-        ret = "Group (computed in earlier step, no aggregates)";
-      } else {
-        ret = "Group aggregate (computed in earlier step): ";
-      }
-
-      for (Item_sum **item = join->sum_funcs; *item != nullptr; ++item) {
-        if (item != join->sum_funcs) {  // Not first element.
-          ret += ", ";
-        }
-        ret += ItemToString(*item);
-      }
-
-      description.push_back(move(ret));
-      children.push_back({path->precomputed_aggregate().child});
-      break;
-    }
     case AccessPath::AGGREGATE: {
       string ret;
       if (join->grouped || join->group_optimized_away) {

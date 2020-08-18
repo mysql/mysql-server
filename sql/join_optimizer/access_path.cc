@@ -36,6 +36,7 @@
 
 #include <vector>
 
+using pack_rows::TableCollection;
 using std::vector;
 
 AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
@@ -121,10 +122,6 @@ void WalkAccessPaths(AccessPath *path, bool cross_query_blocks, Func &&func) {
       break;
     case AccessPath::SORT:
       WalkAccessPaths(path->sort().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::PRECOMPUTED_AGGREGATE:
-      WalkAccessPaths(path->precomputed_aggregate().child, cross_query_blocks,
                       std::forward<Func &&>(func));
       break;
     case AccessPath::AGGREGATE:
@@ -285,16 +282,30 @@ table_map GetUsedTables(const AccessPath *path) {
       return GetUsedTables(path->sort().child);
     case AccessPath::AGGREGATE:
       return GetUsedTables(path->aggregate().child);
-    case AccessPath::PRECOMPUTED_AGGREGATE:
-      return GetUsedTables(path->precomputed_aggregate().child);
     case AccessPath::TEMPTABLE_AGGREGATE:
       return path->temptable_aggregate().table->pos_in_table_list->map();
     case AccessPath::LIMIT_OFFSET:
       return GetUsedTables(path->limit_offset().child);
     case AccessPath::STREAM:
-      return path->stream().table->pos_in_table_list->map();
+      if (path->stream().table->pos_in_table_list != nullptr) {
+        // A derived table.
+        return path->stream().table->pos_in_table_list->map();
+      } else {
+        // Streaming within a JOIN (e.g., for sorting).
+        // The table won't have a map, so the caller will need to
+        // find the table manually.
+        return RAND_TABLE_BIT;
+      }
     case AccessPath::MATERIALIZE:
-      return GetUsedTables(path->materialize().table_path);
+      if (path->materialize().param->table->pos_in_table_list != nullptr) {
+        // A derived table.
+        return path->materialize().param->table->pos_in_table_list->map();
+      } else {
+        // Materialization within a JOIN (e.g., for sorting).
+        // The table won't have a map, so the caller will need to
+        // find the table manually.
+        return RAND_TABLE_BIT;
+      }
     case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
       return GetUsedTables(
           path->materialize_information_schema_table().table_path);
@@ -356,6 +367,37 @@ bool ShouldEnableBatchMode(AccessPath *path) {
       // All others, in particular joins.
       return false;
   }
+}
+
+/**
+  Finds the set of tables used by an AGGREGATE access path.
+
+  This needs some special logic, since one such table may be a temporary table
+  internal to the query block, with no table map; see the documentation for
+  GetUsedTables().
+ */
+static TableCollection GetUsedTablesForAggregate(JOIN *join,
+                                                 AccessPath *child) {
+  TableCollection tables;
+  table_map used_tables = GetUsedTables(child);
+  if (used_tables == RAND_TABLE_BIT) {
+    AccessPath *stream_path =
+        FindSingleAccessPathOfType(child, AccessPath::STREAM);
+    if (stream_path != nullptr) {
+      tables = TableCollection(stream_path->stream().table);
+    } else {
+      AccessPath *materialize_path =
+          FindSingleAccessPathOfType(child, AccessPath::MATERIALIZE);
+      assert(materialize_path != nullptr);
+      assert(materialize_path->materialize().param->query_blocks.size() == 1);
+      tables = TableCollection(materialize_path->materialize().param->table);
+    }
+
+  } else {
+    tables = TableCollection(join, used_tables, /*store_rowids=*/false,
+                             /*tables_to_get_rowid_for=*/0);
+  }
+  return tables;
 }
 
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
@@ -590,20 +632,12 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       }
       break;
     }
-    case AccessPath::PRECOMPUTED_AGGREGATE: {
-      const auto &param = path->precomputed_aggregate();
-      unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
-          thd, param.child, join, eligible_for_batch_mode);
-      iterator = NewIterator<PrecomputedAggregateIterator>(
-          thd, move(child), join, param.temp_table_param, param.output_slice);
-      break;
-    }
     case AccessPath::AGGREGATE: {
       const auto &param = path->aggregate();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
       iterator = NewIterator<AggregateIterator>(
-          thd, move(child), join, param.temp_table_param, param.output_slice,
+          thd, move(child), join, GetUsedTablesForAggregate(join, param.child),
           param.rollup);
       break;
     }
@@ -641,8 +675,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           thd, param.child, param.join, eligible_for_batch_mode);
       iterator = NewIterator<StreamingIterator>(
           thd, move(child), param.temp_table_param, param.table,
-          param.copy_fields_and_items_in_materialize, param.provide_rowid,
-          param.join, param.ref_slice);
+          param.provide_rowid, param.join, param.ref_slice);
       break;
     }
     case AccessPath::MATERIALIZE: {

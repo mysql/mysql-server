@@ -2564,7 +2564,8 @@ void SELECT_LEX_UNIT::print(const THD *thd, String *str,
 void SELECT_LEX::print_order(const THD *thd, String *str, ORDER *order,
                              enum_query_type query_type) {
   for (; order; order = order->next) {
-    (*order->item)->print_for_order(thd, str, query_type, order->used_alias);
+    unwrap_rollup_group(*order->item)
+        ->print_for_order(thd, str, query_type, order->used_alias);
     if (order->direction == ORDER_DESC) str->append(STRING_WITH_LEN(" desc"));
     if (order->next) str->append(',');
   }

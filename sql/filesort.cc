@@ -713,11 +713,7 @@ uint Filesort::make_sortorder(ORDER *order, bool unwrap_rollup) {
   pos = sort = sortorder;
   for (ord = order; ord; ord = ord->next, pos++) {
     Item *const item = ord->item[0], *const real_item = item->real_item();
-    if (real_item->type() == Item::COPY_STR_ITEM) {  // Blob patch
-      pos->item = static_cast<Item_copy *>(real_item)->get_item();
-    } else {
-      pos->item = real_item;
-    }
+    pos->item = real_item;
 
     // If filesort runs before GROUP BY (potentially to sort rows
     // in preparation for grouping), we cannot have any rollup NULLs

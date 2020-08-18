@@ -85,7 +85,7 @@ struct ChunkPair {
 /// from the probe input is already located in the table record buffers, and the
 /// matching row stored in the hash table is restored back to the record buffers
 /// where it originally came from. For details around how rows are stored and
-/// restored, see comments on hash_join_buffer::StoreFromTableBuffers.
+/// restored, see comments on pack_rows::StoreFromTableBuffers.
 ///
 /// The size of the in-memory hash table is controlled by the system variable
 /// join_buffer_size. If we run out of memory during step 2, we degrade into a

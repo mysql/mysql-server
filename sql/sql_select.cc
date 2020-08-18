@@ -1842,7 +1842,6 @@ void JOIN::destroy() {
   if (tmp_fields != nullptr) {
     cleanup_item_list(tmp_fields[REF_SLICE_TMP1]);
     cleanup_item_list(tmp_fields[REF_SLICE_TMP2]);
-    cleanup_item_list(tmp_fields[REF_SLICE_ORDERED_GROUP_BY]);
     for (uint widx = 0; widx < m_windows.elements; widx++) {
       cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx]);
       cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx +
@@ -4574,52 +4573,11 @@ bool JOIN::make_tmp_tables_info() {
   if ((grouped || implicit_grouping) && !m_windowing_steps) {
     if (make_group_fields(this, this)) return true;
 
-    // "save" slice of ref_items array is needed due to overwriting strategy.
-    if (ref_items[REF_SLICE_SAVED_BASE].is_null()) {
-      if (alloc_ref_item_slice(thd, REF_SLICE_SAVED_BASE)) return true;
-
-      copy_ref_item_slice(REF_SLICE_SAVED_BASE, REF_SLICE_ACTIVE);
-      current_ref_item_slice = REF_SLICE_SAVED_BASE;
-    }
-
-    /*
-      Allocate a slice of ref items that describe the items to be copied
-      from the record buffer for this temporary table.
-    */
-    if (alloc_ref_item_slice(thd, REF_SLICE_ORDERED_GROUP_BY)) return true;
-    setup_copy_fields(*curr_fields, thd, &tmp_table_param,
-                      ref_items[REF_SLICE_ORDERED_GROUP_BY],
-                      &tmp_fields[REF_SLICE_ORDERED_GROUP_BY]);
-
-    curr_fields = &tmp_fields[REF_SLICE_ORDERED_GROUP_BY];
-
-    last_slice_before_windowing = REF_SLICE_ORDERED_GROUP_BY;
-
-    if (qep_tab)  // remember when to switch to REF_SLICE_ORDERED_GROUP_BY in
-                  // execution
-      ref_slice_immediately_before_group_by =
-          &qep_tab[primary_tables + tmp_tables - 1];
-    /*
-      make_sum_func_list() calls rollup_make_fields() which needs the slice
-      TMP3 in input; indeed it compares *curr_all_fields (i.e. the fields_list
-      of TMP3) with the GROUP BY list (to know which Item of the SELECT list
-      should be set to NULL) so this GROUP BY had better point to the items in
-      TMP3 for the comparison to work:
-    */
-    uint save_sliceno = current_ref_item_slice;
-    set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
     if (make_sum_func_list(*curr_fields, true, true)) return true;
-    /*
-      Exit the TMP3 slice, to set up sum funcs, as they take input from
-      previous table, not from that slice.
-    */
-    set_ref_item_slice(save_sliceno);
     const bool need_distinct = !(qep_tab && qep_tab[0].quick() &&
                                  qep_tab[0].quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) return true;
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error()) return true;
-    // And now set it as input for next phases:
-    set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
   }
 
   if (qep_tab && (!group_list.empty() ||
@@ -4839,6 +4797,27 @@ bool JOIN::make_tmp_tables_info() {
       }
 
       last_slice_before_windowing = widx;
+    }
+  }
+
+  {
+    // In the case of rollup (only): After the base slice list was made, we may
+    // have modified the field list to add rollup group items and sum switchers.
+    // Since there may be HAVING filters with refs that refer to the base slice,
+    // we need to refresh that slice (and its copy, REF_SLICE_SAVED_BASE) so
+    // that it includes the updated items.
+    //
+    // Note that we do this after we've made the TMP1 and TMP2 slices, since
+    // there's a lot of logic that looks through the GROUP BY list, which refers
+    // to the base slice and expects _not_ to find rollup items there.
+    unsigned num_hidden_fields = CountHiddenFields(*fields);
+    for (unsigned i = 0; i < fields->size(); ++i) {
+      Item *item = (*fields)[i];
+      int pos = item->hidden ? fields->size() - i - 1 : i - num_hidden_fields;
+      select_lex->base_ref_items[pos] = item;
+      if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
+        ref_items[REF_SLICE_SAVED_BASE][pos] = item;
+      }
     }
   }
 
