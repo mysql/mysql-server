@@ -172,7 +172,6 @@ class Sql_data_context : public iface::Sql_session {
   char m_address[NI_MAXHOST];
   char m_db[NAME_LEN + 1];
 
-  iface::Protocol_encoder *m_proto;
   MYSQL_SESSION m_mysql_session;
 
   int m_last_sql_errno;

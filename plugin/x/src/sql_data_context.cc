@@ -534,7 +534,9 @@ MYSQL_THD Sql_data_context::get_thd() const {
 ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
                                           iface::Resultset *rset) {
   const auto error = execute_sql(sql, sql_len, rset);
-  if (m_password_expired && !error) {
+  if (error) return error;
+
+  if (m_password_expired) {
     // if a SQL command succeeded while password is expired, it means the user
     // probably changed the password
     // we run a command to check just in case... (some commands are still
@@ -544,11 +546,7 @@ ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
     if (!execute_sql(cmd.c_str(), cmd.length(), &rs))
       m_password_expired = false;
   }
-
-  if (is_killed())
-    throw ngs::Fatal(ER_QUERY_INTERRUPTED, "Query execution was interrupted");
-
-  return error;
+  return ngs::Success();
 }
 
 ngs::Error_code Sql_data_context::execute_sql(const char *sql,
@@ -617,39 +615,35 @@ ngs::Error_code Sql_data_context::execute_prep_stmt(
   return execute_server_command(COM_STMT_EXECUTE, cmd, rset);
 }
 
+ngs::Error_code Sql_data_context::reset() {
+  COM_DATA data;
+  Empty_resultset rset;
+  return execute_server_command(COM_RESET_CONNECTION, data, &rset);
+}
+
 ngs::Error_code Sql_data_context::execute_server_command(
     const enum_server_command cmd, const COM_DATA &cmd_data,
     iface::Resultset *rset) {
   ngs::Command_delegate &deleg = rset->get_callbacks();
   deleg.reset();
-  if (command_service_run_command(
-          m_mysql_session, cmd, &cmd_data, mysqld::get_default_charset(),
-          deleg.callbacks(), deleg.representation(), &deleg)) {
-    return ngs::Error_code(ER_X_SERVICE_ERROR,
-                           "Internal error executing command");
-  }
-  const ngs::Error_code error = deleg.get_error();
-  if (error)
-    log_debug("Error running server command: (%i %s)", error.error,
-              error.message.c_str());
-  return error;
-}
+  const auto fail = command_service_run_command(
+      m_mysql_session, cmd, &cmd_data, mysqld::get_default_charset(),
+      deleg.callbacks(), deleg.representation(), &deleg);
 
-ngs::Error_code Sql_data_context::reset() {
-  COM_DATA data;
-  Callback_command_delegate deleg;
-  if (command_service_run_command(m_mysql_session, COM_RESET_CONNECTION, &data,
-                                  mysqld::get_default_charset(),
-                                  deleg.callbacks(), deleg.representation(),
-                                  &deleg)) {
-    return ngs::Error_code(ER_X_SERVICE_ERROR,
-                           "Internal error executing command");
+  ngs::Error_code error = deleg.get_error();
+
+  if (fail) {
+    if (error) return ngs::Fatal(error);
+    return ngs::Fatal(ER_X_SERVICE_ERROR, "Internal error executing command");
   }
-  const ngs::Error_code &error = deleg.get_error();
-  if (error)
-    log_debug("Error reseting sql session: (%i %s)", error.error,
-              error.message.c_str());
-  return error;
+
+  if (!error) return ngs::Success();
+
+  log_debug("Error running server command: (%i:%s; killed: %i:%i)", error.error,
+            error.message.c_str(), static_cast<int>(is_killed()),
+            static_cast<int>(deleg.killed()));
+
+  return error.error == ER_QUERY_INTERRUPTED ? ngs::Fatal(error) : error;
 }
 
 bool Sql_data_context::is_sql_mode_set(const std::string &mode) {
