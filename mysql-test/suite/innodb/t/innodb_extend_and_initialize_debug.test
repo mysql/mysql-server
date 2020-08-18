@@ -5,7 +5,7 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 
---let $explicit_default_wait_counter=10000;
+--let $explicit_default_wait_counter=10000
 
 # The default value for innodb_extend_and_initialize is TRUE which
 # means the tablespaces will be extended and initialized by writing

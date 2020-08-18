@@ -21,7 +21,7 @@
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
 # Waiting time when (re)starting the server
---let $explicit_default_wait_counter=10000;
+--let $explicit_default_wait_counter=10000
 
 --disable_query_log
 call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
