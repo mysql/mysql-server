@@ -44,6 +44,8 @@ DROP TABLE t1;
 # These are the InnoDB tables visible to the end user in mysql.* database.
 # We exclude some table names from the list:
 # - ndb_binlog_index is only available on builds with NDB Cluster
+# - We exclude ACL tables as Server skips row locking, which is not
+#   desirable for this test case.
 CREATE TABLE t1 (
  id INT PRIMARY KEY AUTO_INCREMENT,
  name TEXT
@@ -52,7 +54,9 @@ SELECT table_name AS name
 FROM information_schema.tables
 WHERE table_schema="mysql" AND engine="InnoDB"
 AND table_name NOT IN (
- "ndb_binlog_index"
+ "ndb_binlog_index", "user", "db", "tables_priv", "columns_priv",
+ "procs_priv", "proxies_priv", "role_edges", "default_roles",
+ "global_grants", "password_history"
 )
 ORDER BY table_name;
 
@@ -68,7 +72,7 @@ while($i <= $n)
   --disable_result_log
 
   # We plan to create a deadlock cycle in a quite simple way:
-  # 1. c1: locks at least one row in $name FOR SHARE (let's call the row "A")
+  # 1. c1: locks at least one row in $name FOR UPDATE (let's call the row "A")
   # 2. c2: locks the row with id=10 in t1 FOR SHARE (let's call the row "B")
   # 3. c2: waits for a lock on the row "A" FOR UPDATE
   # 4. c1: now tries to lock the row "B" FOR UPDATE
@@ -98,8 +102,8 @@ while($i <= $n)
 
       --eval INSERT INTO mysql.$name VALUES ($zeros 0)
     }
-    # 1. c1: locks at least one row in $name FOR SHARE (let's call the row "A")
-    --eval SELECT COUNT(*) FROM mysql.$name FOR SHARE
+    # 1. c1: locks at least one row in $name FOR UPDATE (let's call the row "A")
+    --eval SELECT COUNT(*) FROM mysql.$name FOR UPDATE
 
   --connect (c2, localhost, root,,)
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;

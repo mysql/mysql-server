@@ -442,7 +442,11 @@ INSERT INTO normal_db.t1 values (1,2), (3,4);
 --let $USER_1 = ''@'%'
 --let $USER_2 = ''@''
 # We can't create ''@'%' unless we delete row from mysql.db
+# Disable warning when running on binlog_format=stmt, to keep
+# keep the result files same for all binlog format.
+--disable_warnings
 CREATE TEMPORARY TABLE mysql.db_copy AS SELECT * FROM mysql.db;
+--enable_warnings
 DELETE FROM mysql.db WHERE host='%';
 FLUSH PRIVILEGES;
 eval CREATE USER $USER_1, $USER_2;

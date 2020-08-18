@@ -308,6 +308,8 @@ TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
   if ((db.length == MYSQL_SCHEMA_NAME.length) &&
       (my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db.str) ==
        0)) {
+    if (is_acl_table_name(name.str)) return TABLE_CATEGORY_ACL_TABLE;
+
     if (is_system_table_name(name.str, name.length))
       return TABLE_CATEGORY_SYSTEM;
 

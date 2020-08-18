@@ -503,7 +503,8 @@ inline bool generate_table_access_event(TABLE_LIST *table) {
 
   /* Generate event for SYSTEM and USER tables, which are not temp tables. */
   if ((table->table->s->table_category == TABLE_CATEGORY_SYSTEM ||
-       table->table->s->table_category == TABLE_CATEGORY_USER) &&
+       table->table->s->table_category == TABLE_CATEGORY_USER ||
+       table->table->s->table_category == TABLE_CATEGORY_ACL_TABLE) &&
       table->table->s->tmp_table == NO_TMP_TABLE)
     return true;
 

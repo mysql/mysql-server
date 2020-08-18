@@ -404,10 +404,9 @@ enum ha_extra_function {
   HA_EXTRA_EXPORT,
   /** Do secondary sort by handler::ref (rowid) after key sort. */
   HA_EXTRA_SECONDARY_SORT_ROWID,
-  /*
-    Skip Serializable isolation level on Views on DD tables.
-    This will make reads on DD Views non blocking */
-  HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW,
+  /** Skip acquiring locks when reading from ACL tables or views on DD
+      tables in order to make such reads non blocking. */
+  HA_EXTRA_NO_READ_LOCKING,
   /* Begin of insertion into intermediate table during copy alter operation. */
   HA_EXTRA_BEGIN_ALTER_COPY,
   /* Insertion is done in intermediate table during copy alter operation. */

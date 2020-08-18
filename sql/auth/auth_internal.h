@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,9 +196,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
                           const char *routine_name, bool is_proc, ulong rights,
                           bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-void grant_tables_setup_for_open(
-    TABLE_LIST *tables, thr_lock_type lock_type = TL_WRITE,
-    enum_mdl_type mdl_type = MDL_SHARED_NO_READ_WRITE);
+void acl_tables_setup_for_read(TABLE_LIST *tables);
 
 void acl_print_ha_error(int handler_error);
 bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);

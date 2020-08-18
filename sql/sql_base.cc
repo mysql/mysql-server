@@ -5555,6 +5555,136 @@ static bool acquire_backup_lock_in_lock_tables_mode(THD *thd,
 }
 
 /**
+  Check if this is a DD table used under a I_S view then request InnoDB to
+  do non-locking reads on the table.
+
+  @param     thd   Thread
+  @param[in] tl    TABLE_LIST pointing to table being checked.
+
+  @return  false on success, true on error.
+*/
+
+static bool set_non_locking_read_for_IS_view(THD *thd, TABLE_LIST *tl) {
+  TABLE *tbl = tl->table;
+
+  // Not a system view.
+  if (!(tbl && tbl->file && tl->referencing_view &&
+        tl->referencing_view->is_system_view))
+    return false;
+
+  /*
+    SELECT using a I_S system view with 'FOR UPDATE' and
+    'LOCK IN SHARED MODE' clause is not allowed.
+   */
+  if (tl->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS) {
+    my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "LOCK IN SHARE MODE");
+    return true;
+  }
+
+  // Allow I_S system views to be locked by LOCK TABLE command.
+  if (thd->lex->sql_command != SQLCOM_LOCK_TABLES &&
+      tl->lock_descriptor().type >= TL_READ_NO_INSERT) {
+    my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "FOR UPDATE");
+    return true;
+  }
+
+  /* Convey to InnoDB (the DD table's engine) to do non-locking reads.
+
+    It is assumed that all the tables used by I_S views are
+    always a DD table. If this is not true, then we might
+    need to invoke dd::Dictionary::is_dd_tablename() to make sure.
+   */
+  if (tbl->db_stat && tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
+    // Handler->ha_extra() for innodb does not fail ever as of now.
+    // In case it is made to fail sometime later, we need to think
+    // about the kind of error to be report to user.
+    DBUG_ASSERT(0);
+    return true;
+  }
+
+  return false;
+}
+
+// Check if given TABLE_LIST is a acl table and is being read and not
+bool is_acl_table_in_non_LTM(const TABLE_LIST *tl,
+                             enum enum_locked_tables_mode ltm) {
+  TABLE *table = tl->table;
+
+  /**
+    We ignore use of ACL table,
+    - Under LOCK TABLE modes.
+    - Under system view. E.g., I_S.ROLE_* uses CTE where they use
+      TL_READ_DEFAULT for ACL tables. We ignore them.
+    - If the TABLE_LIST is used by optimizer as placeholder.
+  */
+  return (!tl->is_placeholder() && table->db_stat &&
+          table->s->table_category == TABLE_CATEGORY_ACL_TABLE &&
+          ltm != LTM_LOCK_TABLES && ltm != LTM_PRELOCKED_UNDER_LOCK_TABLES);
+}
+
+/**
+  Check if this is a ACL table is requested for read and
+  then request InnoDB to do non-locking reads on the
+  table.
+
+  @param      thd   Thread
+  @param[in]  tl    TABLE_LIST pointing to table being checked.
+  @param[in]  issue_warning  If true, issue warning irrespective of
+                             isolation level.
+
+  @return  false on success, true on error.
+*/
+
+static bool set_non_locking_read_for_ACL_table(THD *thd, TABLE_LIST *tl,
+                                               const bool &issue_warning) {
+  TABLE *tbl = tl->table;
+
+  /*
+    Request InnoDB to skip SE row locks if:
+    - We have a ACL table name.
+    - Lock type is TL_READ_DEFAULT or
+    - Lock type is TL_READ_HIGH_PRIORITY.
+
+    Note:
+    - We do this for all isolation modes as InnoDB sometimes acquires row
+    locks even for modes other than serializable, e.g.  to ensure correct
+    binlogging or just to play safe.
+
+    - Checking only for TL_READ_DEFAULT and TL_READ_HIGH_PRIORITY allows to
+    filter out all special non-SELECT cases which require locking like
+    ALTER TABLE, ACL DDL and so on
+   */
+  if (is_acl_table_in_non_LTM(tl, thd->locked_tables_mode) &&
+      (tl->lock_descriptor().type == TL_READ_DEFAULT ||
+       tl->lock_descriptor().type == TL_READ_HIGH_PRIORITY)) {
+    if (tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
+      /*
+        Handler->ha_extra() for InnoDB does not fail ever as of now.  In
+        case it is made to fail sometime later, we need to think about the
+        kind of error to be report to user.
+       */
+      DBUG_ASSERT(0);
+      return true;
+    }
+
+    /**
+      Issue a warning when,
+      - We are skipping the SE locks in serializable
+      - We are skipping the SE locks for SELECT IN SHARE MODE in all
+      isolation mode.
+      - When ACL table is not used under I_S system view.
+     */
+    if ((thd->tx_isolation == ISO_SERIALIZABLE || issue_warning) &&
+        !(tl->referencing_view && tl->referencing_view->is_system_view))
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   WARN_UNSUPPORTED_ACL_TABLES_READ,
+                   ER_THD(thd, WARN_UNSUPPORTED_ACL_TABLES_READ));
+  }
+
+  return false;
+}
+
+/**
   Open all tables in list
 
   @param[in]     thd      Thread context.
@@ -5839,6 +5969,18 @@ restart:
       }
     }
 
+    /*
+      Access to ACL table in a SELECT ... LOCK IN SHARE MODE are required
+      to skip acquiring row locks. So, we use TL_READ_DEFAULT lock on ACL
+      tables. This allows concurrent ACL DDL's.
+    */
+    bool issue_warning_on_skipping_row_lock = false;
+    if (is_acl_table_in_non_LTM(tables, thd->locked_tables_mode) &&
+        tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS) {
+      tables->set_lock({TL_READ_DEFAULT, THR_DEFAULT});
+      issue_warning_on_skipping_row_lock = true;
+    }
+
     /* Set appropriate TABLE::lock_type. */
     if (tbl && tables->lock_descriptor().type != TL_UNLOCK &&
         !thd->locked_tables_mode) {
@@ -5853,46 +5995,19 @@ restart:
         tbl->reginfo.lock_type = tables->lock_descriptor().type;
     }
 
-    /*
-      Check if this is a DD table used under a I_S view
-      then tell innodb to do non-locking reads on the table.
-    */
-    if (tbl && tbl->file && tables->referencing_view &&
-        tables->referencing_view->is_system_view) {
-      /*
-        SELECT using a I_S system view with 'FOR UPDATE' and
-        'LOCK IN SHARED MODE' clause is not allowed.
-      */
-      if (tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS) {
-        my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "LOCK IN SHARE MODE");
-        error = true;
-        goto err;
-      }
-      // Allow I_S system views to be locked by LOCK TABLE command.
-      if (thd->lex->sql_command != SQLCOM_LOCK_TABLES &&
-          tables->lock_descriptor().type >= TL_READ_NO_INSERT) {
-        my_error(ER_IS_QUERY_INVALID_CLAUSE, MYF(0), "FOR UPDATE");
-        error = true;
-        goto err;
-      }
-
-      /* Convey to InnoDB (the DD table's engine) to do non-locking reads.
-
-         It is assumed that all the tables used by I_S views are
-         always a DD table. If this is not true, then we might
-         need to invoke dd::Dictionary::is_dd_tablename() to make sure.
-       */
-      if (tbl->db_stat &&
-          tbl->file->ha_extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW)) {
-        // Handler->ha_extra() for innodb does not fail ever as of now.
-        // In case it is made to fail sometime later, we need to think
-        // about the kind of error to be report to user.
-        DBUG_ASSERT(0);
-
-        error = true;
-        goto err;
-      }
+    // Setup lock type for DD tables used under I_S view.
+    if (set_non_locking_read_for_IS_view(thd, tables)) {
+      error = true;
+      goto err;
     }
+
+    // Setup lock type for read requests for ACL table in SQL statements.
+    if (set_non_locking_read_for_ACL_table(
+            thd, tables, issue_warning_on_skipping_row_lock)) {
+      error = true;
+      goto err;
+    }
+
   }  // End of for(;;)
 
 err:

@@ -3126,6 +3126,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
         std::string out;
         authid.auth_str(&out);
         my_error(ER_MANDATORY_ROLE, MYF(0), out.c_str());
+        commit_and_close_mysql_tables(thd);
         return true;
       }
     }
@@ -3263,7 +3264,8 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
       } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
         /* Granting roles to an anonymous user isn't allowed */
         my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
-        return true;
+        errors = true;
+        break;
       }
 
       ACL_USER *acl_user;
@@ -3271,7 +3273,8 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
                                     true)) == nullptr) {
         my_error(ER_UNKNOWN_AUTHID, MYF(0), lex_user->user.str,
                  lex_user->host.str);
-        return true;
+        errors = true;
+        break;
       }
       while ((role = roles_it++) && !errors) {
         ACL_USER *acl_role;
@@ -6404,6 +6407,7 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
 
   if (!table) {
     my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
+    commit_and_close_mysql_tables(thd);
     return true;
   }
 
@@ -6434,7 +6438,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
           my_error(ER_ACCESS_DENIED_ERROR, MYF(0), user->user.str,
                    user->host.str,
                    (thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
-          return true;
+          ret = true;
+          break;
         }
         if (roles != nullptr) {
           roles_it = *tmp_roles;
@@ -6443,7 +6448,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                  role->host)) {
               my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
                        role->host.str, user->user.str, user->host.str);
-              return true;
+              ret = true;
+              break;
             }
             authid = std::make_pair(role->user, role->host);
             authids.push_back(authid);
@@ -6461,7 +6467,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
               my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str,
                        role->host.str, thd->security_context()->priv_user().str,
                        thd->security_context()->priv_host().str);
-              return true;
+              ret = true;
+              break;
             }
             authid = std::make_pair(role->user, role->host);
             authids.push_back(authid);
@@ -6469,22 +6476,23 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
         }
       }
 
-      if (role_type == role_enum::ROLE_NONE) {
-        authid = create_authid_from(user);
-        ret = clear_default_roles(thd, table, authid, nullptr);
-      } else if (role_type == role_enum::ROLE_ALL) {
-        ret = alter_user_set_default_roles_all(thd, table, user);
-      } else if (role_type == role_enum::ROLE_NAME) {
-        ret = alter_user_set_default_roles(thd, table, user, authids);
-      }
+      if (!ret) {
+        if (role_type == role_enum::ROLE_NONE) {
+          authid = create_authid_from(user);
+          ret = clear_default_roles(thd, table, authid, nullptr);
+        } else if (role_type == role_enum::ROLE_ALL) {
+          ret = alter_user_set_default_roles_all(thd, table, user);
+        } else if (role_type == role_enum::ROLE_NAME) {
+          ret = alter_user_set_default_roles(thd, table, user, authids);
+        }
 
-      if (ret) {
-        my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
+        if (ret) {
+          my_error(ER_FAILED_DEFAULT_ROLES, MYF(0));
+        }
       }
     }
 
-    ret = log_and_commit_acl_ddl(thd, transactional_tables, nullptr, nullptr,
-                                 ret);
+    ret = log_and_commit_acl_ddl(thd, transactional_tables);
     get_global_acl_cache()->increase_version();
   } /* Critical section */
 

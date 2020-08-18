@@ -872,6 +872,10 @@ bool check_global_access(THD *thd, ulong want_access);
 
 /* sql_user_table */
 void commit_and_close_mysql_tables(THD *thd);
+bool is_acl_table_name(const char *name);
+#ifndef DBUG_OFF
+bool is_acl_table(const TABLE *table);
+#endif
 
 typedef enum ssl_artifacts_status {
   SSL_ARTIFACTS_NOT_FOUND = 0,

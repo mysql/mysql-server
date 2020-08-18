@@ -27,7 +27,10 @@
 
 class THD;
 
-/**  Enum for ACL tables */
+/**
+  Enum for ACL tables.
+  Keep in sync with Acl_table_names
+*/
 typedef enum ACL_TABLES {
   TABLE_USER = 0,
   TABLE_DB,

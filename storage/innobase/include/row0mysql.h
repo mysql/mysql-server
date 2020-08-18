@@ -839,12 +839,12 @@ struct row_prebuilt_t {
   /** Disable prefetch. */
   bool m_no_prefetch;
 
-  bool skip_serializable_dd_view;
-  /* true, if we want skip serializable
-  isolation level on views on DD tables */
+  /** true, if server has called ha_extra(HA_EXTRA_NO_READ_LOCKING) */
+  bool no_read_locking;
+
+  /** true, if we were asked to skip AUTOINC locking for the table. */
   bool no_autoinc_locking;
-  /* true, if we were asked to skip
-  AUTOINC locking for the table. */
+
   /** Return materialized key for secondary index scan */
   bool m_read_virtual_key;
 

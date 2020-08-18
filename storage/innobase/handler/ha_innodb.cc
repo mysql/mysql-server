@@ -17541,8 +17541,8 @@ int ha_innobase::extra(enum ha_extra_function operation)
     case HA_EXTRA_WRITE_CANNOT_REPLACE:
       m_prebuilt->replace = 0;
       break;
-    case HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW:
-      m_prebuilt->skip_serializable_dd_view = true;
+    case HA_EXTRA_NO_READ_LOCKING:
+      m_prebuilt->no_read_locking = true;
       break;
     case HA_EXTRA_BEGIN_ALTER_COPY:
       m_prebuilt->table->skip_alter_undo = 1;
@@ -17580,7 +17580,7 @@ int ha_innobase::end_stmt() {
   /* This is a statement level counter. */
   m_prebuilt->autoinc_last_value = 0;
 
-  m_prebuilt->skip_serializable_dd_view = false;
+  m_prebuilt->no_read_locking = false;
   m_prebuilt->no_autoinc_locking = false;
 
   /* This transaction had called ha_innobase::start_stmt() */
@@ -17881,30 +17881,70 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
 
     innobase_register_trx(ht, thd, trx);
 
-    /* For read on DD table, we will always use consistent reads
-    independent of trx isolation level. */
-    if (lock_type != F_WRLCK && m_prebuilt->table->is_dd_table) {
-      m_prebuilt->select_lock_type = LOCK_NONE;
-      m_stored_select_lock_type = LOCK_NONE;
-    }
+    /*
+    For reads we will use LOCK_NONE, LOCK_S or LOCK_X according to this chart:
+                         +-----------------------------------------+
+                         | is_dd_table or skip_locking             |
+                         +----------------------------------+------+
+                         | false                            | true |
+                         +----------------------------------|      |
+                         | TRANSACTION ISOLATION LEVEL      |      |
+                         +----------------+-----------------+      |
+                         | < SERIALIZABLE | = SERIALIZABLE  |      |
+    +--------------------+----------------+-----------------+------+
+    | non-locking SELECT | NONE [1]       | S [3]           | NONE |
+    | SELECT FOR SHARE   | S [2]          | S               | NONE |
+    | SELECT FOR UPDATE  | X              | X               | X    |
+    +--------------------+----------------+-----------------+------+
+    Where LOCK_NONE means a non-locking consistent reads via read-view, and
+    `no_read_locking` is set to `true` by Server calling
+    ha_extra().
+    Notes:
+    [1,2] The server layer calls external_lock(..,F_RDLCK) which retains the old
+        value of select_lock_type before the call. In most cases it is the value
+        set by a previous call to store_lock(..):
+    [1] For a non-locking SELECT the Server layer calls store_lock(..,TL_READ)
+        which sets select_lock_type = LOCK_NONE, except for ACL tables which
+        treat it as in [1].
+    [2] In case of SELECT FOR SHARE the Server layer calls
+        store_lock(..,TL_READ_WITH_SHARED_LOCKS) which sets
+        select_lock_type = LOCK_S
+    [3] An exception is consistent reads in the AUTOCOMMIT=1 mode:
+        we know that they are read-only transactions, and they can be serialized
+        also if performed as consistent reads. Thus we use LOCK_NONE for them.
 
-    if (trx->isolation_level == TRX_ISO_SERIALIZABLE &&
-        m_prebuilt->select_lock_type == LOCK_NONE &&
-        !m_prebuilt->skip_serializable_dd_view &&
-        thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
-      /* To get serializable execution, we let InnoDB
-      conceptually add 'LOCK IN SHARE MODE' to all SELECTs
-      which otherwise would have been consistent reads. An
-      exception is consistent reads in the AUTOCOMMIT=1 mode:
-      we know that they are read-only transactions, and they
-      can be serialized also if performed as consistent
-      reads. Another exception is when we want to prevent
-      queries on I_S tables(views on DD tables) blocked
-      by a parallel DDL operation because of serializable
-      isolation level */
+    For non-SELECT commands, there may be still possibility of setting
+    skip_locking=1. E.g.,
+       -  UPDATE ... WHERE ... (SELECT... acl_table);
+       -  DELETE ... WHERE ... (SELECT... acl_table);
+    The first entry 'non-locking SELECT' in above table applies in these case.
+    */
+    if (lock_type == F_RDLCK) {
+      /**
+        To limit range of circumstances under which transaction's isolation
+        level can be compromised, we allow disabling readlocks only for DD
+        and ACL tables.
+       */
+      ut_ad(!m_prebuilt->no_read_locking || m_prebuilt->table->is_dd_table ||
+            is_acl_table(table));
 
-      m_prebuilt->select_lock_type = LOCK_S;
-      m_stored_select_lock_type = LOCK_S;
+      if (m_prebuilt->table->is_dd_table || m_prebuilt->no_read_locking) {
+        m_prebuilt->select_lock_type = LOCK_NONE;
+        m_stored_select_lock_type = LOCK_NONE;
+      } else if (trx->isolation_level == TRX_ISO_SERIALIZABLE &&
+                 m_prebuilt->select_lock_type == LOCK_NONE &&
+                 thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+        m_prebuilt->select_lock_type = LOCK_S;
+        m_stored_select_lock_type = LOCK_S;
+      }
+      /* TODO: this does not hold due to Bug#31582383
+      else {
+        // Retain value set earlier for example via store_lock()
+        // which is LOCK_S or LOCK_NONE
+        ut_ad(m_prebuilt->select_lock_type == LOCK_S ||
+              m_prebuilt->select_lock_type == LOCK_NONE);
+      }
+      */
     }
 
     /* Starting from 4.1.9, no InnoDB table lock is taken in LOCK

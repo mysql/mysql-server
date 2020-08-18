@@ -34,12 +34,13 @@
 #include "my_base.h"  // ha_extra_function
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "prealloced_array.h"  // Prealloced_array
-#include "sql/mdl.h"           // MDL_savepoint
-#include "sql/sql_array.h"     // Bounds_checked_array
-#include "sql/sql_const.h"     // enum_resolution_type
-#include "sql/trigger_def.h"   // enum_trigger_event_type
-#include "thr_lock.h"          // thr_lock_type
+#include "prealloced_array.h"        // Prealloced_array
+#include "sql/locked_tables_list.h"  // enum_locked_tables_mode
+#include "sql/mdl.h"                 // MDL_savepoint
+#include "sql/sql_array.h"           // Bounds_checked_array
+#include "sql/sql_const.h"           // enum_resolution_type
+#include "sql/trigger_def.h"         // enum_trigger_event_type
+#include "thr_lock.h"                // thr_lock_type
 
 class COPY_INFO;
 class Field;
@@ -563,5 +564,17 @@ class Open_table_context {
   */
   bool m_has_protection_against_grl;
 };
+
+/**
+  Check if given TABLE_LIST is a acl table and is being read and not
+  in LOCK TABLE mode.
+
+    @param tl   TABLE_LIST pointing to the table.
+    @param ltm  THD->locked_tables_mode enum.
+
+    @return true if acl table is being read, otherwise false.
+*/
+bool is_acl_table_in_non_LTM(const TABLE_LIST *tl,
+                             enum enum_locked_tables_mode ltm);
 
 #endif /* SQL_BASE_INCLUDED */

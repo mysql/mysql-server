@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,8 @@
 #include "sql/auth/sql_authentication.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h" /* mysql_bin_log.is_open() */
+#include "sql/debug_sync.h"
+#include "sql/error_handler.h" /* Internal_error_handler */
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_func.h" /* mqh_used */
@@ -90,6 +92,18 @@
 #include "thr_lock.h"
 #include "typelib.h"
 #include "violite.h"
+
+/* Acl table names. Keep in sync with ACL_TABLES */
+static const int MAX_ACL_TABLE_NAMES = 10;
+static_assert(MAX_ACL_TABLE_NAMES == ACL_TABLES::LAST_ENTRY,
+              "Keep number of table names in sync with ACL table enum");
+
+static const char *ACL_TABLE_NAMES[MAX_ACL_TABLE_NAMES] = {
+    "user",          "db",
+    "tables_priv",   "columns_priv",
+    "procs_priv",    "proxies_priv",
+    "role_edges",    "default_roles",
+    "global_grants", "password_history"};
 
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
     {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
@@ -476,6 +490,8 @@ const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[] = {
     {MYSQL_DYNAMIC_PRIV_FIELD_COUNT, mysql_dynamic_priv_table_fields},
     {MYSQL_PASSWORD_HISTORY_FIELD_COUNT, mysql_password_history_table_fields}};
 
+static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
+                                                       TABLE_LIST *tables);
 /**
   A helper function to commit statement transaction and close
   ACL tables after reading some data from them as part of FLUSH
@@ -650,20 +666,15 @@ static bool acl_end_trans_and_close_tables(THD *thd,
     result |= trans_commit_implicit(thd);
   }
   close_thread_tables(thd);
-
   if (result || rollback_transaction) {
     /*
       Try to bring in-memory structures back in sync with on-disk data if we
       have failed to commit our changes.
     */
-    /*
-      The current implementation has a hole - users can observe changes
-      to the caches which were rolled back from tables. This state can be
-      observed for quite long time if someone manages to sneak-in and
-      acquire MDL on privilege tables after the release_transactional_locks()
-      and before acl_reload/grant_reload() below.
-    */
+    DBUG_EXECUTE_IF("wl14084_acl_ddl_error_before_cache_reload_trigger_timeout",
+                    sleep(2););
     reload_acl_caches(thd, true);
+    close_thread_tables(thd);
   }
   thd->mdl_context.release_transactional_locks();
 
@@ -1672,55 +1683,19 @@ table_error:
 }
 
 /**
-  Prepare an array of all of the grant tables for opening
+  Construct TABLE_LIST array for ACL tables.
 
-  Prepare references to all of the grant tables in the order of the
-  @ref ACL_TABLES enum.
-
-  Set the tables to be one after another.
-
-  @param[in,out]  tables                Array of ACL_TABLES::LAST_ENTRY
-                                        table list elements
-                                        which will be used for opening tables.
-  @param          lock_type             Lock type to use
-  @param          mdl_type              MDL lock type to use
+  @param [in, out] tables         TABLE_LIST array
+  @param [in]      lock_type      Read or Write
+  @param [in]      mdl_type       MDL to be used
 */
-void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
-                                 enum_mdl_type mdl_type) {
-  /*
-    For a TABLE_LIST element that is inited with a lock type TL_WRITE
-    the type MDL_SHARED_NO_READ_WRITE of MDL is requested for.
-    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
-    from SE level.
-  */
-
-  tables[0] = TABLE_LIST("mysql", "user", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_DB] = TABLE_LIST("mysql", "db", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_TABLES_PRIV] =
-      TABLE_LIST("mysql", "tables_priv", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_COLUMNS_PRIV] =
-      TABLE_LIST("mysql", "columns_priv", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_PROCS_PRIV] =
-      TABLE_LIST("mysql", "procs_priv", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_PROXIES_PRIV] =
-      TABLE_LIST("mysql", "proxies_priv", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_ROLE_EDGES] =
-      TABLE_LIST("mysql", "role_edges", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_DEFAULT_ROLES] =
-      TABLE_LIST("mysql", "default_roles", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_DYNAMIC_PRIV] =
-      TABLE_LIST("mysql", "global_grants", lock_type, mdl_type);
-
-  tables[ACL_TABLES::TABLE_PASSWORD_HISTORY] =
-      TABLE_LIST("mysql", "password_history", lock_type, mdl_type);
+static void acl_tables_setup(TABLE_LIST *tables, thr_lock_type lock_type,
+                             enum_mdl_type mdl_type) {
+  int idx = 0;
+  for (idx = 0; idx < ACL_TABLES::LAST_ENTRY; ++idx) {
+    tables[idx] =
+        TABLE_LIST("mysql", ACL_TABLE_NAMES[idx], lock_type, mdl_type);
+  }
 
   if (lock_type <= TL_READ_NO_INSERT) {
     /*
@@ -1737,10 +1712,223 @@ void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
         TABLE_LIST::OPEN_IF_EXISTS;
   }
 
-  for (int idx = 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx) {
+  for (idx = 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx) {
     (tables + idx)->next_local = (tables + idx)->next_global = tables + idx + 1;
     (tables + idx)->open_type = OT_BASE_ONLY;
   }
+  /* Last table */
+  (tables + idx)->next_global = nullptr;
+  (tables + idx)->open_type = OT_BASE_ONLY;
+}
+
+/**
+  Setup ACL tables to be opened in read mode.
+
+  Prepare references to all of the grant tables in the order of the
+  @ref ACL_TABLES enum.
+
+  @param [in, out] tables Table handles
+*/
+void acl_tables_setup_for_read(TABLE_LIST *tables) {
+  /*
+    This function is called in following cases:
+    1. check validity of ACL tables (schema, storage engine etc)
+    2. Load data from ACL tables to in-memory caches
+
+    Operation MUST be able to run concurrently with a simple SELECT queries
+
+    Following describes which all MDLs are taken and why.
+
+    - MDL_SHARED_READ_ONLY is taken on each of the ACL tables. This
+      lock prevents following operations from other connections due
+      to the fact that MDL_SHARED_READ_ONLY conflicts with MDL_SHARED_WRITE:
+      - DMLs that may modify ACL tables
+      - DDLs that may modify ACL tables (ALTER/DROP etc)
+      - ACL DDLs
+  */
+  acl_tables_setup(tables, TL_READ, MDL_SHARED_READ_ONLY);
+}
+
+/** Internal_error_handler subclass to suppress ER_LOCK_DEADLOCK error */
+class acl_tables_setup_for_write_and_acquire_mdl_error_handler
+    : public Internal_error_handler {
+ public:
+  acl_tables_setup_for_write_and_acquire_mdl_error_handler()
+      : m_hit_deadlock(false) {}
+  /**
+    Handle an error condition
+
+    @param [in] thd           THD handle
+    @param [in] sql_errno     Error raised by MDL subsystem
+    @param [in] sqlstate      SQL state. Unused.
+    @param [in] level         Severity level. Unused.
+    @param [in] msg           Message string. Unused.
+  */
+
+  virtual bool handle_condition(
+      THD *thd MY_ATTRIBUTE((unused)), uint sql_errno,
+      const char *sqlstate MY_ATTRIBUTE((unused)),
+      Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
+      const char *msg MY_ATTRIBUTE((unused))) override {
+    m_hit_deadlock = (sql_errno == ER_LOCK_DEADLOCK);
+    return m_hit_deadlock;
+  }
+
+  bool hit_deadlock() { return m_hit_deadlock; }
+  void reset_hit_deadlock() { m_hit_deadlock = false; }
+
+ private:
+  bool m_hit_deadlock;
+};
+
+/**
+  Setup ACL tables to be opened in write mode.
+
+  Prepare references to all of the grant tables in the order of the
+  @ref ACL_TABLES enum.
+
+  Obtain locks on required MDLs upfront.
+
+  @param [in]      thd    THD handle
+  @param [in, out] tables Table handles
+
+  @returns Status of MDL acquisition
+    @retval false OK
+    @retval true  Error
+*/
+static bool acl_tables_setup_for_write_and_acquire_mdl(THD *thd,
+                                                       TABLE_LIST *tables) {
+  /*
+    This function is called perform an ACL DDL operation
+
+    Operation MUST be able to run concurrently with a simple SELECT queries
+
+    The operation:
+    a. Modifies one or more tables specified below
+    b. Updates one or more in-memory caches used for
+       authentication/authorization
+
+    Thus, operation MUST not be able to run concurrently with:
+    a. A INSERT/UPDATE/DELETE operation on tables used by ACL DDls
+    b. FLUSH TABLES WITH READ LOCKS
+    c. FLUSH PRIVILEGES
+
+    Following describes which all MDLs are taken and why.
+
+    - MDL_INTENTION_EXCLUSIVE for MDL_key::GLOBAL at global level. This
+    - MDL_INTENTION_EXCLUSIVE for MDL_Key::BACKUP_LOCK at global level
+    - MDL_SHARED_READ_ONLY for MDL_key::TABLE for each ACL table
+    - MDL_SHARED_WRITE for MDL_key::TABLE for each ACL table
+
+    Collectively, these locks prevent following operations from other
+    connections:
+    - DMLs that may modify ACL tables
+    - DDLs that may modify ACL tables (ALTER/DROP etc)
+    - ACL DDLs
+    - FLUSH PRIVILEGES
+    - FLUSH TABLES WITH READ LOCK
+    - LOCK TABLE
+  */
+
+  /* MDL does not matter because we are setting flag to ignore it */
+  acl_tables_setup(tables, TL_WRITE, MDL_SHARED_WRITE);
+
+  MDL_request_list mdl_requests;
+
+  if (thd->global_read_lock.can_acquire_protection()) return true;
+  MDL_request *global_ix_request = new (thd->mem_root) MDL_request;
+  if (global_ix_request == nullptr) {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+    return true;
+  }
+
+  MDL_REQUEST_INIT(global_ix_request, MDL_key::GLOBAL, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  mdl_requests.push_front(global_ix_request);
+
+  MDL_request *backup_request = new (thd->mem_root) MDL_request;
+  if (backup_request == nullptr) {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+    return true;
+  }
+
+  MDL_REQUEST_INIT(backup_request, MDL_key::BACKUP_LOCK, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  mdl_requests.push_front(backup_request);
+
+  for (int idx = 0; idx < ACL_TABLES::LAST_ENTRY; ++idx) {
+    MDL_request *sro_request = new (thd->mem_root) MDL_request;
+    if (sro_request == nullptr) {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+      return true;
+    }
+    MDL_REQUEST_INIT(sro_request, MDL_key::TABLE, (tables + idx)->db,
+                     (tables + idx)->table_name, MDL_SHARED_READ_ONLY,
+                     MDL_TRANSACTION);
+    mdl_requests.push_front(sro_request);
+
+    MDL_request *sw_request = new (thd->mem_root) MDL_request;
+    if (sw_request == nullptr) {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(MDL_request));
+      return true;
+    }
+    MDL_REQUEST_INIT(sw_request, MDL_key::TABLE, (tables + idx)->db,
+                     (tables + idx)->table_name, MDL_SHARED_WRITE,
+                     MDL_TRANSACTION);
+    mdl_requests.push_front(sw_request);
+  }
+
+  acl_tables_setup_for_write_and_acquire_mdl_error_handler handler;
+  thd->push_internal_handler(&handler);
+  bool mdl_acquire_error = false;
+  for (;;) {
+    handler.reset_hit_deadlock();
+    /*
+      MDL_context::acquire_locks sorts all lock requests.
+      Due to this, a situation may arise that two or more
+      competing threads will acquire:
+      - IX lock at global level
+      - Backup lock
+      - SRO on first table according to sorting done
+
+      Next, they will all compete for SW on the same table.
+
+      At this point, MDL's deadlock detection would kick in
+      and evict all but one thread.
+
+      In a standalone server, this may result into victim
+      threads receiving ER_DEADLOCK_ERROR. This may not be
+      a big problem because user can always retry. However,
+      in a secondary node, applier threads can not
+      tolerate such error.
+
+      Thus, we run a infinite loop here. Essentially - do not
+      give up in case a deadlock is encountered. Repeat until
+      all required locks are obtained. We do this by crafting
+      a special handler and pushing it on top for the duration
+      of the loop. This error handler will suppress
+      ER_DEADLOCK_ERROR.
+
+      MDL_context::acquire_locks() will make sure that lock
+      acquisition is atomic. So we don't have to worry about
+      cleanup in case the function fails.
+
+      Note that even with custom error handlers,
+      MDL_context::acquire_locks() will return failure in case
+      of ER_DEADLOCK_ERROR. However, there won't be any error
+      set in THD thatnks to custom error handler.
+    */
+    mdl_acquire_error = thd->mdl_context.acquire_locks(
+        &mdl_requests, thd->variables.lock_wait_timeout);
+    /* Retry acquire_locks only if there was a deadlock */
+    if (mdl_acquire_error && handler.hit_deadlock())
+      continue;
+    else
+      break;
+  }
+  thd->pop_internal_handler();
+
+  return mdl_acquire_error;
 }
 
 /**
@@ -1772,7 +1960,9 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
 
   *transactional_tables = false;
 
-  grant_tables_setup_for_open(tables);
+  DEBUG_SYNC(thd, "wl14084_acl_ddl_before_mdl_acquisition");
+
+  if (acl_tables_setup_for_write_and_acquire_mdl(thd, tables)) return -1;
 
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
@@ -1786,19 +1976,25 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
     for (auto i = 0; i < ACL_TABLES::LAST_ENTRY; i++) tables[i].updating = true;
 
     if (!(thd->sp_runtime_ctx ||
-          thd->rli_slave->rpl_filter->tables_ok(nullptr, tables)))
+          thd->rli_slave->rpl_filter->tables_ok(nullptr, tables))) {
+      thd->mdl_context.release_transactional_locks();
       return 1;
+    }
 
     for (auto i = 0; i < ACL_TABLES::LAST_ENTRY; i++)
       tables[i].updating = false;
   }
 
-  if (open_and_lock_tables(
-          thd, tables,
-          MYSQL_LOCK_IGNORE_TIMEOUT)) {  // This should never happen
+  uint flags = MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_LOCK_IGNORE_TIMEOUT |
+               MYSQL_OPEN_IGNORE_FLUSH;
+  if (open_and_lock_tables(thd, tables,
+                           flags)) {  // This should never happen
+    thd->mdl_context.release_transactional_locks();
     return -1;
   }
-
+  DEBUG_SYNC(thd, "wl14084_after_table_locks");
+  DBUG_EXECUTE_IF("wl14084_acl_ddl_after_table_lock_trigger_timeout",
+                  sleep(2););
   if (check_engine_type_for_acl_table(tables, true) ||
       check_acl_tables_intact(thd, tables)) {
     commit_and_close_mysql_tables(thd);
@@ -2053,3 +2249,37 @@ bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error) {
 
   return invalid_table_found;
 }
+
+/**
+  Check if given table name is a ACL table name.
+
+  @param name   Table name.
+
+  @return bool
+    @retval true  If it is a ACL table, otherwise false.
+*/
+
+bool is_acl_table_name(const char *name) {
+  for (int i = 0; i < MAX_ACL_TABLE_NAMES; i++) {
+    if (!my_strcasecmp(system_charset_info, ACL_TABLE_NAMES[i], name))
+      return true;
+  }
+  return false;
+}
+
+#ifndef DBUG_OFF
+/**
+  Check if given TABLE* is a ACL table name.
+
+  @param table   TABLE object.
+
+  @return bool
+    @retval true  If it is a ACL table, otherwise false.
+*/
+
+bool is_acl_table(const TABLE *table) {
+  return (!my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str,
+                         table->s->db.str) &&
+          is_acl_table_name(table->s->table_name.str));
+}
+#endif

@@ -9754,6 +9754,24 @@ static bool has_write_table_with_nondeterministic_default(
   return false;
 }
 
+/**
+  Checks if we have reads from ACL tables in table list.
+
+  @param  thd       Current thread
+  @param  tl_list   TABLE_LIST used by current command.
+
+  @returns true, if we statement is unsafe, otherwise false.
+*/
+static bool has_acl_table_read(THD *thd, const TABLE_LIST *tl_list) {
+  for (const TABLE_LIST *tl = tl_list; tl != nullptr; tl = tl->next_global) {
+    if (is_acl_table_in_non_LTM(tl, thd->locked_tables_mode) &&
+        (tl->lock_descriptor().type == TL_READ_DEFAULT ||
+         tl->lock_descriptor().type == TL_READ_HIGH_PRIORITY))
+      return true;
+  }
+  return false;
+}
+
 /*
   Function to check whether the table in query uses a fulltext parser
   plugin or not.
@@ -10029,6 +10047,18 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
               lex->first_not_own_table()))
         lex->set_stmt_unsafe(
             LEX::BINLOG_STMT_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT);
+
+      /*
+        A DML or DDL statement is unsafe if it reads a ACL table while
+        modifing the table, because SE skips acquiring row locks.
+        Therefore rows seen by DML or DDL may not have same effect on slave.
+
+        We skip checking the same under lock tables mode, because we do
+        not skip row locks on ACL table in this mode.
+      */
+      if (has_acl_table_read(this, tables)) {
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_ACL_TABLE_READ_IN_DML_DDL);
+      }
     }
 
     /*
