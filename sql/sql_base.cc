@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2958,6 +2958,35 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
   return res;
 }
 
+/**
+  Add a dummy LEX object for a view.
+
+  @param       thd     Thread context
+  @param       table   Table list element
+
+  @retval  true   error occurred
+  @retval  false  view place holder successfully added
+*/
+
+bool add_view_place_holder(THD *thd, TABLE_LIST *table_list) {
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  LEX *lex_obj = new (thd->mem_root) st_lex_local;
+  if (lex_obj == NULL)
+    return true;
+  table_list->set_view_query(lex_obj);
+  assert(table_list->is_view());
+
+  // Create empty list of view_tables.
+  table_list->view_tables = new (thd->mem_root) List<TABLE_LIST>;
+  if (table_list->view_tables == NULL)
+    return true;
+
+  table_list->view_db.str= table_list->db;
+  table_list->view_db.length= table_list->db_length;
+  table_list->view_name.str= table_list->table_name;
+  table_list->view_name.length= table_list->table_name_length;
+  return false;
+}
 
 /**
   Open a base table.
@@ -3157,6 +3186,18 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
         {
           my_error(ER_WRONG_MRG_TABLE, MYF(0));
           DBUG_RETURN(true);
+        }
+
+        if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) {
+          /*
+            In the case of a CREATE, add a dummy LEX object to
+            indicate the presence of a view amd skip processing the
+            existing view.
+          */
+          if (add_view_place_holder(thd, table_list))
+            DBUG_RETURN(true);
+          else
+            DBUG_RETURN(false);
         }
 
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
@@ -3481,35 +3522,19 @@ retry_share:
     {
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
-
       /*
-        For SP and PS, LEX objects are created at the time of statement prepare.
-        And open_table() is called for every execute after that. Skip creation
-        of LEX objects if it is already present.
+        The LEX object is used by the executor and other parts of the
+        code to detect the presence of a view. We have skipped the
+        call to parse_view_definition(), which creates the LEX
+        object. Create a dummy LEX object as this is OPEN_FOR_CREATE.
+
+        For SP and PS, LEX objects are created at the time of
+        statement prepare and open_table() is called for every execute
+        after that. Skip creation of LEX objects if it is already
+        present.
       */
-      if (!table_list->is_view())
-      {
-        Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-        /*
-          Since we are skipping parse_view_definition(), which creates view LEX
-          object used by the executor and other parts of the code to detect the
-          presence of a view, a dummy LEX object needs to be created.
-        */
-        table_list->set_view_query((LEX *) new(thd->mem_root) st_lex_local);
-        if (!table_list->is_view())
-          DBUG_RETURN(true);
-
-        // Create empty list of view_tables.
-        table_list->view_tables = new (thd->mem_root) List<TABLE_LIST>;
-        if (table_list->view_tables == NULL)
-          DBUG_RETURN(true);
-
-        table_list->view_db.str= table_list->db;
-        table_list->view_db.length= table_list->db_length;
-        table_list->view_name.str= table_list->table_name;
-        table_list->view_name.length= table_list->table_name_length;
-      }
+      if (!table_list->is_view() && add_view_place_holder(thd, table_list))
+        DBUG_RETURN(true);
     }
 
     DBUG_ASSERT(table_list->is_view());

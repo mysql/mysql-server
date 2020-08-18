@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -353,6 +353,7 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
+bool add_view_place_holder(THD *thd, TABLE_LIST *table_list);
 
 extern Item **not_found_item;
 extern Field *not_found_field;
