@@ -94,11 +94,16 @@
 #include "violite.h"
 
 /* Acl table names. Keep in sync with ACL_TABLES */
-static const char *ACL_TABLE_NAMES[] = {"user",          "db",
-                                        "tables_priv",   "columns_priv",
-                                        "procs_priv",    "proxies_priv",
-                                        "role_edges",    "default_roles",
-                                        "global_grants", "password_history"};
+static const int MAX_ACL_TABLE_NAMES = 10;
+static_assert(MAX_ACL_TABLE_NAMES == ACL_TABLES::LAST_ENTRY,
+              "Keep number of table names in sync with ACL table enum");
+
+static const char *ACL_TABLE_NAMES[MAX_ACL_TABLE_NAMES] = {
+    "user",          "db",
+    "tables_priv",   "columns_priv",
+    "procs_priv",    "proxies_priv",
+    "role_edges",    "default_roles",
+    "global_grants", "password_history"};
 
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
     {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {nullptr, 0}},
@@ -1722,7 +1727,6 @@ static void acl_tables_setup(TABLE_LIST *tables, thr_lock_type lock_type,
   Prepare references to all of the grant tables in the order of the
   @ref ACL_TABLES enum.
 
-  @param [in]      thd    THD handle
   @param [in, out] tables Table handles
 */
 void acl_tables_setup_for_read(TABLE_LIST *tables) {
@@ -1750,7 +1754,7 @@ class acl_tables_setup_for_write_and_acquire_mdl_error_handler
     : public Internal_error_handler {
  public:
   acl_tables_setup_for_write_and_acquire_mdl_error_handler()
-      : m_hit_deadlock(false){};
+      : m_hit_deadlock(false) {}
   /**
     Handle an error condition
 
@@ -2245,3 +2249,37 @@ bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error) {
 
   return invalid_table_found;
 }
+
+/**
+  Check if given table name is a ACL table name.
+
+  @param name   Table name.
+
+  @return bool
+    @retval true  If it is a ACL table, otherwise false.
+*/
+
+bool is_acl_table_name(const char *name) {
+  for (int i = 0; i < MAX_ACL_TABLE_NAMES; i++) {
+    if (!my_strcasecmp(system_charset_info, ACL_TABLE_NAMES[i], name))
+      return true;
+  }
+  return false;
+}
+
+#ifndef DBUG_OFF
+/**
+  Check if given TABLE* is a ACL table name.
+
+  @param table   TABLE object.
+
+  @return bool
+    @retval true  If it is a ACL table, otherwise false.
+*/
+
+bool is_acl_table(const TABLE *table) {
+  return (!my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str,
+                         table->s->db.str) &&
+          is_acl_table_name(table->s->table_name.str));
+}
+#endif

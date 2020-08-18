@@ -548,7 +548,14 @@ enum enum_table_category {
     TABLE_SHARE versions because these table structures
     are fixed upon server bootstrap.
   */
-  TABLE_CATEGORY_DICTIONARY = 9
+  TABLE_CATEGORY_DICTIONARY = 9,
+
+  /**
+    A ACL metadata table.
+    For table in this category we will skip row locks when SQL statement
+    reads them.
+  */
+  TABLE_CATEGORY_ACL_TABLE = 10
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 

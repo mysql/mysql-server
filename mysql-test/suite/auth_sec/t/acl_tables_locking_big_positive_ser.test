@@ -9,9 +9,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-#--let ISOLATION_LEVEL=SERIALIZABLE
-# ToDo: Enable following with WL#14087
-#--source ../include/acl_tables_locking_tests_big_positive.inc
+--let ISOLATION_LEVEL=SERIALIZABLE
+--source ../include/acl_tables_locking_tests_big_positive.inc
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

@@ -1,3 +1,6 @@
+# This file is used by auth_sec.acl_tables_locking_tests_big added as part
+# of wl#14084. The test focuses on concurrency test with MDL locking on ACL
+# tables.
 #
 # Check behavior of ACL DDLs when simple and locking SELECTs
 # are run concurrently with it.

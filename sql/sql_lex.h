@@ -2677,6 +2677,14 @@ class Query_tables_list {
     */
     BINLOG_STMT_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT,
 
+    /**
+      DML or DDL statement that reads a ACL table is unsafe, because the row
+      are read without acquiring SE row locks. This would allow ACL tables to
+      be updated by concurrent thread. It would not have the same effect on the
+      slave.
+    */
+    BINLOG_STMT_UNSAFE_ACL_TABLE_READ_IN_DML_DDL,
+
     /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };

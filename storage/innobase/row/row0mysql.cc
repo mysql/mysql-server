@@ -916,7 +916,7 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   prebuilt->fts_doc_id_in_read_set = false;
   prebuilt->blob_heap = nullptr;
 
-  prebuilt->skip_serializable_dd_view = false;
+  prebuilt->no_read_locking = false;
   prebuilt->no_autoinc_locking = false;
 
   prebuilt->m_no_prefetch = false;
