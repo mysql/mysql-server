@@ -2961,8 +2961,8 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
 /**
   Add a dummy LEX object for a view.
 
-  @param       thd     Thread context
-  @param       table   Table list element
+  @param  thd         Thread context
+  @param  table_list  The list of tables in the view
 
   @retval  true   error occurred
   @retval  false  view place holder successfully added
