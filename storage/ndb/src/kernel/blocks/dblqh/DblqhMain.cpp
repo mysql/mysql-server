@@ -23588,7 +23588,8 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     {
       ndbrequire(c_restart_lcpId == 0 ||
                  lcpId == 0 ||
-                 c_restart_lcpId == lcpId);
+                 c_restart_lcpId == lcpId ||
+                 c_restart_lcpId == (lcpId + 1));
     }
   }
   if (nodeRestorableGci != 0 && c_lcp_restoring_fragments.isEmpty())
