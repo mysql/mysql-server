@@ -2,6 +2,12 @@
 --echo # Bug#30072179: USING INVISIBLE INDEX WHEN SLAVE APPLY EVENT
 --echo #
 
+#
+# The variable Slave_rows_last_search_algorithm_used forms the basis for this
+# test, and it is only available in debug builds.
+#
+--source include/have_debug.inc
+
 --source include/master-slave.inc
 
 --echo [Connection Master]
