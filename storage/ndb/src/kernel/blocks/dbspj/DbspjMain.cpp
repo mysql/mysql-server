@@ -554,8 +554,9 @@ void Dbspj::execSTTOR(Signal* signal)
   if (tphase == 1)
   {
     jam();
-    signal->theData[0] = 0;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+    signal->theData[0] = 0;  // 0 -> Start the releaseGlobal() 'thread'
+    signal->theData[1] = 0;  // 0 -> ... and sample usage statistics
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);
   }
 
   if (tphase == 4)
@@ -4188,6 +4189,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
       jam();
       return false;
     }
+    m_allocedPages++;
   }
   else
   {
@@ -4196,6 +4198,9 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     const bool ret = list.removeFirst(ptr);
     ndbrequire(ret);
   }
+  const Uint32 usedPages = getUsedPages();
+  if (usedPages > m_maxUsedPages)
+    m_maxUsedPages = usedPages;
   return true;
 }
 
@@ -4211,22 +4216,41 @@ Dbspj::releasePages(RowBuffer &rowBuffer)
 void
 Dbspj::releaseGlobal(Signal * signal)
 {
-  Uint32 delay = 100;
-  Local_RowPage_list list(m_page_pool, m_free_page_list);
-  if (list.isEmpty())
+  // Add to statistics the max number of pages used in last 10/100ms-periode
+  if (signal->theData[1] == 0)
   {
-    jam();
-    delay = 300;
-  }
-  else
-  {
-    Ptr<RowPage> ptr;
-    list.removeFirst(ptr);
-    m_ctx.m_mm.release_page(RT_SPJ_DATABUFFER, ptr.i);
+    m_usedPagesStat.update(m_maxUsedPages);
+    m_maxUsedPages = getUsedPages();
   }
 
-  signal->theData[0] = 0;
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 1);
+  // Get the upper 95 percentile of max pages being used
+  const double used_mean = m_usedPagesStat.getMean();
+  const double used_upper95 = used_mean + 2*m_usedPagesStat.getStdDev();
+
+  // Free excess pages if any such held in the m_free_page_list
+  int cnt = 0;
+  Local_RowPage_list free_list(m_page_pool, m_free_page_list);
+  while (m_allocedPages > used_upper95 && !free_list.isEmpty())
+  {
+    if (++cnt > 16)  // Take realtime break
+    {
+      jam();
+      signal->theData[0] = 0;  // 0 -> releaseGlobal()
+      signal->theData[1] = 1;  // 1 -> Continue release without new sample
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      break;
+    }
+    Ptr<RowPage> ptr;
+    free_list.removeFirst(ptr);
+    m_ctx.m_mm.release_page(RT_SPJ_DATABUFFER, ptr.i);
+    m_allocedPages--;
+  }
+
+  // If there are many free_pages, we want the sample+release to happen faster
+  const Uint32 delay = free_list.getCount() > 16 ? 10 : 100;
+  signal->theData[0] = 0;  // 0 -> releaseGlobal()
+  signal->theData[1] = 0;  // 0 -> Take new UsedPages sample after 'delay'
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 2);
 }
 
 Uint32
