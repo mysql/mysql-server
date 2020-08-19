@@ -2022,7 +2022,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
 
   head->column_bitmaps_set(&column_bitmap, &column_bitmap);
 
-  if (file->ha_external_lock(thd, F_RDLCK)) goto failure;
+  if (file->ha_external_lock(thd, head->file->get_lock_type())) goto failure;
 
   if (init() || reset()) {
     file->ha_external_lock(thd, F_UNLCK);
