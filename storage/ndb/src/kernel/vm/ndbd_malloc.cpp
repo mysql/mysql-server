@@ -174,7 +174,12 @@ ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
     {
       g_eventLogger->warning("Touching much memory, %zu bytes, without watchdog.", sz);
 #if defined(VM_TRACE_MEM)
-      assert(!ndbd_malloc_need_watchdog(sz));
+      /*
+       * Assert to find big allocations not using watchdog.
+       * These typically comes from allocating static arrays for some resources
+       * for some configurations.
+       */
+      // assert(!ndbd_malloc_need_watchdog(sz));
 #endif
     }
     watchCounter = &dummy_watch_counter;
