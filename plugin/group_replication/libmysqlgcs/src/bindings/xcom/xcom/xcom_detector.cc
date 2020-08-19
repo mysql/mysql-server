@@ -22,6 +22,9 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 
 #include "xcom/app_data.h"
 #include "xcom/xcom_profile.h"

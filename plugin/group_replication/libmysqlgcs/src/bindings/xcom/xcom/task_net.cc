@@ -38,6 +38,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 
 #include "xcom/simset.h"
 #include "xcom/task.h"

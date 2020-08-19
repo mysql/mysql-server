@@ -38,6 +38,9 @@
 #define _GNU_SOURCE
 #endif
 
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 #include "xcom/x_platform.h"
 #include "xcom/xcom_profile.h"
 

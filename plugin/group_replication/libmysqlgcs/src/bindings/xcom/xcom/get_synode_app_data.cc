@@ -21,6 +21,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <stdlib.h> /* calloc */
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 
 #include "xcom/checked_data.h"
 #include "xcom/get_synode_app_data.h"

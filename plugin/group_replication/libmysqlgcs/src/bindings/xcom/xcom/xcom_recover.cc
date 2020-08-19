@@ -22,6 +22,9 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 #ifndef _WIN32
 #include <inttypes.h>
 #endif
