@@ -1,0 +1,45 @@
+RESET MASTER;
+#
+# 1. Create InnoDB and MyISAM tables and insert 2 rows.
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64)) ENGINE = INNODB;
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 char(64)) ENGINE = MyISAM;
+INSERT INTO t2 VALUES(10, 'myisam row 1');
+INSERT INTO t1 VALUES(10, 'innodb row 1');
+INSERT INTO t2 VALUES(20, 'myisam row 2');
+INSERT INTO t1 VALUES(20, 'innodb row 2');
+#
+# 2. Assert that mysql.gtid_executed table is not compressed and has gaps.
+include/assert.inc [COMMITTED_GTIDS SERVER_UUID:1-6]
+include/assert.inc [The mysql gtid table is not compressed and has gaps.]
+#
+# 3. Install Clone Plugin, enable debug point to print compression info
+#    and initiate Clone operation.
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+# Adding debug point 'print_gtid_compression_info' to @@GLOBAL.debug
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+#
+# 4. Assert that table is compressed after clone operation.
+include/assert.inc [The mysql gtid table should have 1 row.]
+#
+# 5. Assert that the compression was done by the gtid persister thread.
+include/assert_grep.inc [GTID table compression is done by persister thread.]
+#
+# 6. Cleanup
+# Removing debug point 'print_gtid_compression_info' from @@GLOBAL.debug
+DROP TABLE t1;
+DROP TABLE t2;
+UNINSTALL PLUGIN clone;

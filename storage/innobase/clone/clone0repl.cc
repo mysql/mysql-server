@@ -315,6 +315,7 @@ int Clone_persist_gtid::write_other_gtids() {
 }
 
 bool Clone_persist_gtid::check_compress() {
+  DBUG_EXECUTE_IF("simulate_force_compress", { return true; });
   /* Check local threshold on number of flush. */
   if (m_compression_counter >= s_compression_threshold) {
     return (true);
@@ -473,7 +474,14 @@ void Clone_persist_gtid::flush_gtids(THD *thd) {
     m_compression_gtid_counter = 0;
     /* Write non-innodb GTIDs before compression. */
     write_other_gtids();
-    err = gtid_table_persistor->compress(thd);
+
+    /* Compress the gtid_executed table if there is an explicit compression
+    request. Otherwise signal the gtid persister thread to perform
+    compression. */
+    if (explicit_request)
+      err = gtid_table_persistor->compress(thd);
+    else
+      gtid_table_persistor->set_compression_and_signal_compressor();
   }
   if (err != 0) {
     ib::error(ER_IB_CLONE_GTID_PERSIST) << "Error persisting GTIDs to table";

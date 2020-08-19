@@ -65,6 +65,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/system_variable_source.h"
 
 #ifndef UNIV_HOTBACKUP
+#include <binlog.h>
 #include <current_thd.h>
 #include <debug_sync.h>
 #include <derror.h>
@@ -5182,10 +5183,16 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
     return false;
   }
 
-  /* Signal and wait for all GTIDs to persist on disk. */
+  /* Wait for all GTIDs to persist on disk and create an explicit request for
+  the compression of mysql.gtid_executed table if both binary logging and
+  log_slave_updates are enabled. This is required to avoid the
+  clone_gtid_thread getting stuck while scanning the gtid_executed table when
+  there is a mixed (transactional and non-transactional) workload on the
+  server. */
   if (!binlog_group_flush) {
+    bool compress_gtid = mysql_bin_log.is_open() && opt_log_slave_updates;
     auto &gtid_persistor = clone_sys->get_gtid_persistor();
-    gtid_persistor.wait_flush(true, true, true, nullptr);
+    gtid_persistor.wait_flush(true, compress_gtid, true, nullptr);
   }
 
   /* Flush the redo log buffer to the redo log file.

@@ -1,0 +1,25 @@
+RESET MASTER;
+#
+# 1. Create an InnoDB table and insert 2 rows.
+#    Wait till each entry appears individually in the table.
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY) ENGINE = INNODB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+#
+# 2. Assert that table is not compressed.
+include/assert.inc [COMMITTED_GTIDS SERVER_UUID:1-3]
+include/assert.inc [The mysql gtid table should have 3 rows.]
+#
+# 3. Enable debug point to print the compression info for validation purpose.
+# Adding debug point 'print_gtid_compression_info' to @@GLOBAL.debug
+#
+# 4. Execute FLUSH ENGINE LOGS and assert that table is compressed.
+FLUSH ENGINE LOGS;
+include/assert.inc [The mysql gtid table should have 1 row.]
+
+# 5. Assert that the compression was done by the gtid persister thread.
+include/assert_grep.inc [GTID table compression is done by persister thread.]
+#
+# 6. Cleanup
+# Removing debug point 'print_gtid_compression_info' from @@GLOBAL.debug
+DROP TABLE t1;

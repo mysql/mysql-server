@@ -1,0 +1,124 @@
+# ==== Purpose ====
+#
+# This test verifies that compression of mysql.gtid_executed table shall be
+# done only by the gtid persister thread for clone operation.
+#
+# ==== Implementation ====
+#
+# 0. This test requires only one server.
+# 1. Create InnoDB and MyISAM tables and insert 2 rows.
+# 2. Assert that mysql.gtid_executed table is not compressed and has gaps.
+# 3. Install Clone Plugin, enable debug point to print compression info
+#    and initiate Clone operation.
+# 4. Assert that table is compressed after Clone operation.
+# 5. Assert that the compression was done by the gtid persister thread.
+# 6. Cleanup
+#
+# ==== References ====
+#
+# Bug #100118 Server doesn't restart because of too many gaps in the
+#             mysql.gtid_executed table
+
+# This test requires debug binaries
+--source include/have_debug.inc
+# This test requires binlogging.
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+--let $server_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+
+# Clean the table before starting the test.
+RESET MASTER;
+
+# Test setup for clone test.
+--source ../include/clone_connection_begin.inc
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--echo #
+--echo # 1. Create InnoDB and MyISAM tables and insert 2 rows.
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64)) ENGINE = INNODB;
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 char(64)) ENGINE = MyISAM;
+
+INSERT INTO t2 VALUES(10, 'myisam row 1');
+INSERT INTO t1 VALUES(10, 'innodb row 1');
+INSERT INTO t2 VALUES(20, 'myisam row 2');
+INSERT INTO t1 VALUES(20, 'innodb row 2');
+
+--echo #
+--echo # 2. Assert that mysql.gtid_executed table is not compressed and has gaps.
+
+# Assert that 6 transactions have been committed in total.
+--let $assert_text = COMMITTED_GTIDS SERVER_UUID:1-6
+--let $assert_cond = "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$server_uuid:1-6"
+--source include/assert.inc
+
+# When binlog is enabled, GTIDs of InnoDB transactions are updated by gtid
+# persister thread and GTIDs of other transactions are updated on binlog
+# rotation. So, wait till the GTIDs of InnoDB transactions are updated by the
+# gtid persister thread.
+#
+# i.e, wait till the below state is reached.
+#
+# SELECT * FROM mysql.gtid_executed;
+# source_uuid	interval_start	interval_end
+# ------------------------------------------
+# server_uuid	             1	           1
+# server_uuid	             4	           4
+# server_uuid	             6	           6
+
+--let $wait_condition = SELECT count(*) = 3 FROM mysql.gtid_executed
+--source include/wait_condition.inc
+
+--let $assert_cond = COUNT(*) = 3 FROM mysql.gtid_executed
+--let $assert_text = The mysql gtid table is not compressed and has gaps.
+--source include/assert.inc
+
+--echo #
+--echo # 3. Install Clone Plugin, enable debug point to print compression info
+--echo #    and initiate Clone operation.
+
+# Install Clone Plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+# Enable debug point to print the compression info for validation purpose.
+--let $debug_point = print_gtid_compression_info
+--source include/add_debug_point.inc
+
+# Clone data
+--connection clone_conn_1
+--source ../include/clone_command.inc
+
+# During clone operation, persister thread, along with writing InnoDB GTIDs, it
+# also writes non-InnoDB GTIDs and even compresses it by creating an explicit
+# request.
+
+--echo #
+--echo # 4. Assert that table is compressed after clone operation.
+--let $wait_condition = SELECT count(*) = 1 FROM mysql.gtid_executed WHERE interval_start = 1 AND interval_end = 6
+--source include/wait_condition.inc
+
+--let $assert_cond = COUNT(*) = 1 FROM mysql.gtid_executed
+--let $assert_text = The mysql gtid table should have 1 row.
+--source include/assert.inc
+
+--echo #
+--echo # 5. Assert that the compression was done by the gtid persister thread.
+
+# Find the thread that recently compressed the mysql.gtid_executed table and assert that it is clone_gtid_thread.
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_match= .*Compression done by persister thread, first gapless row = 1-6.*
+--let $assert_select= Compression done by persister thread, first gapless row = 1-6
+--let $assert_text= GTID table compression is done by persister thread.
+--source include/assert_grep.inc
+
+--echo #
+--echo # 6. Cleanup
+--let $debug_point = print_gtid_compression_info
+--source include/remove_debug_point.inc
+DROP TABLE t1;
+DROP TABLE t2;
+--force-rmdir $CLONE_DATADIR
+--source ../include/clone_connection_end.inc
+
+UNINSTALL PLUGIN clone;
+--source include/wait_until_count_sessions.inc

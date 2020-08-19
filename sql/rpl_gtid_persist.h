@@ -233,6 +233,11 @@ class Gtid_table_persistor {
     return 0;
   }
 
+  /**
+    Sets the should_compress flag and signals the compressor thread.
+  */
+  void set_compression_and_signal_compressor();
+
  private:
   /* Count the append size of the table */
   std::atomic<int64> m_atomic_count{0};
