@@ -629,35 +629,6 @@ MaterializeIterator::MaterializeIterator(
   }
 }
 
-MaterializeIterator::MaterializeIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
-    Temp_table_param *temp_table_param, TABLE *table,
-    unique_ptr_destroy_only<RowIterator> table_iterator, Common_table_expr *cte,
-    int select_number, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
-    bool copy_fields_and_items, bool rematerialize, ha_rows limit_rows,
-    bool reject_multiple_rows)
-    : TableRowIterator(thd, table),
-      m_query_blocks_to_materialize(thd->mem_root, 1),
-      m_table_iterator(move(table_iterator)),
-      m_cte(cte),
-      m_unit(unit),
-      m_join(join),
-      m_ref_slice(ref_slice),
-      m_rematerialize(rematerialize),
-      m_reject_multiple_rows(reject_multiple_rows),
-      m_limit_rows(limit_rows),
-      m_invalidators(thd->mem_root) {
-  DBUG_ASSERT(m_table_iterator != nullptr);
-  DBUG_ASSERT(subquery_iterator != nullptr);
-
-  QueryBlock &query_block = m_query_blocks_to_materialize[0];
-  query_block.subquery_iterator = move(subquery_iterator);
-  query_block.select_number = select_number;
-  query_block.join = join;
-  query_block.copy_fields_and_items = copy_fields_and_items;
-  query_block.temp_table_param = temp_table_param;
-}
-
 bool MaterializeIterator::Init() {
   if (!table()->materialized && table()->pos_in_table_list != nullptr &&
       table()->pos_in_table_list->is_view_or_derived()) {

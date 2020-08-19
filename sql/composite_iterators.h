@@ -565,49 +565,6 @@ class MaterializeIterator final : public TableRowIterator {
                       int ref_slice, bool rematerialize, ha_rows limit_rows,
                       bool reject_multiple_rows);
 
-  /**
-    A convenience form for materializing a single table only.
-
-    @param thd Thread handler.
-    @param subquery_iterator The iterator to read the actual rows from.
-    @param temp_table_param If copy_fields_and_items is true, used for copying
-      the Field objects into the temporary table row. Otherwise unused.
-    @param table Handle to table to materialize into.
-    @param table_iterator Iterator used for scanning the temporary table
-      after materialization.
-    @param cte If materializing a CTE, points to it (see m_cte), otherwise
-      nullptr.
-    @param select_number Used only for optimizer trace.
-    @param unit The query expression we are materializing (see m_unit).
-    @param join
-      When materializing within the same JOIN (e.g., into a temporary table
-      before sorting), as opposed to a derived table or a CTE, we may need
-      to change the slice on the join before returning rows from the result
-      table. If so, join and ref_slice would need to be set, and
-      query_blocks_to_materialize should contain only one member, with the same
-      join.
-    @param ref_slice See join. If we are materializing across JOINs,
-      e.g. derived tables, ref_slice should be left at -1.
-    @param copy_fields_and_items If set to false, the Field objects in the
-      output row are presumed already to be filled out. This is the case iff
-      there's an AggregateIterator earlier in the chain.
-    @param rematerialize true if rematerializing on every Init() call
-      (e.g., because we have a dependency on a value from outside the query
-      block).
-    @param limit_rows See limit_rows on the other constructor.
-    @param reject_multiple_rows true if this is the top level iterator for a
-      materialized derived table transformed from a scalar subquery which needs
-      run-time cardinality check.
-   */
-  MaterializeIterator(THD *thd,
-                      unique_ptr_destroy_only<RowIterator> subquery_iterator,
-                      Temp_table_param *temp_table_param, TABLE *table,
-                      unique_ptr_destroy_only<RowIterator> table_iterator,
-                      Common_table_expr *cte, int select_number,
-                      SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
-                      bool copy_fields_and_items, bool rematerialize,
-                      ha_rows limit_rows, bool reject_multiple_rows);
-
   bool Init() override;
   int Read() override;
 
