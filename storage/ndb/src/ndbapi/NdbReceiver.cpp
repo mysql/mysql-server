@@ -877,14 +877,6 @@ err:
 }
 
 
-/* Set NdbRecord field to NULL. */
-static void setRecToNULL(const NdbRecord::Attr *col,
-                         char *row)
-{
-  assert(col->flags & NdbRecord::IsNullable);
-  row[col->nullbit_byte_offset]|= 1 << col->nullbit_bit_in_byte;
-}
-
 int
 NdbReceiver::get_range_no() const
 {
@@ -914,13 +906,6 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
                           char* row)
 {
   Uint32 len = col->bitCount;
-  if (col->flags & NdbRecord::IsNullable)
-  {
-    /* Clear nullbit in row */
-    row[col->nullbit_byte_offset] &=
-      ~(1 << col->nullbit_bit_in_byte);
-  }
-
   char* dest;
   Uint64 mysqldSpace;
 
@@ -963,219 +948,83 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
 //static
 Uint32
 NdbReceiver::unpackNdbRecord(const NdbRecord *rec,
-                             Uint32 bmlen, 
+                             const Uint32 bmlen,
                              const Uint32* aDataPtr,
                              char* row)
 {
-  /* Use bitmap to determine which columns have been sent */
-  /*
-    We save precious registers for the compiler by putting
-    three values in one i_attrId variable:
-    bit_index : Bit 0-15
-    attrId    : Bit 16-31
-    maxAttrId : Bit 32-47
-
-    We use the same principle to store 3 variables in
-    bitPos_next_index variable:
-    next_index : Bit 0-15
-    bitPos     : Bit 48-52
-    rpm_bmlen  : Bit 32-47
-    0's        : Bit 16-31
-
-    So we can also get bmSize by shifting 27 instead of 32 which
-    is equivalent to shift right 32 followed by shift left 5 when
-    one knows there are zeroes in the  lower bits.
-
-    The compiler has to have quite a significant amount of live
-    variables in parallel here, so by the above handling we increase
-    the access time of these registers by 1-2 cycles, but this is
-    better than using the stack that has high chances of cache
-    misses.
-
-    This routine can easily be executed millions of times per
-    second in one CPU, it's called once for each record retrieved
-    from NDB data nodes in scans.
-  */
-#define rpn_pack_attrId(bit_index, attrId, maxAttrId) \
-  Uint64((bit_index)) + \
-    (Uint64((attrId)) << 16) + \
-    (Uint64((maxAttrId)) << 32)
-#define rpn_bit_index(index_attrId) ((index_attrId) & 0xFFFF)
-#define rpn_attrId(index_attrId) (((index_attrId) >> 16) & 0xFFFF)
-#define rpn_maxAttrId(index_attrId) ((index_attrId) >> 32)
-#define rpn_inc_bit_index() Uint64(1)
-#define rpn_inc_attrId() (Uint64(1) << 16)
-
-#define rpn_pack_bitPos_next_index(bitPos, bmlen, next_index) \
-  Uint64((next_index) & 0xFFFF) + \
-    (Uint64((bmlen)) << 32) + \
-    (Uint64((bitPos)) << 48)
-#define rpn_bmSize(bm_index) (((bm_index) >> 27) & 0xFFFF)
-#define rpn_bmlen(bm_index) (((bm_index) >> 32) & 0xFFFF)
-#define rpn_bitPos(bm_index) (((bm_index) >> 48) & 0x1F)
-#define rpn_next_index(bm_index) ((bm_index) & 0xFFFF)
-#define rpn_zero_bitPos(bm_index) \
-{ \
-  Uint64 tmp_bitPos_next_index = bm_index; \
-  tmp_bitPos_next_index <<= 16; \
-  tmp_bitPos_next_index >>= 16; \
-  bm_index = tmp_bitPos_next_index; \
-}
-#define rpn_set_bitPos(bm_index, bitPos) \
-{ \
-  Uint64 tmp_bitPos_next_index = bm_index; \
-  tmp_bitPos_next_index <<= 16; \
-  tmp_bitPos_next_index >>= 16; \
-  tmp_bitPos_next_index += (Uint64(bitPos) << 48); \
-  bm_index = tmp_bitPos_next_index; \
-}
-#define rpn_set_next_index(bm_index, val_next_index) \
-{ \
-  Uint64 tmp_2_bitPos_next_index = Uint64(val_next_index); \
-  Uint64 tmp_1_bitPos_next_index = bm_index; \
-  tmp_1_bitPos_next_index >>= 16; \
-  tmp_1_bitPos_next_index <<= 16; \
-  tmp_2_bitPos_next_index &= 0xFFFF; \
-  tmp_1_bitPos_next_index += tmp_2_bitPos_next_index; \
-  bm_index = tmp_1_bitPos_next_index; \
-}
-
-/**
-  * Both these macros can be called with an overflow value
-  * in val_next_index, to protect against this we ensure it
-  * doesn't overflow its 16 bits of space and affect other
-  * variables.
-  */
-
   assert(bmlen <= 0x07FF);
   const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
-  Uint32 noOfCols = rec->noOfColumns;
-  const NdbRecord::Attr* max_col = &rec->columns[noOfCols - 1];
+  uint bitPos = 0;
+  uint attrId = 0;
+  uint bitIndex = 0;
 
-  const Uint64 maxAttrId = max_col->attrId;
-  assert(maxAttrId <= 0xFFFF);
-
-  /**
-   * Initialise the 3 fields stored in bitPos_next_index
-   *
-   * bitPos set to 0
-   * next_index set to rec->m_attrId_indexes[0]
-   * bmlen initialised
-   * bmSize is always bmlen / 32
-   */
-  Uint64 bitPos_next_index =
-    rpn_pack_bitPos_next_index(0, bmlen, rec->m_attrId_indexes[0]);
-
-  /**
-   * Initialise the 3 fields stored in i_attrId
-   *
-   * bit_index set to 0
-   * attrId set to 0
-   * maxAttrId initialised
-   */
-  for (Uint64 i_attrId = rpn_pack_attrId(0, 0, maxAttrId) ;
-       (rpn_bit_index(i_attrId) < rpn_bmSize(bitPos_next_index)) &&
-        (rpn_attrId(i_attrId) <= rpn_maxAttrId(i_attrId));
-        i_attrId += (rpn_inc_attrId() + rpn_inc_bit_index()))
+  /* Use bitmap to determine which columns have been sent */
+  for (uint nextBit = BitmaskImpl::find_first(bmlen, aDataPtr);
+       nextBit != BitmaskImpl::NotFound;
+       nextBit = BitmaskImpl::find_next(bmlen, aDataPtr, bitIndex+1))
   {
-    const NdbRecord::Attr* col = &rec->columns[rpn_next_index(bitPos_next_index)];
-    if (BitmaskImpl::get(rpn_bmlen(bitPos_next_index),
-                                   aDataPtr,
-                                   rpn_bit_index(i_attrId)))
+    /* Found bit in column presence bitmask, get corresponding
+     * Attr struct from NdbRecord
+     */
+    attrId += (nextBit-bitIndex);
+    bitIndex = nextBit;
+    assert(attrId < rec->m_attrId_indexes_length);
+
+    const uint next_index = rec->m_attrId_indexes[attrId];
+    assert (next_index < rec->noOfColumns);
+
+    const NdbRecord::Attr* col = &rec->columns[next_index];
+    assert((col->flags & NdbRecord::IsBlob) == 0);
+
+    /* If col is nullable, check for null and set/clear NULL-bit */
+    if (col->flags & NdbRecord::IsNullable)
     {
-      /* Found bit in column presence bitmask, get corresponding
-       * Attr struct from NdbRecord
-       */
-      Uint32 align = col->orgAttrSize;
-
-      assert(rpn_attrId(i_attrId) < rec->m_attrId_indexes_length);
-      assert (rpn_next_index(bitPos_next_index) < rec->noOfColumns);
-      assert((col->flags & NdbRecord::IsBlob) == 0);
-
-      /* If col is nullable, check for null and set bit */
-      if (col->flags & NdbRecord::IsNullable)
+      const char null_byte = row[col->nullbit_byte_offset];
+      const char null_mask = (1 << col->nullbit_bit_in_byte);
+      bitIndex++;
+      if (BitmaskImpl::get(bmlen, aDataPtr, bitIndex))
       {
-        i_attrId += rpn_inc_bit_index();
-        if (BitmaskImpl::get(rpn_bmlen(bitPos_next_index),
-                             aDataPtr,
-                             rpn_bit_index(i_attrId)))
-        {
-          setRecToNULL(col, row);
-          assert(rpn_bitPos(bitPos_next_index) < 32);
-          rpn_set_next_index(bitPos_next_index,
-                             rec->m_attrId_indexes[rpn_attrId(i_attrId) + 1]);
-          continue; /* Next column */
-        }
-      }
-      if (likely(align != DictTabInfo::aBit))
-      {
-        src = pad(src, align, rpn_bitPos(bitPos_next_index));
-        rpn_zero_bitPos(bitPos_next_index);
-      }
-      else
-      {
-        Uint32 bitPos = rpn_bitPos(bitPos_next_index);
-        const Uint8 *loc_src = src;
-        handle_bitfield_ndbrecord(col,
-                                  loc_src,
-                                  bitPos,
-                                  row);
-        rpn_set_bitPos(bitPos_next_index, bitPos);
-        src = loc_src;
-        assert(rpn_bitPos(bitPos_next_index) < 32);
-        rpn_set_next_index(bitPos_next_index,
-                           rec->m_attrId_indexes[rpn_attrId(i_attrId) + 1]);
+        /* NULL value -> set NULL indicator bit */
+        row[col->nullbit_byte_offset] = null_byte | null_mask;
+        assert(bitPos < 32);
         continue; /* Next column */
       }
-
-      {
-        /* Set NULLable attribute to "not NULL". */
-        if (col->flags & NdbRecord::IsNullable)
-        {
-          row[col->nullbit_byte_offset]&= ~(1 << col->nullbit_bit_in_byte);
-        }
-
-        do
-        {
-          Uint32 sz;
-          char *col_row_ptr = &row[col->offset];
-          Uint32 flags = col->flags &
-                         (NdbRecord::IsVar1ByteLen |
-                          NdbRecord::IsVar2ByteLen);
-          if (!flags)
-          {
-            sz = col->maxSize;
-            if (likely(sz == 4))
-            {
-              col_row_ptr[0] = src[0];
-              col_row_ptr[1] = src[1];
-              col_row_ptr[2] = src[2];
-              col_row_ptr[3] = src[3];
-              src += sz;
-              break;
-            }
-          }
-          else if (flags & NdbRecord::IsVar1ByteLen)
-          {
-            sz = 1 + src[0];
-          }
-          else
-          {
-            sz = 2 + src[0] + 256 * src[1];
-          }
-          const Uint8 *source = src;
-          src += sz;
-          memcpy(col_row_ptr, source, sz);
-        } while (0);
-      }
+      /* not-NULL, clear NULL indicator */
+      row[col->nullbit_byte_offset] = null_byte & ~null_mask;
     }
-    rpn_set_next_index(bitPos_next_index,
-                       rec->m_attrId_indexes[rpn_attrId(i_attrId) + 1]);
+
+    const Uint32 align = col->orgAttrSize;
+    if (unlikely(align == DictTabInfo::aBit))
+    {
+      const Uint8 *loc_src = src;
+      handle_bitfield_ndbrecord(col,
+                                loc_src,
+                                bitPos,
+                                row);
+      src = loc_src;
+      assert(bitPos < 32);
+      continue; /* Next column */
+    }
+
+    src = pad(src, align, bitPos);
+    bitPos = 0;
+    Uint32 sz;
+    char *col_row_ptr = &row[col->offset];
+    const Uint32 flags = col->flags &
+                             (NdbRecord::IsVar1ByteLen |
+                              NdbRecord::IsVar2ByteLen);
+    if (!flags)
+      sz = col->maxSize;
+    else if (flags & NdbRecord::IsVar1ByteLen)
+      sz = 1 + src[0];
+    else
+      sz = 2 + src[0] + 256 * src[1];
+
+    const Uint8 *source = src;
+    src += sz;
+    memcpy(col_row_ptr, source, sz);
   }
-  Uint32 len = (Uint32)(((Uint32*)pad(src,
-                                      0,
-                                      rpn_bitPos(bitPos_next_index))) -
-                                        aDataPtr);
+  const Uint32 len = (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
   return len;
 }
 
