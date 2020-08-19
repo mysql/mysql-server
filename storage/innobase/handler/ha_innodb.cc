@@ -17874,6 +17874,8 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
     m_stored_select_lock_type = LOCK_X;
   }
 
+  ut_ad(!(lock_type == F_RDLCK && m_prebuilt->select_lock_type == LOCK_X));
+
   if (lock_type != F_UNLCK) {
     /* MySQL is setting a new table lock */
 
@@ -17936,15 +17938,12 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
                  thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
         m_prebuilt->select_lock_type = LOCK_S;
         m_stored_select_lock_type = LOCK_S;
-      }
-      /* TODO: this does not hold due to Bug#31582383
-      else {
+      } else {
         // Retain value set earlier for example via store_lock()
         // which is LOCK_S or LOCK_NONE
         ut_ad(m_prebuilt->select_lock_type == LOCK_S ||
               m_prebuilt->select_lock_type == LOCK_NONE);
       }
-      */
     }
 
     /* Starting from 4.1.9, no InnoDB table lock is taken in LOCK
