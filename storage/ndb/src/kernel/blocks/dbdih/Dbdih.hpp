@@ -2653,7 +2653,7 @@ private:
   /**
    * Sys file data
    */
-  Uint32 sysfileData[DIH_CDATA_SIZE];
+  Sysfile sysfile;
   Uint32 sysfileDataToFile[DIH_CDATA_SIZE];
 
   /**

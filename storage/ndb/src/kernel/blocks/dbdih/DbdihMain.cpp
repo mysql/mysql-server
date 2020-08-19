@@ -141,7 +141,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_LCP_COMP(arglist) do { } while (0)
 #endif
 
-#define SYSFILE ((Sysfile *)&sysfileData[0])
+#define SYSFILE (&sysfile)
 #define ZINIT_CREATE_GCI Uint32(0)
 #define ZINIT_REPLICA_LAST_GCI Uint32(-1)
 
@@ -996,11 +996,24 @@ Dbdih::pack_sysfile_format_v2(void)
   index++;
 
   ndbrequire(index == 7);
-  for (Uint32 i = 0; i < 6; i++)
-  {
-    cdata[index] = sysfileData[i];
-    index++;
-  }
+
+  cdata[index] = SYSFILE->systemRestartBits;
+  index++;
+
+  cdata[index] = SYSFILE->m_restart_seq;
+  index++;
+
+  cdata[index] = SYSFILE->keepGCI;
+  index++;
+
+  cdata[index] = SYSFILE->oldestRestorableGCI;
+  index++;
+
+  cdata[index] = SYSFILE->newestRestorableGCI;
+  index++;
+
+  cdata[index] = SYSFILE->latestLCP_ID;
+  index++;
 
   Uint32 lcp_active_words = ((m_max_node_id) + 31) / 32;
   ndbrequire(index == 13);
@@ -1232,8 +1245,14 @@ void
 Dbdih::pack_sysfile_format_v1(void)
 {
   ndbrequire(m_max_node_id <= 48);
-  for (Uint32 i = 0; i < 6; i++)
-    cdata[i] = sysfileData[i];
+
+  cdata[0] = SYSFILE->systemRestartBits;
+  cdata[1] = SYSFILE->m_restart_seq;
+  cdata[2] = SYSFILE->keepGCI;
+  cdata[3] = SYSFILE->oldestRestorableGCI;
+  cdata[4] = SYSFILE->newestRestorableGCI;
+  cdata[5] = SYSFILE->latestLCP_ID;
+
   for (Uint32 i = 0; i < 49; i++)
     cdata[6 + i] = SYSFILE->lastCompletedGCI[i];
   for (Uint32 i = 0; i < 7; i++)
@@ -1288,11 +1307,24 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
   Uint32 num_replicas = cdata[index];
   index++;
 
-  for (Uint32 i = 0; i < 6; i++)
-  {
-    sysfileData[i] = cdata[index];
-    index++;
-  }
+  SYSFILE->systemRestartBits = cdata[index];
+  index++;
+
+  SYSFILE->m_restart_seq = cdata[index];
+  index++;
+
+  SYSFILE->keepGCI = cdata[index];
+  index++;
+
+  SYSFILE->oldestRestorableGCI = cdata[index];
+  index++;
+
+  SYSFILE->newestRestorableGCI = cdata[index];
+  index++;
+
+  SYSFILE->latestLCP_ID = cdata[index];
+  index++;
+
   Uint32 lcp_active_words = ((max_node_id) + 31) / 32;
   for (Uint32 i = 0; i < lcp_active_words; i++)
   {
@@ -1464,10 +1496,14 @@ void
 Dbdih::unpack_sysfile_format_v1(bool set_max_node_id)
 {
   jam();
-  for (Uint32 i = 0; i < 6; i++)
-  {
-    sysfileData[i] = cdata[i];
-  }
+
+  SYSFILE->systemRestartBits = cdata[0];
+  SYSFILE->m_restart_seq = cdata[1];
+  SYSFILE->keepGCI = cdata[2];
+  SYSFILE->oldestRestorableGCI = cdata[3];
+  SYSFILE->newestRestorableGCI = cdata[4];
+  SYSFILE->latestLCP_ID = cdata[5];
+
   for (Uint32 i = 0; i < 49; i++)
   {
     SYSFILE->lastCompletedGCI[i] = cdata[6 + i];
@@ -1568,7 +1604,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     ndbrequire(c_copyGCISlave.m_expectedNextWord == tstart);
     isdone = (tstart + CopyGCIReq::DATA_SIZE) >= Sysfile::SYSFILE_SIZE32_v1;
 
-    arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(sysfileData)/4);
+    arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(cdata)/4);
     for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
       cdata[tstart+i] = copyGCI->data[i];
   }
@@ -24828,7 +24864,6 @@ void Dbdih::initCommonData()
   nodeResetStart(0);
   c_nodeStartMaster.wait = ZFALSE;
 
-  memset(&sysfileData[0], 0, sizeof(sysfileData));
   SYSFILE->initSysFile();
   SYSFILE->latestLCP_ID = 1; /* Ensure that first LCP id is 1 */
 

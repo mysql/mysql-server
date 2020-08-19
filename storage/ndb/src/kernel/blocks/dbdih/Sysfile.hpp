@@ -199,6 +199,7 @@ inline
 void
 Sysfile::initSysFile()
 {
+  memset(this, 0, sizeof(*this));
   maxNodeId = 0;
   for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
   {
