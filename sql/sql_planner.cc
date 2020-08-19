@@ -327,7 +327,7 @@ Key_use *Optimize_table_order::find_best_ref(
 
     // fulltext indexes require special treatment
     if (cur_keytype != FULLTEXT) {
-      *found_condition |= found_part;
+      *found_condition |= (0 != found_part);
 
       const bool all_key_parts_covered =
           (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)));

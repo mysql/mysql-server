@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -174,51 +174,51 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
 bool dynamic_privilege_init(void) {
   // Set up default dynamic privileges
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
-  bool ret = false;
+  int ret = false;
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
         "dynamic_privilege_register.mysql_server", r);
     if (service.is_valid()) {
-      ret |= service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
-      ret |=
+      ret +=
           service->register_privilege(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
-      ret |= service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
+      ret += service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+      ret += service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("CLONE_ADMIN"));
-      ret |=
+      ret += service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
+      ret += service->register_privilege(STRING_WITH_LEN("CLONE_ADMIN"));
+      ret +=
           service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
-      ret |=
+      ret +=
           service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("SERVICE_CONNECTION_ADMIN"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(
           STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
-      ret |= service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
-      ret |=
+      ret += service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
+      ret +=
           service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
-      ret |= service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
-      ret |= service->register_privilege(
+      ret += service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
+      ret += service->register_privilege(
           STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);
-  return ret;
+  return ret != 0;
 }

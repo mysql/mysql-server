@@ -1203,7 +1203,7 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql, LEX_CSTRING schema_name,
                               LEX_CSTRING event_name) {
   LEX_STRING buffer;
   const uint STATIC_SQL_LENGTH = 14;
-  int ret = 0;
+  bool ret = false;
 
   DBUG_TRACE;
 

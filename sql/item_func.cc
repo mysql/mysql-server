@@ -2381,7 +2381,12 @@ longlong Item_func_mod::int_op() {
   uval0 = (ulonglong)(val0_negative && val0 != LLONG_MIN ? -val0 : val0);
   uval1 = (ulonglong)(val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res = uval0 % uval1;
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  // Suppress warning C4146 unary minus operator applied to unsigned type,
+  // result still unsigned
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
   return check_integer_overflow(val0_negative ? -res : res, !val0_negative);
+  MY_COMPILER_DIAGNOSTIC_PUSH()
 }
 
 double Item_func_mod::real_op() {

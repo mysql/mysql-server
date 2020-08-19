@@ -1910,7 +1910,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
     // Normally it's disabled by dtor of QUICK_RANGE_SELECT, but it can't be
     // done without table's handler
     disable_unique_filter |=
-        head->key_info[quick->index].flags & HA_MULTI_VALUED_KEY;
+        (0 != (head->key_info[quick->index].flags & HA_MULTI_VALUED_KEY));
     quick->file = nullptr;
   }
   quick_selects.delete_elements();

@@ -211,7 +211,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   qbuf.length(0);
   const char *cur = query_str.str;
   int prev_pos = 0;
-  int res = 0;
+  bool res = 0;
   thd->query_name_consts = 0;
 
   for (Item_splocal **splocal = sp_vars_uses.begin();

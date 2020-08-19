@@ -27,7 +27,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-
+#include "my_compiler.h"
 #ifdef _MSC_VER
 #include <intrin.h>
 #pragma intrinsic(_BitScanForward64)
@@ -160,7 +160,12 @@ class NonzeroSubsetsOf {
 
   explicit NonzeroSubsetsOf(uint64_t set) : m_set(set) {}
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  // Suppress warning C4146 unary minus operator applied to unsigned type,
+  // result still unsigned
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
   iterator begin() const { return {(-m_set) & m_set, m_set}; }
+  MY_COMPILER_DIAGNOSTIC_POP()
   iterator end() const { return {0, m_set}; }
 
  private:
@@ -178,7 +183,12 @@ static inline uint64_t TablesBetween(unsigned start, unsigned end) {
 
 // Isolates the LSB of x. Ie., if x = 0b110001010, returns 0b000000010.
 // Zero input gives zero output.
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4146 unary minus operator applied to unsigned type,
+// result still unsigned
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
 static inline uint64_t IsolateLowestBit(uint64_t x) { return x & (-x); }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 // Returns whether X is a subset of Y.
 static inline bool IsSubset(uint64_t x, uint64_t y) { return (x & y) == x; }

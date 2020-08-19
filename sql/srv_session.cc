@@ -154,7 +154,7 @@ class Thread_to_plugin_map {
       std::map<my_thread_t, const void *>::iterator it =
           collection.find(thread);
       if (it == collection.end()) collection[thread] = plugin;
-    } catch (const std::bad_alloc &e) {
+    } catch (const std::bad_alloc &) {
       return true;
     }
     return false;
@@ -369,7 +369,7 @@ class Mutexed_map_thd_srv_session {
     rwlock_scoped_lock lock(&LOCK_collection, true, __FILE__, __LINE__);
     try {
       collection[key] = std::make_pair(plugin, session);
-    } catch (const std::bad_alloc &e) {
+    } catch (const std::bad_alloc &) {
       return true;
     }
     return false;

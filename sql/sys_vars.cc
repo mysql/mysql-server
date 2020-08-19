@@ -1476,8 +1476,9 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
   bool rpl_info_option = static_cast<uint>(var->save_result.ulonglong_value);
 
   /* don't convert if the repositories are same */
-  if (rpl_info_option == (thread_mask == SLAVE_THD_IO ? opt_mi_repository_id
-                                                      : opt_rli_repository_id))
+  if (rpl_info_option ==
+      (0 != (thread_mask == SLAVE_THD_IO ? opt_mi_repository_id
+                                         : opt_rli_repository_id)))
     return false;
 
   channel_map.wrlock();

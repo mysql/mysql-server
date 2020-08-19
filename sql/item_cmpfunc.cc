@@ -6815,7 +6815,8 @@ longlong Item_equal::val_int() {
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table) {
       const int rc = eval_item->cmp(item_field);
-      if ((rc == true) || (null_value = (rc == UNKNOWN))) return 0;
+      if ((rc == static_cast<int>(true)) || (null_value = (rc == UNKNOWN)))
+        return 0;
     }
   }
   return 1;
