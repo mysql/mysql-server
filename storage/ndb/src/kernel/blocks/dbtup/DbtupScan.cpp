@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -543,7 +543,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
                           (Uint32*)tablePtr.p,
                           pos.m_realpid_mm,
                           key_mm.m_page_idx,
-			  pkData, true);
+			  pkData,
+                          true);
       ndbrequire(ret > 0);
       pkSize = ret;
       dbg((DBTUP, "PK size=%d data=%08x", pkSize, pkData[0]));

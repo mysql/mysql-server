@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3667,6 +3667,35 @@ void Dbacc::getdirindex(Page8Ptr& pageptr, Uint32& conidx)
 }//Dbacc::getdirindex()
 
 Uint32
+Dbacc::find_key_operation(Ptr<Operationrec> opPtr, bool invalid_local_key)
+{
+  if (invalid_local_key)
+  {
+    if (c_lqh->has_key_info(opPtr.p->userptr))
+    {
+      jam();
+      return opPtr.p->userptr;
+    }
+  }
+  do
+  {
+    opPtr.i = opPtr.p->nextSerialQue;
+    if (opPtr.i == RNIL)
+    {
+      jam();
+      return RNIL;
+    }
+    ndbrequire(oprec_pool.getValidPtr(opPtr));
+    if (c_lqh->has_key_info(opPtr.p->userptr))
+    {
+      jam();
+      return opPtr.p->userptr;
+    }
+  } while (true);
+  return RNIL;
+}
+
+Uint32
 Dbacc::readTablePk(Uint32 localkey1,
                    Uint32 localkey2,
                    Uint32 eh,
@@ -3674,7 +3703,7 @@ Dbacc::readTablePk(Uint32 localkey1,
                    Uint32 *keys,
                    bool xfrm)
 {
-  int ret;
+  int ret = -1;
   Uint32 tableId = fragrecptr.p->myTableId;
   Uint32 fragId = fragrecptr.p->myfid;
 
@@ -3682,9 +3711,10 @@ Dbacc::readTablePk(Uint32 localkey1,
   const int xfrm_multiply = (xfrm) ? MAX_XFRM_MULTIPLY : 1;
   memset(keys, 0x1f, (fragrecptr.p->keyLength * xfrm_multiply) << 2);
 #endif
-  
+  bool invalid_local_key = true;
   if (likely(! Local_key::isInvalid(localkey1, localkey2)))
   {
+    invalid_local_key = false;
     ret = c_tup->accReadPk(tableId,
                            fragId,
                            localkey1,
@@ -3692,19 +3722,66 @@ Dbacc::readTablePk(Uint32 localkey1,
                            keys,
                            xfrm);
   }
-  else
+  if (ret == (-ZTUPLE_DELETED_ERROR))
   {
+    /**
+     * We can come here in two cases:
+     * 1) The local key hasn't been updated yet. In this case the Insert
+     *    was delayed by a disk allocation. The key is found from the
+     *    lock owners operation record.
+     * 2) The local key is set, but the FREE flag is set. In
+     *    this case accReadPk will return -TUPLE_DELETED_ERROR. This means
+     *    that the INSERT was followed by a DELETE and the DELETE have been
+     *    committed. There is thus no key to be found in the row and there
+     *    is no copy row. Thus we're back to reading the key from the lock
+     *    queue.
+     *
+     *    We need to find an operation record that still has the key
+     *    attached to it. We will check the lock owner and all operations
+     *    in the serial queue. If the local key is invalid we will find
+     *    the key in the lock owner. We won't search the parallel queue
+     *    since these operations have likely already released the key
+     *    and also if the decision was taken to delete the record, then
+     *    no operation in the parallel queue will revert that decision.
+     *    However all operations in the serial queue have not yet
+     *    released any key they might have. If none in the serial queue
+     *    has a key attached to it, then there are either no operation
+     *    there or there are only SCAN operations. Thus we can safely
+     *    return not found since the tuple is going away and we can start
+     *    a new tuple here.
+     *
+     * find_key_operation will only check lock owner if the local key is
+     * invalid. This will only happen when INSERT has started, but not
+     * yet arrived at the point where we called ACCMINUPDATE. This is
+     * protected by the ACC mutex, thus the query thread need no extra
+     * protection to check the keyInfoIVal in DBLQH since this is not
+     * released before we have called ACCMINUPDATE and it is certain to
+     * have been set before starting the INSERT operation in DBACC.
+     *
+     * When local key isn't invalid we are dealing with a DELETE operation.
+     * In this case we only need to worry about any operations in the
+     * serial queue. These are waiting in the queue and are currently idle
+     * and can only be removed from serial queue when holding the ACC mutex.
+     * keyInfoIVal is not released before the ACC operation is removed. Thus
+     * it is safe to check the keyInfoIVal also for query threads from here.
+     */
     ndbrequire(ElementHeader::getLocked(eh));
-    if (unlikely((opPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP))
+    Uint32 lqhOpPtr = find_key_operation(opPtr, invalid_local_key);
+    if (lqhOpPtr == RNIL)
     {
       dump_lock_queue(opPtr);
-      ndbrequire(opPtr.p->nextParallelQue == RNIL);
       ndbrequire(opPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED);
-      ndbrequire(opPtr.p->m_op_bits & Operationrec::OP_COMMIT_DELETE_CHECK);
-      ndbrequire((opPtr.p->m_op_bits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_RUNNING);
+      if (unlikely((opPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP))
+      {
+        ndbrequire(opPtr.p->m_op_bits & Operationrec::OP_COMMIT_DELETE_CHECK);
+        ndbrequire(((opPtr.p->m_op_bits & Operationrec::OP_STATE_MASK) ==
+                    Operationrec::OP_STATE_RUNNING) ||
+                    ((opPtr.p->m_op_bits & Operationrec::OP_STATE_MASK) ==
+                    Operationrec::OP_STATE_EXECUTED));
+      }
       return 0;
     }
-    ret = c_lqh->readPrimaryKeys(opPtr.p->userptr, keys, xfrm);
+    ret = c_lqh->readPrimaryKeys(lqhOpPtr, keys, xfrm);
   }
   jamEntryDebug();
   ndbrequire(ret >= 0);
@@ -3823,6 +3900,8 @@ Dbacc::getElement(const AccKeyReq* signal,
             operationRecPtr.p->hashValue.match(fragrecptr.p->level.enlarge(reducedHashValue, bucket_number)))
         {
           jamDebug();
+          jamLineDebug(elemPageptr.i);
+          jamLineDebug(elemptr);
           bool found;
           if (! searchLocalKey) 
 	  {
@@ -3833,16 +3912,22 @@ Dbacc::getElement(const AccKeyReq* signal,
                                      lockOwnerPtr,
                                      &keys[0],
                                      xfrm);
-
-            if (fragrecptr.p->hasCharAttr)  //Need to consult charset library
+            if (unlikely(len == 0))
             {
-              const Uint32 table = fragrecptr.p->myTableId;
-              found = (cmp_key(table, Tkeydata, &keys[0]) == 0);
+              found = false;
             }
             else
             {
-              found = (len == operationRecPtr.p->tupkeylen) &&
-                      (memcmp(Tkeydata, &keys[0], len << 2) == 0);
+              if (fragrecptr.p->hasCharAttr)  //Need to consult charset library
+              {
+                const Uint32 table = fragrecptr.p->myTableId;
+                found = (cmp_key(table, Tkeydata, &keys[0]) == 0);
+              }
+              else
+              {
+                found = (len == operationRecPtr.p->tupkeylen) &&
+                        (memcmp(Tkeydata, &keys[0], len << 2) == 0);
+              }
             }
           } else {
             jam();
@@ -4133,6 +4218,8 @@ void Dbacc::commitdelete(Signal* signal)
       /*  THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT.             */
       /*  Setting it to an invalid value only for sanity, the value should never be read.  */
       /* --------------------------------------------------------------------------------- */
+      jamLineDebug(delPageptr.i);
+      jamLineDebug(delElemptr);
       delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
       return;
     }//if
@@ -4142,6 +4229,9 @@ void Dbacc::commitdelete(Signal* signal)
   /*  DELETED ELEMENT.                                                                 */
   /* --------------------------------------------------------------------------------- */
 #if defined(VM_TRACE) || !defined(NDEBUG)
+  jamDebug();
+  jamLineDebug(delPageptr.i);
+  jamLineDebug(delElemptr);
   delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
 #endif
   deleteElement(delPageptr,
@@ -4192,6 +4282,9 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
       deOperationRecPtr.p->elementContainer = delConptr;
       deOperationRecPtr.p->elementPointer = delElemptr;
       /*  Writing an invalid value only for sanity, the value should never be read.  */
+      jamDebug();
+      jamLineDebug(lastPageptr.i);
+      jamLineDebug(lastElemptr);
       lastPageptr.p->word32[lastElemptr] = ElementHeader::setInvalid();
     }//if
     return;
@@ -6089,7 +6182,18 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
                               &keys[0],
                               xfrm);
     if (len > 0)
+    {
+      /**
+       * Return of len == 0 can only happen when the element is ready to be
+       * deleted and no new operations is linked to the element, thus the
+       * element will be removed soon since it will always return 0 for
+       * all operations and as soon as the operations in the lock queue
+       * have completed the element will be gone. Thus no issue if the
+       * element is in the wrong place in the hash since it won't be found
+       * by anyone even if in the right place.
+       */
       oprec.p->hashValue = LHBits32(md5_hash((Uint64*)&keys[0], len));
+    }
   }
   return oprec.p->hashValue;
 }
@@ -6127,6 +6231,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   else
   { // Return an invalid hash value if no data
     jam();
+    ndbabort(); // TODO RONM, see if this ever happens
     return LHBits32();
   }
 }
@@ -6283,6 +6388,9 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
     ndbrequire(fragrecptr.p->localkeylen == 1);
     const Uint32 localkey = pageptr.p->word32[elemptr + 1];
 #if defined(VM_TRACE) || !defined(NDEBUG)
+    jamDebug();
+    jamLineDebug(pageptr.i);
+    jamLineDebug(elemptr);
     pageptr.p->word32[elemptr] = ElementHeader::setInvalid();
 #endif
     Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;

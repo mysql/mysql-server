@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1094,6 +1094,14 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
        setup_fixed_tuple_ref_opt(&req_struct);
        setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
+       if (unlikely(req_struct.m_tuple_ptr->m_header_bits &
+                    Tuple_header::FREE))
+       {
+         jam();
+         terrorCode = ZTUPLE_DELETED_ERROR;
+         tupkeyErrorLab(&req_struct);
+         return false;
+       }
        if (unlikely(setup_read(&req_struct, regOperPtr, regTabPtr, 
 		               disk_page != RNIL) == false))
        {

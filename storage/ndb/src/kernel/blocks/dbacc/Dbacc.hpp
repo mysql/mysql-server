@@ -1039,6 +1039,7 @@ private:
   void increaselistcont(Page8Ptr);
   void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
   void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
+  Uint32 find_key_operation(OperationrecPtr, bool);
   Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*,
                      bool xfrm);
   Uint32 getElement(const AccKeyReq* signal,

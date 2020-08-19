@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,66 +260,73 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
   req_struct.m_tuple_ptr = (Tuple_header*)ptr;
   
   int ret = 0;
-  if (likely(! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE)))
+  if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE))
   {
-    req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
-    req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
+    /**
+     * The tuple has been deleted and committed to be deleted already.
+     * If we come here from DBTUX and DBTUP we will crash. If we come here
+     * from DBACC we have to do a deeper analysis before we decide on what
+     * to do.
+     */
+    jam();
+    return -ZTUPLE_DELETED_ERROR; /* Leads to crash in DBTUX and DBTUP */
+  }
+  req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
+  req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
     
-    Uint32 num_attr= tablePtrP->m_no_of_attributes;
-    Uint32 descr_start= tablePtrP->tabDescriptor;
-    TableDescriptor *tab_descr= &tableDescriptor[descr_start];
-    ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
-    req_struct.attr_descr= tab_descr; 
+  Uint32 num_attr= tablePtrP->m_no_of_attributes;
+  Uint32 descr_start= tablePtrP->tabDescriptor;
+  TableDescriptor *tab_descr= &tableDescriptor[descr_start];
+  ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
+  req_struct.attr_descr= tab_descr; 
 
-    if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
+  if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
+  {
+    jam();
+    OperationrecPtr opPtr;
+    opPtr.i = req_struct.m_tuple_ptr->m_operation_ptr_i;
+    ndbrequire(c_operation_pool.getValidPtr(opPtr));
+    ndbrequire(!opPtr.p->m_copy_tuple_location.isNull());
+    req_struct.m_tuple_ptr=
+      get_copy_tuple(&opPtr.p->m_copy_tuple_location);
+  }
+  prepare_read(&req_struct, tablePtrP, false);
+    
+  const Uint32* attrIds= &tableDescriptor[tablePtrP->readKeyArray].tabDescr;
+  const Uint32 numAttrs= tablePtrP->noOfKeyAttr;
+  // read pk attributes from original tuple
+    
+  // do it
+  ret = readAttributes(&req_struct,
+                       attrIds,
+                       numAttrs,
+                       dataOut,
+                       ZNIL,
+                       xfrmFlag);
+  // done
+  if (ret >= 0) {
+    // remove headers
+    Uint32 n= 0;
+    Uint32 i= 0;
+    while (n < numAttrs)
     {
-      OperationrecPtr opPtr;
-      opPtr.i = req_struct.m_tuple_ptr->m_operation_ptr_i;
-      ndbrequire(c_operation_pool.getValidPtr(opPtr));
-      ndbassert(!opPtr.p->m_copy_tuple_location.isNull());
-      req_struct.m_tuple_ptr=
-	get_copy_tuple(&opPtr.p->m_copy_tuple_location);
-    }
-    prepare_read(&req_struct, tablePtrP, false);
-    
-    const Uint32* attrIds= &tableDescriptor[tablePtrP->readKeyArray].tabDescr;
-    const Uint32 numAttrs= tablePtrP->noOfKeyAttr;
-    // read pk attributes from original tuple
-    
-    // do it
-    ret = readAttributes(&req_struct,
-			 attrIds,
-			 numAttrs,
-			 dataOut,
-			 ZNIL,
-			 xfrmFlag);
-    // done
-    if (ret >= 0) {
-      // remove headers
-      Uint32 n= 0;
-      Uint32 i= 0;
-      while (n < numAttrs) {
-	const AttributeHeader ah(dataOut[i]);
-	Uint32 size= ah.getDataSize();
-	ndbrequire(size != 0);
-	for (Uint32 j= 0; j < size; j++) {
-	  dataOut[i + j - n]= dataOut[i + j + 1];
-	}
-	n+= 1;
-	i+= 1 + size;
+      const AttributeHeader ah(dataOut[i]);
+      Uint32 size= ah.getDataSize();
+      ndbrequire(size != 0);
+      for (Uint32 j= 0; j < size; j++)
+      {
+        dataOut[i + j - n]= dataOut[i + j + 1];
       }
-      ndbrequire((int)i == ret);
-      ret -= numAttrs;
+      n+= 1;
+      i+= 1 + size;
     }
-    else
-    {
-      jam();
-      return ret;
-    }
+    ndbrequire((int)i == ret);
+    ret -= numAttrs;
   }
   else
   {
     jam();
+    return ret;
   }
   if (likely(tablePtrP->m_bits & Tablerec::TR_RowGCI))
   {
@@ -333,7 +340,12 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
 }
 
 int
-Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
+Dbtup::accReadPk(Uint32 tableId,
+                 Uint32 fragId,
+                 Uint32 fragPageId,
+                 Uint32 pageIndex,
+                 Uint32* dataOut,
+                 bool xfrmFlag)
 {
   jamEntryDebug();
   // get table

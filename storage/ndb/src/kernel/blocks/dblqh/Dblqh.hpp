@@ -4237,6 +4237,7 @@ public:
   bool is_restore_phase_done();
   bool is_full_local_lcp_running();
   bool is_lcp_idle(LcpRecord *lcpPtrP);
+  bool has_key_info(Uint32 opPtrI);
   Uint32 m_restart_local_latest_lcp_id;
 private:
   bool getNextTcConRec(Uint32 &next,
@@ -4443,6 +4444,15 @@ bool Dblqh::is_lcp_idle(LcpRecord *lcpPtrP)
       lcpPtrP->lcpRunState == LcpRecord::LCP_IDLE)
     return true;
   return false;
+}
+
+inline bool
+Dblqh::has_key_info(Uint32 opPtrI)
+{
+  TcConnectionrecPtr opPtr;
+  opPtr.i = opPtrI;
+  ndbrequire(tcConnect_pool.getValidPtr(opPtr));
+  return (opPtr.p->keyInfoIVal != RNIL);
 }
 #endif
 
