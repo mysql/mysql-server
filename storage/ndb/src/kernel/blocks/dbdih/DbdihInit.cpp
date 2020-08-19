@@ -157,7 +157,7 @@ Dbdih::Dbdih(Block_context& ctx):
   c_mainTakeOverPtr.p = 0;
   c_activeThreadTakeOverPtr.i = RNIL;
   c_activeThreadTakeOverPtr.p = 0;
-  m_max_node_id = Uint32(~0);
+  m_max_node_id = 0;
 
   /* Node Recovery Status Module signals */
   addRecSignal(GSN_ALLOC_NODEID_REP, &Dbdih::execALLOC_NODEID_REP);

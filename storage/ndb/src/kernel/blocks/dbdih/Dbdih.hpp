@@ -1485,10 +1485,10 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
-  void unpack_sysfile_format_v1(bool set_max_node_id);
-  void pack_sysfile_format_v1();
-  void unpack_sysfile_format_v2(bool set_max_node_id);
-  void pack_sysfile_format_v2();
+  static void unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32* cdata);
+  static void pack_sysfile_format_v1(const Sysfile* sysfile, Uint32* cdata);
+  static void unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32* cdata, Uint32& cdata_size_in_words);
+  static void pack_sysfile_format_v2(const Sysfile* sysfile, Uint32* cdata, Uint32& cdata_size_in_words);
   void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
   void send_COPY_GCIREQ_data_v2(Signal*, Uint32);
   void send_START_MECONF_data_v1(Signal*, Uint32);
