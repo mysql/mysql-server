@@ -898,7 +898,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
               Item_func::DATETIME_LITERAL) {
         /* User supplied an ok literal */
       } else {
-        Item *i;
+        Item *i = nullptr;
         /*
           Make a DATETIME literal, unless the field is a DATE and the constant
           has zero time, in which case we make a DATE literal
@@ -917,7 +917,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
             *place = RP_INSIDE_TRUNCATED;
           }
           i = new (thd->mem_root) Item_date_literal(&ltime);
-        } else {
+        } else if (!check_time_zone_convertibility(ltime)) {
           i = new (thd->mem_root) Item_datetime_literal(
               &ltime, actual_decimals(&ltime), thd->time_zone());
         }

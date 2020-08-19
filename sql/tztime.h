@@ -97,7 +97,8 @@ extern bool my_tz_init(THD *org_thd, const char *default_tzname,
 extern void my_tz_free();
 extern my_time_t sec_since_epoch_TIME(MYSQL_TIME *t);
 
-bool adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt);
+bool check_time_zone_convertibility(const MYSQL_TIME &mt);
+bool convert_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt);
 my_time_t use_input_time_zone(const MYSQL_TIME *input, bool *in_dst_time_gap);
 void sec_to_TIME(MYSQL_TIME *tmp, my_time_t t, int64 offset);
 
