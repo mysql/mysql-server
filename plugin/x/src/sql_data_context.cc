@@ -633,8 +633,12 @@ ngs::Error_code Sql_data_context::execute_server_command(
   ngs::Error_code error = deleg.get_error();
 
   if (fail) {
-    if (error) return ngs::Fatal(error);
-    return ngs::Fatal(ER_X_SERVICE_ERROR, "Internal error executing command");
+    if (error) {
+      log_debug("Error running server command: (%i:%s)", error.error,
+                error.message.c_str());
+      return error;
+    }
+    return ngs::Error(ER_X_SERVICE_ERROR, "Internal error executing command");
   }
 
   if (!error) return ngs::Success();
@@ -643,7 +647,7 @@ ngs::Error_code Sql_data_context::execute_server_command(
             error.message.c_str(), static_cast<int>(is_killed()),
             static_cast<int>(deleg.killed()));
 
-  return error.error == ER_QUERY_INTERRUPTED ? ngs::Fatal(error) : error;
+  return is_killed() ? ngs::Fatal(error) : error;
 }
 
 bool Sql_data_context::is_sql_mode_set(const std::string &mode) {
