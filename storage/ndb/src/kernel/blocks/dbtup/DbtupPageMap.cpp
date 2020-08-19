@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,6 +150,7 @@
 //
 // The full page range struct
 
+/* Can be used from multi-threaded index build, cannot use jam's */
 Uint32*
 Dbtup::init_page_map_entry(Fragrecord *regFragPtr, Uint32 logicalPageId)
 {
@@ -162,19 +163,16 @@ Dbtup::init_page_map_entry(Fragrecord *regFragPtr, Uint32 logicalPageId)
   Uint32 *prev_ptr = map.set(2 * logicalPageId + 1);
   if (prev_ptr == 0)
   {
-    jam();
     return 0;
   }
   Uint32 *ptr = map.set(2 * logicalPageId);
   if (ptr == 0)
   {
-    jam();
     (*prev_ptr) = FREE_PAGE_BIT | LAST_LCP_FREE_BIT;
     return 0;
   }
   if (logicalPageId >= regFragPtr->m_max_page_cnt)
   {
-    jam();
     regFragPtr->m_max_page_cnt = logicalPageId + 1;
     if (DBUG_PAGE_MAP)
     {
@@ -207,6 +205,7 @@ Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId)
   return RNIL;
 }
 
+/* Can be used from multi-threaded index build, cannot use jam's */
 Uint32 
 Dbtup::getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId) 
 {
@@ -216,7 +215,6 @@ Dbtup::getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId)
   Uint32 *ptr = map.get_dirty(2 * logicalPageId);
   if (ptr == 0)
   {
-    jam();
     ptr = init_page_map_entry(regFragPtr, logicalPageId);
   }
   if (likely(ptr != 0))
@@ -1208,6 +1206,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   do_check_page_map(fragPtrP);
 }
 
+/* Can be used from multi-threaded index build, cannot use jam's */
 const char*
 Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
                                 Uint32 logicalPageId,
@@ -1224,7 +1223,6 @@ Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
   const char * where = 0;
   if (list == FREE_PAGE_RNIL)
   {
-    jam();
     *next = FREE_PAGE_RNIL | FREE_PAGE_BIT | lcp_scanned_bit;
     *prev = FREE_PAGE_RNIL | FREE_PAGE_BIT | last_lcp_state;
     fragPtrP->m_free_page_id_list = logicalPageId;
@@ -1237,7 +1235,6 @@ Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
   }
   else
   {
-    jam();
     *next = list | FREE_PAGE_BIT | lcp_scanned_bit;
     *prev = FREE_PAGE_RNIL | FREE_PAGE_BIT | last_lcp_state;
     fragPtrP->m_free_page_id_list = logicalPageId;
