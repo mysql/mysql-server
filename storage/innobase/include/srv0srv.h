@@ -265,6 +265,9 @@ struct Srv_threads {
 /** Check if given thread is still active. */
 bool srv_thread_is_active(const IB_thread &thread);
 
+/** Check if given thread is cleaned-up and stopped. */
+bool srv_thread_is_stopped(const IB_thread &thread);
+
 /** Delay the thread after it discovered that the shutdown_state
 is greater or equal to SRV_SHUTDOWN_CLEANUP, before it proceeds
 with further clean up. This is used in the tests to see if such

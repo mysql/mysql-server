@@ -3342,6 +3342,10 @@ bool srv_thread_is_active(const IB_thread &thread) {
   return (thread_is_active(thread));
 }
 
+bool srv_thread_is_stopped(const IB_thread &thread) {
+  return (thread_is_stopped(thread));
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 const char *srv_get_server_errmsgs(int errcode) {
