@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,19 +94,19 @@ public:
    */
   Uint32 m_restart_seq;
 
-  static void initSysFile(Uint32 nodeStatus[], Uint16 nodeGroups[]);
+  void initSysFile();
 
-  static bool getInitialStartOngoing(const Uint32 & systemRestartBits);
-  static void setInitialStartOngoing(Uint32 & systemRestartBits);
-  static void clearInitialStartOngoing(Uint32 & systemRestartBits);
+  bool getInitialStartOngoing() const;
+  void setInitialStartOngoing();
+  void clearInitialStartOngoing();
 
-  static bool getRestartOngoing(const Uint32 & systemRestartBits);
-  static void setRestartOngoing(Uint32 & systemRestartBits);
-  static void clearRestartOngoing(Uint32 & systemRestartBits);
+  bool getRestartOngoing() const;
+  void setRestartOngoing();
+  void clearRestartOngoing();
 
-  static bool getLCPOngoing(const Uint32 & systemRestartBits);
-  static void setLCPOngoing(Uint32 & systemRestartBits);
-  static void clearLCPOngoing(Uint32 & systemRestartBits);
+  bool getLCPOngoing() const;
+  void setLCPOngoing();
+  void clearLCPOngoing();
   
   Uint32 keepGCI;
   Uint32 oldestRestorableGCI;
@@ -137,8 +137,8 @@ public:
   STATIC_CONST( NODE_STATUS_SIZE = NODE_ARRAY_SIZE(MAX_NDB_NODES, 4) );
   Uint32 nodeStatus[NODE_STATUS_SIZE];
 
-  static Uint32 getNodeStatus(NodeId, const Uint32 nodeStatus[]);
-  static void   setNodeStatus(NodeId, Uint32 nodeStatus[], Uint32 status);
+  Uint32 getNodeStatus(NodeId) const;
+  void   setNodeStatus(NodeId, Uint32 status);
   
   /**
    * The node group of each node
@@ -146,8 +146,8 @@ public:
    */
   Uint16 nodeGroups[MAX_NDB_NODES];
   
-  static NodeId getNodeGroup(NodeId, const Uint16 nodeGroups[]);
-  static void   setNodeGroup(NodeId, Uint16 nodeGroups[], Uint16 group);
+  NodeId getNodeGroup(NodeId) const;
+  void   setNodeGroup(NodeId, Uint16 group);
 
   static NodeId getNodeGroup_v1(NodeId nodeId, const Uint32 *nodeGroups);
   static void   setNodeGroup_v1(NodeId nodeId,
@@ -159,12 +159,12 @@ public:
    */
   Uint16 takeOver[MAX_NDB_NODES];
 
-  static NodeId getTakeOverNode(NodeId, const Uint16 takeOver[]);
-  static void   setTakeOverNode(NodeId, Uint16 takeOver[], NodeId toNode);
   static void   setTakeOverNode_v1(NodeId nodeId,
                                    Uint32* takeOver,
                                    Uint8 toNode);
   static NodeId getTakeOverNode_v1(NodeId nodeId, const Uint32* takeOver);
+  NodeId getTakeOverNode(NodeId) const;
+  void   setTakeOverNode(NodeId, NodeId toNode);
   
   /**
    * Is a node running a LCP
@@ -190,72 +190,82 @@ public:
 
 inline
 void
-Sysfile::initSysFile(Uint32 nodeStatus[], Uint16 nodeGroups[])
+Sysfile::initSysFile()
 {
   for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
   {
-    setNodeGroup(i, nodeGroups, NO_NODE_GROUP_ID);
-    setNodeStatus(i, nodeStatus,Sysfile::NS_NotDefined);
+    setNodeGroup(i, NO_NODE_GROUP_ID);
+    setNodeStatus(i, Sysfile::NS_NotDefined);
   }
 }
 
 inline
 bool 
-Sysfile::getInitialStartOngoing(const Uint32 & systemRestartBits){
+Sysfile::getInitialStartOngoing() const
+{
   return systemRestartBits & 1;
 }
 
 inline 
 void 
-Sysfile::setInitialStartOngoing(Uint32 & systemRestartBits){
+Sysfile::setInitialStartOngoing()
+{
   systemRestartBits |= 1;
 }
 
 inline
 void
-Sysfile::clearInitialStartOngoing(Uint32 & systemRestartBits){
+Sysfile::clearInitialStartOngoing()
+{
   systemRestartBits &= ~1;
 }
 
 inline 
 bool 
-Sysfile::getRestartOngoing(const Uint32 & systemRestartBits){
+Sysfile::getRestartOngoing() const
+{
   return (systemRestartBits & 2) != 0;
 }
 
 inline
 void 
-Sysfile::setRestartOngoing(Uint32 & systemRestartBits){
+Sysfile::setRestartOngoing()
+{
   systemRestartBits |= 2;
 }
 
 inline
 void 
-Sysfile::clearRestartOngoing(Uint32 & systemRestartBits){
+Sysfile::clearRestartOngoing()
+{
   systemRestartBits &= ~2;
 }
 
 inline 
 bool
-Sysfile::getLCPOngoing(const Uint32 & systemRestartBits){
+Sysfile::getLCPOngoing() const
+{
   return systemRestartBits & 4;
 }
 
 inline
 void 
-Sysfile::setLCPOngoing(Uint32 & systemRestartBits){
+Sysfile::setLCPOngoing()
+{
   systemRestartBits |= 4;
 }
 
 inline
 void 
-Sysfile::clearLCPOngoing(Uint32 & systemRestartBits){
+Sysfile::clearLCPOngoing()
+{
   systemRestartBits &= ~4;
 }
 
 inline
 Uint32 
-Sysfile::getNodeStatus(NodeId nodeId, const Uint32 nodeStatus[]){
+Sysfile::getNodeStatus(NodeId nodeId) const
+{
   const int word  = nodeId >> 3;
   const int shift = (nodeId & 7) << 2;
   
@@ -264,7 +274,8 @@ Sysfile::getNodeStatus(NodeId nodeId, const Uint32 nodeStatus[]){
 
 inline
 void
-Sysfile::setNodeStatus(NodeId nodeId, Uint32 nodeStatus[], Uint32 status){
+Sysfile::setNodeStatus(NodeId nodeId, Uint32 status)
+{
   const int word  = nodeId >> 3;
   const int shift = (nodeId & 7) << 2;
 
@@ -276,28 +287,28 @@ Sysfile::setNodeStatus(NodeId nodeId, Uint32 nodeStatus[], Uint32 status){
 
 inline
 NodeId
-Sysfile::getNodeGroup(NodeId nodeId, const Uint16 nodeGroups[])
+Sysfile::getNodeGroup(NodeId nodeId) const
 {
   return nodeGroups[nodeId];
 }
 
 inline
 void
-Sysfile::setNodeGroup(NodeId nodeId, Uint16 nodeGroups[], Uint16 group)
+Sysfile::setNodeGroup(NodeId nodeId, Uint16 group)
 {
   nodeGroups[nodeId] = group;
 }
 
 inline
 NodeId
-Sysfile::getTakeOverNode(NodeId nodeId, const Uint16 takeOver[])
+Sysfile::getTakeOverNode(NodeId nodeId) const
 {
   return takeOver[nodeId];
 }
 
 inline
 void
-Sysfile::setTakeOverNode(NodeId nodeId, Uint16 takeOver[], NodeId toNode)
+Sysfile::setTakeOverNode(NodeId nodeId, NodeId toNode)
 {
   takeOver[nodeId] = toNode;
 }

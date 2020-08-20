@@ -962,7 +962,7 @@ Dbdih::pack_sysfile_format_v2(void)
   for (Uint32 i = 0; i < MAX_NDB_NODES; i++)
   {
     Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
+      SYSFILE->getNodeStatus(i);
     ndbrequire(active_status != Sysfile::NS_ActiveMissed_2);
     ndbrequire(active_status != Sysfile::NS_ActiveMissed_3);
     ndbrequire(active_status != Sysfile::NS_TakeOver);
@@ -1019,7 +1019,7 @@ Dbdih::pack_sysfile_format_v2(void)
   for (Uint32 i = 1; i <= m_max_node_id; i++)
   {
     Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
+      SYSFILE->getNodeStatus(i);
     Uint32 bits = 0;
     Uint32 diff = 0;
     Uint32 nodeGCI = SYSFILE->lastCompletedGCI[i];
@@ -1123,7 +1123,7 @@ Dbdih::pack_sysfile_format_v2(void)
   for (Uint32 i = 1; i <= m_max_node_id; i++)
   {
     Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
+      SYSFILE->getNodeStatus(i);
     Uint32 diff = 0;
     Uint32 nodeGroup;
     switch (active_status)
@@ -1137,7 +1137,7 @@ Dbdih::pack_sysfile_format_v2(void)
       case Sysfile::NS_TakeOver:
       {
         jamDebug();
-        nodeGroup = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+        nodeGroup = SYSFILE->getNodeGroup(i);
         if (nodeGroup != predicted_ng)
         {
           jamDebug();
@@ -1160,7 +1160,7 @@ Dbdih::pack_sysfile_format_v2(void)
          * Sometimes it seems that node group is wrongly set to zero.
          * While this is not critical, it should be examined why.
          */
-        nodeGroup = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+        nodeGroup = SYSFILE->getNodeGroup(i);
         ndbrequire(nodeGroup == NO_NODE_GROUP_ID ||
                    nodeGroup == 0);
         break;
@@ -1168,7 +1168,7 @@ Dbdih::pack_sysfile_format_v2(void)
       case Sysfile::NS_Configured:
       {
         jamDebug();
-        nodeGroup = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+        nodeGroup = SYSFILE->getNodeGroup(i);
         if (nodeGroup != NO_NODE_GROUP_ID)
         {
           jamDebug();
@@ -1226,14 +1226,14 @@ Dbdih::pack_sysfile_format_v1(void)
   memset(&cdata[62], 0, 52);
   for (Uint32 i = 1; i <= 48; i++)
   {
-    NodeId ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+    NodeId ng = SYSFILE->getNodeGroup(i);
     Sysfile::setNodeGroup_v1(i, &cdata[62], Uint8(ng));
   }
 
   memset(&cdata[75], 0, 52);
   for (Uint32 i = 1; i <= 48; i++)
   {
-    NodeId nodeId = Sysfile::getTakeOverNode(i, SYSFILE->takeOver);
+    NodeId nodeId = SYSFILE->getTakeOverNode(i);
     ndbrequire(nodeId <= 48);
     Sysfile::setTakeOverNode_v1(i, &cdata[75], Uint8(nodeId));
   }
@@ -1311,9 +1311,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
           jamDebug();
           SYSFILE->lastCompletedGCI[i] = newestGCI;
         }
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_Active);
+        SYSFILE->setNodeStatus(i, Sysfile::NS_Active);
         break;
       }
       case NODE_ACTIVE_NODE_DOWN:
@@ -1322,9 +1320,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
         ndbrequire(gci_bit != 0);
         SYSFILE->lastCompletedGCI[i] = cdata[indexGCI];
         indexGCI++;
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_ActiveMissed_1);
+        SYSFILE->setNodeStatus(i, Sysfile::NS_ActiveMissed_1);
         break;
       }
       case NODE_CONFIGURED:
@@ -1340,9 +1336,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
           jamDebug();
           SYSFILE->lastCompletedGCI[i] = newestGCI;
         }
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_Configured);
+        SYSFILE->setNodeStatus(i, Sysfile::NS_Configured);
         break;
       }
       case NODE_UNDEFINED:
@@ -1358,9 +1352,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
           jamDebug();
           SYSFILE->lastCompletedGCI[i] = 0;
         }
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_NotDefined);
+        SYSFILE->setNodeStatus(i, Sysfile::NS_NotDefined);
         break;
       }
       default:
@@ -1391,7 +1383,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
   for (Uint32 i = 1; i <= max_node_id; i++)
   {
     Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
+      SYSFILE->getNodeStatus(i);
     Uint32 data = cdata[index];
     Uint32 ng_bit = (data >> start_bit) & 0x1;
     Uint32 nodeGroup = NO_NODE_GROUP_ID;
@@ -1432,9 +1424,7 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
         ndbabort();
       }
     }
-    SYSFILE->setNodeGroup(i,
-                          SYSFILE->nodeGroups,
-                          nodeGroup);
+    SYSFILE->setNodeGroup(i, nodeGroup);
     start_bit++;
     if (start_bit == 32)
     {
@@ -1477,14 +1467,14 @@ Dbdih::unpack_sysfile_format_v1(bool set_max_node_id)
     NodeId ng = Sysfile::getNodeGroup_v1(i, &cdata[62]);
     if (ng == 255)
       ng = NO_NODE_GROUP_ID;
-    Sysfile::setNodeGroup(i, SYSFILE->nodeGroups, ng);
+    SYSFILE->setNodeGroup(i, ng);
   }
 
   memset(SYSFILE->takeOver, 0, sizeof(SYSFILE->takeOver));
   for (NodeId i = 1; i <= 48; i++)
   {
     NodeId nodeId = Sysfile::getTakeOverNode_v1(i, &cdata[75]);
-    Sysfile::setNodeGroup(i, SYSFILE->takeOver, nodeId);
+    SYSFILE->setTakeOverNode(i, nodeId);
   }
 
   for (Uint32 i = 0; i < 2; i++)
@@ -1495,8 +1485,7 @@ Dbdih::unpack_sysfile_format_v1(bool set_max_node_id)
   {
     for (Uint32 i = 1; i <= 48; i++)
     {
-      if (Sysfile::getNodeStatus(i, SYSFILE->nodeStatus) !=
-          Sysfile::NS_NotDefined)
+      if (SYSFILE->getNodeStatus(i) != Sysfile::NS_NotDefined)
       {
         jamLine((Uint16)i);
         m_max_node_id = i;
@@ -1595,7 +1584,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     if (c_set_initial_start_flag)
     {
       jam();
-      Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+      SYSFILE->setInitialStartOngoing();
     }
   }
 
@@ -1655,11 +1644,12 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     m_micro_gcp.m_old_gci = Uint64(newest) << 32;
     crestartGci = newest;
     c_newest_restorable_gci = newest;
-    Sysfile::setRestartOngoing(SYSFILE->systemRestartBits);
+    SYSFILE->setRestartOngoing();
     m_micro_gcp.m_current_gci = Uint64(newest + 1) << 32;
     setNodeActiveStatus();
     setNodeGroups();
-    if ((Sysfile::getLCPOngoing(SYSFILE->systemRestartBits))) {
+    if (SYSFILE->getLCPOngoing())
+    {
       jam();
       /* -------------------------------------------------------------------- */
       //  IF THERE WAS A LOCAL CHECKPOINT ONGOING AT THE CRASH MOMENT WE WILL
@@ -2368,7 +2358,7 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
       if (mask.get(i))
       {
 	jam();
-	Uint32 ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+        Uint32 ng = SYSFILE->getNodeGroup(i);
         if (ng != NO_NODE_GROUP_ID)
         {
           ndbrequire(ng < MAX_NDB_NODE_GROUPS);
@@ -2978,7 +2968,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 
     for(i = 1; i <= m_max_node_id; i++)
     {
-      const Uint32 stat = Sysfile::getNodeStatus(i, SYSFILE->nodeStatus);
+      const Uint32 stat = SYSFILE->getNodeStatus(i);
       if(stat == Sysfile::NS_NotDefined && !tmp.get(i))
       {
 	jam();
@@ -4854,10 +4844,8 @@ void Dbdih::gcpBlockedLab(Signal* signal)
     infoEvent("Adding node %d to sysfile, NS_Configured",
               nodePtr.i);
     setNodeActiveStatus(nodePtr.i, Sysfile::NS_Configured);
-    Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups,
-                          NO_NODE_GROUP_ID);
-    Sysfile::setNodeStatus(nodePtr.i,
-                           SYSFILE->nodeStatus, Sysfile::NS_Configured);
+    SYSFILE->setNodeGroup(nodePtr.i, NO_NODE_GROUP_ID);
+    SYSFILE->setNodeStatus(nodePtr.i, Sysfile::NS_Configured);
   }
 
   /*-------------------------------------------------------------------------*/
@@ -5126,8 +5114,7 @@ void Dbdih::execSTART_COPYREQ(Signal* signal)
      * We were in the process of taking over but it was not completed.
      * We will complete it now instead.
      *--------------------------------------------------------------------*/
-    Uint32 takeOverNode = Sysfile::getTakeOverNode(startNodeId, 
-						   SYSFILE->takeOver);
+    Uint32 takeOverNode = SYSFILE->getTakeOverNode(startNodeId);
     if(takeOverNode == 0){
       jam();
       warningEvent("Bug in take-over code restarting");
@@ -10042,7 +10029,8 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::closingGcpLab(Signal* signal, FileRecordPtr filePtr) 
 {
-  if (Sysfile::getInitialStartOngoing(SYSFILE->systemRestartBits) == false){
+  if (!SYSFILE->getInitialStartOngoing())
+  {
     jam();
     selectMasterCandidateAndSend(signal); 
     return;
@@ -10117,12 +10105,12 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
   NdbNodeBitmask no_nodegroup_mask;
   for (nodePtr.i = 1; nodePtr.i <= m_max_node_id; nodePtr.i++) {
     jam();
-    if (Sysfile::getNodeStatus(nodePtr.i, SYSFILE->nodeStatus) == Sysfile::NS_NotDefined)
+    if (SYSFILE->getNodeStatus(nodePtr.i) == Sysfile::NS_NotDefined)
     {
       jam();
       continue;
     }
-    const Uint32 ng = Sysfile::getNodeGroup(nodePtr.i, SYSFILE->nodeGroups);
+    const Uint32 ng = SYSFILE->getNodeGroup(nodePtr.i);
     if(ng != NO_NODE_GROUP_ID)
     {
       jam();
@@ -12447,7 +12435,7 @@ err7230:
      */
     //Uint32 lcpId = SYSFILE->latestLCP_ID;
     SYSFILE->latestLCP_ID--;
-    Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+    SYSFILE->clearLCPOngoing();
     c_lcpState.m_participatingDIH.clear();
     c_lcpState.m_participatingLQH.clear();
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
@@ -17949,13 +17937,13 @@ void Dbdih::GCP_SAVEhandling(Signal* signal, Uint32 nodeId)
    * RESTART.
    *------------------------------------------------------------------------*/
   SYSFILE->newestRestorableGCI = m_gcp_save.m_gci;
-  if(Sysfile::getInitialStartOngoing(SYSFILE->systemRestartBits) &&
+  if (SYSFILE->getInitialStartOngoing() &&
      getNodeState().startLevel == NodeState::SL_STARTED){
     jam();
 #if 0
     g_eventLogger->info("Dbdih: Clearing initial start ongoing");
 #endif
-    Sysfile::clearInitialStartOngoing(SYSFILE->systemRestartBits);
+    SYSFILE->clearInitialStartOngoing();
   }
   copyGciLab(signal, CopyGCIReq::GLOBAL_CHECKPOINT);
 
@@ -18571,7 +18559,7 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
      * after 15 attempts even when proper test conditions are not met.
      */
     if (ERROR_INSERTED(7222) &&
-        ((!Sysfile::getLCPOngoing(SYSFILE->systemRestartBits) &&
+        ((!SYSFILE->getLCPOngoing() &&
         c_newest_restorable_gci >= c_lcpState.lcpStopGcp) ||
         s_7222_count++ >= 15))
     {
@@ -18744,7 +18732,7 @@ void Dbdih::invalidateLcpInfoAfterSr(Signal* signal)
 {
   NodeRecordPtr nodePtr;
   SYSFILE->latestLCP_ID--;
-  Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->clearLCPOngoing();
   for (nodePtr.i = 1; nodePtr.i <= m_max_node_id; nodePtr.i++)
   {
     jam();
@@ -21438,7 +21426,7 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
   /* SET BIT INDICATING THAT LOCAL CHECKPOINT IS ONGOING. THIS IS CLEARED    */
   /* AT THE END OF A LOCAL CHECKPOINT.                                       */
   /* ----------------------------------------------------------------------- */
-  SYSFILE->setLCPOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->setLCPOngoing();
   /* ---------------------------------------------------------------------- */
   /*    CHECK IF ANY NODE MUST BE TAKEN OUT OF SERVICE AND REFILLED WITH    */
   /*    NEW FRESH DATA FROM AN ACTIVE NODE.                                 */
@@ -23196,7 +23184,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     jam();
   }
   
-  Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->clearLCPOngoing();
   setLcpActiveStatusEnd(signal);
 
   /**
@@ -24825,7 +24813,7 @@ void Dbdih::initCommonData()
   c_nodeStartMaster.wait = ZFALSE;
 
   memset(&sysfileData[0], 0, sizeof(sysfileData));
-  SYSFILE->initSysFile(SYSFILE->nodeStatus, SYSFILE->nodeGroups);
+  SYSFILE->initSysFile();
   SYSFILE->latestLCP_ID = 1; /* Ensure that first LCP id is 1 */
 
   const ndb_mgm_configuration_iterator * p = 
@@ -24971,7 +24959,7 @@ void Dbdih::initRestartInfo(Signal* signal)
     SYSFILE->lcpActive[0]        = 0;
   }//for
   memset(SYSFILE->takeOver, 0, sizeof(SYSFILE->takeOver));
-  Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->setInitialStartOngoing();
   srand((unsigned int)time(0));
   globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
   g_eventLogger->info("Starting with m_restart_seq set to %u",
@@ -25523,7 +25511,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
    * Init sysfile
    */
 
-  SYSFILE->initSysFile(SYSFILE->nodeStatus, SYSFILE->nodeGroups);
+  SYSFILE->initSysFile();
 
   for (Uint32 i = 0; nodeArray[i] != RNIL; i++)
   {
@@ -25534,8 +25522,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
     if (mngNodeptr.p->nodeGroup != ZNIL)
     {
       jam();
-      Sysfile::setNodeGroup(nodeId, SYSFILE->nodeGroups,
-                            mngNodeptr.p->nodeGroup);
+      SYSFILE->setNodeGroup(nodeId, mngNodeptr.p->nodeGroup);
 
       if (mngNodeptr.p->nodeStatus == NodeRecord::ALIVE)
       {
@@ -25551,12 +25538,10 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
     else
     {
       jam();
-      Sysfile::setNodeGroup(mngNodeptr.i, SYSFILE->nodeGroups,
-                            NO_NODE_GROUP_ID);
+      SYSFILE->setNodeGroup(mngNodeptr.i, NO_NODE_GROUP_ID);
       mngNodeptr.p->activeStatus = Sysfile::NS_Configured;
     }
-    Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus,
-                           mngNodeptr.p->activeStatus);
+    SYSFILE->setNodeStatus(nodeId, mngNodeptr.p->activeStatus);
   }
 
   for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
@@ -25711,7 +25696,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   }
   case CheckNodeGroups::GetNodeGroup:{
     ok = true;
-    Uint32 ng = Sysfile::getNodeGroup(getOwnNodeId(), SYSFILE->nodeGroups);
+    Uint32 ng = SYSFILE->getNodeGroup(getOwnNodeId());
     if (ng == NO_NODE_GROUP_ID)
       ng = RNIL;
     sd->output = ng;
@@ -25719,7 +25704,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   }
   case CheckNodeGroups::GetNodeGroupMembers: {
     ok = true;
-    Uint32 ng = Sysfile::getNodeGroup(sd->nodeId, SYSFILE->nodeGroups);
+    Uint32 ng = SYSFILE->getNodeGroup(sd->nodeId);
     DEB_MULTI_TRP(("My node group is %u", ng));
     if (ng == NO_NODE_GROUP_ID)
       ng = RNIL;
@@ -26817,8 +26802,7 @@ void Dbdih::setNodeActiveStatus()
   for (snaNodeptr.i = 1; snaNodeptr.i <= m_max_node_id; snaNodeptr.i++)
   {
     ptrAss(snaNodeptr, nodeRecord);
-    const Uint32 tsnaNodeBits = Sysfile::getNodeStatus(snaNodeptr.i,
-                                                       SYSFILE->nodeStatus);
+    const Uint32 tsnaNodeBits = SYSFILE->getNodeStatus(snaNodeptr.i);
     switch (tsnaNodeBits) {
     case Sysfile::NS_Active:
       jam();
@@ -26874,8 +26858,7 @@ void Dbdih::setNodeGroups()
   {
     ptrAss(sngNodeptr, nodeRecord);
     Sysfile::ActiveStatus s = 
-      (Sysfile::ActiveStatus)Sysfile::getNodeStatus(sngNodeptr.i,
-						    SYSFILE->nodeStatus);
+      (Sysfile::ActiveStatus)SYSFILE->getNodeStatus(sngNodeptr.i);
     switch (s){
     case Sysfile::NS_Active:
     case Sysfile::NS_ActiveMissed_1:
@@ -26883,8 +26866,7 @@ void Dbdih::setNodeGroups()
     case Sysfile::NS_NotActive_NotTakenOver:
     case Sysfile::NS_TakeOver:
       jam();
-      sngNodeptr.p->nodeGroup = Sysfile::getNodeGroup(sngNodeptr.i,
-                                                      SYSFILE->nodeGroups);
+      sngNodeptr.p->nodeGroup = SYSFILE->getNodeGroup(sngNodeptr.i);
       NGPtr.i = sngNodeptr.p->nodeGroup;
       ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
       NGPtr.p->nodesInGroup[NGPtr.p->nodeCount] = sngNodeptr.i;
@@ -26956,7 +26938,7 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
   Uint32 i; 
   for(i = 1; i <= m_max_node_id; i++)
   {
-    Sysfile::setNodeStatus(i, SYSFILE->nodeStatus, Sysfile::NS_Active);
+    SYSFILE->setNodeStatus(i, Sysfile::NS_Active);
   }//for
   NdbNodeBitmask::clear(SYSFILE->lcpActive);
 
@@ -27000,8 +26982,7 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
       ndbabort();
       tsnrNodeActiveStatus = Sysfile::NS_NotDefined; // remove warning
     }//switch
-    Sysfile::setNodeStatus(nodePtr.i, SYSFILE->nodeStatus, 
-                           tsnrNodeActiveStatus);
+    SYSFILE->setNodeStatus(nodePtr.i, tsnrNodeActiveStatus);
     if (nodePtr.p->nodeGroup == ZNIL) {
       jam();
       tsnrNodeGroup = NO_NODE_GROUP_ID;
@@ -27009,14 +26990,14 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
       jam();
       tsnrNodeGroup = nodePtr.p->nodeGroup;
     }//if
-    Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups, tsnrNodeGroup);
+    SYSFILE->setNodeGroup(nodePtr.i, tsnrNodeGroup);
     if (c_lcpState.m_participatingLQH.get(nodePtr.i))
     {
       jam();
       NdbNodeBitmask::set(SYSFILE->lcpActive, nodePtr.i);
     }//if
 #ifdef ERROR_INSERT
-    else if (Sysfile::getLCPOngoing(SYSFILE->systemRestartBits))
+    else if (SYSFILE->getLCPOngoing())
     {
       jam();
       if (nodePtr.p->activeStatus == Sysfile::NS_Active)
@@ -29740,11 +29721,11 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
     for (Uint32 i = 0; i<cnoReplicas; i++)
     {
       Uint32 nodeId = req->nodes[i];
-      Sysfile::setNodeGroup(nodeId, SYSFILE->nodeGroups, req->nodegroupId);
+      SYSFILE->setNodeGroup(nodeId, req->nodegroupId);
       if (getNodeStatus(nodeId) == NodeRecord::ALIVE)
       {
         jam();
-        Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus, Sysfile::NS_Active);
+        SYSFILE->setNodeStatus(nodeId, Sysfile::NS_Active);
         if (nodeId == getOwnNodeId())
         {
           jam();
@@ -29754,7 +29735,7 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       else
       {
         jam();
-        Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus, Sysfile::NS_ActiveMissed_1);
+        SYSFILE->setNodeStatus(nodeId, Sysfile::NS_ActiveMissed_1);
       }
       setNodeActiveStatus();
       setNodeGroups();
@@ -29874,8 +29855,8 @@ Dbdih::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
     {
       jam();
       Uint32 nodeId = NGPtr.p->nodesInGroup[i];
-      Sysfile::setNodeGroup(nodeId, SYSFILE->nodeGroups, NO_NODE_GROUP_ID);
-      Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus, Sysfile::NS_Configured);
+      SYSFILE->setNodeGroup(nodeId, NO_NODE_GROUP_ID);
+      SYSFILE->setNodeStatus(nodeId, Sysfile::NS_Configured);
     }
     setNodeActiveStatus();
     setNodeGroups();
