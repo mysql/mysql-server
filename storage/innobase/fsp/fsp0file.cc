@@ -656,7 +656,7 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
         static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
     m_encryption_iv = static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
 #ifdef UNIV_ENCRYPT_DEBUG
-    fprintf(stderr, "Got from file %lu:", m_space_id);
+    fprintf(stderr, "Got from file %u:", m_space_id);
 #endif
 
     if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
