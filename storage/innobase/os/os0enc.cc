@@ -460,10 +460,6 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   ulint crc2;
   char srv_uuid[SERVER_UUID_LEN + 1];
   Version version;
-#ifdef UNIV_ENCRYPT_DEBUG
-  const byte *data;
-  ulint i;
-#endif
 
   ptr = encryption_info;
 
@@ -504,10 +500,12 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
     {
       std::ostringstream msg;
 
+      msg << "Master Key ID: " << master_key_id;
+      msg << " hex: {";
       ut_print_buf_hex(msg, master_key, KEY_LEN);
+      msg << "}";
 
-      ib::info(ER_IB_MSG_838)
-          << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
+      ib::info(ER_IB_MSG_838) << msg.str();
     }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -606,11 +604,12 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
   {
     std::ostringstream msg;
 
+    msg << "Encrypting block: " << log_block_get_hdr_no(src_ptr);
+    msg << "{";
     ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
+    msg << "}";
 
-    ib::info(ER_IB_MSG_842)
-        << "Encrypting block: " << log_block_get_hdr_no(src_ptr) << "{"
-        << msg.str() << "}";
+    ib::info(ER_IB_MSG_842) << msg.str();
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -680,26 +679,35 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Encrypted block %lu.\n", log_block_get_hdr_no(dst_ptr));
-  ut_print_buf_hex(stderr, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "\n");
+  {
+    std::ostringstream os{};
+    os << "Encrypted block " << log_block_get_hdr_no(dst_ptr) << "."
+       << std::endl;
+    ut_print_buf_hex(os, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
+    os << std::endl;
+    ib::info() << os.str();
 
-  byte *check_buf =
-      static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
+    byte *check_buf =
+        static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
+    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
 
-  memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
-  dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
-                            OS_FILE_LOG_BLOCK_SIZE);
-  log_block_set_encrypt_bit(check_buf, true);
-  if (err != DB_SUCCESS ||
-      memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE) != 0) {
-    ut_print_buf_hex(stderr, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-    ut_print_buf_hex(stderr, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-    ut_ad(0);
+    memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
+    log_block_set_encrypt_bit(check_buf, true);
+    dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
+                              OS_FILE_LOG_BLOCK_SIZE);
+    if (err != DB_SUCCESS ||
+        memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE) != 0) {
+      std::ostringstream msg{};
+      ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
+      ib::error() << msg.str();
+
+      msg.seekp(0);
+      ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
+      ib::fatal() << msg.str();
+    }
+    ut_free(buf2);
+    ut_free(check_buf);
   }
-  ut_free(buf2);
-  ut_free(check_buf);
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   /* Set the encrypted flag. */
@@ -731,19 +739,25 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
+  {
+    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
+    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
 
-  memcpy(check_buf, dst, src_len);
+    memcpy(check_buf, dst, src_len);
 
-  dberr_t err = decrypt_log(type, check_buf, src_len, buf2, src_len);
-  if (err != DB_SUCCESS || memcmp(src, check_buf, src_len) != 0) {
-    ut_print_buf_hex(stderr, src, src_len);
-    ut_print_buf_hex(stderr, check_buf, src_len);
-    ut_ad(0);
+    dberr_t err = decrypt_log(type, check_buf, src_len, buf2, src_len);
+    if (err != DB_SUCCESS || memcmp(src, check_buf, src_len) != 0) {
+      std::ostringstream msg{};
+      ut_print_buf_hex(msg, src, src_len);
+      ib::error() << msg.str();
+
+      msg.seekp(0);
+      ut_print_buf_hex(msg, check_buf, src_len);
+      ib::fatal() << msg.str();
+    }
+    ut_free(buf2);
+    ut_free(check_buf);
   }
-  ut_free(buf2);
-  ut_free(check_buf);
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   return (dst);
@@ -755,13 +769,20 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   ut_ad(!type.is_log());
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  ulint space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-  ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+  const page_id_t page_id(
+      mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
+      mach_read_from_4(src + FIL_PAGE_OFFSET));
 
-  fprintf(stderr, "Encrypting page:%lu.%lu len:%lu\n", space_id, page_no,
-          src_len);
-  ut_print_buf(stderr, m_key, 32);
-  ut_print_buf(stderr, m_iv, 32);
+  {
+    std::ostringstream msg{};
+    msg << "Encrypting page: " << page_id << " src_len: " << src_len
+        << std::endl;
+
+    ut_print_buf(msg, m_key, 32);
+    msg << std::endl;
+    ut_print_buf(msg, m_iv, 32);
+    ib::info() << msg.str();
+  }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   /* Shouldn't encrypt an already encrypted page. */
@@ -873,30 +894,35 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     mach_write_to_2(dst + FIL_PAGE_ORIGINAL_TYPE_V1, page_type);
   }
 
-#ifdef UNIV_ENCRYPT_DEBUG
-  byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-
-  memcpy(check_buf, dst, src_len);
-
-  dberr_t err = decrypt(type, check_buf, src_len, buf2, src_len);
-  if (err != DB_SUCCESS ||
-      memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-             src_len - FIL_PAGE_DATA) != 0) {
-    ut_print_buf(stderr, src, src_len);
-    ut_print_buf(stderr, check_buf, src_len);
-    ut_ad(0);
-  }
-  ut_free(buf2);
-  ut_free(check_buf);
-
-  fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
-#endif /* UNIV_ENCRYPT_DEBUG */
-
   /* Add padding 0 for unused portion */
   if (src_len > src_enc_len) {
     memset(dst + src_enc_len, 0, src_len - src_enc_len);
   }
+
+#ifdef UNIV_ENCRYPT_DEBUG
+  auto *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
+  auto *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
+
+  memcpy(check_buf, dst, src_len);
+
+  auto err = decrypt(type, check_buf, src_len, buf2, src_len);
+  if (err != DB_SUCCESS ||
+      memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
+             src_len - FIL_PAGE_DATA) != 0) {
+    std::ostringstream msg{};
+    ut_print_buf(msg, src, src_len);
+    ib::error() << msg.str();
+
+    msg.seekp(0);
+
+    ut_print_buf(msg, check_buf, src_len);
+    ib::fatal() << msg.str();
+  }
+  ut_free(buf2);
+  ut_free(check_buf);
+
+  ib::info() << "Encrypted page: " << page_id;
+#endif /* UNIV_ENCRYPT_DEBUG */
 
   *dst_len = src_len;
 
@@ -975,9 +1001,13 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
   ptr -= LOG_BLOCK_HDR_SIZE;
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  fprintf(stderr, "Decrypted block %lu.\n", log_block_get_hdr_no(ptr));
-  ut_print_buf_hex(stderr, ptr, OS_FILE_LOG_BLOCK_SIZE);
-  fprintf(stderr, "\n");
+  {
+    std::ostringstream msg{};
+    msg << "Decrypted block " << log_block_get_hdr_no(ptr) << "." << std::endl;
+    ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
+    msg << std::endl;
+    ib::info() << msg.str();
+  }
 #endif
 
   /* Reset the encrypted flag. */
@@ -1009,13 +1039,12 @@ dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
     {
       std::ostringstream msg;
 
+      msg << "Decrypting block: " << log_block_get_hdr_no(ptr) << std::endl;
+      msg << "data={" << std::endl;
       ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
+      msg << std::endl << "}";
 
-      ib::info(ER_IB_MSG_847)
-          << "Decrypting block: " << log_block_get_hdr_no(ptr) << std::endl
-          << "data={" << std::endl
-          << msg.str << std::endl
-          << "}";
+      ib::info(ER_IB_MSG_847) << msg.str();
     }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -1076,22 +1105,21 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
+  const page_id_t page_id(
+      mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
+      mach_read_from_4(src + FIL_PAGE_OFFSET));
+
   {
-    auto space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-
-    auto page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-
     std::ostringstream msg;
 
+    msg << "Decrypting page: " << page_id << " len: " << src_len << std::endl;
     msg << "key={";
     ut_print_buf(msg, m_key, 32);
     msg << "}" << std::endl << "iv= {";
     ut_print_buf(msg, m_iv, 32);
     msg << "}";
 
-    ib::info(ER_IB_MSG_848) << "Decrypting page: " << space_id << "." << page_no
-                            << " len: " << src_len << "\n"
-                            << msg.str();
+    ib::info(ER_IB_MSG_848) << msg.str();
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -1201,7 +1229,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  ib::info(ER_IB_MSG_850) << "Decrypted page: " << space_id << "." << page_no;
+  ib::info(ER_IB_MSG_850) << "Decrypted page: " << page_id;
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   DBUG_EXECUTE_IF("ib_crash_during_decrypt_page", DBUG_SUICIDE(););
