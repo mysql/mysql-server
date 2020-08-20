@@ -4477,6 +4477,31 @@ void Dblqh::execLQHKEYREF(Signal* signal)
       return;
     }
   }
+  else if (regTcPtr->connectState == TcConnectionrec::COPY_CONNECTED)
+  {
+    jam();
+    if ((regTcPtr->transid[0] != transid1) ||
+        (regTcPtr->transid[1] != transid2))
+    {
+      jam();
+      /**
+       * A previous normal operation was aborted from DBTC, but the
+       * LQHKEYREQ was also aborted, when we arrive here the operation
+       * recorded was already released by the abort operation, the
+       * operation record have been taken over by a copy operation.
+       * Ensure that we don't touch the operation record since it is
+       * in use by another operation. So this signal should be
+       * ignored.
+       */
+      warningReport(signal, 17);
+      return;
+    }
+  }
+  else
+  {
+    ndbrequire((regTcPtr->transid[0] == transid1) &&
+               (regTcPtr->transid[1] == transid2));
+  }
 
   switch (regTcPtr->connectState) {
   case TcConnectionrec::CONNECTED:
@@ -9846,6 +9871,13 @@ void Dblqh::warningReport(Signal* signal, int place)
     ndbrequire(cstartPhase == ZNIL);
 #ifdef ABORT_TRACE
     ndbout << "W: Received LQHKEYREF in wrong state in Dblqh" << endl;
+#endif
+    break;
+  case 17:
+    jam();
+#ifdef ABORT_TRACE
+    ndbout << "W: Received LQHKEYREF with wrong transid in" <<
+           << " COPY_CONNECTED state" << endl;
 #endif
     break;
   default:
@@ -17657,7 +17689,6 @@ void Dblqh::copyLqhKeyRefLab(Signal* signal,
                              const TcConnectionrecPtr tcConnectptr)
 {
   jamDebug();
-  ndbrequire(tcConnectptr.p->transid[1] == signal->theData[4]);
   Uint32 copyWords = signal->theData[3];
   scanptr.p->scanErrorCounter++;
   tcConnectptr.p->errorCode = terrorCode;
