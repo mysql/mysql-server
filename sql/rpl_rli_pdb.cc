@@ -1961,12 +1961,13 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
         no error or the error is a temporary error.
       */
       Diagnostics_area *da= thd->get_stmt_da();
-      if (!thd->get_stmt_da()->is_error() ||
-          has_temporary_error(thd,
-                              da->is_error() ? da->mysql_errno() : error,
+      if (!da->is_error() ||
+          has_temporary_error(thd, da->is_error() ? da->mysql_errno() : error,
                               &silent))
       {
         error= ER_LOCK_DEADLOCK;
+        DBUG_EXECUTE_IF("simulate_exhausted_trans_retries",
+                        { trans_retries = slave_trans_retries; };);
       }
 #ifndef DBUG_OFF
       else
@@ -1990,10 +1991,12 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     if (trans_retries >= slave_trans_retries)
     {
       thd->is_fatal_error= 1;
-      c_rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                    "worker thread retried transaction %lu time(s) "
-                    "in vain, giving up. Consider raising the value of "
-                    "the slave_transaction_retries variable.", trans_retries);
+      c_rli->report(
+          ERROR_LEVEL,
+          thd->is_error() ? thd->get_stmt_da()->mysql_errno() : error,
+          "worker thread retried transaction %lu time(s) "
+          "in vain, giving up. Consider raising the value of "
+          "the slave_transaction_retries variable.", trans_retries);
       DBUG_RETURN(true);
     }
 
