@@ -631,14 +631,20 @@ void trx_sys_after_pre_dd_shutdown_validate() {
   }
   trx_sys_mutex_exit();
 
-  /** Additionally, the only left transactions are those that have
-  state == TRX_STATE_PREPARED, unless we didn't expect to rollback
-  all recovered transactions (e.g. fast shutdown) in which case we
-  could also have some transactions with is_recovered == true and
-  state == TRX_STATE_ACTIVE. */
+  /* We assert that all transactions are rolled back if
+  [1] Not force recovery mode.
+  [2] Not fast shutdown
+  [3] The rollback thread has started and stopped gracefully.
+
+  The only left transactions are those that have state == TRX_STATE_PREPARED.
+
+  Above, [3] could be false during error exit, when the rollback thread might
+  never have started and we don't rollback the recovered transactions in that
+  case. */
 
   const auto active_recovered_trxs = trx_sys_recovered_active_trxs_count();
-  if (srv_shutdown_waits_for_rollback_of_recovered_transactions()) {
+  if (srv_shutdown_waits_for_rollback_of_recovered_transactions() &&
+      srv_thread_is_stopped(srv_threads.m_trx_recovery_rollback)) {
     ut_a(active_recovered_trxs == 0);
   }
 

@@ -3164,6 +3164,10 @@ void srv_pre_dd_shutdown() {
   if (srv_shutdown_waits_for_rollback_of_recovered_transactions()) {
     /* We need to wait for rollback of recovered transactions. */
     for (uint32_t count = 0;; ++count) {
+      /* Should not loop and wait if rollback thread isn't there. */
+      if (!srv_thread_is_active(srv_threads.m_trx_recovery_rollback)) {
+        break;
+      }
       const auto total_trx = trx_sys_recovered_active_trxs_count();
       if (total_trx == 0) {
         break;
