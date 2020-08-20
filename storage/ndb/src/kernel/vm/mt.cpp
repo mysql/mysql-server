@@ -7365,6 +7365,10 @@ mt_receiver_thread_main(void *thr_arg)
                            before))))
     {
       delay = 10; // 10 ms
+      if (globalData.ndbMtMainThreads == 0)
+      {
+        delay = 1;
+      }
     }
 
     has_received = false;

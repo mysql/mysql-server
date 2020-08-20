@@ -284,6 +284,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
   m_send_thread_name = "send";
   m_send_thread_description = "Send thread";
   m_enable_adaptive_spinning = false;
+  m_main_thrman_instance = getMainThrmanInstance();
 
   if (NdbSpin_is_supported())
   {
@@ -402,7 +403,6 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
    */
   m_num_send_threads = getNumSendThreads();
   m_num_threads = getNumThreads();
-  m_main_thrman_instance = getMainThrmanInstance();
 
   c_measurementRecordPool.setSize(NUM_MEASUREMENT_RECORDS);
   if (instance() == m_main_thrman_instance)
@@ -3876,7 +3876,7 @@ Thrman::execFREEZE_THREAD_REQ(Signal *signal)
    * load. It is important synchronize this to ensure that signals
    * continue to arrive to the destination threads in signal order.
    */
-  if (instance() != 1)
+  if (instance() != m_main_thrman_instance)
   {
     flush_send_buffers();
     wait_freeze(false);
