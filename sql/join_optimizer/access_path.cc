@@ -638,10 +638,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::STREAM: {
       const auto &param = path->stream();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
-          thd, param.child, join, eligible_for_batch_mode);
+          thd, param.child, param.join, eligible_for_batch_mode);
       iterator = NewIterator<StreamingIterator>(
           thd, move(child), param.temp_table_param, param.table,
-          param.copy_fields_and_items_in_materialize, param.provide_rowid);
+          param.copy_fields_and_items_in_materialize, param.provide_rowid,
+          param.join, param.ref_slice);
       break;
     }
     case AccessPath::MATERIALIZE: {

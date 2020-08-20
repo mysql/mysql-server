@@ -969,9 +969,9 @@ void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
       bool copy_fields_and_items = !join->streaming_aggregation ||
                                    join->tmp_table_param.precomputed_group_by;
       AppendPathParameters param;
-      param.path = NewStreamingAccessPath(thd, join->root_access_path(), join,
-                                          &join->tmp_table_param, tmp_table,
-                                          copy_fields_and_items);
+      param.path = NewStreamingAccessPath(
+          thd, join->root_access_path(), join, &join->tmp_table_param,
+          tmp_table, copy_fields_and_items, /*ref_slice=*/-1);
       param.join = join;
       CopyCosts(*join->root_access_path(), param.path);
       union_all_sub_paths->push_back(param);

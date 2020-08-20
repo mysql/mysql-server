@@ -677,11 +677,14 @@ class StreamingIterator final : public TableRowIterator {
     @param provide_rowid If true, generate a row ID for each row we stream.
       This is used if the parent needs row IDs for deduplication, in particular
       weedout.
+    @param join See MaterializeIterator.
+    @param ref_slice See MaterializeIterator.
    */
   StreamingIterator(THD *thd,
                     unique_ptr_destroy_only<RowIterator> subquery_iterator,
                     Temp_table_param *temp_table_param, TABLE *table,
-                    bool copy_fields_and_items, bool provide_rowid);
+                    bool copy_fields_and_items, bool provide_rowid, JOIN *join,
+                    int ref_slice);
 
   bool Init() override;
 
@@ -700,6 +703,9 @@ class StreamingIterator final : public TableRowIterator {
   Temp_table_param *m_temp_table_param;
   const bool m_copy_fields_and_items;
   ha_rows m_row_number;
+  JOIN *const m_join;
+  const int m_output_slice;
+  int m_input_slice;
 
   // Whether the iterator should generate and provide a row ID. Only true if the
   // iterator is part of weedout, where the iterator will create a fake row ID

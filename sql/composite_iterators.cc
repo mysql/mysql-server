@@ -1025,11 +1025,13 @@ void MaterializeIterator::AddInvalidator(
 StreamingIterator::StreamingIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *temp_table_param, TABLE *table,
-    bool copy_fields_and_items, bool provide_rowid)
+    bool copy_fields_and_items, bool provide_rowid, JOIN *join, int ref_slice)
     : TableRowIterator(thd, table),
       m_subquery_iterator(move(subquery_iterator)),
       m_temp_table_param(temp_table_param),
       m_copy_fields_and_items(copy_fields_and_items),
+      m_join(join),
+      m_output_slice(ref_slice),
       m_provide_rowid(provide_rowid) {
   DBUG_ASSERT(m_subquery_iterator != nullptr);
 
@@ -1055,11 +1057,26 @@ bool StreamingIterator::Init() {
     memset(table()->file->ref, 0, table()->file->ref_length);
   }
 
+  m_input_slice = m_join->get_ref_item_slice();
+
   m_row_number = 0;
   return m_subquery_iterator->Init();
 }
 
 int StreamingIterator::Read() {
+  /*
+    Enable the items which one should use if one wants to evaluate
+    anything (e.g. functions in WHERE, HAVING) involving columns of this
+    table. Make sure to switch to the right output slice before we
+    exit the function.
+  */
+  m_join->set_ref_item_slice(m_input_slice);
+  auto switch_to_output_slice = create_scope_guard([&] {
+    if (m_output_slice != -1 && !m_join->ref_items[m_output_slice].is_null()) {
+      m_join->set_ref_item_slice(m_output_slice);
+    }
+  });
+
   int error = m_subquery_iterator->Read();
   if (error != 0) return error;
 

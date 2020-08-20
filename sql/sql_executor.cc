@@ -1561,7 +1561,7 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
   } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
              qep_tab->rematerialize && IsTableScan(table_path)) {
     // We don't actually need the materialization for anything (we would
-    // just reading the rows straight out from the table, never to be used
+    // just be reading the rows straight out from the table, never to be used
     // again), so we can just stream records directly over to the next
     // iterator. This saves both CPU time and memory (for the temporary
     // table).
@@ -1569,11 +1569,12 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
     // NOTE: Currently, qep_tab->rematerialize is true only for JSON_TABLE.
     // We could extend this to other situations, such as the leftmost
     // table of the join (assuming nested loop only). The test for CTEs is
-    // also conservative; if the CTEs is defined within this join and used
+    // also conservative; if the CTE is defined within this join and used
     // only once, we could still stream without losing performance.
     path = NewStreamingAccessPath(thd, unit->root_access_path(), subjoin,
                                   &subjoin->tmp_table_param, qep_tab->table(),
-                                  copy_fields_and_items_in_materialize);
+                                  copy_fields_and_items_in_materialize,
+                                  /*ref_slice=*/-1);
     CopyCosts(*unit->root_access_path(), path);
   } else {
     JOIN *join = unit->is_union() ? nullptr : unit->first_select()->join;
@@ -3084,9 +3085,9 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       AccessPath *old_path = path;
       if (first_sort != nullptr && first_sort->using_addon_fields() &&
           !MaterializeIsDoingDeduplication(qep_tab->table())) {
-        path = NewStreamingAccessPath(thd, path, /*join=*/this,
-                                      qep_tab->tmp_table_param,
-                                      qep_tab->table(), copy_fields_and_items);
+        path = NewStreamingAccessPath(
+            thd, path, /*join=*/this, qep_tab->tmp_table_param,
+            qep_tab->table(), copy_fields_and_items, qep_tab->ref_item_slice);
       } else {
         path = NewMaterializeAccessPath(
             thd,

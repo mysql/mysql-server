@@ -629,6 +629,7 @@ struct AccessPath {
       TABLE *table;
       bool copy_fields_and_items_in_materialize;
       bool provide_rowid;
+      int ref_slice;
     } stream;
     struct {
       AccessPath *table_path;
@@ -994,7 +995,7 @@ inline AccessPath *NewZeroRowsAggregatedAccessPath(THD *thd,
 
 inline AccessPath *NewStreamingAccessPath(
     THD *thd, AccessPath *child, JOIN *join, Temp_table_param *temp_table_param,
-    TABLE *table, bool copy_fields_and_items_in_materialize) {
+    TABLE *table, bool copy_fields_and_items_in_materialize, int ref_slice) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::STREAM;
   path->stream().child = child;
@@ -1003,6 +1004,7 @@ inline AccessPath *NewStreamingAccessPath(
   path->stream().table = table;
   path->stream().copy_fields_and_items_in_materialize =
       copy_fields_and_items_in_materialize;
+  path->stream().ref_slice = ref_slice;
   // Will be set later if we get a weedout access path as parent.
   path->stream().provide_rowid = false;
   return path;
