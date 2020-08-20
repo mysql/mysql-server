@@ -1221,7 +1221,7 @@ Dbdih::pack_sysfile_format_v1(void)
   for (Uint32 i = 0; i < 49; i++)
     cdata[6 + i] = SYSFILE->lastCompletedGCI[i];
   for (Uint32 i = 0; i < 7; i++)
-    cdata[55 + i] = SYSFILE->nodeStatus[i];
+    Sysfile::setNodeStatus_v1(i, SYSFILE->getNodeStatus(i), &cdata[55]);
 
   memset(&cdata[62], 0, 52);
   for (Uint32 i = 1; i <= 48; i++)
@@ -1458,7 +1458,7 @@ Dbdih::unpack_sysfile_format_v1(bool set_max_node_id)
   }
   for (Uint32 i = 0; i < 7; i++)
   {
-    SYSFILE->nodeStatus[i] = cdata[55 + i];
+    SYSFILE->setNodeStatus(i, Sysfile::getNodeStatus_v1(i, &cdata[55]));
   }
 
   memset(SYSFILE->nodeGroups, 0, sizeof(SYSFILE->nodeGroups));

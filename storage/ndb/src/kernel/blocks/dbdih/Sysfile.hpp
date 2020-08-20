@@ -113,6 +113,8 @@ public:
   Uint32 newestRestorableGCI;
   Uint32 latestLCP_ID;
   
+  Uint32 maxNodeId;
+
   /**
    * Last completed GCI for each node
    */
@@ -140,6 +142,11 @@ public:
   Uint32 getNodeStatus(NodeId) const;
   void   setNodeStatus(NodeId, Uint32 status);
   
+  static Uint32 getNodeStatus_v1(NodeId, const Uint32 *nodeStatus);
+  static void   setNodeStatus_v1(NodeId, Uint32 status, Uint32 * nodeStatus);
+
+  Uint32 getMaxNodeId() const;
+
   /**
    * The node group of each node
    *   Sizeof(NodeGroup) = 8 Bit
@@ -192,6 +199,7 @@ inline
 void
 Sysfile::initSysFile()
 {
+  maxNodeId = 0;
   for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
   {
     setNodeGroup(i, NO_NODE_GROUP_ID);
@@ -266,22 +274,73 @@ inline
 Uint32 
 Sysfile::getNodeStatus(NodeId nodeId) const
 {
-  const int word  = nodeId >> 3;
-  const int shift = (nodeId & 7) << 2;
-  
-  return (nodeStatus[word] >> shift) & 15;
+  return getNodeStatus_v1(nodeId, nodeStatus);
 }
 
 inline
 void
 Sysfile::setNodeStatus(NodeId nodeId, Uint32 status)
 {
+  setNodeStatus_v1(nodeId, status, nodeStatus);
+
+  if (nodeId == 0)
+  {
+    require(status == Sysfile::NS_NotDefined);
+    return;
+  }
+
+  // Adjust maxNodeId
+  if (nodeId > maxNodeId && status != Sysfile::NS_NotDefined)
+  {
+    maxNodeId = nodeId;
+  }
+  else if (nodeId == maxNodeId && status == Sysfile::NS_NotDefined)
+  {
+    do
+    {
+      nodeId--;
+    } while (nodeId > 0 &&
+            getNodeStatus(nodeId) == Sysfile::NS_NotDefined);
+    maxNodeId = nodeId;
+  }
+}
+
+inline Uint32 Sysfile::getMaxNodeId() const
+{
+#if defined(VM_TRACE)
+  Uint32 max_node_id;
+  for (max_node_id = MAX_NDB_NODES - 1; max_node_id > 0; max_node_id--)
+  {
+    if (Sysfile::getNodeStatus(max_node_id) != Sysfile::NS_NotDefined)
+    {
+      break;
+    }
+  }
+  require(max_node_id == maxNodeId);
+#endif
+  return maxNodeId;
+}
+
+inline
+Uint32
+Sysfile::getNodeStatus_v1(NodeId nodeId, const Uint32* nodeStatus)
+{
+  const int word  = nodeId >> 3;
+  const int shift = (nodeId & 7) << 2;
+
+  return (nodeStatus[word] >> shift) & 15;
+}
+
+inline
+void
+Sysfile::setNodeStatus_v1(NodeId nodeId, Uint32 status, Uint32* nodeStatus)
+{
   const int word  = nodeId >> 3;
   const int shift = (nodeId & 7) << 2;
 
   const Uint32 mask = ~(((Uint32)15) << shift);
   const Uint32 tmp = nodeStatus[word];
-  
+
   nodeStatus[word] = (tmp & mask) | ((status & 15) << shift);
 }
 
