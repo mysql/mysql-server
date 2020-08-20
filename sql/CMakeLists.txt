@@ -1197,16 +1197,20 @@ ADD_CUSTOM_TARGET(
 )
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-  MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
-IF(WIN32)
+  MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example"
+  )
+# MYSQL_ADD_PLUGIN may have decided not to build it.
+IF(WIN32 AND TARGET udf_example)
   SET_TARGET_PROPERTIES(udf_example
     PROPERTIES LINK_FLAGS
     "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
 ENDIF()
 
 MYSQL_ADD_PLUGIN(locking_service locking_service_udf.cc
-  MODULE_ONLY MODULE_OUTPUT_NAME "locking_service")
-IF(WIN32)
+  MODULE_ONLY MODULE_OUTPUT_NAME "locking_service"
+  )
+# MYSQL_ADD_PLUGIN may have decided not to build it.
+IF(WIN32 AND TARGET locking_service)
   SET_TARGET_PROPERTIES(locking_service
     PROPERTIES LINK_FLAGS
     "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")

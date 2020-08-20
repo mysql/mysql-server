@@ -355,7 +355,7 @@ table_binary_log_transaction_compression_stats.cc
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY)
-TARGET_LINK_LIBRARIES(perfschema)
+
 IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)

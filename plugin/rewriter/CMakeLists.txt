@@ -30,6 +30,11 @@ MYSQL_ADD_PLUGIN(rewriter
   MODULE_OUTPUT_NAME "rewriter"
   )
 
+# MYSQL_ADD_PLUGIN may have decided not to build it.
+IF(NOT TARGET rewriter)
+  RETURN()
+ENDIF()
+
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="Rewriter")
 

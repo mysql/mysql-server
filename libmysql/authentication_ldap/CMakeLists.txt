@@ -81,6 +81,11 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
 
+# MYSQL_ADD_PLUGIN may have decided not to build it.
+IF(NOT TARGET authentication_ldap_sasl_client)
+  RETURN()
+ENDIF()
+
 IF(KERBEROS_FOUND)
   SET(PLUGIN_VERSION_FILE
     ${CMAKE_CURRENT_SOURCE_DIR}/authentication_ldap_sasl_client.ver)
