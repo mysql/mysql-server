@@ -79,13 +79,18 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
   REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_C_FLAGS "${MY_COMPILER_FLAG_FLTO}")
   REMOVE_CMAKE_COMPILER_FLAGS(CMAKE_CXX_FLAGS "${MY_COMPILER_FLAG_FLTO}")
 
-  ADD_SUBDIRECTORY(daemon_memcached)
   ADD_SUBDIRECTORY(innodb_memcache)
-ENDIF()
 
-INSTALL(FILES
-  "innodb_memcache/scripts/innodb_memcached_config.sql"
-  COMPONENT Server
-  DESTINATION ${INSTALL_MYSQLSHAREDIR}
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
-  )
+  # MYSQL_ADD_PLUGIN may have decided not to build it.
+  IF(TARGET innodb_engine)
+    ADD_SUBDIRECTORY(daemon_memcached)
+
+    INSTALL(FILES
+      "innodb_memcache/scripts/innodb_memcached_config.sql"
+      COMPONENT Server
+      DESTINATION ${INSTALL_MYSQLSHAREDIR}
+      PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+      )
+  ENDIF()
+
+ENDIF()

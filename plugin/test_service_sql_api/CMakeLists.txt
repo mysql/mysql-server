@@ -60,7 +60,8 @@ MYSQL_ADD_PLUGIN(test_session_attach
   TEST_ONLY
   )
 
-IF(WIN32)
+# MYSQL_ADD_PLUGIN may have decided not to build it.
+IF(WIN32 AND TARGET test_session_attach)
   MY_TARGET_LINK_OPTIONS(test_session_attach
     "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/test_session_attach.def"
     )
