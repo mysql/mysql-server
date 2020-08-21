@@ -3703,7 +3703,7 @@ Dbacc::readTablePk(Uint32 localkey1,
                    Uint32 *keys,
                    bool xfrm)
 {
-  int ret = -1;
+  int ret = -ZTUPLE_DELETED_ERROR;
   Uint32 tableId = fragrecptr.p->myTableId;
   Uint32 fragId = fragrecptr.p->myfid;
 
