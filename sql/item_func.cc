@@ -8419,6 +8419,49 @@ longlong Item_func_can_access_table::val_int() {
 
 /**
   @brief
+    INFORMATION_SCHEMA picks metadata from new DD using system views.
+    In order for INFORMATION_SCHEMA to skip listing user accpounts for which
+    the user does not have rights, the following SQL function is used.
+
+  Syntax:
+    int CAN_ACCCESS_USER(user_part, host_part);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+
+  @sa @ref acl_can_access_user
+*/
+longlong Item_func_can_access_user::val_int() {
+  DBUG_TRACE;
+
+  THD *thd = current_thd;
+  // Read user, host
+  String user_name;
+  String *user_name_ptr = args[0]->val_str(&user_name);
+  String host_name;
+  String *host_name_ptr = args[1]->val_str(&host_name);
+  if (host_name_ptr == nullptr || user_name_ptr == nullptr) {
+    null_value = true;
+    return 0;
+  }
+
+  // Make sure we have safe string to access.
+  host_name_ptr->c_ptr_safe();
+  user_name_ptr->c_ptr_safe();
+  MYSQL_LEX_STRING user_str = {const_cast<char *>(user_name_ptr->ptr()),
+                               user_name_ptr->length()};
+  MYSQL_LEX_STRING
+  host_str = {const_cast<char *>(host_name_ptr->ptr()),
+              host_name_ptr->length()};
+  LEX_USER user;
+  if (!LEX_USER::init(&user, thd, &user_str, &host_str)) return 0;
+
+  return acl_can_access_user(thd, &user) ? 1 : 0;
+}
+
+/**
+  @brief
     INFORMATION_SCHEMA picks metadata from new DD using system views. In
     order for INFORMATION_SCHEMA to skip listing table for which the user
     does not have rights on triggers, the following UDF's is used.

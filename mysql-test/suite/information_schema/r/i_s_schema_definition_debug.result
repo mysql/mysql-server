@@ -1631,13 +1631,15 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   user AS USER,
   host AS HOST,
   user_attributes->>"$.metadata" AS `ATTRIBUTE` FROM 
-  mysql.user
+  mysql.user WHERE 
+  CAN_ACCESS_USER(mysql.user.user,mysql.user.host)
 
 INSERT INTO I_S_check_table(t) VALUES ('CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.USER_ATTRIBUTES AS SELECT 
   user AS USER,
   host AS HOST,
   user_attributes->>"$.metadata" AS `ATTRIBUTE` FROM 
-  mysql.user
+  mysql.user WHERE 
+  CAN_ACCESS_USER(mysql.user.user,mysql.user.host)
 ');
 SET debug = '-d,fetch_system_view_definition';
 ########################################################################

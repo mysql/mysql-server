@@ -285,5 +285,10 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   CREATE_ITEM(Item_func_internal_is_enabled_role, TWO_NULL_ARGS);
   item->val_int();
   EXPECT_EQ(1, item->null_value);
+
+  // CAN_ACCESS_USER(NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_can_access_user, TWO_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
 }
 }  // namespace dd_info_schema_native_func

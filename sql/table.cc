@@ -7277,6 +7277,11 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
                           LEX_STRING *host_arg) {
   LEX_USER *ret = static_cast<LEX_USER *>(thd->alloc(sizeof(LEX_USER)));
   if (ret == nullptr) return nullptr;
+  return LEX_USER::init(ret, thd, user_arg, host_arg);
+}
+
+LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd, LEX_STRING *user_arg,
+                         LEX_STRING *host_arg) {
   /*
     Trim whitespace as the values will go to a CHAR field
     when stored.

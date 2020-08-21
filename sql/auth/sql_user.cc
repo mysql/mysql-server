@@ -181,6 +181,57 @@ bool check_change_password(THD *thd, const char *host, const char *user,
 }
 
 /**
+  Auxilary function for the CAN_ACCESS_USER internal function
+  used to check if a row from mysql.user can be accessed or not
+  by the current user
+
+  @arg thd the current thread
+  @arg user_arg the user account to check
+  @retval true the current user can access the user
+  @retval false the current user can't access the user
+
+  @sa @ref Item_func_can_access_user, @ref dd::system_views::User_attributes
+*/
+bool acl_can_access_user(THD *thd, LEX_USER *user_arg) {
+  /* if ACL is not initalized show everything */
+  if (!initialized) return true;
+
+  /* show everything if slave thread */
+  if (thd->slave_thread) return true;
+
+  LEX_USER *user = get_current_user(thd, user_arg);
+
+  /* hide the rows whose user can't be inited */
+  if (!user) return false;
+
+  Security_context *sctx = thd->security_context();
+
+  /* show if it's the same user */
+  if (!strcmp(sctx->priv_user().str, user->user.str) &&
+      !my_strcasecmp(system_charset_info, user->host.str,
+                     sctx->priv_host().str))
+    return true;
+
+  /* show if the current user has UPDATE on mysql.* */
+  if (!check_access(thd, UPDATE_ACL, consts::mysql.c_str(), nullptr, nullptr,
+                    true, true))
+    return true;
+
+  /* show if the current user has SELECT on mysql.* */
+  if (!check_access(thd, SELECT_ACL, consts::mysql.c_str(), nullptr, nullptr,
+                    true, true))
+    return true;
+
+  /* disable if the current user doesn't have SYSTEM_USER and the user account
+   * checked does */
+  if (sctx->can_operate_with(user, consts::system_user, false, true, false))
+    return false;
+
+  /* show if the current user has CREATE ACL, otherwise hide */
+  return sctx->check_access(CREATE_USER_ACL, consts::mysql);
+}
+
+/**
   Auxiliary function for constructing CREATE USER sql for a given user.
 
   @param thd                    Thread context

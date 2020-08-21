@@ -2456,6 +2456,12 @@ struct LEX_USER {
     explicitly.
   */
   static LEX_USER *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
+  /*
+    Initialize the members of this struct. It is preferable to use this method
+    to initialize a LEX_USER rather initializing the members explicitly.
+  */
+  static LEX_USER *init(LEX_USER *to_init, THD *thd, LEX_STRING *user,
+                        LEX_STRING *host);
 };
 
 /**

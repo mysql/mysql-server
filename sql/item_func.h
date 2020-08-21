@@ -2462,6 +2462,18 @@ class Item_func_can_access_table : public Item_int_func {
   }
 };
 
+class Item_func_can_access_user : public Item_int_func {
+ public:
+  Item_func_can_access_user(const POS &pos, Item *a, Item *b)
+      : Item_int_func(pos, a, b) {}
+  longlong val_int() override;
+  const char *func_name() const override { return "can_access_user"; }
+  bool resolve_type(THD *) override {
+    maybe_null = true;
+    return false;
+  }
+};
+
 class Item_func_can_access_trigger : public Item_int_func {
  public:
   Item_func_can_access_trigger(const POS &pos, Item *a, Item *b)
