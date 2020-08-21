@@ -713,6 +713,8 @@ std::pair<bool, bool> Security_context::has_global_grant(
                                     auth_id.
                                     true  - consider as privilege exists
                                     false - consider as privilege do not exist
+  @param  [in]  throw_error         Flag to decide if error needs to be thrown
+  or not.
 
   @retval true    auth_id has the privilege but the current_auth does not, also
                   throws error.
@@ -721,7 +723,8 @@ std::pair<bool, bool> Security_context::has_global_grant(
 bool Security_context::can_operate_with(const Auth_id &auth_id,
                                         const std::string &privilege,
                                         bool cumulative /*= false */,
-                                        bool ignore_if_nonextant /*= true */) {
+                                        bool ignore_if_nonextant /*= true */,
+                                        bool throw_error /* = true */) {
   DBUG_TRACE;
   Acl_cache_lock_guard acl_cache_lock(current_thd,
                                       Acl_cache_lock_mode::READ_MODE);
@@ -736,7 +739,8 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
     if (ignore_if_nonextant)
       return false;
     else {
-      my_error(ER_USER_DOES_NOT_EXIST, MYF(0), auth_id.auth_str().c_str());
+      if (throw_error)
+        my_error(ER_USER_DOES_NOT_EXIST, MYF(0), auth_id.auth_str().c_str());
       return true;
     }
   }
@@ -748,7 +752,8 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
                       : true;
   }
   if (is_mismatch) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege.c_str());
+    if (throw_error)
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege.c_str());
   }
   return is_mismatch;
 }

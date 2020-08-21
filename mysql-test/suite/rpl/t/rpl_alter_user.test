@@ -233,7 +233,7 @@ DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'foo' ATTRIBUTE '{"trackingId": "12345"}';
 CREATE USER u2@localhost COMMENT 'This is account is used by my private LAMP project';
 --source include/sync_slave_sql_with_master.inc
---connect(slave_con1, localhost, u1, foo, test, $SLAVE_MYPORT,,SSL)
+--connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,,SSL)
 --echo [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1' OR USER = 'u2';
 --connection master
@@ -241,7 +241,7 @@ SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1' OR USER = 'u2
 --disconnect slave_con1
 ALTER USER u1@localhost COMMENT 'TODO: Delete this user';
 --source include/sync_slave_sql_with_master.inc
---connect(slave_con1, localhost, u1, foo, test, $SLAVE_MYPORT,,SSL)
+--connect(slave_con1, localhost, root,, test, $SLAVE_MYPORT,,SSL)
 --echo [connection slave]
 SELECT * FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER = 'u1';
 --let $comment = `SELECT JSON_EXTRACT(ATTRIBUTE, "$.comment") FROM INFORMATION_SCHEMA.USER_ATTRIBUTES WHERE USER= 'u1'`

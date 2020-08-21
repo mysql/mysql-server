@@ -192,6 +192,7 @@ namespace info_schema {
   Changes from version 80021:
 
   - WL#13369: Added new I_S view 'SCHEMATA_EXTENSIONS'.
+  - Bug #31427410: Added a WHERE clause to I_S.USER_ATTRIBUTES
 
 
   80023: Next IS version number after the previous is public.

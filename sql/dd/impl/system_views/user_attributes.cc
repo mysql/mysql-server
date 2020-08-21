@@ -38,6 +38,7 @@ User_attributes::User_attributes() {
   m_target_def.add_field(FIELD_METADATA, "`ATTRIBUTE`",
                          "user_attributes->>\"$.metadata\"");
   m_target_def.add_from("mysql.user");
+  m_target_def.add_where("CAN_ACCESS_USER(mysql.user.user,mysql.user.host)");
 }
 
 }  // namespace system_views

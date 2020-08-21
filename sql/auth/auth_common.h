@@ -737,6 +737,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists);
 bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
                      bool drop_role);
 bool mysql_rename_user(THD *thd, List<LEX_USER> &list);
+bool acl_can_access_user(THD *thd, LEX_USER *user);
 
 /* sql_auth_cache */
 void init_acl_memory();

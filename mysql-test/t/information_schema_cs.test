@@ -2080,6 +2080,9 @@ SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION
 --error ER_NO_ACCESS_TO_NATIVE_FCT
 PREPARE stmt FROM 'SELECT CAN_ACCESS_TABLE("test", "t1") AS f1, COLUMN_NAME AS F2  FROM INFORMATION_SCHEMA.COLUMNS';
 
+--error ER_NO_ACCESS_TO_NATIVE_FCT
+SELECT CAN_ACCESS_USER(NULL, NULL);
+
 --echo # Case 2: Invoking I_S native methods should be allowed through I_S queries.
 --replace_column 6 # 7 # 8 # 9 # 10 # 11 # 12 # 13 # 14 # 15 # 16 # 17 # 18 # 19 # 20 # 21 #
 SELECT * FROM INFORMATION_SCHEMA.TABLES where table_name='t1';
