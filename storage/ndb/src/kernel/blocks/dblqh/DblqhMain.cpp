@@ -6718,11 +6718,12 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      * VALID TO USE. THIS MUST BE CHECKED.
      * ONE IS ADDED TO THE DISTRIBUTION KEY EVERY TIME WE ADD A NEW REPLICA.
      * FAILED REPLICAS DO NOT AFFECT THE DISTRIBUTION KEY. THIS MEANS THAT THE 
-     * MAXIMUM DEVIATION CAN BE ONE BETWEEN THOSE TWO VALUES.              
+     * MAXIMUM DEVIATION CAN BE 3 BETWEEN THOSE TWO VALUES SINCE WITH 4 REPLICAS
+     * WE CAN ADD 3 REPLICAS IN ONE GO.
      * --------------------------------------------------------------------- */
     Int8 tmp = (TdistKey - tfragDistKey);
     tmp = (tmp < 0 ? - tmp : tmp);
-    if ((tmp <= 1) || (tfragDistKey == 0)) {
+    if ((tmp <= (MAX_REPLICAS - 1)) || (tfragDistKey == 0)) {
       LQHKEY_abort(signal, 0, tcConnectptr);
       return;
     }//if
