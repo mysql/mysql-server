@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,7 @@ private:
     ,ZGET_TABINFO = 50
     ,ZGET_TABINFO_SEND = 51
     ,ZDEQUEUE_LCP_REP = 52
+    ,ZPRINT_LCP_STATE = 53
   };
 };
 

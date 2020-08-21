@@ -1564,7 +1564,7 @@ private:
   void checkTcCounterLab(Signal *);
   void calculateKeepGciLab(Signal *, Uint32 tableId, Uint32 fragId);
   void tableUpdateLab(Signal *, TabRecordPtr regTabPtr);
-  void checkLcpCompletedLab(Signal *);
+  void checkLcpCompletedLab(Signal *, Uint32);
   void initLcpLab(Signal *, Uint32 masterRef, Uint32 tableId);
   void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
@@ -2815,6 +2815,7 @@ public:
   bool is_master() { return isMaster(); }
   
   NdbNodeBitmask c_shutdownReqNodes;
+  void print_lcp_state();
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)
