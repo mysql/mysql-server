@@ -2593,3 +2593,15 @@
    ...
    fun:evthread_use_pthreads
 }
+
+# Note that libtcmalloc.so reports lots of Mismatched free()/delete/delete[]
+# So for valgrind builds, link with libtcmalloc_debug.so
+
+{
+   tcmalloc_debug
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   obj:/usr/lib64/libtcmalloc*
+   fun:_dl_init
+}
