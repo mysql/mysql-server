@@ -1147,6 +1147,7 @@ TupTriggerData_pool c_triggerPool;
     Uint16 m_dyn_null_bits[2];
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
+    Uint16 m_no_of_real_disk_attributes;
     Uint16 m_no_of_disk_attributes;
     Uint16 m_no_of_attributes;
 
