@@ -4471,8 +4471,11 @@ Dblqh::has_key_info(Uint32 opPtrI)
 {
   TcConnectionrecPtr opPtr;
   opPtr.i = opPtrI;
-  ndbrequire(tcConnect_pool.getValidPtr(opPtr));
-  return (opPtr.p->keyInfoIVal != RNIL);
+  if (tcConnect_pool.getValidPtr(opPtr))
+  {
+    return (opPtr.p->keyInfoIVal != RNIL);
+  }
+  return false;
 }
 #endif
 
