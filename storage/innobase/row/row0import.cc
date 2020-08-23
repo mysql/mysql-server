@@ -3810,7 +3810,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   }
 
   if (compression.m_type != Compression::Type::NONE) {
-    err = fil_set_compression(table, prebuilt->m_mysql_table->s->compress.str);
+    err = dict_set_compression(table, prebuilt->m_mysql_table->s->compress.str);
   }
 
   row_mysql_unlock_data_dictionary(trx);

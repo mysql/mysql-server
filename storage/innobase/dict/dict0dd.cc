@@ -3257,6 +3257,26 @@ bool dd_tablespace_is_implicit(dd::cache::Dictionary_client *client,
   return (fail);
 }
 
+bool dd_set_tablespace_compression(dd::cache::Dictionary_client *client,
+                                   const char *algorithm,
+                                   dd::Object_id dd_space_id) {
+  dd::Tablespace *dd_space{};
+  auto fail = client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
+                                                                   &dd_space);
+
+  if (fail || dd_space == nullptr) {
+    return true;
+  }
+
+  space_id_t space_id = 0;
+
+  dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID], &space_id);
+
+  auto err = fil_set_compression(space_id, algorithm);
+
+  return err != DB_SUCCESS;
+}
+
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table

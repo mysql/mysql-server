@@ -334,3 +334,17 @@ int clone_os_recv_to_file(Ha_clone_file to_file MY_ATTRIBUTE((unused)),
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Receive");
   return (ER_NOT_SUPPORTED_YET);
 }
+
+bool clone_os_test_load(std::string &path) {
+  char dlpath[FN_REFLEN];
+
+  unpack_filename(dlpath, path.c_str());
+  auto handle = dlopen(dlpath, RTLD_NOW);
+
+  if (handle == nullptr) {
+    return false;
+  }
+
+  dlclose(handle);
+  return true;
+}

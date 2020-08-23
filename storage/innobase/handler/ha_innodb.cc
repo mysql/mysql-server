@@ -7098,7 +7098,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
-  dberr_t err = fil_set_compression(m_prebuilt->table, table->s->compress.str);
+  dberr_t err = dict_set_compression(m_prebuilt->table, table->s->compress.str);
 
   switch (err) {
     case DB_NOT_FOUND:

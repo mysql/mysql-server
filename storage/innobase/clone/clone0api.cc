@@ -249,6 +249,12 @@ static int clone_drop_binary_logs(THD *thd);
 @return error code */
 static int clone_drop_user_data(THD *thd, bool allow_threads);
 
+/** Initialize transparent page compression in innodb space by checking
+all innodb tables in DD. Usually this initialization is done later when
+user opens a table. Clone needs to read this from innodb space object.
+@param[in,out]	thd	session THD */
+static void clone_init_compression(THD *thd);
+
 /** Set security context to skip privilege check.
 @param[in,out]	thd	session THD
 @param[in,out]	sctx	security context */
@@ -396,6 +402,12 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     be freed till we release it. */
     mutex_exit(clone_sys->get_mutex());
     err = clone_hdl->add_task(thd, nullptr, 0, task_id);
+
+    /* Initialize compression option for all compressed tablesapces. */
+    if (err == 0 && task_id == 0) {
+      clone_init_compression(thd);
+    }
+
     mutex_enter(clone_sys->get_mutex());
   }
 
@@ -2275,4 +2287,57 @@ static int clone_drop_user_data(THD *thd, bool allow_threads) {
   ib::info(ER_IB_CLONE_SQL) << "Clone Drop: finished successfully";
   ib::warn(ER_IB_CLONE_USER_DATA, "Finished");
   return (0);
+}
+
+static void clone_init_compression(THD *thd) {
+  /* Need to call once in server lifetime. No Concurrency involved as
+  one clone operation is supported at a time. */
+  static bool compression_initialized = false;
+  if (compression_initialized) {
+    return;
+  }
+
+  auto dc = dd::get_dd_client(thd);
+  Releaser releaser(dc);
+
+  /* We don't bother about MDL lock here as clone holds X backup lock
+  preventing all DDL. */
+  DD_Objs<dd::Table> dd_tables;
+
+  if (dc->fetch_global_components(&dd_tables)) {
+    ut_ad(false);
+    return;
+  }
+
+  for (auto dd_table : dd_tables) {
+    /* Skip non-innodb tables. */
+    auto se =
+        ha_resolve_by_name_raw(thd, lex_cstring_handle(dd_table->engine()));
+    auto se_type = ha_legacy_type(se ? plugin_data<handlerton *>(se) : nullptr);
+    plugin_unlock(thd, se);
+
+    if (se_type != DB_TYPE_INNODB) {
+      continue;
+    }
+
+    auto &options = dd_table->options();
+
+    if (!options.exists("compress")) {
+      continue;
+    }
+
+    dd::String_type compress_option;
+    options.get("compress", &compress_option);
+    auto dd_index = dd_first_index(dd_table);
+
+    if (dd_index == nullptr) {
+      /* Innodb table must have index. */
+      ut_ad(false);
+      continue;
+    }
+
+    dd_set_tablespace_compression(dc, compress_option.c_str(),
+                                  dd_index->tablespace_id());
+  }
+  compression_initialized = true;
 }

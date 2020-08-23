@@ -163,9 +163,6 @@ SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 1
 SET GLOBAL innodb_redo_log_encrypt = ON;
 SET GLOBAL innodb_undo_log_encrypt = ON;
 
-SHOW CREATE TABLE t1;
-SHOW CREATE TABLE t2;
-
 --echo # In connection default - Cloning database
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
