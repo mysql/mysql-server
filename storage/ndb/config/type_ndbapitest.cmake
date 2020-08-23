@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,4 +29,5 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
                     ${CMAKE_SOURCE_DIR}/storage/ndb/test/include
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi)
