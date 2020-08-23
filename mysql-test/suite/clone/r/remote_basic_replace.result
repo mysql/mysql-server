@@ -81,6 +81,7 @@ col1	col2
 30	innodb cloned row 3
 ALTER SCHEMA schema_read_only READ ONLY=1;
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN';
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
 WHERE PLUGIN_NAME LIKE '%clone%';
 PLUGIN_NAME	PLUGIN_STATUS
@@ -168,6 +169,7 @@ DROP TABLE non_innodb.t_csv;
 DROP SCHEMA non_innodb;
 ALTER SCHEMA schema_read_only READ ONLY=0;
 DROP SCHEMA schema_read_only;
+UNINSTALL PLUGIN example;
 SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';

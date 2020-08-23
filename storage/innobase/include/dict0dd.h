@@ -1275,6 +1275,15 @@ bool dd_tablespace_get_discard(const dd::Tablespace *dd_space);
 @param[in]  mdl_ticket  tablespace MDL ticket */
 void dd_release_mdl(MDL_ticket *mdl_ticket);
 
+/** Set Innodb tablespace compression option from DD.
+@param[in,out]	client		dictionary client
+@param[in]	algorithm	compression algorithm
+@param[in]	dd_space_id	DD tablespace ID.
+@return true, if failed to set compression. */
+bool dd_set_tablespace_compression(dd::cache::Dictionary_client *client,
+                                   const char *algorithm,
+                                   dd::Object_id dd_space_id);
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Update all InnoDB tablespace cache objects. This step is done post

@@ -9134,25 +9134,7 @@ Called from AIO handlers when IO returns DB_IO_NO_PUNCH_HOLE
 @param[in,out]	file		file to set */
 void fil_no_punch_hole(fil_node_t *file) { file->punch_hole = false; }
 
-/** Set the compression type for the tablespace of a table
-@param[in]	table		The table that should be compressed
-@param[in]	algorithm	Text representation of the algorithm
-@return DB_SUCCESS or error code */
-dberr_t fil_set_compression(dict_table_t *table, const char *algorithm) {
-  ut_ad(table != nullptr);
-
-  /* We don't support Page Compression for the system tablespace,
-  the temporary tablespace, or any general tablespace because
-  COMPRESSION is set by TABLE DDL, not TABLESPACE DDL. There is
-  no other technical reason.  Also, do not use it for missing
-  tables or tables with compressed row_format. */
-  if (table->ibd_file_missing ||
-      !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE) ||
-      DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY) ||
-      page_size_t(table->flags).is_compressed()) {
-    return (DB_IO_NO_PUNCH_HOLE_TABLESPACE);
-  }
-
+dberr_t fil_set_compression(space_id_t space_id, const char *algorithm) {
   dberr_t err;
   Compression compression;
 
@@ -9182,21 +9164,28 @@ dberr_t fil_set_compression(dict_table_t *table, const char *algorithm) {
     err = Compression::check(algorithm, &compression);
   }
 
-  fil_space_t *space = fil_space_get(table->space);
+  fil_space_t *space = fil_space_get(space_id);
 
   if (space == nullptr) {
-    return (DB_NOT_FOUND);
+    return DB_NOT_FOUND;
+  }
+
+  const page_size_t page_size(space->flags);
+
+  if (!fsp_is_file_per_table(space_id, space->flags) ||
+      fsp_is_system_temporary(space_id) || page_size.is_compressed()) {
+    return DB_IO_NO_PUNCH_HOLE_TABLESPACE;
   }
 
   space->compression_type = compression.m_type;
 
   if (space->compression_type != Compression::NONE) {
     if (!space->files.front().punch_hole) {
-      return (DB_IO_NO_PUNCH_HOLE_FS);
+      return DB_IO_NO_PUNCH_HOLE_FS;
     }
   }
 
-  return (err);
+  return err;
 }
 
 /** Get the compression algorithm for a tablespace.

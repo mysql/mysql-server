@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,6 +115,11 @@ by caller.
 @return error code */
 int clone_os_recv_to_file(Ha_clone_file to_file, uint length, my_socket socket,
                           const char *dest_name);
+
+/** Check if a shared object is present and can be loaded.
+@param[in]	path	shared object file name and path
+@return true iff shared object could be loaded successfully. */
+bool clone_os_test_load(std::string &path);
 
 /** Align pointer to CLONE_OS_ALIGN[4k].
 @param[in]	pointer	unaligned input

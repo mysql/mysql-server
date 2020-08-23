@@ -1686,6 +1686,13 @@ void dict_table_change_id_sys_tables();
 std::string dict_table_get_datadir(const dict_table_t *table)
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Set the compression type for the tablespace of a table
+@param[in]     table           The table that should be compressed
+@param[in]     algorithm       Text representation of the algorithm
+@return DB_SUCCESS or error code */
+dberr_t dict_set_compression(dict_table_t *table, const char *algorithm)
+    MY_ATTRIBUTE((warn_unused_result));
+
 #include "dict0dict.ic"
 
 #endif
