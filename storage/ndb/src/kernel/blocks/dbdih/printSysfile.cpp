@@ -179,7 +179,20 @@ int main(int argc, char** argv)
       continue;
     }
     
-    print(filename, (Sysfile *)&buf[0]);
+    Sysfile sysfile;
+    Uint32 size = sz / 4;
+    int ret = sysfile.unpack_sysfile_format_v2(buf, &size);
+    if (ret != 0)
+    {
+      ret = sysfile.unpack_sysfile_format_v1(buf, &size);
+    }
+    if (ret != 0)
+    {
+      ndbout << "Failure while parsing file" << endl;
+      delete [] buf;
+      continue;
+    }
+    print(filename, &sysfile);
     delete [] buf;
     continue;
   }
