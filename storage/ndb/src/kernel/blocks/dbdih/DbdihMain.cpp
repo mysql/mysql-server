@@ -209,14 +209,14 @@ void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
   {
     jam();
-    int ret = pack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
     send_COPY_GCIREQ_data_v2(signal, ref);
   }
   else
   {
     jam();
-    int ret = pack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->pack_sysfile_format_v1(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
     send_COPY_GCIREQ_data_v1(signal, ref);
   }
@@ -920,628 +920,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
   ndbabort();
 }//Dbdih::execCONTINUEB()
 
-/**
- * Input to unpack functions is the v1 or v2 format stored in the cdata
- * array of integers.
- * Output of pack functions is the v1 or v2 format stored in the cdata
- * array of integers.
- */
-
-enum DataNodeStatusPacked
-{
-  NODE_ACTIVE = 0,
-  NODE_ACTIVE_NODE_DOWN = 1,
-  NODE_CONFIGURED = 2,
-  NODE_UNDEFINED = 3
-};
-
-int
-Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr)
-{
-  /**
-   * Format for COPY_GCIREQ v2:
-   * --------------------------
-   * 1) MAGIC_v2
-   * 2) m_max_node_id
-   * 3) Total size in words of packed format
-   * 4) numGCIs (number of GCIs in non-packed form)
-   * 5) numNodeGroups (node groups in non-packed form)
-   * 6) Number of replicas
-   * 7) systemRestartBits
-   * 8) m_restart_seq
-   * 9) keepGCI
-   * 10) oldestRestorableGCI
-   * 11) newestRestorabeGCI
-   * 12) latestLCP_ID
-   * 13) lcpActive bits (m_max_node_id bits)
-   * 14) nodeStatus 4 bits * m_max_node_id
-   *     3 bits is DataNodeStatusPacked
-   *     1 bit is set if GCI is non-packed form
-   * 15) GCIs in non-packed form
-   * 16) Node group bit (m_max_node_id bits)
-   * 17) Node groups in non-packed form (16 bits per node group)
-   */
-#ifdef VM_TRACE
-  for (Uint32 i = 0; i < MAX_NDB_NODES; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      sysfile->getNodeStatus(i);
-    require(active_status != Sysfile::NS_ActiveMissed_2);
-    require(active_status != Sysfile::NS_ActiveMissed_3);
-    require(active_status != Sysfile::NS_TakeOver);
-    require(active_status != Sysfile::NS_NotActive_TakenOver);
-  }
-#endif
-  Uint32 index = 0;
-
-  std::memcpy(&cdata[index], Sysfile::MAGIC_v2, Sysfile::MAGIC_SIZE_v2);
-  static_assert(Sysfile::MAGIC_SIZE_v2 % sizeof(Uint32) == 0, "");
-  static_assert(Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32) == 2, "");
-  index += Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32);
-
-  require(index == 2);
-  const Uint32 max_node_id = sysfile->getMaxNodeId();
-  cdata[index] = max_node_id;
-  index++;
-
-  require(index == 3);
-  const Uint32 index_cdata_size_in_words = index;
-  index++;
-
-  require(index == 4);
-  const Uint32 index_numGCIs = index;
-  index++;
-
-  require(index == 5);
-  const Uint32 index_numNodeGroups = index;
-  index++;
-
-  require(index == 6);
-  const Uint32 index_num_replicas = index;
-  index++;
-
-  require(index == 7);
-
-  cdata[index] = sysfile->systemRestartBits;
-  index++;
-
-  cdata[index] = sysfile->m_restart_seq;
-  index++;
-
-  cdata[index] = sysfile->keepGCI;
-  index++;
-
-  cdata[index] = sysfile->oldestRestorableGCI;
-  index++;
-
-  cdata[index] = sysfile->newestRestorableGCI;
-  index++;
-
-  cdata[index] = sysfile->latestLCP_ID;
-  index++;
-
-  Uint32 lcp_active_words = ((max_node_id) + 31) / 32;
-  require(index == 13);
-  for (Uint32 i = 0; i < lcp_active_words; i++)
-  {
-    cdata[index] = sysfile->lcpActive[i];
-    index++;
-  }
-  Uint32 data = 0;
-  Uint32 start_bit = 0;
-  const Uint32 index_node_bit_words = index;
-  Uint32 numGCIs = 0;
-  Uint32 node_bit_words = ((max_node_id * 4) + 31) / 32;
-  Uint32 indexGCI = index_node_bit_words + node_bit_words;
-  Uint32 expectedGCI = sysfile->newestRestorableGCI;
-  for (Uint32 i = 1; i <= max_node_id; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      sysfile->getNodeStatus(i);
-    Uint32 bits = 0;
-    Uint32 diff = 0;
-    Uint32 nodeGCI = sysfile->lastCompletedGCI[i];
-    switch (active_status)
-    {
-      case Sysfile::NS_Active:
-      {
-        bits = NODE_ACTIVE;
-        if (nodeGCI != expectedGCI)
-        {
-          diff = 1;
-        }
-        break;
-      }
-      case Sysfile::NS_ActiveMissed_1:
-      case Sysfile::NS_NotActive_NotTakenOver:
-      {
-        bits = NODE_ACTIVE_NODE_DOWN;
-        diff = 1;
-        break;
-      }
-      case Sysfile::NS_ActiveMissed_2:
-      case Sysfile::NS_ActiveMissed_3:
-      case Sysfile::NS_NotActive_TakenOver:
-      case Sysfile::NS_TakeOver:
-      {
-        ndbout_c("active_status = %u", active_status);
-        assert(false);
-        bits = NODE_ACTIVE_NODE_DOWN;
-        diff = 1;
-        break;
-      }
-      case Sysfile::NS_NotDefined:
-      {
-        bits = NODE_UNDEFINED;
-        if (nodeGCI != 0)
-        {
-          diff = 1;
-        }
-        break;
-      }
-      case Sysfile::NS_Configured:
-      {
-        bits = NODE_CONFIGURED;
-        if (nodeGCI != expectedGCI)
-        {
-          diff = 1;
-        }
-        break;
-      }
-      default:
-      {
-        ndbout_c("active_status = %u", active_status);
-        return -1;
-      }
-    }
-    if (diff != 0)
-    {
-      numGCIs++;
-      bits += 8;
-      cdata[indexGCI] = nodeGCI;
-      indexGCI++;
-    }
-    data += (bits << start_bit);
-    require(bits < 16);
-    start_bit += 4;
-    if (start_bit == 32)
-    {
-      cdata[index] = data;
-      data = 0;
-      start_bit = 0;
-      index++;
-    }
-  }
-  if (start_bit != 0)
-  {
-    cdata[index] = data;
-    index++;
-  }
-  if ((index + numGCIs) != indexGCI)
-  {
-    return -2;
-  }
-  Uint32 numNodeGroups = 0;
-  Uint32 num_replicas = 0;
-  Uint32 replica_index = 0;
-  index = indexGCI;
-  Uint32 node_group_bit_words = lcp_active_words;
-  const Uint32 index_ng = index + node_group_bit_words;
-  data = 0;
-  start_bit = 0;
-  Uint16 *ng_area = (Uint16*)&cdata[index_ng];
-  Uint32 predicted_ng = 0;
-  Uint32 first_ng = NO_NODE_GROUP_ID;
-  for (Uint32 i = 1; i <= max_node_id; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      sysfile->getNodeStatus(i);
-    Uint32 diff = 0;
-    Uint32 nodeGroup;
-    switch (active_status)
-    {
-      case Sysfile::NS_Active:
-      case Sysfile::NS_ActiveMissed_1:
-      case Sysfile::NS_NotActive_NotTakenOver:
-      case Sysfile::NS_ActiveMissed_2:
-      case Sysfile::NS_ActiveMissed_3:
-      case Sysfile::NS_NotActive_TakenOver:
-      case Sysfile::NS_TakeOver:
-      {
-        nodeGroup = sysfile->getNodeGroup(i);
-        if (num_replicas == 0 && first_ng == NO_NODE_GROUP_ID)
-        {
-          first_ng = nodeGroup;
-          num_replicas++;
-        }
-        else if (first_ng == nodeGroup)
-        {
-          require(replica_index == num_replicas);
-          num_replicas++;
-        }
-        else if (first_ng != NO_NODE_GROUP_ID)
-        {
-          first_ng = NO_NODE_GROUP_ID;
-          // unset first_ng to mark that num_replicas now is set (and > 0).
-          if (num_replicas > MAX_REPLICAS)
-          {
-            return -3;
-          }
-        }
-        if (first_ng == NO_NODE_GROUP_ID && replica_index == num_replicas)
-        {
-          replica_index = 0;
-          predicted_ng++;
-        }
-        if (nodeGroup != predicted_ng)
-        {
-          diff = 1;
-        }
-        replica_index++;
-        break;
-      }
-      case Sysfile::NS_NotDefined:
-      {
-        /* If a node is not configured the node group will never be used.
-         * Still the node group is expected to be NO_NODE_GROUP_ID.
-         * Sometimes it seems that node group is wrongly set to zero.
-         * While this is not critical, it should be examined why.
-         */
-        nodeGroup = sysfile->getNodeGroup(i);
-        if (nodeGroup != NO_NODE_GROUP_ID && nodeGroup != 0)
-        {
-          return -4;
-        }
-        break;
-      }
-      case Sysfile::NS_Configured:
-      {
-        nodeGroup = sysfile->getNodeGroup(i);
-        if (nodeGroup != NO_NODE_GROUP_ID)
-        {
-          return -5;
-          abort();
-          diff = 1;
-        }
-        break;
-      }
-      default:
-      {
-        return -6;
-      }
-    }
-    if (diff != 0)
-    {
-      ng_area[numNodeGroups] = nodeGroup;
-      numNodeGroups++;
-      data += (1 << start_bit);
-    }
-    start_bit++;
-    if (start_bit == 32)
-    {
-      cdata[index] = data;
-      start_bit = 0;
-      index++;
-    }
-  }
-  if (start_bit != 0)
-  {
-    cdata[index] = data;
-    index++;
-  }
-  require(index == index_ng);
-  *cdata_size_ptr = index_ng + ((numNodeGroups + 1)/2);
-  cdata[index_cdata_size_in_words] = *cdata_size_ptr;
-  cdata[index_numGCIs] = numGCIs;
-  cdata[index_numNodeGroups] = numNodeGroups;
-  cdata[index_num_replicas] = num_replicas;
-
-  return 0;
-}
-
-int
-Dbdih::pack_sysfile_format_v1(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr)
-{
-  if (sysfile->maxNodeId == 0 || sysfile->maxNodeId > 48)
-  {
-    return -1;
-  }
-
-  cdata[0] = sysfile->systemRestartBits;
-  cdata[1] = sysfile->m_restart_seq;
-  cdata[2] = sysfile->keepGCI;
-  cdata[3] = sysfile->oldestRestorableGCI;
-  cdata[4] = sysfile->newestRestorableGCI;
-  cdata[5] = sysfile->latestLCP_ID;
-
-  for (Uint32 i = 0; i < 49; i++)
-    cdata[6 + i] = sysfile->lastCompletedGCI[i];
-  for (Uint32 i = 0; i < 49; i++)
-    Sysfile::setNodeStatus_v1(i, sysfile->getNodeStatus(i), &cdata[55]);
-
-  memset(&cdata[62], 0, 52);
-  for (Uint32 i = 1; i <= 48; i++)
-  {
-    NodeId ng = sysfile->getNodeGroup(i);
-    Sysfile::setNodeGroup_v1(i, &cdata[62], Uint8(ng));
-  }
-
-  memset(&cdata[75], 0, 52);
-  for (Uint32 i = 1; i <= 48; i++)
-  {
-    NodeId nodeId = sysfile->getTakeOverNode(i);
-    require(nodeId <= 48);
-    Sysfile::setTakeOverNode_v1(i, &cdata[75], Uint8(nodeId));
-  }
-
-  for (Uint32 i = 0; i < 2; i++)
-    cdata[88 + i] = sysfile->lcpActive[i];
-
-  return 0;
-}
-
-int
-Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr)
-{
-  sysfile->initSysFile();
-  Uint32 index = 0;
-  if (std::memcmp(&cdata[index],
-                  Sysfile::MAGIC_v2,
-                  Sysfile::MAGIC_SIZE_v2) != 0)
-  {
-    return -1;
-  }
-  index += Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32);
-
-  Uint32 max_node_id = cdata[index];
-  index++;
-
-  const Uint32 cdata_size = cdata[index];
-  if (cdata_size > *cdata_size_ptr)
-  {
-    return -2;
-  }
-  index++;
-
-  Uint32 numGCIs = cdata[index];
-  index++;
-
-  Uint32 numNodeGroups = cdata[index];
-  index++;
-
-  Uint32 num_replicas = cdata[index];
-  index++;
-
-  sysfile->systemRestartBits = cdata[index];
-  index++;
-
-  sysfile->m_restart_seq = cdata[index];
-  index++;
-
-  sysfile->keepGCI = cdata[index];
-  index++;
-
-  sysfile->oldestRestorableGCI = cdata[index];
-  index++;
-
-  sysfile->newestRestorableGCI = cdata[index];
-  index++;
-
-  sysfile->latestLCP_ID = cdata[index];
-  index++;
-
-  Uint32 lcp_active_words = ((max_node_id) + 31) / 32;
-  for (Uint32 i = 0; i < lcp_active_words; i++)
-  {
-    sysfile->lcpActive[i] = cdata[index];
-    index++;
-  }
-  Uint32 node_bit_words = ((max_node_id * 4) + 31) / 32;
-  Uint32 node_group_words = lcp_active_words;
-
-  const Uint32 index_node_bit_words = index;
-  Uint32 indexGCI = index_node_bit_words + node_bit_words;
-  Uint32 start_bit = 0;
-  Uint32 newestGCI = sysfile->newestRestorableGCI;
-  for (Uint32 i = 1; i <= max_node_id; i++)
-  {
-    Uint32 data = cdata[index];
-    Uint32 bits = (data >> start_bit) & 0xF;
-    Uint32 gci_bit = bits >> 3;
-    Uint32 state_bits = bits & 0x7;
-    switch (state_bits)
-    {
-      case NODE_ACTIVE:
-      {
-        if (gci_bit != 0)
-        {
-          sysfile->lastCompletedGCI[i] = cdata[indexGCI];
-          indexGCI++;
-        }
-        else
-        {
-          sysfile->lastCompletedGCI[i] = newestGCI;
-        }
-        sysfile->setNodeStatus(i, Sysfile::NS_Active);
-        break;
-      }
-      case NODE_ACTIVE_NODE_DOWN:
-      {
-        if (gci_bit == 0)
-        {
-          return -3;
-        }
-        sysfile->lastCompletedGCI[i] = cdata[indexGCI];
-        indexGCI++;
-        sysfile->setNodeStatus(i, Sysfile::NS_ActiveMissed_1);
-        break;
-      }
-      case NODE_CONFIGURED:
-      {
-        if (gci_bit != 0)
-        {
-          sysfile->lastCompletedGCI[i] = cdata[indexGCI];
-          indexGCI++;
-        }
-        else
-        {
-          sysfile->lastCompletedGCI[i] = newestGCI;
-        }
-        sysfile->setNodeStatus(i, Sysfile::NS_Configured);
-        break;
-      }
-      case NODE_UNDEFINED:
-      {
-        if (gci_bit != 0)
-        {
-          sysfile->lastCompletedGCI[i] = cdata[indexGCI];
-          indexGCI++;
-        }
-        else
-        {
-          sysfile->lastCompletedGCI[i] = 0;
-        }
-        sysfile->setNodeStatus(i, Sysfile::NS_NotDefined);
-        break;
-      }
-      default:
-      {
-        return -4;
-      }
-    }
-    start_bit += 4;
-    if (start_bit == 32)
-    {
-      index++;
-      start_bit = 0;
-    }
-  }
-  if (start_bit != 0)
-  {
-    index++;
-  }
-  require(index == (index_node_bit_words + node_bit_words));
-  require((index + numGCIs) == indexGCI);
-  index = indexGCI;
-  const Uint32 index_ng = index + node_group_words;
-  Uint16* ng_array = (Uint16*)&cdata[index_ng];
-  start_bit = 0;
-  Uint32 replica_index = 0;
-  Uint32 ng_index = 0;
-  Uint32 current_ng = 0;
-  for (Uint32 i = 1; i <= max_node_id; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      sysfile->getNodeStatus(i);
-    Uint32 data = cdata[index];
-    Uint32 ng_bit = (data >> start_bit) & 0x1;
-    Uint32 nodeGroup = NO_NODE_GROUP_ID;
-    switch (active_status)
-    {
-      case Sysfile::NS_Active:
-      case Sysfile::NS_ActiveMissed_1:
-      {
-        if (ng_bit == 0)
-        {
-          nodeGroup = current_ng;
-          replica_index++;
-          if (replica_index == num_replicas)
-          {
-            replica_index = 0;
-            current_ng++;
-          }
-        }
-        else
-        {
-          nodeGroup = (Uint32) ng_array[ng_index];
-          ng_index++;
-        }
-        break;
-      }
-      case Sysfile::NS_NotDefined:
-      case Sysfile::NS_Configured:
-      {
-        nodeGroup = NO_NODE_GROUP_ID;
-        break;
-      }
-      default:
-      {
-        return -5;
-      }
-    }
-    sysfile->setNodeGroup(i, nodeGroup);
-    start_bit++;
-    if (start_bit == 32)
-    {
-      index++;
-      start_bit = 0;
-    }
-  }
-  if (start_bit != 0)
-  {
-    index++;
-  }
-  require(index == index_ng);
-  require(ng_index == numNodeGroups);
-  index = index_ng + ((ng_index + 1)/2);
-  if (index > cdata_size)
-  {
-    return -6;
-  }
-  *cdata_size_ptr = cdata_size;
-
-  return 0;
-}
-
-int
-Dbdih::unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr)
-{
-  if (_SYSFILE_SIZE32_v1 > *cdata_size_ptr)
-  {
-    return -1;
-  }
-  sysfile->initSysFile();
-  sysfile->systemRestartBits = cdata[0];
-  sysfile->m_restart_seq = cdata[1];
-  sysfile->keepGCI = cdata[2];
-  sysfile->oldestRestorableGCI = cdata[3];
-  sysfile->newestRestorableGCI = cdata[4];
-  sysfile->latestLCP_ID = cdata[5];
-
-  for (Uint32 i = 0; i < 49; i++)
-  {
-    sysfile->lastCompletedGCI[i] = cdata[6 + i];
-  }
-  for (Uint32 i = 0; i < 49; i++)
-  {
-    sysfile->setNodeStatus(i, Sysfile::getNodeStatus_v1(i, &cdata[55]));
-  }
-
-  memset(sysfile->nodeGroups, 0, sizeof(sysfile->nodeGroups));
-  for (NodeId i = 1; i <= 48; i++)
-  {
-    NodeId ng = Sysfile::getNodeGroup_v1(i, &cdata[62]);
-    if (ng == 255)
-      ng = NO_NODE_GROUP_ID;
-    sysfile->setNodeGroup(i, ng);
-  }
-
-  memset(sysfile->takeOver, 0, sizeof(sysfile->takeOver));
-  for (NodeId i = 1; i <= 48; i++)
-  {
-    NodeId nodeId = Sysfile::getTakeOverNode_v1(i, &cdata[75]);
-    sysfile->setTakeOverNode(i, nodeId);
-  }
-
-  for (Uint32 i = 0; i < 2; i++)
-  {
-    sysfile->lcpActive[i] = cdata[88 + i];
-  }
-
-  *cdata_size_ptr = _SYSFILE_SIZE32_v1;
-  return 0;
-}
-
 void Dbdih::execCOPY_GCIREQ(Signal* signal) 
 {
   CopyGCIReq * const copyGCI = (CopyGCIReq *)&signal->theData[0];
@@ -1621,13 +999,13 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     if (v2_format)
     {
       jam();
-      int ret = unpack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+      int ret = SYSFILE->unpack_sysfile_format_v2(cdata, &cdata_size_in_words);
       ndbrequire(ret == 0);
     }
     else
     {
       jam();
-      int ret = unpack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+      int ret = SYSFILE->unpack_sysfile_format_v1(cdata, &cdata_size_in_words);
       ndbrequire(ret == 0);
     }
     SYSFILE->m_restart_seq = tmp;
@@ -3296,13 +2674,13 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   if (v2_format)
   {
     jam();
-    int ret = unpack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->unpack_sysfile_format_v2(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
   }
   else
   {
     jam();
-    int ret = unpack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->unpack_sysfile_format_v1(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
   }
   SYSFILE->m_restart_seq = key;
@@ -5053,14 +4431,14 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
   if (ndbd_send_node_bitmask_in_section(node_version))
   {
     jam();
-    int ret = pack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
     send_START_MECONF_data_v2(signal, ref);
   }
   else
   {
     jam();
-    int ret = pack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->pack_sysfile_format_v1(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
     send_START_MECONF_data_v1(signal, ref);
   }
@@ -10061,14 +9439,14 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr, Uint32 bytes_re
                   Sysfile::MAGIC_SIZE_v2) == 0)
   {
     jam();
-    int ret = unpack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->unpack_sysfile_format_v2(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
   }
   else
   {
     jam();
     ndbrequire(Sysfile::SYSFILE_SIZE32_v1 <= cdata_size_in_words);
-    int ret = unpack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    int ret = SYSFILE->unpack_sysfile_format_v1(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
   }
   m_max_node_id = SYSFILE->getMaxNodeId();
@@ -27220,7 +26598,7 @@ void Dbdih::writeReplicas(RWFragment* wf, Uint32 replicaStartIndex)
 void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
 {
   cdata_size_in_words = DIH_CDATA_SIZE;
-  int ret = pack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+  int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
   ndbrequire(ret == 0);
   STATIC_ASSERT(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);
   memcpy(&sysfileDataToFile[0], &cdata[0], 4 * cdata_size_in_words);

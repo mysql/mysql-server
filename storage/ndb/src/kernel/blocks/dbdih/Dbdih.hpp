@@ -1485,10 +1485,6 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
-  static int unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr);
-  static int pack_sysfile_format_v1(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr);
-  static int unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr);
-  static int pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr);
   void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
   void send_COPY_GCIREQ_data_v2(Signal*, Uint32);
   void send_START_MECONF_data_v1(Signal*, Uint32);

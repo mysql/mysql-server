@@ -177,6 +177,11 @@ public:
    * Is a node running a LCP
    */
   Uint32 lcpActive[NdbNodeBitmask::Size];
+
+  int pack_sysfile_format_v2(Uint32 cdata[], Uint32* cdata_size_ptr) const;
+  int pack_sysfile_format_v1(Uint32 cdata[], Uint32* cdata_size_ptr) const;
+  int unpack_sysfile_format_v2(const Uint32 cdata[], Uint32* cdata_size_ptr);
+  int unpack_sysfile_format_v1(const Uint32 cdata[], Uint32* cdata_size_ptr);
 };
 
 #if (MAX_NDB_NODES > (1<<NODEID_BITS))
