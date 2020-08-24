@@ -24,9 +24,11 @@ UPDATE t1 SET c = 100 WHERE a = 1;
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 # Should not have used the a index to syncronize the row.
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
-Variable_name	Value
-Slave_rows_last_search_algorithm_used	HASH_SCAN
+SELECT 1 AS not_using_index FROM performance_schema.global_status
+WHERE variable_name = 'Slave_rows_last_search_algorithm_used'
+AND variable_value <> 'INDEX_SCAN';
+not_using_index
+1
 # Make sure it indeed synchronized. This _will_ use the index.
 SELECT * FROM t1;
 a	b	c
