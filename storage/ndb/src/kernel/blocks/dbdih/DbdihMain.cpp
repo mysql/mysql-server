@@ -976,6 +976,7 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
 
   std::memcpy(&cdata[index], Sysfile::MAGIC_v2, Sysfile::MAGIC_SIZE_v2);
   static_assert(Sysfile::MAGIC_SIZE_v2 % sizeof(Uint32) == 0, "");
+  static_assert(Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32) == 2, "");
   index += Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32);
 
   require(index == 2);
@@ -1090,7 +1091,7 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
       default:
       {
         ndbout_c("active_status = %u", active_status);
-        abort();
+        return -1;
       }
     }
     if (diff != 0)
@@ -1116,7 +1117,10 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
     cdata[index] = data;
     index++;
   }
-  require((index + numGCIs) == indexGCI);
+  if ((index + numGCIs) != indexGCI)
+  {
+    return -2;
+  }
   Uint32 numNodeGroups = 0;
   Uint32 num_replicas = 0;
   Uint32 replica_index = 0;
@@ -1159,6 +1163,10 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
         {
           first_ng = NO_NODE_GROUP_ID;
           // unset first_ng to mark that num_replicas now is set (and > 0).
+          if (num_replicas > MAX_REPLICAS)
+          {
+            return -3;
+          }
         }
         if (first_ng == NO_NODE_GROUP_ID && replica_index == num_replicas)
         {
@@ -1180,8 +1188,10 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
          * While this is not critical, it should be examined why.
          */
         nodeGroup = sysfile->getNodeGroup(i);
-        require(nodeGroup == NO_NODE_GROUP_ID ||
-                nodeGroup == 0);
+        if (nodeGroup != NO_NODE_GROUP_ID && nodeGroup != 0)
+        {
+          return -4;
+        }
         break;
       }
       case Sysfile::NS_Configured:
@@ -1189,6 +1199,7 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
         nodeGroup = sysfile->getNodeGroup(i);
         if (nodeGroup != NO_NODE_GROUP_ID)
         {
+          return -5;
           abort();
           diff = 1;
         }
@@ -1196,7 +1207,7 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
       }
       default:
       {
-        abort();
+        return -6;
       }
     }
     if (diff != 0)
@@ -1231,8 +1242,10 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cd
 int
 Dbdih::pack_sysfile_format_v1(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr)
 {
-  require(sysfile->maxNodeId > 0);
-  require(sysfile->maxNodeId <= 48);
+  if (sysfile->maxNodeId == 0 || sysfile->maxNodeId > 48)
+  {
+    return -1;
+  }
 
   cdata[0] = sysfile->systemRestartBits;
   cdata[1] = sysfile->m_restart_seq;
@@ -1272,16 +1285,22 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* 
 {
   sysfile->initSysFile();
   Uint32 index = 0;
-  require(std::memcmp(&cdata[index],
-                      Sysfile::MAGIC_v2,
-                      Sysfile::MAGIC_SIZE_v2) == 0);
+  if (std::memcmp(&cdata[index],
+                  Sysfile::MAGIC_v2,
+                  Sysfile::MAGIC_SIZE_v2) != 0)
+  {
+    return -1;
+  }
   index += Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32);
 
   Uint32 max_node_id = cdata[index];
   index++;
 
   const Uint32 cdata_size = cdata[index];
-  require(cdata_size <= *cdata_size_ptr);
+  if (cdata_size > *cdata_size_ptr)
+  {
+    return -2;
+  }
   index++;
 
   Uint32 numGCIs = cdata[index];
@@ -1348,7 +1367,10 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* 
       }
       case NODE_ACTIVE_NODE_DOWN:
       {
-        require(gci_bit != 0);
+        if (gci_bit == 0)
+        {
+          return -3;
+        }
         sysfile->lastCompletedGCI[i] = cdata[indexGCI];
         indexGCI++;
         sysfile->setNodeStatus(i, Sysfile::NS_ActiveMissed_1);
@@ -1384,7 +1406,7 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* 
       }
       default:
       {
-        abort();
+        return -4;
       }
     }
     start_bit += 4;
@@ -1444,7 +1466,7 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* 
       }
       default:
       {
-        abort();
+        return -5;
       }
     }
     sysfile->setNodeGroup(i, nodeGroup);
@@ -1462,7 +1484,10 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* 
   require(index == index_ng);
   require(ng_index == numNodeGroups);
   index = index_ng + ((ng_index + 1)/2);
-  require(index <= cdata_size);
+  if (index > cdata_size)
+  {
+    return -6;
+  }
   *cdata_size_ptr = cdata_size;
 
   return 0;
@@ -1471,7 +1496,10 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* 
 int
 Dbdih::unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr)
 {
-  require(_SYSFILE_SIZE32_v1 <= *cdata_size_ptr);
+  if (_SYSFILE_SIZE32_v1 > *cdata_size_ptr)
+  {
+    return -1;
+  }
   sysfile->initSysFile();
   sysfile->systemRestartBits = cdata[0];
   sysfile->m_restart_seq = cdata[1];
