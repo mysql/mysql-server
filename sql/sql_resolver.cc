@@ -5853,6 +5853,12 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
     new_derived->select_n_where_fields = select_n_where_fields;
     new_derived->n_sum_items = n_sum_items;
     new_derived->n_child_sum_items = n_child_sum_items;
+    // update condition counts
+    new_derived->cond_count = cond_count;
+    // between_count is updated if cond_count gets updated when there are any
+    // transformations. So we do the same here too. However it needs to be
+    // investigated if this is necessary or not.
+    new_derived->between_count = between_count;
 
     with_sum_func = false;
 
