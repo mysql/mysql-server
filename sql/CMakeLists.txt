@@ -290,6 +290,7 @@ SET(SQL_GIS_SOURCES
   gis/covered_by.cc
   gis/crosses.cc
   gis/difference.cc
+  gis/difference_functor.cc
   gis/disjoint.cc
   gis/distance.cc
   gis/distance_functor.cc

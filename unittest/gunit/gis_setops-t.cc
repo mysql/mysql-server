@@ -74,6 +74,7 @@ TYPED_TEST(SetopsTest, CodeCoverage) {
       std::unique_ptr<gis::Geometry> result;
       bool is_null = false;
       gis::union_(this->m_srs.get(), g1, g2, "unittest", &result, &is_null);
+      gis::difference(this->m_srs.get(), g1, g2, "unittest", &result);
     }
   }
 }

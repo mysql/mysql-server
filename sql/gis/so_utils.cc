@@ -38,8 +38,8 @@
 namespace gis {
 
 template <typename MPt, typename MLs, typename MPy, typename GC>
-static void TypedRemoveDuplicates(double semi_major, double semi_minor,
-                                  std::unique_ptr<Geometry> *g) {
+static void typed_remove_duplicates(double semi_major, double semi_minor,
+                                    std::unique_ptr<Geometry> *g) {
   Equals equals(semi_major, semi_minor);
   switch (g->get()->type()) {
     case Geometry_type::kPoint:
@@ -95,8 +95,8 @@ static void TypedRemoveDuplicates(double semi_major, double semi_minor,
       std::unique_ptr<GC> gc = std::make_unique<GC>();
       for (auto g1 : *down_cast<GC *>(g->get())) {
         std::unique_ptr<Geometry> g1_ptr(g1->clone());
-        TypedRemoveDuplicates<MPt, MLs, MPy, GC>(semi_major, semi_minor,
-                                                 &g1_ptr);
+        typed_remove_duplicates<MPt, MLs, MPy, GC>(semi_major, semi_minor,
+                                                   &g1_ptr);
         bool include = true;
         for (auto g2 : *gc) {
           if (equals(g1_ptr.get(), g2)) {
@@ -116,27 +116,27 @@ static void TypedRemoveDuplicates(double semi_major, double semi_minor,
   }
 }
 
-void RemoveDuplicates(double semi_major, double semi_minor,
-                      std::unique_ptr<Geometry> *g) {
+void remove_duplicates(double semi_major, double semi_minor,
+                       std::unique_ptr<Geometry> *g) {
   switch (g->get()->coordinate_system()) {
     case Coordinate_system::kCartesian:
-      TypedRemoveDuplicates<Cartesian_multipoint, Cartesian_multilinestring,
-                            Cartesian_multipolygon,
-                            Cartesian_geometrycollection>(semi_major,
-                                                          semi_minor, g);
+      typed_remove_duplicates<Cartesian_multipoint, Cartesian_multilinestring,
+                              Cartesian_multipolygon,
+                              Cartesian_geometrycollection>(semi_major,
+                                                            semi_minor, g);
       break;
     case Coordinate_system::kGeographic:
-      TypedRemoveDuplicates<Geographic_multipoint, Geographic_multilinestring,
-                            Geographic_multipolygon,
-                            Geographic_geometrycollection>(semi_major,
-                                                           semi_minor, g);
+      typed_remove_duplicates<Geographic_multipoint, Geographic_multilinestring,
+                              Geographic_multipolygon,
+                              Geographic_geometrycollection>(semi_major,
+                                                             semi_minor, g);
       break;
     default:
       break;
   }
 }
 
-void NarrowGeometry(std::unique_ptr<Geometry> *g) {
+void narrow_geometry(std::unique_ptr<Geometry> *g) {
   switch (g->get()->type()) {
     case Geometry_type::kPoint:
     case Geometry_type::kLinestring:
@@ -151,7 +151,7 @@ void NarrowGeometry(std::unique_ptr<Geometry> *g) {
       if (gc->size() == 1) {
         g->reset((*gc)[0].clone());
         gc = nullptr;
-        NarrowGeometry(g);
+        narrow_geometry(g);
       }
       break;
     }

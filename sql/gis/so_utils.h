@@ -44,8 +44,8 @@ namespace gis {
 /// @param[in] semi_major Semi-major axis of ellipsoid.
 /// @param[in] semi_minor Semi-minor axis of ellipsoid.
 /// @param[in, out] g The geometry to remove duplicates from.
-void RemoveDuplicates(double semi_major, double semi_minor,
-                      std::unique_ptr<Geometry> *g);
+void remove_duplicates(double semi_major, double semi_minor,
+                       std::unique_ptr<Geometry> *g);
 
 /// Narrow a geometry to its simplest form.
 ///
@@ -54,7 +54,7 @@ void RemoveDuplicates(double semi_major, double semi_minor,
 /// does nothing.
 ///
 /// @param[in, out] g The geometry to possibly narrow.
-void NarrowGeometry(std::unique_ptr<Geometry> *g);
+void narrow_geometry(std::unique_ptr<Geometry> *g);
 
 }  // namespace gis
 

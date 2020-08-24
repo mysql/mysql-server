@@ -115,8 +115,8 @@ Union::Union(double semi_major, double semi_minor)
 std::unique_ptr<Geometry> Union::operator()(const Geometry *g1,
                                             const Geometry *g2) const {
   std::unique_ptr<Geometry> result = apply(*this, g1, g2);
-  RemoveDuplicates(this->semi_major(), this->semi_minor(), &result);
-  NarrowGeometry(&result);
+  remove_duplicates(this->semi_major(), this->semi_minor(), &result);
+  narrow_geometry(&result);
   return result;
 }
 
