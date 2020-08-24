@@ -13,12 +13,18 @@ insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
 analyze table t1;
 analyze table t2;
 
+--sorted_result
 select a,b from t1 union distinct select a,b from t2;
+--sorted_result
 select a,b from t1 union all select a,b from t2;
 select a,b from t1 union all select a,b from t2 order by b;
+--sorted_result
 select a,b from t1 union all select a,b from t2 union select 7,'g';
+--sorted_result
 select 0,'#' union select a,b from t1 union all select a,b from t2 union select 7,'gg';
+--sorted_result
 select a,b from t1 union select a,b from t1;
+--sorted_result
 select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 group by b;
 
 # Test alternate syntax for unions 

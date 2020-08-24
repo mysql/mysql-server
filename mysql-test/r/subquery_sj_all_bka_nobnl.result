@@ -7255,6 +7255,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 
+This line is only in place to help --skip_if_hypergraph diffing some more.
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary

@@ -383,6 +383,7 @@ DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1 (id int not null);
 INSERT INTO t1 VALUES (1),(2);
 
+--skip_if_hypergraph  # Different warnings.
 SELECT id FROM t1 WHERE id IN(4564, (SELECT IF(1=0,1,1/0)) );
 
 DROP TABLE t1;
@@ -414,10 +415,12 @@ select f1 from t1 where f1 in (2,1);
 explain select f1 from t1 where f1 in (2,1);
 create table t2(f2 int, index t2f2(f2));
 insert into t2 values(0),(1),(2);
+--skip_if_hypergraph  # Different warnings.
 select f2 from t2 where f2 in ('a',2);
 explain select f2 from t2 where f2 in ('a',2);
 select f2 from t2 where f2 in ('a','b');
 explain select f2 from t2 where f2 in ('a','b');
+--skip_if_hypergraph  # Different warnings.
 select f2 from t2 where f2 in (1,'b');
 explain select f2 from t2 where f2 in (1,'b');
 drop table t1, t2;

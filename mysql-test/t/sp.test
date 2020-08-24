@@ -4321,9 +4321,11 @@ begin
 end|
 
 call bug6127()|
+--sorted_result
 select * from t3|
 --error ER_DUP_ENTRY
 call bug6127()|
+--sorted_result
 select * from t3|
 set sql_mode=@sm|
 drop table t3|

@@ -348,6 +348,7 @@ FROM t1
                         SELECT t1.a * CONCAT(COUNT(0), ' - ', AVG(dt.a)) AS cnct
                         FROM dt) derived0
      ON TRUE;
+--sorted_result
 eval $query;
 eval explain $query;
 

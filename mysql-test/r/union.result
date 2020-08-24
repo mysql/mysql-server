@@ -68,8 +68,8 @@ t1	b	1
 t1	c	2
 t2	c	1
 t2	d	1
-t2	f	1
 t2	e	1
+t2	f	1
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 a	b
 1	a

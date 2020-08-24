@@ -498,6 +498,7 @@ ALTER TABLE t1 ADD INDEX(a);
 --let $query=SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a)
 FLUSH STATUS;
 --eval $query
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 --eval EXPLAIN $query
 
@@ -1164,6 +1165,7 @@ having (z in (select * from t2)) is null;
 --echo no NULLs.
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 --echo one outer NULL

@@ -7190,6 +7190,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,<exists>(/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`PNUM`,<exists>(/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where ((`test`.`t2`.`PTYPE` = 'Design') and (<cache>(`test`.`t3`.`PNUM`) = `test`.`t2`.`PNUM`)))) and (<cache>(`test`.`t1`.`EMPNUM`) = `test`.`t3`.`EMPNUM`))))
 
+This line is only in place to help --skip_if_hypergraph diffing some more.
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where

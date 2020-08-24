@@ -1411,8 +1411,10 @@ call p_verify_reprepare_count(0);
 
 create view v_27690_1 as select A.a, A.b from t_27690_1 A, t_27690_1 B;
 
+--sorted_result
 execute stmt;
 call p_verify_reprepare_count(1);
+--sorted_result
 execute stmt;
 call p_verify_reprepare_count(0);
 

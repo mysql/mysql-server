@@ -826,9 +826,12 @@ INSERT into t1 values (30, 4);
 INSERT into t1 values (35, 2);
 INSERT into t1 values (40, NULL);
 
-select * from t1 force index (b) where b < 10 OR b IS NULL order by b;
-select * from t1 force index (b) where b < 10 ORDER BY b;
-select * from t1 force index (b) where b < 10 ORDER BY b DESC;
+--partially_sorted_result 1
+select b,a from t1 force index (b) where b < 10 OR b IS NULL order by b;
+--partially_sorted_result 1
+select b,a from t1 force index (b) where b < 10 ORDER BY b;
+--partially_sorted_result 1
+select b,a from t1 force index (b) where b < 10 ORDER BY b DESC;
 drop table t1;
 
 create table t1 (a int not null, b int, c varchar(20), key (a,b,c))
