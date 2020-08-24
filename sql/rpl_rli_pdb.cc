@@ -1240,7 +1240,25 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
       /* Fatal error happens, it notifies the following transaction to rollback */
       if (get_commit_order_manager())
+      {
+        /*
+          If we still have the deadlock flag set, it means that the current
+          thread was involved in a deadlock in its last retry (or all retries
+          have been exhausted). In such a case, we must release all transaction
+          locks by rolling back the transaction and clear the deadlock flag
+          before we wait for this worker's turn in report_rollback().
+        */
+        if (found_order_commit_deadlock())
+        {
+          /*
+            We call cleanup_context() because it is even capable of rolling
+            back XA transactions.
+          */
+          cleanup_context(info_thd, true);
+          reset_order_commit_deadlock();
+        }
         get_commit_order_manager()->report_rollback(this);
+      }
 
       // Killing Coordinator to indicate eventual consistency error
       mysql_mutex_lock(&c_rli->info_thd->LOCK_thd_data);
