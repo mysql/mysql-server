@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,6 @@
 #include "JsWrapper.h"
 #include "js_wrapper_macros.h"
 
-using namespace v8;
-
 
 ColumnHandler::ColumnHandler() :
   column(0), offset(0), 
@@ -42,12 +40,13 @@ ColumnHandler::~ColumnHandler() {
   // Persistent handles will be disposed by calling of their destructors
 }
 
-void ColumnHandler::init(v8::Isolate * isolate,
+void ColumnHandler::init(v8::Isolate * _isolate,
                          const NdbDictionary::Column *_column,
                          uint32_t _offset) {
   column = _column;
   encoder = getEncoderForColumn(column);
   offset = _offset;
+  isolate = _isolate;
 
   switch(column->getType()) {
     case NDB_TYPE_TEXT: 
@@ -61,15 +60,15 @@ void ColumnHandler::init(v8::Isolate * isolate,
 }
 
 
-Handle<Value> ColumnHandler::read(char * rowBuffer, Handle<Object> blobBuffer) const {
-  Handle<Value> val;  // HandleScope is in ValueObject.cpp nroGetter
+Local<Value> ColumnHandler::read(char * rowBuffer, Local<Object> blobBuffer) const {
+  Local<Value> val;  // HandleScope is in ValueObject.cpp nroGetter
 
   if(isText) {
     DEBUG_PRINT("text read");
     val = getTextFromBuffer(column, blobBuffer);
   } else if(isLob) {
     DEBUG_PRINT("blob read");
-    val = Handle<Value>(blobBuffer);
+    val = Local<Value>(blobBuffer);
   } else {
     val = encoder->read(column, rowBuffer, offset);
   }
@@ -78,21 +77,29 @@ Handle<Value> ColumnHandler::read(char * rowBuffer, Handle<Object> blobBuffer) c
 
 
 // If column is a blob, val is the blob buffer
-Handle<Value> ColumnHandler::write(Handle<Value> val, char *buffer) const {
+Local<Value> ColumnHandler::write(Local<Value> val, char *buffer) const {
   DEBUG_PRINT("write %s", column->getName());
   return encoder->write(column, val, buffer, offset);
 }
 
+inline Local<Object> asObject(Local<Value> val, v8::Isolate * isolate) {
+  return val->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
+}
+
+inline Local<Object> asText(const NdbDictionary::Column *c,
+                            Local<Value> val, v8::Isolate * isolate) {
+  return getBufferForText(c,
+         val->ToString(isolate->GetCurrentContext()).ToLocalChecked());
+}
 
 BlobWriteHandler * ColumnHandler::createBlobWriteHandle(Local<Value> val,
                                                         int fieldNo) const {
   DEBUG_MARKER(UDEB_DETAIL);
   BlobWriteHandler * b = 0;
-  Handle<Object> nodeBuffer;
+  Local<Object> nodeBuffer;
   if(isLob) {
     nodeBuffer = (isText && val->IsString()) ?
-       getBufferForText(column, val->ToString()) :  // TEXT
-       val->ToObject();                             // BLOB
+        asText(column, val, isolate) : asObject(val, isolate);
     b = new BlobWriteHandler(column->getColumnNo(), fieldNo, nodeBuffer);
   }
   return b;

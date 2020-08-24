@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,9 @@
 #include "js_wrapper_macros.h"
 #include "Record.h"
 #include "NativeMethodCall.h"
+#include "JsValueAccess.h"
 
 #include "NdbTypeEncoders.h"
-
-using namespace v8;
 
 V8WrapperFn getColumnOffset_wrapper,
             getBufferSize_wrapper,
@@ -128,8 +127,8 @@ void isNull_wrapper(const Arguments &args) {
 void record_encoderRead(const Arguments & args) {
   EscapableHandleScope scope(args.GetIsolate());
   const Record * record = unwrapPointer<Record *>(args.Holder());
-  int columnNumber = args[0]->Uint32Value();
-  char * buffer = node::Buffer::Data(args[1]->ToObject());
+  int columnNumber = GetUint32Arg(args, 0);
+  char * buffer = GetBufferData(ArgToObject(args, 1));
 
   const NdbDictionary::Column * col = record->getColumn(columnNumber);
   uint32_t offset = record->getColumnOffset(columnNumber);
@@ -147,8 +146,8 @@ void record_encoderWrite(const Arguments & args) {
   EscapableHandleScope scope(args.GetIsolate());
 
   const Record * record = unwrapPointer<const Record *>(args.Holder());
-  int columnNumber = args[0]->Uint32Value();
-  char * buffer = node::Buffer::Data(args[1]->ToObject());
+  int columnNumber = GetUint32Arg(args, 0);
+  char * buffer = GetBufferData(ArgToObject(args, 1));
 
   record->setNotNull(columnNumber, buffer);
 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,7 @@
 #include "NdbTypeEncoders.h"
 #include "unified_debug.h"
 
-using v8::Persistent;
-using v8::Handle;
+using v8::Local;
 using v8::Value;
 using v8::Object;
 
@@ -37,16 +36,17 @@ public:
   ColumnHandler();
   ~ColumnHandler();
   void init(v8::Isolate *, const NdbDictionary::Column *, uint32_t);
-  Handle<Value> read(char *, Handle<Object>) const;
-  Handle<Value> write(Handle<Value>, char *) const;
+  Local<Value> read(char *, Local<Object>) const;
+  Local<Value> write(Local<Value>, char *) const;
   BlobWriteHandler * createBlobWriteHandle(Local<Value>, int fieldNo) const;
   bool isBlob() const;
 
 public:
   const NdbDictionary::Column *column;
 private: 
-  uint32_t offset;
   const NdbTypeEncoder *encoder;
+  v8::Isolate *isolate;
+  uint32_t offset;
   bool isLob, isText;
 };
 

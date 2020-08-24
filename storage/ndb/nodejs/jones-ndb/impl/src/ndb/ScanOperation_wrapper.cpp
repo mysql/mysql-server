@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include "NdbWrapperErrors.h"
 #include "ScanOperation.h"
 
-using namespace v8;
 
 V8WrapperFn newScanOperation;
 V8WrapperFn prepareAndExecute;
@@ -125,18 +124,17 @@ void ScanOp_readBlobResults(const Arguments & args) {
 
 #define WRAP_CONSTANT(TARGET, X) DEFINE_JS_INT(TARGET, #X, NdbScanOperation::X)
 
-void ScanHelper_initOnLoad(Handle<Object> target) {
+void ScanHelper_initOnLoad(Local<Object> target) {
   Local<Object> scanObj = Object::New(Isolate::GetCurrent());
-  Local<String> scanKey = NEW_SYMBOL("Scan");
-  target->Set(scanKey, scanObj);
+  SetProp(target, "Scan", scanObj);
 
   DEFINE_JS_FUNCTION(scanObj, "create", newScanOperation);
 
   Local<Object> ScanHelper = Object::New(Isolate::GetCurrent());
   Local<Object> ScanFlags =  Object::New(Isolate::GetCurrent());
 
-  scanObj->Set(NEW_SYMBOL("helper"), ScanHelper);
-  scanObj->Set(NEW_SYMBOL("flags"), ScanFlags);
+  SetProp(scanObj, "helper", ScanHelper);
+  SetProp(scanObj, "flags", ScanFlags);
 
   WRAP_CONSTANT(ScanFlags, SF_TupScan);
   WRAP_CONSTANT(ScanFlags, SF_DiskScan);

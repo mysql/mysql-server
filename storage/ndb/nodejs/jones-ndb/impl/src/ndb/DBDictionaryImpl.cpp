@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,11 @@
 #include "adapter_global.h"
 #include "Record.h"
 #include "NativeCFunctionCall.h"
-#include "js_wrapper_macros.h"
 #include "NdbWrappers.h"
 #include "SessionImpl.h"
 #include "EncoderCharset.h"
-
-using namespace v8;
-
+#include "js_wrapper_macros.h"
+#include "JsValueAccess.h"
 
 /**** Dictionary implementation
  *
@@ -88,7 +86,7 @@ class ThdIdNode {
 public:
   uv_thread_t id;
   ThdIdNode * next;
-  ThdIdNode(uv_thread_t _id, ThdIdNode * _next) : id(_id), next(_next) {};
+  ThdIdNode(uv_thread_t _id, ThdIdNode * _next) : id(_id), next(_next) {}
 };
 
 ThdIdNode * initializedThreadIds = 0;
@@ -119,7 +117,6 @@ void require_thread_specific_initialization() {
   uv_mutex_unlock(& threadListMutex);
 }
 
-
 /*** DBDictionary.listTables()
   **
    **/
@@ -129,32 +126,30 @@ private:
   Ndb * ndb;
   NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List list;
-  v8::Isolate * isolate;
 
 public:
   /* Constructor */
   ListTablesCall(const Arguments &args) :
     NativeCFunctionCall_2_<int, SessionImpl *, const char *>(NULL, args),
-    list(),
-    isolate(args.GetIsolate())
+    list()
   {
   }
   
   /* UV_WORKER_THREAD part of listTables */
-  void run() {
+  void run() override {
     ndb = arg0->ndb;
     dict = ndb->getDictionary();
     return_val = dict->listObjects(list, NdbDictionary::Object::UserTable);
   }
 
   /* V8 main thread */
-  void doAsyncCallback(Local<Object> ctx);
+  void doAsyncCallback(Local<Object> ctx) override;
 };
 
 
-void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
+void ListTablesCall::doAsyncCallback(Local<Object> recv) {
   DEBUG_MARKER(UDEB_DETAIL);
-  Handle<Value> cb_args[2];
+  Local<Value> cb_args[2];
   const char * & dbName = arg1;
   
   DEBUG_PRINT("RETURN VAL: %d", return_val);
@@ -177,12 +172,13 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
 
     Local<Array> cb_list = Array::New(isolate, nmatch);
     for(unsigned int i = 0; i < nmatch ; i++) {
-      cb_list->Set(i, String::NewFromUtf8(isolate, list.elements[stack[i]].name));
+      SetProp(isolate, cb_list, i, list.elements[stack[i]].name);
     }
     cb_args[1] = cb_list;
     delete[] stack;
   }
-  ToLocal(& callback)->Call(ctx, 2, cb_args);
+
+  AsyncCall_Returning<int>::doAsyncCallback(recv, 2, cb_args);
 }
 
 
@@ -207,7 +203,7 @@ void listTables(const Arguments &args) {
 
 class DictionaryNameSplitter {
 public:
-  DictionaryNameSplitter()                      {};
+  DictionaryNameSplitter()                      {}
   char part1[65];
   char part3[65];
   void splitName(const char * src);
@@ -267,20 +263,18 @@ private:
   const NdbError * ndbError;
   int fk_count;
   DictionaryNameSplitter splitter;
-  v8::Isolate * isolate;
 
-  Handle<Object> buildDBIndex_PK();
-  Handle<Object> buildDBIndex(const NdbDictionary::Index *);
-  Handle<Object> buildDBForeignKey(const NdbDictionary::ForeignKey *);
-  Handle<Object> buildDBColumn(const NdbDictionary::Column *);
+  Local<Object> buildDBIndex_PK();
+  Local<Object> buildDBIndex(const NdbDictionary::Index *);
+  Local<Object> buildDBForeignKey(const NdbDictionary::ForeignKey *);
+  Local<Object> buildDBColumn(const NdbDictionary::Column *);
   bool splitNameMatchesDbAndTable(const char * name);
 
 public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, SessionImpl *, const char *, const char *>(NULL, args),
-    ndb_table(0), per_table_ndb(0), idx_list(), fk_list(), fk_count(0),
-    isolate(args.GetIsolate())
+    ndb_table(0), per_table_ndb(0), idx_list(), fk_list(), fk_count(0)
   {
     ndb = arg0->ndb; 
     dbName = arg1;
@@ -288,17 +282,17 @@ public:
   }
   
   /* UV_WORKER_THREAD part of listTables */
-  void run();
+  void run() override;
 
   /* V8 main thread */
-  void doAsyncCallback(Local<Object> ctx);  
+  void doAsyncCallback(Local<Object> ctx) override;
 };
 
 
 inline bool GetTableCall::splitNameMatchesDbAndTable(const char * name) {
   splitter.splitName(name);
   return splitter.match(dbName, tableName);
-};                                           
+}
 
 void GetTableCall::run() {
   DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
@@ -391,13 +385,13 @@ void GetTableCall::run() {
    TODO: verify whether any IO is done 
          by checking WaitMetaRequestCount at the start and end.
 */    
-void GetTableCall::doAsyncCallback(Local<Object> ctx) {
+void GetTableCall::doAsyncCallback(Local<Object> recv) {
   const char *ndbTableName;
   EscapableHandleScope scope(isolate);
   DEBUG_PRINT("GetTableCall::doAsyncCallback: return_val %d", return_val);
 
   /* User callback arguments */
-  Handle<Value> cb_args[2];
+  Local<Value> cb_args[2];
   cb_args[0] = Null(isolate);
   cb_args[1] = Null(isolate);
   
@@ -411,31 +405,31 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     };
   */    
   if(ndb_table && ! return_val) {
-    Local<Object> table = NdbDictTableEnv.wrap(ndb_table)->ToObject();
+    Local<Object> table = ToObject(isolate, NdbDictTableEnv.wrap(ndb_table));
 
     // database
-    table->Set(SYMBOL(isolate, "database"), String::NewFromUtf8(isolate, arg1));
+    SetProp(isolate, table, "database", arg1);
     
     // name
     ndbTableName = ndb_table->getName();
-    table->Set(SYMBOL(isolate, "name"), String::NewFromUtf8(isolate, ndbTableName));
+    SetProp(isolate, table, "name", ndbTableName);
 
     // partitionKey
     int nPartitionKeys = 0;
-    Handle<Array> partitionKeys = Array::New(isolate);
-    table->Set(SYMBOL(isolate, "partitionKey"), partitionKeys);
+    Local<Array> partitionKeys = Array::New(isolate);
+    SetProp(isolate, table, "partitionKey", partitionKeys);
 
     // sparseContainer
-    table->Set(SYMBOL(isolate,"sparseContainer"), Null(isolate));
+    SetProp(isolate, table, "sparseContainer", Null(isolate));
 
     // columns
     Local<Array> columns = Array::New(isolate, ndb_table->getNoOfColumns());
     for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
       const NdbDictionary::Column *ndb_col = ndb_table->getColumn(i);
-      Handle<Object> col = buildDBColumn(ndb_col);
-      columns->Set(i, col);
+      Local<Object> col = buildDBColumn(ndb_col);
+      SetProp(isolate, columns, i, col);
       if(ndb_col->getPartitionKey()) { /* partition key */
-        partitionKeys->Set(nPartitionKeys++, String::NewFromUtf8(isolate, ndb_col->getName()));
+        SetProp(isolate, partitionKeys, nPartitionKeys++, ndb_col->getName());
       }
       if(     ! strcmp(ndb_col->getName(), "SPARSE_FIELDS")
           && ( (! strncmp(getColumnType(ndb_col), "VARCHAR", 7)
@@ -443,21 +437,20 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
               || (   ! strncmp(getColumnType(ndb_col), "VARBINARY", 9)
                   || ! strncmp(getColumnType(ndb_col), "JSON", 4))))
       {
-        table->Set(SYMBOL(isolate,"sparseContainer"),
-                   String::NewFromUtf8(isolate, ndb_col->getName()));
+        SetProp(isolate, table, "sparseContainer", ndb_col->getName());
       }
     }
-    table->Set(SYMBOL(isolate, "columns"), columns);
+    SetProp(isolate, table, "columns", columns);
 
     // indexes (primary key & secondary) 
     Local<Array> js_indexes = Array::New(isolate, idx_list.count + 1);
-    js_indexes->Set(0, buildDBIndex_PK());                   // primary key
+    SetProp(isolate, js_indexes, 0, buildDBIndex_PK());    // primary key
     for(unsigned int i = 0 ; i < idx_list.count ; i++) {   // secondary indexes
       const NdbDictionary::Index * idx =
         dict->getIndex(idx_list.elements[i].name, arg2);
-      js_indexes->Set(i+1, buildDBIndex(idx));
+      SetProp(isolate, js_indexes, i+1, buildDBIndex(idx));
     }    
-    table->ForceSet(SYMBOL(isolate, "indexes"), js_indexes, ReadOnly);
+    SET_RO_PROPERTY(table, SYMBOL(isolate, "indexes"), js_indexes);
 
     // foreign keys (only foreign keys for which this table is the child)
     // now create the javascript foreign key metadata objects for dictionary objects cached earlier
@@ -474,15 +467,15 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
         if(splitNameMatchesDbAndTable(fk.getChildTable())) {
           // the foreign key child table is this table; build the fk object
           DEBUG_PRINT("Adding foreign key for %s at %i", fk.getName(), fk_number);
-          js_fks->Set(fk_number++, buildDBForeignKey(&fk));
+          SetProp(isolate, js_fks, fk_number++, buildDBForeignKey(&fk));
         }
       }
     }
-    table->ForceSet(SYMBOL(isolate, "foreignKeys"), js_fks, ReadOnly);
+    SET_RO_PROPERTY(table, SYMBOL(isolate, "foreignKeys"), js_fks);
 
     // Autoincrement Cache Impl (also not part of spec)
     if(per_table_ndb) {
-      table->Set(SYMBOL(isolate, "per_table_ndb"), Ndb_Wrapper(per_table_ndb));
+      SetProp(isolate, table, "per_table_ndb", Ndb_Wrapper(per_table_ndb));
     }
     
     // User Callback
@@ -491,8 +484,8 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   else {
     cb_args[0] = NdbError_Wrapper(* ndbError);
   }
-  
-  ToLocal(& callback)->Call(ctx, 2, cb_args);
+
+  AsyncCall_Returning<int>::doAsyncCallback(recv, 2, cb_args);
 }
 
 
@@ -505,15 +498,15 @@ DBIndex = {
   columnNumbers    : []    ,  // an ordered array of column numbers
 };
 */
-Handle<Object> GetTableCall::buildDBIndex_PK() {
+Local<Object> GetTableCall::buildDBIndex_PK() {
   EscapableHandleScope scope(isolate);
   
   Local<Object> obj = Object::New(isolate);
 
-  obj->ForceSet(SYMBOL(isolate, "name"), String::NewFromUtf8(isolate, "PRIMARY_KEY"));
-  obj->ForceSet(SYMBOL(isolate, "isPrimaryKey"), Boolean::New(isolate, true), ReadOnly);
-  obj->ForceSet(SYMBOL(isolate, "isUnique"),     Boolean::New(isolate, true), ReadOnly);
-  obj->ForceSet(SYMBOL(isolate, "isOrdered"),    Boolean::New(isolate, false), ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "name"), NewUtf8String(isolate, "PRIMARY_KEY"));
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isPrimaryKey"), Boolean::New(isolate, true));
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isUnique"),     Boolean::New(isolate, true));
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isOrdered"),    Boolean::New(isolate, false));
 
   /* Loop over the columns of the key. 
      Build the "columnNumbers" array and the "record" object, then set both.
@@ -526,31 +519,29 @@ Handle<Object> GetTableCall::buildDBIndex_PK() {
     const char * col_name = ndb_table->getPrimaryKey(i);
     const NdbDictionary::Column * col = ndb_table->getColumn(col_name);
     pk_record->addColumn(col);
-    idx_columns->Set(i, v8::Int32::New(isolate, col->getColumnNo()));
+    SetProp(isolate, idx_columns, i, v8::Int32::New(isolate, col->getColumnNo()));
   }
   pk_record->completeTableRecord(ndb_table);
 
-  obj->Set(SYMBOL(isolate, "columnNumbers"), idx_columns);
-  obj->ForceSet(SYMBOL(isolate, "record"), Record_Wrapper(pk_record), ReadOnly);
- 
+  SetProp(isolate, obj, "columnNumbers", idx_columns);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "record"), Record_Wrapper(pk_record));
+
   return scope.Escape(obj);
 }
 
 
-Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
+Local<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   EscapableHandleScope scope(isolate);
 
   Local<Object> obj = NdbDictIndexEnv.newWrapper();
   wrapPointerInObject(idx, NdbDictIndexEnv, obj);
 
-  obj->ForceSet(SYMBOL(isolate, "name"), String::NewFromUtf8(isolate, idx->getName()));
-  obj->ForceSet(SYMBOL(isolate, "isPrimaryKey"), Boolean::New(isolate, false), ReadOnly);
-  obj->ForceSet(SYMBOL(isolate, "isUnique"),
-                Boolean::New(isolate, idx->getType() == NdbDictionary::Index::UniqueHashIndex),
-                ReadOnly);
-  obj->ForceSet(SYMBOL(isolate, "isOrdered"),
-                Boolean::New(isolate, idx->getType() == NdbDictionary::Index::OrderedIndex),
-                ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "name"), NewUtf8String(isolate, idx->getName()));
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isPrimaryKey"), Boolean::New(isolate, false));
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isUnique"),
+                Boolean::New(isolate, idx->getType() == NdbDictionary::Index::UniqueHashIndex));
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isOrdered"),
+                Boolean::New(isolate, idx->getType() == NdbDictionary::Index::OrderedIndex));
   
   /* Loop over the columns of the key. 
      Build the "columns" array and the "record" object, then set both.
@@ -562,12 +553,12 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   for(int i = 0 ; i < ncol ; i++) {
     const char *colName = idx->getColumn(i)->getName();
     const NdbDictionary::Column *col = ndb_table->getColumn(colName);
-    idx_columns->Set(i, v8::Int32::New(isolate, col->getColumnNo()));
+    SetProp(isolate, idx_columns, i, col->getColumnNo());
     idx_record->addColumn(col);
   }
   idx_record->completeIndexRecord(idx);
-  obj->ForceSet(SYMBOL(isolate, "record"), Record_Wrapper(idx_record), ReadOnly);
-  obj->Set(SYMBOL(isolate, "columnNumbers"), idx_columns);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "record"), Record_Wrapper(idx_record));
+  SetProp(isolate, obj, "columnNumbers", idx_columns);
   
   return scope.Escape(obj);
 }
@@ -581,13 +572,13 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   targetColumnNames: null  ,  // an ordered array of target column names
 };
 */
-Handle<Object> GetTableCall::buildDBForeignKey(const NdbDictionary::ForeignKey *fk) {
+Local<Object> GetTableCall::buildDBForeignKey(const NdbDictionary::ForeignKey *fk) {
   EscapableHandleScope scope(isolate);
   DictionaryNameSplitter localSplitter;
   Local<Object> js_fk = Object::New(isolate);
 
   localSplitter.splitName(fk->getName());  // e.g. "12/20/fkname"
-  js_fk->Set(SYMBOL(isolate, "name"), String::NewFromUtf8(isolate, localSplitter.part3));
+  SetProp(isolate, js_fk, "name", localSplitter.part3);
 
   // get child column names
   unsigned int childColumnCount = fk->getChildColumnCount();
@@ -595,17 +586,17 @@ Handle<Object> GetTableCall::buildDBForeignKey(const NdbDictionary::ForeignKey *
   for (unsigned i = 0; i < childColumnCount; ++i) {
     int columnNumber = fk->getChildColumnNo(i);
     const NdbDictionary::Column * column = ndb_table->getColumn(columnNumber);
-    fk_child_column_names->Set(i, String::NewFromUtf8(isolate, column->getName()));
+    SetProp(isolate, fk_child_column_names, i, column->getName());
   }
-  js_fk->Set(SYMBOL(isolate, "columnNames"), fk_child_column_names);
+  SetProp(isolate, js_fk, "columnNames", fk_child_column_names);
 
   // get parent table (which might be in a different database)
   const char * fk_parent_name = fk->getParentTable();
   localSplitter.splitName(fk_parent_name);
   const char * parent_db_name = localSplitter.part1;
   const char * parent_table_name = localSplitter.part3;
-  js_fk->Set(SYMBOL(isolate, "targetTable"), String::NewFromUtf8(isolate, parent_table_name));
-  js_fk->Set(SYMBOL(isolate, "targetDatabase"), String::NewFromUtf8(isolate, parent_db_name));
+  SetProp(isolate, js_fk, "targetTable", parent_table_name);
+  SetProp(isolate, js_fk, "targetDatabase", parent_db_name);
   ndb->setDatabaseName(parent_db_name);
   const NdbDictionary::Table * parent_table = dict->getTable(parent_table_name);
   ndb->setDatabaseName(dbName);
@@ -616,17 +607,17 @@ Handle<Object> GetTableCall::buildDBForeignKey(const NdbDictionary::ForeignKey *
   for (unsigned i = 0; i < parentColumnCount; ++i) {
     int columnNumber = fk->getParentColumnNo(i);
     const NdbDictionary::Column * column = parent_table->getColumn(columnNumber);
-    fk_parent_column_names->Set(i, String::NewFromUtf8(isolate, column->getName()));
+    SetProp(isolate, fk_parent_column_names, i, column->getName());
   }
-  js_fk->Set(SYMBOL(isolate, "targetColumnNames"), fk_parent_column_names);
+  SetProp(isolate, js_fk, "targetColumnNames", fk_parent_column_names);
 
   return scope.Escape(js_fk);
 }
 
-Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
+Local<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
   EscapableHandleScope scope(isolate);
   
-  Local<Object> obj = NdbDictColumnEnv.wrap(col)->ToObject();
+  Local<Object> obj = ToObject(isolate, NdbDictColumnEnv.wrap(col));
   
   NdbDictionary::Column::Type col_type = col->getType();
   bool is_int = (col_type <= NDB_TYPE_BIGUNSIGNED);
@@ -639,113 +630,91 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
 
   /* Required Properties */
 
-  obj->ForceSet(SYMBOL(isolate, "name"),
-           String::NewFromUtf8(isolate, col->getName()),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "name"),
+           NewUtf8String(isolate, col->getName()));
   
-  obj->ForceSet(SYMBOL(isolate, "columnNumber"),
-           v8::Int32::New(isolate, col->getColumnNo()),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "columnNumber"),
+           v8::Int32::New(isolate, col->getColumnNo()));
   
-  obj->ForceSet(SYMBOL(isolate, "columnType"),
-           String::NewFromUtf8(isolate, getColumnType(col)),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "columnType"),
+           NewUtf8String(isolate, getColumnType(col)));
 
-  obj->ForceSet(SYMBOL(isolate, "isIntegral"),
-           Boolean::New(isolate, is_int),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isIntegral"),
+           Boolean::New(isolate, is_int));
 
-  obj->ForceSet(SYMBOL(isolate, "isNullable"),
-           Boolean::New(isolate, col->getNullable()),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isNullable"),
+           Boolean::New(isolate, col->getNullable()));
 
-  obj->ForceSet(SYMBOL(isolate, "isInPrimaryKey"),
-           Boolean::New(isolate, col->getPrimaryKey()),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isInPrimaryKey"),
+           Boolean::New(isolate, col->getPrimaryKey()));
 
-  obj->ForceSet(SYMBOL(isolate, "columnSpace"),
-           v8::Int32::New(isolate, col->getSizeInBytes()),
-           ReadOnly);           
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "columnSpace"),
+           v8::Int32::New(isolate, col->getSizeInBytes()));
 
   /* Implementation-specific properties */
   
-  obj->ForceSet(SYMBOL(isolate, "ndbTypeId"),
-           v8::Int32::New(isolate, static_cast<int>(col->getType())),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "ndbTypeId"),
+           v8::Int32::New(isolate, static_cast<int>(col->getType())));
 
-  obj->ForceSet(SYMBOL(isolate, "ndbRawDefaultValue"),
-           getDefaultValue(isolate, col),
-           ReadOnly);
+  SET_PROPERTY(obj, SYMBOL(isolate, "ndbRawDefaultValue"),
+           getDefaultValue(isolate, col), v8::ReadOnly);
 
   if(is_lob) {
-    obj->ForceSet(SYMBOL(isolate, "ndbInlineSize"),
-            v8::Int32::New(isolate, col->getInlineSize()),
-            ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "ndbInlineSize"),
+            v8::Int32::New(isolate, col->getInlineSize()));
 
-    obj->ForceSet(SYMBOL(isolate, "ndbPartSize"),
-            v8::Int32::New(isolate, col->getPartSize()),
-            ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "ndbPartSize"),
+            v8::Int32::New(isolate, col->getPartSize()));
   }
 
 
   /* Optional Properties, depending on columnType */
   /* Group A: Numeric */
   if(is_int || is_dec) {
-    obj->ForceSet(SYMBOL(isolate, "isUnsigned"),
-             Boolean::New(isolate, getIntColumnUnsigned(col)),
-             ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "isUnsigned"),
+             Boolean::New(isolate, getIntColumnUnsigned(col)));
   }
   
   if(is_int) {    
-    obj->ForceSet(SYMBOL(isolate, "intSize"),
-             v8::Int32::New(isolate, col->getSizeInBytes()),
-             ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "intSize"),
+             v8::Int32::New(isolate, col->getSizeInBytes()));
   }
   
   if(is_dec) {
-    obj->ForceSet(SYMBOL(isolate, "scale"),
-             v8::Int32::New(isolate, col->getScale()),
-             ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "scale"),
+             v8::Int32::New(isolate, col->getScale()));
     
-    obj->ForceSet(SYMBOL(isolate, "precision"),
-             v8::Int32::New(isolate, col->getPrecision()),
-             ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "precision"),
+             v8::Int32::New(isolate, col->getPrecision()));
   }
 
-  obj->ForceSet(SYMBOL(isolate, "isAutoincrement"),
-           Boolean::New(isolate, col->getAutoIncrement()),
-           ReadOnly);
+  SET_RO_PROPERTY(obj, SYMBOL(isolate, "isAutoincrement"),
+           Boolean::New(isolate, col->getAutoIncrement()));
    
   /* Group B: Non-numeric */
   if(is_binary || is_char) {
-    obj->ForceSet(SYMBOL(isolate, "isBinary"),
-             Boolean::New(isolate, is_binary),
-             ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "isBinary"),
+             Boolean::New(isolate, is_binary));
   
-    obj->ForceSet(SYMBOL(isolate, "isLob"),
-             Boolean::New(isolate, is_lob),
-             ReadOnly);
+    SET_RO_PROPERTY(obj, SYMBOL(isolate, "isLob"),
+             Boolean::New(isolate, is_lob));
 
     if(is_binary) {
-      obj->ForceSet(SYMBOL(isolate, "length"),
-               v8::Int32::New(isolate, col->getLength()),
-               ReadOnly);
+      SET_RO_PROPERTY(obj, SYMBOL(isolate, "length"),
+               v8::Int32::New(isolate, col->getLength()));
     }
 
     if(is_char) {
       const EncoderCharset * csinfo = getEncoderCharsetForColumn(col);
 
-      obj->ForceSet(SYMBOL(isolate, "length"),
-               v8::Int32::New(isolate, col->getLength() / csinfo->maxlen),
-               ReadOnly);
+      SET_RO_PROPERTY(obj, SYMBOL(isolate, "length"),
+               v8::Int32::New(isolate, col->getLength() / csinfo->maxlen));
 
-      obj->ForceSet(SYMBOL(isolate, "charsetName"),
-               String::NewFromUtf8(isolate, csinfo->name),
-               ReadOnly);
+      SET_RO_PROPERTY(obj, SYMBOL(isolate, "charsetName"),
+               NewUtf8String(isolate, csinfo->name));
 
-      obj->ForceSet(SYMBOL(isolate, "collationName"),
-               String::NewFromUtf8(isolate, csinfo->collationName),
-               ReadOnly);
+      SET_RO_PROPERTY(obj, SYMBOL(isolate, "collationName"),
+               NewUtf8String(isolate, csinfo->collationName));
     }
   }
     
@@ -842,7 +811,7 @@ Local<Value> getDefaultValue(v8::Isolate *isolate, const NdbDictionary::Column *
   
   const void* dictDefaultBuff = col->getDefaultValue(& defaultLen);
   if(defaultLen) {
-    v = COPY_TO_BUFFER(isolate, (const char *) dictDefaultBuff, defaultLen);
+    v = CopyToJsBuffer(isolate, (const char *) dictDefaultBuff, defaultLen);
   }
   return v;
 }
@@ -857,14 +826,14 @@ void getRecordForMapping(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   EscapableHandleScope scope(args.GetIsolate());
   const NdbDictionary::Table *table = 
-    unwrapPointer<const NdbDictionary::Table *>(args[0]->ToObject());
-  Ndb * ndb = unwrapPointer<Ndb *>(args[1]->ToObject());
-  unsigned int nColumns = args[2]->Int32Value();
+    unwrapPointer<const NdbDictionary::Table *>(ToObject(args, args[0]));
+  Ndb * ndb = unwrapPointer<Ndb *>(ToObject(args, args[1]));
+  unsigned int nColumns =  GetInt32Arg(args, 2);
   Record * record = new Record(ndb->getDictionary(), nColumns);
+  Local<Object> colArray = ToObject(args, args[3]);
   for(unsigned int i = 0 ; i < nColumns ; i++) {
     const NdbDictionary::Column * col = 
-      unwrapPointer<const NdbDictionary::Column *>
-        (args[3]->ToObject()->Get(i)->ToObject());
+      unwrapPointer<const NdbDictionary::Column *>(ElementToObject(colArray, i));
     record->addColumn(col);
   }
   record->completeTableRecord(table);
@@ -873,14 +842,14 @@ void getRecordForMapping(const Arguments &args) {
 }
 
 
-void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
+void DBDictionaryImpl_initOnLoad(Local<Object> target) {
   Local<Object> dbdict_obj = Object::New(Isolate::GetCurrent());
 
   DEFINE_JS_FUNCTION(dbdict_obj, "listTables", listTables);
   DEFINE_JS_FUNCTION(dbdict_obj, "getTable", getTable);
   DEFINE_JS_FUNCTION(dbdict_obj, "getRecordForMapping", getRecordForMapping);
 
-  target->Set(NEW_SYMBOL("DBDictionary"), dbdict_obj);
+  SetProp(Isolate::GetCurrent(), target, "DBDictionary", dbdict_obj);
 
   uv_mutex_init(& threadListMutex);
 }

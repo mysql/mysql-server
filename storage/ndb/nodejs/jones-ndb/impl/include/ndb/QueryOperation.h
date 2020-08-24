@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2015, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ class NdbQueryOperationDef;
 class NdbQueryDef;
 class TransactionImpl;
 class NdbQueryOperand;
+class SessionImpl;
 
 class QueryBuffer {
 public:
@@ -46,8 +47,8 @@ public:
   uint16_t      result_flags;
   uint32_t      result;        // index of current result in all ResultHeaders
   QueryBuffer() : record(0), buffer(0), size(0), parent(0),
-                  static_flags(0), result_flags(0), result(0)   {};
-  ~QueryBuffer()  { if(size) delete[] buffer; };
+                  static_flags(0), result_flags(0), result(0)   {}
+  ~QueryBuffer()  { if(size) delete[] buffer; }
 };
 
 class QueryResultHeader {
@@ -68,7 +69,7 @@ public:
   int prepareAndExecute();
   void setTransactionImpl(TransactionImpl *);
   bool createNdbQuery(NdbTransaction *);
-  void prepare(const NdbQueryOperationDef * root);
+  void prepare(const NdbQueryOperationDef *, const SessionImpl *);
   int fetchAllResults();
   NdbQueryBuilder * getBuilder() { return ndbQueryBuilder; }
   const NdbQueryOperationDef * defineOperation(const NdbDictionary::Index * index,
@@ -106,6 +107,6 @@ private:
 
 inline uint32_t QueryOperation::getResultRowSize(int depth) {
   return buffers[depth].size;
-};
+}
 
 #endif

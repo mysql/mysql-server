@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ public:
   bool isBlobReadOperation();
   const NdbOperation *prepare(NdbTransaction *);
   int createBlobReadHandles(const Record *);
-  int createBlobWriteHandles(v8::Handle<v8::Object>, const Record *);
+  int createBlobWriteHandles(v8::Local<v8::Object>, const Record *);
 
   // Get results
   void readBlobResults(const Arguments &);

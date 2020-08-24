@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -26,21 +26,22 @@
 
 #include "adapter_global.h"
 #include "AsyncMethodCall.h"
-
-using namespace v8;
-
+#include "JsValueAccess.h"
 
 void report_error(TryCatch * err) {
-  String::Utf8Value exception(err->Exception());
-  String::Utf8Value stack(err->StackTrace());
-  Handle<Message> message = err->Message();
-  fprintf(stderr, "%s\n", *exception);
-  if(! message.IsEmpty()) {
-    String::Utf8Value file(message->GetScriptResourceName());
-    int line = message->GetLineNumber();
-    fprintf(stderr, "%s:%d\n", *file, line);
-  }
-  if(stack.length() > 0) 
+  Local<Message> message = err->Message();
+  Isolate *isolate = message->GetIsolate();
+  String::Utf8Value exception(isolate, err->Exception());
+  String::Utf8Value stack(isolate, GetStackTrace(isolate, err));
+  String::Utf8Value msg(isolate, message->Get());
+  String::Utf8Value file(isolate, message->GetScriptResourceName());
+  int line = 0;
+  Maybe<int> err_line = message->GetLineNumber(isolate->GetCurrentContext());
+  if(err_line.IsJust()) line = err_line.ToChecked();
+
+  fprintf(stderr, "%s [%s]\n", *exception, *msg);
+  fprintf(stderr, "%s: line %d\n", *file, line);
+  if(stack.length() > 0)
     fprintf(stderr, "%s\n", *stack);
 }
 
@@ -52,16 +53,10 @@ void work_thd_run(uv_work_t *req) {
   m->handleErrors();
 }
 
-#if NODE_MAJOR_VERSION > 3
-#define CONSTRUCT_TRYCATCH(x, i) v8::TryCatch x(i)
-#else
-#define CONSTRUCT_TRYCATCH(x, i) v8::TryCatch x
-#endif
-
 void main_thd_complete_async_call(AsyncCall *m) {
   v8::Isolate * isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
-  CONSTRUCT_TRYCATCH(try_catch, isolate);
+  v8::TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
 
   m->doAsyncCallback(isolate->GetCurrentContext()->Global());

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@
 #include "NativeMethodCall.h"
 #include "NdbWrapperErrors.h"
 
-using namespace v8;
 
 void get_status(Local<String>, const AccessorInfo &);
 void get_classification(Local<String>, const AccessorInfo &);
@@ -62,12 +61,11 @@ public:
 
 NdbErrorEnvelopeClass NdbErrorEnvelope;
 
-// TODO: Verify that all callers have a HandleScope
 Local<Value> NdbError_Wrapper(const NdbError &err) {
   return NdbErrorEnvelope.wrap(& err);
 }
 
-#define V8STRING(MSG) scope.Escape(String::NewFromUtf8(info.GetIsolate(), MSG))
+#define V8STRING(MSG) scope.Escape(NewUtf8String(info.GetIsolate(), MSG))
 
 #define V8INTEGER(V) scope.Escape(Integer::New(info.GetIsolate(), V))
 

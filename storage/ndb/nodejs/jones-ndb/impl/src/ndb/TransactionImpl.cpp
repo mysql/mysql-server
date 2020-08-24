@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,9 @@ extern Local<Object> getWrappedObject(BatchImpl *set);
 
 const char * modes[4] = { "Prepare ","NoCommit","Commit  ","Rollback" };
 
-// TODO: verify that caller has HandleScope
-TransactionImpl::TransactionImpl(SessionImpl *impl) :
+TransactionImpl::TransactionImpl(SessionImpl *impl, v8::Isolate *iso) :
   token(0),
+  isolate(iso),
   parentSessionImpl(impl),
   next(0),
   ndbTransaction(0),
@@ -47,7 +47,7 @@ TransactionImpl::TransactionImpl(SessionImpl *impl) :
 {
   setJsWrapper(this);
   emptyOpSet = new BatchImpl(this, 0);
-  emptyOpSetWrapper.Reset(v8::Isolate::GetCurrent(), getWrappedObject(emptyOpSet));
+  emptyOpSetWrapper.Reset(isolate, getWrappedObject(emptyOpSet));
 }
 
 TransactionImpl::~TransactionImpl() {
@@ -158,7 +158,7 @@ int TransactionImpl::execute(BatchImpl *operations,
 
 int TransactionImpl::executeAsynch(BatchImpl *operations,  
                                    int execType, int abortOption, int forceSend,
-                                   v8::Handle<v8::Function> callback) {
+                                   v8::Local<v8::Function> callback) {
   assert(ndbTransaction);
   operations->prepare(ndbTransaction);
   openOperationSet = operations;
@@ -168,13 +168,3 @@ int TransactionImpl::executeAsynch(BatchImpl *operations,
   return parentSessionImpl->asyncContext->
     executeAsynch(this, ndbTransaction, execType, abortOption, forceSend,callback);
 }                    
-
-// THESE WERE ORIGINALLY INLINED --- MOVE THEM BACK AFTER FIXED
-
-v8::Local<v8::Object> TransactionImpl::getJsWrapper() const {
-  return ToLocal( &jsWrapper);
-}
-
-v8::Local<v8::Object> TransactionImpl::getWrappedEmptyOperationSet() const {
-  return ToLocal(& emptyOpSetWrapper);
-}
