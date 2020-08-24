@@ -3783,16 +3783,6 @@ DROP TABLE t;
 #
 CREATE TABLE t(a TEXT, b INT);
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
-EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
-EXPLAIN
--> Group aggregate: count(distinct t.b)
-    -> Sort: `-(t.a)`
-        -> Stream results  (cost=*** rows=***)
-            -> Table scan on t  (cost=*** rows=***)
-
-Warnings:
-Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
-Note	1249	Select 2 was reduced during optimization
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 col1	COUNT(DISTINCT b)
 1	2
@@ -3817,16 +3807,6 @@ col1	COUNT(b)
 DROP TABLE t;
 CREATE TABLE t(a JSON, b INT);
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
-EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
-EXPLAIN
--> Group aggregate: count(distinct t.b)
-    -> Sort: `-(t.a)`
-        -> Stream results  (cost=*** rows=***)
-            -> Table scan on t  (cost=*** rows=***)
-
-Warnings:
-Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
-Note	1249	Select 2 was reduced during optimization
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 col1	COUNT(DISTINCT b)
 1	2

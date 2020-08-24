@@ -817,11 +817,12 @@ EXPLAIN
     -> Temporary table
         -> Group (no aggregates)
             -> Sort: t1.a, t2.b
-                -> Stream results  (cost=0.80 rows=2)
-                    -> Inner hash join (no condition)  (cost=0.80 rows=2)
-                        -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
-                        -> Hash
-                            -> Table scan on t2  (cost=0.35 rows=1)
+                -> Table scan on <temporary>
+                    -> Temporary table  (cost=0.80 rows=2)
+                        -> Inner hash join (no condition)  (cost=0.80 rows=2)
+                            -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
+                            -> Hash
+                                -> Table scan on t2  (cost=0.35 rows=1)
 
 SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 a	b

@@ -109,6 +109,24 @@ static string HashJoinTypeToString(JoinType join_type) {
   }
 }
 
+static bool MaterializeIsDoingDeduplication(TABLE *table) {
+  if (table->hash_field != nullptr) {
+    // Doing deduplication via hash field.
+    return true;
+  }
+
+  // We assume that if there's an unique index, it has to be used for
+  // deduplication.
+  if (table->key_info != nullptr) {
+    for (size_t i = 0; i < table->s->keys; ++i) {
+      if ((table->key_info[i].flags & HA_NOSAME) != 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
                                    vector<ExplainData::Child> *children) {
   WalkItem(item_arg, enum_walk::POSTFIX, [children, source_text](Item *item) {

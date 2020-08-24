@@ -227,6 +227,8 @@ bool JOIN::create_intermediate_table(
 
   DBUG_ASSERT(tab->idx() > 0);
   tab->set_table(table);
+  tab->set_temporary_table_deduplicates(distinct_arg ||
+                                        !tmp_table_group.empty());
 
   /**
     If this is a window's OUT table, any final DISTINCT, ORDER BY will lead to
@@ -3073,11 +3075,11 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       //
       // TODO: If the sort order is suitable (or extendable), we could take over
       // the deduplicating responsibilities of the temporary table and activate
-      // this mode even if MaterializeIsDoingDeduplication() is set.
+      // this mode even if qep_tab->temporary_table_deduplicates() is set.
       Filesort *first_sort = dup_filesort != nullptr ? dup_filesort : filesort;
       AccessPath *old_path = path;
       if (first_sort != nullptr && first_sort->using_addon_fields() &&
-          !MaterializeIsDoingDeduplication(qep_tab->table())) {
+          !qep_tab->temporary_table_deduplicates()) {
         path = NewStreamingAccessPath(thd, path, /*join=*/this,
                                       qep_tab->tmp_table_param,
                                       qep_tab->table(), copy_fields_and_items);
@@ -6768,23 +6770,4 @@ static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
   } else {
     return make_pair(ref->key_buff, make_prev_keypart_map(ref->key_parts));
   }
-}
-
-bool MaterializeIsDoingDeduplication(TABLE *table) {
-  if (table->hash_field != nullptr) {
-    // Doing deduplication via hash field.
-    return true;
-  }
-
-  // We assume that if there's an unique index, it has to be used for
-  // deduplication (create_tmp_table() never makes them for any other
-  // reason).
-  if (table->key_info != nullptr) {
-    for (size_t i = 0; i < table->s->keys; ++i) {
-      if ((table->key_info[i].flags & HA_NOSAME) != 0) {
-        return true;
-      }
-    }
-  }
-  return false;
 }

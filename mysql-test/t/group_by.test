@@ -2770,9 +2770,6 @@ while ($i < 2) {
 --eval CREATE TABLE t(a $type, b INT)
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 --source include/turn_off_only_full_group_by.inc
-# Verify that we get streaming.
---replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
-EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 --sorted_result
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 # This query gave the right results also before the fix:

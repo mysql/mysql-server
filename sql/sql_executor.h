@@ -319,6 +319,13 @@ class QEP_TAB : public QEP_shared_owner {
     if (t) t->reginfo.qep_tab = this;
   }
 
+  bool temporary_table_deduplicates() const {
+    return m_temporary_table_deduplicates;
+  }
+  void set_temporary_table_deduplicates(bool arg) {
+    m_temporary_table_deduplicates = arg;
+  }
+
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const;
 
@@ -519,6 +526,15 @@ class QEP_TAB : public QEP_shared_owner {
 
   Mem_root_array<const AccessPath *> *invalidators = nullptr;
 
+  /**
+    If this table is a temporary table used for whole-JOIN materialization
+    (e.g. before sorting): true iff the table deduplicates, typically by way
+    of an unique index.
+
+    Otherwise, unused.
+   */
+  bool m_temporary_table_deduplicates = false;
+
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined
 };
@@ -587,7 +603,5 @@ void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param);
 std::string RefToString(const TABLE_REF &ref, const KEY *key,
                         bool include_nulls);
-
-bool MaterializeIsDoingDeduplication(TABLE *table);
 
 #endif /* SQL_EXECUTOR_INCLUDED */
