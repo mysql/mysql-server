@@ -49,6 +49,7 @@
 #include <signaldata/DihSwitchReplica.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/EventReport.hpp>
+#include <signaldata/FsConf.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/GCP.hpp>
 #include <signaldata/MasterGCP.hpp>
@@ -204,16 +205,19 @@ void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   copyGCI->startWord = 0;
 
   const BlockReference ref = calcDihBlockRef(nodeId);
+  cdata_size_in_words = DIH_CDATA_SIZE;
   if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
   {
     jam();
-    pack_sysfile_format_v2(SYSFILE, cdata, cdata_size_in_words);
+    int ret = pack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
     send_COPY_GCIREQ_data_v2(signal, ref);
   }
   else
   {
     jam();
-    pack_sysfile_format_v1(SYSFILE, cdata);
+    int ret = pack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
     send_COPY_GCIREQ_data_v1(signal, ref);
   }
 }
@@ -931,8 +935,8 @@ enum DataNodeStatusPacked
   NODE_UNDEFINED = 3
 };
 
-void
-Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32* cdata, Uint32& cdata_size_in_words)
+int
+Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr)
 {
   /**
    * Format for COPY_GCIREQ v2:
@@ -1215,15 +1219,17 @@ Dbdih::pack_sysfile_format_v2(const Sysfile* sysfile, Uint32* cdata, Uint32& cda
     index++;
   }
   require(index == index_ng);
-  cdata_size_in_words = index_ng + ((numNodeGroups + 1)/2);
-  cdata[index_cdata_size_in_words] = cdata_size_in_words;
+  *cdata_size_ptr = index_ng + ((numNodeGroups + 1)/2);
+  cdata[index_cdata_size_in_words] = *cdata_size_ptr;
   cdata[index_numGCIs] = numGCIs;
   cdata[index_numNodeGroups] = numNodeGroups;
   cdata[index_num_replicas] = num_replicas;
+
+  return 0;
 }
 
-void
-Dbdih::pack_sysfile_format_v1(const Sysfile* sysfile, Uint32* cdata)
+int
+Dbdih::pack_sysfile_format_v1(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr)
 {
   require(sysfile->maxNodeId > 0);
   require(sysfile->maxNodeId <= 48);
@@ -1257,10 +1263,12 @@ Dbdih::pack_sysfile_format_v1(const Sysfile* sysfile, Uint32* cdata)
 
   for (Uint32 i = 0; i < 2; i++)
     cdata[88 + i] = sysfile->lcpActive[i];
+
+  return 0;
 }
 
-void
-Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32* cdata, Uint32& cdata_size_in_words)
+int
+Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr)
 {
   sysfile->initSysFile();
   Uint32 index = 0;
@@ -1272,7 +1280,8 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32* cdata, Uint32& c
   Uint32 max_node_id = cdata[index];
   index++;
 
-  cdata_size_in_words = cdata[index];
+  const Uint32 cdata_size = cdata[index];
+  require(cdata_size <= *cdata_size_ptr);
   index++;
 
   Uint32 numGCIs = cdata[index];
@@ -1453,12 +1462,16 @@ Dbdih::unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32* cdata, Uint32& c
   require(index == index_ng);
   require(ng_index == numNodeGroups);
   index = index_ng + ((ng_index + 1)/2);
-  require(cdata_size_in_words == index);
+  require(index <= cdata_size);
+  *cdata_size_ptr = cdata_size;
+
+  return 0;
 }
 
-void
-Dbdih::unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32* cdata)
+int
+Dbdih::unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr)
 {
+  require(_SYSFILE_SIZE32_v1 <= *cdata_size_ptr);
   sysfile->initSysFile();
   sysfile->systemRestartBits = cdata[0];
   sysfile->m_restart_seq = cdata[1];
@@ -1496,6 +1509,9 @@ Dbdih::unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32* cdata)
   {
     sysfile->lcpActive[i] = cdata[88 + i];
   }
+
+  *cdata_size_ptr = _SYSFILE_SIZE32_v1;
+  return 0;
 }
 
 void Dbdih::execCOPY_GCIREQ(Signal* signal) 
@@ -1558,6 +1574,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(cdata)/4);
     for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
       cdata[tstart+i] = copyGCI->data[i];
+    cdata_size_in_words = tstart + CopyGCIReq::DATA_SIZE;
   }
   if (isdone)
   {
@@ -1576,12 +1593,14 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     if (v2_format)
     {
       jam();
-      unpack_sysfile_format_v2(SYSFILE, cdata, cdata_size_in_words);
+      int ret = unpack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+      ndbrequire(ret == 0);
     }
     else
     {
       jam();
-      unpack_sysfile_format_v1(SYSFILE, cdata);
+      int ret = unpack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+      ndbrequire(ret == 0);
     }
     SYSFILE->m_restart_seq = tmp;
     if (c_set_initial_start_flag)
@@ -1989,16 +2008,17 @@ void Dbdih::execFSOPENREF(Signal* signal)
 
 void Dbdih::execFSREADCONF(Signal* signal) 
 {
+  const FsConf* conf = (const FsConf*)&signal->theData[0];
   FileRecordPtr filePtr;
   jamEntry();
-  filePtr.i = signal->theData[0];
+  filePtr.i = conf->userPointer;
   ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
   FileRecord::ReqStatus status = filePtr.p->reqStatus;
   filePtr.p->reqStatus = FileRecord::IDLE;
   switch (status) {
   case FileRecord::READING_GCP:
     jam();
-    readingGcpLab(signal, filePtr);
+    readingGcpLab(signal, filePtr, conf->bytes_read);
     break;
   case FileRecord::READING_TABLE:
     jam();
@@ -3230,6 +3250,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
        */
       return;
     }
+    cdata_size_in_words = Sysfile::SYSFILE_SIZE32_v1;
   }
 
   /**
@@ -3247,12 +3268,14 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   if (v2_format)
   {
     jam();
-    unpack_sysfile_format_v2(SYSFILE, cdata, cdata_size_in_words);
+    int ret = unpack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
   }
   else
   {
     jam();
-    unpack_sysfile_format_v1(SYSFILE, cdata);
+    int ret = unpack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
   }
   SYSFILE->m_restart_seq = key;
   for (Uint32 i = 1; i <= m_max_node_id; i++)
@@ -4998,16 +5021,19 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
 
   const Uint32 ref = calcDihBlockRef(c_nodeStartMaster.startNode);
   Uint32 node_version = getNodeInfo(c_nodeStartMaster.startNode).m_version;
+  cdata_size_in_words = DIH_CDATA_SIZE;
   if (ndbd_send_node_bitmask_in_section(node_version))
   {
     jam();
-    pack_sysfile_format_v2(SYSFILE, cdata, cdata_size_in_words);
+    int ret = pack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
     send_START_MECONF_data_v2(signal, ref);
   }
   else
   {
     jam();
-    pack_sysfile_format_v1(SYSFILE, cdata);
+    int ret = pack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
     send_START_MECONF_data_v1(signal, ref);
   }
   nodeResetStart(signal);
@@ -9986,7 +10012,7 @@ void Dbdih::openingGcpLab(Signal* signal, FileRecordPtr filePtr)
   filePtr.p->reqStatus = FileRecord::READING_GCP;
 }//Dbdih::openingGcpLab()
 
-void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr) 
+void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr, Uint32 bytes_read)
 {
   /* ----------------------------------------------------------------------- */
   /*     WE HAVE NOW SUCCESSFULLY MANAGED TO READ IN THE GLOBAL CHECKPOINT   */
@@ -9999,17 +10025,23 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr)
   /*     WE ALSO COPY TO OUR OWN NODE. TO ENABLE US TO DO THIS PROPERLY WE   */
   /*     START BY CLOSING THIS FILE.                                         */
   /* ----------------------------------------------------------------------- */
+  ndbrequire(bytes_read % 4 == 0);
+  cdata_size_in_words = bytes_read / 4; // Assume all file is read in once.
+  ndbrequire(cdata_size_in_words > Sysfile::MAGIC_SIZE_v2);
   if (std::memcmp(&cdata[0],
                   Sysfile::MAGIC_v2,
                   Sysfile::MAGIC_SIZE_v2) == 0)
   {
     jam();
-    unpack_sysfile_format_v2(SYSFILE, cdata, cdata_size_in_words);
+    int ret = unpack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
   }
   else
   {
     jam();
-    unpack_sysfile_format_v1(SYSFILE, cdata);
+    ndbrequire(Sysfile::SYSFILE_SIZE32_v1 <= cdata_size_in_words);
+    int ret = unpack_sysfile_format_v1(SYSFILE, cdata, &cdata_size_in_words);
+    ndbrequire(ret == 0);
   }
   m_max_node_id = SYSFILE->getMaxNodeId();
   jam();
@@ -27159,9 +27191,15 @@ void Dbdih::writeReplicas(RWFragment* wf, Uint32 replicaStartIndex)
 
 void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
 {
-  pack_sysfile_format_v2(SYSFILE, cdata, cdata_size_in_words);
+  cdata_size_in_words = DIH_CDATA_SIZE;
+  int ret = pack_sysfile_format_v2(SYSFILE, cdata, &cdata_size_in_words);
+  ndbrequire(ret == 0);
   STATIC_ASSERT(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);
   memcpy(&sysfileDataToFile[0], &cdata[0], 4 * cdata_size_in_words);
+  // zero fill unused part of file
+  memset(&sysfileDataToFile[cdata_size_in_words],
+         0,
+         4 * (Sysfile::SYSFILE_FILE_SIZE - cdata_size_in_words));
   FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
   req->filePointer = filePtr.p->fileRef;
   req->userReference = reference();

@@ -1453,7 +1453,7 @@ private:
   void closingTableSrLab(Signal *, FileRecordPtr regFilePtr);
   void tableCloseLab(Signal *, FileRecordPtr regFilePtr);
   void tableCloseErrorLab(FileRecordPtr regFilePtr);
-  void readingGcpLab(Signal *, FileRecordPtr regFilePtr);
+  void readingGcpLab(Signal *, FileRecordPtr regFilePtr, Uint32 bytes_read);
   void readingTableLab(Signal *, FileRecordPtr regFilePtr);
   void readingGcpErrorLab(Signal *, FileRecordPtr regFilePtr);
   void readingTableErrorLab(Signal *, FileRecordPtr regFilePtr);
@@ -1485,10 +1485,10 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
-  static void unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32* cdata);
-  static void pack_sysfile_format_v1(const Sysfile* sysfile, Uint32* cdata);
-  static void unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32* cdata, Uint32& cdata_size_in_words);
-  static void pack_sysfile_format_v2(const Sysfile* sysfile, Uint32* cdata, Uint32& cdata_size_in_words);
+  static int unpack_sysfile_format_v1(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr);
+  static int pack_sysfile_format_v1(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr);
+  static int unpack_sysfile_format_v2(Sysfile* sysfile, const Uint32 cdata[], Uint32* cdata_size_ptr);
+  static int pack_sysfile_format_v2(const Sysfile* sysfile, Uint32 cdata[], Uint32* cdata_size_ptr);
   void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
   void send_COPY_GCIREQ_data_v2(Signal*, Uint32);
   void send_START_MECONF_data_v1(Signal*, Uint32);
