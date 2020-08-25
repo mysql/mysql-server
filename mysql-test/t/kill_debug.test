@@ -1,5 +1,9 @@
 --source include/have_debug.inc
 
+# Does not contain the sync points; most likely, the test is just irrelevant
+# for the hypergraph optimizer.
+--source include/not_hypergraph.inc
+
 SET @old_debug= @@session.debug;
 
 --echo Bug#13820776 CRASH IN HANDLER::HA_STATISTIC_INCREMENT IF QUERY IS KILLED

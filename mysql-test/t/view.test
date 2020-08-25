@@ -4453,6 +4453,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vu_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4460,6 +4461,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vu_2 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4467,6 +4469,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vd_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4474,6 +4477,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN va_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4481,6 +4485,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vg_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4488,6 +4493,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vh_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4495,6 +4501,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vl_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4502,6 +4509,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vlo_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4509,6 +4517,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vrow AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;

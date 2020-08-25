@@ -164,6 +164,7 @@ SELECT ST_AsText(c),COUNT(*) FROM t_point GROUP BY c;
 --sorted_result
 SELECT ST_AsText(c),COUNT(*) FROM t_geom GROUP BY c;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 

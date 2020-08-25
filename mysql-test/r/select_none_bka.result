@@ -5461,12 +5461,12 @@ Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 g1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'z'
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
-Warning	1292	Truncated incorrect DOUBLE value: 'q'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
 Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'q'
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
+Warnings:
 DROP TABLE cc;
 # End of test#45227
 #

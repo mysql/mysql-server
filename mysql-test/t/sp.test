@@ -5480,8 +5480,10 @@ create procedure bug18344_2() begin end|
 
 use test|
 
+--sorted_result
 select schema_name from information_schema.schemata where 
   schema_name like 'bug18344%'|
+--sorted_result
 select routine_name,routine_schema from information_schema.routines where
   routine_schema like 'bug18344%'|
 
@@ -5974,6 +5976,9 @@ CREATE FUNCTION bug19862(x INT) RETURNS INT
   END|
 INSERT INTO t12 VALUES (1), (2)|
 SELECT bug19862(a) FROM t12 ORDER BY 1|
+# No StreamingIterator before the sort, so does indeed get evaluated twice
+# (but there is no guarantee by the standard it won't).
+--skip_if_hypergraph
 SELECT * FROM t11|
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
@@ -7139,7 +7144,9 @@ call proc_25411_a();
 
 show create procedure proc_25411_b;
 # procedure - proc_25411_b
+--sorted_result
 select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
+--sorted_result
 select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
 call proc_25411_b(10, 20);
 

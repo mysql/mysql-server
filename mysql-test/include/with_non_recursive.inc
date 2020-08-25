@@ -962,4 +962,5 @@ with qn as (select 1) select * from qn;
 
 use test;
 
+--skip_if_hypergraph   # Depends on the query plan.
 show status like 'Created_tmp_disk_tables';

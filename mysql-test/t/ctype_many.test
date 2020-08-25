@@ -225,7 +225,9 @@ UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f=_utf8'';
 UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
 SELECT comment, koi8_ru_f, utf8_f, hex(bin_f), ucs2_f, armscii8_f, greek_f FROM t1;
 SET CHARACTER SET 'binary';
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT min(comment),count(*) FROM t1 GROUP BY ucs2_f;
 DROP TABLE t1;
 
@@ -331,6 +333,7 @@ DROP TABLE t2;
 CREATE TABLE t1 (a CHAR(1) CHARSET UTF8);
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (a BINARY(1));
+INSERT INTO t2 VALUES ('z');
 --error ER_SUBQUERY_NO_1_ROW
 SELECT * FROM t2 WHERE a=(SELECT a FROM t1) AND a=_LATIN1'x';
 DROP TABLE t2;

@@ -75,6 +75,7 @@ SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE 
 SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 
 # Do a point lookup
+--skip_if_hypergraph  # Does not support indexes yet, so it would show up in the list.
 SELECT * FROM v_statements_with_full_table_scans.t WHERE i = 10;
 
 # The number of rows scanned should not have changed (should still be 1536)

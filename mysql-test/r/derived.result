@@ -1362,8 +1362,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`test`.`v1`.`f1` AS `f1`,`test`.`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`test`.`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` < 7) and (`test`.`t2`.`f2` in (2,3)))
 SELECT * FROM v6 JOIN v7 ON f2=f1;
 f2	f22	f1	f11
-3	3	3	3
 2	2	2	2
+3	3	3	3
 test two keys
 CREATE TABLE t3(f3 INT, f33 INT);
 INSERT INTO t1 VALUES(6,6),(8,8);

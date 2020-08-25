@@ -4,6 +4,10 @@
 --source include/have_log_bin.inc
 --source include/have_myisam.inc
 
+# A fairly large segment has logic that relies on @@sql_big_selects,
+# which invokes SQL_BUFFER_RESULT, which isn't supported, and the loops go astray.
+--source include/not_hypergraph.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings

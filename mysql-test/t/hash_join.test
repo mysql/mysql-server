@@ -328,6 +328,7 @@ TRUNCATE performance_schema.file_summary_by_event_name;
 
 eval $hash_join_file_operations;
 SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+--skip_if_hypergraph  # Does not use weedout, so does not need row ID, and thus does not spill to disk.
 eval $hash_join_file_operations;
 
 DROP TABLE t1, t2;
@@ -500,6 +501,7 @@ eval EXPLAIN FORMAT=tree $query;
 # dictionary tables to get the necessary metadata. This extra query will be
 # counted in the performance schema, so we run a query against session_status
 # once here so we are sure that the necessary metadata is fetched.
+--skip_if_hypergraph  # Depends on the query plan.
 SELECT SUM(variable_value) AS Total_handler_reads
    FROM performance_schema.session_status
    WHERE variable_name LIKE 'Handler_read%';
@@ -508,6 +510,7 @@ eval $query;
 --enable_result_log
 --enable_query_log
 
+--skip_if_hypergraph  # Depends on the query plan.
 SELECT SUM(variable_value) AS Total_handler_reads
    FROM performance_schema.session_status
    WHERE variable_name LIKE 'Handler_read%';
@@ -1259,6 +1262,7 @@ eval $hash_join_file_operations;
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 1;
 --enable_result_log
+--skip_if_hypergraph  # No such logic in the hypergraph optimizer.
 eval $hash_join_file_operations;
 
 --echo # This should spill to disk since we have sorting.
@@ -2351,6 +2355,7 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 # See that only one error was raised.
+--skip_if_hypergraph  # Joins the tables in opposite order, so gets different number of errors.
 SHOW ERRORS;
 DROP TABLE t;
 
@@ -2384,6 +2389,7 @@ ANALYZE TABLE t1;
 #  a) There's a LIMIT 1 being put on the hash.
 #  b) The outer side of the hash join is never executed.
 --replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--skip_if_hypergraph   # Not being rewritten to antijoins yet.
 EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
 
 DROP TABLE t1;

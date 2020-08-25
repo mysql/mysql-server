@@ -74,10 +74,12 @@ SET TIME_ZONE = 'SYSTEM';
 
 SELECT DISTINCT c1 FROM t1;
 
+--skip_if_hypergraph   # Chooses a different query plan, which does not get the duplicate key error.
 --error ER_GROUPING_ON_TIMESTAMP_IN_DST
 SELECT COUNT(*) FROM t1 GROUP BY c1;
 
 SET sql_mode='';
+--skip_if_hypergraph   # Chooses a different query plan, which does not get the duplicate key error.
 --error ER_GROUPING_ON_TIMESTAMP_IN_DST
 SELECT COUNT(*) FROM t1 GROUP BY c1;
 SET sql_mode=DEFAULT;

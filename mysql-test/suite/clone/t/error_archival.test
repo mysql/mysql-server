@@ -6,6 +6,10 @@
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
+# Needed for the hypergraph optimizer only; since it does not support indexes yet,
+# it needs to sort some rows involving fairly large blobs.
+set sort_buffer_size=1048576;
+
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Log writer is waiting for redo-archiver to catch up .*");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Log writer waited too long for redo-archiver to advance .*");
 
@@ -163,6 +167,8 @@ SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LI
 
 UNINSTALL PLUGIN clone;
 SET DEBUG_SYNC = 'RESET';
+
+set sort_buffer_size=DEFAULT;
 
 --source include/wait_until_count_sessions.inc
 --force-rmdir $CLONE_DATADIR

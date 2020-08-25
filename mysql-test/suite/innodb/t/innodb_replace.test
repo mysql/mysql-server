@@ -1,4 +1,5 @@
 --source include/have_debug_sync.inc
+--source include/not_hypergraph.inc  # Depends on using indexes, which is not supported yet.
 
 --echo #
 --echo #Bug#11759688 52020: InnoDB can still deadlock

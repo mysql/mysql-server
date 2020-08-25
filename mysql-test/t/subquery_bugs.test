@@ -927,6 +927,8 @@ let $query =
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
+# Order depends on the query plan.
+--replace_result 5,2,3,8,1 1,2,3,5,8
 eval $query;
 
 DROP TABLE table_city, table_user, table_city_user;

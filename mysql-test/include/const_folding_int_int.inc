@@ -51,6 +51,8 @@ eval SET @maxint=$maxint;
 eval SET @minint_minus_1=$minint_minus_1;
 eval SET @minint=$minint;
 
+# Different query plans give different warnings.
+--disable_warnings
 eval EXECUTE p_less    USING @maxint_plus_1;
 eval EXECUTE p_less_eq USING @maxint;
 eval EXECUTE p_greater USING @maxint_plus_1;
@@ -79,6 +81,7 @@ eval EXECUTE p_eq      USING @minint_minus_1;
 eval EXECUTE p_equal   USING @minint_minus_1;
 eval EXECUTE p_n_eq    USING @minint_minus_1;
 eval EXECUTE p_n_equal USING @minint_minus_1;
+--enable_warnings
 
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;
@@ -149,6 +152,8 @@ eval PREPARE p_equal   FROM 'SELECT * FROM $table_name WHERE ? <=> colA';
 eval PREPARE p_n_eq    FROM 'SELECT * FROM $table_name WHERE ? <> colA';
 eval PREPARE p_n_equal FROM 'SELECT * FROM $table_name WHERE NOT(? <=> colA)';
 
+# Different query plans give different warnings.
+--disable_warnings
 eval EXECUTE p_greater USING @maxint_plus_1;
 eval EXECUTE p_gret_eq USING @maxint;
 eval EXECUTE p_less    USING @maxint_plus_1;
@@ -177,6 +182,7 @@ eval EXECUTE p_eq      USING @minint_minus_1;
 eval EXECUTE p_equal   USING @minint_minus_1;
 eval EXECUTE p_n_eq    USING @minint_minus_1;
 eval EXECUTE p_n_equal USING @minint_minus_1;
+--enable_warnings
 
 DROP PREPARE p_less;
 DROP PREPARE p_less_eq;

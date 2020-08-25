@@ -120,6 +120,7 @@ let $query=
 select * from t3, t1 where t1.col_date_key is not null;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # disabled in NOT (IS NULL)

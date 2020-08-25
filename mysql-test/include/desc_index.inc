@@ -162,8 +162,10 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 EXPLAIN SELECT * FROM t1 WHERE i1 >= 50 AND i1 < 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+--partially_sorted_result 1
 SELECT * FROM t1 WHERE i1 >= 50 AND i1 < 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 EXPLAIN SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
+--partially_sorted_result 1
 SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2);
@@ -173,6 +175,7 @@ let query1=
   WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 
 eval EXPLAIN $query1;
+--partially_sorted_result 1
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC);

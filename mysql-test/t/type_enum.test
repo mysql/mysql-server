@@ -233,6 +233,7 @@ INSERT INTO t1 (c1) VALUES ('');
 INSERT INTO t1 (c1) VALUES (0);
 INSERT INTO t1 (c1) VALUES ('');
 
+--skip_if_hypergraph  # Hits bug #31843607.
 --sorted_result
 SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
 

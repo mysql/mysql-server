@@ -43,6 +43,7 @@
 
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
+-- source include/not_hypergraph.inc  # Gets confused by the extra logging.
 
 --echo #
 --echo # 0. Add suppressions for the test.

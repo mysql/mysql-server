@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/not_hypergraph.inc  # Chooses different query plans that do not exercise the path with the bug.
 
 --echo #
 --echo # Bug #30769515 INCORRECT ERROR HANDLING IN GROUP-BY PLANS.

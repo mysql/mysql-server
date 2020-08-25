@@ -2433,10 +2433,10 @@ a	COUNT(*)
 a	1
 r	1
 s	1
-ß	1
-÷	1
 t	1
 z	1
+ß	1
+÷	1
 DROP TABLE t1;
 End of 5.1 tests
 Start of 5.4 tests

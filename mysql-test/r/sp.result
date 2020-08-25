@@ -4780,8 +4780,8 @@ select routine_name,routine_schema from information_schema.routines where
 routine_schema like 'bug18344%'|
 ROUTINE_NAME	ROUTINE_SCHEMA
 bug18344	bug18344_012345678901
-bug18344_2	bug18344_012345678901
 bug18344	bug18344_0123456789012
+bug18344_2	bug18344_012345678901
 bug18344_2	bug18344_0123456789012
 drop database bug18344_012345678901|
 drop database bug18344_0123456789012|
@@ -6303,24 +6303,24 @@ select p1, p2;
 end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
 ROUTINE_NAME	ROUTINE_DEFINITION
-proc_25411_a	begin
-/* real comment */
-select 1;
- select 2; 
-select 3;
- select 4; 
 
+ select 2; 
+ select 4; 
+/* real comment */
 end
+end
+end
+proc_25411_a	begin
 proc_25411_b	begin
-select p1, p2;
-end
 proc_25411_c	begin
-select 1,2 ,3 ;
 select 1 ,2  ,3 ;
-select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
-end
+select 1,2 ,3 ;
+select 1,2 ,3 ;
+select 1;
+select 3;
+select p1, p2;
 select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
 PARAMETER_NAME
 call proc_25411_b(10, 20);

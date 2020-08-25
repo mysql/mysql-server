@@ -11,6 +11,7 @@ PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1, "1"), (2, "2"), (3, "3"), (4, "Four"), (5, "Five"),
 (6, "Six"), (7, "Seven"), (8, "Eight"), (9, "Nine");
 SET SESSION debug="+d,partition_fail_index_init";
+--skip_if_hypergraph  # Depends on using indexes, which the hypergraph optimizer does not support.
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 SELECT * FROM t1 WHERE b = "Seven";
 SET SESSION debug="-d,partition_fail_index_init";
@@ -87,6 +88,7 @@ DROP TABLE t1_normal_table;
 CREATE TABLE t1(a int) PARTITION BY LIST (a) (PARTITION x1 VALUES IN
 (2),PARTITION x2 VALUES IN (3));
 ALTER TABLE t1 DISCARD TABLESPACE;
+--skip_if_hypergraph  # Error message is worded differently.
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*)FROM t1;
 DROP TABLE t1;

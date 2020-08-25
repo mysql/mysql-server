@@ -493,10 +493,13 @@ select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
 select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
 --sorted_result
 select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
+--sorted_result
 select * from t1 natural join (t2 join t4 on b + 1 = y);
+--sorted_result
 select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
 
 # MySQL extension - 'join ... on' over nested comma operator
+--sorted_result
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
 --sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
@@ -504,6 +507,7 @@ select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
 select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
 
 # MySQL extension - refererence qualified coalesced columns
+--sorted_result
 select * from t1 natural join t2 where t1.b > 0;
 --sorted_result
 select * from t1 natural join (t4 natural join t5) where t4.y > 7;
@@ -536,9 +540,13 @@ select * from (select * from t3 natural join t4) as t34
               (select * from t1 natural join t2) as t12;
 
 # Queries over views
+--sorted_result
 select * from v1a;
+--sorted_result
 select * from v1b;
+--sorted_result
 select * from v1c;
+--sorted_result
 select * from v1d;
 --sorted_result
 select * from v2a;
@@ -548,11 +556,16 @@ select * from v2b;
 select * from v3a;
 --sorted_result
 select * from v3b;
+--sorted_result
 select * from v4;
+--sorted_result
 select * from v1a natural join v2a;
 select v2a.* from v1a natural join v2a;
+--sorted_result
 select * from v1b join v2a on v1b.b = v2a.c;
+--sorted_result
 select * from v1c join v2a on v1c.b = v2a.c;
+--sorted_result
 select * from v1d join v2a on v1d.a = v2a.c;
 --sorted_result
 select * from v1a join (t3 natural join t4) on a = y;

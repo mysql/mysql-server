@@ -1272,18 +1272,18 @@ test.t1	analyze	status	OK
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`);
 a	b
-4	4
-3	3
-2	2
-1	4
-1	3
-1	2
-1	1
-0	1
 0	0
-55	55
-55	54
+0	1
+1	1
+1	2
+1	3
+1	4
+2	2
+3	3
+4	4
 54	54
+55	54
+55	55
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 Variable_name	Value
 Handler_commit	3
@@ -1316,18 +1316,18 @@ Handler_read_next	12
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`a_asc_b_desc`);
 a	b
-0	1
 0	0
-1	4
-1	3
-1	2
+0	1
 1	1
+1	2
+1	3
+1	4
 2	2
 3	3
 4	4
 54	54
-55	55
 55	54
+55	55
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 Variable_name	Value
 Handler_commit	1
@@ -1338,18 +1338,18 @@ Handler_read_next	12
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`a_desc_b_asc`);
 a	b
-4	4
-3	3
-2	2
+0	0
+0	1
 1	1
 1	2
 1	3
 1	4
-0	0
-0	1
+2	2
+3	3
+4	4
+54	54
 55	54
 55	55
-54	54
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 Variable_name	Value
 Handler_commit	1

@@ -1146,7 +1146,7 @@ id	users
 1	1,2,3,4,5,6,7,8
 2	1,2,3,4,5
 3	2,5
-4	5,2,3,8,1
+4	1,2,3,5,8
 5	NULL
 6	NULL
 DROP TABLE table_city, table_user, table_city_user;

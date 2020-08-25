@@ -681,6 +681,7 @@ drop procedure if exists p2;
 
 create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
+--sorted_result
 select sql_data_access from information_schema.routines
 where specific_name like 'p%' and ROUTINE_SCHEMA != 'sys';
 drop procedure p1;
@@ -724,6 +725,7 @@ drop table t1;
 #
 create table t1 (a int not null, b int);
 use information_schema;
+--sorted_result
 select column_name, column_default from columns
   where table_schema='test' and table_name='t1';
 use test;
@@ -832,6 +834,7 @@ drop table t1;
 # Bug#14271 I_S: columns has no size for (var)binary columns
 #
 create table t1(f1 binary(32), f2 varbinary(64));
+--sorted_result
 select character_maximum_length, character_octet_length
 from information_schema.columns where table_name='t1';
 drop table t1;
@@ -1121,6 +1124,7 @@ create table t1 (
   f7 datetime not null,
   f8 datetime default '2006-01-01'
 );
+--sorted_result
 select column_default from information_schema.columns where table_name= 't1';
 show columns from t1;
 drop table t1;
@@ -1166,6 +1170,7 @@ select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 # Tests printing of MaterializeInformationSchemaTableIterator with nontrivial
 # table iterators.
+--replace_regex / *\(cost=\d+\.\d+\ rows=\d+\)//
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 #
@@ -1459,6 +1464,7 @@ DROP TABLE variables;
 
 CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
 
+--sorted_result
 SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
   FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
 
@@ -2265,6 +2271,7 @@ DROP TABLE t1;
 --echo # Bug#18925: subqueries with MIN/MAX functions on INFORMARTION_SCHEMA 
 --echo #
 
+--skip_if_hypergraph  # Chooses an extremely slow plan due to lack of indexes, causing the test to time out.
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
        INNER JOIN
@@ -2320,6 +2327,7 @@ CREATE TABLE t1(fld1 BINARY(10) NOT NULL DEFAULT 'a',
 
 --echo # With the patch, default value is displayed in the hex format.
 SHOW COLUMNS from t1;
+--sorted_result
 SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
 
 --echo # Cleanup.
@@ -2481,12 +2489,14 @@ CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE f1;
 ALTER TABLE t1 CHANGE COLUMN f1 f0 BINARY;
 
 --echo # Check warning from information_schema.
+--sorted_result
 SELECT TABLE_NAME, LENGTH(VIEW_DEFINITION) > 0
   FROM INFORMATION_SCHEMA.VIEWS
   WHERE TABLE_SCHEMA='test';
 
 --echo # The SELECT causes unexpected error without the fix.
 SET SESSION max_error_count=0;
+--sorted_result
 SELECT TABLE_NAME, LENGTH(VIEW_DEFINITION) > 0
   FROM INFORMATION_SCHEMA.VIEWS
   WHERE TABLE_SCHEMA='test';
@@ -2509,12 +2519,14 @@ ALTER TABLE t1 CHANGE COLUMN f1 f0 BINARY;
 
 --echo # The TABLE_COMMENT shows error message with view name 'v1'
 --echo # for view 'v2' without the fix.
+--sorted_result
 SELECT TABLE_NAME, TABLE_COMMENT
   FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA='test';
 
 --echo # The behavior with max_error_count=0 should be unchanged after fix.
 SET SESSION max_error_count=0;
+--sorted_result
 SELECT TABLE_NAME, TABLE_COMMENT
   FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA='test';

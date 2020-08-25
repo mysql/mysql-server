@@ -750,6 +750,7 @@ SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 
 --echo JOIN of above two
 EXPLAIN SELECT * FROM v6 JOIN v7 ON f2=f1;
+--sorted_result
 SELECT * FROM v6 JOIN v7 ON f2=f1;
 
 --echo test two keys
@@ -1574,6 +1575,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN (SELECT * FROM t2 UNION ALL SELECT * FROM t2) AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 eval explain $query;
 

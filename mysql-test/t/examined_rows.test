@@ -52,6 +52,7 @@ EXPLAIN SELECT * FROM t17059925 WHERE a= 10 AND a= 20;
 --replace_column 9 ROWS
 EXPLAIN SELECT * FROM t17059925 UNION SELECT * FROM t17059925 WHERE a= 10 AND a= 20;
 
+--skip_if_hypergraph  # No const table support, and no indexes, so will return slightly different rows_examined.
 --sorted_result
 SELECT sql_text, rows_examined FROM mysql.slow_log WHERE (sql_text LIKE '%SELECT%t17059925%'
        AND sql_text NOT LIKE '%EXPLAIN%') OR sql_text LIKE '%dual%';

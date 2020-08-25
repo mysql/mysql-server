@@ -1534,6 +1534,7 @@ SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_general_mysql500_ci);
 INSERT INTO t1 VALUES ('a'),('r'),('s'),(_latin1 0xDF),(_latin1 0xF7),('t'),('z');
 SELECT * FROM t1 ORDER BY a;
+--sorted_result
 SELECT a, COUNT(*) FROM t1 GROUP BY a;
 DROP TABLE t1;
 

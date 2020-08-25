@@ -4398,6 +4398,7 @@ INSERT INTO `cc` VALUES
 EXPLAIN SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
   HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 
+--sorted_result  # Actually just to sort the warnings.
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
   HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 

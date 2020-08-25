@@ -623,20 +623,20 @@ c	b	a	y
 3	1	2	2
 select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
 c	b	a	b	b	c	y	c
-10	1	2	1	1	3	11	3
 10	1	2	1	1	10	11	3
-3	1	2	1	1	3	11	3
+10	1	2	1	1	3	11	3
 3	1	2	1	1	10	11	3
-3	2	2	1	1	3	11	3
+3	1	2	1	1	3	11	3
 3	2	2	1	1	10	11	3
+3	2	2	1	1	3	11	3
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
 c	b	a	b	b	c	y	c
-10	1	2	1	1	3	11	3
 10	1	2	1	1	10	11	3
-3	1	2	1	1	3	11	3
+10	1	2	1	1	3	11	3
 3	1	2	1	1	10	11	3
-3	2	2	1	1	3	11	3
+3	1	2	1	1	3	11	3
 3	2	2	1	1	10	11	3
+3	2	2	1	1	3	11	3
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
 b	c	a	c	b	y
 1	10	2	3	1	2
