@@ -1111,7 +1111,7 @@ Dbdih::pack_sysfile_format_v2(void)
   }
   ndbrequire((index + numGCIs) == indexGCI);
   Uint32 numNodeGroups = 0;
-  Uint32 num_replicas = cnoReplicas;
+  Uint32 num_replicas = 0;
   Uint32 replica_index = 0;
   index = indexGCI;
   Uint32 node_group_bit_words = lcp_active_words;
@@ -1120,6 +1120,7 @@ Dbdih::pack_sysfile_format_v2(void)
   start_bit = 0;
   Uint16 *ng_area = (Uint16*)&cdata[index_ng];
   Uint32 predicted_ng = 0;
+  Uint32 first_ng = NO_NODE_GROUP_ID;
   for (Uint32 i = 1; i <= m_max_node_id; i++)
   {
     Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
@@ -1138,18 +1139,33 @@ Dbdih::pack_sysfile_format_v2(void)
       {
         jamDebug();
         nodeGroup = SYSFILE->getNodeGroup(i);
+        if (num_replicas == 0 && first_ng == NO_NODE_GROUP_ID)
+        {
+          first_ng = nodeGroup;
+          num_replicas++;
+        }
+        else if (first_ng == nodeGroup)
+        {
+          require(replica_index == num_replicas);
+          num_replicas++;
+        }
+        else if (first_ng != NO_NODE_GROUP_ID)
+        {
+          first_ng = NO_NODE_GROUP_ID;
+          // unset first_ng to mark that num_replicas now is set (and > 0).
+        }
+        if (first_ng == NO_NODE_GROUP_ID && replica_index == num_replicas)
+        {
+          jamDebug();
+          replica_index = 0;
+          predicted_ng++;
+        }
         if (nodeGroup != predicted_ng)
         {
           jamDebug();
           diff = 1;
         }
         replica_index++;
-        if (replica_index == num_replicas)
-        {
-          jamDebug();
-          replica_index = 0;
-          predicted_ng++;
-        }
         break;
       }
       case Sysfile::NS_NotDefined:
