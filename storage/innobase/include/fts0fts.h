@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -105,6 +105,9 @@ those defined in mysql file ft_global.h */
 /** Threshold to avoid exhausting of doc ids. Consecutive doc id difference
 should not exceed FTS_DOC_ID_MAX_STEP */
 #define FTS_DOC_ID_MAX_STEP		65535
+
+/* Maximum nested expression in fulltext binary search string */
+#define FTS_MAX_NESTED_EXP		31
 
 /** Variable specifying the FTS parallel sort degree */
 extern ulong		fts_sort_pll_degree;

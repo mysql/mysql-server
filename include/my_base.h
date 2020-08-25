@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -493,7 +493,8 @@ is the global server default. */
 #define HA_ERR_TEMP_FILE_WRITE_FAILURE	189	/* Temporary file write failure */
 #define HA_ERR_INNODB_FORCED_RECOVERY 190	/* Innodb is in force recovery mode */
 #define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE	191 /* Too many words in a phrase */
-#define HA_ERR_LAST               191    /* Copy of last error nr */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 192  /* Too many sub-expression in search string */
+#define HA_ERR_LAST               192    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
