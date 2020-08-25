@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -195,10 +195,12 @@ enum dberr_t {
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
 					because the types mismatch */
 
-	DB_SCHEMA_NOT_LOCKED		/*!< If an API function expects the
+	DB_SCHEMA_NOT_LOCKED,		/*!< If an API function expects the
 					schema to be locked in exclusive mode
 					and if it's not then that API function
 					will return this error code */
+	DB_FTS_TOO_MANY_NESTED_EXP	/*< Too many nested sub expression
+					in full-text search string */
 
 };
 
