@@ -1327,3 +1327,10 @@ WHERE event_name = 'memory/sql/JSON' AND
 # the at the very end of the test.
 --let $restart_parameters= restart:
 --source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug#31301101 ASSERTION ".CONV_FIELD->HAS_CHARSET"
+--echo #
+CREATE TABLE t1(j char(1), KEY idxbn ((CAST('' AS CHAR(1) ARRAY))));
+ALTER TABLE t1 CONVERT TO CHARACTER SET latin1;
+DROP TABLE t1;
