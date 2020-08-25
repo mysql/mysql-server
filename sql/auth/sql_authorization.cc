@@ -2245,9 +2245,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
       if (db &&
           (!thd->db().str || db_is_pattern || strcmp(db, thd->db().str))) {
         if (sctx->get_active_roles()->size() > 0) {
-          bool use_patterns =
-              ((want_access & GRANT_ACL) ? true : !dont_check_global_grants);
-          db_access = sctx->db_acl({db, strlen(db)}, use_patterns);
+          db_access = sctx->db_acl({db, strlen(db)}, db_is_pattern);
         } else {
           db_access = acl_get(thd, sctx->host().str, sctx->ip().str,
                               sctx->priv_user().str, db, db_is_pattern);
@@ -2293,9 +2291,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if (db && (!thd->db().str || db_is_pattern || strcmp(db, thd->db().str))) {
     if (sctx->get_active_roles()->size() > 0) {
-      bool flags =
-          ((want_access & GRANT_ACL) ? true : !dont_check_global_grants);
-      db_access = sctx->db_acl({db, strlen(db)}, flags);
+      db_access = sctx->db_acl({db, strlen(db)}, db_is_pattern);
       DBUG_PRINT("info", ("check_access using db-level privilege for %s. "
                           "ACL: %lu",
                           db, db_access));
