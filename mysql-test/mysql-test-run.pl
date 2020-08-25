@@ -2956,6 +2956,10 @@ sub environment_setup {
     $ENV{'NDB_CONFIG'} =
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_config");
 
+    $ENV{'NDB_PRINT_SYS_FILE'} =
+      my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
+                  "ndb_print_sys_file");
+
     $ENV{'NDB_SELECT_ALL'} =
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
                   "ndb_select_all");
