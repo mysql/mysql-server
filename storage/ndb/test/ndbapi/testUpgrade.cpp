@@ -461,7 +461,6 @@ static bool check_arbitration_setup(Ndb_cluster_connection* connection) {
     return false;
   }
 
-  const NdbInfoRecAttr* data_nodeid_colval = scanOp->getValue("node_id");
   const NdbInfoRecAttr* arbitrator_nodeid_colval =
       scanOp->getValue("arbitrator");
   const NdbInfoRecAttr* arbitration_connection_status_colval =
