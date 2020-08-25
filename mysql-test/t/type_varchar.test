@@ -56,7 +56,9 @@ while ($j)
   select * from t1 where v='This is a test' order by v;
   select * from t1 where v like 'S%' order by v;
   explain select * from t1 where v like 'This is a test' order by v;
+  --echo Helper line 1 for --skip_if_hypergraph diffing
   explain select * from t1 where v='This is a test' order by v;
+  --echo Helper line 2 for --skip_if_hypergraph diffing
   explain select * from t1 where v like 'S%' order by v;
   eval alter table t1 change v v varchar($i);
   inc $i;
@@ -71,7 +73,9 @@ while ($j)
   select * from t1 where v='This is a test' order by v;
   select * from t1 where v like 'S%' order by v;
   explain select * from t1 where v like 'This is a test' order by v;
+  --echo Helper line 3 for --skip_if_hypergraph diffing
   explain select * from t1 where v='This is a test' order by v;
+  --echo Helper line 4 for --skip_if_hypergraph diffing
   explain select * from t1 where v like 'S%' order by v;
   eval alter table t1 change v v varchar($i);
   dec $i;
@@ -87,7 +91,9 @@ select * from t1 where v like 'This is a test' order by v;
 select * from t1 where v='This is a test' order by v;
 select * from t1 where v like 'S%' order by v;
 explain select * from t1 where v like 'This is a test' order by v;
+--echo Helper line 5 for --skip_if_hypergraph diffing
 explain select * from t1 where v='This is a test' order by v;
+--echo Helper line 6 for --skip_if_hypergraph diffing
 explain select * from t1 where v like 'S%' order by v;
 drop table t1;
 

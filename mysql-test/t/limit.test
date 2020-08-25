@@ -11,6 +11,7 @@ SELECT * FROM t1 LIMIT 6;
 
 SELECT * FROM t1 LIMIT 5 OFFSET 1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LIMIT 5 OFFSET 1;
 
 (SELECT * FROM t1 LIMIT 7) ORDER BY a DESC LIMIT 4;
@@ -300,6 +301,7 @@ set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='block_nested_loop=off';
 CREATE TABLE t1 ( pk INTEGER );
 INSERT INTO t1 VALUES (1), (2);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
 --error ER_JSON_DOCUMENT_NULL_KEY
 SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
@@ -394,6 +396,7 @@ INSERT INTO a(col_int,col_varchar_255) VALUES (0,""),(1,"");
 # specified 'limit', the 'fanout == 0' should result in all rows needed
 # to be read. Thus there are no effective limits.
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 
 INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
@@ -411,6 +414,7 @@ INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
 #################################
 # Table A now contains 4096 rows, still all rows should be read.
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 
 DROP TABLE a;

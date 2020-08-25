@@ -1169,40 +1169,40 @@ a	b	a	b
 7	8	7	5
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t2.b > t1.a OR t1.a > t1.b;
 a	b	a	b
+2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
-2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a NOT BETWEEN t2.b AND t1.b;
 a	b	a	b
+2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
-2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a BETWEEN t2.b AND t1.b);
 a	b	a	b
+2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
-2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t2.b > t1.a OR t1.a > t1.b;
 a	b	a	b
+2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
 7	8	7	5
-2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE NOT(t1.a != t2.a AND t1.a BETWEEN t2.b AND t1.b);
 a	b	a	b
+2	1	NULL	NULL
 3	2	3	0
 4	3	4	1
 6	5	6	4
 7	8	7	5
-2	1	NULL	NULL
 8	7	NULL	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a AND (t2.b > t1.a OR t1.a > t1.b);
 a	b	a	b

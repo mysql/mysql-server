@@ -330,9 +330,9 @@ Handler_read_key	1
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
 a	b
+-1	pNeg(-subp1)
 -2	(pNeg-)subp0
 -3	pNeg(-subp1)
--1	pNeg(-subp1)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	2
@@ -357,9 +357,9 @@ Handler_external_lock	2
 # 17 writes (internal I_S)
 SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
 a	b
-5	p0-9:subp3
 1	subp3
 3	subp3
+5	p0-9:subp3
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	2
@@ -448,30 +448,30 @@ SELECT * FROM t1 PARTITION;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT * FROM t1 `PARTITION`;
 a	b
+-1	pNeg(-subp1)
 -2	(pNeg-)subp0
 -3	pNeg(-subp1)
--1	pNeg(-subp1)
-5	p0-9:subp3
 1	subp3
-3	subp3
 10	p10-99
 100	`p100-99999`(-subp6)
 1000	`p100-99999`(-subp6)
 101	`p100-99999`(-subp7)
+3	subp3
+5	p0-9:subp3
 SELECT * FROM t1 AS PARTITION;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION' at line 1
 SELECT * FROM t1 AS `PARTITION`;
 a	b
+-1	pNeg(-subp1)
 -2	(pNeg-)subp0
 -3	pNeg(-subp1)
--1	pNeg(-subp1)
-5	p0-9:subp3
 1	subp3
-3	subp3
 10	p10-99
 100	`p100-99999`(-subp6)
 1000	`p100-99999`(-subp6)
 101	`p100-99999`(-subp7)
+3	subp3
+5	p0-9:subp3
 #
 # Test REPLACE
 #
@@ -495,10 +495,10 @@ Handler_write	1
 # 18 writes (17 I_S internal, 1 ha_innobase)
 SELECT * FROM t1 PARTITION (pNeg);
 a	b
+-1	pNeg(-subp1)
 -2	(pNeg-)subp0
 -21	Insert by REPLACE
 -3	pNeg(-subp1)
--1	pNeg(-subp1)
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
 VARIABLE_NAME	VARIABLE_VALUE
@@ -516,10 +516,10 @@ Handler_write	1
 # 18 write (17 from I_S, 1 for the failed insert)
 SELECT * FROM t1 PARTITION (pNeg);
 a	b
--2	(pNeg-)subp0
--3	pNeg(-subp1)
 -1	pNeg(-subp1)
+-2	(pNeg-)subp0
 -21	REPLACEd by REPLACE
+-3	pNeg(-subp1)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -586,9 +586,9 @@ Handler_write	2
 # + 19 write (18 internal I_S + 1 failed write)
 SELECT * FROM t1 PARTITION (subp1);
 a	b
--3	pNeg(-subp1)
 -1	pNeg(-subp1)
 -21	REPLACEd by REPLACE
+-3	pNeg(-subp1)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	24
 Handler_delete	1
@@ -623,10 +623,10 @@ Handler_write	2
 #
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
--2	(pNeg-)subp0
--3	pNeg(-subp1)
 -1	pNeg(-subp1)
+-2	(pNeg-)subp0
 -21	REPLACEd by REPLACE
+-3	pNeg(-subp1)
 10	p10-99
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
@@ -1099,14 +1099,14 @@ SUBPARTITION BY HASH (`a`)
   SUBPARTITION subp7 ENGINE = InnoDB)) */
 SELECT * FROM t1;
 a	b
--4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
--222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
+-222	`p100-99999`(-subp6), Updated from a = 100
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 1	subp3
-3	subp3
 10	p10-99
 1000	`p100-99999`(-subp6)
 110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+3	subp3
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1132,10 +1132,10 @@ SUBPARTITION BY HASH (`a`)
 SELECT * FROM t2;
 a	b
 1	subp3
-3	subp3
 10	p10-99
 1000	`p100-99999`(-subp6)
 110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+3	subp3
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -1144,13 +1144,13 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t3;
 a	b
--4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
--222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
+-222	`p100-99999`(-subp6), Updated from a = 100
+-4	(pNeg-)subp0, Updated, Updated2, Updated from a = -2
 1	subp3
-3	subp3
 1000	`p100-99999`(-subp6)
 110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+3	subp3
 FLUSH STATUS;
 DELETE t1 PARTITION (pNeg), t3 FROM t1, t3
 WHERE t1.a = t3.a AND t3.b = 'subp3';
@@ -1259,14 +1259,6 @@ INSERT INTO `t1` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 SELECT * FROM t1;
 id
 1
-2
-3
-4
-5
-6
-7
-8
-9
 10
 11
 12
@@ -1277,7 +1269,15 @@ id
 17
 18
 19
+2
 20
+3
+4
+5
+6
+7
+8
+9
 SELECT * FROM t1 PARTITION (p0);
 id
 1
@@ -1287,11 +1287,11 @@ id
 5
 SELECT * FROM t1 PARTITION (p1);
 id
+10
 6
 7
 8
 9
-10
 SELECT * FROM t1 PARTITION (p2);
 id
 11
@@ -1326,14 +1326,6 @@ INSERT INTO `t2` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 SELECT * FROM t2;
 id
 1
-2
-3
-4
-5
-6
-7
-8
-9
 10
 11
 12
@@ -1344,7 +1336,15 @@ id
 17
 18
 19
+2
 20
+3
+4
+5
+6
+7
+8
+9
 SELECT * FROM t2 PARTITION (p0);
 id
 1
@@ -1354,11 +1354,11 @@ id
 5
 SELECT * FROM t2 PARTITION (p1);
 id
+10
 6
 7
 8
 9
-10
 SELECT * FROM t2 PARTITION (p2);
 id
 11
@@ -1398,20 +1398,20 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 INSERT INTO `t3` VALUES (1,'first'), (3,'third'),(5,'fifth'),(7,'seventh'),(0,'zilch'),(2,'second'),(4,'fourth'),(6,'sixth'),(8,'eighth'),(9,'ninth'),(10,'tenth'),(11,'eleventh'),(12,'twelfth'),(13,'thirteenth');
 SELECT * FROM `t3`;
 id	name
-1	first
-3	third
-5	fifth
-7	seventh
 0	zilch
-2	second
-4	fourth
-6	sixth
-8	eighth
-9	ninth
+1	first
 10	tenth
 11	eleventh
 12	twelfth
 13	thirteenth
+2	second
+3	third
+4	fourth
+5	fifth
+6	sixth
+7	seventh
+8	eighth
+9	ninth
 SELECT * FROM `t3` PARTITION (p0);
 id	name
 1	first
@@ -1427,11 +1427,11 @@ id	name
 8	eighth
 SELECT * FROM `t3` PARTITION (p2);
 id	name
-9	ninth
 10	tenth
 11	eleventh
 12	twelfth
 13	thirteenth
+9	ninth
 SELECT * FROM `t3` PARTITION (p2) ORDER BY id;
 id	name
 9	ninth
@@ -1492,26 +1492,26 @@ INSERT INTO `t5` VALUES (19, 'ttttttt', '1999-08-02 00:00:00');
 INSERT INTO `t5` VALUES (20, 'uuuuuuu', '1994-05-28 00:00:00');
 SELECT * FROM `t5`;
 id	name	purchased
-8	hhhhhhh	1978-01-05
+1	aaaaaaa	2006-01-05
+10	jjjjjjj	1992-01-05
+11	kkkkkkk	1993-01-05
+12	mmmmmmm	1994-01-05
 13	nnnnnnn	1989-01-05
 14	ooooooo	1983-12-05
-18	sssssss	1950-09-23
-3	ccccccc	1985-08-07
-9	iiiiiii	1979-01-05
 15	ppppppp	1986-06-05
 16	qqqqqqq	1974-04-11
 17	qqqqqqq	1960-03-15
-5	eeeeeee	1999-12-01
-12	mmmmmmm	1994-01-05
-7	ggggggg	1990-01-05
-10	jjjjjjj	1992-01-05
-11	kkkkkkk	1993-01-05
+18	sssssss	1950-09-23
 19	ttttttt	1999-08-02
-20	uuuuuuu	1994-05-28
 2	bbbbbbb	2005-08-05
-6	fffffff	2003-11-12
-1	aaaaaaa	2006-01-05
+20	uuuuuuu	1994-05-28
+3	ccccccc	1985-08-07
 4	ddddddd	2000-01-01
+5	eeeeeee	1999-12-01
+6	fffffff	2003-11-12
+7	ggggggg	1990-01-05
+8	hhhhhhh	1978-01-05
+9	iiiiiii	1979-01-05
 SELECT * FROM `t5` PARTITION(p0) ORDER BY id;
 id	name	purchased
 3	ccccccc	1985-08-07

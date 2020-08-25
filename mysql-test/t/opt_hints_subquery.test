@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Optimizer hints are not supported.
+
 --echo # WL#8244 Hints for subquery execution
 
 CREATE TABLE t1 (a INTEGER NOT NULL, b INT, PRIMARY KEY (a));

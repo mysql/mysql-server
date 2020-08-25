@@ -9,6 +9,7 @@ SHOW CREATE TABLE t1;
 
 --echo # INFORMATION_SCHEMA.STATISTICS should show the expression and no column
 --echo # name
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS
 WHERE INDEX_NAME IN ('int_func_index', 'string_func_index');
 
@@ -186,8 +187,10 @@ INSERT INTO t1 VALUES
 
 ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
+--sorted_result
 EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
+--sorted_result
 EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
 
 DROP TABLE t1;

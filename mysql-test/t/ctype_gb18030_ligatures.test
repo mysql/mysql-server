@@ -380,14 +380,20 @@ INSERT INTO t1 VALUES(CONCAT(CONVERT(_ucs2 0x0046 USING gb18030), CONVERT(_ucs2 
 INSERT INTO t1 VALUES(CONCAT(CONVERT(_ucs2 0x0046 USING gb18030), CONVERT(_ucs2 0x0046 USING gb18030), CONVERT(_ucs2 0x004C USING gb18030)));
 INSERT INTO t1 VALUES(CONCAT(CONVERT(_ucs2 0x0046 USING gb18030), CONVERT(_ucs2 0x0066 USING gb18030), CONVERT(_ucs2 0x004C USING gb18030)));
 
-SELECT c, hex(c) FROM t1 ORDER BY c ASC;
-SELECT c, hex(c) FROM t1 ORDER BY c DESC;
+SELECT c, hex(c) FROM t1 ORDER BY c, hex(c) ASC;
+SELECT c, hex(c) FROM t1 ORDER BY c, hex(c) DESC;
 
+--sorted_result
 SELECT c, hex(c) FROM t1 WHERE c = 'FFI';
+--sorted_result
 SELECT c, hex(c) FROM t1 WHERE c > 'FFI';
+--sorted_result
 SELECT c, hex(c) FROM t1 WHERE c > 'FF';
+--sorted_result
 SELECT c, hex(c) FROM t1 WHERE c <= 'FFL' AND c > 'FF';
+--sorted_result
 SELECT c, hex(c) FROM t1 WHERE c LIKE 'FF%';
+--sorted_result
 SELECT c, hex(c) FROM t1 WHERE c LIKE '%L';
 
 DROP TABLE t1;

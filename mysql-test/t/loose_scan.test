@@ -197,6 +197,7 @@ WHERE t2.b IN (
 # Verify that the left (outer) side of the nested loop semijoin iterator
 # only contains a single table; anything else would give the wrong results
 # (deduplicating away rows that should not be deduplicated).
+--skip_if_hypergraph  # Different query plan.
 eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 

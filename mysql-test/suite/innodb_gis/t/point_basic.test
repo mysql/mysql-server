@@ -192,6 +192,7 @@ ANALYZE TABLE gis_point;
 EXPLAIN SELECT ST_AsText(p) FROM gis_point ORDER BY p;
 SELECT ST_AsText(p) FROM gis_point ORDER BY p;
 
+--sorted_result
 SELECT ST_AsText(p), COUNT(*) FROM gis_point GROUP BY p;
 
 TRUNCATE gis_point;

@@ -123,10 +123,10 @@ INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
 INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
 select a.id, b.category as catid, b.state as stateid, b.county as countyid from t1 a, t2 b ignore index (primary) where (a.token ='a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
 id	catid	stateid	countyid
+26	1	6	37
 27	2	12	11
 28	2	12	11
 29	2	12	25
-26	1	6	37
 select a.id, b.category as catid, b.state as stateid, b.county as
 countyid from t1 a, t2 b where (a.token =
 'a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id) order by a.id;
@@ -559,8 +559,8 @@ NULL	10	1	2	NULL
 select * from (t1 natural join t2), (t3 natural join t4);
 b	c	a	c	b	y
 1	10	2	3	1	11
-1	3	2	3	1	11
 1	10	2	3	1	2
+1	3	2	3	1	11
 1	3	2	3	1	2
 select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
 y	z	b	c	a	c	b

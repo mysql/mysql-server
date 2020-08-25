@@ -367,12 +367,14 @@ insert into monitor_test values("13", 2, "aa");
 select a from monitor_test where b < 1 for update;
 
 # should have icp_attempts = 1 and icp_out_of_range = 1
+--skip_if_hypergraph  # Does not support index condition pushdown.
 select name, count from information_schema.innodb_metrics
 where name like "icp%";
 
 # should have icp_attempts = 2 and icp_match = 1
 select a from monitor_test where b < 3 for update;
 
+--skip_if_hypergraph  # Does not support index condition pushdown.
 select name, count from information_schema.innodb_metrics
 where name like "icp%";
 

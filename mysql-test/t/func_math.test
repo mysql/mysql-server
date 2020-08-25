@@ -235,6 +235,7 @@ CREATE TABLE t1 (a timestamp, b varchar(20), c bit(1));
 INSERT INTO t1 VALUES('1998-09-23', 'str1', 1), ('2003-03-25', 'str2', 0);
 SELECT a DIV 900 y FROM t1 GROUP BY y;
 SELECT DISTINCT a DIV 900 y FROM t1;
+--skip_if_hypergraph  # Different warnings.
 SELECT b DIV 900 y FROM t1 GROUP BY y;
 SELECT c DIV 900 y FROM t1 GROUP BY y;
 DROP TABLE t1;

@@ -2267,6 +2267,8 @@ WHERE t1field IN (SELECT * FROM v2)
 
 EXECUTE stmt;
 --echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 
 DROP TABLE t1, t2, t3;
@@ -2779,6 +2781,8 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 --echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2804,6 +2808,8 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
 --echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

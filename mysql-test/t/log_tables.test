@@ -824,6 +824,8 @@ SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f2=3;
 SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f1=2;
 
 --replace_column 1 TIMESTAMP
+--sorted_result
+--skip_if_hypergraph   # rows_examined is not set.
 SELECT start_time, rows_examined, rows_sent, sql_text FROM mysql.slow_log WHERE sql_text LIKE '%Bug#31700%' ORDER BY start_time;
 
 DROP TABLE t1;

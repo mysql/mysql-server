@@ -4,6 +4,7 @@
 #
 
 -- source include/have_debug.inc
+-- source include/not_hypergraph.inc   # Does not use the same estimators.
 
 CREATE TABLE records_in_range_test (
 	c1 VARCHAR(16),

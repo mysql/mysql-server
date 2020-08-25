@@ -111,6 +111,7 @@ ANALYZE TABLE t1, t2;
 # Sets up a filesort on t1 which initially is not part of weedout,
 # but gets caught in one anyway later, and thus needs to be sorted by row ID.
 --replace_regex / *\(cost=\d+\.\d+\ rows=\d+\)//
+--skip_if_hypergraph  # Does not support weedout.
 EXPLAIN FORMAT=tree SELECT * FROM
   t1
   LEFT JOIN t1 AS table2 ON 119 IN (

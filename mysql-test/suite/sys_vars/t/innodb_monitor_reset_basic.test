@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Depends on choosing very specific query plans.
+
 # This is the test for Metrics Monitor Table feature.
 # Test the metrics monitor system's control system
 # and counter accuracy.

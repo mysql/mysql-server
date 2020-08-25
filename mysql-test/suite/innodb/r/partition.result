@@ -228,7 +228,18 @@ SELECT * FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
 a	b
 0	0
 1	1
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
 2	2
+20	20
 3	3
 4	4
 5	5
@@ -236,17 +247,6 @@ a	b
 7	7
 8	8
 9	9
-15	15
-10	10
-12	12
-17	17
-18	18
-19	19
-11	11
-16	16
-14	14
-13	13
-20	20
 EXPLAIN DELETE FROM t1 WHERE a = 4 OR b < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
@@ -303,11 +303,11 @@ pk
 FROM `t1`
 WHERE `c1` IS  NULL OR `c2` = '0';
 pk
+13
+18
 2
 3
 6
-13
-18
 DROP TABLE t1;
 #
 # Bug#20516390: PARTITIONED TABLE, TBLSPACE MOVE, ALTER, ASSERT

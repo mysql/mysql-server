@@ -27,6 +27,7 @@ SET SESSION information_schema_stats_expiry=0;
 --echo #
 --echo # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
 --echo #
+--sorted_result
 select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
 
 --disable_warnings
@@ -351,6 +352,7 @@ drop view v1;
 create table t1(a NUMERIC(5,3), b NUMERIC(5,1), c float(5,2),
  d NUMERIC(6,4), e float, f DECIMAL(6,3), g int(11), h DOUBLE(10,3),
  i DOUBLE);
+--sorted_result
 select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
  CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
@@ -544,6 +546,7 @@ create table t1
   x_real REAL,
   x_float FLOAT,
   x_double_precision DOUBLE PRECISION );
+--sorted_result
 SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME= 't1' ORDER BY COLUMN_NAME;
@@ -873,6 +876,7 @@ GROUP BY column_type ORDER BY num, column_type;
 #
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
+--sorted_result
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
 information_schema.columns where table_schema='test' and table_name = 't1';
 drop table t1;
@@ -1474,7 +1478,9 @@ create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
 returns char(10) return null;
 create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
 create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
+--sorted_result
 select * from information_schema.parameters where specific_schema='test';
+--sorted_result
 select data_type, character_maximum_length,
        character_octet_length, numeric_precision,
        numeric_scale, character_set_name,
@@ -1515,8 +1521,10 @@ let $wait_condition=
         info like "rename table t2 to t3";
 --source include/wait_condition.inc
 --echo # These statements should not be blocked by pending lock requests
+--sorted_result
 select table_name, column_name, data_type from information_schema.columns
   where table_schema = 'test' and table_name in ('t1', 't2');
+--sorted_result
 select table_name, auto_increment from information_schema.tables
   where table_schema = 'test' and table_name in ('t1', 't2');
 --echo # Switching to connection 'con3726_1'

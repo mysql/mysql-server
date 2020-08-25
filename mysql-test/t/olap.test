@@ -36,39 +36,53 @@ country CHAR(20) NOT NULL);
 INSERT INTO t2 VALUES (1, 'USA'),(2,'India'), (3,'Finland');
 
 # First simple rollups, with just grand total
+--sorted_result
 SELECT product, SUM(profit) FROM t1 GROUP BY product;
+--echo
 SELECT product, SUM(profit) FROM t1 GROUP BY product WITH ROLLUP;
+--echo
 SELECT product, SUM(profit) FROM t1 GROUP BY 1 WITH ROLLUP;
+--echo
 SELECT product, SUM(profit),AVG(profit) FROM t1 GROUP BY product WITH ROLLUP;
 
 # Sub totals
+--sorted_result
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP;
 ANALYZE TABLE t1;
 EXPLAIN SELECT product, country_id , year, SUM(profit)
 FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
+--echo
 SELECT product, country_id , SUM(profit) FROM t1
 GROUP BY product, country_id WITH ROLLUP
 ORDER BY product DESC, GROUPING (country_id), country_id;
 
 # limit
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP limit 3,3;
 
+--sorted_result
 SELECT product, country_id, COUNT(*), COUNT(distinct year)
 FROM t1 GROUP BY product, country_id;
+--echo
 SELECT product, country_id, COUNT(*), COUNT(distinct year)
 FROM t1 GROUP BY product, country_id WITH ROLLUP;
 
 # Test of having
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING country_id = 1;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 200;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 7000;
 

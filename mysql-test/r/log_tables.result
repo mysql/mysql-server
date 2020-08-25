@@ -719,9 +719,9 @@ Warnings:
 Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SELECT start_time, rows_examined, rows_sent, sql_text FROM mysql.slow_log WHERE sql_text LIKE '%Bug#31700%' ORDER BY start_time;
 start_time	rows_examined	rows_sent	sql_text
-TIMESTAMP	4	1	SELECT SQL_NO_CACHE 'Bug#31700 - SCAN',f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f3=4
 TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f2=3
 TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f1=2
+TIMESTAMP	4	1	SELECT SQL_NO_CACHE 'Bug#31700 - SCAN',f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f3=4
 DROP TABLE t1;
 TRUNCATE TABLE mysql.slow_log;
 use mysql;

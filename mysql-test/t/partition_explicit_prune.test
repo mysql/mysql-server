@@ -281,6 +281,7 @@ connection default;
 
 --echo # should have failed before locking (only 17 internal I_S writes)
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 PARTITION (subp2);
 
 connection monitor;
@@ -292,6 +293,7 @@ connection default;
 --echo # 2 read key (first from innobase_get_index and second from index first)
 --echo # 17 writes (internal I_S)
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
 
 connection monitor;
@@ -316,6 +318,7 @@ connection default;
 --echo #  + info(HA_STATUS_CONST) call on the partition with the most number
 --echo #  of rows, 2 innobase_get_index for updating both index statistics)
 --echo # 17 writes (internal I_S)
+--sorted_result
 SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
 
 connection monitor;
@@ -340,6 +343,7 @@ connection default;
 --echo # + 1 read next (one after each row)
 --echo # + 19 rnd next (from the last I_S query)
 --echo # + 18 write (internal I_S)
+--sorted_result
 SELECT * FROM t1 WHERE a = 1000000;
 
 connection monitor;
@@ -347,6 +351,7 @@ connection monitor;
 connection default;
 
 --echo # No matching partition, only internal I_S.
+--sorted_result
 SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
 UNLOCK TABLES;
 
@@ -375,9 +380,11 @@ EXPLAIN SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
 --echo # Test how it changes the alias/keywords/reserved words
 --error ER_PARSE_ERROR
 SELECT * FROM t1 PARTITION;
+--sorted_result
 SELECT * FROM t1 `PARTITION`;
 --error ER_PARSE_ERROR
 SELECT * FROM t1 AS PARTITION;
+--sorted_result
 SELECT * FROM t1 AS `PARTITION`;
 
 --echo #
@@ -404,6 +411,7 @@ connection default;
 
 --echo # 1 commit
 --echo # 18 writes (17 I_S internal, 1 ha_innobase)
+--sorted_result
 SELECT * FROM t1 PARTITION (pNeg);
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
@@ -418,6 +426,7 @@ connection default;
 --echo # 1 update (updated one row, since there is no delete trigger, update
 --echo # is used instead of delete+insert)
 --echo # 18 write (17 from I_S, 1 for the failed insert)
+--sorted_result
 SELECT * FROM t1 PARTITION (pNeg);
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
@@ -472,6 +481,7 @@ connection default;
 --echo # + 19 rnd next (internal I_S)
 --echo # + 1 update (see non locked query)
 --echo # + 19 write (18 internal I_S + 1 failed write)
+--sorted_result
 SELECT * FROM t1 PARTITION (subp1);
 
 connection monitor;
@@ -496,6 +506,7 @@ connection default;
 --echo #
 --echo # Test LOAD
 --echo #
+--sorted_result
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
@@ -517,6 +528,7 @@ connection monitor;
 --source include/get_handler_status_counts.inc
 connection default;
 
+--sorted_result
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
@@ -527,6 +539,7 @@ connection monitor;
 connection default;
 
 --echo # 1 rollback
+--sorted_result
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, subp4, subp5);
@@ -838,10 +851,13 @@ SELECT VARIABLE_NAME, VARIABLE_VALUE
 connection default;
 
 SHOW CREATE TABLE t1;
+--sorted_result
 SELECT * FROM t1;
 SHOW CREATE TABLE t2;
+--sorted_result
 SELECT * FROM t2;
 SHOW CREATE TABLE t3;
+--sorted_result
 SELECT * FROM t3;
 FLUSH STATUS;
 --error ER_PARSE_ERROR
@@ -937,11 +953,17 @@ PARTITION p3 VALUES LESS THAN (21));
 INSERT INTO `t1` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
 
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t1 PARTITION (p0);
+--sorted_result
 SELECT * FROM t1 PARTITION (p1);
+--sorted_result
 SELECT * FROM t1 PARTITION (p2);
+--sorted_result
 SELECT * FROM t1 PARTITION (p3);
+--sorted_result
 SELECT * FROM t1 PARTITION (p3) WHERE id = 2;
 --error ER_UNKNOWN_PARTITION
 SELECT * FROM t1 PARTITION (foo);
@@ -960,12 +982,18 @@ PARTITION p3 VALUES LESS THAN (21));
 INSERT INTO `t2` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
 (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
 
+--sorted_result
 SELECT * FROM t2;
+--sorted_result
 SELECT * FROM t2 PARTITION (p0);
+--sorted_result
 SELECT * FROM t2 PARTITION (p1);
+--sorted_result
 SELECT * FROM t2 PARTITION (p2);
+--sorted_result
 SELECT * FROM t2 PARTITION (p3);
 SELECT * FROM t2 PARTITION (p3) ORDER BY id;
+--sorted_result
 SELECT * FROM t2 PARTITION (p3) WHERE id = 2;
 --error ER_UNKNOWN_PARTITION
 SELECT * FROM t2 PARTITION (foo);
@@ -983,9 +1011,13 @@ PARTITION BY LIST (id) (
 
 INSERT INTO `t3` VALUES (1,'first'), (3,'third'),(5,'fifth'),(7,'seventh'),(0,'zilch'),(2,'second'),(4,'fourth'),(6,'sixth'),(8,'eighth'),(9,'ninth'),(10,'tenth'),(11,'eleventh'),(12,'twelfth'),(13,'thirteenth');
 
+--sorted_result
 SELECT * FROM `t3`;
+--sorted_result
 SELECT * FROM `t3` PARTITION (p0);
+--sorted_result
 SELECT * FROM `t3` PARTITION (p1);
+--sorted_result
 SELECT * FROM `t3` PARTITION (p2);
 SELECT * FROM `t3` PARTITION (p2) ORDER BY id;
 
@@ -1044,6 +1076,7 @@ INSERT INTO `t5` VALUES (18, 'sssssss', '1950-09-23 00:00:00');
 INSERT INTO `t5` VALUES (19, 'ttttttt', '1999-08-02 00:00:00');
 INSERT INTO `t5` VALUES (20, 'uuuuuuu', '1994-05-28 00:00:00');
 
+--sorted_result
 SELECT * FROM `t5`;
 SELECT * FROM `t5` PARTITION(p0) ORDER BY id;
 SELECT * FROM `t5` PARTITION(s0) ORDER BY id;

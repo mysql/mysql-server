@@ -403,6 +403,7 @@ SET optimizer_trace="enabled=on";
 
 eval $query1;
 SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Optimizer trace does not contain the same contents.
 SELECT @trace RLIKE "keypart_reference_from_where_clause";
 
 SET optimizer_trace="enabled=off";

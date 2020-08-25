@@ -302,6 +302,7 @@ select * from t1 group by (select col from columns limit 1);
 
 explain
 select * from t1 group by (a1 in (select col from columns));
+--skip_if_hypergraph  # Different warnings.
 select * from t1 group by (a1 in (select col from columns));
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -945,6 +946,7 @@ SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
 CREATE TABLE t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
 SELECT * FROM t3;
 # prove that subquery materialization was used:
+--skip_if_hypergraph  # Does not support subquery materialization yet.
 SHOW STATUS LIKE "CREATED_TMP_TABLES";
 DROP TABLE t1,t2,t3;
 
@@ -1172,18 +1174,21 @@ eval $query;
 insert into t1 values(null,null);
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 --echo one outer NULL and one inner NULL
 insert into t2 values(null);
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 --echo one inner NULL
 delete from t1 where a is null;
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 drop table t1,t2;

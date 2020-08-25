@@ -3373,6 +3373,7 @@ SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
   AND t1.ts BETWEEN t2.dt1 AND t2.dt2
   AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
   AND t1.ts BETWEEN t2.dt1 AND t2.dt2
   AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
@@ -3596,7 +3597,8 @@ GROUP BY
 	join_7.c1,
 	join_1.c1,
 	join_0.c1;
-	
+
+--skip_if_hypergraph   # Non-tree EXPLAIN is skipped, so need to skip this, too.
 SHOW WARNINGS;
 
 DROP TABLE t1;
@@ -4021,6 +4023,7 @@ INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 SELECT a FROM t1 ORDER BY a LIMIT 5;
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+--replace_regex /0$/2/ /1$/2/  # The order of the rows along the c column is undefined.
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
 SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
@@ -4205,6 +4208,7 @@ delimiter ;|
 
 SET @cnt := 0;
 SELECT * FROM t1 WHERE a = f1();
+--skip_if_hypergraph  # Depends on the query plan.
 SELECT @cnt;
 EXPLAIN SELECT * FROM t1 WHERE a = f1();
 DROP TABLE t1, t2;

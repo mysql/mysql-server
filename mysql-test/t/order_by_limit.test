@@ -83,6 +83,7 @@ WHERE t1.pk > 7000 and t1.i1 > 2
 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
 eval $query;
 
 --echo # Changing range condition on i1 should make
@@ -106,6 +107,8 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 let query=
@@ -151,6 +154,8 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 --echo # Check if the index for order by is used when
@@ -161,6 +166,8 @@ SELECT * FROM t1 FORCE INDEX FOR ORDER BY (k2) STRAIGHT_JOIN t2 ON
 t1.i1=t2.i1 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 DROP TABLE t0, t1, t2;

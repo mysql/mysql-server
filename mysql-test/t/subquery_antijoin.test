@@ -41,6 +41,7 @@ if ($c == 1)
 set optimizer_switch="firstmatch=off,materialization=on";
 }
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch;
 
 let $query=
@@ -96,6 +97,7 @@ ON (t1.a IN
 (SELECT /*+ NO_SEMIJOIN(FIRSTMATCH,LOOSESCAN,DUPSWEEDOUT) */ a FROM
 t1 t3 WHERE a > 2));
 eval EXPLAIN FORMAT=JSON $query;
+--sorted_result
 eval $query;
 
 # Verify that AJ nest isn't in SJ-or-AJ nest: the middle-level

@@ -3161,22 +3161,22 @@ ON alias2.col_int < (SELECT MAX(col_int) FROM n)
 ON TRUE;
 col_int
 1
-2
+1
+1
+1
+1
+1
+1
+1
 1
 2
-1
 2
-1
 2
-1
 2
-1
 2
-1
 2
-1
 2
-1
+2
 2
 EXPLAIN SELECT alias2.col_int
 FROM (SELECT * FROM n) AS alias1

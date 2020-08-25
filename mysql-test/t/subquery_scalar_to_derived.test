@@ -1365,6 +1365,7 @@ FROM (SELECT * FROM n) AS alias1
        ON alias2.col_int < (SELECT MAX(col_int) FROM n)
      ON TRUE;
 
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 

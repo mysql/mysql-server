@@ -213,20 +213,30 @@ select count(*) as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
 select count(*) from t1 group by col2 having col2 = 'hello';
 --error 1054
 select count(*) from t1 group by col2 having col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by col1 having count_col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by count_col1 having col1 = 10;
+--sorted_result
 # ANSI: should return SQLSTATE 42000 Syntax error or access violation 
 # MySQL: returns 10 - because of GROUP BY name resolution
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by count_col1 having count_col1 = 10;
 # ANSI: should return SQLSTATE 42000 Syntax error or access violation 
 # MySQL: returns 10 - because of GROUP BY name resolution
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
+--sorted_result
 select col1 as count_col1,col2 as group_col2 from t1 as tmp1 group by col1,col2 having group_col2 = 'hello';
 --error 1064
 select sum(col1) as co12 from t1 group by col2 having col2 10; 
+--sorted_result
 select sum(col1) as co2, count(col2) as cc from t1 group by col1 having col1 =10; 
 --error 1054
 select t2.col2 from t2 group by t2.col1, t2.col2 having t1.col1 <= 10;

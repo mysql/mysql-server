@@ -252,8 +252,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = 7) or (`test`.`t1`.`a` is null)) and ((`test`.`t1`.`b` = 7) or (`test`.`t1`.`b` is null)))
 select * from t1 where (a = 7 or a is null) and (b=7 or b is null);
 a	b
-7	NULL
 7	7
+7	NULL
 NULL	7
 explain select * from t1 where (a = 7 or a is null) and (a = 7 or a is null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -262,8 +262,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = 7) or (`test`.`t1`.`a` is null)) and ((`test`.`t1`.`a` = 7) or (`test`.`t1`.`a` is null)))
 select * from t1 where (a = 7 or a is null) and (a = 7 or a is null);
 a	b
-7	NULL
 7	7
+7	NULL
 NULL	7
 NULL	9
 NULL	9
@@ -318,11 +318,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where (((`test`.`t1`.`a` = `test`.`t2`.`a`) or (`test`.`t1`.`a` is null)) and ((`test`.`t1`.`b` = 7) or (`test`.`t1`.`b` is null)))
 select * from t2,t1 where (t1.a=t2.a or t1.a is null) and (b= 7 or b is null);
 a	a	b
-7	7	NULL
 7	7	7
+7	7	NULL
 7	NULL	7
-8	8	NULL
 8	8	7
+8	8	NULL
 8	NULL	7
 insert into t2 values (null),(6);
 delete from t1 where a=8;
@@ -340,15 +340,15 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` <=> `test`.`t2`.`a`) or ((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` <> 9)))
 select * from t2,t1 where t1.a<=>t2.a or (t1.a is null and t1.b <> 9);
 a	a	b
-7	7	NULL
+6	6	6
+6	NULL	7
 7	7	7
+7	7	NULL
 7	NULL	7
 8	NULL	7
 NULL	NULL	7
 NULL	NULL	9
 NULL	NULL	9
-6	6	6
-6	NULL	7
 drop table t1,t2;
 CREATE TABLE t1 (
 id int(10) unsigned NOT NULL auto_increment,

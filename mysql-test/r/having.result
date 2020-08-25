@@ -249,16 +249,16 @@ count_col1
 10
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
 count_col1	col2
-10	hello
-10	bye
-10	sam
 10	bob
+10	bye
+10	hello
+10	sam
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
 count_col1	col2
-10	hello
-10	bye
-10	sam
 10	bob
+10	bye
+10	hello
+10	sam
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
 count_col1	col2
 10	hello

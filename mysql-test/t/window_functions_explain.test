@@ -1101,6 +1101,7 @@ let $query=
 SELECT t1.a, SUM(t2.b) OVER(ORDER BY t1.a) FROM t1, t1 AS t2 ORDER BY t2.a;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Windowing functions are not supported, so no temporary tables are used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 DROP TABLE t1;

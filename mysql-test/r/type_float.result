@@ -282,12 +282,12 @@ Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `s` from `test`.`t1` group by `test`.`t1`.`a`
 select sum(b) s from t1 group by a;
 s
-0.00
 -0.00
+-0.00
+0.00
+0.00
+0.00
 100.00
--0.00
-0.00
-0.00
 select sum(b) s from t1 group by a having s <> 0;
 s
 100.00
@@ -296,9 +296,9 @@ s
 100.00
 select sum(b) s from t1 group by a having s <=> 0;
 s
+-0.00
+-0.00
 0.00
--0.00
--0.00
 0.00
 0.00
 select sum(b) s from t1 group by a having s <=> 0 order by s;
@@ -319,12 +319,12 @@ Warnings:
 Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `s` from `test`.`t1` group by `test`.`t1`.`a`
 select sum(b) s from t1 group by a;
 s
-0.00
-100.00
-0.00
 -0.00
 0.00
 0.00
+0.00
+0.00
+100.00
 select sum(b) s from t1 group by a having s <> 0;
 s
 100.00
@@ -333,9 +333,9 @@ s
 100.00
 select sum(b) s from t1 group by a having s <=> 0;
 s
-0.00
-0.00
 -0.00
+0.00
+0.00
 0.00
 0.00
 select sum(b) s from t1 group by a having s <=> 0 order by s;

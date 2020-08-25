@@ -1568,18 +1568,21 @@ NULL
 NULL
 Warnings:
 Warning	1292	Incorrect datetime value: 'L'
+
 SELECT col_char /*CAST(col_char as datetime)*/ <> col_datetime FROM t;
 col_char /*CAST(col_char as datetime)*/ <> col_datetime
 1
 NULL
 Warnings:
 Warning	1292	Incorrect datetime value: 'L'
+
 SELECT CAST(col_char AS DATE) FROM t;
 CAST(col_char AS DATE)
 NULL
 NULL
 Warnings:
 Warning	1292	Incorrect datetime value: 'L'
+
 SELECT col_char <> col_date FROM t;
 col_char <> col_date
 1

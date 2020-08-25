@@ -186,8 +186,10 @@ INSERT INTO t2 VALUES
 ANALYZE TABLE t2;
 
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b;  # Tests printing of eq_ref access.
 EXPLAIN SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b);
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b);
 SELECT * FROM t1,t2 WHERE t1.a=t2.a and t1.b=t2.b;
 SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b);

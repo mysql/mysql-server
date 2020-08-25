@@ -363,6 +363,7 @@ while($n) {
   --disable_result_log
   eval EXPLAIN SELECT 1 FROM t1 WHERE a = $x AND TRIM(a) = b;
   --enable_result_log
+  --skip_if_hypergraph  # The non-tree EXPLAIN statement is skipped.
   SHOW WARNINGS;
 }
 
