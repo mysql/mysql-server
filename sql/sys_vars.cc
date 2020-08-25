@@ -1405,8 +1405,9 @@ static Sys_var_enum Sys_session_track_gtids(
     "included in the response packet sent by the server."
     "(Default: OFF).",
     SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
-    session_track_gtids_names, DEFAULT(OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_outside_trx), ON_UPDATE(on_session_track_gtids_update));
+    session_track_gtids_names, DEFAULT(SESSION_TRACK_GTIDS_OFF), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_outside_trx),
+    ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin(self, thd, var)) return true;
@@ -6348,8 +6349,9 @@ static Sys_var_enum Sys_session_track_transaction_info(
     "characteristics (isolation level, read only/read write, snapshot - "
     "but not any work done / data modified within the transaction).",
     SESSION_VAR(session_track_transaction_info), CMD_LINE(REQUIRED_ARG),
-    session_track_transaction_info_names, DEFAULT(OFF), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(update_session_track_tx_info));
+    session_track_transaction_info_names, DEFAULT(TX_TRACK_NONE),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(update_session_track_tx_info));
 
 static bool update_session_track_state_change(sys_var *, THD *thd,
                                               enum_var_type) {
