@@ -6,15 +6,23 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 include/stop_slave.inc
 SET @@global.master_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@global.master_info_repository="FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@global.master_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@global.relay_log_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@global.relay_log_info_repository="FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@global.relay_log_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SELECT @@global.log_bin_use_v1_row_events;
 @@global.log_bin_use_v1_row_events
 0
@@ -40,8 +48,18 @@ include/assert_grep.inc [Assert that there is a warning at bootstrap when settin
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --log-bin-use-v1-row-events]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --relay-log-info-file]
 include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --master-info-file]
-SET PERSIST_ONLY relay_log_info_repository=FILE;
-SET PERSIST_ONLY master_info_repository=FILE;
+SET PERSIST_ONLY relay_log_info_repository='FILE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY master_info_repository='TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+SET PERSIST relay_log_info_repository='FILE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+SET PERSIST master_info_repository='TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
 Warnings:
 Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.

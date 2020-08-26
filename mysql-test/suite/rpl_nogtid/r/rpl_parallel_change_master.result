@@ -68,7 +68,11 @@ include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
 SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@global.relay_log_info_repository='TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 include/start_slave.inc
 [connection master]
 CREATE DATABASE d1;

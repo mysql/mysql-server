@@ -1,10 +1,12 @@
 select @@GLOBAL.relay_log_info_repository into @save_relay_log_info_repository;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 select @@GLOBAL.expire_logs_days into @save_expire_logs_days;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 set @@GLOBAL.relay_log_info_repository = 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 flush logs;
 set global expire_logs_days = 3;
 Warnings:
@@ -45,6 +47,8 @@ relay_log_purge	ON
 relay_log_recovery	OFF
 relay_log_space_limit	0
 set @@GLOBAL.relay_log_info_repository = @save_relay_log_info_repository;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 set @@GLOBAL.expire_logs_days = @save_expire_logs_days;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.

@@ -13,6 +13,8 @@ ERROR HY000: To have multiple channels, repository cannot be of type FILE; Pleas
 #  The same error shall persist
 include/stop_slave.inc
 SET @@GLOBAL.master_info_repository ="TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories to TABLE to replicate from multiple sources.");
 CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
 ERROR HY000: To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE.
@@ -20,14 +22,18 @@ ERROR HY000: To have multiple channels, repository cannot be of type FILE; Pleas
 #  The same error shall remain
 SET @@GLOBAL.master_info_repository = "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository = "TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
 ERROR HY000: To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE.
 #
 # Convert both repositories to TABLE. CHANGE MASTER command passes
 #
 SET @@GLOBAL.master_info_repository = "TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 CHANGE MASTER TO MASTER_HOST ="127.0.0.1", MASTER_USER ="root", MASTER_PORT=MASTER_PORT FOR CHANNEL "channel_3";
 Warnings:
 Note	#	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -65,7 +71,11 @@ relay_log_info_repository	TABLE
 #  again setting to TABLE. Returns success doing nothing.
 #
 SET @@GLOBAL.master_info_repository = "TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository = "TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.

@@ -10038,6 +10038,13 @@ bool mysqld_get_one_option(int optid,
       push_deprecated_warn_no_replacement(nullptr,
                                           "--slave-rows-search-algorithms");
       break;
+    case OPT_MASTER_INFO_REPOSITORY:
+      push_deprecated_warn_no_replacement(nullptr, "--master-info-repository");
+      break;
+    case OPT_RELAY_LOG_INFO_REPOSITORY:
+      push_deprecated_warn_no_replacement(nullptr,
+                                          "--relay-log-info-repository");
+      break;
   }
   return false;
 }
@@ -10197,16 +10204,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   if (!is_help_or_validate_option() &&
       !global_system_variables.explicit_defaults_for_timestamp)
     LogErr(WARNING_LEVEL, ER_DEPRECATED_TIMESTAMP_IMPLICIT_DEFAULTS);
-
-  if (!is_help_or_validate_option() &&
-      opt_mi_repository_id == INFO_REPOSITORY_FILE)
-    push_deprecated_warn(nullptr, "--master-info-repository=FILE",
-                         "'--master-info-repository=TABLE'");
-
-  if (!is_help_or_validate_option() &&
-      opt_rli_repository_id == INFO_REPOSITORY_FILE)
-    push_deprecated_warn(nullptr, "--relay-log-info-repository=FILE",
-                         "'--relay-log-info-repository=TABLE'");
 
   opt_init_connect.length = strlen(opt_init_connect.str);
   opt_init_slave.length = strlen(opt_init_slave.str);

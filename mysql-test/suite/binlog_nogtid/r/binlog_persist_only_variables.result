@@ -73,6 +73,9 @@ SET PERSIST_ONLY log_slave_updates = @@GLOBAL.log_slave_updates;
 SET PERSIST_ONLY log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
 SET PERSIST_ONLY log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
 SET PERSIST_ONLY master_info_repository = @@GLOBAL.master_info_repository;
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY master_verify_checksum = @@GLOBAL.master_verify_checksum;
 SET PERSIST_ONLY max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 SET PERSIST_ONLY max_binlog_size = @@GLOBAL.max_binlog_size;
@@ -87,6 +90,9 @@ ERROR HY000: Variable 'relay_log_index' is a non persistent read only variable
 SET PERSIST_ONLY relay_log_info_file = @@GLOBAL.relay_log_info_file;
 ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
 SET PERSIST_ONLY relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY relay_log_purge = @@GLOBAL.relay_log_purge;
 SET PERSIST_ONLY relay_log_recovery = @@GLOBAL.relay_log_recovery;
 SET PERSIST_ONLY relay_log_space_limit = @@GLOBAL.relay_log_space_limit;

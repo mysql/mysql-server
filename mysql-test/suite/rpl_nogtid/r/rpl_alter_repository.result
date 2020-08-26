@@ -42,7 +42,11 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SET @@global.relay_log_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@global.master_info_repository="TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@global.sync_master_info= 1;
 include/start_slave.inc
 CREATE TABLE t_innodb (id INTEGER) engine= Innodb;
@@ -211,9 +215,9 @@ DROP TABLE t_innodb;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SELECT * FROM mysql.slave_master_info;
 SELECT * FROM mysql.slave_relay_log_info;
 include/rpl_restart_server.inc [server_number=2]

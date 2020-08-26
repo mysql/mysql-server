@@ -9,15 +9,17 @@ INSERT INTO test VALUES (1), (2), (3);
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip-slave-start]
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository= "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository= "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.master_info_repository= "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 include/start_slave.inc
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first

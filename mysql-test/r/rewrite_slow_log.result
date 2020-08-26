@@ -1,6 +1,10 @@
 TRUNCATE TABLE mysql.slow_log;
 SET @old_master_info_repository = @@GLOBAL.master_info_repository;
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @old_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @old_log_output=          @@global.log_output;
 SET @old_slow_query_log=      @@global.slow_query_log;
 SET @old_slow_query_log_file= @@global.slow_query_log_file;
@@ -15,7 +19,11 @@ ALTER USER test_user2 IDENTIFIED BY 'azundris2' REPLACE 'azundris2';
 SET PASSWORD='azundris2' REPLACE 'azundris2';
 SET PASSWORD FOR test_user2='azundris2' REPLACE 'azundris2';
 SET GLOBAL master_info_repository = 'TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository = 'TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 CHANGE MASTER TO MASTER_PASSWORD='azundris3',
 MASTER_BIND = 'eth4n',
 MASTER_TLS_CIPHERSUITES = ''
@@ -36,7 +44,11 @@ RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET GLOBAL master_info_repository = DEFAULT;
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository = DEFAULT;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 SET SESSION long_query_time=  @old_long_query_time;
