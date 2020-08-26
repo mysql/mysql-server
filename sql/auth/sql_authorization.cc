@@ -3727,7 +3727,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         privileges on any column combination on the table.
       */
       if (any_combination_will_do) continue;
-      t_ref->grant.privilege = aggr.table_access;
+      t_ref->grant.privilege |= aggr.table_access;
       if (!(~t_ref->grant.privilege & want_access)) {
         DBUG_PRINT("info",
                    ("Access not denied because of column acls for %s.%s."
