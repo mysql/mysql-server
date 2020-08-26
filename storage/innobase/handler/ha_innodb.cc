@@ -10160,17 +10160,6 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
     return (err);
   }
 
-  auto trx = m_prebuilt->trx;
-
-  /* Since histogram sampling does not have any correlation to transactions
-  we're setting the isolation level to read uncommitted to avoid unnecessarily
-  looking up old versions of a record as the version list can be very long. */
-  trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-
-  innobase_register_trx(ht, ha_thd(), trx);
-  trx_start_if_not_started_xa(trx, false);
-  trx_assign_read_view(trx);
-
   /* Parallel read is not currently supported for sampling. */
   size_t n_threads = Parallel_reader::available_threads(1);
 
@@ -10190,7 +10179,7 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
 
   auto index = m_prebuilt->table->first_index();
 
-  auto success = sampler->init(trx, index, m_prebuilt);
+  auto success = sampler->init(nullptr, index, m_prebuilt);
 
   if (!success) {
     return (HA_ERR_SAMPLING_INIT_FAILED);
@@ -10226,15 +10215,6 @@ int ha_innobase::sample_end(void *scan_ctx) {
   Histogram_sampler *sampler = static_cast<Histogram_sampler *>(scan_ctx);
 
   UT_DELETE(sampler);
-
-  auto trx = m_prebuilt->trx;
-
-  ut_ad(trx->isolation_level == TRX_ISO_READ_UNCOMMITTED);
-
-  /* Reset the transaction isolation level which was set to
-  READ_UNCOMMITED in sample_init. */
-  trx->isolation_level =
-      innobase_trx_map_isolation_level(thd_get_trx_isolation(ha_thd()));
 
   return 0;
 }
