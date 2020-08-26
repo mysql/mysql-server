@@ -344,9 +344,12 @@ bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
                                                  mtr_t *mtr) {
   const auto table_name = m_config.m_index->table->name;
 
-  ut_ad(m_trx->read_view == nullptr || MVCC::is_view_active(m_trx->read_view));
+  ut_ad(!m_trx || m_trx->read_view == nullptr ||
+        MVCC::is_view_active(m_trx->read_view));
 
-  if (m_trx->read_view != nullptr) {
+  if (!m_trx) {
+    /* Do nothing */
+  } else if (m_trx->read_view != nullptr) {
     auto view = m_trx->read_view;
 
     if (m_config.m_index->is_clustered()) {
@@ -394,7 +397,7 @@ bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
     return (false);
   }
 
-  ut_ad(m_trx->isolation_level == TRX_ISO_READ_UNCOMMITTED ||
+  ut_ad(!m_trx || m_trx->isolation_level == TRX_ISO_READ_UNCOMMITTED ||
         !rec_offs_any_null_extern(rec, offsets));
 
   return (true);
