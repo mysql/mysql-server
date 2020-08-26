@@ -26,9 +26,6 @@
 /// (union, intersection, difference, symdifference).
 
 #include "sql/gis/so_utils.h"
-
-#include <boost/geometry.hpp>  // boost::geometry::equals
-
 #include "sql/gis/equals_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"

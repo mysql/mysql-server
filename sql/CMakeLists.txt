@@ -301,6 +301,8 @@ SET(SQL_GIS_SOURCES
   gis/gc_utils.cc
   gis/geometries.cc
   gis/hausdorff_distance.cc
+  gis/intersection.cc
+  gis/intersection_functor.cc
   gis/intersects.cc
   gis/is_simple.cc
   gis/is_valid.cc

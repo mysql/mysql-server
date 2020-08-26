@@ -286,6 +286,7 @@ SELECT MBRTOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(5 0,5 10),GEOME
 --echo ######################################################################################################
 
 --echo # Invalid geometry in input
+#--error ER_GIS_INVALID_DATA
 DO MBRWITHIN(
     ST_CENTROID(
         ST_UNION(
@@ -461,8 +462,7 @@ SELECT ST_CONTAINS(ST_UNION(
 --echo ######################################################################################################
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
-SELECT ST_ISEMPTY(ST_INTERSECTION(
+DO ST_ISEMPTY(ST_INTERSECTION(
                       ST_UNION(
                           ST_GEOMFROMTEXT('MULTIPOINT(-9 4,10 -4,3 -10,-6 5,2 -4,-4 -8,1 10,4 10,6 6,9 2,9 4,-10 5,-6 7)'),
                           ST_GEOMFROMTEXT('MULTIPOLYGON(((3 5,-7 -2,-5 -1,1 -4,2 9,-9 -6,-6 10,-7 2,9 -2,-2 1,-1 4,-3 10, 3 5)),'
@@ -480,8 +480,7 @@ SELECT ST_ISEMPTY(ST_INTERSECTION(
                           ST_GEOMFROMTEXT('LINESTRING(0 -3,8 9,10 -3,-8 7,4 4,8 -8,10 6,5 7)')))));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
-SELECT ST_ISEMPTY(ST_INTERSECTION(
+DO ST_ISEMPTY(ST_INTERSECTION(
                       ST_CONVEXHULL(
                           ST_GEOMFROMTEXT('POLYGON((0 10,-4 7,10 5,-8 -6,9 1,4 7,5 0,-3 -1,9 10,-7 -5, 0 10))')),
                   ST_UNION(
@@ -506,8 +505,7 @@ SELECT ST_ISEMPTY(ST_UNION(
                           ST_GEOMFROMTEXT('MULTILINESTRING((10 10,2 -9,-8 2,9 -2,-10 -4,10 7,-10 8,-4 7,-9 3,8 8))'))));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
-SELECT ST_SRID(
+DO ST_SRID(
     ST_INTERSECTION(
         ST_UNION(
             ST_UNION(
@@ -1097,8 +1095,8 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT(
 
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(ST_INTERSECTION(
+#--error ER_GIS_INVALID_DATA
+DO ST_ASTEXT(ST_INTERSECTION(
                      ST_GEOMFROMWKB(ST_ASWKB(
                          GEOMETRYCOLLECTION(
                              POINT(7,7),
@@ -1352,25 +1350,29 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
 --echo # BUG#20415950 : WL#7225 : ASSERTION FAILURE IN ITEM_GEOFUNC_SETOPS.CC FILE
 --echo ######################################################################################################
 
---error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
+--echo # Invalid geometry in input
+#--error ER_GIS_INVALID_DATA
+DO ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
                                                               '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))'),
                                  ST_GEOMFROMTEXT('LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)')));
 
---error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)'),
+--echo # Invalid geometry in input
+#--error ER_GIS_INVALID_DATA
+DO ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)'),
                                  ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
                                                  '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))')));
 
---error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
+--echo # Invalid geometry in input
+#--error ER_GIS_INVALID_DATA
+DO ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
                                                               '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))'),
                                  ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
-                                                       'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)')));
- 
---error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
-                                                       'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2)'),
+                                                       'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2))')));
+
+--echo # Invalid geometry in input
+#--error ER_GIS_INVALID_DATA
+DO ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
+                                                       'LINESTRING(-9 -6,7 -3,0 -5,-4 -9,-5 7,-7 7,8 -4,0 0,-5 2,2 8,1 -8,-5 3,-3 -9,-8 -2))'),
                                  ST_GEOMFROMTEXT('MULTIPOLYGON(((2 -6,10 -4,1 8, 2 -6)),'
                                                               '((-3 1,-7 2,3 -6,-1 2,3 8,-5 9,-10 9,9 9,4 4,-2 2,-5 8, -3 1)))')));
 
@@ -1824,7 +1826,8 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
     ST_GEOMFROMTEXT('LINESTRING(-2 -2,-4 0,1 -8,-2 6,8 5,-7 -8,3 0,4 -1,-7 10,-4 10)'),
     ST_GEOMFROMTEXT('LINESTRING(-5 -4,3 0,4 -1,7 -4,2 -1,-4 -1,-2 6)')));
 
-SELECT ST_ASTEXT(ST_INTERSECTION(
+--echo # Invalid geometry in input.
+DO ST_ASTEXT(ST_INTERSECTION(
     ST_GEOMFROMWKB(
         ST_ASWKB(
             ST_GEOMFROMTEXT('MULTILINESTRING((1 5, -4.3 -.1),'
@@ -1845,8 +1848,9 @@ SELECT ST_ASTEXT(ST_INTERSECTION(
                         'MULTILINESTRING((5 10.0002,2 7,-0.7654 0,5 3),'
                                         '(0 -0.7654,4 10.0002,4 +.1,-.8 3,-.1 8,10.0002 2,+.9 -1032.34324)))')));
 
---error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
-SELECT ST_ASTEXT(ST_INTERSECTION(
+#--error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
+--echo # Invalid geometry in input.
+DO ST_ASTEXT(ST_INTERSECTION(
     ST_GEOMFROMWKB(
         ST_ASWKB(
             ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
@@ -1873,7 +1877,8 @@ DO ST_ASTEXT(ST_UNION(
                         'POLYGON((7 2, 6.9 +.6, -0.7654 -.5, 2.4 7, 7 3, 7 2)))'),
     ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(7,9), POINT(7,3), POINT(7,6), POINT(0,6), POINT(7,9)))))));
 
-SELECT
+--echo # Invalid geometry in input
+DO
 ST_ASTEXT(ST_INTERSECTION(
     ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                         'MULTIPOINT(4 2, 2 4, 4 1, 5 -3.9, 10.0002 3, 2.232432 2, 189.7654 -.9, 7 7),'
@@ -1900,7 +1905,7 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
                        LINESTRING(POINT(6,7), POINT(+.1,7), POINT(0,-.5)))))));
 
 --echo # Invalid geometry in input
-SELECT ST_ASTEXT(ST_INTERSECTION(
+DO ST_ASTEXT(ST_INTERSECTION(
     ST_GEOMFROMWKB(
         ST_ASWKB(
             ST_GEOMFROMTEXT(
