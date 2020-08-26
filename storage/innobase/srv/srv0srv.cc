@@ -1432,7 +1432,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
       "--------------\n",
       file);
   fprintf(file,
-          ULINTPF " queries inside InnoDB, " ULINTPF " queries in queue\n",
+          "%" PRId32 " queries inside InnoDB, %" PRId32 " queries in queue\n",
           srv_conc_get_active_threads(), srv_conc_get_waiting_threads());
 
   /* This is a dirty read, without holding trx_sys->mutex. */

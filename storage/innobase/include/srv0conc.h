@@ -77,9 +77,9 @@ void srv_conc_force_exit_innodb(trx_t *trx); /*!< in: transaction object
                                              associated with the thread */
 
 /** Get the count of threads waiting inside InnoDB. */
-ulint srv_conc_get_waiting_threads(void);
+int32_t srv_conc_get_waiting_threads(void);
 
 /** Get the count of threads active inside InnoDB. */
-ulint srv_conc_get_active_threads(void);
+int32_t srv_conc_get_active_threads(void);
 
 #endif /* srv_conc_h */
