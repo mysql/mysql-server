@@ -4653,6 +4653,7 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   static_assert(sizeof(in6_addr) <= 16,
                 "Cannot fit in6_inaddr into ApiVersionConf:m_inet6_addr");
   NodeInfo nodeInfo = getNodeInfo(nodeId);
+  conf->m_inet_addr = 0;
   if(nodeInfo.m_connected)
   {
     conf->version = nodeInfo.m_version;
@@ -4670,7 +4671,6 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
     conf->mysql_version =  0;
     memset(conf->m_inet6_addr, 0, sizeof(conf->m_inet6_addr));
   }
-  conf->m_inet_addr = 0;
   conf->nodeId = nodeId;
   conf->isSingleUser = (nodeId == getNodeState().getSingleUserApi());
   sendSignal(senderRef,
