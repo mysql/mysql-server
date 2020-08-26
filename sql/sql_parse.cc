@@ -1992,6 +1992,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                              false))
         break;
 
+      thd->lex->sql_command = SQLCOM_SHOW_FIELDS;
       // See comment in opt_trace_disable_if_no_security_context_access()
       Opt_trace_start ots(thd, &table_list, thd->lex->sql_command, nullptr,
                           nullptr, 0, nullptr, nullptr);
