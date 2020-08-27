@@ -15568,10 +15568,16 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
             ha_alter_info, "Can't add partition to fully replicated table");
       }
     }
-    if (comment_changed && parse_comment_changes(&new_tab, old_tab, create_info,
-                                                 thd, max_rows_changed)) {
-      return inplace_unsupported(ha_alter_info, "Unsupported table modifiers");
-    } else if (max_rows_changed) {
+
+    if (comment_changed) {
+      const char *unsupported_reason;
+      if (inplace_parse_comment(&new_tab, old_tab, create_info, thd, ndb,
+                                &unsupported_reason, max_rows_changed)) {
+        return inplace_unsupported(ha_alter_info, unsupported_reason);
+      }
+    }
+
+    if (max_rows_changed) {
       ulonglong rows = create_info->max_rows;
       uint no_fragments = get_no_fragments(rows);
       uint reported_frags = no_fragments;
@@ -15661,19 +15667,21 @@ enum_alter_inplace_result ha_ndbcluster::check_if_supported_inplace_alter(
   return result;
 }
 
-bool ha_ndbcluster::parse_comment_changes(
-    NdbDictionary::Table *new_tab, const NdbDictionary::Table *old_tab,
-    HA_CREATE_INFO *create_info, THD *thd, bool &max_rows_changed,
-    bool *partition_balance_in_comment) const {
+bool ha_ndbcluster::inplace_parse_comment(NdbDictionary::Table *new_tab,
+                                          const NdbDictionary::Table *old_tab,
+                                          HA_CREATE_INFO *create_info, THD *thd,
+                                          Ndb *ndb, const char **reason,
+                                          bool &max_rows_changed,
+                                          bool *partition_balance_in_comment) {
   DBUG_TRACE;
   NDB_Modifiers table_modifiers(ndb_table_modifier_prefix, ndb_table_modifiers);
   if (table_modifiers.loadComment(create_info->comment.str,
                                   create_info->comment.length) == -1) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_ILLEGAL_HA_CREATE_OPTION, "%s",
-                        table_modifiers.getErrMsg());
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "Syntax error in COMMENT modifier");
+    // The comment has already been parsed in update_comment_info() and syntax
+    // error would have failed the command, crash here in debug if syntax error
+    // occurs anyway
+    DBUG_ASSERT(false);
+    *reason = "Syntax error in COMMENT modifier";
     return true;
   }
   const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
@@ -15684,61 +15692,43 @@ bool ha_ndbcluster::parse_comment_changes(
 
   NdbDictionary::Object::PartitionBalance part_bal =
       g_default_partition_balance;
-  if (parsePartitionBalance(thd /* for pushing warning */, mod_frags,
-                            &part_bal) == false) {
+  if (parsePartitionBalance(thd, mod_frags, &part_bal) == false) {
     /**
      * unable to parse => modifier which is not found
      */
     mod_frags = table_modifiers.notfound();
-  } else if (ndbd_support_partition_balance(
-                 get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0) {
-    /**
-     * NDB_TABLE=PARTITION_BALANCE not supported by data nodes.
-     */
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "PARTITION_BALANCE not supported by current data node versions");
+  } else if (ndbd_support_partition_balance(ndb->getMinDbNodeVersion()) == 0) {
+    *reason = "PARTITION_BALANCE not supported by current data node versions";
     return true;
   }
+
   if (mod_nologging->m_found) {
     if (new_tab->getLogging() != (!mod_nologging->m_val_bool)) {
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "Cannot alter nologging inplace. Try ALGORITHM=copy");
+      *reason = "Cannot alter NOLOGGING inplace";
       return true;
     }
     new_tab->setLogging(!mod_nologging->m_val_bool);
   }
+
   if (mod_read_backup->m_found) {
-    if (ndbd_support_read_backup(
-            get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0) {
-      /**
-       * NDB_TABLE=READ_BACKUP not supported by data nodes.
-       */
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "READ_BACKUP not supported by current data node versions");
+    if (ndbd_support_read_backup(ndb->getMinDbNodeVersion()) == 0) {
+      *reason = "READ_BACKUP not supported by current data node versions";
       return true;
     }
     if (old_tab->getFullyReplicated() && (!mod_read_backup->m_val_bool)) {
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-               "ALGORITHM=INPLACE", "READ_BACKUP off with FULLY_REPLICATED on",
-               "ALGORITHM=COPY");
+      *reason = "READ_BACKUP off with FULLY_REPLICATED on";
       return true;
     }
     new_tab->setReadBackupFlag(mod_read_backup->m_val_bool);
   }
+
   if (mod_fully_replicated->m_found) {
-    if (ndbd_support_fully_replicated(
-            get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0) {
-      /**
-       * NDB_TABLE=FULLY_REPLICATED not supported by data nodes.
-       */
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "FULLY_REPLICATED not supported by current data node versions");
+    if (ndbd_support_fully_replicated(ndb->getMinDbNodeVersion()) == 0) {
+      *reason = "FULLY_REPLICATED not supported by current data node versions";
       return true;
     }
     if (old_tab->getFullyReplicated() != mod_fully_replicated->m_val_bool) {
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-               "ALGORITHM=INPLACE", "Turning FULLY_REPLICATED on after create",
-               "ALGORITHM=COPY");
+      *reason = "Turning FULLY_REPLICATED on after create";
       return true;
     }
   }
@@ -15765,15 +15755,9 @@ bool ha_ndbcluster::parse_comment_changes(
   }
   if (old_tab->getFullyReplicated()) {
     if (part_bal != old_tab->getPartitionBalance()) {
-      /**
-       * We cannot change partition balance inplace for fully
-       * replicated tables.
-       */
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-               "ALGORITHM=INPLACE",
-               "Changing PARTITION_BALANCE with FULLY_REPLICATED on",
-               "ALGORITHM=COPY");
-      return true; /* Error */
+      // Can't change partition balance inplace for fully replicated table
+      *reason = "Changing PARTITION_BALANCE with FULLY_REPLICATED on";
+      return true;
     }
     max_rows_changed = false;
   }
@@ -15963,10 +15947,19 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
     }
   }
 
-  if (comment_changed &&
-      parse_comment_changes(new_tab, old_tab, create_info, thd,
-                            max_rows_changed, &partition_balance_in_comment)) {
-    goto abort;
+  if (comment_changed) {
+    // Parse comment again, this is done in order to extract "max_rows_changed"
+    // and "partition_balance_in_comment"
+    const char *unsupported_reason;
+    if (inplace_parse_comment(new_tab, old_tab, create_info, thd, ndb,
+                              &unsupported_reason, max_rows_changed,
+                              &partition_balance_in_comment)) {
+      // The comment has been parsed earlier, thus syntax error or unsupported
+      // ALTER should have been detected already and failed the command (this
+      // function should actually not be called in such case) -> don't push any
+      // warnings or set error
+      goto abort;
+    }
   }
 
   if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||

@@ -235,7 +235,7 @@ drop table t1, t2, t3, t4, t5;
 
 create table t1 (a int primary key) engine ndb
   COMMENT="NDB_TABLE=NOLOGGING=1";
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1 algorithm=inplace,
   COMMENT="NDB_TABLE=NOLOGGING=0";
 drop table t1;

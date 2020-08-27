@@ -113,7 +113,7 @@ set global ndb_read_backup=1;
 CREATE TABLE t30 (col1 int PRIMARY KEY, col2 int)
 ENGINE=ndb;
 ALTER TABLE t30 ALGORITHM=inplace, COMMENT="NDB_TABLE=NOLOGGING=1";
-ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Cannot alter nologging inplace. Try ALGORITHM=copy'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter NOLOGGING inplace. Try ALGORITHM=COPY.
 ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=NOLOGGING=1";
 SHOW CREATE TABLE t30;
 Table	Create Table
@@ -187,3 +187,33 @@ COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 DROP TABLE t;
 set global ndb_fully_replicated=@global_fully_replicated;
 set global ndb_read_backup=@global_read_backup;
+#
+# BUG#31776392 ALTER TABLE COMMENT HITS ASSERT IN DEBUG BUILD
+# Turning off NOLOGGING is not supported inplace, check that
+# a message with reason why it's not supported is returned
+#
+CREATE TABLE t1 (a int PRIMARY KEY) engine=ndbcluster
+COMMENT="NDB_TABLE=NOLOGGING=1,READ_BACKUP=0";
+ALTER TABLE t1 ALGORITHM=inplace, COMMENT="NDB_TABLE=NOLOGGING=0";
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter NOLOGGING inplace. Try ALGORITHM=COPY.
+ALTER TABLE t1 COMMENT="NDB_TABLE=NOLOGGING=0";
+DROP TABLE t1;
+#
+# Test CREATE and ALTER TABLE with unknown PARTITION_BALANCE value
+#  - will push warning an silently ignore the modifier
+#
+CREATE TABLE t1 (a int PRIMARY KEY) engine=ndbcluster
+COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+Warnings:
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+# NOTE! Double warnings from the double parse of comment
+ALTER TABLE t1 ALGORITHM=inplace,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+Warnings:
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+ALTER TABLE t1 ALGORITHM=copy,
+COMMENT="NDB_TABLE=PARTITION_BALANCE=unknown_part_bal";
+Warnings:
+Warning	1296	Got error 4500 'Comment contains non-supported fragment count type' from NDB
+DROP TABLE t1;

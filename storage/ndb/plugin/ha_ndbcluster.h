@@ -420,11 +420,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
       TABLE *altered_table, Alter_inplace_info *ha_alter_info) override;
 
  private:
-  bool parse_comment_changes(NdbDictionary::Table *new_tab,
-                             const NdbDictionary::Table *old_tab,
-                             HA_CREATE_INFO *create_info, THD *thd,
-                             bool &max_rows_changed,
-                             bool *partition_balance_in_comment = NULL) const;
+  static bool inplace_parse_comment(NdbDictionary::Table *new_tab,
+                                    const NdbDictionary::Table *old_tab,
+                                    HA_CREATE_INFO *create_info, THD *thd,
+                                    Ndb *ndb, const char **unsupported_reason,
+                                    bool &max_rows_changed,
+                                    bool *partition_balance_in_comment = NULL);
 
  public:
   bool prepare_inplace_alter_table(TABLE *altered_table,
