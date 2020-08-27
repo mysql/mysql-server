@@ -163,8 +163,16 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Breaks: mysql-@DEB_PRODUCTNAME@-client-core (<< 8.0.22),
  mysql-@DEB_NOTPRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_PRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
 Replaces: mysql-@DEB_PRODUCTNAME@-client-core (<< 8.0.22),
-  mysql-@DEB_NOTPRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_NOTPRODUCTNAME@-client-core (<< 8.0.22),
+ mysql-@DEB_PRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_PRODUCTNAME@-server-core (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.21),
+ mysql-@DEB_NOTPRODUCTNAME@-server-core (<< 8.0.21),
 Conflicts: mysql-@DEB_NOTPRODUCTNAME@-client-plugins
 Description: MySQL Client plugin
   The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
