@@ -1,0 +1,27 @@
+--source include/have_ndb.inc
+--source include/have_debug.inc
+
+# Test that warnings are pushed by ha_ndbcluster::append_create_info() when
+# a mismatch is detected betweeen the modifiers in the COMMENT= and NDB
+# table definition.
+CREATE TABLE t1 (
+  a int PRIMARY KEY
+) ENGINE = NDB;
+# Set DEBUG to force a COMMENT= which mismatch
+SET GLOBAL DEBUG="+d,ndb_append_create_info_unsync";
+SHOW CREATE TABLE t1;
+SET GLOBAL DEBUG="-d,ndb_append_create_info_unsync";
+DROP TABLE t1;
+
+
+# Test that warnings are pushed by ha_ndbcluster::append_create_info() when
+# the COMMENT= can't be parsed
+CREATE TABLE t1 (
+  a int PRIMARY KEY
+) ENGINE = NDB;
+# Set DEBUG to force an unparsable COMMENT=
+SET GLOBAL DEBUG="+d,ndb_append_create_info_unparse";
+SHOW CREATE TABLE t1;
+SET GLOBAL DEBUG="-d,ndb_append_create_info_unparse";
+DROP TABLE t1;
+
