@@ -102,7 +102,7 @@ READS	3
 drop table counters_at_startup;
 alter table t1 algorithm=inplace, reorganize partition;
 alter table t1 algorithm=inplace, add partition partitions 1;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Can't add partition to fully replicated table. Try ALGORITHM=COPY.
 alter table t1 algorithm=copy, add partition partitions 1;
 ERROR HY000: Can't create destination table for copying alter table
 alter table t1 algorithm=inplace, add column c int column_format dynamic;

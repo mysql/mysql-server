@@ -15563,9 +15563,9 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       new_tab.setPartitionBalance(
           NdbDictionary::Object::PartitionBalance_Specific);
       if (new_tab.getFullyReplicated()) {
-        DBUG_PRINT("info", ("Add partition isn't supported on fully"
-                            " replicated tables"));
-        return HA_ALTER_INPLACE_NOT_SUPPORTED;
+        // No add partition on fully replicated table
+        return inplace_unsupported(
+            ha_alter_info, "Can't add partition to fully replicated table");
       }
     }
     if (comment_changed && parse_comment_changes(&new_tab, old_tab, create_info,
