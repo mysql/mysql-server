@@ -25,7 +25,8 @@
 #include "my_alloc.h"  // MEM_ROOT
 
 /**
-  @file Contains common functionality shared between mysqld and
+  @file
+  Contains common functionality shared between mysqld and
   mysql_tz_info_to_sql.
 */
 
