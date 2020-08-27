@@ -205,13 +205,13 @@ void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   copyGCI->startWord = 0;
 
   const BlockReference ref = calcDihBlockRef(nodeId);
-  cdata_size_in_words = DIH_CDATA_SIZE;
+  Uint32 cdata_size_in_words = DIH_CDATA_SIZE;
   if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
   {
     jam();
     int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
-    send_COPY_GCIREQ_data_v2(signal, ref);
+    send_COPY_GCIREQ_data_v2(signal, ref, cdata_size_in_words);
   }
   else
   {
@@ -222,7 +222,9 @@ void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   }
 }
 
-void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal, BlockReference ref)
+void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal,
+                                     BlockReference ref,
+                                     Uint32 cdata_size_in_words)
 {
   LinearSectionPtr lsptr[3];
   lsptr[0].p = &cdata[0];
@@ -243,7 +245,9 @@ void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal, BlockReference ref)
              1);
 }
 
-void Dbdih::send_START_MECONF_data_v2(Signal *signal, BlockReference ref)
+void Dbdih::send_START_MECONF_data_v2(Signal *signal,
+                                      BlockReference ref,
+                                      Uint32 cdata_size_in_words)
 {
   LinearSectionPtr lsptr[3];
   lsptr[0].p = &cdata[0];
@@ -952,6 +956,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
   ndbrequire(reason != CopyGCIReq::IDLE);
   bool isdone = true;
   bool v2_format = true;
+  Uint32 cdata_size_in_words;
 
   Uint32 num_sections = signal->getNoOfSections();
   SectionHandle handle(this, signal);
@@ -2627,6 +2632,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   CRASH_INSERTION(7130);
   ndbrequire(nodeId == cownNodeId);
   bool v2_format = true;
+  Uint32 cdata_size_in_words;
   if (ndbd_send_node_bitmask_in_section(getNodeInfo(cmasterNodeId).m_version))
   {
     jam();
@@ -4427,13 +4433,13 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
 
   const Uint32 ref = calcDihBlockRef(c_nodeStartMaster.startNode);
   Uint32 node_version = getNodeInfo(c_nodeStartMaster.startNode).m_version;
-  cdata_size_in_words = DIH_CDATA_SIZE;
+  Uint32 cdata_size_in_words = DIH_CDATA_SIZE;
   if (ndbd_send_node_bitmask_in_section(node_version))
   {
     jam();
     int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
     ndbrequire(ret == 0);
-    send_START_MECONF_data_v2(signal, ref);
+    send_START_MECONF_data_v2(signal, ref, cdata_size_in_words);
   }
   else
   {
@@ -9431,8 +9437,8 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr, Uint32 bytes_re
   /*     WE ALSO COPY TO OUR OWN NODE. TO ENABLE US TO DO THIS PROPERLY WE   */
   /*     START BY CLOSING THIS FILE.                                         */
   /* ----------------------------------------------------------------------- */
-  ndbrequire(bytes_read % 4 == 0);
-  cdata_size_in_words = bytes_read / 4; // Assume all file is read in once.
+  // Assume all file is read in once.
+  Uint32 cdata_size_in_words = bytes_read / 4;
   ndbrequire(cdata_size_in_words > Sysfile::MAGIC_SIZE_v2);
   if (std::memcmp(&cdata[0],
                   Sysfile::MAGIC_v2,
@@ -26597,7 +26603,7 @@ void Dbdih::writeReplicas(RWFragment* wf, Uint32 replicaStartIndex)
 
 void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
 {
-  cdata_size_in_words = DIH_CDATA_SIZE;
+  Uint32 cdata_size_in_words = DIH_CDATA_SIZE;
   int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
   ndbrequire(ret == 0);
   STATIC_ASSERT(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);

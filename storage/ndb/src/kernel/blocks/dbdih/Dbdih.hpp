@@ -1486,9 +1486,9 @@ private:
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
   void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
-  void send_COPY_GCIREQ_data_v2(Signal*, Uint32);
+  void send_COPY_GCIREQ_data_v2(Signal*, Uint32, Uint32);
   void send_START_MECONF_data_v1(Signal*, Uint32);
-  void send_START_MECONF_data_v2(Signal*, Uint32);
+  void send_START_MECONF_data_v2(Signal*, Uint32, Uint32);
   void selectMasterCandidateAndSend(Signal *);
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
@@ -2643,7 +2643,6 @@ private:
   /**
    * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32_v2
    */
-  Uint32 cdata_size_in_words;
   Uint32 cdata[DIH_CDATA_SIZE];       /* TEMPORARY ARRAY VARIABLE */
 
   /**
