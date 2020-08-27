@@ -780,10 +780,8 @@ the resources. */
 void mtr_t::Command::execute() {
   ut_ad(m_impl->m_log_mode != MTR_LOG_NONE);
 
-  ulint len;
-
 #ifndef UNIV_HOTBACKUP
-  len = prepare_write();
+  ulint len = prepare_write();
 
   if (len > 0) {
     mtr_write_log_t write_log;

@@ -153,7 +153,7 @@ int Program::execute(const std::vector<std::string> &positional_options) {
                               ? new Single_transaction_connection_provider(
                                     this, num_connections, message_handler)
                               : new Thread_specific_connection_provider(this);
-  } catch (const std::exception &e) {
+  } catch (const std::exception &) {
     this->error(Mysql::Tools::Base::Message_data(
         0, "Error during creating connection.",
         Mysql::Tools::Base::Message_type_error));

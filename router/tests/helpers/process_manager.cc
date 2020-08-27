@@ -434,7 +434,7 @@ void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
     try {
       check_exit_code(std::get<0>(proc), std::get<1>(proc));
-    } catch (const std::exception &e) {
+    } catch (const std::exception &) {
       FAIL() << "PID: " << std::get<0>(proc).get_pid()
              << " didn't exit as expected";
     }

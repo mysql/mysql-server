@@ -827,7 +827,7 @@ void MySQLRouter::assert_option_value_in_range(const std::string &value,
                               std::to_string(min) + ", " + std::to_string(max) +
                               "]"};
     }
-  } catch (const std::invalid_argument &e) {
+  } catch (const std::invalid_argument &) {
     throw std::invalid_argument{"invalid value: " + value};
   }
 }

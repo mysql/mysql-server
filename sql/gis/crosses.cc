@@ -883,7 +883,7 @@ bool crosses(const dd::Spatial_reference_system *srs, const Geometry *g1,
     Crosses crosses_func(srs ? srs->semi_major_axis() : 0.0,
                          srs ? srs->semi_minor_axis() : 0.0);
     *crosses = crosses_func(g1, g2);
-  } catch (const null_value_exception &e) {
+  } catch (const null_value_exception &) {
     *null = true;
     return false;
   } catch (...) {

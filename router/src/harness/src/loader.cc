@@ -728,7 +728,7 @@ const Plugin *Loader::load(const std::string &plugin_name) {
 
     try {
       return load_from(plugin_name, plugin_name);  // throws bad_plugin
-    } catch (const bad_plugin &e) {
+    } catch (const bad_plugin &) {
       std::ostringstream buffer;
       buffer << "Section name '" << plugin_name << "' does not exist";
       throw bad_section(buffer.str());
