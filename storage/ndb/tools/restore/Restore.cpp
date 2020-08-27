@@ -399,7 +399,7 @@ RestoreMetaData::readMetaTableList() {
   Uint32 sectionInfo[2];
   
   int r = buffer_read(&sectionInfo, sizeof(sectionInfo), 1);
-  if (r < 0 || r != 1)
+  if (r != 1)
   {
     restoreLogger.log_error("readMetaTableList read header error");
     return 0;
@@ -459,7 +459,7 @@ RestoreMetaData::readMetaTableDesc() {
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
   }
   int r = buffer_read(&sectionInfo, 4*sz, 1);
-  if (r < 0 || r != 1)
+  if (r != 1)
   {
     restoreLogger.log_error("readMetaTableDesc read header error");
     return false;
@@ -819,7 +819,7 @@ RestoreMetaData::readFragmentInfo()
     }
 
     int r = buffer_read(&fragInfo.TableId, (fragInfo.SectionLength-2)*4, 1);
-    if (r < 0 || r != 1)
+    if (r != 1)
     {
       restoreLogger.log_error("readFragmentInfo invalid section length: %u",
         fragInfo.SectionLength);
@@ -1205,7 +1205,7 @@ RestoreDataIterator::getNextTuple(int  & res, const bool skipFragment)
     Uint32  dataLength = 0;
     // Read record length
     int r = buffer_read(&dataLength, sizeof(dataLength), 1);
-    if (r < 0 || r != 1)
+    if (r != 1)
     {
       restoreLogger.log_error("getNextTuple:Error reading length of data part");
       res = -1;
@@ -1636,13 +1636,21 @@ BackupFile::validateBackupFile()
 
 BackupFile::~BackupFile()
 {
-  int r;
+  int r = 0;
   if (m_xfile.is_open())
   {
-    m_xfile.close();
+    r = m_xfile.close();
   }
 
-  r = m_file.close();
+  if (m_file.close() == -1)
+  {
+    r = -1;
+  }
+
+  if (r == -1)
+  {
+    restoreLogger.log_error("Warning: File did not close correctly.");
+  }
 
   if(m_buffer != 0)
   {
@@ -1678,23 +1686,23 @@ BackupFile::openFile(){
   }
 
 #if !defined(DUMMY_PASSWORD)
-  m_xfile.open(m_file,
-               reinterpret_cast<const byte*>(g_password),
-               g_password ? strlen(g_password) : 0);
+  r = m_xfile.open(m_file,
+                   reinterpret_cast<const byte*>(g_password),
+                   g_password ? strlen(g_password) : 0);
 #else
-  m_xfile.open(m_file, reinterpret_cast<const byte*>("DUMMY"), 5);
+  r = m_xfile.open(m_file, reinterpret_cast<const byte*>("DUMMY"), 5);
 #endif
+  bool fail = (r == -1);
   if (g_password != nullptr)
   {
     if (!m_xfile.is_encrypted())
     {
       restoreLogger.log_error("Decryption requested but file not encrypted.");
-      goto cleanup_and_fail;
+      fail = true;
     }
     else if (r == -1)
     {
       restoreLogger.log_error("Can not read decrypted file. Might be wrong password.");
-      goto cleanup_and_fail;
     }
   }
   else
@@ -1703,19 +1711,25 @@ BackupFile::openFile(){
     {
 #if !defined(DUMMY_PASSWORD)
       restoreLogger.log_error("File is encrypted but no decryption requested.");
-      goto cleanup_and_fail;
+      fail = true;
 #endif
     }
     else if (r == -1)
     {
       restoreLogger.log_error("Can not read file. Might be corrupt.");
-      goto cleanup_and_fail;
     }
   }
-  return true;
-cleanup_and_fail:
+
+  if (!fail)
+  {
+    return true;
+  }
+
+  if (r != -1)
+  {
+    m_xfile.close();
+  }
   m_file.close();
-  m_xfile.close();
   return false;
 }
 
@@ -1977,7 +1991,7 @@ BackupFile::readHeader(){
   
   Uint32 oldsz = sizeof(BackupFormat::FileHeader_pre_backup_version);
   int r = buffer_read(&m_fileHeader, oldsz, 1);
-  if(r < 0 || r != 1)
+  if(r != 1)
   {
     if (!m_xfile.is_encrypted())
     {
@@ -2010,7 +2024,7 @@ BackupFile::readHeader(){
   {
     int r = buffer_read(&m_fileHeader.NdbVersion,
                         sizeof(m_fileHeader) - oldsz, 1);
-    if (r < 0 || r != 1)
+    if (r != 1)
     {
       if (!m_xfile.is_encrypted())
       {
@@ -2170,7 +2184,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
       }
       if (Header.SectionLength > 2)
       {
-        int r = buffer_get_ptr(&tmp, Header.SectionLength*4-8, 1);
+        int r = buffer_get_ptr(&tmp, Header.SectionLength * 4 - 8, 1);
         if (r < 0)
         {
           ret = -2;
@@ -2183,8 +2197,8 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
   }
   /* read rest of header */
   require(Header.SectionLength >= 2);
-  int r = buffer_read(((char*)&Header)+8, Header.SectionLength*4-8, 1);
-  if (r < 0 || r != 1)
+  int r = buffer_read(((char*)&Header) + 8, Header.SectionLength * 4 - 8, 1);
+  if (r != 1)
   {
     ret = 0;
     return false;
@@ -2231,7 +2245,7 @@ RestoreDataIterator::validateFragmentFooter() {
   BackupFormat::DataFile::FragmentFooter footer;
   
   int r = buffer_read(&footer, sizeof(footer), 1);
-  if (r < 0 || r != 1)
+  if (r != 1)
   {
     restoreLogger.log_error("getFragmentFooter:Error reading fragment footer");
     return false;

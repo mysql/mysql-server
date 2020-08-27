@@ -559,7 +559,7 @@ require(!"m_file.sync() != -1");
       byte salt[ndb_openssl_evp::SALT_LEN];
       openssl_evp.generate_salt256(salt);
       ndbxfrm1.set_encryption_salts(salt, ndb_openssl_evp::SALT_LEN, 1);
-      Uint32 kdf_iter_count = 100000;
+      Uint32 kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
 #if !defined(DUMMY_PASSWORD)
       int pwd_len = m_password.password_length;
       ndb_openssl_evp::byte* pwd =
@@ -626,10 +626,8 @@ AsyncFile::closeReq(Request *request)
         require((m_file_format == FF_AZ31) ||
                 (m_file_format == FF_NDBXFRM1));
 
-        int n;
         ndbxfrm_input_iterator in(nullptr, nullptr, true);
 
-        const byte* in_begin = in.cbegin();
         /*
          * In some cases flushing zlib::deflate() did not flush out and even
          * returned without outputting anything, and needed a second call
@@ -656,9 +654,6 @@ AsyncFile::closeReq(Request *request)
             request->error = FsRef::fsErrUnknown;
           }
         }
-
-        n = in.cbegin() - in_begin;
-        require(in.empty());
       }
       if (use_gz)
       {
@@ -736,21 +731,23 @@ AsyncFile::closeReq(Request *request)
       require(m_compress_buffer.last());
       m_compress_buffer.clear_last();
       ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
-      if (out.size() < 12)
+      ndb_az31 az31;
+      const size_t trailer_size = az31.get_trailer_size();
+      if (out.size() < trailer_size)
       {
         m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
         out = m_compress_buffer.get_output_iterator();
       }
-      require(out.size() >= 12);
+      require(out.size() >= trailer_size);
       /*
        * Since m_compress_buffer size is multiple of 512, and buffer only
        * "wrap" when completely full we can use out.size() to determine amount
        * of padding needed
        */
-      ndb_az31 az31;
       require(az31.set_data_size(m_data_size) == 0);
       require(az31.set_data_crc32(m_crc32) == 0);
-      size_t pad_len = (out.size() - 12) % NDB_O_DIRECT_WRITE_ALIGNMENT;
+      size_t pad_len =
+          (out.size() - trailer_size) % NDB_O_DIRECT_WRITE_ALIGNMENT;
       require(az31.write_trailer(&out, pad_len) == 0);
       m_compress_buffer.update_write(out);
 
@@ -1031,7 +1028,7 @@ int AsyncFile::readBuffer(Request *req, char *buf,
 int AsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 {
   /*
-   * Compression is only supported by appended files which uses appendReq().
+   * Compression and encryption are only supported by appended files which uses appendReq().
    */
   require(!use_gz);
   require(!use_enc);
@@ -1090,6 +1087,10 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
   ndbxfrm_buffer* file_bufp = nullptr;
   ndbxfrm_input_iterator file_in = *in;
 
+  /*
+   * If data is both compressed and encrypted, data will always first be
+   * compressed than encrypted.
+   */
   if (use_gz)
   {
     ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
@@ -1102,18 +1103,22 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
     if (rv == -1)
     {
       transform_failed = true;
-    require(false);
+      request->error = get_last_os_error();
+      return -1;
     }
-    else
-    {
-      if (!in->last()) require(!out.last());
-      m_compress_buffer.update_write(out);
-      file_bufp = &m_compress_buffer;
-      file_in = file_bufp->get_input_iterator();
-    }
+    if (!in->last()) require(!out.last());
+    m_compress_buffer.update_write(out);
+    file_bufp = &m_compress_buffer;
+    file_in = file_bufp->get_input_iterator();
   }
   else if (use_enc)
-  { // copy app data into m_compress_buffer
+  {
+    /*
+     * Copy (uncompressed) app data into m_compress_buffer.
+     *
+     * This since later encryption step will use m_compress_buffer as input
+     * buffer.
+     */
     ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
     if (out.size() < NDB_O_DIRECT_WRITE_BLOCKSIZE)
     {
@@ -1143,19 +1148,16 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
     if (rv == -1)
     {
       transform_failed = true;
-    require(false);
+      request->error = get_last_os_error();
+      return -1;
     }
-    else
-    {
-      m_compress_buffer.update_read(c_in);
-      m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
-      m_encrypt_buffer.update_write(out);
-      file_bufp = &m_encrypt_buffer;
-      file_in = file_bufp->get_input_iterator();
-    }
+    m_compress_buffer.update_read(c_in);
+    m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+    m_encrypt_buffer.update_write(out);
+    file_bufp = &m_encrypt_buffer;
+    file_in = file_bufp->get_input_iterator();
   }
 
-  require(!transform_failed);
   if (!transform_failed)
   {
     size_t write_len = file_in.size();
@@ -1171,7 +1173,6 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
     if (n == -1 || (file_bufp == nullptr && !file_in.empty()))
     {
       request->error = get_last_os_error();
-    require(false);
       return -1;
     }
     if (file_bufp != nullptr)
@@ -1185,7 +1186,6 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
   else
   {
     request->error = get_last_os_error();
-    require(false);
     return -1;
   }
 #if 0

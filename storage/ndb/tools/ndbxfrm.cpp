@@ -41,10 +41,10 @@ using byte = unsigned char;
 static int g_compress = 0;
 static char* g_decrypt_password = nullptr;
 static size_t g_decrypt_password_length = 0;
-static int g_encrypt = 0;
 static char* g_encrypt_password = nullptr;
 static size_t g_encrypt_password_length = 0;
 static int g_info = 0;
+static int g_encrypt_kdf_iter_count = ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT;
 #if defined(TODO_READ_REVERSE)
 static int g_read_reverse = 0;
 #endif
@@ -66,15 +66,16 @@ static struct my_option my_long_options[] =
   { "compress", 'c', "Compress file",
     (uchar**) &g_compress, (uchar**) &g_compress, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "encrypt-password", NDB_OPT_NOSHORT, "Encryption password",
-    (uchar**) &g_encrypt_password, (uchar**) &g_encrypt_password, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "decrypt-password", NDB_OPT_NOSHORT, "Decryption password",
     (uchar**) &g_decrypt_password, (uchar**) &g_decrypt_password, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "encrypt", 'e', "Encrypt file",
-    (uchar**) &g_encrypt, (uchar**) &g_encrypt, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "encrypt-kdf-iter-count", 'k', "Iteration count to used in key definition",
+    (uchar**) &g_encrypt_kdf_iter_count, (uchar**) &g_encrypt_kdf_iter_count, 0,
+    GET_INT, REQUIRED_ARG, ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT, 0, INT_MAX,
+    0, 0, 0 },
+  { "encrypt-password", NDB_OPT_NOSHORT, "Encryption password",
+    (uchar**) &g_encrypt_password, (uchar**) &g_encrypt_password, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "info", 'i', "Print info about file",
     (uchar**) &g_info, (uchar**) &g_info, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -86,31 +87,25 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+static const char* load_defaults_groups[] = { "ndbxfrm", nullptr };
+
 static int dump_info(const char name[]);
 static int copy_file(const char src[], const char dst[]);
 
 int main(int argc, char* argv[])
 {
   NDB_INIT(argv[0]);
-  Ndb_opts opts(argc, argv, my_long_options);
+  Ndb_opts opts(argc, argv, my_long_options, load_defaults_groups);
   if (opts.handle_options())
     return 2;
 
-  if (g_encrypt && g_encrypt_password == nullptr)
-  {
-    fprintf(stderr,
-            "Error: Encryption (--encrypt) need password "
-            "(--encrypt-password).\n");
-    return 1;
-  }
-
 #if defined(TODO_READ_REVERSE)
-  bool do_write = (g_compress || g_encrypt);
+  bool do_write = (g_compress || (g_encrypt_password != nullptr));
 
   if (g_read_reverse && do_write)
   {
     fprintf(stderr,
-            "Error: Writing with encryption (--encrypt) or compression "
+            "Error: Writing with encryption (--encrypt-password) or compression "
             "(--compress) not allowed when reading in reverse "
             "(--read-reverse).\n");
     return 1;
@@ -119,7 +114,7 @@ int main(int argc, char* argv[])
   if (g_info && (do_write || g_read_reverse))
   {
     fprintf(stderr,
-            "Error: Writing (--encrypt, --compress) or reading "
+            "Error: Writing (--encrypt-password, --compress) or reading "
             "(--read-reverse) file not allowed in connection with --info.\n");
     return 1;
   }
@@ -252,10 +247,9 @@ int copy_file(const char src[], const char dst[])
 
   r = dst_xfrm.open(dst_file,
                     g_compress,
-                    g_encrypt
-                      ? reinterpret_cast<byte*>(g_decrypt_password)
-                      : nullptr,
-                    g_decrypt_password_length);
+                    reinterpret_cast<byte*>(g_encrypt_password),
+                    g_encrypt_password_length,
+                    g_encrypt_kdf_iter_count);
   require(r == 0);
 
   // Copy data

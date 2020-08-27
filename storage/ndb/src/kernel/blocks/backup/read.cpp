@@ -673,7 +673,21 @@ void usage(FILE* f, const char progname[])
           "Usage: %s [-v] [-P password] [--] filename\n"
           "Usage: %s --print-restored-rows [-v] [-P password] [-i] [-p] [-u] "
           "[-h word-count] [-c ctl-dir-num] [-f frag-id] [-t table-id] "
-          "[-n name] [--] filename\n",
+          "[-n name] [--] filename\n"
+          "\n"
+          "  -c [0|1] control directory number\n"
+          "  -f frag  fragment id\n"
+          "  -h [0|1] print header words\n"
+          "  -i       show ignored rows\n"
+          "  -n file  file with row id to check, each row id is a line with:\n"
+          "           page number, space, index in page.\n"
+          "  -P       password for decryption\n"
+          "  -p       print rows per page\n"
+          "  -t tab   table id\n"
+          "  -u       do not print rows\n"
+          "  -v       verbose level, repeat for higher\n"
+          "  --print-restored-rows uses control file ctr/TtabFfrag.ctl as "
+          "given by -c, -f, and, -t.\n",
           name, name);
 }
 
@@ -892,14 +906,10 @@ main(int argc, const char * argv[])
 
   switch(fileHeader.FileType){
   case BackupFormat::DATA_FILE:
-#if 0
-    while(file.eof()) // TODO: should check fo?
+  {
+    BackupFormat::DataFile::FragmentHeader fragHeader;
+    while (readFragHeader(f, &fragHeader))
     {
-      BackupFormat::DataFile::FragmentHeader fragHeader;
-      if(!readFragHeader(f, &fragHeader))
-      {
-	break;
-      }
       ndbout << fragHeader << endl;
       
       Uint32 len, * data, header_type;
@@ -923,8 +933,8 @@ main(int argc, const char * argv[])
       }
       ndbout << fragFooter << endl;
     }
-#endif
-    break;
+  }
+  break;
   case BackupFormat::CTL_FILE:{
     BackupFormat::CtlFile::TableList * tabList;
     if(!readTableList(f, &tabList)){

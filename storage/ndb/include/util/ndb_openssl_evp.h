@@ -47,6 +47,7 @@ public:
   class operation;
   class key256_iv256_set;
 
+  static constexpr int DEFAULT_KDF_ITER_COUNT = 100000;
   static constexpr size_t MEMORY_NEED = 32768;
   static constexpr size_t BLOCK_LEN = 16;
   static constexpr size_t KEY_LEN = 32;

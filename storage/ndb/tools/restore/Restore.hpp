@@ -32,9 +32,6 @@
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
-//#include "util/ndbxfrm_az31.h"
-//#include "util/ndbxfrm_openssl_evp.h"
-//#include "util/ndbxfrm_zlib.h"
 #include "util/ndbxfrm_readfile.h"
 #include "portlib/ndb_file.h"
 #include <util/UtilBuffer.hpp>
@@ -402,13 +399,7 @@ class RestoreLogIterator;
 class BackupFile {
 protected:
   ndb_file m_file;
-//  Ndbxfrm_az31 m_xfrm;
-//  Ndbxfrm_openssl_evp m_xfrm_encr;
-//  Ndbxfrm_zlib m_xfrm_comp;
-//  Ndbxfrm_file m_xfile;
   ndbxfrm_readfile m_xfile;
-//  Ndbxfrm::byte* m_buf;
-//  size_t m_buf_size;
 
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
