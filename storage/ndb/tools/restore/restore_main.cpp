@@ -83,8 +83,8 @@ static NODE_GROUP_MAP opt_nodegroup_map[MAX_NODE_GROUP_MAPS];
 
 static int opt_decrypt = 0;
 
-// g_password global, directly accessed in Restore.cpp. TODO pass down nicely.
-char* g_password = nullptr;
+// g_backup_password global, directly accessed in Restore.cpp.
+char* g_backup_password = nullptr;
 
 const char *opt_ndb_database= NULL;
 const char *opt_ndb_table= NULL;
@@ -284,8 +284,8 @@ static struct my_option my_long_options[] =
   { "decrypt", NDB_OPT_NOSHORT, "Decrypt file",
     (uchar**) &opt_decrypt, (uchar**) &opt_decrypt, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "password", NDB_OPT_NOSHORT, "Encryption password for file",
-    (uchar**) &g_password, (uchar**) &g_password, 0,
+  { "backup-password", NDB_OPT_NOSHORT, "Encryption password for backup file",
+    (uchar**) &g_backup_password, (uchar**) &g_backup_password, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "restore_data", 'r', 
     "Restore table data/logs into NDB Cluster using NDBAPI", 
@@ -863,19 +863,19 @@ readArguments(Ndb_opts & opts, char*** pargv)
   }
   if (opt_decrypt == 0)
   {
-    if (g_password != nullptr)
+    if (g_backup_password != nullptr)
     {
       err <<
-        "Password (--password) for decryption given, require also --decrypt."
+        "Password (--backup-password) for decryption given, require also --decrypt."
         << endl;
       exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
     }
   }
   else if (opt_decrypt == 1)
   {
-    if (g_password == nullptr)
+    if (g_backup_password == nullptr)
     {
-      err << "Decrypting backup (--decrypt) requires password (--password)." << endl;
+      err << "Decrypting backup (--decrypt) requires password (--backup-password)." << endl;
       exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
     }
   }

@@ -56,7 +56,7 @@ extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
 extern bool opt_include_stored_grants;
 
-extern char* g_password;
+extern char* g_backup_password;
 
 #define LOG_MSGLEN 1024
 
@@ -1687,13 +1687,13 @@ BackupFile::openFile(){
 
 #if !defined(DUMMY_PASSWORD)
   r = m_xfile.open(m_file,
-                   reinterpret_cast<const byte*>(g_password),
-                   g_password ? strlen(g_password) : 0);
+                   reinterpret_cast<const byte*>(g_backup_password),
+                   g_backup_password ? strlen(g_backup_password) : 0);
 #else
   r = m_xfile.open(m_file, reinterpret_cast<const byte*>("DUMMY"), 5);
 #endif
   bool fail = (r == -1);
-  if (g_password != nullptr)
+  if (g_backup_password != nullptr)
   {
     if (!m_xfile.is_encrypted())
     {
