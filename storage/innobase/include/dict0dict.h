@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -360,6 +360,17 @@ dict_table_autoinc_unlock(
 /*======================*/
 	dict_table_t*	table);	/*!< in/out: table */
 
+/** Acquire the analyze index lock.
+@param[in]	table table whose analyze_index latch to lock */
+void
+dict_table_analyze_index_lock(
+	dict_table_t*	table);
+
+/** Release the analyze index lock.
+@param[in]	table table whose analyze_index latch to unlock */
+void
+dict_table_analyze_index_unlock(
+	dict_table_t*	table);
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Adds system columns to a table object. */

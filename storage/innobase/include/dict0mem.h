@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -1323,6 +1323,8 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
+typedef ib_mutex_t AnalyzeIndexMutex;
+
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1593,10 +1595,10 @@ struct dict_table_t {
 	ib_uint64_t				stat_n_rows;
 
 	/** Approximate clustered index size in database pages. */
-	ulint					stat_clustered_index_size;
+	ib_uint64_t				stat_clustered_index_size;
 
 	/** Approximate size of other indexes in database pages. */
-	ulint					stat_sum_of_other_index_sizes;
+	ib_uint64_t				stat_sum_of_other_index_sizes;
 
 	/** How many rows are modified since last stats recalc. When a row is
 	inserted, updated, or deleted, we add 1 to this number; we calculate
@@ -1666,6 +1668,12 @@ struct dict_table_t {
 	const trx_t*				autoinc_trx;
 
 	/* @} */
+
+	/** Creation state of analyze_index member */
+	volatile os_once::state_t	analyze_index_mutex_created;
+
+	/** Mutex protecting the index during analyze. */
+	AnalyzeIndexMutex*			analyze_index_mutex;
 
 	/** Count of how many handles are opened to this table from memcached.
 	DDL on the table is NOT allowed until this count goes to zero. If
@@ -1751,6 +1759,31 @@ struct dict_foreign_add_to_referenced_table {
 		}
 	}
 };
+
+/** Request for lazy creation of the analyze index mutex of a given table.
+@param[in,out]	table	table whose mutex is to be created. */
+inline
+void
+dict_table_analyze_index_create_lazy(
+	dict_table_t*	table)
+{
+	table->analyze_index_mutex = NULL;
+	table->analyze_index_mutex_created = os_once::NEVER_DONE;
+}
+
+/** Destroy the analyze index mutex of the given table.
+@param[in,out]	table	table whose mutex to destroy */
+inline
+void
+dict_table_analyze_index_destroy(
+	dict_table_t*	table)
+{
+	if (table->analyze_index_mutex_created == os_once::DONE
+	    && table->analyze_index_mutex != NULL) {
+		mutex_free(table->analyze_index_mutex);
+		UT_DELETE(table->analyze_index_mutex);
+	}
+}
 
 /** Destroy the autoinc latch of the given table.
 This function is only called from either single threaded environment

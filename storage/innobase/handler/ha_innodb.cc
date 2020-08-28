@@ -452,6 +452,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(zip_pad_mutex),
 	PSI_KEY(row_drop_list_mutex),
 	PSI_KEY(master_key_id_mutex),
+	PSI_KEY(analyze_index_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
 

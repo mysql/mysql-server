@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -127,6 +127,7 @@ extern mysql_pfs_key_t	thread_mutex_key;
 extern mysql_pfs_key_t  zip_pad_mutex_key;
 extern mysql_pfs_key_t  row_drop_list_mutex_key;
 extern mysql_pfs_key_t	master_key_id_mutex_key;
+extern mysql_pfs_key_t	analyze_index_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_PFS_RWLOCK
