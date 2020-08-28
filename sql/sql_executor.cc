@@ -279,8 +279,14 @@ bool JOIN::create_intermediate_table(
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
 
+    // In many cases, we can resolve ORDER BY for a query, if requested, by
+    // sorting this temporary table. However, we cannot do so if the sort is
+    // disturbed by additional rows from rollup or different sorting from
+    // window functions. Also, if this temporary table is doing deduplication,
+    // sorting is not added here, but once the correct ref_slice is set up in
+    // make_tmp_tables_info().
     if (group_list.empty() && !table->s->is_distinct && !order.empty() &&
-        simple_order && !m_windows_sort) {
+        simple_order && rollup_state == RollupState::NONE && !m_windows_sort) {
       DBUG_PRINT("info", ("Sorting for order"));
 
       if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
