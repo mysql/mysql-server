@@ -2018,6 +2018,8 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       return (HA_ERR_NO_SESSION_TEMP);
     case DB_BTREE_LEVEL_LIMIT_EXCEEDED:
       return (HA_ERR_INTERNAL_ERROR);
+    case DB_FTS_TOO_MANY_NESTED_EXP:
+      return (HA_ERR_FTS_TOO_MANY_NESTED_EXP);
   }
 }
 

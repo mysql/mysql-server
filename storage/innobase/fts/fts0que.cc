@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -174,6 +174,7 @@ struct fts_query_t {
   /** number of docs fetched by query. This is to restrict the
   result with limit value */
   ulonglong n_docs;
+  ulint nested_exp_count; /*!< number of nested sub expression limit */
 };
 
 /** For phrase matching, first we collect the documents and the positions
@@ -2834,6 +2835,16 @@ static dberr_t fts_ast_visit_sub_exp(fts_ast_node_t *node,
   bool multi_exist;
 
   DBUG_TRACE;
+
+  /* sub-expression list may contains sub-expressions.
+  So we increase sub-expression depth counter.
+  If this counter reaches to the threshold then
+  we abort the search opertion and reports an error */
+  if (query->nested_exp_count > FTS_MAX_NESTED_EXP) {
+    query->error = DB_FTS_TOO_MANY_NESTED_EXP;
+    return query->error;
+  }
+  query->nested_exp_count++;
 
   ut_a(node->type == FTS_AST_SUBEXP_LIST);
 

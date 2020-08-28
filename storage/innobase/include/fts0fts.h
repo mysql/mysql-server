@@ -137,6 +137,8 @@ should not exceed FTS_DOC_ID_MAX_STEP */
 #define FTS_INDEX_DOC_COUNT_LEN 4
 /* BLOB COLUMN, 0 means VARIABLE SIZE */
 #define FTS_INDEX_ILIST_LEN 0
+/* Maximum nested expression in fulltext binary search string */
+#define FTS_MAX_NESTED_EXP 31
 
 extern const char *FTS_PREFIX;
 extern const char *FTS_SUFFIX_BEING_DELETED;

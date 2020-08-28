@@ -988,8 +988,10 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_TOO_LONG_PATH 207
 /** Histogram sampling initialization failed */
 #define HA_ERR_SAMPLING_INIT_FAILED 208
+/** Too many sub-expression in search string */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
 /** Copy of last error number */
-#define HA_ERR_LAST 208
+#define HA_ERR_LAST 209
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)
