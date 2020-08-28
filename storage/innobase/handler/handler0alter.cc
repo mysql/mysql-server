@@ -8674,7 +8674,7 @@ class alter_part_add : public alter_part {
       if (build_partition_name(new_part, true, old_name) &&
           build_partition_name(new_part, false, new_name)) {
         error = innobase_basic_ddl::rename_impl<dd::Partition>(
-            m_trx->mysql_thd, old_name, new_name, new_part, new_part);
+            m_trx->mysql_thd, old_name, new_name, new_part, new_part, nullptr);
 
       } else {
         error = HA_ERR_TOO_LONG_PATH; /* purecov: inspected */
@@ -8783,7 +8783,7 @@ class alter_part_drop : public alter_part {
 
     if (!m_conflict) {
       error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, part_name,
-                                                             old_part);
+                                                             old_part, nullptr);
       DBUG_EXECUTE_IF("drop_part_fail", error = DB_ERROR;
                       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0)););
     } else {
@@ -8810,10 +8810,10 @@ class alter_part_drop : public alter_part {
       }
 
       error = innobase_basic_ddl::rename_impl<dd::Partition>(
-          thd, part_name, temp_name, old_part, old_part);
+          thd, part_name, temp_name, old_part, old_part, nullptr);
       if (error == 0) {
-        error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, temp_name,
-                                                               old_part);
+        error = innobase_basic_ddl::delete_impl<dd::Partition>(
+            thd, temp_name, old_part, nullptr);
       }
 
       mem_heap_free(heap);
@@ -9008,13 +9008,13 @@ int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
   int error;
 
   error = innobase_basic_ddl::rename_impl<dd::Partition>(
-      thd, old_name, temp_old_name, old_part, old_part);
+      thd, old_name, temp_old_name, old_part, old_part, nullptr);
   if (error == 0) {
     error = innobase_basic_ddl::rename_impl<dd::Partition>(
-        thd, temp_name, old_name, new_part, new_part);
+        thd, temp_name, old_name, new_part, new_part, nullptr);
     if (error == 0) {
       error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, temp_old_name,
-                                                             old_part);
+                                                             old_part, nullptr);
       free_old_part(error != 0, temp_old_name);
     }
   }
@@ -10705,18 +10705,18 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
            dict_name::TMP_POSTFIX);
 
   int error = 0;
-  error = innobase_basic_ddl::rename_impl<dd::Table>(thd, swap_name, temp_name,
-                                                     swap_table, swap_table);
+  error = innobase_basic_ddl::rename_impl<dd::Table>(
+      thd, swap_name, temp_name, swap_table, swap_table, nullptr);
   if (error != 0) {
     goto func_exit;
   }
   error = innobase_basic_ddl::rename_impl<dd::Partition>(
-      thd, part_name, swap_name, dd_part, dd_part);
+      thd, part_name, swap_name, dd_part, dd_part, nullptr);
   if (error != 0) {
     goto func_exit;
   }
-  error = innobase_basic_ddl::rename_impl<dd::Table>(thd, temp_name, part_name,
-                                                     swap_table, swap_table);
+  error = innobase_basic_ddl::rename_impl<dd::Table>(
+      thd, temp_name, part_name, swap_table, swap_table, nullptr);
   if (error != 0) {
     goto func_exit;
   }

@@ -13498,7 +13498,7 @@ template int innobase_basic_ddl::create_impl<dd::Partition>(
 
 template <typename Table>
 int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
-                                    const Table *dd_tab) {
+                                    const Table *dd_tab, const TABLE *td) {
   dberr_t error = DB_SUCCESS;
   char norm_name[FN_REFLEN];
 
@@ -13556,11 +13556,11 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
     dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
     int err = dd_table_open_on_dd_obj(
-        client, dd_tab->table(),
+        thd, client, dd_tab->table(),
         (!dd_table_is_partitioned(dd_tab->table())
              ? nullptr
              : reinterpret_cast<const dd::Partition *>(dd_tab)),
-        norm_name, tab, thd);
+        norm_name, tab, td);
 
     if (err == 0 && tab != nullptr) {
       if (tab->can_be_evicted && dd_table_is_partitioned(dd_tab->table())) {
@@ -13594,15 +13594,16 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
 }
 
 template int innobase_basic_ddl::delete_impl<dd::Table>(THD *, const char *,
-                                                        const dd::Table *);
+                                                        const dd::Table *,
+                                                        const TABLE *);
 
 template int innobase_basic_ddl::delete_impl<dd::Partition>(
-    THD *, const char *, const dd::Partition *);
+    THD *, const char *, const dd::Partition *, const TABLE *);
 
 template <typename Table>
 int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
                                     const Table *from_table,
-                                    const Table *to_table) {
+                                    const Table *to_table, const TABLE *td) {
   dberr_t error;
   char norm_to[FN_REFLEN];
   char norm_from[FN_REFLEN];
@@ -13636,11 +13637,11 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   int err = dd_table_open_on_dd_obj(
-      client, from_table->table(),
+      thd, client, from_table->table(),
       (!dd_table_is_partitioned(from_table->table())
            ? nullptr
            : reinterpret_cast<const dd::Partition *>(from_table)),
-      norm_from, table, thd);
+      norm_from, table, td);
   if (err != 0 || table == nullptr) {
     error = DB_TABLE_NOT_FOUND;
     return (convert_error_code_to_mysql(error, 0, nullptr));
@@ -13712,11 +13713,12 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
 template int innobase_basic_ddl::rename_impl<dd::Table>(THD *, const char *,
                                                         const char *,
                                                         const dd::Table *,
-                                                        const dd::Table *);
+                                                        const dd::Table *,
+                                                        const TABLE *);
 
 template int innobase_basic_ddl::rename_impl<dd::Partition>(
     THD *, const char *, const char *, const dd::Partition *,
-    const dd::Partition *);
+    const dd::Partition *, const TABLE *);
 
 template <typename Table>
 innobase_truncate<Table>::~innobase_truncate() {
@@ -13736,11 +13738,11 @@ int innobase_truncate<Table>::open_table(dict_table_t *&innodb_table) {
     dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
     int error = dd_table_open_on_dd_obj(
-        client, m_dd_table->table(),
+        m_thd, client, m_dd_table->table(),
         (dd_table_is_partitioned(m_dd_table->table())
              ? reinterpret_cast<const dd::Partition *>(m_dd_table)
              : nullptr),
-        m_name, innodb_table, m_thd);
+        m_name, innodb_table, m_form);
 
     if (error != 0) {
       return (error);
@@ -13839,7 +13841,7 @@ int innobase_truncate<Table>::truncate() {
 
   DBUG_EXECUTE_IF("ib_truncate_crash_after_rename", DBUG_SUICIDE(););
 
-  error = innobase_basic_ddl::delete_impl(m_thd, m_name, m_dd_table);
+  error = innobase_basic_ddl::delete_impl(m_thd, m_name, m_dd_table, nullptr);
 
   DBUG_EXECUTE_IF("ib_truncate_fail_after_delete", error = HA_ERR_GENERIC;);
 
@@ -14577,7 +14579,7 @@ int ha_innobase::delete_table(const char *name, const dd::Table *table_def) {
     innobase_register_trx(ht, thd, trx);
   }
 
-  return (innobase_basic_ddl::delete_impl(thd, name, table_def));
+  return (innobase_basic_ddl::delete_impl(thd, name, table_def, nullptr));
 }
 
 /** Validate the parameters in st_alter_tablespace
@@ -15751,7 +15753,7 @@ int ha_innobase::rename_table(const char *from, const char *to,
   innobase_register_trx(ht, thd, trx);
 
   return innobase_basic_ddl::rename_impl<dd::Table>(
-      thd, from, to, from_table_def, to_table_def);
+      thd, from, to, from_table_def, to_table_def, nullptr);
 }
 
 /** Returns the exact number of records that this client can see using this

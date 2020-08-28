@@ -923,20 +923,42 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
                                  dict_err_ignore_t ignore_err,
                                  dict_names_t *fk_tables);
 
+/** Open uncached table definition based on a Global DD object.
+@param[in]	thd             thread THD
+@param[in]	client          data dictionary client
+@param[in]	dd_table        Global DD table object
+@param[in]	name            Table Name
+@param[out]	ts              MySQL table share
+@param[out]	td              MySQL table definition
+@retval error number    on error
+@retval 0               on success */
+
+int acquire_uncached_table(THD *thd, dd::cache::Dictionary_client *client,
+                           const dd::Table *dd_table, const char *name,
+                           TABLE_SHARE *ts, TABLE *td);
+
+/** free uncached table definition.
+@param[in]	ts              MySQL table share
+@param[in]	td              MySQL table definition */
+
+void release_uncached_table(TABLE_SHARE *ts, TABLE *td);
+
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)
-based on a Global DD object.
+based on a Global DD object or MYSQL table definition.
+@param[in]	thd		thread THD
 @param[in,out]	client		data dictionary client
 @param[in]	dd_table	Global DD table object
 @param[in]	dd_part		Global DD partition or subpartition, or NULL
 @param[in]	tbl_name	table name, or NULL if not known
 @param[out]	table		InnoDB table (NULL if not found or loadable)
-@param[in]	thd		thread THD
+@param[in]      td              MYSQL table definition
 @return error code
 @retval 0	on success */
-int dd_table_open_on_dd_obj(dd::cache::Dictionary_client *client,
+int dd_table_open_on_dd_obj(THD *thd, dd::cache::Dictionary_client *client,
                             const dd::Table &dd_table,
                             const dd::Partition *dd_part, const char *tbl_name,
-                            dict_table_t *&table, THD *thd);
+                            dict_table_t *&table, const TABLE *td);
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Open a persistent InnoDB table based on table id.
