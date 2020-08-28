@@ -2622,6 +2622,7 @@ int ha_innopart::create(const char *name, TABLE *form,
 int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
   THD *thd = ha_thd();
   trx_t *trx = check_trx_exists(thd);
+  char norm_name[FN_REFLEN];
   int error = 0;
 
   DBUG_TRACE;
@@ -2634,7 +2635,22 @@ int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
     return HA_ERR_TABLE_READONLY;
   }
 
+  if (!normalize_table_name(norm_name, name)) {
+    return (HA_ERR_TOO_LONG_PATH);
+  }
+
   innobase_register_trx(ht, thd, trx);
+  TrxInInnoDB trx_in_innodb(trx);
+
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  TABLE_SHARE ts;
+  TABLE td;
+  error = acquire_uncached_table(thd, client, dd_table, norm_name, &ts, &td);
+  if (error != 0) {
+    return (error);
+  }
 
   for (const dd::Partition *dd_part : dd_table->leaf_partitions()) {
     std::string partition;
@@ -2647,19 +2663,19 @@ int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
 
     if (part_table.length() >= FN_REFLEN) {
       ut_ad(false);
+      release_uncached_table(&ts, &td);
       return HA_ERR_INTERNAL_ERROR;
     }
 
     const char *partition_name = part_table.c_str();
 
-    error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, partition_name,
-                                                           dd_part);
+    error = innobase_basic_ddl::delete_impl(thd, partition_name, dd_part, &td);
 
     if (error != 0) {
       break;
     }
   }
-
+  release_uncached_table(&ts, &td);
   return error;
 }
 
@@ -2674,6 +2690,8 @@ int ha_innopart::rename_table(const char *from, const char *to,
                               const dd::Table *from_table,
                               dd::Table *to_table) {
   THD *thd = ha_thd();
+  char norm_from[FN_REFLEN];
+  char norm_to[FN_REFLEN];
   int error = 0;
 
   DBUG_TRACE;
@@ -2690,6 +2708,11 @@ int ha_innopart::rename_table(const char *from, const char *to,
     return HA_ERR_TABLE_READONLY;
   }
 
+  if (!normalize_table_name(norm_from, from) ||
+      !normalize_table_name(norm_to, to)) {
+    return (HA_ERR_TOO_LONG_PATH);
+  }
+
   /* Get the transaction associated with the current thd, or create one
   if not yet created */
   trx_t *trx = check_trx_exists(thd);
@@ -2698,6 +2721,15 @@ int ha_innopart::rename_table(const char *from, const char *to,
   innobase_register_trx(ht, thd, trx);
 
   TrxInInnoDB trx_in_innodb(trx);
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  TABLE_SHARE ts;
+  TABLE td;
+  error = acquire_uncached_table(thd, client, from_table, norm_from, &ts, &td);
+  if (error != 0) {
+    return (error);
+  }
 
   auto to_part = to_table->leaf_partitions()->begin();
 
@@ -2723,17 +2755,15 @@ int ha_innopart::rename_table(const char *from, const char *to,
       ut_ad(false);
       return HA_ERR_INTERNAL_ERROR;
     }
-
-    error = innobase_basic_ddl::rename_impl<dd::Partition>(
-        thd, from_name.c_str(), to_name.c_str(), from_part, *to_part);
-
+    error = innobase_basic_ddl::rename_impl(
+        thd, from_name.c_str(), to_name.c_str(), from_part, *to_part, &td);
     if (error != 0) {
       break;
     }
 
     ++to_part;
   }
-
+  release_uncached_table(&ts, &td);
   return error;
 }
 

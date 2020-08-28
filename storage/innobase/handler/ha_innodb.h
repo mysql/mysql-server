@@ -1024,10 +1024,13 @@ class innobase_basic_ddl {
   @param[in,out]	thd		THD object
   @param[in]	name		table name
   @param[in]	dd_tab		dd::Table describing table to be dropped
+  @param[in]	td		MySQL table definition
   @return	error number
   @retval	0 on success */
+
   template <typename Table>
-  static int delete_impl(THD *thd, const char *name, const Table *dd_tab);
+  static int delete_impl(THD *thd, const char *name, const Table *dd_tab,
+                         const TABLE *td);
 
   /** Renames an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition
@@ -1038,11 +1041,14 @@ class innobase_basic_ddl {
                                   with old name
   @param[in]	to_table	dd::Table or dd::Partition of the table
                                   with new name
+  @param[in]	td		MySQL table definition
   @return	error number
   @retval	0 on success */
+
   template <typename Table>
   static int rename_impl(THD *thd, const char *from, const char *to,
-                         const Table *from_table, const Table *to_table);
+                         const Table *from_table, const Table *to_table,
+                         const TABLE *td);
 };
 
 /** Class to handle TRUNCATE for one InnoDB table or one partition */

@@ -263,20 +263,52 @@ bool dd_mdl_for_undo(const trx_t *trx) {
           ((trx->in_innodb & TRX_FORCE_ROLLBACK) == 0));
 }
 
-/** Instantiate an InnoDB in-memory table metadata (dict_table_t)
-based on a Global DD object.
-@param[in,out]	client		data dictionary client
-@param[in]	dd_table	Global DD table object
-@param[in]	dd_part		Global DD partition or subpartition, or NULL
-@param[in]	tbl_name	table name, or NULL if not known
-@param[out]	table		InnoDB table (NULL if not found or loadable)
-@param[in]	thd		Thread THD
-@return error code
-@retval 0 on success (DD_SUCCESS) */
-int dd_table_open_on_dd_obj(dd::cache::Dictionary_client *client,
+int acquire_uncached_table(THD *thd, dd::cache::Dictionary_client *client,
+                           const dd::Table *dd_table, const char *name,
+                           TABLE_SHARE *ts, TABLE *td) {
+  int error = 0;
+  dd::Schema *schema;
+  const char *table_cache_key;
+  size_t table_cache_key_len;
+
+  if (name != nullptr) {
+    schema = nullptr;
+    table_cache_key = name;
+    table_cache_key_len = dict_get_db_name_len(name);
+  } else {
+    error =
+        client->acquire_uncached<dd::Schema>(dd_table->schema_id(), &schema);
+    if (error != 0) {
+      return (error);
+    }
+    table_cache_key = schema->name().c_str();
+    table_cache_key_len = schema->name().size();
+  }
+
+  init_tmp_table_share(thd, ts, table_cache_key, table_cache_key_len,
+                       dd_table->name().c_str(), "" /* file name */, nullptr);
+
+  error = open_table_def_suppress_invalid_meta_data(thd, ts, dd_table->table());
+
+  if (error == 0) {
+    error = open_table_from_share(thd, ts, (dd_table->table()).name().c_str(),
+                                  0, SKIP_NEW_HANDLER, 0, td, false, dd_table);
+  }
+  if (error != 0) {
+    free_table_share(ts);
+  }
+  return error;
+}
+
+void release_uncached_table(TABLE_SHARE *ts, TABLE *td) {
+  closefrm(td, false);
+  free_table_share(ts);
+}
+
+int dd_table_open_on_dd_obj(THD *thd, dd::cache::Dictionary_client *client,
                             const dd::Table &dd_table,
                             const dd::Partition *dd_part, const char *tbl_name,
-                            dict_table_t *&table, THD *thd) {
+                            dict_table_t *&table, const TABLE *td) {
 #ifdef UNIV_DEBUG
   if (dd_part != nullptr) {
     ut_ad(&dd_part->table() == &dd_table);
@@ -326,70 +358,54 @@ int dd_table_open_on_dd_obj(dd::cache::Dictionary_client *client,
   }
 #endif /* UNIV_DEBUG */
 
+  if (td != nullptr) {
+    ut_ad(tbl_name != nullptr);
+
+    if (dd_part) {
+      table = dd_open_table(client, td, tbl_name, dd_part, thd);
+    } else {
+      table = dd_open_table(client, td, tbl_name, &dd_table, thd);
+    }
+    return 0;
+  }
+
   TABLE_SHARE ts;
+  TABLE table_def;
   dd::Schema *schema;
-  const char *table_cache_key;
-  size_t table_cache_key_len;
 
-  if (tbl_name != nullptr) {
-    schema = nullptr;
-    table_cache_key = tbl_name;
-    table_cache_key_len = dict_get_db_name_len(tbl_name);
+  error =
+      acquire_uncached_table(thd, client, &dd_table, tbl_name, &ts, &table_def);
+  if (error != 0) {
+    return (error);
+  }
+
+  char tmp_name[MAX_FULL_NAME_LEN + 1];
+  const char *tab_namep;
+  if (tbl_name) {
+    tab_namep = tbl_name;
   } else {
+    char tmp_schema[MAX_DATABASE_NAME_LEN + 1];
+    char tmp_tablename[MAX_TABLE_NAME_LEN + 1];
     error = client->acquire_uncached<dd::Schema>(dd_table.schema_id(), &schema);
-
     if (error != 0) {
       return (error);
     }
-
-    table_cache_key = schema->name().c_str();
-    table_cache_key_len = schema->name().size();
+    tablename_to_filename(schema->name().c_str(), tmp_schema,
+                          MAX_DATABASE_NAME_LEN + 1);
+    tablename_to_filename(dd_table.name().c_str(), tmp_tablename,
+                          MAX_TABLE_NAME_LEN + 1);
+    snprintf(tmp_name, sizeof tmp_name, "%s/%s", tmp_schema, tmp_tablename);
+    tab_namep = tmp_name;
   }
-
-  init_tmp_table_share(thd, &ts, table_cache_key, table_cache_key_len,
-                       dd_table.name().c_str(), "" /* file name */, nullptr);
-
-  error = open_table_def_suppress_invalid_meta_data(thd, &ts, dd_table);
-
-  if (error == 0) {
-    TABLE td;
-
-    error = open_table_from_share(thd, &ts, dd_table.name().c_str(), 0,
-                                  SKIP_NEW_HANDLER, 0, &td, false, &dd_table);
-    if (error == 0) {
-      char tmp_name[MAX_FULL_NAME_LEN + 1];
-      const char *tab_namep;
-
-      if (tbl_name) {
-        tab_namep = tbl_name;
-      } else {
-        char tmp_schema[MAX_DATABASE_NAME_LEN + 1];
-        char tmp_tablename[MAX_TABLE_NAME_LEN + 1];
-        tablename_to_filename(schema->name().c_str(), tmp_schema,
-                              MAX_DATABASE_NAME_LEN + 1);
-        tablename_to_filename(dd_table.name().c_str(), tmp_tablename,
-                              MAX_TABLE_NAME_LEN + 1);
-        snprintf(tmp_name, sizeof tmp_name, "%s/%s", tmp_schema, tmp_tablename);
-        tab_namep = tmp_name;
-      }
-
-      if (dd_part == nullptr) {
-        table = dd_open_table(client, &td, tab_namep, &dd_table, thd);
-
-        if (table == nullptr) {
-          error = HA_ERR_GENERIC;
-        }
-
-      } else {
-        table = dd_open_table(client, &td, tab_namep, dd_part, thd);
-      }
-
-      closefrm(&td, false);
+  if (dd_part == nullptr) {
+    table = dd_open_table(client, &table_def, tab_namep, &dd_table, thd);
+    if (table == nullptr) {
+      error = HA_ERR_GENERIC;
     }
+  } else {
+    table = dd_open_table(client, &table_def, tab_namep, dd_part, thd);
   }
-
-  free_table_share(&ts);
-
+  release_uncached_table(&ts, &table_def);
   return (error);
 }
 
@@ -525,7 +541,8 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 
   dict_table_t *ib_table = nullptr;
 
-  dd_table_open_on_dd_obj(dc, *dd_table, dd_part, name_to_open, ib_table, thd);
+  dd_table_open_on_dd_obj(thd, dc, *dd_table, dd_part, name_to_open, ib_table,
+                          nullptr);
 
   if (mdl && ib_table == nullptr) {
     dd_mdl_release(thd, mdl);
@@ -972,7 +989,8 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
           ut_ad(false);
           table = nullptr;
         } else {
-          dd_table_open_on_dd_obj(client, *dd_table, dd_part, name, table, thd);
+          dd_table_open_on_dd_obj(thd, client, *dd_table, dd_part, name, table,
+                                  nullptr);
         }
 
       } else {
@@ -983,8 +1001,8 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
       }
     } else {
       ut_ad(dd_table->leaf_partitions().empty());
-      int err =
-          dd_table_open_on_dd_obj(client, *dd_table, nullptr, name, table, thd);
+      int err = dd_table_open_on_dd_obj(thd, client, *dd_table, nullptr, name,
+                                        table, nullptr);
       if (error) {
         *error = err;
       }
