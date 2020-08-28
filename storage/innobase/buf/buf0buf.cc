@@ -6330,49 +6330,9 @@ std::ostream &operator<<(std::ostream &out, const buf_pool_t &buf_pool) {
   return (out);
 }
 
-/** Get the page type as a string.
-@return the page type as a string. */
-const char *buf_block_t::get_page_type_str() const {
+const char *buf_block_t::get_page_type_str() const noexcept {
   page_type_t type = get_page_type();
-
-#define PAGE_TYPE(x) \
-  case x:            \
-    return (#x);
-
-  switch (type) {
-    PAGE_TYPE(FIL_PAGE_INDEX);
-    PAGE_TYPE(FIL_PAGE_RTREE);
-    PAGE_TYPE(FIL_PAGE_SDI);
-    PAGE_TYPE(FIL_PAGE_UNDO_LOG);
-    PAGE_TYPE(FIL_PAGE_INODE);
-    PAGE_TYPE(FIL_PAGE_IBUF_FREE_LIST);
-    PAGE_TYPE(FIL_PAGE_TYPE_ALLOCATED);
-    PAGE_TYPE(FIL_PAGE_IBUF_BITMAP);
-    PAGE_TYPE(FIL_PAGE_TYPE_SYS);
-    PAGE_TYPE(FIL_PAGE_TYPE_TRX_SYS);
-    PAGE_TYPE(FIL_PAGE_TYPE_FSP_HDR);
-    PAGE_TYPE(FIL_PAGE_TYPE_XDES);
-    PAGE_TYPE(FIL_PAGE_TYPE_BLOB);
-    PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB);
-    PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB2);
-    PAGE_TYPE(FIL_PAGE_TYPE_UNKNOWN);
-    PAGE_TYPE(FIL_PAGE_COMPRESSED);
-    PAGE_TYPE(FIL_PAGE_ENCRYPTED);
-    PAGE_TYPE(FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
-    PAGE_TYPE(FIL_PAGE_ENCRYPTED_RTREE);
-    PAGE_TYPE(FIL_PAGE_SDI_BLOB);
-    PAGE_TYPE(FIL_PAGE_SDI_ZBLOB);
-    PAGE_TYPE(FIL_PAGE_TYPE_LOB_INDEX);
-    PAGE_TYPE(FIL_PAGE_TYPE_LOB_DATA);
-    PAGE_TYPE(FIL_PAGE_TYPE_LOB_FIRST);
-    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FIRST);
-    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_DATA);
-    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_INDEX);
-    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG);
-    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY);
-  }
-  ut_ad(0);
-  return ("UNKNOWN");
+  return fil_get_page_type_str(type);
 }
 
 #ifndef UNIV_HOTBACKUP

@@ -85,6 +85,12 @@ static ulint buf_flush_lsn_scan_factor = 3;
 
 static lsn_t buf_flush_sync_lsn = 0;
 
+#ifdef UNIV_DEBUG
+/** Get the lsn upto which data pages are to be synchronously flushed.
+@return target lsn for the requested flush_sync */
+lsn_t get_flush_sync_lsn() noexcept { return buf_flush_sync_lsn; }
+#endif /* UNIV_DEBUG */
+
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t page_flush_thread_key;
 mysql_pfs_key_t page_flush_coordinator_thread_key;

@@ -11091,6 +11091,21 @@ ER_IB_MSG_DROPPED_UNDO_SPACE
 ER_IB_MSG_MASTER_KEY_ROTATED
   eng "The InnoDB Encryption Master Key has been rotated in %d tablespaces."
 
+ER_IB_DBLWR_DECOMPRESS_FAILED
+  eng "Failed to decompress a DBLWR page (err=%d).  The original size is %d. Reporting the dblwr page as corrupted."
+
+ER_IB_DBLWR_DECRYPT_FAILED
+  eng "Decrypting a page in doublewrite file failed: %s."
+
+ER_IB_DBLWR_KEY_MISSING
+  eng "Encryption key missing: %s."
+
+ER_INNODB_IO_WRITE_ERROR_RETRYING
+  eng "I/O error while writing to file: %s. Retrying ..."
+
+ER_INNODB_IO_WRITE_FAILED
+  eng "Failed to write data to file: %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

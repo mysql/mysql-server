@@ -174,6 +174,7 @@ extern PSI_memory_key mem_key_buf_buf_pool;
 extern PSI_memory_key mem_key_buf_stat_per_index_t;
 /** Memory key for clone */
 extern PSI_memory_key mem_key_clone;
+extern PSI_memory_key mem_key_dblwr_space_cache;
 extern PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key mem_key_dict_stats_index_map_t;
 extern PSI_memory_key mem_key_dict_stats_n_diff_on_level;

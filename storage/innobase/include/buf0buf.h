@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0buf_h
 #define buf0buf_h
 
+#include "buf0dblwr.h"
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "hash0hash.h"
@@ -1168,6 +1169,18 @@ class buf_page_t {
     return (m_dblwr_id);
   }
 
+  /** Retrieve the tablespace id.
+  @return tablespace id */
+  space_id_t space() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return id.space();
+  }
+
+  /** Retrieve the page number.
+  @return page number */
+  page_no_t page_no() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return id.page_no();
+  }
+
   /** @name General fields
   None of these bit-fields must be modified without holding
   buf_page_get_mutex() [buf_block_t::mutex or
@@ -1307,7 +1320,6 @@ class buf_page_t {
 
   /** Flush observer */
   FlushObserver *flush_observer;
-
 #endif /* !UNIV_HOTBACKUP */
 
   /** Double write instance ordinal value during writes. This is used
@@ -1505,7 +1517,8 @@ struct buf_block_t {
 
   /** Get the page type of the current buffer block as string.
   @return page type of the current buffer block as string. */
-  const char *get_page_type_str() const;
+  const char *get_page_type_str() const noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 };
 
 /** Check if a buf_block_t object is in a valid state

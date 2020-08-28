@@ -339,6 +339,7 @@ class FlushObserver {
   bool m_interrupted;
 };
 
+lsn_t get_flush_sync_lsn() noexcept;
 #endif /* !UNIV_HOTBACKUP */
 
 #include "buf0flu.ic"

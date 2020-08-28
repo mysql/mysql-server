@@ -333,6 +333,35 @@ struct fil_space_t {
   /** Redo log tablespace */
   static fil_space_t *s_redo_space;
 
+  /** Check if the tablespace is compressed.
+  @return true if compressed, false otherwise. */
+  bool is_compressed() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return compression_type != Compression::NONE;
+  }
+
+  /** Check if the tablespace is encrypted.
+  @return true if encrypted, false otherwise. */
+  bool is_encrypted() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return FSP_FLAGS_GET_ENCRYPTION(flags);
+  }
+
+  /** Check if the encryption details, like the encryption key, type and
+  other details, that are needed to carry out encryption are available.
+  @return true if encryption can be done, false otherwise. */
+  bool can_encrypt() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return encryption_type != Encryption::Type::NONE;
+  }
+
+  /** Copy the encryption info from this object to the provided
+  Encryption object.
+  @param[in]    en   Encryption object to which info is copied. */
+  void get_encryption_info(Encryption &en) noexcept {
+    en.set_type(encryption_type);
+    en.set_key(encryption_key);
+    en.set_key_length(encryption_klen);
+    en.set_initial_vector(encryption_iv);
+  }
+
 #ifdef UNIV_DEBUG
   /** Print the extent descriptor pages of this tablespace into
   the given output stream.
@@ -345,6 +374,17 @@ struct fil_space_t {
   @param[in]	filename	the output file name. */
   void print_xdes_pages(const char *filename) const;
 #endif /* UNIV_DEBUG */
+
+ public:
+  /** Get the file node corresponding to the given page number of the
+  tablespace.
+  @param[in,out]  page_no   Caller passes the page number within a tablespace.
+                            After return, it contains the page number within
+                            the returned file node. For tablespaces containing
+                            only one file, the given page_no will not change.
+  @return the file node object. */
+  fil_node_t *get_file_node(page_no_t *page_no) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 };
 
 /** Value of fil_space_t::magic_n */
@@ -428,11 +468,15 @@ class Fil_path {
 
   /** Implicit type conversion
   @return pointer to m_path.c_str() */
-  operator const char *() const { return (m_path.c_str()); }
+  operator const char *() const MY_ATTRIBUTE((warn_unused_result)) {
+    return m_path.c_str();
+  }
 
   /** Explicit type conversion
   @return pointer to m_path.c_str() */
-  const char *operator()() const { return (m_path.c_str()); }
+  const char *operator()() const MY_ATTRIBUTE((warn_unused_result)) {
+    return m_path.c_str();
+  }
 
   /** @return the value of m_path */
   const std::string &path() const MY_ATTRIBUTE((warn_unused_result)) {
@@ -2078,7 +2122,18 @@ Fil:shard::checkpoint removes all its pages from the buffer pool and the
 fil_space_t from Fil_system.
 @return true if this space_id is in the list of recently deleted undo spaces. */
 bool fil_is_deleted(space_id_t space_id);
-
 #endif /* !UNIV_HOTBACKUP */
+
+/** Get the page type as a string.
+@param[in]  type  page type to be converted to string.
+@return the page type as a string. */
+const char *fil_get_page_type_str(page_type_t type) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** Check if the given page type is valid.
+@param[in]  type  the page type to be checked for validity.
+@return true if it is valid page type, false otherwise. */
+bool fil_is_page_type_valid(page_type_t type) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 #endif /* fil0fil_h */

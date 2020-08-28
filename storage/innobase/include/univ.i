@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -714,5 +714,4 @@ as a standalone library. */
 #define UNIV_NO_ERR_MSGS
 
 #endif /* UNIV_LIBRARY && !UNIV_NO_ERR_MSGS */
-
-#endif
+#endif /* univ_i */

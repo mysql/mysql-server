@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,6 +46,7 @@ PSI_memory_key mem_key_buf_buf_pool;
 PSI_memory_key mem_key_buf_stat_per_index_t;
 /** Memory key for clone */
 PSI_memory_key mem_key_clone;
+PSI_memory_key mem_key_dblwr_space_cache;
 PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key mem_key_dict_stats_index_map_t;
 PSI_memory_key mem_key_dict_stats_n_diff_on_level;
@@ -83,6 +84,8 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_buf_stat_per_index_t, "buf_stat_per_index_t", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_clone, "clone", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_dblwr_space_cache, "Tablespace cache in DBLWR module",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_bg_recalc_pool_t, "dict_stats_bg_recalc_pool_t", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0, 0,

@@ -3175,8 +3175,9 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
 
   ut_ad(space->size == 0);
 
-  rw_lock_free(&space->latch);
+  dblwr::space_remove(space->id);
 
+  rw_lock_free(&space->latch);
   ut_free(space->name);
   ut_free(space);
 
@@ -7608,6 +7609,12 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
+  if (req_type.get_encrypted_block() != nullptr) {
+    /* Already encrypted. */
+    req_type.clear_encrypted();
+    return;
+  }
+
   req_type.encryption_key(space->encryption_key, space->encryption_klen,
                           space->encryption_iv);
 
@@ -7638,40 +7645,8 @@ AIO_mode Fil_shard::get_AIO_mode(const IORequest &req_type, bool sync) {
 dberr_t Fil_shard::get_file_for_io(const IORequest &req_type,
                                    fil_space_t *space, page_no_t *page_no,
                                    fil_node_t *&file) {
-  if (space->files.size() > 1) {
-    ut_a(space->id == TRX_SYS_SPACE || space->purpose == FIL_TYPE_TEMPORARY ||
-         space->id == dict_sys_t::s_log_space_first_id);
-
-    for (auto &f : space->files) {
-      if (f.size > *page_no) {
-        file = &f;
-        return (DB_SUCCESS);
-      }
-
-      *page_no -= f.size;
-    }
-
-  } else if (!space->files.empty()) {
-    fil_node_t &f = space->files.front();
-
-    if ((fsp_is_ibd_tablespace(space->id) && f.size == 0) ||
-        f.size > *page_no) {
-      /* We do not know the size of a single-table tablespace
-      before we open the file */
-
-      file = &f;
-
-      return (DB_SUCCESS);
-    }
-
-    /* The page is outside the current bounds of the file.
-    Return DB_ERROR.  This should not occur for undo tablespaces
-    since each truncation assigns a new space ID. */
-    ut_ad(space->m_deleted_lsn == 0);
-  }
-
-  file = nullptr;
-  return (DB_ERROR);
+  file = space->get_file_node(page_no);
+  return (file == nullptr) ? DB_ERROR : DB_SUCCESS;
 }
 
 /** Read or write log file data synchronously.
@@ -8051,6 +8026,7 @@ dberr_t fil_redo_io(const IORequest &type, const page_id_t &page_id,
 #if defined(_WIN32) && defined(WIN_ASYNC_IO)
   /* On Windows we always open the redo log file in AIO mode. ie. we
   use the AIO API for the read/write even for sync IO. */
+  file::Block *e_block{};
   return (shard->do_io(type, true, page_id, page_size, byte_offset, len, buf,
                        nullptr));
 #else
@@ -11879,3 +11855,134 @@ bool fil_is_deleted(space_id_t space_id) {
 }
 
 #endif /* !UNIV_HOTBACKUP */
+
+#define PAGE_TYPE(x) \
+  case x:            \
+    return #x;
+
+const char *fil_get_page_type_str(page_type_t type) noexcept {
+  switch (type) {
+    PAGE_TYPE(FIL_PAGE_INDEX);
+    PAGE_TYPE(FIL_PAGE_RTREE);
+    PAGE_TYPE(FIL_PAGE_SDI);
+    PAGE_TYPE(FIL_PAGE_UNDO_LOG);
+    PAGE_TYPE(FIL_PAGE_INODE);
+    PAGE_TYPE(FIL_PAGE_IBUF_FREE_LIST);
+    PAGE_TYPE(FIL_PAGE_TYPE_ALLOCATED);
+    PAGE_TYPE(FIL_PAGE_IBUF_BITMAP);
+    PAGE_TYPE(FIL_PAGE_TYPE_SYS);
+    PAGE_TYPE(FIL_PAGE_TYPE_TRX_SYS);
+    PAGE_TYPE(FIL_PAGE_TYPE_FSP_HDR);
+    PAGE_TYPE(FIL_PAGE_TYPE_XDES);
+    PAGE_TYPE(FIL_PAGE_TYPE_BLOB);
+    PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB);
+    PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB2);
+    PAGE_TYPE(FIL_PAGE_TYPE_UNKNOWN);
+    PAGE_TYPE(FIL_PAGE_COMPRESSED);
+    PAGE_TYPE(FIL_PAGE_ENCRYPTED);
+    PAGE_TYPE(FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
+    PAGE_TYPE(FIL_PAGE_ENCRYPTED_RTREE);
+    PAGE_TYPE(FIL_PAGE_SDI_BLOB);
+    PAGE_TYPE(FIL_PAGE_SDI_ZBLOB);
+    PAGE_TYPE(FIL_PAGE_TYPE_LOB_INDEX);
+    PAGE_TYPE(FIL_PAGE_TYPE_LOB_DATA);
+    PAGE_TYPE(FIL_PAGE_TYPE_LOB_FIRST);
+    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FIRST);
+    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_DATA);
+    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_INDEX);
+    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG);
+    PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY);
+    PAGE_TYPE(FIL_PAGE_TYPE_RSEG_ARRAY);
+    PAGE_TYPE(FIL_PAGE_TYPE_LEGACY_DBLWR);
+  }
+  ut_ad(0);
+  return "UNKNOWN";
+}
+
+bool fil_is_page_type_valid(page_type_t type) noexcept {
+  switch (type) {
+    case FIL_PAGE_INDEX:
+    case FIL_PAGE_RTREE:
+    case FIL_PAGE_SDI:
+    case FIL_PAGE_UNDO_LOG:
+    case FIL_PAGE_INODE:
+    case FIL_PAGE_IBUF_FREE_LIST:
+    case FIL_PAGE_TYPE_ALLOCATED:
+    case FIL_PAGE_IBUF_BITMAP:
+    case FIL_PAGE_TYPE_SYS:
+    case FIL_PAGE_TYPE_TRX_SYS:
+    case FIL_PAGE_TYPE_FSP_HDR:
+    case FIL_PAGE_TYPE_XDES:
+    case FIL_PAGE_TYPE_BLOB:
+    case FIL_PAGE_TYPE_ZBLOB:
+    case FIL_PAGE_TYPE_ZBLOB2:
+    case FIL_PAGE_TYPE_UNKNOWN:
+    case FIL_PAGE_COMPRESSED:
+    case FIL_PAGE_ENCRYPTED:
+    case FIL_PAGE_COMPRESSED_AND_ENCRYPTED:
+    case FIL_PAGE_ENCRYPTED_RTREE:
+    case FIL_PAGE_SDI_BLOB:
+    case FIL_PAGE_SDI_ZBLOB:
+    case FIL_PAGE_TYPE_LOB_INDEX:
+    case FIL_PAGE_TYPE_LOB_DATA:
+    case FIL_PAGE_TYPE_LOB_FIRST:
+    case FIL_PAGE_TYPE_ZLOB_FIRST:
+    case FIL_PAGE_TYPE_ZLOB_DATA:
+    case FIL_PAGE_TYPE_ZLOB_INDEX:
+    case FIL_PAGE_TYPE_ZLOB_FRAG:
+    case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
+      return true;
+  }
+  ut_ad(0);
+  return false;
+}
+
+std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
+  /* Print the header information in the order it is stored. */
+  out << "[Fil_page_header: FIL_PAGE_OFFSET=" << get_page_no()
+      << ", FIL_PAGE_TYPE=" << get_page_type()
+      << ", FIL_PAGE_SPACE_ID=" << get_space_id() << "]";
+  return out;
+}
+
+space_id_t Fil_page_header::get_space_id() const noexcept {
+  return mach_read_from_4(m_frame + FIL_PAGE_SPACE_ID);
+}
+
+page_no_t Fil_page_header::get_page_no() const noexcept {
+  return mach_read_from_4(m_frame + FIL_PAGE_OFFSET);
+}
+
+uint16_t Fil_page_header::get_page_type() const noexcept {
+  return mach_read_from_2(m_frame + FIL_PAGE_TYPE);
+}
+
+fil_node_t *fil_space_t::get_file_node(page_no_t *page_no) noexcept {
+  if (files.size() > 1) {
+    ut_a(id == TRX_SYS_SPACE || purpose == FIL_TYPE_TEMPORARY ||
+         id == dict_sys_t::s_log_space_first_id);
+
+    for (auto &f : files) {
+      if (f.size > *page_no) {
+        return &f;
+      }
+      *page_no -= f.size;
+    }
+
+  } else if (!files.empty()) {
+    fil_node_t &f = files.front();
+
+    if ((fsp_is_ibd_tablespace(id) && f.size == 0) || f.size > *page_no) {
+      /* We do not know the size of a single-table tablespace
+      before we open the file */
+      return &f;
+    }
+
+    /* The page is outside the current bounds of the file.
+    Return DB_ERROR.  This should not occur for undo tablespaces
+    since each truncation assigns a new space ID. */
+    ut_ad(m_deleted_lsn == 0);
+  }
+
+  return nullptr;
+}
