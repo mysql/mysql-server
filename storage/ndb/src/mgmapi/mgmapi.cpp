@@ -888,19 +888,19 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       break;
 #ifndef DBUG_OFF
     {
-      DBUG_PRINT("info",("Unable to connect with connect string: %s",
+      DBUG_PRINT("error",("Unable to connect with connect string: %s",
 			 cfg.makeConnectString(buf,sizeof(buf))));
     }
 #endif
     if (verbose > 0) {
       fprintf(handle->errstream, 
-	      "Unable to connect with connect string: %s\n",
+	      "ERROR: Unable to connect with connect string: %s\n",
 	      cfg.makeConnectString(buf,sizeof(buf)));
       verbose= -1;
     }
     if (no_retries == 0) {
       setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
-	       "Unable to connect with connect string: %s",
+	       "ERROR: Unable to connect with connect string: %s",
 	       cfg.makeConnectString(buf,sizeof(buf)));
       if (verbose == -2)
 	fprintf(handle->errstream, ", failed.\n");
