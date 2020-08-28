@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ public:
   bool tryImmediateStartTransaction();
   int execute(int execType, int abortOption, int forceSend);
   int executeAsynch(int execType, int abortOption, int forceSend,
-                    v8::Handle<v8::Function> execCompleteCallback);
+                    v8::Local<v8::Function> execCompleteCallback);
   const NdbError & getNdbError();   // get NdbError from TransactionImpl
   void registerClosedTransaction();
 
@@ -70,7 +70,7 @@ inline int BatchImpl::execute(int execType, int abortOption, int forceSend) {
 }
 
 inline int BatchImpl::executeAsynch(int execType, int abortOption, int forceSend,
-                                   v8::Handle<v8::Function> callback) {
+                                   v8::Local<v8::Function> callback) {
   return transactionImpl->executeAsynch(this, execType, abortOption, forceSend, callback);
 }
 

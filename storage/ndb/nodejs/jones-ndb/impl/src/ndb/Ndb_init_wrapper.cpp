@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,6 @@
 #include "js_wrapper_macros.h"
 #include "NativeCFunctionCall.h"
 
-using namespace v8;
-
 /* int ndb_init(void) 
 */
 void Ndb_init_wrapper(const Arguments &args) {
@@ -59,7 +57,7 @@ void Ndb_end_wrapper(const Arguments &args) {
 }
 
 
-void Ndb_init_initOnLoad(Handle<Object> target) {
+void Ndb_init_initOnLoad(Local<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
   DEFINE_JS_FUNCTION(target, "ndb_init", Ndb_init_wrapper);
   DEFINE_JS_FUNCTION(target, "ndb_end", Ndb_end_wrapper);

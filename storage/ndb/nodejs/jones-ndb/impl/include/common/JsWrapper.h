@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,48 +32,20 @@ using v8::Isolate;
 using v8::Persistent;
 using v8::Eternal;
 using v8::ObjectTemplate;
+using v8::HandleScope;
 using v8::EscapableHandleScope;
-using v8::Handle;
 using v8::Local;
-using v8::Object;
 using v8::Value;
+using v8::Object;
+using v8::Array;
 using v8::Exception;
 using v8::String;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::PropertyCallbackInfo;
-
-/* A Persistent<T> can be cast to a Local<T>.  See:
-   https://groups.google.com/forum/#!msg/v8-users/6kSAbnUb-rQ/9G5RmCpsDIMJ.
-   At some point this can be replaced by persisent.Get(isolate)
-*/
-template<class T>
-inline Local<T> ToLocal(Persistent<T>* p_) {
-  return *reinterpret_cast<Local<T>*>(p_);
-}
-
-template<class T>
-inline Local<T> ToLocal(const Persistent<T>* p_) {
-  return *reinterpret_cast<const Local<T>*>(p_);
-}
-
-/* Some compatibility */
-#if NODE_MAJOR_VERSION > 3
-#define BUFFER_HANDLE v8::MaybeLocal
-#define LOCAL_BUFFER(B) B.ToLocalChecked()
-#define IsExternalAscii IsExternalOneByte
-#define COPY_TO_BUFFER(Iso,Data,Len) node::Buffer::Copy(Iso,Data,Len).ToLocalChecked()
-#define USE_FOR_BUFFER(Iso,Data,Len) node::Buffer::New(Iso,Data,Len).ToLocalChecked()
-#define RECLAIM_PARAM v8::WeakCallbackInfo< GcReclaimer<CPP_OBJECT> >
-#define EXTRA_SET_WEAK ,v8::WeakCallbackType::kParameter
-#else
-#define BUFFER_HANDLE v8::Local
-#define LOCAL_BUFFER(B) B
-#define COPY_TO_BUFFER(Iso,Data,Len) node::Buffer::New(Iso,Data,Len)
-#define USE_FOR_BUFFER(Iso,Data,Len) node::Buffer::Use(Iso,Data,Len)
-#define RECLAIM_PARAM v8::WeakCallbackData<Value, GcReclaimer<CPP_OBJECT> >
-#define EXTRA_SET_WEAK
-#endif
+using v8::TryCatch;
+using v8::Context;
+using v8::WeakCallbackInfo;
 
 /* Signature of a V8 function wrapper
 */
@@ -101,15 +73,15 @@ inline void check_class_id(const char *a, const char *b) {
     assert(a == b);
   }
 }
-#define TYPE_CHECK_T(x) const char * x
+#define TYPE_CHECK_T(x) const char * x;
 #define SET_CLASS_ID(env, PTR) env.class_id = typeid(PTR).name()
 #define SET_THIS_CLASS_ID(PTR) class_id = typeid(PTR).name()
 #define CHECK_CLASS_ID(env, PTR) check_class_id(env->class_id, typeid(PTR).name())
 #else
-#define TYPE_CHECK_T(x)
-#define SET_CLASS_ID(env, PTR)
-#define SET_THIS_CLASS_ID(PTR)
-#define CHECK_CLASS_ID(env, PTR)
+#define TYPE_CHECK_T(x)  /* TYPE_CHECK_T */
+#define SET_CLASS_ID(env, PTR) /* SET_CLASS_ID */
+#define SET_THIS_CLASS_ID(PTR) /* SET_THIS_CLASS_ID */
+#define CHECK_CLASS_ID(env, PTR) /* CHECK_CLASS_ID */
 #endif
 
 /*  Delete a native C++ object when the Garbage Collector reclaims its
@@ -120,7 +92,7 @@ inline void check_class_id(const char *a, const char *b) {
 template<typename CPP_OBJECT> class GcReclaimer;  // forward declaration
 
 template<typename CPP_OBJECT>
-void onGcReclaim(const RECLAIM_PARAM & data) {
+void onGcReclaim(const WeakCallbackInfo< GcReclaimer<CPP_OBJECT> > & data) {
   GcReclaimer<CPP_OBJECT> * reclaimer = data.GetParameter();
   reclaimer->reclaim();
   delete reclaimer;
@@ -130,10 +102,10 @@ template<typename CPP_OBJECT> class GcReclaimer {
 public:
   GcReclaimer(const char * cls, CPP_OBJECT * p) : classname(cls), ptr(p)   { }
 
-  void SetWeakReference(Isolate *isolate, Handle<Value> obj) {
+  void SetWeakReference(Isolate *isolate, Local<Value> obj) {
     notifier.Reset(isolate, obj);
-    notifier.MarkIndependent();
-    notifier.SetWeak(this, onGcReclaim<CPP_OBJECT> EXTRA_SET_WEAK);
+    notifier.SetWeak(this, onGcReclaim<CPP_OBJECT>,
+                     v8::WeakCallbackType::kParameter);
   }
 
   void reclaim() {
@@ -160,7 +132,7 @@ class Envelope {
 public:
   /* Instance variables */
   int magic;                            // for safety when unwrapping 
-  TYPE_CHECK_T(class_id);               // for checking type of wrapped object
+  TYPE_CHECK_T(class_id)                // for checking type of wrapped object
   const char * classname;               // for debugging output
   Eternal<ObjectTemplate> stencil;      // for creating JavaScript objects
   Isolate * isolate;
@@ -181,12 +153,13 @@ public:
 
   /* Instance Methods */
   Local<Object> newWrapper() { 
-    return stencil.Get(isolate)->NewInstance();
+    auto obj = stencil.Get(isolate)->NewInstance(isolate->GetCurrentContext());
+    return obj.ToLocalChecked();
   }
 
   void addMethod(const char *name, V8WrapperFn wrapper) {
     stencil.Get(isolate)->Set(
-      String::NewFromUtf8(isolate, name, v8::String::kInternalizedString),
+      String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized).ToLocalChecked(),
       FunctionTemplate::New(isolate, wrapper)
     );
   }
@@ -210,19 +183,19 @@ public:
      const char * to a JS String.
   */
   Local<Value> wrap(const char * str) {
-    return String::NewFromUtf8(isolate, str);
+    return String::NewFromUtf8(isolate, str, v8::NewStringType::kNormal).ToLocalChecked();
   }
 
   void addAccessor(const char *name, Getter accessor) {
-    stencil.Get(isolate)->SetAccessor(
-      String::NewFromUtf8(isolate, name, v8::String::kInternalizedString),
+    stencil.Get(isolate)->SetNativeDataProperty(
+      String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized).ToLocalChecked(),
       accessor
     );
   }
 
   void addAccessor(Local<String> name, Getter getter,
                    Setter setter = 0,
-                   Handle<Value> data = Handle<Value>()) {
+                   Local<Value> data = Local<Value>()) {
     stencil.Get(isolate)->SetNativeDataProperty(name, getter, setter, data,
                                                 v8::DontDelete,
                                                 Local<v8::AccessorSignature>(),
@@ -241,7 +214,7 @@ public:
    memory allocation).
    ******************************************************************/
   template<typename P>
-  void freeFromGC(P * ptr, Handle<Value> obj) {
+  void freeFromGC(P * ptr, Local<Value> obj) {
     if(ptr) {
       GcReclaimer<P> * reclaimer = new GcReclaimer<P>(classname, ptr);
       reclaimer->SetWeakReference(isolate, obj);
@@ -260,7 +233,7 @@ public:
 template <typename PTR>
 void wrapPointerInObject(PTR ptr,
                          Envelope & env,
-                         Handle<Object> obj) {
+                         Local<Object> obj) {
   DEBUG_PRINT("wrapPointerInObject for %s: %p", env.classname, ptr);
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   SET_CLASS_ID(env, PTR);
@@ -270,16 +243,17 @@ void wrapPointerInObject(PTR ptr,
 
 /* Specializations for non-pointers reduce gcc warnings.
    Only specialize over primitive types. */
-template <> inline void wrapPointerInObject(int, Envelope &, Handle<Object>) {
+template <> inline void wrapPointerInObject(int, Envelope &, Local<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(unsigned long long int, Envelope &, Handle<Object>) {
+template <> inline void wrapPointerInObject(unsigned long long int, Envelope &,
+  Local<Object>) {
+    assert(0);
+  }
+template <> inline void wrapPointerInObject(unsigned int, Envelope &, Local<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(unsigned int, Envelope &, Handle<Object>) {
-  assert(0);
-}
-template <> inline void wrapPointerInObject(double, Envelope &, Handle<Object>) {
+template <> inline void wrapPointerInObject(double, Envelope &, Local<Object>) {
   assert(0);
 }
 
@@ -291,7 +265,7 @@ TODO: Find a way to prevent wrapping a pointer as one
       type and unwrapping it as another.
 ******************************************************************/
 template <typename PTR> 
-PTR unwrapPointer(Handle<Object> obj) {
+PTR unwrapPointer(Local<Object> obj) {
   PTR ptr;
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   ptr = static_cast<PTR>(obj->GetAlignedPointerFromInternalField(1));
@@ -320,7 +294,9 @@ public:
   virtual Local<Value> toJS() {
     EscapableHandleScope scope(Isolate::GetCurrent());
     return scope.Escape(Exception::Error(
-      String::NewFromUtf8(Isolate::GetCurrent(), message)));
+      String::NewFromUtf8(Isolate::GetCurrent(),
+                          message,
+                          v8::NewStringType::kNormal).ToLocalChecked()));
   }
 };
 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ BatchImpl::BatchImpl(TransactionImpl * ctx, int _sz) :
   doesReadBlobs(false),
   transactionImpl(ctx),
   transactionNdbError(0)
-{};
+{}
 
 
 BatchImpl::~BatchImpl() {

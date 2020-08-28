@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2020 Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,6 @@
 #include "NativeCFunctionCall.h"
 #include "NativeMethodCall.h"
 
-
-
-
 void CharsetMap_init_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   CharsetMap::init();
@@ -49,7 +46,7 @@ void CharsetMap_unload_wrapper(const Arguments &args) {
 }
 
 
-void Ndb_util_initOnLoad(v8::Handle<v8::Object> target) {
+void Ndb_util_initOnLoad(v8::Local<v8::Object> target) {
   v8::Local<v8::FunctionTemplate> JSCharsetMap;
 
   DEFINE_JS_FUNCTION(target, "CharsetMap_init", CharsetMap_init_wrapper);

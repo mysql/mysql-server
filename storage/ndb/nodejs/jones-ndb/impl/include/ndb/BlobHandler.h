@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ public:
   void setNext(BlobHandler *);
   int getFieldNumber();
 
-  virtual ~BlobHandler() {};
+  virtual ~BlobHandler() {}
   virtual void prepare(const NdbOperation *) = 0;
   
 protected:
@@ -51,7 +51,7 @@ protected:
 class BlobReadHandler : public BlobHandler {
 public:
   BlobReadHandler(int columnId, int fieldNumber);
-  void prepare(const NdbOperation *);
+  void prepare(const NdbOperation *) override;
   int runActiveHook(NdbBlob *);
   v8::Local<v8::Object> getResultBuffer(v8::Isolate *);
 };  
@@ -60,8 +60,8 @@ public:
 // BlobWriteHandler
 class BlobWriteHandler : public BlobHandler {
 public:
-  BlobWriteHandler(int colId, int fieldNo, v8::Handle<v8::Object> jsBlob);
-  void prepare(const NdbOperation *);
+  BlobWriteHandler(int colId, int fieldNo, v8::Local<v8::Object> jsBlob);
+  void prepare(const NdbOperation *) override;
 };
 
 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020, Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ BufferSchema.prototype.encode = function(params) {
   buffer = null;
 
   if(this.size > 0) {
-    buffer = new Buffer(this.size);
+    buffer = Buffer.alloc(this.size);
     for(i = 0; i < this.layout.length ; i++) {
       this.layout[i].encode(buffer, params);
     }

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2020 Oracle and/or its affiliates.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,15 @@
  */
 
 #include <node.h>
-#include <node_buffer.h>
 #include <NdbApi.hpp>
 
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
+#include "JsValueAccess.h"
 #include "NdbRecordObject.h"
 
+using v8::Function;
 
 /************************************************************
           Value Object, a.k.a "VO" or "Native-Backed Object"
@@ -89,6 +90,8 @@
 
 *************************************************************/
 
+#define JSCONTEXT(x) x.GetIsolate()->GetCurrentContext()
+
 Envelope columnHandlerSetEnvelope("ColumnHandlerSet");
 
 // An Envelope that wraps Envelopes for passing them in mapData:
@@ -104,7 +107,7 @@ void nroGetter(Local<String>, const AccessorInfo & info)
   assert(env->isVO);
   NdbRecordObject * nro =
     static_cast<NdbRecordObject *>(info.Holder()->GetAlignedPointerFromInternalField(1));
-  int nField = info.Data()->Int32Value();
+  int nField = GetInt32Value(info.GetIsolate(), info.Data());
   DEBUG_PRINT_DETAIL("_GET_ NdbRecordObject field %d", nField);
   info.GetReturnValue().Set(nro->getField(nField));
 }                    
@@ -120,7 +123,7 @@ void nroSetter(Local<String>, Local<Value> value, const SetterInfo& info)
   assert(env->isVO);
   NdbRecordObject * nro =
     static_cast<NdbRecordObject *>(info.Holder()->GetAlignedPointerFromInternalField(1));
-  int nField = info.Data()->Int32Value();
+  int nField = GetInt32Value(info.GetIsolate(), info.Data());
   DEBUG_PRINT_DETAIL("+SET+ NdbRecordObject field %d", nField);
   nro->setField(nField, value);
 }
@@ -129,8 +132,8 @@ void nroGetFieldByNumber(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
 
   NdbRecordObject * nro =
-    static_cast<NdbRecordObject *>(args[0]->ToObject()->GetAlignedPointerFromInternalField(1));
-  int nField = args[1]->Int32Value();
+    static_cast<NdbRecordObject *>(ArgToObject(args, 0)->GetAlignedPointerFromInternalField(1));
+  int nField = GetInt32Arg(args, 1);
   args.GetReturnValue().Set(nro->getField(nField));
 }
 
@@ -144,17 +147,17 @@ void nroConstructor(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
 
   /* Unwrap record from mapData */
-  Local<Object> mapData = args.Data()->ToObject();
+  Local<Object> mapData = ToObject(args, args.Data());
   const Record * record =
-    unwrapPointer<const Record *>(mapData->Get(0)->ToObject());
+    unwrapPointer<const Record *>(ElementToObject(mapData, 0));
 
   /* Unwrap Column Handlers from mapData */
   ColumnHandlerSet * handlers = 
-    unwrapPointer<ColumnHandlerSet *>(mapData->Get(1)->ToObject());
+    unwrapPointer<ColumnHandlerSet *>(ElementToObject(mapData, 1));
 
   /* Unwrap the Envelope */
   Envelope * nroEnvelope =
-    unwrapPointer<Envelope *>(mapData->Get(2)->ToObject());
+    unwrapPointer<Envelope *>(ElementToObject(mapData, 2));
 
   /* Build NdbRecordObject */
   NdbRecordObject * nro = new NdbRecordObject(record, handlers, args);
@@ -164,10 +167,10 @@ void nroConstructor(const Arguments &args) {
   nroEnvelope->freeFromGC(nro, jsRecordObject);
 
   /* Set Prototype */
-  Handle<Value> prototype = mapData->Get(3);
-  if(! prototype->IsNull())
-    jsRecordObject->ToObject()->SetPrototype(prototype);
-
+  Local<Value> prototype = Get(mapData, 3);
+  if(! prototype->IsNull()) {
+    ToObject(args, jsRecordObject)->SetPrototype(JSCONTEXT(args), prototype).ToChecked();
+  }
   args.GetReturnValue().Set(scope.Escape(jsRecordObject));
 }
 
@@ -189,10 +192,10 @@ void getValueObjectConstructor(const Arguments &args) {
   Local<Object> mapData = Object::New(args.GetIsolate());
   
   /* Store the record in the mapData at 0 */
-  mapData->Set(0, args[0]);
+  SetProp(mapData, 0, args[0]);
 
   /* Build the ColumnHandlers and store them in the mapData at 1 */
-  const Record * record = unwrapPointer<const Record *>(args[0]->ToObject());
+  const Record * record = unwrapPointer<const Record *>(ArgToObject(args, 0));
   const uint32_t ncol = record->getNoOfColumns();
   ColumnHandlerSet *columnHandlers = new ColumnHandlerSet(ncol);
   for(unsigned int i = 0 ; i < ncol ; i++) {
@@ -202,23 +205,23 @@ void getValueObjectConstructor(const Arguments &args) {
     handler->init(args.GetIsolate(), col, offset);
   }
   Local<Value> jsHandlerSet = columnHandlerSetEnvelope.wrap(columnHandlers);
-  mapData->Set(1, jsHandlerSet);
+  SetProp(mapData, 1, jsHandlerSet);
 
   /* Create an Envelope and wrap it */
   Envelope * nroEnvelope = new Envelope("NdbRecordObject");
   nroEnvelope->isVO = true;
-  mapData->Set(2, envelopeEnvelope.wrap(nroEnvelope));
+  SetProp(mapData, 2, envelopeEnvelope.wrap(nroEnvelope));
 
   /* Set the Prototype in the mapData */
-  mapData->Set(3, args[2]);
+  SetProp(mapData, 3, args[2]);
 
   /* Create accessors for the mapped fields in the instance template.
      AccessorInfo.Data() for the accessor will hold the field number.
   */
-  Local<Object> jsFields = args[1]->ToObject();
+  Local<Object> jsFields = ArgToObject(args, 1);
   for(unsigned int i = 0 ; i < ncol; i++) {
     Local<Value> fieldNumber = v8::Number::New(args.GetIsolate(), i);
-    Handle<String> fieldName = jsFields->Get(i)->ToString();
+    Local<String> fieldName = ElementToString(jsFields, i);
     nroEnvelope->addAccessor(fieldName, nroGetter, nroSetter, fieldNumber);
   }
 
@@ -226,16 +229,17 @@ void getValueObjectConstructor(const Arguments &args) {
   ft->SetCallHandler(nroConstructor, mapData);
   DEBUG_PRINT("Template fields: %d", ft->InstanceTemplate()->InternalFieldCount());
 
-  args.GetReturnValue().Set(scope.Escape(ft->GetFunction()));
+  Local<Function> f = ft->GetFunction(JSCONTEXT(args)).ToLocalChecked();
+  args.GetReturnValue().Set(scope.Escape(f));
 }
 
 
 void isValueObject(const Arguments &args) {
   bool answer = false;
-  Handle<Value> v = args[0];
+  Local<Value> v = args[0];
 
   if(v->IsObject()) {
-    Handle<Object> o = v->ToObject();
+    Local<Object> o = ToObject(args, v);
     if(o->InternalFieldCount() == 2) {
       Envelope * n = (Envelope *) o->GetAlignedPointerFromInternalField(0);
       answer = n->isVO;
@@ -248,19 +252,19 @@ void isValueObject(const Arguments &args) {
 
 void getValueObjectWriteCount(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
-  NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(args[0]->ToObject());
+  NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(ArgToObject(args, 0));
   args.GetReturnValue().Set(nro->getWriteCount());
 }
 
 
 void prepareForUpdate(const Arguments &args) {
   EscapableHandleScope scope(args.GetIsolate());
-  NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(args[0]->ToObject());
+  NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(ArgToObject(args, 0));
   args.GetReturnValue().Set(scope.Escape(nro->prepare()));
 }
 
 
-void ValueObject_initOnLoad(Handle<Object> target) {
+void ValueObject_initOnLoad(Local<Object> target) {
   DEFINE_JS_FUNCTION(target, "getValueObjectConstructor", getValueObjectConstructor);
   DEFINE_JS_FUNCTION(target, "isValueObject", isValueObject);
   DEFINE_JS_FUNCTION(target, "getValueObjectWriteCount", getValueObjectWriteCount);
