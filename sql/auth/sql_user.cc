@@ -2173,8 +2173,18 @@ bool check_set_user_id_priv(THD *thd, const LEX_USER *user_name,
 
 /**
   Check if CREATE/RENAME/DROP USER should be allowed or not by checking
-  if user is referenced as definer in stored programs like procedure,
+  if the user is referenced as definer in stored programs like procedures,
   functions, triggers, events and views or not.
+
+  If the executing user does not have the SET_USER_ID privilege, and the user
+  in the argument list is referenced as the definer of some entity, we will
+  report an error and return.
+
+  If the executing user has the SET_USER_ID privilege, and the user in the
+  argument list is referenced as the definer of some entity, we will report
+  a warning and continue execution. In this case we will not return, because
+  there may be additional users in the argument list, and if we ignore them,
+  it may mean that a relevant warning would not be reported.
 
   @param thd               The current thread.
   @param list              The users to check for.
@@ -2190,86 +2200,35 @@ static bool check_orphaned_definers(THD *thd, List<LEX_USER> &list) {
   LEX_USER *user_name;
   List_iterator<LEX_USER> user_list(list);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  // Fetch all Schemas
-  std::vector<const dd::Schema *> schemas;
-  if (thd->dd_client()->fetch_global_components(&schemas)) return true;
 
   // iterate over each user to check if it is referenced in other objects.
   while ((user_name = user_list++) != nullptr) {
-    std::string user(user_name->user.str, user_name->user.length);
-    std::string host(user_name->host.str, user_name->host.length);
-    for (const dd::Schema *schema_obj : schemas) {
-      // Fetch all events in a schema
-      std::vector<const dd::Event *> events;
-      if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
-        return true;
-      for (const dd::Event *event_obj : events) {
-        if (user.compare(event_obj->definer_user().c_str()) == 0) {
-          if (host.compare(event_obj->definer_host().c_str()) == 0) {
-            return check_set_user_id_priv(thd, user_name,
-                                          std::string("an event"));
-          } else
-            continue;
-        }
-      }
+    bool is_definer = false;
 
-      std::vector<const dd::View *> views;
-      if (thd->dd_client()->fetch_schema_components(schema_obj, &views))
-        return true;
-      for (const dd::View *view_obj : views) {
-        /* skip system views like IS.TABLES, IS.VIEWS etc */
-        if (view_obj->is_system_view()) continue;
-        if (user.compare(view_obj->definer_user().c_str()) == 0) {
-          if (host.compare(view_obj->definer_host().c_str()) == 0) {
-            return check_set_user_id_priv(thd, user_name,
-                                          std::string("a view"));
-          } else
-            continue;
-        }
-      }
+    // Check events.
+    if (thd->dd_client()->is_user_definer<dd::Event>(*user_name, &is_definer) ||
+        (is_definer && check_set_user_id_priv(thd, user_name, "an event")))
+      return true;
 
-      std::vector<const dd::Routine *> routines;
-      if (thd->dd_client()->fetch_schema_components(schema_obj, &routines))
-        return true;
-      for (const dd::Routine *routine_obj : routines) {
-        if (user.compare(routine_obj->definer_user().c_str()) == 0) {
-          if (host.compare(routine_obj->definer_host().c_str()) == 0) {
-            return check_set_user_id_priv(thd, user_name,
-                                          std::string("a procedure"));
-          } else
-            continue;
-        }
-      }
+    // Check views.
+    if (thd->dd_client()->is_user_definer<dd::View>(*user_name, &is_definer) ||
+        (is_definer && check_set_user_id_priv(thd, user_name, "a view")))
+      return true;
 
-      std::vector<const dd::Function *> functions;
-      if (thd->dd_client()->fetch_schema_components(schema_obj, &functions))
-        return true;
-      for (const dd::Function *function_obj : functions) {
-        if (user.compare(function_obj->definer_user().c_str()) == 0) {
-          if (host.compare(function_obj->definer_host().c_str()) == 0) {
-            return check_set_user_id_priv(thd, user_name,
-                                          std::string("a function"));
-          } else
-            continue;
-        }
-      }
+    // Check stored routines.
+    if (thd->dd_client()->is_user_definer<dd::Routine>(*user_name,
+                                                       &is_definer) ||
+        (is_definer &&
+         check_set_user_id_priv(thd, user_name, "a stored routine")))
+      return true;
 
-      std::vector<const dd::Table *> tables;
-      if (thd->dd_client()->fetch_schema_components(schema_obj, &tables))
-        return true;
-      for (const dd::Table *table_obj : tables) {
-        for (const dd::Trigger *trigger_obj : table_obj->triggers()) {
-          if (user.compare(trigger_obj->definer_user().c_str()) == 0) {
-            if (host.compare(trigger_obj->definer_host().c_str()) == 0) {
-              return check_set_user_id_priv(thd, user_name,
-                                            std::string("a trigger"));
-            } else
-              continue;
-          }
-        }
-      }
-    }
+    // Check triggers.
+    if (thd->dd_client()->is_user_definer<dd::Trigger>(*user_name,
+                                                       &is_definer) ||
+        (is_definer && check_set_user_id_priv(thd, user_name, "a trigger")))
+      return true;
   }
+
   return false;
 }
 

@@ -99,7 +99,8 @@ class Tables : public Entity_object_table_impl {
     INDEX_K_TABLESPACE_ID,
     INDEX_K_TYPE,
     INDEX_K_VIEW_CLIENT_COLLATION_ID,
-    INDEX_K_VIEW_CONNECTION_COLLATION_ID
+    INDEX_K_VIEW_CONNECTION_COLLATION_ID,
+    INDEX_K_TYPE_VIEW_DEFINER
   };
 
   enum enum_foreign_keys {
@@ -126,6 +127,15 @@ class Tables : public Entity_object_table_impl {
   static Object_key *create_key_by_schema_id(Object_id schema_id);
 
   static Object_key *create_key_by_tablespace_id(Object_id tablespace_id);
+
+  /**
+    Create a key to find all views for a given definer.
+
+    @param definer   Name of the definer.
+
+    @returns Pointer to Object_key.
+  */
+  static Object_key *create_key_by_definer(const String_type &definer);
 
   static ulonglong read_se_private_id(const Raw_record &r);
 };

@@ -551,5 +551,55 @@ class Sub_partition_range_key : public Object_key {
 };
 
 ///////////////////////////////////////////////////////////////////////////
+
+// Range key to find rows using definer name.
+class Definer_reference_range_key : public Object_key {
+ public:
+  Definer_reference_range_key(int index_no, int definer_column_no,
+                              const String_type &definer)
+      : m_index_no(index_no),
+        m_definer_column_no(definer_column_no),
+        m_definer(definer) {}
+
+ public:
+  Raw_key *create_access_key(Raw_table *db_table) const override;
+
+  String_type str() const override;
+
+ private:
+  int m_index_no;
+  int m_definer_column_no;
+  String_type m_definer;
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+// Range key to find rows using table type and definer name.
+class View_definer_reference_range_key : public Object_key {
+ public:
+  View_definer_reference_range_key(int index_no, int table_type_column_no,
+                                   uint table_type, int definer_column_no,
+                                   const String_type &definer)
+      : m_index_no(index_no),
+        m_table_type_column_no(table_type_column_no),
+        m_table_type(table_type),
+        m_definer_column_no(definer_column_no),
+        m_definer(definer) {}
+
+ public:
+  Raw_key *create_access_key(Raw_table *db_table) const override;
+
+  String_type str() const override;
+
+ private:
+  int m_index_no;
+  int m_table_type_column_no;
+  uint m_table_type;
+  int m_definer_column_no;
+  String_type m_definer;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
 }  // namespace dd
 #endif  // DD__OBJECT_KEYS_INCLUDED

@@ -902,6 +902,8 @@ root@localhost
 drop user user1@localhost;
 Warnings:
 Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a view.
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a trigger.
 
 # ==========================================================
 # Part E.
@@ -915,7 +917,8 @@ drop view v1;
 create sql security definer view v1 as select * from t1 where 'secret';
 create user user1@localhost identified by '';
 Warnings:
-Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a procedure.
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a trigger.
 grant create, insert, select on somedb.* to user1@localhost;
 grant create routine on somedb.* to user1@localhost;
 

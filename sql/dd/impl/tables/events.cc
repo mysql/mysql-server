@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,6 +117,7 @@ Events::Events() {
   m_target_def.add_index(INDEX_K_SCHEMA_COLLATION_ID,
                          "INDEX_K_SCHEMA_COLLATION_ID",
                          "KEY(schema_collation_id)");
+  m_target_def.add_index(INDEX_K_DEFINER, "INDEX_K_DEFINER", "KEY(definer)");
 
   m_target_def.add_foreign_key(FK_SCHEMA_ID, "FK_SCHEMA_ID",
                                "FOREIGN KEY (schema_id) "
@@ -153,6 +154,13 @@ Event *Events::create_entity_object(const Raw_record &) const {
 Object_key *Events::create_key_by_schema_id(Object_id schema_id) {
   return new (std::nothrow)
       Parent_id_range_key(INDEX_UK_SCHEMA_ID_NAME, FIELD_SCHEMA_ID, schema_id);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Object_key *Events::create_key_by_definer(const String_type &definer) {
+  return new (std::nothrow)
+      Definer_reference_range_key(INDEX_K_DEFINER, FIELD_DEFINER, definer);
 }
 
 ///////////////////////////////////////////////////////////////////////////

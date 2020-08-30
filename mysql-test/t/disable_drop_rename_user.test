@@ -307,6 +307,21 @@ DROP USER 'u1'@'%.com';
 --echo # should pass with warnings even when hostname is specified with different case
 DROP USER 'u1'@'ABC.COM';
 
+--echo # case18: Drop multiple users being definers of multiple entity types.
+CREATE USER u1;
+CREATE USER u2;
+
+USE wl14073;
+
+CREATE DEFINER = u1 VIEW v6 as SELECT * FROM t1;
+CREATE DEFINER = u1 EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+
+CREATE DEFINER = u2 VIEW v7 as SELECT * FROM t1;
+CREATE DEFINER = u2 EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+
+--echo # Should pass with warnings for entity types 'event' and 'view' for each user.
+DROP USER u1, u2;
+
 #Cleanup
 DROP DATABASE wl14073;
 --disable_connect_log

@@ -2622,7 +2622,8 @@ DROP TABLE t1;
 #
 RENAME USER root@localhost TO master@localhost;
 Warnings:
-Warning	4005	User 'root'@'localhost' is referenced as a definer account in a procedure.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
 FLUSH PRIVILEGES;
 # Without patch, SHOW DATABASES returns error ERROR 1449 (HY000):
 # The user specified as a definer ('root'@'localhost') does not exist
@@ -2636,7 +2637,8 @@ sys
 test
 RENAME USER master@localhost TO root@localhost;
 Warnings:
-Warning	4005	User 'root'@'localhost' is referenced as a definer account in a procedure.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
 FLUSH PRIVILEGES;
 #
 # Bug#27041452 assertion
