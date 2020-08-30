@@ -1,0 +1,29 @@
+//>>built
+define("dojox/mobile/bidi/Tooltip",["dojo/_base/array","dojo/_base/declare","./common"],function(_1,_2,_3){
+return _2(null,{postCreate:function(){
+this.inherited(arguments);
+if(this.textDir){
+this._applyTextDirToTextElements();
+}
+},buildRendering:function(){
+this.inherited(arguments);
+if(!this.isLeftToRight()){
+this.arrow.style.left="0px";
+}
+},_setTextDirAttr:function(_4){
+if(_4&&this.textDir!==_4){
+this.textDir=_4;
+this._applyTextDirToTextElements();
+}
+},_applyTextDirToTextElements:function(){
+_1.forEach(this.domNode.childNodes,function(_5){
+var _6=(_5.nodeType===1&&_5.childNodes.length===1)?_5.firstChild:_5;
+if(_6.nodeType===3&&_6.nodeValue){
+if(_6.nodeValue.search(/[.\S]/)!=-1){
+_6.nodeValue=_3.removeUCCFromText(_6.nodeValue);
+_6.nodeValue=_3.enforceTextDirWithUcc(_6.nodeValue,this.textDir);
+}
+}
+},this);
+}});
+});
