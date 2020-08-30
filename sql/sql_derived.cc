@@ -42,6 +42,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/mem_root_array.h"
+#include "sql/nested_join.h"
 #include "sql/opt_trace.h"  // opt_trace_disable_etc
 #include "sql/query_options.h"
 #include "sql/sql_base.h"  // EXTRA_RECORD
@@ -870,6 +871,10 @@ bool Condition_pushdown::make_cond_for_derived() {
   trace_cond.add("pushed_where_condition", m_where_cond);
   trace_cond.add("condition_not_pushed_to_derived", m_remainder_cond);
 
+  // If this condition has a semi-join condition, remove expressions from
+  // semi-join expression lists.
+  if (m_having_cond) check_and_remove_sj_exprs(m_having_cond);
+  if (m_where_cond) check_and_remove_sj_exprs(m_where_cond);
   // Replace columns in the condition with derived table expressions.
   if (replace_columns_in_cond()) return true;
 
@@ -1121,6 +1126,87 @@ bool Condition_pushdown::replace_columns_in_cond() {
     m_where_cond = new_cond;
   }
   return false;
+}
+
+/**
+  Check if this derived table is part of a semi-join. If so, we might
+  be pushing down a semi-join condition attached to the outer where condition.
+  We need to remove the expressions that are part of such a condition from
+  semi-join inner/outer expression lists. Otherwise, once the columns
+  of the semi-join condition get replaced with derived table expressions,
+  these lists will also be pointing to the derived table expressions which is
+  not correct. Updating the lists is also natural: the condition is pushed down,
+  so it's not to be tested on the outer level anymore; leaving it in the
+  list would make it be tested on the outer level.
+  Once this function determines that this table is part of a semi-join, it
+  calls remove_sj_exprs() to remove expressions found in the condition
+  from semi-join expressions lists.
+  Note that sj_inner_tables, sj_depends_on, sj_corr_tables are not updated,
+  which may make us miss some semi-join strategies, but is not critical.
+*/
+
+void Condition_pushdown::check_and_remove_sj_exprs(Item *cond) {
+  // To check for all the semi-join outer expressions that could be part of
+  // the condition.
+  if (m_derived_table->join_list) {
+    for (TABLE_LIST *tl : *m_derived_table->join_list) {
+      if (tl->is_sj_or_aj_nest()) remove_sj_exprs(cond, tl->nested_join);
+    }
+  }
+  // To check for all the semi-join inner expressions that could be part of
+  // the condition.
+  if (m_derived_table->embedding &&
+      m_derived_table->embedding->is_sj_or_aj_nest()) {
+    remove_sj_exprs(cond, m_derived_table->embedding->nested_join);
+  }
+}
+
+/**
+  This function examines the condition that is being pushed down to see
+  if the expressions from the condition are a match for inner/outer expressions
+  of the semi-join. If its a match, it removes such expressions from these
+  expression lists.
+
+  @param[in]     cond    condition that needs to be looked into
+  @param[in,out] sj_nest semi-join nest from where the inner/outer expressions
+  are being matched to the expressions from "cond"
+
+*/
+void Condition_pushdown::remove_sj_exprs(Item *cond, NESTED_JOIN *sj_nest) {
+  if (cond->type() == Item::COND_ITEM) {
+    Item_cond *cond_item = down_cast<Item_cond *>(cond);
+    List_iterator<Item> li(*cond_item->argument_list());
+    Item *item;
+    while ((item = li++)) remove_sj_exprs(item, sj_nest);
+  } else if ((cond->type() == Item::FUNC_ITEM &&
+              down_cast<Item_func *>(cond)->functype() == Item_func::EQ_FUNC)) {
+    // We found a possible semi-join condition which is of the form
+    // "outer_expr = inner_expr" (as created by build_sj_cond())
+    auto it_o = sj_nest->sj_outer_exprs.begin();
+    auto it_i = sj_nest->sj_inner_exprs.begin();
+    while (it_i != sj_nest->sj_inner_exprs.end() &&
+           it_o != sj_nest->sj_outer_exprs.end()) {
+      Item *outer = *it_o, *inner = *it_i;
+      // Check if the arguments of the equality match with expressions in the
+      // lists. If so, remove them from the lists.
+      if (outer == down_cast<Item_func_eq *>(cond)->get_arg(0) &&
+          inner == down_cast<Item_func_eq *>(cond)->get_arg(1)) {
+        it_i = sj_nest->sj_inner_exprs.erase(it_i);
+        it_o = sj_nest->sj_outer_exprs.erase(it_o);
+        if (sj_nest->sj_inner_exprs.empty()) {
+          assert(sj_nest->sj_outer_exprs.empty());
+          // Materialization needs non-empty lists (same as in
+          // SELECT_LEX::build_sj_cond())
+          Item *const_item = new Item_int(1);
+          sj_nest->sj_inner_exprs.push_back(const_item);
+          sj_nest->sj_outer_exprs.push_back(const_item);
+        }
+        break;
+      }
+      ++it_i;
+      ++it_o;
+    }
+  }
 }
 
 /**

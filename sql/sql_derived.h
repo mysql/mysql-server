@@ -26,7 +26,7 @@
 #include "sql/item.h"
 #include "sql/opt_trace_context.h"
 #include "sql/sql_const.h"
-
+struct NESTED_JOIN;
 /**
   Class which handles pushing conditions down to a materialized derived
   table. In SELECT_LEX::prepare, if it is the outermost query block, and
@@ -77,6 +77,8 @@ class Condition_pushdown {
   bool attach_cond_to_derived(Item *derived_cond, Item *cond_to_attach,
                               bool having);
   void update_between_count(Item *cond);
+  void check_and_remove_sj_exprs(Item *cond);
+  void remove_sj_exprs(Item *cond, NESTED_JOIN *sj_nest);
 
   /// Condition that needs to be checked to push down to the derived table.
   Item *m_cond_to_check;
