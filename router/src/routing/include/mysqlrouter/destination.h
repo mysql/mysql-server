@@ -38,12 +38,26 @@
  */
 class Destination {
  public:
-  Destination(std::string hostname, uint16_t port)
-      : hostname_{std::move(hostname)}, port_{port} {}
+  Destination(std::string id, std::string hostname, uint16_t port)
+      : id_{std::move(id)}, hostname_{std::move(hostname)}, port_{port} {}
 
   virtual ~Destination() = default;
 
+  /**
+   * unique, opaque identifier of a destination.
+   *
+   * used by connection container to find allowed destinations.
+   */
+  std::string id() const { return id_; }
+
+  /**
+   * hostname to connect to.
+   */
   std::string hostname() const { return hostname_; }
+
+  /**
+   * TCP port to connect to.
+   */
   uint16_t port() const noexcept { return port_; }
 
   /**
@@ -65,6 +79,7 @@ class Destination {
   virtual void connect_status(std::error_code /* ec */) {}
 
  private:
+  const std::string id_;
   const std::string hostname_;
   const uint16_t port_;
 };

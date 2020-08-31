@@ -187,15 +187,17 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
 
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // first available should not change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 }
 
@@ -219,13 +221,15 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
   // only one PRIMARY
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
   }
 
   // first available should not change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
   }
 }
 
@@ -279,15 +283,17 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
   // two SECONDARY's
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // first available should not change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 
@@ -311,13 +317,15 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
   // one SECONDARY
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
   }
 
   // first available should not change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
   }
 }
 
@@ -372,17 +380,19 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
   // all nodes
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // first available should not change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 
@@ -407,22 +417,25 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
   // all available nodes
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // round-robin-with-fallback should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // round-robin-with-fallback should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 
@@ -451,33 +464,37 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
   // all PRIMARY nodes
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308),
-                                               Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 
@@ -501,13 +518,15 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
   // the one PRIMARY nodes
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
   }
 
   // still the same
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
   }
 }
 
@@ -561,33 +580,37 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
   // all SECONDAY nodes
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308),
-                                               Destination("3309", 3309)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3309", 3309),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3309", 3309),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308),
-                                               Destination("3309", 3309)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
   }
 }
 
@@ -611,13 +634,15 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
   // the one SECONDARY nodes
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
   }
 
   // still the same
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
   }
 }
 
@@ -670,33 +695,37 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
   // all nodes
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308),
-                                               Destination("3309", 3309)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3309", 3309),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3309", 3309),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3309", "3309", 3309),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308),
-                                               Destination("3309", 3309)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3309", "3309", 3309)));
   }
 }
 
@@ -724,22 +753,25 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
   // we have 2 SECONDARIES up so we expect round robin on them
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // round-robin-with-fallback should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // round-robin-with-fallback should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 
@@ -765,13 +797,15 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
   // SECONDARY available
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
   }
 
   // round-robin-with-fallback should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308)));
   }
 }
 
@@ -794,15 +828,17 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
   // no SECONDARY available so we expect round-robin on PRIAMRIES
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // round-robin-with-fallback should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3306", "3306", 3306)));
   }
 }
 
@@ -846,33 +882,37 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
   // we expect round-robin on all the servers (PRIMARY and SECONDARY)
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308),
-                                               Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // round-robin should change the order.
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 
@@ -893,13 +933,15 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
   // we expect the PRIMARY being used
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
   }
 
   // ... no change
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306)));
   }
 }
 
@@ -924,22 +966,25 @@ TEST_F(DestMetadataCacheTest, PrimaryDefault) {
   // default for PRIMARY should be round-robin on ReadWrite servers
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // .. rotate
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3306", "3306", 3306)));
   }
 
   // ... and back
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 }
 
@@ -963,22 +1008,25 @@ TEST_F(DestMetadataCacheTest, SecondaryDefault) {
   // default for SECONDARY should be round-robin on ReadOnly servers
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // .. rotate
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // ... and back
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 
@@ -1004,33 +1052,37 @@ TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
   // ReadWrite servers
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 
   // .. rotate
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3307", 3307),
-                                               Destination("3308", 3308),
-                                               Destination("3306", 3306)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306)));
   }
 
   // ... rotate
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3308", 3308),
-                                               Destination("3306", 3306),
-                                               Destination("3307", 3307)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3308", "3308", 3308),
+                                       Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307)));
   }
 
   // ... and back
   {
     auto actual = dest.destinations();
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("3306", 3306),
-                                               Destination("3307", 3307),
-                                               Destination("3308", 3308)));
+    EXPECT_THAT(actual,
+                ::testing::ElementsAre(Destination("3306", "3306", 3306),
+                                       Destination("3307", "3307", 3307),
+                                       Destination("3308", "3308", 3308)));
   }
 }
 

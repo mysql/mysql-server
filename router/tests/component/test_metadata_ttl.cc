@@ -964,6 +964,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 class NodeHiddenTest : public MetadataChacheTTLTest {
  protected:
+  // MUST be 'localhost' to verify it works with hostnames and not just IP
+  // addresses.
+  static constexpr const char *const node_hostname{"localhost"};
+
   // first node is RW, all others (if any) RO
   void setup_cluster(const size_t nodes_count, const std::string &tracefile,
                      const std::vector<std::string> &nodes_attributes = {}) {
@@ -989,8 +993,9 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
           check_port_ready(*cluster_nodes[i], node_ports[i]));
       ASSERT_TRUE(MockServerRestClient(node_http_ports[i])
                       .wait_for_rest_endpoint_ready());
+
       set_mock_metadata(node_http_ports[i], "", node_ports, 0, 0, false,
-                        "127.0.0.1", {}, nodes_attributes);
+                        node_hostname, {}, nodes_attributes);
     }
   }
 
@@ -1015,7 +1020,7 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
 
   void set_nodes_attributes(const std::vector<std::string> &nodes_attributes) {
     set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
-                      "127.0.0.1", {}, nodes_attributes);
+                      node_hostname, {}, nodes_attributes);
     EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 3));
   }
 
@@ -1059,6 +1064,9 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
   TempDirectory temp_test_dir;
   TempDirectory conf_dir{"conf"};
 };
+
+// define constexpr for sun-cc
+constexpr const char *const NodeHiddenTest::node_hostname;
 
 /**
  * @test Verifies that setting the _hidden tags in the metadata for the node is

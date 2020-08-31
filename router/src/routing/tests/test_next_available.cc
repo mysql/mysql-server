@@ -73,18 +73,18 @@ TEST_F(NextAvailableTest, RepeatedFetch) {
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
   }
 
   SCOPED_TRACE("// fetching it twice, no change");
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
   }
 }
 
@@ -97,16 +97,16 @@ TEST_F(NextAvailableTest, FailOne) {
   SCOPED_TRACE("// destination in order");
   auto actual = balancer.destinations();
   EXPECT_THAT(actual, ::testing::SizeIs(3));
-  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                             Destination("42", 42),
-                                             Destination("43", 43)));
+  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                             Destination("42", "42", 42),
+                                             Destination("43", "43", 43)));
 
   SCOPED_TRACE("// fetching it twice, no change");
   auto actual2 = balancer.destinations();
   EXPECT_THAT(actual, ::testing::SizeIs(3));
-  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                             Destination("42", 42),
-                                             Destination("43", 43)));
+  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                             Destination("42", "42", 42),
+                                             Destination("43", "43", 43)));
 
   ASSERT_EQ(balancer.valid_ndx(), 0);
   EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
@@ -139,9 +139,9 @@ TEST_F(NextAvailableTest, FailTwo) {
   auto actual = balancer.destinations();
   EXPECT_EQ(balancer.valid_ndx(), 0);
   EXPECT_THAT(actual, ::testing::SizeIs(3));
-  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                             Destination("42", 42),
-                                             Destination("43", 43)));
+  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                             Destination("42", "42", 42),
+                                             Destination("43", "43", 43)));
   SCOPED_TRACE("// report a connection-error for the first node");
   size_t n{};
   for (auto const &d : actual) {
@@ -156,9 +156,9 @@ TEST_F(NextAvailableTest, FailTwo) {
   SCOPED_TRACE("// fetching it twice, no change");
   actual = balancer.destinations();
   EXPECT_THAT(actual, ::testing::SizeIs(3));
-  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                             Destination("42", 42),
-                                             Destination("43", 43)));
+  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                             Destination("42", "42", 42),
+                                             Destination("43", "43", 43)));
 
   SCOPED_TRACE("// ... but first node isn't good anymore");
   EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {false, false, true}));
@@ -174,16 +174,16 @@ TEST_F(NextAvailableTest, FailAll) {
   auto actual = balancer.destinations();
   EXPECT_EQ(balancer.valid_ndx(), 0);
   EXPECT_THAT(actual, ::testing::SizeIs(3));
-  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                             Destination("42", 42),
-                                             Destination("43", 43)));
+  EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                             Destination("42", "42", 42),
+                                             Destination("43", "43", 43)));
 
   SCOPED_TRACE("// fetching it twice, no change");
   auto actual2 = balancer.destinations();
   EXPECT_THAT(actual2, ::testing::SizeIs(3));
-  EXPECT_THAT(actual2, ::testing::ElementsAre(Destination("41", 41),
-                                              Destination("42", 42),
-                                              Destination("43", 43)));
+  EXPECT_THAT(actual2, ::testing::ElementsAre(Destination("41", "41", 41),
+                                              Destination("42", "42", 42),
+                                              Destination("43", "43", 43)));
 
   SCOPED_TRACE("// report a connection-error for all nodes");
   size_t n{};

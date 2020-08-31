@@ -31,9 +31,11 @@
 
 class StateTrackingDestination : public Destination {
  public:
-  StateTrackingDestination(std::string addr, uint16_t port,
+  StateTrackingDestination(std::string id, std::string addr, uint16_t port,
                            DestNextAvailable *balancer, size_t ndx)
-      : Destination(std::move(addr), port), balancer_{balancer}, ndx_{ndx} {}
+      : Destination(std::move(id), std::move(addr), port),
+        balancer_{balancer},
+        ndx_{ndx} {}
 
   void connect_status(std::error_code ec) override {
     if (ec != std::error_code{}) {
@@ -60,7 +62,7 @@ Destinations DestNextAvailable::destinations() {
 
     for (size_t ndx{}; cur != end; ++cur, ++ndx) {
       dests.push_back(std::make_unique<StateTrackingDestination>(
-          cur->addr, cur->port, this, ndx));
+          cur->str(), cur->addr, cur->port, this, ndx));
     }
   }
 
