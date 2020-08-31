@@ -2197,12 +2197,11 @@ EXPLAIN
     -> Stream results
         -> Group aggregate: count(distinct t1.b)
             -> Sort: t1.b
-                -> Table scan on <temporary>
-                    -> Temporary table
-                        -> Batched key access inner join
-                            -> Batch input rows
-                                -> Table scan on t1  (cost=4001.60 rows=16)
-                            -> Multi-range index lookup on t2 using PRIMARY (a=t1.c)
+                -> Stream results
+                    -> Batched key access inner join
+                        -> Batch input rows
+                            -> Table scan on t1  (cost=4001.60 rows=16)
+                        -> Multi-range index lookup on t2 using PRIMARY (a=t1.c)
 
 Warnings:
 Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
