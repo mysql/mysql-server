@@ -5174,3 +5174,7 @@ REPLACE(_latin1 x'E6F8E5E6F8E5',_utf16 x'00e5', _utf32 x'00000061')
 # Bug#31358389: Crash in Item::add_accum_properties()
 DO INSERT(1, 1, 1, CAST(1 AS DECIMAL(1,3)));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '').
+#
+# Bug #31798093 RECENT REGRESSION:
+#               ARG_COMPARATOR::COMPARE JUMPING TO INVALID CODE IN MEMORY
+DO CONVERT( NULLIF( @a , 'c' ) USING BINARY);
