@@ -1313,19 +1313,19 @@ Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
         {
           jamDebug();
           nodeGroup = current_ng;
-          replica_index++;
-          if (replica_index == num_replicas)
-          {
-            jamDebug();
-            replica_index = 0;
-            current_ng++;
-          }
         }
         else
         {
           jamDebug();
           nodeGroup = (Uint32) ng_array[ng_index];
           ng_index++;
+        }
+        replica_index++;
+        if (replica_index == num_replicas)
+        {
+          jamDebug();
+          replica_index = 0;
+          current_ng++;
         }
         break;
       }
