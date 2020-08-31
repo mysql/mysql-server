@@ -115,6 +115,7 @@ void thd_set_not_killable(THD *thd);
 ulong thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
 void thd_store_globals(THD *thd);
+bool thd_check_connection_admin_privilege(THD *thd);
 
 /*
   The thread pool must be able to execute statements using the connection
