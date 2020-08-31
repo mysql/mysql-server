@@ -6440,7 +6440,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
       {
         if (ng == NDB_NO_NODEGROUP)
         {
-          break;
+          continue;
         }
         else if (ng >= MAX_NDB_NODES)
         {
