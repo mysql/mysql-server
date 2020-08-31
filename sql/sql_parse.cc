@@ -828,7 +828,6 @@ static void handle_bootstrap_impl(THD *thd)
       break;
 
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-    free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
   }
 
   DBUG_VOID_RETURN;
