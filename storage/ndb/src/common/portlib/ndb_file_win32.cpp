@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,6 @@ int ndb_file::read_forward(void* buf, ndb_file::size_t count) const
     }
     return -1;
   }
-  require(dwBytesRead > 0);
   return dwBytesRead;
 }
 
@@ -198,7 +197,6 @@ int ndb_file::read_pos(void* buf, ndb_file::size_t count, ndb_file::off_t offset
     }
     return -1;
   }
-  require(dwBytesRead > 0);
   return dwBytesRead;
 }
 
