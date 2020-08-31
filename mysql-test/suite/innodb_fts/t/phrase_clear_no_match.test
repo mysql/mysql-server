@@ -2,6 +2,8 @@
 --echo # Bug #30933728 INNODB FTS PHRASE SEARCH CRASH
 --echo #
 
+--source include/not_embedded.inc
+
 --echo # Case 1 : test phrase search with ngram.
 
 let $restart_parameters = restart: --ngram_token_size=1;
