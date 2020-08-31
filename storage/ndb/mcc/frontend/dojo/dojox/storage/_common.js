@@ -1,0 +1,13 @@
+//>>built
+define("dojox/storage/_common",["dojo","dijit","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager,dojox/storage/LocalStorageProvider,dojox/storage/GearsStorageProvider,dojox/storage/WhatWGStorageProvider,dojox/storage/FlashStorageProvider,dojox/storage/BehaviorStorageProvider,dojox/storage/CookieStorageProvider"],function(_1,_2,_3){
+_1.provide("dojox.storage._common");
+_1.require("dojox.storage.Provider");
+_1.require("dojox.storage.manager");
+_1.require("dojox.storage.LocalStorageProvider");
+_1.require("dojox.storage.GearsStorageProvider");
+_1.require("dojox.storage.WhatWGStorageProvider");
+_1.require("dojox.storage.FlashStorageProvider");
+_1.require("dojox.storage.BehaviorStorageProvider");
+_1.require("dojox.storage.CookieStorageProvider");
+_3.storage.manager.initialize();
+});
