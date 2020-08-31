@@ -268,7 +268,6 @@ static int process_iterator(THD *thd, Command_iterator *it,
     }
 
     free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
-    thd->get_transaction()->free_memory(MYF(MY_KEEP_PREALLOC));
 
     /*
       Make sure bootstrap statements do not change binlog options.
