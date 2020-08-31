@@ -425,6 +425,11 @@ void ndb_file::invalidate()
   m_handle = INVALID_HANDLE_VALUE;
 }
 
+bool ndb_file::have_direct_io_support() const
+{
+  return false;
+}
+
 int ndb_file::set_direct_io(bool /* assume_implicit_datasync */)
 {
   // Not implemented.

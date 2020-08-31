@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,6 +165,7 @@ public:
   int allocate() const;
 
   int set_block_size_and_alignment(size_t size, size_t alignment);
+  bool have_direct_io_support() const;
   int set_direct_io(bool assume_implicit_datasync);
   int set_autosync(size_t size);
 
