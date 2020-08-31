@@ -5272,10 +5272,10 @@ Variable_name	Value
 relay_log_info_repository	TABLE
 SET GLOBAL master_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	FILE
@@ -5361,7 +5361,11 @@ CREATE TABLE IF NOT EXISTS `slave_relay_log_info` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 SET GLOBAL master_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	TABLE
