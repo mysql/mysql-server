@@ -1799,10 +1799,11 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
 /** Get page IDs from a specific position.
 Caller must ensure that read_len doesn't exceed the block.
+@param[in]	group		group whose pages we're interested in
 @param[in]	read_pos	position in archived data
 @param[in]	read_len	amount of data to read
 @param[out]	read_buff	buffer to return the page IDs.
-                                Caller must allocate the buffer.
+@note Caller must allocate the buffer.
 @return true if we could successfully read the block. */
 bool Arch_Page_Sys::get_pages(Arch_Group *group, Arch_Page_Pos *read_pos,
                               uint read_len, byte *read_buff) {

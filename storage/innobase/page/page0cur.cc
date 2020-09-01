@@ -359,23 +359,24 @@ static ulint *populate_offsets(const rec_t *rec, const dtuple_t *tuple,
 #endif /* PAGE_CUR_ADAPT */
 
 #ifndef UNIV_HOTBACKUP
-/** Searches the right position for a page cursor. */
-void page_cur_search_with_match(
-    const buf_block_t *block,  /*!< in: buffer block */
-    const dict_index_t *index, /*!< in/out: record descriptor */
-    const dtuple_t *tuple,     /*!< in: data tuple */
-    page_cur_mode_t mode,      /*!< in: PAGE_CUR_L,
-                               PAGE_CUR_LE, PAGE_CUR_G, or
-                               PAGE_CUR_GE */
-    ulint *iup_matched_fields,
-    /*!< in/out: already matched
-    fields in upper limit record */
-    ulint *ilow_matched_fields,
-    /*!< in/out: already matched
-    fields in lower limit record */
-    page_cur_t *cursor,   /*!< out: page cursor */
-    rtr_info_t *rtr_info) /*!< in/out: rtree search stack */
-{
+
+/** Searches the right position for a page cursor.
+@param[in] block Buffer block
+@param[in] index Record descriptor
+@param[in] tuple Data tuple
+@param[in] mode PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[in,out] iup_matched_fields Already matched fields in upper limit record
+@param[in,out] ilow_matched_fields Already matched fields in lower limit record
+@param[out] cursor Page cursor
+@param[in,out] rtr_info Rtree search stack */
+void page_cur_search_with_match(const buf_block_t *block,
+                                const dict_index_t *index,
+                                const dtuple_t *tuple, page_cur_mode_t mode,
+                                ulint *iup_matched_fields,
+
+                                ulint *ilow_matched_fields,
+
+                                page_cur_t *cursor, rtr_info_t *rtr_info) {
   ulint up;
   ulint low;
   ulint mid;
@@ -1383,11 +1384,11 @@ rec_t *page_cur_insert_rec_low(
 }
 
 /** Inserts a record next to page cursor on an uncompressed page.
-@param[in]	current_rec	pointer to current record after which
+@param[in]	current_rec	Pointer to current record after which
                                 the new record is inserted.
-@param[in]	index		record descriptor
-@param[in]	tuple		pointer to a data tuple
-@param[in]	mtr		mini-transaction handle, or NULL
+@param[in]	index		Record descriptor
+@param[in]	tuple		Pointer to a data tuple
+@param[in]	mtr		Mini-transaction handle, or NULL
 
 @return pointer to record if succeed, NULL otherwise */
 rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
@@ -1964,9 +1965,9 @@ rec_t *page_cur_insert_rec_zip(
 
 #ifndef UNIV_HOTBACKUP
 /** Writes a log record of copying a record list end to a new created page.
-@param[in,out]	page	index page
-@param[in,out]	index	record descriptor
-@param[in,out]	mtr	mini transaction
+@param[in,out]	page	Index page
+@param[in,out]	index	Record descriptor
+@param[in,out]	mtr	Mini-transaction
 @param[out]	log_ptr	4-byte field where to write the log data length
 @retval true if mtr log is opened successfully.
 @retval false if mtr log is not opened. One case is when redo is disabled. */

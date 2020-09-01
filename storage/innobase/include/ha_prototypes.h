@@ -98,12 +98,12 @@ ibool thd_is_replication_slave_thread(THD *thd); /*!< in: thread handle */
  @return true if non-transactional tables have been edited */
 ibool thd_has_edited_nontrans_tables(THD *thd); /*!< in: thread handle */
 
-/** Prints info of a THD object (== user session thread) to the given file. */
-void innobase_mysql_print_thd(
-    FILE *f,             /*!< in: output stream */
-    THD *thd,            /*!< in: pointer to a MySQL THD object */
-    uint max_query_len); /*!< in: max query length to print, or 0 to
-                            use the default max length */
+/** Prints info of a THD object (== user session thread) to the given file.
+@param[in] f Output stream
+@param[in] thd Pointer to a mysql thd object
+@param[in] max_query_len Max query length to print, or 0 to use the default max
+length */
+void innobase_mysql_print_thd(FILE *f, THD *thd, uint max_query_len);
 
 /** Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
@@ -114,11 +114,11 @@ at least ENUM and SET, and unsigned integer types are 'unsigned types'
 @return DATA_BINARY, DATA_VARCHAR, ... */
 ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f);
 
-/** Get the variable length bounds of the given character set. */
-void innobase_get_cset_width(
-    ulint cset,       /*!< in: MySQL charset-collation code */
-    ulint *mbminlen,  /*!< out: minimum length of a char (in bytes) */
-    ulint *mbmaxlen); /*!< out: maximum length of a char (in bytes) */
+/** Get the variable length bounds of the given character set.
+@param[in] cset Mysql charset-collation code
+@param[out] mbminlen Minimum length of a char (in bytes)
+@param[out] mbmaxlen Maximum length of a char (in bytes) */
+void innobase_get_cset_width(ulint cset, ulint *mbminlen, ulint *mbmaxlen);
 
 /** Compares NUL-terminated UTF-8 strings case insensitively.
  @return 0 if a=b, < 0 if a < b, > 1 if a > b */
@@ -193,7 +193,7 @@ ulong thd_lock_wait_timeout(THD *thd); /*!< in: thread handle, or NULL to query
 void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
                             ulint value); /*!< in: time waited for the lock */
 
-/** Get status of innodb_tmpdir.
+/** Get the value of innodb_tmpdir.
 @param[in]	thd	thread handle, or NULL to query
                         the global innodb_tmpdir.
 @retval NULL if innodb_tmpdir="" */
@@ -248,11 +248,11 @@ ibool thd_trx_is_auto_commit(THD *thd); /*!< in: thread handle, or NULL */
 ulint thd_start_time_in_secs(THD *thd); /*!< in: thread handle, or NULL */
 
 /** A wrapper function of innobase_convert_name(), convert a table name
- to the MySQL system_charset_info (UTF-8) and quote it if needed. */
-void innobase_format_name(
-    char *buf,         /*!< out: buffer for converted identifier */
-    ulint buflen,      /*!< in: length of buf, in bytes */
-    const char *name); /*!< in: table name to format */
+to the MySQL system_charset_info (UTF-8) and quote it if needed.
+@param[out] buf Buffer for converted identifier
+@param[in] buflen Length of buf, in bytes
+@param[in] name Table name to format */
+void innobase_format_name(char *buf, ulint buflen, const char *name);
 
 /** Corresponds to Sql_condition:enum_warning_level. */
 enum ib_log_level_t {

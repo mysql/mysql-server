@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -156,9 +156,9 @@ struct z_first_page_t {
     return (m_block);
   }
 
-  /** Load the first page using given mini transaction. The first page must
+  /** Load the first page using given mini-transaction. The first page must
   already be x-latched by the m_mtr.
-  @param[in]	mtr   the mini transaction in which first page is to be loaded.
+  @param[in]	mtr   the mini-transaction in which first page is to be loaded.
   @return the buffer block of first page. */
   buf_block_t *load_x(mtr_t *mtr) const {
     ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
@@ -290,7 +290,7 @@ struct z_first_page_t {
   /** All the fragment pages are doubly linked with each other, and
   the first page contains the link to one fragment page in FIL_PAGE_PREV. Get
   that frag page number.
-  @param[in]   mtr   mini transaction to use for this read operation.
+  @param[in]   mtr   Mini-transaction to use for this read operation.
   @return the frag page number. */
   page_no_t get_frag_page_no(mtr_t *mtr) const {
     return (mtr_read_ulint(frame() + FIL_PAGE_PREV, MLOG_4BYTES, mtr));
@@ -305,8 +305,8 @@ struct z_first_page_t {
 
   /** All the fragment pages are doubly linked with each other, and
   the first page contains the link to one fragment page in FIL_PAGE_PREV.
-  @param[in]  mtr      mini transaction for this modification.
-  @param[in]  page_no  the page number of a fragment page. */
+  @param[in]  mtr      Mini-transaction for this modification.
+  @param[in]  page_no  The page number of a fragment page. */
   void set_frag_page_no(mtr_t *mtr, page_no_t page_no) {
     ut_ad(verify_frag_page_no());
     set_prev_page_no(page_no, mtr);
@@ -537,7 +537,7 @@ struct z_first_page_t {
 
   /** Load the page, in x-latch mode, containing the given file address.
   @param[in]	addr	given file address
-  @param[in]	mtr     the mini transaction context to be used.
+  @param[in]	mtr     the mini-transaction context to be used.
   @return	the file list node pointer. */
   flst_node_t *addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const {
     space_id_t space = dict_index_get_space(m_index);
@@ -599,7 +599,7 @@ struct z_first_page_t {
 
   /** Restart the given mtr. The first page must already be x-latched by the
   m_mtr.
-  @param[in]   mtr   the mini transaction context which is to be restarted. */
+  @param[in]   mtr   the mini-transaction context which is to be restarted. */
   void restart_mtr(mtr_t *mtr) {
     ut_ad(mtr != m_mtr);
 

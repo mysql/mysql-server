@@ -86,7 +86,7 @@ This means that after the checkpoint lsn there should be no records to apply.
 However the log files still could contain some old data (which is not used
 during the recovery process).
 
-Every change to content of a data page must be done through a mini transaction
+Every change to content of a data page must be done through a mini-transaction
 (so called mtr - mtr_t), which in mtr_commit() writes all its log records
 to the redo log.
 
@@ -481,7 +481,7 @@ static void log_resume_writer_threads(log_t &log);
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   ut_a(log_sys == nullptr);
@@ -717,7 +717,7 @@ void log_sys_close() {
   log_sys = nullptr;
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -725,7 +725,7 @@ void log_sys_close() {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 void log_writer_thread_active_validate(const log_t &log) {
   ut_a(log_writer_is_active());
@@ -926,7 +926,7 @@ void log_control_writer_threads(log_t &log) {
   }
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -934,7 +934,7 @@ void log_control_writer_threads(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 void log_print(const log_t &log, FILE *file) {
   lsn_t last_checkpoint_lsn;
@@ -1000,7 +1000,7 @@ void log_refresh_stats(log_t &log) {
   log.last_printout_time = time(nullptr);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1008,7 +1008,7 @@ void log_refresh_stats(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
   ut_ad(log_checkpointer_mutex_own(log));
@@ -1108,7 +1108,7 @@ static void log_calc_buf_size(log_t &log) {
   log.buf_size_sn = log_translate_lsn_to_sn(log.buf_size);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1116,7 +1116,7 @@ static void log_calc_buf_size(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 static void log_allocate_buffer(log_t &log) {
   ut_a(srv_log_buffer_size >= INNODB_LOG_BUFFER_SIZE_MIN);
@@ -1237,7 +1237,7 @@ static void log_deallocate_file_header_buffers(log_t &log) {
   log.file_header_bufs = nullptr;
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1245,7 +1245,7 @@ static void log_deallocate_file_header_buffers(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 void log_position_lock(log_t &log) {
   log_buffer_x_lock_enter(log);
@@ -1276,6 +1276,6 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
   ut_a(*current_lsn >= *checkpoint_lsn);
 }
 
-/* @} */
+/** @} */
 
 #endif /* !UNIV_HOTBACKUP */

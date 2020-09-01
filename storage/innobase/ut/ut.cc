@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -70,11 +70,11 @@ void ut_print_buf(FILE *file,      /*!< in: file where to print */
   putc(';', file);
 }
 
-/** Prints the contents of a memory buffer in hex. */
-void ut_print_buf_hex(std::ostream &o, /*!< in/out: output stream */
-                      const void *buf, /*!< in: memory buffer */
-                      ulint len)       /*!< in: length of the buffer */
-{
+/** Prints the contents of a memory buffer in hex.
+@param[in,out] &o Output stream
+@param[in] buf Memory buffer
+@param[in] len Length of the buffer */
+void ut_print_buf_hex(std::ostream &o, const void *buf, ulint len) {
   auto ptr = reinterpret_cast<const byte *>(buf);
   const auto end = ptr + len;
 
@@ -86,11 +86,11 @@ void ut_print_buf_hex(std::ostream &o, /*!< in/out: output stream */
   o << ")";
 }
 
-/** Prints the contents of a memory buffer in hex and ascii. */
-void ut_print_buf(std::ostream &o, /*!< in/out: output stream */
-                  const void *buf, /*!< in: memory buffer */
-                  ulint len)       /*!< in: length of the buffer */
-{
+/** Prints the contents of a memory buffer in hex and ascii.
+@param[in,out] &o Output stream
+@param[in] buf Memory buffer
+@param[in] len Length of the buffer */
+void ut_print_buf(std::ostream &o, const void *buf, ulint len) {
   const byte *data;
   ulint i;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,11 +55,10 @@ struct data_page_t : public basic_page_t {
   @param[in]	block	the buffer block.*/
   data_page_t(buf_block_t *block) : basic_page_t(block, nullptr, nullptr) {}
 
-  /** Allocate an LOB data page.
-   * @param[in] alloc_mtr	the mini transaction to be used for
-   *                            allocation of LOB page.
-   * @param[in] is_bulk		true if bulk operation.
-   * @return allocated buffer block or nullptr */
+  /** Allocate a LOB data page.
+  @param[in] alloc_mtr  Mini-transaction to be used for allocation of LOB page.
+  @param[in] is_bulk    true if bulk operation.
+  @return allocated buffer block or nullptr */
   buf_block_t *alloc(mtr_t *alloc_mtr, bool is_bulk);
 
   buf_block_t *load_x(page_no_t page_no);
@@ -102,21 +101,21 @@ struct data_page_t : public basic_page_t {
 
   /** Create a new data page and replace some or all parts of the old data
   with data.
-  @param[in]	trx	the current transaction.
-  @param[in]	offset	the offset where replace begins.
-  @param[in,out]	ptr	pointer to new data.
-  @param[in]	want	amount of data the caller wants to replace.
-  @param[in]	mtr	the mini transaction context.
+  @param[in]      trx     Current transaction.
+  @param[in]      offset  Offset where replace begins.
+  @param[in,out]  ptr     Pointer to new data.
+  @param[in]      want    Amount of data the caller wants to replace.
+  @param[in]      mtr     Mini-transaction context.
   @return the buffer block of the new data page. */
   buf_block_t *replace(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
                        mtr_t *mtr);
 
   /** Replace some or all parts of the data inline.
-  @param[in]	trx	the current transaction.
-  @param[in]	offset	the offset where replace begins.
-  @param[in,out]	ptr	pointer to new data.
-  @param[in]	want	amount of data the caller wants to replace.
-  @param[in]	mtr	the mini transaction context. */
+  @param[in]      trx     Current transaction.
+  @param[in]      offset  Offset where replace begins.
+  @param[in,out]  ptr     Pointer to new data.
+  @param[in]      want    Amount of data the caller wants to replace.
+  @param[in]      mtr     Mini-transaction context. */
   void replace_inline(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
                       mtr_t *mtr);
 
@@ -138,10 +137,9 @@ struct data_page_t : public basic_page_t {
   ulint read(ulint offset, byte *ptr, ulint want);
 
   /** Write data into a data page.
-  @param[in]	trxid	the transaction identifier of the session
-                          writing data.
-  @param[in,out]	data	the data to be written.  it will be updated
-                          to point to the byte not yet written.
+  @param[in]	trxid	the transaction identifier of the session writing data.
+  @param[in,out]	data	the data to be written.  it will be updated to
+  point to the byte not yet written.
   @param[in,out]	len	length of data to be written.
   @return amount of data actually written into the page. */
   ulint write(trx_id_t trxid, const byte *&data, ulint &len);

@@ -201,8 +201,6 @@ the blocks on free list. If LRU list is very small then we can end up
 in thrashing. */
 #define BUF_LRU_MIN_LEN 256
 
-/* @} */
-
 /** Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
 static void buf_flush_sync_datafiles() {
@@ -3583,7 +3581,8 @@ void reset_buf_flush_sync_lsn() {
 }
 
 /** Request IO burst and wake page_cleaner up.
-@param[in]	lsn_limit	upper limit of LSN to be flushed */
+@param[in]	lsn_limit	upper limit of LSN to be flushed
+@return true if we requested higher lsn than ever requested so far */
 bool buf_flush_request_force(lsn_t lsn_limit) {
   ut_a(buf_flush_page_cleaner_is_active());
 

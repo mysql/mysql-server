@@ -1014,7 +1014,7 @@ static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
 @param[in]	update		the update vector containing partial update
                                 information on LOBs.
 @param[in]	fld		the field to which the LOB belongs.
-@param[in]	mtr		the mini transaction context.
+@param[in]	mtr		the mini-transaction context.
 @return the undo record pointer where new data can be written.
 @return nullptr when there is not enough space in undo page. */
 static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
@@ -2666,8 +2666,8 @@ bool trx_undo_prev_version_build(
 /** Read virtual column value from undo log
 @param[in]	table		the table
 @param[in]	ptr		undo log pointer
-@param[in,out]	row		the row struct to fill
-@param[in]	in_purge	called by purge thread
+@param[in,out]	row		the dtuple to fill
+@param[in]	in_purge        called by purge thread
 @param[in]	online		true if this is from online DDL log
 @param[in]	col_map		online rebuild column map
 @param[in,out]	heap		memory heap to keep value when necessary */

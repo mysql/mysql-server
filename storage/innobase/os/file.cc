@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  Created 10/21/1995 Heikki Tuuri
  *******************************************************/
 
-/** NOTE: The functions in this file should only use functions from
+/* NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
 external tools. */
 
@@ -50,7 +50,7 @@ external tools. */
 #include <lz4.h>
 #include <zlib.h>
 
-/**
+/** Convert to a "string".
 @param[in]      type            The compression type
 @return the string representation */
 const char *Compression::to_string(Type type) {
@@ -123,7 +123,7 @@ void Compression::deserialize_header(const byte *page,
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_read	true of double write recovery in progress
+@param[in]	dblwr_read	true if double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
                                 copied to this page
 @param[in,out]	dst		Scratch area to use for decompression

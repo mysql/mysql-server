@@ -514,7 +514,7 @@ class Parallel_reader::Scan_ctx {
 
   /** Fetch a block from the buffer pool and acquire an S latch on it.
   @param[in]      page_id       Page ID.
-  @param[in,out]  mtr           Mini transaction covering the fetch.
+  @param[in,out]  mtr           Mini-transaction covering the fetch.
   @param[in]      line          Line from where called.
   @return the block fetched from the buffer pool. */
   buf_block_t *block_get_s_latched(const page_id_t &page_id, mtr_t *mtr,
@@ -588,7 +588,7 @@ class Parallel_reader::Scan_ctx {
   @param[in,out]  offsets       Same as above but pertains to the rec offsets
   @param[in,out]  heap          Heap to use if a previous version needs to be
                                 built from the undo log.
-  @param[in,out]  mtr           Mini transaction covering the read.
+  @param[in,out]  mtr           Mini-transaction covering the read.
   @return true if row is visible to the transaction. */
   bool check_visibility(const rec_t *&rec, ulint *&offsets, mem_heap_t *&heap,
                         mtr_t *mtr) MY_ATTRIBUTE((warn_unused_result));
@@ -725,7 +725,7 @@ class Parallel_reader::Ctx {
   @param[in,out]  offsets       Same as above but pertains to the rec offsets
   @param[in,out]  heap          Heap to use if a previous version needs to be
                                 built from the undo log.
-  @param[in,out]  mtr           Mini transaction covering the read.
+  @param[in,out]  mtr           Mini-transaction covering the read.
   @return true if row is visible to the transaction. */
   bool is_rec_visible(const rec_t *&rec, ulint *&offsets, mem_heap_t *&heap,
                       mtr_t *mtr) {

@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 
 /** @name Archive file name prefix and constant length parameters. */
-/* @{ */
+/** @{ */
 /** Archive directory prefix */
 const char ARCH_DIR[] = OS_FILE_PREFIX "ib_archive";
 
@@ -55,7 +55,7 @@ const char ARCH_LOG_FILE[] = "ib_log_";
 /** Archive page file prefix */
 const char ARCH_PAGE_FILE[] = "ib_page_";
 
-/** //@} */
+/** @} */
 
 /** File name for the durable file which indicates whether a group was made
 durable or not. Required to differentiate durable group from group left over by
@@ -1410,8 +1410,8 @@ class Arch_Log_Sys {
   /** Archive accumulated redo log in current group.
   This interface is for archiver background task to archive redo log
   data by calling it repeatedly over time.
-  @param[in] init		true when called for first time; it will then
-                                be set to false
+  @param[in, out]	init		true when called the first time; it will
+  then be set to false
   @param[in]	curr_ctx	system redo logs to copy data from
   @param[out]	arch_lsn	LSN up to which archiving is completed
   @param[out]	wait		true, if no more redo to archive

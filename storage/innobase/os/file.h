@@ -178,15 +178,15 @@ struct Compression {
   @return true if no algorithm requested */
   static bool is_none(const char *algorithm) MY_ATTRIBUTE((warn_unused_result));
 
-  /** Decompress the page data contents. Page type must be
-  FIL_PAGE_COMPRESSED, if not then the source contents are
-  left unchanged and DB_SUCCESS is returned.
-  @param[in]	dblwr_read	true if double write recovery
-                                  in progress
-  @param[in,out]	src		Data read from disk, decompressed
-                                  data will be copied to this page
-  @param[in,out]	dst		Scratch area to use for decompression
-  @param[in]	dst_len		Size of the scratch area in bytes
+  /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED,
+  if not then the source contents are left unchanged and DB_SUCCESS is returned.
+  @param[in]	dblwr_read	true if double write recovery in progress
+  @param[in,out]	src		Data read from disk, decompressed data
+  will be copied to this page
+  @param[in,out]	dst		Scratch area to use for decompression or
+                                  nullptr.
+  @param[in]	dst_len		If dst is valid, size of the scratch area in
+                                  bytes.
   @return DB_SUCCESS or error code */
   static dberr_t deserialize(bool dblwr_read, byte *src, byte *dst,
                              ulint dst_len) MY_ATTRIBUTE((warn_unused_result));

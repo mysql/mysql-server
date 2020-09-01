@@ -183,10 +183,10 @@ static bool read_binlog_position(const byte *binlog_buf, const char *&file_name,
 }
 
 /** Write binary log position into passed buffer.
-@param[in]	file_name	binary log file name
-@param[in]	offset		binary log offset
-@param[out]	binlog_buf	buffer from trx sys page to write to
-@param[in,out]	mtr		mini transaction */
+@param[in]	file_name	Binary log file name
+@param[in]	offset		Binary log offset
+@param[out]	binlog_buf	Buffer from trx sys page to write to
+@param[in,out]	mtr		Mini-transaction */
 static void write_binlog_position(const char *file_name, uint64_t offset,
                                   byte *binlog_buf, mtr_t *mtr) {
   if (file_name == nullptr ||

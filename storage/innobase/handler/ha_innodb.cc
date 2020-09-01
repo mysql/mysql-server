@@ -1211,11 +1211,14 @@ static bool innobase_get_tablespace_statistics(
 static bool innobase_get_tablespace_type(const dd::Tablespace &space,
                                          Tablespace_type *space_type);
 
-/** Retrieve the tablespace type by name.
+/** Get the tablespace type given the name.
 
-@param[in]  tablespace_name	Tablespace name.
-@param[out] space_type	        Tablespace category.
-@return false on success, true on failure */
+@param[in]  tablespace_name tablespace name
+@param[out] space_type      type of space
+
+@return Operation status.
+@retval false on success and true for failure.
+*/
 static bool innobase_get_tablespace_type_by_name(const char *tablespace_name,
                                                  Tablespace_type *space_type);
 
@@ -1822,12 +1825,12 @@ inline void innobase_active_small(void) {
   }
 }
 
-/** Converts an InnoDB error code to a MySQL error code and also tells to MySQL
-about a possible transaction rollback inside InnoDB caused by a lock wait
-timeout or a deadlock.
-@param[in]  error   InnoDB error code
-@param[in]  flags   InnoDB table flags, or 0
-@param[in]  thd     user thread handle or NULL
+/** Converts an InnoDB error code to a MySQL error code.
+Also tells to MySQL about a possible transaction rollback inside InnoDB caused
+by a lock wait timeout or a deadlock.
+@param[in]  error   InnoDB error code.
+@param[in]  flags   InnoDB table flags or 0.
+@param[in]  thd     MySQL thread or NULL.
 @return MySQL error code */
 int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
   switch (error) {
@@ -2042,12 +2045,11 @@ const char *innobase_get_err_msg(int error_code) /*!< in: MySQL error code */
   return (my_get_err_msg(error_code));
 }
 
-/** Get the variable length bounds of the given character set. */
-void innobase_get_cset_width(
-    ulint cset,      /*!< in: MySQL charset-collation code */
-    ulint *mbminlen, /*!< out: minimum length of a char (in bytes) */
-    ulint *mbmaxlen) /*!< out: maximum length of a char (in bytes) */
-{
+/** Get the variable length bounds of the given character set.
+@param[in] cset Mysql charset-collation code
+@param[out] mbminlen Minimum length of a char (in bytes)
+@param[out] mbmaxlen Maximum length of a char (in bytes) */
+void innobase_get_cset_width(ulint cset, ulint *mbminlen, ulint *mbmaxlen) {
   CHARSET_INFO *cs;
   ut_ad(cset <= MAX_CHAR_COLL_NUM);
   ut_ad(mbminlen);
@@ -2325,10 +2327,10 @@ bool Compression::is_none(const char *algorithm) {
   return (false);
 }
 
-/** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
-@param[in]	algorithm	Name of the compression algorithm
-@param[out]	compression	The compression algorithm
-@return DB_SUCCESS or DB_UNSUPPORTED */
+/** Check wether the compression algorithm is supported.
+@param[in]  algorithm   Compression algorithm to check
+@param[out] compression The type that algorithm maps to
+@return DB_SUCCESS or error code */
 dberr_t Compression::check(const char *algorithm, Compression *compression) {
   if (is_none(algorithm)) {
     compression->m_type = NONE;
@@ -2346,9 +2348,9 @@ dberr_t Compression::check(const char *algorithm, Compression *compression) {
   return (DB_SUCCESS);
 }
 
-/** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
-@param[in]	algorithm	Name of the compression algorithm
-@return DB_SUCCESS or DB_UNSUPPORTED */
+/** Validate the algorithm string.
+@param[in]      algorithm       Compression algorithm to check
+@return DB_SUCCESS or error code */
 dberr_t Compression::validate(const char *algorithm) {
   Compression compression;
 
@@ -2846,12 +2848,11 @@ char *innobase_convert_name(
 }
 
 /** A wrapper function of innobase_convert_name(), convert a table name
- to the MySQL system_charset_info (UTF-8) and quote it if needed. */
-void innobase_format_name(
-    char *buf,        /*!< out: buffer for converted identifier */
-    ulint buflen,     /*!< in: length of buf, in bytes */
-    const char *name) /*!< in: table name to format */
-{
+to the MySQL system_charset_info (UTF-8) and quote it if needed.
+@param[out] buf Buffer for converted identifier
+@param[in] buflen Length of buf, in bytes
+@param[in] name Table name to format */
+void innobase_format_name(char *buf, ulint buflen, const char *name) {
   const char *bufend;
 
   bufend = innobase_convert_name(buf, buflen, name, strlen(name), nullptr);
@@ -3422,6 +3423,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
 /** Validate the tablespaces against the DD.
 @param[in]	tablespaces	Tablespace files read from the DD
+@param[out]	moved_count	Number of tablespaces that have moved
 @return DB_SUCCESS if all OK */
 dberr_t Validate_files::validate(const DD_tablespaces &tablespaces,
                                  size_t *moved_count) {
@@ -6270,7 +6272,7 @@ static void innobase_vcol_build_templ(const TABLE *table,
   templ->is_unsigned = col->prtype & DATA_UNSIGNED;
 }
 
-/** callback used by MySQL server layer to initialize
+/** Callback used by MySQL server layer to initialize
 the table virtual columns' template
 @param[in]	table		MySQL TABLE
 @param[in,out]	ib_table	InnoDB table */
@@ -7214,11 +7216,12 @@ static inline uint get_field_offset(const TABLE *table, const Field *field) {
   return field->offset(table->record[0]);
 }
 
-/** compare two character string according to their charset. */
-int innobase_fts_text_cmp(const void *cs, /*!< in: Character set */
-                          const void *p1, /*!< in: key */
-                          const void *p2) /*!< in: node */
-{
+/** Compare two character string according to their charset.
+@param[in] cs Character set
+@param[in] p1 Key
+@param[in] p2 Node */
+extern int innobase_fts_text_cmp(const void *cs, const void *p1,
+                                 const void *p2) {
   const CHARSET_INFO *charset = (const CHARSET_INFO *)cs;
   const fts_string_t *s1 = (const fts_string_t *)p1;
   const fts_string_t *s2 = (const fts_string_t *)p2;
@@ -7289,11 +7292,12 @@ ulint innobase_strnxfrm(const CHARSET_INFO *cs, /*!< in: Character set */
   return (value);
 }
 
-/** compare two character string according to their charset. */
-int innobase_fts_text_cmp_prefix(const void *cs, /*!< in: Character set */
-                                 const void *p1, /*!< in: prefix key */
-                                 const void *p2) /*!< in: value to compare */
-{
+/** Compare two character string according to their charset.
+@param[in] cs Character set
+@param[in] p1 Key
+@param[in] p2 Node */
+extern int innobase_fts_text_cmp_prefix(const void *cs, const void *p1,
+                                        const void *p2) {
   const CHARSET_INFO *charset = (const CHARSET_INFO *)cs;
   const fts_string_t *s1 = (const fts_string_t *)p1;
   const fts_string_t *s2 = (const fts_string_t *)p2;
@@ -7307,14 +7311,15 @@ int innobase_fts_text_cmp_prefix(const void *cs, /*!< in: Character set */
   return (-result);
 }
 
-/** Makes all characters in a string lower case. */
-size_t innobase_fts_casedn_str(
-    CHARSET_INFO *cs, /*!< in: Character set */
-    char *src,        /*!< in: string to put in lower case */
-    size_t src_len,   /*!< in: input string length */
-    char *dst,        /*!< in: buffer for result string */
-    size_t dst_len)   /*!< in: buffer size */
-{
+/** Makes all characters in a string lower case.
+@param[in] cs Character set
+@param[in] src String to put in lower case
+@param[in] src_len Input string length
+@param[in] dst Buffer for result string
+@param[in] dst_len Buffer size */
+extern size_t innobase_fts_casedn_str(CHARSET_INFO *cs, char *src,
+                                      size_t src_len, char *dst,
+                                      size_t dst_len) {
   if (cs->casedn_multiply == 1) {
     memcpy(dst, src, src_len);
     dst[src_len] = 0;
@@ -7852,7 +7857,8 @@ static mysql_row_templ_t *build_template_field(
 
 /** Builds a 'template' to the m_prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing.
-@param[in] whole_row  true=ROW_MYSQL_WHOLE_ROW, false=ROW_MYSQL_REC_FIELDS */
+@param[in] whole_row true if access is needed to a whole row, false if accessing
+individual fields is enough */
 void ha_innobase::build_template(bool whole_row) {
   dict_index_t *index;
   dict_index_t *clust_index;
@@ -10712,9 +10718,9 @@ void ha_innobase::position(const uchar *record) {
 }
 
 /** Set up base columns for virtual column
-@param[in]	table		InnoDB table
-@param[in]	field		MySQL field
-@param[in,out]	v_col		virtual column */
+@param[in]	table	the InnoDB table
+@param[in]	field	MySQL field
+@param[in,out]	v_col	virtual column to be set up */
 void innodb_base_col_setup(dict_table_t *table, const Field *field,
                            dict_v_col_t *v_col) {
   int n = 0;
@@ -12726,9 +12732,9 @@ static ulint innobase_parse_merge_threshold(THD *thd, const char *str) {
 
 /** Parse hint for table and its indexes, and update the information
 in dictionary.
-@param[in]	thd		connection
-@param[in,out]	table		target table
-@param[in]	table_share	table definition */
+@param[in]	thd		Connection thread
+@param[in,out]	table		Target table
+@param[in]	table_share	Table definition */
 void innobase_parse_hint_from_comment(THD *thd, dict_table_t *table,
                                       const TABLE_SHARE *table_share) {
   ulint merge_threshold_table;
@@ -14341,13 +14347,14 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
 }
 
 /** Create an InnoDB table.
-@param[in]	name		table name
+@param[in]	name		table name in filename-safe encoding
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
 @param[in,out]	table_def	dd::Table describing table to be
 created. Can be adjusted by SE, the changes will be saved into data-dictionary
 at statement commit time.
-@return error number */
+@return error number
+@retval 0 on success */
 int ha_innobase::create(const char *name, TABLE *form,
                         HA_CREATE_INFO *create_info, dd::Table *table_def) {
   THD *thd = ha_thd();
@@ -14563,8 +14570,8 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
 @param[in]	name		table name
 @param[in]	table_def	dd::Table describing table to
 be dropped
-@return error number */
-
+@return	error number
+@retval 0 on success */
 int ha_innobase::delete_table(const char *name, const dd::Table *table_def) {
   if (table_def != nullptr &&
       dict_sys_t::is_dd_table_id(table_def->se_private_id())) {
@@ -15589,11 +15596,11 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
-@param[in]	alter_info	How to do the command
+@param[in]	alter_info	Describes the command and how to do it.
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
-tablespace
-@param[in,out]	new_ts_def	New version of dd::Tablespace object for
-the tablespace. Can be adjusted by SE. Changes will be persisted in the
+tablespace.
+@param[in,out]	new_ts_def	New version of dd::Tablespace object for the
+tablespace. Can be adjusted by SE. Changes will be persisted in the
 data-dictionary at statement commit.
 @return MySQL error code*/
 static int innobase_alter_tablespace(handlerton *hton, THD *thd,
@@ -16181,11 +16188,11 @@ static int innobase_get_mysql_key_number_for_index(
   ut_error;
 }
 
-/** Calculate Record Per Key value. Excludes the NULL value if
-innodb_stats_method is set to "nulls_ignored"
-@param[in]	index		dict_index_t structure
-@param[in]	i		column we are calculating rec per key
-@param[in]	records		estimated total records
+/** Calculate Record Per Key value.
+Need to exclude the NULL value if innodb_stats_method is set to "nulls_ignored"
+@param[in]	index	InnoDB index.
+@param[in]	i	The column we are calculating rec per key.
+@param[in]	records	Estimated total records.
 @return estimated record per key value */
 rec_per_key_t innodb_rec_per_key(const dict_index_t *index, ulint i,
                                  ha_rows records) {
@@ -17003,14 +17010,13 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
   return false;
 }
 
-/**
-  Get the tablespace type given the name.
+/** Get the tablespace type given the name.
 
-  @param[in]  tablespace_name tablespace name
-  @param[out] space_type      type of space
+@param[in]  tablespace_name tablespace name
+@param[out] space_type      type of space
 
-  @return Operation status.
-  @retval false on success and true for failure.
+@return Operation status.
+@retval false on success and true for failure.
 */
 static bool innobase_get_tablespace_type_by_name(const char *tablespace_name,
                                                  Tablespace_type *space_type) {
@@ -22512,7 +22518,7 @@ innobase_index_cond(ha_innobase *h) /*!< in/out: pointer to ha_innobase */
 }
 
 /** Get the computed value by supplying the base column values.
-@param[in,out]	table	table whose virtual column template to be built */
+@param[in,out]	table	the table whose virtual column template to be built */
 void innobase_init_vc_templ(dict_table_t *table) {
   mutex_enter(&dict_sys->mutex);
 
@@ -22544,7 +22550,7 @@ void innobase_init_vc_templ(dict_table_t *table) {
 }
 
 /** Change dbname and table name in table->vc_templ.
-@param[in,out]	table	table whose virtual column template
+@param[in,out]	table	the table whose virtual column template
 dbname and tbname to be renamed. */
 void innobase_rename_vc_templ(dict_table_t *table) {
   std::string schema_name;
@@ -22593,7 +22599,7 @@ static dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
 /** Get the computed value by supplying the base column values.
 @param[in,out]	row		the data row
 @param[in]	col		virtual column
-@param[in]	index		index
+@param[in]	index		index on the virtual column
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
 @param[in]	ifield		index field
@@ -22813,8 +22819,7 @@ dfield_t *innobase_get_computed_value(
 /** Attempt to push down an index condition.
 @param[in] keyno MySQL key number
 @param[in] idx_cond Index condition to be checked
-@return Part of idx_cond which the handler will not evaluate */
-
+@return idx_cond if pushed; NULL if not pushed */
 class Item *ha_innobase::idx_cond_push(uint keyno, class Item *idx_cond) {
   DBUG_TRACE;
   DBUG_ASSERT(keyno != MAX_KEY);

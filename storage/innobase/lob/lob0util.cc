@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,11 +37,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** Allocate one LOB page.
-@param[in]	index	the index in which LOB exists.
-@param[in]	lob_mtr	the mini-transaction context.
-@param[in]	hint	the hint page number for allocation.
-@param[in]	bulk	true if operation is OPCODE_INSERT_BULK,
-                        false otherwise.
+@param[in]  index   Index in which LOB exists.
+@param[in]  lob_mtr Mini-transaction context.
+@param[in]  hint    Hint page number for allocation.
+@param[in]  bulk    true if operation is OPCODE_INSERT_BULK,
+                    false otherwise.
 @return the allocated block of the BLOB page or nullptr. */
 buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
                             bool bulk) {
@@ -171,13 +171,13 @@ dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
 }
 
 /** Get information about the given LOB.
-@param[in]	ref	the LOB reference.
-@param[in]	index	the clustered index to which LOB belongs.
-@param[out]	lob_version	the lob version number.
-@param[out]	last_trx_id	the trx_id that modified the lob last.
-@param[out]	last_undo_no	the trx undo no that modified the lob last.
-@param[out]	page_type	the page type of first lob page.
-@param[in]	mtr		the mini transaction context.
+@param[in]	ref	          LOB reference.
+@param[in]	index	        Clustered index to which LOB belongs.
+@param[out]	lob_version	  LOB version number.
+@param[out]	last_trx_id   trx_id that modified the lob last.
+@param[out]	last_undo_no  Trx undo no that modified the lob last.
+@param[out]	page_type	the Page type of first lob page.
+@param[in]	mtr		        Mini-transaction context.
 @return always returns DB_SUCCESS. */
 dberr_t get_info(ref_t &ref, dict_index_t *index, ulint &lob_version,
                  trx_id_t &last_trx_id, undo_no_t &last_undo_no,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -72,7 +72,7 @@ Check if it is OK to re-acquire the lock. */
 void sync_check_relock(const latch_t *latch);
 
 /** Removes a latch from the thread level array if it is found there.
-@param[in]	latch	to unlock */
+@param[in]	latch		The latch to unlock */
 void sync_check_unlock(const latch_t *latch);
 
 /** Checks if the level array for the current thread contains a

@@ -356,7 +356,8 @@ class BtrBulk {
   pointer to father page if needed, and commit mini-transaction.
   @param[in]	page_bulk	page to commit
   @param[in]	next_page_bulk	next page
-  @param[in]	insert_father	flag whether need to insert node ptr
+  @param[in]	insert_father	false when page_bulk is a root page and
+                                  true when it's a non-root page
   @return	error code */
   dberr_t pageCommit(PageBulk *page_bulk, PageBulk *next_page_bulk,
                      bool insert_father) MY_ATTRIBUTE((warn_unused_result));
@@ -381,7 +382,7 @@ class BtrBulk {
   /** Insert a tuple to a page.
   @param[in]  page_bulk   page bulk object
   @param[in]  tuple       tuple to insert
-  @param[in]  big_rec     big record vector, maybe NULL if there is no
+  @param[in]  big_rec     big record vector, could be nullptr if there is no
                           data to be stored externally.
   @param[in]  rec_size    record size
   @return error code */

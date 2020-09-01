@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,10 +36,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 
 /** Gets a rollback segment header.
-@param[in]	space		space where placed
-@param[in]	page_no		page number of the header
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
+@param[in]	space		Space where placed
+@param[in]	page_no		Page number of the header
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
@@ -57,10 +57,10 @@ trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
 }
 
 /** Gets a newly created rollback segment header.
-@param[in]	space		space where placed
-@param[in]	page_no		page number of the header
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
+@param[in]	space		Space where placed
+@param[in]	page_no		Page number of the header
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t *trx_rsegf_get_new(space_id_t space, page_no_t page_no,

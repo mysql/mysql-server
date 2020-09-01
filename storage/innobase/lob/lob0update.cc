@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -86,10 +86,12 @@ static void print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
 #endif /* UNIV_DEBUG */
 
 /** Update a portion of the given LOB.
-@param[in] trx       the transaction that is doing the modification.
-@param[in] index     the clustered index containing the LOB.
-@param[in] upd       update vector
-@param[in] field_no  the LOB field number
+@param[in]	ctx		update operation context information.
+@param[in]	trx		the transaction that is doing the modification.
+@param[in]	index		the clustered index containing the LOB.
+@param[in]	upd		update vector
+@param[in]	field_no	the LOB field number
+@param[in]	blobref		LOB reference stored in clust record.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                const upd_t *upd, ulint field_no, ref_t blobref) {
@@ -161,12 +163,14 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 }
 
 #ifdef UNIV_DEBUG
-/** Validate the size of a BLOB.
-@param[in]	lob_size	the given lob size.
-@param[in]	index		the index to which BLOB belongs.
-@param[in]	node_loc	the file node location of BLOB.
-@param[in]	mtr		the latching context.
-@return true if LOB size is valid, false otherwise. */
+
+/** Validate the size of the given LOB.
+@param[in]  lob_size  Expected size of the LOB, mostly obtained from
+                      the LOB reference.
+@param[in]  index     Clustered index containing the LOB.
+@param[in]  node_loc  Location of the first LOB index entry.
+@param[in]  mtr       Mini-transaction context.
+@return true if size is valid, false otherwise. */
 bool validate_size(const ulint lob_size, dict_index_t *index,
                    fil_addr_t node_loc, mtr_t *mtr) {
   buf_block_t *block = nullptr;
@@ -205,11 +209,11 @@ bool validate_size(const ulint lob_size, dict_index_t *index,
 
 /** Find the file location of the index entry which gives the portion of LOB
 containing the requested offset.
-@param[in]	trx		the current transaction.
-@param[in]	index		the clustered index containing LOB.
+@param[in]	trx		The current transaction.
+@param[in]	index		The clustered index containing LOB.
 @param[in]	node_loc	Location of first index entry.
-@param[in]	offset		the LOB offset whose location we seek.
-@param[in]	mtr		mini-transaction context.
+@param[in]	offset		The LOB offset whose location we seek.
+@param[in]	mtr		Mini-transaction context.
 @return file location of index entry which contains requested LOB offset.*/
 fil_addr_t find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
                        ulint &offset, mtr_t *mtr) {

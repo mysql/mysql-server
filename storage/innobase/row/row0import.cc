@@ -634,7 +634,10 @@ struct FetchIndexRootPages : public AbstractCallback {
     return (err);
   }
 
-  /** Called for each block as it is read from the file.
+  /** Called for each block as it is read from the file. Check index pages to
+  determine the exact row format. We can't get that from the tablespace
+  header flags alone.
+
   @param offset physical offset in the file
   @param block block to convert, it is not from the buffer pool.
   @retval DB_SUCCESS or error code. */
@@ -813,9 +816,10 @@ class PageConverter : public AbstractCallback {
     return (m_space_flags);
   }
 
-  /** Called for each block as it is read from the file.
-  @param offset physical offset in the file
-  @param block block to convert, it is not from the buffer pool.
+  /** Called for every page in the tablespace. If the page was not
+  updated then its state must be set to BUF_PAGE_NOT_USED.
+  @param offset physical offset within the file
+  @param block block read from file, note it is not from the buffer pool
   @retval DB_SUCCESS or error code. */
   dberr_t operator()(os_offset_t offset,
                      buf_block_t *block) override UNIV_NOTHROW;
@@ -889,10 +893,10 @@ class PageConverter : public AbstractCallback {
   dberr_t adjust_cluster_index_blob_ref(rec_t *rec,
                                         const ulint *offsets) UNIV_NOTHROW;
 
-  /** Purge delete-marked records, only if it is possible to do
-  so without re-organising the B+tree.
+  /** Purge delete-marked records, only if it is possible to do so without
+  re-organising the B+tree.
   @param offsets current row offsets.
-  @retval true if purged */
+  @return true if purge succeeded */
   bool purge(const ulint *offsets) UNIV_NOTHROW;
 
   /** Adjust the BLOB references and sys fields for the current record.
@@ -1845,6 +1849,7 @@ bool PageConverter::purge(const ulint *offsets) UNIV_NOTHROW {
 }
 
 /** Adjust the BLOB references and sys fields for the current record.
+@param index the index being converted
 @param rec record to update
 @param offsets column offsets for the record
 @param deleted true if row is delete marked
@@ -2015,6 +2020,7 @@ dberr_t PageConverter::update_header(buf_block_t *block) UNIV_NOTHROW {
 
 /** Update the page, set the space id, max trx id and index id.
 @param block block read from file
+@param page_type type of the page
 @retval DB_SUCCESS or error code */
 dberr_t PageConverter::update_page(buf_block_t *block,
                                    ulint &page_type) UNIV_NOTHROW {
@@ -2133,10 +2139,10 @@ dberr_t PageConverter::update_page(buf_block_t *block,
   return (DB_CORRUPTION);
 }
 
-/** Validate the page
+/** Validate the page, check for corruption.
 @param	offset	physical offset within file.
 @param	block	page read from file.
-@return status */
+@return 0 on success, 1 if all zero, 2 if corrupted */
 PageConverter::import_page_status_t PageConverter::validate(
     os_offset_t offset, buf_block_t *block) UNIV_NOTHROW {
   buf_frame_t *page = get_frame(block);

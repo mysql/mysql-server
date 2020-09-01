@@ -130,9 +130,10 @@ dberr_t lock_prdt_insert_check_and_lock(
     mtr_t *mtr,          /*!< in/out: mini-transaction */
     lock_prdt_t *prdt);  /*!< in: Minimum Bound Rectangle */
 
-/** Append a predicate to the lock */
-void lock_prdt_set_prdt(lock_t *lock,             /*!< in: lock */
-                        const lock_prdt_t *prdt); /*!< in: Predicate */
+/** Append a predicate to the lock
+@param[in] lock Lock
+@param[in] prdt Predicate */
+void lock_prdt_set_prdt(lock_t *lock, const lock_prdt_t *prdt);
 
 #if 0
 

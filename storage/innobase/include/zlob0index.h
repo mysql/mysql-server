@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -135,7 +135,7 @@ struct z_index_entry_t {
       : m_node(node), m_mtr(mtr), m_index(index) {}
 
   /** Constructor
-  @param[in]	mtr	the mini transaction
+  @param[in]	mtr	the mini-transaction
   @param[in]	index	the clustered index to which LOB belongs. */
   z_index_entry_t(mtr_t *mtr, dict_index_t *index)
       : m_node(nullptr),
@@ -382,13 +382,13 @@ struct z_index_entry_t {
   }
 
   /** Set the page number pointed to by this index entry to FIL_NULL.
-   @param[in]   mtr    The mini transaction used for this modification. */
+   @param[in]   mtr    The mini-transaction used for this modification. */
   void set_z_page_no_null(mtr_t *mtr) {
     mlog_write_ulint(m_node + OFFSET_Z_PAGE_NO, FIL_NULL, MLOG_4BYTES, mtr);
   }
 
   /** Free the data pages pointed to by this index entry.
-  @param[in]   mtr   the mini transaction used to free the pages.
+  @param[in]   mtr   the mini-transaction used to free the pages.
   @return the number of pages freed. */
   size_t free_data_pages(mtr_t *mtr);
 
@@ -456,8 +456,8 @@ struct z_index_entry_t {
   current entry to older entry.
   @param[in]	index	the index in which LOB exists.
   @param[in]	trxid	The transaction identifier.
-  @param[in]	first	The first lob page containing index list
-                          and free list. */
+  @param[in]	first	The first lob page containing index list and free
+  list. */
   fil_addr_t make_old_version_current(dict_index_t *index, trx_id_t trxid,
                                       z_first_page_t &first);
 
@@ -520,7 +520,7 @@ struct z_index_entry_t {
   /** The file list node in a db page. This node is persisted. */
   flst_node_t *m_node;
 
-  /** A mini transaction. */
+  /** A mini-transaction. */
   mtr_t *m_mtr;
 
   /** The index containing the LOB. */

@@ -97,10 +97,13 @@ bool que_thr_stop(que_thr_t *thr);
 void que_thr_move_to_run_state_for_mysql(
     que_thr_t *thr, /*!< in: an query thread */
     trx_t *trx);    /*!< in: transaction */
+
 /** A patch for MySQL used to 'stop' a dummy query thread used in MySQL
- select, when there is no error or lock wait. */
-void que_thr_stop_for_mysql_no_error(que_thr_t *thr, /*!< in: query thread */
-                                     trx_t *trx);    /*!< in: transaction */
+ select, when there is no error or lock wait.
+@param[in] thr Query thread
+@param[in] trx Transaction */
+void que_thr_stop_for_mysql_no_error(que_thr_t *thr, trx_t *trx);
+
 /** A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
  query thread is stopped and made inactive, except in the case where
  it was put to the lock wait state in lock0lock.cc, but the lock has already

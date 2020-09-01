@@ -451,7 +451,7 @@ static void log_wait_for_space_after_reserving(log_t &log,
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 /** Waits for the start_sn unlocked and allowed to write to the buffer.
 @param[in,out] log       redo log
@@ -655,7 +655,7 @@ void log_buffer_x_lock_exit(log_t &log) {
   LOG_SYNC_POINT("log_buffer_x_lock_exit_after_unlock");
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -663,7 +663,7 @@ void log_buffer_x_lock_exit(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 static void log_wait_for_space_after_reserving(log_t &log,
                                                const Log_handle &handle) {
@@ -827,7 +827,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   Log_handle handle;
 
   /* In 5.7, we incremented log_write_requests for each single
-  write to log buffer in commit of mini transaction.
+  write to log buffer in commit of mini-transaction.
 
   However, writes which were solved by log_reserve_and_write_fast
   missed to increment the counter. Therefore it wasn't reliable.
@@ -876,7 +876,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   return (handle);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -884,7 +884,7 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 lsn_t log_buffer_write(log_t &log, const Log_handle &handle, const byte *str,
                        size_t str_len, lsn_t start_lsn) {
@@ -1241,7 +1241,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
   block_len = OS_FILE_LOG_BLOCK_SIZE;
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1252,7 +1252,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 bool log_advance_ready_for_write_lsn(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
@@ -1305,6 +1305,6 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
   }
 }
 
-/* @} */
+/** @} */
 
 #endif /* !UNIV_HOTBACKUP */

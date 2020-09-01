@@ -205,7 +205,7 @@ class PCursor {
  public:
   /** Constructor.
   @param[in,out]  pcur  Persistent cursor in use.
-  @param[in]      mtr   Mini transaction used by the persistent cursor.
+  @param[in]      mtr   Mini-transaction used by the persistent cursor.
   @param[in]      read_level  read level where the block should be present. */
   PCursor(btr_pcur_t *pcur, mtr_t *mtr, size_t read_level)
       : m_mtr(mtr), m_pcur(pcur), m_read_level(read_level) {}
@@ -238,7 +238,7 @@ class PCursor {
   }
 
  private:
-  /** Mini transaction. */
+  /** Mini-transaction. */
   mtr_t *m_mtr{};
 
   /** Persistent cursor. */

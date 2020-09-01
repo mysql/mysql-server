@@ -517,9 +517,9 @@ void PageBulk::setPrev(page_no_t prev_page_no) {
   btr_page_set_prev(m_page, nullptr, prev_page_no, m_mtr);
 }
 
-/** Check if required space is available in the page for the rec to be inserted.
-We check fill factor & padding here.
-@param[in]	rec_size	required length
+/** Check if required space is available in the page for the rec
+to be inserted.	We check fill factor & padding here.
+@param[in]	rec_size	required space
 @return true	if space is available */
 bool PageBulk::isSpaceAvailable(ulint rec_size) const {
   ulint slot_size = page_dir_calc_reserved_space(m_rec_no + 1) -

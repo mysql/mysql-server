@@ -236,7 +236,7 @@ void ibuf_count_check(const page_id_t &page_id) {
 #endif
 
 /** @name Offsets to the per-page bits in the insert buffer bitmap */
-/* @{ */
+/** @{ */
 #define IBUF_BITMAP_FREE     \
   0 /*!< Bits indicating the \
     amount of free space */
@@ -248,7 +248,7 @@ void ibuf_count_check(const page_id_t &page_id) {
     the ibuf tree, excluding the   \
     root page, or is in the free   \
     list of the ibuf */
-/* @} */
+/** @} */
 
 #define IBUF_REC_FIELD_SPACE    \
   0 /*!< in the pre-4.1 format, \
@@ -269,7 +269,6 @@ top of this file. */
 /** @name Format of the IBUF_REC_FIELD_METADATA of an insert buffer record
 The fourth column in the MySQL 5.5 format contains an operation
 type, counter, and some flags. */
-/* @{ */
 #define IBUF_REC_INFO_SIZE               \
   4 /*!< Combined size of info fields at \
     the beginning of the fourth field */
@@ -591,11 +590,11 @@ byte *ibuf_parse_bitmap_init(byte *ptr, /*!< in: buffer */
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Gets the desired bits for a given page from a bitmap page.
-@param[in]	page		bitmap page
-@param[in]	page_id		page id whose bits to get
-@param[in]	page_size	page id whose bits to get
+@param[in]	page		Bitmap page
+@param[in]	page_id		Page id whose bits to get
+@param[in]	page_size	Page id whose bits to get
 @param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
-@param[in,out]	mtr		mini-transaction holding an x-latch on the
+@param[in,out]	mtr		Mini-transaction holding an x-latch on the
 bitmap page
 @return value of bits */
 #define ibuf_bitmap_page_get_bits(page, page_id, page_size, bit, mtr)          \
@@ -603,11 +602,11 @@ bitmap page
                                 mtr, bit)
 #else /* UNIV_DEBUG */
 /** Gets the desired bits for a given page from a bitmap page.
-@param[in]	page		bitmap page
-@param[in]	page_id		page id whose bits to get
-@param[in]	page_size	page id whose bits to get
+@param[in]	page		Bitmap page
+@param[in]	page_id		Page id whose bits to get
+@param[in]	page_size	Page id whose bits to get
 @param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
-@param[in,out]	mtr		mini-transaction holding an x-latch on the
+@param[in,out]	mtr		Mini-transaction holding an x-latch on the
 bitmap page
 @return value of bits */
 #define ibuf_bitmap_page_get_bits(page, page_id, page_size, bit, mtr) \
@@ -615,13 +614,13 @@ bitmap page
 #endif /* UNIV_DEBUG */
 
 /** Gets the desired bits for a given page from a bitmap page.
-@param[in]	page		bitmap page
-@param[in]	page_id		page id whose bits to get
-@param[in]	page_size	page size */
+@param[in]	page		Bitmap page
+@param[in]	page_id		Page id whose bits to get
+@param[in]	page_size	Page size */
 #ifdef UNIV_DEBUG
 /**
 @param[in]	latch_type	MTR_MEMO_PAGE_X_FIX, MTR_MEMO_BUF_FIX, ...
-@param[in,out]	mtr		mini-transaction holding latch_type on the
+@param[in,out]	mtr		Mini-transaction holding latch_type on the
 bitmap page */
 #endif /* UNIV_DEBUG */
 /**
@@ -732,11 +731,11 @@ const page_id_t ibuf_bitmap_page_no_calc(const page_id_t &page_id,
 
 /** Gets the ibuf bitmap page where the bits describing a given file page are
 stored.
-@param[in]	page_id		page id of the file page
-@param[in]	page_size	page size of the file page
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in,out]	mtr		mini-transaction
+@param[in]	page_id		Page id of the file page
+@param[in]	page_size	Page size of the file page
+@param[in]	file		File name
+@param[in]	line		Line where called
+@param[in,out]	mtr		Mini-transaction
 @return bitmap page where the file page is mapped, that is, the bitmap
 page containing the descriptor bits for the file page; the bitmap page
 is x-latched */
@@ -757,9 +756,9 @@ static page_t *ibuf_bitmap_get_map_page_func(const page_id_t &page_id,
 
 /** Gets the ibuf bitmap page where the bits describing a given file page are
 stored.
-@param[in]	page_id		page id of the file page
-@param[in]	page_size	page size of the file page
-@param[in,out]	mtr		mini-transaction
+@param[in]	page_id		Page id of the file page
+@param[in]	page_size	Page size of the file page
+@param[in,out]	mtr		Mini-transaction
 @return bitmap page where the file page is mapped, that is, the bitmap
 page containing the descriptor bits for the file page; the bitmap page
 is x-latched */
@@ -1154,18 +1153,18 @@ static space_id_t ibuf_rec_get_space_func(
 /** Get various information about an ibuf record in >= 4.1.x format. */
 #ifdef UNIV_DEBUG
 /**
-@param[in]	mtr		mini-transaction owning rec, or nullptr if this
+@param[in]	mtr		Mini-transaction owning rec, or nullptr if this
                                 is called from ibuf_rec_has_multi_value().
                                 Because it's from page_validate() which doesn't
                                 have mtr at hand */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	rec		ibuf record
-@param[in,out]	op		operation type, or NULL
-@param[in,out]	comp		compact flag, or NULL
-@param[in,out]	info_len	length of info fields at the start of the
+@param[in]	rec		Ibuf record
+@param[in,out]	op		Operation type, or NULL
+@param[in,out]	comp		Compact flag, or NULL
+@param[in,out]	info_len	Length of info fields at the start of the
                                 fourth field, or NULL
-@param[in]	counter		counter value, or NULL */
+@param[in]	counter		Counter value, or NULL */
 static void ibuf_rec_get_info_func(
 #ifdef UNIV_DEBUG
     mtr_t *mtr,
@@ -2248,7 +2247,7 @@ static ulint ibuf_get_merge_page_nos_func(
  @return current rec or NULL */
 static MY_ATTRIBUTE((warn_unused_result)) const rec_t *ibuf_get_user_rec(
     btr_pcur_t *pcur, /*!< in: the current cursor */
-    mtr_t *mtr)       /*!< in: mini transaction */
+    mtr_t *mtr)       /*!< in: mini-transaction */
 {
   do {
     const rec_t *rec = btr_pcur_get_rec(pcur);
@@ -2271,7 +2270,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ulint
                          page_no_t *pages, /*!< out: pages read */
                          space_id_t *spaces, /*!< out: spaces read */
                          ulint *n_pages,     /*!< out: number of pages read */
-                         mtr_t *mtr)         /*!< in: mini transaction */
+                         mtr_t *mtr)         /*!< in: mini-transaction */
 {
   const rec_t *rec;
   ulint volume = 0;
@@ -4043,14 +4042,11 @@ function deletes its buffered entries from the insert buffer; there can
 exist entries for such a page if the page belonged to an index which
 subsequently was dropped.
 @param[in,out]	block			if page has been read from disk,
-                                        pointer to the page x-latched, else
-                                        NULL
+pointer to the page x-latched, else NULL
 @param[in]	page_id			page id of the index page
-@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but if
-                                        we have deleted or are deleting the
-                                        tablespace, then we naturally do not
-                                        want to update a non-existent bitmap
-                                        page
+@param[in]	update_ibuf_bitmap	normally this is set to TRUE, but
+if we have deleted or are deleting the tablespace, then we naturally do not
+want to update a non-existent bitmap page
 @param[in]	page_size		page size */
 void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
                                    const page_size_t *page_size,

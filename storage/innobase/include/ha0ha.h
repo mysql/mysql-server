@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -165,11 +165,15 @@ ibool ha_search_and_delete_if_found(hash_table_t *table, ulint fold,
                                     const rec_t *data);
 
 #ifndef UNIV_HOTBACKUP
+
 /** Removes from the chain determined by fold all nodes whose data pointer
- points to the page given. */
-void ha_remove_all_nodes_to_page(hash_table_t *table, /*!< in: hash table */
-                                 ulint fold,          /*!< in: fold value */
-                                 const page_t *page); /*!< in: buffer page */
+ points to the page given.
+@param[in] table Hash table
+@param[in] fold Fold value
+@param[in] page Buffer page */
+void ha_remove_all_nodes_to_page(hash_table_t *table, ulint fold,
+                                 const page_t *page);
+
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Validates a given range of the cells in hash table.
  @return true if ok */
@@ -177,10 +181,13 @@ ibool ha_validate(hash_table_t *table, /*!< in: hash table */
                   ulint start_index,   /*!< in: start index */
                   ulint end_index);    /*!< in: end index */
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
-/** Prints info of a hash table. */
-void ha_print_info(FILE *file,           /*!< in: file where to print */
-                   hash_table_t *table); /*!< in: hash table */
-#endif                                   /* !UNIV_HOTBACKUP */
+
+/** Prints info of a hash table.
+@param[in] file File where to print
+@param[in] table Hash table */
+void ha_print_info(FILE *file, hash_table_t *table);
+
+#endif /* !UNIV_HOTBACKUP */
 
 /** The hash table external chain node */
 struct ha_node_t {

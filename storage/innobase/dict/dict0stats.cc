@@ -1041,7 +1041,7 @@ static void dict_stats_analyze_index_level(
   mem_heap_free(heap);
 }
 
-/* aux enum for controlling the behavior of dict_stats_scan_page() @{ */
+/** aux enum for controlling the behavior of dict_stats_scan_page() @{ */
 enum page_scan_method_t {
   COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED, /* scan all records on
                            the given page and count the number of
@@ -1054,7 +1054,7 @@ enum page_scan_method_t {
                            distinct ones, include delete marked
                            records */
 };
-/* @} */
+/** @} */
 
 /** Scan a page, reading records from left to right and counting the number
 of distinct records (looking only at the first n_prefix
@@ -1360,10 +1360,10 @@ the first n_prefix columns. For a given level in an index select
 n_diff_data->n_leaf_pages_to_analyze records from that level and dive below
 them to the corresponding leaf pages, then scan those leaf pages and save the
 sampling results in n_diff_data->n_diff_all_analyzed_pages.
-@param[in]	index			index
-@param[in]	n_prefix		look at first 'n_prefix' columns when
+@param[in]	index			Index
+@param[in]	n_prefix		Look at first 'n_prefix' columns when
 comparing records
-@param[in]	boundaries		a vector that contains
+@param[in]	boundaries		A vector that contains
 n_diff_data->n_diff_on_level integers each of which represents the index (on
 level 'level', counting from left/smallest to right/biggest from 0) of the
 last record from each group of distinct keys
@@ -1371,7 +1371,7 @@ last record from each group of distinct keys
 n_external_pages_sum in this structure will be set by this function. The
 members level, n_diff_on_level and n_leaf_pages_to_analyze must be set by the
 caller in advance - they are used by some calculations inside this function
-@param[in,out]	mtr			mini-transaction */
+@param[in,out]	mtr			Mini-transaction */
 static void dict_stats_analyze_index_for_n_prefix(
     dict_index_t *index, ulint n_prefix, const boundaries_t *boundaries,
     n_diff_data_t *n_diff_data, mtr_t *mtr) {
@@ -3464,9 +3464,9 @@ void TableStatsRecord::set_data(const byte *data, ulint col_offset, ulint len) {
   }
 }
 
-/* tests @{ */
+/** tests @{ */
 #ifdef UNIV_COMPILE_TEST_FUNCS
-/* save/fetch aux macros @{ */
+/** save/fetch aux macros @{ */
 #define TEST_DATABASE_NAME "foobardb"
 #define TEST_TABLE_NAME "test_dict_stats"
 
@@ -3496,9 +3496,9 @@ void TableStatsRecord::set_data(const byte *data, ulint col_offset, ulint len) {
 #define TEST_IDX2_N_DIFF3_SAMPLE_SIZE 620
 #define TEST_IDX2_N_DIFF4 63
 #define TEST_IDX2_N_DIFF4_SAMPLE_SIZE 630
-/* @} */
+/** @} */
 
-/* test_dict_stats_save() @{ */
+/** test_dict_stats_save() @{ */
 void test_dict_stats_save() {
   dict_table_t table;
   dict_index_t index1;
@@ -3631,9 +3631,9 @@ void test_dict_stats_save() {
       TEST_IDX2_N_DIFF4, TEST_IDX2_N_DIFF4_SAMPLE_SIZE, TEST_IDX2_COL1_NAME,
       TEST_IDX2_COL2_NAME, TEST_IDX2_COL3_NAME, TEST_IDX2_COL4_NAME);
 }
-/* @} */
+/** @} */
 
-/* test_dict_stats_fetch_from_ps() @{ */
+/** test_dict_stats_fetch_from_ps() @{ */
 void test_dict_stats_fetch_from_ps() {
   dict_table_t table;
   dict_index_t index1;
@@ -3691,15 +3691,15 @@ void test_dict_stats_fetch_from_ps() {
 
   printf("OK: fetch successful\n");
 }
-/* @} */
+/** @} */
 
-/* test_dict_stats_all() @{ */
+/** test_dict_stats_all() @{ */
 void test_dict_stats_all() {
   test_dict_stats_save();
 
   test_dict_stats_fetch_from_ps();
 }
-/* @} */
+/** @} */
 
 #endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
-/* @} */
+/** @} */

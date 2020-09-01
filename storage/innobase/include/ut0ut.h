@@ -313,9 +313,10 @@ database_name.table_name.
 @return pointer to 'formatted' */
 char *ut_format_name(const char *name, char *formatted, ulint formatted_size);
 
-/** Catenate files. */
-void ut_copy_file(FILE *dest, /*!< in: output file */
-                  FILE *src); /*!< in: input file to be appended to output */
+/** Catenate files.
+@param[in] dest Output file
+@param[in] src Input file to be appended to output */
+void ut_copy_file(FILE *dest, FILE *src);
 
 /** Convert byte value to string with unit
 @param[in]      data_bytes      byte value

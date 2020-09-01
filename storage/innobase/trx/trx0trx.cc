@@ -120,10 +120,10 @@ void trx_set_flush_observer(trx_t *trx, FlushObserver *observer) {
   trx->flush_observer = observer;
 }
 
-/** Set detailed error message for the transaction. */
-void trx_set_detailed_error(trx_t *trx,      /*!< in: transaction struct */
-                            const char *msg) /*!< in: detailed error message */
-{
+/** Set detailed error message for the transaction.
+@param[in] trx Transaction struct
+@param[in] msg Detailed error message */
+void trx_set_detailed_error(trx_t *trx, const char *msg) {
   ut_strlcpy(trx->detailed_error, msg, MAX_DETAILED_ERROR_LEN);
 }
 
@@ -1992,12 +1992,11 @@ written */
   ut_a(trx->error_state == DB_SUCCESS);
 }
 
-/** Commits a transaction and a mini-transaction. */
-void trx_commit_low(
-    trx_t *trx, /*!< in/out: transaction */
-    mtr_t *mtr) /*!< in/out: mini-transaction (will be committed),
-                or NULL if trx made no modifications */
-{
+/** Commits a transaction and a mini-transaction.
+@param[in,out] trx Transaction
+@param[in,out] mtr Mini-transaction (will be committed), or null if trx made no
+modifications */
+void trx_commit_low(trx_t *trx, mtr_t *mtr) {
   assert_trx_nonlocking_or_in_list(trx);
   ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
   ut_ad(!mtr || mtr->is_active());
@@ -3072,11 +3071,10 @@ trx_t *trx_get_trx_by_xid(const XID *xid) {
   return (trx);
 }
 
-/** Starts the transaction if it is not yet started. */
-void trx_start_if_not_started_xa_low(
-    trx_t *trx,      /*!< in/out: transaction */
-    bool read_write) /*!< in: true if read write transaction */
-{
+/** Starts the transaction if it is not yet started.
+@param[in,out] trx Transaction
+@param[in] read_write True if read write transaction */
+void trx_start_if_not_started_xa_low(trx_t *trx, bool read_write) {
   switch (trx->state) {
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:
@@ -3104,11 +3102,10 @@ void trx_start_if_not_started_xa_low(
   ut_error;
 }
 
-/** Starts the transaction if it is not yet started. */
-void trx_start_if_not_started_low(
-    trx_t *trx,      /*!< in: transaction */
-    bool read_write) /*!< in: true if read write transaction */
-{
+/** Starts the transaction if it is not yet started.
+@param[in] trx Transaction
+@param[in] read_write True if read write transaction */
+void trx_start_if_not_started_low(trx_t *trx, bool read_write) {
   switch (trx->state) {
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:

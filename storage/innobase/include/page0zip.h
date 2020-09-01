@@ -116,9 +116,10 @@ UNIV_INLINE
 void page_zip_des_init(page_zip_des_t *page_zip); /*!< in/out: compressed page
                                                   descriptor */
 
-/** Configure the zlib allocator to use the given memory heap. */
-void page_zip_set_alloc(void *stream,      /*!< in/out: zlib stream */
-                        mem_heap_t *heap); /*!< in: memory heap to use */
+/** Configure the zlib allocator to use the given memory heap.
+@param[in,out] stream zlib stream
+@param[in] heap Memory heap to use */
+void page_zip_set_alloc(void *stream, mem_heap_t *heap);
 
 /** Compress a page.
  @return true on success, false on failure; page_zip will be left
@@ -194,12 +195,14 @@ ibool page_zip_available(
                                     the heap */
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Write data to the uncompressed header portion of a page. The data must
+/** Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
-@param[in,out]	page_zip	compressed page
-@param[in]	str		address on the uncompressed page
-@param[in]	length		length of the data
-@param[in]	mtr		mini-transaction, or NULL */
+However, the data portion of the uncompressed page may differ from the
+compressed page when a record is being inserted in page_cur_insert_rec_low().
+@param[in,out]  page_zip        Compressed page
+@param[in]      str             Address on the uncompressed page
+@param[in]      length          Length of the data
+@param[in]      mtr             Mini-transaction, or NULL */
 UNIV_INLINE
 void page_zip_write_header(page_zip_des_t *page_zip, const byte *str,
                            ulint length, mtr_t *mtr);
@@ -241,22 +244,25 @@ byte *page_zip_parse_write_node_ptr(
     page_t *page,              /*!< in/out: uncompressed page */
     page_zip_des_t *page_zip); /*!< in/out: compressed page */
 
-/** Write the node pointer of a record on a non-leaf compressed page. */
-void page_zip_write_node_ptr(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    byte *rec,                /*!< in/out: record */
-    ulint size,               /*!< in: data size of rec */
-    ulint ptr,                /*!< in: node pointer */
-    mtr_t *mtr);              /*!< in: mini-transaction, or NULL */
+/** Write the node pointer of a record on a non-leaf compressed page.
+@param[in,out] page_zip Compressed page
+@param[in,out] rec Record
+@param[in] size Data size of rec
+@param[in] ptr Node pointer
+@param[in] mtr Mini-transaction, or null */
+void page_zip_write_node_ptr(page_zip_des_t *page_zip, byte *rec, ulint size,
+                             ulint ptr, mtr_t *mtr);
 
-/** Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
-void page_zip_write_trx_id_and_roll_ptr(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    byte *rec,                /*!< in/out: record */
-    const ulint *offsets,     /*!< in: rec_get_offsets(rec, index) */
-    ulint trx_id_col,         /*!< in: column number of TRX_ID in rec */
-    trx_id_t trx_id,          /*!< in: transaction identifier */
-    roll_ptr_t roll_ptr);     /*!< in: roll_ptr */
+/** Write the trx_id and roll_ptr of a record on a B-tree leaf node page.
+@param[in,out] page_zip Compressed page
+@param[in,out] rec Record
+@param[in] offsets Rec_get_offsets(rec, index)
+@param[in] trx_id_col Column number of trx_id in rec
+@param[in] trx_id Transaction identifier
+@param[in] roll_ptr Roll_ptr */
+void page_zip_write_trx_id_and_roll_ptr(page_zip_des_t *page_zip, byte *rec,
+                                        const ulint *offsets, ulint trx_id_col,
+                                        trx_id_t trx_id, roll_ptr_t roll_ptr);
 
 /** Write the "deleted" flag of a record on a compressed page.  The flag must
  already have been written on the uncompressed page. */
@@ -265,20 +271,21 @@ void page_zip_rec_set_deleted(
     const byte *rec,          /*!< in: record on the uncompressed page */
     ulint flag);              /*!< in: the deleted flag (nonzero=TRUE) */
 
-/** Write the "owned" flag of a record on a compressed page.  The n_owned field
- must already have been written on the uncompressed page. */
-void page_zip_rec_set_owned(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    const byte *rec,          /*!< in: record on the uncompressed page */
-    ulint flag);              /*!< in: the owned flag (nonzero=TRUE) */
+/** Write the "owned" flag of a record on a compressed page. The n_owned field
+must already have been written on the uncompressed page.
+@param[in,out]  page_zip  Compressed page
+@param[in]      rec       Record on the uncompressed page
+@param[in]      flag      The owned flag (nonzero=true) */
+void page_zip_rec_set_owned(page_zip_des_t *page_zip, const byte *rec,
+                            ulint flag);
 
-/** Insert a record to the dense page directory. */
-void page_zip_dir_insert(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    const byte *prev_rec,     /*!< in: record after which to insert */
-    const byte *free_rec,     /*!< in: record from which rec was
-                             allocated, or NULL */
-    byte *rec);               /*!< in: record to insert */
+/** Insert a record to the dense page directory.
+@param[in,out] page_zip Compressed page
+@param[in] prev_rec Record after which to insert
+@param[in] free_rec Record from which rec was allocated, or null
+@param[in] rec Record to insert */
+void page_zip_dir_insert(page_zip_des_t *page_zip, const byte *prev_rec,
+                         const byte *free_rec, byte *rec);
 
 /** Shift the dense page directory and the array of BLOB pointers when a record
 is deleted.
@@ -291,11 +298,10 @@ void page_zip_dir_delete(page_zip_des_t *page_zip, byte *rec,
                          const dict_index_t *index, const ulint *offsets,
                          const byte *free);
 
-/** Add a slot to the dense page directory. */
-void page_zip_dir_add_slot(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    bool is_clustered);       /*!< in: nonzero for clustered index,
-                              zero for others */
+/** Add a slot to the dense page directory.
+@param[in,out] page_zip Compressed page
+@param[in] is_clustered Nonzero for clustered index, zero for others */
+void page_zip_dir_add_slot(page_zip_des_t *page_zip, bool is_clustered);
 
 /** Parses a log record of writing to the header of a page.
  @return end of log record or NULL */
@@ -304,18 +310,6 @@ byte *page_zip_parse_write_header(
     byte *end_ptr,             /*!< in: redo log buffer end */
     page_t *page,              /*!< in/out: uncompressed page */
     page_zip_des_t *page_zip); /*!< in/out: compressed page */
-
-/** Write data to the uncompressed header portion of a page.  The data must
-already have been written to the uncompressed page.
-However, the data portion of the uncompressed page may differ from the
-compressed page when a record is being inserted in page_cur_insert_rec_low().
-@param[in,out]  page_zip        compressed page
-@param[in]      str             address on the uncompressed page
-@param[in]      length          length of the data
-@param[in]      mtr             mini-transaction, or NULL */
-UNIV_INLINE
-void page_zip_write_header(page_zip_des_t *page_zip, const byte *str,
-                           ulint length, mtr_t *mtr);
 
 /** Reorganize and compress a page.  This is a low-level operation for
  compressed pages, to be used when page_zip_compress() fails.

@@ -69,7 +69,7 @@ constexpr uint32_t LOG_CHECKPOINT_EXTRA_FREE = 8;
 
 /** Per thread margin for the free space in the log, before a new query step
 which modifies the database, is started. It's multiplied by maximum number
-of threads, that can concurrently enter mini transactions. Expressed in
+of threads, that can concurrently enter mini-transactions. Expressed in
 number of pages. */
 constexpr uint32_t LOG_CHECKPOINT_FREE_PER_THREAD = 4;
 
@@ -710,6 +710,7 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 */
 MY_COMPILER_DIAGNOSTIC_POP()
 /**
+
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space */
 void log_buffer_close(log_t &log, const Log_handle &handle);

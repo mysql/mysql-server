@@ -1077,10 +1077,10 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
   mutex_exit(&rw_lock_list_mutex);
 }
 
-/** Prints info of a debug struct. */
-void rw_lock_debug_print(FILE *f,                     /*!< in: output stream */
-                         const rw_lock_debug_t *info) /*!< in: debug struct */
-{
+/** Prints info of a debug struct.
+@param[in] f Output stream
+@param[in] info Debug struct */
+void rw_lock_debug_print(FILE *f, const rw_lock_debug_t *info) {
   ulint rwt = info->lock_type;
 
   fprintf(f, "Locked: thread " UINT64PF " file %s line " ULINTPF "  ",

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -591,7 +591,7 @@ addition of new virtual columns.
                                 prefixes, or NULL
 @param[in]	heap		memory heap from which
                                 the memory needed is allocated
-@return own: row built; */
+@return own: row built */
 dtuple_t *row_build_w_add_vcol(ulint type, const dict_index_t *index,
                                const rec_t *rec, const ulint *offsets,
                                const dict_table_t *col_table,
@@ -797,23 +797,17 @@ dtuple_t *row_build_row_ref(
 }
 
 /** Builds from a secondary index record a row reference with which we can
- search the clustered index record. */
-void row_build_row_ref_in_tuple(
-    dtuple_t *ref,             /*!< in/out: row reference built;
-                               see the NOTE below! */
-    const rec_t *rec,          /*!< in: record in the index;
-                               NOTE: the data fields in ref
-                               will point directly into this
-                               record, therefore, the buffer
-                               page of this record must be at
-                               least s-latched and the latch
-                               held as long as the row
-                               reference is used! */
-    const dict_index_t *index, /*!< in: secondary index */
-    ulint *offsets,            /*!< in: rec_get_offsets(rec, index)
-                               or NULL */
-    trx_t *trx)                /*!< in: transaction */
-{
+search the clustered index record.
+@param[in,out] ref Row reference built; see the note below!
+@param[in,out] rec Record in the index; note: the data fields in ref will point
+directly into this record, therefore, the buffer page of this record must be at
+least s-latched and the latch held as long as the row reference is used!
+@param[in] index Secondary index
+@param[in] offsets Rec_get_offsets(rec, index) or null
+@param[in] trx Transaction or null */
+void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
+                                const dict_index_t *index, ulint *offsets,
+                                trx_t *trx) {
   const dict_index_t *clust_index;
   dfield_t *dfield;
   const byte *field;

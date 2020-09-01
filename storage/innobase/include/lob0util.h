@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,7 +71,7 @@ struct basic_page_t {
   /** Set the FIL_PAGE_NEXT to the given page number, using the given mini
   transaction context.
   @param[in]    page_no   The page number to set.
-  @param[in]    mtr       The mini transaction context. */
+  @param[in]    mtr       The mini-transaction context. */
   void set_next_page(page_no_t page_no, mtr_t *mtr) {
     mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, mtr);
   }
@@ -126,12 +126,12 @@ struct basic_page_t {
 };
 
 /** Allocate one LOB page.
-@param[in]	index	the index in which LOB exists.
-@param[in]	lob_mtr	the mini-transaction context.
-@param[in]	hint	the hint page number for allocation.
-@param[in]	bulk	true if operation is OPCODE_INSERT_BULK,
-                        false otherwise.
-@return the allocated block of the BLOB page. */
+@param[in]  index   Index in which LOB exists.
+@param[in]  lob_mtr Mini-transaction context.
+@param[in]  hint    Hint page number for allocation.
+@param[in]  bulk    true if operation is OPCODE_INSERT_BULK,
+                    false otherwise.
+@return the allocated block of the BLOB page or nullptr. */
 buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
                             bool bulk);
 
