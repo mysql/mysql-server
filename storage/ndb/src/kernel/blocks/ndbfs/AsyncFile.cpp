@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -396,18 +396,21 @@ require(!"m_file.sync() != -1");
      */
     m_file.set_block_size_and_alignment(NDB_O_DIRECT_WRITE_BLOCKSIZE,
                                         NDB_O_DIRECT_WRITE_ALIGNMENT);
-    const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
-    if (m_file.set_direct_io(direct_sync) == -1)
+    if (m_file.have_direct_io_support())
     {
-      ndbout_c("%s Failed to set ODirect errno: %u",
-               theFileName.c_str(), get_last_os_error());
-    }
+      const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
+      if (m_file.set_direct_io(direct_sync) == -1)
+      {
+        ndbout_c("%s Failed to set ODirect errno: %u",
+                 theFileName.c_str(), get_last_os_error());
+      }
 #ifdef DEBUG_ODIRECT
-    else
-    {
-      ndbout_c("%s ODirect is set.", theFileName.c_str());
-    }
+      else
+      {
+        ndbout_c("%s ODirect is set.", theFileName.c_str());
+      }
 #endif
+    }
   }
 
   // Turn on synchronous mode (OM_SYNC)

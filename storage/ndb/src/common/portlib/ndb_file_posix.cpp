@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -357,6 +357,15 @@ int ndb_file::close()
 void ndb_file::invalidate()
 {
   m_handle = -1;
+}
+
+bool ndb_file::have_direct_io_support() const
+{
+#if defined(O_DIRECT) || (defined(HAVE_DIRECTIO) && defined(DIRECTIO_ON))
+  return true;
+#else
+  return false;
+#endif
 }
 
 int ndb_file::set_direct_io(bool assume_implicit_datasync)
