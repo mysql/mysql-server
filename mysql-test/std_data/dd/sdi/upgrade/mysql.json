@@ -7193,7 +7193,7 @@
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
-                "column_key": 1,
+                "column_key": 4,
                 "column_type_utf8": "varchar(288)",
                 "elements": [],
                 "collation_id": X,
@@ -8619,6 +8619,39 @@
                         "order": 2,
                         "hidden": false,
                         "column_opx": 22
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hidden": true,
+                        "column_opx": 0
+                    }
+                ],
+                "tablespace_ref": "mysql"
+            },
+            {
+                "name": "definer",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 6,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 3,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 864,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 3
                     },
                     {
                         "ordinal_position": 2,
@@ -15452,7 +15485,7 @@
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
-                "column_key": 1,
+                "column_key": 4,
                 "column_type_utf8": "varchar(288)",
                 "elements": [],
                 "collation_id": X,
@@ -16432,6 +16465,39 @@
                         "order": 2,
                         "hidden": false,
                         "column_opx": 23
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hidden": true,
+                        "column_opx": 0
+                    }
+                ],
+                "tablespace_ref": "mysql"
+            },
+            {
+                "name": "definer",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 7,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 3,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 864,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 19
                     },
                     {
                         "ordinal_position": 2,
@@ -22327,6 +22393,46 @@
                     }
                 ],
                 "tablespace_ref": "mysql"
+            },
+            {
+                "name": "type_2",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 10,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 3,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 1,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 3
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 864,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 30
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hidden": true,
+                        "column_opx": 0
+                    }
+                ],
+                "tablespace_ref": "mysql"
             }
         ],
         "foreign_keys": [
@@ -23980,7 +24086,7 @@
                 "se_private_data": "table_id=X",
                 "engine_attribute": "",
                 "secondary_engine_attribute": "",
-                "column_key": 1,
+                "column_key": 4,
                 "column_type_utf8": "varchar(288)",
                 "elements": [],
                 "collation_id": X,
@@ -24567,6 +24673,39 @@
                         "order": 2,
                         "hidden": false,
                         "column_opx": 15
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hidden": true,
+                        "column_opx": 0
+                    }
+                ],
+                "tablespace_ref": "mysql"
+            },
+            {
+                "name": "definer",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 7,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 3,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 864,
+                        "order": 2,
+                        "hidden": false,
+                        "column_opx": 12
                     },
                     {
                         "ordinal_position": 2,
