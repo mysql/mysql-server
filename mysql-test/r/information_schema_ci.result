@@ -1749,9 +1749,9 @@ numeric_scale, character_set_name,
 collation_name, dtd_identifier
 from information_schema.routines where routine_schema='test';
 DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER
+	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 char	10	40	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)
-	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 drop procedure p1;
 drop procedure p2;
 drop function f1;
