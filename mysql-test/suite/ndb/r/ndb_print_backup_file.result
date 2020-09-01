@@ -39,9 +39,9 @@ ndb_print_backup_file suite/ndb/backups/51/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/51/BACKUP-1.2.log
 4119 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1-0.1.Data
-54447 bytes in output
+59722 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1-0.2.Data
-55522 bytes in output
+60901 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1.1.ctl
 22194 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_d2_be/BACKUP-1.1.log
@@ -63,9 +63,9 @@ ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1.2.ctl
 ndb_print_backup_file suite/ndb/backups/51_d2_le/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1-0.1.Data
-60576 bytes in output
+65994 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1-0.2.Data
-62055 bytes in output
+67679 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1.1.ctl
 79096 bytes in output
 ndb_print_backup_file suite/ndb/backups/51_data_be/BACKUP-1.1.log
