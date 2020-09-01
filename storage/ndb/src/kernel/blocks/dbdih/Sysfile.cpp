@@ -555,17 +555,17 @@ Sysfile::unpack_sysfile_format_v2(const Uint32 cdata[], Uint32* cdata_size_ptr)
         if (ng_bit == 0)
         {
           nodeGroup = current_ng;
-          replica_index++;
-          if (replica_index == num_replicas)
-          {
-            replica_index = 0;
-            current_ng++;
-          }
         }
         else
         {
           nodeGroup = (Uint32) ng_array[ng_index];
           ng_index++;
+        }
+        replica_index++;
+        if (replica_index == num_replicas)
+        {
+          replica_index = 0;
+          current_ng++;
         }
         break;
       }
