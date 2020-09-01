@@ -17,9 +17,9 @@ SET DEBUG_SYNC='innodb_dict_stats_update_persistent SIGNAL analyze.running WAIT_
 --connect(con1, localhost, root)
 SET DEBUG_SYNC='now WAIT_FOR analyze.running';
 
---disable_query_log
+--disable_result_log
 SELECT ENGINE,SUM(DATA_LENGTH+INDEX_LENGTH),COUNT(ENGINE),SUM(DATA_LENGTH),SUM(INDEX_LENGTH) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql') AND ENGINE='InnoDB';
---enable_query_log
+--enable_result_log
 
 # let the ANALYZE TABLE to finish
 SET DEBUG_SYNC='now SIGNAL analyze.finish';
