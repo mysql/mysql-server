@@ -6,8 +6,7 @@ INSERT INTO t1 VALUES(1);
 SET DEBUG_SYNC='innodb_dict_stats_update_persistent SIGNAL analyze.running WAIT_FOR analyze.finish';
 ANALYZE TABLE t1;
 SET DEBUG_SYNC='now WAIT_FOR analyze.running';
-ENGINE	SUM(DATA_LENGTH+INDEX_LENGTH)	COUNT(ENGINE)	SUM(DATA_LENGTH)	SUM(INDEX_LENGTH)
-InnoDB	49152	2	32768	16384
+SELECT ENGINE,SUM(DATA_LENGTH+INDEX_LENGTH),COUNT(ENGINE),SUM(DATA_LENGTH),SUM(INDEX_LENGTH) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql') AND ENGINE='InnoDB';
 SET DEBUG_SYNC='now SIGNAL analyze.finish';
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
