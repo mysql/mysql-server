@@ -3815,6 +3815,11 @@ void set_slave_thread_options(THD *thd) {
   thd->variables.option_bits = options;
   thd->variables.completion_type = 0;
 
+  /* Do not track GTIDs for slave threads to avoid performance issues. */
+  thd->variables.session_track_gtids = OFF;
+  thd->rpl_thd_ctx.session_gtids_ctx()
+      .update_tracking_activeness_from_session_variable(thd);
+
   /*
     Set autocommit= 1 when info tables are used and autocommit == 0 to
     avoid trigger asserts on mysql_execute_command(THD *thd) caused by
