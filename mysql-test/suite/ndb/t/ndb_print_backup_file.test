@@ -60,6 +60,8 @@ sub process
   {
     die "Failed running: $NDB_PRINT_BACKUP_FILE $File::Find::name";
   }
+  # hide difference in reported byte order
+  $output =~ s/ByteOrder: 0x\d{8}/ByteOrder: 0xXXXXXXXX/m;
   # make sure lines ends with LF
   $output =~ s/\r[\n]?/\n/gm;
   print length($output) . " bytes in output\n";

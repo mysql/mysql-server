@@ -1088,6 +1088,15 @@ main(int argc, const char * argv[])
 
 static bool endian = false;
 
+static inline Uint32 Twiddle32(Uint32 x)
+{
+  if (!endian) return x;
+  return ((x & 0x000000ff) << 24) |
+         ((x & 0x0000ff00) << 8) |
+         ((x & 0x00ff0000) >> 8) |
+         ((x & 0xff000000) >> 24);
+}
+
 static
 inline
 size_t
@@ -1254,7 +1263,7 @@ readRecord(ndbxfrm_readfile* f, Uint32 **dst, Uint32 *ext_header_type, bool prin
       if (print)
       {
         ndbout_c("INSERT: RecNo: %u: Len: %x, page(%u,%u)",
-                 recNo, len, theData.buf[0], theData.buf[1]);
+                 recNo, len, Twiddle32(theData.buf[0]), Twiddle32(theData.buf[1]));
         if (num_data_words)
         {
           ndbout_c("Header_words[Header:%x,GCI:%u,Checksum: %x, X: %x]",
@@ -1272,7 +1281,7 @@ readRecord(ndbxfrm_readfile* f, Uint32 **dst, Uint32 *ext_header_type, bool prin
       if (print)
       {
         ndbout_c("WRITE: RecNo: %u: Len: %x, page(%u,%u)",
-                 recNo, len, theData.buf[0], theData.buf[1]);
+                 recNo, len, Twiddle32(theData.buf[0]), Twiddle32(theData.buf[1]));
         if (num_data_words)
         {
           ndbout_c("Header_words[Header:%x,GCI:%u,Checksum: %x, X: %x]",
@@ -1289,7 +1298,7 @@ readRecord(ndbxfrm_readfile* f, Uint32 **dst, Uint32 *ext_header_type, bool prin
     {
       if (print)
         ndbout_c("DELETE_BY_ROWID: RecNo: %u: Len: %x, page(%u,%u)",
-                 recNo, len, theData.buf[0], theData.buf[1]);
+                 recNo, len, Twiddle32(theData.buf[0]), Twiddle32(theData.buf[1]));
       recNo++;
       recDeleteByRowId++;
     }
@@ -1297,7 +1306,7 @@ readRecord(ndbxfrm_readfile* f, Uint32 **dst, Uint32 *ext_header_type, bool prin
     {
       if (print)
         ndbout_c("DELETE_BY_PAGEID: RecNo: %u: Len: %x, page(%u)",
-                 recNo, len, theData.buf[0]);
+                 recNo, len, Twiddle32(theData.buf[0]));
       recNo++;
       recDeleteByPageId++;
     }
