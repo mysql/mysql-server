@@ -33,6 +33,7 @@
 #include <typeinfo>
 #include <vector>
 
+#include "my_compiler.h"
 #include "mysql_protocol/base_packet.h"
 #include "mysql_protocol/constants.h"
 #include "mysql_protocol/error_packet.h"
@@ -45,11 +46,14 @@ namespace mysql_protocol {
  * @brief Exception raised for any errors with MySQL packets
  *
  */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4275)
 class MYSQL_PROTOCOL_EXPORT packet_error : public std::runtime_error {
  public:
   explicit packet_error(const std::string &what_arg)
       : std::runtime_error(what_arg) {}
 };
+MY_COMPILER_DIAGNOSTIC_POP()
 
 }  // namespace mysql_protocol
 

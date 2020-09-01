@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020 Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,17 @@
 #include <vector>
 
 #include "harness_export.h"
+#include "my_compiler.h"
 
 namespace mysql_harness {
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4275)
 class HARNESS_EXPORT invalid_master_keyfile : public std::runtime_error {
  public:
   invalid_master_keyfile(const std::string &w) : std::runtime_error(w) {}
 };
+MY_COMPILER_DIAGNOSTIC_POP()
 
 class HARNESS_EXPORT MasterKeyFile {
  public:

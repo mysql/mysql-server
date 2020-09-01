@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020 Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,14 @@
 #include <stdexcept>
 #include <string>
 
+#include "my_compiler.h"
 #include "mysqlrouter/http_common_export.h"
-
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4275)
 class HTTP_COMMON_EXPORT TlsError : public std::runtime_error {
  public:
   TlsError(const std::string &what);
 };
+MY_COMPILER_DIAGNOSTIC_POP()
 
 #endif
