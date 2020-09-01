@@ -1101,9 +1101,9 @@ static uint32_t dd_upgrade_register_tablespace(
 /** Migrate tablespace entries from InnoDB SYS_TABLESPACES to new data
 dictionary. FTS Tablespaces are not registered as they are handled differently.
 FTS tablespaces have table_id in their name and we increment table_id of each
-table by DICT_MAX_DD_TABLES.
-@param[in,out]  thd             THD
-@return MySQL error code*/
+table by DICT_MAX_DD_TABLES
+@param[in,out]	thd		THD
+@return MySQL error code */
 int dd_upgrade_tablespace(THD *thd) {
   DBUG_TRACE;
   btr_pcur_t pcur;
@@ -1274,9 +1274,9 @@ int dd_upgrade_tablespace(THD *thd) {
   return 0;
 }
 
-/** Add server version number to tablespace while upgrading.
-@param[in]      space_id              space id of tablespace
-@param[in]      server_version_only   leave space version unchanged
+/** Add server and space version number to tablespace while upgrading.
+@param[in]	space_id		space id of tablespace
+@param[in]	server_version_only	leave space version unchanged
 @return false on success, true on failure. */
 bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
   buf_block_t *block;
@@ -1332,8 +1332,8 @@ bool upgrade_space_version(dd::Tablespace *tablespace) {
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
 offset by DICT_MAX_DD_TABLES. This offset increment is because the
 first 256 table_ids are reserved for dictionary.
-@param[in,out]  thd             THD
-@return MySQL error code*/
+@param[in,out]	thd		THD
+@return MySQL error code */
 int dd_upgrade_logs(THD *thd) {
   int error = 0; /* return zero for success */
   DBUG_TRACE;

@@ -157,7 +157,7 @@ static void log_fsync() {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 /** Calculates lsn at which we might write a next checkpoint. It does the
 best effort, but possibly the maximum allowed lsn, could be even bigger.
@@ -288,7 +288,7 @@ static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
   return (result);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -296,7 +296,7 @@ static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator,
                            bool no_logging, bool crash_unsafe) {
@@ -469,7 +469,7 @@ void log_files_downgrade(log_t &log) {
   ut_a(err == DB_SUCCESS);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -477,7 +477,7 @@ void log_files_downgrade(log_t &log) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 static lsn_t log_determine_checkpoint_lsn(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
@@ -1115,7 +1115,7 @@ void log_checkpointer(log_t *log_ptr) {
   }
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1123,7 +1123,7 @@ void log_checkpointer(log_t *log_ptr) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 bool log_calc_concurrency_margin(log_t &log) {
   uint64_t concurrency_margin;
@@ -1334,6 +1334,6 @@ lsn_t log_get_max_modified_age_async(const log_t &log) {
                                OS_FILE_LOG_BLOCK_SIZE));
 }
 
-/* @} */
+/** @} */
 
 #endif /* !UNIV_HOTBACKUP */

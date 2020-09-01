@@ -117,8 +117,8 @@ void mem_block_set_start(mem_block_t *block, ulint start) {
 UNIV_INLINE
 ulint mem_block_get_start(mem_block_t *block) { return (block->start); }
 
-/** Checks that an object is a memory heap block
-@param[in]	block	Memory block to check. */
+/** Checks that an object is a memory heap (or a block of it)
+@param[in]	heap	Memory heap to check */
 UNIV_INLINE
 void mem_block_validate(const mem_block_t *block) {
   if (block->magic_n != MEM_BLOCK_MAGIC_N) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -122,7 +122,7 @@ class Inserter : private BaseInserter {
 
   /** Write one blob page.  This function will be repeatedly called
   with an increasing nth_blob_page to completely write a BLOB.
-  @param[in]	blob_j		the jth blob object of the record.
+  @param[in]	blob_j		the jth blob object in big fields vector.
   @param[in]	field		the big record field.
   @param[in]	nth_blob_page	count of the BLOB page (starting from 1).
   @return DB_SUCCESS or DB_FAIL. */

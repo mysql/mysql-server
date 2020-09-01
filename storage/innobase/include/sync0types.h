@@ -936,7 +936,7 @@ std::string sync_mutex_to_string(latch_id_t id, const std::string &created);
 
 /** Get the latch name from a sync level
 @param[in]	level		Latch level to lookup
-@return 0 if not found. */
+@return nullptr if not found. */
 const char *sync_latch_get_name(latch_level_t level);
 
 /** Print the filename "basename"
@@ -1210,7 +1210,7 @@ struct sync_allowed_latches : public sync_check_functor_t {
 
 /** Get the latch id from a latch name.
 @param[in]	name	Latch name
-@return LATCH_ID_NONE. */
+@return latch id if found else LATCH_ID_NONE. */
 latch_id_t sync_latch_get_id(const char *name);
 
 typedef ulint rw_lock_flags_t;

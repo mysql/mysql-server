@@ -396,7 +396,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   lsn_t lsn_capacity_for_writer;
 
   /** When this margin is being used, the log writer decides to increase
-  the concurrency_margin to stop new incoming mini transactions earlier,
+  the concurrency_margin to stop new incoming mini-transactions earlier,
   on bigger margin. This is used to provide adaptive concurrency margin
   calculation, which we need because we might have unlimited thread
   concurrency setting or we could miss some log_free_check() calls.
@@ -623,11 +623,11 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** Maximum sn up to which there is free space in the redo log.
   Threads check this limit and compare to current log.sn, when they
-  are outside mini transactions and hold no latches. The formula used
+  are outside mini-transactions and hold no latches. The formula used
   to compute the limitation takes into account maximum size of mtr and
   thread concurrency to include proper margins and avoid issues with
   race condition (in which all threads check the limitation and then
-  all proceed with their mini transactions). Also extra margin is
+  all proceed with their mini-transactions). Also extra margin is
   there for dd table buffer cache (dict_persist_margin).
   Read by: user threads (log_free_check())
   Updated by: log_checkpointer (after update of checkpoint_lsn)

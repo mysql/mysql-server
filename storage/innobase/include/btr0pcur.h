@@ -187,7 +187,7 @@ struct btr_pcur_t {
   /** Positions a cursor at a randomly chosen position within a B-tree.
   @param[in]	    index		    Index to position on.
   @param[in]	    latch_mode	BTR_SEARCH_LEAF, ...
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]	mtr		      Mini-transaction.
   @param[in]	    file	  File name from where called.
   @param[in]	    line		    Line number within filename
   @return true if the index is available and we have put the cursor, false
@@ -196,21 +196,21 @@ struct btr_pcur_t {
                            const char *file, ulint line);
 
   /** Opens a persistent cursor at either end of an index.
-  @param[in]	    from_left   true if open to the low end, false
+  @param[in]	    from_left   True if open to the low end, false
                               if to the high end.
-  @param[in]	    index		    index
-  @param[in]	    latch_mode	latch mode
-  @param[in]	    init_pcur	  whether to initialize pcur.
-  @param[in]	    level		    level to search for (0=leaf).
-  @param[in,out]	mtr		      mini-transaction */
+  @param[in]	    index		    Index
+  @param[in]	    latch_mode	Latch mode
+  @param[in]	    init_pcur	  Whether to initialize pcur.
+  @param[in]	    level		    Level to search for (0=leaf).
+  @param[in,out]	mtr		      Mini-transaction */
   void open_at_side(bool from_left, dict_index_t *index, ulint latch_mode,
                     bool init_pcur, ulint level, mtr_t *mtr);
 
   /** Opens a persistent cursor at first leaf page (low end). It will not call
   init().
-  @param[in]	    index		    index
-  @param[in]	    latch_mode	latch mode
-  @param[in,out]	mtr		      mini-transaction */
+  @param[in]	    index		    Index
+  @param[in]	    latch_mode	Latch mode
+  @param[in,out]	mtr		      Mini-transaction */
   void begin_leaf(dict_index_t *index, ulint latch_mode, mtr_t *mtr) {
     open_at_side(true, index, latch_mode, false, 0, mtr);
   }
@@ -232,7 +232,7 @@ struct btr_pcur_t {
                               btr search latch to protect the record!
   @param[in]	    has_search_latch	latch mode the caller
                               currently has on search system: RW_S_LATCH, or 0
-  @param[in]	    mtr	        Mtr
+  @param[in]	    mtr	        Mini-transaction
   @param[in]	    file	      File name.
   @param[in]	    line	      Line where called */
   void open_no_init(dict_index_t *index, const dtuple_t *tuple,
@@ -250,7 +250,7 @@ struct btr_pcur_t {
   @param[in]	    tuple		  Tuple on which search done.
   @param[in]	    mode		    PAGE_CUR_L, ...
   @param[in]	    latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
-  @param[in]	    mtr		      Mini transaction.
+  @param[in]	    mtr		      Mini-transaction.
   @param[in]	    file		    File name from where called.
   @param[in]	    line		    Line number in file from where
                               called.*/
@@ -298,7 +298,7 @@ struct btr_pcur_t {
   (4) cursor was positioned before the first or after the last in an
   empty tree: restores to before first or after the last in the tree.
   @param[in]	    latch_mode	BTR_SEARCH_LEAF, ...
-  @param[in,out]  mtr		      Mini transaction
+  @param[in,out]  mtr		      Mini-transaction
   @param[in]	    file		    File name.
   @param[in]	    line		    Line where called.
   @return true if the cursor position was stored when it was on a user
@@ -397,13 +397,13 @@ struct btr_pcur_t {
 
   /** Checks if the persistent cursor is before the first user record
   in the index tree.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]	mtr		      Mini-transaction.
   @return true if is before first in tree. */
   bool is_before_first_in_tree(mtr_t *mtr) const;
 
   /** Checks if the persistent cursor is after the last user record in
   the index tree.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]	mtr		      Mini-transaction.
   @return is after last in tree. */
   bool is_after_last_in_tree(mtr_t *mtr) const;
 
@@ -414,26 +414,26 @@ struct btr_pcur_t {
   void move_to_prev_on_page();
 
   /** Moves the persistent cursor to the last record on the same page.
-  @param[in,out]	mtr		      Mini transaction. */
+  @param[in,out]	mtr		      Mini-transaction. */
   void move_to_last_on_page(mtr_t *mtr);
 
   /** Moves the persistent cursor to the next user record in the tree.
   If no user records are left, the cursor ends up 'after last in tree'.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]	mtr		      Mini-transaction.
   @return DB_SUCCESS or DB_END_OF_INDEX. */
   dberr_t move_to_next_user_rec(mtr_t *mtr);
 
   /** Moves the persistent cursor to the next record in the tree. If no
   records are left, the cursor stays 'after last in tree'.
   Note: Function may release the page latch.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]	mtr		      Mini-transaction.
   @return true if the cursor was not after last in tree */
   bool move_to_next(mtr_t *mtr);
 
   /** Moves the persistent cursor to the previous record in the tree.
   If no records are left, the cursor stays 'before first in tree'.
   Note: Function may release the page latch.
-  @param[in,out]	mtr		      Mini transaction.
+  @param[in,out]	mtr		      Mini-transaction.
   @return true if the cursor was not before first in tree */
   bool move_to_prev(mtr_t *mtr);
 
@@ -441,14 +441,14 @@ struct btr_pcur_t {
   Releases the latch on the current page, and bufferunfixes it.
   Note that there must not be modifications on the current page, as
   then the x-latch can be released only in mtr_commit.
-  @param[in,out] mtr          Mini transaction. */
+  @param[in,out] mtr          Mini-transaction. */
   void move_to_next_page(mtr_t *mtr);
 
   /** Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
   that is, the cursor becomes detached.
   Function btr_pcur_store_position should be used before calling this,
   if restoration of cursor is wanted later.
-  @param[in,out]	mtr		      Mini transaction. */
+  @param[in,out]	mtr		      Mini-transaction. */
   void commit_specify_mtr(mtr_t *mtr);
 
   /** Moves the persistent cursor to the infimum record on the same page. */

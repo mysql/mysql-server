@@ -30,7 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 6/9/1994 Heikki Tuuri
  *************************************************************************/
 
-/** NOTE: The functions in this file should only use functions from
+/* NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
 external tools. */
 
@@ -214,6 +214,7 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
 }
 
 #ifdef UNIV_DEBUG
+
 /** Validates the contents of a memory heap.
 Checks a memory heap for consistency, prints the contents if any error
 is detected. A fatal error is logged if an error is detected.

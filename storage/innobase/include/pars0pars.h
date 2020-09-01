@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,11 +101,14 @@ void pars_close();
  @return own: the query graph */
 que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
                 const char *str);  /*!< in: SQL string */
+
 /** Retrieves characters to the lexical analyzer.
- @return number of characters copied or 0 on EOF */
-int pars_get_lex_chars(char *buf,        /*!< in/out: buffer where to copy */
-                       size_t max_size); /*!< in: maximum number of characters
-                                         which fit in the buffer */
+@param[in,out] buf Buffer where to copy
+@param[in] max_size Maximum number of characters which fit in the buffer
+@return number of characters copied or 0 on EOF
+*/
+int pars_get_lex_chars(char *buf, size_t max_size);
+
 /** Called by yyparse on error. */
 void yyerror(const char *s); /*!< in: error message string */
 /** Parses a variable declaration.
@@ -261,6 +264,7 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
                                                    is of type UNSIGNED. */
                             void *is_not_null);    /*!< in: if not NULL, column
                                                    is of type NOT NULL. */
+
 /** Parses a table creation operation.
 @param[in]	table_sym		table name node in the symbol table
 @param[in]	column_defs		list of column names
@@ -271,7 +275,7 @@ sym_node_t *pars_column_def(sym_node_t *sym_node,  /*!< in: column node in the
                                         accesses; NOTE that this flag is not
                                         stored to the data dictionary on disk,
                                         and the database will forget about
-                                        non-NULL value if it has the reload the
+                                        non-NULL value if it has to reload the
                                         table definition from disk
 @param[in]	compact			non-NULL if COMPACT table
 @param[in]	block_size		block size (can be NULL)
@@ -304,7 +308,7 @@ type QUE_FORK_MYSQL_INTERFACE.
 @param[in]	node		root node for an incomplete query
                                 graph, or NULL for dummy graph
 @param[in]	trx		transaction handle
-@param[in]	heap		memory heap which allocated
+@param[in]	heap		memory heap from which allocated
 @param[in]	prebuilt	row prebuilt structure
 @return query thread node to run */
 que_thr_t *pars_complete_graph_for_exec(que_node_t *node, trx_t *trx,
@@ -319,20 +323,25 @@ pars_info_t *pars_info_create(void);
 /** Free info struct and everything it contains. */
 void pars_info_free(pars_info_t *info); /*!< in, own: info struct */
 
-/** Add bound literal. */
-void pars_info_add_literal(pars_info_t *info,   /*!< in: info struct */
-                           const char *name,    /*!< in: name */
-                           const void *address, /*!< in: address */
-                           ulint length,        /*!< in: length of data */
-                           ulint type,    /*!< in: type, e.g. DATA_FIXBINARY */
-                           ulint prtype); /*!< in: precise type, e.g.
-                                          DATA_UNSIGNED */
+/** Add bound literal.
+@param[in] info Info struct
+@param[in] name Name
+@param[in] address Address
+@param[in] length Length of data
+@param[in] type Type, e.g. data_fixbinary
+@param[in] prtype Precise type, e.g. data_unsigned */
+void pars_info_add_literal(pars_info_t *info, const char *name,
+                           const void *address, ulint length, ulint type,
+                           ulint prtype);
 
 /** Equivalent to pars_info_add_literal(info, name, str, strlen(str),
- DATA_VARCHAR, DATA_ENGLISH). */
-void pars_info_add_str_literal(pars_info_t *info, /*!< in: info struct */
-                               const char *name,  /*!< in: name */
-                               const char *str);  /*!< in: string */
+ DATA_VARCHAR, DATA_ENGLISH).
+@param[in] info Info struct
+@param[in] name Name
+@param[in] str String */
+void pars_info_add_str_literal(pars_info_t *info, const char *name,
+                               const char *str);
+
 /********************************************************************
 If the literal value already exists then it rebinds otherwise it
 creates a new entry.*/
@@ -342,42 +351,39 @@ void pars_info_bind_literal(pars_info_t *info,   /* in: info struct */
                             ulint length,        /* in: length of data */
                             ulint type,    /* in: type, e.g. DATA_FIXBINARY */
                             ulint prtype); /* in: precise type, e.g. */
-/********************************************************************
-If the literal value already exists then it rebinds otherwise it
-creates a new entry.*/
-void pars_info_bind_varchar_literal(pars_info_t *info, /*!< in: info struct */
-                                    const char *name,  /*!< in: name */
-                                    const byte *str,   /*!< in: string */
-                                    ulint str_len);    /*!< in: string length */
-
-/** Equivalent to:
-
-char buf[4];
-mach_write_to_4(buf, val);
-pars_info_add_literal(info, name, buf, 4, DATA_INT, 0);
-
-except that the buffer is dynamically allocated from the info struct's
-heap.
-@param[in]	info	info struct
-@param[in]	name	name
-@param[in]	val	value */
-void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
-                                 const ib_uint32_t *val);
 
 /** If the literal value already exists then it rebinds otherwise it
 creates a new entry.
-@param[in]	info	info struct
-@param[in]	name	name
-@param[in]	val	value */
+@param[in] info Info struct
+@param[in] name Name
+@param[in] str String
+@param[in] str_len String length */
+void pars_info_bind_varchar_literal(pars_info_t *info, const char *name,
+                                    const byte *str, ulint str_len);
+
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]  info  Info struct
+@param[in]  name  Name
+@param[in]  val   Value */
+void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
+                                 const ib_uint32_t *val);
+
+/** If the literal value already exists then it rebinds otherwise it creates a
+new entry.
+@param[in]  info  Info struct
+@param[in]  name  Name
+@param[in]  val   Value */
 void pars_info_bind_int8_literal(pars_info_t *info, const char *name,
                                  const ib_uint64_t *val);
 
-/** Add user function. */
-void pars_info_bind_function(
-    pars_info_t *info,        /*!< in: info struct */
-    const char *name,         /*!< in: function name */
-    pars_user_func_cb_t func, /*!< in: function address */
-    void *arg);               /*!< in: user-supplied argument */
+/** Add user function.
+@param[in] info Info struct
+@param[in] name Function name
+@param[in] func Function address
+@param[in] arg User-supplied argument */
+void pars_info_bind_function(pars_info_t *info, const char *name,
+                             pars_user_func_cb_t func, void *arg);
 
 /** Add bound id.
 @param[in]	info		info struct
@@ -412,10 +418,12 @@ void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
                                ib_uint64_t val);  /*!< in: value */
 
 /** If the literal value already exists then it rebinds otherwise it
- creates a new entry. */
-void pars_info_bind_ull_literal(pars_info_t *info,       /*!< in: info struct */
-                                const char *name,        /*!< in: name */
-                                const ib_uint64_t *val); /*!< in: value */
+ creates a new entry.
+@param[in] info Info struct
+@param[in] name Name
+@param[in] val Value */
+void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
+                                const ib_uint64_t *val);
 
 /** Add bound id.
 @param[in]	info	info struct
@@ -429,7 +437,7 @@ pars_bound_lit_t *pars_info_get_bound_lit(
     pars_info_t *info, /*!< in: info struct */
     const char *name); /*!< in: bound literal name to find */
 
-/** Get bound id with the given name.
+/** Get bound identifier with the given name.
 @param[in]	info	info struct
 @param[in]	name	bound id name to find
 @return bound id, or NULL if not found */
@@ -580,7 +588,7 @@ struct col_assign_node_t {
 };
 
 /** Classes of functions */
-/* @{ */
+/** @{ */
 #define PARS_FUNC_ARITH 1      /*!< +, -, *, / */
 #define PARS_FUNC_LOGICAL 2    /*!< AND, OR, NOT */
 #define PARS_FUNC_CMP 3        /*!< comparison operators */
@@ -589,7 +597,7 @@ struct col_assign_node_t {
 #define PARS_FUNC_OTHER                \
   6 /*!< these are not real functions, \
     e.g., := */
-/* @} */
+/** @} */
 
 #include "pars0pars.ic"
 

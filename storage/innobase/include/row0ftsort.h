@@ -185,24 +185,21 @@ instead of 8 bytes integer to
 store Doc ID during sort */
 
 /** Initialize FTS parallel sort structures.
- @return true if all successful */
-ibool row_fts_psort_info_init(
-    trx_t *trx,           /*!< in: transaction */
-    row_merge_dup_t *dup, /*!< in,own: descriptor of
-                          FTS index being created */
-    const dict_table_t *old_table,
-    /*!< in: Needed to fetch LOB from old
-    table */
-    const dict_table_t *new_table, /*!< in: table where indexes are
-                                 created */
-    ibool opt_doc_id_size,
-    /*!< in: whether to use 4 bytes
-    instead of 8 bytes integer to
-    store Doc ID during sort */
-    fts_psort_t **psort,  /*!< out: parallel sort info to be
-                          instantiated */
-    fts_psort_t **merge); /*!< out: parallel merge info
-                          to be instantiated */
+@param[in] trx Transaction
+@param[in,out] dup Descriptor of fts index being created
+@param[in] old_table Needed to fetch lob from old table
+@param[in] new_table Table where indexes are created
+@param[in] opt_doc_id_size Whether to use 4 bytes instead of 8 bytes integer to
+store doc id during sort
+@param[out] psort Parallel sort info to be instantiated
+@param[out] merge Parallel merge info to be instantiated
+@return true if all successful */
+ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
+                              const dict_table_t *old_table,
+                              const dict_table_t *new_table,
+                              ibool opt_doc_id_size, fts_psort_t **psort,
+                              fts_psort_t **merge);
+
 /** Clean up and deallocate FTS parallel sort structures, and close
  temparary merge sort files */
 void row_fts_psort_info_destroy(

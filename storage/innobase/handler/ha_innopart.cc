@@ -123,8 +123,8 @@ inline void ha_innopart::copy_cached_row(uchar *buf, const uchar *cached_row) {
 @param[in]	dd_part		dd::Partition
 @param[in]	part_name	Table name of this partition
 @param[out]	part_dict_table	InnoDB table for partition
-@retval	false on success
-@retval	true on failure */
+@retval	false	On success
+@retval	true	On failure */
 bool Ha_innopart_share::open_one_table_part(
     dd::cache::Dictionary_client *client, THD *thd, const TABLE *table,
     const dd::Partition *dd_part, const char *part_name,
@@ -488,11 +488,10 @@ void Ha_innopart_share::close_table_parts(void) {
   auto_inc_initialized = false;
 }
 
-/** Get index.
-Find the index of the specified partition and key number.
+/** Return innodb index for given partition and key number.
 @param[in]	part_id	Partition number.
 @param[in]	keynr	Key number.
-@return	Index pointer or NULL. */
+@return	InnoDB index. */
 inline dict_index_t *Ha_innopart_share::get_index(uint part_id, uint keynr) {
   if (part_id >= m_tot_parts) {
     /* purecov: begin inspected */
@@ -791,8 +790,10 @@ done:
   return (error);
 }
 
-/** Open a partitioned InnoDB table.
-@param[in]	name	table name
+/** Open an InnoDB table.
+@param[in]	name		table name
+@param[in]	mode		access mode
+@param[in]	test_if_locked	test if the file to be opened is locked
 @param[in]	table_def	dd::Table describing table to be opened
 @retval 1 if error
 @retval 0 if success */
@@ -1154,10 +1155,11 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   return 0;
 }
 
-/** Get a cloned ha_innopart handler.
+/** Clone this handler, used when needing more than one cursor
+to the same table.
 @param[in]	name		Table name.
-@param[in]	mem_root	MySQL mem_root to use.
-@return	new ha_innopart handler. */
+@param[in]	mem_root	mem_root to allocate from.
+@retval	Pointer to clone or NULL if error. */
 handler *ha_innopart::clone(const char *name, MEM_ROOT *mem_root) {
   ha_innopart *new_handler;
 
@@ -1416,12 +1418,12 @@ void ha_innopart::unlock_row() {
   update_partition(m_last_part);
 }
 
-/** Write a row in partition.
+/** Write a row in specific partition.
 Stores a row in an InnoDB database, to the table specified in this
 handle.
 @param[in]	part_id	Partition to write to.
 @param[in]	record	A row in MySQL format.
-@return	0 or error code. */
+@return error code. */
 int ha_innopart::write_row_in_part(uint part_id, uchar *record) {
   int error;
   Field *saved_next_number_field = table->next_number_field;
@@ -1550,7 +1552,7 @@ int ha_innopart::index_end() {
 
 /** Setup the ordered record buffer and the priority queue.
 @param[in]	used_parts	Number of used partitions in query.
-@return	false for success else true. */
+@return false for success, else true. */
 int ha_innopart::init_record_priority_queue_for_parts(uint used_parts) {
   size_t alloc_size;
   void *buf;
@@ -2103,10 +2105,10 @@ int ha_innopart::sample_end(void *scan_ctx) {
   return 0;
 }
 
-/** Initialize a table scan in a specific partition.
-@param[in]	part_id	Partition to initialize.
-@param[in]	scan	True if table/index scan false otherwise (for rnd_pos)
-@return	0 or error number. */
+/** Initialize random read/scan of a specific partition.
+@param[in]	part_id		Partition to initialize.
+@param[in]	scan		True for scan else random access.
+@return error number or 0. */
 int ha_innopart::rnd_init_in_part(uint part_id, bool scan) {
   DBUG_TRACE;
   DBUG_ASSERT(table_share->is_missing_primary_key() ==
@@ -2125,20 +2127,19 @@ int ha_innopart::rnd_init_in_part(uint part_id, bool scan) {
   return err;
 }
 
-/** Ends a table scan.
-@param[in]	part_id	Partition to end table scan in.
-@param[in]	scan	True for scan else random access.
-@return	0 or error number. */
+/** End random read/scan of a specific partition.
+@param[in]	part_id		Partition to end random read/scan.
+@param[in]	scan		True for scan else random access.
+@return error number or 0. */
 int ha_innopart::rnd_end_in_part(uint part_id, bool scan) {
   return (index_end());
 }
 
-/** Read next row in partition.
-Reads the next row in a table scan (also used to read the FIRST row
-in a table scan).
-@param[in]	part_id	Partition to end table scan in.
-@param[out]	buf	Returns the row in this buffer, in MySQL format.
-@return	0, HA_ERR_END_OF_FILE or error number. */
+/** Get next row during scan of a specific partition.
+Also used to read the FIRST row in a table scan.
+@param[in]	part_id	Partition to read from.
+@param[out]	buf	Next row.
+@return error number or 0. */
 int ha_innopart::rnd_next_in_part(uint part_id, uchar *buf) {
   int error;
 
@@ -4206,14 +4207,12 @@ int ha_innopart::reset() {
   return ha_innobase::reset();
 }
 
-/**
- Read row using position using given record to find.
-
+/** Read row using position using given record to find.
 This works as position()+rnd_pos() functions, but does some
 extra work,calculating m_last_part - the partition to where
-the 'record' should go.	Only useful when position is based
-on primary key (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
-
+the 'record' should go.
+Only useful when position is based on primary key
+(HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
 @param[in]	record	Current record in MySQL Row Format.
 @return	0 for success else error code. */
 int ha_innopart::rnd_pos_by_record(uchar *record) {

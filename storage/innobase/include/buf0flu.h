@@ -85,7 +85,7 @@ bool page_is_uncompressed_type(const byte *page);
 @param[in,out]  page_zip_       compressed page, or NULL if uncompressed
 @param[in]      newest_lsn      newest modification LSN to the page
 @param[in]      skip_checksum   whether to disable the page checksum
-@param[in]      skip_lsn_check  true to skip check for lsn (in DEBUG) */
+@param[in]      skip_lsn_check  true to skip check for LSN (in DEBUG) */
 void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
                                 void *page_zip_, lsn_t newest_lsn,
                                 bool skip_checksum, bool skip_lsn_check);

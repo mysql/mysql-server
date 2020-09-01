@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -112,10 +112,10 @@ ib_list_node_t *ib_list_add_last(
   return (ib_list_add_after(list, ib_list_get_last(list), data, heap));
 }
 
-/** Remove the node from the list. */
-void ib_list_remove(ib_list_t *list,      /*!< in: list */
-                    ib_list_node_t *node) /*!< in: node to remove */
-{
+/** Remove the node from the list.
+@param[in] list List
+@param[in] node Node to remove */
+void ib_list_remove(ib_list_t *list, ib_list_node_t *node) {
   if (node->prev) {
     node->prev->next = node->next;
   } else {

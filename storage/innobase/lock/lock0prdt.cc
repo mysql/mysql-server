@@ -83,10 +83,10 @@ rtr_mbr_t *lock_prdt_get_mbr_from_lock(const lock_t *lock) /*!< in: the lock */
   return (mbr_loc);
 }
 
-/** Append a predicate to the lock */
-void lock_prdt_set_prdt(lock_t *lock,            /*!< in: lock */
-                        const lock_prdt_t *prdt) /*!< in: Predicate */
-{
+/** Append a predicate to the lock
+@param[in] lock Lock
+@param[in] prdt Predicate */
+void lock_prdt_set_prdt(lock_t *lock, const lock_prdt_t *prdt) {
   ut_ad(lock->type_mode & LOCK_PREDICATE);
 
   memcpy(&(((byte *)&lock[1])[UNIV_WORD_SIZE]), prdt, sizeof *prdt);

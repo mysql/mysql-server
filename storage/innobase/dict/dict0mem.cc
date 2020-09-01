@@ -142,7 +142,7 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
 }
 
 /** Adds a stored column definition to a table.
-@param[in]	table		table
+@param[in,out]	table		table
 @param[in]	num_base	number of base columns. */
 void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
   ulint i = table->n_def - 1;
@@ -306,14 +306,15 @@ static void dict_mem_table_col_rename_low(
   }
 }
 
-/** Renames a column of a table in the data dictionary cache. */
-void dict_mem_table_col_rename(dict_table_t *table, /*!< in/out: table */
-                               ulint nth_col,       /*!< in: column index */
-                               const char *from,    /*!< in: old column name */
-                               const char *to,      /*!< in: new column name */
-                               bool is_virtual)
-/*!< in: if this is a virtual column */
-{
+/** Renames a column of a table in the data dictionary cache.
+@param[in,out] table Table
+@param[in] nth_col Column index
+@param[in] from Old column name
+@param[in] to New column name
+@param[in] is_virtual If this is a virtual column */
+void dict_mem_table_col_rename(dict_table_t *table, ulint nth_col,
+                               const char *from, const char *to,
+                               bool is_virtual) {
   const char *s = is_virtual ? table->v_col_names : table->col_names;
 
   ut_ad((!is_virtual && nth_col < table->n_def) ||

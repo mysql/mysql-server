@@ -712,7 +712,7 @@ static void log_flush_low(log_t &log);
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 /** Computes index of a slot (in array of "wait events"), which should
 be used when waiting until redo reached provided lsn.
@@ -1141,7 +1141,7 @@ retry:
   return (wait_stats);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1149,7 +1149,7 @@ retry:
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 /** Small utility which is used inside log threads when they have to
 wait for next interesting event to happen. For performance reasons,
@@ -1269,7 +1269,7 @@ struct Log_write_to_file_requests_monitor {
   uint64_t m_request_interval;
 };
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -1277,7 +1277,7 @@ struct Log_write_to_file_requests_monitor {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 #else /* !UNIV_HOTBACKUP */
 #define log_writer_mutex_own(log) true
@@ -2225,7 +2225,7 @@ void log_writer(log_t *log_ptr) {
   log_writer_mutex_exit(log);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -2233,7 +2233,7 @@ void log_writer(log_t *log_ptr) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 static void log_flush_update_stats(log_t &log) {
   ut_ad(log_flusher_mutex_own(log));
@@ -2527,7 +2527,7 @@ void log_flusher(log_t *log_ptr) {
   log_flusher_mutex_exit(log);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -2535,7 +2535,7 @@ void log_flusher(log_t *log_ptr) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 void log_write_notifier(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
@@ -2645,7 +2645,7 @@ void log_write_notifier(log_t *log_ptr) {
   log_write_notifier_mutex_exit(log);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -2653,7 +2653,7 @@ void log_write_notifier(log_t *log_ptr) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 void log_flush_notifier(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
@@ -2763,7 +2763,7 @@ void log_flush_notifier(log_t *log_ptr) {
   log_flush_notifier_mutex_exit(log);
 }
 
-/* @} */
+/** @} */
 
 /**************************************************/ /**
 
@@ -2771,7 +2771,7 @@ void log_flush_notifier(log_t *log_ptr) {
 
  *******************************************************/
 
-/* @{ */
+/** @{ */
 
 bool log_read_encryption() {
   space_id_t log_space_id = dict_sys_t::s_log_space_first_id;
@@ -2915,6 +2915,6 @@ void redo_rotate_default_master_key() {
   }
 }
 
-/* @} */
+/** @} */
 
 #endif /* !UNIV_HOTBACKUP */

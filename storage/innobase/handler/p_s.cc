@@ -332,13 +332,13 @@ class Innodb_data_lock_wait_iterator
   /** Scan a given transaction.
   Either scan all the waits for a transaction,
   or scan only records matching a given wait.
-  @param[in] container		          The container to fill
-  @param[in] trx		          The trx to scan
-  @param[in] with_filter		  True if looking for a given wait only.
-  @param[in] filter_requesting_lock_immutable_id  Immutable id of lock_t for
-  the requesting lock, when filtering
-  @param[in] filter_blocking_lock_immutable_id	  Immutable id of lock_t
-  for the blocking lock, when filtering
+  @param[in] container		The container to fill
+  @param[in] trx			The trx to scan
+  @param[in] with_filter		True if looking for a given wait only.
+  @param[in] filter_requesting_lock_immutable_id		Immutable id of
+  lock_t for the requesting lock, when filtering
+  @param[in] filter_blocking_lock_immutable_id		Immutable idof
+  lock_t for the blocking lock, when filtering
   @returns the number of records found.
   */
   size_t scan_trx(PSI_server_data_lock_wait_container *container,

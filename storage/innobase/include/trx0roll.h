@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -135,12 +135,13 @@ dberr_t trx_release_savepoint_for_mysql(
     trx_t *trx,                 /*!< in: transaction handle */
     const char *savepoint_name) /*!< in: savepoint name */
     MY_ATTRIBUTE((warn_unused_result));
-/** Frees savepoint structs starting from savep. */
-void trx_roll_savepoints_free(
-    trx_t *trx,                 /*!< in: transaction handle */
-    trx_named_savept_t *savep); /*!< in: free all savepoints > this one;
-                                if this is NULL, free all savepoints
-                                of trx */
+
+/** Frees savepoint structs starting from savep.
+@param[in] trx Transaction handle
+@param[in] savep Free all savepoints starting with this savepoint i, if savep is
+nullptr free all save points */
+void trx_roll_savepoints_free(trx_t *trx, trx_named_savept_t *savep);
+
 /** Rollback node states */
 enum roll_node_state {
   ROLL_NODE_NONE = 0, /*!< Unknown state */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,11 +42,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	callback	user callback function */
 void ut_set_assert_callback(std::function<void()> &callback);
 
-/** Report a failed assertion. */
-[[noreturn]] void ut_dbg_assertion_failed(
-    const char *expr, /*!< in: the failed assertion */
-    const char *file, /*!< in: source file containing the assertion */
-    ulint line);      /*!< in: line number of the assertion */
+/** Report a failed assertion.
+@param[in] expr The failed assertion
+@param[in] file Source file containing the assertion
+@param[in] line Line number of the assertion */
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          ulint line);
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */

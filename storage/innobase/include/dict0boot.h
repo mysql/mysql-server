@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,17 +47,17 @@ typedef byte dict_hdr_t;
 /** Gets a pointer to the dictionary header and x-latches its page.
  @return pointer to the dictionary header, page x-latched */
 dict_hdr_t *dict_hdr_get(mtr_t *mtr); /*!< in: mtr */
-/** Returns a new table, index, or space id. */
-void dict_hdr_get_new_id(table_id_t *table_id,      /*!< out: table id
-                                                    (not assigned if NULL) */
-                         space_index_t *index_id,   /*!< out: index id
-                                                    (not assigned if NULL) */
-                         space_id_t *space_id,      /*!< out: space id
-                                                    (not assigned if NULL) */
-                         const dict_table_t *table, /*!< in: table */
-                         bool disable_redo);        /*!< in: if true and table
-                                                    object is NULL
-                                                    then disable-redo */
+
+/** Returns a new table, index, or space id.
+@param[out] table_id Table id (not assigned if null)
+@param[out] index_id Index id (not assigned if null)
+@param[out] space_id Space id (not assigned if null)
+@param[in] table Table
+@param[in] disable_redo If true and table object is null then disable-redo */
+void dict_hdr_get_new_id(table_id_t *table_id, space_index_t *index_id,
+                         space_id_t *space_id, const dict_table_t *table,
+                         bool disable_redo);
+
 /** Writes the current value of the row id counter to the dictionary header file
  page. */
 void dict_hdr_flush_row_id(void);

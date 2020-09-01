@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,35 +101,35 @@ void rtr_page_cal_mbr(const dict_index_t *index, const buf_block_t *block,
 /** Find the next matching record. This function will first exhaust
 the copied record listed in the rtr_info->matches vector before
 moving to next page
-@param[in]	tuple		data tuple; NOTE: n_fields_cmp in tuple
+@param[in]	tuple		Data tuple; NOTE: n_fields_cmp in tuple
                                 must be set so that it cannot get compared
                                 to the node ptr page number field!
-@param[in]	mode		cursor search mode
-@param[in]	sel_mode	select mode: SELECT_ORDINARY,
+@param[in]	mode		Cursor search mode
+@param[in]	sel_mode	Select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
-@param[in]	cursor		persistent cursor; NOTE that the function
+@param[in]	cursor		Persistent cursor; NOTE that the function
                                 may release the page latch
-@param[in]	cur_level	current level
-@param[in]	mtr		mini-transaction
+@param[in]	cur_level	Current level
+@param[in]	mtr		Mini-transaction
 @return true if there is next qualified record found, otherwise(if
 exhausted) false */
 bool rtr_pcur_move_to_next(const dtuple_t *tuple, page_cur_mode_t mode,
                            select_mode sel_mode, btr_pcur_t *cursor,
                            ulint cur_level, mtr_t *mtr);
 
-/** Searches the right position in rtree for a page cursor. */
-bool rtr_cur_search_with_match(
-    const buf_block_t *block, /*!< in: buffer block */
-    dict_index_t *index,      /*!< in: index descriptor */
-    const dtuple_t *tuple,    /*!< in: data tuple */
-    page_cur_mode_t mode,     /*!< in: PAGE_CUR_L,
-                              PAGE_CUR_LE, PAGE_CUR_G, or
-                              PAGE_CUR_GE */
-    page_cur_t *cursor,       /*!< in/out: page cursor */
-    rtr_info_t *rtr_info);    /*!< in/out: search stack */
+/** Searches the right position in rtree for a page cursor.
+@param[in] block Buffer block
+@param[in] index Index descriptor
+@param[in] tuple Data tuple
+@param[in] mode Page_cur_l, page_cur_le, page_cur_g, or page_cur_ge
+@param[in,out] cursor Page cursor
+@param[in,out] rtr_info Search stack */
+bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
+                               const dtuple_t *tuple, page_cur_mode_t mode,
+                               page_cur_t *cursor, rtr_info_t *rtr_info);
 
 /** Calculate the area increased for a new record
- @return area increased */
+@return area increased */
 double rtr_rec_cal_increase(
     const dtuple_t *dtuple, /*!< in: data tuple to insert, which
                             cause area increase */
@@ -195,23 +195,19 @@ UNIV_INLINE
 node_seq_t rtr_get_current_ssn_id(
     dict_index_t *index); /*!< in/out: the index struct */
 
-/** Create a RTree search info structure */
-rtr_info_t *rtr_create_rtr_info(
-    /******************/
-    bool need_prdt,       /*!< in: Whether predicate lock is
-                          needed */
-    bool init_matches,    /*!< in: Whether to initiate the
-                          "matches" structure for collecting
-                          matched leaf records */
-    btr_cur_t *cursor,    /*!< in: tree search cursor */
-    dict_index_t *index); /*!< in: index struct */
+/** Create a RTree search info structure
+@param[in] need_prdt Whether predicate lock is needed
+@param[in] init_matches Whether to initiate the "matches" structure for
+collecting matched leaf records
+@param[in] cursor Tree search cursor
+@param[in] index Index struct */
+rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
+                                btr_cur_t *cursor, dict_index_t *index);
 
-/** Update a btr_cur_t with rtr_info */
-void rtr_info_update_btr(
-    /******************/
-    btr_cur_t *cursor,     /*!< in/out: tree cursor */
-    rtr_info_t *rtr_info); /*!< in: rtr_info to set to the
-                           cursor */
+/** Update a btr_cur_t with rtr_info
+@param[in,out] cursor Tree cursor
+@param[in] rtr_info Rtr_info to set to the cursor */
+void rtr_info_update_btr(btr_cur_t *cursor, rtr_info_t *rtr_info);
 
 /** Update a btr_cur_t with rtr_info */
 void rtr_init_rtr_info(
@@ -228,14 +224,17 @@ void rtr_init_rtr_info(
 void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
                         bool free_all); /*!< in: need to free rtr_info itself */
 
-/** Get the bounding box content from an index record*/
-void rtr_get_mbr_from_rec(const rec_t *rec,     /*!< in: data tuple */
-                          const ulint *offsets, /*!< in: offsets array */
-                          rtr_mbr_t *mbr);      /*!< out MBR */
+/** Get the bounding box content from an index record
+@param[in] rec Data tuple
+@param[in] offsets Offsets array
+@param[out] mbr Mbr */
+void rtr_get_mbr_from_rec(const rec_t *rec, const ulint *offsets,
+                          rtr_mbr_t *mbr);
 
-/** Get the bounding box content from a MBR data record */
-void rtr_get_mbr_from_tuple(const dtuple_t *dtuple, /*!< in: data tuple */
-                            rtr_mbr *mbr);          /*!< out: mbr to fill */
+/** Get the bounding box content from a MBR data record
+@param[in] dtuple Data tuple
+@param[out] mbr Mbr to fill */
+void rtr_get_mbr_from_tuple(const dtuple_t *dtuple, rtr_mbr *mbr);
 
 /* Get the rtree page father.
 @param[in]	offsets		work area for the return value
@@ -313,59 +312,85 @@ UNIV_INLINE
 btr_pcur_t *rtr_get_parent_cursor(btr_cur_t *btr_cur, ulint level,
                                   ulint is_insert);
 
-/** Copy recs from a page to new_block of rtree. */
-void rtr_page_copy_rec_list_end_no_locks(
-    buf_block_t *new_block,   /*!< in: index page to copy to */
-    buf_block_t *block,       /*!< in: index page of rec */
-    rec_t *rec,               /*!< in: record on page */
-    dict_index_t *index,      /*!< in: record descriptor */
-    mem_heap_t *heap,         /*!< in/out: heap memory */
-    rtr_rec_move_t *rec_move, /*!< in: recording records moved */
-    ulint max_move,           /*!< in: num of rec to move */
-    ulint *num_moved,         /*!< out: num of rec to move */
-    mtr_t *mtr);              /*!< in: mtr */
+/** Copy recs from a page to new_block of rtree.
+Differs from page_copy_rec_list_end, because this function does not
+touch the lock table and max trx id on page or compress the page.
 
-/** Copy recs till a specified rec from a page to new_block of rtree. */
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+@param[in] new_block Index page to copy to
+@param[in] block Index page of rec
+@param[in] rec Record on page
+@param[in] index Record descriptor
+@param[in,out] heap Heap memory
+@param[in] rec_move Recording records moved
+@param[in] max_move Num of rec to move
+@param[out] num_moved Num of rec to move
+@param[in] mtr Mini-transaction */
+void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
+                                         buf_block_t *block, rec_t *rec,
+                                         dict_index_t *index, mem_heap_t *heap,
+                                         rtr_rec_move_t *rec_move,
+                                         ulint max_move, ulint *num_moved,
+                                         mtr_t *mtr);
+
+/** Copy recs till a specified rec from a page to new_block of rtree.
+@param[in] new_block Index page to copy to
+@param[in] block Index page of rec
+@param[in] rec Record on page
+@param[in] index Record descriptor
+@param[in,out] heap Heap memory
+@param[in] rec_move Recording records moved
+@param[in] max_move Num of rec to move
+@param[out] num_moved Num of rec to move
+@param[in] mtr Mini-transaction */
 void rtr_page_copy_rec_list_start_no_locks(
-    buf_block_t *new_block,   /*!< in: index page to copy to */
-    buf_block_t *block,       /*!< in: index page of rec */
-    rec_t *rec,               /*!< in: record on page */
-    dict_index_t *index,      /*!< in: record descriptor */
-    mem_heap_t *heap,         /*!< in/out: heap memory */
-    rtr_rec_move_t *rec_move, /*!< in: recording records moved */
-    ulint max_move,           /*!< in: num of rec to move */
-    ulint *num_moved,         /*!< out: num of rec to move */
-    mtr_t *mtr);              /*!< in: mtr */
+    buf_block_t *new_block, buf_block_t *block, rec_t *rec, dict_index_t *index,
+    mem_heap_t *heap, rtr_rec_move_t *rec_move, ulint max_move,
+    ulint *num_moved, mtr_t *mtr);
 
-/** Merge 2 mbrs and update the the mbr that cursor is on. */
-dberr_t rtr_merge_and_update_mbr(
-    btr_cur_t *cursor,        /*!< in/out: cursor */
-    btr_cur_t *cursor2,       /*!< in: the other cursor */
-    ulint *offsets,           /*!< in: rec offsets */
-    ulint *offsets2,          /*!< in: rec offsets */
-    page_t *child_page,       /*!< in: the child page. */
-    buf_block_t *merge_block, /*!< in: page to merge */
-    buf_block_t *block,       /*!< in: page be merged */
-    dict_index_t *index,      /*!< in: index */
-    mtr_t *mtr);              /*!< in: mtr */
+/** Merge 2 mbrs and update the the mbr that cursor is on.
+@param[in,out] cursor Cursor
+@param[in] cursor2 The other cursor
+@param[in] offsets Rec offsets
+@param[in] offsets2 Rec offsets
+@param[in] child_page The child page.
+@param[in] merge_block Page to merge
+@param[in] block Page be merged
+@param[in] index Index
+@param[in] mtr Mini-transaction */
+dberr_t rtr_merge_and_update_mbr(btr_cur_t *cursor, btr_cur_t *cursor2,
+                                 ulint *offsets, ulint *offsets2,
+                                 page_t *child_page, buf_block_t *merge_block,
+                                 buf_block_t *block, dict_index_t *index,
+                                 mtr_t *mtr);
 
-/** Deletes on the upper level the node pointer to a page. */
-void rtr_node_ptr_delete(
-    dict_index_t *index, /*!< in: index tree */
-    btr_cur_t *sea_cur,  /*!< in: search cursor, contains information
-                         about parent nodes in search */
-    buf_block_t *block,  /*!< in: page whose node pointer is deleted */
-    mtr_t *mtr);         /*!< in: mtr */
+/** Deletes on the upper level the node pointer to a page.
+@param[in] index Index tree
+@param[in] sea_cur Search cursor, contains information about parent nodes in
+search
+@param[in] block Page whose node pointer is deleted
+@param[in] mtr Mini-transaction
+*/
+void rtr_node_ptr_delete(dict_index_t *index, btr_cur_t *sea_cur,
+                         buf_block_t *block, mtr_t *mtr);
 
-/** Check two MBRs are identical or need to be merged */
-bool rtr_merge_mbr_changed(btr_cur_t *cursor,  /*!< in: cursor */
-                           btr_cur_t *cursor2, /*!< in: the other cursor */
-                           ulint *offsets,     /*!< in: rec offsets */
-                           ulint *offsets2,    /*!< in: rec offsets */
-                           rtr_mbr_t *new_mbr, /*!< out: MBR to update */
-                           buf_block_t *merge_block, /*!< in: page to merge */
-                           buf_block_t *block,       /*!< in: page be merged */
-                           dict_index_t *index);     /*!< in: index */
+/** Check two MBRs are identical or need to be merged
+@param[in] cursor Cursor
+@param[in] cursor2 The other cursor
+@param[in] offsets Rec offsets
+@param[in] offsets2 Rec offsets
+@param[out] new_mbr Mbr to update
+@param[in] merge_block Page to merge
+@param[in] block Page be merged
+@param[in] index Index */
+bool rtr_merge_mbr_changed(btr_cur_t *cursor, btr_cur_t *cursor2,
+                           ulint *offsets, ulint *offsets2, rtr_mbr_t *new_mbr,
+                           buf_block_t *merge_block, buf_block_t *block,
+                           dict_index_t *index);
 
 /** Update the mbr field of a spatial index row.
  @return true if successful */
@@ -403,12 +428,12 @@ void rtr_write_mbr(byte *data, const rtr_mbr_t *mbr);
 UNIV_INLINE
 void rtr_read_mbr(const byte *data, rtr_mbr_t *mbr);
 
-/** Check whether a discarding page is in anyone's search path */
-void rtr_check_discard_page(
-    dict_index_t *index, /*!< in: index */
-    btr_cur_t *cursor,   /*!< in: cursor on the page to discard: not on
-                         the root page */
-    buf_block_t *block); /*!< in: block of page to be discarded */
+/** Check whether a discarding page is in anyone's search path
+@param[in] index Index
+@param[in,out] cursor Cursor on the page to discard: not on the root page
+@param[in] block Block of page to be discarded */
+void rtr_check_discard_page(dict_index_t *index, btr_cur_t *cursor,
+                            buf_block_t *block);
 
 /** Reinitialize a RTree search info
 @param[in,out]	cursor		tree cursor
@@ -427,4 +452,4 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
                                      page_cur_mode_t mode);
 
 #include "gis0rtree.ic"
-#endif /*!< gis0rtree.h */
+#endif

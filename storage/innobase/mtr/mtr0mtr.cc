@@ -179,8 +179,7 @@ struct Mtr_memo_contains {
   /** Check if the object in the given slot is of the correct type
   and then check if it is contained in the mtr.
   @retval true if the object in the slot is not of required type.
-  @retval true if the object in the slot is of the required type,
-               but is not contained in the mtr.
+  os is of the required type, but is not contained in the mtr.
   @retval false if the object in the slot is of the required type
                 and it is contained in the mtr. */
   bool operator()(mtr_memo_slot_t *slot) {
@@ -338,7 +337,7 @@ class mtr_t::Command {
  public:
   /** Constructor.
   Takes ownership of the mtr->m_impl, is responsible for deleting it.
-  @param[in,out]	mtr	mini-transaction */
+  @param[in,out]	mtr	Mini-transaction */
   explicit Command(mtr_t *mtr) : m_locks_released() { init(mtr); }
 
   void init(mtr_t *mtr) {
@@ -639,7 +638,9 @@ void mtr_t::commit() {
 }
 
 #ifndef UNIV_HOTBACKUP
+
 /** Acquire a tablespace X-latch.
+NOTE: use mtr_x_lock_space().
 @param[in]	space		tablespace instance
 @param[in]	file		file name from where called
 @param[in]	line		line number in file */

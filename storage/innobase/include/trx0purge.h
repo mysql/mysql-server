@@ -283,9 +283,9 @@ space number.
 space_id_t next_space_id(space_id_t space_id);
 
 /** Return the next available undo space ID to be used for a new explicit
-undo tablespaces.
-@retval if success, next available undo space number.
-@retval if failure, SPACE_UNKNOWN */
+undo tablespaces. The slot will be marked as in-use.
+@return next available undo space number if successful.
+@return SPACE_UNKNOWN if failed */
 space_id_t get_next_available_space_num();
 
 /** Build a standard undo tablespace name from a space_id.
@@ -294,6 +294,8 @@ space_id_t get_next_available_space_num();
 char *make_space_name(space_id_t space_id);
 
 /** Build a standard undo tablespace file name from a space_id.
+This will create a name like 'undo_001' if the space_id is in the
+reserved range, else it will be like 'undo001'.
 @param[in]	space_id	id of the undo tablespace.
 @return file_name of the undo tablespace file */
 char *make_file_name(space_id_t space_id);

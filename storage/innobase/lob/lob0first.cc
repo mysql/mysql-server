@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,16 +46,16 @@ void first_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
 }
 
 /** Replace data in the page by making a copy-on-write.
-@param[in]	trx	the current transaction.
-@param[in]	offset	the location where replace operation starts.
-@param[in,out]	ptr	the buffer containing new data. after the
-                        call it will point to remaining data.
-@param[in,out]	want	requested amount of data to be replaced.
-                        after the call it will contain amount of
-                        data yet to be replaced.
-@param[in]	mtr	the mini-transaction context.
-@return	the newly allocated buffer block.
-@return	nullptr if new page could not be allocated (DB_OUT_OF_FILE_SPACE). */
+@param[in]      trx     Current transaction.
+@param[in]      offset  Location where replace operation starts.
+@param[in,out]  ptr     Buffer containing new data. after the call it will
+point to remaining data.
+@param[in,out]  want    Requested amount of data to be replaced. After the
+call it will contain amount of data yet to be replaced.
+@param[in]      mtr     Mini-transaction context.
+@return  the newly allocated buffer block.
+@return  nullptr if new page could not be allocated
+(DB_OUT_OF_FILE_SPACE). */
 buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
                                    ulint &want, mtr_t *mtr) {
   DBUG_TRACE;
@@ -339,8 +339,9 @@ void first_page_t::free_all_index_pages() {
 }
 
 /** Load the first page of LOB with x-latch.
-@param[in]   page_id    the page identifier of the first page.
-@param[in]   page_size  the page size information.
+@param[in]   page_id    Page identifier of the first page.
+@param[in]   page_size  Page size information.
+@param[in]   mtr        Mini-transaction context for latch.
 @return the buffer block of the first page. */
 buf_block_t *first_page_t::load_x(const page_id_t &page_id,
                                   const page_size_t &page_size, mtr_t *mtr) {

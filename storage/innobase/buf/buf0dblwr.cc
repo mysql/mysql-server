@@ -176,7 +176,6 @@ struct Cached_fil_space {
 };
 
 /** Doublewrite buffer */
-/* @{ */
 
 /** fseg header of the fseg containing the doublewrite buffer */
 constexpr ulint DBLWR_V1_FSEG = 0;

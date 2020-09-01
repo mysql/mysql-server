@@ -251,7 +251,7 @@ enum mlog_id_t {
   MLOG_BIGGEST_TYPE = MLOG_TEST
 };
 
-/* @} */
+/** @} */
 
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */

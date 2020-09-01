@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,10 +69,12 @@ static void z_print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
 #endif /* UNIV_DEBUG */
 
 /** Update a portion of the given LOB.
-@param[in] trx       the transaction that is doing the modification.
-@param[in] index     the clustered index containing the LOB.
-@param[in] upd       update vector
-@param[in] field_no  the LOB field number
+@param[in]	ctx		update operation context information.
+@param[in]	trx		the transaction that is doing the modification.
+@param[in]	index		the clustered index containing the LOB.
+@param[in]	upd		update vector
+@param[in]	field_no	the LOB field number
+@param[in]	blobref		LOB reference stored in clust record.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                  const upd_t *upd, ulint field_no, ref_t blobref) {
@@ -125,11 +127,11 @@ dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 }
 
 /** Find the location of the given offset within LOB.
-@param[in]	trx		the current transaction.
-@param[in]	index		the index where LOB is located.
-@param[in]	node_loc	the location of first page.
-@param[in,out]	offset		the requested offset.
-@param[in]	mtr		mini-transaction context.
+@param[in]	trx		The current transaction.
+@param[in]	index		The index where LOB is located.
+@param[in]	node_loc	The location of first page.
+@param[in,out]	offset		The requested offset.
+@param[in]	mtr		Mini-transaction context.
 @return the file address of requested offset or fil_addr_null. */
 fil_addr_t z_find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
                          ulint &offset, mtr_t *mtr) {

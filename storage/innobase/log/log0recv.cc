@@ -947,7 +947,7 @@ static dberr_t recv_log_recover_pre_8_0_4(log_t &log,
 
   /* We are not going to rewrite the block, but just in case we prefer to
   have first_rec_group which points on checkpoint_lsn (instead of pointing
-  on mini transactions from earlier formats). This is extra safety if one
+  on mini-transactions from earlier formats). This is extra safety if one
   day this block would become rewritten because of some new bug (using new
   format). */
   log_block_set_first_rec_group(buf, checkpoint_lsn % OS_FILE_LOG_BLOCK_SIZE);
@@ -1609,15 +1609,15 @@ void meb_apply_log_recs_via_callback(
 
 /** Try to parse a single log record body and also applies it if
 specified.
-@param[in]	type		redo log entry type
-@param[in]	ptr		redo log record body
-@param[in]	end_ptr		end of buffer
-@param[in]	space_id	tablespace identifier
-@param[in]	page_no		page number
-@param[in,out]	block		buffer block, or nullptr if
+@param[in]	type		Redo log entry type
+@param[in]	ptr		Redo log record body
+@param[in]	end_ptr		End of buffer
+@param[in]	space_id	Tablespace identifier
+@param[in]	page_no		Page number
+@param[in,out]	block		Buffer block, or nullptr if
                                 a page log record should not be applied
                                 or if it is a MLOG_FILE_ operation
-@param[in,out]	mtr		mini-transaction, or nullptr if
+@param[in,out]	mtr		Mini-transaction, or nullptr if
                                 a page log record should not be applied
 @param[in]	parsed_bytes	Number of bytes parsed so far
 @return log record end, nullptr if not a complete record */
@@ -2398,14 +2398,12 @@ static void recv_data_copy_to_buf(byte *buf, recv_t *recv) {
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
-read in, or also for a page already in the buffer pool. */
-#ifndef UNIV_HOTBACKUP
-/**
+read in, or also for a page already in the buffer pool.
+
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
-                                read page */
-#endif /* !UNIV_HOTBACKUP */
-/**
-@param[in,out]	block		Buffer block */
+                                read page
+@param[in,out]	block		buffer block */
+/* TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
 void recv_recover_page_func(
 #ifndef UNIV_HOTBACKUP
     bool just_read_in,
@@ -2782,7 +2780,7 @@ static bool recv_update_bytes_to_ignore_before_checkpoint(
 /** Tracks changes of recovered_lsn and tracks proper values for what
 first_rec_group should be for consecutive blocks. Must be called when
 recv_sys->recovered_lsn is changed to next lsn pointing at boundary
-between consecutive parsed mini transactions. */
+between consecutive parsed mini-transactions. */
 static void recv_track_changes_of_recovered_lsn() {
   if (recv_sys->parse_start_lsn == 0) {
     return;

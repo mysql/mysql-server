@@ -64,7 +64,7 @@ or purge) */
 @param[in]	is_sdi	true for SDI Indexes */
 #endif /* UNIV_DEBUG */
 /**
-@param[in]	heap	heap where created
+@param[in,out]	heap	heap where created
 @return own: column prefix cache */
 row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
                                const ulint *ext, uint32_t flags,

@@ -153,10 +153,9 @@ struct LatchDebug {
   const latch_t *find(const Latches *latches,
                       latch_level_t level) const UNIV_NOTHROW;
 
-  /**
-  Checks if the level value exists in the thread's acquired latches.
-  @param[in]	level		to lookup
-  @return	latch if found or 0 */
+  /** Checks if the level value exists in the thread's acquired latches.
+  @param[in]	level		The level to lookup
+  @return	latch if found or NULL */
   const latch_t *find(latch_level_t level) UNIV_NOTHROW;
 
   /** Report error and abort.
@@ -168,13 +167,12 @@ struct LatchDebug {
   void crash(const Latches *latches, const Latched *latched,
              latch_level_t level) const UNIV_NOTHROW;
 
-  /** Do a basic ordering check.
+  /** Do a basic ordering check. Asserts that all the existing latches have a
+  level higher than the in_level.
   @param[in]	latches		thread's existing latches
   @param[in]	requested_level	Level requested by latch
-  @param[in]	in_level	declared ulint so that we can
-                                  do level - 1. The level of the
-                                  latch that the thread is trying
-                                  to acquire
+  @param[in]	in_level	The level of the latch that the thread is trying
+  to acquire. Declared ulint so that we can do level - 1.
   @return true if passes, else crash with error message. */
   bool basic_check(const Latches *latches, latch_level_t requested_level,
                    ulint in_level) const UNIV_NOTHROW;
@@ -296,8 +294,7 @@ struct LatchDebug {
   }
 
   /** Removes a latch from the thread level array if it is found there.
-  @param[in]	latch		The latch that was released
-  */
+  @param[in]	latch		The latch that was released */
   void unlock(const latch_t *latch) UNIV_NOTHROW;
 
   /** Get the level name
@@ -569,13 +566,12 @@ const Latched *LatchDebug::less(const Latches *latches,
   return (nullptr);
 }
 
-/** Do a basic ordering check.
-Asserts that all the existing latches have a level higher than the in_level.
+/** Do a basic ordering check. Asserts that all the existing latches have a
+level higher than the in_level.
 @param[in]	latches		thread's existing latches
 @param[in]	requested_level	Level requested by latch
-@param[in]	in_level	declared ulint so that we can do level - 1.
-                                The level of the latch that the thread is
-                                trying to acquire
+@param[in]	in_level	The level of the latch that the thread is trying
+to acquire. Declared ulint so that we can do level - 1.
 @return true if passes, else crash with error message. */
 bool LatchDebug::basic_check(const Latches *latches,
                              latch_level_t requested_level,
@@ -651,7 +647,7 @@ const latch_t *LatchDebug::find(const Latches *latches,
 }
 
 /** Checks if the level value exists in the thread's acquired latches.
-@param[in]	 level		The level to lookup
+@param[in]	level		The level to lookup
 @return	latch if found or NULL */
 const latch_t *LatchDebug::find(latch_level_t level) UNIV_NOTHROW {
   return (find(thread_latches(), level));
@@ -932,7 +928,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 }
 
 /** Removes a latch from the thread level array if it is found there.
-@param[in]	latch		that was released/unlocked */
+@param[in]	latch		The latch that was released */
 void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
   if (latch->get_level() == SYNC_LEVEL_VARYING) {
     // We don't have varying level mutexes
@@ -1018,7 +1014,7 @@ latch_id_t sync_latch_get_id(const char *name) {
 
 /** Get the latch name from a sync level
 @param[in]	level		Latch level to lookup
-@return NULL if not found. */
+@return nullptr if not found. */
 const char *sync_latch_get_name(latch_level_t level) {
   LatchMetaData::const_iterator end = latch_meta.end();
 
@@ -1054,7 +1050,7 @@ void sync_check_lock_granted(const latch_t *latch) {
 
 /** Check if it is OK to acquire the latch.
 @param[in]	latch	latch type
-@param[in]	level	Latch level */
+@param[in]	level	the level of the mutex */
 void sync_check_lock(const latch_t *latch, latch_level_t level) {
   if (LatchDebug::instance() != nullptr) {
     ut_ad(latch->get_level() == SYNC_LEVEL_VARYING);
@@ -1093,10 +1089,10 @@ const latch_t *sync_check_find(latch_level_t level) {
   return (nullptr);
 }
 
-/** Iterate over the thread's latches.
-@param[in,out]	functor		called for each element.
-@return false if the sync debug hasn't been initialised
-@return the value returned by the functor */
+/** Checks that the level array for the current thread is empty.
+Terminate iteration if the functor returns true.
+@param[in,out]	 functor	called for each element.
+@return true if the functor returns true */
 bool sync_check_iterate(sync_check_functor_t &functor) {
   if (LatchDebug::instance() != nullptr) {
     return (LatchDebug::instance()->for_each(functor));

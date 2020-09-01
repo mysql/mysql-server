@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -180,13 +180,13 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
 }
 
 /** Read one data chunk associated with one index entry.
-@param[in]	index	the clustered index containing the LOB.
-@param[in]	entry	pointer to the index entry
-@param[in]	offset	the offset from which to read the chunk.
-@param[in,out]	len	the length of the output buffer. This length can
+@param[in]	index	The clustered index containing the LOB.
+@param[in]	entry	Pointer to the index entry
+@param[in]	offset	The offset from which to read the chunk.
+@param[in,out]	len	The length of the output buffer. This length can
                         be greater than the chunk size.
-@param[in,out]	buf	the output buffer.
-@param[in]	mtr	mini-transaction context.
+@param[in,out]	buf	The output buffer.
+@param[in]	mtr	Mini-transaction context.
 @return number of bytes copied into the output buffer. */
 ulint z_read_chunk(dict_index_t *index, z_index_entry_t &entry, ulint offset,
                    ulint &len, byte *&buf, mtr_t *mtr) {
@@ -251,11 +251,11 @@ ulint z_read_chunk(dict_index_t *index, z_index_entry_t &entry, ulint offset,
 }
 
 /** Read one zlib stream fully, given its index entry.
-@param[in]      index      the index dictionary object.
-@param[in]      entry      the index entry (memory copy).
-@param[in,out]  zbuf       the output buffer
-@param[in]      zbuf_size  the size of the output buffer.
-@param[in,out]  mtr        mini-transaction.
+@param[in]      index      The index dictionary object.
+@param[in]      entry      The index entry (memory copy).
+@param[in,out]  zbuf       The output buffer
+@param[in]      zbuf_size  The size of the output buffer.
+@param[in,out]  mtr        Mini-transaction.
 @return the size of the zlib stream.*/
 ulint z_read_strm(dict_index_t *index, z_index_entry_t &entry, byte *zbuf,
                   ulint zbuf_size, mtr_t *mtr) {

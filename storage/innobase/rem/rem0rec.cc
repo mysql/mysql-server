@@ -1347,10 +1347,10 @@ ibool rec_validate(
   return (TRUE);
 }
 
-/** Prints an old-style physical record. */
-void rec_print_old(FILE *file,       /*!< in: file where to print */
-                   const rec_t *rec) /*!< in: physical record */
-{
+/** Prints an old-style physical record.
+@param[in] file File where to print
+@param[in] rec Physical record */
+void rec_print_old(FILE *file, const rec_t *rec) {
   const byte *data;
   ulint len;
   ulint n;
@@ -1506,12 +1506,11 @@ static void rec_print_mbr_old(FILE *file,       /*!< in: file where to print */
   rec_validate_old(rec);
 }
 
-/** Prints a spatial index record. */
-void rec_print_mbr_rec(
-    FILE *file,           /*!< in: file where to print */
-    const rec_t *rec,     /*!< in: physical record */
-    const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
-{
+/** Prints a spatial index record.
+@param[in] file File where to print
+@param[in] rec Physical record
+@param[in] offsets Array returned by rec_get_offsets() */
+void rec_print_mbr_rec(FILE *file, const rec_t *rec, const ulint *offsets) {
   ut_ad(rec);
   ut_ad(offsets);
   ut_ad(rec_offs_validate(rec, nullptr, offsets));
@@ -1604,11 +1603,11 @@ void rec_print_new(
   rec_validate(rec, offsets);
 }
 
-/** Prints a physical record. */
-void rec_print(FILE *file,                /*!< in: file where to print */
-               const rec_t *rec,          /*!< in: physical record */
-               const dict_index_t *index) /*!< in: record descriptor */
-{
+/** Prints a physical record.
+@param[in] file File where to print
+@param[in] rec Physical record
+@param[in] index Record descriptor */
+void rec_print(FILE *file, const rec_t *rec, const dict_index_t *index) {
   ut_ad(index);
 
   if (!dict_table_is_comp(index->table)) {

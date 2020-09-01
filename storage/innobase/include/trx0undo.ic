@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -119,9 +119,9 @@ roll_ptr_t trx_read_roll_ptr(
 #ifndef UNIV_HOTBACKUP
 
 /** Gets an undo log page and x-latches it.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
+@param[in]	page_id		Page id
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction
 @return pointer to page x-latched */
 UNIV_INLINE
 page_t *trx_undo_page_get(const page_id_t &page_id,
@@ -133,9 +133,9 @@ page_t *trx_undo_page_get(const page_id_t &page_id,
 }
 
 /** Gets an undo log page and s-latches it.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
+@param[in]	page_id		Page id
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction
 @return pointer to page s-latched */
 UNIV_INLINE
 page_t *trx_undo_page_get_s_latched(const page_id_t &page_id,

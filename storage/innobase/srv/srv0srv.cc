@@ -835,12 +835,10 @@ static void srv_print_master_thread_info(FILE *file) /* in: output stream */
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Sets the info describing an i/o thread current state. */
-void srv_set_io_thread_op_info(
-    ulint i,         /*!< in: the 'segment' of the i/o thread */
-    const char *str) /*!< in: constant char string describing the
-                     state */
-{
+/** Sets the info describing an i/o thread current state.
+@param[in] i The 'segment' of the i/o thread
+@param[in] str Constant char string describing the state */
+void srv_set_io_thread_op_info(ulint i, const char *str) {
   ut_a(i < SRV_MAX_N_IO_THREADS);
 
   srv_io_thread_op_info[i] = str;

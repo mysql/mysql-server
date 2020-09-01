@@ -334,9 +334,11 @@ UNIV_INLINE
 void mem_block_validate(const mem_heap_t *heap);
 
 #ifdef UNIV_DEBUG
+
 /** Validates the contents of a memory heap.
-Asserts that the memory heap is consistent
-@param[in]	heap	Memory heap to validate */
+Checks a memory heap for consistency, prints the contents if any error
+is detected. A fatal error is logged if an error is detected.
+@param[in]	heap	Memory heap to validate. */
 void mem_heap_validate(const mem_heap_t *heap);
 
 #endif /* UNIV_DEBUG */

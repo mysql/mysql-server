@@ -216,9 +216,8 @@ static void sync_print_wait_info(FILE *file) {
           std::max(uint64_t(1), (uint64_t)rw_lock_stats.rw_sx_spin_wait_count));
 }
 
-/**
-Prints info of the sync system.
-@param file - where to print */
+/** Prints info of the sync system.
+@param[in]	file	where to print */
 void sync_print(FILE *file) {
 #ifdef UNIV_DEBUG
   rw_lock_list_print_info(file);

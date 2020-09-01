@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -149,7 +149,7 @@ void z_frag_entry_t::free_frag_page(mtr_t *mtr, dict_index_t *index) {
 @param[in]	trxid	the id of the current transaction.
 @param[in]	blob	in memory copy of the LOB.
 @param[in]	len	the length of the LOB.
-@param[in]	mtr	the mini transaction context.
+@param[in]	mtr	the mini-transaction context.
 @param[in]	bulk	true if bulk operation, false otherwise.
 @param[out]	start_page_no	the first page into which zlib stream
                                 was written.
@@ -323,14 +323,14 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
 }
 
 /** Insert one chunk of input.  The maximum size of a chunk is Z_CHUNK_SIZE.
-@param[in]  index      clustered index in which LOB is inserted.
-@param[in]  first      the first page of the LOB.
-@param[in]  trx        transaction doing the insertion.
+@param[in]  index      Clustered index in which LOB is inserted.
+@param[in]  first      First page of the LOB.
+@param[in]  trx        Transaction doing the insertion.
 @param[in]  ref        LOB reference in the clust rec.
-@param[in]  blob       the uncompressed LOB to be inserted.
-@param[in]  len        length of the blob.
-@param[out] out_entry  the newly inserted index entry. can be NULL.
-@param[in]  mtr        the mini transaction
+@param[in]  blob       Uncompressed LOB to be inserted.
+@param[in]  len        Length of the blob.
+@param[out] out_entry  Newly inserted index entry. can be NULL.
+@param[in]  mtr        Mini-transaction
 @param[in]  bulk       true if it is bulk operation, false otherwise.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
@@ -404,11 +404,12 @@ dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
   return (DB_SUCCESS);
 }
 
-/** Insert a large object (LOB) into the system.
-@param[in]      ctx    the B-tree context for this LOB operation.
-@param[in]      trx    transaction doing the insertion.
-@param[in,out]  ref    the LOB reference.
-@param[in]      field  the LOB field.
+/** Insert a compressed large object (LOB) into the system.
+@param[in]	ctx	the B-tree context for this LOB operation.
+@param[in]	trx	transaction doing the insertion.
+@param[in,out]	ref	the LOB reference.
+@param[in]	field	the LOB field.
+@param[in]	field_j	the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                  big_rec_field_t *field, ulint field_j) {
@@ -928,10 +929,11 @@ void z_frag_page_t::dealloc_frag_id() {
 }
 
 /** Insert a large object (LOB) into the system.
-@param[in]      ctx    the B-tree context for this LOB operation.
-@param[in]      trx    transaction doing the insertion.
-@param[in,out]  ref    the LOB reference.
-@param[in]      field  the LOB field.
+@param[in]	ctx	the B-tree context for this LOB operation.
+@param[in]	trx	transaction doing the insertion.
+@param[in,out]	ref	the LOB reference.
+@param[in]	field	the LOB field.
+@param[in]	field_j	the LOB field index in big rec vector.
 @return DB_SUCCESS on success, error code on failure.*/
 dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                big_rec_field_t *field, ulint field_j) {

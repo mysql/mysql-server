@@ -169,12 +169,12 @@ static void btr_cur_add_path_info(btr_cur_t *cursor, ulint height,
 /*==================== B-TREE SEARCH =========================*/
 
 /** Latches the leaf page or pages requested.
-@param[in]	block		leaf page where the search converged
-@param[in]	page_id		page id of the leaf
-@param[in]	page_size	page size
+@param[in]	block		Leaf page where the search converged
+@param[in]	page_id		Page id of the leaf
+@param[in]	page_size	Page size
 @param[in]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in]	cursor		cursor
-@param[in]	mtr		mini-transaction
+@param[in]	cursor		Cursor
+@param[in]	mtr		Mini-transaction
 @return	blocks and savepoints which actually latched. */
 btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
                                         const page_id_t &page_id,
@@ -322,13 +322,13 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
 }
 
 /** Optimistically latches the leaf page or pages requested.
-@param[in]	block		guessed buffer block
-@param[in]	modify_clock	modify clock value
+@param[in]	block		Guessed buffer block
+@param[in]	modify_clock	Modify clock value
 @param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
-@param[in,out]	cursor		cursor
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in]	mtr		mini-transaction
+@param[in,out]	cursor		Cursor
+@param[in]	file		File name
+@param[in]	line		Line where called
+@param[in]	mtr		Mini-transaction
 @return true if success */
 bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
                                      ib_uint64_t modify_clock,
@@ -1691,22 +1691,21 @@ func_exit:
 }
 
 /** Searches an index tree and positions a tree cursor on a given level.
-This function will avoid latching the traversal path and so should be
-used only for cases where-in latching is not needed.
+This function will avoid placing latches while traversing the path and so
+should be used only for cases where-in latching is not needed.
 
-@param[in,out]	index	index
-@param[in]	level	the tree level of search
-@param[in]	tuple	data tuple; Note: n_fields_cmp in compared
+@param[in]	index	Index
+@param[in]	level	The tree level of search
+@param[in]	tuple	Data tuple; Note: n_fields_cmp in compared
                         to the node ptr page node field
 @param[in]	mode	PAGE_CUR_L, ....
                         Insert should always be made using PAGE_CUR_LE
                         to search the position.
-@param[in,out]	cursor	tree cursor; points to record of interest.
-@param[in]	file	file name
-@param[in]	line	line where called from
-@param[in,out]	mtr	mtr
-@param[in]	mark_dirty
-                        if true then mark the block as dirty */
+@param[in,out]	cursor	Tree cursor; points to record of interest.
+@param[in]	file	File name
+@param[in]	line	Line where called from
+@param[in,out]	mtr	Mini-transaction
+@param[in]	mark_dirty if true then mark the block as dirty */
 void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
                                                const dtuple_t *tuple,
                                                page_cur_mode_t mode,
@@ -1834,19 +1833,19 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   }
 }
 
-/** Opens a cursor at either end of an index. */
-void btr_cur_open_at_index_side_func(
-    bool from_left,      /*!< in: true if open to the low end,
-                         false if to the high end */
-    dict_index_t *index, /*!< in: index */
-    ulint latch_mode,    /*!< in: latch mode */
-    btr_cur_t *cursor,   /*!< in/out: cursor */
-    ulint level,         /*!< in: level to search for
-                         (0=leaf). */
-    const char *file,    /*!< in: file name */
-    ulint line,          /*!< in: line where called */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
-{
+/** Opens a cursor at either end of an index.
+@param[in] from_left True if open to the low end, false if to the high end
+@param[in] index Index
+@param[in] latch_mode Latch mode
+@param[in,out] cursor Cursor
+@param[in] level Level to search for (0=leaf)
+@param[in] file File name
+@param[in] line Line where called
+@param[in,out] mtr Mini-transaction */
+void btr_cur_open_at_index_side_func(bool from_left, dict_index_t *index,
+                                     ulint latch_mode, btr_cur_t *cursor,
+                                     ulint level, const char *file, ulint line,
+                                     mtr_t *mtr) {
   page_cur_t *page_cursor;
   ulint node_ptr_max_size = UNIV_PAGE_SIZE / 2;
   ulint height;
@@ -2152,14 +2151,15 @@ void btr_cur_open_at_index_side_func(
 Avoid taking latches on buffer, just pin (by incrementing fix_count)
 to keep them in buffer pool. This mode is used by intrinsic table
 as they are not shared and so there is no need of latching.
+
 @param[in]	from_left	true if open to low end, false if open to high
-                                end.
-@param[in]	index		index
-@param[in,out]	cursor		cursor
-@param[in]	level		level to search for (0=leaf)
-@param[in]	file		file name
-@param[in]	line		line where called
-@param[in,out]	mtr		mini transaction */
+end.
+@param[in]	index	Index
+@param[in,out]	cursor	Cursor
+@param[in]	level	Level to search for (0=leaf)
+@param[in]	file	File name
+@param[in]	line	Line where called
+@param[in,out]	mtr	Mini-transaction */
 void btr_cur_open_at_index_side_with_no_latch_func(
     bool from_left, dict_index_t *index, btr_cur_t *cursor, ulint level,
     const char *file, ulint line, mtr_t *mtr) {
@@ -3117,16 +3117,18 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
                                         offsets, roll_ptr));
 }
 
-/** Writes a redo log record of updating a record in-place. */
-void btr_cur_update_in_place_log(
-    ulint flags,         /*!< in: flags */
-    const rec_t *rec,    /*!< in: record */
-    dict_index_t *index, /*!< in: index of the record */
-    const upd_t *update, /*!< in: update vector */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    roll_ptr_t roll_ptr, /*!< in: roll ptr */
-    mtr_t *mtr)          /*!< in: mtr */
-{
+/** Writes a redo log record of updating a record in-place.
+@param[in] flags Undo logging and locking flags
+@param[in] rec Record
+@param[in] index Index of the record
+@param[in] update Update vector
+@param[in] trx_id Transaction id
+@param[in] roll_ptr Roll ptr
+@param[in] mtr Mini-transaction */
+void btr_cur_update_in_place_log(ulint flags, const rec_t *rec,
+                                 dict_index_t *index, const upd_t *update,
+                                 trx_id_t trx_id, roll_ptr_t roll_ptr,
+                                 mtr_t *mtr) {
   byte *log_ptr = nullptr;
   const page_t *page = page_align(rec);
   ut_ad(flags < 256);
@@ -3323,31 +3325,24 @@ out_of_space:
 }
 
 /** Updates a record when the update causes no size changes in its fields.
- We assume here that the ordering fields of the record do not change.
- @return locking or undo log related error code, or
- @retval DB_SUCCESS on success
- @retval DB_ZIP_OVERFLOW if there is not enough space left
- on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-dberr_t btr_cur_update_in_place(
-    ulint flags,         /*!< in: undo logging and locking flags */
-    btr_cur_t *cursor,   /*!< in: cursor on the record to update;
-                         cursor stays valid and positioned on the
-                         same record */
-    ulint *offsets,      /*!< in/out: offsets on cursor->page_cur.rec */
-    const upd_t *update, /*!< in: update vector */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_LOCKING_FLAG
-                         | BTR_NO_UNDO_LOG_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    mtr_t *mtr)          /*!< in/out: mini-transaction; if this
-                         is a secondary index, the caller must
-                         mtr_commit(mtr) before latching any
-                         further pages */
-{
+@param[in] flags Undo logging and locking flags
+@param[in] cursor Cursor on the record to update; cursor stays valid and
+positioned on the same record
+@param[in,out] offsets Offsets on cursor->page_cur.rec
+@param[in] update Update vector
+@param[in] cmpl_info Compiler info on secondary index updates
+@param[in] thr Query thread, or null if flags & (btr_no_locking_flag |
+btr_no_undo_log_flag | btr_create_flag | btr_keep_sys_flag)
+@param[in] trx_id Transaction id
+@param[in,out] mtr Mini-transaction; if this is a secondary index, the caller
+must mtr_commit(mtr) before latching any further pages
+@return locking or undo log related error code, or
+@retval DB_SUCCESS on success
+@retval DB_ZIP_OVERFLOW if there is not enough space left
+on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
+dberr_t btr_cur_update_in_place(ulint flags, btr_cur_t *cursor, ulint *offsets,
+                                const upd_t *update, ulint cmpl_info,
+                                que_thr_t *thr, trx_id_t trx_id, mtr_t *mtr) {
   dict_index_t *index;
   buf_block_t *block;
   page_zip_des_t *page_zip;

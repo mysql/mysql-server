@@ -2628,14 +2628,14 @@ static void fts_trx_table_add_op(
   }
 }
 
-/** Notify the FTS system about an operation on an FTS-indexed table. */
-void fts_trx_add_op(trx_t *trx,               /*!< in: InnoDB transaction */
-                    dict_table_t *table,      /*!< in: table */
-                    doc_id_t doc_id,          /*!< in: new doc id */
-                    fts_row_state state,      /*!< in: state of the row */
-                    ib_vector_t *fts_indexes) /*!< in: FTS indexes affected
-                                              (NULL=all) */
-{
+/** Notify the FTS system about an operation on an FTS-indexed table.
+@param[in] trx Innodb transaction
+@param[in] table Table
+@param[in] doc_id Doc id
+@param[in] state State of the row
+@param[in] fts_indexes Fts indexes affected (null=all) */
+void fts_trx_add_op(trx_t *trx, dict_table_t *table, doc_id_t doc_id,
+                    fts_row_state state, ib_vector_t *fts_indexes) {
   fts_trx_table_t *tran_ftt;
   fts_trx_table_t *stmt_ftt;
 
@@ -3128,13 +3128,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 }
 
 /** Create a new document id.
- @return DB_SUCCESS if all went well else error */
-dberr_t fts_create_doc_id(dict_table_t *table, /*!< in: row is of this table. */
-                          dtuple_t *row,    /* in/out: add doc id value to this
-                                            row. This is the current row that is
-                                            being inserted. */
-                          mem_heap_t *heap) /*!< in: heap */
-{
+@param[in]      table  Row is of this table.
+@param[in,out]  row    Add doc id value to this row. This is the current row
+that is being inserted.
+@param[in]      heap
+@return DB_SUCCESS if all went well else error */
+dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row,
+                          mem_heap_t *heap) {
   doc_id_t doc_id;
   dberr_t error = DB_SUCCESS;
 
@@ -4477,8 +4477,8 @@ or greater than fts_max_token_size.
 @param[in]	stopwords	stopwords rb tree
 @param[in]	is_ngram	is ngram parser
 @param[in]	cs		token charset
-@retval	true	if it is not stopword and length in range
-@retval	false	if it is stopword or lenght not in range */
+@retval true	if it is not stopword and length in range
+@retval false	if it is stopword or length not in range */
 bool fts_check_token(const fts_string_t *token, const ib_rbt_t *stopwords,
                      bool is_ngram, const CHARSET_INFO *cs) {
   ut_ad(cs != nullptr || stopwords == nullptr);
@@ -5334,11 +5334,11 @@ ibool fts_wait_for_background_thread_to_start(
   return (done);
 }
 
-/** Add the FTS document id hidden column. */
-void fts_add_doc_id_column(
-    dict_table_t *table, /*!< in/out: Table with FTS index */
-    mem_heap_t *heap)    /*!< in: temporary memory heap, or NULL */
-{
+/** Add the FTS document id hidden column.
+@param[in,out] table Table with FTS index
+@param[in] heap Temporary memory heap, or NULL
+*/
+void fts_add_doc_id_column(dict_table_t *table, mem_heap_t *heap) {
   dict_mem_table_add_col(
       table, heap, FTS_DOC_ID_COL_NAME, DATA_INT,
       dtype_form_prtype(
@@ -5520,11 +5520,11 @@ void fts_savepoint_copy(const fts_savepoint_t *src, /*!< in: source savepoint */
   }
 }
 
-/** Take a FTS savepoint. */
-void fts_savepoint_take(trx_t *trx,         /*!< in: transaction */
-                        fts_trx_t *fts_trx, /*!< in: fts transaction */
-                        const char *name)   /*!< in: savepoint name */
-{
+/** Take a FTS savepoint.
+@param[in] trx Transaction
+@param[in] fts_trx Fts transaction
+@param[in] name Savepoint name */
+void fts_savepoint_take(trx_t *trx, fts_trx_t *fts_trx, const char *name) {
   mem_heap_t *heap;
   fts_savepoint_t *savepoint;
   fts_savepoint_t *last_savepoint;

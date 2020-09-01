@@ -385,9 +385,9 @@ void trx_purge_add_update_undo_to_history(
 }
 
 /** Remove an rseg header from the history list.
-@param[in,out]	rseg_hdr	rollback segment header
-@param[in]	log_hdr		undo log segment header
-@param[in,out]	mtr		mini transaction. */
+@param[in,out]	rseg_hdr	Rollback segment header
+@param[in]	log_hdr		Undo log segment header
+@param[in,out]	mtr		Mini-transaction. */
 static void trx_purge_remove_log_hdr(trx_rsegf_t *rseg_hdr,
                                      trx_ulogf_t *log_hdr, mtr_t *mtr) {
   flst_remove(rseg_hdr + TRX_RSEG_HISTORY, log_hdr + TRX_UNDO_HISTORY_NODE,
@@ -690,10 +690,10 @@ space_id_t use_next_space_id(space_id_t space_num) {
   return (next_id);
 }
 
-/** Return the next available undo space number to be used for a new
-explicit undo tablespace. The slot will be marked as in-use.
-@retval if success, next available undo space number.
-@retval if failure, SPACE_UNKNOWN */
+/** Return the next available undo space ID to be used for a new explicit
+undo tablespaces. The slot will be marked as in-use.
+@return next available undo space number if successful.
+@return SPACE_UNKNOWN if failed */
 space_id_t get_next_available_space_num() {
   for (space_id_t slot = FSP_IMPLICIT_UNDO_TABLESPACES;
        slot < FSP_MAX_UNDO_TABLESPACES; ++slot) {
@@ -962,12 +962,12 @@ dberr_t start_logging(Tablespace *undo_space) {
   return (err);
 }
 
-/** Mark completion of undo truncate action by writing magic number to
-the log file and then removing it from the disk.
-If we are going to remove it from disk then why write magic number ?
-This is to safeguard from unlink (file-system) anomalies that will keep
-the link to the file even after unlink action is successful and
-ref-count = 0.
+/** Mark completion of undo truncate action by writing magic number
+to the log file and then removing it from the disk.
+If we are going to remove it from disk then why write magic number?
+This is to safeguard from unlink (file-system) anomalies that will
+keep the link to the file even after unlink action is successful
+and ref-count = 0.
 @param[in]  space_num  number of the undo tablespace to truncate. */
 void done_logging(space_id_t space_num) {
   dberr_t err;

@@ -3114,7 +3114,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
                                 exist in the view: i.e., it was freshly
                                 inserted afterwards
 @param[out]	vrow		dtuple to hold old virtual column data
-@param[in]	mtr		the mini transaction context.
+@param[in]	mtr		the mini-transaction context.
 @param[in,out]	lob_undo	Undo information for BLOBs.
 @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
@@ -3953,10 +3953,10 @@ static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
 }
 
 /** Traverse to next/previous record.
-@param[in]	moves_up	if true, move to next record else previous
+@param[in]	moves_up	If true, move to next record else previous
 @param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in,out]	pcur		cursor to record
-@param[in]	mtr		mini transaction
+@param[in,out]	pcur		Cursor to record
+@param[in]	mtr		Mini-transaction
 
 @return DB_SUCCESS or error code */
 static dberr_t row_search_traverse(bool moves_up, ulint match_mode,
@@ -6260,8 +6260,8 @@ func_exit:
 }
 
 /** Get the maximum and non-delete-marked record in an index.
-@param[in]	index	index tree
-@param[in,out]	mtr	mini-transaction (may be committed and restarted)
+@param[in]	index	Index tree
+@param[in,out]	mtr	Mini-transaction (may be committed and restarted)
 @return maximum record, page s-latched in mtr
 @retval NULL if there are no records, or if all of them are delete-marked */
 static const rec_t *row_search_get_max_rec(dict_index_t *index, mtr_t *mtr) {

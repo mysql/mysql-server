@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,14 +48,19 @@ void ut_print_timestamp(FILE *file) /*!< in: file where to print */
     UNIV_COLD;
 /** Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 void ut_sprintf_timestamp(char *buf); /*!< in: buffer where to sprintf */
-/** Prints the contents of a memory buffer in hex. */
-void ut_print_buf_hex(std::ostream &o, /*!< in/out: output stream */
-                      const void *buf, /*!< in: memory buffer */
-                      ulint len);      /*!< in: length of the buffer */
-/** Prints the contents of a memory buffer in hex and ascii. */
-void ut_print_buf(std::ostream &o, /*!< in/out: output stream */
-                  const void *buf, /*!< in: memory buffer */
-                  ulint len);      /*!< in: length of the buffer */
+
+/** Prints the contents of a memory buffer in hex.
+@param[in,out] &o Output stream
+@param[in] buf Memory buffer
+@param[in] len Length of the buffer */
+void ut_print_buf_hex(std::ostream &o, const void *buf, ulint len);
+
+/** Prints the contents of a memory buffer in hex and ascii.
+@param[in,out] &o Output stream
+@param[in] buf Memory buffer
+@param[in] len Length of the buffer */
+void ut_print_buf(std::ostream &o, const void *buf, ulint len);
+
 /** Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
  (size - 1) bytes of src, not the first.
  @return strlen(src) */
