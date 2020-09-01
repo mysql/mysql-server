@@ -201,6 +201,11 @@ class Session_consistency_gtids_ctx {
     return notify_after_transaction_commit(thd);
   }
 
+  /**
+    Update session tracker (m_curr_session_track_gtids) from thd.
+  */
+  void update_tracking_activeness_from_session_variable(const THD *thd);
+
  private:
   // not implemented
   Session_consistency_gtids_ctx(const Session_consistency_gtids_ctx &rsc);
