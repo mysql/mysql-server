@@ -193,7 +193,6 @@ const char *const native_mysql_functions[] = {
     "ST_CROSSES",
     "ST_DIFFERENCE",
     "ST_DIMENSION",
-    "ST_DISCRETE_FRECHET_DISTANCE",
     "ST_DISJOINT",
     "ST_DISTANCE",
     "ST_DISTANCE_SPHERE",

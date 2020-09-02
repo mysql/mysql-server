@@ -281,7 +281,6 @@ SET(SQL_GIS_SOURCES
   gis/covered_by.cc
   gis/crosses.cc
   gis/difference.cc
-  gis/discrete_frechet_distance.cc
   gis/disjoint.cc
   gis/distance.cc
   gis/distance_functor.cc
