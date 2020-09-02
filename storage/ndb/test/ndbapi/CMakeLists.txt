@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,45 +27,46 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
 )
 
-NDB_ADD_EXECUTABLE(create_all_tabs create_all_tabs.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(create_tab create_tab.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(drop_all_tabs drop_all_tabs.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(flexAsynch flexAsynch.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(flexBench flexBench.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(flexHammer flexHammer.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(flexTT flexTT.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(create_all_tabs create_all_tabs.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(create_tab create_tab.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(drop_all_tabs drop_all_tabs.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(flexAsynch flexAsynch.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(flexBench flexBench.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(flexHammer flexHammer.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(flexTT flexTT.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testBackup testBackup.cpp)
-NDB_ADD_EXECUTABLE(testBasic testBasic.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testBasicAsynch testBasicAsynch.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testBlobs testBlobs.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testDataBuffers testDataBuffers.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testDict testDict.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testIndex testIndex.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testMgm testMgm.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testNdbApi testNdbApi.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testNodeRestart testNodeRestart.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testOIBasic testOIBasic.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testOperations testOperations.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testRestartGci testRestartGci.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testScan testScan.cpp ScanFunctions.hpp NDBTEST)
-NDB_ADD_EXECUTABLE(testInterpreter testInterpreter.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testScanFilter testScanFilter.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(testBasic testBasic.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testBasicAsynch testBasicAsynch.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testBlobs testBlobs.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testDataBuffers testDataBuffers.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testDict testDict.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testIndex testIndex.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testMgm testMgm.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testNdbApi testNdbApi.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testNodeRestart testNodeRestart.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testOIBasic testOIBasic.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testOperations testOperations.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testRestartGci testRestartGci.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testScan testScan.cpp ScanFunctions.hpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testInterpreter testInterpreter.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testScanFilter testScanFilter.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testScanInterpreter
   testScanInterpreter.cpp
   ScanFilter.hpp
   ScanInterpretTest.hpp
-  NDBTEST)
-NDB_ADD_EXECUTABLE(testScanPerf testScanPerf.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testSystemRestart testSystemRestart.cpp NDBTEST MYSQLCLIENT)
-NDB_ADD_EXECUTABLE(testTimeout testTimeout.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testTransactions testTransactions.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testDeadlock testDeadlock.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(test_event test_event.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(ndbapi_slow_select slow_select.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testReadPerf testReadPerf.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testLcp testLcp.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testPartitioning testPartitioning.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testBitfield testBitfield.cpp NDBTEST)
+  NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testScanPerf testScanPerf.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testSystemRestart testSystemRestart.cpp
+  NDBTEST NDBCLIENT MYSQLCLIENT)
+NDB_ADD_EXECUTABLE(testTimeout testTimeout.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testTransactions testTransactions.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testDeadlock testDeadlock.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(test_event test_event.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(ndbapi_slow_select slow_select.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testReadPerf testReadPerf.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testLcp testLcp.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testPartitioning testPartitioning.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testBitfield testBitfield.cpp NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(DbCreate
   bench/dbPopulate.cpp
   bench/dbPopulate.h
@@ -76,7 +77,7 @@ NDB_ADD_EXECUTABLE(DbCreate
   bench/testDefinitions.h
   bench/userInterface.cpp
   bench/userInterface.h
-  NDBTEST)
+  NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(DbAsyncGenerator
   bench/asyncGenerator.cpp
   bench/dbGenerator.h
@@ -88,22 +89,23 @@ NDB_ADD_EXECUTABLE(DbAsyncGenerator
   bench/testData.h
   bench/testDefinitions.h
   bench/userInterface.h
-  NDBTEST)
+  NDBTEST NDBCLIENT)
 NDB_ADD_EXECUTABLE(testSRBank testSRBank.cpp)
-NDB_ADD_EXECUTABLE(test_event_merge test_event_merge.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testNdbinfo testNdbinfo.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testNativeDefault testNativeDefault.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testSpj testSpj.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testLimits testLimits.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testIndexStat testIndexStat.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testRedo testRedo.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testDowngrade testUpgrade.cpp NDBTEST MYSQLCLIENT)
-NDB_ADD_EXECUTABLE(testUpgrade testUpgrade.cpp NDBTEST MYSQLCLIENT)
-NDB_ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testDebugger testDebugger.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testFK testFK.cpp NDBTEST)
-NDB_ADD_EXECUTABLE(testLoad testLoad.cpp NDBTEST)
+NDB_ADD_EXECUTABLE(test_event_merge test_event_merge.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testNdbinfo testNdbinfo.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testNativeDefault testNativeDefault.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testSpj testSpj.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testLimits testLimits.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testIndexStat testIndexStat.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testRedo testRedo.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testDowngrade testUpgrade.cpp NDBTEST NDBCLIENT MYSQLCLIENT)
+NDB_ADD_EXECUTABLE(testUpgrade testUpgrade.cpp NDBTEST NDBCLIENT MYSQLCLIENT)
+NDB_ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp
+  NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testDebugger testDebugger.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testFK testFK.cpp NDBTEST NDBCLIENT)
+NDB_ADD_EXECUTABLE(testLoad testLoad.cpp NDBTEST NDBCLIENT)
 
 TARGET_LINK_LIBRARIES(testBackup ndbbank ndbNDBT ndbclient_so)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
@@ -111,5 +113,5 @@ TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
 IF(WIN32)
   # Don't build testMgmd on Windows
 ELSE()
-  NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST)
+  NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
 ENDIF()
