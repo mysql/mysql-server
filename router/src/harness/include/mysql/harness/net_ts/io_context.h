@@ -450,7 +450,22 @@ class io_context : public execution_context {
         duration = duration.zero();
       }
 
-      return std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+      // round up the next wait-duration to wait /at least/ the expected time.
+      //
+      // In case the expiry is 990us, wait 1ms
+      // If it is 0ns, leave it at 0ms;
+
+      auto duration_ms =
+          std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+
+      using namespace std::chrono_literals;
+
+      // round up to the next millisecond.
+      if ((duration - duration_ms).count() != 0) {
+        duration_ms += 1ms;
+      }
+
+      return duration_ms;
     }
 
     bool run_one() override {
@@ -485,8 +500,10 @@ class io_context : public execution_context {
 
           // multimap
           auto pending_expiry_it = pending_timer_expiries_.begin();
+          auto timepoint = pending_expiry_it->first;
 
-          if (pending_expiry_it->first > now) {
+          if (timepoint > now) {
+            // not expired yet. leave
             return false;
           }
           typename Timer::Id *timer_id = pending_expiry_it->second;
@@ -903,6 +920,7 @@ inline io_context::count_type io_context::do_one(
     std::chrono::milliseconds min_duration{0};
     {
       std::lock_guard<std::mutex> lk(mtx_);
+      // check the smallest timestamp of all timer-queues
       for (auto q : timer_queues_) {
         const auto duration = q->next();
 
