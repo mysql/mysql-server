@@ -78,7 +78,9 @@ SET SESSION DEBUG_SYNC="now SIGNAL continue_sql_show";
 --echo #
 --echo # I.4
 --connection con_async
-reap;
+--reap
+--disconnect con_async
+--source include/wait_until_disconnected.inc
 --connection default
 
 
@@ -93,5 +95,9 @@ reap;
 SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_switch_to_user_execute";
 SET SESSION DEBUG_SYNC="RESET";
 
+# No socket should be reported by X Plugin before user is dropped
+let $wait_condition=
+  SELECT count(*)= 0 as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection';
+--source include/wait_condition_or_abort.inc
 --remove_file $xtest_file 30
 --source include/xplugin_drop_user.inc
