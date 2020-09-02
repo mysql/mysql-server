@@ -106,7 +106,7 @@ bool Item_row::fix_fields(THD *thd, Item **) {
 
     types_assigned &= item->data_type() != MYSQL_TYPE_INVALID;
 
-    if (const_item()) {
+    if (const_item() && !thd->lex->is_view_context_analysis()) {
       if (item->cols() > 1)
         with_null |= item->null_inside();
       else
