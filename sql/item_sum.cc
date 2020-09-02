@@ -523,9 +523,8 @@ Item *Item_sum::transform(Item_transformer transformer, uchar *argument) {
   if (arg_count) {
     Item **arg, **arg_end;
     for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
-      Item *new_item = (*arg)->transform(transformer, argument);
-      if (new_item == nullptr) return nullptr;
-      if (*arg != new_item) current_thd->change_item_tree(arg, new_item);
+      *arg = (*arg)->transform(transformer, argument);
+      if (*arg == nullptr) return nullptr;
     }
   }
   return (this->*transformer)(argument);

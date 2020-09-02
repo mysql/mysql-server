@@ -699,10 +699,8 @@ bool Item_in_subselect::walk(Item_processor processor, enum_walk walk,
 }
 
 Item *Item_in_subselect::transform(Item_transformer transformer, uchar *arg) {
-  Item *new_item = left_expr->transform(transformer, arg);
-  if (new_item == nullptr) return nullptr;
-  if (left_expr != new_item)
-    current_thd->change_item_tree(&left_expr, new_item);
+  left_expr = left_expr->transform(transformer, arg);
+  if (left_expr == nullptr) return nullptr;
 
   return (this->*transformer)(arg);
 }
