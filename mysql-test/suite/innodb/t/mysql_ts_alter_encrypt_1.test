@@ -21,6 +21,11 @@
 # Waiting time when (re)starting the server
 --let $explict_default_wait_counter=10000
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[MY-013674\\] \\[InnoDB\\] Decrypting a page in doublewrite file failed: space_id=");
+call mtr.add_suppression("\\[Warning\\] \\[MY-013675\\] \\[InnoDB\\] Encryption key missing: space_id=");
+--enable_query_log
+
 --echo
 --echo #############################################################
 --echo # TEST 1 : NORMAL ALTER ENCRYPT mysql TABLESPACE.
