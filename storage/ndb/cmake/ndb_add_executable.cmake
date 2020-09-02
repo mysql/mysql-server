@@ -26,31 +26,24 @@ INCLUDE(mysql_add_executable)
 # NDB_ADD_EXECUTABLE(options source_files)
 #    Add an executable file.
 #    Options:
-#        NDBTEST           link with NDB test and dynamic NDB client libraries
+#        NDBTEST           link with NDB test library
 #        NDBCLIENT         link with dynamic NDB API client library
 #        STATIC_NDBCLIENT  link with static NDB API client library
 #        MYSQLCLIENT       link with mysql client library
 #
 
 FUNCTION(NDB_ADD_EXECUTABLE target)
-  SET(PASSTHROUGH_ARGS ${target})    # Args passed on to mysql_add_executable()
   SET(OPTIONS "NDBCLIENT" "STATIC_NDBCLIENT" "MYSQLCLIENT" "NDBTEST")
+  CMAKE_PARSE_ARGUMENTS(OPT "${OPTIONS}" "" "" ${ARGN})
 
-  FOREACH(arg ${ARGN})
-    LIST(FIND OPTIONS ${arg} index)
-    IF(index GREATER -1)
-      SET(OPT_${arg} TRUE)
-    ELSE()
-      LIST(APPEND PASSTHROUGH_ARGS ${arg})
-    ENDIF()
-  ENDFOREACH(arg)
-
-  MYSQL_ADD_EXECUTABLE(${PASSTHROUGH_ARGS})
+  MYSQL_ADD_EXECUTABLE(${target} ${OPT_UNPARSED_ARGUMENTS})
   SET_TARGET_PROPERTIES(${target} PROPERTIES ENABLE_EXPORTS TRUE)
 
   IF(OPT_NDBTEST)
-    TARGET_LINK_LIBRARIES(${target} ndbNDBT ndbclient_so)
-  ELSEIF(OPT_NDBCLIENT)
+    TARGET_LINK_LIBRARIES(${target} ndbNDBT)
+  ENDIF()
+
+  IF(OPT_NDBCLIENT)
     TARGET_LINK_LIBRARIES(${target} ndbclient_so)
   ELSEIF(OPT_STATIC_NDBCLIENT)
     TARGET_LINK_LIBRARIES(${target} ndbclient_static)
@@ -63,4 +56,15 @@ FUNCTION(NDB_ADD_EXECUTABLE target)
   SET_PROPERTY(TARGET ${target}
     PROPERTY INSTALL_RPATH "\$ORIGIN/../${INSTALL_LIBDIR}")
   ADD_INSTALL_RPATH_FOR_OPENSSL(${target})
+
+  IF(OPT_NDBCLIENT AND APPLE AND BUILD_IS_SINGLE_CONFIG)
+    # install_name_tool [-change old new] input
+    # @loader_path/../lib/ exists both in build and install directories.
+    ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+      COMMAND install_name_tool -change
+      "@rpath/$<TARGET_FILE_NAME:ndbclient_so>"
+      "@loader_path/../lib/$<TARGET_FILE_NAME:ndbclient_so>"
+      "$<TARGET_FILE:${target}>"
+    )
+  ENDIF()
 ENDFUNCTION()
