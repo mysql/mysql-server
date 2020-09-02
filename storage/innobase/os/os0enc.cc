@@ -50,6 +50,9 @@ constexpr char Encryption::KEY_MAGIC_V3[];
 constexpr char Encryption::MASTER_KEY_PREFIX[];
 constexpr char Encryption::DEFAULT_MASTER_KEY[];
 
+/** Minimum length needed for encryption */
+constexpr size_t MIN_ENCRYPTION_LEN = 2 * MY_AES_BLOCK_SIZE + FIL_PAGE_DATA;
+
 /** Current master key id */
 uint32_t Encryption::s_master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
 
@@ -777,7 +780,11 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
   if (page_type == FIL_PAGE_COMPRESSED) {
     src_enc_len =
         mach_read_from_2(src + FIL_PAGE_COMPRESS_SIZE_V1) + FIL_PAGE_DATA;
-    ut_ad(src_enc_len <= src_len);
+    /* Extend src_enc_len if needed */
+    if (src_enc_len < MIN_ENCRYPTION_LEN) {
+      src_enc_len = MIN_ENCRYPTION_LEN;
+    }
+    ut_a(src_enc_len <= src_len);
   }
 
   /* Only encrypt the data + trailer, leave the header alone */
@@ -1110,6 +1117,11 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     Compression::deserialize_header(src, &header);
     if (header.m_version == Compression::FIL_PAGE_VERSION_1) {
       src_len = ut_calc_align(src_len, type.block_size());
+    } else {
+      /* Extend src_len if needed */
+      if (src_len < MIN_ENCRYPTION_LEN) {
+        src_len = MIN_ENCRYPTION_LEN;
+      }
     }
   }
 
