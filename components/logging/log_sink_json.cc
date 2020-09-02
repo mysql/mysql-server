@@ -175,10 +175,10 @@ DEFINE_METHOD(log_service_error, log_service_imp::parse_log_line,
   If you should not be able to specify a label, one will be generated
   for you from the line's priority field.
 
-  @param           instance             instance state
-  @param           ll                   the log line to write
-  @retval          >=0                  number of accepted fields, if any
-  @retval          <0                   error
+  @param           instance             Instance state
+  @param           ll                   The log line to write
+  @returns         >=0                  Number of accepted fields, if any
+  @returns         <0      c            Error
 */
 DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
   char internal_buff[LOG_BUFF_MAX];  // output buffer if none given by caller

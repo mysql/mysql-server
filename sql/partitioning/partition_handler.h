@@ -429,12 +429,9 @@ class Partition_helper {
 
   /**
     Insert a row to the partitioned table.
-
-    @param buf The row in MySQL Row Format.
-
-    @return Operation status.
-      @retval    0 Success
-      @retval != 0 Error code
+      @returns Operation status.
+      @returns    0 Success
+      @returns != 0 Error code
   */
   int ph_write_row(uchar *buf);
   /**
@@ -452,12 +449,9 @@ class Partition_helper {
     new_data is always record[0]
     old_data is always record[1]
 
-    @param old_data  The old record in MySQL Row Format.
-    @param new_data  The new record in MySQL Row Format.
-
     @return Operation status.
-      @retval    0 Success
-      @retval != 0 Error code
+      @returns    0 Success
+      @returns != 0 Error code
   */
   int ph_update_row(const uchar *old_data, uchar *new_data);
   /**
@@ -624,8 +618,8 @@ class Partition_helper {
     Set m_part_share, Allocate internal bitmaps etc. used by open tables.
 
     @return Operation status.
-      @retval false success.
-      @retval true  failure.
+      @returns false success.
+      @returns true  failure.
   */
   bool open_partitioning(Partition_share *part_share);
   /**
@@ -940,17 +934,9 @@ class Partition_helper {
     If we need to scan only one partition, set m_ordered_scan_ongoing=false
     as we will not need to do merge ordering.
 
-    @param buf            Buffer to later return record in (this function
-                          needs it to calculate partitioning function values)
-
-    @param idx_read_flag  True <=> m_start_key has range start endpoint which
-                          probably can be used to determine the set of
-                          partitions to scan.
-                          False <=> there is no start endpoint.
-
     @return Operation status.
-      @retval   0  Success
-      @retval !=0  Error code
+      @returns   0  Success
+      @returns !=0  Error code
   */
   int partition_scan_set_up(uchar *buf, bool idx_read_flag);
   /**
@@ -964,13 +950,10 @@ class Partition_helper {
     scan is performed on only one partition and thus it isn't necessary to
     perform any sort.
 
-    @param[out] buf        Read row in MySQL Row Format.
-    @param[in]  is_next_same  Called from index_next_same.
-
     @return Operation status.
-      @retval HA_ERR_END_OF_FILE  End of scan
-      @retval 0                   Success
-      @retval other               Error code
+      @returns HA_ERR_END_OF_FILE  End of scan
+      @returns 0                   Success
+      @returns other               Error code
   */
   int handle_unordered_next(uchar *buf, bool is_next_same);
   /**
@@ -990,13 +973,12 @@ class Partition_helper {
   /**
     Common routine to start index scan with ordered results.
 
-    @param[out] buf  Read row in MySQL Row Format
 
-    @return Operation status
-      @retval HA_ERR_END_OF_FILE    End of scan
-      @retval HA_ERR_KEY_NOT_FOUND  End of scan
-      @retval 0                     Success
-      @retval other                 Error code
+      @returns Operation status
+      @returns HA_ERR_END_OF_FILE    End of scan
+      @returns HA_ERR_KEY_NOT_FOUND  End of scan
+      @returns 0                     Success
+      @returns other                 Error code
   */
   int handle_ordered_index_scan(uchar *buf);
   /**
@@ -1006,10 +988,10 @@ class Partition_helper {
     ha_index_read_map was done, those partitions must be included in the
     following index_next/prev call.
 
-    @return Operation status
-      @retval HA_ERR_END_OF_FILE    End of scan
-      @retval 0                     Success
-      @retval other                 Error code
+      @returns Operation status
+      @returns HA_ERR_END_OF_FILE    End of scan
+      @returns 0                     Success
+      @returns other                 Error code
   */
   int handle_ordered_index_scan_key_not_found();
   /**
