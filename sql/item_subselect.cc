@@ -622,7 +622,7 @@ bool Item_subselect::exec(THD *thd) {
   if (thd->is_error() || thd->killed) return true;
 
   // No subqueries should be evaluated when analysing a view
-  DBUG_ASSERT(!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW));
+  DBUG_ASSERT(!thd->lex->is_view_context_analysis());
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.

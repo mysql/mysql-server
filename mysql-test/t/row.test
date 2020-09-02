@@ -368,3 +368,17 @@ SELECT ROW(1, ST_Intersection(POINT(1, 1), 1), (SELECT 1));
 SELECT ROW(POW(1000, 1000), (SELECT 1));
 --error ER_DATA_OUT_OF_RANGE
 SELECT ROW(1, 2, POW(1000, 1000), (SELECT 1));
+
+--echo # Bug#31590301: Another MySQL 8.0.20 assert over Linux-5.4.0-39-generic
+--echo #               using X86_64
+
+CREATE TABLE v0(v1 DEC, v2 INT);
+INSERT INTO v0 VALUES (64, 93);
+CREATE ALGORITHM = TEMPTABLE VIEW v3 AS
+SELECT *
+FROM v0
+WHERE (v1, FALSE) IN
+ ((-1, EXISTS (SELECT (-128, 'x', 72) <= (76, 'x', -1))), (-1, 'x'));
+DROP VIEW v3;
+DROP TABLE v0;
+
