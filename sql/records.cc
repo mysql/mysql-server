@@ -158,7 +158,6 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
   } else if (table == nullptr) {
     table = qep_tab->table();
   }
-  empty_record(table);
 
   AccessPath *path;
   if (qep_tab != nullptr && qep_tab->quick() != nullptr) {
@@ -270,6 +269,8 @@ IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
       m_examined_rows(examined_rows) {}
 
 bool IndexRangeScanIterator::Init() {
+  empty_record(table());
+
   /*
     Only attempt to allocate a record buffer the first time the handler is
     initialized.
@@ -326,6 +327,8 @@ TableScanIterator::~TableScanIterator() {
 }
 
 bool TableScanIterator::Init() {
+  empty_record(table());
+
   /*
     Only attempt to allocate a record buffer the first time the handler is
     initialized.
@@ -374,6 +377,8 @@ FollowTailIterator::~FollowTailIterator() {
 }
 
 bool FollowTailIterator::Init() {
+  empty_record(table());
+
   // BeginMaterialization() must be called before this.
   DBUG_ASSERT(m_stored_rows != nullptr);
 
