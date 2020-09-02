@@ -188,6 +188,8 @@ mkdir release
            %{?mecab_option} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
+           -DWITH_MCC=0 \
+           -DNDB_UTILS_LINK_DYNAMIC=1 \
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=%{with_meb} \
@@ -234,11 +236,10 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
 done
 
 %if 0%{?cluster}
-for f in mcc_config.py ndb_blob_tool ndb_config ndb_delete_all ndb_desc ndb_drop_index \
-         ndb_drop_table ndb_error_reporter ndb_import ndb_index_stat ndb_move_data \
+for f in mcc_config.py ndb_error_reporter ndb_move_data \
          ndb_perror ndb_print_backup_file ndb_print_file ndb_print_frag_file \
-         ndb_print_schema_file ndb_print_sys_file ndb_redo_log_reader ndb_restore ndb_select_all \
-         ndb_select_count ndb_setup.py ndb_show_tables ndb_size.pl ndbinfo_select_all ndb_waiter ; do
+         ndb_print_schema_file ndb_print_sys_file \
+         ndb_setup.py ndb_size.pl ; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 %endif
@@ -316,10 +317,14 @@ rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-lo
 %if 0%{?cluster}
 rm -rf %{buildroot}/usr/share/mysql-*/mcc
 rm -f %{buildroot}/lib/memcached_path.pl
-rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
 rm -f %{buildroot}/%{_bindir}/memclient
 rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
 rm -rf %{buildroot}%{_datadir}/mysql-*/java/
+rm -rf %{buildroot}%{_sbindir}/memcached
+rm -rf %{buildroot}%{_libdir}/mysql/ndb_engine.so
+rm -rf %{buildroot}%{_datadir}/mysql-*/memcache-api/
+rm -rf %{buildroot}%{_libdir}/mysql/libndbclient_static.a
+rm -rf %{buildroot}%{_libdir}/mysql/libndbclient.so
 %endif
 
 # Remove files pages we explicitly do not want to package
@@ -361,15 +366,28 @@ rm -r $(readlink var) var
 %dir %{_sysconfdir}/my.cnf.d
 
 %if 0%{?cluster}
+%attr(755, root, root) %{_bindir}/ndb_blob_tool
+%attr(755, root, root) %{_bindir}/ndb_config
+%attr(755, root, root) %{_bindir}/ndb_delete_all
+%attr(755, root, root) %{_bindir}/ndb_desc
+%attr(755, root, root) %{_bindir}/ndb_drop_index
+%attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_bindir}/ndb_import
+%attr(755, root, root) %{_bindir}/ndb_index_stat
+%attr(755, root, root) %{_bindir}/ndb_redo_log_reader
+%attr(755, root, root) %{_bindir}/ndb_restore
+%attr(755, root, root) %{_bindir}/ndb_select_all
+%attr(755, root, root) %{_bindir}/ndb_select_count
+%attr(755, root, root) %{_bindir}/ndb_show_tables
+%attr(755, root, root) %{_bindir}/ndbinfo_select_all
+%attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndb_mgm
 %attr(755, root, root) %{_bindir}/ndb_top
 %attr(755, root, root) %{_bindir}/ndbxfrm
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
 %attr(755, root, root) %{_sbindir}/ndbd
 %attr(755, root, root) %{_sbindir}/ndbmtd
-%attr(755, root, root) %{_sbindir}/memcached
-%attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
-%{_datadir}/mysql-*/memcache-api/
+%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.1.0
 %endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
