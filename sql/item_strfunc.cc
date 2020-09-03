@@ -3028,7 +3028,8 @@ String *Item_func_conv_charset::val_str(String *str) {
                                                true);  // truncate
 }
 
-bool Item_func_conv_charset::resolve_type(THD *) {
+bool Item_func_conv_charset::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
   collation.set(conv_charset, DERIVATION_IMPLICIT);
   set_data_type_string(args[0]->max_char_length());
   return false;
