@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -48,6 +48,127 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
                                   uint32_t spin) UNIV_NOTHROW {
   sync_cell_t *cell;
   sync_array_t *sync_arr;
+
+  /* We shall prove that in C++14 as defined by the draft N4140 following holds:
+
+  Theorem 1. If thread X decides to call os_event_wait(), and each thread which
+  calls enter() eventually calls exit(), then X will eventually be woken up.
+
+  Proof: By contradiction.
+  We assume the contrary, that thread X got to endless sleep, so the following
+  operations are in `sequenced-before` relation in X:
+
+    # inside sync_array_get_and_reserve_cell(..) => sync_array_reserve_cell(..):
+    X1 cell->signal_count = os_event_reset(..)
+    # inside set_waiters():
+    X2 m_waiters.store(true)
+    # inside try_lock():
+    X3 unsuccessful m_lock_word.compare_exchange_strong(false,true)
+    # inside sync_array_wait_event(..):
+    X4 os_event_wait_low(...,cell->signal_count)
+
+  -----
+  Lemma 1. All os_event_set()s `happen-before` X1.
+  Proof of Lemma 1: By contradiction.
+  The functions os_event_reset(), os_event_set() and os_event_wait_low() use
+  internally the same mutex, so there must be a single objective order in which
+  calls to them `synchronize-with` each other, and thus for each two such calls
+  exactly one has to `happens-before` the other.
+
+  If there is at least one call to os_event_set() which `happens-after` X1, then
+  we can show that X will not sleep indefinitely, as either:
+  a) os_event_set() `happens-before` X4, in which case it increments the event's
+     signal_count, and os_event_wait_low() will notice that event's signal_count
+     doesn't match the one from X1 and will not even start the sleep,
+  b) X4 `happens-before` the os_event_set() in which case by the specification
+     of os_event_set() it will wake up thread X.
+  Contradiction with assumption that thread X goes to endless sleep ends the
+  proof of Lemma 1.
+  -----
+
+  In what follows we will often refer to following rule from the standard:
+
+  29.3.3. There shall be a single total order S on all memory_order_seq_cst
+  operations, consistent with the `happens before` order and modification orders
+  for all affected locations such that each memory_order_seq_cst operation B
+  that loads a value from an atomic object M observes one of the following
+  values:
+  (3.1) the result of the last modification A of M that precedes B in S, if it
+        exists, or
+  (3.2) if A exists, the result of some modification of M that is not
+        memory_order_seq_cst and that does not happen before A, or
+  (3.3) if A does not exist, the result of some modification of M that is not
+        memory_order_seq_cst.
+
+  IMPORTANT: all modifications of `m_lock_word` and `m_waiters` in the current
+  implementation use `memory_order_seq_cst`, so thankfully we can ignore cases
+  (3.2) and (3.3) from considerations.
+  IMPORTANT: In C++14 a failed compare_exchange_strong is considered a `load`,
+  NOT a `read-modify-write`.
+
+  X4 is only executed if X3 loaded m_lock_word==true, and according to 29.3.3.1
+  this `true` must be a result of most recent modification of m_lock_word in S.
+
+  We only write `true` to m_lock_word using compare_exchange_strong in enter(),
+  so let Y be the last thread which performed this operation in try_lock():
+
+    Y0  successful m_lock_word.compare_exchange_strong(false,true)
+
+  before X3 in S. We've assumed Y must eventually call exit(), which involves:
+
+    Y1  m_lock_word.store(false)
+    Y2  if (m_waiters.load()) {
+    Y3    m_waiters.store(false)
+    Y4    os_event_set(..) }
+
+  We will now show, that X2 is before Y2 in S.
+
+  IMPORTANT: this is not a trivial thing: even though X3 apparently has not seen
+  results of Y1 it does not follow immediately that X3 `happens-before` Y1. The
+  C++14 standard deliberately doesn't make it easy to deduce `happens-before`
+  from *absence* of evidence. We will only show that X3 is before Y1 in S, and
+  leverage that to show that X2 is before Y2 in S, which among other things,
+  requires X2, X3, Y1 and Y2 to use memory_order_seq_cst to be part of S at all.
+
+  As Y0 is `sequenced-before` Y1, then Y0 also `happens-before` Y1 and thus
+  Y1 must be after Y0 in S (29.3.3). As Y0 is the last modification of
+  m_lock_word before X3 in S, it means that Y1 must be also after X3 in S.
+
+  Y1 is `sequenced-before` Y2, thus Y1 `happens-before` Y2, thus Y1 is before
+  Y2 in S.
+  X2 is `sequenced-before` X3, thus X2 `happens-before` X3, thus X2 is before
+  X3 in S.
+
+  Combining all these, we get that X2 is before Y2 in S.
+
+  Now, we will show that Y2 can not read `true` nor `false` as both lead to
+  contradiction.
+
+  If Y2 loads `true`, then Y will proceed to call os_event_set() during Y4.
+  By Lemma 1 Y4 `happens-before` X1. But, Y2 is `sequenced-before` Y4,
+  and X1 is `sequenced-before` X2, which together would give that Y2
+  `happens-before` X2 which contradicts the rule that S is consistent with
+  `happens-before`, and we've already established that X2 is before Y2 in S.
+
+  So, it must be that Y2 loads `false`. There is only one place in code which
+  writes `false` to this variable: during exit(). By 1.10.19 Y2 can not read
+  value stored by itself in Y3 which `happens-after`, so this `false` must be
+  stored by some other thread, Z, which was executing:
+
+    Z3   m_waiters.store(false)
+    Z4   os_event_set(..)
+
+  By Lemma 1, Z4 `happens-before` X1, and since Z3 is `sequenced-before` Z4, and
+  X1 is `sequenced-before` X2, we get Z3 `happens-before` X2.
+  Thus, we get, that in S the order is: Z3, X2, Y2.
+
+  We will now use 29.3.3.1 rule again for Y2=B, X2=A, M=m_waiters:
+  Y2 must read he result of the last modification of m_waiters that
+  precedes Y2 in S. This can not be Z3, because it is not the last modification
+  before Y2, as we know X2 must appear somewhere between Z3 and Y2 in S.
+
+  So, Y2 can not load `false` neither. Contradiction ends the proof.
+  */
 
   sync_arr = sync_array_get_and_reserve_cell(
       this,
@@ -98,7 +219,7 @@ void TTASEventMutex<Policy>::signal() UNIV_NOTHROW {
   clear_waiters();
 
   /* The memory order of resetting the waiters field and
-  signaling the object is important. See LEMMA 1 above. */
+  signaling the object is important. See Theorem 1 above. */
   os_event_set(m_event);
 
   sync_array_object_signalled();
