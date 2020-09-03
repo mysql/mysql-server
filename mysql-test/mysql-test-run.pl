@@ -3003,7 +3003,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'PATH_CONFIG_FILE'}    = $path_config_file;
-
+  $ENV{'MYSQL_CLIENT_BIN_PATH'}    = $path_client_bindir;
   $ENV{'MYSQLBACKUP_PLUGIN_DIR'} = mysqlbackup_plugin_dir()
     unless $ENV{'MYSQLBACKUP_PLUGIN_DIR'};
   $ENV{'MYSQL_CONFIG_EDITOR'} =

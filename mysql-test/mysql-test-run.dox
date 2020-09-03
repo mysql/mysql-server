@@ -3810,6 +3810,18 @@
         Users have to make sure this variable is set to the same path
         on all environments, and that this common path is mounted on
         all the environments.
+     <tr>
+      <td><tt>MYSQL_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having mysql binaries.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL_CLIENT_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having client binaries.
+      </td>
+    </tr>
     <tr>
       <td><tt>MYSQL_CONFIG_EDITOR</tt></td>
       <td>
