@@ -817,3 +817,26 @@ XA RECOVER;
 # 'XA ROLLBACK 'xid1'' failed: 1399: XAER_RMFAIL: The command cannot be
 # executed when global transaction is in the  NON-EXISTING state
 XA ROLLBACK 'xid1';
+
+--echo #
+--echo # BUG 31030205 - XA PREPARED TXN WILL STAY AS "RECOVERED TRX" IF ROLLBACK
+--echo #                XID HAS WRONG FORMATID
+--echo #
+--echo #
+
+--connect(con1,localhost,root,'',)
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+INSERT INTO t1 VALUES (1);
+XA END X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+XA PREPARE X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connect(con2, localhost, root, '',)
+--error ER_XAER_NOTA
+XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',2;
+XA RECOVER CONVERT XID;
+XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
+DROP TABLE t1;
+--disconnect con2
+--source include/wait_until_disconnected.inc
