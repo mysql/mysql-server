@@ -485,7 +485,13 @@ find_trn_for_recover_and_check_its_state(THD *thd,
       transaction_cache_search(xid_for_trn_in_recover);
 
   XID_STATE *xs = (transaction ? transaction->xid_state() : nullptr);
-  if (!xs || !xs->is_in_recovery()) {
+
+  /*
+    Check if formatID of transaction matches and transaction is in recovery
+    state.
+  */
+  if (!xs || !xs->get_xid()->eq(xid_for_trn_in_recover) ||
+      !xs->is_in_recovery()) {
     my_error(ER_XAER_NOTA, MYF(0));
     return nullptr;
   } else if (thd->in_active_multi_stmt_transaction()) {
