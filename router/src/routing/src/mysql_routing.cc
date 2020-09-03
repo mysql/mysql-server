@@ -438,9 +438,9 @@ class Connector : public ConnectorBase {
     server_endpoint_ = endpoint.endpoint();
 
     const int socket_flags {
-#if defined(__linux__) || defined(__FreeBSD__)
-      // linux|freebsd allows to set NONBLOCK as part of the socket() call
-      // to safe the extra syscall
+#if defined(SOCK_NONBLOCK)
+      // linux|freebsd|sol11.4 allows to set NONBLOCK as part of the socket()
+      // call to safe the extra syscall
       SOCK_NONBLOCK
 #endif
     };
@@ -737,15 +737,16 @@ class Acceptor {
 
       while (is_running(env_)) {
         typename protocol_type::endpoint client_endpoint;
-        auto sock_res =
-            acceptor_socket_.accept(cur_io_thread_->context(),
-                                    client_endpoint
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__sun)
-                                    // set the accepted socket non-blocking
-                                    ,
-                                    SOCK_NONBLOCK
+        const int socket_flags {
+#if defined(SOCK_NONBLOCK)
+          // linux|freebsd|sol11.4 allows to set NONBLOCK as part of the
+          // accept() call to safe the extra syscall
+          SOCK_NONBLOCK
 #endif
-            );
+        };
+
+        auto sock_res = acceptor_socket_.accept(cur_io_thread_->context(),
+                                                client_endpoint, socket_flags);
         if (sock_res) {
           // on Linux and AF_UNIX, the client_endpoint will be empty [only
           // family is set]
