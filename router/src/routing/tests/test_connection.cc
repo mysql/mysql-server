@@ -37,6 +37,7 @@
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
 #include "socket_operations.h"
+#include "tcp_address.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"
 
@@ -142,8 +143,8 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   bool is_called{false};
 
   MySQLRoutingConnection<net::ip::tcp, net::ip::tcp> connection(
-      context, std::move(client_socket), client_endpoint,
-      std::move(server_socket), server_endpoint,
+      context, "some-destination-name", std::move(client_socket),
+      client_endpoint, std::move(server_socket), server_endpoint,
       [&is_called](MySQLRoutingConnectionBase * /* connection */) {
         is_called = true;
       });

@@ -55,8 +55,8 @@ TEST(NetTS_socket, transfer_at_least) {
   std::error_code ec{};
 
   //
-  EXPECT_EQ(compl_condition(ec, 1), 15);
-  EXPECT_EQ(compl_condition(ec, 15), 1);
+  EXPECT_GT(compl_condition(ec, 1), 0);
+  EXPECT_GT(compl_condition(ec, 15), 0);
   // no need to transfer more
   EXPECT_EQ(compl_condition(ec, 200), 0);
 

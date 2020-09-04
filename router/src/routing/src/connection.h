@@ -59,6 +59,8 @@ class MySQLRoutingConnectionBase {
 
   MySQLRoutingContext &context() { return context_; }
 
+  virtual std::string get_destination_id() const = 0;
+
   /**
    * @brief Returns address of server to which connection is established.
    *
@@ -156,17 +158,20 @@ class MySQLRoutingConnection : public MySQLRoutingConnectionBase {
    *        at the very end of thread execution
    */
   MySQLRoutingConnection(
-      MySQLRoutingContext &context,
+      MySQLRoutingContext &context, std::string destination_id,
       typename ClientProtocol::socket client_socket,
       typename ClientProtocol::endpoint client_endpoint,
       typename ServerProtocol::socket server_socket,
       typename ServerProtocol::endpoint server_endpoint,
       std::function<void(MySQLRoutingConnectionBase *)> remove_callback)
       : MySQLRoutingConnectionBase{context, remove_callback},
+        destination_id_{std::move(destination_id)},
         client_socket_{std::move(client_socket)},
         client_endpoint_{std::move(client_endpoint)},
         server_socket_{std::move(server_socket)},
         server_endpoint_{std::move(server_endpoint)} {}
+
+  std::string get_destination_id() const override { return destination_id_; }
 
   std::string get_client_address() const override {
     std::ostringstream oss;
@@ -219,6 +224,8 @@ class MySQLRoutingConnection : public MySQLRoutingConnectionBase {
   }
 
  private:
+  std::string destination_id_;
+
   typename client_protocol_type::socket client_socket_;
   typename client_protocol_type::endpoint client_endpoint_;
 

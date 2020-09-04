@@ -72,18 +72,18 @@ TEST_F(FirstAvailableTest, RepeatedFetch) {
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
   }
 
   SCOPED_TRACE("// fetching it twice, no change");
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
   }
 }
 
@@ -97,9 +97,9 @@ TEST_F(FirstAvailableTest, FailOne) {
     SCOPED_TRACE("// destination in order");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
 
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
 
@@ -116,18 +116,18 @@ TEST_F(FirstAvailableTest, FailOne) {
     SCOPED_TRACE("// fetching after first is failed");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", 42),
-                                               Destination("43", 43),
-                                               Destination("41", 41)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", "42", 42),
+                                               Destination("43", "43", 43),
+                                               Destination("41", "41", 41)));
   }
 
   {
     SCOPED_TRACE("// fetching it twice, no change");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", 42),
-                                               Destination("43", 43),
-                                               Destination("41", 41)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", "42", 42),
+                                               Destination("43", "43", 43),
+                                               Destination("41", "41", 41)));
   }
 }
 
@@ -141,9 +141,9 @@ TEST_F(FirstAvailableTest, FailTwo) {
     SCOPED_TRACE("// destination in order");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
 
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
 
@@ -161,9 +161,9 @@ TEST_F(FirstAvailableTest, FailTwo) {
     auto actual = balancer.destinations();
 
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", 43),
-                                               Destination("41", 41),
-                                               Destination("42", 42)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", "43", 43),
+                                               Destination("41", "41", 41),
+                                               Destination("42", "42", 42)));
 
     // 'good' state isn't permanent.
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
@@ -173,9 +173,9 @@ TEST_F(FirstAvailableTest, FailTwo) {
     SCOPED_TRACE("// fetching it twice, no change");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", 43),
-                                               Destination("41", 41),
-                                               Destination("42", 42)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", "43", 43),
+                                               Destination("41", "41", 41),
+                                               Destination("42", "42", 42)));
 
     // 'good' state isn't permanent.
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
@@ -192,9 +192,9 @@ TEST_F(FirstAvailableTest, FailAll) {
     SCOPED_TRACE("// destination in order");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
 
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
 
@@ -208,9 +208,9 @@ TEST_F(FirstAvailableTest, FailAll) {
     SCOPED_TRACE("// fetching after first is failed");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
     // 'good' state isn't permanent.
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
@@ -219,9 +219,9 @@ TEST_F(FirstAvailableTest, FailAll) {
     SCOPED_TRACE("// fetching it twice, no change");
     auto actual = balancer.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
     // 'good' state isn't permanent.
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }

@@ -386,10 +386,10 @@ DestMetadataCacheGroup::~DestMetadataCacheGroup() {
 
 class MetadataCacheDestination : public Destination {
  public:
-  MetadataCacheDestination(std::string addr, uint16_t port,
+  MetadataCacheDestination(std::string id, std::string addr, uint16_t port,
                            DestMetadataCacheGroup *balancer,
                            std::string server_uuid)
-      : Destination(std::move(addr), port),
+      : Destination(std::move(id), std::move(addr), port),
         balancer_{balancer},
         server_uuid_{std::move(server_uuid)} {}
 
@@ -456,7 +456,8 @@ Destinations DestMetadataCacheGroup::balance(
     case routing::RoutingStrategy::kFirstAvailable: {
       for (auto const &dest : available) {
         dests.push_back(std::make_unique<MetadataCacheDestination>(
-            dest.address.addr, dest.address.port, this, dest.id));
+            dest.address.str(), dest.address.addr, dest.address.port, this,
+            dest.id));
       }
 
       break;
@@ -488,7 +489,8 @@ Destinations DestMetadataCacheGroup::balance(
       // dests = [2 3 4]
       for (; cur != end; ++cur) {
         dests.push_back(std::make_unique<MetadataCacheDestination>(
-            cur->address.addr, cur->address.port, this, cur->id));
+            cur->address.str(), cur->address.addr, cur->address.port, this,
+            cur->id));
       }
 
       // from begin to before-last
@@ -496,7 +498,8 @@ Destinations DestMetadataCacheGroup::balance(
       // dests = [2 3 4] + [0 1]
       for (cur = begin; cur != last; ++cur) {
         dests.push_back(std::make_unique<MetadataCacheDestination>(
-            cur->address.addr, cur->address.port, this, cur->id));
+            cur->address.str(), cur->address.addr, cur->address.port, this,
+            cur->id));
       }
 
       // NOTE: AsyncReplicasetTest.SecondaryAdded from

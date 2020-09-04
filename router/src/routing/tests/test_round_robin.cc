@@ -164,9 +164,9 @@ TEST_F(RoundRobinDestinationTest, RepeatedFetch) {
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 
@@ -174,9 +174,9 @@ TEST_F(RoundRobinDestinationTest, RepeatedFetch) {
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", 42),
-                                               Destination("43", 43),
-                                               Destination("41", 41)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("42", "42", 42),
+                                               Destination("43", "43", 43),
+                                               Destination("41", "41", 41)));
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 
@@ -184,9 +184,9 @@ TEST_F(RoundRobinDestinationTest, RepeatedFetch) {
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", 43),
-                                               Destination("41", 41),
-                                               Destination("42", 42)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("43", "43", 43),
+                                               Destination("41", "41", 41),
+                                               Destination("42", "42", 42)));
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 
@@ -194,9 +194,9 @@ TEST_F(RoundRobinDestinationTest, RepeatedFetch) {
   {
     auto actual = dest.destinations();
     EXPECT_THAT(actual, ::testing::SizeIs(3));
-    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", 41),
-                                               Destination("42", 42),
-                                               Destination("43", 43)));
+    EXPECT_THAT(actual, ::testing::ElementsAre(Destination("41", "41", 41),
+                                               Destination("42", "42", 42),
+                                               Destination("43", "43", 43)));
     EXPECT_THAT(actual, ::testing::Pointwise(IsGoodEq(), {true, true, true}));
   }
 }

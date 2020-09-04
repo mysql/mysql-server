@@ -27,12 +27,15 @@
 
 #include <atomic>
 #include <chrono>
+#include <iterator>
 #include <limits>  // numeric_limits
 #include <list>
 #include <map>
 #include <memory>  // unique_ptr
 #include <mutex>
 #include <system_error>  // error_code
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "my_config.h"  // HAVE_EPOLL
@@ -247,178 +250,80 @@ class io_context : public execution_context {
     Op op_;
   };
 
-  /**
-   * container of async operations.
-   *
-   * allows fast lookup by FDs and fast insertion.
-   *
-   *     array<vector<async_op>, N>
-   *
-   * push_back() is:
-   *
-   * 1. lookup bucket by fd
-   * 2. append async-op to vector
-   *
-   * extract_first() is:
-   *
-   * 1. lookup bucket by fd
-   * 2. iterate through vector until fd is found
-   *
-   * Every element is push_back()ed once and retrieved once.
-   *
-   * ## unordered vector
-   *
-   * Current approach is:
-   *
-   * vector of async-ops is:
-   *
-   * - order of elements is undefined.
-   *
-   * - push_back() is O(1)
-   * - extract_first() is: O(N/2) for the lookup and
-   *   O(N/2) for the erase()
-   *
-   *   It can be O(1) for erase() if implemented as: as std::move()
-   *   of last element into a new position nd .resize() - 1
-   *
-   * ## sorted vector
-   *
-   * a sorted vector would allow binary-search on the lookup, but push_back()
-   * would become costly.
-   *
-   * - push_back() is O(log_2(N)) for the insert-point and
-   *   O(N/2) for the memmove() of the other elements
-   * - extract_first() is O(log_2(N)) for the lookup and
-   *   O(N/2) for the erase [move all elements one to the left]
-   *
-   * ## list
-   *
-   * ## skip-list
-   *
-   * ## unordered map
-   *
-   * std::unordered_map<native_handle_type, element_type> should also work,
-   * but showed higher latency in benchmarking.
-   *
-   * std::unordered_set<native_handle_type, element_type> would be good
-   * candidate but doesn't allow modification (before C++17).
-   *
-   * ## order map
-   *
-   * std::map<native_handle_type, element_type> should also work
-   */
-  template <class T>
-  class LockedBuckets {
+  class AsyncOps {
    public:
-    using element_type = T;
-    using container_type = std::vector<element_type>;
+    using element_type = std::unique_ptr<async_op>;
 
     bool has_outstanding_work() const {
       std::lock_guard<std::mutex> lk(mtx_);
 
-      return bucket_has_outstanding_work_.any();
+      return !ops_.empty();
     }
 
-    /**
-     * add async op to the container.
-     */
     void push_back(element_type &&t) {
-      const auto ndx = bucket_ndx(t->native_handle());
-      auto &b = buckets_[ndx];
+      const auto handle = t->native_handle();
 
       std::lock_guard<std::mutex> lk(mtx_);
-      b.push_back(std::forward<element_type>(t));
 
-      bucket_has_outstanding_work_.set(ndx);
-    }
-
-    template <class Predicate>
-    element_type extract_first(native_handle_type fd, Predicate pred) {
-      const auto ndx = bucket_ndx(fd);
-      auto &b = buckets_[ndx];
-
-      std::lock_guard<std::mutex> lk(mtx_);
-      const auto end = b.end();
-
-      for (auto cur = b.begin(); cur != end; ++cur) {
-        if (*cur && cur->get()->native_handle() == fd && pred(*cur)) {
-          // remove op from list to allow .run() to add itself again
-          auto op = std::move(*cur);
-          auto last = b.erase(cur);
-
-          if (last == b.end()) {
-            // last element was removed.
-
-            bucket_has_outstanding_work_.reset(ndx);
-          }
-
-          // return op and release the lock
-          return op;
-        }
+      auto it = ops_.find(handle);
+      if (it != ops_.end()) {
+        it->second.push_back(std::move(t));
+      } else {
+        std::vector<element_type> v;
+        v.push_back(std::move(t));
+        ops_.emplace(handle, std::move(v));
       }
-
-      // not found
-      return {};
     }
 
-    /**
-     * extract first async-op for file-descriptor.
-     *
-     * @param fd file descriptor
-     * @return async-op on success, empty unique_ptr if not found.
-     */
-    element_type extract_first(native_handle_type fd) {
-      return extract_first(fd, [](const auto &) { return true; });
-    }
-
-    /**
-     * extract async op by file-descriptor with event.
-     *
-     * @param fd file descriptor
-     * @param events event the file-descriptor has to satisfy
-     * @return async-op on success, empty unique_ptr if not found.
-     */
     element_type extract_first(native_handle_type fd, short events) {
-      return extract_first(fd, [events](const auto &el) {
+      return extract_first(fd, [events](auto const &el) {
         return static_cast<short>(el->event()) & events;
       });
     }
 
+    element_type extract_first(native_handle_type fd) {
+      return extract_first(fd, [](auto const &) { return true; });
+    }
+
    private:
-    size_t bucket_ndx(native_handle_type fd) const noexcept {
-      return fd % buckets_.size();
+    template <class Pred>
+    element_type extract_first(native_handle_type fd, Pred &&pred) {
+      std::lock_guard<std::mutex> lk(mtx_);
+
+      const auto it = ops_.find(fd);
+      if (it != ops_.end()) {
+        auto &async_ops = it->second;
+
+        const auto end = async_ops.end();
+        for (auto cur = async_ops.begin(); cur != end; ++cur) {
+          auto &el = *cur;
+
+          if (el->native_handle() == fd && pred(el)) {
+            auto op = std::move(el);
+
+            if (async_ops.size() == 1) {
+              // remove the current container and with it its only element
+              ops_.erase(it);
+            } else {
+              // remove the current entry
+              async_ops.erase(cur);
+            }
+
+            return op;
+          }
+        }
+      }
+
+      return {};
     }
 
-    /**
-     * get locked bucket by file-descriptor.
-     */
-    container_type &bucket(native_handle_type fd) {
-      return buckets_[bucket_ndx(fd)];
-    }
-
-    // divide the async-ops into N buckets
-    //
-    // assuming
-    //
-    // - 1 io-context per CPU thread
-    // - ~16 CPU threads
-    // - 100.000 FDs
-    // - 101 buckets
-    //
-    // 100.000 / 16 / 101 = 62 fds per bucket on avg.
-    //
-    // which is should allow a good hit-rate on large FD counts.
-    //
-    static constexpr const size_t bucket_count_{101};
-
-    std::array<container_type, bucket_count_> buckets_;
-    std::bitset<bucket_count_> bucket_has_outstanding_work_;
+    std::unordered_map<native_handle_type, std::vector<element_type>> ops_{
+        16 * 1024};
 
     mutable std::mutex mtx_;
   };
 
-  // async operations.
-  LockedBuckets<std::unique_ptr<async_op>> active_ops_;
+  AsyncOps active_ops_;
 
   // cancelled async operators.
   std::list<std::unique_ptr<async_op>> cancelled_ops_;
@@ -426,10 +331,8 @@ class io_context : public execution_context {
   template <class Op>
   void async_wait(native_handle_type fd, impl::socket::wait_type wt, Op &&op) {
     // add the socket-wait op to the queue
-    auto a_op =
-        std::make_unique<async_op_impl<Op>>(std::forward<Op>(op), fd, wt);
-
-    active_ops_.push_back(std::move(a_op));
+    active_ops_.push_back(
+        std::make_unique<async_op_impl<Op>>(std::forward<Op>(op), fd, wt));
 
     {
       auto res = io_service_->add_fd_interest(fd, wt);
@@ -547,7 +450,22 @@ class io_context : public execution_context {
         duration = duration.zero();
       }
 
-      return std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+      // round up the next wait-duration to wait /at least/ the expected time.
+      //
+      // In case the expiry is 990us, wait 1ms
+      // If it is 0ns, leave it at 0ms;
+
+      auto duration_ms =
+          std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+
+      using namespace std::chrono_literals;
+
+      // round up to the next millisecond.
+      if ((duration - duration_ms).count() != 0) {
+        duration_ms += 1ms;
+      }
+
+      return duration_ms;
     }
 
     bool run_one() override {
@@ -582,8 +500,10 @@ class io_context : public execution_context {
 
           // multimap
           auto pending_expiry_it = pending_timer_expiries_.begin();
+          auto timepoint = pending_expiry_it->first;
 
-          if (pending_expiry_it->first > now) {
+          if (timepoint > now) {
+            // not expired yet. leave
             return false;
           }
           typename Timer::Id *timer_id = pending_expiry_it->second;
@@ -1000,6 +920,7 @@ inline io_context::count_type io_context::do_one(
     std::chrono::milliseconds min_duration{0};
     {
       std::lock_guard<std::mutex> lk(mtx_);
+      // check the smallest timestamp of all timer-queues
       for (auto q : timer_queues_) {
         const auto duration = q->next();
 

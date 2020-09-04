@@ -59,9 +59,11 @@ void DestRoundRobin::start(const mysql_harness::PluginFuncEnv * /*env*/) {
 
 class QuanrantinableDestination : public Destination {
  public:
-  QuanrantinableDestination(std::string host, uint16_t port,
+  QuanrantinableDestination(std::string id, std::string host, uint16_t port,
                             DestRoundRobin *balancer, size_t ndx)
-      : Destination(std::move(host), port), balancer_{balancer}, ndx_{ndx} {}
+      : Destination(std::move(id), std::move(host), port),
+        balancer_{balancer},
+        ndx_{ndx} {}
 
   void connect_status(std::error_code ec) override {
     if (ec != std::error_code()) {
@@ -108,7 +110,7 @@ Destinations DestRoundRobin::destinations() {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<QuanrantinableDestination>(
-          dest.addr, dest.port, this, n));
+          dest.str(), dest.addr, dest.port, this, n));
     }
 
     // from begin to before-last
@@ -119,7 +121,7 @@ Destinations DestRoundRobin::destinations() {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<QuanrantinableDestination>(
-          dest.addr, dest.port, this, n));
+          dest.str(), dest.addr, dest.port, this, n));
     }
 
     if (++start_pos_ >= sz) start_pos_ = 0;

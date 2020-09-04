@@ -322,6 +322,7 @@ class MySQLRouting {
    */
   template <class ClientProtocol, class ServerProtocol>
   void create_connection(
+      const std::string &destination_name,
       typename ClientProtocol::socket client_socket,
       const typename ClientProtocol::endpoint &client_endpoint,
       typename ServerProtocol::socket server_socket,

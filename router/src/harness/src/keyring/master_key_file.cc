@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,13 +30,12 @@
 #include <stdexcept>
 
 #include "keyring/keyring_memory.h"  // decryption_error
-#include "my_aes.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/tls_cipher.h"
 
 namespace mysql_harness {
 static const std::array<char, 5> kMasterKeyFileSignature = {'M', 'R', 'K', 'F',
                                                             '\0'};
-constexpr auto kAesMode = my_aes_256_cbc;
 static constexpr unsigned char kAesIv[] = {0x39, 0x62, 0x9f, 0x52, 0x7f, 0x76,
                                            0x9a, 0xae, 0xcd, 0xca, 0xf7, 0x04,
                                            0x65, 0x8e, 0x5d, 0x88};
@@ -164,20 +163,19 @@ void MasterKeyFile::save() {
 
 void MasterKeyFile::add(const std::string &id, const std::string &value,
                         const std::string &key) {
-  auto aes_buffer_size =
-      my_aes_get_size(static_cast<uint32_t>(value.length()), my_aes_256_cbc);
-  std::vector<char> aes_buffer(static_cast<size_t>(aes_buffer_size));
+  TlsCipher cipher(EVP_aes_256_cbc());
 
-  auto encrypted_size = my_aes_encrypt(
-      reinterpret_cast<const unsigned char *>(value.data()),
-      static_cast<uint32_t>(value.length()),
-      reinterpret_cast<unsigned char *>(aes_buffer.data()),
-      reinterpret_cast<const unsigned char *>(key.data()),
-      static_cast<uint32_t>(key.length()), my_aes_256_cbc, kAesIv);
-  if (encrypted_size < 0) {
-    throw std::runtime_error("Could not encrypt master key data");
+  std::vector<char> aes_buffer(cipher.size(value.length()));
+
+  const auto encrypted_res = cipher.encrypt(
+      reinterpret_cast<const uint8_t *>(value.data()), value.length(),
+      reinterpret_cast<uint8_t *>(aes_buffer.data()),
+      reinterpret_cast<const uint8_t *>(key.data()), key.length(), kAesIv);
+  if (!encrypted_res) {
+    throw std::system_error(encrypted_res.error(),
+                            "Could not encrypt master key data");
   }
-  aes_buffer.resize(static_cast<std::size_t>(encrypted_size));
+  aes_buffer.resize(encrypted_res.value());
 
   add_encrypted(id, std::string(&aes_buffer[0], aes_buffer.size()));
 }
@@ -190,7 +188,7 @@ void MasterKeyFile::add_encrypted(const std::string &id,
     // found ...
     throw std::invalid_argument("id must be unique");
   }
-  entries_.push_back(std::make_pair(id, buf));
+  entries_.emplace_back(id, buf);
 }
 
 std::string MasterKeyFile::get_encrypted(const std::string &id) const {
@@ -215,23 +213,17 @@ std::string MasterKeyFile::get(const std::string &id,
 
   std::vector<char> decrypted_buffer(encrypted.size());
 
-  auto decrypted_size =
-      my_aes_decrypt(reinterpret_cast<const unsigned char *>(encrypted.data()),
-                     static_cast<uint32_t>(encrypted.length()),
-                     reinterpret_cast<unsigned char *>(decrypted_buffer.data()),
-                     reinterpret_cast<const unsigned char *>(key.data()),
-                     static_cast<uint32_t>(key.length()), kAesMode, kAesIv);
+  auto decrypted_res =
+      TlsCipher(EVP_aes_256_cbc())
+          .decrypt(reinterpret_cast<const uint8_t *>(encrypted.data()),
+                   encrypted.length(),
+                   reinterpret_cast<uint8_t *>(decrypted_buffer.data()),
+                   reinterpret_cast<const uint8_t *>(key.data()), key.length(),
+                   kAesIv);
 
-  if (decrypted_size < 0) throw decryption_error("Decryption failed.");
+  if (!decrypted_res) throw decryption_error("Decryption failed.");
 
-  // std::string() wants an 'unsigned ...', but my_aes_decript gives an
-  // signed int. Due to the use of 'auto', we don't know the target type
-  // at static_cast<> time and have to let the compiler do the work for us
-  // and let it figure out the right unsigned type at compile time.
-  return std::string(
-      &decrypted_buffer[0],
-      static_cast<std::make_unsigned<decltype(decrypted_size)>::type>(
-          decrypted_size));
+  return std::string(&decrypted_buffer[0], decrypted_res.value());
 }
 
 bool MasterKeyFile::remove(const std::string &id) {
