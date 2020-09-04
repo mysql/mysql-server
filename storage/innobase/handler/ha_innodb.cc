@@ -12581,7 +12581,7 @@ bool create_table_info_t::innobase_table_flags() {
     }
   }
 
-  rec_format_t innodb_row_format;
+  rec_format_t innodb_row_format = get_row_format(innodb_default_row_format);
   switch (row_type) {
     case ROW_TYPE_REDUNDANT:
       innodb_row_format = REC_FORMAT_REDUNDANT;
@@ -12648,7 +12648,7 @@ bool create_table_info_t::innobase_table_flags() {
           innodb_row_format = REC_FORMAT_DYNAMIC;
           break;
         default:
-          innodb_row_format = get_row_format(innodb_default_row_format);
+          break;
       }
       break;
     }
