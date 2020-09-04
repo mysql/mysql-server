@@ -1336,4 +1336,8 @@ ALTER TABLE time_zone_transition ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone_transition_type ROW_FORMAT=DYNAMIC;
 ALTER TABLE user ROW_FORMAT=DYNAMIC;
 
+-- GRANT SYSTEM_USER ON *.* TO 'mysql.infoschema'@localhost
+INSERT IGNORE INTO global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
+  VALUES ('mysql.infoschema','localhost','SYSTEM_USER','N');
+
 SET @@session.sql_mode = @old_sql_mode;
