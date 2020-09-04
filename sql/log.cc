@@ -2240,6 +2240,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
     if (ll.item[ll.count].type == LOG_ITEM_LOG_MESSAGE) {
       size_t msg_len = vsnprintf(buff, sizeof(buff),
                                  ll.item[ll.count].data.data_string.str, fili);
+      if (msg_len > (sizeof(buff) - 1)) msg_len = sizeof(buff) - 1;
 
       buff[sizeof(buff) - 1] = '\0';
       ll.item[ll.count].data.data_string.str = buff;
