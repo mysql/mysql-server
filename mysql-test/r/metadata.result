@@ -408,17 +408,17 @@ e	f
 select * from v;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	v	v	d	d	3	11	0	Y	32768	0	63
-def	test	v	v	two	two	8	12	0	Y	32896	0	63
+def		v	v	two	two	8	12	0	Y	32896	0	63
 d	two
 select d, two from v;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	v	v	d	d	3	11	0	Y	32768	0	63
-def	test	v	v	two	two	8	12	0	Y	32896	0	63
+def		v	v	two	two	8	12	0	Y	32896	0	63
 d	two
 select d as e, two as f from v;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	v	v	d	e	3	11	0	Y	32768	0	63
-def	test	v	v	two	f	8	12	0	Y	32896	0	63
+def		v	v	two	f	8	12	0	Y	32896	0	63
 e	f
 set optimizer_switch="derived_merge=off";
 select * from (select a as d, 2*a as two from t) dt;
