@@ -1483,6 +1483,7 @@ class Item_typecast_date final : public Item_date_func {
              enum_query_type query_type) const override;
   const char *func_name() const override { return "cast_as_date"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
+  bool is_explicit_cast() const { return m_explicit_cast; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override;
   const char *cast_type() const { return "date"; }
 };
@@ -1511,6 +1512,7 @@ class Item_typecast_time final : public Item_time_func {
              enum_query_type query_type) const override;
   const char *func_name() const override { return "cast_as_time"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
+  bool is_explicit_cast() const { return m_explicit_cast; }
   bool get_time(MYSQL_TIME *ltime) override;
   const char *cast_type() const { return "time"; }
   bool resolve_type(THD *thd) override {
@@ -1549,6 +1551,7 @@ class Item_typecast_datetime final : public Item_datetime_func {
   const char *func_name() const override { return "cast_as_datetime"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   const char *cast_type() const { return "datetime"; }
+  bool is_explicit_cast() const { return m_explicit_cast; }
   bool resolve_type(THD *thd) override {
     if (args[0]->propagate_type(thd, MYSQL_TYPE_DATETIME, false, true))
       return true;
