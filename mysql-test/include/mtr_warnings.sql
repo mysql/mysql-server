@@ -292,6 +292,13 @@ INSERT INTO global_suppressions VALUES
  */
  ("Channel mysql_main configured to support TLS"),
 
+ /*
+   systemd debug (when built WITH_SYSTEMD and WITH_SYSTEMD_DEBUG,
+   and systemd logging is not actually available)
+ */
+ ("NOTIFY_SOCKET not set in environment. sd_notify messages will not be sent!"),
+ ("Invalid systemd notify socket, cannot send: "),
+
  ("THE_LAST_SUPPRESSION");
 
 
