@@ -4172,6 +4172,28 @@ FROM t;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug#31361748 ASSERTION `W->FRAME_BUFFER()->S->DB_TYPE()->DB_TYPE..
+--echo #
+
+--echo # Minimal repro
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (3), (10), (100), (103);
+SELECT a, COUNT(a) OVER (ORDER BY a RANGE
+                         BETWEEN 4 FOLLOWING AND 6 FOLLOWING)
+FROM t;
+DROP TABLE t;
+
+--echo # Original repro
+CREATE TABLE t (a INT,b INT);
+INSERT INTO t(a) VALUES(2147483647),(0),(-2),(-1),(0);
+INSERT INTO t(a) VALUES(5430600),(0),(-91),(2147483647),(0);
+INSERT INTO t(a) VALUES(-1),(0),(-26164),(37583),(-1),(79);
+SELECT LAST_VALUE(b) RESPECT NULLS
+          OVER (PARTITION BY b ORDER BY a
+                RANGE BETWEEN 253 FOLLOWING AND 118 FOLLOWING)
+FROM t;
+DROP TABLE t;
 
 # Local Variables:
 # mode: sql

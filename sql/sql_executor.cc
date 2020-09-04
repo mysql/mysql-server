@@ -5892,6 +5892,8 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         row. Now evaluate over any new rows within range of the current row.
       */
       const int64 first = w.last_rowno_in_range_frame() + 1;
+      const bool empty =
+          w.last_rowno_in_range_frame() < w.first_rowno_in_range_frame();
       bool row_added = false;
 
       for (rowno = first; rowno <= upper; rowno++) {
@@ -5933,6 +5935,19 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
         w.set_is_last_row_in_frame(false);  // undo temporary states
         row_added = true;
+      }
+
+      if (w.before_frame() && empty) {
+        DBUG_ASSERT(!row_added && !found_first);
+        // This row's value is too low to fit in frame. We already had an empty
+        // set of frame rows when evaluating for the previous row, and the set
+        // is still empty.  So, we can move the possible boundaries for the
+        // set of frame rows for the next row to be evaluated one row ahead.
+        // We need only update last_rowno_in_range_frame here, first_row
+        // no_in_range_frame will be adjusted below to be one higher, cf.
+        // "maintain invariant" comment.
+        w.set_last_rowno_in_range_frame(
+            min(w.last_rowno_in_range_frame() + 1, upper));
       }
 
       if (rowno > upper && row_added)
