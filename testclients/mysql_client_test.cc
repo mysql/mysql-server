@@ -11243,6 +11243,134 @@ static void test_cursors_with_union() {
   fetch_n(queries, sizeof(queries) / sizeof(*queries), USE_STORE_RESULT);
 }
 
+static void test_cursor_for_show() {
+  // clang-format off
+  const char *queries[] = {
+      "SHOW BINLOG EVENTS",
+      "SHOW BINARY LOGS",
+      "SHOW CHARACTER SET",
+      "SHOW COLLATION",
+      "SHOW COLUMNS FROM t1",
+      "SHOW INDEX FROM t1",
+      "SHOW CREATE DATABASE test",
+      "SHOW CREATE EVENT e1",
+      "SHOW CREATE FUNCTION f1",
+      "SHOW CREATE PROCEDURE p1",
+      "SHOW CREATE TABLE t1",
+      "SHOW CREATE TRIGGER tr1",
+    //"SHOW CREATE USER root", - not supported as cursor command
+      "SHOW CREATE VIEW v1",
+      "SHOW DATABASES",
+      "SHOW ENGINE INNODB LOGS",
+      "SHOW ENGINE INNODB MUTEX",
+      "SHOW ENGINE INNODB STATUS",
+      "SHOW ENGINES",
+    //"SHOW ERRORS", - not supported as client/server command
+      "SHOW EVENTS",
+      "SHOW FUNCTION CODE f1",
+      "SHOW FUNCTION STATUS",
+      "SHOW GRANTS",
+      "SHOW MASTER STATUS",
+      "SHOW OPEN TABLES",
+      "SHOW PLUGINS",
+      "SHOW PRIVILEGES",
+      "SHOW PROCEDURE CODE p1",
+      "SHOW PROCEDURE STATUS",
+      "SHOW PROCESSLIST",
+      "SHOW PROFILE",
+      "SHOW PROFILES",
+      "SHOW RELAYLOG EVENTS",
+      "SHOW SLAVE HOSTS",
+      "SHOW SLAVE STATUS",
+      "SHOW STATUS",
+      "SHOW TABLE STATUS",
+      "SHOW TABLES",
+      "SHOW TRIGGERS",
+      "SHOW VARIABLES",
+    //"SHOW WARNINGS" - not supported as client/server command
+      };
+  // clang-format on
+
+  myheader("test_cursor_for_show");
+
+  int rc;
+  const char *stmt_text;
+
+  stmt_text = "drop table if exists t1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "create table t1(a integer primary key, b integer)";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop trigger if exists tr1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "create trigger tr1 BEFORE UPDATE ON t1 FOR EACH ROW SET @a=1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop view if exists v1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "create view v1 as select * from t1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop function if exists f1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "create function f1() returns integer deterministic return 1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop procedure if exists p1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "create procedure p1() begin declare i integer; end;";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop event if exists e1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "create event e1 on schedule every 1 day do select 1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  fetch_n(queries, sizeof(queries) / sizeof(*queries), USE_ROW_BY_ROW_FETCH);
+
+  stmt_text = "drop view v1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop trigger tr1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop table t1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop function f1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop procedure p1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "drop event e1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+}
+
 /*
   Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
@@ -21592,6 +21720,7 @@ static struct my_tests_st my_tests[] = {
     {"test_view_insert_fields", test_view_insert_fields},
     {"test_basic_cursors", test_basic_cursors},
     {"test_cursors_with_union", test_cursors_with_union},
+    {"test_cursor_for_show", test_cursor_for_show},
     {"test_truncation", test_truncation},
     {"test_truncation_option", test_truncation_option},
     {"test_client_character_set", test_client_character_set},

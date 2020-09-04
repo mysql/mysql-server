@@ -4004,6 +4004,8 @@ Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function
 EXECUTE stmt;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`c1` AS `c1` from `t1` where (`t1`.`c1` = `f1`())	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1;

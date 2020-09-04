@@ -133,8 +133,6 @@ bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 
-bool execute_show(THD *thd, TABLE_LIST *all_tables);
-
 // TODO: remove after refactoring of ALTER DATABASE:
 bool set_default_charset(HA_CREATE_INFO *create_info,
                          const CHARSET_INFO *value);

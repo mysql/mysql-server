@@ -265,7 +265,7 @@ void Stored_routine_creation_ctx::delete_backup_ctx() { destroy(this); }
   @retval true                Error
 */
 
-static bool lock_routine_name(THD *thd, enum_sp_type type, sp_name *name,
+static bool lock_routine_name(THD *thd, enum_sp_type type, const sp_name *name,
                               enum_mdl_type mdl_lock_type) {
   DBUG_TRACE;
 
@@ -331,7 +331,8 @@ static void recursion_level_error(THD *thd, sp_head *sp) {
 */
 
 static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
-                                           sp_name *name, sp_head **sphp) {
+                                           const sp_name *name,
+                                           sp_head **sphp) {
   DBUG_TRACE;
   DBUG_PRINT("enter",
              ("type: %d name: %.*s", static_cast<int>(type),
@@ -1879,8 +1880,9 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   @retval non-SP_OK  Error while loading routine from DD table.
 */
 
-enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
-                                     bool lookup_only, sp_head **sp) {
+enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
+                                     const sp_name *name, bool lookup_only,
+                                     sp_head **sp) {
   enum_sp_return_code ret = SP_OK;
   sp_cache **spc = (type == enum_sp_type::FUNCTION) ? &thd->sp_func_cache
                                                     : &thd->sp_proc_cache;

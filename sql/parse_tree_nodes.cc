@@ -80,8 +80,10 @@
 #include "sql/sql_insert.h"  // Sql_cmd_insert...
 #include "sql/sql_parse.h"
 #include "sql/sql_select.h"  // Sql_cmd_select...
-#include "sql/sql_show.h"
-#include "sql/sql_update.h"  // Sql_cmd_update...
+#include "sql/sql_show.h"    // Sql_cmd_show...
+#include "sql/sql_show_processlist.h"
+#include "sql/sql_show_status.h"  // build_show_session_status, ...
+#include "sql/sql_update.h"       // Sql_cmd_update...
 #include "sql/system_variables.h"
 #include "sql/table_function.h"
 #include "sql/thr_malloc.h"
@@ -89,6 +91,8 @@
 #include "sql/window.h"  // Window
 #include "sql_string.h"
 #include "template_utils.h"
+
+extern bool pfs_processlist_enabled;
 
 namespace {
 
@@ -1930,58 +1934,68 @@ bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc) {
   return false;
 }
 
-Sql_cmd *PT_show_fields_and_keys::make_cmd(THD *thd) {
+bool PT_show_table_base::make_table_base_cmd(THD *thd, bool *temporary) {
   LEX *const lex = thd->lex;
   Parse_context pc(thd, lex->current_select());
+
+  lex->sql_command = m_sql_command;
 
   // Create empty query block and add user specfied table.
   TABLE_LIST **query_tables_last = lex->query_tables_last;
   SELECT_LEX *schema_select_lex = lex->new_empty_query_block();
-  if (schema_select_lex == nullptr) return nullptr;
+  if (schema_select_lex == nullptr) return true;
   TABLE_LIST *tbl = schema_select_lex->add_table_to_list(
       thd, m_table_ident, nullptr, 0, TL_READ, MDL_SHARED_READ);
-  if (tbl == nullptr) return nullptr;
+  if (tbl == nullptr) return true;
   lex->query_tables_last = query_tables_last;
 
-  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+  if (m_wild.str && lex->set_wild(m_wild)) return true;  // OOM
 
-  // If its a temporary table then use schema_table implementation.
-  if (find_temporary_table(thd, tbl) != nullptr) {
+  TABLE *show_table = find_temporary_table(thd, tbl);
+  *temporary = show_table != nullptr;
+
+  // If its a temporary table then use schema_table implementation,
+  // otherwise read I_S system view:
+  if (*temporary) {
     SELECT_LEX *select_lex = lex->current_select();
 
-    if (m_where_condition != nullptr) {
-      m_where_condition->itemize(&pc, &m_where_condition);
-      select_lex->set_where_cond(m_where_condition);
+    if (m_where != nullptr) {
+      if (m_where->itemize(&pc, &m_where)) return true;
+      select_lex->set_where_cond(m_where);
     }
 
-    enum enum_schema_tables schema_table =
-        (m_type == SHOW_FIELDS) ? SCH_TMP_TABLE_COLUMNS : SCH_TMP_TABLE_KEYS;
-    if (make_schema_select(thd, select_lex, schema_table)) return nullptr;
+    enum enum_schema_tables schema_table = m_sql_command == SQLCOM_SHOW_FIELDS
+                                               ? SCH_TMP_TABLE_COLUMNS
+                                               : SCH_TMP_TABLE_KEYS;
+    if (make_schema_select(thd, select_lex, schema_table)) return true;
 
     TABLE_LIST *table_list = select_lex->table_list.first;
     table_list->schema_select_lex = schema_select_lex;
     table_list->schema_table_reformed = true;
-  } else  // Use implementation of I_S as system views.
-  {
+  } else {
     SELECT_LEX *sel = nullptr;
-    switch (m_type) {
-      case SHOW_FIELDS:
+    switch (m_sql_command) {
+      case SQLCOM_SHOW_FIELDS:
         sel = dd::info_schema::build_show_columns_query(
-            m_pos, thd, m_table_ident, lex->wild, m_where_condition);
+            m_pos, thd, m_table_ident, lex->wild, m_where);
         break;
-      case SHOW_KEYS:
+      case SQLCOM_SHOW_KEYS:
         sel = dd::info_schema::build_show_keys_query(m_pos, thd, m_table_ident,
-                                                     m_where_condition);
+                                                     m_where);
+        break;
+      default:
+        assert(false);
+        sel = nullptr;
         break;
     }
 
-    if (sel == nullptr) return nullptr;
+    if (sel == nullptr) return true;
 
     TABLE_LIST *table_list = sel->table_list.first;
     table_list->schema_select_lex = schema_select_lex;
   }
 
-  return &m_sql_cmd;
+  return false;
 }
 
 static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
@@ -2001,41 +2015,454 @@ static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
       thd->lex->verbose = true;
       thd->lex->m_extended_show = true;
       break;
-    default:
-      DBUG_ASSERT(false);
   }
 }
 
-PT_show_fields::PT_show_fields(const POS &pos, Show_cmd_type show_cmd_type,
-                               Table_ident *table_ident, Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_FIELDS, table_ident, NULL_STR,
-                              where_condition),
-      m_show_cmd_type(show_cmd_type) {}
+Sql_cmd *PT_show_binlog_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->mi.log_file_name = m_opt_log_file_name.str;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_binlogs::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_charsets::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_character_set_query(m_pos, thd, lex->wild,
+                                                      m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_collations::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_collation_query(m_pos, thd, lex->wild,
+                                                  m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_database::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->create_info->options = m_if_not_exists ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
+  lex->name = m_name;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_event::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_function::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_procedure::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_table::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->create_info->storage_media = HA_SM_DEFAULT;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_view::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_trigger::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->spname = m_spname;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_create_user::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->grant_user = m_user;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_databases::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_databases_query(m_pos, thd, lex->wild,
+                                                  m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_logs::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_mutex::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engine_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
+                               &lex->create_info->db_type))
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_engines::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_ENGINES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_errors::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  // SHOW ERRORS will not clear diagnostics
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
 
 Sql_cmd *PT_show_fields::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
-  lex->select_lex->db = nullptr;
+  assert(lex->select_lex->db == nullptr);
 
   setup_lex_show_cmd_type(thd, m_show_cmd_type);
   lex->current_select()->parsing_place = CTX_SELECT_LIST;
-  lex->sql_command = SQLCOM_SHOW_FIELDS;
-  Sql_cmd *ret = super::make_cmd(thd);
-  if (ret == nullptr) return nullptr;
+  if (make_table_base_cmd(thd, &m_sql_cmd.m_temporary)) return nullptr;
   // WL#6599 opt_describe_column is handled during prepare stage in
   // prepare_schema_dd_view instead of execution stage
   lex->current_select()->parsing_place = CTX_NONE;
 
-  return ret;
+  return &m_sql_cmd;
 }
-
-PT_show_keys::PT_show_keys(const POS &pos, bool extended_show,
-                           Table_ident *table, Item *where_condition)
-    : PT_show_fields_and_keys(pos, SHOW_KEYS, table, NULL_STR, where_condition),
-      m_extended_show(extended_show) {}
 
 Sql_cmd *PT_show_keys::make_cmd(THD *thd) {
   thd->lex->m_extended_show = m_extended_show;
-  return super::make_cmd(thd);
+
+  if (make_table_base_cmd(thd, &m_sql_cmd.m_temporary)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_events_query(m_pos, thd, lex->wild,
+                                               m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_master_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_open_tables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  Parse_context pc(thd, lex->select_lex);
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+  if (m_where != nullptr) {
+    if (m_where->itemize(&pc, &m_where)) return nullptr;
+    lex->select_lex->set_where_cond(m_where);
+  }
+  lex->select_lex->db = m_opt_db;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_OPEN_TABLES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_plugins::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (prepare_schema_table(thd, lex, 0, SCH_PLUGINS)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_privileges::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_processlist::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  m_sql_cmd.set_use_pfs(pfs_processlist_enabled);
+  if (pfs_processlist_enabled) {
+    if (build_processlist_query(m_pos, thd, m_sql_cmd.verbose()))
+      return nullptr;
+  }
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_routine_code::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_profile::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->profile_options = m_opt_profile_options;
+  lex->show_profile_query_id = m_opt_query_id;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  if (prepare_schema_table(thd, lex, 0, SCH_PROFILES)) return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_profiles::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_relaylog_events::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->mi.log_file_name = m_opt_log_file_name.str;
+  if (lex->set_channel_name(m_opt_channel_name)) return nullptr;  // OOM
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_replicas::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_replica_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (lex->set_channel_name(m_opt_channel_name)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (m_var_type == OPT_SESSION) {
+    if (build_show_session_status(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  } else if (m_var_type == OPT_GLOBAL) {
+    if (build_show_global_status(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  }
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status_func::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_procedures_query(m_pos, thd, lex->wild,
+                                                   m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_status_proc::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_procedures_query(m_pos, thd, lex->wild,
+                                                   m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_table_status::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_tables_query(m_pos, thd, lex->wild, m_where,
+                                               true) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  setup_lex_show_cmd_type(thd, m_show_cmd_type);
+
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_tables_query(m_pos, thd, lex->wild, m_where,
+                                               false) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_triggers::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  lex->verbose = m_full;
+  lex->select_lex->db = m_opt_db;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (dd::info_schema::build_show_triggers_query(m_pos, thd, lex->wild,
+                                                 m_where) == nullptr)
+    return nullptr;
+
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_variables::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+
+  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
+
+  if (m_var_type == OPT_SESSION) {
+    if (build_show_session_variables(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  } else if (m_var_type == OPT_GLOBAL) {
+    if (build_show_global_variables(m_pos, thd, lex->wild, m_where) == nullptr)
+      return nullptr;
+  }
+  return &m_sql_cmd;
+}
+
+Sql_cmd *PT_show_warnings::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+  lex->sql_command = m_sql_command;
+  // SHOW WARNINGS will not clear diagnostics
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize_safe(&pc, m_opt_limit_clause)) return nullptr;  // OOM
+
+  return &m_sql_cmd;
 }
 
 bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
@@ -2473,22 +2900,6 @@ Item *PT_border::build_addop(Item_cache *order_expr, bool prec, bool asc,
       addop = new Item_func_plus(order_expr, m_value);
   }
   return addop;
-}
-
-Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
-  LEX *lex = thd->lex;
-  lex->sql_command = SQLCOM_SHOW_TABLES;
-
-  lex->select_lex->db = m_opt_db;
-  setup_lex_show_cmd_type(thd, m_show_cmd_type);
-
-  if (m_wild.str && lex->set_wild(m_wild)) return nullptr;  // OOM
-
-  SELECT_LEX *sel = dd::info_schema::build_show_tables_query(
-      m_pos, thd, lex->wild, m_where_condition, false);
-  if (sel == nullptr) return nullptr;
-
-  return &m_sql_cmd;
 }
 
 PT_json_table_column_for_ordinality::PT_json_table_column_for_ordinality(

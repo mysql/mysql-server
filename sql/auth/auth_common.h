@@ -868,7 +868,6 @@ bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                      LEX_CSTRING role_host);
 bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
                        bool *is_mandatory);
-bool check_show_access(THD *thd, TABLE_LIST *table);
 bool check_global_access(THD *thd, ulong want_access);
 
 /* sql_user_table */

@@ -1004,51 +1004,6 @@ error:
   return true;
 }
 
-/**
-  Validate SHOW statement.
-
-    In case of success, if this query is not EXPLAIN, send column list info
-    back to the client.
-
-  @param stmt               prepared statement
-  @param tables             list of tables used in the query
-
-  @return false on succes and true on error
-*/
-
-bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables) {
-  DBUG_TRACE;
-  THD *thd = stmt->thd;
-  LEX *lex = stmt->lex;
-  SELECT_LEX_UNIT *unit = lex->unit;
-
-  DBUG_ASSERT(!thd->is_error());
-
-  if (show_precheck(thd, lex, false)) return true;
-
-  DBUG_ASSERT(lex->result == nullptr);
-  DBUG_ASSERT(lex->sql_command != SQLCOM_SELECT &&
-              lex->sql_command != SQLCOM_DO);
-  // No SHOW commands is currently a UNION query
-  DBUG_ASSERT(unit->is_simple());
-  DBUG_ASSERT(!lex->is_explain());
-
-  Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-  if (!lex->result) {
-    if (!(lex->result = new (stmt->m_arena.mem_root) Query_result_send()))
-      return true; /* purecov: inspected */
-  }
-
-  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    return true;
-
-  if (unit->prepare(thd, lex->result, nullptr, 0, 0)) return true;
-  lex->save_cmd_properties(thd);
-
-  return false;
-}
-
 static bool send_statement(THD *thd, const Prepared_statement *stmt,
                            uint no_columns, Query_result *result,
                            const mem_root_deque<Item *> *types) {
@@ -1334,21 +1289,6 @@ bool Prepared_statement::prepare_query() {
   }
 
   switch (sql_command) {
-    /* The following allow WHERE clause, so they must be tested like SELECT */
-    case SQLCOM_SHOW_DATABASES:
-    case SQLCOM_SHOW_TABLES:
-    case SQLCOM_SHOW_TRIGGERS:
-    case SQLCOM_SHOW_EVENTS:
-    case SQLCOM_SHOW_OPEN_TABLES:
-    case SQLCOM_SHOW_COLLATIONS:
-    case SQLCOM_SHOW_CHARSETS:
-    case SQLCOM_SHOW_VARIABLES:
-    case SQLCOM_SHOW_STATUS:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    case SQLCOM_SHOW_STATUS_PROC:
-    case SQLCOM_SHOW_STATUS_FUNC:
-      if (mysql_test_show(this, tables)) return true;
-      break;
     case SQLCOM_CREATE_VIEW:
       if (lex->create_view_mode == enum_view_create_mode::VIEW_ALTER) {
         my_error(ER_UNSUPPORTED_PS, MYF(0));
@@ -1431,9 +1371,48 @@ bool Prepared_statement::prepare_query() {
     case SQLCOM_REPLACE:
     case SQLCOM_REPLACE_SELECT:
     case SQLCOM_CALL:
+    case SQLCOM_SHOW_BINLOG_EVENTS:
+    case SQLCOM_SHOW_BINLOGS:
+    case SQLCOM_SHOW_CHARSETS:
+    case SQLCOM_SHOW_COLLATIONS:
+    case SQLCOM_SHOW_CREATE_DB:
+    case SQLCOM_SHOW_CREATE_EVENT:
+    case SQLCOM_SHOW_CREATE_FUNC:
+    case SQLCOM_SHOW_CREATE_PROC:
+    case SQLCOM_SHOW_CREATE:
+    case SQLCOM_SHOW_CREATE_TRIGGER:
+    case SQLCOM_SHOW_CREATE_USER:
+    case SQLCOM_SHOW_DATABASES:
+    case SQLCOM_SHOW_ENGINE_LOGS:
+    case SQLCOM_SHOW_ENGINE_MUTEX:
+    case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ERRORS:
+    case SQLCOM_SHOW_EVENTS:
     case SQLCOM_SHOW_FIELDS:
+    case SQLCOM_SHOW_FUNC_CODE:
+    case SQLCOM_SHOW_GRANTS:
     case SQLCOM_SHOW_KEYS:
+    case SQLCOM_SHOW_MASTER_STAT:
+    case SQLCOM_SHOW_OPEN_TABLES:
+    case SQLCOM_SHOW_PLUGINS:
+    case SQLCOM_SHOW_PRIVILEGES:
+    case SQLCOM_SHOW_PROC_CODE:
+    case SQLCOM_SHOW_PROCESSLIST:
+    case SQLCOM_SHOW_PROFILE:
+    case SQLCOM_SHOW_PROFILES:
+    case SQLCOM_SHOW_RELAYLOG_EVENTS:
+    case SQLCOM_SHOW_SLAVE_HOSTS:
+    case SQLCOM_SHOW_SLAVE_STAT:
+    case SQLCOM_SHOW_STATUS:
+    case SQLCOM_SHOW_STATUS_PROC:
+    case SQLCOM_SHOW_STATUS_FUNC:
+    case SQLCOM_SHOW_STORAGE_ENGINES:
+    case SQLCOM_SHOW_TABLE_STATUS:
+    case SQLCOM_SHOW_TABLES:
+    case SQLCOM_SHOW_TRIGGERS:
+    case SQLCOM_SHOW_VARIABLES:
     case SQLCOM_SET_RESOURCE_GROUP:
+    case SQLCOM_SHOW_WARNS:
       res = lex->m_sql_cmd->prepare(thd);
       break;
 
@@ -2367,8 +2346,12 @@ void Prepared_statement::setup_set_params() {
 Prepared_statement::~Prepared_statement() {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("stmt: %p  cursor: %p", this, cursor));
-  if (cursor != nullptr && cursor->is_open()) close_cursor();
-
+  if (cursor != nullptr) {
+    if (cursor->is_open()) close_cursor();
+    if (result != nullptr) destroy(result);
+    cursor = nullptr;
+    result = nullptr;
+  }
   /*
     We have to call free on the items even if cleanup is called as some items,
     like Item_param, don't free everything until free_items()

@@ -23,40 +23,10 @@
 #ifndef SQL_SHOW_PROCESSLIST_H
 #define SQL_SHOW_PROCESSLIST_H
 
-#include "sql/parse_tree_node_base.h"  // POS
-#include "sql/sql_cmd.h"               // Sql_cmd
+#include "sql/parse_location.h"  // POS
 
-class Item;
-class SELECT_LEX;
-class String;
 class THD;
 
-SELECT_LEX *build_show_processlist(const POS &pos, THD *thd, bool verbose);
-
-/**
-  Implement SHOW PROCESSLIST using either the Performance Schema
-  or the Information Schema.
-*/
-class Sql_cmd_show_processlist : public Sql_cmd {
- public:
-  Sql_cmd_show_processlist(const POS &pos, THD *thd, enum_sql_command command,
-                           bool verbose);
-  virtual bool execute(THD *thd) override;
-  virtual enum_sql_command sql_command_code() const override {
-    return m_sql_command;
-  }
-
- protected:
-  bool use_pfs() { return m_use_pfs; }
-  void set_use_pfs(bool use_pfs) { m_use_pfs = use_pfs; }
-  bool execute_with_information_schema(THD *thd);
-  bool execute_with_performance_schema(THD *thd);
-
- private:
-  THD *m_thd;
-  enum_sql_command m_sql_command;
-  bool m_verbose;
-  bool m_use_pfs;
-};
+bool build_processlist_query(const POS &pos, THD *thd, bool verbose);
 
 #endif /* SQL_SHOW_PROCESSLIST_H */

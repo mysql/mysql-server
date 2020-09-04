@@ -110,7 +110,6 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
                              uint param_number, uchar *longdata, ulong length);
 bool select_like_stmt_cmd_test(THD *thd, class Sql_cmd_dml *cmd,
                                ulong setup_tables_done_option);
-bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables);
 
 /**
   Execute a fragment of server code in an isolated context, so that

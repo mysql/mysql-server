@@ -85,7 +85,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/auth/auth_common.h"
 #include "sql/binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
 #include "sql/create_field.h"
-#include "sql/dd/info_schema/show.h"             // build_show_...
 #include "sql/dd/types/abstract_table.h"         // TT_BASE_TABLE
 #include "sql/dd/types/column.h"
 #include "sql/derror.h"
@@ -153,8 +152,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_profile.h"
 #include "sql/sql_select.h"                      // Sql_cmd_select...
 #include "sql/sql_servers.h"
-#include "sql/sql_show_status.h"                 // build_show_session_status, ...
-#include "sql/sql_show_processlist.h"            // build_show_processlist
 #include "sql/sql_signal.h"
 #include "sql/sql_table.h"                        /* primary_key_name */
 #include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
@@ -1398,6 +1395,8 @@ void warn_about_deprecated_binary(THD *thd)
         opt_datadir_ssl default_encryption
         lvalue_ident
         schema
+        engine_or_all
+        opt_binlog_in
 
 %type <lex_cstr>
         key_cache_name
@@ -1406,6 +1405,7 @@ void warn_about_deprecated_binary(THD *thd)
         opt_replace_password
         sp_opt_label
         json_attribute
+        opt_channel
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -1457,6 +1457,9 @@ void warn_about_deprecated_binary(THD *thd)
         now
         opt_checksum_type
         opt_ignore_lines
+        opt_profile_defs
+        profile_defs
+        profile_def
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
@@ -2045,6 +2048,7 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <alter_tablespace_type> undo_tablespace_state
 
+%type <query_id> opt_for_query
 
 %%
 
@@ -2384,7 +2388,10 @@ change:
             lex->mi.set_unspecified();
           }
           master_defs opt_channel
-          {}
+          {
+            if (Lex->set_channel_name($6))
+              MYSQL_YYABORT;  // OOM
+          }
         | CHANGE REPLICATION FILTER_SYM
           {
             THD *thd= YYTHD;
@@ -2396,7 +2403,10 @@ change:
               MYSQL_YYABORT;
           }
           filter_defs opt_channel
-          {}
+          {
+            if (Lex->set_channel_name($6))
+              MYSQL_YYABORT;  // OOM
+          }
         ;
 
 filter_defs:
@@ -2880,24 +2890,11 @@ master_file_def:
         ;
 
 opt_channel:
-         /*empty */
-       {
-         Lex->mi.channel= "";
-         Lex->mi.for_channel= false;
-       }
-     | FOR_SYM CHANNEL_SYM TEXT_STRING_sys_nonewline
-       {
-         /*
-           channel names are case insensitive. This means, even the results
-           displayed to the user are converted to lower cases.
-           system_charset_info is utf8_general_ci as required by channel name
-           restrictions
-         */
-         my_casedn_str(system_charset_info, $3.str);
-         Lex->mi.channel= $3.str;
-         Lex->mi.for_channel= true;
-       }
-    ;
+          /*empty */
+          { $$ = {}; }
+        | FOR_SYM CHANNEL_SYM TEXT_STRING_sys_nonewline
+          { $$ = to_lex_cstring($3); }
+        ;
 
 create_table_stmt:
           CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
@@ -8769,6 +8766,8 @@ stop_replica_stmt:
             lex->slave_thd_opt= $3;
             if (lex->is_replication_deprecated_syntax_used())
               push_deprecated_warn(YYTHD, "STOP SLAVE", "STOP REPLICA");
+            if (lex->set_channel_name($4))
+              MYSQL_YYABORT;  // OOM
           }
         ;
 
@@ -8806,6 +8805,10 @@ start_replica_stmt:
             }
           }
           opt_channel
+          {
+            if (Lex->set_channel_name($11))
+              MYSQL_YYABORT;  // OOM
+          }
         ;
 
 start:
@@ -12975,66 +12978,37 @@ opt_table:
         ;
 
 opt_profile_defs:
-  /* empty */
-  | profile_defs;
+          /* empty */   { $$ = 0; }
+        | profile_defs
+        ;
 
 profile_defs:
-  profile_def
-  | profile_defs ',' profile_def;
+          profile_def
+        | profile_defs ',' profile_def  { $$ = $1 | $3; }
+        ;
 
 profile_def:
-  CPU_SYM
-    {
-      Lex->profile_options|= PROFILE_CPU;
-    }
-  | MEMORY_SYM
-    {
-      Lex->profile_options|= PROFILE_MEMORY;
-    }
-  | BLOCK_SYM IO_SYM
-    {
-      Lex->profile_options|= PROFILE_BLOCK_IO;
-    }
-  | CONTEXT_SYM SWITCHES_SYM
-    {
-      Lex->profile_options|= PROFILE_CONTEXT;
-    }
-  | PAGE_SYM FAULTS_SYM
-    {
-      Lex->profile_options|= PROFILE_PAGE_FAULTS;
-    }
-  | IPC_SYM
-    {
-      Lex->profile_options|= PROFILE_IPC;
-    }
-  | SWAPS_SYM
-    {
-      Lex->profile_options|= PROFILE_SWAPS;
-    }
-  | SOURCE_SYM
-    {
-      Lex->profile_options|= PROFILE_SOURCE;
-    }
-  | ALL
-    {
-      Lex->profile_options|= PROFILE_ALL;
-    }
-  ;
+          CPU_SYM                   { $$ = PROFILE_CPU; }
+        | MEMORY_SYM                { $$ = PROFILE_MEMORY; }
+        | BLOCK_SYM IO_SYM          { $$ = PROFILE_BLOCK_IO; }
+        | CONTEXT_SYM SWITCHES_SYM  { $$ = PROFILE_CONTEXT; }
+        | PAGE_SYM FAULTS_SYM       { $$ = PROFILE_PAGE_FAULTS; }
+        | IPC_SYM                   { $$ = PROFILE_IPC; }
+        | SWAPS_SYM                 { $$ = PROFILE_SWAPS; }
+        | SOURCE_SYM                { $$ = PROFILE_SOURCE; }
+        | ALL                       { $$ = PROFILE_ALL; }
+        ;
 
-opt_profile_args:
-  /* empty */
-    {
-      Lex->show_profile_query_id= 0;
-    }
-  | FOR_SYM QUERY_SYM NUM
-    {
-      int error;
-      Lex->show_profile_query_id=
-        static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
-      if (error != 0)
-        MYSQL_YYABORT;
-    }
-  ;
+opt_for_query:
+          /* empty */   { $$ = 0; }
+        | FOR_SYM QUERY_SYM NUM
+          {
+            int error;
+            $$ = static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
+            if (error != 0)
+              MYSQL_YYABORT;
+          }
+        ;
 
 /* Show things */
 
@@ -13052,85 +13026,54 @@ show:
 show_param:
            DATABASES opt_wild_or_where
            {
-             Lex->sql_command= SQLCOM_SHOW_DATABASES;
-             if (Lex->set_wild($2.wild))
-               MYSQL_YYABORT; // OOM
-             if (dd::info_schema::build_show_databases_query(
-                       @$, YYTHD, Lex->wild, $2.where) == nullptr)
-               MYSQL_YYABORT;
+             auto *p= NEW_PTN PT_show_databases(@$, $2.wild, $2.where);
+             MAKE_CMD(p);
            }
          | opt_show_cmd_type TABLES opt_db opt_wild_or_where
            {
              auto *p= NEW_PTN PT_show_tables(@$, $1, $3, $4.wild, $4.where);
-
              MAKE_CMD(p);
            }
          | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
            {
-             LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SHOW_TRIGGERS;
-             lex->verbose= $1;
-             lex->select_lex->db= $3;
-             if (Lex->set_wild($4.wild))
-               MYSQL_YYABORT; // OOM
-             if (dd::info_schema::build_show_triggers_query(
-                                    @$, YYTHD, lex->wild, $4.where) == nullptr)
-               MYSQL_YYABORT;
+             auto *p= NEW_PTN PT_show_triggers(@$, $1, $3, $4.wild, $4.where);
+             MAKE_CMD(p);
            }
          | EVENTS_SYM opt_db opt_wild_or_where
            {
-             LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SHOW_EVENTS;
-             lex->select_lex->db= $2;
-             if (Lex->set_wild($3.wild))
-               MYSQL_YYABORT; // OOM
-             if (dd::info_schema::build_show_events_query(
-                                    @$, YYTHD, lex->wild, $3.where) == nullptr)
-               MYSQL_YYABORT;
+             auto *p= NEW_PTN PT_show_events(@$, $2, $3.wild, $3.where);
+             MAKE_CMD(p);
            }
          | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
            {
-             LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SHOW_TABLE_STATUS;
-             lex->select_lex->db= $3;
-             if (Lex->set_wild($4.wild))
-               MYSQL_YYABORT; // OOM
-             if (dd::info_schema::build_show_tables_query(@$, YYTHD, lex->wild,
-                                         $4.where, true) == nullptr)
-               MYSQL_YYABORT;
+             auto *p= NEW_PTN PT_show_table_status(@$, $3, $4.wild, $4.where);
+             MAKE_CMD(p);
            }
         | OPEN_SYM TABLES opt_db opt_wild_or_where
           {
-            LEX *lex= Lex;
-            if (lex->set_wild($4.wild)) {
-              MYSQL_YYABORT; // OOM
-            }
-            if ($4.where != nullptr) {
-              ITEMIZE($4.where, &$4.where);
-              Select->set_where_cond($4.where);
-            }
-            lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
-            lex->select_lex->db= $3;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
-              MYSQL_YYABORT;
+             auto *p= NEW_PTN PT_show_open_tables(@$, $3, $4.wild, $4.where);
+             MAKE_CMD(p);
           }
         | PLUGINS_SYM
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_PLUGINS;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_PLUGINS))
-              MYSQL_YYABORT;
+            auto *p= NEW_PTN PT_show_plugins(@$);
+            MAKE_CMD(p);
           }
-        | ENGINE_SYM ident_or_text show_engine_param
+        | ENGINE_SYM engine_or_all LOGS_SYM
           {
-            const bool is_temp_table=
-              Lex->create_info->options & HA_LEX_CREATE_TMP_TABLE;
-            if (resolve_engine(YYTHD, to_lex_cstring($2), is_temp_table, true,
-                               &Lex->create_info->db_type))
-              MYSQL_YYABORT;
+            auto *p = NEW_PTN PT_show_engine_logs(@$, $2);
+            MAKE_CMD(p);
           }
-        | ENGINE_SYM ALL show_engine_param
-          { Lex->create_info->db_type= NULL; }
+        | ENGINE_SYM engine_or_all MUTEX_SYM
+          {
+            auto *p = NEW_PTN PT_show_engine_mutex(@$, $2);
+            MAKE_CMD(p);
+          }
+        | ENGINE_SYM engine_or_all STATUS_SYM
+          {
+            auto *p = NEW_PTN PT_show_engine_status(@$, $2);
+            MAKE_CMD(p);
+          }
         | opt_show_cmd_type
           COLUMNS
           from_or_in
@@ -13138,8 +13081,6 @@ show_param:
           opt_db
           opt_wild_or_where
           {
-            LEX *lex= Lex;
-
             // TODO: error if table_ident is <db>.<table> and opt_db is set.
             if ($5)
               $4->change_db($5);
@@ -13150,43 +13091,36 @@ show_param:
 
             auto *p= where ? NEW_PTN PT_show_fields(@$, $1, $4, where)
                            : NEW_PTN PT_show_fields(@$, $1, $4, wild);
-
-            lex->sql_command= SQLCOM_SHOW_FIELDS;
             MAKE_CMD(p);
           }
         | master_or_binary LOGS_SYM
           {
-            Lex->sql_command = SQLCOM_SHOW_BINLOGS;
+            auto *p= NEW_PTN PT_show_binlogs(@$);
+            MAKE_CMD(p);
           }
         | SLAVE HOSTS_SYM
           {
-            Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
             Lex->set_replication_deprecated_syntax_used();
             push_deprecated_warn(YYTHD, "SHOW SLAVE HOSTS", "SHOW REPLICAS");
+
+            auto *p= NEW_PTN PT_show_replicas(@$);
+            MAKE_CMD(p);
           }
         | REPLICAS_SYM
           {
-            Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
+            auto *p= NEW_PTN PT_show_replicas(@$);
+            MAKE_CMD(p);
           }
-        | BINLOG_SYM EVENTS_SYM binlog_in binlog_from
+        | BINLOG_SYM EVENTS_SYM opt_binlog_in binlog_from opt_limit_clause
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
+            auto *p= NEW_PTN PT_show_binlog_events(@$, $3, $5);
+            MAKE_CMD(p);
           }
-          opt_limit_clause
+        | RELAYLOG_SYM EVENTS_SYM opt_binlog_in binlog_from opt_limit_clause
+          opt_channel
           {
-            if ($6 != NULL)
-              CONTEXTUALIZE($6);
-          }
-        | RELAYLOG_SYM EVENTS_SYM binlog_in binlog_from
-          {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_RELAYLOG_EVENTS;
-          }
-          opt_limit_clause opt_channel
-          {
-            if ($6 != NULL)
-              CONTEXTUALIZE($6);
+            auto *p= NEW_PTN PT_show_relaylog_events(@$, $3, $5, $6);
+            MAKE_CMD(p);
           }
         | opt_extended          /* #1 */
           keys_or_index         /* #2 */
@@ -13195,23 +13129,17 @@ show_param:
           opt_db                /* #5 */
           opt_where_clause      /* #6 */
           {
-            LEX *lex= Lex;
-
             // TODO: error if table_ident is <db>.<table> and opt_db is set.
             if ($5)
               $4->change_db($5);
 
             auto *p= NEW_PTN PT_show_keys(@$, $1, $4, $6);
-
-            lex->sql_command= SQLCOM_SHOW_KEYS;
             MAKE_CMD(p);
           }
         | opt_storage ENGINES_SYM
           {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
-              MYSQL_YYABORT;
+            auto *p= NEW_PTN PT_show_engines(@$);
+            MAKE_CMD(p);
           }
         | COUNT_SYM '(' '*' ')' WARNINGS
           {
@@ -13231,19 +13159,13 @@ show_param:
           }
         | WARNINGS opt_limit_clause
           {
-            if ($2 != NULL)
-              CONTEXTUALIZE($2);
-
-            Lex->sql_command = SQLCOM_SHOW_WARNS;
-            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
+            auto *p= NEW_PTN PT_show_warnings(@$, $2);
+            MAKE_CMD(p);
           }
         | ERRORS opt_limit_clause
           {
-            if ($2 != NULL)
-              CONTEXTUALIZE($2);
-
-            Lex->sql_command = SQLCOM_SHOW_ERRORS;
-            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
+            auto *p= NEW_PTN PT_show_errors(@$, $2);
+            MAKE_CMD(p);
           }
         | PROFILES_SYM
           {
@@ -13251,213 +13173,136 @@ show_param:
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER_THD(YYTHD, ER_WARN_DEPRECATED_SYNTAX),
                                 "SHOW PROFILES", "Performance Schema");
-            Lex->sql_command = SQLCOM_SHOW_PROFILES;
+            auto *p= NEW_PTN PT_show_profiles(@$);
+            MAKE_CMD(p);
           }
-        | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause
+        | PROFILE_SYM opt_profile_defs opt_for_query opt_limit_clause
           {
-            if ($4 != NULL)
-              CONTEXTUALIZE($4);
-
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_PROFILE;
-            if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
-              YYABORT;
+            auto *p= NEW_PTN PT_show_profile(@$, $2, $3, $4);
+            MAKE_CMD(p);
           }
         | opt_var_type STATUS_SYM opt_wild_or_where
           {
-            Lex->sql_command= SQLCOM_SHOW_STATUS;
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-
-            if (lex->set_wild($3.wild))
-              MYSQL_YYABORT; // OOM
-
-            if ($1 == OPT_SESSION)
-            {
-              if (build_show_session_status(
-                    @$, thd, lex->wild, $3.where) == nullptr)
-                MYSQL_YYABORT;
-            }
-            else
-            {
-              if (build_show_global_status(
-                    @$, thd, lex->wild, $3.where) == nullptr)
-                MYSQL_YYABORT;
-            }
+             auto *p= NEW_PTN PT_show_status(@$, $1, $3.wild, $3.where);
+             MAKE_CMD(p);
           }
         | opt_full PROCESSLIST_SYM
           {
-            Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;
-            Lex->verbose= $1;
-            Lex->m_sql_cmd= NEW_PTN Sql_cmd_show_processlist(@$, YYTHD,
-                                                             Lex->sql_command, $1);
-            if (Lex->m_sql_cmd == NULL)
-              MYSQL_YYABORT;
+            auto *p = NEW_PTN PT_show_processlist(@$, $1);
+            MAKE_CMD(p);
           }
         | opt_var_type VARIABLES opt_wild_or_where
           {
-            Lex->sql_command= SQLCOM_SHOW_VARIABLES;
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-
-            if (lex->set_wild($3.wild))
-              MYSQL_YYABORT; // OOM
-
-            if ($1 == OPT_SESSION)
-            {
-              if (build_show_session_variables(
-                    @$, thd, lex->wild, $3.where) == nullptr)
-                MYSQL_YYABORT;
-            }
-            else
-            {
-              if (build_show_global_variables(
-                    @$, thd, lex->wild, $3.where) == nullptr)
-                MYSQL_YYABORT;
-            }
+            auto *p= NEW_PTN PT_show_variables(@$, $1, $3.wild, $3.where);
+            MAKE_CMD(p);
           }
         | character_set opt_wild_or_where
           {
-            Lex->sql_command= SQLCOM_SHOW_CHARSETS;
-            if (Lex->set_wild($2.wild))
-              MYSQL_YYABORT; // OOM
-            if (dd::info_schema::build_show_character_set_query(
-                                  @$, YYTHD, Lex->wild, $2.where) == nullptr)
-              MYSQL_YYABORT;
+            auto *p= NEW_PTN PT_show_charsets(@$, $2.wild, $2.where);
+            MAKE_CMD(p);
           }
         | COLLATION_SYM opt_wild_or_where
           {
-            Lex->sql_command= SQLCOM_SHOW_COLLATIONS;
-            if (Lex->set_wild($2.wild))
-              MYSQL_YYABORT; // OOM
-            if (dd::info_schema::build_show_collation_query(
-                                  @$, YYTHD, Lex->wild, $2.where) == nullptr)
-              MYSQL_YYABORT;
+            auto *p= NEW_PTN PT_show_collations(@$, $2.wild, $2.where);
+            MAKE_CMD(p);
           }
         | PRIVILEGES
           {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
-            /* Show all available grants in the server */
+            auto *p= NEW_PTN PT_show_privileges(@$);
+            MAKE_CMD(p);
           }
         | GRANTS
           {
-            auto *tmp= NEW_PTN PT_show_grants(0, 0);
+            auto *tmp= NEW_PTN PT_show_grants(@$, nullptr, nullptr);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user
           {
-            auto *tmp= NEW_PTN PT_show_grants($3, 0);
+            auto *tmp= NEW_PTN PT_show_grants(@$, $3, nullptr);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user USING user_list
           {
-            auto *tmp= NEW_PTN PT_show_grants($3, $5);
+            auto *tmp= NEW_PTN PT_show_grants(@$, $3, $5);
             MAKE_CMD(tmp);
           }
         | CREATE DATABASE opt_if_not_exists ident
           {
-            Lex->sql_command=SQLCOM_SHOW_CREATE_DB;
-            Lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
-            Lex->name= $4;
+            auto *tmp= NEW_PTN PT_show_create_database(@$, $3, $4);
+            MAKE_CMD(tmp);
           }
         | CREATE TABLE_SYM table_ident
           {
-            LEX *lex= Lex;
-            lex->sql_command = SQLCOM_SHOW_CREATE;
-            if (!lex->select_lex->add_table_to_list(YYTHD, $3, NULL,0))
-              MYSQL_YYABORT;
-            lex->only_view= 0;
-            lex->create_info->storage_media= HA_SM_DEFAULT;
+            auto *tmp= NEW_PTN PT_show_create_table(@$, $3);
+            MAKE_CMD(tmp);
           }
         | CREATE VIEW_SYM table_ident
           {
-            LEX *lex= Lex;
-            lex->sql_command = SQLCOM_SHOW_CREATE;
-            if (!lex->select_lex->add_table_to_list(YYTHD, $3, NULL, 0))
-              MYSQL_YYABORT;
-            lex->only_view= 1;
+            auto *tmp= NEW_PTN PT_show_create_view(@$, $3);
+            MAKE_CMD(tmp);
           }
         | MASTER_SYM STATUS_SYM
           {
-            Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
+            auto *p= NEW_PTN PT_show_master_status(@$);
+            MAKE_CMD(p);
           }
         | replica STATUS_SYM opt_channel
           {
-            Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
             if (Lex->is_replication_deprecated_syntax_used())
               push_deprecated_warn(YYTHD, "SHOW SLAVE STATUS", "SHOW REPLICA STATUS");
+            auto *p= NEW_PTN PT_show_replica_status(@$, $3);
+            MAKE_CMD(p);
           }
         | CREATE PROCEDURE_SYM sp_name
           {
-            LEX *lex= Lex;
-
-            lex->sql_command = SQLCOM_SHOW_CREATE_PROC;
-            lex->spname= $3;
+            auto *tmp= NEW_PTN PT_show_create_procedure(@$, $3);
+            MAKE_CMD(tmp);
           }
         | CREATE FUNCTION_SYM sp_name
           {
-            LEX *lex= Lex;
-
-            lex->sql_command = SQLCOM_SHOW_CREATE_FUNC;
-            lex->spname= $3;
+            auto *tmp= NEW_PTN PT_show_create_function(@$, $3);
+            MAKE_CMD(tmp);
           }
         | CREATE TRIGGER_SYM sp_name
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
-            lex->spname= $3;
+            auto *tmp= NEW_PTN PT_show_create_trigger(@$, $3);
+            MAKE_CMD(tmp);
           }
         | PROCEDURE_SYM STATUS_SYM opt_wild_or_where
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
-             if (Lex->set_wild($3.wild))
-               MYSQL_YYABORT; // OOM
-            if (dd::info_schema::build_show_procedures_query(
-                                    @$, YYTHD, lex->wild, $3.where) == nullptr)
-              MYSQL_YYABORT;
+            auto *p= NEW_PTN PT_show_status_proc(@$, $3.wild, $3.where);
+            MAKE_CMD(p);
           }
         | FUNCTION_SYM STATUS_SYM opt_wild_or_where
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_SHOW_STATUS_FUNC;
-             if (Lex->set_wild($3.wild))
-               MYSQL_YYABORT; // OOM
-            if (dd::info_schema::build_show_procedures_query(
-                                    @$, YYTHD, lex->wild, $3.where) == nullptr)
-              MYSQL_YYABORT;
+            auto *p= NEW_PTN PT_show_status_func(@$, $3.wild, $3.where);
+            MAKE_CMD(p);
           }
         | PROCEDURE_SYM CODE_SYM sp_name
           {
-            Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
-            Lex->spname= $3;
+            auto *p= NEW_PTN PT_show_procedure_code(@$, $3);
+            MAKE_CMD(p);
           }
         | FUNCTION_SYM CODE_SYM sp_name
           {
-            Lex->sql_command= SQLCOM_SHOW_FUNC_CODE;
-            Lex->spname= $3;
+            auto *p= NEW_PTN PT_show_function_code(@$, $3);
+            MAKE_CMD(p);
           }
         | CREATE EVENT_SYM sp_name
           {
-            Lex->spname= $3;
-            Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
+            auto *tmp= NEW_PTN PT_show_create_event(@$, $3);
+            MAKE_CMD(tmp);
           }
         | CREATE USER user
           {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_CREATE_USER;
-            lex->grant_user=$3;
+            auto *tmp= NEW_PTN PT_show_create_user(@$, $3);
+            MAKE_CMD(tmp);
           }
         ;
 
-show_engine_param:
-          STATUS_SYM
-          { Lex->sql_command= SQLCOM_SHOW_ENGINE_STATUS; }
-        | MUTEX_SYM
-          { Lex->sql_command= SQLCOM_SHOW_ENGINE_MUTEX; }
-        | LOGS_SYM
-          { Lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS; }
+engine_or_all:
+          ident_or_text
+        | ALL           { $$ = {}; }
         ;
 
 master_or_binary:
@@ -13497,9 +13342,9 @@ from_or_in:
         | IN_SYM
         ;
 
-binlog_in:
-          /* empty */            { Lex->mi.log_file_name = 0; }
-        | IN_SYM TEXT_STRING_sys { Lex->mi.log_file_name = $2.str; }
+opt_binlog_in:
+          /* empty */            { $$ = {}; }
+        | IN_SYM TEXT_STRING_sys { $$ = $2; }
         ;
 
 binlog_from:
@@ -13690,7 +13535,11 @@ flush_option:
         | BINARY_SYM LOGS_SYM
           { Lex->type|= REFRESH_BINARY_LOG; }
         | RELAY LOGS_SYM opt_channel
-          { Lex->type|= REFRESH_RELAY_LOG; }
+          {
+            Lex->type|= REFRESH_RELAY_LOG;
+            if (Lex->set_channel_name($3))
+              MYSQL_YYABORT;  // OOM
+          }
         | HOSTS_SYM
           { Lex->type|= REFRESH_HOSTS; }
         | PRIVILEGES
@@ -13755,8 +13604,17 @@ reset_option:
               push_deprecated_warn(YYTHD, "RESET SLAVE", "RESET REPLICA");
             }
           opt_replica_reset_options opt_channel
-        | REPLICA_SYM             { Lex->type|= REFRESH_REPLICA; }
+          {
+            if (Lex->set_channel_name($4))
+              MYSQL_YYABORT;  // OOM
+          }
+        | REPLICA_SYM
+          { Lex->type|= REFRESH_REPLICA; }
           opt_replica_reset_options opt_channel
+          {
+          if (Lex->set_channel_name($4))
+            MYSQL_YYABORT;  // OOM
+          }
         | MASTER_SYM
           {
             Lex->type|= REFRESH_MASTER;
