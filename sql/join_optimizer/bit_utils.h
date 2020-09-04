@@ -67,30 +67,34 @@ class BitIteratorAdaptor {
   const uint64_t m_initial_state;
 };
 
+static inline size_t FindLowestBitSet(uint64_t x) {
+  assert(x != 0);
+#ifdef _MSC_VER
+  unsigned long idx;
+  _BitScanForward64(&idx, x);
+  return idx;
+#elif defined(__GNUC__) && defined(__x86_64__)
+  // Using this instead of ffsll() (which maps to the same instruction,
+  // but has an extra zero test and returns an int value) helps
+  // a whopping 10% on some of the microbenchmarks! (GCC 9.2, Skylake.)
+  // Evidently, the test for zero is rewritten into a conditional move,
+  // which turns out to be add a lot of latency into these hot loops.
+  size_t idx;
+  asm("bsfq %1,%q0" : "=r"(idx) : "rm"(x));
+  return idx;
+#else
+  // The cast to unsigned at least gets rid of the sign extension.
+  return static_cast<unsigned>(ffsll(x)) - 1u;
+#endif
+}
+
 // A policy for BitIteratorAdaptor that gives out the index of each set bit in
 // the value, ascending.
 class CountBitsAscending {
  public:
   static size_t NextValue(uint64_t state) {
     // Find the lowest set bit.
-    assert(state != 0);
-#ifdef _MSC_VER
-    unsigned long idx;
-    _BitScanForward64(&idx, state);
-    return idx;
-#elif defined(__GNUC__) && defined(__x86_64__)
-    // Using this instead of ffsll() (which maps to the same instruction,
-    // but has an extra zero test and returns an int value) helps
-    // a whopping 10% on some of the microbenchmarks! (GCC 9.2, Skylake.)
-    // Evidently, the test for zero is rewritten into a conditional move,
-    // which turns out to be add a lot of latency into these hot loops.
-    size_t idx;
-    asm("bsfq %1,%q0" : "=r"(idx) : "rm"(state));
-    return idx;
-#else
-    // The cast to unsigned at least gets rid of the sign extension.
-    return static_cast<unsigned>(ffsll(state)) - 1u;
-#endif
+    return FindLowestBitSet(state);
   }
 
   static uint64_t AdvanceState(uint64_t state) {
