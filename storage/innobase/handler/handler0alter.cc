@@ -5186,6 +5186,37 @@ static void alter_fill_stored_column(const TABLE *altered_table,
   }
 }
 
+template <typename Table>
+void static adjust_row_format(TABLE *old_table, TABLE *altered_table,
+                              Alter_inplace_info *ha_alter_info,
+                              const Table *old_dd_tab, Table *new_dd_tab) {
+  ut_ad(old_table->s->row_type == ROW_TYPE_DEFAULT);
+  ut_ad(old_table->s->row_type == altered_table->s->row_type);
+  ut_ad(old_table->s->real_row_type != altered_table->s->real_row_type);
+  ut_ad(old_dd_tab->table().row_format() != new_dd_tab->table().row_format());
+
+  /* Revert the row_format in DD for altered table */
+  new_dd_tab->table().set_row_format(old_dd_tab->table().row_format());
+
+  /* Revert the real_row_format in table share for altered table */
+  switch (old_dd_tab->table().row_format()) {
+    case dd::Table::RF_REDUNDANT:
+      altered_table->s->real_row_type = ROW_TYPE_REDUNDANT;
+      break;
+    case dd::Table::RF_COMPACT:
+      altered_table->s->real_row_type = ROW_TYPE_COMPACT;
+      break;
+    case dd::Table::RF_COMPRESSED:
+      altered_table->s->real_row_type = ROW_TYPE_COMPRESSED;
+      break;
+    case dd::Table::RF_DYNAMIC:
+      altered_table->s->real_row_type = ROW_TYPE_DYNAMIC;
+      break;
+    default:
+      ut_ad(false);
+  }
+}
+
 /** Implementation of prepare_inplace_alter_table()
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	altered_table	TABLE object for new version of table.
@@ -5294,6 +5325,16 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   or its own file-per-table tablespace, or a general tablespace. */
   ut_ad(1 == in_system_space + is_file_per_table + in_general_space);
 #endif /* UNIV_DEBUG */
+
+  /* If server has passed a changed row format in the new table definition and
+  the table isn't going to be rebuilt, revert that row_format change because it
+  is an implicit change to the previously selected default row format. We want
+  to keep the table using the original default row_format. */
+  if (old_dd_tab->table().row_format() != new_dd_tab->table().row_format() &&
+      !innobase_need_rebuild(ha_alter_info)) {
+    adjust_row_format(this->table, altered_table, ha_alter_info, old_dd_tab,
+                      new_dd_tab);
+  }
 
   /* Make a copy for existing tablespace name */
   char tablespace[NAME_LEN] = {'\0'};
