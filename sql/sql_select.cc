@@ -131,6 +131,18 @@ using Global_tables_iterator =
 using Global_tables_list = IteratorContainer<Global_tables_iterator>;
 
 /**
+   Check whether the statement is a SHOW command using INFORMATION_SCHEMA system
+   views.
+
+   @param  thd   Thread (session) context.
+
+   @returns true if command uses INFORMATION_SCHEMA system view, false otherwise
+*/
+inline bool is_show_cmd_using_system_view(THD *thd) {
+  return sql_command_flags[thd->lex->sql_command] & CF_SHOW_USES_SYSTEM_VIEW;
+}
+
+/**
   Handle data manipulation query which is not represented by Sql_cmd_dml class.
   @todo: Integrate with Sql_cmd_dml::prepare() and ::execute()
 
@@ -480,6 +492,9 @@ bool Sql_cmd_dml::prepare(THD *thd) {
   {
     Prepare_error_tracker tracker(thd);
     Prepared_stmt_arena_holder ps_arena_holder(thd);
+    Enable_derived_merge_guard derived_merge_guard(
+        thd, is_show_cmd_using_system_view(thd));
+
     if (prepare_inner(thd)) goto err;
     if (!is_regular()) {
       if (save_cmd_properties(thd)) goto err;
@@ -579,6 +594,9 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
         result = new (thd->mem_root) Query_result_send();
       else if (sql_command_code() == SQLCOM_DO)
         result = new (thd->mem_root) Query_result_do();
+      else  // Currently assumed to be a SHOW command
+        result = new (thd->mem_root) Query_result_send();
+
       if (result == nullptr) return true; /* purecov: inspected */
     }
   }
@@ -1031,11 +1049,6 @@ bool Sql_cmd_select::precheck(THD *thd) {
 
     3) Performs access check for the locking clause, if present.
 
-    @todo: The condition below should be enabled when this function is
-    extended to handle SHOW statements as well.
-
-      || (first_table && first_table->schema_table_reformed &&
-       check_show_access(thd, first_table));
   */
   TABLE_LIST *tables = lex->query_tables;
 

@@ -2408,10 +2408,11 @@ bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
     /*
       We should not encounter table list elements for reformed SHOW
       statements unless this is first table list element in the main
-      select.
+      query block.
       Such table list elements require additional privilege check
-      (see check_show_access()). This check is carried out by caller,
-      but only for the first table list element from the main select.
+      (see Sql_cmd_show_xxx::check_privileges()).
+      This check is carried out by caller, but only for the first table list
+      element from the main query block.
     */
     DBUG_ASSERT(!table_ref->schema_table_reformed ||
                 table_ref == thd->lex->select_lex->table_list.first);
@@ -5745,106 +5746,6 @@ bool is_privileged_user_for_credential_change(THD *thd) {
                         nullptr, true, true) ||
           thd->security_context()->check_access(CREATE_USER_ACL,
                                                 consts::mysql.c_str(), false));
-}
-
-/**
-  Check if user has enough privileges for execution of SHOW statement,
-  which was converted to query to one of I_S tables.
-
-  @param thd    Thread context.
-  @param table  Table list element for I_S table to be queried..
-
-  @retval false - Success.
-  @retval true  - Failure.
-*/
-
-bool check_show_access(THD *thd, TABLE_LIST *table) {
-  // perform privilege checking for show statements on new dd tables
-  switch (thd->lex->sql_command) {
-    case SQLCOM_SHOW_DATABASES: {
-      return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
-             check_global_access(thd, SHOW_DB_ACL);
-    }
-    case SQLCOM_SHOW_EVENTS: {
-      const char *db = thd->lex->select_lex->db;
-      DBUG_ASSERT(db != nullptr);
-      /*
-        Nobody has EVENT_ACL for I_S and P_S,
-        even with a GRANT ALL to *.*,
-        because these schemas have additional ACL restrictions:
-        see ACL_internal_schema_registry.
-
-        Yet there are no events in I_S and P_S to hide either,
-        so this check voluntarily does not enforce ACL for
-        SHOW EVENTS in I_S or P_S,
-        to return an empty list instead of an access denied error.
-
-        This is more user friendly, in particular for tools.
-
-        EVENT_ACL is not fine grained enough to differentiate:
-        - creating / updating / deleting events
-        - viewing existing events
-      */
-      if (!is_infoschema_db(db) && !is_perfschema_db(db) &&
-          check_access(thd, EVENT_ACL, db, nullptr, nullptr, false, false))
-        return true;
-    }
-    // Fall through
-    case SQLCOM_SHOW_TABLES:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    case SQLCOM_SHOW_TRIGGERS: {
-      const char *dst_db_name = thd->lex->select_lex->db;
-      DBUG_ASSERT(dst_db_name != nullptr);
-      if (!dst_db_name) break;
-
-      // Check if the user has global access
-      if (check_access(thd, SELECT_ACL, dst_db_name, &thd->col_access, nullptr,
-                       false, false))
-        return true;
-
-      // Now check, if user has access to any of database/table/column/routine
-      if (!(thd->col_access & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
-        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-                 thd->security_context()->priv_user().str,
-                 thd->security_context()->priv_host().str, dst_db_name);
-        return true;
-      }
-      return false;
-    }
-    case SQLCOM_SHOW_FIELDS:
-    case SQLCOM_SHOW_KEYS: {
-      TABLE_LIST *dst_table;
-      dst_table = table->schema_select_lex->table_list.first;
-
-      DBUG_ASSERT(dst_table);
-      /*
-        Open temporary tables to be able to detect them during privilege check.
-      */
-      if (open_temporary_tables(thd, dst_table)) return true;
-
-      if (check_access(thd, SELECT_ACL, dst_table->db,
-                       &dst_table->grant.privilege,
-                       &dst_table->grant.m_internal, false, false))
-        return true; /* Access denied */
-
-      /*
-        Check_grant will grant access if there is any column privileges on
-        all of the tables thanks to the fourth parameter (bool show_table).
-      */
-      if (check_grant(thd, SELECT_ACL, dst_table, true, UINT_MAX, false))
-        return true; /* Access denied */
-
-      close_thread_tables(thd);
-      dst_table->table = nullptr;
-
-      /* Access granted */
-      return false;
-    }
-    default:
-      break;
-  }
-
-  return false;
 }
 
 /**

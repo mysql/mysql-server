@@ -4860,6 +4860,34 @@ bool LEX::make_sql_cmd(Parse_tree_root *parse_tree) {
   return false;
 }
 
+/**
+  Set replication channel name
+
+  @param name   If @p name is null string then reset channel name to default.
+                Otherwise set it to @p name.
+
+  @returns false if success, true if error (OOM).
+*/
+bool LEX::set_channel_name(LEX_CSTRING name) {
+  if (name.str == nullptr) {
+    mi.channel = "";
+    mi.for_channel = false;
+  } else {
+    /*
+      Channel names are case insensitive. This means, even the results
+      displayed to the user are converted to lower cases.
+      system_charset_info is utf8_general_ci as required by channel name
+      restrictions
+    */
+    char *buf = thd->strmake(name.str, name.length);
+    if (buf == nullptr) return true;  // OOM
+    my_casedn_str(system_charset_info, buf);
+    mi.channel = buf;
+    mi.for_channel = true;
+  }
+  return false;
+}
+
 /*
   The BINLOG_* AND TRX_CACHE_* values can be combined by using '&' or '|',
   which means that both conditions need to be satisfied or any of them is

@@ -689,6 +689,7 @@ union YYSTYPE {
     LEX_CSTRING table_alias;
     Create_col_name_list *column_list;
   } insert_update_values_reference;
+  my_thread_id query_id;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

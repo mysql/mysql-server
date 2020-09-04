@@ -111,9 +111,7 @@ static bool add_expression(const POS &pos, THD *thd,
   return false;
 }
 
-static SELECT_LEX *build_processlist_query(const POS &pos, THD *thd,
-                                           enum_sql_command command,
-                                           bool verbose) {
+bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
   LEX_STRING info_len;
   /*
     Default Info field length is 100. Verbose field length is limited to the
@@ -121,47 +119,42 @@ static SELECT_LEX *build_processlist_query(const POS &pos, THD *thd,
   */
   DBUG_ASSERT(PROCESS_LIST_WIDTH == 100);
   if (verbose) {
-    if (lex_string_strmake(thd->mem_root, &info_len, "1024", 4)) return nullptr;
+    if (lex_string_strmake(thd->mem_root, &info_len, "1024", 4)) return true;
   } else {
-    if (lex_string_strmake(thd->mem_root, &info_len, "100", 3)) return nullptr;
+    if (lex_string_strmake(thd->mem_root, &info_len, "100", 3)) return true;
   }
 
   /* Id, User, Host, db, Command, Time, State */
   PT_select_item_list *item_list = new (thd->mem_root) PT_select_item_list();
-  if (item_list == nullptr) return nullptr;
+  if (item_list == nullptr) return true;
 
-  if (add_expression(pos, thd, item_list, field_id, alias_id))
-    return nullptr;
-  else if (add_expression(pos, thd, item_list, field_user, alias_user))
-    return nullptr;
-  else if (add_expression(pos, thd, item_list, field_host, alias_host))
-    return nullptr;
-  else if (add_expression(pos, thd, item_list, field_db, alias_db))
-    return nullptr;
-  else if (add_expression(pos, thd, item_list, field_command, alias_command))
-    return nullptr;
-  else if (add_expression(pos, thd, item_list, field_time, alias_time))
-    return nullptr;
-  else if (add_expression(pos, thd, item_list, field_state, alias_state))
-    return nullptr;
+  if (add_expression(pos, thd, item_list, field_id, alias_id)) return true;
+  if (add_expression(pos, thd, item_list, field_user, alias_user)) return true;
+  if (add_expression(pos, thd, item_list, field_host, alias_host)) return true;
+  if (add_expression(pos, thd, item_list, field_db, alias_db)) return true;
+  if (add_expression(pos, thd, item_list, field_command, alias_command))
+    return true;
+  if (add_expression(pos, thd, item_list, field_time, alias_time)) return true;
+  if (add_expression(pos, thd, item_list, field_state, alias_state))
+    return true;
 
   /* ... INFO ... */
   PTI_simple_ident_ident *ident_info =
       new (thd->mem_root) PTI_simple_ident_ident(pos, field_info);
-  if (ident_info == nullptr) return nullptr;
+  if (ident_info == nullptr) return true;
 
   /* Info length is either "25" or "100" depending on verbose */
   Item_int *item_info_len = new (thd->mem_root) Item_int(pos, info_len);
-  if (item_info_len == nullptr) return nullptr;
+  if (item_info_len == nullptr) return true;
 
   /* ... LEFT(INFO, <info_len>) AS Info ...*/
   Item_func_left *func_left =
       new (thd->mem_root) Item_func_left(pos, ident_info, item_info_len);
-  if (func_left == nullptr) return nullptr;
+  if (func_left == nullptr) return true;
 
   PTI_expr_with_alias *expr_left = new (thd->mem_root)
       PTI_expr_with_alias(pos, func_left, pos.cpp, alias_info);
-  if (expr_left == nullptr) return nullptr;
+  if (expr_left == nullptr) return true;
 
   item_list->push_back(expr_left);
 
@@ -173,26 +166,26 @@ static SELECT_LEX *build_processlist_query(const POS &pos, THD *thd,
   /* ... performance_schema ... */
   LEX_CSTRING tmp_db_name;
   if (lex_string_strmake(thd->mem_root, &tmp_db_name, pfs.str, pfs.length))
-    return nullptr;
+    return true;
 
   /* ... performance_schema.processlist ... */
   LEX_CSTRING tmp_table_processlist;
   if (lex_string_strmake(thd->mem_root, &tmp_table_processlist,
                          table_processlist.str, table_processlist.length))
-    return nullptr;
+    return true;
 
   Table_ident *table_ident_processlist =
       new (thd->mem_root) Table_ident(tmp_db_name, tmp_table_processlist);
-  if (table_ident_processlist == nullptr) return nullptr;
+  if (table_ident_processlist == nullptr) return true;
 
   PT_table_factor_table_ident *table_factor_processlist =
       new (thd->mem_root) PT_table_factor_table_ident(
           table_ident_processlist, nullptr, NULL_CSTR, nullptr);
-  if (table_factor_processlist == nullptr) return nullptr;
+  if (table_factor_processlist == nullptr) return true;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list;
   table_reference_list.init(thd->mem_root);
-  if (table_reference_list.push_back(table_factor_processlist)) return nullptr;
+  if (table_reference_list.push_back(table_factor_processlist)) return true;
 
   Item *where_clause = nullptr;
 
@@ -204,15 +197,15 @@ static SELECT_LEX *build_processlist_query(const POS &pos, THD *thd,
   PT_query_primary *query_specification =
       new (thd->mem_root) PT_query_specification(
           options, item_list, table_reference_list, where_clause);
-  if (query_specification == nullptr) return nullptr;
+  if (query_specification == nullptr) return true;
 
   PT_query_expression *query_expression =
       new (thd->mem_root) PT_query_expression(query_specification);
-  if (query_expression == nullptr) return nullptr;
+  if (query_expression == nullptr) return true;
 
   PT_subquery *sub_query =
       new (thd->mem_root) PT_subquery(pos, query_expression);
-  if (sub_query == nullptr) return nullptr;
+  if (sub_query == nullptr) return true;
 
   Create_col_name_list column_names;
   column_names.init(thd->mem_root);
@@ -220,19 +213,19 @@ static SELECT_LEX *build_processlist_query(const POS &pos, THD *thd,
   /* ... AS show_processlist */
   PT_derived_table *derived_table = new (thd->mem_root)
       PT_derived_table(false, sub_query, table_processlist, &column_names);
-  if (derived_table == nullptr) return nullptr;
+  if (derived_table == nullptr) return true;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list1;
   table_reference_list1.init(thd->mem_root);
-  if (table_reference_list1.push_back(derived_table)) return nullptr;
+  if (table_reference_list1.push_back(derived_table)) return true;
 
   /* SELECT <star> */
   Item_asterisk *ident_star =
       new (thd->mem_root) Item_asterisk(pos, nullptr, nullptr);
-  if (ident_star == nullptr) return nullptr;
+  if (ident_star == nullptr) return true;
 
   PT_select_item_list *item_list1 = new (thd->mem_root) PT_select_item_list();
-  if (item_list1 == nullptr) return nullptr;
+  if (item_list1 == nullptr) return true;
   item_list1->push_back(ident_star);
 
   /* SELECT * FROM
@@ -242,67 +235,18 @@ static SELECT_LEX *build_processlist_query(const POS &pos, THD *thd,
   PT_query_specification *query_specification2 =
       new (thd->mem_root) PT_query_specification(
           options, item_list1, table_reference_list1, nullptr);
-  if (query_specification2 == nullptr) return nullptr;
+  if (query_specification2 == nullptr) return true;
 
   PT_query_expression *query_expression2 =
       new (thd->mem_root) PT_query_expression(query_specification2);
-  if (query_expression2 == nullptr) return nullptr;
+  if (query_expression2 == nullptr) return true;
 
   LEX *lex = thd->lex;
   SELECT_LEX *current_select = lex->current_select();
   Parse_context pc(thd, current_select);
-  if (thd->is_error()) return nullptr;
+  assert(!thd->is_error());
 
-  lex->sql_command = SQLCOM_SELECT;
-  if (query_expression2->contextualize(&pc)) return nullptr;
+  if (query_expression2->contextualize(&pc)) return true;
 
-  /* contextualize sets to COM_SELECT */
-  lex->sql_command = command;
-
-  return current_select;
-}
-
-Sql_cmd_show_processlist::Sql_cmd_show_processlist(const POS &pos, THD *thd,
-                                                   enum_sql_command command,
-                                                   bool verbose)
-    : m_thd(thd),
-      m_sql_command(command),
-      m_verbose(verbose),
-      m_use_pfs(pfs_processlist_enabled) {
-  if (use_pfs()) {
-    build_processlist_query(pos, thd, sql_command_code(), verbose);
-  }
-}
-
-bool Sql_cmd_show_processlist::execute(THD *thd) {
-  if (!thd->security_context()->priv_user().str[0] &&
-      check_global_access(thd, PROCESS_ACL))
-    return true;
-  /*
-    If the Performance Schema is configured to support SHOW PROCESSLIST,
-    then execute a query on performance_schema.processlist. Otherwise,
-    fall back to the legacy method.
-  */
-  if (use_pfs()) {
-    return execute_with_performance_schema(thd);
-  } else {
-    return execute_with_information_schema(thd);
-  }
-}
-
-bool Sql_cmd_show_processlist::execute_with_information_schema(THD *thd) {
-  DEBUG_SYNC(thd, "pfs_show_processlist_legacy");
-  mysqld_list_processes(thd,
-                        (thd->security_context()->check_access(PROCESS_ACL)
-                             ? NullS
-                             : thd->security_context()->priv_user().str),
-                        m_verbose);
   return false;
-}
-
-bool Sql_cmd_show_processlist::execute_with_performance_schema(THD *thd) {
-  DEBUG_SYNC(thd, "pfs_show_processlist_performance_schema");
-  bool res = show_precheck(thd, thd->lex, true);
-  if (!res) res = execute_show(thd, thd->lex->query_tables);
-  return res;
 }
