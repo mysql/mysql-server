@@ -640,6 +640,12 @@ static void banner() {
                   LOG_ITEM_SQL_ERRSYMBOL, "ER_SERVER_TEST_MESSAGE",
                   LOG_ITEM_LOG_VERBATIM, "using log_message() with errsymbol");
 
+  char my_buff[LOG_BUFF_MAX + 32];
+  memset(my_buff, 'a', sizeof(my_buff));
+  my_buff[LOG_BUFF_MAX + 32 - 1] = 0;
+
+  log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_VERBATIM, my_buff);
+
   /*
     Fluent C++ API.  Use this free-form constructor if-and-only-if
     you do NOT have error messages registered with the server (and
