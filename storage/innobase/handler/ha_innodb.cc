@@ -12439,10 +12439,8 @@ bool create_table_info_t::innobase_table_flags() {
 
   const char *fts_doc_id_index_bad = nullptr;
   uint32_t zip_ssize = 0;
-  enum row_type row_type;
   const bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
   bool zip_allowed = !is_temp;
-  rec_format_t innodb_row_format = get_row_format(innodb_default_row_format);
 
   const uint32_t zip_ssize_max =
       std::min<uint32_t>((UNIV_PAGE_SSIZE_MAX), (PAGE_ZIP_SSIZE_MAX));
@@ -12545,7 +12543,7 @@ bool create_table_info_t::innobase_table_flags() {
     }
   }
 
-  row_type = m_form->s->row_type;
+  enum row_type row_type = m_form->s->row_type;
 
   if (zip_ssize && zip_allowed) {
     /* if ROW_FORMAT is set to default,
@@ -12576,6 +12574,7 @@ bool create_table_info_t::innobase_table_flags() {
     }
   }
 
+  rec_format_t innodb_row_format;
   switch (row_type) {
     case ROW_TYPE_REDUNDANT:
       innodb_row_format = REC_FORMAT_REDUNDANT;
@@ -12626,7 +12625,28 @@ bool create_table_info_t::innobase_table_flags() {
     case ROW_TYPE_DYNAMIC:
       innodb_row_format = REC_FORMAT_DYNAMIC;
       break;
-    case ROW_TYPE_DEFAULT:;
+    case ROW_TYPE_DEFAULT: {
+      /* Consider the real_row_type if already set. */
+      switch (m_form->s->real_row_type) {
+        case ROW_TYPE_REDUNDANT:
+          innodb_row_format = REC_FORMAT_REDUNDANT;
+          break;
+        case ROW_TYPE_COMPACT:
+          innodb_row_format = REC_FORMAT_COMPACT;
+          break;
+        case ROW_TYPE_COMPRESSED:
+          innodb_row_format = REC_FORMAT_COMPRESSED;
+          break;
+        case ROW_TYPE_DYNAMIC:
+          innodb_row_format = REC_FORMAT_DYNAMIC;
+          break;
+        default:
+          innodb_row_format = get_row_format(innodb_default_row_format);
+      }
+      break;
+    }
+    default:
+      ut_ad(false);
   }
 
   /* Don't support compressed table when page size > 16k. */
