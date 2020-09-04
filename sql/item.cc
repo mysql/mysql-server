@@ -8165,6 +8165,12 @@ void Item_ref::make_field(Send_field *field) {
   if (m_orig_db_name) field->db_name = m_orig_db_name;
   if (m_orig_field_name) field->org_col_name = m_orig_field_name;
   if (m_orig_table_name) field->org_table_name = m_orig_table_name;
+  /*
+   Some connectors expect a schema name that is empty when a view column
+   is defined over an expression that is not a column reference from a
+   view or a table. This is used to flag the column as read-only.
+  */
+  if (real_item()->type() != Item::FIELD_ITEM) field->db_name = "";
 }
 
 Item *Item_ref::get_tmp_table_item(THD *thd) {
