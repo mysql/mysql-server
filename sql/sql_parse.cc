@@ -130,7 +130,6 @@
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_handler.h"  // launch_hook_trans_begin
 #include "sql/rpl_master.h"   // register_slave
-#include "sql/rpl_rli.h"      // mysql_show_relaylog_events
 #include "sql/rpl_slave.h"    // change_master_cmd
 #include "sql/rpl_utility.h"
 #include "sql/session_tracker.h"
@@ -1375,47 +1374,6 @@ static bool deny_updates_if_read_only_option(THD *thd, TABLE_LIST *all_tables) {
 
   /* Assuming that only temporary tables are modified. */
   return false;
-}
-
-/**
-  Check whether the statement is a SHOW command using INFORMATION_SCHEMA system
-  views.
-
-  @param  thd   Thread (session) context.
-
-  @return true  if command uses INFORMATION_SCHEMA system view.
-  @return false otherwise.
-
-*/
-inline bool is_show_cmd_using_system_view(THD *thd) {
-  return sql_command_flags[thd->lex->sql_command] & CF_SHOW_USES_SYSTEM_VIEW;
-}
-
-/**
-  Check whether max statement time is applicable to statement or not.
-
-
-  @param  thd   Thread (session) context.
-
-  @return true  if max statement time is applicable to statement
-  @return false otherwise.
-*/
-static inline bool is_timer_applicable_to_statement(THD *thd) {
-  bool timer_value_is_set =
-      (thd->lex->max_execution_time || thd->variables.max_execution_time);
-
-  /**
-    Following conditions are checked,
-      - is SELECT statement.
-      - timer support is implemented and it is initialized.
-      - statement is not made by the slave threads.
-      - timer is not set for statement
-      - timer out value of is set
-      - SELECT statement is not from any stored programs.
-  */
-  return (thd->lex->sql_command == SQLCOM_SELECT &&
-          (have_statement_timeout == SHOW_OPTION_YES) && !thd->slave_thread &&
-          !thd->timer && timer_value_is_set && !thd->sp_runtime_ctx);
 }
 
 /**
@@ -3106,58 +3064,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
   */
 
   switch (lex->sql_command) {
-    case SQLCOM_SHOW_STATUS: {
-      System_status_var old_status_var = thd->status_var;
-      thd->initial_status_var = &old_status_var;
-
-      if (!(res = show_precheck(thd, lex, true)))
-        res = execute_show(thd, all_tables);
-
-      /* Don't log SHOW STATUS commands to slow query log */
-      thd->server_status &=
-          ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
-      /*
-        restore status variables, as we don't want 'show status' to cause
-        changes
-      */
-      mysql_mutex_lock(&LOCK_status);
-      add_diff_to_status(&global_status_var, &thd->status_var, &old_status_var);
-      thd->status_var = old_status_var;
-      thd->initial_status_var = nullptr;
-      mysql_mutex_unlock(&LOCK_status);
-      break;
-    }
-    case SQLCOM_SHOW_EVENTS:
-    case SQLCOM_SHOW_STATUS_PROC:
-    case SQLCOM_SHOW_STATUS_FUNC:
-    case SQLCOM_SHOW_DATABASES:
-    case SQLCOM_SHOW_TRIGGERS:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    case SQLCOM_SHOW_OPEN_TABLES:
-    case SQLCOM_SHOW_PLUGINS:
-    case SQLCOM_SHOW_VARIABLES:
-    case SQLCOM_SHOW_CHARSETS:
-    case SQLCOM_SHOW_COLLATIONS:
-    case SQLCOM_SHOW_STORAGE_ENGINES:
-    case SQLCOM_SHOW_PROFILE: {
-      DBUG_EXECUTE_IF("use_attachable_trx",
-                      thd->begin_attachable_ro_transaction(););
-
-      thd->clear_current_query_costs();
-
-      Enable_derived_merge_guard derived_merge_guard(
-          thd, is_show_cmd_using_system_view(thd));
-
-      res = show_precheck(thd, lex, true);
-
-      if (!res) res = execute_show(thd, all_tables);
-
-      thd->save_current_query_costs();
-
-      DBUG_EXECUTE_IF("use_attachable_trx", thd->end_attachable_transaction(););
-
-      break;
-    }
     case SQLCOM_PREPARE: {
       mysql_sql_stmt_prepare(thd);
       break;
@@ -3217,45 +3123,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
       res = purge_master_logs_before_date(thd, purge_time);
       break;
     }
-    case SQLCOM_SHOW_WARNS: {
-      res = mysqld_show_warnings(
-          thd, (ulong)((1L << (uint)Sql_condition::SL_NOTE) |
-                       (1L << (uint)Sql_condition::SL_WARNING) |
-                       (1L << (uint)Sql_condition::SL_ERROR)));
-      break;
-    }
-    case SQLCOM_SHOW_ERRORS: {
-      res = mysqld_show_warnings(thd,
-                                 (ulong)(1L << (uint)Sql_condition::SL_ERROR));
-      break;
-    }
-    case SQLCOM_SHOW_PROFILES: {
-#if defined(ENABLED_PROFILING)
-      thd->profiling->discard_current_query();
-      res = thd->profiling->show_profiles();
-      if (res) goto error;
-#else
-      my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES",
-               "enable-profiling");
-      goto error;
-#endif
-      break;
-    }
-    case SQLCOM_SHOW_SLAVE_HOSTS: {
-      if (check_global_access(thd, REPL_SLAVE_ACL)) goto error;
-      res = show_slave_hosts(thd);
-      break;
-    }
-    case SQLCOM_SHOW_RELAYLOG_EVENTS: {
-      if (check_global_access(thd, REPL_SLAVE_ACL)) goto error;
-      res = mysql_show_relaylog_events(thd);
-      break;
-    }
-    case SQLCOM_SHOW_BINLOG_EVENTS: {
-      if (check_global_access(thd, REPL_SLAVE_ACL)) goto error;
-      res = mysql_show_binlog_events(thd);
-      break;
-    }
     case SQLCOM_CHANGE_MASTER: {
       Security_context *sctx = thd->security_context();
       if (!sctx->check_access(SUPER_ACL) &&
@@ -3266,28 +3133,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
       }
       res = change_master_cmd(thd);
-      break;
-    }
-    case SQLCOM_SHOW_SLAVE_STAT: {
-      /* Accept one of two privileges */
-      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL)) goto error;
-      res = show_slave_status_cmd(thd);
-      break;
-    }
-    case SQLCOM_SHOW_MASTER_STAT: {
-      /* Accept one of two privileges */
-      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL)) goto error;
-      res = show_master_status(thd);
-      break;
-    }
-    case SQLCOM_SHOW_ENGINE_STATUS: {
-      if (check_global_access(thd, PROCESS_ACL)) goto error;
-      res = ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_STATUS);
-      break;
-    }
-    case SQLCOM_SHOW_ENGINE_MUTEX: {
-      if (check_global_access(thd, PROCESS_ACL)) goto error;
-      res = ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_MUTEX);
       break;
     }
     case SQLCOM_START_GROUP_REPLICATION: {
@@ -3485,68 +3330,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (mysql_rename_tables(thd, first_table)) goto error;
       break;
     }
-    case SQLCOM_SHOW_BINLOGS: {
-      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL)) goto error;
-      res = show_binlogs(thd);
-      break;
-    }
-    case SQLCOM_SHOW_CREATE:
-      DBUG_ASSERT(first_table == all_tables && first_table != nullptr);
-      {
-        /*
-           Access check:
-           SHOW CREATE TABLE require any privileges on the table level (ie
-           effecting all columns in the table).
-           SHOW CREATE VIEW require the SHOW_VIEW and SELECT ACLs on the table
-           level.
-           NOTE: SHOW_VIEW ACL is checked when the view is created.
-         */
-
-        DBUG_PRINT("debug", ("lex->only_view: %d, table: %s.%s", lex->only_view,
-                             first_table->db, first_table->table_name));
-        if (lex->only_view) {
-          if (check_table_access(thd, SELECT_ACL, first_table, false, 1,
-                                 false)) {
-            DBUG_PRINT("debug", ("check_table_access failed"));
-            my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "SHOW",
-                     thd->security_context()->priv_user().str,
-                     thd->security_context()->host_or_ip().str,
-                     first_table->alias);
-            goto error;
-          }
-          DBUG_PRINT("debug", ("check_table_access succeeded"));
-
-          /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
-          first_table->open_type = OT_BASE_ONLY;
-
-        } else {
-          /*
-            Temporary tables should be opened for SHOW CREATE TABLE, but not
-            for SHOW CREATE VIEW.
-          */
-          if (open_temporary_tables(thd, all_tables)) goto error;
-
-          /*
-            The fact that check_some_access() returned false does not mean that
-            access is granted. We need to check if first_table->grant.privilege
-            contains any table-specific privilege.
-          */
-          DBUG_PRINT("debug", ("first_table->grant.privilege: %lx",
-                               first_table->grant.privilege));
-          if (check_some_access(thd, TABLE_OP_ACLS, first_table) ||
-              (first_table->grant.privilege & TABLE_OP_ACLS) == 0) {
-            my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "SHOW",
-                     thd->security_context()->priv_user().str,
-                     thd->security_context()->host_or_ip().str,
-                     first_table->alias);
-            goto error;
-          }
-        }
-
-        /* Access is granted. Execute the command.  */
-        res = mysqld_show_create(thd, first_table);
-        break;
-      }
     case SQLCOM_CHECKSUM: {
       DBUG_ASSERT(first_table == all_tables && first_table != nullptr);
       if (check_table_access(thd, SELECT_ACL, all_tables, false, UINT_MAX,
@@ -3594,16 +3377,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
               ->mark_as_changed(thd, nullptr);
       }
     } break;
-    case SQLCOM_SHOW_PROCESSLIST: {
-      res = lex->m_sql_cmd->execute(thd);
-      break;
-    }
-    case SQLCOM_SHOW_ENGINE_LOGS: {
-      if (check_access(thd, FILE_ACL, any_db, nullptr, nullptr, false, false))
-        goto error;
-      res = ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_LOGS);
-      break;
-    }
     case SQLCOM_CHANGE_DB: {
       const LEX_CSTRING db_str = {select_lex->db, strlen(select_lex->db)};
 
@@ -3793,14 +3566,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
       res = mysql_alter_db(thd, lex->name.str, &create_info);
       break;
     }
-    case SQLCOM_SHOW_CREATE_DB: {
-      DBUG_EXECUTE_IF("4x_server_emul", my_error(ER_UNKNOWN_ERROR, MYF(0));
-                      goto error;);
-      if (check_and_convert_db_name(&lex->name, true) != Ident_name_check::OK)
-        break;
-      res = mysqld_show_create_db(thd, lex->name.str, lex->create_info);
-      break;
-    }
     case SQLCOM_CREATE_EVENT:
     case SQLCOM_ALTER_EVENT:
       do {
@@ -3850,11 +3615,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
       /* lex->cleanup() is called outside, no need to call it here */
       break;
-    case SQLCOM_SHOW_CREATE_EVENT: {
-      res = Events::show_create_event(thd, lex->spname->m_db,
-                                      to_lex_cstring(lex->spname->m_name));
-      break;
-    }
     case SQLCOM_DROP_EVENT: {
       if (!(res = Events::drop_event(thd, lex->spname->m_db,
                                      to_lex_cstring(lex->spname->m_name),
@@ -4132,10 +3892,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (thd->is_error()) goto error;
 
       sql_kill(thd, thread_id, lex->type & ONLY_KILL_QUERY);
-      break;
-    }
-    case SQLCOM_SHOW_PRIVILEGES: {
-      mysqld_show_privileges(thd);
       break;
     }
     case SQLCOM_SHOW_CREATE_USER: {
@@ -4463,49 +4219,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
       break;
     }
-    case SQLCOM_SHOW_CREATE_PROC: {
-      if (sp_show_create_routine(thd, enum_sp_type::PROCEDURE, lex->spname))
-        goto error;
-      break;
-    }
-    case SQLCOM_SHOW_CREATE_FUNC: {
-      if (sp_show_create_routine(thd, enum_sp_type::FUNCTION, lex->spname))
-        goto error;
-      break;
-    }
-    case SQLCOM_SHOW_PROC_CODE:
-    case SQLCOM_SHOW_FUNC_CODE: {
-#ifndef DBUG_OFF
-      sp_head *sp;
-      enum_sp_type sp_type = (lex->sql_command == SQLCOM_SHOW_PROC_CODE)
-                                 ? enum_sp_type::PROCEDURE
-                                 : enum_sp_type::FUNCTION;
-
-      if (sp_cache_routine(thd, sp_type, lex->spname, false, &sp)) goto error;
-      if (!sp || sp->show_routine_code(thd)) {
-        /* We don't distinguish between errors for now */
-        my_error(ER_SP_DOES_NOT_EXIST, MYF(0), SP_COM_STRING(lex),
-                 lex->spname->m_name.str);
-        goto error;
-      }
-      break;
-#else
-      my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROCEDURE|FUNCTION CODE",
-               "--with-debug");
-      goto error;
-#endif  // ifndef DBUG_OFF
-    }
-    case SQLCOM_SHOW_CREATE_TRIGGER: {
-      if (lex->spname->m_name.length > NAME_LEN) {
-        my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
-        goto error;
-      }
-
-      if (show_create_trigger(thd, lex->spname))
-        goto error; /* Error has been already logged. */
-
-      break;
-    }
     case SQLCOM_CREATE_VIEW: {
       /*
         Note: SQLCOM_CREATE_VIEW also handles 'ALTER VIEW' commands
@@ -4578,10 +4291,47 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_GRANT_ROLE:
     case SQLCOM_REVOKE_ROLE:
     case SQLCOM_ALTER_USER_DEFAULT_ROLE:
-    case SQLCOM_SHOW_GRANTS:
+    case SQLCOM_SHOW_BINLOG_EVENTS:
+    case SQLCOM_SHOW_BINLOGS:
+    case SQLCOM_SHOW_CHARSETS:
+    case SQLCOM_SHOW_COLLATIONS:
+    case SQLCOM_SHOW_CREATE_DB:
+    case SQLCOM_SHOW_CREATE_EVENT:
+    case SQLCOM_SHOW_CREATE_FUNC:
+    case SQLCOM_SHOW_CREATE_PROC:
+    case SQLCOM_SHOW_CREATE:
+    case SQLCOM_SHOW_CREATE_TRIGGER:
+    // case SQLCOM_SHOW_CREATE_USER:
+    case SQLCOM_SHOW_DATABASES:
+    case SQLCOM_SHOW_ENGINE_LOGS:
+    case SQLCOM_SHOW_ENGINE_MUTEX:
+    case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ERRORS:
+    case SQLCOM_SHOW_EVENTS:
     case SQLCOM_SHOW_FIELDS:
+    case SQLCOM_SHOW_FUNC_CODE:
+    case SQLCOM_SHOW_GRANTS:
     case SQLCOM_SHOW_KEYS:
+    case SQLCOM_SHOW_MASTER_STAT:
+    case SQLCOM_SHOW_OPEN_TABLES:
+    case SQLCOM_SHOW_PLUGINS:
+    case SQLCOM_SHOW_PRIVILEGES:
+    case SQLCOM_SHOW_PROC_CODE:
+    case SQLCOM_SHOW_PROCESSLIST:
+    case SQLCOM_SHOW_PROFILE:
+    case SQLCOM_SHOW_PROFILES:
+    case SQLCOM_SHOW_RELAYLOG_EVENTS:
+    case SQLCOM_SHOW_SLAVE_HOSTS:
+    case SQLCOM_SHOW_SLAVE_STAT:
+    case SQLCOM_SHOW_STATUS:
+    case SQLCOM_SHOW_STORAGE_ENGINES:
+    case SQLCOM_SHOW_TABLE_STATUS:
     case SQLCOM_SHOW_TABLES:
+    case SQLCOM_SHOW_TRIGGERS:
+    case SQLCOM_SHOW_STATUS_PROC:
+    case SQLCOM_SHOW_STATUS_FUNC:
+    case SQLCOM_SHOW_VARIABLES:
+    case SQLCOM_SHOW_WARNS:
     case SQLCOM_CLONE:
     case SQLCOM_LOCK_INSTANCE:
     case SQLCOM_UNLOCK_INSTANCE:
@@ -4591,9 +4341,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_CREATE_SRS:
     case SQLCOM_DROP_SRS: {
       DBUG_ASSERT(lex->m_sql_cmd != nullptr);
-
-      Enable_derived_merge_guard derived_merge_guard(
-          thd, is_show_cmd_using_system_view(thd));
 
       res = lex->m_sql_cmd->execute(thd);
 
@@ -4890,54 +4637,6 @@ finish:
 }
 
 /**
-   Try acquire high priority share metadata lock on a table (with
-   optional wait for conflicting locks to go away).
-
-   @param thd            Thread context.
-   @param table          Table list element for the table
-   @param can_deadlock   Indicates that deadlocks are possible due to
-                         metadata locks, so to avoid them we should not
-                         wait in case if conflicting lock is present.
-
-   @note This is an auxiliary function to be used in cases when we want to
-         access table's description by looking up info in TABLE_SHARE without
-         going through full-blown table open.
-   @note This function assumes that there are no other metadata lock requests
-         in the current metadata locking context.
-
-   @retval false  No error, if lock was obtained TABLE_LIST::mdl_request::ticket
-                  is set to non-NULL value.
-   @retval true   Some error occurred (probably thread was killed).
-*/
-
-static bool try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
-                                                  bool can_deadlock) {
-  bool error;
-  MDL_REQUEST_INIT(&table->mdl_request, MDL_key::TABLE, table->db,
-                   table->table_name, MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
-
-  if (can_deadlock) {
-    /*
-      When .FRM is being open in order to get data for an I_S table,
-      we might have some tables not only open but also locked.
-      E.g. this happens when a SHOW or I_S statement is run
-      under LOCK TABLES or inside a stored function.
-      By waiting for the conflicting metadata lock to go away we
-      might create a deadlock which won't entirely belong to the
-      MDL subsystem and thus won't be detectable by this subsystem's
-      deadlock detector. To avoid such situation, when there are
-      other locked tables, we prefer not to wait on a conflicting
-      lock.
-    */
-    error = thd->mdl_context.try_acquire_lock(&table->mdl_request);
-  } else
-    error = thd->mdl_context.acquire_lock(&table->mdl_request,
-                                          thd->variables.lock_wait_timeout);
-
-  return error;
-}
-
-/**
   Do special checking for SHOW statements.
 
   @param thd              Thread context.
@@ -4947,159 +4646,14 @@ static bool try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   @returns false if check is successful, true if error
 */
 
-bool show_precheck(THD *thd, LEX *lex, bool lock) {
-  bool new_dd_show = false;
-
+bool show_precheck(THD *thd, LEX *lex, bool) {
+  assert(lex->sql_command == SQLCOM_SHOW_CREATE_USER);
   TABLE_LIST *const tables = lex->query_tables;
-
-  switch (lex->sql_command) {
-    // For below show commands, perform check_show_access() call
-    case SQLCOM_SHOW_DATABASES:
-    case SQLCOM_SHOW_EVENTS:
-      new_dd_show = true;
-      break;
-
-    case SQLCOM_SHOW_TABLES:
-    case SQLCOM_SHOW_TABLE_STATUS:
-    case SQLCOM_SHOW_TRIGGERS: {
-      new_dd_show = true;
-
-      if (!lock) break;
-
-      LEX_STRING lex_str_db;
-      if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->select_lex->db,
-                             strlen(lex->select_lex->db)))
-        return true;
-
-      // Acquire IX MDL lock on schema name.
-      MDL_request mdl_request;
-      MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA, lex_str_db.str, "",
-                       MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
-      if (thd->mdl_context.acquire_lock(&mdl_request,
-                                        thd->variables.lock_wait_timeout))
-        return true;
-
-      // Stop if given database does not exist.
-      bool exists = false;
-      if (dd::schema_exists(thd, lex_str_db.str, &exists)) return true;
-
-      if (!exists) {
-        my_error(ER_BAD_DB_ERROR, MYF(0), lex->select_lex->db);
-        return true;
-      }
-
-      break;
-    }
-    case SQLCOM_SHOW_FIELDS:
-    case SQLCOM_SHOW_KEYS: {
-      new_dd_show = true;
-
-      if (!lock) break;
-
-      enum enum_schema_tables schema_table_idx;
-      if (tables->schema_table) {
-        schema_table_idx = get_schema_table_idx(tables->schema_table);
-        if (schema_table_idx == SCH_TMP_TABLE_COLUMNS ||
-            schema_table_idx == SCH_TMP_TABLE_KEYS)
-          break;
-      }
-
-      bool can_deadlock = thd->mdl_context.has_locks();
-      TABLE_LIST *dst_table = tables->schema_select_lex->table_list.first;
-      if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock)) {
-        /*
-          Some error occurred (most probably we have been killed while
-          waiting for conflicting locks to go away), let the caller to
-          handle the situation.
-        */
-        return true;
-      }
-
-      if (dst_table->mdl_request.ticket == nullptr) {
-        /*
-          We are in situation when we have encountered conflicting metadata
-          lock and deadlocks can occur due to waiting for it to go away.
-          So instead of waiting skip this table with an appropriate warning.
-        */
-        DBUG_ASSERT(can_deadlock);
-        my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0), dst_table->db,
-                 dst_table->table_name);
-        return true;
-      }
-
-      // Stop if given database does not exist.
-      dd::Schema_MDL_locker mdl_handler(thd);
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Schema *schema = nullptr;
-      if (mdl_handler.ensure_locked(dst_table->db) ||
-          thd->dd_client()->acquire(dst_table->db, &schema))
-        return true;
-
-      if (schema == nullptr) {
-        my_error(ER_BAD_DB_ERROR, MYF(0), dst_table->db);
-        return true;
-      }
-
-      const dd::Abstract_table *at = nullptr;
-      if (thd->dd_client()->acquire(dst_table->db, dst_table->table_name, &at))
-        return true;
-
-      if (at == nullptr) {
-        my_error(ER_NO_SUCH_TABLE, MYF(0), dst_table->db,
-                 dst_table->table_name);
-        return true;
-      }
-      break;
-    }
-    default:
-      break;
-  }
-
   if (tables != nullptr) {
     if (check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
       return true;
-
-    if ((tables->schema_table_reformed || new_dd_show) &&
-        check_show_access(thd, tables))
-      return true;
   }
   return false;
-}
-
-bool execute_show(THD *thd, TABLE_LIST *all_tables) {
-  DBUG_TRACE;
-  LEX *lex = thd->lex;
-  bool statement_timer_armed = false;
-  bool res;
-
-  // Specify to use global limit variable if explicit limit is not given
-  SELECT_LEX *params = lex->unit->global_parameters();
-  if (params->select_limit == nullptr) {
-    params->m_use_select_limit = true;
-  }
-  // check if timer is applicable to statement, if applicable then set timer.
-  if (is_timer_applicable_to_statement(thd))
-    statement_timer_armed = set_statement_timer(thd);
-
-  if (!(res = open_tables_for_query(thd, all_tables, false))) {
-    /*
-      We always use Query_result_send for EXPLAIN, even if it's an EXPLAIN
-      for SELECT ... INTO OUTFILE: a user application should be able
-      to prepend EXPLAIN to any query and receive output for it,
-      even if the query itself redirects the output.
-    */
-    Query_result *result = lex->is_explain() ? nullptr : lex->result;
-    if (result == nullptr) {
-      Prepared_stmt_arena_holder ps_arena_holder(thd);
-      result = new (thd->mem_root) Query_result_send();
-      if (result == nullptr) return true; /* purecov: inspected */
-    }
-    res = handle_query(thd, lex, result, 0, 0);
-  }
-
-  if (statement_timer_armed && thd->timer) reset_statement_timer(thd);
-
-  return res;
 }
 
 #define MY_YACC_INIT 1000  // Start with big alloc

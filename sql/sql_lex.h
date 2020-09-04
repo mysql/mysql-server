@@ -4255,6 +4255,8 @@ struct LEX : public Query_tables_list {
   void set_replication_deprecated_syntax_used() {
     m_is_replication_deprecated_syntax_used = true;
   }
+
+  bool set_channel_name(LEX_CSTRING name = {});
 };
 
 /**

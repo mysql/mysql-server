@@ -351,26 +351,6 @@ class Sql_cmd_alter_user_default_role : public Sql_cmd {
   }
 };
 
-/**
-  Sql_cmd_show_grants SHOW GRANTS ... statement.
-*/
-class Sql_cmd_show_grants : public Sql_cmd {
-  friend class PT_show_grants;
-
-  const LEX_USER *for_user;
-  const List<LEX_USER> *using_users;
-
- public:
-  Sql_cmd_show_grants(const LEX_USER *for_user_arg,
-                      const List<LEX_USER> *using_users_arg)
-      : for_user(for_user_arg), using_users(using_users_arg) {}
-
-  bool execute(THD *thd) override;
-  enum_sql_command sql_command_code() const override {
-    return SQLCOM_SHOW_GRANTS;
-  }
-};
-
 enum alter_instance_action_enum {
   ROTATE_INNODB_MASTER_KEY,
   ALTER_INSTANCE_RELOAD_TLS,
@@ -488,19 +468,4 @@ class Sql_cmd_clone : public Sql_cmd {
   /** If it is local clone operation */
   bool m_is_local;
 };
-
-/**
-  Sql_cmd_show represents the SHOW COLUMNS/SHOW INDEX statements.
-*/
-class Sql_cmd_show : public Sql_cmd {
- public:
-  Sql_cmd_show(enum_sql_command sql_command) : m_sql_command(sql_command) {}
-  bool execute(THD *thd) override;
-  enum_sql_command sql_command_code() const override { return m_sql_command; }
-  bool prepare(THD *thd) override;
-
- private:
-  enum_sql_command m_sql_command;
-};
-
 #endif
