@@ -22,11 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/io_context.h"
+
+#include <chrono>
 
 #include <gmock/gmock.h>
 
+#include "mysql/harness/net_ts/executor.h"
+#include "mysql/harness/net_ts/timer.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 
@@ -154,6 +157,261 @@ TEST(NetTS_io_context, io_service_open_fails) {
 
   // run should fail
   EXPECT_EQ(io_ctx.run(), 0);
+}
+
+TEST(NetTS_io_context, run_one_until_leave_early) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+  t.expires_after(1ms);
+
+  bool is_run{false};
+  t.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_one_until(std::chrono::steady_clock::now()), 0);
+
+  EXPECT_EQ(is_run, false);
+}
+
+TEST(NetTS_io_context, run_one_until_leave_later) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+  t.expires_after(1ms);
+
+  bool is_run{false};
+  t.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_one_until(std::chrono::steady_clock::now() + 100ms), 1);
+
+  EXPECT_EQ(is_run, true);
+}
+
+TEST(NetTS_io_context, run_one_for_leave_early) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+  t.expires_after(1ms);
+
+  bool is_run{false};
+  t.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_one_for(0ms), 0);
+
+  EXPECT_EQ(is_run, false);
+}
+
+TEST(NetTS_io_context, run_one_for_leave_later) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+  t.expires_after(1ms);
+
+  bool is_run{false};
+  t.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_one_for(100ms), 1);
+
+  EXPECT_EQ(is_run, true);
+}
+
+TEST(NetTS_io_context, run_until_leave_early) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+  t.expires_after(1ms);
+
+  bool is_run{false};
+  t.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_until(std::chrono::steady_clock::now()), 0);
+
+  EXPECT_EQ(is_run, false);
+}
+
+TEST(NetTS_io_context, run_until_leave_later) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+  t.expires_after(1ms);
+
+  bool is_run{false};
+  t.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_until(std::chrono::steady_clock::now() + 100ms), 1);
+  EXPECT_EQ(io_ctx.stopped(), true);
+
+  EXPECT_EQ(is_run, true);
+}
+
+TEST(NetTS_io_context, run_for_leave_early) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t(io_ctx);
+  t.expires_after(1ms);
+
+  bool is_run{false};
+  t.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_for(0ms), 0);
+  EXPECT_EQ(is_run, false);
+  // as the timer hasn't fired, there is still work.
+  EXPECT_EQ(io_ctx.stopped(), false);
+}
+
+TEST(NetTS_io_context, run_for_leave_later) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t1(io_ctx);
+  t1.expires_after(1ms);
+
+  bool t1_is_run{false};
+  t1.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    t1_is_run = true;
+  });
+
+  net::steady_timer t2(io_ctx);
+  t2.expires_after(2ms);
+
+  bool t2_is_run{false};
+  t2.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    t2_is_run = true;
+  });
+
+  net::steady_timer t3(io_ctx);
+  t3.expires_after(2000ms);
+
+  bool t3_is_run{false};
+  t3.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    t3_is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.run_for(100ms), 2);
+
+  EXPECT_EQ(t1_is_run, true);
+  EXPECT_EQ(t2_is_run, true);
+  EXPECT_EQ(t3_is_run, false);
+
+  EXPECT_EQ(io_ctx.stopped(), false);
+}
+
+/**
+ * check that run_for() waits until timeout even if no real work is assigned.
+ */
+TEST(NetTS_io_context, run_for_with_workguard) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  auto work_guard = net::make_work_guard(io_ctx);
+
+  EXPECT_EQ(io_ctx.run_for(100ms), 0);
+
+  EXPECT_EQ(io_ctx.stopped(), false);
+}
+
+TEST(NetTS_io_context, poll_one_expired_timer) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+
+  using namespace std::chrono_literals;
+
+  net::steady_timer t1(io_ctx);
+  t1.expires_after(0ms);
+
+  bool t1_is_run{false};
+  t1.async_wait([&](std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    t1_is_run = true;
+  });
+
+  EXPECT_EQ(io_ctx.poll_one(), 1);
+
+  EXPECT_EQ(t1_is_run, true);
+
+  EXPECT_EQ(io_ctx.stopped(), true);
 }
 
 // net::is_executor_v<> chokes with solaris-ld on
