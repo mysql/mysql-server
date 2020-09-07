@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,8 @@ static const char *handler_error_messages[]=
   "FTS query exceeds result cache memory limit",
   "Temporary file write failure",
   "Operation not allowed when innodb_forced_recovery > 0",
-  "Too many words in a FTS phrase or proximity search"
+  "Too many words in a FTS phrase or proximity search",
+  "Too many nested sub-expressions in a full-text search"
 };
 
 extern void my_handler_error_register(void);

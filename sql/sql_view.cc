@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1782,6 +1782,43 @@ ok2:
   DBUG_ASSERT(lex == thd->lex);
   thd->lex= old_lex;                            // Needed for prepare_security
   result= !table->prelocking_placeholder && table->prepare_security(thd);
+
+  if (!result && !table->prelocking_placeholder &&
+      old_lex->sql_command == SQLCOM_LOCK_TABLES &&
+      !table->view_tables->is_empty())
+  {
+    /*
+      For LOCK TABLES we need to check if user which security context is used
+      for view execution has necessary privileges for acquiring strong locks
+      on its underlying tables. These are LOCK TABLES and SELECT privileges.
+      Note that we only require SELECT and not LOCK TABLES on underlying
+      tables at view creation time. And these privileges might have been
+      revoked from user since then in any case.
+    */
+    List_iterator_fast<TABLE_LIST> tbl_it(*(table->view_tables));
+    TABLE_LIST *tbl;
+
+    while ((tbl= tbl_it++))
+    {
+      bool fake_lock_tables_acl;
+      if (check_lock_view_underlying_table_access(thd, tbl,
+                                                  &fake_lock_tables_acl))
+      {
+        result= true;
+        break;
+      }
+
+      if (fake_lock_tables_acl)
+      {
+        /*
+          Override write type of thr_lock lock to allow concurrent access
+          to read-only and truncatable-only P_S tables. For I_S tables this
+          won't do anything as they are not opened and locked in normal way.
+        */
+        tbl->lock_type= TL_READ_NO_INSERT;
+      }
+    }
+  }
 
   lex_end(lex);
 end:
