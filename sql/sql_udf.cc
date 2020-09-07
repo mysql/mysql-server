@@ -912,8 +912,9 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
     udf = it->second;
 
     if (!udf->dl && !udf->dlhandle &&  // Not registered via CREATE FUNCTION
-        !--udf->usage_count)           // Not used
+        (udf->usage_count == 1))       // Not used
     {
+      --udf->usage_count;
       udf_hash->erase(it);
       using_udf_functions = !udf_hash->empty();
     } else  // error
