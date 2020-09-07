@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -198,6 +198,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
+  case HA_ERR_FTS_TOO_MANY_NESTED_EXP: return "HA_ERR_FTS_TOO_MANY_NESTED_EXP";
   }
   return "No Error!";
 }

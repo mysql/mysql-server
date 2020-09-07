@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -161,6 +161,8 @@ enum dberr_t {
 					schema to be locked in exclusive mode
 					and if it's not then that API function
 					will return this error code */
+	DB_FTS_TOO_MANY_NESTED_EXP,	/*< Too many nested sub expression
+					in full-text search string */
 
 	DB_NOT_FOUND			/*!< Generic error code for "Not found"
 					type of errors */

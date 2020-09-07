@@ -4526,3 +4526,21 @@ Warning	1292	Truncated incorrect INTEGER value: 'a'
 #
 # End of 5.6 tests
 #
+#
+# Bug 31413167 - PLEASE BACKPORT FIX FOR BUG 31320716 TO 5.6
+#
+SELECT @var:=CONCAT('');
+@var:=CONCAT('')
+
+SELECT @var:=CONCAT_WS('','');
+@var:=CONCAT_WS('','')
+
+SET NAMES utf8;
+CREATE TABLE t(a INT) engine=innodb;
+INSERT INTO t VALUES(1);
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
+1
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
+1
+SET NAMES DEFAULT;
+DROP TABLE t;
