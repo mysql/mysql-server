@@ -118,9 +118,9 @@ inline const char *VarintParse64(const char *p, uint64_t *out) {
     *out = res;
     return p + 1;
   }
-  uint32_t byte = ptr[1];
-  res += (byte - 1) << 7;
-  if (!(byte & 0x80)) {
+  uint32_t x = ptr[1];
+  res += (x - 1) << 7;
+  if (!(x & 0x80)) {
     *out = res;
     return p + 2;
   }
