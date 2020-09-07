@@ -407,27 +407,63 @@ Ret_t Tester::corrupt_ondisk_page0(std::vector<std::string> &tokens) noexcept {
   space_id_t space_id = table->space;
   page_id_t page_id(space_id, 0);
 
-  char *filename = fil_space_get_first_path(table->space);
-  TLOG("filename=" << filename);
-  FILE *fin = fopen(filename, "r+");
-  ut_ad(fin != NULL);
+  fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
 
-  ulint offset = 0;
-  std::unique_ptr<byte[]> buf(new byte[FIL_PAGE_DATA]);
+  page_no_t page_no = 0;
+  fil_node_t *node = space->get_file_node(&page_no);
+  if (node->is_open) {
+    /* When the space file is currently open we are not able to write to it
+     * directly on Windows. We must use the currently opened handle. Moreover,
+     * on Windows a file opened for the AIO access must be accessed only by AIO
+     * methods. The AIO requires the operations to be aligned and with size
+     * divisible by OS block size, so we first read block of the first page, to
+     * corrupt it and write back. */
 
-  /* Corrupt the contents. */
-  memset(buf.get(), 0x00, FIL_PAGE_DATA);
-  int st = fseek(fin, offset, SEEK_SET);
-  ut_ad(st == 0);
+    IORequest read_io_type(IORequest::READ);
+    IORequest write_io_type(IORequest::WRITE);
+    std::array<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
+    ssize_t nbytes = os_aio_func(
+        read_io_type, AIO_mode::SYNC, node->name, node->handle, buf.data(), 0,
+        OS_FILE_LOG_BLOCK_SIZE, false, nullptr, nullptr);
+    if (nbytes != OS_FILE_LOG_BLOCK_SIZE) {
+      TLOG("Could not corrupt page_id=" << page_id
+                                        << ", error reading first page");
+    }
+    memset(buf.data(), 0x00, FIL_PAGE_DATA);
 
-  size_t n = fwrite(buf.get(), FIL_PAGE_DATA, 1, fin);
-  ut_ad(n == 1);
+    nbytes = os_aio_func(write_io_type, AIO_mode::SYNC, node->name,
+                         node->handle, buf.data(), 0, OS_FILE_LOG_BLOCK_SIZE,
+                         false, nullptr, nullptr);
+    if (nbytes == OS_FILE_LOG_BLOCK_SIZE) {
+      TLOG("Successfully corrupted page_id=" << page_id);
+    } else {
+      TLOG("Could not corrupt page_id=" << page_id);
+    }
+  } else {
+    std::array<byte, FIL_PAGE_DATA> buf;
+    memset(buf.data(), 0x00, FIL_PAGE_DATA);
 
-  fflush(fin);
-  TLOG("Successfully corrupted page_id=" << page_id);
-  fclose(fin);
+    char *filename = fil_space_get_first_path(table->space);
+    TLOG("filename=" << filename);
+    FILE *fin = fopen(filename, "r+");
+    ut_ad(fin != NULL);
 
-  ut_free(filename);
+    ulint offset = 0;
+
+    /* Corrupt the contents. */
+    int st = fseek(fin, offset, SEEK_SET);
+    ut_ad(st == 0);
+
+    size_t n = fwrite(buf.data(), FIL_PAGE_DATA, 1, fin);
+    ut_ad(n == 1);
+
+    fflush(fin);
+    TLOG("Successfully corrupted page_id=" << page_id);
+    fclose(fin);
+    ut_free(filename);
+  }
+
   return RET_PASS;
 }
 
