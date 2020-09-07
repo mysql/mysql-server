@@ -36,6 +36,7 @@
 #include "sql/hash_join_chunk.h"
 #include "sql/immutable_string.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
 #include "sql/row_iterator.h"

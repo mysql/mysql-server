@@ -51,6 +51,7 @@
 #include "prealloced_array.h"
 #include "sql/hash_join_buffer.h"
 #include "sql/item.h"
+#include "sql/join_type.h"
 #include "sql/row_iterator.h"
 #include "sql/table.h"
 

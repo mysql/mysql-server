@@ -57,6 +57,7 @@
 #include "my_table_map.h"
 #include "sql/handler.h"
 #include "sql/hash_join_buffer.h"
+#include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
 #include "sql/row_iterator.h"

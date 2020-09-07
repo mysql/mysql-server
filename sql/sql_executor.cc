@@ -84,6 +84,7 @@
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_type.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"       // key_cmp
 #include "sql/key_spec.h"
