@@ -412,19 +412,19 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
   switch (path->type) {
     case AccessPath::TABLE_SCAN: {
       const auto &param = path->table_scan();
-      iterator = NewIterator<TableScanIterator>(thd, param.table, param.qep_tab,
-                                                examined_rows);
+      iterator = NewIterator<TableScanIterator>(
+          thd, param.table, path->num_output_rows, examined_rows);
       break;
     }
     case AccessPath::INDEX_SCAN: {
       const auto &param = path->index_scan();
       if (param.reverse) {
         iterator = NewIterator<IndexScanIterator<true>>(
-            thd, param.table, param.idx, param.use_order, param.qep_tab,
+            thd, param.table, param.idx, param.use_order, path->num_output_rows,
             examined_rows);
       } else {
         iterator = NewIterator<IndexScanIterator<false>>(
-            thd, param.table, param.idx, param.use_order, param.qep_tab,
+            thd, param.table, param.idx, param.use_order, path->num_output_rows,
             examined_rows);
       }
       break;
@@ -432,21 +432,21 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::REF: {
       const auto &param = path->ref();
       if (param.reverse) {
-        iterator = NewIterator<RefIterator<true>>(thd, param.table, param.ref,
-                                                  param.use_order,
-                                                  param.qep_tab, examined_rows);
+        iterator = NewIterator<RefIterator<true>>(
+            thd, param.table, param.ref, param.use_order, path->num_output_rows,
+            examined_rows);
       } else {
         iterator = NewIterator<RefIterator<false>>(
-            thd, param.table, param.ref, param.use_order, param.qep_tab,
+            thd, param.table, param.ref, param.use_order, path->num_output_rows,
             examined_rows);
       }
       break;
     }
     case AccessPath::REF_OR_NULL: {
       const auto &param = path->ref_or_null();
-      iterator = NewIterator<RefOrNullIterator>(thd, param.table, param.ref,
-                                                param.use_order, param.qep_tab,
-                                                examined_rows);
+      iterator = NewIterator<RefOrNullIterator>(
+          thd, param.table, param.ref, param.use_order, path->num_output_rows,
+          examined_rows);
       break;
     }
     case AccessPath::EQ_REF: {
@@ -485,14 +485,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     }
     case AccessPath::FOLLOW_TAIL: {
       const auto &param = path->follow_tail();
-      iterator = NewIterator<FollowTailIterator>(thd, param.table,
-                                                 param.qep_tab, examined_rows);
+      iterator = NewIterator<FollowTailIterator>(
+          thd, param.table, path->num_output_rows, examined_rows);
       break;
     }
     case AccessPath::INDEX_RANGE_SCAN: {
       const auto &param = path->index_range_scan();
       iterator = NewIterator<IndexRangeScanIterator>(
-          thd, param.table, param.quick, param.qep_tab, examined_rows);
+          thd, param.table, param.quick, path->num_output_rows, examined_rows);
       break;
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {

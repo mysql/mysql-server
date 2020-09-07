@@ -936,7 +936,7 @@ void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
     if (fake_select_lex != nullptr) {
       table_path = fake_select_lex->join->root_access_path();
     } else {
-      table_path = NewTableScanAccessPath(thd, tmp_table, /*qep_tab=*/nullptr,
+      table_path = NewTableScanAccessPath(thd, tmp_table,
                                           /*count_examined_rows=*/false);
     }
     bool push_limit_down =

@@ -458,27 +458,23 @@ struct AccessPath {
   union {
     struct {
       TABLE *table;
-      QEP_TAB *qep_tab;  // Used only for buffering.
     } table_scan;
     struct {
       TABLE *table;
       int idx;
       bool use_order;
       bool reverse;
-      QEP_TAB *qep_tab;  // Used only for buffering.
     } index_scan;
     struct {
       TABLE *table;
       TABLE_REF *ref;
       bool use_order;
       bool reverse;
-      QEP_TAB *qep_tab;  // Used only for buffering.
     } ref;
     struct {
       TABLE *table;
       TABLE_REF *ref;
       bool use_order;
-      QEP_TAB *qep_tab;  // Used only for buffering.
     } ref_or_null;
     struct {
       TABLE *table;
@@ -510,12 +506,10 @@ struct AccessPath {
     } mrr;
     struct {
       TABLE *table;
-      QEP_TAB *qep_tab;  // Used only for buffering.
     } follow_tail;
     struct {
       TABLE *table;
       QUICK_SELECT_I *quick;
-      QEP_TAB *qep_tab;  // Used only for buffering.
     } index_range_scan;
     struct {
       TABLE *table;
@@ -677,19 +671,16 @@ inline void CopyCosts(const AccessPath &from, AccessPath *to) {
 // Trivial factory functions for all of the types of access paths above.
 
 inline AccessPath *NewTableScanAccessPath(THD *thd, TABLE *table,
-                                          QEP_TAB *qep_tab,
                                           bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::TABLE_SCAN;
   path->count_examined_rows = count_examined_rows;
   path->table_scan().table = table;
-  path->table_scan().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewIndexScanAccessPath(THD *thd, TABLE *table, int idx,
                                           bool use_order, bool reverse,
-                                          QEP_TAB *qep_tab,
                                           bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::INDEX_SCAN;
@@ -698,13 +689,11 @@ inline AccessPath *NewIndexScanAccessPath(THD *thd, TABLE *table, int idx,
   path->index_scan().idx = idx;
   path->index_scan().use_order = use_order;
   path->index_scan().reverse = reverse;
-  path->index_scan().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
                                     bool use_order, bool reverse,
-                                    QEP_TAB *qep_tab,
                                     bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::REF;
@@ -713,13 +702,11 @@ inline AccessPath *NewRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
   path->ref().ref = ref;
   path->ref().use_order = use_order;
   path->ref().reverse = reverse;
-  path->ref().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewRefOrNullAccessPath(THD *thd, TABLE *table,
                                           TABLE_REF *ref, bool use_order,
-                                          QEP_TAB *qep_tab,
                                           bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::REF_OR_NULL;
@@ -727,7 +714,6 @@ inline AccessPath *NewRefOrNullAccessPath(THD *thd, TABLE *table,
   path->ref_or_null().table = table;
   path->ref_or_null().ref = ref;
   path->ref_or_null().use_order = use_order;
-  path->ref_or_null().qep_tab = qep_tab;
   return path;
 }
 
@@ -799,26 +785,22 @@ inline AccessPath *NewMRRAccessPath(THD *thd, Item *cache_idx_cond,
 }
 
 inline AccessPath *NewFollowTailAccessPath(THD *thd, TABLE *table,
-                                           QEP_TAB *qep_tab,
                                            bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::FOLLOW_TAIL;
   path->count_examined_rows = count_examined_rows;
   path->follow_tail().table = table;
-  path->follow_tail().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewIndexRangeScanAccessPath(THD *thd, TABLE *table,
                                                QUICK_SELECT_I *quick,
-                                               QEP_TAB *qep_tab,
                                                bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::INDEX_RANGE_SCAN;
   path->count_examined_rows = count_examined_rows;
   path->index_range_scan().table = table;
   path->index_range_scan().quick = quick;
-  path->index_range_scan().qep_tab = qep_tab;
   return path;
 }
 

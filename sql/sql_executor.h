@@ -525,7 +525,7 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
-bool set_record_buffer(const QEP_TAB *tab);
+bool set_record_buffer(TABLE *table, double expected_rows_to_fetch);
 void init_tmptable_sum_functions(Item_sum **func_ptr);
 void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
 bool has_rollup_result(Item *item);

@@ -45,7 +45,6 @@
 
 class Filesort_info;
 class Item;
-class QEP_TAB;
 class QUICK_SELECT_I;
 class Sort_result;
 class THD;
@@ -61,13 +60,11 @@ struct TABLE;
  */
 class TableScanIterator final : public TableRowIterator {
  public:
-  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
-  // buffers.
-  //
-  // The pushed condition can be nullptr.
+  // “expected_rows” is used for scaling the record buffer.
+  // If zero or less, no record buffer will be set up.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+  TableScanIterator(THD *thd, TABLE *table, double expected_rows,
                     ha_rows *examined_rows);
   ~TableScanIterator() override;
 
@@ -76,7 +73,7 @@ class TableScanIterator final : public TableRowIterator {
 
  private:
   uchar *const m_record;
-  QEP_TAB *const m_qep_tab;
+  const double m_expected_rows;
   ha_rows *const m_examined_rows;
 };
 
@@ -90,14 +87,14 @@ class IndexScanIterator final : public TableRowIterator {
   // but do not actually care about the order. In particular, partitioned
   // tables can use this to deliver more efficient scans.
   //
-  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
-  // buffers.
+  // “expected_rows” is used for scaling the record buffer.
+  // If zero or less, no record buffer will be set up.
   //
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order,
-                    QEP_TAB *qep_tab, ha_rows *examined_rows);
+                    double expected_rows, ha_rows *examined_rows);
   ~IndexScanIterator() override;
 
   bool Init() override;
@@ -107,7 +104,7 @@ class IndexScanIterator final : public TableRowIterator {
   uchar *const m_record;
   const int m_idx;
   const bool m_use_order;
-  QEP_TAB *const m_qep_tab;
+  const double m_expected_rows;
   ha_rows *const m_examined_rows;
   bool m_first = true;
 };
@@ -126,14 +123,14 @@ class IndexRangeScanIterator final : public TableRowIterator {
  public:
   // Does _not_ take ownership of "quick" (but maybe it should).
   //
-  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
-  // buffers.
+  // “expected_rows” is used for scaling the record buffer.
+  // If zero or less, no record buffer will be set up.
   //
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick,
-                         QEP_TAB *qep_tab, ha_rows *examined_rows);
+                         double expected_rows, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -141,7 +138,7 @@ class IndexRangeScanIterator final : public TableRowIterator {
  private:
   // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
   QUICK_SELECT_I *const m_quick;
-  QEP_TAB *const m_qep_tab;
+  const double m_expected_rows;
   ha_rows *const m_examined_rows;
 
   // After m_quick has returned EOF, some of its members are destroyed, making
@@ -458,7 +455,7 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
 class FollowTailIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+  FollowTailIterator(THD *thd, TABLE *table, double expected_rows,
                      ha_rows *examined_rows);
   ~FollowTailIterator() override;
 
@@ -487,7 +484,7 @@ class FollowTailIterator final : public TableRowIterator {
 
  private:
   uchar *const m_record;
-  QEP_TAB *const m_qep_tab;
+  const double m_expected_rows;
   ha_rows *const m_examined_rows;
   ha_rows m_read_rows;
   ha_rows m_end_of_current_iteration;

@@ -439,7 +439,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     } else {
       empty_record(table);
       path = NewIndexScanAccessPath(thd, table, usable_index,
-                                    /*use_order=*/true, reverse, &qep_tab,
+                                    /*use_order=*/true, reverse,
                                     /*count_examined_rows=*/false);
     }
 

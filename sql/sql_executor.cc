@@ -651,13 +651,11 @@ QEP_TAB::enum_op_type JOIN::get_end_select_func() {
   Find out how many bytes it takes to store the smallest prefix which
   covers all the columns that will be read from a table.
 
-  @param qep_tab the table to read
+  @param table the table to read
   @return the size of the smallest prefix that covers all records to be
           read from the table
 */
-static size_t record_prefix_size(const QEP_TAB *qep_tab) {
-  const TABLE *table = qep_tab->table();
-
+static size_t record_prefix_size(const TABLE *table) {
   /*
     Find the end of the last column that is read, or the beginning of
     the record if no column is read.
@@ -681,11 +679,8 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab) {
     If this is an index merge, the primary key columns may be required
     for positioning in a later stage, even though they are not in the
     read_set here. Allocate space for them in case they are needed.
-    Also allocate space for them for dynamic ranges, because they can
-    switch to index merge for a subsequent scan.
   */
-  if ((qep_tab->type() == JT_INDEX_MERGE || qep_tab->dynamic_range()) &&
-      !table->s->is_missing_primary_key() &&
+  if (!table->s->is_missing_primary_key() &&
       (table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION)) {
     const KEY &key = table->key_info[table->s->primary_key];
     for (auto kp = key.key_part, end = kp + key.user_defined_key_parts;
@@ -710,25 +705,20 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab) {
   for the handler, and the scan in question is of a kind that could be
   expected to benefit from fetching records in batches.
 
-  @param tab the table to read
+  @param table the table to read
+  @param expected_rows_to_fetch number of rows the optimizer thinks
+    we will be reading out of the table
   @retval true if an error occurred when allocating the buffer
   @retval false if a buffer was successfully allocated, or if a buffer
   was not attempted allocated
 */
-bool set_record_buffer(const QEP_TAB *tab) {
-  if (tab == nullptr) return false;
-
-  TABLE *const table = tab->table();
-
+bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   DBUG_ASSERT(table->file->inited);
   DBUG_ASSERT(table->file->ha_get_record_buffer() == nullptr);
 
-  // Skip temporary tables.
-  if (tab->position() == nullptr) return false;
-
-  // Don't allocate a buffer for loose index scan.
-  if (tab->quick_optim() && tab->quick_optim()->is_loose_index_scan())
-    return false;
+  // Skip temporary tables, those with no estimates, or if we don't
+  // expect multiple rows.
+  if (expected_rows_to_fetch <= 1.0) return false;
 
   // Only create a buffer if the storage engine wants it.
   ha_rows max_rows = 0;
@@ -742,45 +732,14 @@ bool set_record_buffer(const QEP_TAB *tab) {
       record size shouldn't change for a table during execution.
     */
     DBUG_ASSERT(table->m_record_buffer.record_size() ==
-                record_prefix_size(tab));
+                record_prefix_size(table));
     table->m_record_buffer.reset();
     table->file->ha_set_record_buffer(&table->m_record_buffer);
     return false;
   }
 
-  // How many rows do we expect to fetch?
-  double rows_to_fetch = tab->position()->rows_fetched;
-
-  /*
-    If this is the outer table of a join and there is a limit defined
-    on the query block, adjust the buffer size accordingly.
-  */
-  const JOIN *const join = tab->join();
-  if (tab->idx() == 0 && join->m_select_limit != HA_POS_ERROR) {
-    /*
-      Estimated number of rows returned by the join per qualifying row
-      in the outer table.
-    */
-    double fanout = 1.0;
-    for (uint i = 1; i < join->primary_tables; i++) {
-      const auto p = join->qep_tab[i].position();
-      fanout *= p->rows_fetched * p->filter_effect;
-    }
-
-    /*
-      The number of qualifying rows to read from the outer table in
-      order to reach the limit is limit / fanout. Divide by
-      filter_effect to get the total number of qualifying and
-      non-qualifying rows to fetch to reach the limit.
-    */
-    rows_to_fetch = std::min(rows_to_fetch, join->m_select_limit / fanout /
-                                                tab->position()->filter_effect);
-  }
-
-  ha_rows rows_in_buffer = static_cast<ha_rows>(std::ceil(rows_to_fetch));
-
-  // No need for a multi-row buffer if we don't expect multiple rows.
-  if (rows_in_buffer <= 1) return false;
+  ha_rows rows_in_buffer =
+      static_cast<ha_rows>(std::ceil(expected_rows_to_fetch));
 
   /*
     How much space do we need to allocate for each record? Enough to
@@ -788,7 +747,7 @@ bool set_record_buffer(const QEP_TAB *tab) {
     read set. We don't need to allocate space for unread columns at
     the end of the record.
   */
-  const size_t record_size = record_prefix_size(tab);
+  const size_t record_size = record_prefix_size(table);
 
   // Do not allocate a buffer whose total size exceeds MAX_RECORD_BUFFER_SIZE.
   if (record_size > 0)
@@ -3289,26 +3248,23 @@ int report_handler_error(TABLE *table, int error) {
 }
 
 /**
-  Initialize an index scan and the record buffer to use in the scan.
+  Initialize an index scan.
 
-  @param qep_tab the table to read
+  @param table   the table to read
   @param file    the handler to initialize
   @param idx     the index to use
   @param sorted  use the sorted order of the index
   @retval true   if an error occurred
   @retval false  on success
 */
-static bool init_index_and_record_buffer(const QEP_TAB *qep_tab, handler *file,
-                                         uint idx, bool sorted) {
-  if (file->inited) return false;  // OK, already initialized
-
+static bool init_index(TABLE *table, handler *file, uint idx, bool sorted) {
   int error = file->ha_index_init(idx, sorted);
   if (error != 0) {
-    (void)report_handler_error(qep_tab->table(), error);
+    (void)report_handler_error(table, error);
     return true;
   }
 
-  return set_record_buffer(qep_tab);
+  return false;
 }
 
 int safe_index_read(QEP_TAB *tab) {
@@ -3762,8 +3718,11 @@ int PushedJoinRefIterator::Read() {
 template <bool Reverse>
 bool RefIterator<Reverse>::Init() {
   m_first_record_since_init = true;
-  return init_index_and_record_buffer(m_qep_tab, m_qep_tab->table()->file,
-                                      m_ref->key, m_use_order);
+  if (table()->file->inited) return false;
+  if (init_index(table(), table()->file, m_ref->key, m_use_order)) {
+    return true;
+  }
+  return set_record_buffer(table(), m_expected_rows);
 }
 
 // Doxygen gets confused by the explicit specializations.
@@ -3952,7 +3911,8 @@ bool DynamicRangeIterator::Init() {
   // here.
   if (qck) {
     m_iterator = NewIterator<IndexRangeScanIterator>(
-        thd(), table(), qck, m_qep_tab, m_examined_rows);
+        thd(), table(), qck, m_qep_tab->position()->rows_fetched,
+        m_examined_rows);
     // If the range optimizer chose index merge scan or a range scan with
     // covering index, use the read set without base columns. Otherwise we use
     // the read set with base columns included.
@@ -3961,8 +3921,8 @@ bool DynamicRangeIterator::Init() {
     else
       table()->read_set = &m_read_set_with_base_columns;
   } else {
-    m_iterator = NewIterator<TableScanIterator>(thd(), table(), m_qep_tab,
-                                                m_examined_rows);
+    m_iterator = NewIterator<TableScanIterator>(
+        thd(), table(), m_qep_tab->position()->rows_fetched, m_examined_rows);
     // For a table scan, include base columns in read set.
     table()->read_set = &m_read_set_with_base_columns;
   }
@@ -4048,19 +4008,22 @@ int FullTextSearchIterator::Read() {
 */
 
 RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref,
-                                     bool use_order, QEP_TAB *qep_tab,
+                                     bool use_order, double expected_rows,
                                      ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 bool RefOrNullIterator::Init() {
   m_reading_first_row = true;
   *m_ref->null_ref_key = false;
-  return init_index_and_record_buffer(m_qep_tab, m_qep_tab->table()->file,
-                                      m_ref->key, m_use_order);
+  if (table()->file->inited) return false;
+  if (init_index(table(), table()->file, m_ref->key, m_use_order)) {
+    return true;
+  }
+  return set_record_buffer(table(), m_expected_rows);
 }
 
 int RefOrNullIterator::Read() {
@@ -4169,7 +4132,7 @@ AccessPath *QEP_TAB::access_path() {
                                           /*count_examined_rows=*/true);
       } else {
         path = NewRefAccessPath(join()->thd, table(), &ref(), use_order(),
-                                m_reversed_access, this,
+                                m_reversed_access,
                                 /*count_examined_rows=*/true);
       }
       used_ref = &ref();
@@ -4177,7 +4140,7 @@ AccessPath *QEP_TAB::access_path() {
 
     case JT_REF_OR_NULL:
       path = NewRefOrNullAccessPath(join()->thd, table(), &ref(), use_order(),
-                                    this, /*count_examined_rows=*/true);
+                                    /*count_examined_rows=*/true);
       used_ref = &ref();
       break;
 
@@ -4207,7 +4170,7 @@ AccessPath *QEP_TAB::access_path() {
 
     case JT_INDEX_SCAN:
       path = NewIndexScanAccessPath(join()->thd, table(), index(), use_order(),
-                                    m_reversed_access, this,
+                                    m_reversed_access,
                                     /*count_examined_rows=*/true);
       break;
     case JT_ALL:
@@ -4267,7 +4230,7 @@ AccessPath *QEP_TAB::access_path() {
         // At least one condition guard is relevant, so we need to use
         // the AlternativeIterator.
         AccessPath *table_scan_path = NewTableScanAccessPath(
-            join()->thd, table(), this, /*count_examined_rows=*/true);
+            join()->thd, table(), /*count_examined_rows=*/true);
         path = NewAlternativeAccessPath(join()->thd, path, table_scan_path,
                                         used_ref);
         break;

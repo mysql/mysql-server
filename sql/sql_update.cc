@@ -675,7 +675,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         } else {
           empty_record(table);
           path = NewIndexScanAccessPath(thd, table, used_index,
-                                        /*use_order=*/true, reverse, &qep_tab,
+                                        /*use_order=*/true, reverse,
                                         /*count_examined_rows=*/false);
         }
 

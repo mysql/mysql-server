@@ -3284,7 +3284,7 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
   DBUG_ASSERT(tab->type() != JT_REF_OR_NULL);
   AccessPath *path = NewRefAccessPath(thd, tab->table(), &tab->ref(),
                                       /*use_order=*/false, /*reverse=*/false,
-                                      tab, /*count_examined_rows=*/false);
+                                      /*count_examined_rows=*/false);
 
   if (tab->type() == JT_EQ_REF && (cond != nullptr || having != nullptr)) {
     path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
@@ -3401,7 +3401,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
       // Index must be closed before starting to scan.
       if (table->file->inited) table->file->ha_index_or_rnd_end();
 
-      TableScanIterator scan(thd, table, /*qep_tab=*/nullptr,
+      TableScanIterator scan(thd, table, /*expected_rows=*/-1.0,
                              /*examined_rows=*/nullptr);
       int ret = scan.Read();
       if (ret == 1 || thd->is_error()) {

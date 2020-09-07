@@ -59,13 +59,14 @@ using std::vector;
 
 template <bool Reverse>
 IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx,
-                                              bool use_order, QEP_TAB *qep_tab,
+                                              bool use_order,
+                                              double expected_rows,
                                               ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
       m_idx(idx),
       m_use_order(use_order),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 template <bool Reverse>
@@ -88,7 +89,7 @@ bool IndexScanIterator<Reverse>::Init() {
       return true;
     }
 
-    if (set_record_buffer(m_qep_tab)) {
+    if (set_record_buffer(table(), m_expected_rows)) {
       return true;
     }
   }
@@ -161,13 +162,13 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
 
   AccessPath *path;
   if (qep_tab != nullptr && qep_tab->quick() != nullptr) {
-    path = NewIndexRangeScanAccessPath(thd, table, qep_tab->quick(), qep_tab,
+    path = NewIndexRangeScanAccessPath(thd, table, qep_tab->quick(),
                                        count_examined_rows);
   } else if (qep_tab != nullptr && qep_tab->table_ref != nullptr &&
              qep_tab->table_ref->is_recursive_reference()) {
-    path = NewFollowTailAccessPath(thd, table, qep_tab, count_examined_rows);
+    path = NewFollowTailAccessPath(thd, table, count_examined_rows);
   } else {
-    path = NewTableScanAccessPath(thd, table, qep_tab, count_examined_rows);
+    path = NewTableScanAccessPath(thd, table, count_examined_rows);
   }
   if (qep_tab != nullptr && qep_tab->position() != nullptr) {
     SetCostOnTableAccessPath(*thd->cost_model(), qep_tab->position(),
@@ -261,11 +262,11 @@ void TableRowIterator::EndPSIBatchModeIfStarted() {
 
 IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
                                                QUICK_SELECT_I *quick,
-                                               QEP_TAB *qep_tab,
+                                               double expected_rows,
                                                ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_quick(quick),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 bool IndexRangeScanIterator::Init() {
@@ -284,8 +285,14 @@ bool IndexRangeScanIterator::Init() {
     return true;
   }
 
-  if (first_init && table()->file->inited && set_record_buffer(m_qep_tab))
-    return true; /* purecov: inspected */
+  // NOTE: We don't try to set up record buffers for loose index scans,
+  // because they usually cannot read expected_rows_to_fetch rows in one go
+  // anyway.
+  if (first_init && table()->file->inited && !m_quick->is_loose_index_scan()) {
+    if (set_record_buffer(table(), m_expected_rows)) {
+      return true; /* purecov: inspected */
+    }
+  }
 
   m_seen_eof = false;
   return false;
@@ -313,11 +320,12 @@ int IndexRangeScanIterator::Read() {
   return 0;
 }
 
-TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+TableScanIterator::TableScanIterator(THD *thd, TABLE *table,
+                                     double expected_rows,
                                      ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 TableScanIterator::~TableScanIterator() {
@@ -341,8 +349,9 @@ bool TableScanIterator::Init() {
     return true;
   }
 
-  if (first_init && set_record_buffer(m_qep_tab))
+  if (first_init && set_record_buffer(table(), m_expected_rows)) {
     return true; /* purecov: inspected */
+  }
 
   return false;
 }
@@ -363,11 +372,12 @@ int TableScanIterator::Read() {
   return 0;
 }
 
-FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table,
+                                       double expected_rows,
                                        ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 FollowTailIterator::~FollowTailIterator() {
@@ -408,8 +418,9 @@ bool FollowTailIterator::Init() {
       return true;
     }
 
-    if (first_init && set_record_buffer(m_qep_tab))
+    if (first_init && set_record_buffer(table(), m_expected_rows)) {
       return true; /* purecov: inspected */
+    }
 
     // The first seen record will start a new iteration.
     m_read_rows = 0;
