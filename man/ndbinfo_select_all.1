@@ -2,12 +2,12 @@
 .\"     Title: \fBndbinfo_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBINFO_SELECT_ALL\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBINFO_SELECT_ALL\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -114,7 +114,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.253.\ \&Command\-line options for the ndbinfo_select_all program
+.B Table\ \&22.254.\ \&Command\-line options for the ndbinfo_select_all program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -134,7 +134,7 @@ T{
 .PP
 \fB \fR\fB--delay=#\fR\fB \fR
 T}:T{
-Set the delay in seconds between loops. Default is 5
+Set delay in seconds between loops
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -145,7 +145,7 @@ T{
 .PP
 \fB \fR\fB-l\fR\fB \fR
 T}:T{
-Set the number of times to perform the select. Default is 1
+Set number of times to perform select
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -156,7 +156,7 @@ T{
 .PP
 \fB \fR\fB-d\fR\fB \fR
 T}:T{
-Name of the database where the table located
+Name of database where table is located
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -167,7 +167,7 @@ T{
 .PP
 \fB \fR\fB-p\fR\fB \fR
 T}:T{
-Set the degree of parallelism
+Set degree of parallelism
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -186,13 +186,6 @@ T}
 \fB\-\-delay=\fR\fBseconds\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -242,13 +235,6 @@ is set to 0 or 1\&.
 \fB\-l \fR\fB\fInumber\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
