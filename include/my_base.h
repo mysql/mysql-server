@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -505,7 +505,8 @@ is the global server default. */
 #define HA_ERR_WRONG_FILE_NAME         199  /* Invalid Filename */
 #define HA_ERR_NOT_ALLOWED_COMMAND     200  /* Operation is not allowed */
 #define HA_ERR_COMPUTE_FAILED          201  /* Compute generated column value failed */
-#define HA_ERR_LAST                    201  /* Copy of last error nr */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 202  /* Too many sub-expression in search string */
+#define HA_ERR_LAST                    202  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

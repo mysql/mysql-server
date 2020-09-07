@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1710,8 +1710,54 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
 
   DBUG_ASSERT(view_lex == thd->lex);
   thd->lex= old_lex;                            // Needed for prepare_security
-  result= !view_ref->prelocking_placeholder &&
-          view_ref->prepare_security(thd);
+
+  result= view_ref->prepare_security(thd);
+
+  if (!result && old_lex->sql_command == SQLCOM_LOCK_TABLES && view_tables)
+  {
+    /*
+      For LOCK TABLES we need to check if user which security context is used
+      for view execution has necessary privileges for acquiring strong locks
+      on its underlying tables. These are LOCK TABLES and SELECT privileges.
+      Note that we only require SELECT and not LOCK TABLES on underlying
+      tables at view creation time. And these privileges might have been
+      revoked from user since then in any case.
+    */
+    DBUG_ASSERT(view_tables_tail);
+    for (TABLE_LIST *tbl= view_tables; tbl != view_tables_tail->next_global;
+         tbl= tbl->next_global)
+    {
+      bool fake_lock_tables_acl;
+      if (check_lock_view_underlying_table_access(thd, tbl,
+                                                  &fake_lock_tables_acl))
+      {
+        result= true;
+        break;
+      }
+
+      if (fake_lock_tables_acl)
+      {
+        /*
+          Do not acquire strong metadata locks for I_S and read-only/
+          truncatable-only P_S tables (i.e. for cases when we override
+          refused LOCK_TABLES_ACL). It is safe to do this since:
+          1) For read-only/truncatable-only P_S tables under LOCK TABLES
+             we do not look at locked tables, and open them separately.
+          2) Before 8.0 all I_S tables are implemented as temporary tables
+             populated by special hook, so we do not acquire metadata
+             locks or do normal open for them at all.
+        */
+        DBUG_ASSERT(belongs_to_p_s(tbl) || tbl->schema_table);
+        tbl->mdl_request.set_type(MDL_SHARED_READ);
+        /*
+          We must override thr_lock_type (which can be a write type) as
+          well. This is necessary to keep consistency with MDL and to allow
+          concurrent access to read-only and truncatable-only P_S tables.
+        */
+        tbl->lock_type= TL_READ_DEFAULT;
+      }
+    }
+  }
 
   lex_end(view_lex);
 

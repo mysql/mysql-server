@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@ Created 2/23/1996 Heikki Tuuri
 #include "page0cur.h"
 #include "btr0cur.h"
 #include "btr0btr.h"
+#include "buf0block_hint.h"
 #include "btr0types.h"
 #include "gis0rtree.h"
 
@@ -534,13 +535,11 @@ struct btr_pcur_t{
 	whether cursor was on, before, or after the old_rec record */
 	enum btr_pcur_pos_t	rel_pos;
 	/** buffer block when the position was stored */
-	buf_block_t*	block_when_stored;
+	buf::Block_hint	block_when_stored;
 	/** the modify clock value of the buffer block when the cursor position
 	was stored */
 	ib_uint64_t	modify_clock;
-	/** the withdraw clock value of the buffer pool when the cursor
-	position was stored */
-	ulint		withdraw_clock;
+
 	/** btr_pcur_store_position() and btr_pcur_restore_position() state. */
 	enum pcur_pos_t	pos_state;
 	/** PAGE_CUR_G, ... */

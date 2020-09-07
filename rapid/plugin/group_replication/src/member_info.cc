@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -656,7 +656,7 @@ get_group_member_info_by_member_id(Gcs_member_identifier idx)
   {
     if((*it).second->get_gcs_member_id() == idx)
     {
-      member= (*it).second;
+      member= new Group_member_info(*(*it).second);
       break;
     }
   }
@@ -736,6 +736,34 @@ update_member_status(const string& uuid,
   if(it != members->end())
   {
     (*it).second->update_recovery_status(new_status);
+  }
+
+  mysql_mutex_unlock(&update_lock);
+}
+
+void
+Group_member_info_manager::
+set_member_unreachable(const std::string &uuid)
+{
+  mysql_mutex_lock(&update_lock);
+
+  map<string, Group_member_info*>::iterator it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_unreachable();
+  }
+
+  mysql_mutex_unlock(&update_lock);
+}
+
+void
+Group_member_info_manager::
+set_member_reachable(const std::string &uuid)
+{
+  mysql_mutex_lock(&update_lock);
+
+  map<string, Group_member_info*>::iterator it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_reachable();
   }
 
   mysql_mutex_unlock(&update_lock);

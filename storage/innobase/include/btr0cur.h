@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -72,9 +72,6 @@ struct btr_latch_leaves_t {
 #include "que0types.h"
 #include "row0types.h"
 #include "ha0ha.h"
-
-#define BTR_CUR_ADAPT
-#define BTR_CUR_HASH_ADAPT
 
 #ifdef UNIV_DEBUG
 /*********************************************************//**

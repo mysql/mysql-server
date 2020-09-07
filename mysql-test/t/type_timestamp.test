@@ -403,6 +403,7 @@ INSERT INTO t1 VALUES( '2010-02-01 09:31:02' );
 INSERT INTO t1 VALUES( '2010-02-01 09:31:03' );
 INSERT INTO t1 VALUES( '2010-02-01 09:31:04' );
 
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 SELECT * FROM t1 WHERE '2010-02-01 09:31:02.0' <= a;
 SELECT * FROM t1 WHERE a <= '2010-02-01 09:31:02.0';
@@ -427,6 +428,8 @@ INSERT INTO t2 VALUES( '2010-02-01 09:31:09' );
 INSERT INTO t2 VALUES( '2010-02-01 09:31:10' );
 INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
 
+
+ANALYZE TABLE t2;
 --echo # The bug would cause the range optimizer's comparison to use an open
 --echo # interval here. This reveals itself only in the number of reads 
 --echo # performed.

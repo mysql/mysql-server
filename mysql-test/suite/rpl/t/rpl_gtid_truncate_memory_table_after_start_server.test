@@ -1,35 +1,36 @@
 ################################################################################
 # BUG#21045848 XA+MEMORY TABLE: POST SERVER RESTART 'XA COMMIT'
-#              IS OVERRIDDEN BY 'DELETE' CMD
+#              IS OVERRIDDEN BY 'TRUNCATE' CMD
 #
 # Memory table's data will be lost after server restarts. To keep the data
 # consistency between master and slave, it just binlogs
-# 'DELETE FROM `db`.`table_name`' when the memory table is locked first time.
-# So DELETE statement could be binlogged in many statements.
+# 'TRUNCATE TABLE `db`.`table_name`' when the memory table is locked first time.
+# So TRUNCATE statement could be binlogged in many statements.
 #
 # Because it was not handled correctly, it caused below problems:
 ## - COM_FIELD_LIST
-#   it didn't flush binlog cache to binlog file. So the DELETEs were not
+#   it didn't flush binlog cache to binlog file. So the TRUNCATEs were not
 #   binlogged in COM_FIELD_LIST, it was binlogged with next statement together.
 #
 # - CREATE TABLE ... LIKE memory_table
 # - CREATE TABLE ... SELECT memory_table
 #   They were binlogged like:
 #   GTID_log_event | Anonymous_gtid_log_event
-#   DELETE FROM memory_table
+#   TRUNCATE FROM memory_table
 #   CREATE TABLE ... LIKE memory_table | CREATE TABLE ... SELECT memory_table
 #
 #   Both statements shared the same gtid event. That was not correct.
 #
-# - DELETE was binlogged without BEGIN and COMMIT
-#   It caused some DML binlogged without BEGIN and COMMIT.  For example:
+# - TRUNCATE is binlogged with a GTID but the DML causing TRUNCATE memory
+#   table is using the same GTID of truncate.
+#   It also caused some DML binlogged without BEGIN and COMMIT.  For example:
 #   INSERT INTO myisam_t1 SELECT * FROM memory_table
 #   it was binlogged as:
 #   GTID_log_event | Anonymous_gtid_log_event
-#   DELETE FROM memory_table
+#   TRUNCATE FROM memory_table
 #   INSERT INTO myisam_t1 SELECT * FROM memory_table
 #
-# The test cases verify above statements can binlog 'DELETE' statement
+# The test cases verify above statements can binlog 'TRUNCATE' statement
 # correctly. A few extra test cases were added to verify some special
 # situations that updating or modifying a memory table.
 #
@@ -116,9 +117,8 @@ XA PREPARE 'xa1';
 --let $gtid_step_count= 3
 --source include/gtid_step_assert.inc
 
---let $limit= 0,8
---let $event_sequence= Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT
---let $event_sequence= $event_sequence # $event_sequence
+--let $limit= 0,4
+--let $event_sequence= #Gtid # !Q(TRUNCATE.*) #Gtid # !Q(TRUNCATE.*)
 --source include/assert_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
@@ -126,7 +126,7 @@ XA PREPARE 'xa1';
 --source include/rpl_diff.inc
 
 --echo #
---echo # Test case 2: verify COM_FIELD_LIST can binlog DELETE FROM mem_xx
+--echo # Test case 2: verify COM_FIELD_LIST can binlog TRUNCATE FROM mem_xx
 --echo #              correctly
 --echo #
 --source include/rpl_connection_master.inc
@@ -140,12 +140,12 @@ XA PREPARE 'xa1';
 --source include/gtid_step_assert.inc
 
 --source include/sync_slave_sql_with_master.inc
-# DELETE FROM mem_xx have been applied the tables should be empty.
+# TRUNCATE FROM mem_xx have been applied the tables should be empty.
 SELECT * FROM mem_t1;
 SELECT * FROM mem_t2;
 
 --echo #
---echo # Test case 3: verify DELETE FROM mem_xx can be binlogged correctly
+--echo # Test case 3: verify TRUNCATE FROM mem_xx can be binlogged correctly
 --echo #              in CREATE TABLE ... LIKE
 --source include/rpl_connection_master.inc
 --source include/gtid_step_reset.inc
@@ -157,15 +157,15 @@ CREATE TABLE t3 LIKE db2.mem_t1;
 --source include/gtid_step_assert.inc
 
 --let $limit= 0,4
---let $event_sequence= Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT
+--let $event_sequence= #Gtid # !Q(TRUNCATE.*) #Gtid # !Q(CREATE.*)
 --source include/assert_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
-# DELETE FROM mem_xx have been applied the tables should be empty.
+# TRUNCATE FROM mem_xx have been applied the tables should be empty.
 SELECT * FROM db2.mem_t1;
 
 --echo #
---echo # Test case 4: verify DELETE FROM mem_xx can be binlogged correctly
+--echo # Test case 4: verify TRUNCATE FROM mem_xx can be binlogged correctly
 --echo #              in DML
 --source include/rpl_connection_master.inc
 --source include/gtid_step_reset.inc
@@ -177,16 +177,17 @@ INSERT INTO t3 SELECT * FROM db2.mem_t2 UNION SELECT 10;
 --let $gtid_step_count= 2
 --source include/gtid_step_assert.inc
 
-#--let $limit= 0,4
-#--let $event_sequence= Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT
+--let $limit= 0,7
+--let $event_sequence= #Gtid # !Q(TRUNCATE.*) #Gtid # !Begin # !Insert # !Commit
 --source include/assert_binlog_events.inc
+--source include/save_binlog_position.inc
 
 --source include/sync_slave_sql_with_master.inc
-# DELETE FROM mem_xx have been applied the tables should be empty.
+# TRUNCATE FROM mem_xx have been applied the tables should be empty.
 SELECT * FROM db2.mem_t2;
 
 --echo #
---echo # Test case 5: verify DELETE FROM mem_xx can be binlogged correctly
+--echo # Test case 5: verify TRUNCATE FROM mem_xx can be binlogged correctly
 --echo #              in a trigger
 
 --source include/rpl_connection_master.inc
@@ -197,15 +198,16 @@ INSERT INTO t2 VALUES(11);
 
 --let $gtid_step_count= 2
 --source include/gtid_step_assert.inc
-
+--let $limit= 0,4
+--let $event_sequence= #Gtid # !Q(TRUNCATE.*) #Gtid # !Begin
 --source include/assert_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
-# DELETE FROM mem_xx have been applied the tables should be empty.
+# TRUNCATE FROM mem_xx have been applied the tables should be empty.
 SELECT * FROM db2.mem_t3;
 
 --echo #
---echo # Test case 6: Verify DELETE FROM mem_xx can be binlog correctly
+--echo # Test case 6: Verify TRUNCATE FROM mem_xx can be binlog correctly
 --echo #              when ALTER the memory table.
 --source include/rpl_connection_master.inc
 --source include/gtid_step_reset.inc
@@ -215,14 +217,16 @@ ALTER TABLE db2.mem_t4 ADD COLUMN c2 INT;
 
 --let $gtid_step_count= 2
 --source include/gtid_step_assert.inc
+--let $limit= 0,4
+--let $event_sequence= #Gtid # !Q(TRUNCATE.*) #Gtid # !Q(ALTER.*)
 --source include/assert_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
-# DELETE FROM mem_xx have been applied the tables should be empty.
+# TRUNCATE FROM mem_xx have been applied the tables should be empty.
 SELECT * FROM db2.mem_t4;
 
 --echo #
---echo # Test case 7: Verify DELETE FROM mem_xx can be binlog correctly
+--echo # Test case 7: Verify TRUNCATE FROM mem_xx can be binlog correctly
 --echo #              when DROP the memory table.
 --source include/rpl_connection_master.inc
 --source include/gtid_step_reset.inc

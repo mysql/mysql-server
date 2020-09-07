@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,7 +271,6 @@ static void handle_bootstrap_impl(THD *thd)
       break;
 
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-    thd->get_transaction()->free_memory(MYF(MY_KEEP_PREALLOC));
 
     /*
       If the last statement has enabled the session binary logging while
