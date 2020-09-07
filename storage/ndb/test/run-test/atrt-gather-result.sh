@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,9 @@ if [ -d result ]; then
   rm -rf result
 fi
 
-mkdir result
-cd result
+if [ -d coverage_result ]; then
+  rm -rf coverage_result
+fi
 
 name="`uname -n | sed 's!\..*!!g'`"
 cygwin="`uname | grep -ic cygwin || true`"
@@ -65,29 +66,33 @@ while [ $# -gt 0 ]; do
   fi
 
   set +e
-  #
-  # The below commented out lines can be used if we want to keep the file
-  # as part of the result from a faulty test in autotest. The first line
-  # also keeps the BACKUP files as part of a faulty test case. These lines
-  # can be used in special autotest runs when a the file contents are
-  # needed to debug issues in test cases.
-  #
-  # rsync -a "$SRC_PATH" .
-  # rsync -a --exclude='BACKUP' "$SRC_PATH" .
-  # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' "$SRC_PATH" .
-  # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' --exclude='ndb_*_fs/*.dat' "$SRC_PATH" .
-  # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$SRC_PATH" .
-  if [ "$GATHER_TYPE" = "--result" ]; then
-    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' --exclude='mysqld.*/data' "$SRC_PATH" .
+
+  if [ "${GATHER_TYPE}" = "--result" ]; then
+    mkdir -p result
+    #
+    # The below commented out lines can be used if we want to keep the file
+    # as part of the result from a faulty test in autotest. The first line
+    # also keeps the BACKUP files as part of a faulty test case. These lines
+    # can be used in special autotest runs when a the file contents are
+    # needed to debug issues in test cases.
+    #
+    # rsync -a "$SRC_PATH" result/
+    # rsync -a --exclude='BACKUP' "$SRC_PATH" result/
+    # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' "$SRC_PATH" result/
+    # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' --exclude='ndb_*_fs/*.dat' "$SRC_PATH" result/
+    # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$SRC_PATH" result/
+    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' --exclude='mysqld.*/data' \
+      --exclude='gcov' "${SRC_PATH}" result/
     RESULT="$?"
-  elif [ "$GATHER_TYPE" = "--coverage" ]; then
-    mkdir -p "coverage/$HOST"
-    rsync -am --include "*.gcda" --include "*/" --exclude "*" "$SRC_PATH" "coverage/$HOST"
+  elif [ "${GATHER_TYPE}" = "--coverage" ]; then
+    mkdir -p "coverage_result/${HOST}/"
+    rsync -am --include "*.gcda" --include "*/" --exclude "*" "${SRC_PATH}" \
+      "coverage_result/${HOST}/"
     RESULT="$?"
   fi
   set -e
   if [ ${RESULT} -ne 0 -a ${RESULT} -ne 24 ] ; then
-    echo "rsync error: $RESULT"
+    echo "rsync error: ${RESULT}"
     exit 1
   fi 
   shift

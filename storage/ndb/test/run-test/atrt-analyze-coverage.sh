@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2020 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020 Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,68 +23,61 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Input parameters:
-#  * RESULTS_BASE_DIR = Directory holding "result/result.N" directories.
+#  * RESULTS_BASE_DIR = Directory holding "result.N" directories.
 #  * BUILD_DIR = Directory where source code was built.
-#  * LCOV_FILES_DIR = Directory that stores lcov file of each test case.
-#  * TEST_CASE = Test case name and number are appended to form this
-#     parameter. This parameter will be used as a parameter to --test-name(-t)
-#     option in lcov tool.
-
-# Copies ".gcno" files into result/coverage/hostDir that holds ".gcda" files
+#  * TEST_CASE = Test case number is used to identify info files created
+#     for particular test case.
+#
+# Copies ".gcno" files into coverage_result/hostDir that holds ".gcda" files
 # after atrt-gather-result.sh is run with --coverage parameter. lcov is tool
-# is run to obtain ".info" files for each host and are stored within
-# result/coverage directory.
+# is run to obtain ".info" files for each host. ".info" files from each host is
+# combined to obtain test coverage info which will be stored in
+# "test_coverage" directory as test_coverage_<test_number>.info.
 
 set -e
 
-if [ $# -lt 4 ]; then
-  echo "Usage: atrt-analyze-coverage results-base-dir build-dir" \
-       "lcov-files-dir test-case-name-number" >&2
+if [ $# -lt 3 ]; then
+  echo "Usage: ${0} results-base-dir build-dir test-case-number" >&2
   exit 1
 fi
 
 RESULTS_BASE_DIR="${1}"
 BUILD_DIR="${2}"
-LCOV_FILES_DIR="${3}"
-TEST_CASE="${4}"
-shift 4
+TEST_CASE="${3}"
+shift 3
 
-if [ ! -d "$RESULTS_BASE_DIR/result/coverage/" ]; then
-  echo "Directory storing coverage files not found" >&2
-  exit 1
-fi
-
-GCNO_FILES=$(find "$BUILD_DIR" -name "*.gcno" | wc -l)
-if [ "$GCNO_FILES" -eq 0 ]; then
+GCNO_FILES=$(find "${BUILD_DIR}" -name "*.gcno" | wc -l)
+if [ "${GCNO_FILES}" -eq 0 ]; then
   echo "Gcno files are not present in build directory, coverage cannot" \
        "be computed." >&2
   exit 1
 fi
 
-mkdir -p "$LCOV_FILES_DIR"
+TEST_COVERAGE_DIR="${RESULTS_BASE_DIR}/test_coverage"
+mkdir -p "${TEST_COVERAGE_DIR}"
 
-cd "$RESULTS_BASE_DIR/result/coverage/"
 RESOURCES_TO_CLEANUP=''
-trap 'rm -rf $RESOURCES_TO_CLEANUP' EXIT
-if [ ! -f "$LCOV_FILES_DIR/baseline.info" ]; then
-  RESOURCES_TO_CLEANUP+=("$LCOV_FILES_DIR/baseline.info")
-  lcov -c --initial -d "$BUILD_DIR" -o "$LCOV_FILES_DIR/baseline.info"
-fi
+trap 'rm -rf ${RESOURCES_TO_CLEANUP}' EXIT
+
+cd "${RESULTS_BASE_DIR}/coverage_result/"
 
 for host_dir in */; do
-  host_dir=${host_dir%%/}
-  RESOURCES_TO_CLEANUP+="$RESULTS_BASE_DIR/result/coverage/$host_dir "
-  find "$host_dir" -name '*.gcda' -printf '%P\n' | \
-    sed -e 's/[.]gcda$/.gcno/' > "$host_dir/gcno-files"
-  rsync -am --files-from="$host_dir/gcno-files" "$BUILD_DIR" "$host_dir"
-  lcov -d "$host_dir" -c -t "$TEST_CASE" -o "$host_dir.info"
+  host_dir="${host_dir%%/}"
+  RESOURCES_TO_CLEANUP+="${RESULTS_BASE_DIR}/coverage_result/${host_dir} "
+
+  find "${host_dir}" -name '*.gcda' -printf '%P\n' | \
+    sed -e 's/[.]gcda$/.gcno/' > "${host_dir}/gcno-files"
+
+  rsync -am --files-from="${host_dir}/gcno-files" "${BUILD_DIR}" "${host_dir}"
+  lcov -c -d "${host_dir}" -o "${host_dir}.info"
 done
 
+# Combine host.info files
 find . -name "*.info" -exec echo "-a {}" \; | \
-  xargs -r -x lcov -o "$LCOV_FILES_DIR/$TEST_CASE.info"
+  xargs -r -x lcov -o "${TEST_COVERAGE_DIR}/test_coverage.${TEST_CASE}.info"
 RESULT="$?"
 
-if [ "$RESULT" -ne 0 ]; then
-  echo "Coverage Analysis Failed: $RESULT" >&2
+if [ "${RESULT}" -ne 0 ]; then
+  echo "Coverage Analysis Failed: ${RESULT}" >&2
   exit 1
 fi

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -473,8 +473,8 @@ fi
 [ -f log.txt ] && mv log.txt $res_dir
 [ -f report.txt ] && mv report.txt $res_dir
 [ "`find . -name 'result*'`" ] && mv result* $res_dir
-[ -f coverage.info ] && mv coverage.info $res_dir
-[ -d coverage_report ] && mv coverage_report "$res_dir"
+[ -f coverage.info ] && mv coverage.info "${res_dir}"
+[ -d test_coverage ] && mv test_coverage "${res_dir}"
 cd $res_dir
 
 echo "date=$DATE" > info.txt

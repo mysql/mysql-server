@@ -48,7 +48,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 9
+#define ATRT_VERSION_NUMBER 10
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -140,11 +140,10 @@ void test_case_results(TestResult *, const atrt_testcase &);
 void test_case_coverage_results(TestResult *,
                                 atrt_config &,
                                 atrt_coverage_config &,
-                                const atrt_testcase &);
+                                int);
 bool gather_coverage_results(atrt_config &,
                              atrt_coverage_config &,
-                             const atrt_testcase &);
-void set_coverage_parameters(atrt_coverage_config &, const char *, const char *);
+                             int);
 int compute_path_level(const char *);
 int compute_test_coverage(atrt_coverage_config &, const char *);
 
@@ -301,7 +300,7 @@ int main(int argc, char **argv) {
                         "in --build-dir parameter");
       return atrt_exit(ATRT_FAILURE);
     }
-    set_coverage_parameters(coverage_config, g_basedir, g_build_dir);
+    coverage_config.m_coverage_prefix_strip = compute_path_level(g_build_dir);
   }
 
   if (g_mt != 0) {
@@ -916,7 +915,7 @@ TestResult run_test_case(ProcessManagement &processManagement,
 
     if (coverage_config.m_coverage) {
       test_case_coverage_results(&test_result, g_config,
-                                 coverage_config, testcase);
+                                 coverage_config, testcase.test_no);
     }
   }
 
@@ -1010,38 +1009,17 @@ void test_case_results(TestResult *test_result, const atrt_testcase &testcase) {
   g_logger.debug("Finished result gathering");
 }
 
-void set_coverage_parameters(atrt_coverage_config &coverage_config,
-                             const char* basedir, const char* builddir) {
-  coverage_config.m_coverage_prefix_strip = compute_path_level(builddir);
-  coverage_config.m_lcov_files_dir.appfmt("%s/lcov-files", basedir);
-}
-
 void test_case_coverage_results(TestResult *test_result,
                                 atrt_config &config,
                                 atrt_coverage_config &coverage_config,
-                                const atrt_testcase &testcase) {
+                                int test_number) {
   g_logger.debug("Gathering coverage files");
 
-  if (!gather_coverage_results(config, coverage_config, testcase)) {
+  if (!gather_coverage_results(config, coverage_config, test_number)) {
     g_logger.critical("Failed to gather coverage result after test run");
     test_result->result = ERR_CRITICAL;
   }
-
-  BaseString res_dir;
-  struct stat buf;
-  res_dir.assfmt("result.%d", testcase.test_no);
-  int rename_result = 0;
-  if (lstat(res_dir.c_str(), &buf) == 0) {
-    res_dir.append("/coverage");
-    rename_result = rename("result/coverage", res_dir.c_str());
-  } else {
-    rename_result = rename("result", res_dir.c_str());
-  }
-  if (rename_result != 0) {
-    g_logger.critical("Failed to rename result directory");
-    test_result->result = ERR_CRITICAL;
-  }
-  remove_dir("result", true);
+  remove_dir("coverage_result", true);
 
   g_logger.debug("Finished coverage files gathering");
 }
@@ -1061,8 +1039,6 @@ int compute_path_level(const char *g_build_dir) {
 int compute_test_coverage(atrt_coverage_config &coverage_config,
                           const char *build_dir) {
   BaseString compute_coverage_progname = g_compute_coverage_progname;
-  compute_coverage_progname.appfmt(" %s",
-                                   coverage_config.m_lcov_files_dir.c_str());
   compute_coverage_progname.appfmt(" %s", g_cwd);
   compute_coverage_progname.appfmt(" %s", build_dir);
   const int result = sh(compute_coverage_progname.c_str());
@@ -1405,7 +1381,7 @@ bool setup_hosts(atrt_config &config) {
 
 bool gather_coverage_results(atrt_config &config,
                              atrt_coverage_config &coverage_config,
-                             const atrt_testcase &testcase) {
+                             int test_number) {
   BaseString gather_progname = g_gather_progname;
 
   gather_progname.appfmt(" --coverage");
@@ -1427,15 +1403,7 @@ bool gather_coverage_results(atrt_config &config,
   BaseString analyze_coverage_progname = g_analyze_coverage_progname;
   analyze_coverage_progname.appfmt(" %s", g_cwd);
   analyze_coverage_progname.appfmt(" %s", g_build_dir);
-  analyze_coverage_progname.appfmt(" %s",
-                                   coverage_config.m_lcov_files_dir.c_str());
-
-  BaseString test_case;
-  Vector<BaseString> temp;
-  testcase.m_name.split(temp, " ;");
-  test_case.append(temp,"_");
-  test_case.appfmt("_%d", testcase.test_no);
-  analyze_coverage_progname.appfmt(" %s", test_case.c_str());
+  analyze_coverage_progname.appfmt(" %d", test_number);
   g_logger.debug("system(%s)", analyze_coverage_progname.c_str());
   const int r2 = sh(analyze_coverage_progname.c_str());
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,6 @@ struct atrt_config {
 
 struct atrt_coverage_config {
   int m_coverage_prefix_strip;
-  BaseString m_lcov_files_dir;
   bool m_coverage;
 };
 
