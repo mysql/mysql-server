@@ -4423,6 +4423,7 @@ longlong udf_handler::val_int(bool *null_value) {
     *null_value = true;
     return 0LL;
   }
+  DEBUG_SYNC(current_thd, "execute_uninstall_component");
   Udf_func_longlong func = (Udf_func_longlong)u_d->func;
   longlong tmp = func(&initid, &f_args, &is_null, &error);
   if (is_null || error) {
