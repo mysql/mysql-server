@@ -1689,6 +1689,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_INTERNAL_ERROR);
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
 		return(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE);
+	case DB_FTS_TOO_MANY_NESTED_EXP:
+		 return(HA_ERR_FTS_TOO_MANY_NESTED_EXP);
 	}
 }
 
