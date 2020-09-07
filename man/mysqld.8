@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD\FR" "8" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD\FR" "8" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,7 +34,7 @@ mysqld \- the MySQL server
 \fBmysqld [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
-\fBmysqld\fR, also known as MySQL Server, is the main program that does most of the work in a MySQL installation\&. MySQL Server manages access to the MySQL data directory that contains databases and tables\&. The data directory is also the default location for other information such as log files and status files\&.
+\fBmysqld\fR, also known as MySQL Server, is a single multithreaded program that does most of the work in a MySQL installation\&. It does not spawn additional processes\&. MySQL Server manages access to the MySQL data directory that contains databases and tables\&. The data directory is also the default location for other information such as log files and status files\&.
 .if n \{\
 .sp
 .\}
@@ -52,7 +52,7 @@ Some installation packages contain a debugging version of the server named
 \fBmysqld\-debug\fR\&. Invoke this version instead of
 \fBmysqld\fR
 for debugging support, memory allocation checking, and trace file support (see
-Section\ \&29.5.1.2, \(lqCreating Trace Files\(rq)\&.
+Section\ \&5.9.1.2, \(lqCreating Trace Files\(rq)\&.
 .sp .5v
 .RE
 .PP

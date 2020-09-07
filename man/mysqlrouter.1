@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlrouter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/30/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "05/30/2020" "MySQL 8\&.0" "MySQL Router"
+.TH "\FBMYSQLROUTER\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -58,7 +58,7 @@ mysqlrouter Option Descriptions
 .PP
 MySQL Router accepts command line options that are passed into
 \fBmysqlrouter\fR
-to affect its behavior, or to bootstrap router based on an InnoDB cluster\&.
+to affect its behavior, or to bootstrap router based on an InnoDB Cluster\&.
 .PP
 When starting Router, you can optionally use
 \fB\-\-config\fR
@@ -81,13 +81,6 @@ mysqlrouter Option Summariesmysqlrouter Option Descriptions
 \fB\-V\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -103,7 +96,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 shell> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.21 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.0\&.22 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -122,13 +115,6 @@ MySQL Router v8\&.0\&.21 on Linux (64\-bit) (GPL community edition)
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -188,13 +174,6 @@ The configuration section shows the order for the paths that may be used for rea
 \fB\-B \fR\fB\fIURI\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -209,7 +188,7 @@ String
 T}
 .TE
 .sp 1
-The main option to perform a bootstrap of MySQL Router by connecting to the InnoDB cluster metadata server at the URI provided\&. MySQL Router configures itself based on the information retrieved from the InnoDB cluster metadata server\&. A password is prompted for if needed\&. If a username is not provided as part of the URI then the default user name "root" is used\&. See
+The main option to perform a bootstrap of MySQL Router by connecting to the InnoDB Cluster metadata server at the URI provided\&. MySQL Router configures itself based on the information retrieved from the InnoDB Cluster metadata server\&. A password is prompted for if needed\&. If a username is not provided as part of the URI then the default user name "root" is used\&. See
 \m[blue]\fBConnecting Using URI\-Like Connection Strings\fR\m[]\&\s-2\u[1]\d\s+2
 for information on using a path to specify a server instance\&.
 .if n \{\
@@ -239,9 +218,9 @@ of "system"\&. If additional instances are desired, use the
 \fB\-\-directory\fR
 option to create self\-contained MySQL Router installations\&.
 .sp
-\fIURI\fR: a server instance from an InnoDB cluster to fetch metadata information from\&. If the provided
+\fIURI\fR: a server instance from an InnoDB Cluster to fetch metadata information from\&. If the provided
 \fIURI\fR
-is a read\-only instance, MySQL Router automatically reconnects to a read\-write instance in the InnoDB cluster so it can register MySQL Router\&.
+is a read\-only instance, MySQL Router automatically reconnects to a read\-write instance in the InnoDB Cluster so it can register MySQL Router\&.
 .sp
 If a configuration file already exists when you start MySQL Router with the
 \fB\-\-bootstrap\fR, the existing
@@ -372,13 +351,6 @@ T}
 \fB\-\-bootstrap\-socket \fR\fB\fIsocket_name\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -423,13 +395,6 @@ This option is not available on Windows\&.
 \fB\-d \fR\fB\fIdir_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -487,13 +452,6 @@ is also enabled then the generated socket files are also added to this directory
 \fB\-\-master\-key\-writer\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -592,13 +550,6 @@ master\-key\-writer=writer\&.sh
 \fB\-\-master\-key\-reader\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -700,13 +651,6 @@ master\-key\-writer=writer\&.sh
 \fB\-\-strict\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -743,13 +687,6 @@ user verification check to stop the bootstrap process rather than only emit a wa
 \fB\-\-account\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -816,13 +753,6 @@ with the password
 \fB\-\-account\-create\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -914,13 +844,6 @@ is not used\&.
 \fB\-\-account\-host\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1007,13 +930,6 @@ shell> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1 \-\-acco
 \fB\-\-conf\-use\-sockets\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -1062,13 +978,6 @@ This option is not available on Windows\&.
 \fB\-\-conf\-use\-gr\-notifications\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -1101,13 +1010,6 @@ for more information\&.
 \fB\-\-pid\-file \fR\fB\fIpath\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1156,13 +1058,6 @@ is not specified, then the following cause Router to fail: the \-\-pid\-file alr
 \fB\-\-report\-host\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1201,13 +1096,6 @@ The supplied hostname is written to the host_name field of the mysql_innodb_clus
 \fB\-\-conf\-skip\-tcp\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -1239,13 +1127,6 @@ This option is not available on Windows\&.
 \fB\-\-conf\-base\-port \fR\fB\fIport_num\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -1307,13 +1188,6 @@ X protocol connections to cluster \*(AqdevCluster\*(Aq:
 \fB\-\-conf\-bind\-address \fR\fB\fIaddress\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1375,13 +1249,6 @@ is not defined\&.
 \fB\-\-read\-timeout \fR\fB\fInum_seconds\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1431,13 +1298,6 @@ namespace\&.
 \fB\-\-connect\-timeout \fR\fB\fInum_seconds\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1492,13 +1352,6 @@ namespace\&.
 \fB\-u {\fR\fB\fIuser_name\fR\fR\fB|\fR\fB\fIuser_id\fR\fR\fB}\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1560,13 +1413,6 @@ This option is not available on Windows\&.
 \fB\-\-name \fR\fB\fIrouter_name\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1603,13 +1449,6 @@ On initial bootstrap, specifies a symbolic name for a self\-contained Router ins
 \fB\-\-force\-password\-validation\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -1640,13 +1479,6 @@ This option ensures that password validation (validate_password) is not skipped 
 \fB\-\-password\-retries \fR\fB\fInum_retries\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1699,13 +1531,6 @@ MySQL Server plugin is disabled (this plugin allows bypassing validation)\&.
 \fB\-\-force\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -1728,13 +1553,6 @@ Force a reconfiguration over a previously configured router instance on the host
 \fB\-\-ssl\-mode \fR\fB\fImode\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -1805,13 +1623,6 @@ The configuration file equivalent is documented separately at
 \fB\-\-ssl\-cert \fR\fB\fIfile_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1851,13 +1662,6 @@ Like
 \fB\-\-ssl\-key \fR\fB\fIfile_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1897,13 +1701,6 @@ Like
 \fB\-\-ssl\-cipher \fR\fB\fIciphers\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1937,13 +1734,6 @@ A colon\-separated (":") list of SSL ciphers to allow, if SSL is enabled\&.
 \fB\-\-tls\-version \fR\fB\fIversions\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -1977,13 +1767,6 @@ A comma\-separated (",") list of TLS versions to request, if SSL is enabled\&.
 \fB\-\-ssl\-ca \fR\fB\fIfile_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -2017,13 +1800,6 @@ Path to the SSL CA file to verify a server\*(Aqs certificate against\&.
 \fB\-\-ssl\-capath \fR\fB\fIdir_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -2057,13 +1833,6 @@ Path to directory containing the SSL CA files to verify a server\*(Aqs certifica
 \fB\-\-ssl\-crl \fR\fB\fIfile_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -2097,13 +1866,6 @@ Path to the SSL CRL file to use when verifying a server\*(Aqs certificate\&.
 \fB\-\-ssl\-crlpath \fR\fB\fIdir_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -2138,13 +1900,6 @@ Path to the directory containing SSL CRL files to use when verifying a server\*(
 \fB\-c \fR\fB\fIfile_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -2175,13 +1930,6 @@ files are overwritten\&.
 \fB\-a \fR\fB\fIfile_path\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -2206,13 +1954,6 @@ This configuration file is read after the main configuration file\&. If there ar
 \fB\-\-install\-service\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -2247,13 +1988,6 @@ This option is only available on Windows\&.
 \fB\-\-install\-service\-manual\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -2285,13 +2019,6 @@ This option is only available on Windows\&.
 \fB\-\-remove\-service\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -2322,13 +2049,6 @@ This option is only available on Windows\&.
 \fB\-\-service\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -2359,13 +2079,6 @@ This option is only available on Windows\&.
 \fB\-\-update\-credentials\-section\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -2394,13 +2107,6 @@ This option is only available on Windows, and refers to its password vault\&.
 \fB\-\-remove\-credentials\-section \fR\fB\fIsection_name\fR\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -2431,13 +2137,6 @@ This option is only available on Windows, and refers to its password vault\&.
 \fB\-\-clear\-all\-credentials\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l.
 T{
@@ -2455,6 +2154,94 @@ T}
 Clear the password vault by removing all credentials stored in it\&.
 .sp
 This option is only available on Windows, and refers to its password vault\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-disable\-rest\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--disable-rest
+T}
+T{
+Introduced
+T}:T{
+8.0.22
+T}
+.TE
+.sp 1
+By default, configuration details for the
+MySQL Router REST API
+web service functionality are added to the generated
+mysqlrouter\&.conf
+file at bootstrap; and this parameter means those details are not added\&. This does not disable REST API functionality, as the REST API functionality can be manually configured (to enable it) later on\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-https\-port\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--https-port value
+T}
+T{
+Introduced
+T}:T{
+8.0.22
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+8443
+T}
+T{
+Minimum Value
+T}:T{
+1
+T}
+T{
+Maximum Value
+T}:T{
+65535
+T}
+.TE
+.sp 1
+Optionally define the HTTP server\*(Aqs
+\fBport\fR
+for the MySQL Router REST API under the [http_server] section in generated
+mysqlrouter\&.conf
+at bootstrap\&. It defaults to 8443\&. Availability of the port is not checked\&.
 .RE
 .SH "COPYRIGHT"
 .br

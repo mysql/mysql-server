@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_redo_log_reader\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_REDO_LOG_READER\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_REDO_LOG_READER\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.267.\ \&Command\-line options for the ndb_redo_log_reader program
+.B Table\ \&22.268.\ \&Command\-line options for the ndb_redo_log_reader program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -127,7 +127,7 @@ T{
 .PP
 \fB \fR\fB-mbyteheaders\fR\fB \fR
 T}:T{
-Show only the first page header of every megabyte in the file
+Show only first page header of each megabyte in file
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -228,13 +228,6 @@ The name of the file to be read may be followed by one or more of the options li
 \fB\-dump\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -268,13 +261,6 @@ Print dump info\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -308,13 +294,6 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l.
 T{
 Command-Line Format
@@ -337,13 +316,6 @@ T}
 \fB\-lap\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -377,13 +349,6 @@ Provide lap info, with max GCI started and completed\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -432,13 +397,6 @@ is an integer in the range 0 to 15, inclusive\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -472,13 +430,6 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -512,13 +463,6 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -552,13 +496,6 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -607,13 +544,6 @@ is an integer in the range 0 to 31, inclusive\&.
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.
@@ -647,13 +577,6 @@ T}
 .\}
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l
@@ -703,13 +626,6 @@ is an integer between 12 and 8191, inclusive\&.
 \fB\-twiddle\fR
 .TS
 allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
 lB l
 lB l
 lB l.

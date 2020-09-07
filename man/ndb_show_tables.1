@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,7 +51,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.274.\ \&Command\-line options for the ndb_show_tables program
+.B Table\ \&22.275.\ \&Command\-line options for the ndb_show_tables program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -158,7 +158,6 @@ ndb_show_tables [\-c \fIconnection_string\fR]
 .\}
 \fB\-\-database\fR,
 \fB\-d\fR
-.sp
 Specifies the name of the database in which the desired table is found\&. If this option is given, the name of a table must follow the database name\&.
 .sp
 If this option has not been specified, and no tables are found in the
@@ -178,7 +177,6 @@ issues a warning\&.
 .\}
 \fB\-\-loops\fR,
 \fB\-l\fR
-.sp
 Specifies the number of times the utility should execute\&. This is 1 when this option is not specified, but if you do use the option, you must supply an integer argument for it\&.
 .RE
 .sp
@@ -192,7 +190,6 @@ Specifies the number of times the utility should execute\&. This is 1 when this 
 .\}
 \fB\-\-parsable\fR,
 \fB\-p\fR
-.sp
 Using this option causes the output to be in a format suitable for use with
 LOAD DATA\&.
 .RE
@@ -206,7 +203,6 @@ LOAD DATA\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-show\-temp\-status\fR
-.sp
 If specified, this causes temporary tables to be displayed\&.
 .RE
 .sp
@@ -220,7 +216,6 @@ If specified, this causes temporary tables to be displayed\&.
 .\}
 \fB\-\-type\fR,
 \fB\-t\fR
-.sp
 Can be used to restrict the output to one type of object, specified by an integer type code as shown here:
 .sp
 .RS 4
@@ -271,7 +266,6 @@ database objects to be listed (the default)\&.
 .\}
 \fB\-\-unqualified\fR,
 \fB\-u\fR
-.sp
 If specified, this causes unqualified object names to be displayed\&.
 .RE
 .if n \{\

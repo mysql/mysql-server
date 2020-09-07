@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlshow\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSHOW\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLSHOW\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -171,10 +171,10 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 \fB\-\-compress\fR,
 \fB\-C\fR
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
-the section called \(lqLegacy Connection Compression Configuration\(rq\&.
+the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
 .RS 4
@@ -192,7 +192,7 @@ system variable\&. The default value is
 uncompressed\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -577,8 +577,8 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
+The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -696,7 +696,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.6, \(lqFIPS Support\(rq\&.
+Section\ \&6.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -861,7 +861,7 @@ zstd
 compression\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE

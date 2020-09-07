@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_size.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SIZE\&.PL\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_SIZE\&.PL\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -101,7 +101,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.275.\ \&Command\-line options for the ndb_size\&.pl program
+.B Table\ \&22.276.\ \&Command\-line options for the ndb_size\&.pl program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -128,8 +128,8 @@ T{
 .PP
 \fB \fR\fB--database=dbname\fR\fB \fR
 T}:T{
-The database or databases to examine; accepts a comma-delimited list;
-              the default is ALL (use all databases found on the server)
+Database or databases to examine; a comma-delimited list; default is ALL
+              (use all databases found on server)
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -147,7 +147,7 @@ T{
 .PP
 \fB \fR\fB--socket=file_name\fR\fB \fR
 T}:T{
-Specify a socket to connect to
+Specify socket to connect to
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -156,7 +156,7 @@ T{
 .PP
 \fB \fR\fB--user=string\fR\fB \fR
 T}:T{
-Specify a MySQL user name
+Specify MySQL user name
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -165,7 +165,7 @@ T{
 .PP
 \fB \fR\fB--password=string\fR\fB \fR
 T}:T{
-Specify a MySQL user password
+Specify MySQL user password
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -183,7 +183,7 @@ T{
 .PP
 \fB \fR\fB--excludetables=tbl_list\fR\fB \fR
 T}:T{
-Skip any tables in a comma-separated list of tables
+Skip any tables in comma-separated list
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -192,7 +192,7 @@ T{
 .PP
 \fB \fR\fB--excludedbs=db_list\fR\fB \fR
 T}:T{
-Skip any databases in a comma-separated list of databases
+Skip any databases in comma-separated list
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -201,7 +201,7 @@ T{
 .PP
 \fB \fR\fB--savequeries=file\fR\fB \fR
 T}:T{
-Saves all queries to the database into the file specified
+Saves all queries on database into file specified
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -210,8 +210,7 @@ T{
 .PP
 \fB \fR\fB--loadqueries=file\fR\fB \fR
 T}:T{
-Loads all queries from the file specified; does not connect to a
-              database
+Loads all queries from file specified; does not connect to database
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
@@ -220,7 +219,7 @@ T{
 .PP
 \fB \fR\fB--real_table_name=table\fR\fB \fR
 T}:T{
-Designates a table to handle unique index size calculations
+Designates table to handle unique index size calculations
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)

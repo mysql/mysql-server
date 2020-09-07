@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/01/2020
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -235,10 +235,14 @@ privilege for dumped tables,
 SHOW VIEW
 for dumped views,
 TRIGGER
-for dumped triggers, and
+for dumped triggers,
 LOCK TABLES
 if the
 \fB\-\-single\-transaction\fR
+option is not used, and (as of MySQL 8\&.0\&.21)
+PROCESS
+if the
+\-\-no\-tablespaces
 option is not used\&. Certain options might require other privileges as noted in the option descriptions\&.
 .PP
 To reload a dump file, you must have the privileges required to execute the statements that it contains, such as the appropriate
@@ -322,7 +326,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&30.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
+Section\ \&29.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
 .RE
 .PP
 \fBmysqldump\fR
@@ -415,10 +419,10 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-compress\fR,
 \fB\-C\fR
 Compress all information sent between the client and the server if possible\&. See
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
-the section called \(lqLegacy Connection Compression Configuration\(rq\&.
+the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
 .RS 4
@@ -436,7 +440,7 @@ system variable\&. The default value is
 uncompressed\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -615,8 +619,8 @@ For TCP/IP connections, the port number to use\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
-The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.4, \(lqConnecting to the MySQL Server Using Command Options\(rq\&.
+The transport protocol to use for connecting to the server\&. It is useful when the other connection parameters normally result in use of a protocol other than the one you want\&. For details on the permissible values, see
+Section\ \&4.2.7, \(lqConnection Transport Protocols\(rq\&.
 .RE
 .sp
 .RS 4
@@ -700,7 +704,7 @@ Controls whether to enable FIPS mode on the client side\&. The
 option differs from other
 \fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
 options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations to permit\&. See
-Section\ \&6.6, \(lqFIPS Support\(rq\&.
+Section\ \&6.8, \(lqFIPS Support\(rq\&.
 .sp
 These
 \fB\-\-ssl\-fips\-mode\fR
@@ -826,7 +830,7 @@ zstd
 compression\&.
 .sp
 For more information, see
-Section\ \&4.2.6, \(lqConnection Compression Control\(rq\&.
+Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
 This option was added in MySQL 8\&.0\&.18\&.
 .RE
@@ -1432,7 +1436,7 @@ Replication Options
 .PP
 The
 \fBmysqldump\fR
-command is frequently used to create an empty instance, or an instance including data, on a slave server in a replication configuration\&. The following options apply to dumping and restoring data on replication master and slave servers\&.
+command is frequently used to create an empty instance, or an instance including data, on a replica server in a replication configuration\&. The following options apply to dumping and restoring data on replication source servers and replicas\&.
 .sp
 .RS 4
 .ie n \{\
@@ -1443,7 +1447,7 @@ command is frequently used to create an empty instance, or an instance including
 .IP \(bu 2.3
 .\}
 \fB\-\-apply\-slave\-statements\fR
-For a slave dump produced with the
+For a replica dump produced with the
 \fB\-\-dump\-slave\fR
 option, add a
 STOP SLAVE
@@ -1463,7 +1467,7 @@ statement at the end of the output\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-delete\-master\-logs\fR
-On a master replication server, delete the binary logs by sending a
+On a replication source server, delete the binary logs by sending a
 PURGE BINARY LOGS
 statement to the server after performing the dump operation\&. This option automatically enables
 \fB\-\-master\-data\fR\&.
@@ -1480,9 +1484,9 @@ statement to the server after performing the dump operation\&. This option autom
 \fB\-\-dump\-slave[=\fR\fB\fIvalue\fR\fR\fB]\fR
 This option is similar to
 \fB\-\-master\-data\fR
-except that it is used to dump a replication slave server to produce a dump file that can be used to set up another server as a slave that has the same master as the dumped server\&. It causes the dump output to include a
+except that it is used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. It causes the dump output to include a
 CHANGE MASTER TO
-statement that indicates the binary log coordinates (file name and position) of the dumped slave\*(Aqs master\&. The
+statement that indicates the binary log coordinates (file name and position) of the dumped replica\*(Aqs source\&. The
 CHANGE MASTER TO
 statement reads the values of
 Relay_Master_Log_File
@@ -1494,7 +1498,7 @@ output and uses them for
 MASTER_LOG_FILE
 and
 MASTER_LOG_POS
-respectively\&. These are the master server coordinates from which the slave should start replicating\&.
+respectively\&. These are the replication source server coordinates from which the replica starts replicating\&.
 .if n \{\
 .sp
 .\}
@@ -1513,7 +1517,7 @@ for more information\&.
 .sp .5v
 .RE
 \fB\-\-dump\-slave\fR
-causes the coordinates from the master to be used rather than those of the dumped server, as is done by the
+causes the coordinates from the source to be used rather than those of the dumped server, as is done by the
 \fB\-\-master\-data\fR
 option\&. In addition, specfiying this option causes the
 \fB\-\-master\-data\fR
@@ -1546,7 +1550,7 @@ in terms of enabling or disabling other options and in how locking is handled\&.
 .sp
 This option causes
 \fBmysqldump\fR
-to stop the slave SQL thread before the dump and restart it again after\&.
+to stop the replication SQL thread before the dump and restart it again after\&.
 .sp
 In conjunction with
 \fB\-\-dump\-slave\fR, the
@@ -1567,13 +1571,13 @@ options can also be used\&.
 \fB\-\-include\-master\-host\-port\fR
 For the
 CHANGE MASTER TO
-statement in a slave dump produced with the
+statement in a replica dump produced with the
 \fB\-\-dump\-slave\fR
 option, add
 MASTER_HOST
 and
 MASTER_PORT
-options for the host name and TCP/IP port number of the slave\*(Aqs master\&.
+options for the host name and TCP/IP port number of the replica\*(Aqs source\&.
 .RE
 .sp
 .RS 4
@@ -1585,9 +1589,9 @@ options for the host name and TCP/IP port number of the slave\*(Aqs master\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-master\-data[=\fR\fB\fIvalue\fR\fR\fB]\fR
-Use this option to dump a master replication server to produce a dump file that can be used to set up another server as a slave of the master\&. It causes the dump output to include a
+Use this option to dump a replication source server to produce a dump file that can be used to set up another server as a replica of the source\&. It causes the dump output to include a
 CHANGE MASTER TO
-statement that indicates the binary log coordinates (file name and position) of the dumped server\&. These are the master server coordinates from which the slave should start replicating after you load the dump file into the slave\&.
+statement that indicates the binary log coordinates (file name and position) of the dumped server\&. These are the replication source server coordinates from which the replica should start replicating after you load the dump file into the replica\&.
 .sp
 If the option value is 2, the
 CHANGE MASTER TO
@@ -1606,7 +1610,7 @@ option automatically turns off
 also is specified, in which case, a global read lock is acquired only for a short time at the beginning of the dump (see the description for
 \fB\-\-single\-transaction\fR)\&. In all cases, any action on logs happens at the exact moment of the dump\&.
 .sp
-It is also possible to set up a slave by dumping an existing slave of the master, using the
+It is also possible to set up a replica by dumping an existing replica of the source, using the
 \fB\-\-dump\-slave\fR
 option, which overrides
 \fB\-\-master\-data\fR
