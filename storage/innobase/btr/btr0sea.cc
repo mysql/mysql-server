@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -397,7 +397,6 @@ btr_search_info_create(mem_heap_t* heap)
 
 	info->ref_count = 0;
 	info->root_guess = NULL;
-	info->withdraw_clock = 0;
 
 	info->hash_analysis = 0;
 	info->n_hash_potential = 0;

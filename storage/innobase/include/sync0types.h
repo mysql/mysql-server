@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -278,6 +278,7 @@ enum latch_level_t {
 	SYNC_TREE_NODE_FROM_HASH,
 	SYNC_TREE_NODE_NEW,
 	SYNC_INDEX_TREE,
+	SYNC_ANALYZE_INDEX,
 
 	SYNC_IBUF_PESS_INSERT_MUTEX,
 	SYNC_IBUF_HEADER,
@@ -398,6 +399,7 @@ enum latch_id_t {
 	LATCH_ID_BUF_CHUNK_MAP_LATCH,
 	LATCH_ID_SYNC_DEBUG_MUTEX,
 	LATCH_ID_MASTER_KEY_ID_MUTEX,
+	LATCH_ID_ANALYZE_INDEX_MUTEX,
 	LATCH_ID_TEST_MUTEX,
 	LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
 };
@@ -691,6 +693,7 @@ public:
 	void iterate(Callback& callback) const
 		UNIV_NOTHROW
 	{
+		m_mutex.enter();
 		Counters::const_iterator	end = m_counters.end();
 
 		for (Counters::const_iterator it = m_counters.begin();
@@ -699,6 +702,7 @@ public:
 
 			callback(*it);
 		}
+		m_mutex.exit();
 	}
 
 	/** Disable the monitoring */
@@ -758,7 +762,7 @@ private:
 	typedef std::vector<Count*> Counters;
 
 	/** Mutex protecting m_counters */
-	Mutex			m_mutex;
+	mutable Mutex		m_mutex;
 
 	/** Counters for the latches */
 	Counters		m_counters;

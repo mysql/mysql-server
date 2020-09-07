@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -994,8 +994,6 @@ buf_block_buf_fix_dec(
 /*==================*/
 	buf_block_t*	block)	/*!< in/out: block to bufferunfix */
 {
-	buf_block_unfix(block);
-
 #ifdef UNIV_DEBUG
 	/* No debug latch is acquired if block belongs to system temporary.
 	Debug latch is not of much help if access to block is single
@@ -1004,6 +1002,8 @@ buf_block_buf_fix_dec(
 		rw_lock_s_unlock(&block->debug_latch);
 	}
 #endif /* UNIV_DEBUG */
+
+	buf_block_unfix(block);
 }
 
 /** Returns the buffer pool instance given a page id.
@@ -1363,18 +1363,6 @@ buf_get_nth_chunk_block(
 	chunk = buf_pool->chunks + n;
 	*chunk_size = chunk->size;
 	return(chunk->blocks);
-}
-
-/** Verify the possibility that a stored page is not in buffer pool.
-@param[in]	withdraw_clock	withdraw clock when stored the page
-@retval true	if the page might be relocated */
-UNIV_INLINE
-bool
-buf_pool_is_obsolete(
-	ulint	withdraw_clock)
-{
-	return(buf_pool_withdrawing
-	       || buf_withdraw_clock != withdraw_clock);
 }
 
 /** Calculate aligned buffer pool size based on srv_buf_pool_chunk_unit,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,6 +202,10 @@ public:
     return notify_after_transaction_commit(thd);
   }
 
+  /**
+    Update session tracker (m_curr_session_track_gtids) from thd.
+  */
+  void update_tracking_activeness_from_session_variable(const THD* thd);
 
 private:
   // not implemented

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@ SET(INNOBASE_SOURCES
 	btr/btr0pcur.cc
 	btr/btr0sea.cc
 	btr/btr0bulk.cc
+	buf/buf0block_hint.cc
 	buf/buf0buddy.cc
 	buf/buf0buf.cc
 	buf/buf0dblwr.cc

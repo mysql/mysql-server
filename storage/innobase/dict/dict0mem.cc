@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -158,6 +158,8 @@ dict_mem_table_create(
 	/* lazy creation of table autoinc latch */
 	dict_table_autoinc_create_lazy(table);
 
+	dict_table_analyze_index_create_lazy(table);
+
 	table->autoinc = 0;
 	table->sess_row_id = 0;
 	table->sess_trx_id = 0;
@@ -209,6 +211,7 @@ dict_mem_table_free(
 		}
 	}
 #ifndef UNIV_HOTBACKUP
+	dict_table_analyze_index_destroy(table);
 	dict_table_autoinc_destroy(table);
 #endif /* UNIV_HOTBACKUP */
 

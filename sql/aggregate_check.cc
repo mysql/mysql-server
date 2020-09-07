@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -253,6 +253,9 @@ bool Group_check::check_expression(THD *thd, Item *expr,
 
   for (ORDER *grp= select->group_list.first; grp; grp= grp->next)
   {
+    if ((*grp->item)->type() == Item::INT_ITEM &&
+        (*grp->item)->basic_const_item()) /* group by position */
+      return false;
     if ((*grp->item)->eq(expr, false))
       return false;          // Expression is in GROUP BY so is ok
   }

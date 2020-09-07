@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4588,6 +4588,10 @@ int ha_partition::extra(enum ha_extra_function operation)
       m_ref_usage= Partition_helper::REF_USED_FOR_SORT;
       m_queue->m_fun= key_and_ref_cmp;
     }
+    break;
+  }
+  case HA_EXTRA_RESET_STATE:
+  {
     break;
   }
   default:

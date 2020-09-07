@@ -4624,6 +4624,33 @@ row_sel_fill_vrow(
 	}
 }
 
+#ifdef UNIV_DEBUG
+/** If the record is not old version, copies an initial segment
+of a physical record to be compared later for debug assertion code.
+@param[in]	pcur		cursor whose position has been stored
+@param[in]	index		index
+@param[in]	rec		record for which to copy prefix
+@param[out]	n_fields	number of fields copied
+@param[in,out]	buf		memory buffer for the copied prefix, or NULL
+@param[in,out]	buf_size	buffer size
+@return pointer to the prefix record if not old version. or NULL if old */
+static inline rec_t *row_search_debug_copy_rec_order_prefix(
+	const btr_pcur_t* pcur,
+	const dict_index_t* index,
+	const rec_t*	rec,
+	ulint*	n_fields,
+	byte**	buf,
+	ulint*	buf_size)
+{
+	if (btr_pcur_get_rec(pcur) == rec) {
+		return dict_index_copy_rec_order_prefix(
+				index, rec, n_fields, buf, buf_size);
+	} else {
+		return NULL;
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
 so it employs technique that can help re-construct the rows that
@@ -4661,6 +4688,12 @@ row_search_mvcc(
 	dict_index_t*	clust_index;
 	que_thr_t*	thr;
 	const rec_t*	prev_rec = NULL;
+#ifdef UNIV_DEBUG
+	const rec_t*	prev_rec_debug = NULL;
+	ulint prev_rec_debug_n_fields = 0;
+	byte *prev_rec_debug_buf = NULL;
+	ulint prev_rec_debug_buf_size = 0;
+#endif /* UNIV_DEBUG */
 	const rec_t*	rec = NULL;
 	byte*		end_range_cache = NULL;
 	const dtuple_t*	prev_vrow = NULL;
@@ -4768,6 +4801,7 @@ row_search_mvcc(
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
 		prebuilt->fetch_cache_first = 0;
+		prebuilt->m_end_range = false;
 
 		if (prebuilt->sel_graph == NULL) {
 			/* Build a dummy select query graph */
@@ -5111,6 +5145,8 @@ wait_table_again:
 			&same_user_rec, BTR_SEARCH_LEAF,
 			pcur, moves_up, &mtr);
 
+		ut_ad(prev_rec == NULL);
+
 		if (UNIV_UNLIKELY(need_to_process)) {
 			if (UNIV_UNLIKELY(prebuilt->row_read_type
 					  == ROW_READ_DID_SEMI_CONSISTENT)) {
@@ -5413,6 +5449,9 @@ wrong_offs:
 	}
 
 	prev_rec = rec;
+	ut_d(prev_rec_debug = row_search_debug_copy_rec_order_prefix(
+		pcur, index, prev_rec, &prev_rec_debug_n_fields,
+		&prev_rec_debug_buf, &prev_rec_debug_buf_size));
 
 	/* Note that we cannot trust the up_match value in the cursor at this
 	place because we can arrive here after moving the cursor! Thus
@@ -5638,6 +5677,11 @@ no_gap_lock:
 			did_semi_consistent_read = TRUE;
 			rec = old_vers;
 			prev_rec = rec;
+			ut_d(prev_rec_debug
+			     = row_search_debug_copy_rec_order_prefix(
+				pcur, index, prev_rec,
+				&prev_rec_debug_n_fields, &prev_rec_debug_buf,
+				&prev_rec_debug_buf_size));
 			break;
 		case DB_RECORD_NOT_FOUND:
 			if (dict_index_is_spatial(index)) {
@@ -5694,6 +5738,12 @@ no_gap_lock:
 
 				rec = old_vers;
 				prev_rec = rec;
+				ut_d(prev_rec_debug
+				     = row_search_debug_copy_rec_order_prefix(
+					pcur, index, prev_rec,
+					&prev_rec_debug_n_fields,
+					&prev_rec_debug_buf,
+					&prev_rec_debug_buf_size));
 			}
 		} else {
 			/* We are looking into a non-clustered index,
@@ -6123,6 +6173,8 @@ next_rec:
 		order if we would access a different clustered
 		index page right away without releasing the previous. */
 
+		bool is_pcur_rec = (btr_pcur_get_rec(pcur) == prev_rec);
+
 		/* No need to do store restore for R-tree */
 		if (!spatial_search) {
 			btr_pcur_store_position(pcur, &mtr);
@@ -6131,13 +6183,50 @@ next_rec:
 		mtr_commit(&mtr);
 		mtr_has_extra_clust_latch = FALSE;
 
+		DEBUG_SYNC_C("row_search_before_mtr_restart_for_extra_clust");
+
 		mtr_start(&mtr);
 
-		if (!spatial_search
-		    && sel_restore_position_for_mysql(&same_user_rec,
-						   BTR_SEARCH_LEAF,
-						   pcur, moves_up, &mtr)) {
-			goto rec_loop;
+		if (!spatial_search) {
+			const ibool result = sel_restore_position_for_mysql(
+				&same_user_rec, BTR_SEARCH_LEAF, pcur,
+				moves_up, &mtr);
+
+			if (result) {
+				prev_rec = NULL;
+				goto rec_loop;
+			}
+
+			ut_ad(same_user_rec);
+
+			if (is_pcur_rec
+			    && btr_pcur_get_rec(pcur) != prev_rec) {
+				/* prev_rec is invalid. */
+				prev_rec = NULL;
+			}
+#ifdef UNIV_DEBUG
+			if (prev_rec != NULL && prev_rec_debug != NULL) {
+				const ulint *offsets1;
+				const ulint *offsets2;
+
+				mem_heap_t* heap_tmp = mem_heap_create(256);
+
+				offsets1 = rec_get_offsets(
+					prev_rec_debug, index, NULL,
+					prev_rec_debug_n_fields, &heap_tmp);
+
+				offsets2 = rec_get_offsets(
+					prev_rec, index, NULL,
+					prev_rec_debug_n_fields, &heap_tmp);
+
+				ut_ad(!cmp_rec_rec(
+					prev_rec_debug, prev_rec, offsets1,
+					offsets2, index,
+					page_is_spatial_non_leaf(
+						prev_rec, index)));
+				mem_heap_free(heap_tmp);
+			}
+#endif /* UNIV_DEBUG */
 		}
 	}
 
@@ -6218,6 +6307,7 @@ lock_table_wait:
 			sel_restore_position_for_mysql(
 				&same_user_rec, BTR_SEARCH_LEAF, pcur,
 				moves_up, &mtr);
+			prev_rec = NULL;
 		}
 
 		if ((srv_locks_unsafe_for_binlog
@@ -6310,6 +6400,12 @@ func_exit:
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
+
+#ifdef UNIV_DEBUG
+	if (prev_rec_debug_buf != NULL) {
+		ut_free(prev_rec_debug_buf);
+	}
+#endif /* UNIV_DEBUG */
 
 	/* Set or reset the "did semi-consistent read" flag on return.
 	The flag did_semi_consistent_read is set if and only if
