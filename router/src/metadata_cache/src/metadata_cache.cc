@@ -255,11 +255,6 @@ void MetadataCache::stop() noexcept {
   refresh_thread_.join();
 }
 
-/**
- * Return a list of servers that are part of a replicaset.
- *
- * @param replicaset_name The replicaset that is being looked up.
- */
 MetadataCache::metadata_servers_list_t MetadataCache::replicaset_lookup(
     const std::string &replicaset_name) {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);

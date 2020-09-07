@@ -148,6 +148,7 @@ class MySQLRoutingConnection : public MySQLRoutingConnectionBase {
    *        execution call start().
    *
    * @param context wrapper for common data used by all connection threads
+   * @param destination_id identifier of the destination connected to
    * @param client_socket socket used to send/receive data to/from client
    * @param client_endpoint address of the socket used to send/receive data
    * to/from client
