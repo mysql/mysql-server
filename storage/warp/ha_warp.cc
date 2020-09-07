@@ -18,10 +18,64 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
-#include "storage/warp/ha_warp.h"
-/* Stuff for shares */
+  ------
+  
+  This software uses MySQL which is also available under the above GPL2 
+  license.
+  
+  ------
+
+  This software uses Fastbit:
+  "FastBit, Copyright (c) 2014, The Regents of the University of
+  California, through Lawrence Berkeley National Laboratory (subject to
+  receipt of any required approvals from the U.S. Dept. of Energy).  All
+  rights reserved."
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are
+  met:
+
+  (1) Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+
+  (2) Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in the
+  documentation and/or other materials provided with the distribution.
+
+  (3) Neither the name of the University of California, Lawrence Berkeley
+  National Laboratory, U.S. Dept. of Energy nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+  IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+  PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+  OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+  You are under no obligation whatsoever to provide any bug fixes,
+  patches, or upgrades to the features, functionality or performance of
+  the source code ("Enhancements") to anyone; however, if you choose to
+  make your Enhancements available either publicly, or directly to
+  Lawrence Berkeley National Laboratory, without imposing a separate
+  written license agreement for such Enhancements, then you hereby grant
+  the following license: a non-exclusive, royalty-free perpetual license
+  to install, use, modify, prepare derivative works, incorporate into
+  other computer software, distribute, and sublicense such enhancements or
+  derivative works thereof, in binary and source code form.
+*/
+#define WARP_BITMAP_DEBUG
+#include "ha_warp.h"
+
+// Stuff for shares */
 mysql_mutex_t warp_mutex;
 static std::unique_ptr<collation_unordered_multimap<std::string, WARP_SHARE *>>
     warp_open_tables;
@@ -37,7 +91,6 @@ static handler *warp_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
 /*****************************************************************************
  ** WARP tables
  *****************************************************************************/
-
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_key warp_key_memory_warp_share;
 static PSI_memory_key warp_key_memory_row;
@@ -94,25 +147,18 @@ mysql_declare_plugin(warp){
   0,                /* flags                           */
 } mysql_declare_plugin_end;
 
-/*
-  If frm_error() is called in table.cc this is called to find out what file
-  extensions exist for this handler.  Our table name, however, is not a set
-  of files in the schema directory, but instead is a directory itself which
-  contains files which respresent each column and also the table metadata.
-*/
-static const char *ha_warp_exts[] = {NullS};
-
+ 
 static int warp_init_func(void *p) {
   DBUG_ENTER("warp_init_func");
+  sql_print_information("WARP storage engine initialization started");
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
   ibis::util::setVerboseLevel(0);
-
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
-
+  
   warp_hton = (handlerton *)p;
   mysql_mutex_init(warp_key_mutex_warp, &warp_mutex, MY_MUTEX_INIT_FAST);
   warp_open_tables.reset(
@@ -124,66 +170,71 @@ static int warp_init_func(void *p) {
   warp_hton->flags = (HTON_CAN_RECREATE | HTON_NO_PARTITION);
   warp_hton->file_extensions = ha_warp_exts;
   warp_hton->rm_tmp_tables = default_rm_tmp_tables;
-
+  warp_hton->commit = warp_commit;
+  warp_hton->rollback = warp_rollback;
+  
+  // starts the database and reads in the database state, upgrades
+  // tables and does crash recovery
+  warp_state = new warp_global_data();
+  
+  assert(warp_state != NULL);
+  sql_print_information("WARP storage engine initialization completed");
   DBUG_RETURN(0);
 }
 
 static int warp_done_func(void *) {
+  sql_print_information("WARP storage engine shutdown started");
   warp_open_tables.reset();
-  mysql_mutex_destroy(&warp_mutex);
 
+  // destroying warp_state writes the state to disk
+  delete warp_state;
+  mysql_mutex_destroy(&warp_mutex);
+  sql_print_information("WARP storage engine shutdown completed");
   return 0;
 }
 
 /* Construct the warp handler */
-ha_warp::ha_warp(handlerton *hton, TABLE_SHARE *table_arg)
-    : handler(hton, table_arg),
-      // reader(NULL),
-      base_table(NULL),
-      filtered_table(NULL),
-      cursor(NULL),
-      writer(NULL),
-      current_rowid(0),
-      blobroot(warp_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE) {}
-
-void ha_warp::open_deleted_bitmap(int lock_mode) {
-  struct stat st;
-  if(deleted_bitmap != NULL) {
-    return;
-  }
-  std::string deleted_rid_file =
-      std::string(share->data_dir_name) + "/deleted.rids";
-  stat(deleted_rid_file.c_str(), &st);
-  if(!st.st_size) {
-    has_deleted_rows = false;
-  } else {
-    has_deleted_rows = true;
-  }
-  deleted_bitmap = new sparsebitmap(deleted_rid_file, lock_mode, 0);
+ha_warp::ha_warp(handlerton *hton, TABLE_SHARE *table_arg) 
+: handler(hton, table_arg),
+  base_table(NULL),
+  filtered_table(NULL),
+  cursor(NULL),
+  writer(NULL),
+  current_rowid(0),
+  blobroot(warp_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE) 
+{
+  warp_hton = hton;
+  //unique_check_where_clause.reserve(128000);
+  //key_part_tmp.reserve((max_key_part_length(NULL) * 4) + 1);
+  //key_part_esc.reserve((max_key_part_length(NULL) * 4 * 2) + 1);
+  //idx_where_clause.reserve(65535);
+  //idx_where_clause = "";
 }
 
-void ha_warp::close_deleted_bitmap() {
-  if(deleted_bitmap == NULL) return;
-  //if(deleted_bitmap->is_dirty()) {
-  deleted_bitmap->commit();
-  //}
-  deleted_bitmap->close();
-  delete deleted_bitmap;
-  deleted_bitmap = NULL;
+const char **ha_warp::bas_ext() const {  
+  return ha_warp_exts;
+}
+
+int ha_warp::rename_table(const char * from, const char * to, const dd::Table* , dd::Table* ) {
+  DBUG_ENTER("ha_example::rename_table ");
+  std::string cmd = "mv " + std::string(from) + ".data/ " + std::string(to) + ".data/";
+  
+  system(cmd.c_str()); 
+  DBUG_RETURN(0);
 }
 
 bool ha_warp::is_deleted(uint64_t rownum) {
-  open_deleted_bitmap(LOCK_SH);
-  if(!has_deleted_rows) return false;
-  return deleted_bitmap->is_set(rownum);
+  return warp_state->delete_bitmap->is_set(rownum);
 }
 
+/*
 void ha_warp::get_auto_increment(ulonglong, ulonglong, ulonglong,
                                  ulonglong *first_value,
                                  ulonglong *nb_reserved_values) {
   *first_value = stats.auto_increment_value ? stats.auto_increment_value : 1;
   *nb_reserved_values = ULLONG_MAX;
 }
+*/
 
 int ha_warp::encode_quote(uchar *) {
   char attribute_buffer[1024];
@@ -269,8 +320,12 @@ int ha_warp::encode_quote(uchar *) {
         } else if(*ptr == '\n') {
           buffer.append('\\');
           buffer.append('n');
-        } else
+        } else if(*ptr == 0) {
+          buffer.append('\\');
+          buffer.append('0');
+        } else {
           buffer.append(*ptr);
+        }
       }
       buffer.append('"');
     } else {
@@ -291,9 +346,14 @@ int ha_warp::encode_quote(uchar *) {
   }
 
   /* the RID column is at the end of every table */
-  mysql_mutex_lock(&share->mutex);
-  buffer.append(std::to_string(share->next_rowid).c_str());
-  mysql_mutex_unlock(&share->mutex);
+  buffer.append(std::to_string(current_rowid).c_str());
+    
+  /* add the transaction identifier */
+  auto current_trx=warp_get_trx(warp_hton, table->in_use);
+  assert(current_trx != NULL);
+  buffer.append(",");
+  buffer.append(std::to_string(current_trx->trx_id).c_str());
+
   return (buffer.length());
 }
 
@@ -324,6 +384,9 @@ static WARP_SHARE *get_share(const char *table_name, TABLE *) {
 
     share->use_count = 0;
     share->table_name.assign(table_name, length);
+    /* This is where the WARP data is actually stored.  It is usually 
+       something like /var/lib/mysql/dbname/tablename.data
+    */
     fn_format(share->data_dir_name, table_name, "", ".data",
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
@@ -404,14 +467,16 @@ int ha_warp::set_column_set() {
     }
   }
 
-  /* The RID column needs to be read always in order to support UPDATE and
+  /* The RID column (r) needs to be read always in order to support UPDATE and
      DELETE. For queries that neither SELECT nor PROJECT columns, the RID column
      will be projected regardless.  The RID column is never included in the
      result set.
-  */
-  column_set += "r";
 
-  DBUG_PRINT("ha_warp::set_column_set", ("column_list=%s", column_set.c_str()));
+     The TRX_ID column (t) must be read for transaction visibility and to 
+     exclude rows that were not commited.
+  */
+  column_set += "r,t";
+
 
   DBUG_RETURN(count + 1);
 }
@@ -423,6 +488,7 @@ int ha_warp::set_column_set() {
   I don't think this version of the function ever needs to be used and may be
   eliminated in the future...
 */
+/*
 int ha_warp::set_column_set(uint32_t idxno) {
   DBUG_ENTER("ha_warp::set_column_set");
   index_column_set = "";
@@ -433,10 +499,10 @@ int ha_warp::set_column_set(uint32_t idxno) {
     bool may_be_null = table->key_info[idxno].key_part[i].field->is_nullable();
     ++count;
 
-    /* this column must be read from disk */
+    // this column must be read from disk 
     index_column_set += std::string("c") + std::to_string(fieldno);
 
-    /* Add the NULL bitmap for the column if the column is NULLable */
+    // Add the NULL bitmap for the column if the column is NULLable 
     if(may_be_null) {
       index_column_set += "," + std::string("n") + std::to_string(fieldno);
     }
@@ -450,6 +516,7 @@ int ha_warp::set_column_set(uint32_t idxno) {
 
   DBUG_RETURN(count + 1);
 }
+*/
 
 /* store the binary data for each returned value into the MySQL buffer
    using field->store()
@@ -723,74 +790,74 @@ int ha_warp::open(const char *name, int, uint, const dd::Table *) {
 */
 int ha_warp::close(void) {
   DBUG_ENTER("ha_warp::close");
-
   if(writer) delete writer;
   writer = NULL;
-
-  if(cursor) delete cursor;
   cursor = NULL;
-
-  if(filtered_table) delete filtered_table;
   filtered_table = NULL;
-
-  if(base_table) delete base_table;
   base_table = NULL;
 
   DBUG_RETURN(free_share(share));
 }
 
-int ha_warp::get_writer_partno(ibis::tablex* writer, char* datadir) {
+void ha_warp::start_bulk_insert(ha_rows) {
+}
+
+int ha_warp::end_bulk_insert() {
+  if(writer != NULL) {
+    /* foreground write actually because it is not executed in a different `thread */
+    write_buffered_rows_to_disk();
+  }
+  return 0;
+}
+
+std::string ha_warp::get_writer_partition() {
   ibis::partList parts;
-  int partition_count = ibis::util::gatherParts(parts, datadir);
+  int partition_count = ibis::util::gatherParts(parts, share->data_dir_name);
 
   /* The fastbit table name has to be the same as the partition number
      which is the directory name of the partition
   */
-  ibis::part *found = NULL;
-  int partno = 0;
-  if(partition_count > 1) {
-    /* skip the first partition, which is just for metadata and is always empty
-     */
-    for (auto it = parts.begin() + 1; it < parts.end(); ++it, ++partno) {
-      auto part = *it;
-      if(part->nRows() + writer->mRows() <= my_partition_max_rows) {
-        found = part;
-        break;
-      }
-    }
-  }
-  /* If the table is empty, then partno will be zero and found will be NULL.
-     Otherwise, if found != NULL and partno <= partition_count then a partition
-     is fouund that will fit all the new rows.
-  */
-  if(found == NULL) {
-    partno = partition_count - 1;
-  }
-  return partno;
-}
-/* write the rows in the background and destroy the writer*/
-void ha_warp::background_write(ibis::tablex *writer, char *datadir,
-                               TABLE *table, 
-                               WARP_SHARE *share) {
   
+  ibis::part* least_part=NULL;
+  uint64_t least_cnt = -1ULL;
+
+  if(partition_count == 1) {
+    return std::string(share->data_dir_name) + std::string("/p0");
+  }
+  
+  for (auto it = parts.begin() + 1; it < parts.end(); ++it) {
+    if(least_cnt > (*it)->nRows()) {
+      least_part = *it;
+      least_cnt = (*it)->nRows();
+    }
+  }   
+  if(least_cnt + writer->mRows() <= my_partition_max_rows) {
+    return std::string(least_part->currentDataDir());
+  }
+ 
+  return std::string(share->data_dir_name) + std::string("/p") + std::to_string(parts.size());
+}
+
+/* write the rows and destroy the writer*/
+void ha_warp::write_buffered_rows_to_disk() {
   mysql_mutex_lock(&share->mutex);
-  auto partno = ha_warp::get_writer_partno(writer, datadir);
-  std::string part_dir = "";
-  std::string part_name = "";
-  part_dir = std::string(datadir) + "/p" + std::to_string(partno);
-  part_name = "p" + std::to_string(partno);
-
-  writer->write(part_dir.c_str(), part_name.c_str());
+  std::string part_dir = get_writer_partition();
+  auto part_dir_copy = strdup(part_dir.c_str());
+  auto part_name = basename(part_dir_copy);
+  
+  writer->write(part_dir.c_str(), part_name);
+  free(part_dir_copy);
   writer->clearData();
-
   delete writer;
+  writer = NULL;
 
   /* rebuild any indexed columns */
-  maintain_indexes(datadir, table);
+  maintain_indexes(share->data_dir_name, table);
   mysql_mutex_unlock(&share->mutex);
 };
 
 /* write the rows in the background and destroy the writer*/
+/*
 void ha_warp::foreground_write() {
   auto partno = ha_warp::get_writer_partno(writer, share->data_dir_name);
   std::string part_dir = "";
@@ -803,20 +870,36 @@ void ha_warp::foreground_write() {
   delete writer;
   writer = NULL;
   maintain_indexes(share->data_dir_name, table);
-};
+};*/
 
-std::string ha_warp::make_unique_check_clause() {
-  std::string unique_check_where_clause = "";
+/*
+bool ha_warp::has_unique_keys() {
+  if(!table_checked_unique_keys) {
+    table_checked_unique_keys = true;
+  } else{
+    return table_has_unique_keys;
+  }
+
+  for (uint i = 0; i < table_share->keys; ++i) {
+    if(table->key_info[i].flags & HA_NOSAME) {
+      table_has_unique_keys = true;
+      break;
+    }
+  }
+  return table_has_unique_keys;
+}
+*/
+/*
+void ha_warp::make_unique_check_clause() {
+  unique_check_where_clause = "";
+  // reserve space for max_key_part_length with a 4 byte character set
+  //  with space for escaping values
   for (uint i = 0; i < table_share->keys; ++i) {
     bool needs_quote = false;
     bool convert_from_int = false;
     uint tmpint = 0;
-    String key_part_tmp;
-    String key_part_esc;
-    // reserve space for max_key_part_length with a 4 byte character set
-    //  with space for escaping values
-    key_part_tmp.reserve((max_key_part_length(NULL) * 4) + 1);
-    key_part_esc.reserve((max_key_part_length(NULL) * 4 * 2) + 1);
+    key_part_tmp.set("", 0, 0);
+    key_part_esc.set("", 0, 0);
 
     if(table->key_info[i].flags & HA_NOSAME) {
       KEY *ki = table->key_info + i;
@@ -825,7 +908,6 @@ std::string ha_warp::make_unique_check_clause() {
       } else {
         unique_check_where_clause = "(";
       }
-      
       for (uint n = 0; n < ki->actual_key_parts; n++) {
         if(n > 0) {
           unique_check_where_clause += " AND ";
@@ -833,7 +915,6 @@ std::string ha_warp::make_unique_check_clause() {
         Field *f = ki->key_part[n].field;
         unique_check_where_clause +=
             "c" + std::to_string(ki->key_part[n].fieldnr-1) + " = ";
-
         switch(f->real_type()) {
           case MYSQL_TYPE_VAR_STRING:
           case MYSQL_TYPE_VARCHAR:
@@ -858,22 +939,19 @@ std::string ha_warp::make_unique_check_clause() {
           default:
             needs_quote = false;
         }
-
         if(needs_quote) {
           ki->key_part[n].field->val_str(&key_part_tmp);
           escape_string_for_mysql(f->charset(), key_part_esc.c_ptr(),
                                   max_supported_key_part_length(NULL),
                                   key_part_tmp.c_ptr(), key_part_tmp.length());
         } else {
-          memset(key_part_tmp.c_ptr(), 0,
-                 max_supported_key_part_length(NULL) * 4);
+          key_part_tmp.set("",0,ki->key_part[n].field->charset());
           if(convert_from_int) {
             tmpint = ki->key_part[n].field->val_int();
           } else {
             ki->key_part[n].field->val_str(&key_part_esc);
           }
         }
-      
         if(!convert_from_int) {
           unique_check_where_clause +=
               std::string(key_part_esc.c_ptr(), key_part_esc.length());
@@ -884,8 +962,9 @@ std::string ha_warp::make_unique_check_clause() {
       }
     }
   }
-  return unique_check_where_clause;
 }
+*/
+
 /*
   This is an INSERT.  The row data is converted to CSV (just like the CSV
   engine) and this is passed to the storage layer for processing.  It would be
@@ -895,49 +974,17 @@ std::string ha_warp::make_unique_check_clause() {
 int ha_warp::write_row(uchar *buf) {
   DBUG_ENTER("ha_warp::write_row");
   ha_statistic_increment(&System_status_var::ha_write_count);
-
-  /* check for duplicate key values */
-  int errcode = 0;
-
-  // this function uses the table->field object to access the data
-  // in the row buffer!
-  std::string unique_check_where_clause = make_unique_check_clause();
-  if(unique_check_where_clause != "") {
-    auto tbl = new ibis::mensa(share->data_dir_name); // base table
-    if(!tbl) {
-      errcode = HA_ERR_INDEX_CORRUPT;
-    } else {  
-      auto rows = // found table (select returns a table with the results)
-          tbl->select("r", unique_check_where_clause.c_str());
-      
-      if(rows) {
-        auto csr = rows->createCursor();
-        uint64_t rowid=0;
-        int fetch_return_code = -1;
-        open_deleted_bitmap();
-        if(csr) {
-          for(uint64_t i=0;errcode == 0 && i<rows->nRows();++i) {
-            csr->fetch();
-            fetch_return_code  = csr->getColumnAsULong("r", rowid);
-
-            if(fetch_return_code < 0) {
-              errcode = HA_ERR_INDEX_CORRUPT;
-              break;
-            } 
-            if(!deleted_bitmap->is_set(rowid)) {
-                errcode = HA_ERR_FOUND_DUPP_KEY;
-            }  
-          }
-          delete csr;
-        }
-        close_deleted_bitmap();
-        delete rows;
-      } 
-      delete tbl;
-    }
-    if(errcode != 0) DBUG_RETURN(errcode);
+  
+  mysql_mutex_lock(&share->mutex);
+  if(share->next_rowid == 0) {
+    share->next_rowid = warp_state->get_next_rowid_batch();
+  } 
+  current_rowid = share->next_rowid--;
+  
+  mysql_mutex_unlock(&share->mutex);
+//  auto current_trx = warp_get_trx(warp_hton, table->in_use);
+//  assert(current_trx != NULL);
     
-  }
   /* This will return a cached writer unless a background
     write was started on the last insert.  In that case
     a new writer is constructed because the old one will
@@ -945,7 +992,6 @@ int ha_warp::write_row(uchar *buf) {
   */
   create_writer(table);
   mysql_mutex_lock(&share->mutex);
-  current_rowid = ++share->next_rowid;
   mysql_mutex_unlock(&share->mutex);
   /* The auto_increment value isn't being properly persisted between
     restarts at the moment.  AUTO_INCREMENT should definitely be
@@ -961,7 +1007,6 @@ int ha_warp::write_row(uchar *buf) {
     Fastbit row object but this is fast enough for now/ALPHA release.
   */
   ha_warp::encode_quote(buf);
-  DBUG_PRINT("ha_warp::write_row", ("row_data=%s", buffer.c_ptr()));
 
   /* The writer object caches rows in memory.  Memory is reserved
     for a given number of rows, which defaults to 1 million.  The
@@ -976,35 +1021,58 @@ int ha_warp::write_row(uchar *buf) {
      statement, which is not optimal - maybe there is a 
      better solution
   */
-  if(unique_check_where_clause != "") {
+  /*if(unique_check_where_clause != "") {
     foreground_write();
-  } else if(writer->mRows() >= my_write_cache_size) {
-    /* spawn the background writer if the cache size is exceeded. */
-    ibis::tablex *writing_writer = writer;
-    writer = NULL;
-    /* Spawn a background thread using a static method ha_warp::background_write
-    */
-    std::thread writer_thread(ha_warp::background_write, writing_writer,
-                              share->data_dir_name, table, share);
-
-    /* Don't worry about reaping the thread.  It will complete work and then exit.
-    */
-    writer_thread.detach();
-    // writer->write(share->data_dir_name,"_");
-    // writer->clearData();
+    current_trx->write_insert_log_rowid(current_rowid);
+  } else
+  */
+  if(writer->mRows() >= my_write_cache_size) {
+    // write the rows to disk and destroy the writer (a new one will be created)
+    write_buffered_rows_to_disk();
   }
   DBUG_RETURN(0);
 }
 
+// Updating a row in WARP is a bit weird.  A new version of the row is 
+// written into the table and a LOCK_EX is taken on the row.  The
+// delete bitmap isn't written until the transaction commits. The
+// deleted row is written into the transaction log and it gets set
+// when the log is read at commit which is quite different from
+// InnoDB.  A history lock is also taken on the row.  During future
+// scans this verion of the row will not be visible to this or 
+// newer transactions and will be visible to older transactions.
 int ha_warp::update_row(const uchar *, uchar *new_data) {
+  
   DBUG_ENTER("ha_warp::update_row");
-  // write_row may trigger a unique key error in which case
-  // the deleted bitmap is not set
-  auto retval = write_row(new_data);
-  if(retval == 0) {
-    deleted_rows.push_back(current_rowid);
+  auto current_trx = warp_get_trx(warp_hton, table->in_use);
+  assert(current_trx != NULL);
+  
+  int lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_EX);
+  /* if deadlock or lock timeout return the error*/
+  if(lock_taken != LOCK_EX) {
+    DBUG_RETURN(lock_taken);
   }
+
+  // current_rowid will be changed by write_row so save the 
+  // value now
+  uint64_t deleted_rowid = current_rowid;
+
+  // if the write fails (for example due to duplicate key then
+  // the statement will be rolled back and the deleted row 
+  // will be 
+  
+  int retval = write_row(new_data);
+  if(retval == 0) {
+  // only log the delete and create the history lock 
+  // if the write completed successfully.  The EX_LOCK
+  // will still be held so the update can be retried
+  // without having to lock the row again. 
+    current_trx->write_delete_log_rowid(deleted_rowid);
+    warp_state->create_lock(deleted_rowid, current_trx, LOCK_HISTORY);
+  }
+  
   ha_statistic_increment(&System_status_var::ha_update_count);
+  
   DBUG_RETURN(retval);
 }
 
@@ -1019,9 +1087,15 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
 */
 int ha_warp::delete_row(const uchar *) {
   DBUG_ENTER("ha_warp::delete_row");
-  has_deleted_rows = true;
-  deleted_bitmap->set_bit(current_rowid);
-
+  auto current_trx = warp_get_trx(warp_hton, table->in_use);
+  assert(current_trx != NULL);
+  int lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_EX);
+  /* if deadlock or lock timeout return the error*/
+  if(lock_taken != LOCK_EX) {
+    DBUG_RETURN(lock_taken);
+  }
+  warp_state->create_lock(current_rowid, current_trx, LOCK_HISTORY);
+  current_trx->write_delete_log_rowid(current_rowid);
   ha_statistic_increment(&System_status_var::ha_delete_count);
   stats.records--;
   DBUG_RETURN(0);
@@ -1056,8 +1130,23 @@ int ha_warp::delete_all_rows() {
 */
 int ha_warp::info(uint) {
   DBUG_ENTER("ha_warp::info");
-  // if(!records_is_known && stats.records < 2) stats.records = 2;
+  close_in_extra = true;
+  std::unordered_map<const char*, uint64_t> table_counts = get_table_counts_in_schema(share->data_dir_name);
+  const char* table_with_most_rows = get_table_with_most_rows(&table_counts);
+  assert(table_with_most_rows != NULL);
+  bool is_fact_table = false;
 
+  // if this is the fact table (largest table in schema) set the records to the smallest possible value
+  // which is 2 (otherwise const evaluation will be used)
+  if(table_with_most_rows != NULL) {
+    if(std::string(share->data_dir_name) == std::string(table_with_most_rows)) {
+      is_fact_table = true;
+      stats.records = 2;
+    }
+  } else {
+    stats.records = 0;
+  }
+  
   stats.mean_rec_length = 0;
   for (Field **field = table->s->field; *field; field++) {
     switch((*field)->real_type()) {
@@ -1118,6 +1207,20 @@ int ha_warp::info(uint) {
 
   /* estimate the data size from the record count and average record size */
   stats.data_file_length = stats.mean_rec_length * stats.records;
+  
+  /* register the table for condition pushdown..  ::info is always called before 
+     ::engine_push so this ensures the table information for hybrid join is
+     available when we get there
+  */
+  warp_pushdown_information* pushdown_info = get_or_create_pushdown_info(table->in_use, table->alias, share->data_dir_name);
+  pushdown_info->fields = table->s->field;
+  set_column_set();
+
+  pushdown_info->column_set = column_set;
+
+  if(is_fact_table) {
+    pushdown_info->is_fact_table = true;
+  }
 
   DBUG_RETURN(0);
 }
@@ -1153,15 +1256,37 @@ void ha_warp::maintain_indexes(char *datadir, TABLE *table) {
    work.
 */
 int ha_warp::extra(enum ha_extra_function) {
-  close_deleted_bitmap();
-
-  if(writer != NULL && writer->mRows() > 0) {
-    /* foreground write actually... */
-    background_write(writer, share->data_dir_name, table, share);
-    writer = NULL;
+  /* if not bulk insert, and there are buffered inserts, write them out
+     to disk.  This will destroy the writer.
+  */
+  if(writer != NULL) {
+    write_buffered_rows_to_disk();
   }
-
   return 0;
+}
+
+void ha_warp::cleanup_pushdown_info() {
+  // free up memory used for pushdown filters
+  auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
+  
+  pushdown_mtx.lock();
+  auto it = pd_info.find(table->in_use);
+  if(it != pd_info.end()) {
+    // remove the pushdown info for this table
+    auto it2 = it->second->find(table->alias);
+    if(it2 != it->second->end()) {
+      it->second->erase(it2);
+    }
+
+    // if all of the tables are removed delete the pushdown info completely
+    if(it->second->size() == 0) {
+      delete it->second;
+      pd_info.erase(it);
+    }
+
+  }
+  delete pushdown_info;
+  pushdown_mtx.unlock();
 }
 
 int ha_warp::repair(THD *, HA_CHECK_OPT *) {
@@ -1179,11 +1304,24 @@ int ha_warp::repair(THD *, HA_CHECK_OPT *) {
 THR_LOCK_DATA **ha_warp::store_lock(THD *, THR_LOCK_DATA **to,
                                     enum thr_lock_type lock_type) {
   DBUG_ENTER("ha_warp::store_lock");
+  //auto current_trx = warp_get_trx(warp_hton, table->in_use);
+  //dbug("STORE_LOCK: " << lock_type);
+  lock_in_share_mode = false;
+  lock_for_update = false;
+
+  if(lock_type == TL_READ_WITH_SHARED_LOCKS) {
+    lock_in_share_mode = true;
+  }
+
+  if(lock_type == TL_WRITE) {
+    lock_for_update = true;
+  }
+
   if(lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
     lock.type = lock_type;
   }
 
-  *to++ = &lock;
+  //*to++ = &lock;
   DBUG_RETURN(to);
 }
 
@@ -1350,7 +1488,10 @@ void ha_warp::create_writer(TABLE *table_arg) {
     }
   }
   /* This is the psuedo-rowid which is used for deletes and updates */
-  writer->addColumn("r", ibis::ULONG, "r");
+  writer->addColumn("r", ibis::ULONG, "WARP rowid");
+
+    /* This is the psuedo-rowid which is used for deletes and updates */
+  writer->addColumn("t", ibis::ULONG, "WARP transaction identifier");
 
   /* This is the memory buffer for writes*/
   writer->reserveBuffer(my_write_cache_size > my_partition_max_rows
@@ -1361,11 +1502,6 @@ void ha_warp::create_writer(TABLE *table_arg) {
    * just count*/
   writer->setPartitionMax(my_partition_max_rows);
   mysql_mutex_lock(&share->mutex);
-  if(share->next_rowid == 0) {
-    auto tbl = new ibis::mensa(share->data_dir_name);
-    share->next_rowid = tbl->nRows() + 1;
-    delete tbl;
-  }
   mysql_mutex_unlock(&share->mutex);
 }
 
@@ -1439,16 +1575,18 @@ bool ha_warp::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
    (col1 = 1 or col2 = 1) and col3 = 1
 
    Fastbit evaluation will bitmap intersect the index results
-   for each evaluated column.  Fastbit will automatically
+   for each evaluated expression.  Fastbit will automatically
    construct indexes for these evaluations when appropriate.
 */
 int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
+  auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
+  bitmap_merge_join();
   current_rowid = 0;
-  /* This is a sparse (un)compressed (not WAH compressed) bitmap index
-     used for marking deleted rows.
-  */
-  open_deleted_bitmap();
+  /* When scanning this is used to skip evaluation of transactions
+     that have already been evaluated
+  */  
+  last_trx_id = 0;
 
   /* This is the a big part of the performance advantage of WARP outside of
      the bitmap indexes.  This figures out which columns this query is reading
@@ -1457,16 +1595,6 @@ int ha_warp::rnd_init(bool) {
      This is the primary advantage of a column store.
   */
   set_column_set();
-
-  /* This second table object is a new relation which the projection of all
-     the rows and columns in the table.
-
-     base_table may already be initialized if an index read is going to
-     call position a row after an index scan.
-  */
-  if(base_table == NULL) {
-    base_table = new ibis::mensa(share->data_dir_name);
-  }
 
   /* push_where_clause is populated in ha_warp::cond_push() which is the
      handler function invoked by engine condition pushdown.  When ECP is
@@ -1478,11 +1606,23 @@ int ha_warp::rnd_init(bool) {
     push_where_clause = "1=1";
   }
 
-  filtered_table =
-      base_table->select(column_set.c_str(), push_where_clause.c_str());
-  if(filtered_table != NULL) {
-    /* Allocate a cursor for any queries that actually fetch columns */
-    cursor = filtered_table->createCursor();
+  if(pushdown_info->base_table != NULL) {
+    partitions = NULL;
+    base_table = pushdown_info->base_table;
+    filtered_table = pushdown_info->filtered_table;
+    if(filtered_table != NULL && pushdown_info->cursor != NULL) {
+      cursor = pushdown_info->cursor;
+    } else {
+      if(filtered_table != NULL) {
+        cursor = filtered_table->createCursor();
+        pushdown_info->cursor=cursor; 
+      }
+    }
+  } else {
+    base_table = NULL;
+    partitions = new ibis::partList;
+    ibis::util::gatherParts(*partitions, share->data_dir_name, true);
+    part_it = partitions->begin() + 1;
   }
 
   DBUG_RETURN(0);
@@ -1499,24 +1639,148 @@ int ha_warp::rnd_init(bool) {
    deleted.  If the row is deleted, another fetch must be attempted.
 */
 int ha_warp::rnd_next(uchar *buf) {
+  static uint64_t fetch_count = 0;
   DBUG_ENTER("ha_warp::rnd_next");
+  uint64_t row_trx_id = 0;
+
+  if(partitions == NULL && base_table == NULL) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+
+  /* not scanning partitions and table is empty */
+  if((partitions == NULL && cursor == NULL) || (cursor != NULL && cursor->nRows() <= 0)) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  } 
+
+fetch_again:  
+  if(partitions != NULL) {
+    if(part_it == partitions->end()) {
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+    if(cursor == NULL) {
+      base_table = ibis::table::create((*part_it)->currentDataDir());
+      if(!base_table) {
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
+      }
+      
+      filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
+      if(!filtered_table) {
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
+      }
+      
+      cursor = filtered_table->createCursor();
+      if(!cursor) {
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
+      }
+    }
+  }
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
-
-  if(cursor == NULL || cursor->nRows() <= 0) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
-
-fetch_again:
+  ++fetch_count;
   if(cursor->fetch() != 0) {
+    if(partitions != NULL) {
+      delete base_table;
+      delete filtered_table;
+      delete cursor;
+      
+      base_table = NULL;
+      filtered_table = NULL;
+      cursor = NULL;
+      delete *part_it;
+      ++part_it;
+      if(part_it == partitions->end()) {
+        DBUG_RETURN(HA_ERR_END_OF_FILE);
+      }
+      
+      goto fetch_again;
+    }
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
+  
+  if(!cursor) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  
+  //DBUG_RETURN(HA_ERR_END_OF_FILE);
+  cursor->getColumnAsULong("t", row_trx_id);
   cursor->getColumnAsULong("r", current_rowid);
-  if(is_deleted(current_rowid)) {
+
+  /* This sets is_trx_visible handler variable!
+     If we already checked this trx_id in the last iteration
+     then it does not have to be checked again and the
+     is_trx_visible variable does not change. This function
+     also sets last_trx_id to the transaction being c
+     checked if the value is not the same as this 
+     transaction.
+  */
+ 
+  is_trx_visible_to_read(row_trx_id);
+  
+  if(!is_trx_visible) {
     goto fetch_again;
   }
-
+  
+  // if the row would be visible due to row_trx_id it might not
+  // be visible if it has been changed in a future transaction.
+  // because the delete_rows bitmap has bits possibly committed
+  // from future transaction, a history lock is created to 
+  // maintain row visiblity
+  if(!is_row_visible_to_read(current_rowid)) {
+    goto fetch_again;
+  }
+  
+  // Lock rows during a read if requested
+  auto current_trx = warp_get_trx(warp_hton, table->in_use);
+  int lock_taken = 0;
+  if(lock_in_share_mode) {
+    lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_SH);
+    // row is exclusive locked so it has been deleted but this row should 
+    // have already been skipped because it has a history lock
+    if(lock_taken == LOCK_EX) {
+      goto fetch_again;
+    }
+  
+    if(lock_taken != LOCK_SH && lock_taken != WRITE_INTENTION) {
+        // some sort of error happened like DEADLOCK or LOCK_WAIT_TIMEOUt
+      DBUG_RETURN(lock_taken);
+    }
+  } else {
+    if(lock_for_update) {
+      lock_taken = warp_state->create_lock(current_rowid, current_trx, WRITE_INTENTION);
+      if(lock_taken != WRITE_INTENTION) {
+        DBUG_RETURN(lock_taken);
+      }
+    }  
+  }
+  
   find_current_row(buf, cursor);
 
+  DBUG_RETURN(0);
+}
+
+/*
+  Called after each table scan.
+*/
+int ha_warp::rnd_end() {
+  DBUG_ENTER("ha_warp::rnd_end");
+  blobroot.Clear();
+  push_where_clause = "";
+  /* if scanning partitions the pointers are not
+     set in pushdown info and may need to be cleaned up
+     so delete them here
+  */
+  if(partitions != NULL) {
+    if(base_table != NULL) {
+      delete base_table;
+      delete cursor;
+      delete filtered_table;
+      delete partitions;
+    }
+    partitions = NULL;
+  }
+  
+  base_table = NULL;
+  filtered_table = NULL;
+  cursor = NULL;
   DBUG_RETURN(0);
 }
 
@@ -1552,71 +1816,36 @@ int ha_warp::rnd_pos(uchar *buf, uchar *pos) {
   DBUG_RETURN(rc);
 }
 
+
+
 /*
-  Called after each table scan. In particular after deletes,
-  and updates.
-*/
-int ha_warp::rnd_end() {
-  DBUG_ENTER("ha_warp::rnd_end");
-  blobroot.Clear();
-
-  delete cursor;
-  cursor = NULL;
-  delete filtered_table;
-  filtered_table = NULL;
-  delete base_table;
-  base_table = NULL;
-  push_where_clause = "";
-  close_deleted_bitmap();
-  DBUG_RETURN(0);
-}
-
 ulong ha_warp::index_flags(uint, uint, bool) const {
   // return(HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY |
   // HA_DO_INDEX_COND_PUSHDOWN);
+  //return (HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY);
   return (HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY);
 }
 
-/* FIXME: quite sure this is not implemented correctly, but I always want to
-   prefer indexes over table scans right now, and prefer unique indexes
-   over non-unique indexes.  Everything is going to be pushed down with ECP
-   anyway...
-*/
 ha_rows ha_warp::records_in_range(uint, key_range *, key_range *) {
-  /* We want the optimizer to prefer hash joins because nested loop
-      joins are expensive and we pretty much always want hash joins.
-      Right now, every index just returns the number of rows in the table, so
-     the optimizer should join tables purely based on table size.  Of course,
-     indexes may reduce the number of rows scanned but this is purely an
-     estimate to get the optimizer to join by table size right now.
-  */
-  if(base_table == NULL) {
-    base_table = new ibis::mensa(share->data_dir_name);
+  close_in_extra = true;
+  auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
+  auto estimator = ibis::mensa::create(pushdown_info->datadir);
+  uint64_t min=0;
+  uint64_t max=0;
+  ha_rows cnt = 0;
+
+  // always scan the fact table
+  if(pushdown_info->is_fact_table == true) {
+    cnt = -1ULL;
+  } else {
+    if(pushdown_info->filter == "") {
+      cnt = estimator->nRows();  
+    } else {
+      estimator->estimate(pushdown_info->filter.c_str(), min, max);
+    }
   }
-  auto cnt = base_table->nRows();
-  delete base_table;
-  base_table = NULL;
-  return cnt;
-  /*
-  this is a real implemenation that uses Fastbit's estimate function, but it
-  appears to result in the same result as the fake implementation and is
-  more expensive
-  key_range mintmp,maxtmp;
-  mintmp = *min;
-  mintmp.flag = HA_READ_KEY_OR_NEXT;
-  maxtmp = *max;
-  maxtmp.flag = HA_READ_KEY_OR_PREV;
-  std::string where_clause;
-  make_where_clause(mintmp.key, mintmp.keypart_map, mintmp.flag, where_clause);
-  make_where_clause(maxtmp.key, maxtmp.keypart_map, maxtmp.flag, where_clause);
-  uint64_t int_min, int_max;
-  if(base_table == NULL) {
-    base_table = new ibis::mensa(share->data_dir_name);
-  }
-  assert(base_table != NULL);
-  base_table->estimate(where_clause.c_str(), int_min, int_max);
-  return int_max;
-  */
+  delete estimator;
+  return cnt > 0 ? cnt : max - min;
 }
 
 int ha_warp::index_init(uint idxno, bool) {
@@ -1624,38 +1853,74 @@ int ha_warp::index_init(uint idxno, bool) {
   // just prevents unused variable warning
   //if(sorted) sorted = sorted;
 
-  /*FIXME: bitmap indexes are not sorted so figure out what the sorted arg
-   * means...*/
+  //FIXME: bitmap indexes are not sorted so figure out what the sorted arg
+  //means..
   //assert(!sorted);
 
   //DBUG_PRINT("ha_warp::index_init", ("Key #%d, sorted:%d", idxno, sorted));
   DBUG_RETURN(index_init(idxno));
 }
 
+
 int ha_warp::index_init(uint idxno) {
   active_index = idxno;
-  if(base_table == NULL) {
-    base_table = new ibis::mensa(share->data_dir_name);
-  }
+  last_trx_id = 0;
+  current_trx = NULL;
 
   if(column_set == "") {
     set_column_set();
   }
-  open_deleted_bitmap();
+
+  auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
+  if(pushdown_info->base_table != NULL) {
+    base_table = pushdown_info->base_table;
+    idx_filtered_table = pushdown_info->filtered_table;
+    if(idx_filtered_table != NULL && pushdown_info->cursor != NULL) {
+      idx_cursor = pushdown_info->cursor;
+    } else {
+      if(idx_filtered_table != NULL) {
+        idx_cursor = idx_filtered_table->createCursor();
+        pushdown_info->cursor=idx_cursor; 
+      }
+    }
+  } else {
+    if(base_table == NULL) {
+      base_table = new ibis::mensa(share->data_dir_name);
+      idx_filtered_table =
+        base_table->select(column_set.c_str(), push_where_clause.c_str());
+      if(idx_filtered_table != NULL) {
+        // Allocate a cursor for any queries that actually fetch columns 
+        idx_cursor = idx_filtered_table->createCursor();
+      }
+      pushdown_info->base_table = base_table;
+      pushdown_info->filtered_table = idx_filtered_table;
+      pushdown_info->cursor = idx_cursor;
+    }
+  }
+    
+  //idx_filtered_table_with_pushdown =
+  //   base_table->select(column_set.c_str(), push_where_clause.c_str());
   return (0);
 }
 
 int ha_warp::index_next(uchar *buf) {
   DBUG_ENTER("ha_warp::index_next");
+  uint64_t row_trx_id;
+  
 fetch_again:
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   if(idx_cursor->fetch() != 0) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  idx_cursor->getColumnAsULong("r", current_rowid);
-  if(is_deleted(current_rowid)) {
+  idx_cursor->getColumnAsULong("t", row_trx_id);
+  if(!is_trx_visible_to_read(row_trx_id)) {
     goto fetch_again;
   }
+
+  idx_cursor->getColumnAsULong("r", current_rowid);
+  if(!is_row_visible_to_read(current_rowid)) {
+    goto fetch_again;
+  }   
   find_current_row(buf, idx_cursor);
   DBUG_RETURN(0);
 }
@@ -1663,28 +1928,30 @@ fetch_again:
 int ha_warp::index_first(uchar *buf) {
   DBUG_ENTER("ha_warp::index_first");
   ha_statistic_increment(&System_status_var::ha_read_first_count);
+  uint64_t row_trx_id;
+  last_trx_id = 0;
+  current_trx = NULL;
+  
   set_column_set();
   std::string where_clause;
-  if(push_where_clause != "") {
-    where_clause = push_where_clause;
-  } else {
-    where_clause = "1=1";
-  }
 
-  idx_filtered_table =
-      base_table->select(column_set.c_str(), where_clause.c_str());
   if(idx_filtered_table == NULL) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  idx_cursor = idx_filtered_table->createCursor();
+
 fetch_again:
   if(idx_cursor->fetch() != 0) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  idx_cursor->getColumnAsULong("r", current_rowid);
-  if(is_deleted(current_rowid)) {
+  idx_cursor->getColumnAsULong("t", row_trx_id);
+  if(!is_trx_visible_to_read(row_trx_id)) {
     goto fetch_again;
   }
+  
+  idx_cursor->getColumnAsULong("r", current_rowid);
+  if(!is_row_visible_to_read(current_rowid)) {
+    goto fetch_again;
+  } 
   find_current_row(buf, idx_cursor);
 
   DBUG_RETURN(0);
@@ -1692,209 +1959,131 @@ fetch_again:
 
 int ha_warp::index_end() {
   DBUG_ENTER("ha_warp::index_end");
-  if(idx_cursor) {
-    delete idx_cursor;
-    idx_cursor = NULL;
-  }
-  if(idx_filtered_table) {
-    delete idx_filtered_table;
-    idx_filtered_table = NULL;
-  }
-  if(base_table) {
-    delete base_table;
-    base_table = NULL;
-  }
+  idx_cursor = NULL;
+  idx_filtered_table = NULL;
+  base_table = NULL;
+  idx_where_clause = "";
   push_where_clause = "";
-  close_deleted_bitmap();
   DBUG_RETURN(0);
 }
 
-int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map,
-                               enum ha_rkey_function find_flag,
-                               std::string &where_clause) {
-  DBUG_ENTER("ha_warp::make_where_clause");
-  where_clause.reserve(65535);
-  where_clause = "";
-  /* If the bit is set, then the part is being used.  Unfortunately MySQL will
-     only consider prefixes so we need to use ECP for magical performance.
-  */
-  auto key_offset = key;
-  for (uint16_t partno = 0;
-       partno < table->key_info[active_index].actual_key_parts; partno++) {
-    /* given index (a,b,c) and where a=1 quit when we reach the b key part
-        given a=1 and b=2 then quit when we reach the c part
-    */
-    if(!(keypart_map & (1 << partno))) {
-      DBUG_RETURN(0);
-    }
-    /* What field is this? */
-    Field *f = table->key_info[active_index].key_part[partno].field;
 
-    if(where_clause != "") where_clause += " AND ";
+uint64_t ha_warp::lookup_in_hash_index(const uchar *key, key_part_map keypart_map,
+                               enum ha_rkey_function find_flag) {
+  DBUG_ENTER("ha_warp::lookup_in_hash_index");
+  Field *f = table->key_info[active_index].key_part[0].field;
+  
+  uint64_t uintval = 0;
+  int64_t intval = 0;
+  double dblval = 0;
+  std::string strval;
 
-    /* Which column number does this correspond to? */
-    where_clause += "c" + std::to_string(table->key_info[active_index]
-                                             .key_part[partno]
-                                             .field->field_index());
+  bool is_unsigned = f->all_flags() & UNSIGNED_FLAG;
+  bool is_int = false;
+  bool is_uint = false;
+  bool is_double = false;
+  bool is_string = false;
 
-    switch(find_flag) {
-      case HA_READ_AFTER_KEY:
-        where_clause += " > ";
-        break;
-      case HA_READ_BEFORE_KEY:
-        where_clause += " < ";
-        break;
-      case HA_READ_KEY_EXACT:
-        where_clause += " = ";
-        break;
-      case HA_READ_KEY_OR_NEXT:
-        where_clause += ">=";
-        break;
-
-      case HA_READ_KEY_OR_PREV:
-        where_clause += "<=";
-        break;
-
-      case HA_READ_PREFIX:
-      case HA_READ_PREFIX_LAST:
-      case HA_READ_PREFIX_LAST_OR_PREV:
-      default:
-        DBUG_RETURN(-1);
-    }
-
-    bool is_unsigned = f->all_flags() & UNSIGNED_FLAG;
-
-    switch(f->real_type()) {
-      case MYSQL_TYPE_TINY:
-        if(is_unsigned) {
-          where_clause += std::to_string((uint8_t)(*key_offset));
-        } else {
-          where_clause += std::to_string((int8_t)(*key_offset));
-        }
-        key_offset += 1;
-        break;
-
-      case MYSQL_TYPE_SHORT:
-
-        if(is_unsigned) {
-          where_clause +=
-              std::to_string((uint16_t)(*(const uint16_t *)key_offset));
-        } else {
-          where_clause +=
-              std::to_string((int16_t)(*(const int16_t *)key_offset));
-        }
-        key_offset += 2;
-        break;
-
-      case MYSQL_TYPE_LONG:
-        if(is_unsigned) {
-          where_clause +=
-              std::to_string((uint32_t)(*(const uint32_t *)key_offset));
-        } else {
-          where_clause +=
-              std::to_string((int32_t)(*(const int32_t *)key_offset));
-        }
-        key_offset += 4;
-        break;
-
-      case MYSQL_TYPE_LONGLONG:
-        if(is_unsigned) {
-          where_clause +=
-              std::to_string((uint64_t)(*(const uint64_t *)key_offset));
-        } else {
-          where_clause +=
-              std::to_string((int64_t)(*(const int64_t *)key_offset));
-        }
-        key_offset += 8;
-
-        break;
-
-      case MYSQL_TYPE_VAR_STRING:
-      case MYSQL_TYPE_VARCHAR:
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_TINY_BLOB:
-      case MYSQL_TYPE_MEDIUM_BLOB:
-      case MYSQL_TYPE_LONG_BLOB:
-      case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_JSON:
-      case MYSQL_TYPE_ENUM:
-      case MYSQL_TYPE_SET: {
-        // for strings, the key buffer is fixed width, and there is a two byte
-        // prefix which lists the string length
-        uint16_t strlen = (uint16_t)(*(const uint16_t *)key_offset);
-        std::string escaped;
-        for (unsigned int i = 0; i < strlen; ++i) {
-          char c = *(key_offset + 2 + i);
-          if(c == '\'') {
-            escaped += '\\';
-            escaped += '\'';
-          } else if(c == 0) {
-            escaped += '\\';
-            escaped += '0';
-          } else if(c == '\\') {
-            escaped += "\\\\";
-          } else {
-            escaped += c;
-          }
-        }
-        where_clause += "'" + escaped + "'";
-
-        key_offset +=
-            table->key_info[active_index].key_part[partno].store_length;
-        break;
+  switch(f->real_type()) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_INT24:
+      if(is_unsigned) {
+        is_uint = true;
+        uintval = f->val_int();
+      } else {
+        is_int = true;
+        intval = f->val_int();
       }
+    break;
 
-      case MYSQL_TYPE_FLOAT:
-        where_clause += std::to_string((float_t)(*(const float_t *)key_offset));
-        key_offset += 4;
-        break;
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      is_double = true;
+      dblval = f->val_real();
+    break;
 
-      case MYSQL_TYPE_DOUBLE:
-        where_clause +=
-            std::to_string((double_t)(*(const float_t *)key_offset));
-        key_offset += 8;
-        break;
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_YEAR:
+    case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_TIMESTAMP2:
+    case MYSQL_TYPE_DATETIME2:
+    case MYSQL_TYPE_TIME2: 
+      is_unsigned = true;
+      uintval = f->val_int();
+    break;
 
-        // Support lookups for these types
-
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_TIME:
-      case MYSQL_TYPE_TIMESTAMP:
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_YEAR:
-      case MYSQL_TYPE_NEWDATE:
-      case MYSQL_TYPE_TIMESTAMP2:
-      case MYSQL_TYPE_DATETIME2:
-      case MYSQL_TYPE_TIME2: {
-        where_clause += std::to_string(f->val_int());
-        key_offset += f->data_length();
-      }
-
-      break;
-
-      case MYSQL_TYPE_DECIMAL:
-      case MYSQL_TYPE_NEWDECIMAL:
-      case MYSQL_TYPE_BIT:
-      case MYSQL_TYPE_NULL:
-      case MYSQL_TYPE_GEOMETRY:
-      default:
-        /* FIXME: indexing these types doesn't work yet! */
-        assert(true);
-        key_offset +=
-            table->key_info[active_index].key_part[partno].store_length;
-
-        break;
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET: 
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_GEOMETRY:
+    {
+      is_string = true;
+      // for strings, the key buffer is fixed width, and there is a two byte
+      // prefix which lists the string length
+      String tmpval;
+      tmpval.reserve(8192);
+      f->val_str(&tmpval, &tmpval);
+      std::string strval;
+      strval.assign(tmpval.ptr(), tmpval.length());
     }
-
-    /* exclude NULL columns */
-    // if(f->is_nullable()) {
-    //  where_clause += " and n" + std::to_string(f->field_index()) + " = 0";
-    //}
+    break;
+    default:
+    break;
   }
-  DBUG_PRINT("ha_warp::make_where_clause",
-             ("WHERE CLAUSE: %s", where_clause.c_str()));
+
+  auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
+  
+  if(is_uint) {
+    auto it = pushdown_info->uint_to_row_map.find(uintval);
+    if(it !=  pushdown_info->uint_to_row_map.end()) {
+      return it->second;
+    }
+  } 
+
+  if(is_int) {
+    auto it=pushdown_info->int_to_row_map.find(intval);
+    if(it !=  pushdown_info->int_to_row_map.end()) {
+      return it->second;
+    }
+  } 
+
+  if(is_double) {
+    auto it=pushdown_info->double_to_row_map.find(dblval);
+    if(it !=  pushdown_info->double_to_row_map.end()) {
+      return it->second;
+    }
+  } 
+
+  if(is_string) {
+    auto it=pushdown_info->string_to_row_map.find(strval);
+    if(it !=  pushdown_info->string_to_row_map.end()) {
+      return it->second;
+    }
+  }
+
+  // not found returns maximum ulonglong
+  return -1ULL;
+
   DBUG_RETURN(0);
 }
+
 
 int ha_warp::index_read_map(uchar *buf, const uchar *key,
                             key_part_map keypart_map,
@@ -1902,64 +2091,57 @@ int ha_warp::index_read_map(uchar *buf, const uchar *key,
   DBUG_ENTER("ha_warp::index_read_map");
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   // DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-  std::string where_clause;
-  set_column_set();
-
-  make_where_clause(key, keypart_map, find_flag, where_clause);
-  if(push_where_clause != "") {
-    where_clause = push_where_clause + " AND (" + where_clause + ")";
+  
+  uint64_t row_trx_id;
+  last_trx_id = 0;
+  current_trx = NULL;
+  auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
+  if(!idx_cursor) {
+    base_table = pushdown_info->base_table;
+    idx_filtered_table = pushdown_info->filtered_table;
   }
-
-  if(idx_cursor) {
-    delete idx_cursor;
-    idx_cursor = NULL;
-    delete idx_filtered_table;
-    idx_filtered_table = NULL;
-  }
-
-  if(base_table == NULL) {
-    base_table = new ibis::mensa(share->data_dir_name);
-  }
-  assert(base_table != NULL);
-
-  idx_filtered_table =
-      base_table->select(column_set.c_str(), where_clause.c_str());
   if(idx_filtered_table == NULL) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
+  
+  if(pushdown_info->cursor) {
+    idx_cursor = pushdown_info->cursor;
+  } else {
+    idx_cursor = idx_filtered_table->createCursor();
+  }  
+  assert(idx_cursor != NULL);
 
-  idx_cursor = idx_filtered_table->createCursor();
-  if(!idx_cursor) {
-    DBUG_RETURN(-1);
-  }
+  
 fetch_again:
   if(idx_cursor->fetch() != 0) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
-
-  idx_cursor->getColumnAsULong("r", current_rowid);
-  if(is_deleted(current_rowid)) {
+      DBUG_RETURN(HA_ERR_END_OF_FILE);
+    }
+ 
+  idx_cursor->getColumnAsULong("t", row_trx_id);
+  if(!is_trx_visible_to_read(row_trx_id)) {
     goto fetch_again;
   }
+  
+  idx_cursor->getColumnAsULong("r", current_rowid);
+  if(!is_row_visible_to_read(current_rowid)) {
+    goto fetch_again;
+  } 
 
   find_current_row(buf, idx_cursor);
-  delete base_table;
-  base_table = NULL;
-  DBUG_RETURN(0);
+   DBUG_RETURN(0);
 }
 
 int ha_warp::index_read_idx_map(uchar *buf, uint idxno, const uchar *key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag) {
   DBUG_ENTER("ha_warp::index_read_idx_map");
-  std::string where_clause = "";
   auto save_idx = active_index;
   active_index = idxno;
   int rc = index_read_map(buf, key, keypart_map, find_flag);
   active_index = save_idx;
-  // index_end();
   DBUG_RETURN(rc);
 }
+*/
 
 /**
  * This function replaces (for SELECT queries) the handler::cond_push
@@ -1971,27 +2153,32 @@ int ha_warp::index_read_idx_map(uchar *buf, uint idxno, const uchar *key,
  * @return Possible error code, '0' if no errors.
  */
 int ha_warp::engine_push(AQP::Table_access *table_aqp) {
-  DBUG_TRACE;
+  push_where_clause="";
   const Item *remainder = NULL;
-  push_where_clause = "";
-
+  //push_where_clause = "";
+  
+  // even if not using ECP, the pushdown_info structure must be created for 
+  // reading from tables to work
+  auto pushdown_info = get_or_create_pushdown_info(table->in_use, table->alias, share->data_dir_name);
+  assert(pushdown_info != NULL);
+  
   THD const *thd = table->in_use;
   if(thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     const Item *cond = table_aqp->get_condition();
     if(cond == nullptr) return 0;
 
-    /*
-      If a join cache is referred by this table, there is not a single
-      specific row from the 'other tables' to compare rows from this table
-      against. Thus, other tables can not be referred in this case.
-    */
-    const bool other_tbls_ok =
-        thd->lex->sql_command == SQLCOM_SELECT && !table_aqp->uses_join_cache();
-
-    /* Push condition to handler, possibly leaving a remainder */
-    remainder = cond_push(cond, other_tbls_ok);
-
+    // the pushdown information should already have been created in ::info
+    remainder = cond_push(cond, true);
+    
+    //if(remainder == nullptr) {
+    //  pushed_cond = cond;
+    //}
+    
     table_aqp->set_condition(const_cast<Item *>(remainder));
+
+    // used later to select rows from a table for bitmap index join optimzation
+    pushdown_info->filter = push_where_clause;
+    
   }
   return 0;
 }
@@ -2004,34 +2191,46 @@ int ha_warp::engine_push(AQP::Table_access *table_aqp) {
    This code is called from ha_warp::engine_push in 8.0.20+
 */
 const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
-  /* only pushdown for SELECT */
-  if(lock.type != TL_READ) return cond;
+  static int depth=0;
+  static int unpushed_condition_count = 0;
+  static int condition_count = 0;
+  static std::string where_clause = "";
+  /* FIXME: only pushdown for SELECT */
+  //if(lock.type != TL_READ) return cond;
 
-  // return cond;
-  std::string where_clause;
+  // reset the variables when called at depth 0
+  if(depth == 0) {
+    condition_count = 0;
+    unpushed_condition_count = 0;
+    where_clause = "";
+  }
 
   /* A simple comparison without conjuction or disjunction */
   if(cond->type() == Item::Type::FUNC_ITEM) {
-    if(!append_column_filter(cond, where_clause)) {
-      push_where_clause = "";
+    condition_count++;
+    int rc = append_column_filter(cond, where_clause);
+    if(rc != 1) {
+      unpushed_condition_count++;
+      where_clause += "1=1";
       return cond;
     }
     /* List of connected simple conditions */
   } else if(cond->type() == Item::Type::COND_ITEM) {
     auto item_cond = (dynamic_cast<Item_cond *>(const_cast<Item *>(cond)));
-    List<Item> *items = item_cond->argument_list();
-    auto cnt = items->size();
-
-    push_where_clause += '(';
+    List<Item> items = *(item_cond->argument_list());
+    auto cnt = items.size();
+    where_clause += "(";
     for (uint i = 0; i < cnt; ++i) {
-      auto item = items->pop();
+      auto item = items.pop();
+      condition_count++;
       if(i > 0) {
         if(item_cond->functype() == Item_func::Functype::COND_AND_FUNC) {
-          push_where_clause += ") AND (";
+          where_clause += " AND ";
         } else if(item_cond->functype() == Item_func::Functype::COND_OR_FUNC) {
-          push_where_clause += ") OR (";
+          where_clause += " OR ";
         } else {
-          push_where_clause = "";
+          where_clause += "1=1";
+          unpushed_condition_count++;
           /* not handled */
           return cond;
         }
@@ -2040,28 +2239,42 @@ const Item *ha_warp::cond_push(const Item *cond, bool other_tbls_ok) {
          FUNC_ITEM. if it isn't, then the item will be returned by this function
          and pushdown evaluation will be abandoned.
       */
+      ++depth;
+      
       if(cond_push(item, other_tbls_ok) != NULL) {
-        push_where_clause = "";
-        return cond;
+        unpushed_condition_count++;
+        //items->push_back(item);
       }
+      //items->push_front(item);
+      --depth;
     }
-    push_where_clause += ")";
+    
+    where_clause += ")";
   }
-  push_where_clause += where_clause;
-
+  
+  // only push a where clause if there were condtiions that were actually pushed
+  if(depth == 0 && (unpushed_condition_count != condition_count)){
+    push_where_clause += where_clause;
+  }
+  
+  if(unpushed_condition_count>0) {
+     return cond;
+  }
   return NULL;
 }
 
 /* return 1 if this clause could not be processed (will be processed by MySQL)*/
-bool ha_warp::append_column_filter(const Item *cond,
-                                   std::string &push_where_clause) {
+int ha_warp::append_column_filter(const Item *cond,
+                                   std::string &where_clause) {
   bool field_may_be_null = false;
-
+  bool is_between = false;
+  bool is_in = false;
+  bool is_is_null = false;
+  bool is_isnot_null = false;
+  bool is_eq = false;
+  std::string build_where_clause = "";
   if(cond->type() == Item::Type::FUNC_ITEM) {
-    bool is_between = false;
-    bool is_in = false;
-    bool is_is_null = false;
-    bool is_isnot_null = false;
+
     Item_func *tmp = dynamic_cast<Item_func *>(const_cast<Item *>(cond));
     std::string op = "";
 
@@ -2094,6 +2307,7 @@ bool ha_warp::append_column_filter(const Item *cond,
       case Item_func::Functype::EQ_FUNC:
       case Item_func::Functype::EQUAL_FUNC:
         op = " = ";
+        is_eq = true;
         break;
 
       case Item_func::Functype::LIKE_FUNC:
@@ -2121,62 +2335,128 @@ bool ha_warp::append_column_filter(const Item *cond,
         break;
 
       default:
-        return false;
+        return 0;
     }
 
     Item **arg = tmp->arguments();
-    if(tmp->arg_count == 2 && arg[0]->type() == Item::Type::FIELD_ITEM &&
-        arg[0]->type() == arg[1]->type()) {
-      /* can't push down joins just yet */
-      return false;
-    }
 
+    /* JOIN PUSHDOWN
+       ***********************************************************
+       This detects where two fields are compared to each other in
+       different tables which is a join condition.  The pushdown
+       information is retrieved for both tables and pushdown conditions
+       are attached to the larger table.  Note that nothing is pushed
+       down right now, this just computes the structures for it to
+       happen when a scan is initiated.
+    */
+    if(tmp->arg_count == 2 && arg[0]->type() == Item::Type::FIELD_ITEM &&
+        arg[0]->type() == arg[1]->type()
+    ) {
+      // only support equijoin right now
+      if(!is_eq) {
+        return 0;
+      }
+      
+      Item_field* f0 = (Item_field *)(arg[0]);
+      Item_field* f1 = (Item_field *)(arg[1]);
+
+      // Get the pushdown information - something is quite broken if these are NULL
+      auto f0_info = get_pushdown_info(table->in_use, f0->table_name);
+      auto f1_info = get_pushdown_info(table->in_use, f1->table_name);
+      
+      assert(f0_info != NULL);
+      assert(f1_info != NULL);
+          
+      bool this_is_dim_table = true;
+      if(f1_info->datadir != share->data_dir_name) {
+        this_is_dim_table = false; 
+      }
+      
+      const char* dim_field_mysql_name;
+      const char* fact_field_mysql_name;
+      const char* dim_alias;
+      //const char* fact_alias;
+      
+      // Used later translate the MySQL table column names into
+      // WARP ordinal column names.  These are attched to the
+      // join_info member in the pushdown structure.
+      // join_info[fact_field] -> dim_info{dim_alias, dim_field}
+      Field** dim_field;
+      Field** fact_field;
+      warp_join_info dim_info;
+
+      // which table do we attach the join to?
+      warp_pushdown_information* dim_table = NULL;
+      warp_pushdown_information* fact_table = NULL;
+
+      if(this_is_dim_table) {
+        fact_table = f0_info;
+        fact_field_mysql_name = f0->field_name;
+        //fact_alias = f0->table_name;
+
+        dim_table = f1_info;
+        dim_field_mysql_name = f1->field_name;
+        dim_alias = f1->table_name;
+      } else {
+        fact_table = f1_info;
+        fact_field_mysql_name = f1->field_name;
+        //fact_alias = f1->table_name;
+        
+        dim_table = f0_info;
+        dim_field_mysql_name = f0->field_name;
+        dim_alias = f0->table_name;
+      }
+
+      // find the field in the fact table
+      for(fact_field = fact_table->fields; *fact_field; fact_field++) {
+        if((*fact_field)->field_name == fact_field_mysql_name) {
+          break;
+        }
+      }
+      // have to find the field in the fact table or there was a serious error
+      assert(*fact_field != NULL);
+
+      // find the field in the dimension table
+      for(dim_field = dim_table->fields; *dim_field; dim_field++) {
+        if((*dim_field)->field_name == dim_field_mysql_name) {    
+          break;
+        }
+      } 
+      assert(*dim_field != NULL);
+
+      dim_info.alias = dim_alias;
+      dim_info.field = *dim_field;
+
+      // attach the join to the fact table.  The actual pushdown will happen
+      // when the table is first scanned (ie, ::rnd_init or ::index_init)
+      fact_table->join_info.emplace(std::pair<Field*, warp_join_info>(*fact_field, dim_info));
+      
+      // end join condition processing
+      return 2;
+    }
+    
+    /* BETWEEN AND IN() need some special syntax handling */
     for (uint i = 0; i < tmp->arg_count; ++i, ++arg) {
       if(i > 0) {
         if(!is_between && !is_in) { /* normal <, >, =, LIKE, etc */
-          push_where_clause += op;
+          build_where_clause += op;
         } else {
           if(is_between) {
             if(i == 1) {
-              push_where_clause += " BETWEEN ";
+              build_where_clause += " BETWEEN ";
             } else {
-              push_where_clause += " AND ";
+              build_where_clause += " AND ";
             }
           } else {
             if(is_in) {
               if(i == 1) {
-                push_where_clause += " IN (";
+                build_where_clause += " IN (";
               } else {
-                push_where_clause += ", ";
+                build_where_clause += ", ";
               }
             }
           }
         }
-      }
-
-      /* TODO:
-         While there are some Fastbit functions that could be pushed down
-         we don't handle that yet, but put this here as a reminder that it
-         can be done at some point, as it will speed things up.
-      */
-      if((*arg)->type() == Item::Type::FUNC_ITEM) {
-        if((dynamic_cast<Item_func *>(*arg))->functype() ==
-            Item_func::DATE_FUNC) {
-          push_where_clause += std::to_string((*arg)->val_uint());
-          continue;
-        } else {
-          push_where_clause = "";
-          return false;
-        }
-      }
-      if((*arg)->type() == Item::Type::INT_ITEM) {
-        push_where_clause += std::to_string((*arg)->val_int());
-        continue;
-      }
-
-      if((*arg)->type() == Item::Type::NULL_ITEM) {
-        push_where_clause += " NULL ";
-        continue;
       }
 
       /* For most operators, only the column ordinal position is output here,
@@ -2197,44 +2477,85 @@ bool ha_warp::append_column_filter(const Item *cond,
              field would return true for NULL rows...
           */
           if(field_may_be_null) {
-            push_where_clause +=
+            build_where_clause +=
                 "(n" + std::to_string(field_index) + " = 0 AND ";
           }
-          push_where_clause += "c" + std::to_string(field_index);
+          build_where_clause += "c" + std::to_string(field_index);
         } else {
           /* Handle IS NULL and IS NOT NULL, depending on NULLability */
           if(field_may_be_null) {
             if(is_is_null) {
               /* the NULL marker will be one if the value is NULL */
-              push_where_clause += "(n" + std::to_string(field_index) + " = 1";
+              build_where_clause += "(n" + std::to_string(field_index) + " = 1";
             } else if(is_isnot_null) {
               /* the NULL marker will be zero if the value is NOT NULL */
-              push_where_clause += "(n" + std::to_string(field_index) + " = 0";
+              build_where_clause += "(n" + std::to_string(field_index) + " = 0";
             }
           } else {
             if(is_is_null) {
               /* NOT NULL field is being compared with IS NULL so no rows can
                * match */
-              push_where_clause += " 1=0 ";
+              build_where_clause += " 1=0 ";
             } else if(is_isnot_null) {
               /* NOT NULL field is being compared with IS NOT NULL so all rows
                * match */
-              push_where_clause += " 1=1 ";
+              build_where_clause += " 1=1 ";
             }
           }
         }
         continue;
       }
+      
+      /* TODO:
+         While there are some Fastbit functions that could be pushed down
+         we don't handle that yet, but put this here as a reminder that it
+         can be done at some point, as it will speed things up.  
+         
+         Special note: TEMPORAL values are passed down as an 
+         Item_func::DATE_FUNC and the date is extracted from it.
+      */
+      if((*arg)->type() == Item::Type::FUNC_ITEM) {
+        if((dynamic_cast<Item_func *>(*arg))->functype() == Item_func::DATE_FUNC) {
+          build_where_clause += std::to_string((*arg)->val_uint());
+          continue;
+        } else {
+          //where_clause = "";
+          return 0;
+        }
+      }
+      if((*arg)->type() == Item::Type::INT_ITEM) {
+        build_where_clause += std::to_string((*arg)->val_int());
+        continue;
+      }
+
+      if((*arg)->type() == Item::Type::NULL_ITEM) {
+        build_where_clause += " NULL ";
+        continue;
+      }
+
+      // can't push down decimal comparisons as they are stored
+      // as strings
+      if((*arg)->type() == Item::Type::DECIMAL_ITEM) {
+        //where_clause += "1=1";
+        return 0;
+      }
+
+      if((*arg)->type() == Item::Type::REAL_ITEM) {
+        String s;
+        String *val = (*arg)->val_str(&s);
+        build_where_clause += std::string(val->c_ptr());
+        continue;
+      }
 
       if((*arg)->type() == Item::Type::STRING_ITEM ||
-          (*arg)->type() == Item::Type::DECIMAL_ITEM ||
-          (*arg)->type() == Item::Type::REAL_ITEM ||
-          (*arg)->type() == Item::Type::VARBIN_ITEM) {
+         (*arg)->type() == Item::Type::VARBIN_ITEM) 
+      {
+        if(!is_eq) {
+          return 0;
+        }
         String s;
         String *val = (*arg)->val_str(&s);
         std::string escaped;
-        // char *ptr = val->data_ptr();
-        // char *ptr = val->ptr;
         char *ptr = val->c_ptr();
         for (unsigned int i = 0; i < val->length(); ++i) {
           char c = *(ptr + i);
@@ -2250,21 +2571,1637 @@ bool ha_warp::append_column_filter(const Item *cond,
             escaped += c;
           }
         }
-        push_where_clause += "'" + escaped + "'";
+        build_where_clause += "'" + escaped + "'";
         continue;
       }
 
-      return false;
+      return 0;
     }
 
     if(is_in) {
-      push_where_clause += ')';
+      build_where_clause += ')';
     }
 
     if(field_may_be_null) {
-      push_where_clause += ')';
+      build_where_clause += ')';
+    }
+  }
+  where_clause += build_where_clause;
+  
+  // clause was pushed down successfully 
+  return 1;
+}
+
+/* This function takes the join information and pushes the dimension table
+   keys into the WHERE clause on the fact table.  If there is a KEY on
+   the dimension table attribute, an in-memory hash structure is created
+   that points keys in the dimension to rows in the cursor offsets for
+   fast access (bitmap hybrid hash join) otherwise normal MySQL hash
+   join will be used on the filtered dimension table.  
+
+   For example:
+   select count(*)
+     from fact
+     join dim
+       on fact.dim_id = dim.id
+    where dim_col = 19930101
+
+    the id values for dim that match dim_col = 1993 will
+    be pushed into fact.  Let's say that three rows in
+    dim match (id=10,15,20).
+
+    Conceptually the query is executed as:
+    select count(*)
+     from fact
+     join dim
+       on fact.dim_id = dim.id
+    where dim_col = 19930101
+      and fact.dim_id IN(10,15,20);  
+*/
+int ha_warp::bitmap_merge_join() {
+  auto fact_pushdown_info=get_pushdown_info(table->in_use, table->alias);
+  if(fact_pushdown_info == NULL) {
+    return 0;
+  }
+
+  std::string fact_pushdown_clause = "";
+  std::string dim_pushdown_clause = "";
+  /*if(fact_pushdown_info->filter != "") {
+    fact_pushdown_clause = fact_pushdown_info->filter;
+  }*/
+
+  for(auto join_it = fact_pushdown_info->join_info.begin(); join_it != fact_pushdown_info->join_info.end(); ++join_it) {
+    if(fact_pushdown_info->filter != "") {
+      fact_pushdown_clause = fact_pushdown_info->filter;
+    } else {
+      fact_pushdown_clause = "";
+    }
+
+    //bool dim_full_table_scan = false;
+    Field* fact_field = join_it->first;
+
+    // don't try to push down blob or JSON columns for joins 
+    if(fact_field->real_type() == MYSQL_TYPE_TINY_BLOB ||
+       fact_field->real_type() == MYSQL_TYPE_MEDIUM_BLOB ||
+       fact_field->real_type() ==  MYSQL_TYPE_BLOB ||
+       fact_field->real_type() ==  MYSQL_TYPE_LONG_BLOB ||
+       fact_field->real_type() ==  MYSQL_TYPE_JSON) {
+      continue;
+    }
+
+    Field* dim_field = join_it->second.field;
+    auto dim_pushdown_info = get_pushdown_info(table->in_use, join_it->second.alias);
+    if(dim_pushdown_info == NULL) {
+      continue;
+    }
+
+    std::string fact_colname = std::string("c") + std::to_string(fact_field->field_index());
+    std::string fact_nullname = std::string("n") + std::to_string(fact_field->field_index());
+    std::string dim_colname = std::string("c") + std::to_string(dim_field->field_index());
+    std::string dim_nullname = std::string("n") + std::to_string(dim_field->field_index());
+    bool fact_is_nullable = fact_field->is_nullable();
+    bool dim_is_nullable = dim_field->is_nullable();
+
+    if(dim_pushdown_info->filter == "") {
+      continue;
+    } 
+
+    dim_pushdown_clause = dim_pushdown_info->filter;
+    if(dim_is_nullable) {
+      dim_pushdown_clause += " AND " + dim_nullname + "=0";
+    } 
+        
+    // this is where the pushdown information will be collected for the fact table
+    // but if this is a full scan, no rows are pushed
+    if(fact_pushdown_clause != "") {
+      fact_pushdown_clause += " AND ";
+    }
+      
+    if(fact_is_nullable) {
+      fact_pushdown_clause = fact_nullname += "=0 AND ";       
+    }
+    fact_pushdown_clause += fact_colname + " IN(";
+    
+    /* open the dimension table to read the data - the pointers are stored on the pushdown
+        info structure so that they can be re-used in the scan
+    */
+    dim_pushdown_info->base_table = ibis::mensa::create(dim_pushdown_info->datadir);
+
+    if(dim_pushdown_info->base_table == NULL) {
+      continue;
+    }
+    
+    dim_pushdown_info->filtered_table = 
+    dim_pushdown_info->base_table->select(dim_pushdown_info->column_set.c_str(), dim_pushdown_clause.c_str());
+    
+    if(dim_pushdown_info->filtered_table == NULL) {
+      continue;
+    }
+    auto dim_cursor = dim_pushdown_info->filtered_table->createCursor();      
+    if(dim_cursor == NULL) {
+      continue;
+    }
+    bool first_row = true;
+    /*
+    std::vector<uint64_t> uints;
+    std::vector<int64_t> ints;
+    std::vector<double> dbls;
+    std::vector<std::string> strings;
+    */
+
+    while(dim_cursor->fetch() == 0) {   
+      if(!first_row) fact_pushdown_clause += ",";
+      first_row = false;
+      bool is_unsigned = fact_field->is_unsigned();
+      int rc=0;
+      switch(dim_field->real_type()) {
+        case MYSQL_TYPE_JSON:
+        case MYSQL_TYPE_TINY_BLOB:
+        case MYSQL_TYPE_MEDIUM_BLOB:
+        case MYSQL_TYPE_LONG_BLOB:
+        case MYSQL_TYPE_BLOB:
+        case MYSQL_TYPE_TYPED_ARRAY:
+          continue;
+        break;  
+
+        case MYSQL_TYPE_TINY:
+        case MYSQL_TYPE_YEAR: {
+          if(is_unsigned) {
+            unsigned char tmp = 0;
+            rc = dim_cursor->getColumnAsUByte(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          } else {
+            char tmp = 0;
+            rc = dim_cursor->getColumnAsByte(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);  
+          }
+          break;
+        }
+        case MYSQL_TYPE_SHORT: {
+          if(is_unsigned) {
+            uint16_t tmp = 0;
+            rc = dim_cursor->getColumnAsUShort(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+
+          } else {
+            int16_t tmp = 0;
+            rc = dim_cursor->getColumnAsShort(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          }
+        } break;
+
+        case MYSQL_TYPE_LONG: {
+          if(is_unsigned) {
+            uint32_t tmp = 0;
+            rc = dim_cursor->getColumnAsUInt(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          } else {
+            int32_t tmp = 0;
+            rc = dim_cursor->getColumnAsInt(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          }
+        } break;
+
+        case MYSQL_TYPE_LONGLONG: {
+          uint64_t tmp = 0;
+          if(is_unsigned) {
+            rc = dim_cursor->getColumnAsULong(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          } else {
+            int64_t tmp = 0;
+            rc = dim_cursor->getColumnAsLong(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          }
+        } break;
+
+        case MYSQL_TYPE_VAR_STRING:
+        case MYSQL_TYPE_VARCHAR:
+        case MYSQL_TYPE_STRING: {
+          std::string tmp;
+          rc = dim_cursor->getColumnAsString(dim_colname.c_str(), tmp);
+          {
+            std::string escaped;
+            for (unsigned int i = 0; i < tmp.length(); ++i) {
+              char c = tmp.at(i);
+              if(c == '\'') {
+                escaped += '\\';
+                escaped += '\'';
+              } else if(c == 0) {
+                escaped += '\\';
+                escaped += '0';
+              } else if(c == '\\') {
+                escaped += "\\\\";
+              } else {
+                escaped += c;
+              }
+            }
+            fact_pushdown_clause += "'" + escaped + "'";
+          }
+        } break;
+
+        case MYSQL_TYPE_FLOAT: {
+          float_t tmp;
+          rc = dim_cursor->getColumnAsFloat(dim_colname.c_str(), tmp);
+          fact_pushdown_clause += std::to_string(tmp);
+        } break;
+
+        case MYSQL_TYPE_DOUBLE: {
+          double_t tmp;
+          rc = dim_cursor->getColumnAsDouble(dim_colname.c_str(), tmp);
+          fact_pushdown_clause += std::to_string(tmp);
+        } break;
+
+        case MYSQL_TYPE_INT24: {
+          if(is_unsigned) {
+            uint32_t tmp;
+            rc = dim_cursor->getColumnAsUInt(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          } else {
+            int32_t tmp;
+            rc = dim_cursor->getColumnAsInt(dim_colname.c_str(), tmp);
+            fact_pushdown_clause += std::to_string(tmp);
+          }
+        } break;
+
+        case MYSQL_TYPE_NEWDATE:
+        case MYSQL_TYPE_DATE:
+        case MYSQL_TYPE_TIME:
+        case MYSQL_TYPE_TIME2:
+        case MYSQL_TYPE_DATETIME:
+        case MYSQL_TYPE_TIMESTAMP:
+        case MYSQL_TYPE_TIMESTAMP2:
+        case MYSQL_TYPE_DATETIME2: {
+          uint64_t tmp;
+          rc = dim_cursor->getColumnAsULong(dim_colname.c_str(), tmp);
+          fact_pushdown_clause += std::to_string(tmp);
+        } break;
+
+        // the following are stored as strings in Fastbit 
+        case MYSQL_TYPE_DECIMAL:
+        case MYSQL_TYPE_NEWDECIMAL:
+        case MYSQL_TYPE_NULL:
+        case MYSQL_TYPE_BIT:
+        case MYSQL_TYPE_ENUM:
+        case MYSQL_TYPE_SET:
+        case MYSQL_TYPE_GEOMETRY: {
+          // don't need to escape these strings
+          std::string tmp;
+          rc = dim_cursor->getColumnAsString(dim_colname.c_str(), tmp);
+          fact_pushdown_clause += tmp;
+        } break;
+      }
+      if(rc != 0) {
+        return -1;
+      }
+    } // end of fetch loop
+
+    // new cursor will be opened in the scan if it wasn't used to build
+    // a hash index otherwise attach this cursor to make sure the 
+    // positional information remains vali
+    delete dim_cursor;
+    dim_pushdown_info->cursor = NULL;
+    fact_pushdown_clause += ")";
+    dim_pushdown_info->fact_filter = fact_pushdown_clause;
+  } // end of dim tables loop   
+  
+  // set the pushdown clause for the table
+  if(fact_pushdown_clause != "") {
+    push_where_clause = fact_pushdown_clause;
+  }
+
+  return 0;
+}
+
+
+
+/* Transaction support functions
+   TODO: describe WARP transactions
+*/
+int ha_warp::start_stmt(THD *, thr_lock_type) {
+  /*
+  fprintf(stderr, "ENTER START_STMT\n");
+  int trx_state = 0;
+  int retval = 0;
+  uint slot = warp_hton->slot;
+  Ha_data* ha_data = thd->get_ha_data(slot);
+  
+  warp_trx *trx= (warp_trx*)ha_data->ha_ptr;
+  
+  if (trx == NULL) { 
+    fprintf(stderr, "WARP: create new trx\n");
+    trx = new warp_trx;
+    ha_data->ha_ptr = (void*)trx;
+  }
+  
+  trx_state = trx->begin();
+  if(trx_state == 0) {
+    trans_register_ha(thd, true, warp_hton, const_cast<ulonglong*>(&(trx->trx_id)));
+    fprintf(stderr, "WARP START_STMT: created trx!\n");
+  } else if(trx_state == 1) {
+    //txn->stmt= txn->new_savepoint();
+    trans_register_ha(thd, false, warp_hton, const_cast<ulonglong*>(&(trx->trx_id)));
+    fprintf(stderr, "WARP START_STMT: continue trx!\n");
+  } else {
+    retval = -1;
+  }
+  return retval;
+  */
+  return 0;
+}
+
+int ha_warp::register_trx_with_mysql(THD* thd, warp_trx* trx) {
+  long long all_trx = thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK);
+  if(all_trx && !trx->registered) {
+    trx->registered = true;
+    trans_register_ha(thd, true, warp_hton, const_cast<ulonglong*>(&(trx->trx_id)));
+  }
+  trans_register_ha(thd, false, warp_hton, const_cast<ulonglong*>(&(trx->trx_id)));
+  return 0;
+}
+
+int ha_warp::external_lock(THD *thd, int lock_type){ 
+    
+  if (lock_type != F_UNLCK)  {
+    auto current_trx = warp_get_trx(warp_hton, table->in_use);
+    if(current_trx == NULL) current_trx = create_trx(table->in_use);
+    assert(current_trx != NULL);
+  
+    register_trx_with_mysql(thd, current_trx);
+    current_trx->lock_count++;
+
+    if(lock_type == F_WRLCK) {
+      current_trx->for_update = true;
+    } else {
+      current_trx->for_update = false;
+    }
+
+    /* serializable isolation level takes shared locks on all visible rows traveresed
+      and so does LOCK IN SHARE MODE
+    */
+    if (current_trx->isolation_level == ISO_SERIALIZABLE) {
+      current_trx->lock_in_share_mode=true;
+    }
+
+    enum_sql_command sql_command = (enum_sql_command)thd_sql_command(thd);
+    if(sql_command == SQLCOM_UPDATE || 
+      sql_command == SQLCOM_INSERT ||
+      sql_command == SQLCOM_REPLACE ||
+      sql_command == SQLCOM_DELETE ||
+      sql_command == SQLCOM_INSERT_SELECT ||
+      sql_command == SQLCOM_LOAD)  {  
+      // the first time a data modification statement is encountered
+      // the transaction is marked dirty.  Registering the open
+      // transaction prevents a transaction from seeing inserts
+      // that are not visible to it and to still find duplicate
+      // keys in transactions doing concurrent inserts
+      if(!current_trx->dirty) {
+        warp_state->register_open_trx(current_trx->trx_id);
+        current_trx->dirty = true;
+      }
+    } 
+  } else {
+    // unlock the table
+    cleanup_pushdown_info();
+  }
+
+  return 0;
+}
+
+warp_trx* ha_warp::create_trx(THD* thd) {
+  trx_mutex.lock();
+  auto trx = new warp_trx;
+  trx->isolation_level = thd_get_trx_isolation(thd);
+  thd->get_ha_data(warp_hton->slot)->ha_ptr = (void*)trx;
+  trx->begin();
+  trx->open_log();
+  trx->autocommit = !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK);
+  trx_mutex.unlock();
+  return trx;
+}
+
+void warp_trx::open_log() {
+  if(log == NULL) {
+    log_filename = std::to_string(trx_id) + std::string(".txlog");
+    log=fopen(log_filename.c_str(), "w+");
+    if(log == NULL) {
+      sql_print_error("Could not open transaction log %s", log_filename.c_str());
+      assert(false);
+    }
+  }
+}
+
+void warp_trx::write_insert_log_rowid(uint64_t rowid) {
+  int sz = 0;
+  sz = fwrite(&insert_marker, sizeof(insert_marker), 1, log);
+  if(sz == 0 || ferror(log) != 0) {
+    sql_print_error("failed to write rowid into insert log: %s", log_filename.c_str());
+    assert(false);
+  }
+  sz = fwrite(&rowid, sizeof(uint64_t), 1, log);
+  if(sz == 0 || ferror(log) != 0) {
+    sql_print_error("failed to write rowid into insert log: %s", log_filename.c_str());
+    assert(false);
+  }
+}
+
+void warp_trx::write_delete_log_rowid(uint64_t rowid) {
+  int sz = 0;
+  sz = fwrite(&delete_marker, sizeof(delete_marker), 1, log);
+  if(sz == 0 || ferror(log) != 0) {
+    sql_print_error("failed to write rowid into insert log: %s", log_filename.c_str());
+    assert(false);
+  }
+  sz = fwrite(&rowid, sizeof(uint64_t), 1, log);
+  if(sz == 0 || ferror(log) != 0) {
+    sql_print_error("failed to write rowid into insert log: %s", log_filename.c_str());
+    assert(false);
+  }
+}
+
+
+int warp_trx::begin() {
+  int retval = 0;
+  if(trx_id == 0) {
+    trx_id = warp_state->get_next_trx_id();
+  } else {
+    retval = 1;
+  }
+  return retval;
+}
+
+// This causes some visibility problems - leave commented for now
+// revisit in BETA 3.
+void warp_global_data::cleanup_history_locks() {
+/*  
+  commit_mtx.lock();
+  history_lock_mtx.lock();
+
+  uint64_t oldest_open_trx_id = 0;
+  auto trx_it = commit_list.begin();
+  while(trx_it != commit_list.end()) {
+    dbug("trx_id: " << trx_it->first << ", state: " << trx_it->second);
+    if(trx_it->second == WARP_UNCOMMITTED_TRX) {
+      if(oldest_open_trx_id < trx_it->first) {
+        oldest_open_trx_id = trx_it->first;
+      }
+    }
+    ++trx_it;
+  }
+  dbug("Oldest open trx: " << oldest_open_trx_id);
+     
+  if(!oldest_open_trx_id) {
+    history_lock_mtx.unlock();
+    commit_mtx.unlock();
+    return;
+  };
+
+  
+  
+  auto history_lock_it = history_locks.begin();
+  while(history_lock_it != history_locks.end()) {
+    if(history_lock_it->second < oldest_open_trx_id) {
+      dbug("Removing HISTORY lock on trx: " << oldest_open_trx_id << " for rowid: " << history_lock_it->first);
+      history_locks.erase(history_lock_it);
+    }
+    ++history_lock_it;
+  }
+  
+  // remove the rolled back trx from the commit list
+  trx_it = commit_list.begin();
+  while(trx_it != commit_list.end()) {
+    if(trx_it->first < oldest_open_trx_id && trx_it->second == WARP_ROLLED_BACK_TRX) {
+      commit_list.erase(trx_it);
     }
   }
 
+  history_lock_mtx.unlock();
+  commit_mtx.unlock();
+*/  
+}
+
+// used when a transaction commits
+// not called when statements commit
+void warp_trx::commit() {
+  commit_mtx.lock();
+  int sz = 0;
+  uint64_t rowid = 0;
+  char marker;
+
+  auto commit_it = warp_state->commit_list.find(trx_id);
+  if(dirty) {
+    if(commit_it == warp_state->commit_list.end()) {
+      sql_print_error("Open transaction not in commit list");
+      assert(false);
+    }
+
+    // if(log == NULL || ftell(log) == 0) {
+    //   if(log) fclose(log);
+    //   unlink(log_filename.c_str());
+    //   log = NULL;
+    //   commit_mtx.unlock();
+    //   return;
+    // }
+    // used to make sure 
+    sz = fwrite(&commit_marker, sizeof(commit_marker), 1, log);
+    if(sz != 1) {
+      sql_print_error("failed to write commit marker into transaction log");
+    }
+    fsync(fileno(log));
+    fseek(log, 0, SEEK_SET);
+    while( (sz = fread(&marker, sizeof(marker), 1, log) == 1) ) {
+      switch(marker) {
+        case savepoint_marker:
+          continue;
+          break;
+
+         case commit_marker:
+          continue;
+          break;
+      
+        case insert_marker:
+          // insertions are already written to disk
+          fseek(log, sizeof(uint64_t), SEEK_CUR);
+          break;
+
+        case delete_marker:
+          fread(&rowid, sizeof(uint64_t), 1, log);
+          if(sz != 1) {
+            sql_print_error("transaction log read failed");
+            assert(false);
+          }
+          
+          warp_state->delete_bitmap->set_bit(rowid);
+          continue;
+          break;
+
+        default:
+          sql_print_error("transaction log read failed");
+          assert(false);
+          break;
+      }
+    } 
+
+    // commit the deletes
+    if(warp_state->delete_bitmap->commit() != 0) {
+      sql_print_error("Failed to commit delete bitmap %s", warp_state->delete_bitmap->get_fname().c_str());
+      assert(false);
+    }
+    
+    // mark the transaction committed
+    int sz = fwrite(&trx_id, sizeof(trx_id), 1, warp_state->commit_file);
+    if(sz != 1) {
+      sql_print_error("Failed to write to commits file");
+      assert(false);
+    }
+    fsync(fileno(warp_state->commit_file));
+
+    commit_it->second = WARP_COMMITTED_TRX;
+    
+    fclose(log);
+    unlink(log_filename.c_str());
+    log = NULL;
+  }
+  
+  commit_mtx.unlock();
+}
+
+// used when a transaction or statement rolls back
+void warp_trx::rollback(bool all) {
+  commit_mtx.lock();
+  auto commit_it = warp_state->commit_list.find(trx_id);
+  size_t savepoint_at = 0;
+  uint64_t rowid = 0;
+  char marker;
+  if(dirty) {
+    if(commit_it == warp_state->commit_list.end()) {
+      sql_print_error("Open transaction not in commit list");
+      assert(false);
+    }
+    int sz;
+    if(all != ROLLBACK_STATEMENT) {
+      sz = fwrite(&rollback_marker, sizeof(rollback_marker), 1, log);
+      if(sz != 1) {
+        sql_print_error("failed to write rollback marker into transaction log");
+      }
+    } 
+    fsync(fileno(log));
+    fseek(log, 0, SEEK_SET);
+    clearerr(log);
+  
+    while((sz = fread(&marker, sizeof(marker), 1, log))) {
+      switch(marker) {
+        case rollback_marker:
+          // nothing to do - end of log
+        break;
+
+        case savepoint_marker:
+          savepoint_at = ftell(log) - sizeof(marker);
+          continue;
+        break;
+
+        case insert_marker:
+          if(all == ROLLBACK_STATEMENT && savepoint_at == 0) {
+            fseek(log, sizeof(uint64_t), SEEK_CUR);
+          }
+          if(all == ROLLBACK_STATEMENT) {
+            sz = fread(&rowid, sizeof(uint64_t), 1, log);
+            if(feof(log)) {
+              break;
+            }
+            if(sz != 1) {
+              sql_print_error("could not read from transaction log");
+              assert(false);
+            }
+            // delete this insert, which is equivalent to rolling it back
+            if(warp_state->delete_bitmap->set_bit(rowid) != 0) {
+              sql_print_error("could not set bit in deleted bitmap");
+              assert(false);
+            }
+          }
+          // do not have to roll back insertions as they will not be
+          // in the commit bitmap
+        break;
+
+        case delete_marker:
+          //row will be unlocked at trx delete
+          //seek past the rowid
+          fseek(log, sizeof(uint64_t), SEEK_CUR);
+        break;
+      }
+    } 
+    /* was dirty */
+  }
+
+  // need to commit the rolled back inserts to the delete bitmap
+  if(all==ROLLBACK_STATEMENT) {
+    if(warp_state->delete_bitmap->is_dirty()) {
+      if(warp_state->delete_bitmap->commit() != 0) {
+        sql_print_error("could not commit delete bitmap for rollback of statement");
+        assert(false);
+      }
+    }
+  
+    // remove the savepoint data
+    if(savepoint_at > 0) {
+      ftruncate(fileno(log), savepoint_at);
+      fsync(fileno(log));
+    }
+  } else {
+    /* TRX rollback removes the trx from the commit list */
+
+    commit_it->second = WARP_ROLLED_BACK_TRX;
+    fclose(log);
+    log = NULL;
+    unlink(log_filename.c_str());
+  } 
+
+  commit_mtx.unlock();
+}
+
+
+warp_trx* warp_get_trx(handlerton* hton, THD* thd) {
+  return (warp_trx*)thd->get_ha_data(hton->slot)->ha_ptr;
+}
+
+/* Commits a transaction to the WARP storage engine.  
+   If the statement is an AUTOCOMMIT statement, then the 
+   transaction is immediately committed.  If this is a
+   multi-statement transaction, then the commit only
+   happens when the commit_trx flag is true
+   
+   Only transactions that modified data need to be written
+   to the commit log.  Read-only transaction don't need
+   to do this work.
+*/
+int warp_commit(handlerton* hton, THD *thd, bool commit_trx) {
+  auto current_trx = warp_get_trx(hton, thd);
+  //dbug("commit: trx_id=" + std::to_string(current_trx->trx_id) + " commit_trx=" + std::to_string(commit_trx));
+  if(commit_trx || current_trx->autocommit) {
+    if(current_trx->dirty) {
+      current_trx->commit();
+    }
+  } else {
+    /* this transaction is not ready to be committed to the
+       storage engine because it is part of a multi-statement
+       transaction
+    */
+    return 0;
+  }
+    
+  /* if the transaction (autocommit or multi-statement) was 
+     commited to disk, then the transaction information for
+     the connection must be destroyed.
+  */
+  thd->get_ha_data(hton->slot)->ha_ptr = NULL;
+  warp_state->free_locks(current_trx);
+  warp_state->cleanup_history_locks();
+  delete current_trx;
+  return 0;
+}
+
+/*  rollback a transaction in the WARP storage engine
+    -------------------------------------------------------------
+    rollback_trx will be false if either the transaction is
+    autocommit or if this is a single statement in a 
+    multi-statement transaction.  If it is a single statement
+    in multi-statement transaction, then only the changes in that 
+    statement are rolled back.
+*/
+int warp_rollback(handlerton* hton, THD *thd, bool rollback_trx) {
+  warp_trx* current_trx = warp_get_trx(hton, thd);
+  //if a statement failed, we need to rollback the insertions
+  //
+  if(rollback_trx) {
+    if(current_trx->dirty) {
+      // undo the changes
+     current_trx->rollback(true);  
+      // remove the transaction from the open list
+      //warp_state->mark_transaction_closed(trx->trx_id);
+    }
+  } else {
+    //statement rollback
+    if(current_trx->dirty) {  
+        current_trx->rollback(ROLLBACK_STATEMENT);
+    }
+    if(current_trx->autocommit) {
+      //warp_state->mark_transaction_closed(trx->trx_id);
+      current_trx->dirty = false;
+    } else {
+      return 0;
+    }
+  }
+  // destroy the transaction
+  warp_state->free_locks(current_trx);
+  warp_state->cleanup_history_locks();
+  delete current_trx;
+  thd->get_ha_data(hton->slot)->ha_ptr = NULL;
+  return 0;
+}
+
+bool ha_warp::is_row_visible_to_read(uint64_t rowid) {
+  uint64_t history_trx_id = warp_state->get_history_lock(rowid);
+  auto current_trx = warp_get_trx(warp_hton, table->in_use);
+  assert(current_trx != NULL);
+  //dbug("current_trx_id: " << current_trx->trx_id << " history_trx_id: " << history_trx_id << " for rowid: " << rowid);
+  if(history_trx_id == 0 
+    || history_trx_id < current_trx->trx_id 
+    || (history_trx_id > current_trx->trx_id && (current_trx->isolation_level != ISO_REPEATABLE_READ && current_trx->isolation_level != ISO_SERIALIZABLE))) {
+    // no history lock or may have been commited into delete map
+    // in a visible trx so have to check to see if the row is deleted
+    if(is_deleted(current_rowid)) {
+      return false;
+    }
+  } else {
+    /* another transaction has deleted or updated this row */
+    if(history_trx_id != current_trx->trx_id) {
+      return true;
+    }
+    return false;
+  }
   return true;
+}
+
+// checks the transaction marker to see if if this
+// row is visible
+bool ha_warp::is_trx_visible_to_read(uint64_t row_trx_id) {
+  if(last_trx_id == row_trx_id) {
+    return is_trx_visible;
+  }
+  last_trx_id = row_trx_id;
+
+  auto current_trx = warp_get_trx(warp_hton, table->in_use);
+  assert(current_trx != NULL);
+  auto commit_it = warp_state->commit_list.find(row_trx_id);
+  
+  //dbug("trx_id:" << current_trx->trx_id << " row_trx_id: " << row_trx_id);
+
+  /* row belongs to current trx so it is visible */
+  if(current_trx->trx_id == row_trx_id) {
+    is_trx_visible = true;
+    return is_trx_visible;
+  }
+  
+  /* not on the commit list so it was rolled back or not recovered */
+  if(commit_it == warp_state->commit_list.end()) {
+    is_trx_visible = false;
+    return is_trx_visible;
+  }
+
+  if(commit_it->second == WARP_ROLLED_BACK_TRX) {
+    is_trx_visible = false;
+    return is_trx_visible;
+  }
+
+  /* older trx are only visible if committed */
+  if(row_trx_id < current_trx->trx_id) {
+    if(commit_it->second == false) {
+      is_trx_visible = false;
+    } else {
+      is_trx_visible = true;
+    }
+    return is_trx_visible;
+  }
+
+  // row_trx_id is newer and RR or SERIALIZABLE thus not visible due to isolation level
+  if (current_trx->isolation_level == ISO_REPEATABLE_READ || current_trx->isolation_level == ISO_SERIALIZABLE) { 
+    is_trx_visible = false;
+    return is_trx_visible;
+  }
+
+  // if RC or RU if the trx is committed it is visible
+  is_trx_visible = commit_it->second;
+  return is_trx_visible;
+
+}
+
+/* Internal functions for maintaining and working with
+   WARP tables
+*/
+int warp_upgrade_tables(uint16_t version) {
+  if(version == 0) {
+    ibis::partList parts;
+    if(ibis::util::gatherParts(parts, ".") == 0) {
+      // No tables so nothing to do!
+      return 0;
+    }
+
+    for (auto it = parts.begin(); it < parts.end(); ++it) {
+      auto part = *it;
+      bool found_trx_column = false;
+      auto colnames = part->columnNames();
+      for(auto colit = colnames.begin(); colit < colnames.end(); ++colit) {
+        if(std::string(*colit) == "t") {
+          found_trx_column = true;
+          break;
+        }
+      }
+      if(!found_trx_column) {
+        ibis::tablex* writer = ibis::tablex::create();
+        const char* datadir = part->currentDataDir();
+        const std::string metafile = std::string(datadir) + "/-part.txt";
+        const std::string backup_metafile = std::string(datadir) + "/-part.txt.old";
+        writer->readNamesAndTypes(metafile.c_str());
+        writer->addColumn("t", ibis::ULONG, "transaction identifier");
+        if(rename(metafile.c_str(), backup_metafile.c_str()) != 0) {
+          sql_print_error("metadata rename failed %s -> %s", metafile.c_str(), backup_metafile.c_str());
+          assert(false);
+        }
+        if(writer->writeMetaData(datadir) == (int)(part->columnNames().size() + 1)) {
+          if(unlink(backup_metafile.c_str()) != 0) {
+            sql_print_error("metadata write failed %s -> %s", metafile.c_str());
+            assert(false);
+          }
+        } else {
+          std::string logmsg = "Metadata write failed for metadata file %s";
+          sql_print_error(logmsg.c_str(), metafile);
+          assert(false);
+        }
+        std::string logmsg = "Upgraded WARP partition %s to include transaction identifiers";
+        sql_print_error(logmsg.c_str(), datadir);
+        delete writer;
+        std::string column_fname = std::string(datadir) + "/t";
+        if(part->nRows() > 0) {
+          FILE* cfp=fopen(column_fname.c_str(), "w");
+          fseek(cfp, part->nRows()-1, SEEK_SET);
+          uint64_t zero = 0;
+          fwrite(&zero, 1, sizeof(zero), cfp);
+          int ferrno = ferror(cfp);
+          if(ferrno != 0) {
+            sql_print_error("Failed to zerofill file ", column_fname.c_str());
+            assert(false);
+          }
+          fclose(cfp);
+        }
+      }
+    }
+  } else {
+    sql_print_error( 
+      "On disk WARP version is greater than storage engine version. Engine version: %d but on disk version is %d", 
+      WARP_VERSION,
+      version
+    );
+    assert(false);
+  }
+  return 0;
+}
+
+warp_global_data::warp_global_data() {
+  uint64_t on_disk_version = 0;
+  bool shutdown_ok = false;
+  assert(check_state() == true);
+
+  fp = fopen(warp_state_file.c_str(), "rb+");
+  //if fp == NULL then the database is being initialized for the first time
+  if(fp == NULL) {
+    sql_print_error("First time startup - initializing new WARP database.");
+    next_rowid = 1;
+    next_trx_id = 1;
+    fp = fopen(warp_state_file.c_str(), "w+"); 
+    if(fp == NULL) {
+      sql_print_error("Could not open for writing: %s", warp_state_file.c_str());
+      assert(false);
+    }
+    write();
+    on_disk_version = WARP_VERSION;
+    shutdown_ok = true;
+  } else {
+    on_disk_version = get_state_and_return_version();
+    shutdown_ok = was_shutdown_clean();
+  }  
+
+  if(!shutdown_ok) {
+    DIR *dir = opendir(".");
+    struct dirent* ent;
+    const char trxlog_file_extension[7] = ".txlog";
+    if(dir == NULL) {
+      sql_print_error("Could not open directory entry for data directory");
+      assert(false);
+    }
+    // find any insertion logs and remove them - there is no need to roll
+    // back the insertions, the transactions associated with them will
+    // not be in the commit bitmap and any deletions associated with
+    // those transactions will be rolled back automatically when the
+    // bitmaps are opened
+    while((ent = readdir(dir)) != NULL) {
+      // skip the deleted and commit bitmaps
+      if(ent->d_name[0] == 'c' || ent->d_name[0] == 'd') {
+        char* ext_at = ent->d_name;
+        int filename_len = strlen(ent->d_name);
+        bool found = false;
+        for(int i = 0; i< filename_len; ++i) {
+          if(*(ext_at + i) == '.') {
+            found = true;
+            break;
+          }
+        }
+        if(!found) {
+            continue;
+        }
+        if(strncmp(trxlog_file_extension,ext_at, 6) == 0) {
+          // found a txlog to remove
+          if(unlink(ent->d_name) != 0) {
+            sql_print_error("Could not remove transaction log %s", ent->d_name);
+            assert(false);
+          }
+        }
+      }
+    }
+    
+    if(!repair_tables()) {
+      assert("Table repair failed. Database could not be initialized");
+    }
+  } 
+  
+  // this file will be rewritten at clean shutdown
+  unlink(shutdown_clean_file.c_str());
+  
+  commit_file = fopen(commit_filename.c_str(), "ab+");
+  if(!commit_file) {    
+    sql_print_error("Could not open commit file: %s", commit_filename.c_str());
+    assert(false);
+  }
+  fseek(commit_file, 0, SEEK_SET);
+  int sz = 0;
+  uint64_t trx_id;
+
+  /* load list of committed transactions to the commit list */
+  while( (sz = fread(&trx_id, sizeof(trx_id), 1, commit_file)) == 1) {
+    commit_list.emplace(std::pair<uint64_t, bool>(trx_id, true));
+  }
+  
+  // this will create the commits.warp bitmap if it does not exist
+  try {
+    delete_bitmap = new sparsebitmap(delete_bitmap_file, LOCK_SH); 
+  } catch(...) {
+    sql_print_error("Could not open delete bitmap: %s", delete_bitmap_file.c_str());
+    assert(false);
+  }
+  
+  // if tables are an older version on disk, proceed with upgrade process
+  if(on_disk_version != WARP_VERSION) {
+    if(!warp_upgrade_tables(on_disk_version)) {
+      sql_print_error("WARP upgrade tables failed");
+      assert(false);
+    }
+
+    // will write new version information to disk
+    // asserts if writing fails
+    write();
+  }
+  // ALL OK - DATABASE IS OPEN AND INITIALIZED!
+}
+
+/* Check the state of the database. 
+  1) the state file must exist
+  2) the state file must be the correct size
+  3) the commit bitmap must exist on disk
+  4) 
+  If all of these things are not correct then print an error message
+  and crash the database, unless the state file does not exist AND
+  the commit bitmap do not exist, which means this is the first time
+  that WARP is being initialized UNLESS WARP tables already exist.
+  If no WARP tables exist, this is the first WARP initialization
+  (which means mysqld --initialize is running) and the files are 
+  created.
+*/
+bool warp_global_data::check_state() {
+  struct stat st;
+  int state_exists = (stat(warp_state_file.c_str(), &st) == 0);
+  int commit_file_exists = (stat(commit_filename.c_str(), &st) == 0);
+  
+  if((state_exists && !commit_file_exists)) {
+    sql_print_error("warp_state found but commits.warp is missing! Database can not be initialized.");
+    return false;
+  } 
+  
+  if((!state_exists && commit_file_exists)) {
+    sql_print_error("commits.warp is found but warp_state is missing! Database can not be initialized.");
+    return false;
+  } 
+  
+  ibis::partList parts;
+  int has_warp_tables = ibis::util::gatherParts(parts, std::string(".").c_str());
+  if(!state_exists && !commit_file_exists && has_warp_tables > 0) {
+    sql_print_error("WARP tables found but database state is missing! This may be a beta 1 database. WARP can not be initialized.");
+    return false;
+  }
+  return true;
+}
+
+uint64_t warp_global_data::get_next_trx_id() {
+  mtx.lock();
+  ++next_trx_id;
+  write();
+  mtx.unlock();
+  return next_trx_id;
+}
+
+uint64_t warp_global_data::get_next_rowid_batch() {
+  mtx.lock();
+  next_rowid += 10000;
+  write();
+  mtx.unlock();
+  return next_rowid;
+}
+
+/* Only transactions that are for write are registered on the transaction list
+   called in ::external_lock when a transaction first makes changes
+*/
+void warp_global_data::register_open_trx(uint64_t trx_id) {
+  commit_mtx.lock();
+  commit_list.emplace(std::pair<uint64_t, int>(trx_id, WARP_UNCOMMITTED_TRX));
+  commit_mtx.unlock();
+}
+
+/* if trx not on commit list it is could be either rolled back or has not made any changes yet
+   if trx is on commit list and is WARP_UNCOMMITTED_TRX then the transaction is open for writes
+   if it is any other value then the transaction is not open anymore and has committed or
+   rolled back - it will be removed when the history locks are cleaned up...
+*/
+bool warp_global_data::is_transaction_open(uint64_t trx_id) {
+  bool retval = false;
+  commit_mtx.lock();
+  auto commit_it = commit_list.find(trx_id);
+  if(commit_it == commit_list.end()) {
+    retval = false;
+  } else {
+    retval = (commit_it->second == WARP_UNCOMMITTED_TRX);
+  }
+  commit_mtx.unlock();
+  return retval;
+}
+
+int warp_global_data::create_lock(uint64_t rowid, warp_trx* trx, int lock_type) {
+  uint spin_count = 0;
+  struct timespec sleep_time;
+  struct timespec remaining_time;
+  sleep_time.tv_sec = (time_t)0;
+  sleep_time.tv_nsec = 100000000L; // sleep a millisecond
+  // each sleep beyond the spin locks increments the 
+  // waiting time
+  ulonglong max_wait_time = THDVAR(current_thd, lock_wait_timeout) * 100000000L;
+  ulonglong wait_time = 0;
+  // create a new lock for our lock
+  // will be deleted and replaced if 
+  // we discover we already have this 
+  // lock!  
+  warp_lock new_lock;
+    
+  // history locks are taken after EX_LOCKS are granted
+  // for more information about history locks, see 
+  // ha_warp::update_row comments
+  if(lock_type == LOCK_HISTORY) {
+    history_lock_mtx.lock();
+    history_locks.emplace(std::pair<uint64_t, uint64_t>(rowid, trx->trx_id));
+    history_lock_mtx.unlock();
+    return LOCK_HISTORY;
+  }
+
+  new_lock.holder = trx->trx_id;
+  new_lock.waiting_on = 0;
+  new_lock.lock_type = lock_type;
+retry_lock:
+  lock_mtx.lock();
+  // this is used to iterate over all the locks held
+  // for this row.  
+  auto it = row_locks.find(rowid);
+
+  // check to see if any row locks exist for this
+  // row
+  if(it == row_locks.end()) {
+    // row is not locked so lock can proceed without
+    // checking anything further!
+    row_locks.emplace(std::pair<uint64_t, warp_lock>(rowid, new_lock));
+    lock_mtx.unlock();
+    return lock_type;
+  } else {
+    // row is already locked
+    for(auto it2 = it;it2 != row_locks.end();++it2) {
+      warp_lock test_lock = it2->second;
+
+      // this lock will be released because of deadlock
+      // so go to sleep and wait for it to be released
+      // so that we don't possibly hit another deadlock
+      // from the same trx before all the locks are 
+      // released as the transaction closes
+      if(test_lock.lock_type == LOCK_DEADLOCK) {
+        lock_mtx.unlock();
+        it2 = it;
+        goto sleep;
+      }
+
+      // the current transaction already holds a lock on this row
+      if(test_lock.holder != trx->trx_id) {
+        //dbug("test_lock.holder: " << test_lock.holder << " requestor: " << trx->trx_id);
+        //dbug("test_lock.lock_type: " << test_lock.lock_type << " requesting lock: " << lock_type)
+        // go ahead and give out a share lock if there is already a share lock
+        if(test_lock.lock_type != LOCK_HISTORY && (test_lock.lock_type != LOCK_SH && lock_type != LOCK_SH)) {
+          lock_mtx.unlock();
+          goto sleep;
+        }
+
+      } else {
+        if(test_lock.waiting_on != 0) {
+          // does the waiting transaction still exist?
+          if(is_transaction_open(test_lock.waiting_on)) {
+            lock_mtx.unlock();
+            goto sleep;
+          }
+          new_lock.waiting_on = 0;
+          row_locks.erase(it);
+          row_locks.emplace(std::pair<uint64_t, warp_lock>(rowid, new_lock));
+          lock_mtx.unlock();
+          return lock_type;
+        }
+       
+        if(test_lock.lock_type == WRITE_INTENTION && lock_type == LOCK_EX && test_lock.holder == trx->trx_id) {
+          // upgrade intention lock to EX_LOCK
+          row_locks.erase(it2);
+          row_locks.emplace(std::pair<uint64_t, warp_lock>(rowid, new_lock));
+          lock_mtx.unlock();
+          return lock_type;
+        } else {
+          // if LOCK_SH is requested and LOCK_EX has been granted return the EX_LOCK
+          // this should generally never happen unless an update produced a unique
+          // key violation and the row is being updated again.  If LOCK_SH is requested
+          // and trx already had LOCK_SH then the existing lock is reused
+          if(test_lock.lock_type >= lock_type && lock_type >= 0) {
+            // this transaction already has a strong enough lock on this row
+            // no need to insert the new lock and just return the lock 
+            lock_mtx.unlock();
+            return lock_type; 
+          } 
+
+          if(test_lock.lock_type == LOCK_SH && (lock_type == WRITE_INTENTION || lock_type == LOCK_EX)) {
+            it2->second.lock_type = lock_type;
+            lock_mtx.unlock();
+            return lock_type;
+          }
+        }
+        
+        row_locks.erase(it);
+        it2 = it;
+        continue;
+      }
+      
+      // this lock is a shared lock by somebody else
+      // and this lock request is for a shared lock
+      // so keep searching - we will grant the lock request
+      // as long as no conflicting EX_LOCK is found
+      // AND as long as this lock is not waiting on another
+      // transaction
+      if(test_lock.lock_type == LOCK_SH && new_lock.lock_type == LOCK_SH) {
+        // if the existing  shared lock is not waiting on an EX lock
+        // the shared lock can be granted, othewrise
+        // we have to wait on this lock
+        if(test_lock.waiting_on == 0) {
+          // iterate because this trx might already hold a shared lock 
+          // to reuse
+          continue;
+        }
+        // the shared lock is waiting on an EX lock!
+        // can not acquire the shared lock right now
+        // will sleep a bit if spinlocks are exhausted and 
+        // will error out if lock_wait_timeout is exhausted
+        new_lock.waiting_on = test_lock.waiting_on;
+        row_locks.emplace(std::pair<uint64_t, warp_lock>(rowid, new_lock));
+        lock_mtx.unlock();
+        goto sleep;
+      }
+      
+      // If new_lock points to an existing lock and the 
+      // other transaction is already waiting on this
+      // lock, then a DEADLOCK is detected!
+      // this transaction will be rolled back
+      if((lock_type == LOCK_EX || lock_type == WRITE_INTENTION) && test_lock.waiting_on == new_lock.holder) {
+        new_lock.lock_type = LOCK_DEADLOCK;
+        row_locks.emplace(std::pair<uint64_t, warp_lock>(rowid, new_lock));
+        lock_mtx.unlock();
+        return LOCK_DEADLOCK;
+      } else {
+        // have to wait to upgrade the lock
+        lock_mtx.unlock();
+        goto sleep;
+      }
+    }
+  }  
+
+  new_lock.waiting_on = 0;
+  // insert the new lock
+  row_locks.emplace(std::pair<uint64_t, warp_lock>(rowid, new_lock));
+  
+  lock_mtx.unlock();
+  return lock_type;
+
+sleep:
+  //lock_mtx.unlock();
+  //fixme - make this configurable
+  if(spin_count++ > 0) {
+    
+    int err = nanosleep(&sleep_time, &remaining_time);
+    if(err < 0) {
+      if(err == EINTR) {
+        sleep_time=remaining_time;
+        goto sleep;
+      }
+      return ER_LOCK_ABORTED;
+     } 
+  }
+  wait_time += sleep_time.tv_nsec;
+  if(wait_time >= max_wait_time) {
+    return ER_LOCK_WAIT_TIMEOUT;
+  }
+
+  // lock sleep completed 
+  goto retry_lock;
+
+  // never reached
+  return -1;
+  
+}
+
+/* When the database shuts down clean it writes the
+   warp_clean_shutdown file to disk
+*/
+bool warp_global_data::was_shutdown_clean() {
+  struct stat st;
+  if(stat(shutdown_clean_file.c_str(), &st) != 0) {
+    return false;
+  }
+  return st.st_size == sizeof(uint8_t);
+}
+
+uint64_t warp_global_data::get_state_and_return_version() {
+  struct on_disk_state state_record1;
+  struct on_disk_state state_record2;
+  struct on_disk_state* state_record;
+  
+  fread(&state_record1, sizeof(struct on_disk_state), 1, fp);
+  if(ferror(fp) != 0) {
+    sql_print_error("Failed to read state record one from warp_state");
+    return 0;
+  }
+  fread(&state_record2, sizeof(struct on_disk_state), 1, fp);
+  if(ferror(fp) != 0) {
+    sql_print_error("Failed to read state record two from warp_state");
+    return 0;
+  }
+  
+  if(state_record2.state_counter == 0 && state_record1.state_counter == 0) {
+    sql_print_error("Both state records are invalid.");
+    return 0;
+  }
+  
+  if(state_record2.state_counter == 0) {
+    state_record = &state_record1;
+  }
+  
+  if(state_record2.state_counter > state_record1.state_counter) {
+    state_record = &state_record2;
+  } else {
+    state_record = &state_record1;
+  }
+
+  next_trx_id = state_record->next_trx_id;
+  next_rowid = state_record->next_rowid;
+  state_counter = state_record->state_counter;
+
+  return state_record->version;
+}
+
+bool warp_global_data::repair_tables() {
+  return true;
+}
+
+void warp_global_data::write_clean_shutdown() {
+  FILE *sd = NULL;
+  sd = fopen(shutdown_clean_file.c_str(), "w");
+  if(!sd) {
+    sql_print_error("could not open shutdown file");
+    assert(false);
+  }
+  uint8_t one = 1;
+  fwrite(&one, sizeof(uint8_t), 1, sd);
+  if(ferror(sd) != 0) {
+    sql_print_error("could not write shutdown file");
+  }
+  fsync(fileno(sd));
+  fclose(sd);
+}
+
+// the data is written to disk twice because if the database 
+// or system crashes during the write, the state information
+// would be corrupted!  
+void warp_global_data::write() {
+  struct on_disk_state record;
+  // write the second record
+  memset(&record, 0, sizeof(struct on_disk_state));
+  // write the second record first.  If this fails, then the
+  // old record will be used when the database restarts.
+  if(fseek(fp, sizeof(struct on_disk_state), SEEK_SET) != 0) {
+    sql_print_error("seek on warp_state failed!");
+    assert(false);
+  }
+  fwrite(&record, sizeof(struct on_disk_state), 1, fp);
+  if(ferror(fp) != 0) {
+    sql_print_error("Write to database state failed");
+    assert(false);
+  }
+  fflush(fp);
+  if(fseek(fp, sizeof(struct on_disk_state), SEEK_SET) != 0) {
+    sql_print_error("seek on warp_state failed!");
+    assert(false);
+  }
+  record.next_rowid  = next_rowid;
+  record.next_trx_id = next_trx_id;
+  record.version     = WARP_VERSION;
+  record.state_counter = ++state_counter;
+  fwrite(&record, sizeof(struct on_disk_state), 1, fp);
+  if(ferror(fp) != 0) {
+    sql_print_error("Write to database state failed");
+    assert(false);
+  }
+  if(fsync(fileno(fp)) != 0) {
+    sql_print_error("fsync to database state failed");
+    assert(false);
+  }
+
+  // write the first record
+  rewind(fp);   
+  memset(&record, 0, sizeof(struct on_disk_state));
+  fwrite(&record, sizeof(struct on_disk_state), 1, fp);
+  if(ferror(fp) != 0) {
+    sql_print_error("Write to database state failed");
+    assert(false);
+  }  
+  fflush(fp);
+  record.next_rowid  = next_rowid;
+  record.next_trx_id = next_trx_id;
+  record.version     = WARP_VERSION;
+  record.state_counter = ++state_counter;
+  fwrite(&record, sizeof(struct on_disk_state), 1, fp);
+  if(ferror(fp) != 0) {
+    sql_print_error("Write to database state failed");
+    assert(false);
+  }  
+  if(fsync(fileno(fp)) != 0) {
+    sql_print_error("fsync to database state failed");
+    assert(false);
+  }
+}
+
+// not currently used - here for completeness
+int warp_global_data::unlock(uint64_t rowid, warp_trx* trx) {
+  lock_mtx.lock();
+  // row is not locked!
+  for(auto it = row_locks.find(rowid); it != row_locks.end();++it) {
+    if(it->second.holder == trx->trx_id) {
+      row_locks.erase(it);
+      break;
+    }
+  }
+  lock_mtx.unlock();
+  return 0;
+
+}
+// an EX_LOCK can be downgraded to a history lock
+// this function is here for completeness but it
+// is not currently used as ::update_row and 
+// ::delete_row automatically take history locks
+int warp_global_data::downgrade_to_history_lock(uint64_t rowid, warp_trx* trx) {
+  // row is not locked!
+  lock_mtx.lock();
+  for(auto it = row_locks.find(rowid); it != row_locks.end();++it) {
+    if(it->second.holder == trx->trx_id) {
+      row_locks.erase(it);
+      break;
+    }
+  }
+  // any trx open at or before this transaction will see the 
+  // history lock - no need to check the delete bitmap for
+  // any row that has a history lock - it was deleted 
+  // and is no longer visible to newer transactions
+  // if a history lock doesn't exist the deleted bitmap
+  // will be checked
+  warp_lock history_lock;
+  history_lock_mtx.lock();
+  history_locks.emplace(std::pair<uint64_t, uint64_t>(rowid, trx->trx_id));
+  history_lock_mtx.unlock();
+  lock_mtx.unlock();
+  
+  return 0;
+}
+
+int warp_global_data::free_locks(warp_trx* trx) {
+  lock_mtx.lock();
+  restart:
+  for(auto it = row_locks.begin(); it != row_locks.end();++it) {
+    if(it->second.holder == trx->trx_id) {
+      row_locks.erase(it);
+      // deleting the lock invalidates the iterator...
+      // so restart at the beginning.   There is probably
+      // a better way to do this...
+      goto restart;
+    }
+  }
+  lock_mtx.unlock();
+  return 0;
+}
+
+// returns 0 if no history lock or the trx_id that created
+// the lock otherwise
+uint64_t warp_global_data::get_history_lock(uint64_t rowid) {
+  history_lock_mtx.lock();
+  auto it = history_locks.find(rowid);
+  if(it == history_locks.end()) {
+    history_lock_mtx.unlock();
+    return 0;
+  }
+  history_lock_mtx.unlock();
+  return it->second;
+  
+}
+
+warp_global_data::~warp_global_data() {
+  fclose(commit_file);
+  /*
+  if(commit_bitmap->close(1) != 0) {
+    sql_print_error("Could not close bitmap %s", commit_bitmap->get_fname().c_str());
+    assert(false);
+  }*/
+  if(delete_bitmap->close(1) != 0) {
+    sql_print_error("Could not close bitmap %s", delete_bitmap->get_fname().c_str());
+    assert(false);
+  }
+  write();
+  fclose(fp);
+  //commit_bitmap = NULL;
+  write_clean_shutdown();
+}
+
+std::string ha_warp::explain_extra() const { 
+  if (pushed_cond != nullptr) {
+    return ", with pushed condition: " + ItemToString(pushed_cond);
+  }
+  return "";
+}
+
+// get the number of rows in all the tables in the current schema
+std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table_dir) {
+  std::unordered_map<const char*, uint64_t> table_counts;
+  ibis::partList parts;
+  char* schema_dir = strdup(table_dir);
+  schema_dir = dirname(schema_dir);
+  ibis::util::gatherParts(parts, schema_dir, true);
+  for(auto part_it = parts.begin(); part_it < parts.end(); ++part_it) {
+    ibis::part* part = *part_it;
+    // the top-level partition ends in .data, the other partitions are ./data/pXXX
+    if(strstr(part->currentDataDir(), ".data/") == NULL) {
+      ibis::table* tbl = ibis::mensa::create(part->currentDataDir());
+      if(!tbl) {
+        table_counts.emplace(part->currentDataDir(), 0);
+        continue;
+      }
+      table_counts.emplace(part->currentDataDir(), tbl->nRows());
+      delete tbl;
+    }
+  }
+  free(schema_dir);
+  return table_counts;
+}
+
+// return the path to the table with the most rows in the database
+const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* table_counts) {
+  uint64_t max_cnt = 0;
+  const char* table_with_max_cnt = NULL;
+  for(auto it = table_counts->begin(); it != table_counts->end(); it++) {
+    if(it->second >= max_cnt) {
+      max_cnt = it->second;
+      table_with_max_cnt = it->first;
+    }
+  }
+  return table_with_max_cnt;
+}
+
+warp_pushdown_information* get_pushdown_info(THD* thd, const char* alias) {
+  pushdown_mtx.lock();
+  // The pushdown information will be missing if the referenced table
+  // belongs to a different storage engine
+  if(pd_info.empty()) { 
+    pushdown_mtx.unlock();
+    return NULL;
+  }
+
+  auto it = pd_info.find(thd);
+  if(it == pd_info.end()) {
+    pushdown_mtx.unlock();
+    return NULL;
+  }
+
+  // If it was found above it is a WARP table and the map 
+  // information should be set - if it is NULL then something is broken!
+  auto pushdown_info_map = it->second;
+  if(pushdown_info_map == NULL) {
+    pushdown_mtx.unlock();
+    return NULL;
+  }
+  
+  if(pushdown_info_map->empty()) { 
+    pushdown_mtx.unlock();
+    return NULL; 
+  }
+  
+  int is_empty = true;
+  for(auto it2 = pushdown_info_map->begin();it2!=pushdown_info_map->end(); ++it2) {
+    if(std::string(it2->first) == std::string(alias)) {
+      is_empty = false;
+      break;
+    }
+  }
+  if(is_empty) {
+    pushdown_mtx.unlock();
+    return NULL;
+  }
+  auto it2 = pushdown_info_map->find(alias);
+  assert(it2 != pushdown_info_map->end());
+    
+  if(it2->first == NULL) {
+    pushdown_mtx.unlock();
+    return NULL;
+  }
+  
+  pushdown_mtx.unlock();
+  // return the pushdown info
+  return it2->second;
+}
+
+warp_pushdown_information* get_or_create_pushdown_info(THD* thd, const char* alias, const char* data_dir_name) {
+  std::unordered_map<const char*, warp_pushdown_information*> *pushdown_info_map;
+  warp_pushdown_information* pushdown_info;
+
+  pushdown_mtx.lock();
+   
+  auto it = pd_info.find(thd);
+  if(it == pd_info.end()) {
+    pushdown_info_map = new std::unordered_map<const char*, warp_pushdown_information*>;
+    pushdown_info = new warp_pushdown_information();
+    //map the alias used by MySQL to the directory of the Fastbit table
+    pushdown_info->datadir = data_dir_name;
+    pushdown_info_map->emplace(std::pair<const char*, warp_pushdown_information*>(alias, pushdown_info));
+    pd_info.emplace(std::pair<THD*, std::unordered_map<const char*, warp_pushdown_information*>*>(thd, pushdown_info_map));
+  } else {
+    pushdown_info_map = it->second;
+    auto it2 = pushdown_info_map->find(alias);
+    if(it2 == pushdown_info_map->end()) {
+      pushdown_info = new warp_pushdown_information();
+      pushdown_info->datadir = data_dir_name;
+      pushdown_info_map->emplace(std::pair<const char*, warp_pushdown_information*>(alias, pushdown_info));
+    } else {
+      pushdown_info = it2->second;
+    }
+  }
+  
+  pushdown_mtx.unlock();
+  
+  return pushdown_info;
 }

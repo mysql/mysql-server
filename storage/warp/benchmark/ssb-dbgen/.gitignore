@@ -1,0 +1,6 @@
+*.o
+*.tbl
+qgen
+dbgen
+*backup*
+sf*
