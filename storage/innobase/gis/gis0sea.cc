@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1265,7 +1265,23 @@ rtr_check_discard_page(
 	lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
 	lock_mutex_exit();
 }
-
+/** This is a backported version of a lambda expression:
+  [&](buf_block_t *hint) {
+     return hint != nullptr && buf_page_optimistic_get(...hint...);
+  }
+for compilers which do not support lambda expressions, nor passing local types
+as template arguments. */
+struct Buf_page_optimistic_get_functor_t{
+	btr_pcur_t * &r_cursor;
+	const char * &file;
+	ulint &line;
+	mtr_t * &mtr;
+	bool operator()(buf_block_t *hint) const {
+		return hint != NULL && buf_page_optimistic_get(
+			RW_X_LATCH, hint, r_cursor->modify_clock, file, line, mtr
+		);
+	}
+};
 /**************************************************************//**
 Restores the stored position of a persistent cursor bufferfixing the page */
 bool
@@ -1301,11 +1317,8 @@ rtr_cur_restore_position_func(
 	);
 
 	ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
-
-	if (!buf_pool_is_obsolete(r_cursor->withdraw_clock)
-	    && buf_page_optimistic_get(RW_X_LATCH,
-				    r_cursor->block_when_stored,
-				    r_cursor->modify_clock, file, line, mtr)) {
+	Buf_page_optimistic_get_functor_t functor={r_cursor,file,line,mtr};
+	if (r_cursor->block_when_stored.run_with_hint(functor)){
 		ut_ad(r_cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 		ut_ad(r_cursor->rel_pos == BTR_PCUR_ON);

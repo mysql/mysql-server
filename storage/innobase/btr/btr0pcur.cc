@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -187,11 +187,10 @@ btr_pcur_store_position(
 		index, rec, &cursor->old_n_fields,
 		&cursor->old_rec_buf, &cursor->buf_size);
 
-	cursor->block_when_stored = block;
+	cursor->block_when_stored.store(block);
 
 	/* Function try to check if block is S/X latch. */
 	cursor->modify_clock = buf_block_get_modify_clock(block);
-	cursor->withdraw_clock = buf_withdraw_clock;
 }
 
 /**************************************************************//**
@@ -220,6 +219,26 @@ btr_pcur_copy_stored_position(
 
 	pcur_receive->old_n_fields = pcur_donate->old_n_fields;
 }
+
+/** This is a backported version of a lambda expression:
+  [&](buf_block_t *hint) {
+     return hint != nullptr && btr_cur_optimistic_latch_leaves(hint...);
+  }
+for compilers which do not support lambda expressions, nor passing local types
+as template arguments. */
+struct Btr_cur_optimistic_latch_leaves_functor_t{
+	btr_pcur_t * &cursor;
+	ulint &latch_mode;
+	const char * &file;
+	ulint &line;
+	mtr_t * &mtr;
+	bool operator() (buf_block_t *hint) const {
+		return hint != NULL && btr_cur_optimistic_latch_leaves(
+			hint, cursor->modify_clock, &latch_mode,
+			btr_pcur_get_btr_cur(cursor), file, line, mtr
+		);
+	}
+};
 
 /**************************************************************//**
 Restores the stored position of a persistent cursor bufferfixing the page and
@@ -273,7 +292,7 @@ btr_pcur_restore_position_func(
 		cursor->latch_mode =
 			BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 		cursor->pos_state = BTR_PCUR_IS_POSITIONED;
-		cursor->block_when_stored = btr_pcur_get_block(cursor);
+		cursor->block_when_stored.clear();
 
 		return(FALSE);
 	}
@@ -290,11 +309,8 @@ btr_pcur_restore_position_func(
             && !dict_table_is_intrinsic(cursor->btr_cur.index->table)) {
 		/* Try optimistic restoration. */
 
-		if (!buf_pool_is_obsolete(cursor->withdraw_clock)
-		    && btr_cur_optimistic_latch_leaves(
-			cursor->block_when_stored, cursor->modify_clock,
-			&latch_mode, btr_pcur_get_btr_cur(cursor),
-			file, line, mtr)) {
+		Btr_cur_optimistic_latch_leaves_functor_t functor={cursor,latch_mode,file,line,mtr};
+		if (cursor->block_when_stored.run_with_hint(functor)) {
 
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 			cursor->latch_mode = latch_mode;
@@ -381,11 +397,10 @@ btr_pcur_restore_position_func(
 		since the cursor can now be on a different page!
 		But we can retain the value of old_rec */
 
-		cursor->block_when_stored = btr_pcur_get_block(cursor);
-		cursor->modify_clock = buf_block_get_modify_clock(
-						cursor->block_when_stored);
+		buf_block_t * block = btr_pcur_get_block(cursor);
+		cursor->block_when_stored.store(block);
+		cursor->modify_clock = buf_block_get_modify_clock(block);
 		cursor->old_stored = true;
-		cursor->withdraw_clock = buf_withdraw_clock;
 
 		mem_heap_free(heap);
 

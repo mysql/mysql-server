@@ -82,6 +82,93 @@ update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';
 --enable_result_log
 
+--echo #
+--echo # Bug#31080309 - REGRESSION FOR BUG 81009 FIXED IN 5.7.17
+--echo #   Bug23103937(BUG81009) - PS_TRUNCATE_ALL_TABLES() DOES NOT WORK IN
+--echo #                           SUPER_READ_ONLY MODE.
+--echo #
+
+connection default;
+--echo # Reset read_only and super_read_only mode.
+set global read_only=0;
+set global super_read_only=0;
+--echo # Grant truncate table and execute stored procedure privileges to pfsuser.
+grant DROP on performance_schema.* to pfsuser@localhost;
+grant EXECUTE on procedure sys.ps_truncate_all_tables to pfsuser@localhost;
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify truncate operation on performance schema table by
+--echo # super user with super_read_only=ON.
+--echo #-----------------------------------------------------------------------
+--echo # Set super_read_only mode.
+set global super_read_only=1;
+
+connection con1;
+--echo # truncate operation is allowed in super_read_only mode on performance schema
+--echo # tables for super user.
+--echo # Without fix following statements fail because of super read only mode.
+--disable_result_log
+truncate table performance_schema.events_statements_summary_by_digest;
+call sys.ps_truncate_all_tables(0);
+--enable_result_log
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify truncate operation on performance schema table by
+--echo # super user with read_only=ON.
+--echo #-----------------------------------------------------------------------
+connection default;
+--echo # Reset super_read_only mode.
+set global super_read_only=0;
+--echo # Set read_only mode.
+set global read_only=1;
+
+connection con1;
+--echo # truncate operation is allowed in read_only mode on performance schema
+--echo # tables for super user.
+--echo # Without fix following statements fail because of super read only mode.
+--disable_result_log
+truncate table performance_schema.events_statements_summary_by_digest;
+call sys.ps_truncate_all_tables(0);
+--enable_result_log
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify truncate operation on performance schema table by
+--echo # non-super user with super_read_only=ON.
+--echo #-----------------------------------------------------------------------
+connection default;
+set global super_read_only=0;
+--echo # Revoke SUPER privilege from pfsuser.
+revoke SUPER on *.* from pfsuser@localhost;
+--echo # Reset super_read_only mode.
+set global super_read_only=1;
+
+connection con1;
+--echo # truncate operation is allowed in super_read_only mode on performance schema
+--echo # tables for non-super user.
+--disable_result_log
+truncate table performance_schema.events_statements_summary_by_digest;
+call sys.ps_truncate_all_tables(0);
+--enable_result_log
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify truncate operation on performance schema table by
+--echo # non-super user with read_only=ON.
+--echo #-----------------------------------------------------------------------
+connection default;
+--echo # Reset super_read_only mode.
+set global super_read_only=0;
+--echo # Set read_only mode.
+set global read_only=1;
+
+connection con1;
+--echo # truncate operation is allowed in read_only mode on performance schema
+--echo # tables for non-super user.
+--disable_result_log
+truncate table performance_schema.events_statements_summary_by_digest;
+call sys.ps_truncate_all_tables(0);
+--enable_result_log
+--echo ########################################################################
+
 disconnect con1;
 --source include/wait_until_disconnected.inc
 
