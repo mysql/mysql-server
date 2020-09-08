@@ -102,6 +102,7 @@ RETURN 0;
 END|
 GRANT EXECUTE ON PROCEDURE test.proc2 TO writer2;
 GRANT EXECUTE ON FUNCTION test.func1 TO writer2;
+SET GLOBAL optimizer_switch = "skip_scan=off";
 # Connections used for testing.
 # Case 1:
 # Execute SELECT FOR UPDATE on ACL table after a concurrent
@@ -140,7 +141,7 @@ FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
 tab	INDEX_NAME	LOCK_MODE	Has_lock
-mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
 "Case 1.1: Using SERIALIZABLE with SELECT LOCK IN SHARE MODE"
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
@@ -170,7 +171,7 @@ FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
 tab	INDEX_NAME	LOCK_MODE	Has_lock
-mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
 "Case 1.2: Start a transaction in REPEATABLE READ"
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
@@ -197,7 +198,7 @@ FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
 tab	INDEX_NAME	LOCK_MODE	Has_lock
-mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
 "Case 1.2: Using REPEATABLE READ with SELECT LOCK IN SHARE MODE"
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
@@ -227,7 +228,7 @@ FROM performance_schema.data_locks
 WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
 tab	INDEX_NAME	LOCK_MODE	Has_lock
-mysql.user	PRIMARY	X,REC_NOT_GAP	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
 COMMIT;
 "Case 1.3: Start a transaction in READ COMMITTED"
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
@@ -3082,7 +3083,7 @@ WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
-mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
 INSERT INTO mysql.user SELECT * FROM user_bk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -3661,7 +3662,7 @@ WHERE LOCK_TYPE='RECORD' AND
 (LOCATE('u2',LOCK_DATA)>0 OR LOCATE('u2x',LOCK_DATA)>0);
 tab	INDEX_NAME	LOCK_MODE	Has_lock
 mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
-mysql.user	PRIMARY	X	Acquired row lock on u2/u2x
+mysql.user	PRIMARY	X,GAP	Acquired row lock on u2/u2x
 # Make sure that we do not allow updating ACL table.
 INSERT INTO mysql.user SELECT * FROM user_bk;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
