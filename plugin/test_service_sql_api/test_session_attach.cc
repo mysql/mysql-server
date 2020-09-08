@@ -88,6 +88,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd) {
 
   test_context->log_test_line(test_cmd);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
 

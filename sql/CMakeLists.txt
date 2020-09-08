@@ -686,6 +686,7 @@ SET(SQL_SOURCE
   ../sql-common/net_ns.cc
   ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc
+  ../sql-common/bind_params.cc
   command_service.cc
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc

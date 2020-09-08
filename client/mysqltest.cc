@@ -27,6 +27,7 @@
 /// See @ref PAGE_MYSQL_TEST_RUN "The MySQL Test Framework" for more
 /// information.
 
+#include "client/client_query_attributes.h"
 #include "client/mysqltest/error_names.h"
 #include "client/mysqltest/expected_errors.h"
 #include "client/mysqltest/expected_warnings.h"
@@ -527,6 +528,7 @@ enum enum_commands {
   Q_SEND_EVAL,
   Q_OUTPUT, /* redirect output to a file */
   Q_RESET_CONNECTION,
+  Q_QUERY_ATTRIBUTES,
   Q_UNKNOWN, /* Unknown command.   */
   Q_COMMENT, /* Comments, ignored. */
   Q_COMMENT_WITH_COMMAND,
@@ -562,7 +564,7 @@ const char *command_names[] = {
     "list_files", "list_files_write_file", "list_files_append_file",
     "send_shutdown", "shutdown_server", "result_format", "move_file",
     "remove_files_wildcard", "copy_files_wildcard", "send_eval", "output",
-    "reset_connection",
+    "reset_connection", "query_attributes",
 
     nullptr};
 
@@ -632,6 +634,8 @@ static uint max_replace_column = 0;
 void do_get_replace_column(struct st_command *);
 void free_replace_column();
 
+static void do_query_attributes(struct st_command *command);
+
 /* For replace */
 void do_get_replace(struct st_command *command);
 void free_replace();
@@ -658,6 +662,7 @@ static void free_all_replace() {
   free_replace_regex();
   free_replace_column();
   free_replace_numeric_round();
+  global_attrs->clear();
 }
 
 /*
@@ -780,9 +785,6 @@ static int async_mysql_real_query_wrapper(MYSQL *mysql, const char *query,
 static int async_mysql_send_query_wrapper(MYSQL *mysql, const char *query,
                                           ulong length) {
   net_async_status status;
-  ASYNC_DATA(mysql)->async_query_length = length;
-  ASYNC_DATA(mysql)->async_query_state = QUERY_SENDING;
-
   AsyncTimer t(__func__);
   while ((status = mysql_send_query_nonblocking(mysql, query, length)) ==
          NET_ASYNC_NOT_READY) {
@@ -892,6 +894,9 @@ static MYSQL_RES *mysql_store_result_wrapper(MYSQL *mysql) {
 
 static int mysql_real_query_wrapper(MYSQL *mysql, const char *query,
                                     ulong length) {
+  int rc;
+  if (0 != (rc = global_attrs->set_params(mysql))) return rc;
+
   if (enable_async_client)
     return async_mysql_real_query_wrapper(mysql, query, length);
   else
@@ -900,6 +905,9 @@ static int mysql_real_query_wrapper(MYSQL *mysql, const char *query,
 
 static int mysql_send_query_wrapper(MYSQL *mysql, const char *query,
                                     ulong length) {
+  int rc;
+  if (0 != (rc = global_attrs->set_params(mysql))) return rc;
+
   if (enable_async_client)
     return async_mysql_send_query_wrapper(mysql, query, length);
   else
@@ -916,6 +924,9 @@ static bool mysql_read_query_result_wrapper(MYSQL *mysql) {
 }
 
 static int mysql_query_wrapper(MYSQL *mysql, const char *query) {
+  int rc;
+  if (0 != (rc = global_attrs->set_params(mysql))) return rc;
+
   if (enable_async_client)
     return async_mysql_query_wrapper(mysql, query);
   else
@@ -1496,6 +1507,11 @@ static void free_used_memory() {
 #ifdef _WIN32
   free_win_path_patterns();
 #endif
+
+  if (global_attrs != nullptr) {
+    delete global_attrs;
+    global_attrs = nullptr;
+  }
 
   // Only call mysql_server_end if mysql_server_init has been called.
   if (server_initialized) mysql_server_end();
@@ -7229,6 +7245,34 @@ static int read_line(char *buf, int size) {
   return 0;
 }
 
+/// Set string query attributes for the next query
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command. Optionally
+///                including a timeout else the default of 60 seconds
+static void do_query_attributes(struct st_command *command) {
+  const char *from = command->first_argument;
+  char *buff, *start;
+  DBUG_TRACE;
+
+  global_attrs->clear();
+  if (!*from) die("Missing argument in %s", command->query);
+  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, std::strlen(from) + 1,
+                                   MYF(MY_WME | MY_FAE));
+  while (*from) {
+    char *name = get_string(&buff, &from, command);
+    if (!*from)
+      die("Wrong (odd) number of arguments to query_attributes in '%s'",
+          command->query);
+    char *value = get_string(&buff, &from, command);
+
+    if (global_attrs->push_param(name, value))
+      die("Failed to add an attribute pair in query_attributes");
+  }
+  my_free(start);
+  command->last_argument = command->end;
+}
+
 /*
   Convert the read query to result format version 1
 
@@ -9221,6 +9265,8 @@ int main(int argc, char **argv) {
   init_dynamic_string(&ds_res, "", 2048);
   init_dynamic_string(&ds_result, "", 1024);
 
+  global_attrs = new client_query_attributes();
+
   parse_args(argc, argv);
 
 #ifdef _WIN32
@@ -9773,6 +9819,10 @@ int main(int argc, char **argv) {
           break;
         case Q_RESET_CONNECTION:
           do_reset_connection();
+          global_attrs->clear();
+          break;
+        case Q_QUERY_ATTRIBUTES:
+          do_query_attributes(command);
           break;
         case Q_SEND_SHUTDOWN:
           if (opt_offload_count_file) {

@@ -38,6 +38,7 @@
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "client/client_query_attributes.h"
 #include "client/my_readline.h"
 #include "client/pattern_matcher.h"
 #include "compression.h"
@@ -308,7 +309,8 @@ static int com_quit(String *str, char *), com_go(String *str, char *),
     com_notee(String *str, char *), com_charset(String *str, char *),
     com_prompt(String *str, char *), com_delimiter(String *str, char *),
     com_warnings(String *str, char *), com_nowarnings(String *str, char *),
-    com_resetconnection(String *str, char *);
+    com_resetconnection(String *str, char *),
+    com_query_attributes(String *str, char *);
 static int com_shell(String *str, char *);
 
 #ifdef USE_POPEN
@@ -402,6 +404,9 @@ static COMMANDS commands[] = {
      "Don't show warnings after every statement."},
     {"resetconnection", 'x', com_resetconnection, false,
      "Clean session context."},
+    {"query_attributes", 0, com_query_attributes, true,
+     "Sets string parameters (name1 value1 name2 value2 ...) for the next "
+     "query to pick up."},
     /* Get bash-like expansion for some commands */
     {"create table", 0, nullptr, false, ""},
     {"create database", 0, nullptr, false, ""},
@@ -1325,6 +1330,7 @@ int main(int argc, char *argv[]) {
   completion_hash_init(&ht, 128);
   init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 16384, 0);
   memset(&mysql, 0, sizeof(mysql));
+  global_attrs = new client_query_attributes();
   if (sql_connect(current_host, current_db, current_user, opt_password,
                   opt_silent)) {
     quick = true;  // Avoid history
@@ -1491,6 +1497,10 @@ void mysql_end(int sig) {
   my_free(current_prompt);
   mysql_server_end();
   my_end(my_end_arg);
+  if (global_attrs != nullptr) {
+    delete global_attrs;
+    global_attrs = nullptr;
+  }
   exit(status.exit_status);
 }
 
@@ -3054,17 +3064,22 @@ static void get_current_db() {
  The different commands
 ***************************************************************************/
 
-static int mysql_real_query_for_lazy(const char *buf, size_t length) {
+static int mysql_real_query_for_lazy(const char *buf, size_t length,
+                                     bool set_params = false) {
+  int error = 0;
   for (uint retry = 0;; retry++) {
-    int error;
+    error = 0;
 
-    if (!mysql_real_query(&mysql, buf, (ulong)length)) return 0;
+    if (set_params && global_attrs->set_params(&mysql)) break;
+    if (!mysql_real_query(&mysql, buf, (ulong)length)) break;
     error = put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
         !opt_reconnect)
-      return error;
-    if (reconnect()) return error;
+      break;
+    if (reconnect()) break;
   }
+  if (set_params) global_attrs->clear(connected ? &mysql : nullptr);
+  return error;
 }
 
 static int mysql_store_result_for_lazy(MYSQL_RES **result) {
@@ -3290,7 +3305,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
 
   timer = start_timer();
   executing_query = true;
-  error = mysql_real_query_for_lazy(buffer->ptr(), buffer->length());
+  error = mysql_real_query_for_lazy(buffer->ptr(), buffer->length(), true);
 
   if (status.add_to_history) {
     buffer->append(vertical ? "\\G" : delimiter);
@@ -4357,6 +4372,30 @@ static int com_nowarnings(String *buffer MY_ATTRIBUTE((unused)),
   return 0;
 }
 
+static int com_query_attributes(String *buffer MY_ATTRIBUTE((unused)),
+                                char *line) {
+  char buff[1024], *param, name[1024];
+  memset(buff, 0, sizeof(buff));
+  strmake(buff, line, sizeof(buff) - 1);
+  param = buff;
+  global_attrs->clear(connected ? &mysql : nullptr);
+  do {
+    param = get_arg(param, param != buff);
+    if (!param || !*param) break;
+
+    strncpy(name, param, sizeof(name) - 1);
+    param = get_arg(param, true);
+    if (!param || !*param) {
+      return put_info("Usage: query_attributes name1 value1 name2 value2 ...",
+                      INFO_ERROR, 0);
+    }
+
+    if (global_attrs->push_param(name, param))
+      return put_info("Failed to push a parameter", INFO_ERROR, 0);
+  } while (param != 0);
+  return 0;
+}
+
 /*
   Gets argument from a command on the command line. If get_next_arg is
   not defined, skips the command and returns the first argument. The
@@ -5264,6 +5303,7 @@ static int com_prompt(String *buffer MY_ATTRIBUTE((unused)), char *line) {
 static int com_resetconnection(String *buffer MY_ATTRIBUTE((unused)),
                                char *line MY_ATTRIBUTE((unused))) {
   int error;
+  global_attrs->clear(connected ? &mysql : nullptr);
   error = mysql_reset_connection(&mysql);
   if (error) {
     if (status.batch) return 0;

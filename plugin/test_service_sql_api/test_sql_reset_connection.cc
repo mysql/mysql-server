@@ -497,6 +497,7 @@ static void query_execute(MYSQL_SESSION session, st_plugin_ctx *pctx,
   pctx->reset();
 
   COM_DATA cmd;
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = query.c_str();
   cmd.com_query.length = query.size();
   if (command_service_run_command(session, COM_QUERY, &cmd,

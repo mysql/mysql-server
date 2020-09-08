@@ -52,6 +52,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   system_variable_source_imp.cc
   udf_metadata_imp.cc
   audit_api_connection_service_imp.cc
+  mysql_query_attributes_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

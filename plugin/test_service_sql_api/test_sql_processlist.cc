@@ -598,6 +598,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
   pctx->reset();
 
   COM_DATA cmd;
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
   int fail = command_service_run_command(session, COM_QUERY, &cmd,

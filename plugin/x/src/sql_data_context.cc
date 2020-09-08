@@ -190,6 +190,7 @@ bool Sql_data_context::kill() {
           Query_string_builder qb;
           qb.put("KILL ").put(mysql_session_id());
 
+          memset(&data, 0, sizeof(data));
           data.com_query.query = qb.get().c_str();
           data.com_query.length = static_cast<unsigned int>(qb.get().length());
 
@@ -553,6 +554,7 @@ ngs::Error_code Sql_data_context::execute_sql(const char *sql,
                                               std::size_t sql_len,
                                               iface::Resultset *rset) {
   COM_DATA data;
+  memset(&data, 0, sizeof(data));
   data.com_query.query = sql;
   data.com_query.length = static_cast<unsigned int>(sql_len);
   return execute_server_command(COM_QUERY, data, rset);

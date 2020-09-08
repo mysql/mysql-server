@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -120,19 +120,19 @@ struct Param_prepare_parameters {
 };
 
 #define NLL \
-  { true, MYSQL_TYPE_NULL, false, nullptr, 0ul }
+  { true, MYSQL_TYPE_NULL, false, nullptr, 0ul, nullptr, 0ul }
 #define SIN \
-  { false, MYSQL_TYPE_LONGLONG, false, nullptr, sizeof(int64_t) }
+  { false, MYSQL_TYPE_LONGLONG, false, nullptr, sizeof(int64_t), nullptr, 0ul }
 #define UIN \
-  { false, MYSQL_TYPE_LONGLONG, true, nullptr, sizeof(uint64_t) }
+  { false, MYSQL_TYPE_LONGLONG, true, nullptr, sizeof(uint64_t), nullptr, 0ul }
 #define STR(len) \
-  { false, MYSQL_TYPE_STRING, false, nullptr, len }
+  { false, MYSQL_TYPE_STRING, false, nullptr, len, nullptr, 0ul }
 #define DBL \
-  { false, MYSQL_TYPE_DOUBLE, false, nullptr, sizeof(double) }
+  { false, MYSQL_TYPE_DOUBLE, false, nullptr, sizeof(double), nullptr, 0ul }
 #define FLT \
-  { false, MYSQL_TYPE_FLOAT, false, nullptr, sizeof(float) }
+  { false, MYSQL_TYPE_FLOAT, false, nullptr, sizeof(float), nullptr, 0ul }
 #define BOL \
-  { false, MYSQL_TYPE_TINY, false, nullptr, 1ul }
+  { false, MYSQL_TYPE_TINY, false, nullptr, 1ul, nullptr, 0ul }
 
 #define RAW(id) \
   { id, Placeholder_info::Type::k_raw }

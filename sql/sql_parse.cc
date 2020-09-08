@@ -1130,17 +1130,28 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   thd->profiling->set_query_source(buf, len);
 #endif
 
+  /*
+    Clear the DA in anticipation of possible failures in anticipation
+    of possible command parsing failures.
+  */
+  thd->get_stmt_da()->reset_diagnostics_area();
+
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
   save_client_capabilities = protocol->get_client_capabilities();
   protocol->add_client_capability(CLIENT_MULTI_QUERIES);
+  /*
+    We do not prepare a COM_QUERY packet with query attributes
+    since the init commands have nobody to supply query attributes.
+  */
+  protocol->remove_client_capability(CLIENT_QUERY_ATTRIBUTES);
   /*
     We don't need return result of execution to client side.
     To forbid this we should set thd->net.vio to 0.
   */
   save_vio = protocol->get_vio();
   protocol->set_vio(nullptr);
-  protocol->create_command(&com_data, COM_QUERY, (uchar *)buf, len);
-  dispatch_command(thd, &com_data, COM_QUERY);
+  if (!protocol->create_command(&com_data, COM_QUERY, (uchar *)buf, len))
+    dispatch_command(thd, &com_data, COM_QUERY);
   protocol->set_client_capabilities(save_client_capabilities);
   protocol->set_vio(save_vio);
 
@@ -1456,6 +1467,39 @@ static void check_secondary_engine_statement(THD *thd,
 }
 
 /**
+  Deep copy the name and value of named parameters into the THD memory.
+
+  We need to do this since the packet bytes will go away during query
+  processing.
+  It doesn't need to be done for the unnamed ones since they're being
+  copied by and into Item_param. So we don't want to duplicate this.
+  @sa @ref Item_param
+
+  @param thd the thread to copy the parmeters to.
+  @param parameters the values to copy
+  @param count the number of parameters to copy
+*/
+static void copy_bind_parameter_values(THD *thd, PS_PARAM *parameters,
+                                       unsigned long count) {
+  thd->bind_parameter_values = parameters;
+  thd->bind_parameter_values_count = count;
+  unsigned long inx;
+  PS_PARAM *par;
+  for (inx = 0, par = thd->bind_parameter_values; inx < count; inx++, par++) {
+    if (par->name_length && par->name) {
+      void *newd = thd->alloc(par->name_length);
+      memcpy(newd, par->name, par->name_length);
+      par->name = reinterpret_cast<unsigned char *>(newd);
+    }
+    if (par->length && par->value) {
+      void *newd = thd->alloc(par->length);
+      memcpy(newd, par->value, par->length);
+      par->value = reinterpret_cast<unsigned char *>(newd);
+    }
+  }
+}
+
+/**
   Perform one connection-level (COM_XXXX) command.
 
   @param thd             connection handle
@@ -1688,8 +1732,13 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       Prepared_statement *stmt = nullptr;
       if (!mysql_stmt_precheck(thd, com_data, command, &stmt)) {
         PS_PARAM *parameters = com_data->com_stmt_execute.parameters;
+        copy_bind_parameter_values(thd, parameters,
+                                   com_data->com_stmt_execute.parameter_count);
+
         mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                             com_data->com_stmt_execute.open_cursor, parameters);
+        thd->bind_parameter_values = nullptr;
+        thd->bind_parameter_values_count = 0;
       }
       break;
     }
@@ -1780,6 +1829,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       const auto saved_secondary_engine = thd->secondary_engine_optimization();
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+
+      copy_bind_parameter_values(thd, com_data->com_query.parameters,
+                                 com_data->com_query.parameter_count);
 
       mysql_parse(thd, &parser_state);
 
@@ -1873,6 +1925,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
         thd->set_secondary_engine_optimization(saved_secondary_engine);
       }
+
+      thd->bind_parameter_values = nullptr;
+      thd->bind_parameter_values_count = 0;
 
       /* Need to set error to true for graceful shutdown */
       if ((thd->lex->sql_command == SQLCOM_SHUTDOWN) &&

@@ -193,6 +193,7 @@ static void test_session_only_open(void *p MY_ATTRIBUTE((unused))) {
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   COM_DATA cmd;
   pctx->reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "SELECT * FROM test.t_int";
   cmd.com_query.length = strlen(cmd.com_query.query);
   command_service_run_command(NULL, COM_QUERY, &cmd,

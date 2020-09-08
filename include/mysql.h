@@ -730,6 +730,9 @@ enum enum_stmt_attr_type {
   STMT_ATTR_PREFETCH_ROWS
 };
 
+bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
+                              MYSQL_BIND *binds, const char **names);
+
 MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql);
 int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
                                unsigned long length);

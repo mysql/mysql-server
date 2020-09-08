@@ -258,7 +258,7 @@ static void run_cmd(MYSQL_SESSION session, const std::string &query,
                     Callback_data *ctxt) {
   test_context->log_test_line("Execute: ", query);
 
-  COM_DATA com;
+  COM_DATA com = {};
 
   com.com_query.query = query.c_str();
   com.com_query.length = query.length();

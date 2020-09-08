@@ -547,7 +547,7 @@ static int begin_packet_write_state(NET *net, uchar command,
   } else {
     /* Large query, create the vector and header buffer dynamically. */
     vec = (struct io_vec *)my_malloc(
-        PSI_NOT_INSTRUMENTED, sizeof(struct io_vec) * packet_count * 2 + 1,
+        PSI_NOT_INSTRUMENTED, sizeof(struct io_vec) * (packet_count * 2 + 1),
         MYF(MY_ZEROFILL));
     if (!vec) {
       return 0;

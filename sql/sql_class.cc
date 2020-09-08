@@ -448,7 +448,10 @@ THD::THD(bool enable_plugins)
       m_stmt_da(&main_da),
       duplicate_slave_id(false),
       is_a_srv_session_thd(false),
-      m_is_plugin_fake_ddl(false) {
+      m_is_plugin_fake_ddl(false),
+      m_inside_system_variable_global_update(false),
+      bind_parameter_values(nullptr),
+      bind_parameter_values_count(0) {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);

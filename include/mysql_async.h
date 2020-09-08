@@ -228,6 +228,12 @@ typedef struct MYSQL_ASYNC {
   unsigned int async_read_metadata_cur_field;
   /** a pointer to keep track of the result sets */
   struct MYSQL_RES *async_store_result_result;
+
+  /** the query parameters data */
+  uchar *async_qp_data;
+  /** the query parameters data length */
+  unsigned long async_qp_data_length;
+
 } MYSQL_ASYNC;
 
 enum net_async_status my_net_write_nonblocking(NET *net,

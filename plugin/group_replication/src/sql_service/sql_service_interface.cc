@@ -192,6 +192,7 @@ long Sql_service_interface::execute_query(std::string sql_string) {
   COM_DATA cmd;
   Sql_resultset rset;
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = sql_string.c_str();
   cmd.com_query.length = static_cast<unsigned int>(sql_string.length());
 
@@ -207,6 +208,7 @@ long Sql_service_interface::execute_query(std::string sql_string,
   DBUG_TRACE;
   DBUG_ASSERT(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = sql_string.c_str();
   cmd.com_query.length = static_cast<unsigned int>(sql_string.length());
 

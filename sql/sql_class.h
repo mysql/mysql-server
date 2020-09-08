@@ -794,6 +794,8 @@ class Transactional_ddl_context {
   dd::String_type m_tablename{};
 };
 
+struct PS_PARAM;
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -4288,6 +4290,28 @@ class THD : public MDL_context_owner,
 
  public:
   Transactional_ddl_context m_transactional_ddl{this};
+
+  /**
+    Flag to indicate this thread is executing
+    @ref sys_var::update for a @ref OPT_GLOBAL variable.
+
+    This flag imply the thread already holds @ref LOCK_global_system_variables.
+    Knowing this is required to resolve reentrancy issues
+    in the system variable code, when callers
+    read system variable Y while inside an update function
+    for system variable X.
+    Executing table io while inside a system variable update function
+    will indirectly cause this.
+    @todo Clean up callers and remove m_inside_system_variable_global_update.
+  */
+  bool m_inside_system_variable_global_update;
+
+ public:
+  /** The parameter value bindings for the current query. Allocated on the THD
+   * memroot. Can be empty */
+  PS_PARAM *bind_parameter_values;
+  /** the number of elements in parameters */
+  unsigned long bind_parameter_values_count;
 };
 
 /**
