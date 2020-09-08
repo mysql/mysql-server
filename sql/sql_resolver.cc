@@ -565,11 +565,13 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     if (push_conditions_to_derived_tables(thd)) return true;
   }
 
-  /*
-    If the query directly contains windowing, remove any unused explicit window
-    definitions.
-  */
-  if (m_windows.elements != 0) Window::remove_unused_windows(thd, m_windows);
+  // Eliminate unused window definitions, redundant sorts etc.
+  if (m_windows.elements != 0) Window::eliminate_unused_objects(thd, m_windows);
+
+  // Replace group by field references inside window functions with references
+  // in the presence of ROLLUP.
+  if (olap == ROLLUP_TYPE && resolve_rollup_wfs(thd))
+    return true; /* purecov: inspected */
 
   DBUG_ASSERT(!thd->is_error());
   return false;
@@ -4832,7 +4834,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
 
 /**
   Replace group by field references inside window functions with references
-  in the the presence of ROLLUP.
+  in the presence of ROLLUP.
 
   @param   thd   session context
   @returns false if success, true if error
@@ -4861,12 +4863,12 @@ bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
     }
   }
   /*
-    When this method is called from setup_windows, all ORDER BY items not
-    already present in the SELECT list have been added to the select list as
-    hidden items, so we do not need to traverse order_list to see all
-    items. The companion method, resolve_rollup, needs to traverse order_list
+    When this method is called, all ORDER BY items not already present in
+    the SELECT list have been added to the select list as hidden items,
+    so we do not need to traverse order_list to see all items.
+    The companion method, resolve_rollup, needs to traverse order_list
     list, because at the the time that method is called, the ORDER BY
-    itms haven't been added yet. Cf second loop in resolve_rollup.
+    items haven't been added yet. Cf second loop in resolve_rollup.
   */
 
   return false;

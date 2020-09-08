@@ -281,7 +281,7 @@ bool JOIN::optimize() {
 
   const bool has_windows = m_windows.elements != 0;
 
-  if (has_windows && Window::setup_windows2(thd, select_lex, m_windows))
+  if (has_windows && Window::setup_windows2(thd, m_windows))
     return true; /* purecov: inspected */
 
   if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())

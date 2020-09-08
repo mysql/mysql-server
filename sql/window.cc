@@ -1041,7 +1041,7 @@ class AdjacencyList {
   }
 };
 
-void Window::remove_unused_windows(THD *thd, List<Window> &windows) {
+void Window::eliminate_unused_objects(THD *thd, List<Window> &windows) {
   /*
     Go through the list. Check if a window is used by any function. If not,
     check if any other window (used by window functions) is actually inheriting
@@ -1091,6 +1091,14 @@ void Window::remove_unused_windows(THD *thd, List<Window> &windows) {
         wi1.remove();
       }
     }
+  }
+  // Eliminate redundant ordering after unused window definitions are removed.
+  // Otherwise we risk removing order for a window based on ordering of an
+  // unused window.
+  if (windows.elements > 0) {
+    reorder_and_eliminate_sorts(windows);
+    /* Do this last, after any re-ordering */
+    windows[windows.elements - 1]->m_last = true;
   }
 }
 
@@ -1270,11 +1278,6 @@ bool Window::setup_windows1(THD *thd, SELECT_LEX *select,
     if (w->check_border_sanity1(thd)) return true;
   }
 
-  reorder_and_eliminate_sorts(windows);
-
-  /* Do this last, after any re-ordering */
-  windows[windows.elements - 1]->m_last = true;
-
   return false;
 }
 
@@ -1315,8 +1318,7 @@ bool Window::check_window_functions2(THD *thd) {
   return false;
 }
 
-bool Window::setup_windows2(THD *thd, SELECT_LEX *select,
-                            List<Window> &windows) {
+bool Window::setup_windows2(THD *thd, List<Window> &windows) {
   List_iterator<Window> w_it(windows);
   Window *w;
   while ((w = w_it++)) {
@@ -1327,10 +1329,6 @@ bool Window::setup_windows2(THD *thd, SELECT_LEX *select,
     if (w->check_border_sanity2(thd) || w->check_window_functions2(thd))
       return true;
   }
-
-  if (select->olap == ROLLUP_TYPE && select->resolve_rollup_wfs(thd))
-    return true; /* purecov: inspected */
-
   return false;
 }
 

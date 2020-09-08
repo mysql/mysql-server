@@ -369,7 +369,6 @@ EXPLAIN
       "windows": [
         {
           "name": "w1",
-          "using_temporary_table": true,
           "using_filesort": true,
           "filesort_key": [
             "`a`"
@@ -499,7 +498,7 @@ EXPLAIN
         {
           "name": "w2",
           "definition_position": 2,
-          "using_temporary_table": true,
+          "last_executed_window": true,
           "functions": [
             "rank"
           ]
@@ -601,11 +600,18 @@ EXPLAIN
       "windows": [
         {
           "name": "w1",
+          "using_filesort": true,
+          "filesort_key": [
+            "`a`"
+          ],
           "functions": [
             "rank"
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "#"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",

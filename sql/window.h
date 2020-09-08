@@ -914,22 +914,21 @@ class Window {
     the start of the execution phase.
 
     @param thd              The session's execution thread
-    @param select           The select for which we are doing windowing
     @param windows          The list of windows defined for this select
 
     @return false if success, true if error
   */
-  static bool setup_windows2(THD *thd, SELECT_LEX *select,
-                             List<Window> &windows);
+  static bool setup_windows2(THD *thd, List<Window> &windows);
 
   /**
-    Remove unused window definitions. Do this only after syntactic and
-    semantic checking for errors has been performed.
+    Check window definitions to remove unused windows. We do this
+    only after syntactic and semantic checking for errors has been performed.
+    Eliminate redundant sorts after unused windows are removed.
 
     @param thd             The session's execution thread
     @param windows         The list of windows defined for this select
   */
-  static void remove_unused_windows(THD *thd, List<Window> &windows);
+  static void eliminate_unused_objects(THD *thd, List<Window> &windows);
 
   /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
