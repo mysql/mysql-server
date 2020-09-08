@@ -11246,7 +11246,7 @@ static void test_cursor_for_show() {
   // clang-format off
   const char *queries[] = {
       "SHOW BINLOG EVENTS",
-      "SHOW BINARY LOGS",
+    //"SHOW BINARY LOGS", - disabled, may err if binlogging disabled.
       "SHOW CHARACTER SET",
       "SHOW COLLATION",
       "SHOW COLUMNS FROM t1",
@@ -11266,21 +11266,21 @@ static void test_cursor_for_show() {
       "SHOW ENGINES",
     //"SHOW ERRORS", - not supported as client/server command
       "SHOW EVENTS",
-      "SHOW FUNCTION CODE f1",
+    //"SHOW FUNCTION CODE f1", - not supported in optimized build
       "SHOW FUNCTION STATUS",
       "SHOW GRANTS",
       "SHOW MASTER STATUS",
       "SHOW OPEN TABLES",
       "SHOW PLUGINS",
       "SHOW PRIVILEGES",
-      "SHOW PROCEDURE CODE p1",
+    //"SHOW PROCEDURE CODE p1", - not supported in optimized build
       "SHOW PROCEDURE STATUS",
       "SHOW PROCESSLIST",
       "SHOW PROFILE",
       "SHOW PROFILES",
       "SHOW RELAYLOG EVENTS",
-      "SHOW SLAVE HOSTS",
-      "SHOW SLAVE STATUS",
+      "SHOW REPLICAS",
+      "SHOW REPLICA STATUS",
       "SHOW STATUS",
       "SHOW TABLE STATUS",
       "SHOW TABLES",
