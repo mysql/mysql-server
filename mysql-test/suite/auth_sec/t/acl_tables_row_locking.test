@@ -110,6 +110,14 @@ delimiter ;|
 GRANT EXECUTE ON PROCEDURE test.proc2 TO writer2;
 GRANT EXECUTE ON FUNCTION test.func1 TO writer2;
 
+# The optimizer flag skip_scan=on affects the way InnoDB
+# acquires row locks. Optimize may or may not use skip_scan
+# based on its statistics study. This would cause in-stability
+# when checking kind of locks acquired using
+# 'performance_schema.data_locks.lock_data'. Hence we disable it.
+let original_optimizer_switch=`SELECT @@optimizer_switch`;
+SET GLOBAL optimizer_switch = "skip_scan=off";
+
 --echo # Connections used for testing.
 connect(read_con,localhost,u1,,);
 connect(update_con1,localhost,writer1,,);
@@ -395,6 +403,13 @@ while($c <= 4)
   connection read_con;
   UNLOCK TABLES;
 
+  # Explicilty purge the delete records. Not doing so affects the way
+  # InnoDB acquires the row locks. E.g.,
+  # 'performance_schema.data_locks.LOCK_DATA may show (sporadically) that
+  # there is S lock held on a row marked as deleted.
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
 
   --echo # Case 14:
   --echo # Update ACL table in a DML inside a SP in different isolation mode.
@@ -425,6 +440,10 @@ while($c <= 4)
 
   connection update_con2;
   ROLLBACK;
+
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
 
   # Case 14.2: Function reading ACL table.
   connection update_con2;
@@ -479,6 +498,9 @@ while($c <= 4)
   UPDATE user_bk SET user='u2x' WHERE user LIKE 'u2';
   DROP TABLE fk_to_acl_table;
 
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
 
   --echo # Case 16:
   --echo # Case 16.1 Update ACL table in a multi-table UPDATE command in
@@ -506,6 +528,9 @@ while($c <= 4)
   connection update_con2;
   ROLLBACK;
 
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
 
   --echo # Case 16.2 Read ACL table in a multi-table UPDATE command in
   --echo # different isolation level. Ideally concurrent DML on ACL table
@@ -599,6 +624,10 @@ while($c <= 4)
   END|
   DELIMITER ;|
 
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
+
   # Case 18.1: Read ACL table in a trigger.
   connection update_con2;
   SELECT User FROM mysql.user WHERE User='u2';
@@ -612,6 +641,10 @@ while($c <= 4)
 
   connection update_con2;
   COMMIT;
+
+  connection default;
+  --source include/wait_innodb_all_purged.inc
+  connection update_con2;
 
   # Case 18.2: Update ACL table in a trigger.
   eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation_level;
@@ -660,3 +693,7 @@ DROP TABLE t1;
 DROP TABLE user_copy;
 
 DROP TABLE user_bk;
+
+--disable_query_log
+eval SET GLOBAL optimizer_switch = "$original_optimizer_switch";
+--enable_query_log
