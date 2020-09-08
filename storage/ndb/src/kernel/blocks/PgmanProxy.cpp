@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,6 +203,18 @@ PgmanProxy::get_page(Page_cache_client& caller,
   int ret = pgman.get_page(signal, req, flags);
   caller.m_ptr = pgman.m_ptr;
   return ret;
+}
+
+void
+PgmanProxy::set_lsn(Page_cache_client& caller,
+                    Local_key key,
+                    Uint64 lsn)
+{
+  ndbrequire(blockToInstance(caller.m_block) == 0);
+  SimulatedBlock* block = globalData.getBlock(caller.m_block);
+  Pgman* worker = (Pgman*)workerBlock(c_workers - 1); // extraWorkerBlock();
+  Page_cache_client pgman(block, worker);
+  pgman.set_lsn(key, lsn);
 }
 
 void

@@ -3935,6 +3935,21 @@ Logfile_client::add_entry_complex(const Change* src,
 }
 
 Uint64
+Logfile_client::get_latest_lsn()
+{
+  Lgman::Logfile_group key;
+  key.m_logfile_group_id= m_logfile_group_id;
+  Ptr<Lgman::Logfile_group> lg_ptr;
+  require(m_lgman->m_logfile_group_hash.find(lg_ptr, key));
+  Uint64 next_lsn = lg_ptr.p->m_next_lsn;
+  if (next_lsn > 0)
+  {
+    next_lsn--;
+  }
+  return next_lsn;
+}
+
+Uint64
 Logfile_client::add_entry_simple(const Change* src,
                                  Uint32 cnt,
                                  Uint32 alloc_size,

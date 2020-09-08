@@ -1187,6 +1187,29 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
 
   convertThPage((Fix_page*)pagePtr.p, tabPtr.p, DD);
 
+  /**
+   * We have acquired an empty page without reading it from
+   * disk. The page might however have been used in the past
+   * and thus UNDO log entries might have to be written at
+   * recovery towards this page. To ensure those UNDO log entries
+   * are executed we need to set the LSN of the page to the
+   * current LSN number.
+   *
+   * The problem happens if we write the page before we have updated
+   * the LSN of the page. In this case the page will be written with
+   * LSN 0 which isn't ok if the page was previously used.
+   */
+  Uint32 logfile_group_id= fragPtr.p->m_logfile_group_id;
+  Logfile_client lgman(this, c_lgman, logfile_group_id);
+  Uint64 lsn = lgman.get_latest_lsn();
+  Page_cache_client pgman(this, c_pgman);
+  pgman.set_lsn(req.p->m_key, lsn);
+  DEB_PGMAN_IO(("(%u) Get empty page (%u,%u) set LSN: %llu",
+                instance(),
+                req.p->m_key.m_file_no,
+                req.p->m_key.m_page_no,
+                lsn));
+
   pagePtr.p->m_page_no= req.p->m_key.m_page_no;
   pagePtr.p->m_file_no= req.p->m_key.m_file_no;
   pagePtr.p->m_table_id= fragPtr.p->fragTableId;

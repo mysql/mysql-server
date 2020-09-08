@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4492,6 +4492,13 @@ Pgman::get_page(EmulatedJamBuffer* jamBuf,
  * manner to avoid concurrency issues.
  */
 void
+Pgman::set_lsn(Ptr<Page_entry> ptr,
+               Uint64 lsn)
+{
+  ptr.p->m_lsn = lsn;
+}
+
+void
 Pgman::update_lsn(Signal *signal,
                   EmulatedJamBuffer* jamBuf,
                   Ptr<Page_entry> ptr,
@@ -5704,6 +5711,28 @@ Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
     m_pgman->m_global_page_pool.getPtr(m_ptr, (Uint32)i);
   }
   return i;
+}
+
+void
+Page_cache_client::set_lsn(Local_key key, Uint64 lsn)
+{
+  if (m_pgman_proxy != 0) {
+    thrjam(m_jamBuf);
+    m_pgman_proxy->set_lsn(*this, key, lsn);
+    return;
+  }
+  thrjam(m_jamBuf);
+
+  Ptr<Pgman::Page_entry> entry_ptr;
+  Uint32 file_no = key.m_file_no;
+  Uint32 page_no = key.m_page_no;
+
+  D("set_lsn" << V(file_no) << V(page_no) << V(lsn));
+
+  bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
+  require(found);
+
+  m_pgman->set_lsn(entry_ptr, lsn);
 }
 
 void
