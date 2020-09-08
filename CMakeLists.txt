@@ -1772,6 +1772,7 @@ INCLUDE(CPack)
 #
 # Note that CMakeCache.txt contains cmake builtins for these variables,
 # *not* the values that will actually be used, which we report here:
+STRING_APPEND(LINK_FLAG " -Wl,-rpath,'\$ORIGIN/../lib/plugin'")
 
 IF(BUILD_IS_SINGLE_CONFIG)
   MESSAGE(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
