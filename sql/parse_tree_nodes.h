@@ -3149,6 +3149,40 @@ class PT_show_collations final : public PT_show_filter_base {
   Sql_cmd_show_collations m_sql_cmd;
 };
 
+/// Base class for Parse tree nodes of SHOW COUNT(*) { WARNINGS | ERRORS }
+/// statements.
+
+class PT_show_count_base : public PT_show_base {
+ public:
+  explicit PT_show_count_base(const POS &pos)
+      : PT_show_base{pos, SQLCOM_SELECT} {}
+
+ protected:
+  Sql_cmd *make_cmd_generic(THD *thd, LEX_CSTRING diagnostic_variable_name);
+};
+
+/// Parse tree node for SHOW COUNT(*) ERRORS
+
+class PT_show_count_errors final : public PT_show_count_base {
+ public:
+  explicit PT_show_count_errors(const POS &pos) : PT_show_count_base(pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override {
+    return make_cmd_generic(thd, LEX_CSTRING{STRING_WITH_LEN("error_count")});
+  }
+};
+
+/// Parse tree node for SHOW COUNT(*) WARNINGS
+
+class PT_show_count_warnings final : public PT_show_count_base {
+ public:
+  explicit PT_show_count_warnings(const POS &pos) : PT_show_count_base(pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override {
+    return make_cmd_generic(thd, LEX_CSTRING{STRING_WITH_LEN("warning_count")});
+  }
+};
+
 /// Parse tree node for SHOW CREATE DATABASE statement
 
 class PT_show_create_database final : public PT_show_base {
@@ -3385,14 +3419,9 @@ class PT_show_fields final : public PT_show_table_base {
 
  public:
   PT_show_fields(const POS &pos, Show_cmd_type show_cmd_type,
-                 Table_ident *table, const LEX_STRING &wild)
-      : PT_show_table_base(pos, SQLCOM_SHOW_FIELDS, table, wild, nullptr),
-        m_show_cmd_type(show_cmd_type) {}
-
-  PT_show_fields(const POS &pos, Show_cmd_type show_cmd_type,
-                 Table_ident *table_ident, Item *where = nullptr)
-      : PT_show_table_base(pos, SQLCOM_SHOW_FIELDS, table_ident, NULL_STR,
-                           where),
+                 Table_ident *table, LEX_STRING opt_wild = {},
+                 Item *opt_where = nullptr)
+      : PT_show_table_base(pos, SQLCOM_SHOW_FIELDS, table, opt_wild, opt_where),
         m_show_cmd_type(show_cmd_type) {}
 
   Sql_cmd *make_cmd(THD *thd) override;

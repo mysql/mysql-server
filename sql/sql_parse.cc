@@ -4792,47 +4792,6 @@ void THD::reset_for_next_command() {
 #endif
 }
 
-/**
-  Create a select to return the same output as 'SELECT @@var_name'.
-
-  Used for SHOW COUNT(*) [ WARNINGS | ERROR].
-
-  This will crash with a core dump if the variable doesn't exists.
-
-  @param pc                     Current parse context
-  @param var_name		Variable name
-
-  @returns false if success, true if error
-
-  @todo - replace this function with one that generates a PT_select node
-          and performs MAKE_CMD on it.
-*/
-
-bool create_select_for_variable(Parse_context *pc, const char *var_name) {
-  LEX_STRING tmp, null_lex_string;
-  char buff[MAX_SYS_VAR_LENGTH * 2 + 4 + 8];
-  DBUG_TRACE;
-
-  THD *thd = pc->thd;
-  LEX *lex = thd->lex;
-  lex->sql_command = SQLCOM_SELECT;
-  tmp.str = const_cast<char *>(var_name);
-  tmp.length = strlen(var_name);
-  memset(&null_lex_string, 0, sizeof(null_lex_string));
-  /*
-    We set the name of Item to @@session.var_name because that then is used
-    as the column name in the output.
-  */
-  Item *var = get_system_var(pc, OPT_SESSION, tmp, null_lex_string);
-  if (var == nullptr) return true; /* purecov: inspected */
-
-  char *end = strxmov(buff, "@@session.", var_name, NullS);
-  var->item_name.copy(buff, end - buff);
-  add_item_to_list(thd, var);
-
-  return false;
-}
-
 /*
   When you modify mysql_parse(), you may need to mofify
   mysql_test_parse_for_slave() in this same file.
