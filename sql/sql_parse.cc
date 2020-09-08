@@ -161,7 +161,6 @@
 #include "sql/sql_reload.h"         // handle_reload_request
 #include "sql/sql_rename.h"         // mysql_rename_tables
 #include "sql/sql_rewrite.h"        // mysql_rewrite_query
-#include "sql/sql_select.h"         // handle_query
 #include "sql/sql_show.h"           // find_schema_table
 #include "sql/sql_table.h"          // mysql_create_table
 #include "sql/sql_trigger.h"        // add_table_for_trigger
