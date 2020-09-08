@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -473,6 +473,13 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   }
   else /* It's not a temporary table. */
   {
+    /*
+      Truncate is allowed for performance schema tables in both read_only and
+      super_read_only mode.
+    */
+    if (is_perfschema_db(table_ref->db))
+      thd->set_skip_readonly_check();
+
     bool hton_can_recreate;
 
     if (lock_table(thd, table_ref, &hton_can_recreate))

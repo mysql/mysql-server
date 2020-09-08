@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1557,10 +1557,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
 
 /* Check if the table belongs to the P_S, excluding setup and threads tables. */
 #define BELONGS_TO_P_S_UNDER_LTM(thd, tl) \
-   (UNDER_LTM(thd) && \
-    (!strcmp("performance_schema", tl->db) && \
-     strcmp(tl->table_name, "threads") && \
-     strstr(tl->table_name, "setup_") == NULL))
+   (UNDER_LTM(thd) && belongs_to_p_s(tl))
 
 /*
   Close all tables used by the current substatement, or all tables
@@ -2961,6 +2958,35 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
   return res;
 }
 
+/**
+  Add a dummy LEX object for a view.
+
+  @param  thd         Thread context
+  @param  table_list  The list of tables in the view
+
+  @retval  true   error occurred
+  @retval  false  view place holder successfully added
+*/
+
+bool add_view_place_holder(THD *thd, TABLE_LIST *table_list) {
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  LEX *lex_obj = new (thd->mem_root) st_lex_local;
+  if (lex_obj == NULL)
+    return true;
+  table_list->set_view_query(lex_obj);
+  assert(table_list->is_view());
+
+  // Create empty list of view_tables.
+  table_list->view_tables = new (thd->mem_root) List<TABLE_LIST>;
+  if (table_list->view_tables == NULL)
+    return true;
+
+  table_list->view_db.str= table_list->db;
+  table_list->view_db.length= table_list->db_length;
+  table_list->view_name.str= table_list->table_name;
+  table_list->view_name.length= table_list->table_name_length;
+  return false;
+}
 
 /**
   Open a base table.
@@ -3160,6 +3186,18 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
         {
           my_error(ER_WRONG_MRG_TABLE, MYF(0));
           DBUG_RETURN(true);
+        }
+
+        if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) {
+          /*
+            In the case of a CREATE, add a dummy LEX object to
+            indicate the presence of a view amd skip processing the
+            existing view.
+          */
+          if (add_view_place_holder(thd, table_list))
+            DBUG_RETURN(true);
+          else
+            DBUG_RETURN(false);
         }
 
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
@@ -3371,7 +3409,7 @@ retry_share:
       /* Call rebind_psi outside of the critical section. */
       DBUG_ASSERT(table->file != NULL);
       table->file->rebind_psi();
-
+      table->file->extra(HA_EXTRA_RESET_STATE);
       thd->status_var.table_open_cache_hits++;
       goto table_found;
     }
@@ -3484,35 +3522,19 @@ retry_share:
     {
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
-
       /*
-        For SP and PS, LEX objects are created at the time of statement prepare.
-        And open_table() is called for every execute after that. Skip creation
-        of LEX objects if it is already present.
+        The LEX object is used by the executor and other parts of the
+        code to detect the presence of a view. We have skipped the
+        call to parse_view_definition(), which creates the LEX
+        object. Create a dummy LEX object as this is OPEN_FOR_CREATE.
+
+        For SP and PS, LEX objects are created at the time of
+        statement prepare and open_table() is called for every execute
+        after that. Skip creation of LEX objects if it is already
+        present.
       */
-      if (!table_list->is_view())
-      {
-        Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-        /*
-          Since we are skipping parse_view_definition(), which creates view LEX
-          object used by the executor and other parts of the code to detect the
-          presence of a view, a dummy LEX object needs to be created.
-        */
-        table_list->set_view_query((LEX *) new(thd->mem_root) st_lex_local);
-        if (!table_list->is_view())
-          DBUG_RETURN(true);
-
-        // Create empty list of view_tables.
-        table_list->view_tables = new (thd->mem_root) List<TABLE_LIST>;
-        if (table_list->view_tables == NULL)
-          DBUG_RETURN(true);
-
-        table_list->view_db.str= table_list->db;
-        table_list->view_db.length= table_list->db_length;
-        table_list->view_name.str= table_list->table_name;
-        table_list->view_name.length= table_list->table_name_length;
-      }
+      if (!table_list->is_view() && add_view_place_holder(thd, table_list))
+        DBUG_RETURN(true);
     }
 
     DBUG_ASSERT(table_list->is_view());
@@ -4463,7 +4485,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
     {
       bool result= false;
       String temp_buf;
-      result= temp_buf.append("DELETE FROM ");
+      result= temp_buf.append("TRUNCATE TABLE ");
       append_identifier(thd, &temp_buf, share->db.str, strlen(share->db.str));
       result= temp_buf.append(".");
       append_identifier(thd, &temp_buf, share->table_name.str,
@@ -4477,7 +4499,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
           because of MYF(MY_WME) in my_malloc() above).
         */
         sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM `%s`.`%s`' to the binary log",
+                        "to write 'TRUNCATE TABLE `%s`.`%s`' to the binary log",
                         share->db.str, share->table_name.str);
         delete entry->triggers;
         return TRUE;
@@ -4492,8 +4514,8 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
       new_thd.store_globals();
       new_thd.set_db(thd->db());
       new_thd.variables.gtid_next.set_automatic();
-      result= mysql_bin_log.write_dml_directly(&new_thd, temp_buf.c_ptr_safe(),
-                                               temp_buf.length(), SQLCOM_DELETE);
+      result= mysql_bin_log.write_stmt_directly(&new_thd, temp_buf.c_ptr_safe(),
+                                               temp_buf.length(), SQLCOM_TRUNCATE);
       new_thd.restore_globals();
       thd->store_globals();
       return result;
@@ -6765,8 +6787,45 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
       DBUG_RETURN(TRUE);
     for (table= tables; table; table= table->next_global)
     {
-      if (!table->is_placeholder())
-	*(ptr++)= table->table;
+      if (!table->is_placeholder() &&
+          /*
+            Do not call handler::store_lock()/external_lock() for temporary
+            tables from prelocking list.
+
+            Prelocking algorithm does not add element for a table to the
+            prelocking list if it finds that the routine that uses the table can
+            create it as a temporary during its execution. Note that such
+            routine actually can use existing temporary table if its CREATE
+            TEMPORARY TABLE has IF NOT EXISTS clause. For such tables we rely on
+            calls to handler::start_stmt() done by routine's substatement when
+            it accesses the table to inform storage engine about table
+            participation in transaction and type of operation carried out,
+            instead of calls to handler::store_lock()/external_lock() done at
+            prelocking stage.
+
+            In cases when statement uses two routines one of which can create
+            temporary table and modifies it, while another only reads from this
+            table, storage engine might be confused about real operation type
+            performed by the whole statement. Calls to
+            handler::store_lock()/external_lock() done at prelocking stage will
+            inform SE only about read part, while information about modification
+            will be delayed until handler::start_stmt() call during execution of
+            the routine doing modification. InnoDB considers this breaking of
+            promise about operation type and fails on assertion.
+
+            To avoid this problem we try to handle both the cases when temporary
+            table can be created by routine and the case when it is created
+            outside of routine and only accessed by it, uniformly. We don't call
+            handler::store_lock()/external_lock() for temporary tables used by
+            routines at prelocking stage and rely on calls to
+            handler::start_stmt(), which happen during substatement execution,
+            to pass correct information about operation type instead.
+          */
+          !(table->prelocking_placeholder &&
+            table->table->s->tmp_table != NO_TMP_TABLE))
+      {
+        *(ptr++)= table->table;
+      }
     }
 
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");

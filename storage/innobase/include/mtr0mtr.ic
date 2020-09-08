@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -184,9 +184,8 @@ mtr_t::release_block_at_savepoint(
 
 	ut_a(slot->object == block);
 
-	buf_block_unfix(reinterpret_cast<buf_block_t*>(block));
-
 	buf_page_release_latch(block, slot->type);
+	buf_block_unfix(block);
 
 	slot->object = NULL;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,7 +303,7 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
                       "Member with address %s:%u has become unreachable.",
                       member_info->get_hostname().c_str(), member_info->get_port());
 
-        member_info->set_unreachable();
+        group_member_mgr->set_member_unreachable(member_info->get_uuid());
 
         // remove to not check again against this one
         tmp_unreachable.erase(uit);
@@ -315,8 +315,10 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
                       "Member with address %s:%u is reachable again.",
                       member_info->get_hostname().c_str(), member_info->get_port());
 
-        member_info->set_reachable();
+        group_member_mgr->set_member_reachable(member_info->get_uuid());
       }
+
+      delete member_info;
     }
   }
 
@@ -439,6 +441,8 @@ Plugin_gcs_events_handler::get_hosts_from_view(const std::vector<Gcs_member_iden
     {
       hosts_string << ", ";
     }
+
+    delete member_info;
   }
   all_hosts.assign (hosts_string.str());
   primary_host.assign (primary_string.str());
@@ -1161,6 +1165,7 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
                                     " information can be outdated and lead to"
                                     " errors on recovery",
                                     member_info->get_hostname().c_str(), member_info->get_port());
+        delete member_info;
       }
       continue;
       /* purecov: end */
@@ -1318,6 +1323,8 @@ update_member_status(const vector<Gcs_member_identifier>& members,
     {
       group_member_mgr->update_member_status(member_info->get_uuid(), status);
     }
+
+    delete member_info;
   }
 }
 

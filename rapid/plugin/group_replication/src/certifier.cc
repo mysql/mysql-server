@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1352,6 +1352,7 @@ int Certifier::handle_certifier_data(const uchar *data, ulong len,
                     "already sent the stable set. Therefore discarding the second "
                     "message.", member_info->get_hostname().c_str(),
                     member_info->get_port());
+        delete member_info;
       }
     }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -491,8 +491,6 @@ struct trx_undo_t {
 	undo_no_t	top_undo_no;	/*!< undo number of the latest record */
 	buf_block_t*	guess_block;	/*!< guess for the buffer block where
 					the top page might reside */
-	ulint		withdraw_clock;	/*!< the withdraw clock value of the
-					buffer pool when guess_block was stored */
 	/*-----------------------------*/
 	UT_LIST_NODE_T(trx_undo_t) undo_list;
 					/*!< undo log objects in the rollback
