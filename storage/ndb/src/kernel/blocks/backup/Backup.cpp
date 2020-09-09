@@ -4292,7 +4292,9 @@ Backup::execBACKUP_REQ(Signal* signal)
     ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
     copy((Uint32*)&epd, ptr);
     ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+#endif
     releaseSections(handle);
     encrypted_file = true;
   }
@@ -6329,7 +6331,9 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
       copy((Uint32*)&epd, ptr);
       ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
       g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+#endif
       encrypted_file = true;
     }
 
