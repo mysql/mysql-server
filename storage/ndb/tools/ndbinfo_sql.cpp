@@ -881,6 +881,8 @@ int main(int argc, char** argv){
     print_conditional_sql(sql);
 
   }
+  delete[] tables;
+  tables = NULL;
 
   printf("# Recreate handler local lookup tables in %s\n", opt_ndbinfo_db);
   const char* prev_name = "";
