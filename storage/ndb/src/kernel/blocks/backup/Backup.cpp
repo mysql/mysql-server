@@ -2734,6 +2734,11 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   case DumpStateOrd::BackupEncryptionRequired:
   {
     jam();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+    /*
+     * Respect the setting of RequireEncryptedBackup in release build.
+     * Only allow changing it in debug builds for testing.
+     */
     if (signal->length() == 2)
     {
       if (signal->theData[1] == true)
@@ -2745,6 +2750,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
         c_defaults.m_encryption_required = false;
       }
     }
+#endif
     return;
   }
   default:
