@@ -194,7 +194,7 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                              region_count[ZONE_COUNT - 1];
   const Uint32 least_region_count = lowest_high - highest_low;
   Uint32 space_regions = max_regions;
-  Alloc_page *space;
+  Alloc_page *space = nullptr;
   int rc = -1;
   while (space_regions >= least_region_count)
   {
