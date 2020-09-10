@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,10 +268,10 @@ ACL_PROXY_USER::init(TABLE *table, MEM_ROOT *mem)
 bool
 ACL_PROXY_USER::check_validity(bool check_no_resolve)
 {
-  if (check_no_resolve && 
+  if (check_no_resolve &&
       (hostname_requires_resolving(host.get_host()) ||
        hostname_requires_resolving(proxied_host.get_host())) &&
-      strcmp(host.get_host(), "localhost") != 0) {
+      strcmp(host.get_host() ? host.get_host() : "", "localhost") != 0) {
     sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                       "ignored in --skip-name-resolve mode.",
                       proxied_user ? proxied_user : "",
