@@ -231,7 +231,6 @@ rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,mysql-log-
 rm -rf %{buildroot}/usr/share/mysql/mcc
 rm -f %{buildroot}/lib/memcached_path.pl
 rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
-rm -rf %{buildroot}%{_datadir}/mysql/nodejs/
 rm -rf %{buildroot}%{_datadir}/mysql/java/
 %endif
 
