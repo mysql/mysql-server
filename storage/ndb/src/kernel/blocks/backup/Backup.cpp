@@ -2733,6 +2733,11 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   case DumpStateOrd::BackupEncryptionRequired:
   {
     jam();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+    /*
+     * Respect the setting of RequireEncryptedBackup in release build.
+     * Only allow changing it in debug builds for testing.
+     */
     if (signal->length() == 2)
     {
       if (signal->theData[1] == true)
@@ -2744,6 +2749,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
         c_defaults.m_encryption_required = false;
       }
     }
+#endif
     return;
   }
   default:
@@ -4291,7 +4297,9 @@ Backup::execBACKUP_REQ(Signal* signal)
     ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
     copy((Uint32*)&epd, ptr);
     ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+#endif
     releaseSections(handle);
     encrypted_file = true;
   }
@@ -6328,7 +6336,9 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
       copy((Uint32*)&epd, ptr);
       ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
       g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+#endif
       encrypted_file = true;
     }
 
