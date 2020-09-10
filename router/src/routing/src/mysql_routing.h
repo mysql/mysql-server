@@ -315,6 +315,7 @@ class MySQLRouting {
    * create new connection to MySQL Server than can handle client's
    * traffic and adds it to connection container.
    *
+   * @param destination_id identifier of the destination connected to
    * @param client_socket socket used to transfer data to/from client
    * @param client_endpoint endpoint of client
    * @param server_socket socket used to transfer data to/from server
@@ -322,7 +323,7 @@ class MySQLRouting {
    */
   template <class ClientProtocol, class ServerProtocol>
   void create_connection(
-      const std::string &destination_name,
+      const std::string &destination_id,
       typename ClientProtocol::socket client_socket,
       const typename ClientProtocol::endpoint &client_endpoint,
       typename ServerProtocol::socket server_socket,
