@@ -79,7 +79,7 @@ class ACL_HOST_AND_IP {
  public:
   ACL_HOST_AND_IP()
       : hostname(nullptr), hostname_length(0), ip(0), ip_mask(0) {}
-  const char *get_host() const { return hostname ? hostname : ""; }
+  const char *get_host() const { return hostname; }
   size_t get_host_len() const { return hostname_length; }
 
   bool has_wildcard() {
