@@ -10833,6 +10833,26 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   bool is_allocated = false;
 #endif
 
+  ulint offset;
+
+  offset = mach_read_from_2(ptr);
+  ptr += 2;
+
+  ulint len;
+
+  len = mach_read_from_2(ptr);
+  ptr += 2;
+
+  if (end < ptr + len) {
+    return (nullptr);
+  }
+
+  if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE ||
+      len != Encryption::INFO_SIZE) {
+    recv_sys->found_corrupt_log = true;
+    return (nullptr);
+  }
+
   fil_space_t *space = fil_space_get(space_id);
 
   /* An undo space might be open but not have the ENCRYPTION bit set
@@ -10879,26 +10899,6 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     key = space->encryption_key;
   }
 
-  ulint offset;
-
-  offset = mach_read_from_2(ptr);
-  ptr += 2;
-
-  ulint len;
-
-  len = mach_read_from_2(ptr);
-  ptr += 2;
-
-  if (end < ptr + len) {
-    return (nullptr);
-  }
-
-  if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE ||
-      len != Encryption::INFO_SIZE) {
-    recv_sys->found_corrupt_log = true;
-    return (nullptr);
-  }
-
   if (!Encryption::decode_encryption_info(key, iv, ptr, true)) {
     recv_sys->found_corrupt_log = true;
 
@@ -10906,6 +10906,10 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
         << "Encryption information"
         << " in the redo log of space " << space_id << " is invalid";
 
+    if (is_new) {
+      ut_free(key);
+      ut_free(iv);
+    }
     return (nullptr);
   }
 
