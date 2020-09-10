@@ -23876,7 +23876,11 @@ Dblqh::send_restore_lcp(Signal * signal)
       jam();
       ndbrequire(c_local_sysfile.m_max_gci_restorable >=
                  crestartNewestGci);
-      req->restoreGcpId = c_local_sysfile.m_max_gci_restorable;
+      if (c_local_sysfile.m_max_restorable_gci > crestartNewestGci)
+      {
+        jam();
+        req->restoreGcpId = c_local_sysfile.m_max_restorable_gci;
+      }
     }
     /**
      * DIH could potentially send a createGci that is newer than

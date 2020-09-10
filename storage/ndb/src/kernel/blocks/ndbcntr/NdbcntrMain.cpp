@@ -2371,24 +2371,12 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
     jam();
     c_start.m_withLog.set(nodeId);
     ndbrequire(!(starting && lastGci > c_start.m_lastGci));
-    if (starting && lastGci > c_start.m_lastGci)
-    {
-      jam();
-      CntrStartRef * ref = (CntrStartRef*)signal->getDataPtrSend();
-      ref->errorCode = CntrStartRef::NotMaster;
-      ref->masterNodeId = nodeId;
-      NodeReceiverGroup rg (NDBCNTR, c_start.m_waiting);
-      sendSignal(rg, GSN_CNTR_START_REF, signal,
-                 CntrStartRef::SignalLength, JBB);
-      return;
-    }
     if (starting)
     {
       jam();
       signal->theData[0] = nodeId;
       EXECUTE_DIRECT(DBDIH, GSN_GET_LATEST_GCI_REQ, signal, 1);
       Uint32 gci = signal->theData[0];
-      Uint32 lastGci = req->lastGci;
       if (gci > lastGci)
       {
         jam();
