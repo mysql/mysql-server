@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,9 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/tls_client_context.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/rest_client.h"
-#include "mysqlrouter/tls_client_context.h"
-#include "tls_error.h"
 
 /**
  * exception thrown by the frontend.
@@ -237,13 +236,14 @@ int RestClientFrontend::run() {
 #ifdef EVENT__HAVE_OPENSSL
     if (!config_.ssl_ca_file.empty() || !config_.ssl_ca_dir.empty()) {
       if (!tls_ctx.ssl_ca(config_.ssl_ca_file, config_.ssl_ca_dir)) {
-        TlsError e("setting CA's failed");
-
-        throw FrontendError(e.what());
+        throw FrontendError("setting CA's failed");
       }
     }
     if (!config_.ssl_cipher.empty()) {
-      tls_ctx.cipher_list(config_.ssl_cipher);
+      const auto res = tls_ctx.cipher_list(config_.ssl_cipher);
+      if (!res) {
+        throw FrontendError(res.error().message());
+      }
     }
     http_client = std::make_unique<HttpsClient>(io_ctx, std::move(tls_ctx),
                                                 u.get_host(), u.get_port());

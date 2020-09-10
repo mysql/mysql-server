@@ -56,6 +56,7 @@
 
 #include "http_auth.h"
 #include "http_server_plugin.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
@@ -63,7 +64,6 @@
 #include "posix_re.h"
 #include "socket_operations.h"
 #include "static_files.h"
-#include "tls_server_context.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -503,11 +503,24 @@ class HttpServerFactory {
     if (config.with_ssl) {
       // init the TLS Server context according to our config-values
       TlsServerContext tls_ctx;
-      tls_ctx.load_key_and_cert(config.ssl_cert, config.ssl_key);
+
+      {
+        const auto res =
+            tls_ctx.load_key_and_cert(config.ssl_key, config.ssl_cert);
+        if (!res) {
+          throw std::system_error(
+              res.error(), "using SSL private key file '" + config.ssl_key +
+                               "' or SSL certificate file '" + config.ssl_cert +
+                               "' failed");
+        }
+      }
 
       if (!config.ssl_curves.empty()) {
         if (tls_ctx.has_set_curves_list()) {
-          tls_ctx.curves_list(config.ssl_curves);
+          const auto res = tls_ctx.curves_list(config.ssl_curves);
+          if (!res) {
+            throw std::system_error(res.error(), "using ssl-curves failed");
+          }
         } else {
           throw std::invalid_argument(
               "setting ssl-curves is not supported by the ssl library, it "
@@ -515,9 +528,21 @@ class HttpServerFactory {
         }
       }
 
-      tls_ctx.init_tmp_dh(config.ssl_dh_params);
+      {
+        const auto res = tls_ctx.init_tmp_dh(config.ssl_dh_params);
+        if (!res) {
+          throw std::system_error(
+              res.error(),
+              " failed to parse dh-param file '" + config.ssl_dh_params + "'");
+        }
+      }
 
-      if (!config.ssl_cipher.empty()) tls_ctx.cipher_list(config.ssl_cipher);
+      if (!config.ssl_cipher.empty()) {
+        const auto res = tls_ctx.cipher_list(config.ssl_cipher);
+        if (!res) {
+          throw std::system_error(res.error(), "using ssl-cipher list failed");
+        }
+      }
 
 #ifdef EVENT__HAVE_OPENSSL
       // tls-context is owned by the HttpsServer

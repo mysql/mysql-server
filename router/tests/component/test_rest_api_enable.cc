@@ -44,9 +44,9 @@
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/tls_client_context.h"
+#include "mysql/harness/tls_context.h"
 #include "mysqlrouter/http_client.h"
-#include "mysqlrouter/tls_client_context.h"
-#include "mysqlrouter/tls_context.h"
 #include "process_wrapper.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -825,8 +825,10 @@ TEST_P(RestApiInvalidUserCerts,
   auto &router = launch_router({"-c", config_path.str()}, EXIT_FAILURE);
   check_exit_code(router, EXIT_FAILURE);
 
-  std::string log_error =
-      "Error: using SSL certificate file '" +
+  const std::string log_error =
+      "Error: using SSL private key file '" +
+      datadir_path.real_path().join(router_key_filename).str() +
+      "' or SSL certificate file '" +
       datadir_path.real_path().join(router_cert_filename).str() + "' failed";
   EXPECT_THAT(router.get_full_logfile("mysqlrouter.log", logdir_path.str()),
               ::testing::HasSubstr(log_error));

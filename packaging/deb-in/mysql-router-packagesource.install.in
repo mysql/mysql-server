@@ -41,6 +41,7 @@ usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 usr/lib/mysqlrouter/private/libprotobuf-lite.so.3.11.4
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
+usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1

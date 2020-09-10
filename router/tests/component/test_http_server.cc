@@ -1198,8 +1198,7 @@ class HttpServerSecureTest
   mysql_harness::Path ssl_cert_data_dir_;
 };
 
-constexpr const char kErrmsgRegexWeakSslKey[]{
-    "keylength of RSA public-key of certificate"};
+constexpr const char kErrmsgRegexWeakSslKey[]{"key-size too small"};
 
 TEST_P(HttpServerSecureTest, ensure) {
   // const size_t placeholder_length = strlen(kPlaceholder);
@@ -1227,7 +1226,7 @@ TEST_P(HttpServerSecureTest, ensure) {
                     .str();
       }
     }
-    http_section.push_back({e.first, value});
+    http_section.emplace_back(e.first, value);
   }
 
   std::string conf_file{create_config_file(
@@ -1322,7 +1321,7 @@ const HttpServerSecureParams http_server_secure_params[] {
            {"ssl_cert", "does-not-exist"},
        },
        false,
-       "using SSL certificate file 'does-not-exist' failed"},
+       "SSL certificate file 'does-not-exist' failed"},
 // This fails with OpenSSL 1.1.1 that added TLS1.3 default ciphers that we can't
 // disable
 #if (OPENSSL_VERSION_NUMBER < 0x10101000L)

@@ -22,17 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_TLS_CLIENT_CONTEXT_INCLUDED
-#define MYSQLROUTER_TLS_CLIENT_CONTEXT_INCLUDED
+#ifndef MYSQL_HARNESS_TLS_CLIENT_CONTEXT_INCLUDED
+#define MYSQL_HARNESS_TLS_CLIENT_CONTEXT_INCLUDED
 
-#include "mysqlrouter/tls_context.h"
+#include "mysql/harness/tls_context.h"
 
-#include "mysqlrouter/http_client_export.h"
+#include <system_error>
+
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_export.h"
 
 /**
  * Client TLS Context.
  */
-class HTTP_CLIENT_EXPORT TlsClientContext : public TlsContext {
+class HARNESS_TLS_EXPORT TlsClientContext : public TlsContext {
  public:
   TlsClientContext(TlsVerify mode = TlsVerify::PEER);
 
@@ -48,7 +51,7 @@ class HTTP_CLIENT_EXPORT TlsClientContext : public TlsContext {
    * @see openssl ciphers
    * @see cipher_suites()
    */
-  void cipher_list(const std::string &ciphers);
+  stdx::expected<void, std::error_code> cipher_list(const std::string &ciphers);
 
   /**
    * set cipher-suites of TLSv1.3.
@@ -61,15 +64,23 @@ class HTTP_CLIENT_EXPORT TlsClientContext : public TlsContext {
    *
    * @note list is not filtered for unacceptable ciphers
    * @see openssl ciphers
-   * @throws std::invalid_argument if the API doesn't support it
    * @see has_set_cipher_suites()
    */
-  void cipher_suites(const std::string &ciphers);
+  stdx::expected<void, std::error_code> cipher_suites(
+      const std::string &ciphers);
 
   /**
    * verification of certificates.
    */
-  void verify(TlsVerify verify);
+  stdx::expected<void, std::error_code> verify(TlsVerify verify);
+
+  /**
+   * verify hostname.
+   *
+   * @param server_host hostname or ip-address to match in the certificate.
+   */
+  stdx::expected<void, std::error_code> verify_hostname(
+      const std::string &server_host);
 };
 
 #endif
