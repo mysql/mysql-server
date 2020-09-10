@@ -1400,26 +1400,31 @@ ANALYZE TABLE t;
 
 SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
 EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
 EXPLAIN SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
 EXPLAIN SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
 EXPLAIN SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
 EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1683,6 +1688,7 @@ WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1692,6 +1698,7 @@ WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70 , 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'disjuntive_predicate_present' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1704,6 +1711,7 @@ WHERE (group_by_col IN (70 ,9)) OR (aggr_col > 2) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col > 2) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1713,6 +1721,7 @@ WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MAX(aggr_col) FROM a
 WHERE (group_by_col IN (70, 9)) OR (aggr_col < 9) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1723,6 +1732,7 @@ WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col IN (3, 9)) OR (aggr_col = 9) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1733,6 +1743,7 @@ WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE (group_by_col = 3) OR (aggr_col > 8) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1748,6 +1759,7 @@ WHERE (group_by_col = 9) OR aggr_col GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col = 9 OR aggr_col GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1759,6 +1771,7 @@ WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (aggr_col < 9) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1772,6 +1785,7 @@ WHERE aggr_col = group_by_col GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col = group_by_col GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1782,6 +1796,7 @@ WHERE aggr_col < group_by_col GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col < group_by_col GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1794,6 +1809,7 @@ WHERE aggr_col OR group_by_col GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col OR group_by_col GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1804,6 +1820,7 @@ WHERE aggr_col AND group_by_col GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col AND group_by_col GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1814,6 +1831,7 @@ WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE aggr_col<>0 AND group_by_col<>0 GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
@@ -1824,6 +1842,7 @@ WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
 EXPLAIN SELECT group_by_col, MIN(aggr_col), MAX(aggr_col) FROM a
 WHERE group_by_col OR (group_by_col < (aggr_col = 1)) GROUP BY group_by_col;
 
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query' AS OK
                                 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 

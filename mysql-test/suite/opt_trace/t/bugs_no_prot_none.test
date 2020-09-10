@@ -4,6 +4,9 @@
 # Skip the test if MyISAM is not available
 --source include/have_myisam.inc
 
+# Does not output the same optimizer trace.
+--source include/not_hypergraph.inc
+
 --disable_query_log
 if (`select locate('semijoin', @@optimizer_switch) > 0`) 
 {

@@ -588,6 +588,7 @@ show status like "handler_write";
 let $query=
 select * from t1, lateral (select t1.a from t2 as t3, t2 as t4) as dt, t2;
 eval explain $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 select trace from information_schema.optimizer_trace;
 
 --echo # LDT depending on const table only
@@ -627,6 +628,7 @@ select * from t2, t1, lateral (select t1.a+t2.a) as dt;
 eval explain $query;
 eval explain format=json $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_trace;
 
 --echo # Test when a dependency of LDT uses BKA: BKA code must

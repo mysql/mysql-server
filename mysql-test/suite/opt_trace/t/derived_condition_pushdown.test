@@ -3,6 +3,7 @@
 --source include/no_protocol.inc
 
 --source include/have_optimizer_trace.inc
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
 
 LET $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 EVAL SET optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
