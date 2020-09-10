@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 
 MYSQL_ADD_EXECUTABLE(mysqlxtest

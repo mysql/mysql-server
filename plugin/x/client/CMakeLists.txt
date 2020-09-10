@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,6 @@ INCLUDE_DIRECTORIES(
   ${MYSQLX_PROJECT_DIR}/client/
 )
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 INCLUDE_DIRECTORIES(SYSTEM
   ${MYSQLX_PROTOCOL_INCLUDE_DIR}
