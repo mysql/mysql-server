@@ -793,6 +793,11 @@ TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
   binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
+# sql/immutable_string.h uses
+# google::protobuf::io::CodedOutputStream::WriteVarint64ToArray
+# which may or may not be inlined.
+TARGET_LINK_LIBRARIES(sql_main ${PROTOBUF_LITE_LIBRARY})
+
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)
 ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
