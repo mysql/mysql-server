@@ -64,7 +64,7 @@ create table t1(
   unique key uk24(c24)
 ) engine=ndbcluster;
 
-let $max_rows = 1000;
+let $max_rows = 3000;
 
 --disable_query_log
 let $loops = $max_rows;
@@ -177,7 +177,7 @@ set ndb_deferred_constraints = 0;
 
 eval update parent set c2=$max_rows+c2, c3=$max_rows+c3,
   c4=$max_rows+c4, c5=$max_rows+c5
-  where c1 < 500;
+  where c1 < 1500;
 
 select * from parent where c1=1;
 select * from child where c1=1;
@@ -195,8 +195,8 @@ select count(*) from grandchild;
 
 # Split the table delete into batches
 
-eval delete from parent where c1<500;
-eval delete from parent where c1<1001;
+eval delete from parent where c1<1500;
+eval delete from parent where c1<3001;
 
 select count(*) from parent;
 select count(*) from child;

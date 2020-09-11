@@ -55,24 +55,24 @@ unique key uk22(c22),
 unique key uk23(c23),
 unique key uk24(c24)
 ) engine=ndbcluster;
-update t1 set c2=1000+c2, c3=1000+c3, c4=1000+c4,
-c5=1000+c5, c6=1000+c6, c7=1000+c7, c8=1000+c8,
-c9=1000+c9, c10=1000+c10, c11=1000+c11, c12=1000+c12,
-c13=1000+c13, c14=1000+c14, c15=1000+c15, c16=1000+c16,
-c17=1000+c17, c18=1000+c18, c19=1000+c19, c20=1000+c20,
-c21=1000+c21, c22=1000+c22, c23=1000+c23, c24=1000+c24,
-c25=1000+c25, c26=1000+c26, c27=1000+c27, c28=1000+c28,
-c29=1000+c29, c30=1000+c30, c31=1000+c31, c32=1000+c32;
+update t1 set c2=3000+c2, c3=3000+c3, c4=3000+c4,
+c5=3000+c5, c6=3000+c6, c7=3000+c7, c8=3000+c8,
+c9=3000+c9, c10=3000+c10, c11=3000+c11, c12=3000+c12,
+c13=3000+c13, c14=3000+c14, c15=3000+c15, c16=3000+c16,
+c17=3000+c17, c18=3000+c18, c19=3000+c19, c20=3000+c20,
+c21=3000+c21, c22=3000+c22, c23=3000+c23, c24=3000+c24,
+c25=3000+c25, c26=3000+c26, c27=3000+c27, c28=3000+c28,
+c29=3000+c29, c30=3000+c30, c31=3000+c31, c32=3000+c32;
 show warnings;
 Level	Code	Message
-update t1 set c2=1000+c2, c3=1000+c3, c4=1000+c4,
-c5=1000+c5, c6=1000+c6, c7=1000+c7, c8=1000+c8,
-c9=1000+c9, c10=1000+c10, c11=1000+c11, c12=1000+c12,
-c13=1000+c13, c14=1000+c14, c15=1000+c15, c16=1000+c16,
-c17=1000+c17, c18=1000+c18, c19=1000+c19, c20=1000+c20,
-c21=1000+c21, c22=1000+c22, c23=1000+c23, c24=1000+c24,
-c25=1000+c25, c26=1000+c26, c27=1000+c27, c28=1000+c28,
-c29=1000+c29, c30=1000+c30, c31=1000+c31, c32=1000+c32
+update t1 set c2=3000+c2, c3=3000+c3, c4=3000+c4,
+c5=3000+c5, c6=3000+c6, c7=3000+c7, c8=3000+c8,
+c9=3000+c9, c10=3000+c10, c11=3000+c11, c12=3000+c12,
+c13=3000+c13, c14=3000+c14, c15=3000+c15, c16=3000+c16,
+c17=3000+c17, c18=3000+c18, c19=3000+c19, c20=3000+c20,
+c21=3000+c21, c22=3000+c22, c23=3000+c23, c24=3000+c24,
+c25=3000+c25, c26=3000+c26, c27=3000+c27, c28=3000+c28,
+c29=3000+c29, c30=3000+c30, c31=3000+c31, c32=3000+c32
 where c1 < 500;
 delete from t1;
 delete from t1 where c1 < 100;
@@ -115,12 +115,12 @@ foreign key fk4(c2) references child(c2) on update restrict on delete cascade,
 foreign key fk5(c3) references child(c3) on update restrict on delete cascade
 ) engine=ndbcluster;
 set ndb_deferred_constraints = 0;
-update parent set c2=1000+c2, c3=1000+c3,
-c4=1000+c4, c5=1000+c5
-where c1 < 500;
+update parent set c2=3000+c2, c3=3000+c3,
+c4=3000+c4, c5=3000+c5
+where c1 < 1500;
 select * from parent where c1=1;
 c1	c2	c3	c4	c5
-1	1001	1001	1001	1001
+1	3001	3001	3001	3001
 select * from child where c1=1;
 c1	c2	c3	c4	c5
 1	1	1	1	1
@@ -129,15 +129,15 @@ delete from parent;
 rollback;
 select count(*) from parent;
 count(*)
-1000
+3000
 select count(*) from child;
 count(*)
-1000
+3000
 select count(*) from grandchild;
 count(*)
-1000
-delete from parent where c1<500;
-delete from parent where c1<1001;
+3000
+delete from parent where c1<1500;
+delete from parent where c1<3001;
 select count(*) from parent;
 count(*)
 0

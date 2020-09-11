@@ -164,7 +164,8 @@ alignas (NDB_CL) static Uint32 glob_unused[NDB_CL/4];
 
 /* max signal is 32 words, 7 for signal header and 25 datawords */
 #define MAX_SIGNAL_SIZE 32
-#define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / MAX_SIGNAL_SIZE) //255
+#define MIN_SIGNALS_PER_PAGE ((thr_job_buffer::SIZE / MAX_SIGNAL_SIZE) - \
+                               MAX_SIGNALS_BEFORE_FLUSH_OTHER)
 
 #if defined(HAVE_LINUX_FUTEX) && defined(NDB_HAVE_XCNG)
 #define USE_FUTEX
@@ -942,7 +943,7 @@ struct alignas(NDB_CL) thr_job_queue
    * use & (size - 1) for modulo which only works when it is
    * on the form 2^n.
    */
-  static constexpr unsigned SIZE = 64;
+  static constexpr unsigned SIZE = 32;
   
   /**
    * There is a SAFETY limit on free buffers we never allocate,
@@ -963,10 +964,11 @@ struct alignas(NDB_CL) thr_job_queue
    * are allowed to start using RESERVED buffers to prevent
    * circular wait-locks.
    */
-  static constexpr unsigned ALMOST_FULL = RESERVED + 6;
+  static constexpr unsigned ALMOST_FULL = RESERVED + 2;
+  static constexpr unsigned RECEIVE_LIMIT = 10;
 
-  static constexpr unsigned FIRST_CONGESTION_LEVEL = SIZE - ALMOST_FULL;
-  static constexpr unsigned SECOND_CONGESTION_LEVEL = SIZE - RESERVED;
+  static constexpr unsigned FIRST_CONGESTION_LEVEL = SIZE - RECEIVE_LIMIT;
+  static constexpr unsigned SECOND_CONGESTION_LEVEL = SIZE - ALMOST_FULL;
 
   /**
    * As there are multiple writers, 'm_write_lock' has to be set before
@@ -4694,14 +4696,14 @@ static bool
 get_congested_recv_queue(struct thr_repository* rep)
 {
   rmb();
-  return rep->m_second_congestion_level.load(std::memory_order_relaxed) != 0;
+  return rep->m_first_congestion_level.load() != 0;
 }
 
 static bool
 get_congested_job_queue(struct thr_repository* rep)
 {
   rmb();
-  return rep->m_first_congestion_level.load(std::memory_order_relaxed) != 0;
+  return rep->m_second_congestion_level.load() != 0;
 }
 
 int
@@ -7563,24 +7565,21 @@ mt_receiver_thread_main(void *thr_arg)
 
       if (buffersFull)       /* Receive queues(s) are full */
       {
-        if (get_congested_recv_queue(rep))
+        /**
+         * Will wait for congestion to disappear or 1 ms has passed.
+         */
+        const Uint32 nano_wait = 1000*1000;    /* -> 1 ms */
+        NDB_TICKS before = NdbTick_getCurrentTicks();
+        const bool waited = yield(&selfptr->m_congestion_waiter,
+                                  nano_wait,
+                                  get_congested_recv_queue,
+                                  rep);
+        if (waited)
         {
-          /**
-           * Will wait for congestion to disappear or 1 ms has passed.
-           */
-          const Uint32 nano_wait = 1000*1000;    /* -> 1 ms */
-          NDB_TICKS before = NdbTick_getCurrentTicks();
-          const bool waited = yield(&selfptr->m_congestion_waiter,
-                                    nano_wait,
-                                    get_congested_recv_queue,
-                                    rep);
-          if (waited)
-          {
-            NDB_TICKS after = NdbTick_getCurrentTicks();
-            selfptr->m_read_jbb_state_consumed = true;
-            selfptr->m_buffer_full_micros_sleep +=
-              NdbTick_Elapsed(before, after).microSec();
-          }
+          NDB_TICKS after = NdbTick_getCurrentTicks();
+          selfptr->m_read_jbb_state_consumed = true;
+          selfptr->m_buffer_full_micros_sleep +=
+            NdbTick_Elapsed(before, after).microSec();
         }
       }
     }
@@ -7660,6 +7659,25 @@ has_full_in_queues(struct thr_data* selfptr)
  *      risking job-buffer-full)
  */
 static
+Uint32
+compute_min_free_out_buffers(Uint32 thr_no)
+{
+  const Uint32 jbb_instance = thr_no % NUM_JOB_BUFFERS_PER_THREAD;
+  Uint32 minfree = thr_job_queue::SIZE;
+  const struct thr_repository* rep = g_thr_repository;
+  const struct thr_data *thrptr = rep->m_thread;
+
+  for (unsigned i = 0; i < glob_num_threads; i++, thrptr++)
+  {
+    const thr_job_queue *q = thrptr->m_jbb + jbb_instance;
+    unsigned free = compute_free_buffers_in_queue(q);
+    if (free < minfree)
+      minfree = free;
+  }
+  return minfree;
+}
+
+static
 bool
 update_sched_config(struct thr_data* selfptr,
                     bool pending_send,
@@ -7669,14 +7687,15 @@ update_sched_config(struct thr_data* selfptr,
   Uint32 sleeploop = 0;
   selfptr->m_watchdog_counter = 16;
 loop:
-  Uint32 perjb = MAX_SIGNALS_PER_JB;
-  Uint32 avail = MAX_SIGNALS_PER_JB * glob_num_job_buffers_per_thread;
-  if (get_congested_job_queue(g_thr_repository))
-  {
-    perjb = 0;
-    avail = 0;
-  }
-  else if (selfptr->m_thr_no == 0)
+  Uint32 minfree = compute_min_free_out_buffers(selfptr->m_thr_no);
+  Uint32 reserved = (minfree > thr_job_queue::RESERVED)
+                   ? thr_job_queue::RESERVED
+                   : minfree;
+
+  Uint32 avail = compute_max_signals_to_execute(minfree - reserved);
+  Uint32 perjb = (avail + glob_num_job_buffers_per_thread - 1) /
+                  glob_num_job_buffers_per_thread;
+  if (selfptr->m_thr_no == 0)
   {
     /**
      * The main thread has some signals that execute for a bit longer than
@@ -7692,11 +7711,13 @@ loop:
      */
     perjb = MAX(perjb, 5);
   }
+  if (perjb > MAX_SIGNALS_PER_JB)
+    perjb = MAX_SIGNALS_PER_JB;
+
   selfptr->m_max_exec_signals = avail;
   selfptr->m_max_signals_per_jb = perjb;
-  Uint32 max_pages_in_contention = thr_job_queue::SAFETY;
   selfptr->m_max_extra_signals =
-    compute_max_signals_to_execute(max_pages_in_contention);
+    compute_max_signals_to_execute(reserved);
 
   if (unlikely(perjb == 0))
   {
@@ -7707,22 +7728,17 @@ loop:
        */
       selfptr->m_max_signals_per_jb = 1;
       ndbout_c("thr_no:%u - sleeploop 10!! "
-               "(Worker thread blocked (>= 10ms) by slow consumer threads)",
+               "(Worker thread blocked (>= 1ms) by slow consumer threads)",
                selfptr->m_thr_no);
       return true;
     }
 
-    if (has_full_in_queues(selfptr))
+    if (has_full_in_queues(selfptr) &&
+        selfptr->m_max_extra_signals > 0)
     {
       /**
-       * We have a congestion somewhere, but we are not yet slowing down.
-       * If any of our input queues is congested we need to execute even
-       * in this case.
-       * If we are still at low congestion such that receive thread is
-       * not yet congested we will execute our input queues if they are
-       * mildly congested.
+       * 'extra_signals' used to drain 'full_in_queues'.
        */
-      selfptr->m_max_signals_per_jb = 1;
       return sleeploop > 0;
     }
 
@@ -8591,8 +8607,8 @@ check_congestion(thr_data *selfptr)
         if (rep->m_first_congestion_level.load() == 0)
         {
           wmb();
-          /* Wake all non-receive threads up */
-          for (Uint32 i = 0; i < first_receiver_thread_no; i++)
+          /* Wake all threads up. */
+          for (Uint32 i = 0; i < glob_num_threads; i++)
           {
             thr_data *dstptr = &rep->m_thread[i];
             wakeup(&(dstptr->m_congestion_waiter));
@@ -8979,7 +8995,7 @@ handle_sent_signals(struct thr_data *selfptr,
   const Uint32 jbb_instance = self % NUM_JOB_BUFFERS_PER_THREAD;
   Uint32 congestion_level = get_free_level(cached_read_index, write_index);
   if (likely(congestion_level <= dstptr->m_congestion_level[jbb_instance] ||
-             congestion_level > thr_job_queue::LEVEL_1_CONGESTION))
+             congestion_level < thr_job_queue::LEVEL_1_CONGESTION))
   {
     return;
   }
@@ -8988,7 +9004,7 @@ handle_sent_signals(struct thr_data *selfptr,
   congestion_level = get_free_level(read_index, write_index);
 
   if (unlikely(congestion_level > dstptr->m_congestion_level[jbb_instance] &&
-               congestion_level > thr_job_queue::LEVEL_1_CONGESTION))
+               congestion_level >= thr_job_queue::LEVEL_1_CONGESTION))
   {
     dstptr->m_congestion_level[jbb_instance] = congestion_level;
     if (congestion_level == thr_job_queue::LEVEL_1_CONGESTION)
