@@ -40,17 +40,18 @@
 #include "mysqld_error.h"
 #include "sql/handler.h"
 #include "sql/hash_join_buffer.h"
-#include "sql/hash_join_iterator.h"
 #include "sql/item.h"
-#include "sql/key.h"
 #include "sql/psi_memory_key.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/table.h"
 
+class JOIN;
+
 using hash_join_buffer::BufferRow;
-using hash_join_buffer::TableCollection;
+using hash_join_buffer::LoadBufferRowIntoTableBuffers;
+using pack_rows::TableCollection;
 using std::string;
 using std::vector;
 
@@ -97,7 +98,7 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
 bool BKAIterator::Init() {
   if (!m_outer_input_tables.has_blob_column()) {
     size_t upper_row_size =
-        hash_join_buffer::ComputeRowSizeUpperBound(m_outer_input_tables);
+        pack_rows::ComputeRowSizeUpperBound(m_outer_input_tables);
     if (m_outer_row_buffer.reserve(upper_row_size)) {
       my_error(ER_OUTOFMEMORY, MYF(0), upper_row_size);
       return true;
@@ -128,7 +129,7 @@ int BKAIterator::ReadOuterRows() {
       // rows into them, and in case we are reading from a join, Read() may
       // not update all of the tables.
       m_has_row_from_previous_batch = false;
-      hash_join_buffer::LoadIntoTableBuffers(
+      LoadBufferRowIntoTableBuffers(
           m_outer_input_tables,
           hash_join_buffer::Key(
               pointer_cast<const uchar *>(m_outer_row_buffer.ptr()),
@@ -252,8 +253,7 @@ int BKAIterator::MakeNullComplementedRow() {
     } else {
       // Return a NULL-complemented row. (Our table already has the NULL flag
       // set.)
-      hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
-                                             m_current_pos->data());
+      LoadIntoTableBuffers(m_outer_input_tables, m_current_pos->data());
       ++m_current_pos;
       return 0;
     }
@@ -400,8 +400,7 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
       return 1;
     }
 
-    hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
-                                           *m_current_pos);
+    LoadBufferRowIntoTableBuffers(m_outer_input_tables, *m_current_pos);
 
     construct_lookup_ref(thd(), table(), m_ref);
     if (!m_ref->impossible_null_ref()) {
@@ -437,7 +436,7 @@ bool MultiRangeRowIterator::MrrSkipIndexTuple(char *range_info) {
   // range_info tells us which outer row we are talking about; it corresponds to
   // range->ptr in MrrNextCallback(), and points to the serialized outer row in
   // BKAIterator's m_row array.
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+  LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   // Skip this tuple if the index condition is false.
   return !m_cache_idx_cond->val_int();
@@ -464,7 +463,7 @@ int MultiRangeRowIterator::Read() {
     // See bug #30594210.
   } while (m_join_type == JoinType::SEMI && RowHasBeenRead(rec_ptr));
 
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+  LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   m_last_row_returned = rec_ptr;
 

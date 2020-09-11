@@ -22,34 +22,36 @@
 
 #include "sql/hash_join_iterator.h"
 
-#include <sys/types.h>
 #include <algorithm>
-#include <cmath>
-#include <string>
+#include <atomic>
 #include <utility>
 #include <vector>
 
 #include "extra/lz4/my_xxhash.h"
+#include "extra/robin-hood-hashing/robin_hood.h"
 #include "field_types.h"
 #include "my_alloc.h"
 #include "my_bit.h"
-#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
-#include "scope_guard.h"
-#include "sql/handler.h"
 #include "sql/hash_join_buffer.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/pfs_batch_mode.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_class.h"
-#include "sql/sql_executor.h"
-#include "sql/sql_optimizer.h"
-#include "sql/sql_select.h"
+#include "sql/sql_list.h"
+#include "sql/system_variables.h"
 #include "sql/table.h"
+#include "template_utils.h"
+
+class JOIN;
+
+using hash_join_buffer::LoadBufferRowIntoTableBuffers;
+using hash_join_buffer::LoadImmutableStringIntoTableBuffers;
 
 constexpr size_t HashJoinIterator::kMaxChunks;
 
@@ -111,9 +113,9 @@ bool HashJoinIterator::InitRowBuffer() {
 // Mark that blobs should be copied for each table that contains at least one
 // geometry column.
 static void MarkCopyBlobsIfTableContainsGeometry(
-    const hash_join_buffer::TableCollection &table_collection) {
-  for (const hash_join_buffer::Table &table : table_collection.tables()) {
-    for (const hash_join_buffer::Column &col : table.columns) {
+    const pack_rows::TableCollection &table_collection) {
+  for (const pack_rows::Table &table : table_collection.tables()) {
+    for (const pack_rows::Column &col : table.columns) {
       if (col.field_type == MYSQL_TYPE_GEOMETRY) {
         table.table->copy_blobs = true;
         break;
@@ -158,14 +160,12 @@ bool HashJoinIterator::Init() {
   // b) when constructing a join key from join conditions.
   size_t upper_row_size = 0;
   if (!m_build_input_tables.has_blob_column()) {
-    upper_row_size =
-        hash_join_buffer::ComputeRowSizeUpperBound(m_build_input_tables);
+    upper_row_size = ComputeRowSizeUpperBound(m_build_input_tables);
   }
 
   if (!m_probe_input_tables.has_blob_column()) {
-    upper_row_size = std::max(
-        upper_row_size,
-        hash_join_buffer::ComputeRowSizeUpperBound(m_probe_input_tables));
+    upper_row_size = std::max(upper_row_size,
+                              ComputeRowSizeUpperBound(m_probe_input_tables));
   }
 
   if (m_temporary_row_and_join_key_buffer.reserve(upper_row_size)) {
@@ -245,7 +245,7 @@ static bool ConstructJoinKey(
 // the join attribute.
 static bool WriteRowToChunk(
     THD *thd, Mem_root_array<ChunkPair> *chunks, bool write_to_build_chunk,
-    const hash_join_buffer::TableCollection &tables,
+    const pack_rows::TableCollection &tables,
     const Prealloced_array<HashJoinCondition, 4> &join_conditions,
     const uint32 xxhash_seed, bool row_has_match,
     bool store_row_with_null_in_join_key, String *join_key_and_row_buffer) {
@@ -277,34 +277,11 @@ static bool WriteRowToChunk(
   }
 }
 
-// Request the row ID for all tables where it should be kept.
-void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables,
-                  table_map tables_to_get_rowid_for) {
-  for (const hash_join_buffer::Table &it : tables) {
-    const TABLE *table = it.table;
-    if ((tables_to_get_rowid_for & table->pos_in_table_list->map()) &&
-        can_call_position(table)) {
-      table->file->position(table->record[0]);
-    }
-  }
-}
-
-void PrepareForRequestRowId(
-    const Prealloced_array<hash_join_buffer::Table, 4> &tables,
-    table_map tables_to_get_rowid_for) {
-  for (const hash_join_buffer::Table &it : tables) {
-    if (tables_to_get_rowid_for & it.table->pos_in_table_list->map()) {
-      it.table->prepare_for_position();
-    }
-  }
-}
-
 // Write all the remaining rows from the given iterator out to chunk files
 // on disk. If the function returns true, an unrecoverable error occurred
 // (IO error etc.).
 static bool WriteRowsToChunks(
-    THD *thd, RowIterator *iterator,
-    const hash_join_buffer::TableCollection &tables,
+    THD *thd, RowIterator *iterator, const pack_rows::TableCollection &tables,
     const Prealloced_array<HashJoinCondition, 4> &join_conditions,
     const uint32 xxhash_seed, Mem_root_array<ChunkPair> *chunks,
     bool write_to_build_chunk, bool write_rows_with_null_in_join_key,
@@ -344,12 +321,13 @@ static bool WriteRowsToChunks(
 // instead of having to re-read the probe input multiple times. We limit the
 // number of chunks per input, so we don't risk hitting the server's limit for
 // number of open files.
-static bool InitializeChunkFiles(
-    size_t estimated_rows_produced_by_join, size_t rows_in_hash_table,
-    size_t max_chunk_files,
-    const hash_join_buffer::TableCollection &probe_tables,
-    const hash_join_buffer::TableCollection &build_tables,
-    bool include_match_flag_for_probe, Mem_root_array<ChunkPair> *chunk_pairs) {
+static bool InitializeChunkFiles(size_t estimated_rows_produced_by_join,
+                                 size_t rows_in_hash_table,
+                                 size_t max_chunk_files,
+                                 const pack_rows::TableCollection &probe_tables,
+                                 const pack_rows::TableCollection &build_tables,
+                                 bool include_match_flag_for_probe,
+                                 Mem_root_array<ChunkPair> *chunk_pairs) {
   constexpr double kReductionFactor = 0.9;
   const size_t reduced_rows_in_hash_table =
       std::max<size_t>(1, rows_in_hash_table * kReductionFactor);
@@ -410,8 +388,8 @@ bool HashJoinIterator::BuildHashTable() {
   // filter is looking at the correct data, restore the last row that was
   // inserted into the hash table.
   if (m_row_buffer.Initialized() && m_row_buffer.LastRowStored() != nullptr) {
-    hash_join_buffer::LoadIntoTableBuffers(m_build_input_tables,
-                                           m_row_buffer.LastRowStored());
+    LoadImmutableStringIntoTableBuffers(m_build_input_tables,
+                                        m_row_buffer.LastRowStored());
   }
 
   if (InitRowBuffer()) {
@@ -880,7 +858,7 @@ int HashJoinIterator::ReadJoinedRow() {
 
   // A row is ready in the hash table, so put the data from the hash table row
   // into the record buffers of the build input tables.
-  hash_join_buffer::LoadIntoTableBuffers(m_build_input_tables, m_current_row);
+  LoadImmutableStringIntoTableBuffers(m_build_input_tables, m_current_row);
   return 0;
 }
 

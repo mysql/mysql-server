@@ -71,6 +71,7 @@
 #include "prealloced_array.h"
 #include "sql/immutable_string.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/pack_rows.h"
 #include "sql/table.h"
 #include "sql_string.h"
 
@@ -78,91 +79,6 @@ class Field;
 class QEP_TAB;
 
 namespace hash_join_buffer {
-
-/// A class that represents a field, which also holds a cached value of the
-/// field's data type.
-struct Column {
-  explicit Column(Field *field);
-  Field *const field;
-
-  // The field type is used frequently, and caching it gains around 30% in some
-  // of our microbenchmarks.
-  const enum_field_types field_type;
-};
-
-/// This struct is primarily used for holding the extracted columns in a hash
-/// join. When the hash join iterator is constructed, we extract the columns
-/// that are needed to satisfy the SQL query.
-struct Table {
-  explicit Table(TABLE *tab);
-  TABLE *table;
-  Prealloced_array<Column, 8> columns;
-
-  // Whether to copy the NULL flags or not.
-  bool copy_null_flags{false};
-};
-
-/// A structure that contains a list of tables for the hash join operation,
-/// and some pre-computed properties for the tables.
-class TableCollection {
- public:
-  TableCollection() = default;
-
-  TableCollection(const JOIN *join, table_map tables, bool store_rowids,
-                  table_map tables_to_get_rowid_for);
-
-  const Prealloced_array<Table, 4> &tables() const { return m_tables; }
-
-  table_map tables_bitmap() const { return m_tables_bitmap; }
-
-  size_t ref_and_null_bytes_size() const { return m_ref_and_null_bytes_size; }
-
-  bool has_blob_column() const { return m_has_blob_column; }
-
-  bool store_rowids() const { return m_store_rowids; }
-
-  table_map tables_to_get_rowid_for() const {
-    return m_tables_to_get_rowid_for;
-  }
-
- private:
-  void AddTable(TABLE *tab);
-
-  Prealloced_array<Table, 4> m_tables{PSI_NOT_INSTRUMENTED};
-
-  // We frequently use the bitmap to determine which side of the join an Item
-  // belongs to, so precomputing the bitmap saves quite some time.
-  table_map m_tables_bitmap = 0;
-
-  // Sum of the NULL bytes and the row ID for all of the tables.
-  size_t m_ref_and_null_bytes_size = 0;
-
-  // Whether any of the tables has a BLOB/TEXT column. This is used to determine
-  // whether we need to estimate the row size every time we store a row to the
-  // row buffer or to a chunk file on disk. If this is set to false, we can
-  // pre-allocate any necessary buffers we need during the hash join, and thus
-  // eliminate the need for recalculating the row size every time.
-  bool m_has_blob_column = false;
-
-  bool m_store_rowids = false;
-  table_map m_tables_to_get_rowid_for = 0;
-};
-
-/// Count up how many bytes a single row from the given tables will occupy,
-/// in "packed" format. Note that this is an upper bound, so the length after
-/// calling Field::pack may very well be shorter than the size returned by this
-/// function.
-///
-/// The value returned from this function will sum up
-/// 1) The row-id if that is to be kept.
-/// 2) Size of the NULL flags.
-/// 3) Size of the buffer returned by pack() on all columns marked in the
-///    read_set.
-///
-/// Note that if any of the tables has a BLOB/TEXT column, this function looks
-/// at the data stored in the record buffers. This means that the function can
-/// not be called before reading any rows if tables.has_blob_column is true.
-size_t ComputeRowSizeUpperBound(const TableCollection &tables);
 
 /// The key type for the hash structure in HashJoinRowBuffer.
 ///
@@ -265,38 +181,15 @@ class KeyHasher {
   }
 };
 
-/// Take the data marked for reading in "tables" and store it in the provided
-/// buffer. What data to store is determined by the read set of each table.
-/// Note that any existing data in "buffer" will be overwritten.
-///
-/// The output buffer will contain three things:
-///
-/// 1) NULL flags for each nullable column.
-/// 2) The row ID for each row. This is only stored if QEP_TAB::rowid_status !=
-///    NO_ROWID_NEEDED.
-/// 3) The actual data from the columns.
-///
-/// @retval true if error, false otherwise
-bool StoreFromTableBuffers(const TableCollection &tables, String *buffer);
-
-/// Take the data in "ptr" and put it back to the tables' record buffers.
-/// The tables must be _exactly_ the same as when the row was created.
-/// That is, it must contain the same tables in the same order, and the read set
-/// of each table must be identical when storing and restoring the row.
-/// If that's not the case, you will end up with undefined and unpredictable
-/// behavior.
-///
-/// Returns a pointer to where we ended reading.
-const uchar *LoadIntoTableBuffers(const TableCollection &tables,
-                                  const uchar *ptr);
-
-// A convenience form of the above that also verifies the end pointer for us.
-void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row);
+// A convenience form of LoadIntoTableBuffers() that also verifies the end
+// pointer for us.
+void LoadBufferRowIntoTableBuffers(const pack_rows::TableCollection &tables,
+                                   BufferRow row);
 
 // A convenience form of the above that also decodes the LinkedImmutableString
 // for us.
-void LoadIntoTableBuffers(const TableCollection &tables,
-                          LinkedImmutableString row);
+void LoadImmutableStringIntoTableBuffers(
+    const pack_rows::TableCollection &tables, LinkedImmutableString row);
 
 enum class StoreRowResult { ROW_STORED, BUFFER_FULL, FATAL_ERROR };
 
@@ -304,7 +197,7 @@ class HashJoinRowBuffer {
  public:
   // Construct the buffer. Note that Init() must be called before the buffer can
   // be used.
-  HashJoinRowBuffer(TableCollection tables,
+  HashJoinRowBuffer(pack_rows::TableCollection tables,
                     std::vector<HashJoinCondition> join_conditions,
                     size_t max_mem_available_bytes);
 
@@ -360,7 +253,7 @@ class HashJoinRowBuffer {
 
   // A row can consist of parts from different tables. This structure tells us
   // which tables that are involved.
-  const TableCollection m_tables;
+  const pack_rows::TableCollection m_tables;
 
   // The MEM_ROOT on which all of the hash table keys and values are allocated.
   // The actual hash map is on the regular heap.

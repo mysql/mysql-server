@@ -26,21 +26,24 @@
 #include <stdio.h>
 #include <cstdint>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "my_alloc.h"
-#include "my_inttypes.h"
+#include "my_base.h"
+#include "my_table_map.h"
+#include "prealloced_array.h"
 #include "sql/hash_join_buffer.h"
 #include "sql/hash_join_chunk.h"
+#include "sql/immutable_string.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/mem_root_array.h"
+#include "sql/pack_rows.h"
 #include "sql/row_iterator.h"
-#include "sql/table.h"
 #include "sql_string.h"
 
+class Item;
+class JOIN;
 class THD;
-class QEP_TAB;
 
 struct ChunkPair {
   HashJoinChunk probe_chunk;
@@ -501,8 +504,8 @@ class HashJoinIterator final : public RowIterator {
   // join. Rows/columns that are not needed are filtered out in the constructor.
   // We need to know which tables that belong to each iterator, so that we can
   // compute the join key when needed.
-  hash_join_buffer::TableCollection m_probe_input_tables;
-  hash_join_buffer::TableCollection m_build_input_tables;
+  pack_rows::TableCollection m_probe_input_tables;
+  pack_rows::TableCollection m_build_input_tables;
   const table_map m_tables_to_get_rowid_for;
 
   // An in-memory hash table that holds rows from the build input (directly from
@@ -642,18 +645,5 @@ class HashJoinIterator final : public RowIterator {
   // probe row read.
   bool m_probe_row_match_flag{false};
 };
-
-/// For each of the given tables, request that the row ID is filled in
-/// (the equivalent of calling file->position()) if needed.
-///
-/// @param tables All tables involved in the hash join.
-/// @param tables_to_get_rowid_for A bitmap of which tables to actually
-///     get row IDs for. (A table needs to be in both sets to be processed.)
-void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables,
-                  table_map tables_to_get_rowid_for);
-
-void PrepareForRequestRowId(
-    const Prealloced_array<hash_join_buffer::Table, 4> &tables,
-    table_map tables_to_get_rowid_for);
 
 #endif  // SQL_HASH_JOIN_ITERATOR_H_
