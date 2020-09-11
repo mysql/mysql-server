@@ -1441,3 +1441,40 @@ drop table t;
 set optimizer_switch=default;
 
 set global default_storage_engine=innodb;
+
+--echo #
+--echo # WL#14071: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER
+);
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  a INTEGER
+);
+
+# t2.pk IS NULL can never be true, so the condition touches no tables.
+# We need to take this into account when estimating its selectivity.
+SELECT * FROM
+  (
+    t2 LEFT JOIN t2 AS t3 ON t2.pk IS NULL
+  ) LEFT JOIN t1 ON t1.a = t3.a;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #31924828: WL#14071: HYPERGAPH RETURNS DIFFERENT RESULTS WITH ONLY_FULL_GROUP_BY DISABLED
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 ( pk INTEGER );
+
+# Demonstrates that WHERE conditions should not be pushed into the inner side
+# of LEFT JOIN, even when the join condition is degenerate. (The <=> instead of
+# <> is to make sure the join is not simplified to an inner join.)
+SELECT * FROM t1 LEFT JOIN t2 ON TRUE WHERE t2.pk <=> 3;
+
+DROP TABLE t1, t2;

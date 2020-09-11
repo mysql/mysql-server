@@ -767,14 +767,8 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   return false;
 }
 
-/**
-  Split AND conditions into their constituent parts, recursively.
-  Conditions that are not AND conditions are appended unchanged onto
-  condition_parts. E.g. if you have ((a AND b) AND c), condition_parts
-  will contain [a, b, c], plus whatever it contained before the call.
- */
-static void ExtractConditions(Item *condition,
-                              vector<Item *> *condition_parts) {
+void ExtractConditions(Item *condition,
+                       Mem_root_array<Item *> *condition_parts) {
   if (condition == nullptr) {
     return;
   }
@@ -1097,7 +1091,7 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
                      vector<Item *> *predicates_below_join,
                      vector<PendingCondition> *predicates_above_join,
                      vector<PendingCondition> *join_conditions) {
-  vector<Item *> condition_parts;
+  Mem_root_array<Item *> condition_parts(*THR_MALLOC);
   ExtractConditions(condition, &condition_parts);
   for (Item *item : condition_parts) {
     Item_func_trig_cond *trig_cond = GetTriggerCondOrNull(item);
@@ -1455,7 +1449,15 @@ static bool IsTableScan(AccessPath *path) {
 
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path) {
-  SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
+  return GetAccessPathForDerivedTable(thd, qep_tab->table_ref, qep_tab->table(),
+                                      qep_tab->rematerialize,
+                                      qep_tab->invalidators, table_path);
+}
+
+AccessPath *GetAccessPathForDerivedTable(
+    THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
+    Mem_root_array<const AccessPath *> *invalidators, AccessPath *table_path) {
+  SELECT_LEX_UNIT *unit = table_ref->derived_unit();
   JOIN *subjoin = nullptr;
   Temp_table_param *tmp_table_param;
   int select_number;
@@ -1479,8 +1481,8 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
     tmp_table_param = new (thd->mem_root) Temp_table_param;
     select_number = unit->first_select()->select_number;
   }
-  ConvertItemsToCopy(*unit->get_field_list(),
-                     qep_tab->table()->visible_field_ptr(), tmp_table_param);
+  ConvertItemsToCopy(*unit->get_field_list(), table->visible_field_ptr(),
+                     tmp_table_param);
 
   AccessPath *path;
 
@@ -1492,10 +1494,9 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
     // We will already have set up a unique index on the table if
     // required; see TABLE_LIST::setup_materialized_derived_tmp_table().
     path = NewMaterializeAccessPath(
-        thd, unit->release_query_blocks_to_materialize(), qep_tab->invalidators,
-        qep_tab->table(), table_path, qep_tab->table_ref->common_table_expr(),
-        unit,
-        /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt,
+        thd, unit->release_query_blocks_to_materialize(), invalidators, table,
+        table_path, table_ref->common_table_expr(), unit,
+        /*ref_slice=*/-1, rematerialize, unit->select_limit_cnt,
         unit->offset_limit_cnt == 0 ? unit->m_reject_multiple_rows : false);
     if (unit->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
@@ -1505,21 +1506,21 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
           /*count_all_rows=*/false, unit->m_reject_multiple_rows,
           /*send_records_override=*/nullptr);
     }
-  } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
-             qep_tab->rematerialize && IsTableScan(table_path)) {
+  } else if (table_ref->common_table_expr() == nullptr && rematerialize &&
+             IsTableScan(table_path)) {
     // We don't actually need the materialization for anything (we would
     // just be reading the rows straight out from the table, never to be used
     // again), so we can just stream records directly over to the next
     // iterator. This saves both CPU time and memory (for the temporary
     // table).
     //
-    // NOTE: Currently, qep_tab->rematerialize is true only for JSON_TABLE.
+    // NOTE: Currently, rematerialize is true only for JSON_TABLE.
     // We could extend this to other situations, such as the leftmost
     // table of the join (assuming nested loop only). The test for CTEs is
     // also conservative; if the CTE is defined within this join and used
     // only once, we could still stream without losing performance.
     path = NewStreamingAccessPath(thd, unit->root_access_path(), subjoin,
-                                  &subjoin->tmp_table_param, qep_tab->table(),
+                                  &subjoin->tmp_table_param, table,
                                   /*ref_slice=*/-1);
     CopyCosts(*unit->root_access_path(), path);
   } else {
@@ -1529,12 +1530,14 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
         SingleMaterializeQueryBlock(
             thd, unit->root_access_path(), select_number, join,
             /*copy_fields_and_items=*/true, tmp_table_param),
-        qep_tab->invalidators, qep_tab->table(), table_path,
-        qep_tab->table_ref->common_table_expr(), unit,
-        /*ref_slice=*/-1, qep_tab->rematerialize,
-        tmp_table_param->end_write_records, unit->m_reject_multiple_rows);
+        invalidators, table, table_path, table_ref->common_table_expr(), unit,
+        /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
+        unit->m_reject_multiple_rows);
     CopyCosts(*unit->root_access_path(), path);
   }
+
+  path->cost_before_filter = path->cost;
+  path->num_output_rows_before_filter = path->num_output_rows;
 
   return path;
 }
@@ -1794,7 +1797,7 @@ static AccessPath *CreateHashJoinAccessPath(
   for (Item *outer_item : *join_conditions) {
     // We can encounter conditions that are AND'ed together (i.e. a condition
     // that originally was Item_cond_and inside a Item_trig_cond).
-    vector<Item *> condition_parts;
+    Mem_root_array<Item *> condition_parts(thd->mem_root);
     ExtractConditions(outer_item, &condition_parts);
     for (Item *inner_item : condition_parts) {
       if (ConditionIsAlwaysTrue(inner_item)) {
@@ -1919,12 +1922,28 @@ static AccessPath *CreateHashJoinAccessPath(
     allow_spill_to_disk = false;
   }
 
-  JoinPredicate *pred = new (thd->mem_root) JoinPredicate(thd, join_type);
+  RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
+  expr->left = expr->right =
+      nullptr;  // Only used in the hypergraph join optimizer.
+  switch (join_type) {
+    case JoinType::ANTI:
+      expr->type = RelationalExpression::ANTIJOIN;
+      break;
+    case JoinType::INNER:
+      expr->type = RelationalExpression::INNER_JOIN;
+      break;
+    case JoinType::OUTER:
+      expr->type = RelationalExpression::LEFT_JOIN;
+      break;
+    case JoinType::SEMI:
+      expr->type = RelationalExpression::SEMIJOIN;
+      break;
+  }
   for (Item *item : hash_join_extra_conditions) {
-    pred->join_conditions.push_back(item);
+    expr->join_conditions.push_back(item);
   }
   for (const HashJoinCondition &condition : hash_join_conditions) {
-    pred->equijoin_conditions.push_back(condition.join_condition());
+    expr->equijoin_conditions.push_back(condition.join_condition());
   }
 
   // Go through the equijoin conditions and check that all of them still
@@ -1954,10 +1973,13 @@ static AccessPath *CreateHashJoinAccessPath(
         build_path->cost = 0.0;
         build_path->num_output_rows = 0;
       }
-      pred->equijoin_conditions.clear();
+      expr->equijoin_conditions.clear();
       break;
     }
   }
+
+  JoinPredicate *pred = new (thd->mem_root) JoinPredicate;
+  pred->expr = expr;
 
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::HASH_JOIN;
@@ -6417,11 +6439,7 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 }
 
 /**
-  Clear all result fields. Non-aggregated fields are set to NULL,
-  aggregated fields are set to their special "clear" value.
-
-  Result fields can be fields from input tables, field values generated
-  by sum functions and literal values.
+  Set all column values from all input tables to NULL.
 
   This is used when no rows are found during grouping: for FROM clause, a
   result row of all NULL values will be output; then SELECT list expressions
@@ -6443,7 +6461,6 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 */
 
 bool JOIN::clear_fields(table_map *save_nullinfo) {
-  // Set all column values from all input tables to NULL.
   for (uint tableno = 0; tableno < primary_tables; tableno++) {
     QEP_TAB *const tab = qep_tab + tableno;
     TABLE *const table = tab->table_ref->table;
@@ -6452,11 +6469,6 @@ bool JOIN::clear_fields(table_map *save_nullinfo) {
       if (table->const_table) table->save_null_flags();
       table->set_null_row();  // All fields are NULL
     }
-  }
-
-  if (sum_funcs) {
-    Item_sum *func, **func_ptr = sum_funcs;
-    while ((func = *(func_ptr++))) func->clear();
   }
   return false;
 }

@@ -77,7 +77,8 @@
 #include "sql/item_row.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
-#include "sql/mdl.h"       // MDL_SHARED_READ
+#include "sql/join_optimizer/join_optimizer.h"
+#include "sql/mdl.h"  // MDL_SHARED_READ
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
 #include "sql/opt_hints.h"
@@ -1417,8 +1418,12 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
          3x: outer aggregated expression are not accepted
       4. Subquery does not use HAVING
       5. Subquery does not use windowing functions
-      6. Subquery predicate is (a) in an ON/WHERE clause, and (b) at
-      the AND-top-level of that clause.
+      6. Subquery predicate is (a) in an ON/WHERE clause,
+         and (b) at the AND-top-level of that clause. Note for 6a:
+         Semijoin transformations of subqueries in ON cause the
+         join nests to no longer be acceptable as a join tree, which
+         disturbs the hypergraph optimizer, so we disable them
+         for that case (6x).
       7. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
@@ -1438,7 +1443,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       !is_part_of_union() &&                                       // 2
       no_aggregates &&                                             // 3,3x,4,5
       (outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION ||    // 6a
-       outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST) &&   // 6a
+       (outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST &&   // 6a
+        !thd->lex->using_hypergraph_optimizer)) &&                 // 6x
       outer->condition_context == enum_condition_context::ANDS &&  // 6b
       outer->sj_candidates &&                                      // 7
       leaf_table_count > 0 &&                                      // 8

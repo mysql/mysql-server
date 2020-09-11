@@ -345,6 +345,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   fake_select_lex->context.table_list =
       fake_select_lex->context.first_name_resolution_table =
           fake_select_lex->get_table_list();
+  fake_select_lex->add_joined_table(fake_select_lex->get_table_list());
   if (!fake_select_lex->first_execution) {
     for (ORDER *order = fake_select_lex->order_list.first; order;
          order = order->next)

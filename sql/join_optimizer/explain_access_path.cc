@@ -93,16 +93,18 @@ static string JoinTypeToString(JoinType join_type) {
   }
 }
 
-static string HashJoinTypeToString(JoinType join_type) {
+static string HashJoinTypeToString(RelationalExpression::Type join_type) {
   switch (join_type) {
-    case JoinType::INNER:
+    case RelationalExpression::INNER_JOIN:
       return "Inner hash join";
-    case JoinType::OUTER:
+    case RelationalExpression::LEFT_JOIN:
       return "Left hash join";
-    case JoinType::ANTI:
+    case RelationalExpression::ANTIJOIN:
       return "Hash antijoin";
-    case JoinType::SEMI:
+    case RelationalExpression::SEMIJOIN:
       return "Hash semijoin";
+    case RelationalExpression::CARTESIAN_PRODUCT:
+      return "Hash cartesian product";
     default:
       assert(false);
       return "<error>";
@@ -536,13 +538,13 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     case AccessPath::HASH_JOIN: {
       const JoinPredicate *predicate = path->hash_join().join_predicate;
-      string ret = HashJoinTypeToString(predicate->type);
+      string ret = HashJoinTypeToString(predicate->expr->type);
 
-      if (predicate->equijoin_conditions.empty()) {
+      if (predicate->expr->equijoin_conditions.empty()) {
         ret.append(" (no condition)");
       } else {
-        for (Item_func_eq *cond : predicate->equijoin_conditions) {
-          if (cond != predicate->equijoin_conditions[0]) {
+        for (Item_func_eq *cond : predicate->expr->equijoin_conditions) {
+          if (cond != predicate->expr->equijoin_conditions[0]) {
             ret.push_back(',');
           }
           HashJoinCondition hj_cond(cond, *THR_MALLOC);
@@ -555,8 +557,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
           }
         }
       }
-      for (Item *cond : predicate->join_conditions) {
-        if (cond == predicate->join_conditions[0]) {
+      for (Item *cond : predicate->expr->join_conditions) {
+        if (cond == predicate->expr->join_conditions[0]) {
           ret.append(", extra conditions: ");
         } else {
           ret += " and ";

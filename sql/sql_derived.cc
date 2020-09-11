@@ -41,6 +41,7 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
 #include "sql/opt_trace.h"  // opt_trace_disable_etc
@@ -1296,9 +1297,15 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
   if (unit->optimize(thd, table, /*create_iterators=*/false) || thd->is_error())
     return true;
 
-  if (materializable_is_const() &&
-      (create_materialized_table(thd) || materialize_derived(thd)))
-    return true;
+  // If the table is const, materialize it now. The hypergraph optimizer
+  // doesn't care about const tables, though, so it prefers to do this
+  // at execution time (in fact, it will get confused and crash if it has
+  // already been materialized).
+  if (!thd->lex->using_hypergraph_optimizer) {
+    if (materializable_is_const() &&
+        (create_materialized_table(thd) || materialize_derived(thd)))
+      return true;
+  }
 
   return false;
 }

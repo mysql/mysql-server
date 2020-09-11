@@ -27,6 +27,7 @@
 
 #include "mysql_com.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"
 #include "sql_string.h"
@@ -59,13 +60,31 @@ TableCollection::TableCollection(const JOIN *join, table_map tables,
   if (!store_rowids) {
     assert(m_tables_to_get_rowid_for == table_map{0});
   }
-  for (uint table_idx = 0; table_idx < join->tables; ++table_idx) {
-    TABLE *table = join->qep_tab[table_idx].table();
-    if (table == nullptr || table->pos_in_table_list == nullptr) {
-      continue;
+
+  // Hypergraph queries don't have QEP_TABs, so we use leaf_tables instead.
+  // It does not currently contain tables for semijoin materialization
+  // (so we can't use it for the non-hypergraph optimizer), but the hypergraph
+  // optimizer does not use semijoin materialization.
+  if (join->thd->lex->using_hypergraph_optimizer) {
+    for (TABLE_LIST *tl = join->select_lex->leaf_tables; tl;
+         tl = tl->next_leaf) {
+      TABLE *table = tl->table;
+      if (table == nullptr || table->pos_in_table_list == nullptr) {
+        continue;
+      }
+      if (Overlaps(tables, table->pos_in_table_list->map())) {
+        AddTable(table);
+      }
     }
-    if (Overlaps(tables, table->pos_in_table_list->map())) {
-      AddTable(table);
+  } else {
+    for (uint table_idx = 0; table_idx < join->tables; ++table_idx) {
+      TABLE *table = join->qep_tab[table_idx].table();
+      if (table == nullptr || table->pos_in_table_list == nullptr) {
+        continue;
+      }
+      if (Overlaps(tables, table->pos_in_table_list->map())) {
+        AddTable(table);
+      }
     }
   }
 }

@@ -564,11 +564,24 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);
+AccessPath *GetAccessPathForDerivedTable(
+    THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
+    Mem_root_array<const AccessPath *> *invalidators, AccessPath *table_path);
+
 void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param);
 std::string RefToString(const TABLE_REF &ref, const KEY *key,
                         bool include_nulls);
 
 bool MaterializeIsDoingDeduplication(TABLE *table);
+
+/**
+  Split AND conditions into their constituent parts, recursively.
+  Conditions that are not AND conditions are appended unchanged onto
+  condition_parts. E.g. if you have ((a AND b) AND c), condition_parts
+  will contain [a, b, c], plus whatever it contained before the call.
+ */
+void ExtractConditions(Item *condition,
+                       Mem_root_array<Item *> *condition_parts);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

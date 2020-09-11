@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "sql/join_optimizer/materialize_path_parameters.h"
+#include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
 
@@ -51,19 +52,78 @@ struct ORDER;
 struct POSITION;
 struct TABLE;
 struct TABLE_REF;
-enum class JoinType;
 
-struct JoinPredicate {
-  explicit JoinPredicate(THD *thd, JoinType type)
-      : type(type),
-        join_conditions(thd->mem_root),
-        equijoin_conditions(thd->mem_root) {}
+/**
+  Represents an expression tree in the relational algebra of joins.
+  Expressions are either tables, or joins of two expressions.
+  (Joins can have join conditions, but more general filters are
+  not represented in this structure.)
 
-  JoinType type;
+  These are used as an abstract precursor to the join hypergraph;
+  they represent the joins in the query block more or less directly,
+  without any reordering. (The parser should largely have output a
+  structure like this instead of TABLE_LIST, but we are not there yet.)
+  The only real manipulation we do on them is pushing down conditions
+  and identifying equijoin conditions from other join conditions.
+ */
+struct RelationalExpression {
+  explicit RelationalExpression(THD *thd)
+      : join_conditions(thd->mem_root), equijoin_conditions(thd->mem_root) {}
 
-  // Does not include the ones that are in equijoin_conditions.
+  enum Type {
+    INNER_JOIN = static_cast<int>(JoinType::INNER),
+    LEFT_JOIN = static_cast<int>(JoinType::OUTER),
+    SEMIJOIN = static_cast<int>(JoinType::SEMI),
+    ANTIJOIN = static_cast<int>(JoinType::ANTI),
+    TABLE = 100,
+    CARTESIAN_PRODUCT = 101,
+  } type;
+  table_map tables_in_subtree;
+
+  // If type == TABLE.
+  const TABLE_LIST *table;
+
+  // If type != TABLE. Note that equijoin_conditions will be split off
+  // from join_conditions fairly late (at CreateHashJoinConditions()),
+  // so often, you will see equijoin conditions in join_condition..
+  RelationalExpression *left, *right;
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
+
+  // TODO(sgunders): When we support LATERAL, add a bit to signal
+  // a dependent join.
+};
+
+/**
+  A specification that two specific relational expressions
+  (e.g., two tables, or a table and a join between two other tables)
+  should be joined together. The actual join conditions, if any,
+  live inside the “expr” object, as does the join type etc.
+ */
+struct JoinPredicate {
+  const RelationalExpression *expr;
+  double selectivity;
+};
+
+/**
+  A filter of some sort that is not a join condition (those are stored
+  in JoinPredicate objects). AND conditions are typically split up into
+  multiple Predicates.
+ */
+struct Predicate {
+  Item *condition;
+
+  // tables referred to by the condition, plus any tables whose values
+  // can null any of those tables. (Even when reordering outer joins,
+  // at least one of those tables will still be present on the
+  // left-hand side of the outer join, so this is sufficient.)
+  //
+  // This is a NodeMap (we just don't want to pull in the typedef here).
+  // As a special case, we allow setting RAND_TABLE_BIT, even though it
+  // is normally part of a table_map, not a NodeMap.
+  uint64_t total_eligibility_set;
+
+  double selectivity;
 };
 
 struct AppendPathParameters {
@@ -157,6 +217,38 @@ struct AccessPath {
 
   /// Expected cost to read all of this access path once; -1.0 for unknown.
   double cost{-1.0};
+
+  /// If no filter, identical to num_output_rows and cost, respectively.
+  double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
+
+  /// Bitmap of WHERE predicates that we are including on this access path,
+  /// referring to the “predicates” array internal to the join optimizer.
+  /// Since bit masks are much cheaper to deal with than creating Item objects,
+  /// and we don't invent new conditions during join optimization (all of them
+  /// are known when we begin optimization), we stick to manipulating bit masks
+  /// during optimization, saying which filters will be applied at this node
+  /// (a 1-bit means the filter will be applied here; if there are multiple
+  /// ones, they are ANDed together).
+  ///
+  /// This is used during join optimization only; before iterators are
+  /// created, we will add FILTER access paths to represent these instead,
+  /// removing the dependency on the array.
+  ///
+  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
+  /// having more than 64 predicates. (For now, we refuse queries that have
+  /// more.)
+  uint64_t filter_predicates{0};
+
+  /// Bitmap of WHERE predicates that we touch tables we have joined in,
+  /// but that we could not apply yet (for instance because they reference
+  /// other tables, or because because we could not push them down into
+  /// the nullable side of outer joins). Used during planning only
+  /// (see filter_predicates).
+  ///
+  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
+  /// having more than 64 predicates. (For now, we refuse queries that have
+  /// more.)
+  uint64_t delayed_predicates{0};
 
   // Accessors for the union below.
   auto &table_scan() {
@@ -658,10 +750,10 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 72,
-              "We will be creating a lot of access paths in the join "
+static_assert(sizeof(AccessPath) <= 104,
+              "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(32 bytes for the base, 40 bytes for the variant.)");
+              "(64 bytes for the base, 40 bytes for the variant.)");
 
 inline void CopyCosts(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
@@ -1111,5 +1203,15 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
   manually go in and find said access path, to ask it for its TABLE object.
  */
 table_map GetUsedTables(const AccessPath *path);
+
+/**
+  For each access path in the (sub)tree rooted at “path”, expand any use of
+  “filter_predicates” into newly-inserted FILTER access paths, using the given
+  predicate list. This is used after finding an optimal set of access paths,
+  to normalize the tree so that the remaining consumers do not need to worry
+  about filter_predicates and cost_before_filter.
+ */
+void ExpandFilterAccessPaths(THD *thd, AccessPath *path,
+                             const Mem_root_array<Predicate> &predicates);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

@@ -28,6 +28,7 @@
 #include "sql/filesort.h"
 #include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
@@ -585,7 +586,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       unique_ptr_destroy_only<RowIterator> inner = CreateIteratorFromAccessPath(
           thd, param.inner, join, /*eligible_for_batch_mode=*/true);
       vector<HashJoinCondition> conditions;
-      for (Item_func_eq *cond : join_predicate->equijoin_conditions) {
+      for (Item_func_eq *cond : join_predicate->expr->equijoin_conditions) {
         conditions.emplace_back(HashJoinCondition(cond, thd->mem_root));
       }
       const bool probe_input_batch_mode =
@@ -597,12 +598,30 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // than too small).
         estimated_build_rows = 1048576.0;
       }
+      JoinType join_type;
+      switch (join_predicate->expr->type) {
+        case RelationalExpression::INNER_JOIN:
+        case RelationalExpression::CARTESIAN_PRODUCT:
+          join_type = JoinType::INNER;
+          break;
+        case RelationalExpression::LEFT_JOIN:
+          join_type = JoinType::OUTER;
+          break;
+        case RelationalExpression::ANTIJOIN:
+          join_type = JoinType::ANTI;
+          break;
+        case RelationalExpression::SEMIJOIN:
+          join_type = JoinType::SEMI;
+          break;
+        case RelationalExpression::TABLE:
+          assert(false);
+      }
       iterator = NewIterator<HashJoinIterator>(
           thd, move(inner), GetUsedTables(param.inner), estimated_build_rows,
           move(outer), GetUsedTables(param.outer), param.store_rowids,
           param.tables_to_get_rowid_for, thd->variables.join_buff_size,
-          move(conditions), param.allow_spill_to_disk, join_predicate->type,
-          join, join_predicate->join_conditions, probe_input_batch_mode);
+          move(conditions), param.allow_spill_to_disk, join_type, join,
+          join_predicate->expr->join_conditions, probe_input_batch_mode);
       break;
     }
     case AccessPath::FILTER: {
@@ -868,4 +887,43 @@ void FindTablesToGetRowidFor(AccessPath *path) {
     default:
       abort();
   }
+}
+
+static Item *ConditionFromFilterPredicates(
+    const Mem_root_array<Predicate> &predicates, uint64_t mask) {
+  if (IsSingleBitSet(mask)) {
+    return predicates[FindLowestBitSet(mask)].condition;
+  } else {
+    List<Item> items;
+    for (int pred_idx : BitsSetIn(mask)) {
+      items.push_back(predicates[pred_idx].condition);
+    }
+    Item *condition = new Item_cond_and(items);
+    condition->quick_fix_field();
+    condition->update_used_tables();
+    condition->apply_is_true();
+    return condition;
+  }
+}
+
+void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg,
+                             const Mem_root_array<Predicate> &predicates) {
+  WalkAccessPaths(
+      path_arg, /*cross_query_blocks=*/false,
+      [thd, &predicates](AccessPath *path) {
+        if (path->filter_predicates != 0) {
+          Item *condition = ConditionFromFilterPredicates(
+              predicates, path->filter_predicates);
+          AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
+          new_path->filter_predicates = 0;
+          new_path->num_output_rows = path->num_output_rows_before_filter;
+          new_path->cost = path->cost_before_filter;
+
+          path->type = AccessPath::FILTER;
+          path->filter().condition = condition;
+          path->filter().child = new_path;
+          path->filter_predicates = 0;
+        }
+        return false;
+      });
 }

@@ -73,6 +73,7 @@
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/json_dom.h"
 #include "sql/key.h"  // key_copy, key_cmp, key_cmp_if_same
 #include "sql/key_spec.h"
@@ -445,6 +446,10 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   DBUG_ASSERT(!lex->unit->is_prepared() && !lex->unit->is_optimized() &&
               !lex->unit->is_executed());
+
+  lex->using_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
+      lex->sql_command == SQLCOM_SELECT;
 
   /*
     Constant folding could cause warnings during preparation. Make
@@ -1819,6 +1824,15 @@ void JOIN::destroy() {
         table->duplicate_removal_iterator = nullptr;
       }
       qep_tab[i].cleanup();
+    }
+  } else {
+    // Same, for hypergraph queries.
+    for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
+      TABLE *table = tl->table;
+      if (table != nullptr) {
+        table->sorting_iterator = nullptr;
+        table->duplicate_removal_iterator = nullptr;
+      }
     }
   }
   if (join_tab || best_ref) {
@@ -3659,6 +3673,15 @@ void JOIN::cleanup() {
         table = (join_tab ? &join_tab[i] : best_ref[i])->table();
       }
       if (!table) continue;
+      if (table->is_created()) {
+        table->file->ha_index_or_rnd_end();
+      }
+      free_io_cache(table);
+      filesort_free_buffers(table, false);
+    }
+  } else if (thd->lex->using_hypergraph_optimizer) {
+    for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
+      TABLE *table = tl->table;
       if (table->is_created()) {
         table->file->ha_index_or_rnd_end();
       }

@@ -409,3 +409,17 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select distinct 1 AS `Name_exp_1`,`test`.`t2`.`b` AS `Name_exp_2` from `test`.`t2`) `derived_1_2` on((`test`.`t1`.`a` > `derived_1_2`.`Name_exp_2`)) where ((`derived_1_2`.`Name_exp_1` is null) and (`test`.`t1`.`a` > 0))
 DROP TABLE t1,t2;
 SET OPTIMIZER_SWITCH="semijoin=on";
+#
+# Bug #31941934: WL#14071: ASSERTION `JOIN == NULLPTR' FAILED|SQL/SQL_SELECT.CC
+#
+CREATE TABLE t1 ( pk INTEGER );
+CREATE TABLE t2 ( a INTEGER );
+CREATE TABLE t3 ( b INTEGER );
+SELECT *
+FROM t1 LEFT JOIN t2 ON 2 IN (
+SELECT COUNT(*) FROM t1
+WHERE NOT EXISTS ( SELECT b FROM t3 )
+GROUP BY pk
+);
+pk	a
+DROP TABLE t1, t2, t3;

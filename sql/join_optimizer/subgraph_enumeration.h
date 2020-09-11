@@ -77,7 +77,9 @@
 
 // You can change 0 to 1 here to get debug traces of the algorithm
 // as it is working.
-#if 0
+#define DEBUGGING_DPHYP 0
+
+#if DEBUGGING_DPHYP
 #include <stdio.h>
 #define HYPERGRAPH_PRINTF printf
 #else
@@ -89,7 +91,7 @@ namespace hypergraph {
 template <class Receiver>
 bool EnumerateAllConnectedPartitions(Receiver *receiver);
 
-std::string PrintSet(NodeMap x) {
+inline std::string PrintSet(NodeMap x) {
   std::string ret = "{";
   bool first = true;
   for (size_t node_idx : BitsSetIn(x)) {

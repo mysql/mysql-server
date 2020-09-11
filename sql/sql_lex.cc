@@ -472,6 +472,7 @@ void LEX::reset() {
   server_options.reset();
   explain_format = nullptr;
   is_explain_analyze = false;
+  using_hypergraph_optimizer = false;
   is_lex_started = true;
   reset_slave_info.all = false;
   mi.channel = nullptr;
@@ -2742,6 +2743,11 @@ static void print_join(const THD *thd, String *str,
   Table_array tables_to_print(PSI_NOT_INSTRUMENTED);
 
   for (TABLE_LIST *t : *tables) {
+    // The single table added to fake_select_lex has no name;
+    // “from dual” looks slightly better than “from ``”, so drop it.
+    // (The fake_select_lex query is invalid either way.)
+    if (t->alias[0] == '\0') continue;
+
     if (print_const_tables || !t->optimized_away)
       if (tables_to_print.push_back(t)) return; /* purecov: inspected */
   }

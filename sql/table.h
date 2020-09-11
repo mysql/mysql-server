@@ -2862,8 +2862,10 @@ struct TABLE_LIST {
     @returns true if materializable table contains one or zero rows, and
     materialization during optimization is permitted
 
-    Returning true implies that the table is materialized during optimization,
-    so it need not be optimized during execution.
+    Returning true, if the hypergraph optimizer is not active, implies that the
+    table is materialized during optimization, so it need not be optimized
+    during execution. The hypergraph optimizer does not care about const tables,
+    so such tables are not executed during optimization time when it is active.
   */
   bool materializable_is_const() const;
 

@@ -391,7 +391,12 @@ SET(SQL_SHARED_SOURCES
   item_xmlfunc.cc
   item_inetfunc.cc
   join_optimizer/access_path.cc
+  join_optimizer/estimate_selectivity.cc
   join_optimizer/explain_access_path.cc
+  join_optimizer/hypergraph.cc
+  join_optimizer/join_optimizer.cc
+  join_optimizer/make_join_hypergraph.cc
+  join_optimizer/print_utils.cc
   json_binary.cc
   json_diff.cc
   json_dom.cc
@@ -569,7 +574,6 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
-  join_optimizer/hypergraph.cc
 )
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>

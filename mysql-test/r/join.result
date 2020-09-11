@@ -2057,3 +2057,28 @@ a
 drop table t;
 set optimizer_switch=default;
 set global default_storage_engine=innodb;
+#
+# WL#14071: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED
+#
+CREATE TABLE t1 (
+a INTEGER
+);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+a INTEGER
+);
+SELECT * FROM
+(
+t2 LEFT JOIN t2 AS t3 ON t2.pk IS NULL
+) LEFT JOIN t1 ON t1.a = t3.a;
+pk	a	pk	a	a
+DROP TABLE t1, t2;
+#
+# Bug #31924828: WL#14071: HYPERGAPH RETURNS DIFFERENT RESULTS WITH ONLY_FULL_GROUP_BY DISABLED
+#
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 ( pk INTEGER );
+SELECT * FROM t1 LEFT JOIN t2 ON TRUE WHERE t2.pk <=> 3;
+pk	pk
+DROP TABLE t1, t2;

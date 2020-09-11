@@ -40,6 +40,7 @@
 #include "sql/item.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/opt_explain.h"
 #include "sql/opt_trace.h"
@@ -239,8 +240,18 @@ int AggregateIterator::Read() {
             Calculate a set of tables for which NULL values need to
             be restored after sending data.
           */
-          if (m_join->clear_fields(&m_save_nullinfo)) {
-            return 1;
+          if (thd()->lex->using_hypergraph_optimizer) {
+            // JOIN::clear_fields() depends on QEP_TABs, which we don't have.
+            // However, there are no const tables to worry about in the
+            // hypergraph optimizer, so we don't need its special logic either.
+            m_source->SetNullRowFlag(true);
+          } else {
+            if (m_join->clear_fields(&m_save_nullinfo)) {
+              return 1;
+            }
+          }
+          for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
+            (*item)->clear();
           }
           return 0;
         }
@@ -371,7 +382,10 @@ int AggregateIterator::Read() {
       return 0;
 
     case DONE_OUTPUTTING_ROWS:
-      if (m_save_nullinfo != 0) {
+      if (thd()->lex->using_hypergraph_optimizer) {
+        // See the call to clear_fields().
+        m_source->SetNullRowFlag(false);
+      } else if (m_save_nullinfo != 0) {
         m_join->restore_fields(m_save_nullinfo);
         m_save_nullinfo = 0;
       }

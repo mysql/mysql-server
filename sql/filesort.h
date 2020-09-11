@@ -72,6 +72,9 @@ class Filesort {
   // TODO: Consider moving this into private members of Filesort.
   Sort_param m_sort_param;
 
+  // TODO(sgunders): Change tables to a table_map; however, currently
+  // some semijoin tables are missing from select_lex->leaf_tables,
+  // so we can't do that yet.
   Filesort(THD *thd, Prealloced_array<TABLE *, 4> tables, bool keep_buffers,
            ORDER *order, ha_rows limit_arg, bool force_stable_sort,
            bool remove_duplicates, bool force_sort_positions,

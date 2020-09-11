@@ -228,6 +228,7 @@ SET(SERVER_TESTS
   handler
   hash_join
   histograms
+  hypergraph_optimizer
   initialize_password
   insert_delayed
   into_syntax

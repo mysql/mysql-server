@@ -73,6 +73,7 @@
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/lock.h"    // mysql_unlock_some_tables
@@ -499,15 +500,34 @@ bool JOIN::optimize() {
   // Ensure there are no errors prior making query plan
   if (thd->is_error()) return true;
 
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
-      strstr(thd->query().str, "set ") == nullptr &&
-      strstr(thd->query().str, "SET ") == nullptr &&
-      strstr(thd->query().str, "@") == nullptr &&
-      thd->lex->sql_command == SQLCOM_SELECT) {
-    // There is no hypergraph optimizer yet.
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "anything");
-    return true;
+  if (thd->lex->using_hypergraph_optimizer) {
+    if (thd->opt_trace.is_started()) {
+      std::string trace_str;
+      m_root_access_path = FindBestQueryPlan(thd, select_lex, &trace_str);
+      Opt_trace_object trace_wrapper2(&thd->opt_trace);
+      Opt_trace_array join_optimizer(&thd->opt_trace, "join_optimizer");
+
+      // Split by newlines.
+      for (size_t pos = 0; pos < trace_str.size();) {
+        size_t len = strcspn(trace_str.data() + pos, "\n");
+        join_optimizer.add_utf8(trace_str.data() + pos, len);
+        pos += len + 1;
+      }
+    } else {
+      m_root_access_path =
+          FindBestQueryPlan(thd, select_lex, /*trace=*/nullptr);
+    }
+    if (m_root_access_path == nullptr) {
+      return true;
+    }
+    set_plan_state(PLAN_READY);
+    DEBUG_SYNC(thd, "after_join_optimize");
+    return false;
   }
+
+  // ----------------------------------------------------------------------------
+  //       All of this is never called for the hypergraph join optimizer!
+  // ----------------------------------------------------------------------------
 
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
@@ -3503,6 +3523,11 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal) {
 static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
                                   Item *item, COND_EQUAL *cond_equal,
                                   bool *simple_equality) {
+  if (thd->lex->using_hypergraph_optimizer) {
+    // We cannot handle loops in the query graph yet.
+    return false;
+  }
+
   *simple_equality = false;
 
   if (left_item->type() == Item::REF_ITEM &&
@@ -9970,8 +9995,13 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
     }
     step_wrapper.add("resulting_condition", *cond);
   }
-  /* change field = field to field = const for each found field = const */
-  if (*cond) {
+  /*
+    change field = field to field = const for each found field = const
+    Note: Since we disable multi-equalities in the hypergraph optimizer for now,
+    we also cannot run this optimization; it causes spurious “Impossible WHERE”
+    in e.g. main.select_none.
+   */
+  if (*cond && !thd->lex->using_hypergraph_optimizer) {
     Opt_trace_object step_wrapper(trace);
     step_wrapper.add_alnum("transformation", "constant_propagation");
     {

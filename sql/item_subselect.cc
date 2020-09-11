@@ -64,6 +64,7 @@
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum_max
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // in_left_expr_name
@@ -509,14 +510,24 @@ void Item_in_subselect::cleanup() {
 }
 
 AccessPath *Item_in_subselect::root_access_path() const {
-  // Only subselect_hash_sj_engine owns its own iterator;
-  // for subselect_indexsubquery_engine, the unit still has it, since it's a
-  // normally executed query block. Thus, we should never get called otherwise.
-  DBUG_ASSERT(strategy == Subquery_strategy::SUBQ_MATERIALIZATION &&
-              indexsubquery_engine->engine_type() ==
-                  subselect_indexsubquery_engine::HASH_SJ_ENGINE);
-  return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
-      ->root_access_path();
+  if (strategy == Subquery_strategy::SUBQ_MATERIALIZATION &&
+      indexsubquery_engine->engine_type() ==
+          subselect_indexsubquery_engine::HASH_SJ_ENGINE) {
+    return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
+        ->root_access_path();
+  } else {
+    // Only subselect_hash_sj_engine owns its own iterator;
+    // for subselect_indexsubquery_engine, the unit still has it, since it's a
+    // normally executed query block. Thus, we should never get called
+    // otherwise.
+    //
+    // However, in some situations where the hypergraph optimizer prints out
+    // the query to the log for debugging, it isn't fully optimized
+    // yet and might not yet have an iterator. Thus, return nullptr instead of
+    // assert-failing.
+    assert(current_thd->lex->using_hypergraph_optimizer);
+    return nullptr;
+  }
 }
 
 bool Item_subselect::fix_fields(THD *thd, Item **ref) {

@@ -3638,6 +3638,14 @@ struct LEX : public Query_tables_list {
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return explain_format != nullptr; }
   bool is_explain_analyze = false;
+  /**
+    Whether the currently-running query should be (attempted) executed in
+    the hypergraph optimizer. This will not change after the query is
+    done parsing, so you can use it in any query phase to e.g. figure out
+    whether to inhibit some transformation that the hypergraph optimizer
+    does not properly understand yet.
+   */
+  bool using_hypergraph_optimizer = false;
   LEX_STRING name;
   char *help_arg;
   char *to_log; /* For PURGE MASTER LOGS TO */

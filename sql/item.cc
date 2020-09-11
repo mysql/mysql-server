@@ -10132,6 +10132,7 @@ bool Item_ref::references_select_expr_of(uchar *arg) {
 }
 
 string ItemToString(const Item *item) {
+  if (item == nullptr) return "(none)";
   String str;
   const ulonglong save_bits = current_thd->variables.option_bits;
   current_thd->variables.option_bits &= ~OPTION_QUOTE_SHOW_CREATE;

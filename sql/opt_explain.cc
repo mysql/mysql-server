@@ -66,6 +66,7 @@
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
 #include "sql/join_optimizer/explain_access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"              // stage_explaining
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
@@ -2181,6 +2182,12 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
                    "Query is executed in secondary engine; the actual"
                    " query plan may diverge from the printed one");
     return ExplainIterator(explain_thd, query_thd, unit);
+  }
+
+  if (query_thd->lex->using_hypergraph_optimizer) {
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "EXPLAIN with non-tree formats");
+    return true;
   }
 
   Query_result *explain_result = nullptr;
