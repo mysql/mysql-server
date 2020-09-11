@@ -49,6 +49,7 @@ select t2.isbn,city,@bar:=t1.libname,count(distinct t1.libname) as a
 #
 # Wrong result, see bug#49872
 # 
+--skip_if_hypergraph  # Different result, no more or less wrong.
 SELECT @bar;
 
 select t2.isbn,city,concat(@bar:=t1.libname),count(distinct t1.libname) as a
@@ -58,6 +59,7 @@ select t2.isbn,city,concat(@bar:=t1.libname),count(distinct t1.libname) as a
 #
 # Wrong result, see bug#49872
 # 
+--skip_if_hypergraph  # Different result, no more or less wrong.
 SELECT @bar;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

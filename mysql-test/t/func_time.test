@@ -1108,6 +1108,7 @@ SET sql_mode = default;
 CREATE TABLE t1 (a VARCHAR(32) NOT NULL);
 INSERT INTO t1 VALUES ('a');
 --disable_ps_protocol  # See bug #27245598.
+--skip_if_hypergraph  # Different warnings.
 SELECT 1 FROM t1 GROUP BY @a:=UNIX_TIMESTAMP(a);
 --enable_ps_protocol
 SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('a') FROM t1;

@@ -265,8 +265,11 @@ create table t1(f1 date);
 insert into t1 values('01-01-01'),('02-02-02'),('01-01-01'),('02-02-02');
 --disable_ps_protocol  # See bug #27245598.
 set @bug28261='';
+--skip_if_hypergraph  # Different warnings.
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+--skip_if_hypergraph  # Different warnings.
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
+--skip_if_hypergraph  # Different warnings.
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
 --enable_ps_protocol
 drop table t1;
