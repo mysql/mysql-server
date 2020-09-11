@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@ SET(CPACK_COMPONENTS_USED
 IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "This is Cluster build, append additional components")
   SET(CPACK_COMPONENTS_USED
-    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ")
 ENDIF()
 
 # Some components like Embedded are optional
@@ -140,9 +140,6 @@ IF("${VERSION}" MATCHES "-ndb-")
   SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
   SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
   SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
-
-  #Subfeature "nodejs"
-  SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
-  SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
-  SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
 ENDIF()
+
+

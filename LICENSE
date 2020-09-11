@@ -4042,472 +4042,276 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    ======================================================================
    ======================================================================
 
-node-mysql
-
-   The following software may be included in this product:
-Copyright (c) 2012  Felix Geisendörfer (felix@debuggable.com) and contributors
-
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
-
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
-
-Node.js
-
-   The following software may be included in this product:
-Copyright Joyent, Inc. and other Node contributors. All rights reserved.
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to
-deal in the Software without restriction, including without limitation the
-rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-sell copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-IN THE SOFTWARE.
-
-====
-
-This license applies to all parts of Node that are not externally
-maintained libraries. The externally maintained libraries used by Node are:
-
-- V8, located at deps/v8. V8's license follows:
-  """
-    This license applies to all parts of V8 that are not externally
-    maintained libraries.  The externally maintained libraries used by V8
-    are:
-
-      - PCRE test suite, located in
-        test/mjsunit/third_party/regexp-pcre.js.  This is based on the
-        test suite from PCRE-7.3, which is copyrighted by the University
-        of Cambridge and Google, Inc.  The copyright notice and license
-        are embedded in regexp-pcre.js.
-
-      - Layout tests, located in test/mjsunit/third_party.  These are
-        based on layout tests from webkit.org which are copyrighted by
-        Apple Computer, Inc. and released under a 3-clause BSD license.
-
-      - Strongtalk assembler, the basis of the files assembler-arm-inl.h,
-        assembler-arm.cc, assembler-arm.h, assembler-ia32-inl.h,
-        assembler-ia32.cc, assembler-ia32.h, assembler-x64-inl.h,
-        assembler-x64.cc, assembler-x64.h, assembler-mips-inl.h,
-        assembler-mips.cc, assembler-mips.h, assembler.cc and assembler.h.
-        This code is copyrighted by Sun Microsystems Inc. and released
-        under a 3-clause BSD license.
-
-      - Valgrind client API header, located at third_party/valgrind/valgrind.h
-        This is release under the BSD license.
-
-    These libraries have their own licenses; we recommend you read them,
-    as their terms may differ from the terms below.
-
-    Copyright 2006-2012, the V8 project authors. All rights reserved.
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-
-        * Redistributions in binary form must reproduce the above
-          copyright notice, this list of conditions and the following
-          disclaimer in the documentation and/or other materials provided
-          with the distribution.
-
-        * Neither the name of Google Inc. nor the names of its
-          contributors may be used to endorse or promote products derived
-          from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  """
-
-- libev, located at deps/uv/src/unix/ev. libev's license follows:
-  """
-    All files in libev are Copyright (C)2007,2008,2009 Marc Alexander Lehmann.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-
-
-        * Redistributions in binary form must reproduce the above
-          copyright notice, this list of conditions and the following
-          disclaimer in the documentation and/or other materials provided
-          with the distribution.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    Alternatively, the contents of this package may be used under the terms
-    of the GNU General Public License ("GPL") version 2 or any later version,
-    in which case the provisions of the GPL are applicable instead of the
-    above. If you wish to allow the use of your version of this package only
-    under the terms of the GPL and not to allow others to use your version of
-    this file under the BSD license, indicate your decision by deleting the
-    provisions above and replace them with the notice and other provisions
-    required by the GPL in this and the other files of this package. If you do
-    not delete the provisions above, a recipient may use your version of this
-    file under either the BSD or the GPL.
-  """
-
-- libeio, located at deps/uv/src/unix/eio. libeio's license follows:
-  """
-    All files in libeio are Copyright (C)2007,2008 Marc Alexander Lehmann.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-
-
-        * Redistributions in binary form must reproduce the above
-          copyright notice, this list of conditions and the following
-          disclaimer in the documentation and/or other materials provided
-          with the distribution.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    Alternatively, the contents of this package may be used under the terms
-    of the GNU General Public License ("GPL") version 2 or any later version,
-    in which case the provisions of the GPL are applicable instead of the
-    above. If you wish to allow the use of your version of this package only
-    under the terms of the GPL and not to allow others to use your version of
-    this file under the BSD license, indicate your decision by deleting the
-    provisions above and replace them with the notice and other provisions
-    required by the GPL in this and the other files of this package. If you do
-    not delete the provisions above, a recipient may use your version of this
-    file under either the BSD or the GPL.
-  """
-
-- WAF build system, located at tools/waf*. WAF's license follows:
-  """
-    Copyright Thomas Nagy, 2005-2011
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-
-
-    1. Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-
-
-    2. Redistributions in binary form must reproduce the above copyright
-       notice, this list of conditions and the following disclaimer in the
-       documentation and/or other materials provided with the distribution.
-
-
-    3. The name of the author may not be used to endorse or promote products
-       derived from this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
-  """
-
-- C-Ares, an asynchronous DNS client, located at deps/uv/src/ares. C-Ares licens
-e
-  follows
-  """
-    /* Copyright 1998 by the Massachusetts Institute of Technology.
-     *
-
-     * Permission to use, copy, modify, and distribute this
-
-     * software and its documentation for any purpose and without
-
-     * fee is hereby granted, provided that the above copyright
-
-     * notice appear in all copies and that both that copyright
-
-     * notice and this permission notice appear in supporting
-
-     * documentation, and that the name of M.I.T. not be used in
-
-     * advertising or publicity pertaining to distribution of the
-
-     * software without specific, written prior permission.
-
-     * M.I.T. makes no representations about the suitability of
-
-     * this software for any purpose.  It is provided "as is"
-
-     * without express or implied warranty.
-  """
-
-
-- HTTP Parser, located at deps/http_parser. HTTP Parser's license follows:
-  """
-    http_parser.c is based on src/http/ngx_http_parse.c from NGINX copyright
-    Igor Sysoev.
-
-    Additional changes are licensed under the same terms as NGINX and
-    copyright Joyent, Inc. and other Node contributors. All rights reserved.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to
-    deal in the Software without restriction, including without limitation the
-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-    sell copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-    IN THE SOFTWARE.
-  """
-
-- tools/cpplint.py is a C++ linter. Its license follows:
-  """
-    # Copyright (c) 2009 Google Inc. All rights reserved.
-    #
-    # Redistribution and use in source and binary forms, with or without
-    # modification, are permitted provided that the following conditions are
-    # met:
-    #
-    #    * Redistributions of source code must retain the above copyright
-    # notice, this list of conditions and the following disclaimer.
-    #    * Redistributions in binary form must reproduce the above
-    # copyright notice, this list of conditions and the following disclaimer
-    # in the documentation and/or other materials provided with the
-    # distribution.
-    #    * Neither the name of Google Inc. nor the names of its
-    # contributors may be used to endorse or promote products derived from
-    # this software without specific prior written permission.
-    #
-    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  """
-
-- lib/buffer_ieee754.js. Its license follows:
-  """
-    // Copyright (c) 2008, Fair Oaks Labs, Inc.
-    // All rights reserved.
-    //
-    // Redistribution and use in source and binary forms, with or without
-    // modification, are permitted provided that the following conditions are me
-t:
-    //
-    //  * Redistributions of source code must retain the above copyright notice,
-    //    this list of conditions and the following disclaimer.
-    //
-    //  * Redistributions in binary form must reproduce the above copyright noti
-ce,
-    //    this list of conditions and the following disclaimer in the documentat
-ion
-    //    and/or other materials provided with the distribution.
-    //
-    //  * Neither the name of Fair Oaks Labs, Inc. nor the names of its contribu
-tors
-    //    may be used to endorse or promote products derived from this software
-    //    without specific prior written permission.
-    //
-    // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS I
-S"
-    // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOS
-E
-    // ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-    // LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-    // CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-    // SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-    // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-    // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-    // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF TH
-E
-    // POSSIBILITY OF SUCH DAMAGE.
-  """
-
-- lib/punycode.js is copyright 2011 Mathias Bynens <http://mathiasbynens.be/>
-  and released under the MIT license.
-  """
-
-    * Punycode.js <http://mths.be/punycode>
-
-    * Copyright 2011 Mathias Bynens <http://mathiasbynens.be/>
-
-    * Available under MIT license <http://mths.be/mit>
-  """
-
-- tools/gyp GYP is a meta-build system. GYP's license follows:
-  """
-    Copyright (c) 2009 Google Inc. All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-
-       * Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-
-       * Redistributions in binary form must reproduce the above
-    copyright notice, this list of conditions and the following disclaimer
-    in the documentation and/or other materials provided with the
-    distribution.
-
-       * Neither the name of Google Inc. nor the names of its
-    contributors may be used to endorse or promote products derived from
-    this software without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  """
-
-- Zlib at deps/zlib. zlib's license follows
-  """
-    /* zlib.h -- interface of the 'zlib' general purpose compression library
-      version 1.2.4, March 14th, 2010
-
-      Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
-
-      This software is provided 'as-is', without any express or implied
-      warranty.  In no event will the authors be held liable for any damages
-      arising from the use of this software.
-
-      Permission is granted to anyone to use this software for any purpose,
-      including commercial applications, and to alter it and redistribute it
-      freely, subject to the following restrictions:
-
-
-      1. The origin of this software must not be misrepresented; you must not
-         claim that you wrote the original software. If you use this software
-         in a product, an acknowledgment in the product documentation would be
-         appreciated but is not required.
-
-      2. Altered source versions must be plainly marked as such, and must not be
-         misrepresented as being the original software.
-
-      3. This notice may not be removed or altered from any source distribution.
-
-      Jean-loup Gailly
-      Mark Adler
-
-    */
-  """
-
-- tools/doc/node_modules/marked Marked is a Markdown parser. Marked's
-  license follows
-  """
-@     Copyright (c) 2011-2012, Christopher Jeffrey (https://github.com/chjj/)
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to dea
-l
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM
-,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE.
-  """
-
-nt_servc (Windows NT Service class library)
-
-   nt_servc (Windows NT Service class library)
-Windows NT Service class library
-Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
-This file is public domain and comes with NO WARRANTY of any kind
+Memcached.pm
+
+   Memcached.pm
+Memcached.pm is licensed under the Perl license.
+
+Oracle may use, redistribute and/or modify this code under the terms of
+either:
+
+        a) the GNU General Public License as published by the Free Software
+Foundation; either version 1, or (at your option) any later version, or
+
+        b) the "Artistic License" which comes with the Expect/pr code.
+
+Oracle elects to use the GPLv2 for version of MySQL that are licensed under
+the GPL.
+
+Oracle elects to use the Artistic license for all other (commercial) versions
+of MySQL.
+
+A copy of the GPLv2 and the Artistic License (Perl) 1.0 must be included with
+any distribution.
+
+   This component is licensed under the GNU GPL license, version 2.0.
+
+   This component is licensed under Artistic License (Perl) 1.0
+
+   ======================================================================
+   ======================================================================
+
+mkpasswd.pl
+
+   mkpasswd.pl Perl module
+Copyright (C) 2003-2004 by Chris Grau
+
+This library is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself, either Perl version 5.8.1 or, at your option,
+any later version of Perl 5 you may have available.
+
+The Perl 5.8.1 license (from http://www.cpan.org/src/5.0/perl-5.8.1.tar.gz
+- main readme file):
+
+
+    Perl Kit, Version 5
+
+                Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998
+                   1999, 2000, 2001, by Larry Wall and others
+
+    All rights reserved.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of either:
+
+a) the GNU General Public License as published by the Free
+Software Foundation; either version 1, or (at your option) any
+later version, or
+
+b) the "Artistic License" which comes with this Kit.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either
+    the GNU General Public License or the Artistic License for more details.
+
+    You should have received a copy of the Artistic License with this
+    Kit, in the file named "Artistic".  If not, I'll be glad to provide one.
+
+    You should also have received a copy of the GNU General Public License
+    along with this program in the file named "Copying". If not, write to the
+
+    Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307, USA or visit their web page on the internet at
+    http://www.gnu.org/copyleft/gpl.html.
+
+    For those of you that choose to use the GNU General Public License,
+    my interpretation of the GNU General Public License is that no Perl
+    script falls under the terms of the GPL unless you explicitly put
+    said script under the terms of the GPL yourself.  Furthermore, any
+    object code linked with perl does not automatically fall under the
+    terms of the GPL, provided such object code only adds definitions
+    of subroutines and variables, and does not otherwise impair the
+    resulting interpreter from executing any standard Perl script.  I
+    consider linking in C subroutines in this manner to be the moral
+    equivalent of defining subroutines in the Perl language itself.  You
+    may sell such an object file as proprietary provided that you provide
+    or offer to provide the Perl source, as specified by the GNU General
+    Public License.  (This is merely an alternate way of specifying input
+    to the program.)  You may also sell a binary produced by the dumping of
+    a running Perl script that belongs to you, provided that you provide or
+    offer to provide the Perl source as specified by the GPL.  (The
+    fact that a Perl interpreter and your code are in the same binary file
+    is, in this case, a form of mere aggregation.)  This is my interpretation
+    of the GPL.  If you still have concerns or difficulties understanding
+    my intent, feel free to contact me.  Of course, the Artistic License
+    spells all this out for your protection, so you may prefer to use that.
+
+--------------------------------------------------------------------------
+
+Perl is a language that combines some of the features of C, sed, awk
+and shell.  See the manual page for more hype.  There are also many Perl
+books available, covering a wide variety of topics, from various publishers.
+See pod/perlbook.pod for more information.
+
+Please read all the directions below before you proceed any further, and
+then follow them carefully.
+
+After you have unpacked your kit, you should have all the files listed
+in MANIFEST.
+
+Installation
+
+1) Detailed instructions are in the file "INSTALL", which you should
+read if you are either installing on a system resembling Unix
+or porting perl to another platform.  For non-Unix platforms, see the
+corresponding README.
+
+2) Read the manual entries before running perl.
+
+3) IMPORTANT!  Help save the world!  Communicate any problems and suggested
+patches to perlbug@perl.org so we can keep the world in sync.
+If you have a problem, there's someone else out there who either has had
+or will have the same problem.  It's usually helpful if you send the
+output of the "myconfig" script in the main perl directory.
+
+If you've succeeded in compiling perl, the perlbug script in the "utils"
+subdirectory can be used to help mail in a bug report.
+
+If possible, send in patches such that the patch program will apply them.
+Context diffs are the best, then normal diffs.  Don't send ed scripts--
+I've probably changed my copy since the version you have.
+
+The latest versions of perl are always available on the various CPAN
+(Comprehensive Perl Archive Network) sites around the world.
+See <URL:http://www.cpan.org/src/>.
+
+
+Just a personal note:  I want you to know that I create nice things like this
+because it pleases the Author of my story.  If this bothers you, then your
+notion of Authorship needs some revision.  But you can use perl anyway. :-)
+
+The author.
+===============================================
+
+The "Artistic License"
+
+Preamble
+
+The intent of this document is to state the conditions under which a
+Package may be copied, such that the Copyright Holder maintains some
+semblance of artistic control over the development of the package,
+while giving the users of the package the right to use and distribute
+the Package in a more-or-less customary fashion, plus the right to make
+reasonable modifications.
+
+Definitions:
+
+"Package" refers to the collection of files distributed by the
+Copyright Holder, and derivatives of that collection of files
+created through textual modification.
+
+"Standard Version" refers to such a Package if it has not been
+modified, or has been modified in accordance with the wishes
+of the Copyright Holder as specified below.
+
+"Copyright Holder" is whoever is named in the copyright or
+copyrights for the package.
+
+"You" is you, if you're thinking about copying or distributing
+this Package.
+
+"Reasonable copying fee" is whatever you can justify on the
+basis of media cost, duplication charges, time of people involved,
+and so on.  (You will not be required to justify it to the
+Copyright Holder, but only to the computing community at large
+as a market that must bear the fee.)
+
+"Freely Available" means that no fee is charged for the item
+itself, though there may be fees involved in handling the item.
+It also means that recipients of the item may redistribute it
+under the same conditions they received it.
+
+1. You may make and give away verbatim copies of the source form of the
+Standard Version of this Package without restriction, provided that you
+duplicate all of the original copyright notices and associated disclaimers.
+
+2. You may apply bug fixes, portability fixes and other modifications
+derived from the Public Domain or from the Copyright Holder.  A Package
+modified in such a way shall still be considered the Standard Version.
+
+3. You may otherwise modify your copy of this Package in any way, provided
+that you insert a prominent notice in each changed file stating how and
+when you changed that file, and provided that you do at least ONE of the
+following:
+
+    a) place your modifications in the Public Domain or otherwise make them
+    Freely Available, such as by posting said modifications to Usenet or
+    an equivalent medium, or placing the modifications on a major archive
+    site such as uunet.uu.net, or by allowing the Copyright Holder to include
+    your modifications in the Standard Version of the Package.
+
+    b) use the modified Package only within your corporation or organization.
+
+    c) rename any non-standard executables so the names do not conflict
+    with standard executables, which must also be provided, and provide
+    a separate manual page for each non-standard executable that clearly
+    documents how it differs from the Standard Version.
+
+    d) make other distribution arrangements with the Copyright Holder.
+
+4. You may distribute the programs of this Package in object code or
+executable form, provided that you do at least ONE of the following:
+
+    a) distribute a Standard Version of the executables and library files,
+    together with instructions (in the manual page or equivalent) on where
+    to get the Standard Version.
+
+    b) accompany the distribution with the machine-readable source of
+    the Package with your modifications.
+
+    c) give non-standard executables non-standard names, and clearly
+    document the differences in manual pages (or equivalent), together
+    with instructions on where to get the Standard Version.
+
+    d) make other distribution arrangements with the Copyright Holder.
+
+5. You may charge a reasonable copying fee for any distribution of this
+Package.  You may charge any fee you choose for support of this
+Package.  You may not charge a fee for this Package itself.  However,
+you may distribute this Package in aggregate with other (possibly
+commercial) programs as part of a larger (possibly commercial) software
+distribution provided that you do not advertise this Package as a
+product of your own.  You may embed this Package's interpreter within
+an executable of yours (by linking); this shall be construed as a mere
+form of aggregation, provided that the complete Standard Version of the
+interpreter is so embedded.
+
+6. The scripts and library files supplied as input to or produced as
+output from the programs of this Package do not automatically fall
+under the copyright of this Package, but belong to whoever generated
+them, and may be sold commercially, and may be aggregated with this
+Package.  If such scripts or library files are aggregated with this
+Package via the so-called "undump" or "unexec" methods of producing a
+binary executable image, then distribution of such an image shall
+neither be construed as a distribution of this Package nor shall it
+fall under the restrictions of Paragraphs 3 and 4, provided that you do
+not represent such an executable image as a Standard Version of this
+Package.
+
+7. C subroutines (or comparably compiled subroutines in other
+languages) supplied by you and linked into this Package in order to
+emulate subroutines and variables of the language defined by this
+Package shall not be considered part of this Package, but are the
+equivalent of input as in Paragraph 6, provided these subroutines do
+not change the language in any way that would cause it to fail the
+regression tests for the language.
+
+8. Aggregation of this Package with a commercial distribution is always
+permitted provided that the use of this Package is embedded; that is,
+when no overt attempt is made to make this Package's interfaces visible
+to the end user of the commercial distribution.  Such use shall not be
+construed as a distribution of this Package.
+
+9. The name of the Copyright Holder may not be used to endorse or promote
+products derived from this software without specific prior written
+permission.
+
+10. THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+The End
 
    ======================================================================
    ======================================================================
