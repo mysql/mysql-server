@@ -6,7 +6,7 @@
 	},
 	"devDependencies": {
 		"intern-geezer": "2.2.2",
-		"http-proxy": "0.10.3",
+		"http-proxy": "1.18.1",
 		"glob": "3.2.7",
 		"jsgi-node": "0.3.1",
 		"formidable": "1.0.17",
