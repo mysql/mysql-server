@@ -2906,6 +2906,10 @@ longlong Item_sum_hybrid::val_int() {
 
 longlong Item_sum_hybrid::val_time_temporal() {
   DBUG_ASSERT(fixed == 1);
+  if (m_is_window_function) {
+    if (wf_common_init()) return 0;
+    if (m_optimize ? compute() : add()) return 0;
+  }
   if (null_value) return 0;
   longlong retval = value->val_time_temporal();
   if ((null_value = value->null_value)) DBUG_ASSERT(retval == 0);
@@ -2914,6 +2918,10 @@ longlong Item_sum_hybrid::val_time_temporal() {
 
 longlong Item_sum_hybrid::val_date_temporal() {
   DBUG_ASSERT(fixed == 1);
+  if (m_is_window_function) {
+    if (wf_common_init()) return 0;
+    if (m_optimize ? compute() : add()) return 0;
+  }
   if (null_value) return 0;
   longlong retval = value->val_date_temporal();
   if ((null_value = value->null_value)) DBUG_ASSERT(retval == 0);
@@ -2940,12 +2948,20 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val) {
 
 bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   DBUG_ASSERT(fixed == 1);
+  if (m_is_window_function) {
+    if (wf_common_init()) return true;
+    if (m_optimize ? compute() : add()) return true;
+  }
   if (null_value) return true;
   return (null_value = value->get_date(ltime, fuzzydate));
 }
 
 bool Item_sum_hybrid::get_time(MYSQL_TIME *ltime) {
   DBUG_ASSERT(fixed == 1);
+  if (m_is_window_function) {
+    if (wf_common_init()) return true;
+    if (m_optimize ? compute() : add()) return true;
+  }
   if (null_value) return true;
   return (null_value = value->get_time(ltime));
 }
@@ -2967,6 +2983,12 @@ String *Item_sum_hybrid::val_str(String *str) {
 
 bool Item_sum_hybrid::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed);
+  if (m_is_window_function) {
+    if (wf_common_init()) return false;  // NULL
+    // compute() returns true both on error and NULL, so we need to check
+    // THD::is_error() to see which it is.
+    if (m_optimize ? compute() : add()) return current_thd->is_error();
+  }
   if (null_value) return false;
   bool ok = value->val_json(wr);
   null_value = value->null_value;
