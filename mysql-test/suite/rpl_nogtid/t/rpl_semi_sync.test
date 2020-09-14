@@ -525,6 +525,11 @@ show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
 
+# Bug#31327337: SUBSYSTEM NAME FOR SEMISYNC ERRORS IS [SERVER] - pt2
+select subsystem, error_code
+  from performance_schema.error_log
+ where error_code="MY-011170" limit 1;
+
 --echo #
 --echo # Test semi-sync slave connect to non-semi-sync master
 --echo #
