@@ -416,6 +416,9 @@ struct recv_sys_t {
     /** Tablespace ID */
     space_id_t space_id;
 
+    /** LSN of REDO log encryption entry */
+    lsn_t lsn;
+
     /** Encryption key */
     byte *ptr;
 

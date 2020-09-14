@@ -6195,6 +6195,16 @@ static int init_server_components() {
     opt_general_log = false;
 
   /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist. It should be initialized before opening binlog file. Because
+    server's uuid will be stored into the new binlog file.
+  */
+  if (init_server_auto_options()) {
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  /*
     Set the default storage engines
   */
   if (initialize_storage_engine(default_storage_engine, "",
@@ -6263,16 +6273,6 @@ static int init_server_components() {
   if (global_gtid_mode.get() == Gtid_mode::ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON) {
     LogErr(ERROR_LEVEL, ER_RPL_GTID_MODE_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
-
-  /*
-    Each server should have one UUID. We will create it automatically, if it
-    does not exist. It should be initialized before opening binlog file. Because
-    server's uuid will be stored into the new binlog file.
-  */
-  if (init_server_auto_options()) {
-    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 

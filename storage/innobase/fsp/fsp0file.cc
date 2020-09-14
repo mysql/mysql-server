@@ -421,17 +421,22 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
     return (DB_SUCCESS);
   }
 
-  /* It is possible for a space flag to be updated for encryption in the
-  ibd file, but the server crashed before DD flags are updated. Exclude
-  encryption flags for that scenario.
+  /* For a shared tablesapce, it is possible that encryption flag updated in
+  the ibd file, but the server crashed before DD flags are updated. Exclude
+  encryption flags for that scenario. */
+  if ((FSP_FLAGS_GET_ENCRYPTION(flags) != FSP_FLAGS_GET_ENCRYPTION(m_flags)) &&
+      fsp_is_shared_tablespace(flags)) {
+#ifdef UNIV_DEBUG
+    /* Note this tablespace id down and assert that it is in the list of
+    tablespaces for which encryption is being resumed. */
+    flag_mismatch_spaces.push_back(space_id);
+#endif
 
-  This is safe because m_encryption_op_in_progress will always be set to
-  NONE unless there is a crash before Encryption is finished. */
-  if (m_encryption_op_in_progress == ENCRYPTION &&
-      !((m_flags ^ flags) &
-        ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
-          FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
-    return (DB_SUCCESS);
+    if (!((m_flags ^ flags) &
+          ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
+            FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
+      return (DB_SUCCESS);
+    }
   }
 
   /* else do not use this tablespace. */

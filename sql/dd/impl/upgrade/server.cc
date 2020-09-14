@@ -101,8 +101,10 @@ void Bootstrap_error_handler::set_abort_on_error(uint error) {
 }
 
 Bootstrap_error_handler::Bootstrap_error_handler() {
-  m_old_error_handler_hook = error_handler_hook;
-  error_handler_hook = my_message_bootstrap;
+  if (error_handler_hook != my_message_sql) {
+    m_old_error_handler_hook = error_handler_hook;
+    error_handler_hook = my_message_bootstrap;
+  }
 }
 
 void Bootstrap_error_handler::set_log_error(bool log_error) {
@@ -110,7 +112,10 @@ void Bootstrap_error_handler::set_log_error(bool log_error) {
 }
 
 Bootstrap_error_handler::~Bootstrap_error_handler() {
-  error_handler_hook = m_old_error_handler_hook;
+  // Skip reverting to old error handler in case someone else
+  // has updated the hook.
+  if (error_handler_hook == my_message_bootstrap)
+    error_handler_hook = m_old_error_handler_hook;
 }
 
 bool Bootstrap_error_handler::m_log_error = true;

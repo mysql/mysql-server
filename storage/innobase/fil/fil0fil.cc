@@ -5856,22 +5856,20 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
   }
 
-  /* Set unencryption in progress flag */
+  /* Set encryption operation in progress */
   space->encryption_op_in_progress = df.m_encryption_op_in_progress;
 
-  /* Its possible during Encryption processing, space flag for encryption
+  /* It's possible during Encryption processing, space flag for encryption
   has been updated in ibd file but server crashed before DD flags are
-  updated. Thus, consider ibd setting too for encryption.
-
-  It is safe because m_encryption_op_in_progress will be set to NONE
-  always unless there is a crash before finishing Encryption. */
-  if (space->encryption_op_in_progress == ENCRYPTION) {
-    space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
+  updated. Thus, consider ibd setting for encryption. */
+  if (FSP_FLAGS_GET_ENCRYPTION(df.flags())) {
+    fsp_flags_set_encryption(space->flags);
+  } else {
+    fsp_flags_unset_encryption(space->flags);
   }
 
   /* For encryption tablespace, initialize encryption information.*/
-  if ((is_encrypted || space->encryption_op_in_progress == ENCRYPTION) &&
-      !for_import) {
+  if ((is_encrypted || FSP_FLAGS_GET_ENCRYPTION(space->flags)) && !for_import) {
     dberr_t err;
     byte *iv = df.m_encryption_iv;
     byte *key = df.m_encryption_key;
@@ -6201,8 +6199,9 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
     }
   }
 
-  /* Set unencryption in progress flag */
+  /* Set encryption operation in progress */
   space->encryption_op_in_progress = df.m_encryption_op_in_progress;
+  space->m_header_page_flush_lsn = df.get_flush_lsn();
 
   return (FIL_LOAD_OK);
 }
@@ -7588,8 +7587,8 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
                            fil_space_t *space) {
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
-  if (space->encryption_type == Encryption::NONE ||
-      (space->encryption_op_in_progress == DECRYPTION && req_type.is_write()) ||
+  if ((space->encryption_op_in_progress == DECRYPTION && req_type.is_write()) ||
+      space->encryption_type == Encryption::NONE ||
       (page_id.page_no() == 0 && !req_type.is_log())) {
     req_type.clear_encrypted();
     return;
@@ -9788,38 +9787,53 @@ static void fil_tablespace_encryption_init(const fil_space_t *space) {
 
     ut_ad(!fsp_is_system_tablespace(space->id));
 
-    /* Here we try to populate space tablespace_key which is read during
-    REDO scan.
-
-    Consider following scenario:
-    1. Alter tablespce .. encrypt=y (KEY1)
-    2. Alter tablespce .. encrypt=n
-    3. Alter tablespce .. encrypt=y (KEY2)
-
-    Lets say there is a crash after (3) is finished successfully. All the pages
-    of tablespace are encrypted with KEY2.
-
-    During recovery:
-    ----------------
-    - Let's say we scanned till REDO of (1) but couldn't reach to REDO of (3).
-    - So we've got tablespace key as KEY1.
-    - Note, tablespace pages were encrypted using KEY2 which would have been
-      found on page 0 and thus loaded already in file_space_t.
-
-    If we overwrite this space key (KEY2) with the one we got from REDO log
-    scan (KEY1), then when we try to read a page from Disk, we will try to
-    decrypt it using KEY1 whereas page was encrypted with KEY2. ERROR.
-
-    Therefore, for a general tablespace, if tablespace key is already populated
-    it is the latest key and should be used instead of the one read during
-    REDO log scan.
-
-    For file-per-table tablespace, which is not INPLACE algorithm, copy what
-    is found on REDO Log.
-    */
-    if (fsp_is_file_per_table(space->id, space->flags) ||
-        space->encryption_klen == 0) {
+    if (fsp_is_file_per_table(space->id, space->flags)) {
+      /* For file-per-table tablespace, which is not INPLACE algorithm, copy
+      what is found on REDO Log. */
       err = fil_set_encryption(space->id, Encryption::AES, key.ptr, key.iv);
+    } else {
+      /* Here we try to populate space tablespace_key which is read during
+      REDO scan.
+
+      Consider following scenario:
+      1. Alter tablespce .. encrypt=y (KEY1)
+      2. Alter tablespce .. encrypt=n
+      3. Alter tablespce .. encrypt=y (KEY2)
+
+      Lets say there is a crash after (3) is finished successfully. Let's say
+      we scanned till REDO of (1) but couldn't reach to REDO of (3).
+
+      During recovery:
+      ----------------
+      Case 1:
+      - Before crash, pages of tablespace were encrypted with KEY2 and flushed.
+      - In recovery, on REDO we've got tablespace key as KEY1.
+      - Note, during tablespce load, KEY2 would have been found on page 0 and
+        thus loaded already in file_space_t.
+      - If we overwrite this space key (KEY2) with the one we got from REDO log
+        scan (KEY1), then when we try to read a page from Disk, we will try to
+        decrypt it using KEY1 whereas page was encrypted with KEY2. ERROR.
+      - So don't overwrite keys on tablespace in this scenario.
+
+      Case 2:
+      - Before crash, if tablespace pages were not flushed.
+      - On disk, there may be
+        - No Key (after decrypt page 0 was flushed)
+        - KEY1   (after decrypt, page 0 wasn't flushed)
+        - KEY2.  (After 3 starts, page 0 was flushed)
+        Thus tablespace would have been loaded accordingly.
+
+      This function is called only during recovery when a tablespce is loaded.
+      So we can see the LSN for REDO Entry (recv_sys->keys) and compare it with
+      the LSN of page 0 and take decision of updating encryption accordingly. */
+
+      if (space->encryption_klen == 0 ||
+          key.lsn > space->m_header_page_flush_lsn) {
+        /* Key on tablesapce isn't present or old. Update it. */
+        err = fil_set_encryption(space->id, Encryption::AES, key.ptr, key.iv);
+      } else {
+        /* Key on tablespace is new. Skip updating. */
+      }
     }
 
     if (err != DB_SUCCESS) {
@@ -10070,8 +10084,9 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
   auto status = ibd_open_for_recovery(space_id, path, space);
 
   if (status == FIL_LOAD_OK) {
-    /* For encrypted tablespace, set key and iv. */
-    if (FSP_FLAGS_GET_ENCRYPTION(space->flags) && recv_sys->keys != nullptr) {
+    if ((FSP_FLAGS_GET_ENCRYPTION(space->flags) ||
+         space->encryption_op_in_progress == ENCRYPTION) &&
+        recv_sys->keys != nullptr) {
       fil_tablespace_encryption_init(space);
     }
 
@@ -10818,41 +10833,8 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
   return (ptr);
 }
 
-/** Parse and process an encryption redo record.
-@param[in]	ptr		redo log record
-@param[in]	end		end of the redo log buffer
-@param[in]	space_id	the tablespace ID
-@return log record end, nullptr if not a complete record */
 byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
-                                     space_id_t space_id) {
-  byte *iv = nullptr;
-  byte *key = nullptr;
-  bool is_new = false;
-
-#ifdef UNIV_DEBUG
-  bool is_allocated = false;
-#endif
-
-  ulint offset;
-
-  offset = mach_read_from_2(ptr);
-  ptr += 2;
-
-  ulint len;
-
-  len = mach_read_from_2(ptr);
-  ptr += 2;
-
-  if (end < ptr + len) {
-    return (nullptr);
-  }
-
-  if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE ||
-      len != Encryption::INFO_SIZE) {
-    recv_sys->found_corrupt_log = true;
-    return (nullptr);
-  }
-
+                                     space_id_t space_id, lsn_t lsn) {
   fil_space_t *space = fil_space_get(space_id);
 
   /* An undo space might be open but not have the ENCRYPTION bit set
@@ -10865,82 +10847,94 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     space = nullptr;
   }
 
-  if (space == nullptr) {
-    if (recv_sys->keys == nullptr) {
-      recv_sys->keys = UT_NEW_NOKEY(recv_sys_t::Encryption_Keys());
-    }
+  ulint offset = mach_read_from_2(ptr);
+  ptr += 2;
 
-    for (auto &recv_key : *recv_sys->keys) {
-      if (recv_key.space_id == space_id) {
-        iv = recv_key.iv;
-        key = recv_key.ptr;
-      }
-    }
+  const ulint len = mach_read_from_2(ptr);
+  ptr += 2;
 
-#ifdef UNIV_DEBUG
-    if (key != nullptr) {
-      DBUG_EXECUTE_IF(
-          "dont_update_key_found_during_REDO_scan", is_allocated = true;
-          key = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
-          iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN)););
-    }
-#endif
-
-    if (key == nullptr) {
-      key = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
-
-      iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
-
-      is_new = true;
-    }
-
-  } else {
-    iv = space->encryption_iv;
-    key = space->encryption_key;
+  if (end < ptr + len) {
+    return (nullptr);
   }
 
-  if (!Encryption::decode_encryption_info(key, iv, ptr, true)) {
+  if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE ||
+      len != Encryption::INFO_SIZE) {
+    recv_sys->found_corrupt_log = true;
+    return (nullptr);
+  }
+
+  byte *encryption_ptr = ptr;
+  ptr += len;
+
+  /* If space is already loaded and have header_page_flushed_lsn greater than
+  this REDO entry LSN, then skip it coz header has latest information. */
+  if (space != nullptr && space->m_header_page_flush_lsn > lsn) {
+    return (ptr);
+  }
+
+  /* If encryption info is 0 filled, then this is erasing encryption info
+  during unencryption operation. Skip decrypting it. */
+  {
+    byte buf[Encryption::INFO_SIZE] = {0};
+
+    if (memcmp(encryption_ptr + 4, buf, Encryption::INFO_SIZE - 4) == 0) {
+      /* NOTE: We don't need to reset encryption info of space here because it
+      might be needed. It will be reset when this REDO record is applied. */
+      return (ptr);
+    }
+  }
+
+  byte iv[Encryption::KEY_LEN] = {0};
+  byte key[Encryption::KEY_LEN] = {0};
+
+  if (!Encryption::decode_encryption_info(key, iv, encryption_ptr, true)) {
     recv_sys->found_corrupt_log = true;
 
     ib::warn(ER_IB_MSG_364)
         << "Encryption information"
         << " in the redo log of space " << space_id << " is invalid";
 
-    if (is_new) {
-      ut_free(key);
-      ut_free(iv);
-    }
     return (nullptr);
   }
 
   ut_ad(len == Encryption::INFO_SIZE);
 
-  ptr += len;
+  if (space != nullptr) {
+    memcpy(space->encryption_iv, iv, Encryption::KEY_LEN);
+    memcpy(space->encryption_key, key, Encryption::KEY_LEN);
+    space->encryption_type = Encryption::AES;
+    space->encryption_klen = Encryption::KEY_LEN;
+    fsp_flags_set_encryption(space->flags);
+    return ptr;
+  }
 
-  if (space == nullptr) {
-    if (is_new) {
-      recv_sys_t::Encryption_Key new_key;
+  /* Space is not loaded yet. Remember this key in recv_sys and use it later
+  to pupulate space encryption info once it is loaded. */
+  DBUG_EXECUTE_IF("dont_update_key_found_during_REDO_scan", return ptr;);
 
-      new_key.iv = iv;
-      new_key.ptr = key;
-      new_key.space_id = space_id;
+  if (recv_sys->keys == nullptr) {
+    recv_sys->keys = UT_NEW_NOKEY(recv_sys_t::Encryption_Keys());
+  }
 
-      recv_sys->keys->push_back(new_key);
-    }
-  } else {
-    if (FSP_FLAGS_GET_ENCRYPTION(space->flags) ||
-        space->encryption_op_in_progress == ENCRYPTION) {
-      space->encryption_type = Encryption::AES;
-      space->encryption_klen = Encryption::KEY_LEN;
+  /* Search if key entry already exists for this tablespace, update it. */
+  for (auto &recv_key : *recv_sys->keys) {
+    if (recv_key.space_id == space_id) {
+      memcpy(recv_key.iv, iv, Encryption::KEY_LEN);
+      memcpy(recv_key.ptr, key, Encryption::KEY_LEN);
+      recv_key.lsn = lsn;
+      return ptr;
     }
   }
 
-#ifdef UNIV_DEBUG
-  if (is_allocated) {
-    DBUG_EXECUTE_IF("dont_update_key_found_during_REDO_scan", ut_free(key);
-                    ut_free(iv););
-  }
-#endif
+  /* No existing entry found, create new one and insert it. */
+  recv_sys_t::Encryption_Key new_key;
+  new_key.iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
+  memcpy(new_key.iv, iv, Encryption::KEY_LEN);
+  new_key.ptr = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
+  memcpy(new_key.ptr, key, Encryption::KEY_LEN);
+  new_key.space_id = space_id;
+  new_key.lsn = lsn;
+  recv_sys->keys->push_back(new_key);
 
   return (ptr);
 }
