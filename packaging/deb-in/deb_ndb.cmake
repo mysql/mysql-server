@@ -89,6 +89,8 @@ Description: memcached
  storage engine for memcached using the Memcache API for MySQL Cluster
  to provide a persistent MySQL Cluster data store.
 
+")
+
   SET (DEB_NDB_CLIENT_EXTRA
 "
 /usr/bin/ndb_blob_tool
@@ -158,6 +160,7 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached/${DEB_INSTALL_LICENSEFILE}
+	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient-dev/${DEB_INSTALL_LICENSEFILE}
 ")
   SET (DEB_NDB_RULES_README
