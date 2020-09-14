@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2856,7 +2856,17 @@ NdbEventBuffer::handle_change_nodegroup(const SubGcpCompleteRep* rep)
     {
       assert(array[pos] > gci);
       Gci_container* tmp = find_bucket(array[pos]);
+      if ((tmp->m_state & Gci_container::GC_CHANGE_CNT) != 0)
+      {
+        ndbout_c("Bucket with gci %u/%u is not marked as GC_CHANGE_CNT",
+                 Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
+      }
       assert((tmp->m_state & Gci_container::GC_CHANGE_CNT) == 0);
+      if ((tmp->m_state & Gci_container::GC_CHANGE_CNT) != 0)
+      {
+        ndbout_c("Bucket with gci %u/%u is not marked as GC_COMPLETE",
+                 Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
+      }
       assert((tmp->m_state & Gci_container::GC_COMPLETE) == 0);
       assert(tmp->m_gcp_complete_rep_count >= cnt);
       tmp->m_gcp_complete_rep_count -= cnt;
