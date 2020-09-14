@@ -4522,8 +4522,8 @@ static bool load_encryption_from_header(fil_space_t *space) {
       return true;
     }
   } else {
-    dberr_t err = fil_set_encryption(space->id, Encryption::AES, encryption_key,
-                                     encryption_iv);
+    dberr_t err MY_ATTRIBUTE((unused)) = fil_set_encryption(
+        space->id, Encryption::AES, encryption_key, encryption_iv);
     ut_ad(err == DB_SUCCESS);
   }
 
