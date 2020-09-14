@@ -1694,6 +1694,15 @@ bool acl_init(bool dont_read_acl_tables) {
   */
   return_val |= acl_reload(thd, false);
   notify_flush_event(thd);
+  /*
+    Turn ON the system variable '@@partial_revokes' during server
+    start in case there exist at least one restrictions instance.
+    Don't log warning in case partial_revokes is already ON.
+  */
+  if (mysqld_partial_revokes() == false &&
+      check_and_update_partial_revokes_sysvar(thd)) {
+    LogErr(WARNING_LEVEL, ER_TURNING_ON_PARTIAL_REVOKES);
+  }
   thd->release_resources();
   delete thd;
 
@@ -3590,6 +3599,8 @@ bool reload_acl_caches(THD *thd, bool mdl_locked) {
       grant_reload(thd, mdl_locked)) {
     goto end;
   }
+  // If there exists at least a partial revoke then update the sys variable
+  check_and_update_partial_revokes_sysvar(thd);
   retval = false;
   DBUG_EXECUTE_IF("wl14084_trigger_acl_ddl_timeout", sleep(2););
 
@@ -3725,24 +3736,17 @@ size_t Acl_restrictions::size() const { return m_restrictions_map.size(); }
 */
 bool is_partial_revoke_exists(THD *thd) {
   bool partial_revoke = false;
-  if (thd) {
-    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-    if (!acl_cache_lock.lock(false)) {
-      return true;
-    }
-    /*
-      Check the restrictions only if server has initialized the acl caches
-      (i.e. Server is not started with --skip-grant-tables=1 option).
-    */
-    if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
-  } else {
-    /*
-      We need to determine the number of partial revokes at the time of server
-      start. In that case thd(s) is not be available so it is safe to
-      determine the number of partial revokes without lock.
-    */
-    if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
+  DBUG_ASSERT(thd);
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  // In case of failure assume that partial revokes exists to be on safe side.
+  if (!acl_cache_lock.lock(false)) {
+    return true;
   }
+  /*
+    Check the restrictions only if server has initialized the acl caches
+    (i.e. Server is not started with --skip-grant-tables=1 option).
+  */
+  if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
   return partial_revoke;
 }
 

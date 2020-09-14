@@ -1339,15 +1339,66 @@ SET @@global.partial_revokes = ON;
 REVOKE INSERT ON mysql.* FROM foo;
 SET @@global.partial_revokes = OFF;
 ERROR HY000: At least one partial revoke exists on a database. The system variable '@@partial_revokes' must be set to ON.
+DROP USER foo;
+SHOW VARIABLES LIKE 'partial_revokes';
+Variable_name	Value
+partial_revokes	ON
+SET @@global.partial_revokes = OFF;
+# create the user and its partial revokes again
+SET @@global.partial_revokes = ON;
+CREATE USER foo;
+GRANT INSERT ON *.* to foo;
+REVOKE INSERT ON mysql.* FROM foo;
 # 4. After server restart @@partial_revokes must be turned ON
 # with a warning in server log.
 
 # Restart server.
 include/assert_grep.inc [Found the expected warning line in the server log.]
+# system variable must be ON. Partial revokes must exists.
+SHOW VARIABLES LIKE 'partial_revokes';
+Variable_name	Value
+partial_revokes	ON
+SHOW GRANTS FOR foo;
+Grants for foo@%
+GRANT INSERT ON *.* TO `foo`@`%`
+REVOKE INSERT ON `mysql`.* FROM `foo`@`%`
 DROP USER foo;
 # 5. @@partial_revokes can be turned OFF after there exists no
 #    partial revokes in the user_attributes table
 SET GLOBAL partial_revokes = OFF;
+# 6. After the Flush privileges, SHOW stmts should display correct information.
+#
+CREATE USER bar;
+GRANT SELECT ON *.* TO bar;
+UPDATE mysql.user SET user_attributes = '{"Restrictions": [{"Database": "mysql", "Privileges": ["SELECT"]}]}' WHERE USER = 'bar';
+FLUSH PRIVILEGES;
+SHOW VARIABLES LIKE 'partial_revokes';
+Variable_name	Value
+partial_revokes	ON
+SHOW GRANTS FOR bar;
+Grants for bar@%
+GRANT SELECT ON *.* TO `bar`@`%`
+REVOKE SELECT ON `mysql`.* FROM `bar`@`%`
+SELECT *  FROM mysql.user;
+ERROR 42000: SELECT command denied to user 'bar'@'localhost' for table 'user'
+DROP USER bar;
+# 7. Adding the restriction through DML with persisted partial_revokes=OFF
+#    fails server to restart.
+CREATE USER baz;
+SET PERSIST partial_revokes = OFF;
+GRANT SELECT ON *.* TO baz;
+UPDATE mysql.user SET user_attributes = '{"Restrictions": [{"Database": "mysql", "Privileges": ["SELECT"]}]}' WHERE USER = 'baz';
+# Restart server with partial_revokes=OFF.
+# Try starting the server: must fail due to persist variable.
+# system variable must be ON. Partial revokes must exists.
+SHOW VARIABLES LIKE 'partial_revokes';
+Variable_name	Value
+partial_revokes	ON
+SHOW GRANTS FOR baz;
+Grants for baz@%
+GRANT SELECT ON *.* TO `baz`@`%`
+REVOKE SELECT ON `mysql`.* FROM `baz`@`%`
+DROP USER baz;
 --------Toggling the system variable tests end --------------------------
 -------------------------------------------------------------------------
 # Start the server with --skip-grant-tables option

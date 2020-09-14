@@ -679,6 +679,7 @@ extern mysql_mutex_t LOCK_collect_instance_log;
 extern mysql_mutex_t LOCK_tls_ctx_options;
 extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
+extern mysql_mutex_t LOCK_partial_revokes;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -760,6 +761,8 @@ bool mysqld_partial_revokes();
                turned ON/OFF on server.
 */
 void set_mysqld_partial_revokes(bool value);
+
+bool check_and_update_partial_revokes_sysvar(THD *thd);
 
 #ifdef _WIN32
 

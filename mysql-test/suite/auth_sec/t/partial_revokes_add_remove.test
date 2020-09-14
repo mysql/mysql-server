@@ -48,6 +48,14 @@ SET @@global.partial_revokes = ON;
 REVOKE INSERT ON mysql.* FROM foo;
 --error ER_PARTIAL_REVOKES_EXIST
 SET @@global.partial_revokes = OFF;
+DROP USER foo;
+SHOW VARIABLES LIKE 'partial_revokes';
+SET @@global.partial_revokes = OFF;
+--echo # create the user and its partial revokes again
+SET @@global.partial_revokes = ON;
+CREATE USER foo;
+GRANT INSERT ON *.* to foo;
+REVOKE INSERT ON mysql.* FROM foo;
 --echo # 4. After server restart @@partial_revokes must be turned ON
 --echo # with a warning in server log.
 --echo
@@ -71,10 +79,53 @@ EOF
 --let $assert_text= Found the expected warning line in the server log.
 --let $assert_count=1
 --source include/assert_grep.inc
+--echo # system variable must be ON. Partial revokes must exists.
+SHOW VARIABLES LIKE 'partial_revokes';
+SHOW GRANTS FOR foo;
 DROP USER foo;
 --echo # 5. @@partial_revokes can be turned OFF after there exists no
 --echo #    partial revokes in the user_attributes table
 SET GLOBAL partial_revokes = OFF;
+--echo # 6. After the Flush privileges, SHOW stmts should display correct information.
+--echo #
+CREATE USER bar;
+GRANT SELECT ON *.* TO bar;
+UPDATE mysql.user SET user_attributes = '{"Restrictions": [{"Database": "mysql", "Privileges": ["SELECT"]}]}' WHERE USER = 'bar';
+FLUSH PRIVILEGES;
+SHOW VARIABLES LIKE 'partial_revokes';
+SHOW GRANTS FOR bar;
+--connect(bar_con, localhost, bar,,,$MASTER_MYPORT)
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT *  FROM mysql.user;
+--connection default
+--disconnect bar_con
+DROP USER bar;
+--echo # 7. Adding the restriction through DML with persisted partial_revokes=OFF
+--echo #    fails server to restart.
+--let MYSQLD_DATADIR = `select @@datadir`
+--let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log
+CREATE USER baz;
+SET PERSIST partial_revokes = OFF;
+GRANT SELECT ON *.* TO baz;
+UPDATE mysql.user SET user_attributes = '{"Restrictions": [{"Database": "mysql", "Privileges": ["SELECT"]}]}' WHERE USER = 'baz';
+--echo # Restart server with partial_revokes=OFF.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Try starting the server: must fail due to persist variable.
+--error 1
+--exec $MYSQLD --console --gdb --datadir=$MYSQLD_DATADIR --port=$MYSQLD_PORT --socket=$MYSQLD_SOCKET >> $MYSQLD_LOG 2>&1
+--remove_file $MYSQLD_LOG
+# Remove the persist option to restart the server
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo # system variable must be ON. Partial revokes must exists.
+SHOW VARIABLES LIKE 'partial_revokes';
+SHOW GRANTS FOR baz;
+DROP USER baz;
 --echo --------Toggling the system variable tests end --------------------------
 
 --echo -------------------------------------------------------------------------
