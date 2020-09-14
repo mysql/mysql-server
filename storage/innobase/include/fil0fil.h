@@ -313,6 +313,9 @@ struct fil_space_t {
   /** Encryption is in progress */
   encryption_op_type encryption_op_in_progress;
 
+  /** Flush lsn of header page. It is used only during recovery */
+  lsn_t m_header_page_flush_lsn;
+
   /** Release the reserved free extents.
   @param[in]	n_reserved	number of reserved extents */
   void release_free_extents(ulint n_reserved);
@@ -1977,9 +1980,10 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
 @param[in]	ptr		redo log record
 @param[in]	end		end of the redo log buffer
 @param[in]	space_id	the tablespace ID
+@param[in]	lsn		lsn for REDO record
 @return log record end, nullptr if not a complete record */
 byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
-                                     space_id_t space_id)
+                                     space_id_t space_id, lsn_t lsn)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Read the tablespace id to path mapping from the file

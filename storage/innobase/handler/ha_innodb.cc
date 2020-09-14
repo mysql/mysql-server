@@ -14969,7 +14969,6 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   dberr_t err = DB_SUCCESS;
   int error = 0;
   space_id_t space_id = SPACE_UNKNOWN;
-  bool to_encrypt = false;
 
   DBUG_TRACE;
   DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -15036,6 +15035,7 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   /* If new tablespace definition says it's encrypted */
   bool is_new_encrypted = !Encryption::is_none(newenc.data());
 
+  bool to_encrypt = false;
   if (!is_old_encrypted && is_new_encrypted) {
     /* Encrypt tablespace */
     to_encrypt = true;
@@ -15053,23 +15053,12 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
 
   trx_start_if_not_started(trx, true);
 
-  /* Make an entry in DDL LOG for this tablespace. */
-  mutex_enter(&dict_sys->mutex);
-  if (DB_SUCCESS != log_ddl->write_alter_encrypt_space_log(space_id)) {
-    ib::error(ER_IB_MSG_1283) << "Couldn't write DDL LOG for " << space_id;
-    mutex_exit(&dict_sys->mutex);
-    error = convert_error_code_to_mysql(DB_ERROR, 0, nullptr);
-    return error;
-  }
-  mutex_exit(&dict_sys->mutex);
-
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_processing",
                   DBUG_SUICIDE(););
 
   clone_mark_abort(true);
   /* do encryption/unencryption processing now. */
-  err = fsp_alter_encrypt_tablespace(thd, space_id, 1, to_encrypt, false,
-                                     new_dd_space);
+  err = fsp_alter_encrypt_tablespace(thd, space_id, to_encrypt, new_dd_space);
   clone_mark_active();
 
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_processing",
