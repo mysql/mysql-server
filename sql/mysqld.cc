@@ -1066,6 +1066,7 @@ static PSI_mutex_key key_LOCK_keyring_operations;
 static PSI_mutex_key key_LOCK_tls_ctx_options;
 static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
 static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
+static PSI_mutex_key key_LOCK_partial_revokes;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1198,7 +1199,7 @@ uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
 bool password_require_current = false;
 std::atomic<bool> partial_revokes;
-bool opt_partial_revokes;
+bool opt_partial_revokes;  // Intialized through Sys_var
 
 mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;
@@ -1206,6 +1207,7 @@ mysql_mutex_t LOCK_password_history;
 mysql_mutex_t LOCK_password_reuse_interval;
 mysql_mutex_t LOCK_tls_ctx_options;
 mysql_mutex_t LOCK_admin_tls_ctx_options;
+mysql_mutex_t LOCK_partial_revokes;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
@@ -2566,6 +2568,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
+  mysql_mutex_destroy(&LOCK_partial_revokes);
 }
 
 /****************************************************************************
@@ -5009,6 +5012,8 @@ static int init_thread_environment() {
                    &LOCK_rotate_binlog_master_key, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_admin_tls_ctx_options, &LOCK_admin_tls_ctx_options,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_partial_revokes, &LOCK_partial_revokes,
+                   MY_MUTEX_INIT_FAST);
   return 0;
 }
 
@@ -7256,15 +7261,6 @@ int mysqld_main(int argc, char **argv)
    to be used by ACL objects.
   */
   if (opt_initialize) init_acl_memory();
-
-  /*
-    Turn ON the system variable '@@partial_revokes' during server
-    start in case there exist at least one restrictions instance.
-  */
-  if (mysqld_partial_revokes() == false && is_partial_revoke_exists(nullptr)) {
-    set_mysqld_partial_revokes(true);
-    LogErr(WARNING_LEVEL, ER_TURNING_ON_PARTIAL_REVOKES);
-  }
 
   if (abort || my_tz_init((THD *)nullptr, default_tz_name, opt_initialize) ||
       grant_init(opt_noacl)) {
@@ -11611,4 +11607,24 @@ bool mysqld_partial_revokes() {
 */
 void set_mysqld_partial_revokes(bool value) {
   partial_revokes.store(value, std::memory_order_relaxed);
+}
+
+/**
+  If there exists at least one restrictions on any user,
+  then update global variables which track the partial_revokes.
+
+  @param thd  THD handle
+
+  @return a bool indicating partial_revokes status of the server.
+    @retval true  Parital revokes exists; updated the global variables.
+    @retval false Partial revokes does not exist.
+*/
+bool check_and_update_partial_revokes_sysvar(THD *thd) {
+  if (is_partial_revoke_exists(thd)) {
+    MUTEX_LOCK(lock, &LOCK_partial_revokes);
+    set_mysqld_partial_revokes(true);
+    opt_partial_revokes = true;
+    return true;
+  }
+  return false;
 }
