@@ -2949,7 +2949,8 @@ int ha_warp::external_lock(THD *thd, int lock_type){
       sql_command == SQLCOM_DELETE ||
       sql_command == SQLCOM_INSERT_SELECT ||
       sql_command == SQLCOM_LOAD ||
-      sql_command == SQLCOM_ALTER_TABLE)  {  
+      sql_command == SQLCOM_ALTER_TABLE ||
+      sql_command == SQLCOM_CREATE_TABLE)  {  
       // the first time a data modification statement is encountered
       // the transaction is marked dirty.  Registering the open
       // transaction prevents a transaction from seeing inserts
