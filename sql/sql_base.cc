@@ -9247,24 +9247,21 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
       if (!item) return true; /* purecov: inspected */
       DBUG_ASSERT(item->fixed);
 
-      bool is_hidden_from_user = false;
       if (item->type() == Item::FIELD_ITEM) {
         Item_field *field = static_cast<Item_field *>(item);
-        is_hidden_from_user = field->field->is_hidden_from_user();
+        // If the column is hidden from users, do not add this column in place
+        // of '*'.
+        if (field->field->is_hidden_from_user()) continue;
         /* cache the table for the Item_fields inserted by expanding stars */
         if (tables->cacheable_table) field->cached_table = tables;
       }
 
-      // If the column is hidden from users, do not add this column in place
-      // of '*'.
-      if (!is_hidden_from_user) {
-        if (!found) {
-          found = true;
-          **it = item; /* Replace '*' with the first found item. */
-        } else {
-          /* Add 'item' to the SELECT list, after the current one. */
-          *it = fields->insert(*it + 1, item);
-        }
+      if (!found) {
+        found = true;
+        **it = item; /* Replace '*' with the first found item. */
+      } else {
+        /* Add 'item' to the SELECT list, after the current one. */
+        *it = fields->insert(*it + 1, item);
       }
 
       /*

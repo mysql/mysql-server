@@ -62,6 +62,7 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <memory>
 #include <new>
 #include <unordered_map>
@@ -237,6 +238,16 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
 
   DBUG_PRINT("exit", ("OK"));
   return false;
+}
+
+/// Marks all visible columns in a table for reading.
+static void mark_visible_columns_for_read(TABLE *table) {
+  bitmap_set_all(table->read_set);
+  std::for_each(table->s->field, table->s->field + table->s->fields,
+                [&](const Field *field) {
+                  if (field->is_hidden_from_user())
+                    bitmap_clear_bit(table->read_set, field->field_index());
+                });
 }
 
 /**
@@ -566,8 +577,8 @@ retry:
 
   if (!lock) goto err1;  // mysql_lock_tables() printed error message already
 
-  // Always read all columns
-  hash_tables->table->read_set = &hash_tables->table->s->all_set;
+  // Always read all visible columns
+  mark_visible_columns_for_read(hash_tables->table);
   tables->table = hash_tables->table;
   tables->table->pos_in_table_list = tables;
 

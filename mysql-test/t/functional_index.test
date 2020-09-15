@@ -505,3 +505,28 @@ DROP TABLE t;
       INDEX sold_on_date ((DATE(sold_on)))
     )
     SELECT NOW() `sold_on`;
+
+--echo #
+--echo # Bug#30838749: PERFORMANCE DROP WHEN CREATING A FUNCTIONAL INDEX
+--echo #
+
+CREATE TABLE t1(x INT, KEY k ((x+1)));
+--output $MYSQLTEST_VARDIR/tmp/bug30838749
+--disable_warnings
+--disable_query_log
+EXPLAIN FORMAT=JSON SELECT * FROM t1;
+--enable_query_log
+--enable_warnings
+
+# "used_columns" in the EXPLAIN output used to contain the hidden
+# virtual column backing the functional index. Verify that only the
+# visible column (x) is used now.
+CREATE TABLE t2(j JSON);
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval
+  LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug30838749' INTO TABLE t2
+  LINES STARTING BY 'EXPLAIN' TERMINATED BY 'EOL';
+SELECT j->'$**.used_columns' FROM t2;
+
+DROP TABLE t1, t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug30838749
