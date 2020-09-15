@@ -1988,6 +1988,22 @@ SELECT i,iu,b,bu FROM t1;
 i	iu	b	bu
 1	1	1	1
 DELETE FROM t1;
+INSERT INTO t1 (b,bu) VALUES ('92233720368547758000e+', '92233720368547758000e+');
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'bu' at row 1
+SELECT b,bu FROM t1;
+b	bu
+9223372036854775807	18446744073709551615
+DELETE FROM t1;
+INSERT INTO t1 (b,bu) VALUES ('92233720368547758000', '92233720368547758000');
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'bu' at row 1
+SELECT b,bu FROM t1;
+b	bu
+9223372036854775807	18446744073709551615
+DELETE FROM t1;
 INSERT INTO t1 (i,b) VALUES ('0.9223372036854775807', '0.9223372036854775807');
 INSERT INTO t1 (i,b) VALUES ('0.9223372036854775808', '0.9223372036854775808');
 SELECT i,b FROM t1;
