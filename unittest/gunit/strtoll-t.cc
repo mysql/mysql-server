@@ -60,6 +60,48 @@ TEST(StringToULLTest, MiscStrntoull10rndBugs) {
   const char *endptr;
   unsigned long long number;
 
+  str = "-18446744073709551615";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(0, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(LLONG_MIN, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+
+  // At ret_too_big: check for (unsigned_flag && negative)
+  str = "-18446744073709551616";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(0, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(LLONG_MIN, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+
+  str = "-1e19";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(0, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(LLONG_MIN, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+
+  // At ret_too_big: check for (unsigned_flag && negative)
+  str = "-2e19";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(0, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(LLONG_MIN, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+
   str = "0.9223372036854775807";
   number =
       my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);

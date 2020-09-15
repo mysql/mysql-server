@@ -2010,5 +2010,28 @@ SELECT i,b FROM t1;
 i	b
 1	1
 1	1
+DELETE FROM t1;
+INSERT INTO t1 (iu,bu) VALUES ('-1e19', '-1e19');
+Warnings:
+Warning	1264	Out of range value for column 'iu' at row 1
+Warning	1264	Out of range value for column 'bu' at row 1
+INSERT INTO t1 (iu,bu) VALUES ('-2e19', '-2e19');
+Warnings:
+Warning	1264	Out of range value for column 'iu' at row 1
+Warning	1264	Out of range value for column 'bu' at row 1
+INSERT INTO t1 (iu,bu) VALUES ('-18446744073709551615','-18446744073709551615');
+Warnings:
+Warning	1264	Out of range value for column 'iu' at row 1
+Warning	1264	Out of range value for column 'bu' at row 1
+INSERT INTO t1 (iu,bu) VALUES ('-18446744073709551616','-18446744073709551616');
+Warnings:
+Warning	1264	Out of range value for column 'iu' at row 1
+Warning	1264	Out of range value for column 'bu' at row 1
+SELECT iu,bu FROM t1;
+iu	bu
+0	0
+0	0
+0	0
+0	0
 DROP TABLE t1;
 SET sql_mode = DEFAULT;

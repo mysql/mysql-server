@@ -1233,7 +1233,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   ulonglong ull;
   ulong ul;
   uchar ch;
-  int shift = 0, digits = 0, negative, addon;
+  int shift = 0, digits = 0, addon;
+  bool negative;
 
   /* Skip leading spaces and tabs */
   for (; str < end && (*str == ' ' || *str == '\t'); str++)
@@ -1428,8 +1429,13 @@ ret_edom:
 ret_too_big:
   *endptr = str;
   *error = MY_ERRNO_ERANGE;
-  return unsigned_flag ? ULLONG_MAX
-                       : negative ? (ulonglong)LLONG_MIN : (ulonglong)LLONG_MAX;
+  if (unsigned_flag) {
+    if (negative) return 0;
+    return ULLONG_MAX;
+  } else {
+    if (negative) return LLONG_MIN;
+    return LLONG_MAX;
+  }
 }
 
 /*
