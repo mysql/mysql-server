@@ -1175,3 +1175,19 @@ EXECUTE st1 USING @a,@b;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug #19186271 MANY, MANY CLASSES OF STRING-TO-INTEGER CONVERSION BUG
+--echo #
+
+SET sql_mode = '';
+CREATE TABLE t1 (i INT, iu INT UNSIGNED,
+                 b BIGINT, bu BIGINT UNSIGNED);
+
+DELETE FROM t1;
+INSERT INTO t1 (i,iu,b,bu)
+# The second '.' and anything after it should be ignored.
+VALUES ('1.2.3.4', '1.2.3.4', '1.2.3.4', '1.2.3.4');
+SELECT i,iu,b,bu FROM t1;
+
+DROP TABLE t1;
+SET sql_mode = DEFAULT;

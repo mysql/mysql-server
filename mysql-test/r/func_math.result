@@ -1969,3 +1969,23 @@ SET @b='a';
 EXECUTE st1 USING @a,@b;
 ERROR 22007: Truncated incorrect DOUBLE value: 'a'
 DROP TABLE t;
+#
+# Bug #19186271 MANY, MANY CLASSES OF STRING-TO-INTEGER CONVERSION BUG
+#
+SET sql_mode = '';
+CREATE TABLE t1 (i INT, iu INT UNSIGNED,
+b BIGINT, bu BIGINT UNSIGNED);
+DELETE FROM t1;
+INSERT INTO t1 (i,iu,b,bu)
+# The second '.' and anything after it should be ignored.
+VALUES ('1.2.3.4', '1.2.3.4', '1.2.3.4', '1.2.3.4');
+Warnings:
+Warning	1265	Data truncated for column 'i' at row 1
+Warning	1265	Data truncated for column 'iu' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'bu' at row 1
+SELECT i,iu,b,bu FROM t1;
+i	iu	b	bu
+1	1	1	1
+DROP TABLE t1;
+SET sql_mode = DEFAULT;
