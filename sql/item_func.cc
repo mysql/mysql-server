@@ -4275,6 +4275,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   }
   for (uint i = 0; i < arg_count; i++) {
     (void)::new (buffers + i) String;
+    m_args_extension.charset_info[i] = nullptr;
   }
 
   if (func->resolve_type(thd)) return true;
@@ -4574,14 +4575,16 @@ bool udf_handler::get_and_convert_string(uint index) {
   String *res = args[index]->val_str(&buffers[index]);
 
   /* m_args_extension.charset_info[index] is a legitimate charset */
-  if (res && res->charset() != m_args_extension.charset_info[index]) {
-    String temp;
-    uint dummy;
-    if (temp.copy(res->ptr(), res->length(), res->charset(),
-                  m_args_extension.charset_info[index], &dummy)) {
-      return true;
+  if (res != nullptr && m_args_extension.charset_info[index] != nullptr) {
+    if (res->charset() != m_args_extension.charset_info[index]) {
+      String temp;
+      uint dummy;
+      if (temp.copy(res->ptr(), res->length(), res->charset(),
+                    m_args_extension.charset_info[index], &dummy)) {
+        return true;
+      }
+      *res = std::move(temp);
     }
-    *res = std::move(temp);
   }
   if (!args[index]->null_value) {
     f_args.args[index] = res->c_ptr_safe();
