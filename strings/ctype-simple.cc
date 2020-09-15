@@ -1337,7 +1337,7 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
     if (str < end) {
       longlong negative_exp, exponent;
       if ((negative_exp = (*str == '-')) || *str == '+') {
-        if (++str == end) goto ret_sign;
+        if (++str == end) goto check_shift_overflow;
       }
       for (exponent = 0; str < end && (ch = (uchar)(*str - '0')) < 10; str++) {
         if (exponent <= (std::numeric_limits<longlong>::max() - ch) / 10)
@@ -1372,6 +1372,7 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
     goto ret_sign;
   }
 
+check_shift_overflow:
   if (shift > DIGITS_IN_ULONGLONG) /* Huge left shift */
   {
     if (!ull) goto ret_sign;

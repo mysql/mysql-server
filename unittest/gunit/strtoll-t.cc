@@ -101,4 +101,25 @@ TEST(StringToULLTest, MiscStrntoull10rndBugs) {
       my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
   EXPECT_EQ(1, number);
   EXPECT_EQ(0, error);
+
+  str = "92233720368547758000";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(ULLONG_MAX, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(LLONG_MAX, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+
+  // On seeing end-of-input, we still have to check for overflow.
+  str = "92233720368547758000e+";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(ULLONG_MAX, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(LLONG_MAX, number);
+  EXPECT_EQ(MY_ERRNO_ERANGE, error);
 }
