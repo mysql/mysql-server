@@ -85,15 +85,14 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      $MYSQLTEST_VARDIR/tmp/t1.csv
      $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
---echo # verify t1, t2
-#
 # Before moving to the next stage we need to ensure that the restart has
 # started and that we wait for it to complete. Otherwise we can get
 # random errors in all parts of this test including tests after this one.
---sleep 20
-let $ndb_waiter_cmd = $NDB_WAITER --no-defaults;
---exec $ndb_waiter_cmd > /dev/null
+
+--source ndb_wait_started.inc
 --source include/ndb_not_readonly.inc
+
+--echo # verify t1, t2
 
 select count(*) from t1;
 select count(*) from t1ver;
