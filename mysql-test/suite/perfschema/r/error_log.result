@@ -130,9 +130,9 @@ Note	MY-012357	InnoDB
 Note	MY-012356	InnoDB
 Note	MY-010006	Server
 Note	MY-011332	Server
+Warning	MY-010075	Server
 Note	MY-012487	InnoDB
 Note	MY-012488	InnoDB
-Warning	MY-010075	Server
 Note	MY-010303	Server
 Warning	MY-010068	Server
 Note	MY-010310	Server
