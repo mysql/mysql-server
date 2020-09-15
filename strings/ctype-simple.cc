@@ -1366,9 +1366,9 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
       goto ret_zero; /* Exponent is a big negative number, return 0 */
 
     d = d10[-shift];
-    r = (ull % d) * 2;
+    r = ull % d;
     ull /= d;
-    if (r >= d) ull++;
+    if (r >= d / 2) ull++;
     goto ret_sign;
   }
 
