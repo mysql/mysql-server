@@ -127,7 +127,7 @@ SELECT prio,error_code,subsystem
                          "MY-012937", "MY-012366", "MY-000067", "MY-010159",
                          "MY-013602", "MY-010069", "MY-013595", "MY-010108",
                          "MY-012363", "MY-011953")
- ORDER BY logged;
+ ORDER BY logged, error_code;
 
 --echo
 --echo # Don't show NOTEs:
