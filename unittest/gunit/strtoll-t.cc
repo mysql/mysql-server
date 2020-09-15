@@ -60,6 +60,27 @@ TEST(StringToULLTest, MiscStrntoull10rndBugs) {
   const char *endptr;
   unsigned long long number;
 
+  str = "0.9223372036854775807";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(1, number);
+  EXPECT_EQ(0, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(1, number);
+  EXPECT_EQ(0, error);
+
+  // (ull % d) * 2; overflowed to zero.
+  str = "0.9223372036854775808";
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
+  EXPECT_EQ(1, number);
+  EXPECT_EQ(0, error);
+  number =
+      my_strntoull10rnd_8bit(nullptr, str, strlen(str), false, &endptr, &error);
+  EXPECT_EQ(1, number);
+  EXPECT_EQ(0, error);
+
   str = "1.2";
   number =
       my_strntoull10rnd_8bit(nullptr, str, strlen(str), true, &endptr, &error);
