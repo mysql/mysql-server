@@ -512,7 +512,7 @@ template <class Receiver>
 void TryConnecting(const Hypergraph &g, NodeMap subgraph,
                    NodeMap subgraph_full_neighborhood, NodeMap complement,
                    Receiver *receiver) {
-  for (NodeMap node_idx : BitsSetIn(complement & subgraph_full_neighborhood)) {
+  for (size_t node_idx : BitsSetIn(complement & subgraph_full_neighborhood)) {
     // Simple edges.
     if (Overlaps(g.nodes[node_idx].simple_neighborhood, subgraph)) {
       for (size_t edge_idx : g.nodes[node_idx].simple_edges) {
