@@ -27,6 +27,7 @@
 
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1143,9 +1144,9 @@ int my_mb_ctype_8bit(const CHARSET_INFO *cs, int *ctype, const uchar *s,
   return 1;
 }
 
-#define CUTOFF (ULLONG_MAX / 10)
-#define CUTLIM (ULLONG_MAX % 10)
-#define DIGITS_IN_ULONGLONG 20
+constexpr const uint64_t CUTOFF{ULLONG_MAX / 10};
+constexpr const uint64_t CUTLIM{ULLONG_MAX % 10};
+constexpr const int DIGITS_IN_ULONGLONG{20};
 
 static ulonglong d10[DIGITS_IN_ULONGLONG] = {1,
                                              10,
@@ -1309,8 +1310,7 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     if (*str == '.') {
       if (dot) {
         /* The second dot character */
-        addon = 0;
-        goto exp;
+        goto dotshift;
       } else {
         dot = str + 1;
       }
@@ -1320,6 +1320,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     /* Unknown character, exit the loop */
     break;
   }
+
+dotshift:
   shift = dot ? (int)(dot - str) : 0; /* Right shift */
   addon = 0;
 
