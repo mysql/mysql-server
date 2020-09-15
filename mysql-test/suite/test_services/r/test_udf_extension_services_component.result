@@ -458,5 +458,5 @@ DROP TABLE test.names;
 #
 SELECT test_args_without_init_deinit_methods("Meow");
 test_args_without_init_deinit_methods("Meow")
-NULL
+Meow
 UNINSTALL COMPONENT "file://component_test_udf_services";

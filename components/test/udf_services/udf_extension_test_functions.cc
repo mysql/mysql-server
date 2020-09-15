@@ -171,13 +171,12 @@ char *test_args_without_init_deinit_methods(UDF_INIT *, UDF_ARGS *args,
                                             char *result, unsigned long *length,
                                             unsigned char *,
                                             unsigned char *error) {
-  if (args->arg_count != 1 || args->args[0] != nullptr) {
+  if (args->arg_count != 1 || args->args[0] == nullptr) {
     *error = 1;
     return nullptr;
   }
-  const int index = 0;  // Return the first argument
-  strncpy(result, args->args[index], args->lengths[index]);
-  *length = args->lengths[index];
+  strncpy(result, args->args[0], args->lengths[0]);
+  *length = args->lengths[0];
   return result;
 }
 
