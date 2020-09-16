@@ -1668,6 +1668,29 @@ bool redo_log_archive_is_active() {
   return result;
 }
 
+/* This requires disk full testing */
+/* purecov: begin inspected */
+/**
+  Handle a write error. Record an error message. Stop redo log archiving.
+  @param[in]    file_offset     write offset
+*/
+static void handle_write_error(uint64_t file_offset) {
+  int os_errno = errno;
+  char errbuf[MYSYS_STRERROR_SIZE];
+  my_strerror(errbuf, sizeof(errbuf), os_errno);
+  std::stringstream recorded_error_ss;
+  recorded_error_ss << "Cannot write to file '"
+                    << redo_log_archive_file_pathname << "' at offset "
+                    << file_offset << " (OS errno: " << os_errno << " - "
+                    << errbuf << ")";
+  if (!redo_log_archive_recorded_error.empty()) {
+    redo_log_archive_recorded_error.append("; ");
+  }
+  redo_log_archive_recorded_error.append(recorded_error_ss.str());
+  redo_log_archive_consume_complete = true;
+}
+/* purecov: end */
+
 /**
   Dequeue blocks of size QUEUE_BLOCK_SIZE, enqueued by the producer.
   Write the blocks to the redo log archive file sequentially.
@@ -1741,13 +1764,68 @@ static void redo_log_archive_consumer() {
     Guardian producer_guardian(&redo_log_archive_produce_blocks, nullptr,
                                &log_sys->writer_mutex);
 
+    /* Prepare an I/O request with potential encryption. */
+    IORequest request(IORequest::LOG | IORequest::WRITE);
+    if (srv_redo_log_encrypt) {
+      /* The page number does not matter much, but it should not be zero. */
+      page_id_t page_id{dict_sys_t::s_log_space_first_id, 128};
+      fil_space_t *space = fil_space_t::s_redo_space;
+      if (space == nullptr) {
+        /*
+          Sometimes fil_space_t::s_redo_space is NULL even though
+          fil_space_get() finds it in the spaces container.
+        */
+        space = fil_space_get(page_id.space());
+      }
+      if (space == nullptr) {
+        /* purecov: begin inspected */
+        std::stringstream recorded_error_ss;
+        recorded_error_ss
+            << "Cannot encrypt archive log: cannot find log space.";
+        if (!redo_log_archive_recorded_error.empty()) {
+          redo_log_archive_recorded_error.append("; ");
+        }
+        redo_log_archive_recorded_error.append(recorded_error_ss.str());
+        LogErr(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+               (logmsgpfx + recorded_error_ss.str()).c_str());
+        /* Setting this flag prevents from entering the below loop. */
+        redo_log_archive_consume_complete = true;
+        /* purecov: end */
+      } else {
+        fil_io_set_encryption(request, page_id, space);
+      }
+      // Ensure, that the block written has a minimum size.
+      // The encryption is skipped for offsets smaller than
+      // `LOG_FILE_HDR_SIZE` (not only for offsets==0).
+      ut_ad(QUEUE_BLOCK_SIZE >= LOG_FILE_HDR_SIZE);
+    }
+
     /*
       Offset inside the redo log archive file. The offset is incremented
       each time the consumer writes to the redo log archive file.
     */
     uint64_t file_offset{0};
-    IORequest request(IORequest::WRITE);
     Block temp_block;
+
+    /*
+      Write a log header (dummy) to file_offset zero.
+      Writes to offset zero are not encrypted by os_file_write().
+    */
+    dberr_t err = os_file_write(request, redo_log_archive_file_pathname.c_str(),
+                                redo_log_archive_file_handle,
+                                temp_block.get_queue_block(), file_offset,
+                                QUEUE_BLOCK_SIZE);
+    if (err != DB_SUCCESS) {
+      /* This requires disk full testing */
+      /* purecov: begin inspected */
+      handle_write_error(file_offset);
+      /*
+        handle_write_error() sets redo_log_archive_consume_complete,
+        so that the below loop won't be entered.
+      */
+      /* purecov: end */
+    }
+    file_offset += QUEUE_BLOCK_SIZE;
 
     mutex_enter(&redo_log_archive_admin_mutex);
     while (!redo_log_archive_consume_complete) {
@@ -1782,19 +1860,7 @@ static void redo_log_archive_consumer() {
         if (err != DB_SUCCESS) {
           /* This requires disk full testing */
           /* purecov: begin inspected */
-          int os_errno = errno;
-          char errbuf[MYSYS_STRERROR_SIZE];
-          my_strerror(errbuf, sizeof(errbuf), os_errno);
-          std::stringstream recorded_error_ss;
-          recorded_error_ss << "Cannot write to file '"
-                            << redo_log_archive_file_pathname << "' at offset "
-                            << file_offset << " (OS errno: " << os_errno
-                            << " - " << errbuf << ")";
-          if (!redo_log_archive_recorded_error.empty()) {
-            redo_log_archive_recorded_error.append("; ");
-          }
-          redo_log_archive_recorded_error.append(recorded_error_ss.str());
-          redo_log_archive_consume_complete = true;
+          handle_write_error(file_offset);
           break;
           /* purecov: end */
         }
