@@ -1548,10 +1548,9 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
           if (dom == nullptr) {
             if (parse_err == nullptr) return true;  // Error is generated
 
-            // Failed to parse as a JSON object, create a scalar instead
-            if (create_scalar<Json_string>(scalar, &dom, s, ss))
-              return true; /* purecov: inspected */
-            DBUG_ASSERT(scalar != nullptr || dom != nullptr);
+            my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0), 1, calling_function,
+                     parse_err, err_offset, "");
+            return true;
           }
         }
       }
@@ -1639,7 +1638,7 @@ static bool extract_boolean(Item *arg, bool *result) {
 bool convert_scalar_to_json(Item *arg, String *value, String *tmp,
                             Json_wrapper *wr) {
   return sql_scalar_to_json(arg, "cast_as_json", value, tmp, wr, nullptr,
-                            false);
+                            arg->json_as_scalar());
 }
 
 // see the contract for this function in item_json_func.h

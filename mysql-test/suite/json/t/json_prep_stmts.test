@@ -7,6 +7,7 @@ set @int=123;
 set @dec=3.14;
 set @flt=3.14E1;
 set @intstr='123';
+set @quotint='"123"';
 set @decstr='3.14';
 set @fltstr='3.14E1';
 set @strstr='xyz';
@@ -67,7 +68,7 @@ execute ps_insert using @fltstr;
 --echo String parameter containing a non-quoted string: None of the statements
 --echo will recognize this:
 
-#--error ER_INVALID_JSON_TEXT_IN_PARAM
+--error ER_INVALID_JSON_TEXT_IN_PARAM
 execute ps_insert_cast using @strstr;
 --error ER_INVALID_JSON_TEXT
 execute ps_insert using @strstr;
@@ -81,7 +82,7 @@ execute ps_insert using @quotstr;
 --echo String parameter containing a timestamp literal: None of the statements
 --echo will recognize this:
 
-#--error ER_INVALID_JSON_TEXT_IN_PARAM
+--error ER_INVALID_JSON_TEXT_IN_PARAM
 execute ps_insert_cast using @ts;
 --error ER_INVALID_JSON_TEXT
 execute ps_insert using @ts;
@@ -189,3 +190,16 @@ EXECUTE s USING @undefined_variable, @undefined_variable, @undefined_variable;
 DEALLOCATE PREPARE s;
 DROP TABLE t;
 
+--echo # Bug#31667405: Incorrect prepared statement outcome with numeric strings in JSON
+
+# Ensure that parameter within e.g JSON_EXTRACT is treated as a JSON object.
+
+PREPARE ps FROM 'SELECT CAST(''"123"'' AS JSON) = JSON_EXTRACT(?, ''$'')';
+EXECUTE ps USING @intstr;
+EXECUTE ps USING @quotint;
+DEALLOCATE PREPARE ps;
+
+PREPARE ps FROM 'SELECT CAST(''"123"'' AS JSON) IN (?, ?)';
+EXECUTE ps USING @intstr, @intstr;
+EXECUTE ps USING @quotint, @quotint;
+DEALLOCATE PREPARE ps;

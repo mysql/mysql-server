@@ -1160,6 +1160,13 @@ class Item : public Parse_tree_node {
     return false;
   }
 
+  /**
+    For Items with data type JSON, mark that a string argument is treated
+    as a scalar JSON value. Only relevant for the Item_param class.
+  */
+  virtual void mark_json_as_scalar() {}
+  virtual bool json_as_scalar() const { return false; }
+
  protected:
   /**
     Helper function which does all of the work for
@@ -4304,6 +4311,9 @@ class Item_param final : public Item, private Settable_routine_parameter {
 
   enum enum_item_param_state param_state() const { return m_param_state; }
 
+  void mark_json_as_scalar() override { m_json_as_scalar = true; }
+  bool json_as_scalar() const override { return m_json_as_scalar; }
+
   /*
     A buffer for string and long data values. Historically all allocated
     values returned from val_str() were treated as eligible to
@@ -4385,6 +4395,12 @@ class Item_param final : public Item, private Settable_routine_parameter {
     in Item_param::value.
   */
   enum_item_param_state m_param_state{NO_VALUE};
+
+  /**
+    If true, when retrieving JSON data, attempt to interpret a string value as
+    a scalar JSON value, otherwise interpret it as a JSON object.
+  */
+  bool m_json_as_scalar{false};
 
   /*
     data_type() is used when this item is used in a temporary table.
