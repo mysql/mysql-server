@@ -17897,7 +17897,7 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
     /*
     For reads we will use LOCK_NONE, LOCK_S or LOCK_X according to this chart:
                          +-----------------------------------------+
-                         |            no_read_locking              |
+                         | is_dd_table or skip_locking             |
                          +----------------------------------+------+
                          | false                            | true |
                          +----------------------------------|      |
@@ -17941,7 +17941,7 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
       ut_ad(!m_prebuilt->no_read_locking || m_prebuilt->table->is_dd_table ||
             is_acl_table(table));
 
-      if (m_prebuilt->no_read_locking) {
+      if (m_prebuilt->table->is_dd_table || m_prebuilt->no_read_locking) {
         m_prebuilt->select_lock_type = LOCK_NONE;
         m_stored_select_lock_type = LOCK_NONE;
       } else if (trx->isolation_level == TRX_ISO_SERIALIZABLE &&
