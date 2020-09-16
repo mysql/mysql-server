@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "m_string.h"
 #include "mutex_lock.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysys/mysys_priv.h"
@@ -72,6 +73,9 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
                             MYF(MY_WME))) ||
         full_list.push_back(copy))
       return true;
+    // Check that each tmpdir exists.
+    MY_STAT dir_stat;
+    if (!(my_stat(copy, &dir_stat, MYF(MY_FAE)))) return true;
     pathlist = end + 1;
   } while (*end);
 

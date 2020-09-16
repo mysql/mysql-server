@@ -3731,8 +3731,13 @@ dberr_t row_merge_build_indexes(
       dup->col_map = col_map;
       dup->n_dup = 0;
 
-      row_fts_psort_info_init(trx, dup, old_table, new_table, opt_doc_id_size,
-                              &psort_info, &merge_info);
+      error =
+          row_fts_psort_info_init(trx, dup, old_table, new_table,
+                                  opt_doc_id_size, &psort_info, &merge_info);
+
+      if (error != DB_SUCCESS) {
+        goto func_exit;
+      }
 
       /* We need to ensure that we free the resources
       allocated */

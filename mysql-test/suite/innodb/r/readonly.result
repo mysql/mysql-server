@@ -17,12 +17,12 @@ DROP TABLE t2;
 #
 CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
-SET GLOBAL innodb_fast_shutdown=0;
-# restart: --tmpdir=/non/existent/dir/ --innodb-read-only
+# Patch for bug#31377118 rejects startup if tmpdir does not exist.
+Occurrences of 'No such file or directory' in the input file: 1
+# restart
 SELECT * FROM t1;
 a
 1
-# restart
 DROP TABLE t1;
 #
 # Bug#21966795 "FK DEFINITIONS MISSING FROM SHOW CREATE TABLE IN

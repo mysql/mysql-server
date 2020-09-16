@@ -193,12 +193,12 @@ store Doc ID during sort */
 store doc id during sort
 @param[out] psort Parallel sort info to be instantiated
 @param[out] merge Parallel merge info to be instantiated
-@return true if all successful */
-ibool row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
-                              const dict_table_t *old_table,
-                              const dict_table_t *new_table,
-                              ibool opt_doc_id_size, fts_psort_t **psort,
-                              fts_psort_t **merge);
+@return InnoDB error code */
+dberr_t row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
+                                const dict_table_t *old_table,
+                                const dict_table_t *new_table,
+                                ibool opt_doc_id_size, fts_psort_t **psort,
+                                fts_psort_t **merge);
 
 /** Clean up and deallocate FTS parallel sort structures, and close
  temparary merge sort files */
