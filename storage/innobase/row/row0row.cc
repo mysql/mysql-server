@@ -1202,20 +1202,22 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
 }
 
 dfield_t *Multi_value_entry_builder_normal::find_multi_value_field() {
-  uint16_t i = 0;
-  dfield_t *field = nullptr;
-  for (; i < m_row->n_v_fields; ++i) {
-    field = &m_row->v_fields[i];
-    if (!dfield_is_multi_value(field) ||
-        (m_mv_field_no = m_index->has_multi_value_col(
-             dict_table_get_nth_v_col(m_index->table, i))) == 0) {
+  for (size_t i = 0; i < m_row->n_v_fields; ++i) {
+    const auto field = &m_row->v_fields[i];
+    if (!dfield_is_multi_value(field)) {
       continue;
     }
 
-    break;
+    const auto vcol = dict_table_get_nth_v_col(m_index->table, i);
+    m_mv_field_no = m_index->has_multi_value_col(vcol);
+
+    if (m_mv_field_no == 0) {
+      continue;
+    }
+    return field;
   }
 
-  return (i == m_row->n_v_fields ? nullptr : field);
+  return nullptr;
 }
 
 #ifdef UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT

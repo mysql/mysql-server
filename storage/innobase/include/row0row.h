@@ -391,7 +391,8 @@ class Multi_value_entry_builder {
       return (nullptr);
     }
 
-    dfield_set_data(field, m_mv_data->datap[m_pos], m_mv_data->data_len[m_pos]);
+    const auto len = m_mv_data->data_len[m_pos];
+    dfield_set_data(field, m_mv_data->datap[m_pos], len);
 
     ++m_pos;
     return (m_entry);
