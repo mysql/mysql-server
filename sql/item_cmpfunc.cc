@@ -1105,6 +1105,9 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
                               (*right)->data_type() == MYSQL_TYPE_JSON))) {
     // Use the JSON comparator if at least one of the arguments is JSON.
     func = &Arg_comparator::compare_json;
+    // Convention: Immediate dynamic parameters are handled as scalars:
+    (*left)->mark_json_as_scalar();
+    (*right)->mark_json_as_scalar();
     return false;
   }
 
@@ -4807,6 +4810,11 @@ bool Item_func_in::resolve_type(THD *thd) {
       if ((*arg)->real_item()->type() == Item::SUBSELECT_ITEM)
         dep_subq_in_list = true;
       break;
+    }
+  }
+  if (compare_as_json) {
+    for (Item **arg = args + 1; arg != arg_end; arg++) {
+      (*arg)->mark_json_as_scalar();
     }
   }
   uint type_cnt = 0;
