@@ -2301,7 +2301,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
   CntrStartReq *req = (CntrStartReq*)signal->getDataPtr();
   
   const Uint32 nodeId = req->nodeId;
-  const Uint32 lastGci = req->lastGci;
+  Uint32 lastGci = req->lastGci;
   const NodeState::StartType st = (NodeState::StartType)req->startType;
 
   if (signal->getLength() == CntrStartReq::OldSignalLength)

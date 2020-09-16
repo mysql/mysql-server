@@ -997,8 +997,8 @@ Dblqh::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
   ReadLocalSysfileConf *conf = (ReadLocalSysfileConf*)signal->getDataPtr();
   c_local_sysfile.m_node_restorable_on_its_own =
     conf->nodeRestorableOnItsOwn;
-  c_local_sysfile.m_max_gci_restorable = conf->maxGCIRestorable;
-  c_backup->setRestorableGci(c_local_sysfile.m_max_gci_restorable);
+  c_local_sysfile.m_max_restorable_gci = conf->maxGCIRestorable;
+  c_backup->setRestorableGci(c_local_sysfile.m_max_restorable_gci);
   sendsttorryLab(signal);
 }
 
@@ -23871,10 +23871,10 @@ Dblqh::send_restore_lcp(Signal * signal)
       req->maxGciCompleted = fragptr.p->srStartGci[0] - 1;
     }
     req->restoreGcpId = crestartNewestGci;
-    if (c_local_sysfile.m_max_gci_restorable > ZUNDEFINED_GCI_LIMIT)
+    if (c_local_sysfile.m_max_restorable_gci > ZUNDEFINED_GCI_LIMIT)
     {
       jam();
-      ndbrequire(c_local_sysfile.m_max_gci_restorable >=
+      ndbrequire(c_local_sysfile.m_max_restorable_gci >=
                  crestartNewestGci);
       if (c_local_sysfile.m_max_restorable_gci > crestartNewestGci)
       {

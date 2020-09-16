@@ -2669,7 +2669,7 @@ public:
   {
     LocalSysfileStruct() {}
     Uint32 m_node_restorable_on_its_own;
-    Uint32 m_max_gci_restorable;
+    Uint32 m_max_restorable_gci;
     Uint32 m_dihPtr;
     Uint32 m_dihRef;
     Uint32 m_save_gci;
