@@ -865,6 +865,17 @@ SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
 DROP TABLE t1;
 
 
+# Test developed when working on Bug#31479282 - server crashed when adding empty string to column with json index.
+CREATE TABLE t1 (
+  id int NOT NULL,
+  j JSON DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY j_key123 ((CAST(json_extract(j,_utf8mb4'$') AS CHAR(64) ARRAY)))
+);
+
+INSERT INTO t1 values (1000,  CONCAT('[""]'));
+
+DROP TABLE t1;
 
 # Basic test cases for partitioned table with multi-value columns
 CREATE TABLE t1 (i INT, j JSON, KEY mv_idx_int ((CAST(j->'$[*]' AS SIGNED ARRAY))) ) PARTITION BY KEY(i) PARTITIONS 2;

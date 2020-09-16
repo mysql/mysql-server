@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -824,7 +824,7 @@ bool is_multi_value_clust_and_sec_equal(const byte *clust_field,
     return (false);
   }
 
-  ut_ad(clust_len == 0);
+  ut_ad(clust_len == UNIV_MULTI_VALUE_ARRAY_MARKER);
 
   const multi_value_data *multi_value =
       reinterpret_cast<const multi_value_data *>(clust_field);

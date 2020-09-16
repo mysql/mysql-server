@@ -1024,6 +1024,14 @@ SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
 id	a	b	j
 1	1	1	["HelloWorld", "Hello"]
 DROP TABLE t1;
+CREATE TABLE t1 (
+id int NOT NULL,
+j JSON DEFAULT NULL,
+PRIMARY KEY (id),
+KEY j_key123 ((CAST(json_extract(j,_utf8mb4'$') AS CHAR(64) ARRAY)))
+);
+INSERT INTO t1 values (1000,  CONCAT('[""]'));
+DROP TABLE t1;
 CREATE TABLE t1 (i INT, j JSON, KEY mv_idx_int ((CAST(j->'$[*]' AS SIGNED ARRAY))) ) PARTITION BY KEY(i) PARTITIONS 2;
 INSERT INTO t1 VALUES(10,'[4, 5, 6]'), (1, '[1, 2, 3]'), (5, '[3, 4, 5]'), (8, '[4, 14, 24]');
 SELECT * FROM t1 PARTITION (p0) WHERE 4 MEMBER OF (j->'$[*]');
