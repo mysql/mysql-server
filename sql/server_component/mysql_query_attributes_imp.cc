@@ -86,8 +86,8 @@ class iterator {
           break;
     } else {
       /** skip the unnamed parameters */
-      while (current->name_length == 0 &&
-             ofs < thd->bind_parameter_values_count) {
+      while (ofs < thd->bind_parameter_values_count &&
+             current->name_length == 0) {
         ofs++;
         current++;
       }
