@@ -41,20 +41,26 @@ SELECT table_name, table_comment
   FROM INFORMATION_SCHEMA.TABLES
   WHERE table_name='t1';
 
+--disable_testcase Bug#31896710
 # Test that SELECT on non system view hangs.
 --send SELECT table_name, comment FROM not_system_view WHERE table_name='t1';
+--enable_testcase
 
 connection con1;
+--disable_testcase Bug#31896710
 let $wait_condition= SELECT COUNT(*)>=1 FROM
   performance_schema.data_locks
   WHERE OBJECT_SCHEMA='mysql' AND
         OBJECT_NAME='tables' and LOCK_STATUS='WAITING';
 --source include/wait_condition.inc 
+--enable_testcase
 
 rollback;
 
 connection default;
+--disable_testcase Bug#31896710
 --reap
+--enable_testcase
 commit;
 
 
