@@ -3829,8 +3829,8 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     */
     Item *truth_item =
         (cond_value || subq_item->can_do_aj)
-            ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
-            : down_cast<Item *>(new (thd->mem_root) Item_func_false());
+            ? implicit_cast<Item *>(new (thd->mem_root) Item_func_true())
+            : implicit_cast<Item *>(new (thd->mem_root) Item_func_false());
     if (truth_item == nullptr) return true;
     Item **tree = (subq_item->embedding_join_nest == nullptr)
                       ? &m_where_cond

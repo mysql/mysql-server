@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,10 @@ inline const T pointer_cast(const void *p) {
 */
 template <typename Target, typename Source>
 inline Target down_cast(Source *arg) {
+  static_assert(
+      !std::is_base_of<typename std::remove_pointer<Target>::type,
+                       Source>::value,
+      "Do not use down_cast for upcasts; use implicit_cast or nothing");
   assert(nullptr != dynamic_cast<Target>(arg));
   return static_cast<Target>(arg);
 }
@@ -112,6 +116,10 @@ inline Target down_cast(Source &arg) {
   // We still use the pointer version of dynamic_cast, as the
   // reference-accepting version throws exceptions, and we don't want to deal
   // with that.
+  static_assert(
+      !std::is_base_of<typename std::remove_reference<Target>::type,
+                       Source>::value,
+      "Do not use down_cast for upcasts; use implicit_cast or nothing");
   assert(dynamic_cast<typename std::remove_reference<Target>::type *>(&arg) !=
          nullptr);
   return static_cast<Target>(arg);

@@ -6553,9 +6553,8 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
       // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
       ORDER *order =
           select->find_in_group_list(rollup_item->inner_item(), nullptr);
-      down_cast<Item_rollup_group_item *>(order->rollup_item)
-          ->inner_item()
-          ->set_result_field(item->get_result_field());
+      order->rollup_item->inner_item()->set_result_field(
+          item->get_result_field());
 
       new_item =
           new Item_rollup_group_item(rollup_item->min_rollup_level(), new_item);

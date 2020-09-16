@@ -753,7 +753,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
 
   void cleanup() override;
 
-  const Window *window() const { return down_cast<Window *>(m_window); }
+  const Window *window() const { return m_window; }
   bool reset_wf_state(uchar *arg) override;
 
   /**

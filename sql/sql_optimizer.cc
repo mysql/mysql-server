@@ -4454,8 +4454,8 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
     }
     if (cond->type() == Item::COND_ITEM &&
         !((Item_cond *)cond)->argument_list()->elements)
-      cond = cond->val_bool() ? down_cast<Item *>(new Item_func_true())
-                              : down_cast<Item *>(new Item_func_false());
+      cond = cond->val_bool() ? implicit_cast<Item *>(new Item_func_true())
+                              : implicit_cast<Item *>(new Item_func_false());
   } else if (cond->type() == Item::FUNC_ITEM &&
              (down_cast<Item_func *>(cond))->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
