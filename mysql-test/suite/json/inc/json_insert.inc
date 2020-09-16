@@ -100,6 +100,7 @@ execute ps1 using @b;
 execute ps1 using @c;
 execute ps1 using @d;
 execute ps1 using @e;
+--error ER_INVALID_JSON_TEXT_IN_PARAM
 execute ps1 using @f;
 execute ps1 using @g;
 

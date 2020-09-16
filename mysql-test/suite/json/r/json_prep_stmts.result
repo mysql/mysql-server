@@ -5,6 +5,7 @@ set @int=123;
 set @dec=3.14;
 set @flt=3.14E1;
 set @intstr='123';
+set @quotint='"123"';
 set @decstr='3.14';
 set @fltstr='3.14E1';
 set @strstr='xyz';
@@ -49,6 +50,7 @@ execute ps_insert using @fltstr;
 String parameter containing a non-quoted string: None of the statements
 will recognize this:
 execute ps_insert_cast using @strstr;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.
 execute ps_insert using @strstr;
 ERROR 22032: Invalid JSON text: "Invalid value." at position 0 in value for column 't1.j'.
 String parameter containing a quoted string: Both statements accept
@@ -58,6 +60,7 @@ execute ps_insert using @quotstr;
 String parameter containing a timestamp literal: None of the statements
 will recognize this:
 execute ps_insert_cast using @ts;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
 execute ps_insert using @ts;
 ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't1.j'.
 Parameter that is a NULL value: accepted with both statements:
@@ -81,8 +84,6 @@ j
 31.4
 "xyz"
 "xyz"
-"xyz"
-"2010-12-01 18:44:25"
 NULL
 NULL
 {"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
@@ -123,8 +124,6 @@ j
 {"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
 execute ps_get_str using @quotstr;
 j
-{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
-{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
 DEALLOCATE PREPARE ps_get_int;
 DEALLOCATE PREPARE ps_get_flt;
 DEALLOCATE PREPARE ps_get_dec;
@@ -166,8 +165,6 @@ j
 {"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
 execute ps_get_str using @quotstr;
 j
-{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
-{"dec": 3.14, "flt": 31.4, "int": 123, "str": "xyz", "array": [1, 2, 4]}
 DEALLOCATE PREPARE ps_get_int;
 DEALLOCATE PREPARE ps_get_flt;
 DEALLOCATE PREPARE ps_get_dec;
@@ -236,3 +233,20 @@ EXECUTE s USING @undefined_variable, @undefined_variable, @undefined_variable;
 a
 DEALLOCATE PREPARE s;
 DROP TABLE t;
+# Bug#31667405: Incorrect prepared statement outcome with numeric strings in JSON
+PREPARE ps FROM 'SELECT CAST(''"123"'' AS JSON) = JSON_EXTRACT(?, ''$'')';
+EXECUTE ps USING @intstr;
+CAST('"123"' AS JSON) = JSON_EXTRACT(?, '$')
+0
+EXECUTE ps USING @quotint;
+CAST('"123"' AS JSON) = JSON_EXTRACT(?, '$')
+1
+DEALLOCATE PREPARE ps;
+PREPARE ps FROM 'SELECT CAST(''"123"'' AS JSON) IN (?, ?)';
+EXECUTE ps USING @intstr, @intstr;
+CAST('"123"' AS JSON) IN (?, ?)
+1
+EXECUTE ps USING @quotint, @quotint;
+CAST('"123"' AS JSON) IN (?, ?)
+0
+DEALLOCATE PREPARE ps;
