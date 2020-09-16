@@ -8712,17 +8712,19 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
       write_request.encryption_algorithm(Encryption::AES);
     }
 
-    /* For compressed table, set compressed information. */
+    /* For compressed table, set compressed information.
+    @note os_file_compress_page() function expects that the page size is a
+    multiple of OS punch hole size so we make sure it's true before turning
+    on compression. */
     if (iter.m_compression_type != Compression::Type::NONE &&
-        IORequest::is_punch_hole_supported()) {
-      write_request.set_punch_hole();
+        IORequest::is_punch_hole_supported() &&
+        !(srv_page_size % iter.block_size)) {
+      write_request.compression_algorithm(iter.m_compression_type);
 
       /* In the case of import since we're doing compression for the first time
       we would like to ignore any optimisations to not do punch hole. So force
       the punch hole. */
       write_request.disable_punch_hole_optimisation();
-
-      write_request.compression_algorithm(iter.m_compression_type);
     }
 
     /* A page was updated in the set, write back to disk. */
