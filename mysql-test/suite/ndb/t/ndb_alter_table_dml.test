@@ -76,10 +76,19 @@ send call queryload(10);
 
 sleep 3;
 
-connection server2;
-
 --echo Beginning alter table child  partition by key(a) partitions 4;
 
+# Since server1 is running continuous, parallel DMLs, there is a
+# chance that the required metadata lock might be not available
+# to the server1's participant and it might emit warnings in log.
+connection server1;
+call mtr.add_suppression("Failed to acquire exclusive metadata lock");
+call mtr.add_suppression("Failed to update table definition in DD");
+call mtr.add_suppression("Distribution of ALTER TABLE 'test.child' failed");
+
+connection server2;
+# Also disable the warning sent back to server2
+--disable_warnings ER_GET_ERRMSG ONCE
 alter table child  partition by key(a) partitions 4;
 
 --echo  Completed.
