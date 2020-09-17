@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
- 
+ Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -194,7 +194,11 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   else debug_level = 0;
   DEBUG_INIT(NULL, debug_level);
   DEBUG_ENTER();
-  
+
+  logger->log(LOG_WARNING, 0, "\n   *** NOTE *** \n   "
+                              "NDB Memcached is deprecated and is subject "
+                              "to removal in a future release.\n\n");
+
   /* Connect to the Primary cluster */
   if(!(connect_to_primary_cluster(ndb_eng->startup_options.connectstring,
                                   ndb_eng->startup_options.server_role))) {
