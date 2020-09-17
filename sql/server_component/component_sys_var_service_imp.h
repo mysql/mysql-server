@@ -29,14 +29,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 void mysql_comp_sys_var_services_init();
 
 /**
-  An implementation of the configutration system variables Service to register
+  An implementation of the configuration system variables Service to register
   variable and unregister variable.
 */
 class mysql_component_sys_variable_imp {
  public:
   /**
     Register's component system variables.
-    @param component_name  name of the componentnt
+
+    @param component_name  name of the component
     @param var_name variable name
     @param flags tells about the variable type
     @param comment variable comment message
@@ -57,6 +58,7 @@ class mysql_component_sys_variable_imp {
 
   /**
     Get the component system variable value from the global structure.
+
     @param component_name Name of the component
     @param var_name Name of the variable
     @param[in,out] val On input: a buffer to hold the value. On output a pointer
@@ -73,6 +75,7 @@ class mysql_component_sys_variable_imp {
 
   /**
     Unregister's component system variable.
+
     @param component_name name of the component
     @param var_name Variable name
     @return Status of performed operation

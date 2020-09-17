@@ -166,9 +166,9 @@ enum log_error_stage log_error_stage_get() { return log_error_stage_current; }
   @param  name   the name -- either just the component's, or
                  a fully qualified service.component
   @param  len    the length of the aforementioned name
-  @retval        if built-in filter: flags for built-in|singleton|filter
-  @retval        if built-in sink:   flags for built-in|singleton|sink
-  @retval        otherwise:          LOG_SERVICE_UNSPECIFIED
+  @return flags for built-in|singleton|filter (if built-in filter)
+          or flags for built-in|singleton|sink (if built-in sink)
+          otherwise LOG_SERVICE_UNSPECIFIED
 */
 static int log_service_check_if_builtin(const char *name, size_t len) {
   const size_t builtin_len = sizeof(LOG_SERVICES_PREFIX) - 1;

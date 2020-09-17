@@ -152,5 +152,4 @@ class table_replication_applier_filters : public PFS_engine_table {
   void reset_position(void) override;
 };
 
-/** @} */
 #endif

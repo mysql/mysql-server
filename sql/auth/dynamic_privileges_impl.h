@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -36,15 +36,6 @@ class dynamic_privilege_services_impl {
   static DEFINE_BOOL_METHOD(register_privilege, (const char *privilege_str,
                                                  size_t privilege_str_len));
 
-  /**
-    Unregister a previously registered privilege object identifier so that it no
-    longer can be used in GRANT statements.
-    @param privilege_str Privilege object ID
-    @param privilege_str_len The length of the string (not including \0)
-    @return Error state
-       @retval true Operation was not successful
-       @retval false Success
-  */
   static DEFINE_BOOL_METHOD(unregister_privilege, (const char *privilege_str,
                                                    size_t privilege_str_len));
 

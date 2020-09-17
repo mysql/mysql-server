@@ -640,10 +640,10 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db) {
   @param [in] priv      privilege to check
   @param [in] priv_len  length of privilege
 
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>  has required privilege with grant option
-    @retval /<true, false/> has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"  has required privilege with grant option
+    @retval "<true, false>" has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege
 */
 std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                                          size_t priv_len) {
@@ -692,10 +692,10 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                   roles granted to it irrespective the roles are
                                   active or not.
 
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>  has required privilege with grant option
-    @retval /<true, false/> has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege, OR
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"  has required privilege with grant option
+    @retval "<true, false>" has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege, OR
                              auth_id does not exist.
 */
 std::pair<bool, bool> Security_context::has_global_grant(
@@ -1149,10 +1149,10 @@ ulong Security_context::filter_access(const ulong access,
                           true  - privileges granted directly or coming through
                                   roles granted to it irrespective the roles are
                                   active or not.
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>   has required privilege with grant option
-    @retval /<true, false/>  has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"   has required privilege with grant option
+    @retval "<true, false>"  has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege
 */
 std::pair<bool, bool> Security_context::fetch_global_grant(
     const ACL_USER &acl_user, const std::string &privilege,
