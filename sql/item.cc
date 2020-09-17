@@ -4096,7 +4096,8 @@ bool Item_param::val_json(Json_wrapper *wr) {
 
   String value;
   String tmp;
-  return convert_scalar_to_json(this, &value, &tmp, wr);
+  return sql_scalar_to_json(this, "cast_as_json", &value, &tmp, wr, nullptr,
+                            m_json_as_scalar);
 }
 
 void Item_param::copy_param_actual_type(Item_param *from) {

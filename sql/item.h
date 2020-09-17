@@ -1165,7 +1165,6 @@ class Item : public Parse_tree_node {
     as a scalar JSON value. Only relevant for the Item_param class.
   */
   virtual void mark_json_as_scalar() {}
-  virtual bool json_as_scalar() const { return false; }
 
  protected:
   /**
@@ -4312,7 +4311,6 @@ class Item_param final : public Item, private Settable_routine_parameter {
   enum enum_item_param_state param_state() const { return m_param_state; }
 
   void mark_json_as_scalar() override { m_json_as_scalar = true; }
-  bool json_as_scalar() const override { return m_json_as_scalar; }
 
   /*
     A buffer for string and long data values. Historically all allocated

@@ -1387,10 +1387,9 @@ static bool create_scalar(Json_scalar_holder *scalar, Json_dom_ptr *dom,
 
   @return false if we could get a value or NULL, otherwise true
 */
-template <typename T>
-static bool sql_scalar_to_json(T *arg, const char *calling_function,
-                               String *value, String *tmp, Json_wrapper *wr,
-                               Json_scalar_holder *scalar, bool scalar_string) {
+bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
+                        String *tmp, Json_wrapper *wr,
+                        Json_scalar_holder *scalar, bool scalar_string) {
   enum_field_types field_type = get_normalized_field_type(arg);
   /*
     Most items and fields have same actual and resolved types, however e.g
@@ -1633,12 +1632,6 @@ static bool extract_boolean(Item *arg, bool *result) {
 
   // doesn't fit any of the checks we perform
   return false;
-}
-
-bool convert_scalar_to_json(Item *arg, String *value, String *tmp,
-                            Json_wrapper *wr) {
-  return sql_scalar_to_json(arg, "cast_as_json", value, tmp, wr, nullptr,
-                            arg->json_as_scalar());
 }
 
 // see the contract for this function in item_json_func.h

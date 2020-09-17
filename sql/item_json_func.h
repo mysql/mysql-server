@@ -217,22 +217,9 @@ class Item_json_func : public Item_func {
   void mark_for_partial_update(const Field_json *field);
 };
 
-/**
-  Convert a scalar value (typically a parameter) to JSON type.
-  Wrapper for the templatized function sql_scalar_to_json().
-
-  @param[in]  arg     Item holding scalar value
-  @param[out] value   scratch area (see val_json_func_field_subselect)
-  @param[out] tmp     scratch area (see val_json_func_field_subselect)
-  @param[out] wr      the retrieved JSON value
-
-  If value is NULL, the false is returned, but JSON value is created.
-  Caller needs to check explicitly for this case.
-
-  @returns false if success, true if error
-*/
-bool convert_scalar_to_json(Item *arg, String *value, String *tmp,
-                            Json_wrapper *wr);
+bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
+                        String *tmp, Json_wrapper *wr,
+                        Json_scalar_holder *scalar, bool scalar_string);
 
 /**
   Return the JSON value of the argument in a wrapper.
