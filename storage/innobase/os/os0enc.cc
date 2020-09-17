@@ -1251,37 +1251,57 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
 
 #ifndef UNIV_HOTBACKUP
 bool Encryption::check_keyring() noexcept {
-  size_t key_len;
   bool ret = false;
-  char *key_type = nullptr;
-  char *master_key = nullptr;
-  char key_name[MASTER_KEY_NAME_MAX_LEN];
+  byte *master_key = nullptr;
 
-  key_name[sizeof(DEFAULT_MASTER_KEY)] = 0;
+  /* During bootstrap, default master key is used */
+  if (s_master_key_id == DEFAULT_MASTER_KEY_ID) {
+    static bool checked = false;
+    if (checked) {
+      return true;
+    }
 
-  strncpy(key_name, DEFAULT_MASTER_KEY, sizeof(key_name));
+    /* Generate/Fetch/Delete a dummy master key to confirm keyring is up and
+    running. */
+    size_t key_len;
+    char *key_type = nullptr;
+    char key_name[MASTER_KEY_NAME_MAX_LEN];
 
-  /* We call key ring API to generate master key here. */
-  int my_ret = my_key_generate(key_name, "AES", nullptr, KEY_LEN);
+    key_name[sizeof(DEFAULT_MASTER_KEY)] = 0;
 
-  /* We call key ring API to get master key here. */
-  my_ret = my_key_fetch(key_name, &key_type, nullptr,
-                        reinterpret_cast<void **>(&master_key), &key_len);
+    strncpy(key_name, DEFAULT_MASTER_KEY, sizeof(key_name));
 
-  if (my_ret != 0) {
-    ib::error(ER_IB_MSG_851) << "Check keyring plugin fail, please check the"
-                             << " keyring plugin is loaded.";
+    /* We call key ring API to generate master key here. */
+    int my_ret = my_key_generate(key_name, "AES", nullptr, KEY_LEN);
+
+    /* We call key ring API to get master key here. */
+    my_ret = my_key_fetch(key_name, &key_type, nullptr,
+                          reinterpret_cast<void **>(&master_key), &key_len);
+
+    if (my_ret != 0) {
+      ib::error(ER_IB_MSG_851) << "Check keyring plugin fail, please check the"
+                               << " keyring plugin is loaded.";
+    } else {
+      my_key_remove(key_name, nullptr);
+      ret = true;
+      checked = true;
+    }
+
+    if (key_type != nullptr) {
+      my_free(key_type);
+    }
+
+    if (master_key != nullptr) {
+      my_free(master_key);
+    }
   } else {
-    my_key_remove(key_name, nullptr);
-    ret = true;
-  }
+    uint32_t master_key_id;
 
-  if (key_type != nullptr) {
-    my_free(key_type);
-  }
-
-  if (master_key != nullptr) {
-    my_free(master_key);
+    Encryption::get_master_key(&master_key_id, &master_key);
+    if (master_key != nullptr) {
+      my_free(master_key);
+      ret = true;
+    }
   }
 
   return (ret);
