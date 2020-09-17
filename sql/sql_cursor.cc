@@ -138,9 +138,11 @@ class Query_result_materialize final : public Query_result_union {
   @param      thd           thread handle
   @param[in]  result        result class of the caller used as a destination
                             for the rows fetched from the cursor
-  @param[in,out] pcursor    a pointer to store a pointer to cursor in
-                            If non-NULL on entry, use the supplied cursor.
-                            Must be NULL on first invocation.
+  @param[in,out] pcursor    a pointer to store a pointer to cursor in.
+                            The cursor is usually created on first call.
+                            Notice that a cursor may be returned even though
+                            execution causes an error. Cursor is open
+                            when execution is successful, closed otherwise.
 
   @return Error status
 
@@ -234,47 +236,41 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   DEBUG_SYNC(thd, "after_table_close");
   thd->m_statement_psi = parent_locker;
 
-  /*
-    Possible options here:
-    - a materialized cursor is open. In this case rc is 0 and
-      result_materialize->materialized is not NULL
-    - an error occurred during materialization.
-      result_materialize->materialized_cursor is not NULL, but rc != 0
-    - successful completion of mysql_execute_command without
-      a cursor: rc is 0, result_materialize->materialized_cursor is NULL.
-      This is possible if some command writes directly to the
-      network, bypassing Query_result mechanism. An example of
-      such command is SHOW VARIABLES or SHOW STATUS.
-  */
+  Materialized_cursor *materialized_cursor =
+      result_materialize != nullptr ? result_materialize->materialized_cursor
+                                    : nullptr;
+
+  if (*pcursor == nullptr) *pcursor = materialized_cursor;
+
   if (rc) {
-    if (result_materialize->materialized_cursor) {
-      /* Rollback metadata in the client-server protocol. */
+    /*
+      Execution ended in error. Notice that a cursor may have been
+      created, in this case metadata in client-server protocol is rolled
+      back and the cursor is closed (if it is open).
+    */
+    if (materialized_cursor != nullptr) {
       result_materialize->abort_result_set(thd);
-
-      delete result_materialize->materialized_cursor;
-      result_materialize->materialized_cursor = nullptr;
+      materialized_cursor->close();
     }
-
     return true;
   }
 
-  if (result_materialize != nullptr &&
-      result_materialize->materialized_cursor) {
-    Materialized_cursor *materialized_cursor =
-        result_materialize->materialized_cursor;
-
+  /*
+    Execution was successful. For most queries, a cursor has been created
+    and must be opened, however for some queries, no cursor is used.
+    This is possible if some command writes directly to the
+    network, bypassing Query_result mechanism. An example of
+    such command is SHOW PRIVILEGES.
+  */
+  if (materialized_cursor != nullptr) {
     /*
       NOTE: close_thread_tables() has been called in
       mysql_execute_command(), so all tables except from the cursor
       temporary table have been closed.
     */
-
     if (materialized_cursor->open(thd)) {
-      delete materialized_cursor;
       return true;
     }
-
-    if (*pcursor == nullptr) *pcursor = materialized_cursor;
   }
 
   return false;

@@ -9869,3 +9869,83 @@ SELECT IF (COUNT(*) > 0, 'affected', 'not affected') FROM t1
 
 DROP FUNCTION ReturnFalse;
 DROP TABLE t1;
+
+--echo # Bug#31691060: Assertion `!is_open()' in Materialized_cursor::~Materialized_cursor
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(0), (1), (2);
+INSERT INTO t2 VALUES(1, 10), (2, 20), (2, 21);
+DELIMITER //;
+CREATE PROCEDURE pc(val INTEGER)
+BEGIN
+  DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+  DECLARE c CURSOR FOR
+      SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+  SET finished = 0;
+  OPEN c;
+  loop1: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop1;
+    END IF;
+  END LOOP loop1;
+  CLOSE c;
+END //
+CREATE PROCEDURE pc_with_flush()
+BEGIN
+  DECLARE finished, col_a, col_b INTEGER DEFAULT 0;
+  DECLARE val INTEGER DEFAULT 0;
+  DECLARE c CURSOR FOR
+      SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = val;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+  SET finished = 0;
+  OPEN c;
+  loop1: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop1;
+    END IF;
+  END LOOP loop1;
+  CLOSE c;
+  FLUSH TABLES;
+  SET finished = 0;
+  SET val = 1;
+  OPEN c;
+  loop2: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop2;
+    END IF;
+  END LOOP loop2;
+  CLOSE c;
+  FLUSH TABLES;
+  SET val = 2;
+  SET finished = 0;
+  OPEN c;
+  loop3: LOOP
+    FETCH c INTO col_a, col_b;
+    IF finished = 1 THEN
+      LEAVE loop3;
+    END IF;
+  END LOOP loop3;
+  CLOSE c;
+END //
+DELIMITER ;//
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+FLUSH TABLES;
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+FLUSH TABLES;
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc(2);
+CALL pc(1);
+--error ER_SUBQUERY_NO_1_ROW
+CALL pc_with_flush();
+DROP PROCEDURE pc;
+DROP PROCEDURE pc_with_flush;
+DROP TABLE t1, t2;
