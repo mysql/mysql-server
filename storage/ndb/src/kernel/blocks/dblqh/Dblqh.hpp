@@ -716,6 +716,7 @@ public:
   ScanRecord_hash c_scanTakeOverHash;
 
   struct LogPartRecord;
+  struct LogPageRecord;
 
 /**
  * Constants for scan_direct_count
@@ -1947,6 +1948,8 @@ public:
      * read-only variables after the initialisation of the log part
      * record.
      */
+    LogPageRecord *logPageRecord;
+    Uint32 logPageFileSize;
     Uint32 ptrI;
     BlockReference myRef;
     Dblqh *my_block;
@@ -3287,7 +3290,8 @@ private:
                        LogFileRecordPtr logFilePtr,
                        LogPartRecord *logPartPtrP);
   void buildLinkedLogPageList(Signal* signal,
-                              LogFileOperationRecordPtr lfoPtr);
+                              LogFileOperationRecordPtr lfoPtr,
+                              LogPartRecord *logPartPtrP);
   void changeMbyte(Signal* signal,
                    LogPageRecordPtr & logPagePtr,
                    LogFileRecordPtr & logFilePtr,
@@ -3376,7 +3380,9 @@ private:
   void moveToPageRef(LogFileOperationRecordPtr lfoPtr,
                      LogFileRecordPtr logFilePtr,
                      LogPartRecord *logPartPtrP);
-  void readAttrinfo(LogPageRecordPtr & logPagePtr, TcConnectionrecPtr);
+  void readAttrinfo(LogPageRecordPtr & logPagePtr,
+                    TcConnectionrecPtr,
+                    LogPartRecord*);
   void readCommitLog(Signal* signal,
                      CommitLogRecord* commitLogRecord,
                      TcConnectionrecPtr,
@@ -3393,15 +3399,21 @@ private:
   void readExecSr(Signal* signal,
                   LogFileRecordPtr logFilePtr,
                   LogPartRecord *logPartPtr);
-  void readKey(LogPageRecordPtr &logPagePtr, TcConnectionrecPtr);
+  void readKey(LogPageRecordPtr &logPagePtr,
+               TcConnectionrecPtr,
+               LogPartRecord*);
   void readLogData(LogPageRecordPtr & logPagePtr,
                    Uint32 noOfWords,
-                   Uint32& sectionIVal);
-  void readLogHeader(LogPageRecordPtr &logPagePtr, TcConnectionrecPtr);
+                   Uint32& sectionIVal,
+                   LogPartRecord*);
+  void readLogHeader(LogPageRecordPtr &logPagePtr,
+                     TcConnectionrecPtr,
+                     LogPartRecord *logPartPtrP);
   Uint32 readLogword(LogPageRecordPtr & logPagePtr,
                      LogFileRecord *logFilePtrP,
                      LogPartRecord *logPartPtrP);
-  Uint32 readLogwordExec(LogPageRecordPtr & logPagePtr);
+  Uint32 readLogwordExec(LogPageRecordPtr & logPagePtr,
+                         LogPartRecord *logPartPtrP);
   void readSinglePage(Signal* signal,
                       Uint32 pageNo,
                       LogFileOperationRecordPtr & lfoPtr,
@@ -4052,7 +4064,6 @@ private:
   LogFileOperationRecord *logFileOperationRecord;
   UintR clfoFileSize;
 
-  LogPageRecord *logPageRecord;
   UintR clogPageFileSize;
 
 #define ZPAGE_REF_FILE_SIZE 20

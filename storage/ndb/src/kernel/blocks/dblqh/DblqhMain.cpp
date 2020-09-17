@@ -539,8 +539,8 @@ Dblqh::handle_queued_log_write(Signal *signal,
                 logPartPtrP->my_block->logFileRecord);
   logPagePtr.i = logFilePtr.p->currentLogpage;
   ptrCheckGuard(logPagePtr,
-                logPartPtrP->my_block->clogPageFileSize,
-                logPartPtrP->my_block->logPageRecord);
+                logPartPtrP->logPageFileSize,
+                logPartPtrP->logPageRecord);
 
   fragptr.i = tcConnectptr.p->fragmentptr;
   c_fragment_pool.getPtr(fragptr);
@@ -11170,8 +11170,8 @@ void Dblqh::writePrepareLog(Signal* signal,
   tcurrentFilepage = logFilePtr.p->currentFilepage;
   logPagePtr.i = logFilePtr.p->currentLogpage;
   ptrCheckGuard(logPagePtr,
-                regLogPartPtr->my_block->clogPageFileSize,
-                regLogPartPtr->my_block->logPageRecord);
+                regLogPartPtr->logPageFileSize,
+                regLogPartPtr->logPageRecord);
   Uint32 pageIndex = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
   regTcPtr->logStartFileNo = fileNo;
   regTcPtr->logStartPageNo = tcurrentFilepage;
@@ -11671,8 +11671,8 @@ void Dblqh::checkNewMbyte(Signal* signal,
 /* -------------------------------------------------- */
     logPagePtr.i = logFilePtr.p->currentLogpage;
     ptrCheckGuard(logPagePtr,
-                  logPartPtrP->my_block->clogPageFileSize,
-                  logPartPtrP->my_block->logPageRecord);
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     changeMbyte(signal, logPagePtr, logFilePtr, logPartPtrP);
     tcnmTmp = logFilePtr.p->remainingWordsInMbyte;
   }//if
@@ -23756,7 +23756,9 @@ retry:
           logFilePtr.i = logPartPtr.p->currentLogfile;
           ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
           logPagePtr.i = logFilePtr.p->currentLogpage;
-          ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+          ptrCheckGuard(logPagePtr,
+                        logPartPtr.p->logPageFileSize,
+                        logPartPtr.p->logPageRecord);
           changeMbyte(signal, logPagePtr, logFilePtr, logPartPtr.p);
           TchangeMB = true; // don't try this twice...
           goto retry;
@@ -24050,7 +24052,9 @@ void Dblqh::start_synch_gcp(Signal *signal)
       logFilePtr.i = logPartPtr.p->currentLogfile;
       ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
       logPagePtr.i = logFilePtr.p->currentLogpage;
-      ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+      ptrCheckGuard(logPagePtr,
+                    logPartPtr.p->logPageFileSize,
+                    logPartPtr.p->logPageRecord);
       writeCompletedGciLog(signal, logPagePtr, logFilePtr, logPartPtr.p);
     }//if
     unlock_log_part(logPartPtr.p);
@@ -24175,7 +24179,9 @@ void Dblqh::initGcpRecLab(Signal* signal)
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
     gcpPtr.p->gcpFilePtr[logPartPtr.i] = logFilePtr.i;
     logPagePtr.i = logFilePtr.p->currentLogpage;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtr.p->logPageFileSize,
+                  logPartPtr.p->logPageRecord);
     if (logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] == ZPAGE_HEADER_SIZE)
     {
       jam();
@@ -24956,7 +24962,9 @@ void Dblqh::initFsopenconf(Signal* signal,
     jam();
     LogPageRecordPtr logPagePtr;
     logPagePtr.i = logFilePtr.p->currentLogpage;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtr.p->logPageFileSize,
+                  logPartPtr.p->logPageRecord);
     writeFileHeaderOpen(signal,
                         ZNORMAL,
                         logPagePtr,
@@ -25017,7 +25025,9 @@ void Dblqh::initFsrwconf(Signal* signal,
   logFilePtr.i = lfoPtr.p->logFileRec;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
   logPagePtr.i = lfoPtr.p->firstLfoPage;
-  ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+  ptrCheckGuard(logPagePtr,
+                logPartPtr.p->logPageFileSize,
+                logPartPtr.p->logPageRecord);
   logP= logPagePtr;
   noPages= 1;
   ndbassert(totPages > 0);
@@ -25038,7 +25048,9 @@ void Dblqh::initFsrwconf(Signal* signal,
       logP.i= logP.p->logPageWord[ZNEXT_PAGE];
     else
       logP.i= lfoPtr.p->logPageArray[noPages];
-    ptrCheckGuard(logP, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logP,
+                  logPartPtr.p->logPageFileSize,
+                  logPartPtr.p->logPageRecord);
     noPages++;
   }
 
@@ -25071,7 +25083,9 @@ void Dblqh::timeSup(Signal* signal)
   logFilePtr.i = logPartPtr.p->currentLogfile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
   logPagePtr.i = logFilePtr.p->currentLogpage;
-  ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+  ptrCheckGuard(logPagePtr,
+                logPartPtr.p->logPageFileSize,
+                logPartPtr.p->logPageRecord);
   if (logPartPtr.p->logPartTimer != logPartPtr.p->logTimer)
   {
     jam();
@@ -25306,7 +25320,9 @@ void Dblqh::firstPageWriteLab(Signal* signal,
       logFilePtr.i = logPartPtrP->firstLogfile;
       ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
       logPagePtr.i = logFilePtr.p->logPageZero;
-      ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+      ptrCheckGuard(logPagePtr,
+                    logPartPtrP->logPageFileSize,
+                    logPartPtrP->logPageRecord);
       logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO] = fileNo;
       writeSinglePage(signal,
                       0,
@@ -25430,7 +25446,9 @@ void Dblqh::lastWriteInFileLab(Signal* signal,
       logFilePtr.i = logPartPtrP->firstLogfile;
       ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
       logPagePtr.i = logFilePtr.p->logPageZero;
-      ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+      ptrCheckGuard(logPagePtr,
+                    logPartPtrP->logPageFileSize,
+                    logPartPtrP->logPageRecord);
       logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO] = fileNo;
       writeSinglePage(signal,
                       0,
@@ -26052,8 +26070,8 @@ void Dblqh::releaseLfoPages(LogFileOperationRecordPtr lfoPtr,
   while (logPagePtr.i != RNIL)
   {
     ptrCheckGuard(logPagePtr,
-                  logPartPtrP->my_block->clogPageFileSize,
-                  logPartPtrP->my_block->logPageRecord);
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     Uint32 tmp = logPagePtr.p->logPageWord[ZNEXT_PAGE];
     releaseLogpage(logPagePtr, logPartPtrP);
     logPagePtr.i = tmp;
@@ -26123,8 +26141,8 @@ void Dblqh::seizeLogpage(LogPageRecordPtr & logPagePtr,
   logPartPtrP->noOfFreeLogPages--;
   logPagePtr.i = logPartPtrP->firstFreeLogPage;
   ptrCheckGuard(logPagePtr,
-                logPartPtrP->my_block->clogPageFileSize,
-                logPartPtrP->my_block->logPageRecord);
+                logPartPtrP->logPageFileSize,
+                logPartPtrP->logPageRecord);
 /* ------------------------------------------------------------------------- */
 /*IF LIST IS EMPTY THEN A SYSTEM CRASH IS INVOKED SINCE LOG_PAGE_PTR = RNIL  */
 /* ------------------------------------------------------------------------- */
@@ -26420,7 +26438,7 @@ void Dblqh::writeSinglePage(Signal* signal,
   signal->theData[1] = logPartPtrP->myRef;
   signal->theData[2] = lfoPtr.i;
   signal->theData[3] = sync ? ZLIST_OF_PAIRS_SYNCH : ZLIST_OF_PAIRS;
-  signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
+  signal->theData[4] = logPartPtrP->ptrI;
   signal->theData[5] = 1;                     /* ONE PAGE WRITTEN */
   signal->theData[6] = logPagePtr.i;
   signal->theData[7] = pageNo;
@@ -29228,7 +29246,7 @@ void Dblqh::readExecSrLab(Signal* signal,
                           LogFileRecordPtr logFilePtr,
                           LogPartRecord *logPartPtrP)
 {
-  buildLinkedLogPageList(signal, lfoPtr);
+  buildLinkedLogPageList(signal, lfoPtr, logPartPtrP);
   /* ------------------------------------------------------------------------
    *   WE NEED TO SET THE CURRENT PAGE INDEX OF THE FIRST PAGE SINCE IT CAN BE 
    *   USED IMMEDIATELY WITHOUT ANY OTHER INITIALISATION. THE REST OF THE PAGES
@@ -29316,7 +29334,9 @@ void Dblqh::execSr(Signal* signal)
     logFilePtr.i = logPartPtr.p->currentLogfile;
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
     logPagePtr.i = logPartPtr.p->prevLogpage;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtr.p->logPageFileSize,
+                  logPartPtr.p->logPageRecord);
     if (logPagePtr.p->logPageWord[ZPOS_DIRTY] == ZDIRTY)
     {
       jam();
@@ -29394,7 +29414,9 @@ void Dblqh::execSr(Signal* signal)
       return;
     }//switch
     logPagePtr.i = logFilePtr.p->currentLogpage;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtr.p->logPageFileSize,
+                  logPartPtr.p->logPageRecord);
     logPartPtr.p->savePageIndex = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
     if (logPartPtr.p->execSrPagesRead < ZMIN_READ_BUFFER_SIZE)
     {
@@ -29463,7 +29485,9 @@ void Dblqh::execSr(Signal* signal)
 /* EXECUTED IN A FUTURE SYSTEM RESTART.                                      */
 /*---------------------------------------------------------------------------*/
         tmpLogPagePtr.i = logPartPtr.p->prevLogpage;
-        ptrCheckGuard(tmpLogPagePtr, clogPageFileSize, logPageRecord);
+        ptrCheckGuard(tmpLogPagePtr,
+                      logPartPtr.p->logPageFileSize,
+                      logPartPtr.p->logPageRecord);
         arrGuard(logPartPtr.p->savePageIndex, ZPAGE_SIZE);
         tmpLogPagePtr.p->logPageWord[logPartPtr.p->savePageIndex] = 
                                                   ZINVALID_COMMIT_TYPE;
@@ -29808,7 +29832,7 @@ void Dblqh::readExecLogLab(Signal* signal,
                            LogFileRecordPtr logFilePtr,
                            LogPartRecord *logPartPtrP)
 {
-  buildLinkedLogPageList(signal, lfoPtr);
+  buildLinkedLogPageList(signal, lfoPtr, logPartPtrP);
   addCachePages(logPartPtrP->m_redo_page_cache,
                 logPartPtrP->logPartNo,
                 logPartPtrP->execSrStartPageNo,
@@ -29853,9 +29877,9 @@ void Dblqh::execLogRecord(Signal* signal,
   tcConnectptr.p->m_log_part_ptr_p = fragptr.p->m_log_part_ptr_p;
 
   // Read a log record and prepare it for execution
-  readLogHeader(logPagePtr, tcConnectptr);
-  readKey(logPagePtr, tcConnectptr);
-  readAttrinfo(logPagePtr, tcConnectptr);
+  readLogHeader(logPagePtr, tcConnectptr, logPartPtrP);
+  readKey(logPagePtr, tcConnectptr, logPartPtrP);
+  readAttrinfo(logPagePtr, tcConnectptr, logPartPtrP);
   initReqinfoExecSr(signal, tcConnectptr);
   arrGuard(logPartPtrP->execSrExecuteIndex, MAX_REPLICAS);
   BlockReference ref =
@@ -30634,7 +30658,9 @@ void Dblqh::exitFromInvalidate(Signal* signal,
   logFilePtr.i = logPartPtrP->firstLogfile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
   logPagePtr.i = logFilePtr.p->logPageZero;
-  ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+  ptrCheckGuard(logPagePtr,
+                logPartPtrP->logPageFileSize,
+                logPartPtrP->logPageRecord);
   logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO] = 
     logPartPtrP->headFileNo;
   writeSinglePage(signal,
@@ -31395,7 +31421,8 @@ void Dblqh::execMEMCHECKREQ(Signal* signal)
 /*                                                                           */
 /* ========================================================================= */
 void Dblqh::buildLinkedLogPageList(Signal* signal,
-                                   LogFileOperationRecordPtr lfoPtr)
+                                   LogFileOperationRecordPtr lfoPtr,
+                                   LogPartRecord *logPartPtrP)
 {
   LogPageRecordPtr bllLogPagePtr;
 
@@ -31410,7 +31437,9 @@ void Dblqh::buildLinkedLogPageList(Signal* signal,
      *  INITIALLY.
      * --------------------------------------------------------------------- */
     bllLogPagePtr.i = lfoPtr.p->logPageArray[tbllIndex];
-    ptrCheckGuard(bllLogPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(bllLogPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
 
 // #if VM_TRACE
 //     // Check logPage checksum before modifying it
@@ -31429,7 +31458,9 @@ void Dblqh::buildLinkedLogPageList(Signal* signal,
     prev = bllLogPagePtr.i;
   }//for
   bllLogPagePtr.i = lfoPtr.p->logPageArray[lfoPtr.p->noPagesRw - 1];
-  ptrCheckGuard(bllLogPagePtr, clogPageFileSize, logPageRecord);
+  ptrCheckGuard(bllLogPagePtr,
+                logPartPtrP->logPageFileSize,
+                logPartPtrP->logPageRecord);
   bllLogPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
 }//Dblqh::buildLinkedLogPageList()
 
@@ -31648,8 +31679,8 @@ void Dblqh::completedLogPage(Signal* signal,
     jam();
     clpLogPagePtr.i = logFilePtr.p->lastFilledPage;
     ptrCheckGuard(clpLogPagePtr,
-                  logPartPtrP->my_block->clogPageFileSize,
-                  logPartPtrP->my_block->logPageRecord);
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     clpLogPagePtr.p->logPageWord[ZNEXT_PAGE] = logPagePtr.i;
   }//if
   logFilePtr.p->lastFilledPage = logPagePtr.i;
@@ -31681,8 +31712,8 @@ void Dblqh::completedLogPage(Signal* signal,
     dataPtr[twlpNoPages] = wlpLogPagePtr.i;
     twlpNoPages++;
     ptrCheckGuard(wlpLogPagePtr,
-                  logPartPtrP->my_block->clogPageFileSize,
-                  logPartPtrP->my_block->logPageRecord);
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
 
     writeDbgInfoPageHeader(wlpLogPagePtr,
                            logFilePtr.p,
@@ -31715,7 +31746,7 @@ void Dblqh::completedLogPage(Signal* signal,
     jam();
     signal->theData[3] = ZLIST_OF_MEM_PAGES;
   }//if
-  signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
+  signal->theData[4] = logPartPtrP->ptrI;
   signal->theData[5] = twlpNoPages;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 15, JBA);
 
@@ -31891,7 +31922,9 @@ void Dblqh::findPageRef(Signal* signal,
           jam();
           tfprIndex = commitLogRecord->startPageNo - pageRefPtr.p->prPageNo;
           logPagePtr.i = pageRefPtr.p->pageRef[tfprIndex];
-          ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+          ptrCheckGuard(logPagePtr,
+                        logPartPtrP->logPageFileSize,
+                        logPartPtrP->logPageRecord);
           return;
         }//if
       }//if
@@ -31915,7 +31948,9 @@ void Dblqh::findPageRef(Signal* signal,
       cache.m_lru.addFirst(pagePtr);
     }
     logPagePtr.i = get_cache_real_page_ptr_i(logPartPtrP, pagePtr.i);
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
 
     Ptr<LogPageRecord> loopPtr = logPagePtr;
     Uint32 extra = commitLogRecord->stopPageNo - commitLogRecord->startPageNo;
@@ -31961,7 +31996,9 @@ void Dblqh::findPageRef(Signal* signal,
         }
       }
 
-      ptrCheckGuard(loopPtr, clogPageFileSize, logPageRecord);
+      ptrCheckGuard(loopPtr,
+                    logPartPtrP->logPageFileSize,
+                    logPartPtrP->logPageRecord);
       pagePtr.i = get_cache_i_val(logPartPtrP, loopPtr.i);
       pagePtr.p = reinterpret_cast<RedoCacheLogPageRecord*>(loopPtr.p);
       if (cache.m_lru.hasPrev(pagePtr))
@@ -32737,8 +32774,8 @@ void Dblqh::initLogPointers(Signal* signal,
                 logPartPtr.p->my_block->logFileRecord);
   logPagePtr.i = logFilePtr.p->currentLogpage;
   ptrCheckGuard(logPagePtr,
-                logPartPtr.p->my_block->clogPageFileSize,
-                logPartPtr.p->my_block->logPageRecord);
+                logPartPtr.p->logPageFileSize,
+                logPartPtr.p->logPageRecord);
 }//Dblqh::initLogPointers()
 
 /* ------------------------------------------------------------------------- */
@@ -32944,7 +32981,9 @@ void Dblqh::logNextStart(Signal* signal, LogPartRecord *regLogPartPtr)
     logFilePtr.i = regLogPartPtr->currentLogfile;
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
     logPagePtr.i = logFilePtr.p->currentLogpage;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  regLogPartPtr->logPageFileSize,
+                  regLogPartPtr->logPageRecord);
 /* -------------------------------------------------------------------------- 
  *   A COMPLETE GCI LOG RECORD IS WAITING TO BE WRITTEN. WE GIVE THIS HIGHEST
  *   PRIORITY AND WRITE IT IMMEDIATELY. AFTER WRITING IT WE CHECK IF ANY MORE
@@ -33036,7 +33075,9 @@ MPR_LOOP:
   arrGuard(tmprIndex, 8);
   pageRefPtr.p->pageRef[tmprIndex] = mprLogPagePtr.i;
   tmprIndex = tmprIndex + 1;
-  ptrCheckGuard(mprLogPagePtr, clogPageFileSize, logPageRecord);
+  ptrCheckGuard(mprLogPagePtr,
+                logPartPtrP->logPageFileSize,
+                logPartPtrP->logPageRecord);
   mprLogPagePtr.i = mprLogPagePtr.p->logPageWord[ZNEXT_PAGE];
   if (mprLogPagePtr.i != RNIL)
   {
@@ -33049,7 +33090,9 @@ MPR_LOOP:
     jam();
     ptrCheckGuard(mprPageRefPtr, cpageRefFileSize, pageRefRecord);
     mprLogPagePtr.i = mprPageRefPtr.p->pageRef[7];
-    ptrCheckGuard(mprLogPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(mprLogPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     mprLogPagePtr.p->logPageWord[ZNEXT_PAGE] = pageRefPtr.p->pageRef[0];
   }//if
 }//Dblqh::moveToPageRef()
@@ -33060,7 +33103,8 @@ MPR_LOOP:
 /*       SUBROUTINE SHORT NAME = RA                                          */
 /* ------------------------------------------------------------------------- */
 void Dblqh::readAttrinfo(LogPageRecordPtr & logPagePtr,
-                         const TcConnectionrecPtr tcConnectptr)
+                         const TcConnectionrecPtr tcConnectptr,
+                         LogPartRecord *logPartPtrP)
 {
   Uint32 remainingLen = tcConnectptr.p->totSendlenAi;
   tcConnectptr.p->reclenAiLqhkey = 0;
@@ -33069,7 +33113,10 @@ void Dblqh::readAttrinfo(LogPageRecordPtr & logPagePtr,
     jam();
     return;
   }//if
-  readLogData(logPagePtr, remainingLen, tcConnectptr.p->attrInfoIVal);
+  readLogData(logPagePtr,
+              remainingLen,
+              tcConnectptr.p->attrInfoIVal,
+              logPartPtrP);
 }//Dblqh::readAttrinfo()
 
 /* ------------------------------------------------------------------------- */
@@ -33178,7 +33225,7 @@ void Dblqh::readExecLog(Signal* signal,
   signal->theData[1] = cownref;
   signal->theData[2] = lfoPtr.i;
   signal->theData[3] = ZLIST_OF_MEM_PAGES; // edtjamo TR509 //ZLIST_OF_PAIRS;
-  signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
+  signal->theData[4] = logPartPtrP->ptrI;
   signal->theData[5] = lfoPtr.p->noPagesRw;
   signal->theData[6] = lfoPtr.p->logPageArray[0];
   signal->theData[7] = lfoPtr.p->logPageArray[1];
@@ -33266,7 +33313,7 @@ void Dblqh::readExecSr(Signal* signal,
   signal->theData[1] = cownref;
   signal->theData[2] = lfoPtr.i;
   signal->theData[3] = ZLIST_OF_MEM_PAGES;
-  signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
+  signal->theData[4] = logPartPtrP->ptrI;
   signal->theData[5] = 8;
   signal->theData[6] = lfoPtr.p->logPageArray[0];
   signal->theData[7] = lfoPtr.p->logPageArray[1];
@@ -33300,12 +33347,16 @@ void Dblqh::readExecSr(Signal* signal,
 /*       SUBROUTINE SHORT NAME = RK                                          */
 /* --------------------------------------------------------------------------*/
 void Dblqh::readKey(LogPageRecordPtr & logPagePtr,
-                    const TcConnectionrecPtr tcConnectptr)
+                    const TcConnectionrecPtr tcConnectptr,
+                    LogPartRecord *logPartPtrP)
 {
   Uint32 remainingLen = tcConnectptr.p->primKeyLen;
   ndbrequire(remainingLen != 0);
 
-  readLogData(logPagePtr, remainingLen, tcConnectptr.p->keyInfoIVal);
+  readLogData(logPagePtr,
+              remainingLen,
+              tcConnectptr.p->keyInfoIVal,
+              logPartPtrP);
 }//Dblqh::readKey()
 
 /* ------------------------------------------------------------------------- */
@@ -33315,7 +33366,8 @@ void Dblqh::readKey(LogPageRecordPtr & logPagePtr,
 /* --------------------------------------------------------------------------*/
 void Dblqh::readLogData(LogPageRecordPtr & logPagePtr,
                         Uint32 noOfWords,
-                        Uint32& sectionIVal)
+                        Uint32& sectionIVal,
+                        LogPartRecord *logPartPtrP)
 {
   Uint32 logPos = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
   if ((logPos + noOfWords) >= ZPAGE_SIZE)
@@ -33323,7 +33375,7 @@ void Dblqh::readLogData(LogPageRecordPtr & logPagePtr,
     for (Uint32 i = 0; i < noOfWords; i++)
     {
       /* Todo : Consider reading > 1 word at a time */
-      Uint32 word= readLogwordExec(logPagePtr);
+      Uint32 word= readLogwordExec(logPagePtr, logPartPtrP);
       bool ok= appendToSection(sectionIVal,
                                &word,
                                1);
@@ -33347,7 +33399,8 @@ void Dblqh::readLogData(LogPageRecordPtr & logPagePtr,
 /*       SUBROUTINE SHORT NAME = RLH                                         */
 /* --------------------------------------------------------------------------*/
 void Dblqh::readLogHeader(LogPageRecordPtr & logPagePtr,
-                          const TcConnectionrecPtr tcConnectptr)
+                          const TcConnectionrecPtr tcConnectptr,
+                          LogPartRecord *logPartPtrP)
 {
   Uint32 logPos = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
   if ((logPos + ZLOG_HEAD_SIZE) < ZPAGE_SIZE)
@@ -33364,14 +33417,18 @@ void Dblqh::readLogHeader(LogPageRecordPtr & logPagePtr,
   else
   {
     jam();
-    readLogwordExec(logPagePtr); /* IGNORE PREPARE LOG RECORD TYPE */
-    readLogwordExec(logPagePtr); /* IGNORE LOG RECORD SIZE         */
-    tcConnectptr.p->hashValue = readLogwordExec(logPagePtr);
-    tcConnectptr.p->operation = readLogwordExec(logPagePtr);
-    tcConnectptr.p->totSendlenAi = readLogwordExec(logPagePtr);
-    tcConnectptr.p->primKeyLen = readLogwordExec(logPagePtr);
-    tcConnectptr.p->m_row_id.m_page_no = readLogwordExec(logPagePtr);
-    tcConnectptr.p->m_row_id.m_page_idx = readLogwordExec(logPagePtr);
+    /* IGNORE PREPARE LOG RECORD TYPE */
+    readLogwordExec(logPagePtr, logPartPtrP);
+    /* IGNORE LOG RECORD SIZE         */
+    readLogwordExec(logPagePtr, logPartPtrP);
+    tcConnectptr.p->hashValue = readLogwordExec(logPagePtr, logPartPtrP);
+    tcConnectptr.p->operation = readLogwordExec(logPagePtr, logPartPtrP);
+    tcConnectptr.p->totSendlenAi = readLogwordExec(logPagePtr, logPartPtrP);
+    tcConnectptr.p->primKeyLen = readLogwordExec(logPagePtr, logPartPtrP);
+    tcConnectptr.p->m_row_id.m_page_no = readLogwordExec(logPagePtr,
+                                                         logPartPtrP);
+    tcConnectptr.p->m_row_id.m_page_idx = readLogwordExec(logPagePtr,
+                                                          logPartPtrP);
   }//if
   tcConnectptr.p->m_use_rowid = (tcConnectptr.p->operation == ZINSERT);
 }//Dblqh::readLogHeader()
@@ -33394,7 +33451,9 @@ Uint32 Dblqh::readLogword(LogPageRecordPtr & logPagePtr,
   if (logPos >= ZPAGE_SIZE) {
     jam();
     logPagePtr.i = logPagePtr.p->logPageWord[ZNEXT_PAGE];
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
     logFilePtrP->currentLogpage = logPagePtr.i;
     logFilePtrP->currentFilepage++;
@@ -33410,7 +33469,8 @@ Uint32 Dblqh::readLogword(LogPageRecordPtr & logPagePtr,
 /*       OUTPUT:         TLOG_WORD                                           */
 /*       SUBROUTINE SHORT NAME = RWE                                         */
 /* ------------------------------------------------------------------------- */
-Uint32 Dblqh::readLogwordExec(LogPageRecordPtr & logPagePtr)
+Uint32 Dblqh::readLogwordExec(LogPageRecordPtr & logPagePtr,
+                              LogPartRecord *logPartPtrP)
 {
   Uint32 logPos = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
   ndbrequire(logPos < ZPAGE_SIZE);
@@ -33420,10 +33480,15 @@ Uint32 Dblqh::readLogwordExec(LogPageRecordPtr & logPagePtr)
   if (logPos >= ZPAGE_SIZE) {
     jam();
     logPagePtr.i = logPagePtr.p->logPageWord[ZNEXT_PAGE];
-    if (logPagePtr.i != RNIL){
-      ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    if (logPagePtr.i != RNIL)
+    {
+      ptrCheckGuard(logPagePtr,
+                    logPartPtrP->logPageFileSize,
+                    logPartPtrP->logPageRecord);
       logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
-    } else {
+    }
+    else
+    {
       // Reading word at the last pos in the last page
       // Don't step forward to next page!
       jam();
@@ -33457,7 +33522,7 @@ void Dblqh::readSinglePage(Signal* signal,
   signal->theData[1] = cownref;
   signal->theData[2] = lfoPtr.i;
   signal->theData[3] = ZLIST_OF_PAIRS;
-  signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
+  signal->theData[4] = logPartPtrP->ptrI;
   signal->theData[5] = 1;
   signal->theData[6] = logPagePtr.i;
   signal->theData[7] = pageNo;
@@ -33561,7 +33626,9 @@ void Dblqh::releasePrPages(PageRefRecordPtr pageRefPtr,
   {
     jam();
     logPagePtr.i = pageRefPtr.p->pageRef[trppIndex];
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     releaseLogpage(logPagePtr, logPartPtrP);
   }//for
 }//Dblqh::releasePrPages()
@@ -33661,7 +33728,9 @@ Uint32 Dblqh::returnExecLog(Signal* signal,
 /* THIS LOG RECORD WILL BE EXECUTED AGAIN TOWARDS ANOTHER NODE.              */
 /* ------------------------------------------------------------------------- */
     logPagePtr.i = logPartPtr.p->execSrLogPage;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtr.p->logPageFileSize,
+                  logPartPtr.p->logPageRecord);
     logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = 
                   logPartPtr.p->execSrLogPageIndex;
   }
@@ -33699,7 +33768,9 @@ Uint32 Dblqh::returnExecLog(Signal* signal,
     logPartPtr.p->execSrLogPage = RNIL;
     logPartPtr.p->execSrLogPageIndex = ZNIL;
     logPagePtr.i = logFilePtr.p->currentLogpage;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtr.p->logPageFileSize,
+                  logPartPtr.p->logPageRecord);
     logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = logPartPtr.p->savePageIndex;
   }//if
   return result;
@@ -33872,7 +33943,9 @@ void Dblqh::stepAhead(Signal* signal,
     logFilePtrP->currentLogpage = logPagePtr.p->logPageWord[ZNEXT_PAGE];
     logPagePtr.i = logPagePtr.p->logPageWord[ZNEXT_PAGE];
     logFilePtrP->currentFilepage++;
-    ptrCheckGuardErr(logPagePtr, clogPageFileSize, logPageRecord,
+    ptrCheckGuardErr(logPagePtr,
+                     logPartPtrP->logPageFileSize,
+                     logPartPtrP->logPageRecord,
                      NDBD_EXIT_SR_REDOLOG);
     logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
     logPartPtrP->execSrPagesRead--;
@@ -33939,8 +34012,8 @@ void Dblqh::writeCommitLog(Signal* signal,
   logPagePtr.i = logFilePtr.p->currentLogpage;
   Uint32 twclTmp = logFilePtr.p->remainingWordsInMbyte;
   ptrCheckGuard(logPagePtr,
-                logPartPtrP->my_block->clogPageFileSize,
-                logPartPtrP->my_block->logPageRecord);
+                logPartPtrP->logPageFileSize,
+                logPartPtrP->logPageRecord);
   if ((ZCOMMIT_LOG_SIZE + ZNEXT_LOG_SIZE) > twclTmp)
   {
     jam();
@@ -34118,7 +34191,7 @@ void Dblqh::writeDirty(Signal* signal,
   signal->theData[1] = logPartPtrP->myRef;
   signal->theData[2] = lfoPtr.i;
   signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
-  signal->theData[4] = ZVAR_NO_LOG_PAGE_WORD;
+  signal->theData[4] = logPartPtrP->ptrI;
   signal->theData[5] = 1;
   signal->theData[6] = logPagePtr.i;
   signal->theData[7] = logPartPtrP->prevFilepage;
@@ -34362,8 +34435,8 @@ void Dblqh::writeNextLog(Signal* signal,
       releaseLogpage(logPagePtr, logPartPtrP);
       logPagePtr.i = logFilePtr.p->logPageZero;
       ptrCheckGuard(logPagePtr,
-                    logPartPtrP->my_block->clogPageFileSize,
-                    logPartPtrP->my_block->logPageRecord);
+                    logPartPtrP->logPageFileSize,
+                    logPartPtrP->logPageRecord);
     }//if
   }//if
   initLogpage(logPagePtr, logFilePtr.p, logPartPtrP);
@@ -37030,7 +37103,9 @@ Dblqh::do_evict(LogPartRecord::RedoPageCache& cache,
            logPartPtrP->noOfFreeLogPages);
 
   logPagePtr.i = get_cache_real_page_ptr_i(logPartPtrP, pagePtr.i);
-  ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+  ptrCheckGuard(logPagePtr,
+                logPartPtrP->logPageFileSize,
+                logPartPtrP->logPageRecord);
 
   Ptr<LogPageRecord> prevPagePtr, nextPagePtr;
   prevPagePtr.i = logPagePtr.p->logPageWord[ZPREV_PAGE];
@@ -37043,7 +37118,9 @@ Dblqh::do_evict(LogPartRecord::RedoPageCache& cache,
      *   so we don't try to "serve" multi-page request
      *   if next-page has been evicted
      */
-    ptrCheckGuard(prevPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(prevPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     ndbrequire(prevPagePtr.p->logPageWord[ZNEXT_PAGE] == logPagePtr.i);
     prevPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
   }
@@ -37055,7 +37132,9 @@ Dblqh::do_evict(LogPartRecord::RedoPageCache& cache,
      * Remove ZPREV pointer from nextPagePtr
      *   so don't try to do above if prev has been evicted
      */
-    ptrCheckGuard(nextPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(nextPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     ndbrequire(nextPagePtr.p->logPageWord[ZPREV_PAGE] == logPagePtr.i);
     nextPagePtr.p->logPageWord[ZPREV_PAGE] = RNIL;
   }
@@ -37158,7 +37237,9 @@ Dblqh::release(LogPartRecord::RedoPageCache& cache,
     cache.m_lru.remove(pagePtr);
 
     logPagePtr.i = get_cache_real_page_ptr_i(logPartPtrP, pagePtr.i);
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuard(logPagePtr,
+                  logPartPtrP->logPageFileSize,
+                  logPartPtrP->logPageRecord);
     releaseLogpage(logPagePtr, logPartPtrP);
   }
   cache.m_hash.removeAll();

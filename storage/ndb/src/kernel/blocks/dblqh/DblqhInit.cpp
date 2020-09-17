@@ -137,7 +137,6 @@ void Dblqh::initData()
   logPartRecord = 0;
   logFileRecord = 0;
   logFileOperationRecord = 0;
-  logPageRecord = 0;
   pageRefRecord = 0;
   tablerec = 0;
   tcNodeFailRecord = 0;
@@ -305,7 +304,6 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
 		  sizeof(LogFileOperationRecord),
 		  clfoFileSize);
 
-    Uint32 log_page_ptr_i = 0;
     LogPartRecordPtr logPartPtr;
     for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
     {
@@ -315,13 +313,10 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
       const Uint32 chunkcnt = allocChunks(chunks, 16, RG_FILE_BUFFERS,
                                           clogPageFileSize / clogPartFileSize,
                                           CFG_DB_REDO_BUFFER);
-      if (logPartPtr.i == 0)
-      {
-        Ptr<GlobalPage> pagePtr;
-        m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
-        logPageRecord = (LogPageRecord*)pagePtr.p;
-      }
-
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
+      logPartPtr.p->logPageRecord = (LogPageRecord*)pagePtr.p;
+      logPartPtr.p->logPageFileSize = clogPageFileSize / clogPartFileSize;
       logPartPtr.p->firstFreeLogPage = RNIL;
       logPartPtr.p->logPageCount = 0;
       for (Int32 i = chunkcnt - 1; i >= 0; i--)
@@ -332,8 +327,8 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
         Ptr<GlobalPage> pagePtr;
         m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
         LogPageRecord * base = (LogPageRecord*)pagePtr.p;
-        ndbrequire(base >= logPageRecord);
-        const Uint32 ptrI = Uint32(base - logPageRecord);
+        ndbrequire(base >= logPartPtr.p->logPageRecord);
+        const Uint32 ptrI = Uint32(base - logPartPtr.p->logPageRecord);
 
         for (Uint32 j = 0; j<cnt; j++)
         {
@@ -356,17 +351,16 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
        */
       logPartPtr.p->noOfFreeLogPages = logPartPtr.p->logPageCount;
       logPartPtr.p->m_redo_page_cache.m_pool.set(
-        (RedoCacheLogPageRecord*)&logPageRecord[log_page_ptr_i],
+        (RedoCacheLogPageRecord*)&logPartPtr.p->logPageRecord[0],
         clogPageFileSize/clogPartFileSize);
       logPartPtr.p->m_redo_page_cache.m_hash.setSize(1023);
-      logPartPtr.p->m_redo_page_cache.m_first_page = log_page_ptr_i;
-      log_page_ptr_i += (clogPageFileSize / clogPartFileSize);
+      logPartPtr.p->m_redo_page_cache.m_first_page = 0;;
     }
 
 
-    const Uint32 * base = (Uint32*)logPageRecord;
+    const Uint32 * base = (Uint32*)logPartPtr.p->logPageRecord;
     const RedoCacheLogPageRecord* tmp1 =
-      (RedoCacheLogPageRecord*)logPageRecord;
+      (RedoCacheLogPageRecord*)logPartPtr.p->logPageRecord;
     ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
     ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
 
@@ -399,8 +393,8 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
     logFileRecord = 0;
     logFileOperationRecord = 0;
     clogFileFileSize = 0;
+    clogPageFileSize = 0;
     clfoFileSize = 0;
-    logPageRecord = 0;
   }
   Pool_context pc;
   pc.m_block = this;
@@ -482,13 +476,19 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
 
   if (!m_is_query_block)
   {
+    LogPartRecordPtr logPartPtr;
+    NewVARIABLE* bat = allocateBat(clogPartFileSize);
     // Initialize BAT for interface to file system
-    NewVARIABLE* bat = allocateBat(2);
-    bat[1].WA = &logPageRecord->logPageWord[0];
-    bat[1].nrr = clogPageFileSize;
-    bat[1].ClusterSize = sizeof(LogPageRecord);
-    bat[1].bits.q = ZTWOLOG_PAGE_SIZE;
-    bat[1].bits.v = 5;
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      Uint32 i = logPartPtr.i;
+      ptrAss(logPartPtr, logPartRecord);
+      bat[i].WA = &logPartPtr.p->logPageRecord->logPageWord[0];
+      bat[i].nrr = logPartPtr.p->logPageFileSize;
+      bat[i].ClusterSize = sizeof(LogPageRecord);
+      bat[i].bits.q = ZTWOLOG_PAGE_SIZE;
+      bat[i].bits.v = 5;
+    }
   }
 }//Dblqh::initRecords()
 
