@@ -2708,6 +2708,7 @@ String *Item_func_rpad::val_str(String *str) {
     memcpy(to, ptr_pad, pad_charpos);
     to += pad_charpos;
   }
+  res->set_charset(collation.collation);
   res->length((uint)(to - res->ptr()));
   return (res);
 }
