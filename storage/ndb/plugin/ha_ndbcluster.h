@@ -503,7 +503,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int copy_fk_for_offline_alter(THD *thd, Ndb *, const char *tabname);
   int inplace__drop_fks(THD *, Ndb *, NdbDictionary::Dictionary *,
                         const NdbDictionary::Table *);
-  static int recreate_fk_for_truncate(THD *, Ndb *, const char *,
+  static int recreate_fk_for_truncate(THD *, Ndb *, const char *, const char *,
                                       std::vector<NdbDictionary::ForeignKey> *);
   bool has_fk_dependency(NdbDictionary::Dictionary *dict,
                          const NdbDictionary::Column *) const;

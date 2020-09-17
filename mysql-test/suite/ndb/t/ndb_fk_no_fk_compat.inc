@@ -96,11 +96,17 @@ eval create table t1 (
   foreign key (b) references t2(pk2)
 ) engine=$engine;
 
---replace_regex /\(.*\)/(<fk_def>)/
---error ER_TRUNCATE_ILLEGAL_FK
+set foreign_key_checks=0;
 truncate table t2;
 
 set foreign_key_checks=1;
+--echo Check if foreign keys are intact after truncate
+insert into t2 values (1,10),(2,20),(3,30);
+insert into t1 values (100,1),(200,2),(300,3);
+
+--error ER_NO_REFERENCED_ROW_2
+insert into t1 values (400,4);
+
 --replace_regex /\(.*\)/(<fk_def>)/
 --error ER_TRUNCATE_ILLEGAL_FK
 truncate table t2;

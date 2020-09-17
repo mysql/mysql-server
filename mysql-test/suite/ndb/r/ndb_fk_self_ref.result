@@ -96,3 +96,27 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`
 alter table t1 drop foreign key fkname;
 delete from t1;
 drop table t1;
+#
+# Truncating table with self referencing Foreign key
+#
+create table t2 (
+pk2 int not null primary key,
+c int,
+foreign key (c) references t2(pk2)
+) engine=NDB;
+Foreign keys referenced by test.t2 : 	t2_fk_1
+Foreign keys on test.t2 : 	t2_fk_1
+truncate table t2;
+Verify all the foreign key are re-created after truncate
+Foreign keys referenced by test.t2 : 	t2_fk_1
+Foreign keys on test.t2 : 	t2_fk_1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `pk2` int NOT NULL,
+  `c` int DEFAULT NULL,
+  PRIMARY KEY (`pk2`),
+  KEY `c` (`c`),
+  CONSTRAINT `t2_fk_1` FOREIGN KEY (`c`) REFERENCES `t2` (`pk2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t2;

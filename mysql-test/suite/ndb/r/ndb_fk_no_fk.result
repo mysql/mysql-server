@@ -794,7 +794,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
-# Truncating referenced table -> not allowed
+# Truncating referenced table
 #
 create table t2 (
 pk2 int not null primary key,
@@ -809,12 +809,14 @@ set foreign_key_checks=1;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_fk_1`)
 set foreign_key_checks=0;
+Foreign keys referenced by test.t2 : 	t1_fk_1
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+Verify all the foreign key are re-created after truncate
+Foreign keys referenced by test.t2 : 	t1_fk_1
 drop table t1, t2;
 #
 # Truncating referenced table which references
-# another table -> not allowed
+# another table
 #
 create table t3 (
 pk3 int not null primary key,
@@ -834,8 +836,12 @@ set foreign_key_checks=1;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_fk_1`)
 set foreign_key_checks=0;
+Foreign keys referenced by test.t2 : 	t1_fk_1
+Foreign keys on test.t2 : 	t2_fk_1
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
+Verify all the foreign key are re-created after truncate
+Foreign keys referenced by test.t2 : 	t1_fk_1
+Foreign keys on test.t2 : 	t2_fk_1
 drop table t1, t2, t3;
 #
 # Truncating referencing table

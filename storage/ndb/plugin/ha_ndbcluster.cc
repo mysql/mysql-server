@@ -9105,12 +9105,6 @@ static bool parsePartitionBalance(
   return true;
 }
 
-extern bool ndb_fk_util_truncate_allowed(THD *thd,
-                                         NdbDictionary::Dictionary *dict,
-                                         const char *db,
-                                         const NdbDictionary::Table *tab,
-                                         bool &allow);
-
 /*
   Forward declaration of the utility functions used
   when creating partitioned tables
@@ -9409,22 +9403,6 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
     Ndb_table_guard ndbtab_g(dict, m_tabname);
     if (!ndbtab_g.get_table()) ERR_RETURN(dict->getNdbError());
-
-    /*
-      Don't allow truncate on table which is foreign key parent.
-      This is kind of a kludge to get legacy compatibility behaviour
-      but it also reduces the complexity involved in rewriting
-      fks during this "recreate".
-     */
-    bool allow;
-    if (!ndb_fk_util_truncate_allowed(thd, dict, m_dbname, ndbtab_g.get_table(),
-                                      allow)) {
-      return HA_ERR_NO_CONNECTION;
-    }
-    if (!allow) {
-      my_error(ER_TRUNCATE_ILLEGAL_FK, MYF(0), "");
-      return 1;
-    }
 
     /* save the foreign key information in fk_list */
     if (!retrieve_foreign_key_list_from_ndb(dict, ndbtab_g.get_table(),
@@ -10014,8 +9992,8 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
 
   if (!fk_list_for_truncate.empty()) {
     // create foreign keys from the list extracted from old table
-    const int recreate_fk_result =
-        recreate_fk_for_truncate(thd, ndb, m_tabname, &fk_list_for_truncate);
+    const int recreate_fk_result = recreate_fk_for_truncate(
+        thd, ndb, m_dbname, m_tabname, &fk_list_for_truncate);
     if (recreate_fk_result != 0) {
       return recreate_fk_result;
     }

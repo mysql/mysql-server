@@ -53,9 +53,14 @@ pk1 int not null primary key,
 b int,
 foreign key (b) references t2(pk2)
 ) engine=engine;
+set foreign_key_checks=0;
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (<fk_def>)
 set foreign_key_checks=1;
+Check if foreign keys are intact after truncate
+insert into t2 values (1,10),(2,20),(3,30);
+insert into t1 values (100,1),(200,2),(300,3);
+insert into t1 values (400,4);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (<fk_def>)
 set foreign_key_checks=0;
