@@ -21563,6 +21563,141 @@ static void test_bug31104389() {
   mysql_close(mysql_local);
 }
 
+static void test_bug31691060_1() {
+  myheader("test_bug31691060_1");
+
+  MYSQL_BIND my_bind[2];
+  MYSQL_BIND my_param[1];
+  int a_val, b_val, param;
+  ulong length = sizeof(int);
+  bool is_null = false;
+
+  int rc;
+
+  rc = mysql_query(mysql, "CREATE TABLE t1(a INTEGER)");
+  myquery(rc);
+  rc = mysql_query(mysql, "CREATE TABLE t2(a INTEGER, b INTEGER)");
+  myquery(rc);
+  rc = mysql_query(mysql, "INSERT INTO t1 VALUES(0), (1), (2)");
+  myquery(rc);
+  rc = mysql_query(mysql, "INSERT INTO t2 VALUES(1, 10), (2, 20), (2, 21)");
+  myquery(rc);
+
+  const char *query =
+      "SELECT a, (SELECT b FROM t2 WHERE t1.a=t2.a) FROM t1 WHERE a = ?";
+
+  const ulong type = (ulong)CURSOR_TYPE_READ_ONLY;
+
+  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
+  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
+  check_execute(stmt, rc);
+
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a_val;
+  my_bind[0].buffer_length = (ulong)sizeof(b_val);
+  my_bind[1].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[1].buffer = (void *)&b_val;
+  my_bind[1].buffer_length = (ulong)sizeof(b_val);
+
+  mysql_stmt_bind_result(stmt, my_bind);
+
+  memset(my_param, 0, sizeof(my_param));
+  my_param[0].buffer_type = MYSQL_TYPE_LONG;
+  my_param[0].buffer = (void *)&param;
+  my_param[0].length = &length;
+  my_param[0].is_null = &is_null;
+
+  rc = mysql_stmt_bind_param(stmt, my_param);
+  check_execute(stmt, rc);
+
+  // @note - Should actually set param = 2 here, but causes synch. issues
+  param = 1;
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  int count = 0;
+  while (mysql_stmt_fetch(stmt) == 0) count++;
+  DIE_UNLESS(count == 1);
+
+  param = 1;
+
+  mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  count = 0;
+  while (mysql_stmt_fetch(stmt) == 0) count++;
+  DIE_UNLESS(count == 1);
+
+  // Cause a repreparation on the server
+  rc = mysql_query(mysql, "FLUSH TABLES");
+  myquery(rc);
+
+  param = 1;
+
+  mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  count = 0;
+  while (mysql_stmt_fetch(stmt) == 0) count++;
+  DIE_UNLESS(count == 1);
+
+  rc = mysql_stmt_close(stmt);
+  DIE_UNLESS(rc == 0);
+
+  mysql_query(mysql, "DROP TABLE t1, t2");
+}
+
+static void test_bug31691060_2() {
+  myheader("test_bug31691060_2");
+
+  MYSQL_BIND my_bind[3];
+
+  char privilege[10240], context[10240], comment[10240];
+
+  int rc;
+
+  const char *query = "SHOW PRIVILEGES";
+
+  const ulong type = (ulong)CURSOR_TYPE_READ_ONLY;
+
+  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
+  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
+  check_execute(stmt, rc);
+
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_STRING;
+  my_bind[0].buffer = (void *)privilege;
+  my_bind[0].buffer_length = (ulong)sizeof(privilege);
+  my_bind[1].buffer_type = MYSQL_TYPE_STRING;
+  my_bind[1].buffer = (void *)context;
+  my_bind[1].buffer_length = (ulong)sizeof(context);
+  my_bind[2].buffer_type = MYSQL_TYPE_STRING;
+  my_bind[2].buffer = (void *)comment;
+  my_bind[2].buffer_length = (ulong)sizeof(comment);
+
+  mysql_stmt_bind_result(stmt, my_bind);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  int count = 0;
+  while (mysql_stmt_fetch(stmt) == 0) count++;
+
+  mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  count = 0;
+  while (mysql_stmt_fetch(stmt) == 0) count++;
+
+  rc = mysql_stmt_close(stmt);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -21860,6 +21995,8 @@ static struct my_tests_st my_tests[] = {
     {"test_bug31082201", test_bug31082201},
     {"test_bug31104389", test_bug31104389},
     {"test_wl13905", test_wl13905},
+    {"test_bug31691060_1", test_bug31691060_1},
+    {"test_bug31691060_2", test_bug31691060_2},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

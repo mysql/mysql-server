@@ -458,7 +458,14 @@ bool sp_cursor::open(THD *thd) {
     return true;
   }
 
-  return mysql_open_cursor(thd, &m_result, &m_server_side_cursor);
+  bool rc = mysql_open_cursor(thd, &m_result, &m_server_side_cursor);
+
+  // If execution failed, ensure that the cursor is closed.
+  if (rc && m_server_side_cursor != nullptr) {
+    m_server_side_cursor->close();
+    m_server_side_cursor = nullptr;
+  }
+  return rc;
 }
 
 bool sp_cursor::close() {
