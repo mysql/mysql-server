@@ -1,5 +1,11 @@
 -- source include/have_ndb.inc
 
+--disable_query_log
+call mtr.add_suppression("X Protocol won't be accessible");
+call mtr.add_suppression("Do you already have another mysqld server running");
+call mtr.add_suppression("X Plugin can't bind to it. Skipping");
+--enable_query_log
+
 CREATE TABLE t1 (
   a char(10) CHARSET latin1 NOT NULL,
   e varbinary(3000) not null,
