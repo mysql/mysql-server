@@ -344,9 +344,11 @@ EXPLAIN SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 # either '9223372036854775807.000' or '9223372036854775807' could be the name of the group
 # These issues are resolved by removing trailing zeros from decimals and replacing -0 with 0.
 # This also replaces .000010 with 010 and .000001 with 001 [because \s is not supported].
+--skip_if_hypergraph  # Different warnings.
 --replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT j, COUNT(*) FROM t GROUP BY j ORDER BY j;
 
+--skip_if_hypergraph  # Different warnings.
 --replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je ORDER BY je;
 

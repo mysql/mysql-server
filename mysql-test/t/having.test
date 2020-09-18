@@ -773,10 +773,12 @@ PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 EXECUTE stmt;
 SELECT * FROM series, seq_calls;
 UPDATE series set val=1;
 
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 

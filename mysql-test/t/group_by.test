@@ -523,6 +523,7 @@ SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
 # rand(100)*10 will be < 2 only for the first row (of 3)
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
  GROUP BY a HAVING r1>1 AND r2<=2;
+--skip_if_hypergraph   # Different query plan (and also does not give any single-evaluation guarantees).
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
  GROUP BY a HAVING r1>1 AND r2<=2 ORDER BY a+r2+r1;
 SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c;
@@ -903,8 +904,11 @@ SELECT * FROM t1 GROUP BY c2, c1, id ORDER BY c2 DESC, c1 DESC;
 
 # Show that results are correctly ordered when GROUP BY fields
 # are a subset of ORDER BY ones
+--skip_if_hypergraph  # Chooses a different (but equally valid) value for non-grouped c1.
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2, c1;
+--skip_if_hypergraph  # Chooses a different (but equally valid) value for non-grouped c1.
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1;
+--skip_if_hypergraph  # Chooses a different (but equally valid) value for non-grouped c1.
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1 DESC;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -1575,6 +1579,7 @@ STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
 --replace_column 10 #
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Different order of warnings.
 eval $query;
 
 DROP TABLE t1,t2;
@@ -2851,6 +2856,7 @@ ANALYZE TABLE t1;
 # expose the bug). Other ways to do the same would include ROLLUP. Output the
 # plan to make sure it doesn't change in a way that would mask the bug.
 #
+--skip_if_hypergraph   # Chooses a different query plan.
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 
