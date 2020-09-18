@@ -4645,7 +4645,7 @@ finish:
   @returns false if check is successful, true if error
 */
 
-bool show_precheck(THD *thd, LEX *lex, bool) {
+bool show_precheck(THD *thd, LEX *lex, bool lock MY_ATTRIBUTE((unused))) {
   assert(lex->sql_command == SQLCOM_SHOW_CREATE_USER);
   TABLE_LIST *const tables = lex->query_tables;
   if (tables != nullptr) {
