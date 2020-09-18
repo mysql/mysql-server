@@ -2063,10 +2063,47 @@ Sql_cmd *PT_show_collations::make_cmd(THD *thd) {
   return &m_sql_cmd;
 }
 
+Sql_cmd *PT_show_count_base::make_cmd_generic(
+    THD *thd, LEX_CSTRING diagnostic_variable_name) {
+  LEX *const lex = thd->lex;
+  lex->sql_command = SQLCOM_SELECT;
+
+  // SHOW COUNT(*) { ERRORS | WARNINGS } doesn't clear them.
+  lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
+
+  Parse_context pc(thd, lex->current_select());
+  Item *var = get_system_var(
+      &pc, OPT_SESSION,
+      to_lex_string(diagnostic_variable_name),  // TODO: use LEX_CSTRING
+      {});
+  if (var == nullptr) {
+    assert(false);
+    return nullptr;  // should never happen
+  }
+
+  constexpr const char session_prefix[] = "@@session.";
+  assert(diagnostic_variable_name.length <= MAX_SYS_VAR_LENGTH);
+  char buff[sizeof(session_prefix) + MAX_SYS_VAR_LENGTH + 1];
+  /*
+    We set the name of Item to @@session.var_name because that then is used
+    as the column name in the output.
+  */
+  char *end =
+      strxmov(buff, session_prefix, diagnostic_variable_name.str, nullptr);
+  var->item_name.copy(buff, end - buff);
+
+  add_item_to_list(thd, var);
+
+  return new (thd->mem_root) Sql_cmd_select(nullptr);
+}
+
 Sql_cmd *PT_show_create_database::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
   lex->create_info->options = m_if_not_exists ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
   lex->name = m_name;
 
@@ -2104,6 +2141,9 @@ Sql_cmd *PT_show_create_table::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
   lex->create_info->storage_media = HA_SM_DEFAULT;
 
   return &m_sql_cmd;
@@ -2151,6 +2191,9 @@ Sql_cmd *PT_show_engine_logs::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
   if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
                                &lex->create_info->db_type))
     return nullptr;
@@ -2162,6 +2205,9 @@ Sql_cmd *PT_show_engine_mutex::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
   if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
                                &lex->create_info->db_type))
     return nullptr;
@@ -2173,6 +2219,9 @@ Sql_cmd *PT_show_engine_status::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
+  assert(lex->create_info == nullptr);
+  lex->create_info = thd->alloc_typed<HA_CREATE_INFO>();
+  if (lex->create_info == nullptr) return nullptr;  // OOM
   if (!m_all && resolve_engine(thd, to_lex_cstring(m_engine), false, true,
                                &lex->create_info->db_type))
     return nullptr;

@@ -1790,8 +1790,8 @@ void warn_about_deprecated_binary(THD *thd)
         drop_resource_group_stmt
         drop_role_stmt
         drop_srs_stmt
-        explainable_stmt
         explain_stmt
+        explainable_stmt
         handler_stmt
         insert_stmt
         keycache_stmt
@@ -1805,6 +1805,50 @@ void warn_about_deprecated_binary(THD *thd)
         select_stmt_with_into
         set_resource_group_stmt
         set_role_stmt
+        show_binary_logs_stmt
+        show_binlog_events_stmt
+        show_character_set_stmt
+        show_collation_stmt
+        show_columns_stmt
+        show_count_errors_stmt
+        show_count_warnings_stmt
+        show_create_database_stmt
+        show_create_event_stmt
+        show_create_function_stmt
+        show_create_procedure_stmt
+        show_create_table_stmt
+        show_create_trigger_stmt
+        show_create_user_stmt
+        show_create_view_stmt
+        show_databases_stmt
+        show_engine_logs_stmt
+        show_engine_mutex_stmt
+        show_engine_status_stmt
+        show_engines_stmt
+        show_errors_stmt
+        show_events_stmt
+        show_function_code_stmt
+        show_function_status_stmt
+        show_grants_stmt
+        show_keys_stmt
+        show_master_status_stmt
+        show_open_tables_stmt
+        show_plugins_stmt
+        show_privileges_stmt
+        show_procedure_code_stmt
+        show_procedure_status_stmt
+        show_processlist_stmt
+        show_profile_stmt
+        show_profiles_stmt
+        show_relaylog_events_stmt
+        show_replica_status_stmt
+        show_replicas_stmt
+        show_status_stmt
+        show_table_status_stmt
+        show_tables_stmt
+        show_triggers_stmt
+        show_variables_stmt
+        show_warnings_stmt
         shutdown_stmt
         simple_statement
         truncate_stmt
@@ -2256,9 +2300,52 @@ simple_statement:
         | set                           { $$= nullptr; CONTEXTUALIZE($1); }
         | set_resource_group_stmt
         | set_role_stmt
-        | signal_stmt                   { $$= nullptr; }
-        | show                          { $$= nullptr; }
+        | show_binary_logs_stmt
+        | show_binlog_events_stmt
+        | show_character_set_stmt
+        | show_collation_stmt
+        | show_columns_stmt
+        | show_count_errors_stmt
+        | show_count_warnings_stmt
+        | show_create_database_stmt
+        | show_create_event_stmt
+        | show_create_function_stmt
+        | show_create_procedure_stmt
+        | show_create_table_stmt
+        | show_create_trigger_stmt
+        | show_create_user_stmt
+        | show_create_view_stmt
+        | show_databases_stmt
+        | show_engine_logs_stmt
+        | show_engine_mutex_stmt
+        | show_engine_status_stmt
+        | show_engines_stmt
+        | show_errors_stmt
+        | show_events_stmt
+        | show_function_code_stmt
+        | show_function_status_stmt
+        | show_grants_stmt
+        | show_keys_stmt
+        | show_master_status_stmt
+        | show_open_tables_stmt
+        | show_plugins_stmt
+        | show_privileges_stmt
+        | show_procedure_code_stmt
+        | show_procedure_status_stmt
+        | show_processlist_stmt
+        | show_profile_stmt
+        | show_profiles_stmt
+        | show_relaylog_events_stmt
+        | show_replica_status_stmt
+        | show_replicas_stmt
+        | show_status_stmt
+        | show_table_status_stmt
+        | show_tables_stmt
+        | show_triggers_stmt
+        | show_variables_stmt
+        | show_warnings_stmt
         | shutdown_stmt
+        | signal_stmt                   { $$= nullptr; }
         | start                         { $$= nullptr; }
         | start_replica_stmt            { $$= nullptr; }
         | stop_replica_stmt             { $$= nullptr; }
@@ -13010,293 +13097,354 @@ opt_for_query:
           }
         ;
 
-/* Show things */
+/* SHOW statements */
 
-show:
-          SHOW
+show_databases_stmt:
+           SHOW DATABASES opt_wild_or_where
+           {
+             $$ = NEW_PTN PT_show_databases(@$, $3.wild, $3.where);
+           }
+
+show_tables_stmt:
+          SHOW opt_show_cmd_type TABLES opt_db opt_wild_or_where
           {
-            LEX *lex=Lex;
-            lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
-            if (lex->create_info == NULL)
-              MYSQL_YYABORT; // OOM
+            $$ = NEW_PTN PT_show_tables(@$, $2, $4, $5.wild, $5.where);
           }
-          show_param
         ;
 
-show_param:
-           DATABASES opt_wild_or_where
-           {
-             auto *p= NEW_PTN PT_show_databases(@$, $2.wild, $2.where);
-             MAKE_CMD(p);
-           }
-         | opt_show_cmd_type TABLES opt_db opt_wild_or_where
-           {
-             auto *p= NEW_PTN PT_show_tables(@$, $1, $3, $4.wild, $4.where);
-             MAKE_CMD(p);
-           }
-         | opt_full TRIGGERS_SYM opt_db opt_wild_or_where
-           {
-             auto *p= NEW_PTN PT_show_triggers(@$, $1, $3, $4.wild, $4.where);
-             MAKE_CMD(p);
-           }
-         | EVENTS_SYM opt_db opt_wild_or_where
-           {
-             auto *p= NEW_PTN PT_show_events(@$, $2, $3.wild, $3.where);
-             MAKE_CMD(p);
-           }
-         | TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
-           {
-             auto *p= NEW_PTN PT_show_table_status(@$, $3, $4.wild, $4.where);
-             MAKE_CMD(p);
-           }
-        | OPEN_SYM TABLES opt_db opt_wild_or_where
+show_triggers_stmt:
+          SHOW opt_full TRIGGERS_SYM opt_db opt_wild_or_where
           {
-             auto *p= NEW_PTN PT_show_open_tables(@$, $3, $4.wild, $4.where);
-             MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_triggers(@$, $2, $4, $5.wild, $5.where);
           }
-        | PLUGINS_SYM
+        ;
+
+show_events_stmt:
+          SHOW EVENTS_SYM opt_db opt_wild_or_where
           {
-            auto *p= NEW_PTN PT_show_plugins(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_events(@$, $3, $4.wild, $4.where);
           }
-        | ENGINE_SYM engine_or_all LOGS_SYM
+        ;
+
+show_table_status_stmt:
+          SHOW TABLE_SYM STATUS_SYM opt_db opt_wild_or_where
           {
-            auto *p = NEW_PTN PT_show_engine_logs(@$, $2);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_table_status(@$, $4, $5.wild, $5.where);
           }
-        | ENGINE_SYM engine_or_all MUTEX_SYM
+        ;
+
+show_open_tables_stmt:
+          SHOW OPEN_SYM TABLES opt_db opt_wild_or_where
           {
-            auto *p = NEW_PTN PT_show_engine_mutex(@$, $2);
-            MAKE_CMD(p);
+             $$ = NEW_PTN PT_show_open_tables(@$, $4, $5.wild, $5.where);
           }
-        | ENGINE_SYM engine_or_all STATUS_SYM
+        ;
+
+show_plugins_stmt:
+          SHOW PLUGINS_SYM
           {
-            auto *p = NEW_PTN PT_show_engine_status(@$, $2);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_plugins(@$);
           }
-        | opt_show_cmd_type
-          COLUMNS
-          from_or_in
-          table_ident
-          opt_db
-          opt_wild_or_where
+        ;
+
+show_engine_logs_stmt:
+          SHOW ENGINE_SYM engine_or_all LOGS_SYM
+          {
+            $$ = NEW_PTN PT_show_engine_logs(@$, $3);
+          }
+        ;
+
+show_engine_mutex_stmt:
+          SHOW ENGINE_SYM engine_or_all MUTEX_SYM
+          {
+            $$ = NEW_PTN PT_show_engine_mutex(@$, $3);
+          }
+        ;
+
+show_engine_status_stmt:
+          SHOW ENGINE_SYM engine_or_all STATUS_SYM
+          {
+            $$ = NEW_PTN PT_show_engine_status(@$, $3);
+          }
+        ;
+
+show_columns_stmt:
+          SHOW                  /* 1 */
+          opt_show_cmd_type     /* 2 */
+          COLUMNS               /* 3 */
+          from_or_in            /* 4 */
+          table_ident           /* 5 */
+          opt_db                /* 6 */
+          opt_wild_or_where     /* 7 */
           {
             // TODO: error if table_ident is <db>.<table> and opt_db is set.
-            if ($5)
-              $4->change_db($5);
+            if ($6)
+              $5->change_db($6);
 
-            Item *where= $6.where;
-            LEX_STRING wild= $6.wild;
-            DBUG_ASSERT((wild.str == nullptr) || (where == nullptr));
-
-            auto *p= where ? NEW_PTN PT_show_fields(@$, $1, $4, where)
-                           : NEW_PTN PT_show_fields(@$, $1, $4, wild);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_fields(@$, $2, $5, $7.wild, $7.where);
           }
-        | master_or_binary LOGS_SYM
+        ;
+
+show_binary_logs_stmt:
+          SHOW master_or_binary LOGS_SYM
           {
-            auto *p= NEW_PTN PT_show_binlogs(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_binlogs(@$);
           }
-        | SLAVE HOSTS_SYM
+        ;
+
+show_replicas_stmt:
+          SHOW SLAVE HOSTS_SYM
           {
             Lex->set_replication_deprecated_syntax_used();
             push_deprecated_warn(YYTHD, "SHOW SLAVE HOSTS", "SHOW REPLICAS");
 
-            auto *p= NEW_PTN PT_show_replicas(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_replicas(@$);
           }
-        | REPLICAS_SYM
+        | SHOW REPLICAS_SYM
           {
-            auto *p= NEW_PTN PT_show_replicas(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_replicas(@$);
           }
-        | BINLOG_SYM EVENTS_SYM opt_binlog_in binlog_from opt_limit_clause
+        ;
+
+show_binlog_events_stmt:
+          SHOW BINLOG_SYM EVENTS_SYM opt_binlog_in binlog_from opt_limit_clause
           {
-            auto *p= NEW_PTN PT_show_binlog_events(@$, $3, $5);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_binlog_events(@$, $4, $6);
           }
-        | RELAYLOG_SYM EVENTS_SYM opt_binlog_in binlog_from opt_limit_clause
+        ;
+
+show_relaylog_events_stmt:
+          SHOW RELAYLOG_SYM EVENTS_SYM opt_binlog_in binlog_from opt_limit_clause
           opt_channel
           {
-            auto *p= NEW_PTN PT_show_relaylog_events(@$, $3, $5, $6);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_relaylog_events(@$, $4, $6, $7);
           }
-        | opt_extended          /* #1 */
-          keys_or_index         /* #2 */
-          from_or_in            /* #3 */
-          table_ident           /* #4 */
-          opt_db                /* #5 */
-          opt_where_clause      /* #6 */
+        ;
+
+show_keys_stmt:
+          SHOW                  /* #1 */
+          opt_extended          /* #2 */
+          keys_or_index         /* #3 */
+          from_or_in            /* #4 */
+          table_ident           /* #5 */
+          opt_db                /* #6 */
+          opt_where_clause      /* #7 */
           {
             // TODO: error if table_ident is <db>.<table> and opt_db is set.
-            if ($5)
-              $4->change_db($5);
+            if ($6)
+              $5->change_db($6);
 
-            auto *p= NEW_PTN PT_show_keys(@$, $1, $4, $6);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_keys(@$, $2, $5, $7);
           }
-        | opt_storage ENGINES_SYM
+        ;
+
+show_engines_stmt:
+          SHOW opt_storage ENGINES_SYM
           {
-            auto *p= NEW_PTN PT_show_engines(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_engines(@$);
           }
-        | COUNT_SYM '(' '*' ')' WARNINGS
+        ;
+
+show_count_warnings_stmt:
+          SHOW COUNT_SYM '(' '*' ')' WARNINGS
           {
-            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
-            Parse_context pc(YYTHD, Select);
-            if (create_select_for_variable(&pc, "warning_count"))
-              YYABORT;
-            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_select(NULL);
+            $$ = NEW_PTN PT_show_count_warnings(@$);
           }
-        | COUNT_SYM '(' '*' ')' ERRORS
+        ;
+
+show_count_errors_stmt:
+          SHOW COUNT_SYM '(' '*' ')' ERRORS
           {
-            Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
-            Parse_context pc(YYTHD, Select);
-            if (create_select_for_variable(&pc, "error_count"))
-              YYABORT;
-            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_select(NULL);
+            $$ = NEW_PTN PT_show_count_errors(@$);
           }
-        | WARNINGS opt_limit_clause
+        ;
+
+show_warnings_stmt:
+          SHOW WARNINGS opt_limit_clause
           {
-            auto *p= NEW_PTN PT_show_warnings(@$, $2);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_warnings(@$, $3);
           }
-        | ERRORS opt_limit_clause
+        ;
+
+show_errors_stmt:
+          SHOW ERRORS opt_limit_clause
           {
-            auto *p= NEW_PTN PT_show_errors(@$, $2);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_errors(@$, $3);
           }
-        | PROFILES_SYM
+        ;
+
+show_profiles_stmt:
+          SHOW PROFILES_SYM
           {
             push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER_THD(YYTHD, ER_WARN_DEPRECATED_SYNTAX),
                                 "SHOW PROFILES", "Performance Schema");
-            auto *p= NEW_PTN PT_show_profiles(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_profiles(@$);
           }
-        | PROFILE_SYM opt_profile_defs opt_for_query opt_limit_clause
+        ;
+
+show_profile_stmt:
+          SHOW PROFILE_SYM opt_profile_defs opt_for_query opt_limit_clause
           {
-            auto *p= NEW_PTN PT_show_profile(@$, $2, $3, $4);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_profile(@$, $3, $4, $5);
           }
-        | opt_var_type STATUS_SYM opt_wild_or_where
+        ;
+
+show_status_stmt:
+          SHOW opt_var_type STATUS_SYM opt_wild_or_where
           {
-             auto *p= NEW_PTN PT_show_status(@$, $1, $3.wild, $3.where);
-             MAKE_CMD(p);
+             $$ = NEW_PTN PT_show_status(@$, $2, $4.wild, $4.where);
           }
-        | opt_full PROCESSLIST_SYM
+        ;
+
+show_processlist_stmt:
+          SHOW opt_full PROCESSLIST_SYM
           {
-            auto *p = NEW_PTN PT_show_processlist(@$, $1);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_processlist(@$, $2);
           }
-        | opt_var_type VARIABLES opt_wild_or_where
+        ;
+
+show_variables_stmt:
+          SHOW opt_var_type VARIABLES opt_wild_or_where
           {
-            auto *p= NEW_PTN PT_show_variables(@$, $1, $3.wild, $3.where);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_variables(@$, $2, $4.wild, $4.where);
           }
-        | character_set opt_wild_or_where
+        ;
+
+show_character_set_stmt:
+          SHOW character_set opt_wild_or_where
           {
-            auto *p= NEW_PTN PT_show_charsets(@$, $2.wild, $2.where);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_charsets(@$, $3.wild, $3.where);
           }
-        | COLLATION_SYM opt_wild_or_where
+        ;
+
+show_collation_stmt:
+          SHOW COLLATION_SYM opt_wild_or_where
           {
-            auto *p= NEW_PTN PT_show_collations(@$, $2.wild, $2.where);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_collations(@$, $3.wild, $3.where);
           }
-        | PRIVILEGES
+        ;
+
+show_privileges_stmt:
+          SHOW PRIVILEGES
           {
-            auto *p= NEW_PTN PT_show_privileges(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_privileges(@$);
           }
-        | GRANTS
+        ;
+
+show_grants_stmt:
+          SHOW GRANTS
           {
-            auto *tmp= NEW_PTN PT_show_grants(@$, nullptr, nullptr);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_grants(@$, nullptr, nullptr);
           }
-        | GRANTS FOR_SYM user
+        | SHOW GRANTS FOR_SYM user
           {
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, nullptr);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_grants(@$, $4, nullptr);
           }
-        | GRANTS FOR_SYM user USING user_list
+        | SHOW GRANTS FOR_SYM user USING user_list
           {
-            auto *tmp= NEW_PTN PT_show_grants(@$, $3, $5);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_grants(@$, $4, $6);
           }
-        | CREATE DATABASE opt_if_not_exists ident
+        ;
+
+show_create_database_stmt:
+          SHOW CREATE DATABASE opt_if_not_exists ident
           {
-            auto *tmp= NEW_PTN PT_show_create_database(@$, $3, $4);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_database(@$, $4, $5);
           }
-        | CREATE TABLE_SYM table_ident
+        ;
+
+show_create_table_stmt:
+          SHOW CREATE TABLE_SYM table_ident
           {
-            auto *tmp= NEW_PTN PT_show_create_table(@$, $3);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_table(@$, $4);
           }
-        | CREATE VIEW_SYM table_ident
+        ;
+
+show_create_view_stmt:
+          SHOW CREATE VIEW_SYM table_ident
           {
-            auto *tmp= NEW_PTN PT_show_create_view(@$, $3);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_view(@$, $4);
           }
-        | MASTER_SYM STATUS_SYM
+        ;
+
+show_master_status_stmt:
+          SHOW MASTER_SYM STATUS_SYM
           {
-            auto *p= NEW_PTN PT_show_master_status(@$);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_master_status(@$);
           }
-        | replica STATUS_SYM opt_channel
+        ;
+
+show_replica_status_stmt:
+          SHOW replica STATUS_SYM opt_channel
           {
             if (Lex->is_replication_deprecated_syntax_used())
               push_deprecated_warn(YYTHD, "SHOW SLAVE STATUS", "SHOW REPLICA STATUS");
-            auto *p= NEW_PTN PT_show_replica_status(@$, $3);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_replica_status(@$, $4);
           }
-        | CREATE PROCEDURE_SYM sp_name
+        ;
+
+show_create_procedure_stmt:
+          SHOW CREATE PROCEDURE_SYM sp_name
           {
-            auto *tmp= NEW_PTN PT_show_create_procedure(@$, $3);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_procedure(@$, $4);
           }
-        | CREATE FUNCTION_SYM sp_name
+        ;
+
+show_create_function_stmt:
+          SHOW CREATE FUNCTION_SYM sp_name
           {
-            auto *tmp= NEW_PTN PT_show_create_function(@$, $3);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_function(@$, $4);
           }
-        | CREATE TRIGGER_SYM sp_name
+        ;
+
+show_create_trigger_stmt:
+          SHOW CREATE TRIGGER_SYM sp_name
           {
-            auto *tmp= NEW_PTN PT_show_create_trigger(@$, $3);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_trigger(@$, $4);
           }
-        | PROCEDURE_SYM STATUS_SYM opt_wild_or_where
+        ;
+
+show_procedure_status_stmt:
+          SHOW PROCEDURE_SYM STATUS_SYM opt_wild_or_where
           {
-            auto *p= NEW_PTN PT_show_status_proc(@$, $3.wild, $3.where);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_status_proc(@$, $4.wild, $4.where);
           }
-        | FUNCTION_SYM STATUS_SYM opt_wild_or_where
+        ;
+
+show_function_status_stmt:
+          SHOW FUNCTION_SYM STATUS_SYM opt_wild_or_where
           {
-            auto *p= NEW_PTN PT_show_status_func(@$, $3.wild, $3.where);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_status_func(@$, $4.wild, $4.where);
           }
-        | PROCEDURE_SYM CODE_SYM sp_name
+        ;
+
+show_procedure_code_stmt:
+          SHOW PROCEDURE_SYM CODE_SYM sp_name
           {
-            auto *p= NEW_PTN PT_show_procedure_code(@$, $3);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_procedure_code(@$, $4);
           }
-        | FUNCTION_SYM CODE_SYM sp_name
+        ;
+
+show_function_code_stmt:
+          SHOW FUNCTION_SYM CODE_SYM sp_name
           {
-            auto *p= NEW_PTN PT_show_function_code(@$, $3);
-            MAKE_CMD(p);
+            $$ = NEW_PTN PT_show_function_code(@$, $4);
           }
-        | CREATE EVENT_SYM sp_name
+        ;
+
+show_create_event_stmt:
+          SHOW CREATE EVENT_SYM sp_name
           {
-            auto *tmp= NEW_PTN PT_show_create_event(@$, $3);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_event(@$, $4);
           }
-        | CREATE USER user
+        ;
+
+show_create_user_stmt:
+          SHOW CREATE USER user
           {
-            auto *tmp= NEW_PTN PT_show_create_user(@$, $3);
-            MAKE_CMD(tmp);
+            $$ = NEW_PTN PT_show_create_user(@$, $4);
           }
         ;
 
