@@ -560,7 +560,7 @@ class Log_DDL {
                                          DDL_Record *existing_rec);
 
   /** Replay an ALTER ENCRYPT TABLESPACE log record
-  @param[in]	space_id	tablespace id
+  @param[in]	record		DDL Record
   @return DB_SUCCESS or error */
   dberr_t replay_alter_encrypt_space_log(DDL_Record &record);
 
