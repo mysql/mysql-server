@@ -31,25 +31,6 @@ test_numberToBlock()
 {
   for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 63); i++)
   {
-    for (Uint32 j = 0; j < NDBMT_MAX_INSTANCES; j++)
-    {
-      Uint32 block = i;
-      Uint32 instance = j;
-      BlockNumber bn = numberToBlock(block, instance);
-      BlockNumber main = blockToMain(bn);
-      BlockInstance inst = blockToInstance(bn);
-      if (main != block)
-      {
-        return 1;
-      }
-      if (inst != instance)
-      {
-        return 1;
-      }
-    }
-  }
-  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 63); i++)
-  {
     for (Uint32 j = 0; j < 128; j++)
     {
       Uint32 block = i;
@@ -82,6 +63,25 @@ test_numberToBlock()
     if (short_ref != long_ref)
     {
       return 1;
+    }
+  }
+  for (Uint32 i = FIRST_BLOCK; i < (FIRST_BLOCK + 63); i++)
+  {
+    for (Uint32 j = 0; j < NDBMT_MAX_INSTANCES; j++)
+    {
+      Uint32 block = i;
+      Uint32 instance = j;
+      BlockNumber bn = numberToBlock(block, instance);
+      BlockNumber main = blockToMain(bn);
+      BlockInstance inst = blockToInstance(bn);
+      if (main != block)
+      {
+        return 1;
+      }
+      if (inst != instance)
+      {
+        return 1;
+      }
     }
   }
   return 0;

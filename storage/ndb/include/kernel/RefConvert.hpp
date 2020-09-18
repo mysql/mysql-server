@@ -115,7 +115,7 @@ BlockNumber blockToMain(Uint32 block)
     block_part--;
   }
   Uint32 transformer = (1 << NDBMT_BLOCK_BITS) - FIRST_BLOCK;
-  block = (block + transformer) & ((1 << NDBMT_BLOCK_BITS) - 1);
+  block = (block_part + transformer) & ((1 << NDBMT_BLOCK_BITS) - 1);
   block &= ((1 << NDBMT_REAL_BLOCK_BITS) - 1);
   block = block + FIRST_BLOCK;
   return block;
