@@ -450,7 +450,6 @@ int SimpleCpcClient::connect() {
 
 int SimpleCpcClient::open_connection() {
   struct sockaddr_in6 sa;
-  struct hostent *hp;
 
   /* Create socket */
   cpc_sock = ndb_socket_create_dual_stack(SOCK_STREAM, IPPROTO_TCP);
