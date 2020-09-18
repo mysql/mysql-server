@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -69,9 +69,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
         <!-- Big MySQL Logo image in the background -->
         <div id="mysql-logo"><img alt="MySQL logo" src="img/welcome-mysql-logo.png"></div>
+
+	<div id="deprecate-box-wrapper" style="display: flex; flex-wrap: wrap; margin-top: 80px">
+            <div id="deprecate-box" style="width: -webkit-fill-available; margin-right: 2%; line-height: 30px; margin: 10px; font-size: xx-large; color: red;">
+              <p><b>Warning<br><br>MCC is deprecated and will be removed in a future release.</b></p>
+            </div>
+        </div>
         
         <!-- Configuration box: Start from scratch or continue -->
-        <div id="configure-box-wrapper"><div id="configure-box">
+        <div id="configure-box-wrapper" style="top:250px"><div id="configure-box">
           <table summary="Options for starting configuration tool">
             <tr><th colspan="2" scope="col" class="configure-item">
                 <h2>Welcome to MySQL Cluster</h2>
