@@ -100,9 +100,10 @@ class mysql_string_imp {
                             (my_h_string * out_string, my_h_string in_string));
 
   /**
-    alocates a string object and converts the character buffer to string
-    of specified charset_name.
-    please call destroy() api to free the allocated string after this api.
+    Allocates a string object and converts the character buffer to string
+    and just sets the specified charset_name in the string object. It does
+    not performs the conversion of buffer into the specified character set.
+    Caller must free the allocated string by calling destroy() api.
 
     @param [out] out_string Pointer to string object handle to set new string
       to.
@@ -110,7 +111,7 @@ class mysql_string_imp {
       string.
     @param length Length of the buffer to copy into string, in bytes, not in
       character count.
-    @param charset_name charset that is used for convertion.
+    @param charset_name charset that is used for conversion.
     @return Status of performed operation
     @retval false success
     @retval true failure
@@ -120,7 +121,7 @@ class mysql_string_imp {
                              uint64 length, const char *charset_name));
 
   /**
-    converts the mysql_string to the character set specified by
+    Converts the mysql_string to the character set specified by
     charset_name parameter.
 
     @param in_string Pointer to string object handle to set new string
@@ -128,7 +129,7 @@ class mysql_string_imp {
     @param [out] out_buffer Pointer to the buffer with data to be interpreted
       as characters.
     @param length Length of the buffer to hold out put in characters.
-    @param charset_name charset that is used for convertion.
+    @param charset_name charset that is used for conversion.
     @return Status of performed operation
     @retval false success
     @retval true failure
@@ -143,7 +144,7 @@ class mysql_string_imp {
 
     @param string String object handle to get character from.
     @param index Index, position of character to query.
-    @param [out] out_char Pointer to unsinged long value to store character to.
+    @param [out] out_char Pointer to unsigned long value to store character to.
     @return Status of performed operation
     @retval false success
     @retval true failure
@@ -221,7 +222,7 @@ class mysql_string_imp {
   /**
     Releases the string iterator object specified.
 
-    @param iter String iterator object handle te release.
+    @param iter String iterator object handle to release.
     @return Status of performed operation
     @retval false success
     @retval true failure

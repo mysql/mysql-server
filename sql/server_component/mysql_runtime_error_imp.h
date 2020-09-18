@@ -31,7 +31,7 @@ class mysql_server_runtime_error_imp {
     It calls the server SQL error generation function and adds the error
     into the THD's error context
 
-    @param id     error id is used to retrive the error description.
+    @param id     error id is used to retrieve the error description.
     @param flags  this will tell, whether the error is a fatal statement
                   error or write the error to error log file.
     @param args   variable list which holds error message format string

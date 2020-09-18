@@ -116,5 +116,4 @@ bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,
                    char *attr_value, uint max_attr_value,
                    uint *attr_value_length);
 
-/** @} */
 #endif

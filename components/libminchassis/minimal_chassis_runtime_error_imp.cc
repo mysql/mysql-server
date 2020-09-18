@@ -24,13 +24,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service_implementation.h>
 #include <stdio.h>
 
-/**
-  This is the default implementation for emit api.
-  @param error_id    error ID.
-  @param flags error flags
-  @param args  va_list type, which hold the error message string.
-*/
-
 DEFINE_METHOD(void, mysql_runtime_error_imp::emit,
               (int error_id, int flags, va_list args)) {
   char buff[1024];

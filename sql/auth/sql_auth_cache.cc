@@ -3208,20 +3208,6 @@ uint64 Acl_cache::version() { return m_role_graph_version.load(); }
 
 int32 Acl_cache::size() { return m_cache.count.load(); }
 
-/**
-  Finds an Acl_map entry in the Acl_cache and increase its reference count.
-  If no Acl_map is located, a new one is created with reference count one.
-  The Acl_map is returned to the caller.
-
-  @param sctx The target Security_context
-  @param uid The target authid
-  @param active_roles A list of active roles
-
-  @return A pointer to an Acl_map
-    @retval !NULL Success
-    @retval NULL A fatal OOM error happened.
-*/
-
 Acl_map *Acl_cache::checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
                                      List_of_auth_id_refs &active_roles) {
   DBUG_TRACE;

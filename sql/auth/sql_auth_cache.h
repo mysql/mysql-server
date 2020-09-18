@@ -597,7 +597,13 @@ class Acl_cache {
     A new object will also be created if the role graph version counter is
     different than the acl map object's version.
 
-    @param uid user id
+    @param sctx The target Security_context
+    @param uid The target authid
+    @param active_roles A list of active roles
+
+    @return A pointer to an Acl_map
+    @retval !NULL Success
+    @retval NULL A fatal OOM error happened.
   */
   Acl_map *checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
                             List_of_auth_id_refs &active_roles);
