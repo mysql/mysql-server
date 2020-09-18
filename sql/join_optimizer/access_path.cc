@@ -835,27 +835,34 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
 void FindTablesToGetRowidFor(AccessPath *path) {
   table_map handled_by_others = 0;
 
-  auto add_tables_handled_by_others = [path, &handled_by_others](
-                                          AccessPath *subpath) {
-    if (path == subpath) return false;  // Skip ourselves.
-    switch (subpath->type) {
-      case AccessPath::HASH_JOIN:
-        handled_by_others |= GetUsedTables(subpath);
-        FindTablesToGetRowidFor(subpath);
-        return true;  // Don't double-traverse.
-      case AccessPath::BKA_JOIN:
-        handled_by_others |= GetUsedTables(subpath->bka_join().outer);
-        FindTablesToGetRowidFor(subpath);
-        return true;  // Don't double-traverse.
-      case AccessPath::STREAM:
-        subpath->stream().provide_rowid = true;
-        handled_by_others |= subpath->stream().table->pos_in_table_list->map();
-        // Doesn't really matter, we don't cross query blocks anyway.
-        return true;
-      default:
-        return false;
-    }
-  };
+  auto add_tables_handled_by_others =
+      [path, &handled_by_others](AccessPath *subpath) {
+        if (path == subpath) return false;  // Skip ourselves.
+        switch (subpath->type) {
+          case AccessPath::HASH_JOIN:
+            handled_by_others |= GetUsedTables(subpath);
+            FindTablesToGetRowidFor(subpath);
+            return true;  // Don't double-traverse.
+          case AccessPath::BKA_JOIN:
+            handled_by_others |= GetUsedTables(subpath->bka_join().outer);
+            FindTablesToGetRowidFor(subpath);
+            return true;  // Don't double-traverse.
+          case AccessPath::STREAM: {
+            subpath->stream().provide_rowid = true;
+            TABLE *table = subpath->stream().table;
+            if (table->pos_in_table_list == nullptr) {
+              // Don't need to set anything; see comment on the similar
+              // test in NewSortAccessPath().
+            } else {
+              handled_by_others |= table->pos_in_table_list->map();
+            }
+            // Doesn't really matter, we don't cross query blocks anyway.
+            return true;
+          }
+          default:
+            return false;
+        }
+      };
 
   switch (path->type) {
     case AccessPath::HASH_JOIN:

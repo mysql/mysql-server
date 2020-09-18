@@ -40,7 +40,6 @@
 
     - Many SQL features: DISTINCT, recursive CTE, windowing functions,
       LATERAL, JSON_TABLE.
-    - ORDER BY and GROUP BY at the same time.
     - Secondary engine.
     - Hints.
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
@@ -58,8 +57,7 @@
     - Nested loop joins; hash joins only.
     - Multiple equalities; they are simplified to simple equalities
       before optimization (so some legal join orderings will be missed).
-    - Temporary tables internal to the JOIN, e.g. aggregation through
-      a temporary table.
+    - Aggregation through a temporary table.
     - Queries with a very large amount of possible orderings, e.g. 30-way
       star joins. (Less extreme queries, such as 30-way chain joins,
       will be fine.) They will receive a similar error message as with

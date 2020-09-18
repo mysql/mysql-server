@@ -163,6 +163,20 @@ class JOIN {
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
   TABLE *sort_by_table{nullptr};
+
+  // Temporary tables that need to be cleaned up after the query.
+  // Only used for the hypergraph optimizer; the non-hypergraph optimizer
+  // uses QEP_TABs to hold the list of tables (including temporary tables).
+  struct TemporaryTableToCleanup {
+    TABLE *table;
+
+    // Allocated on the MEM_ROOT, but can hold some objects
+    // that allocate on the heap and thus need destruction.
+    Temp_table_param *temp_table_param;
+  };
+  Prealloced_array<TemporaryTableToCleanup, 1> temp_tables{
+      PSI_NOT_INSTRUMENTED};
+
   /**
     Before plan has been created, "tables" denote number of input tables in the
     query block and "primary_tables" is equal to "tables".

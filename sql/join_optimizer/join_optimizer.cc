@@ -62,6 +62,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_tmp_table.h"
 #include "sql/table.h"
 
 using hypergraph::Hyperedge;
@@ -84,6 +85,7 @@ constexpr double kAggregateOneRowCost = 0.01;
 constexpr double kSortOneRowCost = 0.01;
 constexpr double kHashBuildOneRowCost = 0.01;
 constexpr double kHashProbeOneRowCost = 0.01;
+constexpr double kMaterializeOneRowCost = 0.01;
 
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
@@ -493,12 +495,6 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "SQL_BUFFER_RESULT");
     return true;
   }
-  if (join->select_lex->is_grouped() && join->select_lex->is_ordered()) {
-    // This runs into problems with slices currently.
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
-             "ORDER BY and GROUP BY at the same time");
-    return true;
-  }
   for (TABLE_LIST *tl = join->select_lex->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
     if (tl->is_derived() && tl->derived_unit()->m_lateral_deps) {
@@ -523,11 +519,160 @@ double EstimateSortCost(double num_rows) {
   }
 }
 
+/**
+  If we have both ORDER BY and GROUP BY, we need a materialization step
+  after the grouping -- although in most cases, we only need to
+  materialize one row at a time (streaming), so the performance loss
+  should be very slight. This is because when filesort only really deals
+  with fields, not values; when it is to “output” a row, it puts back the
+  contents of the sorted table's (or tables') row buffer(s). For
+  expressions that only depend on the current row, such as (f1 + 1),
+  this is fine, but aggregate functions (Item_sum) depend on multiple
+  rows, so we need a field where filesort can put back its value
+  (and of course, subsequent readers need to read from that field
+  instead of trying to evaluate the Item_sum). A temporary table provides
+  just that, so we create one based on the current field list;
+  StreamingIterator (or MaterializeIterator, if we actually need to
+  materialize) will evaluate all the Items in turn and put their values
+  into the temporary table's fields.
+
+  For simplicity, we materialize all items in the SELECT list, even those
+  that are not aggregate functions. This is a tiny performance loss,
+  but makes things simpler.
+
+  Note that we cannot set up an access path for this temporary table yet;
+  that needs to wait until we know whether the sort decided to use row IDs
+  or not, and Filesort cannot be set up until it knows what tables to sort.
+  Thus, that job is deferred to CreateMaterializationPathForSortingAggregates().
+ */
+TABLE *CreateTemporaryTableForSortingAggregates(
+    THD *thd, SELECT_LEX *select_lex, Temp_table_param **temp_table_param_arg) {
+  JOIN *join = select_lex->join;
+
+  Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param;
+  *temp_table_param_arg = temp_table_param;
+  temp_table_param->precomputed_group_by = false;
+  temp_table_param->hidden_field_count = CountHiddenFields(*join->fields);
+  temp_table_param->skip_create_table = false;
+  count_field_types(select_lex, temp_table_param, *join->fields,
+                    /*reset_with_sum_func=*/true, /*save_sum_fields=*/true);
+
+  TABLE *temp_table = create_tmp_table(
+      thd, temp_table_param, *join->fields,
+      /*group=*/nullptr, /*distinct=*/false, /*save_sum_fields=*/true,
+      select_lex->active_options(), /*rows_limit=*/HA_POS_ERROR, "");
+  temp_table->alias = "<temporary>";
+
+  // Replace the SELECT list with items that read from our temporary table.
+  auto fields = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
+  for (Item *item : *join->fields) {
+    Field *field = item->get_tmp_table_field();
+    Item *temp_table_item;
+    if (field == nullptr) {
+      assert(item->const_for_execution());
+      temp_table_item = item;
+    } else {
+      temp_table_item = new Item_field(field);
+      // Field items have already been turned into copy_fields entries
+      // in create_tmp_table(), but non-field items have not.
+      if (item->type() != Item::FIELD_ITEM) {
+        temp_table_param->items_to_copy->push_back(Func_ptr{item});
+      }
+    }
+    temp_table_item->hidden = item->hidden;
+    fields->push_back(temp_table_item);
+  }
+  join->fields = fields;
+
+  // Change all items in the ORDER list to point to the temporary table.
+  // This isn't important for streaming (the items would get the correct
+  // value anyway -- although possibly with some extra calculations),
+  // but it is for materialization.
+  for (ORDER *order = select_lex->order_list.first; order != nullptr;
+       order = order->next) {
+    Field *field = (*order->item)->get_tmp_table_field();
+    if (field != nullptr) {
+      Item_field *temp_field_item = new Item_field(field);
+
+      // *order->item points into a memory area (the “base ref slice”)
+      // where HAVING might expect to find items _not_ pointing into the
+      // temporary table (if there is true materialization, it should run
+      // before it to minimize the size of the sorted input), so in order to
+      // not disturb it, we create a whole new place for the Item pointer
+      // to live.
+      //
+      // TODO(sgunders): When we get rid of slices altogether,
+      // we can skip this.
+      thd->change_item_tree(pointer_cast<Item **>(&order->item),
+                            pointer_cast<Item *>(new (thd->mem_root) Item *));
+      thd->change_item_tree(order->item, temp_field_item);
+    }
+  }
+
+  // We made a new table, so make sure it gets properly cleaned up
+  // at the end of execution.
+  join->temp_tables.push_back(
+      JOIN::TemporaryTableToCleanup{temp_table, temp_table_param});
+
+  return temp_table;
+}
+
+/**
+  Set up an access path for streaming or materializing between grouping
+  and sorting. See CreateTemporaryTableForSortingAggregates() for details.
+ */
+AccessPath *CreateMaterializationPathForSortingAggregates(
+    THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table,
+    Temp_table_param *temp_table_param, Filesort *filesort) {
+  if (filesort->using_addon_fields()) {
+    // The common case; we can use streaming.
+    AccessPath *stream_path =
+        NewStreamingAccessPath(thd, path, join, temp_table_param, temp_table,
+                               /*ref_slice=*/-1);
+    stream_path->num_output_rows = path->num_output_rows;
+    stream_path->cost = path->cost;
+    stream_path->num_output_rows_before_filter = stream_path->num_output_rows;
+    stream_path->cost_before_filter = stream_path->cost;
+    return stream_path;
+  } else {
+    // Filesort needs sort by row ID, possibly because large blobs are
+    // involved, so we need to actually materialize. (If we wanted a
+    // smaller temporary table at the expense of more seeks, we could
+    // materialize only aggregate functions and do a multi-table sort
+    // by docid, but this situation is rare, so we go for simplicity.)
+    AccessPath *table_path =
+        NewTableScanAccessPath(thd, temp_table, /*count_examined_rows=*/false);
+    AccessPath *materialize_path = NewMaterializeAccessPath(
+        thd,
+        SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
+                                    /*copy_fields_and_items=*/true,
+                                    temp_table_param),
+        /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
+        /*unit=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
+        /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);
+    materialize_path->num_output_rows = path->num_output_rows;
+
+    // Try to get usable estimates. Ignored by InnoDB, but used by
+    // TempTable.
+    temp_table->file->stats.records = path->num_output_rows;
+    materialize_path->cost = path->cost +
+                             kMaterializeOneRowCost * path->num_output_rows +
+                             temp_table->file->table_scan_cost().total_cost();
+
+    materialize_path->num_output_rows_before_filter =
+        materialize_path->num_output_rows;
+    materialize_path->cost_before_filter = materialize_path->cost;
+    return materialize_path;
+  }
+}
+
 }  // namespace
 
 AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   JOIN *join = select_lex->join;
   if (CheckSupportedQuery(thd, join)) return nullptr;
+
+  assert(join->temp_tables.empty());
 
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root);
@@ -654,12 +799,30 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   if (select_lex->is_ordered()) {
     Prealloced_array<TABLE *, 4> tables =
         CollectTables(select_lex, GetUsedTables(root_path));
+    Temp_table_param *temp_table_param = nullptr;
+    TABLE *temp_table = nullptr;
+
+    if (select_lex->is_grouped()) {
+      temp_table = CreateTemporaryTableForSortingAggregates(thd, select_lex,
+                                                            &temp_table_param);
+      // Filesort now only needs to worry about one input -- this temporary
+      // table. This holds whether we are actually materializing or just
+      // using streaming.
+      tables.clear();
+      tables.push_back(temp_table);
+    }
+
     Filesort *filesort = new (thd->mem_root)
         Filesort(thd, std::move(tables), /*keep_buffers=*/false,
                  select_lex->order_list.first,
                  /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
                  /*remove_duplicates=*/false, /*force_sort_positions=*/false,
                  /*unwrap_rollup=*/false);
+
+    if (temp_table != nullptr) {
+      root_path = CreateMaterializationPathForSortingAggregates(
+          thd, join, root_path, temp_table, temp_table_param, filesort);
+    }
 
     AccessPath *sort_path = NewSortAccessPath(thd, root_path, filesort,
                                               /*count_examined_rows=*/false);

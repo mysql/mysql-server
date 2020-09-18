@@ -1834,6 +1834,12 @@ void JOIN::destroy() {
         table->duplicate_removal_iterator = nullptr;
       }
     }
+    for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
+      close_tmp_table(thd, cleanup.table);
+      free_tmp_table(cleanup.table);
+      ::destroy(cleanup.temp_table_param);
+    }
+    temp_tables.clear();
   }
   if (join_tab || best_ref) {
     for (uint i = 0; i < tables; i++) {
@@ -3647,6 +3653,14 @@ void JOIN::join_free() {
   }
 }
 
+static void cleanup_table(TABLE *table) {
+  if (table->is_created()) {
+    table->file->ha_index_or_rnd_end();
+  }
+  free_io_cache(table);
+  filesort_free_buffers(table, false);
+}
+
 /**
   Free resources of given join.
 
@@ -3673,20 +3687,14 @@ void JOIN::cleanup() {
         table = (join_tab ? &join_tab[i] : best_ref[i])->table();
       }
       if (!table) continue;
-      if (table->is_created()) {
-        table->file->ha_index_or_rnd_end();
-      }
-      free_io_cache(table);
-      filesort_free_buffers(table, false);
+      cleanup_table(table);
     }
   } else if (thd->lex->using_hypergraph_optimizer) {
     for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
-      TABLE *table = tl->table;
-      if (table->is_created()) {
-        table->file->ha_index_or_rnd_end();
-      }
-      free_io_cache(table);
-      filesort_free_buffers(table, false);
+      cleanup_table(tl->table);
+    }
+    for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
+      cleanup_table(cleanup.table);
     }
   }
 
