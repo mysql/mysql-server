@@ -1616,11 +1616,21 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
 
+  Uint32 use_auto_thread_config = 0;
+  ndb_mgm_get_int_parameter(p,
+                            CFG_DB_AUTO_THREAD_CONFIG,
+                            &use_auto_thread_config);
+
   Uint32 use_classic_fragmentation = 1;
   ndb_mgm_get_int_parameter(p,
                             CFG_DB_CLASSIC_FRAGMENTATION,
                             &use_classic_fragmentation);
   m_use_classic_fragmentation = use_classic_fragmentation;
+  if (m_use_classic_fragmentation && use_auto_thread_config)
+  {
+    jam();
+    m_use_classic_fragmentation = 1;
+  }
 
   {
     jam();
@@ -12756,7 +12766,14 @@ Dbdih::getFragmentsPerNode()
     return c_fragments_per_node_;
   }
 
-  c_fragments_per_node_ = globalData.ndbLogParts;
+  if (m_use_classic_fragmentation)
+  {
+    c_fragments_per_node_ = getLqhWorkers();
+  }
+  else
+  {
+    c_fragments_per_node_ = globalData.ndbLogParts;
+  }
 
   NodeRecordPtr nodePtr;
   nodePtr.i = cfirstAliveNode;
@@ -12764,7 +12781,17 @@ Dbdih::getFragmentsPerNode()
   {
     jam();
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    Uint32 workers = getNodeInfo(nodePtr.i).m_log_parts;
+    Uint32 workers;
+    if (m_use_classic_fragmentation)
+    {
+      jam();
+      workers = getNodeInfo(nodePtr.i).m_lqh_workers;
+    }
+    else
+    {
+      jam();
+      workers = getNodeInfo(nodePtr.i).m_log_parts;
+    }
     c_fragments_per_node_ = MIN(workers, c_fragments_per_node_);
     nodePtr.i = nodePtr.p->nextNode;
   } while (nodePtr.i != RNIL);
