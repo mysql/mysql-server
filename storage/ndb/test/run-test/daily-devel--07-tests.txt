@@ -36,11 +36,11 @@ max-time: 300
 
 cmd: test_event
 args: -n SubscribeUnsubscribe -l1000 T1
-max-time: 180
+max-time: 360
 
 cmd: test_event
 args: -n SubscribeUnsubscribeWithLoad -l1000 T1
-max-time: 180
+max-time: 360
 
 cmd: testFK
 args: -n DropTableWithFKDuringRestart T1

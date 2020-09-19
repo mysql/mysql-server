@@ -6890,45 +6890,59 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 static Uint32
-setConfigValueAndRestartNode(NdbMgmd *mgmd, Uint32 key, Uint32 value, int nodeId, NdbRestarter *restarter)
+setConfigValueAndRestartNode(NdbMgmd *mgmd,
+                             Uint32 key,
+                             Uint32 & value,
+                             int nodeId,
+                             NdbRestarter *restarter)
 {
-    // Get the binary config
-    Config conf;
-    if (!mgmd->get_config(conf)) 
+  // Get the binary config
+  Config conf;
+  if (!mgmd->get_config(conf)) 
+  {
+    g_err << "Failed to get config from ndb_mgmd." << endl;
+    return NDBT_FAILED;
+  }
+  // Set the key
+  ConfigValues::Iterator iter(conf.m_configValues->m_config);
+  Uint32 oldValue = 0;
+  bool first = true;
+  for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
+  {
+    if (!iter.openSection(CFG_SECTION_NODE, nodeid))
+      continue;
+    Uint32 prev_old_value = oldValue;
+    if (iter.get(key, &oldValue))
     {
-      g_err << "Failed to get config from ndb_mgmd." << endl;
+      iter.set(key, value);
+    }
+    iter.closeSection();
+    if (!first && prev_old_value != oldValue)
+    {
+      g_err << "Failed since node configs not equal" << endl;
       return NDBT_FAILED;
     }
-    // Set the key
-    ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
-    {
-      Uint32 oldValue;
-      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
-        continue;
-      if (iter.get(key, &oldValue))
-        iter.set(key, value);
-      iter.closeSection();
-    }
-    // Set the modified config
-    if (!mgmd->set_config(conf)) 
-    {
-      g_err << "Failed to set config in ndb_mgmd." << endl;
-      return NDBT_FAILED;
-    }
-    g_err << "Restarting node to apply config change..." << endl;
-    sleep(3); //Give MGM server time to restart
-    if (restarter->restartOneDbNode(nodeId, false, false, true))
-    {
-      g_err << "Failed to restart node." << endl;
-      return NDBT_FAILED;
-    }
-    if (restarter->waitNodesStarted(&nodeId, 1) != 0)
-    {
-      g_err << "Failed waiting for node started." << endl;
-      return NDBT_FAILED;
-    }
-    return NDBT_OK;
+  }
+  value = oldValue;
+  // Set the modified config
+  if (!mgmd->set_config(conf)) 
+  {
+    g_err << "Failed to set config in ndb_mgmd." << endl;
+    return NDBT_FAILED;
+  }
+  sleep(5); //Give MGM server time to restart
+  g_err << "Restarting node " << nodeId << " to apply config change.." << endl;
+  if (restarter->restartOneDbNode(nodeId, false, false, true))
+  {
+    g_err << "Failed to restart node." << endl;
+    return NDBT_FAILED;
+  }
+  if (restarter->waitNodesStarted(&nodeId, 1) != 0)
+  {
+    g_err << "Failed waiting for node started." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
 } 
 
 int
@@ -6941,6 +6955,7 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
     ctx->stopTest();
     return NDBT_OK;
   }
+  Uint32 lcp_watchdog_limit = 0;
   int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
   do
   {
@@ -6954,8 +6969,9 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
 
     // to disable the LCP frag scan watchdog, set 
     // CFG_DB_LCP_SCAN_WATCHDOG_LIMIT = 0
-    if(setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT, 
-          0, victim, &restarter) == NDBT_FAILED)
+    lcp_watchdog_limit = 0;
+    if (setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
+          lcp_watchdog_limit, victim, &restarter) == NDBT_FAILED)
       break;
 
     g_err << "Injecting fault in node " << victim;
@@ -7012,10 +7028,11 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
     if(result == NDBT_FAILED)
       break;
 
-    g_err << "No LCP activity: LCP Frag watchdog successfully disabled..." << endl;
+    g_err << "No LCP activity: LCP Frag watchdog successfully disabled..."
+          << endl;
     g_err << "Restoring default LCP Frag watchdog config..." << endl;
     if(setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT, 
-          60, victim, &restarter) == NDBT_FAILED)
+          lcp_watchdog_limit, victim, &restarter) == NDBT_FAILED)
       break;
 
     ctx->stopTest();
@@ -9039,21 +9056,34 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
     g_err << "[SKIPPED] Test skipped.  Needs 2 nodes" << endl;
     return NDBT_OK; /* Requires exact 2 nodes to run */
   }
+  int node_1 = restarter.getDbNodeId(0);
+  int node_2 = restarter.getDbNodeId(1);
+  if (node_1 == -1 || node_2 == -1)
+  {
+    g_err << "Failed to find node ids of data nodes" << endl;
+    return NDBT_FAILED;
+  }
   if (!mgmd.connect()) 
   {
     g_err << "Failed to connect to ndb_mgmd." << endl;
     return NDBT_FAILED;
   }
+  Uint32 gcp_interval = 200;
   if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
-                                   200, 1, &restarter) == NDBT_FAILED)
+                          gcp_interval, node_1, &restarter) == NDBT_FAILED)
   {
     g_err << "Failed to set TimeBetweenGlobalCheckpoints to 200" << endl;
     return NDBT_FAILED;
   }
-  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
-                                   200, 2, &restarter) == NDBT_FAILED)
+  g_err << "Restarting node " << node_2 << " to apply config change.." << endl;
+  if (restarter.restartOneDbNode(node_2, false, false, true))
   {
-    g_err << "Failed to set TimeBetweenGlobalCheckpoints to 200" << endl;
+    g_err << "Failed to restart node." << endl;
+    return NDBT_FAILED;
+  }
+  if (restarter.waitNodesStarted(&node_2, 1) != 0)
+  {
+    g_err << "Failed waiting for node started." << endl;
     return NDBT_FAILED;
   }
   if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
@@ -9159,17 +9189,24 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
     g_err << "Wait node start failed" << endl;
     return NDBT_FAILED;
   }
-  ndbout << "Reset TimeBetweenGlobalCheckpoints to 2000" << endl;
+  ndbout << "Reset TimeBetweenGlobalCheckpoints to "
+         << gcp_interval << endl;
+
   if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
-                                   2000, 1, &restarter) == NDBT_FAILED)
+                         gcp_interval, node_1, &restarter) == NDBT_FAILED)
   {
-    g_err << "Failed to set TimeBetweenGlobalCheckpoints to 2000" << endl;
+    g_err << "Failed to reset TimeBetweenGlobalCheckpoints" << endl;
     return NDBT_FAILED;
   }
-  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
-                                   2000, 2, &restarter) == NDBT_FAILED)
+  g_err << "Restarting node " << node_2 << " to apply config change.." << endl;
+  if (restarter.restartOneDbNode(node_2, false, false, true))
   {
-    g_err << "Failed to set TimeBetweenGlobalCheckpoints to 2000" << endl;
+    g_err << "Failed to restart node." << endl;
+    return NDBT_FAILED;
+  }
+  if (restarter.waitNodesStarted(&node_2, 1) != 0)
+  {
+    g_err << "Failed waiting for node started." << endl;
     return NDBT_FAILED;
   }
   ndbout << "Test complete" << endl;
