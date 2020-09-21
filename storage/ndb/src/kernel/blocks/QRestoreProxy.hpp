@@ -35,7 +35,7 @@ public:
   BLOCK_DEFINES(QRestoreProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 };
 
 #undef JAM_FILE_ID

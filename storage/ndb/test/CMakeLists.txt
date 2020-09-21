@@ -33,9 +33,7 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
           "error=deprecated-copy"
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
-          "error=maybe-uninitialized"
-          # Downgrade -Werror=suggest-override to warning
-          "error=suggest-override")
+          "error=maybe-uninitialized")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})

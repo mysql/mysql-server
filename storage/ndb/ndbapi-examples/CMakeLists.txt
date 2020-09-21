@@ -28,8 +28,6 @@ FOREACH(warning
     "unused-parameter"
     # Downgrade -Werror to warning for "may be used uninitialized"
     "error=maybe-uninitialized"
-    # Downgrade -Werror=suggest-override to warning
-    "error=suggest-override"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
