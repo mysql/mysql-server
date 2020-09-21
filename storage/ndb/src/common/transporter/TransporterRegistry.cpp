@@ -1437,7 +1437,9 @@ TransporterRegistry::spin_check_transporters(
     res = check_TCP(recvdata, 0);
     if (res)
       break;
+#ifdef NDB_HAVE_CPU_PAUSE
     NdbSpin();
+#endif
     NDB_TICKS now = NdbTick_getCurrentTicks();
     micros_passed =
       NdbTick_Elapsed(start, now).microSec();

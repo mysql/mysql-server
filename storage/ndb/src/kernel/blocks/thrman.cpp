@@ -828,10 +828,12 @@ Thrman::measure_wakeup_time(Signal *signal, Uint32 count)
     }
     do
     {
+#ifdef NDB_HAVE_CPU_PAUSE
       for (Uint32 i = 0; i < 20; i++)
       {
         NdbSpin();
       }
+#endif
       NDB_TICKS now2 = NdbTick_getCurrentTicks();
       Uint64 micros_wait = NdbTick_Elapsed(now, now2).microSec();
       if (micros_wait >= 50)

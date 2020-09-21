@@ -1157,7 +1157,9 @@ void Dbtc::execSTTOR(Signal* signal)
       mb();
       while (m_inited_rr_groups == false)
       {
+#ifdef NDB_HAVE_CPU_PAUSE
         NdbSpin();
+#endif
         if (globalData.theRestartFlag == perform_stop)
         {
           /* System is shutting down. */
