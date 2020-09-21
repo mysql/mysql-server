@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-ADD_DEFINITIONS(-DLOG_SUBSYS_TAG="Repl")
+ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="semisync")
 
 MYSQL_ADD_PLUGIN(semisync_master
