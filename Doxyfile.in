@@ -1000,6 +1000,7 @@ EXCLUDE                = cmd-line-utils \
                          internal \
                          libevent \
                          plugin/innodb_memcached/daemon_memcached/include/memcached \
+			 plugin/innodb_memcached/innodb_memcache \
                          plugin/test_services \
                          plugin/test_service_sql_api \
                          source_downloads \
