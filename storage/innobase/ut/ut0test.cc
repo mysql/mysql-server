@@ -197,40 +197,60 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   ut_ad(tokens.size() == 3);
 
   ut_ad(tokens[0] == "find_ondisk_page_type");
-  std::string space_id_str = tokens[1];
-  std::string page_no_str = tokens[2];
+  const std::string space_id_str = tokens[1];
+  const std::string page_no_str = tokens[2];
 
-  space_id_t space_id = std::stoul(space_id_str);
+  const space_id_t space_id = std::stoul(space_id_str);
   space_id_t page_no = std::stoul(page_no_str);
 
-  page_id_t page_id(space_id, page_no);
-
-  char *filename = fil_space_get_first_path(space_id);
-  TLOG("filename=" << filename);
-  FILE *fin = fopen(filename, "r");
-
-  if (fin == NULL) {
-    TLOG("fopen() failed. file=" << filename);
-    ut_free(filename);
-    return RET_FAIL;
-  }
-
+  /* Calculate the offset here. */
   bool found;
   page_size_t page_size = fil_space_get_page_size(space_id, &found);
   ut_ad(found);
 
-  // page_size_t page_size = dict_table_page_size(table);
-  ulint offset = page_no * page_size.physical();
-  int ret = fseek(fin, offset, SEEK_SET);
-  ut_ad(ret == 0);
+  const page_id_t page_id(space_id, page_no);
 
-  byte buf[FIL_PAGE_DATA];
-  size_t n = fread(buf, FIL_PAGE_DATA, 1, fin);
-  ut_ad(n == 1);
-  fclose(fin);
+  /* The buffer into which file page header is read. */
+  alignas(OS_FILE_LOG_BLOCK_SIZE) std::array<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
 
-  byte *page = buf;
-  page_type_t type = fil_page_get_type(page);
+  fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
+
+  const fil_node_t *node = space->get_file_node(&page_no);
+  ut_ad(node->is_open);
+
+  const os_offset_t offset = page_no * page_size.physical();
+
+  /* When the space file is currently open we are not able to write to it
+   * directly on Windows. We must use the currently opened handle. Moreover,
+   * on Windows a file opened for the AIO access must be accessed only by AIO
+   * methods. The AIO requires that the i/o buffer be aligned to OS block size
+   * and also its size divisible by OS block size. */
+
+  IORequest read_io_type(IORequest::READ);
+  const dberr_t err =
+      os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle, buf.data(),
+             offset, OS_FILE_LOG_BLOCK_SIZE, false, nullptr, nullptr);
+  if (err != DB_SUCCESS) {
+    page_type_t page_type = fil_page_get_type(buf.data());
+    TLOG("Could not read page_id=" << page_id << ", page_type=" << page_type
+                                   << ", err=" << err);
+    /* Since we do not pass encryption information in IORequest, if page is
+     * encrypted on disk, it cannot be decrypted by i/o layer. But the encrypted
+     * data will be available in the provided buffer. */
+
+    if (err == DB_IO_DECRYPT_FAIL) {
+      /* We expect this only for encrypted pages.  For this function, this error
+       * is OK because we will only read one header field and the header is not
+       * encrypted. */
+      ut_ad(Encryption::is_encrypted_page(buf.data()));
+    } else {
+      return RET_FAIL;
+    }
+  }
+
+  const byte *page = buf.data();
+  const page_type_t type = fil_page_get_type(page);
   const char *page_type = fil_get_page_type_str(type);
 
   TLOG("page_type=" << type);
@@ -240,7 +260,6 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   sout << page_type;
   set_output(sout);
 
-  ut_free(filename);
   return RET_PASS;
 }
 
@@ -283,44 +302,16 @@ DISPATCH_FUNCTION_DEF(Tester::make_ondisk_root_page_zeroes) {
   ut_ad(tokens.size() == 2);
   ut_ad(tokens[0] == "make_ondisk_root_page_zeroes");
 
-  std::string table_name = tokens[1];
-  dict_table_t *table = is_table_open(table_name);
+  const std::string table_name = tokens[1];
+  const dict_table_t *const table = is_table_open(table_name);
 
   ut_ad(table != nullptr);
 
-  space_id_t space_id = table->space;
+  const dict_index_t *const clust_index = table->first_index();
+  const page_no_t root_page_no = clust_index->page;
+  const page_size_t page_size = dict_table_page_size(table);
 
-  dict_index_t *clust_index = table->first_index();
-  page_no_t root_page_no = clust_index->page;
-
-  page_id_t page_id(space_id, root_page_no);
-
-  char *filename = fil_space_get_first_path(table->space);
-  TLOG("filename=" << filename);
-  FILE *fin = fopen(filename, "r+");
-  ut_ad(fin != NULL);
-
-  page_size_t page_size = dict_table_page_size(table);
-  size_t nbytes = page_size.logical();
-
-  ulint offset = root_page_no * nbytes;
-
-  std::unique_ptr<byte[]> buf(new byte[nbytes]);
-
-  /* Make the contents zeroes. */
-  memset(buf.get(), 0x00, nbytes);
-  int st = fseek(fin, offset, SEEK_SET);
-  ut_ad(st == 0);
-
-  size_t n = fwrite(buf.get(), nbytes, 1, fin);
-  ut_ad(n == 1);
-
-  fflush(fin);
-  TLOG("Filled with zeroes: page_id=" << page_id);
-  fclose(fin);
-
-  ut_free(filename);
-  return RET_PASS;
+  return clear_page_prefix(table->space, root_page_no, page_size.physical());
 }
 
 Ret_t Tester::corrupt_ondisk_root_page(
@@ -331,8 +322,8 @@ Ret_t Tester::corrupt_ondisk_root_page(
   ut_ad(tokens.size() == 2);
   ut_ad(tokens[0] == "corrupt_ondisk_root_page");
 
-  std::string table_name = tokens[1];
-  dict_table_t *table = is_table_open(table_name);
+  const std::string table_name = tokens[1];
+  const dict_table_t *table = is_table_open(table_name);
 
   if (table == nullptr) {
     std::vector<std::string> cmd{"open_table", table_name};
@@ -340,6 +331,7 @@ Ret_t Tester::corrupt_ondisk_root_page(
 
     if (st != RET_PASS) {
       XLOG("Failed to open table: " << table_name);
+      set_output(sout);
       return st;
     }
 
@@ -348,50 +340,80 @@ Ret_t Tester::corrupt_ondisk_root_page(
 
   if (table == nullptr) {
     XLOG("Failed to open table: " << table_name);
+    set_output(sout);
     return RET_FAIL;
   }
 
-  space_id_t space_id = table->space;
+  const dict_index_t *const clust_index = table->first_index();
+  const page_no_t root_page_no = clust_index->page;
 
-  dict_index_t *clust_index = table->first_index();
-  page_no_t root_page_no = clust_index->page;
+  return clear_page_prefix(table->space, root_page_no, FIL_PAGE_DATA);
+}
 
-  page_id_t page_id(space_id, root_page_no);
+Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
+                                const size_t prefix_length) {
+  TLOG("Tester::clear_page_prefix()");
+  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> mem;
+  /* We read before write, as writes have to have length divisible by
+  OS_FILE_LOG_BLOCK_SIZE thus we need to learn the content of non-zeroed suffix.
+  Also, it's easier to spot errors during read than write, and this requires
+  reading at least the FIL_PAGE_DATA first bytes */
+  const auto buf_size =
+      ut_uint64_align_up(prefix_length, OS_FILE_LOG_BLOCK_SIZE);
 
-  char *filename = fil_space_get_first_path(table->space);
-  TLOG("filename=" << filename);
+  mem.create(buf_size);
+  const page_id_t page_id{space_id, page_no};
+  fil_space_t *space = fil_space_get(space_id);
 
-  page_size_t page_size = dict_table_page_size(table);
-  size_t nbytes = page_size.logical();
+  // Note: this call adjusts page_no, so it becomes relative to the node
+  fil_node_t *node = space->get_file_node(&page_no);
+  ut_ad(node->is_open);
 
-  close_table(table);
+  const page_size_t page_size(space->flags);
+  const size_t page_size_bytes = page_size.physical();
+  ut_a(buf_size <= page_size_bytes);
 
-  FILE *fin = fopen(filename, "r+");
+  // Note: we use updated page_no here, as os_aio needs offset relative to node
+  const os_offset_t offset = page_no * page_size_bytes;
 
-  if (fin == NULL) {
-    XLOG("Failed to open file: " << filename << "(" << strerror(errno) << ")");
-    ut_ad(fin != NULL);
-    ut_free(filename);
-    return RET_FAIL;
+  /* When the space file is currently open we are not able to write to it
+   * directly on Windows. We must use the currently opened handle. Moreover,
+   * on Windows a file opened for the AIO access must be accessed only by AIO
+   * methods. The AIO requires the operations to be aligned and with size
+   * divisible by OS block size, so we first read block of the first page, to
+   * corrupt it and write back. */
+
+  byte *buf = mem;
+  IORequest read_io_type(IORequest::READ);
+  dberr_t err = os_aio(read_io_type, AIO_mode::SYNC, node->name, node->handle,
+                       buf, offset, buf_size, false, nullptr, nullptr);
+  if (err != DB_SUCCESS) {
+    page_type_t page_type = fil_page_get_type(buf);
+    TLOG("Could not read page_id=" << page_id << ", page type=" << page_type
+                                   << ", err=" << err);
+
+    if (err == DB_IO_DECRYPT_FAIL) {
+      /* We expect this only for encrypted pages. Since this function doesn't
+       * actually read (or use) the contents, this error is OK. */
+      ut_ad(Encryption::is_encrypted_page(buf));
+    } else {
+      return RET_FAIL;
+    }
   }
 
-  ulint offset = root_page_no * nbytes;
+  ut_ad(prefix_length <= buf_size);
+  memset(buf, 0x00, prefix_length);
 
-  std::unique_ptr<byte[]> buf(new byte[FIL_PAGE_DATA]);
-
-  /* Corrupt the contents. */
-  memset(buf.get(), 0x11, FIL_PAGE_DATA);
-  int st = fseek(fin, offset, SEEK_SET);
-  ut_ad(st == 0);
-
-  size_t n = fwrite(buf.get(), FIL_PAGE_DATA, 1, fin);
-  ut_ad(n == 1);
-
-  fflush(fin);
-  TLOG("Successfully corrupted page_id=" << page_id);
-  fclose(fin);
-
-  ut_free(filename);
+  IORequest write_io_type(IORequest::WRITE);
+  err = os_aio(write_io_type, AIO_mode::SYNC, node->name, node->handle, buf,
+               offset, buf_size, false, nullptr, nullptr);
+  if (err == DB_SUCCESS) {
+    TLOG("Successfully zeroed prefix of page_id=" << page_id << ", prefix="
+                                                  << prefix_length);
+  } else {
+    TLOG("Could not write zeros to page_id=" << page_id << ", err=" << err);
+    return RET_FAIL;
+  }
   return RET_PASS;
 }
 
@@ -415,72 +437,11 @@ Ret_t Tester::corrupt_ondisk_page0(std::vector<std::string> &tokens) noexcept {
   ut_ad(tokens.size() == 2);
   ut_ad(tokens[0] == "corrupt_ondisk_page0");
 
-  std::string table_name = tokens[1];
-  dict_table_t *table = is_table_open(table_name);
-
+  const std::string table_name = tokens[1];
+  const dict_table_t *const table = is_table_open(table_name);
   ut_ad(table != nullptr);
 
-  space_id_t space_id = table->space;
-  page_id_t page_id(space_id, 0);
-
-  fil_space_t *space = fil_space_get(space_id);
-  ut_ad(space != nullptr);
-
-  page_no_t page_no = 0;
-  fil_node_t *node = space->get_file_node(&page_no);
-  if (node->is_open) {
-    /* When the space file is currently open we are not able to write to it
-     directly on Windows. We must use the currently opened handle. Moreover,
-     on Windows a file opened for the AIO access must be accessed only by AIO
-     methods. The AIO requires the operations to be aligned and with size
-     divisible by OS block size, so we first read block of the first page, to
-     corrupt it and write back. */
-
-    IORequest read_io_type(IORequest::READ);
-    IORequest write_io_type(IORequest::WRITE);
-    std::array<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
-    ssize_t nbytes = os_aio_func(
-        read_io_type, AIO_mode::SYNC, node->name, node->handle, buf.data(), 0,
-        OS_FILE_LOG_BLOCK_SIZE, false, nullptr, nullptr);
-    if (nbytes != OS_FILE_LOG_BLOCK_SIZE) {
-      TLOG("Could not corrupt page_id=" << page_id
-                                        << ", error reading first page");
-    }
-    memset(buf.data(), 0x00, FIL_PAGE_DATA);
-
-    nbytes = os_aio_func(write_io_type, AIO_mode::SYNC, node->name,
-                         node->handle, buf.data(), 0, OS_FILE_LOG_BLOCK_SIZE,
-                         false, nullptr, nullptr);
-    if (nbytes == OS_FILE_LOG_BLOCK_SIZE) {
-      TLOG("Successfully corrupted page_id=" << page_id);
-    } else {
-      TLOG("Could not corrupt page_id=" << page_id);
-    }
-  } else {
-    std::array<byte, FIL_PAGE_DATA> buf;
-    memset(buf.data(), 0x00, FIL_PAGE_DATA);
-
-    char *filename = fil_space_get_first_path(table->space);
-    TLOG("filename=" << filename);
-    FILE *fin = fopen(filename, "r+");
-    ut_ad(fin != NULL);
-
-    ulint offset = 0;
-
-    /* Corrupt the contents. */
-    int st = fseek(fin, offset, SEEK_SET);
-    ut_ad(st == 0);
-
-    size_t n = fwrite(buf.data(), FIL_PAGE_DATA, 1, fin);
-    ut_ad(n == 1);
-
-    fflush(fin);
-    TLOG("Successfully corrupted page_id=" << page_id);
-    fclose(fin);
-    ut_free(filename);
-  }
-
-  return RET_PASS;
+  return clear_page_prefix(table->space, 0, FIL_PAGE_DATA);
 }
 
 DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {

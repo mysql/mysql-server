@@ -1288,7 +1288,8 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       }
 
       ut_ad(err == DB_SUCCESS || err == DB_UNSUPPORTED ||
-            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL);
+            err == DB_CORRUPTION || err == DB_IO_DECOMPRESS_FAIL ||
+            err == DB_IO_DECRYPT_FAIL);
     } else {
       err = DB_SUCCESS;
     }

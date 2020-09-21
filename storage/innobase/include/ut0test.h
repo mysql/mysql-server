@@ -305,6 +305,15 @@ struct Tester {
   /** Make the output empty. */
   void clear_output() noexcept;
 
+  /** Make the first prefix_length bytes of the given page as zeroes.
+  @param[in] space_id  the tablespace identifier of the page to be zeroed.
+  @param[in] page_no   page number within the given tablespace.
+  @param[in] prefix_length  the length of the page, from beginning, to be
+  zeroed.
+  @return RET_PASS on success, or error code on failure. */
+  Ret_t clear_page_prefix(const space_id_t space_id, page_no_t page_no,
+                          const size_t prefix_length);
+
  private:
   /** List of open tables. */
   std::list<dict_table_t *, ut_allocator<dict_table_t *>> m_open_tables{};
