@@ -1015,7 +1015,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     ib_table->autoinc = auto_inc == 0 ? 0 : auto_inc + 1;
   }
 
-  if (dict_table_has_fts_index(ib_table)) {
+  if (dict_table_has_fts_index(ib_table) || added_fts_col) {
     dberr_t err = fts_upgrade_aux_tables(ib_table);
 
     if (err != DB_SUCCESS) {
