@@ -296,8 +296,8 @@ PFS_memory_stat_alloc_delta *PFS_memory_shared_stat::apply_alloc_delta(
     const PFS_memory_stat_alloc_delta *delta,
     PFS_memory_stat_alloc_delta *delta_buffer) {
   size_t val;
-  size_t remaining_alloc_count;
-  size_t remaining_alloc_size;
+  size_t remaining_alloc_count = 0;
+  size_t remaining_alloc_size = 0;
   bool has_remaining = false;
 
   m_used = true;
@@ -339,8 +339,8 @@ PFS_memory_stat_free_delta *PFS_memory_shared_stat::apply_free_delta(
     const PFS_memory_stat_free_delta *delta,
     PFS_memory_stat_free_delta *delta_buffer) {
   size_t val;
-  size_t remaining_free_count;
-  size_t remaining_free_size;
+  size_t remaining_free_count = 0;
+  size_t remaining_free_size = 0;
   bool has_remaining = false;
 
   m_used = true;
