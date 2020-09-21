@@ -7483,8 +7483,8 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
 
     PFS_memory_safe_stat *event_name_array;
     PFS_memory_safe_stat *stat;
-    PFS_memory_stat_delta delta_buffer;
-    PFS_memory_stat_delta *delta;
+    PFS_memory_stat_alloc_delta delta_buffer;
+    PFS_memory_stat_alloc_delta *delta;
 
     /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     event_name_array = pfs_thread->write_instr_class_memory_stats();
@@ -7492,7 +7492,7 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
     delta = stat->count_alloc(size, &delta_buffer);
 
     if (delta != nullptr) {
-      pfs_thread->carry_memory_stat_delta(delta, index);
+      pfs_thread->carry_memory_stat_alloc_delta(delta, index);
     }
 
     /* Flag this memory as owned by the current thread. */
@@ -7524,8 +7524,6 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
   }
 
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
 
   if (flag_thread_instrumentation && !klass->is_global()) {
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
@@ -7548,17 +7546,25 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
       event_name_array = pfs_thread->write_instr_class_memory_stats();
       stat = &event_name_array[index];
 
+      PFS_memory_stat_free_delta free_delta_buffer;
+      PFS_memory_stat_free_delta *free_delta;
+
       if (flag_global_instrumentation && klass->m_enabled) {
-        delta = stat->count_realloc(old_size, new_size, &delta_buffer);
+        PFS_memory_stat_alloc_delta alloc_delta_buffer;
+        PFS_memory_stat_alloc_delta *alloc_delta;
+        alloc_delta = stat->count_alloc(new_size, &alloc_delta_buffer);
+        if (alloc_delta != nullptr) {
+          pfs_thread->carry_memory_stat_alloc_delta(alloc_delta, index);
+        }
         *owner_thread_hdl = pfs_thread;
       } else {
-        delta = stat->count_free(old_size, &delta_buffer);
         *owner_thread_hdl = nullptr;
         key = PSI_NOT_INSTRUMENTED;
       }
 
-      if (delta != nullptr) {
-        pfs_thread->carry_memory_stat_delta(delta, index);
+      free_delta = stat->count_free(old_size, &free_delta_buffer);
+      if (free_delta != nullptr) {
+        pfs_thread->carry_memory_stat_free_delta(free_delta, index);
       }
       return key;
     }
@@ -7572,7 +7578,8 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
   stat = &event_name_array[index];
 
   if (flag_global_instrumentation && klass->m_enabled) {
-    stat->count_global_realloc(old_size, new_size);
+    stat->count_global_alloc(new_size);
+    stat->count_global_free(old_size);
   } else {
     stat->count_global_free(old_size);
     key = PSI_NOT_INSTRUMENTED;
@@ -7606,8 +7613,6 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
   */
 
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
 
   PFS_thread *old_thread = sanitize_thread(*owner_thread);
   PFS_thread *new_thread = my_thread_get_THR_PFS();
@@ -7639,19 +7644,22 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
 
     if (old_thread != nullptr) {
       /* 1: A FREE is counted against X. */
+      PFS_memory_stat_free_delta free_delta_buffer;
+      PFS_memory_stat_free_delta *free_delta;
+
       event_name_local_array = old_thread->write_instr_class_memory_stats();
       local_stat = &event_name_local_array[index];
-      delta = local_stat->count_free(size, &delta_buffer);
+      free_delta = local_stat->count_free(size, &free_delta_buffer);
 
-      if (delta != NULL) {
-        old_thread->carry_memory_stat_delta(delta, index);
+      if (free_delta != NULL) {
+        old_thread->carry_memory_stat_free_delta(free_delta, index);
       }
 
       /* 2: A MALLOC is counted globally. */
       event_name_global_array = global_instr_class_memory_array;
       if (event_name_global_array) {
         global_stat = &event_name_global_array[index];
-        (void)global_stat->count_alloc(size, &delta_buffer);
+        global_stat->count_global_alloc(size);
       }
 
       /* 3: verify owner was X. */
@@ -7675,16 +7683,18 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
       event_name_global_array = global_instr_class_memory_array;
       if (event_name_global_array) {
         global_stat = &event_name_global_array[index];
-        (void)global_stat->count_free(size, &delta_buffer);
+        global_stat->count_global_free(size);
       }
 
       /* 2: A MALLOC is counted against Y. */
+      PFS_memory_stat_alloc_delta alloc_delta_buffer;
+      PFS_memory_stat_alloc_delta *alloc_delta;
       event_name_local_array = new_thread->write_instr_class_memory_stats();
       local_stat = &event_name_local_array[index];
-      delta = local_stat->count_alloc(size, &delta_buffer);
+      alloc_delta = local_stat->count_alloc(size, &alloc_delta_buffer);
 
-      if (delta != nullptr) {
-        new_thread->carry_memory_stat_delta(delta, index);
+      if (alloc_delta != nullptr) {
+        new_thread->carry_memory_stat_alloc_delta(alloc_delta, index);
       }
 
       /* 3: set owner to Y. */
@@ -7710,40 +7720,36 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
   */
 
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
+  PFS_memory_stat_free_delta delta_buffer;
+  PFS_memory_stat_free_delta *delta;
 
   if (flag_thread_instrumentation && !klass->is_global()) {
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+    PFS_thread *owner_thread = reinterpret_cast<PFS_thread *>(owner);
     if (likely(pfs_thread != nullptr)) {
-#ifdef PFS_PARANOID
-      PFS_thread *owner_thread = reinterpret_cast<PFS_thread *>(owner);
+      if (pfs_thread == owner_thread) {
+        /*
+          Do not check pfs_thread->m_enabled.
+          If a memory alloc was instrumented,
+          the corresponding free must be instrumented.
+        */
+        /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+        PFS_memory_safe_stat *event_name_array;
+        PFS_memory_safe_stat *stat;
+        event_name_array = pfs_thread->write_instr_class_memory_stats();
+        stat = &event_name_array[index];
+        delta = stat->count_free(size, &delta_buffer);
 
-      if (owner_thread != pfs_thread) {
-        owner_thread = sanitize_thread(owner_thread);
-        if (owner_thread != nullptr) {
-          report_memory_accounting_error("pfs_memory_free_vc", pfs_thread, size,
-                                         klass, owner_thread);
+        if (delta != nullptr) {
+          pfs_thread->carry_memory_stat_free_delta(delta, index);
         }
+        return;
       }
-#endif /* PFS_PARANOID */
-
-      /*
-        Do not check pfs_thread->m_enabled.
-        If a memory alloc was instrumented,
-        the corresponding free must be instrumented.
-      */
-      /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-      PFS_memory_safe_stat *event_name_array;
-      PFS_memory_safe_stat *stat;
-      event_name_array = pfs_thread->write_instr_class_memory_stats();
-      stat = &event_name_array[index];
-      delta = stat->count_free(size, &delta_buffer);
-
-      if (delta != nullptr) {
-        pfs_thread->carry_memory_stat_delta(delta, index);
-      }
-      return;
+#ifdef PFS_PARANOID
+      report_memory_accounting_error("pfs_memory_free_vc", pfs_thread, size,
+                                     klass, owner_thread);
+#endif
+      /* Fall back to global aggregate below. */
     }
   }
 

@@ -67,6 +67,7 @@ pfs_server.h
 pfs_setup_actor.h
 pfs_setup_object.h
 pfs_stat.h
+pfs_stat.cc
 pfs_status.h
 pfs_timer.h
 pfs_tls_channel.h

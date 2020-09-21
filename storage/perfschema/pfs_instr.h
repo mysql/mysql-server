@@ -648,7 +648,10 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   /** Reset all memory statistics. */
   void rebase_memory_stats();
 
-  void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
+  void carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                     uint index);
+  void carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                    uint index);
 
   void set_enabled(bool enabled) { m_enabled = enabled; }
 
@@ -688,7 +691,10 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   }
 };
 
-void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
+void carry_global_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                          uint index);
+void carry_global_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                         uint index);
 
 extern PFS_stage_stat *global_instr_class_stages_array;
 extern PFS_statement_stat *global_instr_class_statements_array;
@@ -800,13 +806,20 @@ void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array_1,
                           PFS_error_stat *to_array_2);
 
+void aggregate_all_memory_with_reassign(bool alive,
+                                        PFS_memory_safe_stat *from_array,
+                                        PFS_memory_shared_stat *to_array,
+                                        PFS_memory_shared_stat *global_array);
+void aggregate_all_memory_with_reassign(bool alive,
+                                        PFS_memory_safe_stat *from_array,
+                                        PFS_memory_shared_stat *to_array_1,
+                                        PFS_memory_shared_stat *to_array_2,
+                                        PFS_memory_shared_stat *global_array);
+
 void aggregate_all_memory(bool alive, PFS_memory_safe_stat *from_array,
                           PFS_memory_shared_stat *to_array);
 void aggregate_all_memory(bool alive, PFS_memory_shared_stat *from_array,
                           PFS_memory_shared_stat *to_array);
-void aggregate_all_memory(bool alive, PFS_memory_safe_stat *from_array,
-                          PFS_memory_shared_stat *to_array_1,
-                          PFS_memory_shared_stat *to_array_2);
 void aggregate_all_memory(bool alive, PFS_memory_shared_stat *from_array,
                           PFS_memory_shared_stat *to_array_1,
                           PFS_memory_shared_stat *to_array_2);
