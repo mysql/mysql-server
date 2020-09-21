@@ -5344,10 +5344,34 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
       with an ALWAYS TRUE item. Else only the const item is removed.
     */
     /*
-      Make a note if this item has been created by IN to EXISTS
+      Make a note if the expression has been created by IN to EXISTS
       transformation. If so we cannot remove the entire condition.
-    */
-    if (item->created_by_in2exists()) {
+      We also cannot remove if the expression has a Item_view_ref.
+      For Ex:
+      SELECT 1 FROM (SELECT (SELECT a FROM t1) as b FROM t1) as dt
+      WHERE (FALSE AND b = 1) OR ( b = 2 );
+      The false condition in the WHERE triggers removal of 'b'.
+      But 'b' is referenced again. Removing a subquery which is
+      part of a projection list is forbidden for the same reason.
+      However for the above case when derived table "dt" gets merged
+      with the outer query block, "b" will not be part of the projection
+      list of the outer query block. So the check fails.
+      We add a check here for Item_view_refs as only in such a case
+      the original expression of an alias might not be part of
+      projection list.
+     */
+    bool view_ref_with_subquery = false;
+    if (item->has_subquery()) {
+      WalkItem(item, enum_walk::PREFIX,
+               [&view_ref_with_subquery](Item *inner_item) {
+                 if (inner_item->type() == Item::REF_ITEM &&
+                     down_cast<Item_ref *>(inner_item)->ref_type() ==
+                         Item_ref::VIEW_REF)
+                   view_ref_with_subquery = true;
+                 return false;
+               });
+    }
+    if (item->created_by_in2exists() || view_ref_with_subquery) {
       remove_condition = false;
       can_remove_cond = false;
     }
