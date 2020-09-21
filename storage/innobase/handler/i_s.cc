@@ -2672,6 +2672,12 @@ static int i_s_fts_index_cache_fill(
 
   ut_a(cache);
 
+  /* Check if cache is being synced.
+  Note: we wait till cache is being synced. */
+  while (cache->sync->in_progress) {
+    os_event_wait(cache->sync->event);
+  }
+
   for (ulint i = 0; i < ib_vector_size(cache->indexes); i++) {
     fts_index_cache_t *index_cache;
 

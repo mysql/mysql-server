@@ -168,3 +168,31 @@ SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database good');
 DROP TABLE t1;
 
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug #31310404 I_S_FTS_INDEX_CACHE_FILL_ONE_INDEX() IS NOT PROTECTED BY THE LOCK
+--echo #
+
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        FULLTEXT(title)
+) ENGINE = InnoDB;
+
+INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(title) VALUES('database');
+
+SET SESSION debug="+d,fts_instrument_sync_request";
+INSERT INTO t1(title) VALUES('mysql database');
+SET SESSION debug="-d,fts_instrument_sync_request";
+
+SET GLOBAL innodb_ft_aux_table="test/t1";
+
+# If FTS SYNC is in progress then wait for SYNC to finish.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+SET GLOBAL innodb_ft_aux_table=default;
+
+SELECT * FROM t1 WHERE MATCH(title) AGAINST('mysql database');
+
+DROP TABLE t1;
