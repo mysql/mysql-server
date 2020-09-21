@@ -87,6 +87,7 @@ int NdbHW_Init()
   }
 
   ticks_per_us = 0;
+#if defined (HAVE_LINUX_SCHEDULING)
 #ifdef _SC_CLK_TCK
   long sct = sysconf(_SC_CLK_TCK);
   if (sct <= 0)
@@ -99,13 +100,12 @@ int NdbHW_Init()
     ticks_per_us = Uint64(1000000) / Uint64(sct);
   }
 #endif
-
   if (ticks_per_us == 0)
   {
     perror("ticks_per_us == 0");
     abort();
   }
-
+#endif
   if (NdbHW_Init_platform() != 0)
   {
     perror("Failed NdbHW_Init_platform()");
