@@ -262,6 +262,7 @@ for p in \
          component_test_mysql_current_thread_reader.so \
          component_test_mysql_runtime_error.so \
          component_test_component_deinit.so \
+         component_reference_cache.so \
          component_test_page_track_component.so \
          component_test_pfs_notification.so \
          component_test_pfs_resource_group.so \
@@ -499,6 +500,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Mon Sep 21 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.23-1
+- Added component_reference_cache.so component
+
 * Wed Sep 09 2020 Joro Kodinov <georgi.kodinov@oracle.com> - 8.0.23-1
 - Add a new component_query_attributes
 

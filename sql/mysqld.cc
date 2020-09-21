@@ -1879,6 +1879,12 @@ extern bool initialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
                                        *registry);
 extern bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
                                          registry);
+/*
+  List of components to be loaded directly using dynamic loader load.
+  These components should to be present in the plugin directory path.
+*/
+const char *component_urns[] = {"file://component_reference_cache"};
+#define NUMBER_OF_COMPONENTS 1
 
 /**
   Initializes component infrastructure by bootstrapping core component
@@ -5584,6 +5590,17 @@ static int init_server_components() {
   partitioning_init();
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+  /*
+    This load function has to be called after the opt_plugin_dir variable
+    is initialized else it will fail to load.
+    The unload of these components will be done by minimal_chassis_deinit().
+    So, no need to call unload of these components.
+    Since, it is an optional component required for GR, audit log etc. The
+    error check of the service availability has to be done by those
+    plugins/components.
+  */
+  dynamic_loader_srv->load(component_urns, NUMBER_OF_COMPONENTS);
 
   /*
     Timers not needed if only starting with --help.
