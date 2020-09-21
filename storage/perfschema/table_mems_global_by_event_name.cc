@@ -254,6 +254,7 @@ int table_mems_global_by_event_name::make_row(PFS_memory_class *klass) {
                                           &visitor);
   }
 
+  visitor.m_stat.normalize(true);
   m_row.m_stat.set(&visitor.m_stat);
 
   return 0;
@@ -261,7 +262,11 @@ int table_mems_global_by_event_name::make_row(PFS_memory_class *klass) {
 
 int table_mems_global_by_event_name::make_row(PFS_builtin_memory_class *klass) {
   m_row.m_event_name.make_row(&klass->m_class);
-  m_row.m_stat.set(&klass->m_stat);
+  PFS_memory_monitoring_stat stat;
+  stat.reset();
+  memory_monitoring_aggregate(&klass->m_stat, &stat);
+  stat.normalize(true);
+  m_row.m_stat.set(&stat);
   return 0;
 }
 

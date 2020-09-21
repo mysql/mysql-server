@@ -249,15 +249,26 @@ void PFS_user::rebase_memory_stats() {
   }
 }
 
-void PFS_user::carry_memory_stat_delta(PFS_memory_stat_delta *delta,
-                                       uint index) {
+void PFS_user::carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                             uint index) {
   PFS_memory_shared_stat *event_name_array;
   PFS_memory_shared_stat *stat;
-  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_alloc_delta delta_buffer;
 
   event_name_array = write_instr_class_memory_stats();
   stat = &event_name_array[index];
-  (void)stat->apply_delta(delta, &delta_buffer);
+  (void)stat->apply_alloc_delta(delta, &delta_buffer);
+}
+
+void PFS_user::carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                            uint index) {
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
+  PFS_memory_stat_free_delta delta_buffer;
+
+  event_name_array = write_instr_class_memory_stats();
+  stat = &event_name_array[index];
+  (void)stat->apply_free_delta(delta, &delta_buffer);
 }
 
 PFS_user *sanitize_user(PFS_user *unsafe) {

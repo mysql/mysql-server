@@ -1298,8 +1298,7 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
       set_field_ulonglong(f, m_stat.m_free_size);
       break;
     case 4: /* LOW_COUNT_USED */
-      val = m_stat.m_alloc_count - m_stat.m_free_count -
-            m_stat.m_free_count_capacity;
+      val = m_stat.m_low_count_used;
       set_field_longlong(f, val);
       break;
     case 5: /* CURRENT_COUNT_USED */
@@ -1307,13 +1306,11 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
       set_field_longlong(f, val);
       break;
     case 6: /* HIGH_COUNT_USED */
-      val = m_stat.m_alloc_count - m_stat.m_free_count +
-            m_stat.m_alloc_count_capacity;
+      val = m_stat.m_high_count_used;
       set_field_longlong(f, val);
       break;
     case 7: /* LOW_NUMBER_OF_BYTES_USED */
-      val = m_stat.m_alloc_size - m_stat.m_free_size -
-            m_stat.m_free_size_capacity;
+      val = m_stat.m_low_size_used;
       set_field_longlong(f, val);
       break;
     case 8: /* CURRENT_NUMBER_OF_BYTES_USED */
@@ -1321,8 +1318,7 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
       set_field_longlong(f, val);
       break;
     case 9: /* HIGH_NUMBER_OF_BYTES_USED */
-      val = m_stat.m_alloc_size - m_stat.m_free_size +
-            m_stat.m_alloc_size_capacity;
+      val = m_stat.m_high_size_used;
       set_field_longlong(f, val);
       break;
     default:
