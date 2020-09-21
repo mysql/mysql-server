@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@
   } while (0)
 #endif /* HAVE_VALGRIND */
 
-#define MY_ZEROFILL 32 /* fill array with zero */
 #define HEADER_SIZE 32
 #define MAGIC 1234
 #define USER_TO_HEADER(P) ((my_memory_header *)(((char *)P) - HEADER_SIZE))

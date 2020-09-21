@@ -19,4 +19,6 @@ ERROR 42S02: Table 'performance_schema.cond_instances' doesn't exist
 # Case 2:
 # Restart server should fail if P_S version is changed
 # and --innodb-read-only mode is ON.
+Can't open shared library component_reference_cache
+Can't open shared library component_reference_cache
 # restart:--debug=+d,test_p_s_metadata_version
