@@ -166,3 +166,56 @@ DROP TABLE t1;
 --echo # Restart the server
 let $restart_parameters =;
 --source include/start_mysqld.inc
+
+--echo #
+--echo # Bug #31749490 OLD FTS FILES AFTER UPGRADE: ASSERTION FAILURE:
+--echo # PARS0PARS.CC:736:SYM_NODE->TABLE != NULLPTR
+--echo #
+
+--echo # Stop the running server
+--source include/shutdown_mysqld.inc
+
+--echo #
+--echo # Copy and unzip the datadir
+--echo #
+
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_drop_fts.zip $MYSQL_TMP_DIR/data57_drop_fts.zip
+--file_exists $MYSQL_TMP_DIR/data57_drop_fts.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data57_drop_fts.zip -d $MYSQL_TMP_DIR
+let $DATADIR1 = $MYSQL_TMP_DIR/data57_drop_fts;
+
+--echo # Restart the server with the unzipped datadir
+--replace_result $DATADIR1 DATADIR
+--let $wait_counter=3000
+--let $restart_parameters = restart: --datadir=$DATADIR1 --innodb_page_size=16k
+--source include/start_mysqld.inc
+
+--echo # Check the contents of INFORMATION_SCHEMA
+SHOW TABLES;
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLES
+  WHERE name LIKE '%test%'
+  ORDER BY name;
+
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE name LIKE '%test%'
+  ORDER BY name;
+
+INSERT INTO t1 (val) VALUES ('Upgraded successfully to 8.0 version');
+SELECT * FROM t1;
+
+DELETE FROM t1 WHERE val LIKE 'Upgrade mysql database to 8.0 version';
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo # Cleanup
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data57_drop_fts.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_drop_fts
+--remove_file $MYSQL_TMP_DIR/data57_drop_fts.zip
+
+--echo # Restart the server
+let $restart_parameters =;
+--source include/start_mysqld.inc
