@@ -29,6 +29,8 @@
 #include <ndb_limits.h>
 #include <stdio.h>
 #include "../src/common/util/parse_mask.hpp"
+#include <iostream>
+#include <thread>
 
 //#define DEBUG_HW(arglist) do { printf arglist ; } while (0)
 #define DEBUG_HW(arglist) do { } while(0)
@@ -77,22 +79,7 @@ int NdbHW_Init()
   initres = -1;
 
   g_ndb_hwinfo = nullptr;
-  ncpu = 0;
-#ifdef _SC_NPROCESSORS_CONF
-  {
-    long tmp = sysconf(_SC_NPROCESSORS_CONF);
-    if (tmp < 0)
-    {
-      perror("sysconf(_SC_NPROCESSORS_CONF) returned error");
-      abort();
-    }
-    else
-    {
-      ncpu = (Uint32) tmp;
-    }
-  }
-#endif
-
+  ncpu = std::thread::hardware_concurrency();
   if (ncpu == 0)
   {
     perror("ncpu == 0");
@@ -2863,10 +2850,8 @@ TAPTEST(NdbCPU)
   }
 
   long sysconf_ncpu_conf = 0;
-#ifdef _SC_NPROCESSORS_CONF
-  sysconf_ncpu_conf = sysconf(_SC_NPROCESSORS_CONF);
+  sysconf_ncpu_conf = std::thread::hardware_concurrency();
   printf("sysconf(_SC_NPROCESSORS_CONF) => %lu\n", sysconf_ncpu_conf);
-#endif
 
   long sysconf_ncpu_online = 0;
 #ifdef _SC_NPROCESSORS_ONLN
