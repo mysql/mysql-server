@@ -1253,7 +1253,7 @@ int set_num_groups(struct ndb_hwinfo *hwinfo,
         GROUP_AFFINITY *group_aff = &processor->GroupMask[0];
         Uint32 group_number = group_aff->Group;
         KAFFINITY mask = group_aff->Mask;
-        for (Uint32 cpu_index; cpu_index < 64; cpu_index++)
+        for (Uint32 cpu_index = 0; cpu_index < 64; cpu_index++)
         {
           if (get_bit_kaffinity(mask, cpu_index))
           {
