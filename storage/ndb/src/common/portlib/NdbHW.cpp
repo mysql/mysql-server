@@ -79,7 +79,22 @@ int NdbHW_Init()
   initres = -1;
 
   g_ndb_hwinfo = nullptr;
+#ifdef _SC_NPROCESSORS_CONF
+  {
+    long tmp = sysconf(_SC_NPROCESSORS_CONF);
+    if (tmp < 0)
+    {
+      perror("sysconf(_SC_NPROCESSORS_CONF) returned error");
+      abort();
+    }
+    else
+    {
+      ncpu = (Uint32) tmp;
+    }
+  }
+#else
   ncpu = std::thread::hardware_concurrency();
+#endif
   if (ncpu == 0)
   {
     perror("ncpu == 0");
@@ -1134,13 +1149,13 @@ check_cpu_online(struct ndb_hwinfo *hwinfo)
   {
     if (!NdbThread_IsCPUAvailable(i))
     {
-      if (hwinfo->cpu_info != nullptr)
+      if (hwinfo->cpu_info != nullptr && hwinfo->cpu_info[i].online == 1)
       {
         hwinfo->cpu_info[i].online = 0;
+        if (hwinfo->cpu_cnt == 0)
+          abort();
+        hwinfo->cpu_cnt--;
       }
-      if (hwinfo->cpu_cnt == 0)
-        abort();
-      hwinfo->cpu_cnt--;
     }
   }
 }
@@ -1991,6 +2006,11 @@ get_l3_cache_info(struct ndb_hwinfo *hwinfo)
   }
   for (Uint32 i = 0; i < hwinfo->cpu_cnt_max; i++)
   {
+    if (!hwinfo->cpu_info[i].online)
+    {
+      /* CPU not online, ignore */
+      continue;
+    }
     if (hwinfo->cpu_info[i].l3_cache_id != Uint32(~0))
     {
       /**
@@ -2193,7 +2213,10 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo * hwinfo)
   Uint32 max_socket_id = 0;
   for (Uint32 i = 0; i < hwinfo->cpu_cnt_max; i++)
   {
-    max_socket_id = MAX(max_socket_id, hwinfo->cpu_info[i].socket_id);
+    if (hwinfo->cpu_info[i].online)
+    {
+      max_socket_id = MAX(max_socket_id, hwinfo->cpu_info[i].socket_id);
+    }
   }
   Uint32 num_cpu_sockets = max_socket_id + 1;
   Uint32 num_cpu_cores = num_cpu_cores_per_socket * num_cpu_sockets;
@@ -2850,7 +2873,22 @@ TAPTEST(NdbCPU)
   }
 
   long sysconf_ncpu_conf = 0;
+#ifdef _SC_NPROCESSORS_CONF
+  {
+    long tmp = sysconf(_SC_NPROCESSORS_CONF);
+    if (tmp < 0)
+    {
+      perror("sysconf(_SC_NPROCESSORS_CONF) returned error");
+      abort();
+    }
+    else
+    {
+      sysconf_ncpu_conf = (Uint32) tmp;
+    }
+  }
+#else
   sysconf_ncpu_conf = std::thread::hardware_concurrency();
+#endif
   printf("sysconf(_SC_NPROCESSORS_CONF) => %lu\n", sysconf_ncpu_conf);
 
   long sysconf_ncpu_online = 0;
