@@ -2931,46 +2931,62 @@ sub environment_setup {
 
   # Setup env for NDB
   if ($ndbcluster_enabled) {
-    $ENV{'NDB_MGM'} =
-      my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_mgm");
+    # Tools that supports --defaults-file=xxx
+    # Define NDB_XXX as ndb_xxx --defaults-file=xxx
+    # and NDB_XXX_EXE as ndb_xxx only.
+    my @ndb_tools = qw(
+      ndb_blob_tool
+      ndb_config
+      ndb_delete_all
+      ndb_desc
+      ndb_drop_index
+      ndb_drop_table
+      ndb_import
+      ndb_index_stat
+      ndbinfo_select_all
+      ndb_mgm
+      ndb_move_data
+      ndb_perror
+      ndb_restore
+      ndb_select_all
+      ndb_select_count
+      ndb_show_tables
+      ndb_waiter
+      ndbxfrm
+    );
 
-    # We need to extend PATH to ensure we find libcrypto/libssl at runtime
-    # (ndbclient.dll depends on them)
-    # These .dlls are stored in runtime_output_directory/<config>/
-    # or in bin/ after MySQL package installation.
-    if (IS_WINDOWS) {
-      my $bin_dir = dirname($ENV{NDB_MGM});
-      $ENV{'PATH'} = "$ENV{'PATH'}" . ";" . $bin_dir;
+    foreach my $tool ( @ndb_tools)
+    {
+      my $exe =
+        my_find_bin($bindir, [ "runtime_output_directory", "bin" ], $tool);
+
+      $ENV{uc($tool)} = "${exe} --defaults-file=${path_config_file}";
+      $ENV{uc($tool)."_EXE"} = "${exe}";
     }
 
-    $ENV{'NDB_WAITER'} = $exe_ndb_waiter;
+    # Tools not supporting --defaults-file=xxx, only define NDB_PROG_EXE
+    @ndb_tools = qw(
+      ndb_print_backup_file
+      ndb_print_file
+      ndb_print_sys_file
+    );
 
-    $ENV{'NDB_MGMD'} =
+    foreach my $tool ( @ndb_tools)
+    {
+      my $exe =
+        my_find_bin($bindir, [ "runtime_output_directory", "bin" ], $tool);
+
+      $ENV{uc($tool)} = "${exe}";
+      $ENV{uc($tool)."_EXE"} = "${exe}";
+    }
+
+    # Management server
+    $ENV{'NDB_MGMD_EXE'} =
       my_find_bin($bindir,
                   [ "runtime_output_directory", "libexec", "sbin", "bin" ],
                   "ndb_mgmd");
 
-    $ENV{'NDB_CONFIG'} =
-      my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_config");
-
-    $ENV{'NDB_PRINT_SYS_FILE'} =
-      my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
-                  "ndb_print_sys_file");
-
-    $ENV{'NDB_SELECT_ALL'} =
-      my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
-                  "ndb_select_all");
-
-    $ENV{'NDB_DROP_TABLE'} =
-      my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
-                  "ndb_drop_table");
-
-    $ENV{'NDB_DESC'} =
-      my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_desc");
-
-    $ENV{'NDB_SHOW_TABLES'} =
-      my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
-                  "ndb_show_tables");
+    $ENV{'NDB_MGMD'} = $ENV{'NDB_MGMD_EXE'} . " --defaults-file=${path_config_file}";
 
     my $ndbapi_examples_binary =
       my_find_bin($bindir, [ "storage/ndb/ndbapi-examples", "bin" ],
@@ -2984,6 +3000,16 @@ sub environment_setup {
 
     my $path_ndb_testrun_log = "$opt_vardir/tmp/ndb_testrun.log";
     $ENV{'NDB_TOOLS_OUTPUT'} = $path_ndb_testrun_log;
+ 
+    # We need to extend PATH to ensure we find libcrypto/libssl at runtime
+    # (ndbclient.dll depends on them)
+    # These .dlls are stored in runtime_output_directory/<config>/
+    # or in bin/ after MySQL package installation.
+    if (IS_WINDOWS) {
+      my $bin_dir = dirname($ENV{NDB_MGM_EXE});
+      $ENV{'PATH'} = "$ENV{'PATH'}" . ";" . $bin_dir;
+    }
+
   }
 
   # mysql clients
@@ -3568,6 +3594,7 @@ sub ndb_mgmd_stop {
 
   my $args;
   mtr_init_args(\$args);
+  mtr_add_arg($args, "--defaults-file=%s",        $path_config_file);
   mtr_add_arg($args, "--ndb-connectstring=%s:%s", $host, $port);
   mtr_add_arg($args, "-e");
   mtr_add_arg($args, "shutdown");

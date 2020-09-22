@@ -78,10 +78,10 @@ while ($cnt)
     --enable_result_log
   }
   --echo Restart node $nid
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "$nid restart -n" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --no-defaults --wait-nodes=$nid --not-started >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "$nid start" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --no-defaults --wait-nodes=$nid >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "$nid restart -n" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --wait-nodes=$nid --not-started >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "$nid start" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --wait-nodes=$nid >> $NDB_TOOLS_OUTPUT
   --echo Restart finished
 
   --echo Analyze the tables

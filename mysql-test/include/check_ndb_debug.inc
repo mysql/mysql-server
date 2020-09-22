@@ -18,15 +18,9 @@ disable_query_log;
 
 let $have_ndb_debug = 0;
 
-# Build the standard command used for running "ndb_mgm"
-let $mgm_cmd = $NDB_MGM;
-let $mgm_cmd = $mgm_cmd --no-defaults;
-let $mgm_cmd = $mgm_cmd --ndb-connectstring="$NDB_CONNECTSTRING";
-let $mgm_cmd = $mgm_cmd --verbose=0;
-
 # Save output of "ndb_mgm --help" in file
 let $dump_file = $MYSQLTEST_VARDIR/tmp/help_debug.txt;
---exec $mgm_cmd -e "help" > $dump_file
+--exec $NDB_MGM -e "help" > $dump_file
 
 # Load the output from ndb_mgm into table
 create temporary table help_debug(help varchar(256));

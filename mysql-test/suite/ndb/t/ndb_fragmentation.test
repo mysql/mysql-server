@@ -113,7 +113,7 @@ CREATE TABLE t11 (x int primary key, y blob, z int, unique key (z)) engine=ndb;
 let $ndb_desc_opts= -b -i -d test t11;
 source suite/ndb/include/ndb_desc_print.inc;
 
-exec $NDB_MGM --verbose=0 -e"create nodegroup 5,6";
+exec $NDB_MGM -e"create nodegroup 5,6";
 
 set global ndb_fully_replicated=0; # FR fails user defined partitioning
 

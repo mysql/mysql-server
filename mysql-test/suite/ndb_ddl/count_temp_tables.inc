@@ -8,7 +8,7 @@
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_show_tables.txt;
 
 # Build the string used for executing ndb_show_tables
-let $show_cmd = $NDB_SHOW_TABLES --no-defaults;
+let $show_cmd = $NDB_SHOW_TABLES;
 let $show_cmd = $show_cmd -p;  # parsable format
 let $show_cmd = $show_cmd --type=2; # Only show UserTables
 

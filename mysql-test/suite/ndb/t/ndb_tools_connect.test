@@ -1,7 +1,6 @@
 --echo Bug #11764714 - Adding --connect-retry-delay and --connect-retries  options to tools
 
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_tools.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
 --echo Testing ndbinfo_select_all
@@ -37,7 +36,6 @@
 --exec $NDB_DROP_TABLE --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3 -dtest t
 
 --echo Testing ndb_index_stat
---source suite/ndb/include/ndb_find_index_stat_tool.inc
 --error 1
 --exec $NDB_INDEX_STAT -dtest t --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
 

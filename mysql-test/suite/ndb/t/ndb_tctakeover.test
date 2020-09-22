@@ -21,7 +21,7 @@ error 0,1296;
 insert into t select x + 40, y + 40 from t;
 show warnings;
 insert into t select x + 80, y + 80 from t;
-exec $NDB_MGM --no-defaults --verbose=0 -e "2 error 8030";
+exec $NDB_MGM -e "2 error 8030";
 error 0,1296;
 commit;
 show warnings;

@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source suite/ndb/include/ndb_find_tools.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
 # Test is using error insert, check that binaries support it

@@ -47,7 +47,7 @@ reset master;
 # to bring it out of RO-mode.
 #############################################################
 --echo Disconnect mysqld from all datanodes
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
 
 #############################################################
 # The disconnect will create a GAP event in the binlog.
@@ -111,7 +111,7 @@ enable_query_log;
 reset master;
 
 --echo Disconnect mysqld from all datanodes
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
 
 --echo Wait for binlog rotate to indicate disconnect
 --let $wait_binlog_event= binlog.000002
@@ -171,8 +171,8 @@ if ($have_debug)
 enable_query_log;
 
 --echo Disconnect both mysqld servers from all datanodes -> binlog restarts
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
 
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect
@@ -229,8 +229,8 @@ if ($have_debug)
 enable_query_log;
 
 --echo Disconnect both mysqld servers from all datanodes -> binlog restarts
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id"  > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
 
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect

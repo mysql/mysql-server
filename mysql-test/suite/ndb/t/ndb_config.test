@@ -1,43 +1,43 @@
 -- source include/have_ndb.inc
 
 echo == 1 ==;
---exec $NDB_CONFIG --no-defaults --query=type,nodeid,host 2> /dev/null
+--exec $NDB_CONFIG --query=type,nodeid,host 2> /dev/null
 
 echo == 2 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
+--exec $NDB_CONFIG --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
 
 echo == 3 ==;
---exec $NDB_CONFIG --no-defaults -r \\n -f " " --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
+--exec $NDB_CONFIG -r \\n -f " " --query=nodeid,host,DataMemory,IndexMemory --type=ndbd 2> /dev/null
 
 echo == 4 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --type=ndbd --host=localhost 2> /dev/null
+--exec $NDB_CONFIG --query=nodeid --type=ndbd --host=localhost 2> /dev/null
 
 echo == 5 ==;
---exec $NDB_CONFIG --no-defaults --query=type,nodeid,host --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --query=type,nodeid,host --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 # End of 4.1 tests
 echo == 6 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.jonas --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --query=type,nodeid,host,IndexMemory,DataMemory --mycnf 2> /dev/null
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.jonas --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --query=type,nodeid,host,IndexMemory,DataMemory --mycnf 2> /dev/null
 
 echo == 7 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster0 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.cluster0 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 
 echo == 8 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster1 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.cluster1 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 
 echo == 9 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 echo == 10 ==;
---exec $NDB_CONFIG --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf2.cnf --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
 
 echo == 11 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 12 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --host=1.2.3.4   --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --query=nodeid --host=1.2.3.4   --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 13 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 14 == ndb_config --configinfo;
 --exec $NDB_CONFIG --configinfo > /dev/null
@@ -46,16 +46,16 @@ echo == 15 == ndb_config --configinfo --xml;
 --exec $NDB_CONFIG --configinfo --xml > /dev/null
 
 echo == 16 == bug44689;
---exec $NDB_CONFIG --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --defaults-group-suffix=.bug44689 --query=host --mycnf 2> /dev/null
+--exec $NDB_CONFIG_EXE --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --defaults-group-suffix=.bug44689 --query=host --mycnf 2> /dev/null
 
 echo == 17 == bug49400;
 --replace_regex /.*\[ndb_config\]//
 --error 255
---exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug49400.ini 2>&1
+--exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/bug49400.ini 2>&1
 
 echo == 18 == bug56185;
 # Read bitmask value and enum from my.cnf
---exec $NDB_CONFIG --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --defaults-group-suffix=.bug56185 --query=Arbitration,LockExecuteThreadToCPU --type=ndbd --mycnf
+--exec $NDB_CONFIG_EXE --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --defaults-group-suffix=.bug56185 --query=Arbitration,LockExecuteThreadToCPU --type=ndbd --mycnf
 
 # Read bitmask value and enum from config.ini
 --exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/bug56185.ini --query=Arbitration,LockExecuteThreadToCPU --type=ndbd
@@ -75,7 +75,7 @@ echo == 21 == ThreadConfig;
 
 echo == 22 == bug14555359;
 # Read ExtraSendBufferMemory from all nodes
---exec $NDB_CONFIG  --defaults-group-suffix=.bug14555359 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --query=nodeid,type,ExtraSendBufferMemory --mycnf
+--exec $NDB_CONFIG_EXE  --defaults-group-suffix=.bug14555359 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --query=nodeid,type,ExtraSendBufferMemory --mycnf
 
 echo == 23 == bug18366909;
 # ServerPort and TcpBind_INADDR_ANY didn't show
@@ -83,21 +83,21 @@ echo == 23 == bug18366909;
 
 echo == 24 == Bug 21280428;
 # Check if removed deprecated config parameters are treated as unknown query options.
---exec $NDB_CONFIG --no-defaults --query=ByteOrder 2>&1
---exec $NDB_CONFIG --no-defaults --query=MaxNoOfIndexes 2>&1
---exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskDuringRestartTUP 2>&1
---exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskAfterRestartTUP 2>&1
---exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskDuringRestartACC 2>&1
---exec $NDB_CONFIG --no-defaults --query=NoOfDiskPagesToDiskAfterRestartACC 2>&1
---exec $NDB_CONFIG --no-defaults --query=DiskCheckpointSpeed 2>&1
---exec $NDB_CONFIG --no-defaults --query=DiskCheckpointSpeedInRestart 2>&1
---exec $NDB_CONFIG --no-defaults --query=ReservedSendBufferMemory 2>&1
---exec $NDB_CONFIG --no-defaults --query=MaxNoOfSavedEvents 2>&1
---exec $NDB_CONFIG --no-defaults --query=Id 2>&1
---exec $NDB_CONFIG --no-defaults --query=Discless 2>&1
+--exec $NDB_CONFIG --query=ByteOrder 2>&1
+--exec $NDB_CONFIG --query=MaxNoOfIndexes 2>&1
+--exec $NDB_CONFIG --query=NoOfDiskPagesToDiskDuringRestartTUP 2>&1
+--exec $NDB_CONFIG --query=NoOfDiskPagesToDiskAfterRestartTUP 2>&1
+--exec $NDB_CONFIG --query=NoOfDiskPagesToDiskDuringRestartACC 2>&1
+--exec $NDB_CONFIG --query=NoOfDiskPagesToDiskAfterRestartACC 2>&1
+--exec $NDB_CONFIG --query=DiskCheckpointSpeed 2>&1
+--exec $NDB_CONFIG --query=DiskCheckpointSpeedInRestart 2>&1
+--exec $NDB_CONFIG --query=ReservedSendBufferMemory 2>&1
+--exec $NDB_CONFIG --query=MaxNoOfSavedEvents 2>&1
+--exec $NDB_CONFIG --query=Id 2>&1
+--exec $NDB_CONFIG --query=Discless 2>&1
 --replace_regex /.*\[ndb_config\]//
 --error 255
---exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug21280456.ini 2>&1
+--exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/bug21280456.ini 2>&1
 
 echo == 25 == Bug25675643;
 # Check system name

@@ -7,6 +7,15 @@ use File::Basename;
 use IO::File;
 
 my $name = $ENV{NDBAPITEST_NAME} or die "Need NDBAPITEST_NAME";
+my $defaults;
+if (defined $ENV{NDBAPITEST_DEFAULTS}) {
+  $defaults = $ENV{NDBAPITEST_DEFAULTS};
+}
+else {
+  if (defined $ENV{PATH_CONFIG_FILE}) {
+    $defaults = "--defaults-file=".$ENV{PATH_CONFIG_FILE};
+  }
+}
 my $args = $ENV{NDBAPITEST_ARGS};
 my $max_lines = $ENV{NDBAPITEST_MAXLINES} || 200;
 
@@ -32,6 +41,7 @@ if ($ENV{'MYSQL_TMP_DIR'})
 }
 
 my $cmd = $test_bin;
+$cmd .= " $defaults" if $defaults;
 $cmd .= " $args" if $args;
 my $res = exec_print_on_error($cmd, $max_lines);
 if (!$res)

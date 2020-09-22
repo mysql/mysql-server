@@ -6,17 +6,15 @@ call mtr.add_suppression("Could not acquire global schema lock");
 #
 # Setup
 #
-let $ndb_mgm_cmd = $NDB_MGM --no-defaults --verbose=0;
-let $ndb_waiter_cmd = $NDB_WAITER --no-defaults;
 
 #
 # Test reconnect after slow system restart
 #
---exec $ndb_mgm_cmd -e "ALL RESTART -N" >> $NDB_TOOLS_OUTPUT
---exec $ndb_waiter_cmd --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL RESTART -N" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
 # Cause system restart to stall on late stages
---exec $ndb_mgm_cmd -e "ALL ERROR 13053" >> $NDB_TOOLS_OUTPUT
---exec $ndb_mgm_cmd -e "ALL START" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL ERROR 13053" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL START" >> $NDB_TOOLS_OUTPUT
 
 --let $_ndb_nodeid = 1
 --let $_start_phase = 100
@@ -27,7 +25,7 @@ let $ndb_waiter_cmd = $NDB_WAITER --no-defaults;
 --sleep 10
 
 --echo Removing error insert
---exec $ndb_mgm_cmd -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
 
 --echo Wait for cluster to become writeable
 --source include/ndb_not_readonly.inc

@@ -25,9 +25,9 @@ connection con3;
 select * from t1;
 
 # Restart cluster nodes "nostart"
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all restart -n" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "nostart"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
 
 let $counter = 500;
 --disable_query_log
@@ -60,9 +60,9 @@ select * from t1;
 
 
 # Start cluster nodes again
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all start" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all start" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "started"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 
 #
@@ -117,12 +117,12 @@ End //
 delimiter ;//
 
 # drop the table from NDB only
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT 
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT 
 
 # Restart cluster nodes
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all restart" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "started"
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 #
 # Wait until the connection to the

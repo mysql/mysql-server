@@ -15,7 +15,7 @@ select a1,crc32(b2) from t1,t2 where a1=a2 order by a1;
 drop table t1,t2;
 
 --echo # error insert 6215
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6215" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 6215" >> $NDB_TOOLS_OUTPUT
 
 --echo # run restore
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -23,7 +23,7 @@ drop table t1,t2;
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo # error insert clear
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 
 select a1,crc32(b2) from t1,t2 where a1=a2 order by a1;
 drop table t1,t2;

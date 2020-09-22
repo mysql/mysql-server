@@ -770,7 +770,7 @@ if (0) {
 # This command may fail if error inserts is not available on this build,
 # therefore we permit return code 255.
 --error 0,255
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "2 error 5084" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "2 error 5084" >> $NDB_TOOLS_OUTPUT
 
 # Do a pushed query that starts multiple index scans on each t1 fragment.
 # That way the first scan (on node 2) will be queued until the next finishes.

@@ -32,7 +32,7 @@ while ($rows)
 --enable_query_log
 
 --echo Start a backup with completion stalled
---exec $NDB_MGM --no-defaults --verbose=0 -e "all error 10039"
+--exec $NDB_MGM -e "all error 10039"
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -60,7 +60,7 @@ delete from t1 where a > 100;
 
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --verbose=0 -e "all error 0"
+--exec $NDB_MGM -e "all error 0"
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
