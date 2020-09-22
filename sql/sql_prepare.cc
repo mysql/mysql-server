@@ -2288,7 +2288,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
 
 void Prepared_statement::close_cursor() {
   if (cursor == nullptr) return;
-  if (cursor->is_open()) cursor->close();
+  cursor->close();
 }
 
 void Prepared_statement::setup_set_params() {
@@ -2347,7 +2347,7 @@ Prepared_statement::~Prepared_statement() {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("stmt: %p  cursor: %p", this, cursor));
   if (cursor != nullptr) {
-    if (cursor->is_open()) close_cursor();
+    close_cursor();
     if (result != nullptr) destroy(result);
     cursor = nullptr;
     result = nullptr;
@@ -3277,6 +3277,10 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   std::swap(m_name, copy->m_name);
   /* Ditto */
   std::swap(m_db, copy->m_db);
+  // Need a new cursor-specific query result after repreparation
+  std::swap(result, copy->result);
+  // Need a new cursor, if requested
+  std::swap(cursor, copy->cursor);
 
   DBUG_ASSERT(thd == copy->thd);
 }
@@ -3439,9 +3443,11 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
       if (!result) {
         error = true;  // OOM
       } else if ((error = mysql_open_cursor(thd, result, &cursor))) {
-        // cursor is freed inside mysql_open_cursor
-        destroy(result);
-        result = nullptr;
+        // Destroy result if cursor was never created
+        if (cursor == nullptr) {
+          destroy(result);
+          result = nullptr;
+        }
       } else {
         lex->cleanup(thd, true);
       }
@@ -3501,9 +3507,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
 
   if (cur_db_changed)
     mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
-
-  // Assert that if an error, the cursor and the result are deallocated.
-  DBUG_ASSERT(!error || (cursor == nullptr && result == nullptr));
 
   cleanup_stmt();
 
