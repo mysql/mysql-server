@@ -138,6 +138,7 @@ execute ps1 using @c;
 execute ps1 using @d;
 execute ps1 using @e;
 execute ps1 using @f;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
 execute ps1 using @g;
 execute ps2 using @a;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
@@ -158,7 +159,6 @@ DOUBLE	31.4
 INTEGER	123
 INTEGER	123
 STRING	"123"
-STRING	"2010-12-01 18:44:25"
 select json_type(j), j from pt2 order by j;
 json_type(j)	j
 NULL	NULL
