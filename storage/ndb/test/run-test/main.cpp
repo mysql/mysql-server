@@ -48,7 +48,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 8
+#define ATRT_VERSION_NUMBER 9
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -1566,6 +1566,7 @@ bool find_scripts(const char *atrt_path) {
   std::vector<struct script_path> scripts = {
       {"atrt-gather-result.sh", &g_gather_progname},
       {"atrt-analyze-result.sh", &g_analyze_progname},
+      {"atrt-backtrace.sh", nullptr},  // used by atrt-analyze-result.sh
       {"atrt-setup.sh", &g_setup_progname},
       {"atrt-analyze-coverage.sh", &g_analyze_coverage_progname},
       {"atrt-compute-coverage.sh", &g_compute_coverage_progname}};
@@ -1573,12 +1574,16 @@ bool find_scripts(const char *atrt_path) {
   for (auto &script : scripts) {
     BaseString script_full_path;
     script_full_path.assfmt("%s/%s", atrt_path, script.name);
+
     if (!File_class::exists(script_full_path.c_str())) {
       g_logger.critical("atrt script %s could not be found in %s", script.name,
                         atrt_path);
       return false;
     }
-    *script.path = strdup(script_full_path.c_str());
+
+    if (script.path != nullptr) {
+      *script.path = strdup(script_full_path.c_str());
+    }
   }
   return true;
 }
