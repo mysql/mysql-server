@@ -59,6 +59,7 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbDir.cpp
   ndb_daemon.cpp
   ndb_file_common.cpp
+  ndb_password.cpp
   ndb_stacktrace.cpp
   ${EXTRA_SRC}
   NdbNuma.cpp
