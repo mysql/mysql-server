@@ -107,7 +107,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00 rows=1)
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -124,8 +124,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 = t2.f1 + 2 AND t2.f1
 EXPLAIN
 -> Nested loop left join  (cost=1.10 rows=3)
     -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-    -> Filter: (t1.f1 = <cache>((3 + 2)))  (cost=0.12 rows=1)
-        -> Constant row from t2  (cost=0.12 rows=1)
+    -> Filter: (t1.f1 = <cache>((3 + 2)))  (cost=0.12..0.12 rows=1)
+        -> Constant row from t2  (cost=0.12..0.12 rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
@@ -140,7 +140,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t1.f1=2;
 EXPLAIN
 -> Nested loop left join  (cost=0.55 rows=3)
-    -> Rows fetched before execution  (cost=0.00 rows=1)
+    -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
     -> Filter: (t2.f1 = 2)  (cost=0.55 rows=3)
         -> Table scan on t2  (cost=0.55 rows=3)
 
@@ -199,8 +199,8 @@ test.t2	analyze	status	OK
 FLUSH STATUS;
 EXPLAIN FORMAT=tree SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
 EXPLAIN
--> Table scan on <temporary>
-    -> Temporary table with deduplication  (cost=2.05 rows=2)
+-> Table scan on <temporary>  (cost=1.26..2.51 rows=2)
+    -> Temporary table with deduplication  (cost=3.33..4.58 rows=2)
         -> Nested loop inner join  (cost=2.05 rows=2)
             -> Table scan on t1  (cost=0.45 rows=2)
             -> Limit: 1 row(s)  (cost=0.58 rows=1)
@@ -233,8 +233,8 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Group aggregate: group_concat(t1.b separator ',')
             -> Sort row IDs: t1.a
-                -> Table scan on <temporary>
-                    -> Temporary table  (cost=0.35 rows=1)
+                -> Table scan on <temporary>  (cost=2.51..2.51 rows=1)
+                    -> Temporary table  (cost=2.87..2.87 rows=1)
                         -> Table scan on t  (cost=0.35 rows=1)
 
 Warnings:
@@ -247,8 +247,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>
-    -> Temporary table with deduplication  (cost=0.45 rows=2)
+-> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
+    -> Temporary table with deduplication  (cost=1.73..3.00 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
 
 DROP TABLE t1;
@@ -263,9 +263,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT f1 FROM t1 LIMIT 2;
 EXPLAIN
--> Limit: 2 row(s)  (cost=0.75 rows=2)
-    -> Table scan on <temporary>
-        -> Temporary table with deduplication  (cost=0.75 rows=5)
+-> Limit: 2 row(s)  (cost=1.31..1.83 rows=2)
+    -> Table scan on <temporary>  (cost=0.51..2.56 rows=5)
+        -> Temporary table with deduplication  (cost=1.31..3.36 rows=5)
             -> Limit table size: 2 unique row(s)
                 -> Table scan on t1  (cost=0.75 rows=5)
 
@@ -278,9 +278,9 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
 EXPLAIN
 -> Insert into t1
-    -> Limit: 1 row(s)  (cost=0.45 rows=1)
-        -> Table scan on <temporary>
-            -> Temporary table  (cost=0.45 rows=2)
+    -> Limit: 1 row(s)  (cost=1.73..1.73 rows=1)
+        -> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
+            -> Temporary table  (cost=1.73..3.00 rows=2)
                 -> Limit table size: 1 row(s)
                     -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
 
@@ -294,10 +294,10 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>
-    -> Temporary table with deduplication
-        -> Table scan on <temporary>
-            -> Temporary table
+-> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
+    -> Temporary table with deduplication  (cost=5.00..5.00 rows=0)
+        -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
+            -> Temporary table  (cost=2.50..2.50 rows=0)
                 -> Group aggregate: count(distinct t1.b)
                     -> Sort: t1.a  (cost=1.35 rows=11)
                         -> Table scan on t1  (cost=1.35 rows=11)
@@ -445,13 +445,13 @@ EXPLAIN
                     -> Table scan on t1  (cost=0.35 rows=1)
                 -> Filter: (t2.a = t1.a)  (cost=0.35 rows=1)
                     -> Table scan on t2  (cost=0.35 rows=1)
-        -> Table scan on t3d  (cost=3.27 rows=2)
-            -> Materialize (invalidate on row from t2)  (cost=0.35 rows=1)
+        -> Table scan on t3d  (cost=2.51..2.51 rows=1)
+            -> Materialize (invalidate on row from t2)  (cost=2.87..2.87 rows=1)
                 -> Limit: 1 row(s)  (cost=0.35 rows=1)
                     -> Filter: (t3.a = t2.a)  (cost=0.35 rows=1)
                         -> Table scan on t3  (cost=0.35 rows=1)
-    -> Table scan on t4d  (cost=2.76 rows=2)
-        -> Materialize (invalidate on row from t1)  (cost=0.35 rows=1)
+    -> Table scan on t4d  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=2.87..2.87 rows=1)
             -> Limit: 1 row(s)  (cost=0.35 rows=1)
                 -> Filter: (t3.a > t1.a)  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=1)
@@ -478,7 +478,7 @@ EXPLAIN
                 -> Filter: (t3.a = t2.a)  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=1)
         -> Index lookup on t4d using <auto_key0> (a=t1.a)
-            -> Materialize (invalidate on row from t3)  (cost=0.35 rows=1)
+            -> Materialize (invalidate on row from t3)  (cost=0.36..0.36 rows=1)
                 -> Limit: 1 row(s)  (cost=0.35 rows=1)
                     -> Filter: (t4.a = t3.a)  (cost=0.35 rows=1)
                         -> Table scan on t4  (cost=0.35 rows=1)
@@ -493,8 +493,8 @@ EXPLAIN
 -> Sort: alias1.f1
     -> Filter: <nop>((alias1.f1 <= (select #3)))  (cost=2.62 rows=2) [other sub-iterators not shown]
         -> Table scan on alias1  (cost=2.62 rows=2)
-            -> Materialize  (cost=0.35 rows=1)
-                -> Limit/Offset: 2/1 row(s)  (cost=0.35 rows=1)
+            -> Materialize  (cost=0.35..0.35 rows=0)
+                -> Limit/Offset: 2/1 row(s)  (cost=0.35 rows=0)
                     -> Table scan on t1  (cost=0.35 rows=1)
 
 DROP TABLE t1;
@@ -504,8 +504,8 @@ EXPLAIN format=tree WITH my_cte AS ( SELECT * FROM t1 LIMIT 3 ) SELECT * FROM my
 EXPLAIN
 -> Nested loop inner join  (cost=2.98 rows=1)
     -> Table scan on t2  (cost=0.35 rows=1)
-    -> Table scan on my_cte  (cost=2.73 rows=2)
-        -> Materialize CTE my_cte  (cost=0.35 rows=1)
+    -> Table scan on my_cte  (cost=2.51..2.51 rows=1)
+        -> Materialize CTE my_cte  (cost=2.87..2.87 rows=1)
             -> Limit: 3 row(s)  (cost=0.35 rows=1)
                 -> Table scan on t1  (cost=0.35 rows=1)
 
@@ -564,9 +564,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
 EXPLAIN
--> Nested loop inner join  (cost=1.10 rows=1)
-    -> Table scan on <subquery2>  (cost=0.20 rows=1)
-        -> Materialize with deduplication  (cost=0.55 rows=1)
+-> Nested loop inner join  (cost=3.62 rows=1)
+    -> Table scan on <subquery2>  (cost=2.51..2.51 rows=1)
+        -> Materialize with deduplication  (cost=3.07..3.07 rows=1)
             -> Filter: (t1.a is not null)  (cost=0.55 rows=1)
                 -> Filter: (t1.b = 2)  (cost=0.55 rows=1)
                     -> Table scan on t1  (cost=0.55 rows=3)
@@ -587,7 +587,7 @@ EXPLAIN
 -> Nested loop antijoin  (cost=1.75 rows=9)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)
-        -> Materialize with deduplication  (cost=0.55 rows=3)
+        -> Materialize with deduplication  (cost=0.58..0.58 rows=3)
             -> Filter: (t1.b > 2)  (cost=0.55 rows=3)
                 -> Table scan on t1  (cost=0.55 rows=3)
 
@@ -728,7 +728,7 @@ EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
 ERROR 42000: This version of MySQL doesn't yet support 'FORMAT=JSON with EXPLAIN ANALYZE'
 EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
 
 EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
 EXPLAIN
@@ -742,19 +742,19 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 ) d1;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=10.08 rows=18)
     -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-    -> Table scan on d1  (cost=2.78 rows=6)
-        -> Union materialize with deduplication
+    -> Table scan on d1  (cost=0.43..2.58 rows=6)
+        -> Union materialize with deduplication  (cost=1.59..3.74 rows=6)
             -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
             -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=10.08 rows=18)
     -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
-    -> Table scan on d1  (cost=2.78 rows=6)
-        -> Union materialize
+    -> Table scan on d1  (cost=0.43..2.58 rows=6)
+        -> Union materialize  (cost=1.59..3.74 rows=6)
             -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
             -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 
@@ -832,6 +832,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER);
 EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
 EXPLAIN
--> Zero rows (Impossible WHERE)
+-> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
 
 DROP TABLE t1;

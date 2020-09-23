@@ -1068,13 +1068,13 @@ create table t(a int, b int);
 insert into t values(1,1),(2,2),(3,3),(4,4),(5,5);
 explain format=tree select a from t where (not exists (select b from t));
 EXPLAIN
--> Zero rows (Impossible WHERE)
+-> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
 
 select a from t where (not exists (select b from t));
 a
 explain format=tree select a from t where 1 not in (select 1 from t);
 EXPLAIN
--> Zero rows (Impossible WHERE)
+-> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
 
 select a from t where 1 not in (select 1 from t);
 a

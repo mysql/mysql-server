@@ -218,7 +218,17 @@ struct AccessPath {
   /// Expected cost to read all of this access path once; -1.0 for unknown.
   double cost{-1.0};
 
-  /// If no filter, identical to num_output_rows and cost, respectively.
+  /// Expected cost to initialize this access path; ie., cost to read
+  /// k out of N rows would be init_cost + (k/N) * (cost - init_cost).
+  /// Note that EXPLAIN prints out cost of reading the _first_ row
+  /// because it is easier for the user and also easier to measure in
+  /// EXPLAIN ANALYZE, but it is easier to do calculations with a pure
+  /// initialization cost, so that is what we use in this member.
+  /// -1.0 for unknown.
+  double init_cost{-1.0};
+
+  /// If no filter, identical to num_output_rows, cost, respectively.
+  /// init_cost is always the same (filters have zero initialization cost).
   double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
 
   /// Bitmap of WHERE predicates that we are including on this access path,
@@ -759,14 +769,15 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 112,
+static_assert(sizeof(AccessPath) <= 120,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(72 bytes for the base, 40 bytes for the variant.)");
+              "(80 bytes for the base, 40 bytes for the variant.)");
 
 inline void CopyCosts(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
   to->cost = from.cost;
+  to->init_cost = from.init_cost;
 }
 
 // Trivial factory functions for all of the types of access paths above.
@@ -864,6 +875,7 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   path->count_examined_rows = count_examined_rows;
   path->num_output_rows = 1.0;
   path->cost = 0.0;
+  path->init_cost = 0.0;
   path->const_table().table = table;
   path->const_table().ref = ref;
   return path;
@@ -1006,10 +1018,26 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
 
   if (child->num_output_rows >= 0.0) {
     path->num_output_rows =
-        std::min<double>(child->num_output_rows, limit - offset);
+        offset >= child->num_output_rows
+            ? 0.0
+            : (std::min<double>(child->num_output_rows, limit) - offset);
   }
-  // We have nothing better, since we don't know how much is startup cost.
-  path->cost = child->cost;
+
+  if (child->init_cost < 0.0) {
+    // We have nothing better, since we don't know how much is startup cost.
+    path->cost = child->cost;
+  } else if (child->num_output_rows < 1e-6) {
+    path->cost = path->init_cost = child->init_cost;
+  } else {
+    const double fraction_start_read =
+        std::min(1.0, double(offset) / child->num_output_rows);
+    const double fraction_full_read =
+        std::min(1.0, double(limit) / child->num_output_rows);
+    path->cost = child->init_cost +
+                 fraction_full_read * (child->cost - child->init_cost);
+    path->init_cost = child->init_cost +
+                      fraction_start_read * (child->cost - child->init_cost);
+  }
 
   return path;
 }
@@ -1021,6 +1049,7 @@ inline AccessPath *NewFakeSingleRowAccessPath(THD *thd,
   path->count_examined_rows = count_examined_rows;
   path->num_output_rows = 1.0;
   path->cost = 0.0;
+  path->init_cost = 0.0;
   return path;
 }
 
@@ -1030,6 +1059,9 @@ inline AccessPath *NewZeroRowsAccessPath(THD *thd, AccessPath *child,
   path->type = AccessPath::ZERO_ROWS;
   path->zero_rows().child = child;
   path->zero_rows().cause = cause;
+  path->num_output_rows = 0.0;
+  path->cost = 0.0;
+  path->init_cost = 0.0;
   return path;
 }
 

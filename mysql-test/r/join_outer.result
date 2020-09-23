@@ -3721,7 +3721,7 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
 EXPLAIN
 -> Nested loop left join  (cost=4.50 rows=25)
     -> Table scan on t1  (cost=0.75 rows=5)
-    -> Zero rows (Impossible filter)  (cost=0.35 rows=5)
+    -> Zero rows (Impossible filter)  (cost=0.07..0.35 rows=5)
 
 DROP TABLE t1, t2;
 set optimizer_switch='block_nested_loop=on';

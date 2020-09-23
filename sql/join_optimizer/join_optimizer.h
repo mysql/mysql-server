@@ -62,8 +62,6 @@
       star joins. (Less extreme queries, such as 30-way chain joins,
       will be fine.) They will receive a similar error message as with
       unsupported SQL features, instead of timing out.
-    - Differentiating between initial (startup) cost and full cost,
-      which is important in queries with LIMIT.
  */
 
 #include <string>
@@ -101,5 +99,7 @@ class SELECT_LEX;
  */
 AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex,
                               std::string *trace);
+
+void EstimateMaterializeCost(AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_JOIN_OPTIMIZER_H

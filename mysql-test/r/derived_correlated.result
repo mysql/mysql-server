@@ -266,14 +266,14 @@ explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Filter: (dt1.a = (select #4))  (cost=0.70 rows=2)
+    -> Filter: (dt1.a = (select #4))  (cost=0.58..0.70 rows=2)
         -> Index lookup on dt1 using <auto_key0> (a=(select #4))
-            -> Materialize CTE dt if needed  (cost=0.45 rows=1)
+            -> Materialize CTE dt if needed  (cost=0.46..0.46 rows=1)
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
-            -> Table scan on dt2  (cost=2.73 rows=2)
-                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=0.45 rows=1)
+            -> Table scan on dt2  (cost=2.51..2.51 rows=1)
+                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=2.97..2.97 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
@@ -527,8 +527,8 @@ EXPLAIN
 -> Nested loop inner join  (cost=6.35 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt2  (cost=2.95 rows=2)
-        -> Materialize (invalidate on row from t1)  (cost=0.45 rows=1)
+    -> Table scan on dt2  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=2.97..2.97 rows=1)
             -> Limit: 1 row(s)  (cost=0.45 rows=1)
                 -> Table scan on t2  (cost=0.45 rows=2)
 
@@ -1773,14 +1773,14 @@ explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Filter: (dt1.a = (select #4))  (cost=0.70 rows=2)
+    -> Filter: (dt1.a = (select #4))  (cost=0.58..0.70 rows=2)
         -> Index lookup on dt1 using <auto_key0> (a=(select #4))
-            -> Materialize CTE dt if needed  (cost=0.45 rows=1)
+            -> Materialize CTE dt if needed  (cost=0.46..0.46 rows=1)
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
-            -> Table scan on dt2  (cost=2.73 rows=2)
-                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=0.45 rows=1)
+            -> Table scan on dt2  (cost=2.51..2.51 rows=1)
+                -> Materialize CTE dt if needed (query plan printed elsewhere)  (cost=2.97..2.97 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
@@ -2037,13 +2037,13 @@ EXPLAIN
 -> Nested loop inner join  (cost=8.62 rows=2)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt3  (cost=4.09 rows=2)
-        -> Materialize (invalidate on row from t1)  (cost=0.45 rows=1)
-            -> Table scan on dt2  (cost=2.73 rows=2)
-                -> Materialize  (cost=0.45 rows=1)
-                    -> Limit: 1 row(s)  (cost=0.45 rows=1)
-                        -> Table scan on dt  (cost=2.73 rows=2)
-                            -> Materialize  (cost=0.45 rows=2)
+    -> Table scan on dt3  (cost=2.51..2.51 rows=1)
+        -> Materialize (invalidate on row from t1)  (cost=6.78..6.78 rows=1)
+            -> Table scan on dt2  (cost=2.51..2.51 rows=1)
+                -> Materialize  (cost=4.25..4.25 rows=1)
+                    -> Limit: 1 row(s)  (cost=1.73..1.73 rows=1)
+                        -> Table scan on dt  (cost=1.26..2.52 rows=2)
+                            -> Materialize  (cost=1.73..3.00 rows=2)
                                 -> Table scan on t2  (cost=0.45 rows=2)
 
 Warnings:
@@ -3332,11 +3332,11 @@ CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t
 EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
 EXPLAIN
 -> Index lookup on v2 using <auto_key0> (f3=3)
-    -> Materialize  (cost=0.35 rows=1)
+    -> Materialize  (cost=0.36..0.36 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
         -> Select #3 (subquery in projection; dependent)
             -> Index lookup on v1 using <auto_key0> (f1=t2.f1)
-                -> Materialize  (cost=0.35 rows=1)
+                -> Materialize  (cost=0.36..0.36 rows=1)
                     -> Table scan on t1  (cost=0.35 rows=1)
 
 Warnings:

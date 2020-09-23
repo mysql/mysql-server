@@ -50,6 +50,7 @@
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/hypergraph.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
@@ -128,7 +129,7 @@ class CostingReceiver {
   // Called EmitCsgCmp() in the DPhyp paper.
   bool FoundSubgraphPair(NodeMap left, NodeMap right, int edge_idx);
 
-  AccessPath *root() const {
+  const Prealloced_array<AccessPath *, 4> &root_candidates() {
     const auto it = m_access_paths.find(TablesBetween(0, m_graph.nodes.size()));
     assert(it != m_access_paths.end());
     return it->second;
@@ -141,12 +142,15 @@ class CostingReceiver {
 
   /**
     For each subset of tables that are connected in the join hypergraph,
-    keeps the current best access path for producing said subset.
+    keeps the current best access paths for producing said subset.
+    There can be several that are best in different ways; see comments
+    on ProposeAccessPath().
+
     Also used for communicating connectivity information back to DPhyp
     (in HasSeen()); if there's an entry here, that subset will induce
     a connected subgraph of the join hypergraph.
    */
-  std::unordered_map<NodeMap, AccessPath *> m_access_paths;
+  std::unordered_map<NodeMap, Prealloced_array<AccessPath *, 4>> m_access_paths;
 
   /// The graph we are running over.
   const JoinHypergraph &m_graph;
@@ -179,8 +183,11 @@ class CostingReceiver {
     return Overlaps(AccessPathTypeBitmap(type), m_supported_access_path_types);
   }
 
+  AccessPath *ProposeAccessPathForNodes(NodeMap nodes, const AccessPath &path,
+                                        const char *description_for_trace);
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
-                       AccessPath *right_path, const JoinPredicate *edge);
+                       AccessPath *right_path, const JoinPredicate *edge,
+                       bool *wrote_trace);
   void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
                                        const AccessPath *left_path,
                                        const AccessPath *right_path,
@@ -210,10 +217,10 @@ uint64_t SupportedAccessPathTypes(const THD *thd) {
 bool CostingReceiver::FoundSingleNode(int node_idx) {
   TABLE *table = m_graph.nodes[node_idx];
 
-  AccessPath *path = new (m_thd->mem_root) AccessPath;
-  path->type = AccessPath::TABLE_SCAN;
-  path->count_examined_rows = true;
-  path->table_scan().table = table;
+  AccessPath table_path;
+  table_path.type = AccessPath::TABLE_SCAN;
+  table_path.count_examined_rows = true;
+  table_path.table_scan().table = table;
 
   // Doing at least one table scan (this one), so mark the query as such.
   // TODO(sgunders): Move out when we get more types and this access path could
@@ -230,32 +237,33 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   double num_output_rows = table->file->stats.records;
   double cost = table->file->table_scan_cost().total_cost();
 
-  path->num_output_rows_before_filter = num_output_rows;
-  path->cost_before_filter = cost;
+  table_path.num_output_rows_before_filter = num_output_rows;
+  table_path.cost_before_filter = cost;
 
   // See which predicates that apply to this table. Some can be applied right
   // away, some require other tables first and must be delayed.
   const NodeMap my_map = TableBitmap(node_idx);
-  path->filter_predicates = 0;
-  path->delayed_predicates = 0;
+  table_path.filter_predicates = 0;
+  table_path.delayed_predicates = 0;
   for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
-      path->filter_predicates |= uint64_t{1} << i;
+      table_path.filter_predicates |= uint64_t{1} << i;
       cost += num_output_rows * kApplyOneFilterCost;
       num_output_rows *= m_graph.predicates[i].selectivity;
     } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
-      path->delayed_predicates |= uint64_t{1} << i;
+      table_path.delayed_predicates |= uint64_t{1} << i;
     }
   }
 
-  path->num_output_rows = num_output_rows;
-  path->cost = cost;
+  table_path.num_output_rows = num_output_rows;
+  table_path.init_cost = 0.0;
+  table_path.cost = cost;
 
   if (m_trace != nullptr) {
-    *m_trace += StringPrintf("Found node %s [rows=%.0f, cost=%.1f]\n",
+    *m_trace += StringPrintf("Found node %s [rows=%.0f]\n",
                              m_graph.nodes[node_idx]->alias,
-                             path->num_output_rows, path->cost);
-    for (int pred_idx : BitsSetIn(path->filter_predicates)) {
+                             table_path.num_output_rows);
+    for (int pred_idx : BitsSetIn(table_path.filter_predicates)) {
       *m_trace += StringPrintf(
           " - applied predicate %s\n",
           ItemToString(m_graph.predicates[pred_idx].condition).c_str());
@@ -265,32 +273,46 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   // See if this is an information schema table that must be filled in before
   // we scan.
   if (tl->schema_table != nullptr && tl->schema_table->fill_table) {
+    // TODO(sgunders): We don't need to allocate materialize_path on the
+    // MEM_ROOT.
+    AccessPath *new_table_path = new (m_thd->mem_root) AccessPath(table_path);
     AccessPath *materialize_path =
-        NewMaterializeInformationSchemaTableAccessPath(m_thd, path, tl,
+        NewMaterializeInformationSchemaTableAccessPath(m_thd, new_table_path,
+                                                       tl,
                                                        /*condition=*/nullptr);
-    materialize_path->num_output_rows = path->num_output_rows;
+
+    materialize_path->num_output_rows = table_path.num_output_rows;
     materialize_path->num_output_rows_before_filter =
-        path->num_output_rows_before_filter;
-    materialize_path->cost_before_filter = path->cost;
-    materialize_path->cost = path->cost;
-    materialize_path->filter_predicates = path->filter_predicates;
-    materialize_path->delayed_predicates = path->delayed_predicates;
-    path->filter_predicates = path->delayed_predicates = 0;
+        table_path.num_output_rows_before_filter;
+    materialize_path->init_cost = table_path.cost;  // Rudimentary.
+    materialize_path->cost_before_filter = table_path.cost;
+    materialize_path->cost = table_path.cost;
+    materialize_path->filter_predicates = table_path.filter_predicates;
+    materialize_path->delayed_predicates = table_path.delayed_predicates;
+    new_table_path->filter_predicates = new_table_path->delayed_predicates = 0;
 
     // Some information schema tables have zero as estimate, which can lead
     // to completely wild plans. Add a placeholder to make sure we have
     // _something_ to work with.
     if (materialize_path->num_output_rows_before_filter == 0) {
-      path->num_output_rows = 1000;
-      path->num_output_rows_before_filter = 1000;
+      new_table_path->num_output_rows = 1000;
+      new_table_path->num_output_rows_before_filter = 1000;
       materialize_path->num_output_rows = 1000;
       materialize_path->num_output_rows_before_filter = 1000;
     }
 
-    path = materialize_path;
+    assert(!tl->uses_materialization());
+    ProposeAccessPathForNodes(TableBitmap(node_idx), *materialize_path, "");
+    return false;
   }
 
   if (tl->uses_materialization()) {
+    // TODO(sgunders): When we get multiple candidates for each table, don't
+    // move table_path to MEM_ROOT storage unless ProposeAccessPath() keeps it.
+    AccessPath *path = new (m_thd->mem_root) AccessPath(table_path);
+
+    // TODO(sgunders): We don't need to allocate materialize_path on the
+    // MEM_ROOT.
     AccessPath *materialize_path;
     if (tl->is_table_function()) {
       // TODO(sgunders): Queries with these are currently disabled,
@@ -314,14 +336,15 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
 
     // TODO(sgunders): Take rematerialization cost into account,
     // or maybe, more lack of it.
-    materialize_path->cost += path->cost;
-    materialize_path->filter_predicates = path->filter_predicates;
-    materialize_path->delayed_predicates = path->delayed_predicates;
+    materialize_path->filter_predicates = table_path.filter_predicates;
+    materialize_path->delayed_predicates = table_path.delayed_predicates;
     path->filter_predicates = path->delayed_predicates = 0;
-    path = materialize_path;
+
+    ProposeAccessPathForNodes(TableBitmap(node_idx), *materialize_path, "");
+    return false;
   }
 
-  m_access_paths.emplace(TableBitmap(node_idx), path);
+  ProposeAccessPathForNodes(TableBitmap(node_idx), table_path, "");
   return false;
 }
 
@@ -347,23 +370,32 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   const JoinPredicate *edge = &m_graph.edges[edge_idx];
 
-  AccessPath *left_path = m_access_paths[left];
-  AccessPath *right_path = m_access_paths[right];
+  auto left_it = m_access_paths.find(left);
+  assert(left_it != m_access_paths.end());
+  auto right_it = m_access_paths.find(right);
+  assert(right_it != m_access_paths.end());
 
-  // For inner joins, the order does not matter.
-  // In lieu of a more precise cost model, always keep the one that hashes
-  // the fewest amount of rows.
-  if (left_path->num_output_rows < right_path->num_output_rows &&
-      edge->expr->type == RelationalExpression::INNER_JOIN) {
-    ProposeHashJoin(right, left, right_path, left_path, edge);
-  } else {
-    ProposeHashJoin(left, right, left_path, right_path, edge);
-  }
+  bool wrote_trace = false;
 
-  if (m_access_paths.size() > 100000) {
-    // Bail out; we're going to be needing graph simplification
-    // (a separate worklog).
-    return true;
+  for (AccessPath *left_path : left_it->second) {
+    for (AccessPath *right_path : right_it->second) {
+      // For inner joins, the order does not matter.
+      // In lieu of a more precise cost model, always keep the one that hashes
+      // the fewest amount of rows. (This has lower initial cost, and the same
+      // cost.)
+      if (left_path->num_output_rows < right_path->num_output_rows &&
+          edge->expr->type == RelationalExpression::INNER_JOIN) {
+        ProposeHashJoin(right, left, right_path, left_path, edge, &wrote_trace);
+      } else {
+        ProposeHashJoin(left, right, left_path, right_path, edge, &wrote_trace);
+      }
+
+      if (m_access_paths.size() > 100000) {
+        // Bail out; we're going to be needing graph simplification
+        // (a separate worklog).
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -389,7 +421,8 @@ double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
 void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
                                       AccessPath *left_path,
                                       AccessPath *right_path,
-                                      const JoinPredicate *edge) {
+                                      const JoinPredicate *edge,
+                                      bool *wrote_trace) {
   if (!SupportedAccessPathType(AccessPath::HASH_JOIN)) return;
 
   AccessPath join_path;
@@ -404,9 +437,10 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   double num_output_rows = FindOutputRowsForJoin(left_path, right_path, edge);
 
   // TODO(sgunders): Add estimates for spill-to-disk costs.
-  double cost = left_path->cost + right_path->cost;
-  cost += right_path->num_output_rows * kHashBuildOneRowCost;
-  cost += left_path->num_output_rows * kHashProbeOneRowCost;
+  const double build_cost =
+      right_path->cost + right_path->num_output_rows * kHashBuildOneRowCost;
+  double cost = left_path->cost + build_cost +
+                left_path->num_output_rows * kHashProbeOneRowCost;
 
   // Note: This isn't strictly correct if the non-equijoin conditions
   // have selectivities far from 1.0; the cost should be calculated
@@ -418,49 +452,27 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   join_path.num_output_rows_before_filter = num_output_rows;
   join_path.cost_before_filter = cost;
   join_path.num_output_rows = num_output_rows;
+  join_path.init_cost = build_cost + left_path->init_cost;
   join_path.cost = cost;
 
   ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
                                   &join_path);
 
-  AccessPath *path = &join_path;
-
-  if (m_trace != nullptr) {
+  // Only trace once; the rest ought to be identical.
+  if (m_trace != nullptr && !*wrote_trace) {
     *m_trace += StringPrintf(
-        "Found sets %s and %s, connected by condition %s [rows=%.0f, "
-        "cost=%.1f]\n",
+        "Found sets %s and %s, connected by condition %s [rows=%.0f]\n",
         PrintSet(left).c_str(), PrintSet(right).c_str(),
-        GenerateExpressionLabel(edge->expr).c_str(), path->num_output_rows,
-        path->cost);
-    for (int pred_idx : BitsSetIn(path->filter_predicates)) {
+        GenerateExpressionLabel(edge->expr).c_str(), join_path.num_output_rows);
+    for (int pred_idx : BitsSetIn(join_path.filter_predicates)) {
       *m_trace += StringPrintf(
           " - applied (delayed) predicate %s\n",
           ItemToString(m_graph.predicates[pred_idx].condition).c_str());
     }
+    *wrote_trace = true;
   }
 
-  auto it = m_access_paths.find(left | right);
-  if (it == m_access_paths.end()) {
-    if (m_trace != nullptr) {
-      *m_trace += " - first alternative for this join, keeping\n";
-    }
-    m_access_paths.emplace(left | right,
-                           new (m_thd->mem_root) AccessPath(*path));
-  } else {
-    if (it->second->cost > path->cost) {
-      if (m_trace != nullptr) {
-        *m_trace += StringPrintf(" - cheaper than old cost %.1f, keeping\n",
-                                 it->second->cost);
-      }
-      *it->second = *path;
-    } else {
-      if (m_trace != nullptr) {
-        *m_trace +=
-            StringPrintf(" - more expensive than old cost %.1f, discarding\n",
-                         it->second->cost);
-      }
-    }
-  }
+  ProposeAccessPathForNodes(left | right, join_path, "hash join");
 }
 
 // Of all delayed predicates, see which ones we can apply now, and which
@@ -483,6 +495,198 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
       join_path->delayed_predicates |= uint64_t{1} << pred_idx;
     }
   }
+}
+
+enum class PathComparisonResult {
+  FIRST_DOMINATES,
+  SECOND_DOMINATES,
+  DIFFERENT_STRENGTHS,
+  IDENTICAL,
+};
+
+// See if one access path is better than the other across all cost dimensions
+// (if so, we say it dominates the other one). If not, we return
+// DIFFERENT_STRENGTHS so that both must be kept.
+//
+// TODO(sgunders): If one path is better than the other in cost, and only
+// slightly worse (e.g. 1%) in a less important metric such as init_cost,
+// consider pruning the latter.
+//
+// TODO(sgunders): Support turning off certain cost dimensions; e.g., init_cost
+// only matters if we have a LIMIT or nested loop semijoin somewhere in the
+// query, and it might not matter for secondary engine.
+static inline PathComparisonResult CompareAccessPaths(const AccessPath &a,
+                                                      const AccessPath &b) {
+  bool a_is_better = false, b_is_better = false;
+  if (a.cost < b.cost) {
+    a_is_better = true;
+  } else if (b.cost < a.cost) {
+    b_is_better = true;
+  }
+
+  if (a.init_cost < b.init_cost) {
+    a_is_better = true;
+  } else if (b.init_cost < a.init_cost) {
+    b_is_better = true;
+  }
+
+  if (!a_is_better && !b_is_better) {
+    return PathComparisonResult::IDENTICAL;
+  } else if (a_is_better && !b_is_better) {
+    return PathComparisonResult::FIRST_DOMINATES;
+  } else if (!a_is_better && b_is_better) {
+    return PathComparisonResult::SECOND_DOMINATES;
+  } else {
+    return PathComparisonResult::DIFFERENT_STRENGTHS;
+  }
+}
+
+static string PrintCost(const AccessPath &path,
+                        const char *description_for_trace) {
+  if (strcmp(description_for_trace, "") == 0) {
+    return StringPrintf("{cost=%.1f, init_cost=%.1f}", path.cost,
+                        path.init_cost);
+  } else {
+    return StringPrintf("{cost=%.1f, init_cost=%.1f} [%s]", path.cost,
+                        path.init_cost, description_for_trace);
+  }
+}
+
+/**
+  Propose the given access path as an alternative to the existing access paths
+  for the same task (assuming any exist at all), and hold a “tournament” to find
+  whether it is better than the others. Only the best alternatives are kept,
+  as defined by CompareAccessPaths(); a given access path is kept only if
+  it is not dominated by any other path in the group (ie., the Pareto frontier
+  is computed). This means that the following are all possible outcomes of the
+  tournament:
+
+   - The path is discarded, without ever being inserted in the list
+     (dominated by at least one existing entry).
+   - The path is inserted as a new alternative in the list (dominates none
+     but it also not dominated by any -- or the list was empty), leaving it with
+     N+1 entries.
+   - The path is inserted as a new alternative in the list, but replaces one
+     or more entries (dominates them).
+   - The path replaces all existing alternatives, and becomes the sole entry
+     in the list.
+
+  “description_for_trace” is a short description of the inserted path
+  to distinguish it in optimizer trace, if active. For instance, one might
+  write “hash join” when proposing a hash join access path. It may be
+  the empty string.
+ */
+static AccessPath *ProposeAccessPath(
+    THD *thd, const AccessPath &path,
+    Prealloced_array<AccessPath *, 4> *existing_paths,
+    const char *description_for_trace, string *trace) {
+  if (existing_paths->empty()) {
+    if (trace != nullptr) {
+      *trace += " - " + PrintCost(path, description_for_trace) +
+                " is first alternative, keeping\n";
+    }
+    AccessPath *insert_position = new (thd->mem_root) AccessPath(path);
+    existing_paths->push_back(insert_position);
+    return insert_position;
+  }
+
+  AccessPath *insert_position = nullptr;
+  int num_dominated = 0;
+  for (size_t i = 0; i < existing_paths->size(); ++i) {
+    PathComparisonResult result =
+        CompareAccessPaths(path, *((*existing_paths)[i]));
+    if (result == PathComparisonResult::DIFFERENT_STRENGTHS) {
+      continue;
+    }
+    if (result == PathComparisonResult::IDENTICAL ||
+        result == PathComparisonResult::SECOND_DOMINATES) {
+      assert(insert_position == nullptr);
+      if (trace != nullptr) {
+        *trace += " - " + PrintCost(path, description_for_trace) +
+                  " is not better than existing path " +
+                  PrintCost(*(*existing_paths)[i], "") + ", discarding\n";
+      }
+      return nullptr;
+    }
+    if (result == PathComparisonResult::FIRST_DOMINATES) {
+      ++num_dominated;
+      if (insert_position == nullptr) {
+        // Replace this path by the new, better one. We continue to search for
+        // other paths to dominate. Note that we don't overwrite just yet,
+        // because we might want to print out the old one in optimizer trace
+        // below.
+        insert_position = (*existing_paths)[i];
+      } else {
+        // The new path is better than the old one, but we don't need to insert
+        // it again. Delete the old one by moving the last one into its place
+        // (this may be a no-op) and then chopping one off the end.
+        (*existing_paths)[i] = existing_paths->back();
+        existing_paths->pop_back();
+        --i;
+      }
+    }
+  }
+
+  if (insert_position == nullptr) {
+    if (trace != nullptr) {
+      *trace += " - " + PrintCost(path, description_for_trace) +
+                " is potential alternative, appending to existing list: (";
+      bool first = true;
+      for (const AccessPath *other_path : *existing_paths) {
+        if (!first) {
+          *trace += ", ";
+        }
+        *trace += PrintCost(*other_path, "");
+        first = false;
+      }
+      *trace += ")\n";
+    }
+    insert_position = new (thd->mem_root) AccessPath(path);
+    existing_paths->emplace_back(insert_position);
+    return insert_position;
+  }
+
+  if (trace != nullptr) {
+    if (existing_paths->size() == 1) {  // Only one left.
+      if (num_dominated == 1) {
+        *trace += " - " + PrintCost(path, description_for_trace) +
+                  " is better than previous " +
+                  PrintCost(*insert_position, "") + ", replacing\n";
+      } else {
+        *trace += " - " + PrintCost(path, description_for_trace) +
+                  " is better than all previous alternatives, replacing all\n";
+      }
+    } else {
+      assert(num_dominated > 0);
+      *trace += StringPrintf(
+          " - %s is better than %d others, replacing them, remaining are: ",
+          PrintCost(path, description_for_trace).c_str(), num_dominated);
+      bool first = true;
+      for (const AccessPath *other_path : *existing_paths) {
+        if (other_path == insert_position) {
+          // Will be replaced by ourselves momentarily, so don't print it.
+          continue;
+        }
+        if (!first) {
+          *trace += ", ";
+        }
+        *trace += PrintCost(*other_path, "");
+        first = false;
+      }
+      *trace += ")\n";
+    }
+  }
+  *insert_position = path;
+  return insert_position;
+}
+
+AccessPath *CostingReceiver::ProposeAccessPathForNodes(
+    NodeMap nodes, const AccessPath &path, const char *description_for_trace) {
+  // Insert an empty array if none exists.
+  auto it_and_inserted = m_access_paths.emplace(
+      nodes, Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED});
+  return ProposeAccessPath(m_thd, path, &it_and_inserted.first->second,
+                           description_for_trace, m_trace);
 }
 
 /**
@@ -666,6 +870,7 @@ AccessPath *CreateMaterializationPathForSortingAggregates(
                                /*ref_slice=*/-1);
     stream_path->num_output_rows = path->num_output_rows;
     stream_path->cost = path->cost;
+    stream_path->init_cost = path->init_cost;
     stream_path->num_output_rows_before_filter = stream_path->num_output_rows;
     stream_path->cost_before_filter = stream_path->cost;
     return stream_path;
@@ -685,23 +890,44 @@ AccessPath *CreateMaterializationPathForSortingAggregates(
         /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
         /*unit=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
         /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);
-    materialize_path->num_output_rows = path->num_output_rows;
 
-    // Try to get usable estimates. Ignored by InnoDB, but used by
-    // TempTable.
-    temp_table->file->stats.records = path->num_output_rows;
-    materialize_path->cost = path->cost +
-                             kMaterializeOneRowCost * path->num_output_rows +
-                             temp_table->file->table_scan_cost().total_cost();
-
-    materialize_path->num_output_rows_before_filter =
-        materialize_path->num_output_rows;
-    materialize_path->cost_before_filter = materialize_path->cost;
+    EstimateMaterializeCost(materialize_path);
     return materialize_path;
   }
 }
 
 }  // namespace
+
+// Very rudimentary (assuming no deduplication; it's better to overestimate
+// than to understimate), so that we get something that isn't “unknown”.
+void EstimateMaterializeCost(AccessPath *path) {
+  AccessPath *table_path = path->materialize().table_path;
+
+  path->cost = 0;
+  path->num_output_rows = 0;
+  for (const MaterializePathParameters::QueryBlock &block :
+       path->materialize().param->query_blocks) {
+    if (block.subquery_path->num_output_rows >= 0.0) {
+      path->num_output_rows += block.subquery_path->num_output_rows;
+      path->cost += block.subquery_path->cost;
+    }
+  }
+  path->cost += kMaterializeOneRowCost * path->num_output_rows;
+
+  // Try to get usable estimates. Ignored by InnoDB, but used by
+  // TempTable.
+  if (table_path->type == AccessPath::TABLE_SCAN) {
+    TABLE *temp_table = table_path->table_scan().table;
+    temp_table->file->stats.records = path->num_output_rows;
+
+    table_path->num_output_rows = path->num_output_rows;
+    table_path->init_cost = 0.0;
+    table_path->cost = temp_table->file->table_scan_cost().total_cost();
+  }
+
+  path->init_cost = path->cost + std::max(table_path->init_cost, 0.0);
+  path->cost = path->cost + std::max(table_path->cost, 0.0);
+}
 
 AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   JOIN *join = select_lex->join;
@@ -720,7 +946,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   // for the join as a whole (with lowest possible cost, and thus also
   // hopefully optimal execution time), with all pushable predicates applied.
   if (trace != nullptr) {
-    *trace += "Enumerating subplans:\n";
+    *trace += "\nEnumerating subplans:\n";
   }
   for (TABLE *table : graph.nodes) {
     table->init_cost_model(thd->cost_model());
@@ -732,27 +958,50 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   }
   thd->m_current_query_partial_plans += receiver.num_access_paths();
   if (trace != nullptr) {
-    *trace += StringPrintf("\nEnumerated %zu subplans.\n",
-                           receiver.num_access_paths());
+    *trace += StringPrintf(
+        "\nEnumerated %zu subplans, got %zu candidate(s) to finalize:\n",
+        receiver.num_access_paths(), receiver.root_candidates().size());
   }
 
-  AccessPath *root_path = receiver.root();
-
-  // Apply any predicates that don't belong to any specific table,
-  // or which are nondeterministic.
-  for (size_t i = 0; i < graph.predicates.size(); ++i) {
-    if (!Overlaps(graph.predicates[i].total_eligibility_set,
-                  TablesBetween(0, graph.nodes.size())) ||
-        Overlaps(graph.predicates[i].total_eligibility_set, RAND_TABLE_BIT)) {
-      root_path->filter_predicates |= uint64_t{1} << i;
-      root_path->cost += root_path->num_output_rows * kApplyOneFilterCost;
-      root_path->num_output_rows *= graph.predicates[i].selectivity;
+  // Now we have one or more access paths representing joining all the tables
+  // together. (There may be multiple ones because they can be better at
+  // different metrics.) We apply the post-join operations to all of them in
+  // turn, and then finally pick out the one with the lowest total cost,
+  // because at the end, other metrics don't really matter any more.
+  //
+  // We could have stopped caring about e.g. init_cost after LIMIT
+  // has been applied (after which it no longer matters), so that we'd get
+  // fewer candidates in each step, but this part is so cheap that it's
+  // unlikely to be worth it. We go through ProposeAccessPath() mainly
+  // because it gives us better tracing.
+  if (trace != nullptr) {
+    *trace += "Adding final predicates\n";
+  }
+  Prealloced_array<AccessPath *, 4> root_candidates(PSI_NOT_INSTRUMENTED);
+  for (AccessPath *root_path : receiver.root_candidates()) {
+    // Apply any predicates that don't belong to any specific table,
+    // or which are nondeterministic.
+    for (size_t i = 0; i < graph.predicates.size(); ++i) {
+      if (!Overlaps(graph.predicates[i].total_eligibility_set,
+                    TablesBetween(0, graph.nodes.size())) ||
+          Overlaps(graph.predicates[i].total_eligibility_set, RAND_TABLE_BIT)) {
+        root_path->filter_predicates |= uint64_t{1} << i;
+        root_path->cost += root_path->num_output_rows * kApplyOneFilterCost;
+        root_path->num_output_rows *= graph.predicates[i].selectivity;
+        if (trace != nullptr) {
+          *trace +=
+              StringPrintf(" - applied predicate %s\n",
+                           ItemToString(graph.predicates[i].condition).c_str());
+        }
+      }
     }
-  }
 
-  // Now that we have decided on a full plan, expand all the applied
-  // filter maps into proper FILTER nodes for execution.
-  ExpandFilterAccessPaths(thd, root_path, join, graph.predicates);
+    // Now that we have decided on a full plan, expand all the applied
+    // filter maps into proper FILTER nodes for execution.
+    ExpandFilterAccessPaths(thd, root_path, join, graph.predicates);
+
+    ProposeAccessPath(thd, *root_path, &root_candidates, "", trace);
+  }
 
   // Apply GROUP BY, if applicable. We currently always do this by sorting
   // first and then using streaming aggregation.
@@ -760,44 +1009,55 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
     if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
       return nullptr;
 
-    if (select_lex->is_explicitly_grouped()) {
-      Mem_root_array<TABLE *> tables =
-          CollectTables(select_lex, GetUsedTables(root_path));
-      Filesort *filesort = new (thd->mem_root)
-          Filesort(thd, std::move(tables), /*keep_buffers=*/false,
-                   select_lex->group_list.first,
-                   /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
-                   /*remove_duplicates=*/false, /*force_sort_positions=*/false,
-                   /*unwrap_rollup=*/false);
-      AccessPath *sort_path = NewSortAccessPath(thd, root_path, filesort,
-                                                /*count_examined_rows=*/false);
-
-      sort_path->num_output_rows = root_path->num_output_rows;
-      sort_path->cost =
-          root_path->cost + EstimateSortCost(root_path->num_output_rows);
-      sort_path->num_output_rows_before_filter = sort_path->num_output_rows;
-      sort_path->cost_before_filter = sort_path->cost;
-
-      root_path = sort_path;
-
-      if (!filesort->using_addon_fields()) {
-        FindTablesToGetRowidFor(sort_path);
-      }
+    if (trace != nullptr) {
+      *trace += "Applying aggregation for GROUP BY\n";
     }
 
-    AccessPath *aggregate_path =
-        NewAggregateAccessPath(thd, root_path, /*rollup=*/false);
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      if (select_lex->is_explicitly_grouped()) {
+        Mem_root_array<TABLE *> tables =
+            CollectTables(select_lex, GetUsedTables(root_path));
+        Filesort *filesort = new (thd->mem_root) Filesort(
+            thd, std::move(tables), /*keep_buffers=*/false,
+            select_lex->group_list.first,
+            /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
+            /*remove_duplicates=*/false, /*force_sort_positions=*/false,
+            /*unwrap_rollup=*/false);
+        AccessPath *sort_path =
+            NewSortAccessPath(thd, root_path, filesort,
+                              /*count_examined_rows=*/false);
 
-    // TODO(sgunders): How do we estimate how many rows aggregation
-    // will be reducing the output by?
-    aggregate_path->num_output_rows = root_path->num_output_rows;
-    aggregate_path->cost =
-        root_path->cost + kAggregateOneRowCost * root_path->num_output_rows;
-    aggregate_path->num_output_rows_before_filter =
-        aggregate_path->num_output_rows;
-    aggregate_path->cost_before_filter = aggregate_path->cost;
+        sort_path->num_output_rows = root_path->num_output_rows;
+        sort_path->cost = sort_path->init_cost =
+            root_path->cost + EstimateSortCost(root_path->num_output_rows);
+        sort_path->num_output_rows_before_filter = sort_path->num_output_rows;
+        sort_path->cost_before_filter = sort_path->cost;
 
-    root_path = aggregate_path;
+        root_path = sort_path;
+
+        if (!filesort->using_addon_fields()) {
+          FindTablesToGetRowidFor(sort_path);
+        }
+      }
+
+      // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
+      AccessPath *aggregate_path =
+          NewAggregateAccessPath(thd, root_path, /*rollup=*/false);
+
+      // TODO(sgunders): How do we estimate how many rows aggregation
+      // will be reducing the output by?
+      aggregate_path->num_output_rows = root_path->num_output_rows;
+      aggregate_path->init_cost = root_path->init_cost;
+      aggregate_path->cost =
+          root_path->cost + kAggregateOneRowCost * root_path->num_output_rows;
+      aggregate_path->num_output_rows_before_filter =
+          aggregate_path->num_output_rows;
+      aggregate_path->cost_before_filter = aggregate_path->cost;
+
+      ProposeAccessPath(thd, *aggregate_path, &new_root_candidates, "", trace);
+    }
+    root_candidates = std::move(new_root_candidates);
 
     Item_sum **func_ptr = join->sum_funcs;
     Item_sum *func;
@@ -818,23 +1078,40 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   // Apply HAVING, if applicable.
   if (join->having_cond != nullptr) {
-    AccessPath *filter_path =
-        NewFilterAccessPath(thd, root_path, join->having_cond);
-    filter_path->num_output_rows =
-        root_path->num_output_rows *
-        EstimateSelectivity(thd, join->having_cond, trace);
-    filter_path->cost =
-        root_path->cost + root_path->num_output_rows * kApplyOneFilterCost;
-    filter_path->num_output_rows_before_filter = filter_path->num_output_rows;
-    filter_path->cost_before_filter = filter_path->cost;
+    if (trace != nullptr) {
+      *trace += "Applying filter for HAVING\n";
+    }
 
-    root_path = filter_path;
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      AccessPath filter_path;
+      NewFilterAccessPath(thd, root_path, join->having_cond);
+      filter_path.type = AccessPath::FILTER;
+      filter_path.filter().child = root_path;
+      filter_path.filter().condition = join->having_cond;
+      filter_path.num_output_rows =
+          root_path->num_output_rows *
+          EstimateSelectivity(thd, join->having_cond, trace);
+      filter_path.init_cost = root_path->init_cost;
+      filter_path.cost =
+          root_path->cost + root_path->num_output_rows * kApplyOneFilterCost;
+      filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
+      filter_path.cost_before_filter = filter_path.cost;
+
+      ProposeAccessPath(thd, filter_path, &new_root_candidates, "", trace);
+    }
+    root_candidates = std::move(new_root_candidates);
   }
 
   // Apply ORDER BY, if applicable.
   if (select_lex->is_ordered()) {
-    Mem_root_array<TABLE *> tables =
-        CollectTables(select_lex, GetUsedTables(root_path));
+    if (trace != nullptr) {
+      *trace += "Applying sort for ORDER BY\n";
+    }
+
+    Mem_root_array<TABLE *> tables = CollectTables(
+        select_lex,
+        GetUsedTables(root_candidates[0]));  // Should be same for all paths.
     Temp_table_param *temp_table_param = nullptr;
     TABLE *temp_table = nullptr;
 
@@ -856,42 +1133,74 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
                  /*unwrap_rollup=*/false);
     join->filesorts_to_cleanup.push_back(filesort);
 
-    if (temp_table != nullptr) {
-      root_path = CreateMaterializationPathForSortingAggregates(
-          thd, join, root_path, temp_table, temp_table_param, filesort);
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      if (temp_table != nullptr) {
+        root_path = CreateMaterializationPathForSortingAggregates(
+            thd, join, root_path, temp_table, temp_table_param, filesort);
+      }
+
+      AccessPath *sort_path = NewSortAccessPath(thd, root_path, filesort,
+                                                /*count_examined_rows=*/false);
+      sort_path->num_output_rows = root_path->num_output_rows;
+      sort_path->cost = sort_path->init_cost =
+          root_path->cost +
+          kSortOneRowCost * EstimateSortCost(root_path->num_output_rows);
+      sort_path->num_output_rows_before_filter = sort_path->num_output_rows;
+      sort_path->cost_before_filter = sort_path->cost;
+
+      if (!filesort->using_addon_fields()) {
+        FindTablesToGetRowidFor(sort_path);
+      }
+      ProposeAccessPath(thd, *sort_path, &new_root_candidates, "", trace);
     }
-
-    AccessPath *sort_path = NewSortAccessPath(thd, root_path, filesort,
-                                              /*count_examined_rows=*/false);
-    sort_path->num_output_rows = root_path->num_output_rows;
-    sort_path->cost =
-        root_path->cost + EstimateSortCost(root_path->num_output_rows);
-    sort_path->num_output_rows_before_filter = sort_path->num_output_rows;
-    sort_path->cost_before_filter = sort_path->cost;
-
-    root_path = sort_path;
-
-    if (!filesort->using_addon_fields()) {
-      FindTablesToGetRowidFor(sort_path);
-    }
+    root_candidates = std::move(new_root_candidates);
   }
 
   // Apply LIMIT, if applicable.
   SELECT_LEX_UNIT *unit = join->unit;
   if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
-    root_path =
-        NewLimitOffsetAccessPath(thd, root_path, unit->select_limit_cnt,
-                                 unit->offset_limit_cnt, join->calc_found_rows,
-                                 /*reject_multiple_rows=*/false,
-                                 /*send_records_override=*/nullptr);
+    if (trace != nullptr) {
+      *trace += "Applying LIMIT\n";
+    }
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      AccessPath *limit_path = NewLimitOffsetAccessPath(
+          thd, root_path, unit->select_limit_cnt, unit->offset_limit_cnt,
+          join->calc_found_rows,
+          /*reject_multiple_rows=*/false,
+          /*send_records_override=*/nullptr);
+      ProposeAccessPath(thd, *limit_path, &new_root_candidates, "", trace);
+    }
+    root_candidates = std::move(new_root_candidates);
   }
+
+  // TODO(sgunders): If we are part of e.g. a derived table and are streamed,
+  // we might want to keep multiple root paths around for future use, e.g.,
+  // if there is a LIMIT higher up.
+  AccessPath *root_path =
+      *std::min_element(root_candidates.begin(), root_candidates.end(),
+                        [](const AccessPath *a, const AccessPath *b) {
+                          return a->cost < b->cost;
+                        });
+  if (trace != nullptr) {
+    *trace += StringPrintf("Final cost is %.1f.\n", root_path->cost);
+  }
+
+#ifndef DBUG_OFF
+  WalkAccessPaths(root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+                  [&](const AccessPath *path, const JOIN *) {
+                    assert(path->cost >= path->init_cost);
+                    return false;
+                  });
+#endif
 
   join->best_rowcount = lrint(root_path->num_output_rows);
   join->best_read = root_path->cost;
 
   // 0 or 1 rows has a special meaning; it means a _guarantee_ we have no more
-  // than one (so-called “const tables”). Make sure we don't give that guarantee
-  // unless we have a LIMIT.
+  // than one (so-called “const tables”). Make sure we don't give that
+  // guarantee unless we have a LIMIT.
   if (join->best_rowcount <= 1 &&
       unit->select_limit_cnt - unit->offset_limit_cnt > 1) {
     join->best_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;

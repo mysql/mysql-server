@@ -43,9 +43,9 @@ EXPLAIN FORMAT=tree with recursive qn as
 select 1 from qn)
 select * from qn;
 EXPLAIN
--> Table scan on qn  (cost=2.84 rows=3)
-    -> Materialize recursive CTE qn with deduplication
-        -> Rows fetched before execution  (cost=0.00 rows=1)
+-> Table scan on qn  (cost=0.85..2.54 rows=3)
+    -> Materialize recursive CTE qn with deduplication  (cost=3.60..5.29 rows=3)
+        -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
         -> Repeat until convergence
             -> Scan new records on qn  (cost=2.73 rows=2)
 
@@ -1084,7 +1084,7 @@ select * from tree_of_a order by path;
 EXPLAIN
 -> Sort: tree_of_a.`path`
     -> Table scan on tree_of_a  (cost=3.85 rows=12)
-        -> Materialize recursive CTE tree_of_a
+        -> Materialize recursive CTE tree_of_a  (cost=19.91..19.91 rows=12)
             -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
                 -> Table scan on t2  (cost=1.75 rows=15)
             -> Repeat until convergence
@@ -1395,9 +1395,9 @@ EXPLAIN FORMAT=tree with recursive qn as
 select 1 from qn)
 select * from qn;
 EXPLAIN
--> Table scan on qn  (cost=0.80 rows=3)
-    -> Materialize recursive CTE qn with deduplication
-        -> Rows fetched before execution  (cost=0.00 rows=1)
+-> Table scan on qn  (cost=0.17..0.50 rows=3)
+    -> Materialize recursive CTE qn with deduplication  (cost=0.90..1.23 rows=3)
+        -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
         -> Repeat until convergence
             -> Scan new records on qn  (cost=0.70 rows=2)
 
@@ -2436,7 +2436,7 @@ select * from tree_of_a order by path;
 EXPLAIN
 -> Sort: tree_of_a.`path`
     -> Table scan on tree_of_a  (cost=1.70 rows=12)
-        -> Materialize recursive CTE tree_of_a
+        -> Materialize recursive CTE tree_of_a  (cost=15.82..15.82 rows=12)
             -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
                 -> Table scan on t2  (cost=1.75 rows=15)
             -> Repeat until convergence

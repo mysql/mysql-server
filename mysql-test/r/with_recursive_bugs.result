@@ -204,9 +204,9 @@ SELECT n + 1 FROM cte WHERE n < 5
 )
 SELECT * FROM cte;
 EXPLAIN
--> Table scan on cte  (cost=2.84 rows=3) (actual time=N.NNN..N.NNN rows=5 loops=1)
-    -> Materialize recursive CTE cte  (actual time=N.NNN..N.NNN rows=5 loops=1)
-        -> Rows fetched before execution  (cost=0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
+-> Table scan on cte  (cost=1.26..2.52 rows=2) (actual time=N.NNN..N.NNN rows=5 loops=1)
+    -> Materialize recursive CTE cte  (cost=4.01..5.27 rows=2) (actual time=N.NNN..N.NNN rows=5 loops=1)
+        -> Rows fetched before execution  (cost=0.00..0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
         -> Repeat until convergence
             -> Filter: (cte.n < 5)  (cost=2.73 rows=1) (actual time=N.NNN..N.NNN rows=2 loops=2)
                 -> Scan new records on cte  (cost=2.73 rows=2) (actual time=N.NNN..N.NNN rows=2 loops=2)

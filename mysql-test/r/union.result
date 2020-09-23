@@ -617,10 +617,10 @@ Warnings:
 Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true union /* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where true
 explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);
 EXPLAIN
--> Table scan on <union temporary>  (cost=2.50 rows=0)
-    -> Union materialize with deduplication
-        -> Zero rows (no matching row in const table)
-        -> Rows fetched before execution  (cost=0.00 rows=1)
+-> Table scan on <union temporary>  (cost=2.51..2.51 rows=1)
+    -> Union materialize with deduplication  (cost=2.52..2.52 rows=1)
+        -> Zero rows (no matching row in const table)  (cost=0.00..0.00 rows=0)
+        -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
@@ -3337,7 +3337,7 @@ PRIMARY KEY (pk)
 INSERT INTO t1 VALUES (1,'');
 EXPLAIN FORMAT=tree SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00 rows=1)
+-> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
 SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
 pk	b

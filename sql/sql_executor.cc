@@ -84,6 +84,7 @@
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_type.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"       // key_cmp
@@ -1498,6 +1499,7 @@ AccessPath *GetAccessPathForDerivedTable(
         table_path, table_ref->common_table_expr(), unit,
         /*ref_slice=*/-1, rematerialize, unit->select_limit_cnt,
         unit->offset_limit_cnt == 0 ? unit->m_reject_multiple_rows : false);
+    EstimateMaterializeCost(path);
     if (unit->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
@@ -1533,7 +1535,7 @@ AccessPath *GetAccessPathForDerivedTable(
         invalidators, table, table_path, table_ref->common_table_expr(), unit,
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
         unit->m_reject_multiple_rows);
-    CopyCosts(*unit->root_access_path(), path);
+    EstimateMaterializeCost(path);
   }
 
   path->cost_before_filter = path->cost;
@@ -1628,7 +1630,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
         /*ref_slice=*/-1, qep_tab->rematerialize,
         sjm->table_param.end_write_records,
         /*reject_multiple_rows=*/false);
-    CopyCosts(*subtree_path, table_path);
+    EstimateMaterializeCost(table_path);
 
 #ifndef DBUG_OFF
     // Make sure we clear this table out when the join is reset,
@@ -2836,7 +2838,6 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         AccessPath *table_path =
             create_table_access_path(thd, nullptr, qep_tab,
                                      /*count_examined_rows=*/false);
-        AccessPath *old_path = path;
         path = NewMaterializeAccessPath(
             thd,
             SingleMaterializeQueryBlock(
@@ -2846,7 +2847,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
-        CopyCosts(*old_path, path);
+        EstimateMaterializeCost(path);
       }
     }
   } else {
@@ -3003,7 +3004,6 @@ AccessPath *JOIN::create_root_access_path_for_join() {
           thd, path, qep_tab->tmp_table_param, qep_tab->ref_item_slice,
           qep_tab->tmp_table_param->m_window->needs_buffering());
       if (!qep_tab->tmp_table_param->m_window_short_circuit) {
-        AccessPath *old_path = path;
         path = NewMaterializeAccessPath(
             thd,
             SingleMaterializeQueryBlock(
@@ -3014,7 +3014,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*ref_slice=*/-1,
             /*rematerialize=*/true, tmp_table_param.end_write_records,
             /*reject_multiple_rows=*/false);
-        CopyCosts(*old_path, path);
+        EstimateMaterializeCost(path);
       }
     } else if (qep_tab->op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
       path = NewTemptableAggregateAccessPath(
@@ -3049,6 +3049,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         path = NewStreamingAccessPath(
             thd, path, /*join=*/this, qep_tab->tmp_table_param,
             qep_tab->table(), qep_tab->ref_item_slice);
+        CopyCosts(*old_path, path);
       } else {
         path = NewMaterializeAccessPath(
             thd,
@@ -3059,8 +3060,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
+        EstimateMaterializeCost(path);
       }
-      CopyCosts(*old_path, path);
     }
 
     if (qep_tab->condition() != nullptr) {

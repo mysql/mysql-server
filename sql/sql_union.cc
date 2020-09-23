@@ -66,6 +66,7 @@
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/explain_access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
@@ -950,6 +951,7 @@ void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
         /*ref_slice=*/-1,
         /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR,
         /*reject_multiple_rows=*/false);
+    EstimateMaterializeCost(param.path);
     param.join = nullptr;
     union_all_sub_paths->push_back(param);
   }

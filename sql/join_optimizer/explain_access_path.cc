@@ -803,14 +803,30 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
   }
   if (path->num_output_rows >= 0.0) {
+    double first_row_cost;
+    if (path->num_output_rows <= 1.0) {
+      first_row_cost = path->cost;
+    } else {
+      first_row_cost = path->init_cost +
+                       (path->cost - path->init_cost) / path->num_output_rows;
+    }
+
     // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
     // directions, so tests would not be reproducible between platforms.
     // Format/round using my_gcvt() and llrint() instead.
+    char first_row_cost_as_string[FLOATING_POINT_BUFFER];
     char cost_as_string[FLOATING_POINT_BUFFER];
+    my_fcvt(first_row_cost, 2, first_row_cost_as_string, /*error=*/nullptr);
     my_fcvt(path->cost, 2, cost_as_string, /*error=*/nullptr);
-    char str[512];
-    snprintf(str, sizeof(str), "  (cost=%s rows=%lld)", cost_as_string,
-             llrint(path->num_output_rows));
+    char str[1024];
+    if (path->init_cost >= 0.0) {
+      snprintf(str, sizeof(str), "  (cost=%s..%s rows=%lld)",
+               first_row_cost_as_string, cost_as_string,
+               llrint(path->num_output_rows));
+    } else {
+      snprintf(str, sizeof(str), "  (cost=%s rows=%lld)", cost_as_string,
+               llrint(path->num_output_rows));
+    }
     description.back() += str;
   }
   if (current_thd->lex->is_explain_analyze && path->iterator != nullptr) {
