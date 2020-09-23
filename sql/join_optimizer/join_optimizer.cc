@@ -82,12 +82,12 @@ namespace {
 // put them into the cost model to make them user-tunable. However, until
 // we've fixed some glaring omissions such as lack of understanding of initial
 // cost, any such estimation will be dominated by outliers/noise.
-constexpr double kApplyOneFilterCost = 0.01;
-constexpr double kAggregateOneRowCost = 0.01;
-constexpr double kSortOneRowCost = 0.01;
-constexpr double kHashBuildOneRowCost = 0.01;
-constexpr double kHashProbeOneRowCost = 0.01;
-constexpr double kMaterializeOneRowCost = 0.01;
+constexpr double kApplyOneFilterCost = 0.1;
+constexpr double kAggregateOneRowCost = 0.1;
+constexpr double kSortOneRowCost = 0.1;
+constexpr double kHashBuildOneRowCost = 0.1;
+constexpr double kHashProbeOneRowCost = 0.1;
+constexpr double kMaterializeOneRowCost = 0.1;
 
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
@@ -185,6 +185,8 @@ class CostingReceiver {
 
   AccessPath *ProposeAccessPathForNodes(NodeMap nodes, const AccessPath &path,
                                         const char *description_for_trace);
+  void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
+                             AccessPath *right_path, const JoinPredicate *edge);
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge,
                        bool *wrote_trace);
@@ -379,15 +381,22 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   for (AccessPath *left_path : left_it->second) {
     for (AccessPath *right_path : right_it->second) {
-      // For inner joins, the order does not matter.
+      // For inner joins and Cartesian products, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes
       // the fewest amount of rows. (This has lower initial cost, and the same
       // cost.)
       if (left_path->num_output_rows < right_path->num_output_rows &&
-          edge->expr->type == RelationalExpression::INNER_JOIN) {
+          (edge->expr->type == RelationalExpression::INNER_JOIN ||
+           edge->expr->type == RelationalExpression::CARTESIAN_PRODUCT)) {
         ProposeHashJoin(right, left, right_path, left_path, edge, &wrote_trace);
       } else {
         ProposeHashJoin(left, right, left_path, right_path, edge, &wrote_trace);
+      }
+
+      ProposeNestedLoopJoin(left, right, left_path, right_path, edge);
+      if (edge->expr->type == RelationalExpression::INNER_JOIN ||
+          edge->expr->type == RelationalExpression::CARTESIAN_PRODUCT) {
+        ProposeNestedLoopJoin(right, left, right_path, left_path, edge);
       }
 
       if (m_access_paths.size() > 100000) {
@@ -494,6 +503,88 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     } else {
       join_path->delayed_predicates |= uint64_t{1} << pred_idx;
     }
+  }
+}
+
+void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
+                                            AccessPath *left_path,
+                                            AccessPath *right_path,
+                                            const JoinPredicate *edge) {
+  if (!SupportedAccessPathType(AccessPath::NESTED_LOOP_JOIN)) return;
+
+  AccessPath join_path, filter_path;
+  join_path.type = AccessPath::NESTED_LOOP_JOIN;
+  join_path.nested_loop_join().outer = left_path;
+  join_path.nested_loop_join().inner = right_path;
+  if (edge->expr->type == RelationalExpression::CARTESIAN_PRODUCT) {
+    join_path.nested_loop_join().join_type = JoinType::INNER;
+  } else {
+    join_path.nested_loop_join().join_type =
+        static_cast<JoinType>(edge->expr->type);
+  }
+  join_path.nested_loop_join().pfs_batch_mode = false;
+
+  bool added_filter = false;
+  if (edge->expr->equijoin_conditions.size() != 0 ||
+      edge->expr->join_conditions.size() != 0) {
+    // Apply join filters. Don't update num_output_rows, as the join's
+    // selectivity was already applied in FindOutputRowsForJoin().
+    // NOTE(sgunders): We don't model the effect of short-circuiting filters on
+    // the cost here.
+    filter_path.type = AccessPath::FILTER;
+    filter_path.filter().child = right_path;
+    join_path.nested_loop_join().inner =
+        &filter_path;  // Will be updated to not point to the stack later,
+                       // if needed.
+
+    CopyCosts(*right_path, &filter_path);
+
+    // cost and num_output_rows are only for display purposes;
+    // the actual selectivity estimates are based on a somewhat richer
+    // variety of data, and is the same no matter what join type we're using
+    List<Item> items;
+    for (Item_func_eq *condition : edge->expr->equijoin_conditions) {
+      items.push_back(condition);
+      filter_path.cost += filter_path.num_output_rows * kApplyOneFilterCost;
+      filter_path.num_output_rows *=
+          EstimateSelectivity(m_thd, condition, m_trace);
+    }
+    for (Item *condition : edge->expr->join_conditions) {
+      items.push_back(condition);
+      filter_path.cost += filter_path.num_output_rows * kApplyOneFilterCost;
+      filter_path.num_output_rows *=
+          EstimateSelectivity(m_thd, condition, m_trace);
+    }
+    Item *condition;
+    if (items.size() == 1) {
+      condition = items.head();
+    } else {
+      condition = new Item_cond_and(items);
+      condition->quick_fix_field();
+      condition->update_used_tables();
+      condition->apply_is_true();
+    }
+    filter_path.filter().condition = condition;
+    added_filter = true;
+  }
+
+  // Ignores the cost information from filter_path; see above.
+  join_path.num_output_rows_before_filter = join_path.num_output_rows =
+      FindOutputRowsForJoin(left_path, right_path, edge);
+  join_path.init_cost = left_path->init_cost;
+  join_path.cost_before_filter = join_path.cost =
+      left_path->cost + right_path->cost * left_path->num_output_rows;
+
+  ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
+                                  &join_path);
+
+  AccessPath *insert_position =
+      ProposeAccessPathForNodes(left | right, join_path, "nested loop");
+  if (insert_position != nullptr && added_filter) {
+    // We inserted the join path, so give filter_path stable storage
+    // in the MEM_ROOT, too.
+    insert_position->nested_loop_join().inner =
+        new (m_thd->mem_root) AccessPath(filter_path);
   }
 }
 

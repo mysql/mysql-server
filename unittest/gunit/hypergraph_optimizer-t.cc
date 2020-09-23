@@ -380,7 +380,8 @@ TEST_F(HypergraphOptimizerTest, SingleTable) {
   EXPECT_FLOAT_EQ(100, root->num_output_rows);
 }
 
-TEST_F(HypergraphOptimizerTest, PredicatePushdown) {
+TEST_F(HypergraphOptimizerTest,
+       PredicatePushdown) {  // Also tests nested loop join.
   SELECT_LEX *select_lex = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x WHERE t2.y=3", /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 200;
@@ -389,26 +390,36 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdown) {
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
 
-  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
-  EXPECT_EQ(RelationalExpression::INNER_JOIN,
-            root->hash_join().join_predicate->expr->type);
+  // The pushed-down filter makes the optimal plan be t2 on the left side,
+  // with a nested loop.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
   EXPECT_FLOAT_EQ(60, root->num_output_rows);  // 600 rows, 10% selectivity.
 
-  AccessPath *outer = root->hash_join().outer;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
-  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
-
   // The condition should be posted directly on t2.
-  AccessPath *inner = root->hash_join().inner;
-  ASSERT_EQ(AccessPath::FILTER, inner->type);
-  EXPECT_EQ("(t2.y = 3)", ItemToString(inner->filter().condition));
-  EXPECT_FLOAT_EQ(3, inner->num_output_rows);  // 10% default selectivity.
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::FILTER, outer->type);
+  EXPECT_EQ("(t2.y = 3)", ItemToString(outer->filter().condition));
+  EXPECT_FLOAT_EQ(3, outer->num_output_rows);  // 10% default selectivity.
 
-  AccessPath *inner_inner = inner->filter().child;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_inner->type);
-  EXPECT_EQ(m_fake_tables["t2"], inner_inner->table_scan().table);
-  EXPECT_FLOAT_EQ(30, inner_inner->num_output_rows);
+  AccessPath *outer_child = outer->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
+  EXPECT_EQ(m_fake_tables["t2"], outer_child->table_scan().table);
+  EXPECT_FLOAT_EQ(30, outer_child->num_output_rows);
+
+  // The inner part should have a join condition as a filter.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, inner->type);
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(inner->filter().condition));
+  EXPECT_FLOAT_EQ(20, inner->num_output_rows);  // 10% default selectivity.
+
+  AccessPath *inner_child = inner->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
+  EXPECT_EQ(m_fake_tables["t1"], inner_child->table_scan().table);
 }
 
 TEST_F(HypergraphOptimizerTest, PredicatePushdownOuterJoin) {
@@ -550,13 +561,21 @@ TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   SELECT_LEX *select_lex = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
       /*nullable=*/true);
-  m_fake_tables["t1"]->file->stats.records = 100;
-  m_fake_tables["t2"]->file->stats.records = 1;
-  m_fake_tables["t3"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.records = 10000;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t3"]->file->stats.records = 1000000;
+
+  // Set up some large scan costs to discourage nested loop.
+  m_fake_tables["t1"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t3"]->file->stats.data_file_length = 10000e6;
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
 
   // It's pretty obvious given the sizes of these tables that the optimal
   // order for hash join is t3 hj (t1 hj t2). We don't check the costs

@@ -4236,7 +4236,7 @@ EXPLAIN
     -> Filter: (t3.a is not null)  (cost=10.54 rows=100)
         -> Table scan on t3  (cost=10.54 rows=100)
     -> Single-row index lookup on <subquery2> using <auto_distinct_key> (kp1=t3.a)
-        -> Materialize with deduplication  (cost=39.14..39.14 rows=48)
+        -> Materialize with deduplication  (cost=43.46..43.46 rows=48)
             -> Filter: (t1.kp1 is not null)  (cost=38.66 rows=48)
                 -> Nested loop inner join  (cost=38.66 rows=48)
                     -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=21.86 rows=48)
@@ -5776,9 +5776,9 @@ EXPLAIN
 -> Nested loop left join  (cost=56.54 rows=288)
     -> Nested loop left join  (cost=11.70 rows=96)
         -> Table scan on ot1  (cost=1.30 rows=8)
-        -> Nested loop inner join  (cost=6.04 rows=12)
+        -> Nested loop inner join  (cost=6.31 rows=12)
             -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a=ot1.a)
-                -> Materialize with deduplication  (cost=0.83..0.83 rows=3)
+                -> Materialize with deduplication  (cost=1.10..1.10 rows=3)
                     -> Filter: (it3.a is not null)  (cost=0.80 rows=3)
                         -> Table scan on it3  (cost=0.80 rows=3)
             -> Filter: (ot2.a = ot1.a)  (cost=0.55 rows=4)
@@ -5788,7 +5788,7 @@ EXPLAIN
             -> Table scan on ot3  (cost=0.51 rows=3)
         -> Filter: (`<subquery3>`.a = ot2.a)  (cost=3.23..3.23 rows=1)
             -> Single-row index lookup on <subquery3> using <auto_distinct_key> (a=ot3.a)
-                -> Materialize with deduplication  (cost=0.83..0.83 rows=3)
+                -> Materialize with deduplication  (cost=1.10..1.10 rows=3)
                     -> Filter: (it3.a is not null)  (cost=0.80 rows=3)
                         -> Table scan on it3  (cost=0.80 rows=3)
 
@@ -12857,10 +12857,10 @@ ORDER BY col_int_key
 ;
 EXPLAIN
 -> Sort: t4.col_int_key
-    -> Stream results  (cost=10.70 rows=7)
-        -> Nested loop inner join  (cost=10.70 rows=7)
+    -> Stream results  (cost=11.32 rows=7)
+        -> Nested loop inner join  (cost=11.32 rows=7)
             -> Table scan on <subquery2>  (cost=0.37..2.59 rows=7)
-                -> Materialize with deduplication  (cost=3.84..6.06 rows=7)
+                -> Materialize with deduplication  (cost=4.47..6.69 rows=7)
                     -> Filter: (t1.col_int_key is not null)  (cost=3.40 rows=7)
                         -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)
                             -> Nested loop left join  (cost=3.40 rows=7)
@@ -13195,9 +13195,9 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Nested loop inner join  (cost=10.68 rows=54)
+-> Nested loop inner join  (cost=12.30 rows=54)
     -> Constant row from <subquery2>  (cost=0.00..0.00 rows=1)
-        -> Materialize with deduplication  (cost=5.03..5.03 rows=18)
+        -> Materialize with deduplication  (cost=6.65..6.65 rows=18)
             -> Nested loop left join  (cost=4.85 rows=18)
                 -> Nested loop left join  (cost=1.55 rows=6)
                     -> Table scan on t2  (cost=0.45 rows=2)

@@ -1846,7 +1846,7 @@ from t t1
 group by t1.a;
 EXPLAIN
 -> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
-    -> Temporary table with deduplication  (cost=1.73..3.00 rows=2)
+    -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
     -> Aggregate: count(0)

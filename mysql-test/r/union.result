@@ -618,7 +618,7 @@ Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where tru
 explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);
 EXPLAIN
 -> Table scan on <union temporary>  (cost=2.51..2.51 rows=1)
-    -> Union materialize with deduplication  (cost=2.52..2.52 rows=1)
+    -> Union materialize with deduplication  (cost=2.61..2.61 rows=1)
         -> Zero rows (no matching row in const table)  (cost=0.00..0.00 rows=0)
         -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
