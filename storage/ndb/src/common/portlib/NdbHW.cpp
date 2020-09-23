@@ -1258,7 +1258,7 @@ int set_num_groups(struct ndb_hwinfo *hwinfo,
   ptr = buf;
   Uint32 cpu_no = 0;
   Uint32 byte_offset = 0;
-  while (byte_offset + ptr->Size <= buf_len)
+  while (byte_offset + ptr->Size <= buf_len && ptr->Size > 0)
   {
     switch (ptr->Relationship)
     {
@@ -1280,7 +1280,7 @@ int set_num_groups(struct ndb_hwinfo *hwinfo,
       }
     }
     byte_offset += ptr->Size;
-    char *new_ptr = (char*)ptr;
+    char *new_ptr = (char*)buf;
     new_ptr += byte_offset;
     ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)new_ptr;
   }
@@ -1330,7 +1330,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
   Uint32 core_id = 0;
   Uint32 byte_offset = 0;
   Uint32 min_cpus_per_core = 4;
-  while (byte_offset + ptr->Size <= buf_len)
+  while (byte_offset + ptr->Size <= buf_len && ptr->Size > 0)
   {
     switch (ptr->Relationship)
     {
@@ -1401,7 +1401,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
         break;
     }
     byte_offset += ptr->Size;
-    char *new_ptr = (char*)ptr;
+    char *new_ptr = (char*)buf;
     new_ptr += byte_offset;
     ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)new_ptr;
   }
