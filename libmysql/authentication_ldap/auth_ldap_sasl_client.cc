@@ -179,7 +179,19 @@ int Sasl_client::initilize() {
 
   if (m_sasl_mechanism) {
     m_sasl_mechanism->set_user_info(m_user_name, m_user_pwd);
-    m_sasl_mechanism->pre_authentication();
+    /**
+       This method try to get kerberos TGT if user name and password are not
+       empty. If method fails, We should not start SASL authentication process.
+       Otherwise SASL authentication may consume existing TGT and authentication
+       process will start.
+    */
+    if (!m_sasl_mechanism->pre_authentication()) {
+      log_error(
+          "Plug-in has failed to obtained Kerberos TGT, authentication process "
+          "will be aborted. Please provide valid configuration, user name and "
+          "password.");
+      return rc_sasl;
+    }
     m_sasl_mechanism->get_ldap_host(m_ldap_server_host);
   }
 #if defined(KERBEROS_LIB_CONFIGURED)
