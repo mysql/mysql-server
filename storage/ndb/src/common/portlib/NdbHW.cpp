@@ -1183,7 +1183,7 @@ typedef BOOL (WINAPI *LPFN_GLPI)(
 static bool get_bit_kaffinity(KAFFINITY mask, Uint32 bit_no)
 {
   Uint64 loc_mask = Uint64(Uint64(1) << bit_no) & Uint64(mask);
-  if (mask == 0)
+  if (loc_mask == 0)
     return false;
   return true;
 }
