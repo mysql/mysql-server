@@ -9248,7 +9248,7 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
       DBUG_ASSERT(item->fixed);
 
       if (item->type() == Item::FIELD_ITEM) {
-        Item_field *field = static_cast<Item_field *>(item);
+        Item_field *field = down_cast<Item_field *>(item);
         // If the column is hidden from users, do not add this column in place
         // of '*'.
         if (field->field->is_hidden_from_user()) continue;
