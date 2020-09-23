@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@
 #include <kernel/BlockNumbers.h>
 #include <kernel/signaldata/DumpStateOrd.hpp>
 #include <NdbTCP.h>
+#include "portlib/ndb_password.h"
+#include "portlib/NdbMem.h"
 
 /**
  *  @class CommandInterpreter
@@ -51,6 +53,9 @@ public:
                      int connect_retry_delay);
   ~CommandInterpreter();
   
+  int setDefaultBackupPassword(const char backup_password[]);
+  int setAlwaysEncryptBackup(bool on);
+
   /**
    *   Reads one line from the stream, parse the line to find 
    *   a command and then calls a suitable method which executes 
@@ -109,6 +114,10 @@ private:
   int  executeShutdown(char* parameters);
   int  executePrompt(char* parameters);
   void executeClusterLog(char* parameters);
+
+  int setBackupEncryptionPassword(BaseString& encryption_password,
+                                  bool& encryption_password_set,
+                                  bool interactive);
 
 public:
   int  executeStop(int processId, const char* parameters, bool all);
@@ -178,6 +187,10 @@ private:
   const char* m_default_prompt;
   const char* m_prompt;
   BaseString m_prompt_copy;
+  const char* m_default_backup_password;
+  bool m_always_encrypt_backup;
+  char m_onetime_backup_password[1024];
+  bool m_onetime_backup_password_set;
 };
 
 NdbMutex* print_mutex;
@@ -207,6 +220,17 @@ const char*Ndb_mgmclient::get_current_prompt() const
 {
   // return the current prompt
   return m_cmd->get_current_prompt();
+}
+
+int Ndb_mgmclient::set_default_backup_password(
+                       const char backup_password[]) const
+{
+  return m_cmd->setDefaultBackupPassword(backup_password);
+}
+
+int Ndb_mgmclient::set_always_encrypt_backup(bool on) const
+{
+  return m_cmd->setAlwaysEncryptBackup(on);
 }
 
 /*
@@ -240,8 +264,10 @@ static const char* helpText =
 "SHOW                                   Print information about cluster\n"
 "CREATE NODEGROUP <id>,<id>...          Add a Nodegroup containing nodes\n"
 "DROP NODEGROUP <NG>                    Drop nodegroup with id NG\n"
-"START BACKUP [<backup id>] [ENCRYPT PASSWORD='<password>'] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
-"                                       Start backup (default WAIT COMPLETED,SNAPSHOTEND)\n"
+"START BACKUP [<backup id>] [ENCRYPT [PASSWORD='<password>']] "
+  "[SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"                                       Start backup "
+  "(default WAIT COMPLETED,SNAPSHOTEND)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
 "SHUTDOWN                               Shutdown all processes in cluster\n"
 "PROMPT [<prompt-string>]               Toggle the prompt between string specified\n"
@@ -305,7 +331,7 @@ static const char* helpTextStartBackup =
 " NDB Cluster -- Management Client -- Help for START BACKUP command\n"
 "---------------------------------------------------------------------------\n"
 "START BACKUP  Start a cluster backup\n\n"
-"START BACKUP [<backup id>] [ENCRYPT PASSWORD='<password>']\n"
+"START BACKUP [<backup id>] [ENCRYPT [PASSWORD='<password>']]\n"
 "    [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                   Start a backup for the cluster.\n"
 "                   Each backup gets an ID number that is reported to the\n"
@@ -704,7 +730,10 @@ CommandInterpreter::CommandInterpreter(const char *host,
   m_event_thread(NULL),
   m_connect_retry_delay(connect_retry_delay),
   m_default_prompt(default_prompt),
-  m_prompt(default_prompt)
+  m_prompt(default_prompt),
+  m_default_backup_password(nullptr),
+  m_always_encrypt_backup(false),
+  m_onetime_backup_password_set(false)
 {
   m_print_mutex= NdbMutex_Create();
 }
@@ -3130,6 +3159,38 @@ CommandInterpreter::executeEventReporting(int processId,
 /*****************************************************************************
  * Backup
  *****************************************************************************/
+int CommandInterpreter::setBackupEncryptionPassword(
+                            BaseString& encryption_password,
+                            bool& encryption_password_set,
+                            bool interactive)
+{
+  if (encryption_password_set)
+    return 0;
+  if (m_default_backup_password != nullptr)
+  {
+    encryption_password = m_default_backup_password;
+    encryption_password_set = true;
+  }
+  else if (interactive)
+  {
+    int r = ndb_get_password_from_tty("Enter backup password: ",
+                                      m_onetime_backup_password,
+                                      sizeof(m_onetime_backup_password) - 1);
+    if (r < 0)
+    {
+      return -1;
+    }
+    encryption_password = m_onetime_backup_password;
+    encryption_password_set = true;
+    m_onetime_backup_password_set = true;
+  }
+  else
+  {
+    return -1;
+  }
+  return 0;
+}
+
 int
 CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 {
@@ -3254,7 +3315,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
     }
     if (args[i] == "ENCRYPT")
     {
-      if (encryption_password.length() != 0)
+      if (encryption_password_set)
       {
         // password already set
         invalid_command(parameters);
@@ -3290,21 +3351,36 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
           encryption_password_set = true;
           i++;
         }
-        else
-        {
-          invalid_command(parameters);
-          return -1;
-        }
       }
-      else
+      else if (setBackupEncryptionPassword(encryption_password,
+                                           encryption_password_set,
+                                           interactive) != 0)
       {
-        invalid_command(parameters);
+        invalid_command(parameters, "Encryption need password");
         return -1;
       }
       continue;
     }
     invalid_command(parameters);
     return -1;
+  }
+
+  if (!encryption_password_set && m_always_encrypt_backup)
+  {
+    if (setBackupEncryptionPassword(encryption_password,
+                                    encryption_password_set,
+                                    interactive) != 0)
+    {
+      invalid_command(parameters, "Encryption need password");
+      return -1;
+    }
+  }
+  else if (!encryption_password_set &&
+           m_default_backup_password != nullptr &&
+           m_verbose > 0)
+  {
+    ndbout_c("Warning, unencrypted backup requested although backup password "
+             "is provided.");
   }
 
   //print message
@@ -3339,6 +3415,12 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
                                  encryption_password_set
                                    ? encryption_password.length()
                                    : 0);
+  if (m_onetime_backup_password_set)
+  {
+    NdbMem_SecureClear(m_onetime_backup_password,
+                       sizeof(m_onetime_backup_password));
+    m_onetime_backup_password_set = false;
+  }
 
   if (result != 0) {
     ndbout << "Backup failed" << endl;
@@ -3513,4 +3595,18 @@ CommandInterpreter::executeDropNodeGroup(char* parameters)
 err:
   ndbout << "Invalid arguments: expected <NG>" << endl;
   return -1;
+}
+
+int
+CommandInterpreter::setDefaultBackupPassword(const char backup_password[])
+{
+  m_default_backup_password = backup_password;
+  return 0;
+}
+
+int
+CommandInterpreter::setAlwaysEncryptBackup(bool on)
+{
+  m_always_encrypt_backup = on;
+  return 0;
 }

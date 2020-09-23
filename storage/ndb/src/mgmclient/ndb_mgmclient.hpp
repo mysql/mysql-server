@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,8 @@ public:
   bool execute(const char *line, int try_reconnect = -1,
                bool interactive = true, int *error = NULL);
   const char* get_current_prompt() const;
+  int set_default_backup_password(const char backup_password[]) const;
+  int set_always_encrypt_backup(bool on) const;
 private:
   CommandInterpreter *m_cmd;
 };
