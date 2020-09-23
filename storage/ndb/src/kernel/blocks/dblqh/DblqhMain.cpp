@@ -130,7 +130,7 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_COMMITTED_WORDS 1
 //#define DEBUG_RESTORE 1
 //#define NDB_DEBUG_REDO_EXEC 1
-#define NDB_DEBUG_REDO_REC 1
+//#define NDB_DEBUG_REDO_REC 1
 #endif
 
 #ifdef DEBUG_NEWEST_GCI
