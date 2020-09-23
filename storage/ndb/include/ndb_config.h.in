@@ -72,3 +72,5 @@
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_SETPSHARED 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_BZERO 1
+#cmakedefine HAVE_EXPLICIT_BZERO 1
+#cmakedefine HAVE_MEMSET_S 1
