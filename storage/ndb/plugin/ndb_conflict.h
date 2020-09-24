@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -453,7 +453,7 @@ struct st_ndb_slave_state {
   ~st_ndb_slave_state();
 };
 
-const uint error_conflict_fn_violation = 9999;
+constexpr int ERROR_CONFLICT_FN_VIOLATION = 9999;
 
 /**
  * Conflict function setup infrastructure

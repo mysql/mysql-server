@@ -875,7 +875,8 @@ static int handle_row_conflict(
     const NdbError &conflict_error, NdbTransaction *conflict_trans,
     const MY_BITMAP *write_set, Uint64 transaction_id);
 
-static const Uint32 error_op_after_refresh_op = 920;
+// Error code returned when "refresh occurrs on a refreshed row"
+static constexpr int ERROR_OP_AFTER_REFRESH_OP = 920;
 
 static inline int check_completed_operations_pre_commit(
     Thd_ndb *thd_ndb, NdbTransaction *trans, const NdbOperation *first,
@@ -897,7 +898,7 @@ static inline int check_completed_operations_pre_commit(
     const NdbError &err = first->getNdbError();
     const bool op_has_conflict_detection = (first->getCustomData() != NULL);
     if (!op_has_conflict_detection) {
-      DBUG_ASSERT(err.code != (int)error_op_after_refresh_op);
+      DBUG_ASSERT(err.code != ERROR_OP_AFTER_REFRESH_OP);
 
       /* 'Normal path' - ignore key (not) present, others are errors */
       if (err.classification != NdbError::NoError &&
@@ -946,11 +947,10 @@ static inline int check_completed_operations_pre_commit(
       do {
         conflict_op = trans->getNextCompletedOperation(conflict_op);
         assert(conflict_op != NULL);
-        /* We will ignore 920 which represents a refreshOp or other op
-         * arriving after a refreshOp
-         */
+        // Ignore 920 (ERROR_OP_AFTER_REFRESH_OP) which represents a refreshOp
+        // or other op arriving after a refreshOp
         const NdbError &err = conflict_op->getNdbError();
-        if ((err.code != 0) && (err.code != (int)error_op_after_refresh_op)) {
+        if (err.code != 0 && err.code != ERROR_OP_AFTER_REFRESH_OP) {
           /* Found a real error, break out and handle it */
           nonMaskedError = err;
           break;
@@ -1001,8 +1001,8 @@ static inline int check_completed_operations(NdbTransaction *trans,
         err.classification != NdbError::ConstraintViolation &&
         err.classification != NdbError::NoDataFound) {
       /* All conflict detection etc should be done before commit */
-      DBUG_ASSERT((err.code != (int)error_conflict_fn_violation) &&
-                  (err.code != (int)error_op_after_refresh_op));
+      DBUG_ASSERT(err.code != ERROR_CONFLICT_FN_VIOLATION &&
+                  err.code != ERROR_OP_AFTER_REFRESH_OP);
       return err.code;
     }
     if (err.classification != NdbError::NoError) ignores++;
@@ -4633,14 +4633,14 @@ static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
   DBUG_TRACE;
   DBUG_PRINT("info", ("ndb error: %d", err.code));
 
-  if ((err.code == (int)error_conflict_fn_violation) ||
-      (err.code == (int)error_op_after_refresh_op) ||
-      (err.classification == NdbError::ConstraintViolation) ||
-      (err.classification == NdbError::NoDataFound)) {
+  if (err.code == ERROR_CONFLICT_FN_VIOLATION ||
+      err.code == ERROR_OP_AFTER_REFRESH_OP ||
+      err.classification == NdbError::ConstraintViolation ||
+      err.classification == NdbError::NoDataFound) {
     DBUG_PRINT("info", ("err.code = %s, err.classification = %s",
-                        ((err.code == (int)error_conflict_fn_violation)
+                        ((err.code == ERROR_CONFLICT_FN_VIOLATION)
                              ? "error_conflict_fn_violation"
-                             : ((err.code == (int)error_op_after_refresh_op)
+                             : ((err.code == ERROR_OP_AFTER_REFRESH_OP)
                                     ? "error_op_after_refresh_op"
                                     : "?")),
                         ((err.classification == NdbError::ConstraintViolation)
@@ -4652,8 +4652,8 @@ static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
     enum_conflict_cause conflict_cause;
 
     /* Map cause onto our conflict description type */
-    if ((err.code == (int)error_conflict_fn_violation) ||
-        (err.code == (int)error_op_after_refresh_op)) {
+    if (err.code == ERROR_CONFLICT_FN_VIOLATION ||
+        err.code == ERROR_OP_AFTER_REFRESH_OP) {
       DBUG_PRINT("info", ("ROW_IN_CONFLICT"));
       conflict_cause = ROW_IN_CONFLICT;
     } else if (err.classification == NdbError::ConstraintViolation) {
@@ -4688,11 +4688,11 @@ static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
 
     if (causing_op_type == REFRESH_ROW) {
       /*
-         The failing op was a refresh row, we require that it
+         The failing op was a refresh row, require that it
          failed due to being a duplicate (e.g. a refresh
          occurring on a refreshed row)
        */
-      if (err.code == (int)error_op_after_refresh_op) {
+      if (err.code == ERROR_OP_AFTER_REFRESH_OP) {
         DBUG_PRINT("info", ("Operation after refresh - ignoring"));
         return 0;
       } else {
@@ -4730,9 +4730,9 @@ static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
        *   checks avoid all actions being applied in delayed
        *   duplicate.
        */
-      assert((err.code == (int)error_conflict_fn_violation) ||
-             (err.classification == NdbError::ConstraintViolation) ||
-             (err.classification == NdbError::NoDataFound));
+      assert(err.code == ERROR_CONFLICT_FN_VIOLATION ||
+             err.classification == NdbError::ConstraintViolation ||
+             err.classification == NdbError::NoDataFound);
 
       g_ndb_slave_state.current_reflect_op_discard_count++;
 
@@ -5244,8 +5244,8 @@ static int handle_row_conflict(
        * row has already been refreshed, we need not attempt to refresh
        * it again
        */
-      if ((conflict_cause == ROW_IN_CONFLICT) &&
-          (conflict_error.code == (int)error_op_after_refresh_op)) {
+      if (conflict_cause == ROW_IN_CONFLICT &&
+          conflict_error.code == ERROR_OP_AFTER_REFRESH_OP) {
         /* Attempt to apply an operation after the row was refreshed
          * Ignore the error
          */

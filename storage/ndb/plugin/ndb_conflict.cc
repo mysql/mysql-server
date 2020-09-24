@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1702,7 +1702,7 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
    */
   r = code->branch_eq(RegOldValue, RegCurrentValue, label_0);
   DBUG_ASSERT(r == 0);
-  r = code->interpret_exit_nok(error_conflict_fn_violation);
+  r = code->interpret_exit_nok(ERROR_CONFLICT_FN_VIOLATION);
   DBUG_ASSERT(r == 0);
   r = code->def_label(label_0);
   DBUG_ASSERT(r == 0);
@@ -1771,7 +1771,7 @@ static int row_conflict_fn_max_update_only(
    */
   r = code->branch_gt(RegNewValue, RegCurrentValue, label_0);
   DBUG_ASSERT(r == 0);
-  r = code->interpret_exit_nok(error_conflict_fn_violation);
+  r = code->interpret_exit_nok(ERROR_CONFLICT_FN_VIOLATION);
   DBUG_ASSERT(r == 0);
   r = code->def_label(label_0);
   DBUG_ASSERT(r == 0);
@@ -1906,7 +1906,7 @@ static int row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE *,
        */
       r = code->branch_le(RegRowEpoch, RegMaxRepEpoch, label_0);
       assert(r == 0);
-      r = code->interpret_exit_nok(error_conflict_fn_violation);
+      r = code->interpret_exit_nok(ERROR_CONFLICT_FN_VIOLATION);
       assert(r == 0);
       r = code->def_label(label_0);
       assert(r == 0);
@@ -1975,7 +1975,7 @@ static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
       r = code->def_label(label_0);
       assert(r == 0);
       /* Last author was secondary-local, conflict, do not apply */
-      r = code->interpret_exit_nok(error_conflict_fn_violation);
+      r = code->interpret_exit_nok(ERROR_CONFLICT_FN_VIOLATION);
       assert(r == 0);
 
       r = code->finalise();
