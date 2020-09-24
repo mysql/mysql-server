@@ -4165,7 +4165,10 @@ warp_pushdown_information* get_pushdown_info(THD* thd, const char* alias) {
     return NULL;
   }
   auto it2 = pushdown_info_map->find(alias);
-  assert(it2 != pushdown_info_map->end());
+  if(it2 == pushdown_info_map->end()) {
+    pushdown_mtx.unlock();
+    return NULL;
+  }
     
   if(it2->first == NULL) {
     pushdown_mtx.unlock();
