@@ -812,8 +812,7 @@ THRConfig::compute_automatic_thread_config(
     { 252, 41 },
     { 253, 41 },
     { 254, 41 },
-    { 255, 41 },
-    { 256, 42 },
+    { 255, 41 }
   };
 
   static const struct entry
@@ -869,7 +868,48 @@ THRConfig::compute_automatic_thread_config(
     { 39, 1, 1, 70, 70, 33, 18, 19 }, // 212-223 CPUs
     { 40, 1, 1, 74, 74, 35, 19, 20 }, // 224-239 CPUs
     { 41, 1, 1, 80, 80, 37, 20, 21 }, // 240-255 CPUs
-    { 42, 1, 1, 86, 86, 39, 21, 22 } // 256+ CPUs
+    { 42, 1, 1, 86, 86, 39, 21, 22 }, // 256-271 CPUs
+    { 43, 1, 1, 92, 92, 41, 22, 23 }, // 272-287 CPUs
+    { 44, 1, 1, 98, 98, 43, 23, 24 }, // 288-303 CPUs
+    { 45, 1, 1, 104, 104, 45, 24, 25 }, // 304-319 CPUs
+    { 46, 1, 1, 110, 110, 47, 25, 26 }, // 320-335 CPUs
+    { 47, 1, 1, 116, 116, 49, 26, 27 }, // 336-351 CPUs
+    { 48, 1, 1, 122, 122, 51, 27, 28 }, // 352-367 CPUs
+    { 49, 1, 1, 128, 128, 53, 28, 29 }, // 368-383 CPUs
+    { 50, 1, 1, 134, 134, 55, 29, 30 }, // 384-399 CPUs
+    { 51, 1, 1, 140, 140, 57, 30, 31 }, // 400-415 CPUs
+    { 52, 1, 1, 146, 146, 59, 31, 32 }, // 416-431 CPUs
+    { 53, 1, 1, 152, 152, 61, 32, 33 }, // 432-447 CPUs
+    { 54, 1, 1, 158, 158, 63, 33, 34 }, // 448-463 CPUs
+    { 55, 1, 1, 164, 164, 65, 34, 35 }, // 464-479 CPUs
+    { 56, 1, 1, 170, 170, 67, 35, 36 }, // 480-495 CPUs
+    { 57, 1, 1, 176, 176, 69, 36, 37 }, // 496-511 CPUs
+    { 58, 1, 1, 182, 182, 71, 37, 38 }, // 512-527 CPUs
+    { 59, 1, 1, 188, 188, 73, 38, 39 }, // 528-543 CPUs
+    { 60, 1, 1, 194, 194, 75, 39, 40 }, // 544-559 CPUs
+    { 61, 1, 1, 200, 200, 77, 40, 41 }, // 560-575 CPUs
+    { 62, 1, 1, 206, 206, 79, 41, 42 }, // 576-591 CPUs
+    { 63, 1, 1, 212, 212, 81, 42, 43 }, // 592-607 CPUs
+    { 64, 1, 1, 218, 218, 83, 43, 44 }, // 608-623 CPUs
+    { 65, 1, 1, 224, 224, 85, 44, 45 }, // 624-639 CPUs
+    { 66, 1, 1, 230, 230, 87, 45, 46 }, // 640-655 CPUs
+    { 67, 1, 1, 236, 236, 89, 46, 47 }, // 656-671 CPUs
+    { 68, 1, 1, 242, 242, 91, 47, 48 }, // 672-687 CPUs
+    { 69, 1, 1, 248, 248, 93, 48, 49 }, // 688-703 CPUs
+    { 70, 1, 1, 254, 254, 95, 49, 50 }, // 704-719 CPUs
+    { 71, 1, 1, 260, 260, 97, 50, 51 }, // 720-735 CPUs
+    { 72, 1, 1, 266, 266, 99, 51, 52 }, // 736-751 CPUs
+    { 73, 1, 1, 272, 272, 101, 52, 53 }, // 752-767 CPUs
+    { 74, 1, 1, 278, 278, 103, 53, 54 }, // 768-783 CPUs
+    { 75, 1, 1, 284, 284, 105, 54, 55 }, // 784-799 CPUs
+    { 76, 1, 1, 290, 290, 107, 55, 56 }, // 800-815 CPUs
+    { 77, 1, 1, 296, 296, 109, 56, 57 }, // 816-831 CPUs
+    { 78, 1, 1, 302, 302, 111, 57, 58 }, // 832-847 CPUs
+    { 79, 1, 1, 308, 308, 113, 58, 59 }, // 848-863 CPUs
+    { 80, 1, 1, 314, 314, 115, 59, 60 }, // 864-879 CPUs
+    { 81, 1, 1, 320, 320, 117, 60, 61 }, // 880-895 CPUs
+    { 82, 1, 1, 326, 326, 119, 61, 62 }, // 896-911 CPUs
+    { 83, 1, 1, 332, 332, 121, 62, 63 }, // 912-927 CPUs
   };
   Uint32 cpu_cnt;
   Uint32 num_cpus_per_core;
@@ -880,6 +920,7 @@ THRConfig::compute_automatic_thread_config(
     if (cpu_cnt == 0)
     {
       cpu_cnt = hwinfo->cpu_cnt_max;
+      cpu_cnt = MIN(cpu_cnt, MAX_USED_NUM_CPUS);
     }
 #if 0
     /* Consistency check of above tables */
@@ -970,7 +1011,18 @@ THRConfig::compute_automatic_thread_config(
   Uint32 used_cpu_cnt = cpu_cnt - overhead_cpu_cnt;
 
   require(used_cpu_cnt > 0);
-  Uint32 used_map_id = map_table[used_cpu_cnt - 1].mapped_id;
+  Uint32 used_map_id;
+  if (used_cpu_cnt >= 256)
+  {
+    used_map_id = 42;
+    Uint32 extra_map_id = (used_cpu_cnt - 256) / 16;
+    used_map_id += extra_map_id;
+    used_map_id = MIN(used_map_id, 83);
+  }
+  else
+  {
+    used_map_id = map_table[used_cpu_cnt - 1].mapped_id;
+  }
   main_threads = table[used_map_id].main_threads;
   rep_threads = table[used_map_id].rep_threads;
   ldm_threads = table[used_map_id].ldm_threads;
@@ -981,6 +1033,22 @@ THRConfig::compute_automatic_thread_config(
 
   recover_threads = cpu_cnt - (ldm_threads + query_threads);
 
+  Uint32 tot_threads = main_threads;
+  tot_threads += rep_threads;
+  tot_threads += ldm_threads;
+  tot_threads += query_threads;
+  tot_threads += tc_threads;
+  tot_threads + recv_threads;
+
+  if (tot_threads > NDBMT_MAX_BLOCK_INSTANCES)
+  {
+    /* Have to ensure total number of block instances are not beyond limit */
+    recover_threads -=
+      (tot_threads - NDBMT_MAX_BLOCK_INSTANCES);
+  }
+  /**
+   *
+   * Ignore this calculation for now
   if (num_cpus_per_core == 3)
   {
     query_threads *= 2;
@@ -1002,6 +1070,7 @@ THRConfig::compute_automatic_thread_config(
     recv_threads *= 2;
     recover_threads *= 2;
   }
+  */
 }
 
 int

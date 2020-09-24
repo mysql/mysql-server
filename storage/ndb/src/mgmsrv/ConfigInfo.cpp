@@ -1922,7 +1922,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "0",
     "0",
-    STR_VALUE(MAX_NUM_CPUS)
+    STR_VALUE(MAX_USED_NUM_CPUS)
   },
 
   {
