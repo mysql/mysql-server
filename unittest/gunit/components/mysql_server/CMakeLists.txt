@@ -62,7 +62,7 @@ SET_TARGET_PROPERTIES(minimal_chassis_test_driver-t PROPERTIES ENABLE_EXPORTS
   TRUE)
 TARGET_LINK_LIBRARIES(minimal_chassis_test_driver-t
   ${GTEST_LIBRARIES} ${CMAKE_DL_LIBS}
-  mysql_server_component_services sql_main minchassis unit_test_common)
+  mysql_server_component_services server_unittest_library unit_test_common)
 IF(WIN32)
   TARGET_LINK_LIBRARIES(minimal_chassis_test_driver-t my_nt_servc)
 ENDIF()
@@ -96,7 +96,7 @@ MYSQL_ADD_EXECUTABLE(reference_cache-t
 SET_TARGET_PROPERTIES(reference_cache-t PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(reference_cache-t
   ${GTEST_LIBRARIES} ${CMAKE_DL_LIBS}
-  mysql_server_component_services sql_main minchassis unit_test_common)
+  mysql_server_component_services server_unittest_library unit_test_common)
 IF(WIN32)
   TARGET_LINK_LIBRARIES(reference_cache-t my_nt_servc)
 ENDIF()

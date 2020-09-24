@@ -1602,17 +1602,49 @@ ENDIF()
 
 # Some unit tests need to link with the entire server, use this library:
 IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
-  SET(DUMMY_SOURCE_FILE ${CMAKE_BINARY_DIR}/server_unittest_library.c)
-  ADD_CUSTOM_COMMAND(
-    OUTPUT  ${DUMMY_SOURCE_FILE}
-    COMMAND ${CMAKE_COMMAND} -E touch ${DUMMY_SOURCE_FILE}
-    DEPENDS sql_main
+  IF(WIN32)
+    SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)
+  ELSE()
+    SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT ON)
+  ENDIF()
+  OPTION(WITH_SHARED_UNITTEST_LIBRARY
+    "Build a shared library for unit tests which depend on the entire server"
+    ${WITH_SHARED_UNITTEST_LIBRARY_DEFAULT}
     )
-  ADD_LIBRARY(server_unittest_library STATIC ${DUMMY_SOURCE_FILE})
-  TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
-  TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
-  TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
-  TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
+
+  IF(WITH_SHARED_UNITTEST_LIBRARY)
+    MERGE_LIBRARIES_SHARED(server_unittest_library SKIP_INSTALL LINK_PUBLIC
+      sql_main
+      ${MYSQLD_STATIC_PLUGIN_LIBS}
+      minchassis
+      # Import some core symbols. Other symbols needed by the unit test
+      # executables are pulled in transitively by symbol dependencies.
+      #
+      # Since everything has visibility("default") the library will
+      # export every symbol pulled in from the source libraries.
+      #
+      # If some symbols are still missing, they will be picked up from
+      # dependent libraries, since we LINK_PUBLIC.
+      # To see what symbols we need to import, remove LINK_PUBLIC above.
+      EXPORTS
+      builtin_perfschema_plugin            # Pulls in the whole server.
+      mysql_service_mysql_rwlock_v1        # Pulls in minchassis
+      )
+    IF(HAVE_LIBNUMA)
+      TARGET_LINK_LIBRARIES(server_unittest_library PUBLIC numa)
+    ENDIF()
+  ELSE()
+    SET(DUMMY_SOURCE_FILE ${CMAKE_BINARY_DIR}/server_unittest_library.c)
+    ADD_CUSTOM_COMMAND(
+      OUTPUT  ${DUMMY_SOURCE_FILE}
+      COMMAND ${CMAKE_COMMAND} -E touch ${DUMMY_SOURCE_FILE}
+      DEPENDS sql_main
+      )
+    ADD_LIBRARY(server_unittest_library STATIC ${DUMMY_SOURCE_FILE})
+    TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
+    TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
+    TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
+  ENDIF()
 ENDIF()
 
 # scripts/mysql_config depends on client and server targets loaded above.
