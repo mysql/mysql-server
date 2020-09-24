@@ -50,23 +50,23 @@ RESOURCES_TO_CLEANUP=''
 trap "rm -rf ${RESOURCES_TO_CLEANUP}" EXIT
 
 BASELINE_INFO="${RESULTS_BASE_DIR}/baseline.info"
-lcov -c --no-external --initial -d "${BUILD_DIR}" -o "${BASELINE_INFO}"
-RESOURCES_TO_CLEANUP+="${BASELINE_INFO}"
-
+if [ ! -f "${BASELINE_INFO}" ]; then
+  lcov -c --no-external --initial -d "${BUILD_DIR}" -o "${BASELINE_INFO}"
+  RESOURCES_TO_CLEANUP+="${BASELINE_INFO}"
+fi
 
 for coverage_file in "${TEST_COVERAGE_DIR}"/*; do
   lcov -a "${BASELINE_INFO}" -a "${coverage_file}" -o "${coverage_file}"
+
+  # Filter out coverage from build files which will not be hit by any test.
+  lcov --remove "${coverage_file}" "${BUILD_DIR}*" -o "${coverage_file}"
+
+  # Extract coverage for NDB code only.
+  lcov --extract "${coverage_file}" "*/storage/ndb/*" -o "${coverage_file}"
 done
 
 find "${TEST_COVERAGE_DIR}" -name "*.info" -exec echo "-a {}" \; | \
   xargs -r -x lcov -o "${RESULTS_BASE_DIR}/coverage.info"
-
-lcov --remove "${RESULTS_BASE_DIR}/coverage.info" "${BUILD_DIR}*" \
-  -o "${RESULTS_BASE_DIR}/coverage_reduced.info"
-RESOURCES_TO_CLEANUP+="${RESULTS_BASE_DIR}/coverage_reduced.info"
-
-lcov --extract "${RESULTS_BASE_DIR}/coverage_reduced.info" '*/storage/ndb/*' \
-  -o "${RESULTS_BASE_DIR}/coverage.info"
 RESULT="$?"
 
 if [ "${RESULT}" -ne 0 ]; then
