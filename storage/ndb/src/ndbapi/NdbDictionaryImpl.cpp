@@ -7039,7 +7039,7 @@ NdbDictionaryImpl::listDependentObjects(List& list, Uint32 tableId)
   req.setTableType(0);
   req.setListNames(true);
   req.setListDependent(true);
-  return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
+  return m_receiver.listObjects(list, req, true /* fully qualified */);
 }
 
 int

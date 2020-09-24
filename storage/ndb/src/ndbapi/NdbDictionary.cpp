@@ -3324,7 +3324,7 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
 {
   // delegate to variant with FQ names param
   return listObjects(list, type, 
-                     m_impl.m_ndb.usingFullyQualifiedNames());
+                     true /* fully qualified */);
 }
 
 int
@@ -3348,7 +3348,7 @@ NdbDictionary::Dictionary::listIndexes(List& list,
                                       const char * tableName) const
 {
   // delegate to overloaded function with FQ names param
-  return listIndexes(list, tableName, m_impl.m_ndb.usingFullyQualifiedNames());
+  return listIndexes(list, tableName, true /* fully qualified */);
 }
 
 int
@@ -3368,7 +3368,7 @@ NdbDictionary::Dictionary::listIndexes(List& list,
 				       const NdbDictionary::Table &table) const
 {
   return m_impl.listIndexes(list, table.getTableId(),
-                            m_impl.m_ndb.usingFullyQualifiedNames());
+                            true /* fully qualified */);
 }
 
 int

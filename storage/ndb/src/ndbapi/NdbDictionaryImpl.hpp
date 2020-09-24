@@ -1015,7 +1015,7 @@ public:
 
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
-  int listIndexes(List& list, Uint32 indexId, bool fullyQualified=false);
+  int listIndexes(List& list, Uint32 indexId, bool fullyQualified);
   int listDependentObjects(List& list, Uint32 tableId);
 
   NdbTableImpl * getTableGlobal(const char * tableName);
