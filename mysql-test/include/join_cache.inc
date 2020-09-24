@@ -603,7 +603,7 @@ create table t1 (a int);
 insert into t1 values (30), (40), (20);
 create table t2 (b int);
 insert into t2 values (200), (100);
-
+ANALYZE TABLE t1, t2;
 select * from t1 left join t2 on (1=0);
 explain select * from t1 left join t2 on (1=0) where a=40;
 select * from t1 left join t2 on (1=0) where a=40;
@@ -1448,6 +1448,7 @@ CREATE TABLE t4 (
 );
 INSERT INTO t4 VALUES (31),(32);
 
+ANALYZE TABLE t1, t2, t3, t4;
 --echo
 SELECT COUNT(*)
   FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
@@ -2017,6 +2018,7 @@ CREATE TABLE t4 (
 );
 INSERT INTO t4 VALUES (2,3), (6,1), (8,2);
 
+ANALYZE TABLE t2, t3, t4;
 let query=
 SELECT t4.col_int
   FROM t1 

@@ -1608,6 +1608,10 @@ create table t1 (a int);
 insert into t1 values (30), (40), (20);
 create table t2 (b int);
 insert into t2 values (200), (100);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 select * from t1 left join t2 on (1=0);
 a	b
 30	NULL
@@ -2263,6 +2267,12 @@ carrier_id int,
 INDEX carrier_id(carrier_id)
 );
 INSERT INTO t4 VALUES (31),(32);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 
 SELECT COUNT(*)
 FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
@@ -2942,6 +2952,11 @@ col_int INTEGER,
 PRIMARY KEY (pk)
 );
 INSERT INTO t4 VALUES (2,3), (6,1), (8,2);
+ANALYZE TABLE t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 EXPLAIN SELECT t4.col_int
 FROM t1 
 LEFT JOIN t2 ON t1.col_int = t2.col_int
