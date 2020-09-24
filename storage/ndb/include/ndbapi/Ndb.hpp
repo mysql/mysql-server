@@ -2188,7 +2188,6 @@ private:
   static
   const char * externalizeTableName(const char * internalTableName,
                                     bool fullyQualifiedNames);
-  const char * externalizeTableName(const char * internalTableName);
   const BaseString internalize_table_name(const char * external_name) const;
 
   static

@@ -2005,12 +2005,6 @@ Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNam
 }
 
 const char *
-Ndb::externalizeTableName(const char * internalTableName)
-{
-  return externalizeTableName(internalTableName, usingFullyQualifiedNames());
-}
-
-const char *
 Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {

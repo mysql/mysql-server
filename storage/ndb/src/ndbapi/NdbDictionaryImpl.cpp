@@ -2763,18 +2763,21 @@ NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index,
 				 NdbTableImpl * table)
 {
   const char *current_db= m_ndb.getDatabaseName();
-  NdbTableImpl *index_table;
   const BaseString internalName(
     m_ndb.internalize_index_name(table, index->getName()));
   // Get index table in system database
   m_ndb.setDatabaseName(NDB_SYSTEM_DATABASE);
-  index_table= getTable(m_ndb.externalizeTableName(internalName.c_str()));
+  NdbTableImpl *index_table =
+      getTable(Ndb::externalizeTableName(internalName.c_str(),
+                                         true /* fully qualified */));
   m_ndb.setDatabaseName(current_db);
   if (!index_table)
   {
     // Index table not found
     // Try geting index table in current database (old format)
-    index_table= getTable(m_ndb.externalizeTableName(internalName.c_str()));    
+    index_table=
+        getTable(Ndb::externalizeTableName(internalName.c_str(),
+                                           true /* fully qualified */));
   }
   return index_table;
 }
@@ -6327,7 +6330,8 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     ev->setTable(tab);
   tab = 0;
 
-  ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));  
+  ev->setTable(Ndb::externalizeTableName(ev->getTableName(),
+                                         true /* fully qualified */));
   // get the columns from the attrListBitmask
   NdbTableImpl &table = *ev->m_tableImpl;
   AttributeMask & mask = ev->m_attrListBitmask;
