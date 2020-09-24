@@ -766,7 +766,7 @@ public:
                      Uint32 indexId, Uint32 indexVersion, Uint32 tableId,
                      Uint32 requestType);
   
-  int createEvent(class Ndb & ndb, NdbEventImpl &, int getFlag);
+  int createEvent(NdbEventImpl &, int getFlag);
   int dropEvent(const NdbEventImpl &);
   int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 

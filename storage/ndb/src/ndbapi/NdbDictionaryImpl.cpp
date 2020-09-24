@@ -5989,7 +5989,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
   }
 
   // NdbDictInterface m_receiver;
-  if (m_receiver.createEvent(m_ndb, evnt, 0 /* getFlag unset */) != 0)
+  if (m_receiver.createEvent(evnt, 0 /* getFlag unset */) != 0)
     ERR_RETURN(getNdbError(), -1);
 
   // Create blob events
@@ -6023,8 +6023,7 @@ NdbDictionaryImpl::createBlobEvents(NdbEventImpl& evnt)
 }
 
 int
-NdbDictInterface::createEvent(class Ndb & ndb,
-			      NdbEventImpl & evnt,
+NdbDictInterface::createEvent(NdbEventImpl & evnt,
 			      int getFlag)
 {
   DBUG_ENTER("NdbDictInterface::createEvent");
@@ -6090,10 +6089,8 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 
   if (getFlag == 0)
   {
-    const BaseString internal_tabname(
-      ndb.internalize_table_name(evnt.m_tableName.c_str()));
     w.add(SimpleProperties::StringValue,
-	 internal_tabname.c_str());
+          evnt.m_tableImpl->m_internalName.c_str());
   }
 
   ptr[0].p = (Uint32*)m_buffer.get_data();
@@ -6267,7 +6264,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
 
   ev->setName(eventName);
 
-  int ret = m_receiver.createEvent(m_ndb, *ev, 1 /* getFlag set */);
+  int ret = m_receiver.createEvent(*ev, 1 /* getFlag set */);
 
   if (ret) {
     delete ev;
