@@ -783,11 +783,11 @@ public:
   int unpackOldListTables(NdbDictionary::Dictionary::List& list,
                           bool fullyQualifiedNames);
   
-  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames);
-  NdbTableImpl * getTable(const BaseString& name, bool fullyQualifiedNames);
+  NdbTableImpl * getTable(int tableId);
+  NdbTableImpl * getTable(const BaseString& name);
   NdbTableImpl * getTable(class NdbApiSignal * signal, 
 			  LinearSectionPtr ptr[3],
-			  Uint32 noOfSections, bool fullyQualifiedNames);
+                          Uint32 noOfSections);
 
   int forceGCPWait(int type);
   int getRestartGCI(Uint32 *);

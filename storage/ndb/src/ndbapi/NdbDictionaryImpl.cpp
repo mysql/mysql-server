@@ -2625,8 +2625,7 @@ NdbDictionaryImpl::fetchGlobalTableImplRef(const GlobalCacheInitObject &obj)
 
   if (impl == 0){
     if (error == 0)
-      impl = m_receiver.getTable(obj.m_name,
-                                 m_ndb.usingFullyQualifiedNames());
+      impl = m_receiver.getTable(obj.m_name);
     else
       m_error.code = 4000;
     if (impl != 0 && (obj.init(this, *impl)))
@@ -2685,8 +2684,7 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
     char btname[NdbBlobImpl::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
     BaseString btname_internal = m_ndb.internalize_table_name(btname);
-    NdbTableImpl* bt =
-      m_receiver.getTable(btname_internal, m_ndb.usingFullyQualifiedNames());
+    NdbTableImpl* bt = m_receiver.getTable(btname_internal);
     if (bt == NULL)
     {
       if (ignore_broken_blob_tables())
@@ -2737,8 +2735,7 @@ NdbDictionaryImpl::getBlobTable(uint tab_id, uint col_no)
   DBUG_ENTER("NdbDictionaryImpl::getBlobTable");
   DBUG_PRINT("enter", ("tab_id: %u col_no %u", tab_id, col_no));
 
-  NdbTableImpl* tab = m_receiver.getTable(tab_id,
-                                          m_ndb.usingFullyQualifiedNames());
+  NdbTableImpl* tab = m_receiver.getTable(tab_id);
   if (tab == NULL)
     DBUG_RETURN(NULL);
   Ndb_local_table_info* info =
@@ -3151,7 +3148,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     Sends a GET_TABINFOREQ signal containing the table id
  */
 NdbTableImpl *
-NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
+NdbDictInterface::getTable(int tableId)
 {
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
@@ -3166,7 +3163,7 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
-  return getTable(&tSignal, 0, 0, fullyQualifiedNames);
+  return getTable(&tSignal, 0, 0);
 }
 
 /*
@@ -3178,7 +3175,7 @@ NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
 */
 
 NdbTableImpl *
-NdbDictInterface::getTable(const BaseString& name, bool fullyQualifiedNames)
+NdbDictInterface::getTable(const BaseString& name)
 {
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq* const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
@@ -3218,14 +3215,14 @@ NdbDictInterface::getTable(const BaseString& name, bool fullyQualifiedNames)
   ptr[0].p= (Uint32*)m_buffer.get_data();
   ptr[0].sz= namelen_words;
 
-  return getTable(&tSignal, ptr, 1, fullyQualifiedNames);
+  return getTable(&tSignal, ptr, 1);
 }
 
 
 NdbTableImpl *
 NdbDictInterface::getTable(class NdbApiSignal * signal,
-			   LinearSectionPtr ptr[3],
-			   Uint32 noOfSections, bool fullyQualifiedNames)
+                           LinearSectionPtr ptr[3],
+                           Uint32 noOfSections)
 {
   int errCodes[] = {GetTabInfoRef::Busy, 0 };
   int timeout = DICT_SHORT_WAITFOR_TIMEOUT;
@@ -3255,8 +3252,8 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
   NdbTableImpl * rt = 0;
   m_error.code = parseTableInfo(&rt, 
 				(Uint32*)m_buffer.get_data(), 
-  				m_buffer.length() / 4, 
-				fullyQualifiedNames);
+                                m_buffer.length() / 4,
+                                true /* fully qualified */);
   if(rt)
   {
     if (rt->m_fragmentType == NdbDictionary::Object::HashMapPartition)
@@ -3847,8 +3844,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t, NdbDictObjectImpl & objid)
   objid.m_version = data[1];
 
   // update table def from DICT - by-pass cache
-  NdbTableImpl* t2 =
-    m_receiver.getTable(t.m_internalName, m_ndb.usingFullyQualifiedNames());
+  NdbTableImpl* t2 = m_receiver.getTable(t.m_internalName);
 
   // check if we got back same table
   if (t2 == NULL) {
