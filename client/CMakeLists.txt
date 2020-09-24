@@ -136,6 +136,29 @@ ADD_SHARED_LIBRARY(json_binlog
   NO_UNDEFINED
   )
 
+ADD_CONVENIENCE_LIBRARY(json_client_library
+  ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+
+  COMPILE_DEFINITIONS DISABLE_PSI_MUTEX
+  DEPENDENCIES GenError
+  )
+
+SET(JSON_BINLOG_LIBS_TO_MERGE
+  json_client_library
+  mysys
+  mytime
+  strings
+  )
+
+MERGE_CONVENIENCE_LIBRARIES(json_binlog_static
+  ${JSON_BINLOG_LIBS_TO_MERGE}
+  COMPONENT Development
+  ${INSTALL_JSON_BINLOG_LIBRARY}
+  )
+
 # A test executable which does nothing, except verify that symbols are visible.
 # To test standalone build:
 #   cmake -DINSTALL_MYSQLTESTDIR=0
@@ -150,13 +173,27 @@ MYSQL_ADD_EXECUTABLE(json_binlog_main
   SKIP_INSTALL
   )
 
+# Same test executable, linked statically.
+# To test standalone build:
+#   g++ -I/tmp/foo/usr/local/mysql/include json_binlog_main.cc
+#       -L/tmp/foo/usr/local/mysql/lib
+#       -ljson_binlog_static -lpthread
+MYSQL_ADD_EXECUTABLE(json_binlog_main_static
+  json_binlog_main.cc
+  INCLUDE_DIRECTORIES ../sql
+  LINK_LIBRARIES json_binlog_static
+  SKIP_INSTALL
+  )
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-variable" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   TARGET_COMPILE_OPTIONS(json_binlog_main PRIVATE "${HAS_WARN_FLAG}")
+  TARGET_COMPILE_OPTIONS(json_binlog_main_static PRIVATE "${HAS_WARN_FLAG}")
 ENDIF()
 MY_CHECK_CXX_COMPILER_WARNING("-Wunused-variable" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   TARGET_COMPILE_OPTIONS(json_binlog_main PRIVATE "${HAS_WARN_FLAG}")
+  TARGET_COMPILE_OPTIONS(json_binlog_main_static PRIVATE "${HAS_WARN_FLAG}")
 ENDIF()
 
 SET(MYSQLBINLOG_SOURCES
@@ -185,11 +222,7 @@ SET(MYSQLBINLOG_LIBRARIES
 IF(WITH_JSON_BINLOG_LIBRARY)
   LIST(APPEND MYSQLBINLOG_LIBRARIES json_binlog)
 ELSE()
-  LIST(APPEND MYSQLBINLOG_SOURCES
-    ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
-    ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
-    ${CMAKE_SOURCE_DIR}/sql/json_syntax_check.cc
-    )
+  LIST(APPEND MYSQLBINLOG_LIBRARIES json_binlog_static)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog
