@@ -2194,7 +2194,6 @@ private:
   static
   const char * externalizeIndexName(const char * internalIndexName,
                                     bool fullyQualifiedNames);
-  const char * externalizeIndexName(const char * internalIndexName);
   const BaseString old_internalize_index_name(const NdbTableImpl * table,
 					      const char * external_name) const;
   const BaseString internalize_index_name(const NdbTableImpl * table,
@@ -2223,7 +2222,7 @@ private:
 
   Uint32                theNextConnectNode;
 
-  bool fullyQualifiedNames;
+  bool deleted_v8_0_24;
 
 
 

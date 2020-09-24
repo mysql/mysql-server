@@ -81,8 +81,7 @@ fatal(const NdbError ndberr, char const* fmt, ...)
 static void
 list(const NdbDictionary::Dictionary* dict,
      const char * tabname,
-     NdbDictionary::Object::Type type,
-     const bool fully_qualified_names)
+     NdbDictionary::Object::Type type)
 {
     /**
      * Display fully qualified table names if --fully-qualified is set to 1.
@@ -94,7 +93,7 @@ list(const NdbDictionary::Dictionary* dict,
      * useFq == false : Return the full name
      * (database/schema/[tableid/]indexname|tablename)
      */
-    bool useFq = !_fully_qualified;
+    const bool useFq = !_fully_qualified;
 
     NdbDictionary::Dictionary::List list;
     if (tabname == 0) {
@@ -106,20 +105,10 @@ list(const NdbDictionary::Dictionary* dict,
     }
     if (!_parsable)
     {
-      if (fully_qualified_names)
-      {
-        if (show_temp_status)
-          ndbout_c("%-5s %-20s %-8s %-7s %-4s %-12s %-8s %s", "id", "type", "state", "logging", "temp", "database", "schema", "name");
-        else
-          ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
-      }
+      if (show_temp_status)
+        ndbout_c("%-5s %-20s %-8s %-7s %-4s %-12s %-8s %s", "id", "type", "state", "logging", "temp", "database", "schema", "name");
       else
-      {
-        if (show_temp_status)
-          ndbout_c("%-5s %-20s %-8s %-7s %-4s %s", "id", "type", "state", "logging", "temp", "name");
-        else
-          ndbout_c("%-5s %-20s %-8s %-7s %s", "id", "type", "state", "logging", "name");
-      }
+        ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
     }
     for (unsigned i = 0; i < list.count; i++) {
 	NdbDictionary::Dictionary::List::Element& elt = list.elements[i];
@@ -250,39 +239,19 @@ list(const NdbDictionary::Dictionary* dict,
               }
           }
         }
-	if (fully_qualified_names)
+        if (_parsable)
         {
-          if (_parsable)
-          {
-            if (show_temp_status)
-              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, temp, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
-            else
-              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
-          }
+          if (show_temp_status)
+            ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, temp, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
           else
-          {
-            if (show_temp_status)
-              ndbout_c("%-5d %-20s %-8s %-7s %-4s %-12s %-8s %s", elt.id, type, state, store, temp, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
-            else
-              ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
-          }
+            ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
         }
         else
         {
-          if (_parsable)
-          {
-            if (show_temp_status)
-              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, temp, elt.name);
-            else
-              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, elt.name);
-          }
+          if (show_temp_status)
+            ndbout_c("%-5d %-20s %-8s %-7s %-4s %-12s %-8s %s", elt.id, type, state, store, temp, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
           else
-          {
-            if (show_temp_status)
-              ndbout_c("%-5d %-20s %-8s %-7s %-4s %s", elt.id, type, state, store, temp, elt.name);
-            else
-              ndbout_c("%-5d %-20s %-8s %-7s %s", elt.id, type, state, store, elt.name);
-          }
+            ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
         }
     }
     if (_parsable) {
@@ -399,9 +368,7 @@ int main(int argc, char** argv) {
     }
   }
   for (int i = 0; _loops == 0 || i < _loops; i++) {
-    list(dict, _tabname,
-         static_cast<NdbDictionary::Object::Type>(_type),
-         ndb->usingFullyQualifiedNames());
+    list(dict, _tabname, static_cast<NdbDictionary::Object::Type>(_type));
   }
   return NdbToolsProgramExitCode::OK;
 }

@@ -85,8 +85,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theNode= 0;
   theMyRef= 0;
 
-  fullyQualifiedNames = true;
-
 #ifdef POORMANSPURIFY
   cgetSignals =0;
   cfreeSignals = 0;

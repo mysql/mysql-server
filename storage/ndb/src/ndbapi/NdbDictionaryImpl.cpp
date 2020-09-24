@@ -5762,37 +5762,32 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
                              bool ignoreFKs)
 {
   const char * indexName = impl.getName();
-  if (tableName || m_ndb.usingFullyQualifiedNames()) {
-    NdbTableImpl * timpl = impl.m_table;
-    
-    if (timpl == 0) {
-      m_error.code = 709;
-      return -1;
-    }
+  NdbTableImpl * timpl = impl.m_table;
 
-    const BaseString internalIndexName((tableName)
-      ?
-      m_ndb.internalize_index_name(getTable(tableName), indexName)
-      :
-      m_ndb.internalize_table_name(indexName)); // Index is also a table
-
-    if(impl.m_status == NdbDictionary::Object::New){
-      return dropIndex(indexName, tableName, ignoreFKs);
-    }
-
-    int ret= dropIndexGlobal(impl, ignoreFKs);
-    if (ret == 0)
-    {
-      m_globalHash->lock();
-      m_globalHash->release(impl.m_table, 1);
-      m_globalHash->unlock();
-      m_localHash.drop(internalIndexName);
-    }
-    return ret;
+  if (timpl == 0) {
+    m_error.code = 709;
+    return -1;
   }
-  if(m_error.code == 0)
-    m_error.code = 4243;
-  return -1;
+
+  const BaseString internalIndexName((tableName)
+    ?
+    m_ndb.internalize_index_name(getTable(tableName), indexName)
+    :
+    m_ndb.internalize_table_name(indexName)); // Index is also a table
+
+  if(impl.m_status == NdbDictionary::Object::New){
+    return dropIndex(indexName, tableName, ignoreFKs);
+  }
+
+  int ret= dropIndexGlobal(impl, ignoreFKs);
+  if (ret == 0)
+  {
+    m_globalHash->lock();
+    m_globalHash->release(impl.m_table, 1);
+    m_globalHash->unlock();
+    m_localHash.drop(internalIndexName);
+  }
+  return ret;
 }
 
 int
