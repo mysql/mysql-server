@@ -3926,3 +3926,13 @@ DROP TABLE sink;
 SELECT JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()));
 JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()))
 NULL
+#
+# Bug #31856260 STILL SEEING A FEW ASSERTION
+#                `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED
+#
+DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) AND ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+ERROR HY000: Incorrect string value: '3\x9E\xD3%' for function uuid_to_bin
+DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) OR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+ERROR HY000: Incorrect string value: '3\x9E\xD3%' for function uuid_to_bin
+DO NULLIF(FROM_BASE64(JSON_STORAGE_FREE('') XOR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "The document is empty." at position 0.

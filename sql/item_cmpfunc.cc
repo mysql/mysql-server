@@ -3473,6 +3473,7 @@ String *Item_func_nullif::val_str(String *str) {
     null_value = true;
     return nullptr;
   }
+  if (current_thd->is_error()) return error_str();
   res = args[0]->val_str(str);
   null_value = args[0]->null_value;
   return res;
@@ -5156,6 +5157,7 @@ longlong Item_func_in::val_int() {
     if (!(value_added_map & (1U << (uint)cmp_type))) {
       in_item->store_value(args[0]);
       value_added_map |= 1U << (uint)cmp_type;
+      if (current_thd->is_error()) return error_int();
     }
     const int rc = in_item->cmp(args[i]);
     if (rc == false) return (longlong)(!negated);
@@ -5775,6 +5777,7 @@ longlong Item_cond_and::val_int() {
       if (ignore_unknown() || !(null_value = item->null_value))
         return 0;  // return false
     }
+    if (current_thd->is_error()) return error_int();
   }
   return null_value ? 0 : 1;
 }
@@ -5819,6 +5822,7 @@ longlong Item_cond_or::val_int() {
       return 1;
     }
     if (item->null_value) null_value = true;
+    if (current_thd->is_error()) return error_int();
   }
   return 0;
 }
@@ -6347,6 +6351,7 @@ longlong Item_func_xor::val_int() {
       null_value = true;
       return 0;
     }
+    if (current_thd->is_error()) return error_int();
   }
   return result;
 }
