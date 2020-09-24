@@ -29,6 +29,7 @@
 #include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
@@ -64,131 +65,6 @@ AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
   }
 
   return path;
-}
-
-template <class Func>
-void WalkAccessPaths(AccessPath *path, bool cross_query_blocks, Func &&func) {
-  if (func(path)) {
-    // Stop recursing in this branch.
-    return;
-  }
-  switch (path->type) {
-    case AccessPath::TABLE_SCAN:
-    case AccessPath::INDEX_SCAN:
-    case AccessPath::REF:
-    case AccessPath::REF_OR_NULL:
-    case AccessPath::EQ_REF:
-    case AccessPath::PUSHED_JOIN_REF:
-    case AccessPath::FULL_TEXT_SEARCH:
-    case AccessPath::CONST_TABLE:
-    case AccessPath::MRR:
-    case AccessPath::FOLLOW_TAIL:
-    case AccessPath::INDEX_RANGE_SCAN:
-    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
-    case AccessPath::TABLE_VALUE_CONSTRUCTOR:
-    case AccessPath::FAKE_SINGLE_ROW:
-    case AccessPath::ZERO_ROWS:
-    case AccessPath::ZERO_ROWS_AGGREGATED:
-    case AccessPath::MATERIALIZED_TABLE_FUNCTION:
-    case AccessPath::UNQUALIFIED_COUNT:
-      // No children.
-      return;
-    case AccessPath::NESTED_LOOP_JOIN:
-      WalkAccessPaths(path->nested_loop_join().outer, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      WalkAccessPaths(path->nested_loop_join().inner, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
-      WalkAccessPaths(path->nested_loop_semijoin_with_duplicate_removal().outer,
-                      cross_query_blocks, std::forward<Func &&>(func));
-      WalkAccessPaths(path->nested_loop_semijoin_with_duplicate_removal().inner,
-                      cross_query_blocks, std::forward<Func &&>(func));
-      break;
-    case AccessPath::BKA_JOIN:
-      WalkAccessPaths(path->bka_join().outer, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      WalkAccessPaths(path->bka_join().inner, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::HASH_JOIN:
-      WalkAccessPaths(path->hash_join().outer, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      WalkAccessPaths(path->hash_join().inner, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::FILTER:
-      WalkAccessPaths(path->filter().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::SORT:
-      WalkAccessPaths(path->sort().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::AGGREGATE:
-      WalkAccessPaths(path->aggregate().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::TEMPTABLE_AGGREGATE:
-      WalkAccessPaths(path->temptable_aggregate().subquery_path,
-                      cross_query_blocks, std::forward<Func &&>(func));
-      WalkAccessPaths(path->temptable_aggregate().table_path,
-                      cross_query_blocks, std::forward<Func &&>(func));
-      break;
-    case AccessPath::LIMIT_OFFSET:
-      WalkAccessPaths(path->limit_offset().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::STREAM:
-      if (cross_query_blocks) {
-        WalkAccessPaths(path->stream().child, cross_query_blocks,
-                        std::forward<Func &&>(func));
-      }
-      break;
-    case AccessPath::MATERIALIZE:
-      WalkAccessPaths(path->materialize().table_path, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      if (cross_query_blocks) {
-        for (const MaterializePathParameters::QueryBlock &query_block :
-             path->materialize().param->query_blocks) {
-          WalkAccessPaths(query_block.subquery_path, cross_query_blocks,
-                          std::forward<Func &&>(func));
-        }
-      }
-      break;
-    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
-      WalkAccessPaths(path->materialize_information_schema_table().table_path,
-                      cross_query_blocks, std::forward<Func &&>(func));
-      break;
-    case AccessPath::APPEND:
-      if (cross_query_blocks) {
-        for (const AppendPathParameters &child : *path->append().children) {
-          WalkAccessPaths(child.path, cross_query_blocks,
-                          std::forward<Func &&>(func));
-        }
-      }
-      break;
-    case AccessPath::WINDOWING:
-      WalkAccessPaths(path->windowing().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::WEEDOUT:
-      WalkAccessPaths(path->weedout().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::REMOVE_DUPLICATES:
-      WalkAccessPaths(path->remove_duplicates().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::ALTERNATIVE:
-      WalkAccessPaths(path->alternative().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-    case AccessPath::CACHE_INVALIDATOR:
-      WalkAccessPaths(path->cache_invalidator().child, cross_query_blocks,
-                      std::forward<Func &&>(func));
-      break;
-  }
 }
 
 static AccessPath *FindSingleAccessPathOfType(AccessPath *path,
