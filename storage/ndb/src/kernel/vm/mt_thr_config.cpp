@@ -1038,7 +1038,7 @@ THRConfig::compute_automatic_thread_config(
   tot_threads += ldm_threads;
   tot_threads += query_threads;
   tot_threads += tc_threads;
-  tot_threads + recv_threads;
+  tot_threads += recv_threads;
 
   if (tot_threads > NDBMT_MAX_BLOCK_INSTANCES)
   {
