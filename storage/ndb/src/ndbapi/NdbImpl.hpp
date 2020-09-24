@@ -153,18 +153,6 @@ public:
   BaseString m_dbname; // Database name
   BaseString m_schemaname; // Schema name
 
-  BaseString m_prefix; // Buffer for preformatted internal name <db>/<schema>/
-
-  int update_prefix()
-  {
-    if (!m_prefix.assfmt("%s%c%s%c", m_dbname.c_str(), table_name_separator,
-                         m_schemaname.c_str(), table_name_separator))
-    {
-      return -1;
-    }
-    return 0;
-  }
-
 /*
   We need this friend accessor function to work around a HP compiler problem,
   where template class friends are not working.
@@ -189,8 +177,6 @@ public:
     return m_ndb_cluster_connection.m_config;
   }
 
-  BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
-  
   Uint64 customData;
 
   Uint64 clientStats[ Ndb::NumClientStatistics ];

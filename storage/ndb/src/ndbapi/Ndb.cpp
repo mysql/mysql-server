@@ -1854,7 +1854,6 @@ convertEndian(Uint32 Data)
 #endif
 }
 
-// <internal>
 Ndb_cluster_connection &
 Ndb::get_ndb_cluster_connection()
 {
@@ -1870,8 +1869,7 @@ int Ndb::setCatalogName(const char * a_catalog_name)
 {
   // TODO can table_name_separator be escaped?
   if (a_catalog_name && ! strchr(a_catalog_name, table_name_separator)) {
-    if (!theImpl->m_dbname.assign(a_catalog_name) ||
-        theImpl->update_prefix())
+    if (!theImpl->m_dbname.assign(a_catalog_name))
     {
       theError.code = 4000;
       return -1;
@@ -1889,8 +1887,7 @@ int Ndb::setSchemaName(const char * a_schema_name)
 {
   // TODO can table_name_separator be escaped?
   if (a_schema_name && ! strchr(a_schema_name, table_name_separator)) {
-    if (!theImpl->m_schemaname.assign(a_schema_name) ||
-        theImpl->update_prefix())
+    if (!theImpl->m_schemaname.assign(a_schema_name))
     {
       theError.code = 4000;
       return -1;
@@ -1898,7 +1895,6 @@ int Ndb::setSchemaName(const char * a_schema_name)
   }
   return 0;
 }
-// </internal>
  
 const char* Ndb::getNdbObjectName() const
 {
@@ -1957,18 +1953,9 @@ int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
         sprintf(buf, "%.*s", (int) (s2 - (s1 + 1)), s1 + 1);
         setDatabaseSchemaName(buf);
 #ifdef VM_TRACE
-        // verify that m_prefix looks like abc/def/
-        const char* s0 = theImpl->m_prefix.c_str();
-        const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
-        const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
-        if (!(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0))
-        {
-          ndbout_c("t->m_impl.m_internalName.c_str(): %s", t->m_impl.m_internalName.c_str());
-          ndbout_c("s0: %s", s0);
-          ndbout_c("s1: %s", s1);
-          ndbout_c("s2: %s", s2);
-          assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
-        }
+        // verify that both db and schema name are set
+        assert(theImpl->m_dbname.length());
+        assert(theImpl->m_schemaname.length());
 #endif
         return 0;
       }
@@ -2037,25 +2024,16 @@ Ndb::internalize_table_name(const char *external_name) const
   DBUG_ENTER("internalize_table_name");
   DBUG_PRINT("enter", ("external_name: %s", external_name));
 
-  /* Internal table name format <db>/<schema>/<table>
-     <db>/<schema>/ is already available in m_prefix
-     so just concat the two strings
-   */
 #ifdef VM_TRACE
-  // verify that m_prefix looks like abc/def/
-  const char* s0 = theImpl->m_prefix.c_str();
-  const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
-  const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
-  if (!(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0))
-  {
-    ndbout_c("s0: %s", s0);
-    ndbout_c("s1: %s", s1);
-    ndbout_c("s2: %s", s2);
-    assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
-  }
+  // verify that both db and schema name are set
+  assert(theImpl->m_dbname.length());
+  assert(theImpl->m_schemaname.length());
 #endif
-  ret.assfmt("%s%s",
-             theImpl->m_prefix.c_str(),
+
+  // Internal table name format <db>/<schema>/<table>
+  ret.assfmt("%s%c%s%c%s",
+             theImpl->m_dbname.c_str(), table_name_separator,
+             theImpl->m_schemaname.c_str(), table_name_separator,
              external_name);
 
   DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
@@ -2076,11 +2054,17 @@ Ndb::old_internalize_index_name(const NdbTableImpl * table,
     DBUG_RETURN(ret);
   }
 
-  /* Internal index name format <db>/<schema>/<tabid>/<table> */
-  ret.assfmt("%s%d%c%s",
-             theImpl->m_prefix.c_str(),
-             table->m_id,
-             table_name_separator,
+#ifdef VM_TRACE
+  // verify that both db and schema name are set
+  assert(theImpl->m_dbname.length());
+  assert(theImpl->m_schemaname.length());
+#endif
+
+  // Old internal index name format <db>/<schema>/<tabid>/<table>
+  ret.assfmt("%s%c%s%c%d%c%s",
+             theImpl->m_dbname.c_str(), table_name_separator,
+             theImpl->m_schemaname.c_str(), table_name_separator,
+             table->m_id, table_name_separator,
              external_name);
 
   DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
@@ -2106,9 +2090,10 @@ Ndb::internalize_index_name(const NdbTableImpl * table,
     DBUG_RETURN(old_internalize_index_name(table, external_name));
   }
 
-  /* Internal index name format sys/def/<tabid>/<table> */
-  ret.assfmt("%s%d%c%s",
-             theImpl->m_systemPrefix.c_str(),
+  // Internal index name format sys/def/<tabid>/<table>
+  ret.assfmt("%s%c%s%c%d%c%s",
+             NDB_SYSTEM_DATABASE, table_name_separator,
+             NDB_SYSTEM_SCHEMA, table_name_separator,
              table->m_id,
              table_name_separator,
              external_name);
