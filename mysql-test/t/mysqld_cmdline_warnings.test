@@ -17,6 +17,7 @@
 
 --mkdir $WL11109_DATADIR
 
+--replace_regex /.*component_reference_cache.*/Can't open shared library component_reference_cache/g
 # 1. Start the server to test 'utf8'
 # The server should warn about command line parameters and exit immediately on the uninitialized datadir:
 --error 1
@@ -31,6 +32,7 @@
 --source include/search_pattern.inc
 
 
+--replace_regex /.*component_reference_cache.*/Can't open shared library component_reference_cache/g
 # 2. Start the server to test 'utf8mb3' and 'utf8_general_ci'.
 # The server should warn about command line parameters and exit immediately on the uninitialized datadir:
 --error 1

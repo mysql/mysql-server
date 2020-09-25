@@ -5600,7 +5600,8 @@ static int init_server_components() {
     error check of the service availability has to be done by those
     plugins/components.
   */
-  dynamic_loader_srv->load(component_urns, NUMBER_OF_COMPONENTS);
+  if (!is_help_or_validate_option())
+    dynamic_loader_srv->load(component_urns, NUMBER_OF_COMPONENTS);
 
   /*
     Timers not needed if only starting with --help.
