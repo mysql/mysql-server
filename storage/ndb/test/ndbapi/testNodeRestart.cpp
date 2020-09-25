@@ -6902,7 +6902,8 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
                              Uint32 num_values,
                              int nodeId,
                              bool all_nodes,
-                             NdbRestarter *restarter)
+                             NdbRestarter *restarter,
+                             bool initial_nr)
 {
   g_err << "nodeId = " << nodeId << endl;
   // Get the binary config
@@ -6978,7 +6979,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
   }
   sleep(5); //Give MGM server time to restart
   g_err << "Restarting node " << nodeId << " to apply config change.." << endl;
-  if (restarter->restartOneDbNode(nodeId, false, false, true))
+  if (restarter->restartOneDbNode(nodeId, initial_nr, false, true))
   {
     g_err << "Failed to restart node." << endl;
     return NDBT_FAILED;
@@ -6990,6 +6991,80 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
   }
   return NDBT_OK;
 } 
+
+int
+runChangeNumLogPartsINR(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2) 
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  int node_1 = restarter.getDbNodeId(0);
+  if (node_1 == -1)
+  {
+    g_err << "Failed to find node id of data node" << endl;
+    return NDBT_FAILED;
+  }
+  NdbMgmd mgmd;
+  Uint32 key;
+  Uint32 value;
+  key = CFG_DB_NO_REDOLOG_PARTS;
+
+  if(!mgmd.connect()) 
+  {
+    g_err << "Failed to connect to ndb_mgmd." << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  value = 8;
+  if (setConfigValueAndRestartNode(&mgmd,
+                                   &key,
+                                   &value,
+                                   1,
+                                   node_1,
+                                   false,
+                                   &restarter,
+                                   true) == NDBT_FAILED)
+  {
+    g_err << "Failed to change first node to 8 log parts" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  Uint32 save_value = value;
+
+  value = 6;
+  if (setConfigValueAndRestartNode(&mgmd,
+                                   &key,
+                                   &value,
+                                   1,
+                                   node_1,
+                                   false,
+                                   &restarter,
+                                   true) == NDBT_FAILED)
+  {
+    g_err << "Failed to change first node to 6 log parts" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  if (setConfigValueAndRestartNode(&mgmd,
+                                   &key,
+                                   &save_value,
+                                   1,
+                                   node_1,
+                                   false,
+                                   &restarter,
+                                   true) == NDBT_FAILED)
+  {
+    g_err << "Failed to change first node to original log parts" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  ctx->stopTest();
+  return NDBT_OK;
+}
 
 int
 runChangeNumLDMsNR(NDBT_Context* ctx, NDBT_Step* step)
@@ -7030,7 +7105,8 @@ runChangeNumLDMsNR(NDBT_Context* ctx, NDBT_Step* step)
                                    2,
                                    node_1,
                                    false,
-                                   &restarter) == NDBT_FAILED)
+                                   &restarter,
+                                   false) == NDBT_FAILED)
   {
     g_err << "Failed to change first node" << endl;
     ctx->stopTest();
@@ -7046,7 +7122,8 @@ runChangeNumLDMsNR(NDBT_Context* ctx, NDBT_Step* step)
                                    2,
                                    node_2,
                                    false,
-                                   &restarter) == NDBT_FAILED)
+                                   &restarter,
+                                   false) == NDBT_FAILED)
   {
     g_err << "Failed to change second node" << endl;
     ctx->stopTest();
@@ -7118,7 +7195,8 @@ runChangeNumLDMsNR(NDBT_Context* ctx, NDBT_Step* step)
                                      2,
                                      node_2,
                                      false,
-                                     &restarter) == NDBT_FAILED)
+                                     &restarter,
+                                     false) == NDBT_FAILED)
     {
       g_err << "Failed to change second node, step " << test_index << endl;
       ctx->stopTest();
@@ -7131,7 +7209,8 @@ runChangeNumLDMsNR(NDBT_Context* ctx, NDBT_Step* step)
                                               2,
                                               node_1,
                                               false,
-                                              &restarter);
+                                              &restarter,
+                                              false);
   if (ret_code == NDBT_FAILED)
   {
     g_err << "Failed to change back first node" << endl;
@@ -7144,7 +7223,8 @@ runChangeNumLDMsNR(NDBT_Context* ctx, NDBT_Step* step)
                                           2,
                                           node_2,
                                           false,
-                                          &restarter);
+                                          &restarter,
+                                          false);
   if (ret_code == NDBT_FAILED)
   {
     g_err << "Failed to change back second node" << endl;
@@ -7187,7 +7267,8 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
                                      1,
                                      victim,
                                      true,
-                                     &restarter) == NDBT_FAILED)
+                                     &restarter,
+                                     false) == NDBT_FAILED)
       break;
 
     g_err << "Injecting fault in node " << victim;
@@ -7253,7 +7334,8 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
                                      1,
                                      victim,
                                      true,
-                                     &restarter) == NDBT_FAILED)
+                                     &restarter,
+                                     false) == NDBT_FAILED)
       break;
 
     ctx->stopTest();
@@ -9297,7 +9379,8 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
                                    1,
                                    node_1,
                                    true,
-                                   &restarter) == NDBT_FAILED)
+                                   &restarter,
+                                   false) == NDBT_FAILED)
   {
     g_err << "Failed to set TimeBetweenGlobalCheckpoints to 200" << endl;
     return NDBT_FAILED;
@@ -9425,7 +9508,8 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
                                    1,
                                    node_1,
                                    true,
-                                   &restarter) == NDBT_FAILED)
+                                   &restarter,
+                                   false) == NDBT_FAILED)
   {
     g_err << "Failed to reset TimeBetweenGlobalCheckpoints" << endl;
     return NDBT_FAILED;
@@ -11299,6 +11383,14 @@ TESTCASE("ChangeNumLDMsNR",
   INITIALIZER(runLoadTable);
   STEP(runPkUpdateUntilStopped);
   STEP(runChangeNumLDMsNR);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ChangeNumLogPartsINR",
+         "Change the number of Log parts in an INR")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runChangeNumLogPartsINR);
   FINALIZER(runClearTable);
 }
 
