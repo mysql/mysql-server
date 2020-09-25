@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3754,8 +3754,10 @@ for accounting. */
 FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
                              ut_stage_alter_t *stage)
     : m_space_id(space_id), m_trx(trx), m_stage(stage), m_interrupted(false) {
-  m_flushed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
-  m_removed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
+  m_flushed =
+      UT_NEW_NOKEY(std::vector<std::atomic<ulint>>(srv_buf_pool_instances));
+  m_removed =
+      UT_NEW_NOKEY(std::vector<std::atomic<ulint>>(srv_buf_pool_instances));
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     m_flushed->at(i) = 0;
@@ -3799,7 +3801,7 @@ bool FlushObserver::check_interrupted() {
 @param[in]	buf_pool	buffer pool instance
 @param[in]	bpage		buffer page to flush */
 void FlushObserver::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
-  os_atomic_increment_ulint(&m_flushed->at(buf_pool->instance_no), 1);
+  m_flushed->at(buf_pool->instance_no).fetch_add(1);
 
   if (m_stage != nullptr) {
     m_stage->inc();
@@ -3810,7 +3812,7 @@ void FlushObserver::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
 @param[in]	buf_pool	buffer pool instance
 @param[in]	bpage		buffer page flushed */
 void FlushObserver::notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage) {
-  os_atomic_increment_ulint(&m_removed->at(buf_pool->instance_no), 1);
+  m_removed->at(buf_pool->instance_no).fetch_add(1);
 }
 
 /** Flush dirty pages and wait. */

@@ -93,7 +93,6 @@ ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-010116	Server
 System	MY-013576	InnoDB
-Note	MY-012943	InnoDB
 Note	MY-012944	InnoDB
 Note	MY-012945	InnoDB
 Note	MY-012948	InnoDB

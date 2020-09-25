@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1316,20 +1316,22 @@ bool ibuf_rec_has_multi_value(const rec_t *rec) {
 
 /** Add accumulated operation counts to a permanent array. Both arrays must be
  of size IBUF_OP_COUNT. */
-static void ibuf_add_ops(ulint *arr,       /*!< in/out: array to modify */
-                         const ulint *ops) /*!< in: operation counts */
+static void ibuf_add_ops(
+    std::atomic<ulint> *arr, /*!< in/out: array to modify */
+    const ulint *ops)        /*!< in: operation counts */
 
 {
   ulint i;
 
   for (i = 0; i < IBUF_OP_COUNT; i++) {
-    os_atomic_increment_ulint(&arr[i], ops[i]);
+    arr[i].fetch_add(ops[i]);
   }
 }
 
 /** Print operation counts. The array must be of size IBUF_OP_COUNT. */
-static void ibuf_print_ops(const ulint *ops, /*!< in: operation counts */
-                           FILE *file)       /*!< in: file where to print */
+static void ibuf_print_ops(
+    const std::atomic<ulint> *ops, /*!< in: operation counts */
+    FILE *file)                    /*!< in: file where to print */
 {
   static const char *op_names[] = {"insert", "delete mark", "delete"};
   ulint i;
@@ -1337,7 +1339,7 @@ static void ibuf_print_ops(const ulint *ops, /*!< in: operation counts */
   ut_a(UT_ARR_SIZE(op_names) == IBUF_OP_COUNT);
 
   for (i = 0; i < IBUF_OP_COUNT; i++) {
-    fprintf(file, "%s %lu%s", op_names[i], (ulong)ops[i],
+    fprintf(file, "%s %lu%s", op_names[i], (ulong)ops[i].load(),
             (i < (IBUF_OP_COUNT - 1)) ? ", " : "");
   }
 
@@ -4354,7 +4356,7 @@ reset_bit:
   btr_pcur_close(&pcur);
   mem_heap_free(heap);
 
-  os_atomic_increment_ulint(&ibuf->n_merges, 1);
+  ibuf->n_merges.fetch_add(1);
   ibuf_add_ops(ibuf->n_merged_ops, mops);
   ibuf_add_ops(ibuf->n_discarded_ops, dops);
 

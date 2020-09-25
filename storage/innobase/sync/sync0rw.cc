@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -211,16 +211,12 @@ void rw_lock_create_func(
   /* If this is the very first time a synchronization object is
   created, then the following call initializes the sync system. */
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-  mutex_create(LATCH_ID_RW_LOCK_MUTEX, rw_lock_get_mutex(lock));
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
 #ifdef UNIV_DEBUG
   UT_NOT_USED(cmutex_name);
 #endif
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
   lock->lock_word = X_LOCK_DECR;
-  lock->waiters = 0;
+  lock->waiters = false;
 
   lock->recursive.store(false, std::memory_order_relaxed);
   lock->sx_recursive = 0;
@@ -275,10 +271,6 @@ void rw_lock_free_func(rw_lock_t *lock) /*!< in/out: rw-lock */
   ut_a(lock->lock_word == X_LOCK_DECR);
 
   mutex_enter(&rw_lock_list_mutex);
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-  mutex_free(rw_lock_get_mutex(lock));
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
   os_event_destroy(lock->event);
 
@@ -813,16 +805,12 @@ lock_loop:
  @return true */
 bool rw_lock_validate(const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  ulint waiters;
-  lint lock_word;
+  int32_t lock_word;
 
   ut_ad(lock);
-
-  waiters = rw_lock_get_waiters(lock);
   lock_word = lock->lock_word;
 
   ut_ad(lock->magic_n == rw_lock_t::MAGIC_N);
-  ut_ad(waiters == 0 || waiters == 1);
   ut_ad(lock_word > -(2 * X_LOCK_DECR));
   ut_ad(lock_word <= X_LOCK_DECR);
 
@@ -1043,10 +1031,6 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
        lock = UT_LIST_GET_NEXT(list, lock)) {
     count++;
 
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-    mutex_enter(&lock->mutex);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-
     if (lock->lock_word != X_LOCK_DECR) {
       fprintf(file, "RW-LOCK: %p ", (void *)lock);
 
@@ -1067,10 +1051,6 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
 
       rw_lock_debug_mutex_exit();
     }
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-    mutex_exit(&lock->mutex);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
   }
 
   fprintf(file, "Total number of rw-locks " ULINTPF "\n", count);

@@ -5039,10 +5039,11 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     now. */
     srv_start_purge_threads();
 
-    while (trx_sys->rseg_history_len != 0) {
+    uint64_t rseg_history_len;
+    while ((rseg_history_len = trx_sys->rseg_history_len.load()) != 0) {
       ib::info(ER_IB_MSG_547)
           << "Waiting for purge to become empty:"
-          << " current purge history len is " << trx_sys->rseg_history_len;
+          << " current purge history len is " << rseg_history_len;
       sleep(1);
     }
 
@@ -17374,15 +17375,13 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
     if (!(check_opt->flags & T_QUICK) && !index->is_corrupted()) {
       /* Enlarge the fatal lock wait timeout during
       CHECK TABLE. */
-      os_atomic_increment_ulint(&srv_fatal_semaphore_wait_threshold,
-                                SRV_SEMAPHORE_WAIT_EXTENSION);
+      srv_fatal_semaphore_wait_extend.fetch_add(1);
 
       bool valid = btr_validate_index(index, m_prebuilt->trx, false);
 
       /* Restore the fatal lock wait timeout after
       CHECK TABLE. */
-      os_atomic_decrement_ulint(&srv_fatal_semaphore_wait_threshold,
-                                SRV_SEMAPHORE_WAIT_EXTENSION);
+      srv_fatal_semaphore_wait_extend.fetch_sub(1);
 
       if (!valid) {
         is_ok = false;
@@ -20810,6 +20809,7 @@ static void innodb_merge_threshold_set_all_debug_update(THD *thd, SYS_VAR *var,
   innodb_merge_threshold_set_all_debug = (*static_cast<const uint *>(save));
   dict_set_merge_threshold_all_debug(innodb_merge_threshold_set_all_debug);
 }
+
 #endif /* UNIV_DEBUG */
 
 /** Find and Retrieve the FTS doc_id for the current result row
@@ -21132,7 +21132,7 @@ static MYSQL_SYSVAR_ULONG(
     PLUGIN_VAR_RQCMDARG,
     "Number of seconds that a semaphore can be held. If semaphore wait crosses"
     "this value, server will crash",
-    nullptr, nullptr, 600, 100, 600, 0);
+    nullptr, nullptr, 600, 25, 600, 0);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(

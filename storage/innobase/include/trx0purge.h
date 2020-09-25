@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -994,7 +994,7 @@ struct trx_purge_t {
   volatile ulint n_submitted;
 
   /** Count of total tasks completed */
-  volatile ulint n_completed;
+  std::atomic<ulint> n_completed;
 
   /* The following two fields form the 'purge pointer' which advances
   during a purge, and which is used in history list truncation */

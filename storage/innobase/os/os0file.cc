@@ -814,9 +814,9 @@ static ulint os_n_file_reads_old = 0;
 static ulint os_n_file_writes_old = 0;
 static ulint os_n_fsyncs_old = 0;
 /** Number of pending write operations */
-ulint os_n_pending_writes = 0;
+std::atomic<ulint> os_n_pending_writes{0};
 /** Number of pending read operations */
-ulint os_n_pending_reads = 0;
+std::atomic<ulint> os_n_pending_reads{0};
 
 static ib_time_monotonic_t os_last_printout;
 bool os_has_said_disk_full = false;
@@ -989,14 +989,14 @@ file::Block *os_alloc_block() noexcept {
 
       block = new (ptr) file::Block();
       block->m_ptr = static_cast<byte *>(ptr + sizeof(*block));
-      block->m_in_use = 1;
+      block->m_in_use = true;
 
       break;
     }
 
     pos = i++ % size;
 
-    if (TAS(&blocks[pos].m_in_use, 1) == 0) {
+    if (blocks[pos].m_in_use.exchange(true) == false) {
       block = &blocks[pos];
       break;
     }
@@ -1006,15 +1006,15 @@ file::Block *os_alloc_block() noexcept {
     ++retry;
   }
 
-  ut_a(block->m_in_use != 0);
+  ut_a(block->m_in_use);
 
   return (block);
 }
 
 void os_free_block(file::Block *block) noexcept {
-  ut_ad(block->m_in_use == 1);
+  ut_ad(block->m_in_use);
 
-  TAS(&block->m_in_use, 0);
+  block->m_in_use.store(false);
 
   /* When this block is not in the block cache, and it's
   a temporary block, we need to free it directly. */
@@ -5150,13 +5150,13 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-  (void)os_atomic_increment_ulint(&os_n_pending_writes, 1);
+  os_n_pending_writes.fetch_add(1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 
   ssize_t n_bytes =
       os_file_io(type, file, (void *)buf, n, offset, err, e_block);
 
-  (void)os_atomic_decrement_ulint(&os_n_pending_writes, 1);
+  os_n_pending_writes.fetch_sub(1);
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
 
   return (n_bytes);
@@ -5232,12 +5232,12 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-  (void)os_atomic_increment_ulint(&os_n_pending_reads, 1);
+  os_n_pending_reads.fetch_add(1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
   ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err, nullptr);
 
-  (void)os_atomic_decrement_ulint(&os_n_pending_reads, 1);
+  os_n_pending_reads.fetch_sub(1);
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
 
   return (n_bytes);
@@ -6545,7 +6545,7 @@ void os_create_block_cache() {
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
-    ut_a(it->m_in_use == 0);
+    ut_a(!it->m_in_use);
     ut_a(it->m_ptr == nullptr);
 
     /* Allocate double of max page size memory, since
@@ -6566,7 +6566,7 @@ void meb_free_block_cache() {
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
-    ut_a(it->m_in_use == 0);
+    ut_a(!it->m_in_use);
     ut_free(it->m_ptr);
   }
 
@@ -6618,7 +6618,7 @@ void os_aio_free() {
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
-    ut_a(it->m_in_use == 0);
+    ut_a(!it->m_in_use);
     ut_free(it->m_ptr);
   }
 
@@ -7969,9 +7969,11 @@ void os_aio_print(FILE *file) {
           fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes,
           os_n_file_reads, os_n_file_writes, os_n_fsyncs);
 
-  if (os_n_pending_writes != 0 || os_n_pending_reads != 0) {
+  auto pending_writes = os_n_pending_writes.load();
+  auto pending_reads = os_n_pending_reads.load();
+  if (pending_writes != 0 || pending_reads != 0) {
     fprintf(file, ULINTPF " pending preads, " ULINTPF " pending pwrites\n",
-            os_n_pending_reads, os_n_pending_writes);
+            pending_reads, pending_writes);
   }
 
   if (os_n_file_reads == os_n_file_reads_old) {

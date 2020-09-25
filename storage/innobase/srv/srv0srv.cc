@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -112,6 +112,7 @@ bool srv_downgrade_partition_files = false;
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulong srv_fatal_semaphore_wait_threshold = 600;
+std::atomic<int> srv_fatal_semaphore_wait_extend{0};
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -1420,7 +1421,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
           "Total large memory allocated " ULINTPF
           "\n"
           "Dictionary memory allocated " ULINTPF "\n",
-          os_total_large_mem_allocated, dict_sys->size);
+          os_total_large_mem_allocated.load(), dict_sys->size);
 
   buf_print_io(file);
 
@@ -2307,7 +2308,7 @@ static void srv_master_do_active_tasks(void) {
 
   srv_update_cpu_usage();
 
-  if (trx_sys->rseg_history_len > 0) {
+  if (trx_sys->rseg_history_len.load() > 0) {
     srv_wake_purge_thread_if_not_active();
   }
 
@@ -2895,7 +2896,7 @@ static bool srv_task_execute(void) {
   if (thr != nullptr) {
     que_run_threads(thr);
 
-    os_atomic_inc_ulint(&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+    purge_sys->n_completed.fetch_add(1);
   }
 
   return (thr != nullptr);
@@ -2972,7 +2973,7 @@ static ulint srv_do_purge(
 
   static ulint count = 0;
   static ulint n_use_threads = 0;
-  static ulint rseg_history_len = 0;
+  static uint64_t rseg_history_len = 0;
   ulint old_activity_count = srv_get_activity_count();
 
   const auto n_threads = srv_threads.m_purge_workers_n;
@@ -2991,7 +2992,7 @@ static ulint srv_do_purge(
   }
 
   do {
-    if (trx_sys->rseg_history_len > rseg_history_len ||
+    if (trx_sys->rseg_history_len.load() > rseg_history_len ||
         (srv_max_purge_lag > 0 && rseg_history_len > srv_max_purge_lag)) {
       /* History length is now longer than what it was
       when we took the last snapshot. Use more threads. */
@@ -3016,7 +3017,7 @@ static ulint srv_do_purge(
     ut_a(n_use_threads <= n_threads);
 
     /* Take a snapshot of the history list before purge. */
-    if ((rseg_history_len = trx_sys->rseg_history_len) == 0) {
+    if ((rseg_history_len = trx_sys->rseg_history_len.load()) == 0) {
       break;
     }
 
@@ -3033,7 +3034,7 @@ static ulint srv_do_purge(
   } while (!srv_purge_should_exit(n_pages_purged) && n_pages_purged > 0 &&
            purge_sys->state == PURGE_STATE_RUN);
 
-  return (rseg_history_len);
+  return rseg_history_len;
 }
 
 /** Suspend the purge coordinator thread. */
@@ -3068,7 +3069,7 @@ static void srv_purge_coordinator_suspend(
     if (stop) {
       os_event_wait_low(slot->event, sig_count);
       ret = 0;
-    } else if (rseg_history_len <= trx_sys->rseg_history_len) {
+    } else if (rseg_history_len <= trx_sys->rseg_history_len.load()) {
       ret =
           os_event_wait_time_low(slot->event, SRV_PURGE_MAX_TIMEOUT, sig_count);
     } else {

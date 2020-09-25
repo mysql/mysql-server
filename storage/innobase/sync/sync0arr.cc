@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -538,12 +538,13 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
     }
 
     fprintf(file,
-            "number of readers " ULINTPF ", waiters flag " ULINTPF
+            "number of readers " ULINTPF
+            ", waiters flag %d"
             ", lock_word: %lx\n"
             "Last time read locked in file %s line %lu\n"
             "Last time write locked in file %s line %lu\n",
-            rw_lock_get_reader_count(rwlock), rwlock->waiters,
-            static_cast<ulong>(rwlock->lock_word),
+            rw_lock_get_reader_count(rwlock), rwlock->waiters.load(),
+            static_cast<ulong>(rwlock->lock_word.load()),
             innobase_basename(rwlock->last_s_file_name),
             static_cast<ulong>(rwlock->last_s_line), rwlock->last_x_file_name,
             static_cast<ulong>(rwlock->last_x_line));
@@ -980,12 +981,12 @@ static bool sync_array_print_long_waits_low(
     ibool *noticed)         /*!< out: TRUE if long wait noticed */
 {
   ulint fatal_timeout = srv_fatal_semaphore_wait_threshold;
-  ibool fatal = FALSE;
+  bool fatal = false;
   uint64_t longest_diff = 0;
 
   /* For huge tables, skip the check during CHECK TABLE etc... */
-  if (fatal_timeout > SRV_SEMAPHORE_WAIT_EXTENSION) {
-    return (false);
+  if (0 < srv_fatal_semaphore_wait_extend.load()) {
+    return false;
   }
 
 #ifdef UNIV_DEBUG_VALGRIND
@@ -1029,7 +1030,7 @@ static bool sync_array_print_long_waits_low(
     }
 
     if (diff > fatal_timeout) {
-      fatal = TRUE;
+      fatal = true;
     }
 
     if (diff > longest_diff) {
@@ -1041,7 +1042,7 @@ static bool sync_array_print_long_waits_low(
 
 #undef SYNC_ARRAY_TIMEOUT
 
-  return (fatal);
+  return fatal;
 }
 
 /** Prints warnings of long semaphore waits to stderr.

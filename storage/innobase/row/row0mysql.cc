@@ -1895,7 +1895,7 @@ class ib_dec_counter {
 
   void operator()(upd_node_t *node) {
     ut_ad(node->table->n_foreign_key_checks_running > 0);
-    os_atomic_decrement_ulint(&node->table->n_foreign_key_checks_running, 1);
+    node->table->n_foreign_key_checks_running.fetch_sub(1);
   }
 };
 

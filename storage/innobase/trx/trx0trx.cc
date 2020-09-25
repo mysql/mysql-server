@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -219,8 +219,7 @@ static void trx_init(trx_t *trx) {
   the transaction. */
 
   if (!TrxInInnoDB::is_async_rollback(trx)) {
-    os_thread_id_t thread_id = trx->killed_by;
-    os_compare_and_swap_thread_id(&trx->killed_by, thread_id, 0);
+    trx->killed_by.store(0);
 
     /* Note: Do not set to 0, the ref count is decremented inside
     the TrxInInnoDB() destructor. We only need to clear the flags. */
@@ -1056,13 +1055,13 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
   less than rsegs->size(). */
   ulint target_rollback_segments = srv_rollback_segments;
 
-  static ulint rseg_counter = 0;
+  static std::atomic<ulint> rseg_counter{0};
   trx_rseg_t *rseg = nullptr;
   ulint current = rseg_counter;
 
   /* Increment the static redo_rseg_slot so the next call from any thread
   starts with the next rseg. */
-  os_atomic_increment_ulint(&rseg_counter, 1);
+  rseg_counter.fetch_add(1);
 
   while (rseg == nullptr) {
     /* Traverse the rsegs like this: (space, rseg_id)
@@ -1107,7 +1106,7 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
 The assigned slots may have gaps but the vector does not.
 @return assigned rollback segment instance */
 static trx_rseg_t *get_next_redo_rseg_from_trx_sys() {
-  static ulint rseg_counter = 0;
+  static std::atomic<ulint> rseg_counter{0};
   ulong n_rollback_segments = srv_rollback_segments;
 
   /* Versions 5.6 and 5.7 of InnoDB would allow 128 as the max for
@@ -1125,8 +1124,7 @@ static trx_rseg_t *get_next_redo_rseg_from_trx_sys() {
   ut_ad(n_rollback_segments <= trx_sys->rsegs.size());
 
   /* Try the next slot that no other thread is looking at */
-  ulint slot =
-      os_atomic_increment_ulint(&rseg_counter, 1) % n_rollback_segments;
+  ulint slot = (rseg_counter.fetch_add(1) + 1) % n_rollback_segments;
 
   /* s_lock the vector since it might be sorted when added to. */
   trx_sys->rsegs.s_lock();
@@ -1156,14 +1154,13 @@ static trx_rseg_t *get_next_redo_rseg() {
 /** Get the next noredo rollback segment.
 @return assigned rollback segment instance */
 static trx_rseg_t *get_next_temp_rseg() {
-  static ulint temp_rseg_counter = 0;
+  static std::atomic<ulint> temp_rseg_counter{0};
   ulong n_rollback_segments = srv_rollback_segments;
 
   ut_ad(n_rollback_segments <= trx_sys->tmp_rsegs.size());
 
   /* Try the next slot that no other thread is looking at */
-  ulint slot =
-      os_atomic_increment_ulint(&temp_rseg_counter, 1) % n_rollback_segments;
+  ulint slot = (temp_rseg_counter.fetch_add(1) + 1) % n_rollback_segments;
 
   /* No need to s_lock the vector since it is only added to at the end,
   and it is never resized or sorted. */
@@ -3345,8 +3342,7 @@ void trx_kill_blocking(trx_t *trx) {
     version++;
     ut_ad(victim_trx->version == version);
 
-    os_thread_id_t thread_id = victim_trx->killed_by;
-    os_compare_and_swap_thread_id(&victim_trx->killed_by, thread_id, 0);
+    victim_trx->killed_by.store(0);
 
     victim_trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 

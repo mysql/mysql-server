@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -64,39 +64,29 @@ void rw_lock_remove_debug_info(rw_lock_t *lock,  /*!< in: rw-lock */
 #endif                                           /* UNIV_DEBUG */
 
 /** Check if there are threads waiting for the rw-lock.
- @return 1 if waiters, 0 otherwise */
+ @return true if waiters, false otherwise */
 UNIV_INLINE
-ulint rw_lock_get_waiters(const rw_lock_t *lock) /*!< in: rw-lock */
+bool rw_lock_get_waiters(const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  return (lock->waiters);
+  return lock->waiters.load();
 }
 
-/** Sets lock->waiters to 1. It is not an error if lock->waiters is already
- 1. On platforms where ATOMIC builtins are used this function enforces a
- memory barrier. */
+/** Sets lock->waiters to true. It is not an error if lock->waiters is already
+ true. */
 UNIV_INLINE
 void rw_lock_set_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  (void)os_compare_and_swap_ulint(&lock->waiters, 0, 1);
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  lock->waiters = 1;
-  os_wmb;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+  bool zero = false;
+  lock->waiters.compare_exchange_strong(zero, true);
 }
 
-/** Resets lock->waiters to 0. It is not an error if lock->waiters is already
- 0. On platforms where ATOMIC builtins are used this function enforces a
- memory barrier. */
+/** Resets lock->waiters to false. It is not an error if lock->waiters is
+ already false. */
 UNIV_INLINE
 void rw_lock_reset_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  (void)os_compare_and_swap_ulint(&lock->waiters, 1, 0);
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  lock->waiters = 0;
-  os_wmb;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+  bool one = true;
+  lock->waiters.compare_exchange_strong(one, false);
 }
 
 /** Returns the write-status of the lock - this function made more sense
@@ -157,11 +147,6 @@ ulint rw_lock_get_reader_count(const rw_lock_t *lock) /*!< in: rw-lock */
   /* no s-locks */
   return (0);
 }
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-UNIV_INLINE
-ib_mutex_t *rw_lock_get_mutex(rw_lock_t *lock) { return (&(lock->mutex)); }
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 /** Returns the value of writer_count for the lock. Does not reserve the lock
  mutex, so the caller must be sure it is not changed during the call.
@@ -227,29 +212,17 @@ bool rw_lock_lock_word_decr(rw_lock_t *lock, /*!< in/out: rw-lock */
                             ulint amount,    /*!< in: amount to decrement */
                             lint threshold)  /*!< in: threshold of judgement */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  lint local_lock_word;
+  int32_t local_lock_word;
 
   os_rmb;
   local_lock_word = lock->lock_word;
   while (local_lock_word > threshold) {
-    if (os_compare_and_swap_lint(&lock->lock_word, local_lock_word,
-                                 local_lock_word - amount)) {
+    if (lock->lock_word.compare_exchange_strong(local_lock_word,
+                                                local_lock_word - amount)) {
       return (true);
     }
-    local_lock_word = lock->lock_word;
   }
   return (false);
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  bool success = false;
-  mutex_enter(&(lock->mutex));
-  if (lock->lock_word > threshold) {
-    lock->lock_word -= amount;
-    success = true;
-  }
-  mutex_exit(&(lock->mutex));
-  return (success);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
 /** Increments lock_word the specified amount and returns new value.
@@ -258,20 +231,7 @@ UNIV_INLINE
 lint rw_lock_lock_word_incr(rw_lock_t *lock, /*!< in/out: rw-lock */
                             ulint amount)    /*!< in: amount of increment */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  return (os_atomic_increment_lint(&lock->lock_word, amount));
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  lint local_lock_word;
-
-  mutex_enter(&(lock->mutex));
-
-  lock->lock_word += amount;
-  local_lock_word = lock->lock_word;
-
-  mutex_exit(&(lock->mutex));
-
-  return (local_lock_word);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+  return (lock->lock_word.fetch_add(amount) + amount);
 }
 
 UNIV_INLINE
@@ -346,27 +306,14 @@ void rw_lock_s_lock_func(
  obtained immediately.
  @return true if success */
 UNIV_INLINE
-ibool rw_lock_x_lock_func_nowait(
+bool rw_lock_x_lock_func_nowait(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
 {
-  ibool success;
+  int32_t x_lock_decr = X_LOCK_DECR;
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  success = os_compare_and_swap_lint(&lock->lock_word, X_LOCK_DECR, 0);
-#else
-
-  success = FALSE;
-  mutex_enter(&(lock->mutex));
-  if (lock->lock_word == X_LOCK_DECR) {
-    lock->lock_word = 0;
-    success = TRUE;
-  }
-  mutex_exit(&(lock->mutex));
-
-#endif
-  if (success) {
+  if (lock->lock_word.compare_exchange_strong(x_lock_decr, 0)) {
     rw_lock_set_writer_id_and_recursion_flag(lock, true);
   } else if (lock->recursive.load(std::memory_order_acquire) &&
              os_thread_eq(lock->writer_thread.load(std::memory_order_relaxed),
@@ -382,7 +329,7 @@ ibool rw_lock_x_lock_func_nowait(
       lock->lock_word--;
     } else {
       /* Failure */
-      return (FALSE);
+      return false;
     }
 
     /* Watch for too many recursive locks */
@@ -390,7 +337,7 @@ ibool rw_lock_x_lock_func_nowait(
 
   } else {
     /* Failure */
-    return (FALSE);
+    return false;
   }
 
   ut_d(rw_lock_add_debug_info(lock, 0, RW_LOCK_X, file_name, line));
@@ -400,7 +347,7 @@ ibool rw_lock_x_lock_func_nowait(
 
   ut_ad(rw_lock_validate(lock));
 
-  return (TRUE);
+  return true;
 }
 
 /** Releases a shared mode lock. */
@@ -597,13 +544,13 @@ void pfs_rw_lock_x_lock_func(
  not directly this function!
  @return true if success */
 UNIV_INLINE
-ibool pfs_rw_lock_x_lock_func_nowait(
+bool pfs_rw_lock_x_lock_func_nowait(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock
                          requested */
     ulint line)            /*!< in: line where requested */
 {
-  ibool ret;
+  bool ret;
 
   if (lock->pfs_psi != nullptr) {
     PSI_rwlock_locker *locker;
@@ -625,7 +572,7 @@ ibool pfs_rw_lock_x_lock_func_nowait(
     ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
   }
 
-  return (ret);
+  return ret;
 }
 /** Performance schema instrumented wrap function for rw_lock_free_func()
  NOTE! Please use the corresponding macro rw_lock_free(), not directly

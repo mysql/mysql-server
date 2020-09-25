@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -250,15 +250,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       But the counter on the table protects 'foreign' from
       being dropped while the check is running. */
       if (foreign_table) {
-        os_atomic_increment_ulint(&foreign_table->n_foreign_key_checks_running,
-                                  1);
+        foreign_table->n_foreign_key_checks_running.fetch_add(1);
       }
 
       err = row_ins_check_foreign_constraint(FALSE, foreign, table, entry, thr);
 
       if (foreign_table) {
-        os_atomic_decrement_ulint(&foreign_table->n_foreign_key_checks_running,
-                                  1);
+        foreign_table->n_foreign_key_checks_running.fetch_sub(1);
       }
 
       if (ref_table != nullptr) {

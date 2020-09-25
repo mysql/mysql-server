@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -79,20 +79,21 @@ class os_once {
   @param[in,out]	state		control variable
   @param[in]	do_func		function to call
   @param[in,out]	do_func_arg	an argument to pass to do_func(). */
-  static void do_or_wait_for_done(volatile state_t *state,
+  static void do_or_wait_for_done(std::atomic<state_t> *state,
                                   void (*do_func)(void *), void *do_func_arg) {
-    /* Avoid calling os_compare_and_swap_uint32() in the most
-    common case. */
+    /* Avoid calling compare_exchange_strong() in the most common case. */
     if (*state == DONE) {
       return;
     }
 
-    if (os_compare_and_swap_uint32(state, NEVER_DONE, IN_PROGRESS)) {
+    state_t never_done = NEVER_DONE;
+    if (state->compare_exchange_strong(never_done, IN_PROGRESS)) {
       /* We are the first. Call the function. */
 
       do_func(do_func_arg);
 
-      const bool swapped = os_compare_and_swap_uint32(state, IN_PROGRESS, DONE);
+      state_t in_progress = IN_PROGRESS;
+      const bool swapped = state->compare_exchange_strong(in_progress, DONE);
 
       ut_a(swapped);
     } else {

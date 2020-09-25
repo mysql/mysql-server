@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -68,18 +68,18 @@ create the internal counter ID in "monitor_id_t". */
 
 /** Structure containing the actual values of a monitor counter. */
 struct monitor_value_t {
-  ib_time_t mon_start_time;       /*!< Start time of monitoring  */
-  ib_time_t mon_stop_time;        /*!< Stop time of monitoring */
-  ib_time_t mon_reset_time;       /*!< Time counter resetted */
-  mon_type_t mon_value;           /*!< Current counter Value */
-  mon_type_t mon_max_value;       /*!< Current Max value */
-  mon_type_t mon_min_value;       /*!< Current Min value */
-  mon_type_t mon_value_reset;     /*!< value at last reset */
-  mon_type_t mon_max_value_start; /*!< Max value since start */
-  mon_type_t mon_min_value_start; /*!< Min value since start */
-  mon_type_t mon_start_value;     /*!< Value at the start time */
-  mon_type_t mon_last_value;      /*!< Last set of values */
-  monitor_running_t mon_status;   /* whether monitor still running */
+  ib_time_t mon_start_time;          /*!< Start time of monitoring  */
+  ib_time_t mon_stop_time;           /*!< Stop time of monitoring */
+  ib_time_t mon_reset_time;          /*!< Time counter resetted */
+  std::atomic<mon_type_t> mon_value; /*!< Current counter Value */
+  mon_type_t mon_max_value;          /*!< Current Max value */
+  mon_type_t mon_min_value;          /*!< Current Min value */
+  mon_type_t mon_value_reset;        /*!< value at last reset */
+  mon_type_t mon_max_value_start;    /*!< Max value since start */
+  mon_type_t mon_min_value_start;    /*!< Min value since start */
+  mon_type_t mon_start_value;        /*!< Value at the start time */
+  mon_type_t mon_last_value;         /*!< Last set of values */
+  monitor_running_t mon_status;      /* whether monitor still running */
 };
 
 /** Follwoing defines are possible values for "monitor_type" field in
@@ -654,56 +654,6 @@ counter, and set the MONITOR_STATUS. */
     MONITOR_MAX_VALUE_START(monitor) = MAX_RESERVED; \
   }
 
-/** Macros to increment/decrement the counters. The normal
-monitor counter operation expects appropriate synchronization
-already exists. No additional mutex is necessary when operating
-on the counters */
-#define MONITOR_INC(monitor)                                   \
-  if (MONITOR_IS_ON(monitor)) {                                \
-    MONITOR_VALUE(monitor)++;                                  \
-    if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) { \
-      MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
-  }
-
-/** Atomically increment a monitor counter.
-Use MONITOR_INC if appropriate mutex protection exists.
-@param monitor monitor to be incremented by 1 */
-#define MONITOR_ATOMIC_INC(monitor)                                            \
-  if (MONITOR_IS_ON(monitor)) {                                                \
-    ib_uint64_t value;                                                         \
-    value =                                                                    \
-        os_atomic_increment_uint64((ib_uint64_t *)&MONITOR_VALUE(monitor), 1); \
-    /* Note: This is not 100% accurate because of the                          \
-    inherent race, we ignore it due to performance. */                         \
-    if (value > (ib_uint64_t)MONITOR_MAX_VALUE(monitor)) {                     \
-      MONITOR_MAX_VALUE(monitor) = value;                                      \
-    }                                                                          \
-  }
-
-/** Atomically decrement a monitor counter.
-Use MONITOR_DEC if appropriate mutex protection exists.
-@param monitor monitor to be decremented by 1 */
-#define MONITOR_ATOMIC_DEC(monitor)                                            \
-  if (MONITOR_IS_ON(monitor)) {                                                \
-    ib_uint64_t value;                                                         \
-    value =                                                                    \
-        os_atomic_decrement_uint64((ib_uint64_t *)&MONITOR_VALUE(monitor), 1); \
-    /* Note: This is not 100% accurate because of the                          \
-    inherent race, we ignore it due to performance. */                         \
-    if (value < (ib_uint64_t)MONITOR_MIN_VALUE(monitor)) {                     \
-      MONITOR_MIN_VALUE(monitor) = value;                                      \
-    }                                                                          \
-  }
-
-#define MONITOR_DEC(monitor)                                   \
-  if (MONITOR_IS_ON(monitor)) {                                \
-    MONITOR_VALUE(monitor)--;                                  \
-    if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) { \
-      MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
-  }
-
 #ifdef UNIV_DEBUG_VALGRIND
 #define MONITOR_CHECK_DEFINED(value)  \
   do {                                \
@@ -714,67 +664,144 @@ Use MONITOR_DEC if appropriate mutex protection exists.
 #define MONITOR_CHECK_DEFINED(value) (void)0
 #endif /* UNIV_DEBUG_VALGRIND */
 
-#define MONITOR_INC_VALUE(monitor, value)                      \
-  MONITOR_CHECK_DEFINED(value);                                \
-  if (MONITOR_IS_ON(monitor)) {                                \
-    MONITOR_VALUE(monitor) += (mon_type_t)(value);             \
-    if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) { \
-      MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
-  }
-
-#define MONITOR_DEC_VALUE(monitor, value)                                     \
-  MONITOR_CHECK_DEFINED(value);                                               \
-  if (MONITOR_IS_ON(monitor)) {                                               \
-                ut_ad(MONITOR_VALUE(monitor) >= (mon_type_t) (value);	\
-		MONITOR_VALUE(monitor) -= (mon_type_t) (value);		\
-		if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) {  \
-			MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);\
-		}                                                             \
-  }
+/** Macros to increment/decrement the counters. The normal
+monitor counter operation expects appropriate synchronization
+already exists. No additional mutex is necessary when operating
+on the counters */
+#define MONITOR_INC(monitor) monitor_inc_value(monitor, 1)
+#define MONITOR_DEC(monitor) monitor_dec(monitor)
+#define MONITOR_INC_VALUE(monitor, value) monitor_inc_value(monitor, value)
+#define MONITOR_DEC_VALUE(monitor, value) monitor_dec_value(monitor, value)
 
 /* Increment/decrement counter without check the monitor on/off bit, which
 could already be checked as a module group */
-#define MONITOR_INC_NOCHECK(monitor)                           \
-  do {                                                         \
-    MONITOR_VALUE(monitor)++;                                  \
-    if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) { \
-      MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
-  } while (0)
+#define MONITOR_INC_NOCHECK(monitor) monitor_inc_value_nocheck(monitor, 1)
+#define MONITOR_DEC_NOCHECK(monitor) monitor_dec_value_nocheck(monitor, 1)
 
-#define MONITOR_DEC_NOCHECK(monitor)                           \
-  do {                                                         \
-    MONITOR_VALUE(monitor)--;                                  \
-    if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) { \
-      MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
-  } while (0)
+/** Atomically increment a monitor counter.
+Use MONITOR_INC if appropriate mutex protection exists.
+@param monitor monitor to be incremented by 1 */
+#define MONITOR_ATOMIC_INC(monitor) monitor_atomic_inc(monitor)
+
+/** Atomically decrement a monitor counter.
+Use MONITOR_DEC if appropriate mutex protection exists.
+@param monitor monitor to be decremented by 1 */
+#define MONITOR_ATOMIC_DEC(monitor) monitor_atomic_dec(monitor)
+
+inline void monitor_set_max_value(monitor_id_t monitor, mon_type_t value) {
+  if (value > MONITOR_MAX_VALUE(monitor)) {
+    MONITOR_MAX_VALUE(monitor) = value;
+  }
+}
+
+inline void monitor_set_min_value(monitor_id_t monitor, mon_type_t value) {
+  if (value < MONITOR_MIN_VALUE(monitor)) {
+    MONITOR_MIN_VALUE(monitor) = value;
+  }
+}
+
+inline void monitor_atomic_inc(monitor_id_t monitor) {
+  if (MONITOR_IS_ON(monitor)) {
+    const mon_type_t value = ++MONITOR_VALUE(monitor);
+    /* Note: This is not 100% accurate because of the inherent race, we ignore
+     * it due to performance. */
+    monitor_set_max_value(monitor, value);
+  }
+}
+
+inline void monitor_atomic_dec(monitor_id_t monitor) {
+  if (MONITOR_IS_ON(monitor)) {
+    const mon_type_t value = --MONITOR_VALUE(monitor);
+    /* Note: This is not 100% accurate because of the inherent race, we ignore
+     * it due to performance. */
+    monitor_set_min_value(monitor, value);
+  }
+}
+
+inline void monitor_inc_value_nocheck(monitor_id_t monitor, mon_type_t value,
+                                      bool set_max = true) {
+  /* We use std::memory_order_relaxed load() and store() as two separate steps,
+   * instead of single atomic fetch_add operation, because we want to leave it
+   * non-atomic as it was before changing mon_value to std::atomic.*/
+  const auto new_value =
+      MONITOR_VALUE(monitor).load(std::memory_order_relaxed) + value;
+  MONITOR_VALUE(monitor).store(new_value, std::memory_order_relaxed);
+  if (set_max) {
+    monitor_set_max_value(monitor, new_value);
+  }
+}
+
+inline void monitor_inc_value(monitor_id_t monitor, mon_type_t value) {
+  MONITOR_CHECK_DEFINED(value);
+  if (MONITOR_IS_ON(monitor)) {
+    monitor_inc_value_nocheck(monitor, value);
+  }
+}
+
+inline void monitor_dec_value_nocheck(monitor_id_t monitor, mon_type_t value) {
+  /* We use std::memory_order_relaxed load() and store() as two separate steps,
+   * instead of single atomic fetch_sub operation, because we want to leave it
+   * non-atomic as it was before changing mon_value to std::atomic.*/
+  const auto new_value =
+      MONITOR_VALUE(monitor).load(std::memory_order_relaxed) - value;
+  MONITOR_VALUE(monitor).store(new_value, std::memory_order_relaxed);
+  monitor_set_min_value(monitor, new_value);
+}
+
+inline void monitor_dec_value(monitor_id_t monitor, mon_type_t value) {
+  MONITOR_CHECK_DEFINED(value);
+  if (MONITOR_IS_ON(monitor)) {
+    ut_ad(MONITOR_VALUE(monitor) >= value);
+    monitor_dec_value_nocheck(monitor, value);
+  }
+}
+
+inline void monitor_dec(monitor_id_t monitor) {
+  MONITOR_CHECK_DEFINED(value);
+  if (MONITOR_IS_ON(monitor)) {
+    monitor_dec_value_nocheck(monitor, 1);
+  }
+}
 
 /** Directly set a monitor counter's value */
-#define MONITOR_SET(monitor, value)                            \
-  MONITOR_CHECK_DEFINED(value);                                \
-  if (MONITOR_IS_ON(monitor)) {                                \
-    MONITOR_VALUE(monitor) = (mon_type_t)(value);              \
-    if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) { \
-      MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
-    if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) { \
-      MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
+#define MONITOR_SET(monitor, value) monitor_set(monitor, value, true, true)
+
+/** Sets a value to the monitor counter
+@param monitor monitor to update
+@param value value to set
+@param set_max says whether to update MONITOR_MAX_VALUE
+@param set_min says whether to update MONITOR_MIN_VALUE */
+inline void monitor_set(monitor_id_t monitor, mon_type_t value, bool set_max,
+                        bool set_min) {
+  MONITOR_CHECK_DEFINED(value);
+  if (MONITOR_IS_ON(monitor)) {
+    MONITOR_VALUE(monitor).store(value, std::memory_order_relaxed);
+    if (set_max) {
+      monitor_set_max_value(monitor, value);
+    }
+    if (set_min) {
+      monitor_set_min_value(monitor, value);
+    }
   }
+}
 
 /** Add time difference between now and input "value" (in seconds) to the
 monitor counter
 @param monitor monitor to update for the time difference
 @param value the start time value */
-#define MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)        \
-  MONITOR_CHECK_DEFINED(value);                               \
-  if (MONITOR_IS_ON(monitor)) {                               \
-    uintmax_t old_time = (value);                             \
-    value = ut_time_monotonic_us();                           \
-    MONITOR_VALUE(monitor) += (mon_type_t)(value - old_time); \
+#define MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value) \
+  monitor_inc_time_in_micro_sec(monitor, value)
+
+inline void monitor_inc_time_in_micro_sec(monitor_id_t monitor,
+                                          mon_type_t value) {
+  MONITOR_CHECK_DEFINED(value);
+  if (MONITOR_IS_ON(monitor)) {
+    const mon_type_t new_value =
+        MONITOR_VALUE(monitor).load(std::memory_order_relaxed) +
+        ut_time_monotonic_us() - value;
+    MONITOR_VALUE(monitor).store(new_value, std::memory_order_relaxed);
   }
+}
 
 /** This macro updates 3 counters in one call. However, it only checks the
 main/first monitor counter 'monitor', to see it is on or off to decide
@@ -786,56 +813,50 @@ whether to do the update.
 @param monitor_per_call counter that records the current and max value of
                         each incremental value
 @param value incremental value to record this time */
-#define MONITOR_INC_VALUE_CUMULATIVE(monitor, monitor_n_calls,   \
-                                     monitor_per_call, value)    \
-  MONITOR_CHECK_DEFINED(value);                                  \
-  if (MONITOR_IS_ON(monitor)) {                                  \
-    MONITOR_VALUE(monitor_n_calls)++;                            \
-    MONITOR_VALUE(monitor_per_call) = (mon_type_t)(value);       \
-    if (MONITOR_VALUE(monitor_per_call) >                        \
-        MONITOR_MAX_VALUE(monitor_per_call)) {                   \
-      MONITOR_MAX_VALUE(monitor_per_call) = (mon_type_t)(value); \
-    }                                                            \
-    MONITOR_VALUE(monitor) += (mon_type_t)(value);               \
-    if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {   \
-      MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);       \
-    }                                                            \
+#define MONITOR_INC_VALUE_CUMULATIVE(monitor, monitor_n_calls,             \
+                                     monitor_per_call, value)              \
+  monitor_inc_value_cumulative(monitor, monitor_n_calls, monitor_per_call, \
+                               value)
+
+inline void monitor_inc_value_cumulative(monitor_id_t monitor,
+                                         monitor_id_t monitor_n_calls,
+                                         monitor_id_t monitor_per_call,
+                                         mon_type_t value) {
+  MONITOR_CHECK_DEFINED(value);
+  if (MONITOR_IS_ON(monitor)) {
+    monitor_inc_value_nocheck(monitor_n_calls, 1, false);
+    monitor_set(monitor_per_call, value, true, false);
+    monitor_inc_value_nocheck(monitor, value);
   }
+}
 
 /** Directly set a monitor counter's value, and if the value
 is monotonically increasing, only max value needs to be updated */
-#define MONITOR_SET_UPD_MAX_ONLY(monitor, value)               \
-  MONITOR_CHECK_DEFINED(value);                                \
-  if (MONITOR_IS_ON(monitor)) {                                \
-    MONITOR_VALUE(monitor) = (mon_type_t)(value);              \
-    if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) { \
-      MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);     \
-    }                                                          \
-  }
+#define MONITOR_SET_UPD_MAX_ONLY(monitor, value) \
+  monitor_set(monitor, value, true, false)
 
-/** Some values such as log sequence number are montomically increasing
+/** Some values such as log sequence number are monotonically increasing
 number, do not need to record max/min values */
-#define MONITOR_SET_SIMPLE(monitor, value)        \
-  MONITOR_CHECK_DEFINED(value);                   \
-  if (MONITOR_IS_ON(monitor)) {                   \
-    MONITOR_VALUE(monitor) = (mon_type_t)(value); \
-  }
+#define MONITOR_SET_SIMPLE(monitor, value) \
+  monitor_set(monitor, value, false, false)
 
 /** Reset the monitor value and max/min value to zero. The reset
 operation would only be conducted when the counter is turned off */
-#define MONITOR_RESET_ALL(monitor)                                    \
-  do {                                                                \
-    MONITOR_VALUE(monitor) = MONITOR_INIT_ZERO_VALUE;                 \
-    MONITOR_MAX_VALUE(monitor) = MAX_RESERVED;                        \
-    MONITOR_MIN_VALUE(monitor) = MIN_RESERVED;                        \
-    MONITOR_VALUE_RESET(monitor) = MONITOR_INIT_ZERO_VALUE;           \
-    MONITOR_MAX_VALUE_START(monitor) = MAX_RESERVED;                  \
-    MONITOR_MIN_VALUE_START(monitor) = MIN_RESERVED;                  \
-    MONITOR_LAST_VALUE(monitor) = MONITOR_INIT_ZERO_VALUE;            \
-    MONITOR_FIELD(monitor, mon_start_time) = MONITOR_INIT_ZERO_VALUE; \
-    MONITOR_FIELD(monitor, mon_stop_time) = MONITOR_INIT_ZERO_VALUE;  \
-    MONITOR_FIELD(monitor, mon_reset_time) = MONITOR_INIT_ZERO_VALUE; \
-  } while (0)
+#define MONITOR_RESET_ALL(monitor) monitor_reset_all(monitor)
+
+inline void monitor_reset_all(monitor_id_t monitor) {
+  MONITOR_VALUE(monitor).store(MONITOR_INIT_ZERO_VALUE,
+                               std::memory_order_relaxed);
+  MONITOR_MAX_VALUE(monitor) = MAX_RESERVED;
+  MONITOR_MIN_VALUE(monitor) = MIN_RESERVED;
+  MONITOR_VALUE_RESET(monitor) = MONITOR_INIT_ZERO_VALUE;
+  MONITOR_MAX_VALUE_START(monitor) = MAX_RESERVED;
+  MONITOR_MIN_VALUE_START(monitor) = MIN_RESERVED;
+  MONITOR_LAST_VALUE(monitor) = MONITOR_INIT_ZERO_VALUE;
+  MONITOR_FIELD(monitor, mon_start_time) = MONITOR_INIT_ZERO_VALUE;
+  MONITOR_FIELD(monitor, mon_stop_time) = MONITOR_INIT_ZERO_VALUE;
+  MONITOR_FIELD(monitor, mon_reset_time) = MONITOR_INIT_ZERO_VALUE;
+}
 
 /** Following four macros defines necessary operations to fetch and
 consolidate information from existing system status variables. */
@@ -851,11 +872,13 @@ counters */
 
 /** Save the passed-in value to mon_last_value field of monitor
 counters */
-#define MONITOR_SAVE_LAST(monitor)                          \
-  do {                                                      \
-    MONITOR_LAST_VALUE(monitor) = MONITOR_VALUE(monitor);   \
-    MONITOR_START_VALUE(monitor) += MONITOR_VALUE(monitor); \
-  } while (0)
+#define MONITOR_SAVE_LAST(monitor) monitor_save_last(monitor)
+
+inline void monitor_save_last(monitor_id_t monitor) {
+  const auto value = MONITOR_VALUE(monitor).load(std::memory_order_relaxed);
+  MONITOR_LAST_VALUE(monitor) = value;
+  MONITOR_START_VALUE(monitor) += value;
+}
 
 /** Set monitor value to the difference of value and mon_start_value
 compensated by mon_last_value if accumulated value is required. */

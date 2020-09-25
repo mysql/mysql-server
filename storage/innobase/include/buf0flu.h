@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -330,10 +330,10 @@ class FlushObserver {
   ut_stage_alter_t *m_stage;
 
   /* Flush request sent */
-  std::vector<ulint> *m_flushed;
+  std::vector<std::atomic<ulint>> *m_flushed;
 
   /* Flush request finished */
-  std::vector<ulint> *m_removed;
+  std::vector<std::atomic<ulint>> *m_removed;
 
   /* True if the operation was interrupted. */
   bool m_interrupted;

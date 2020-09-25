@@ -746,7 +746,7 @@ static void buf_block_init(
 
   block->page.buf_pool_index = buf_pool_index(buf_pool);
   block->page.state = BUF_BLOCK_NOT_USED;
-  block->page.buf_fix_count = 0;
+  block->page.buf_fix_count.store(0);
   block->page.io_fix = BUF_IO_NONE;
   block->page.flush_observer = nullptr;
 
@@ -2840,7 +2840,7 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
 
         bpage->state = BUF_BLOCK_ZIP_PAGE;
         bpage->id = page_id;
-        bpage->buf_fix_count = 1;
+        bpage->buf_fix_count.store(1);
         bpage->buf_pool_index = buf_pool_index(buf_pool);
 
         ut_d(bpage->in_page_hash = TRUE);
@@ -2888,7 +2888,7 @@ static void buf_pool_watch_remove(buf_pool_t *buf_pool, buf_page_t *watch) {
 
   HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, watch->id.fold(), watch);
   ut_d(watch->in_page_hash = FALSE);
-  watch->buf_fix_count = 0;
+  watch->buf_fix_count.store(0);
   watch->state = BUF_BLOCK_POOL_WATCH;
 }
 
@@ -3682,7 +3682,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
   buf_block_init_low(block);
 
   /* Set after buf_relocate(). */
-  block->page.buf_fix_count = 1;
+  block->page.buf_fix_count.store(1);
 
   block->lock_hash_val = lock_rec_hash(m_page_id);
 
@@ -3722,7 +3722,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
 
   buf_page_mutex_exit(block);
 
-  os_atomic_increment_ulint(&m_buf_pool->n_pend_unzip, 1);
+  m_buf_pool->n_pend_unzip.fetch_add(1);
 
   buf_page_free_descriptor(bpage);
 
@@ -3752,7 +3752,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
 
   buf_page_mutex_exit(block);
 
-  os_atomic_decrement_ulint(&m_buf_pool->n_pend_unzip, 1);
+  m_buf_pool->n_pend_unzip.fetch_sub(1);
 
   rw_lock_x_unlock(&block->lock);
 
@@ -4481,7 +4481,7 @@ void buf_page_init_low(buf_page_t *bpage) /*!< in: block to init */
 {
   bpage->flush_type = BUF_FLUSH_LRU;
   bpage->io_fix = BUF_IO_NONE;
-  bpage->buf_fix_count = 0;
+  bpage->buf_fix_count.store(0);
   bpage->freed_page_clock = 0;
   bpage->access_time = 0;
   bpage->newest_modification = 0;
@@ -4538,7 +4538,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 
     ut_a(buf_fix_count > 0);
 
-    os_atomic_increment_uint32(&block->page.buf_fix_count, buf_fix_count);
+    block->page.buf_fix_count.fetch_add(buf_fix_count);
 
     buf_pool_watch_remove(buf_pool, hash_page);
   } else {
@@ -4747,7 +4747,7 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
 
       ut_a(buf_fix_count > 0);
 
-      os_atomic_increment_uint32(&bpage->buf_fix_count, buf_fix_count);
+      bpage->buf_fix_count.fetch_add(buf_fix_count);
 
       ut_ad(buf_pool_watch_is_sentinel(buf_pool, watch_page));
       buf_pool_watch_remove(buf_pool, watch_page);
@@ -4770,7 +4770,7 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
     mutex_exit(&buf_pool->zip_mutex);
   }
 
-  os_atomic_increment_ulint(&buf_pool->n_pend_reads, 1);
+  buf_pool->n_pend_reads.fetch_add(1);
 func_exit:
 
   if (mode == BUF_READ_IBUF_PAGES_ONLY) {
@@ -4859,7 +4859,7 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
   /* The block must be put to the LRU list */
   buf_LRU_add_block(&block->page, FALSE);
 
-  os_atomic_increment_ulint(&buf_pool->stat.n_pages_created, 1);
+  buf_pool->stat.n_pages_created.fetch_add(1);
 
   if (page_size.is_compressed()) {
     mutex_exit(&buf_pool->LRU_list_mutex);
@@ -5072,7 +5072,7 @@ void buf_read_page_handle_error(buf_page_t *bpage) {
   mutex_exit(&buf_pool->LRU_list_mutex);
 
   ut_ad(buf_pool->n_pend_reads > 0);
-  os_atomic_decrement_ulint(&buf_pool->n_pend_reads, 1);
+  buf_pool->n_pend_reads.fetch_sub(1);
 }
 
 /** Completes an asynchronous read or write request of a file page to or from
@@ -5105,14 +5105,14 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
 
     if (bpage->size.is_compressed()) {
       frame = bpage->zip.data;
-      os_atomic_increment_ulint(&buf_pool->n_pend_unzip, 1);
+      buf_pool->n_pend_unzip.fetch_add(1);
       if (uncompressed && !buf_zip_decompress((buf_block_t *)bpage, FALSE)) {
-        os_atomic_decrement_ulint(&buf_pool->n_pend_unzip, 1);
+        buf_pool->n_pend_unzip.fetch_sub(1);
 
         compressed_page = false;
         goto corrupt;
       }
-      os_atomic_decrement_ulint(&buf_pool->n_pend_unzip, 1);
+      buf_pool->n_pend_unzip.fetch_sub(1);
     } else {
       ut_a(uncompressed);
       frame = ((buf_block_t *)bpage)->frame;
@@ -5289,8 +5289,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       mutex_exit(page_mutex);
 
       ut_ad(buf_pool->n_pend_reads > 0);
-      os_atomic_decrement_ulint(&buf_pool->n_pend_reads, 1);
-      os_atomic_increment_ulint(&buf_pool->stat.n_pages_read, 1);
+      buf_pool->n_pend_reads.fetch_sub(1);
+      buf_pool->stat.n_pages_read.fetch_add(1);
 
       break;
 
@@ -5304,7 +5304,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
         rw_lock_sx_unlock_gen(&((buf_block_t *)bpage)->lock, BUF_IO_WRITE);
       }
 
-      os_atomic_increment_ulint(&buf_pool->stat.n_pages_written, 1);
+      buf_pool->stat.n_pages_written.fetch_add(1);
 
       /* We decide whether or not to evict the page from the
       LRU list based on the flush_type.

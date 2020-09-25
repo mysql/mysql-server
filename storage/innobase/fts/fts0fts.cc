@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3691,10 +3691,14 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
 
         rw_lock_x_unlock(&table->fts->cache->lock);
 
-        DBUG_EXECUTE_IF("fts_instrument_sync_cache_wait",
-                        srv_fatal_semaphore_wait_threshold = 25;
-                        fts_max_cache_size = 100;
-                        fts_sync(cache->sync, true, true, false););
+        DBUG_EXECUTE_IF("fts_instrument_sync_cache_wait", {
+          ut_a(srv_fatal_semaphore_wait_extend.load() == 0);
+          // we size smaller than permissible min value for this sys var
+          const auto old_fts_max_cache_size = fts_max_cache_size;
+          fts_max_cache_size = 100;
+          fts_sync(cache->sync, true, true, false);
+          fts_max_cache_size = old_fts_max_cache_size;
+        });
 
         DBUG_EXECUTE_IF("fts_instrument_sync",
                         fts_optimize_request_sync_table(table);
@@ -4068,9 +4072,8 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   ibool print_error = FALSE;
   dict_table_t *table = index_cache->index->table;
   const float cutoff = 0.98f;
-  ulint lock_threshold = static_cast<ulint>(
-      (srv_fatal_semaphore_wait_threshold % SRV_SEMAPHORE_WAIT_EXTENSION) *
-      cutoff);
+  ulint lock_threshold = srv_fatal_semaphore_wait_threshold * cutoff;
+
   bool timeout_extended = false;
 
   FTS_INIT_INDEX_TABLE(&fts_table, nullptr, FTS_INDEX_TABLE,
@@ -4112,14 +4115,12 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
           ulint cache_lock_time = ut_time_monotonic() - sync_start_time;
           if (cache_lock_time > lock_threshold) {
             if (!timeout_extended) {
-              os_atomic_increment_ulint(&srv_fatal_semaphore_wait_threshold,
-                                        SRV_SEMAPHORE_WAIT_EXTENSION);
+              srv_fatal_semaphore_wait_extend.fetch_add(1);
               timeout_extended = true;
-              lock_threshold += SRV_SEMAPHORE_WAIT_EXTENSION;
+              lock_threshold += 7200;
             } else {
               unlock_cache = true;
-              os_atomic_decrement_ulint(&srv_fatal_semaphore_wait_threshold,
-                                        SRV_SEMAPHORE_WAIT_EXTENSION);
+              srv_fatal_semaphore_wait_extend.fetch_sub(1);
               timeout_extended = false;
             }
           }
@@ -4159,6 +4160,10 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   if (fts_enable_diag_print) {
     printf("Avg number of nodes: %lf\n",
            (double)n_nodes / (double)(n_words > 1 ? n_words : 1));
+  }
+
+  if (timeout_extended) {
+    srv_fatal_semaphore_wait_extend.fetch_sub(1);
   }
 
   return (error);

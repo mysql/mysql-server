@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** An interger randomly initialized at startup used to make a temporary
 table name as unuique as possible. */
-static ib_uint32_t dict_temp_file_num;
+static std::atomic<ib_uint32_t> dict_temp_file_num;
 
 /** Display an identifier.
 @param[in,out]	s	output stream
@@ -756,14 +756,14 @@ char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
   size_t dblen = dbend - dbtab + 1;
 
   /* Increment a randomly initialized  number for each temp file. */
-  os_atomic_increment_uint32(&dict_temp_file_num, 1);
+  dict_temp_file_num.fetch_add(1);
 
   size = dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 10);
   name = static_cast<char *>(mem_heap_alloc(heap, size));
   memcpy(name, dbtab, dblen);
   snprintf(name + dblen, size - dblen,
            TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT32PF, id,
-           dict_temp_file_num);
+           dict_temp_file_num.load());
 
   return (name);
 }
@@ -778,7 +778,7 @@ void dict_mem_init(void) {
   dict_temp_file_num = ut_crc32(buf, sizeof(now));
 
   DBUG_PRINT("dict_mem_init", ("Starting Temporary file number is " UINT32PF,
-                               dict_temp_file_num));
+                               dict_temp_file_num.load()));
 }
 
 /** Validate the search order in the foreign key set.

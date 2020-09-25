@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -4783,7 +4783,7 @@ static void dict_index_zip_pad_update(
       /* Use atomics even though we have the mutex.
       This is to ensure that we are able to read
       info->pad atomically. */
-      os_atomic_increment_ulint(&info->pad, ZIP_PAD_INCR);
+      info->pad.fetch_add(ZIP_PAD_INCR);
 
       MONITOR_INC(MONITOR_PAD_INCREMENTS);
     }
@@ -4803,7 +4803,7 @@ static void dict_index_zip_pad_update(
       /* Use atomics even though we have the mutex.
       This is to ensure that we are able to read
       info->pad atomically. */
-      os_atomic_decrement_ulint(&info->pad, ZIP_PAD_INCR);
+      info->pad.fetch_sub(ZIP_PAD_INCR);
 
       info->n_rounds = 0;
 
@@ -4870,7 +4870,7 @@ ulint dict_index_zip_pad_optimal_page_size(
   /* We use atomics to read index->zip_pad.pad. Here we use zero
   as increment as are not changing the value of the 'pad'. */
 
-  pad = os_atomic_increment_ulint(&index->zip_pad.pad, 0);
+  pad = index->zip_pad.pad.load();
 
   ut_ad(pad < UNIV_PAGE_SIZE);
   sz = UNIV_PAGE_SIZE - pad;

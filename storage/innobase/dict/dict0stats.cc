@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2729,7 +2729,7 @@ storage */
       }
 
       /* wakes the last purge batch for exact recalculation */
-      if (trx_sys->rseg_history_len > 0) {
+      if (trx_sys->rseg_history_len.load() > 0) {
         srv_wake_purge_thread_if_not_active();
       }
 

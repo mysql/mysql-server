@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1366,8 +1366,8 @@ static void rtr_non_leaf_insert_stack_push(
                           mbr_inc);
 }
 
-/** Copy a buf_block_t strcuture, except "block->lock", "block->mutex" and
-"block->debug_latch."
+/** Copy a buf_block_t strcuture, except "block->lock",
+"block->mutex","block->debug_latch" and "block->n_pointers."
 @param[in,out]	matches	copy to match->block
 @param[in]	block	block to copy */
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
@@ -1392,9 +1392,6 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   matches->block.n_hash_helps = block->n_hash_helps;
   matches->block.n_fields = block->n_fields;
   matches->block.left_side = block->left_side;
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-  matches->block.n_pointers = block->n_pointers;
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   matches->block.curr_n_fields = block->curr_n_fields;
   matches->block.curr_left_side = block->curr_left_side;
   matches->block.index = block->index;
@@ -1409,6 +1406,9 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   because an std::atomic<bool> member was added and rw_lock_t became explicitly
   non copyable. */
   UNIV_MEM_INVALID(&matches->block.debug_latch, sizeof(rw_lock_t));
+  UNIV_MEM_INVALID(&matches->block.lock, sizeof(BPageLock));
+  UNIV_MEM_INVALID(&matches->block.mutex, sizeof(BPageMutex));
+  UNIV_MEM_INVALID(&matches->block.n_pointers, sizeof(std::atomic<ulint>));
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 }

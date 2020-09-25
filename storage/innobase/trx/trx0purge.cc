@@ -354,8 +354,8 @@ void trx_purge_add_update_undo_to_history(
                  undo_header + TRX_UNDO_HISTORY_NODE, mtr);
 
   if (update_rseg_history_len) {
-    os_atomic_increment_ulint(&trx_sys->rseg_history_len, n_added_logs);
-    if (trx_sys->rseg_history_len >
+    trx_sys->rseg_history_len.fetch_add(n_added_logs);
+    if (trx_sys->rseg_history_len.load() >
         srv_n_purge_threads * srv_purge_batch_size) {
       srv_wake_purge_thread_if_not_active();
     }
@@ -393,7 +393,7 @@ static void trx_purge_remove_log_hdr(trx_rsegf_t *rseg_hdr,
   flst_remove(rseg_hdr + TRX_RSEG_HISTORY, log_hdr + TRX_UNDO_HISTORY_NODE,
               mtr);
 
-  os_atomic_decrement_ulint(&trx_sys->rseg_history_len, 1);
+  trx_sys->rseg_history_len.fetch_sub(1);
 }
 
 /** Frees a rollback segment which is in the history list.
@@ -1739,12 +1739,12 @@ static void trx_purge_rseg_get_next_history_log(
     size pieces, and if we here reach the head of the list, the
     list cannot be longer than 2000 000 undo logs now. */
 
-    if (trx_sys->rseg_history_len > 2000000) {
-      ib::warn(ER_IB_MSG_1177) << "Purge reached the head of the history"
-                                  " list, but its length is still reported as "
-                               << trx_sys->rseg_history_len
-                               << " which is"
-                                  " unusually high.";
+    ulint rseg_history_len = trx_sys->rseg_history_len.load();
+    if (rseg_history_len > 2000000) {
+      ib::warn(ER_IB_MSG_1177)
+          << "Purge reached the head of the history"
+             " list, but its length is still reported as "
+          << rseg_history_len << " which is unusually high.";
       ib::info(ER_IB_MSG_1178) << "This can happen for multiple reasons";
       ib::info(ER_IB_MSG_1179) << "1. A long running transaction is"
                                   " withholding purging of undo logs or a read"
@@ -2204,11 +2204,11 @@ static ulint trx_purge_dml_delay(void) {
   Note: we do a dirty read of the trx_sys_t data structure here,
   without holding trx_sys->mutex. */
 
-  if (srv_max_purge_lag > 0 &&
-      trx_sys->rseg_history_len > srv_n_purge_threads * srv_purge_batch_size) {
+  if (srv_max_purge_lag > 0 && trx_sys->rseg_history_len.load() >
+                                   srv_n_purge_threads * srv_purge_batch_size) {
     float ratio;
 
-    ratio = float(trx_sys->rseg_history_len) / srv_max_purge_lag;
+    ratio = float(trx_sys->rseg_history_len.load()) / srv_max_purge_lag;
 
     if (ratio > 1.0) {
       /* If the history list length exceeds the srv_max_purge_lag, the data
@@ -2232,8 +2232,7 @@ static void trx_purge_wait_for_workers_to_complete() {
   ulint n_submitted = purge_sys->n_submitted;
 
   /* Ensure that the work queue empties out. */
-  while (!os_compare_and_swap_ulint(&purge_sys->n_completed, n_submitted,
-                                    n_submitted)) {
+  while (purge_sys->n_completed.load() != n_submitted) {
     if (++i < 10) {
       os_thread_yield();
     } else {
@@ -2330,7 +2329,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
 
     que_run_threads(thr);
 
-    os_atomic_inc_ulint(&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+    purge_sys->n_completed.fetch_add(1);
 
     if (n_purge_threads > 1) {
       trx_purge_wait_for_workers_to_complete();

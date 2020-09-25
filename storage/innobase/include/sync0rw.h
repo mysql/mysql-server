@@ -370,8 +370,8 @@ immediately.
 @param[in]	line		line where requested
 @return true if success */
 UNIV_INLINE
-ibool rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
-                                 ulint line);
+bool rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
+                                ulint line);
 
 /** Releases a shared mode lock. */
 #ifdef UNIV_DEBUG
@@ -471,9 +471,9 @@ ulint rw_lock_get_x_lock_count(const rw_lock_t *lock); /*!< in: rw-lock */
 UNIV_INLINE
 ulint rw_lock_get_sx_lock_count(const rw_lock_t *lock); /*!< in: rw-lock */
 /** Check if there are threads waiting for the rw-lock.
- @return 1 if waiters, 0 otherwise */
+ @return true if waiters, false otherwise */
 UNIV_INLINE
-ulint rw_lock_get_waiters(const rw_lock_t *lock); /*!< in: rw-lock */
+bool rw_lock_get_waiters(const rw_lock_t *lock); /*!< in: rw-lock */
 /** Returns the write-status of the lock - this function made more sense
  with the old rw_lock implementation.
  @return RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_X_WAIT, RW_LOCK_SX */
@@ -577,10 +577,10 @@ struct rw_lock_t
   rw_lock_t &operator=(const rw_lock_t &) = delete;
 
   /** Holds the state of the lock. */
-  volatile lint lock_word;
+  std::atomic<int32_t> lock_word;
 
   /** 1: there are waiters */
-  volatile ulint waiters;
+  std::atomic<bool> waiters;
 
   /** Default value FALSE which means the lock is non-recursive.
   The value is typically set to TRUE making normal rw_locks recursive.
@@ -645,11 +645,6 @@ struct rw_lock_t
   /** The instrumentation hook */
   struct PSI_rwlock *pfs_psi;
 #endif /* UNIV_PFS_RWLOCK */
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-  /** The mutex protecting rw_lock_t */
-  mutable ib_mutex_t mutex;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 #ifdef UNIV_DEBUG
   /** Destructor */
@@ -758,8 +753,8 @@ NOTE! Please use the corresponding macro, not directly this function!
 @param[in]	line		line where requested
 @return true if success */
 UNIV_INLINE
-ibool pfs_rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
-                                     ulint line);
+bool pfs_rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
+                                    ulint line);
 
 /** Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly this

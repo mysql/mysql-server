@@ -1162,6 +1162,12 @@ for compressed and uncompressed frames */
 /** Number of bits used for buffer page states. */
 #define BUF_PAGE_STATE_BITS 3
 
+class buf_fix_count_atomic_t : public std::atomic<uint32_t> {
+ public:
+  buf_fix_count_atomic_t(const buf_fix_count_atomic_t &other)
+      : std::atomic<uint32_t>(other.load()) {}
+};
+
 class buf_page_t {
  public:
   /** Set the doublewrite buffer ID.
@@ -1199,7 +1205,7 @@ class buf_page_t {
   page_size_t size;
 
   /** Count of how manyfold this block is currently bufferfixed. */
-  uint32_t buf_fix_count;
+  buf_fix_count_atomic_t buf_fix_count;
 
   /** type of pending I/O operation. */
   buf_io_fix io_fix;
@@ -1437,10 +1443,9 @@ struct buf_block_t {
   /** used in debugging: the number of pointers in the adaptive hash index
   pointing to this frame; protected by atomic memory access or
   btr_search_own_all(). */
-  ulint n_pointers;
+  std::atomic<ulint> n_pointers;
 
-#define assert_block_ahi_empty(block) \
-  ut_a(os_atomic_increment_ulint(&(block)->n_pointers, 0) == 0)
+#define assert_block_ahi_empty(block) ut_a((block)->n_pointers.load() == 0)
 #define assert_block_ahi_empty_on_init(block)                        \
   do {                                                               \
     UNIV_MEM_VALID(&(block)->n_pointers, sizeof(block)->n_pointers); \
@@ -1448,8 +1453,7 @@ struct buf_block_t {
   } while (0)
 
 #define assert_block_ahi_valid(block) \
-  ut_a((block)->index ||              \
-       os_atomic_increment_ulint(&(block)->n_pointers, 0) == 0)
+  ut_a((block)->index || (block)->n_pointers.load() == 0)
 #else                                         /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 #define assert_block_ahi_empty(block)         /* nothing */
 #define assert_block_ahi_empty_on_init(block) /* nothing */
@@ -1696,20 +1700,20 @@ struct buf_pool_stat_t {
   by the buffer pool mutex */
   Shards m_n_page_gets;
 
-  /** Number of read operations. Accessed atomically. */
-  uint64_t n_pages_read;
+  /** Number of read operations. */
+  std::atomic<uint64_t> n_pages_read;
 
-  /** Number of write operations. Accessed atomically. */
-  uint64_t n_pages_written;
+  /** Number of write operations. */
+  std::atomic<uint64_t> n_pages_written;
 
-  /**  number of pages created in the pool with no read. Accessed atomically. */
-  uint64_t n_pages_created;
+  /**  number of pages created in the pool with no read. */
+  std::atomic<uint64_t> n_pages_created;
 
-  /** Number of pages read in as part of random read ahead. Not protected. */
-  uint64_t n_ra_pages_read_rnd;
+  /** Number of pages read in as part of random read ahead. */
+  std::atomic<uint64_t> n_ra_pages_read_rnd;
 
-  /** Number of pages read in as part of read ahead. Not protected. */
-  uint64_t n_ra_pages_read;
+  /** Number of pages read in as part of read ahead. */
+  std::atomic<uint64_t> n_ra_pages_read;
 
   /** Number of read ahead pages that are evicted without being accessed.
   Protected by LRU_list_mutex. */
@@ -1732,15 +1736,15 @@ struct buf_pool_stat_t {
   static void copy(buf_pool_stat_t &dst, const buf_pool_stat_t &src) noexcept {
     Counter::copy(dst.m_n_page_gets, src.m_n_page_gets);
 
-    dst.n_pages_read = src.n_pages_read;
+    dst.n_pages_read.store(src.n_pages_read.load());
 
-    dst.n_pages_written = src.n_pages_written;
+    dst.n_pages_written.store(src.n_pages_written.load());
 
-    dst.n_pages_created = src.n_pages_created;
+    dst.n_pages_created.store(src.n_pages_created.load());
 
-    dst.n_ra_pages_read_rnd = src.n_ra_pages_read_rnd;
+    dst.n_ra_pages_read_rnd.store(src.n_ra_pages_read_rnd.load());
 
-    dst.n_ra_pages_read = src.n_ra_pages_read;
+    dst.n_ra_pages_read.store(src.n_ra_pages_read.load());
 
     dst.n_ra_pages_evicted = src.n_ra_pages_evicted;
 
@@ -1772,11 +1776,23 @@ struct buf_pool_stat_t {
 /** Statistics of buddy blocks of a given size. */
 struct buf_buddy_stat_t {
   /** Number of blocks allocated from the buddy system. */
-  ulint used;
-  /** Number of blocks relocated by the buddy system. */
+  std::atomic<ulint> used;
+  /** Number of blocks relocated by the buddy system.
+  Protected by buf_pool zip_free_mutex. */
   uint64_t relocated;
-  /** Total duration of block relocations, in microseconds. */
+  /** Total duration of block relocations, in microseconds.
+  Protected by buf_pool zip_free_mutex. */
   uint64_t relocated_usec;
+
+  struct snapshot_t {
+    ulint used;
+    uint64_t relocated;
+    uint64_t relocated_usec;
+  };
+
+  snapshot_t take_snapshot() {
+    return {used.load(), relocated, relocated_usec};
+  }
 };
 
 /** @brief The buffer pool structure.
@@ -1819,30 +1835,30 @@ struct buf_pool_t {
                          allocating memory for the the "chunks"
                          member. */
   volatile ulint n_chunks;               /*!< number of buffer pool chunks */
-  volatile ulint n_chunks_new; /*!< new number of buffer pool chunks */
-  buf_chunk_t *chunks;         /*!< buffer pool chunks */
-  buf_chunk_t *chunks_old;     /*!< old buffer pool chunks to be freed
-                               after resizing buffer pool */
-  ulint curr_size;             /*!< current pool size in pages */
-  ulint old_size;              /*!< previous pool size in pages */
-  page_no_t read_ahead_area;   /*!< size in pages of the area which
-                               the read-ahead algorithms read if
-                               invoked */
-  hash_table_t *page_hash;     /*!< hash table of buf_page_t or
-                               buf_block_t file pages,
-                               buf_page_in_file() == TRUE,
-                               indexed by (space_id, offset).
-                               page_hash is protected by an
-                               array of mutexes. */
-  hash_table_t *page_hash_old; /*!< old pointer to page_hash to be
-                               freed after resizing buffer pool */
-  hash_table_t *zip_hash;      /*!< hash table of buf_block_t blocks
-                               whose frames are allocated to the
-                               zip buddy system,
-                               indexed by block->frame */
-  ulint n_pend_reads;          /*!< number of pending read
+  volatile ulint n_chunks_new;     /*!< new number of buffer pool chunks */
+  buf_chunk_t *chunks;             /*!< buffer pool chunks */
+  buf_chunk_t *chunks_old;         /*!< old buffer pool chunks to be freed
+                                   after resizing buffer pool */
+  ulint curr_size;                 /*!< current pool size in pages */
+  ulint old_size;                  /*!< previous pool size in pages */
+  page_no_t read_ahead_area;       /*!< size in pages of the area which
+                                   the read-ahead algorithms read if
+                                   invoked */
+  hash_table_t *page_hash;         /*!< hash table of buf_page_t or
+                                   buf_block_t file pages,
+                                   buf_page_in_file() == TRUE,
+                                   indexed by (space_id, offset).
+                                   page_hash is protected by an
+                                   array of mutexes. */
+  hash_table_t *page_hash_old;     /*!< old pointer to page_hash to be
+                                   freed after resizing buffer pool */
+  hash_table_t *zip_hash;          /*!< hash table of buf_block_t blocks
+                                   whose frames are allocated to the
+                                   zip buddy system,
+                                   indexed by block->frame */
+  std::atomic<ulint> n_pend_reads; /*!< number of pending read
                                operations. Accessed atomically */
-  ulint n_pend_unzip;          /*!< number of pending decompressions.
+  std::atomic<ulint> n_pend_unzip; /*!< number of pending decompressions.
                                Accessed atomically. */
 
   ib_time_monotonic_t last_printout_time;

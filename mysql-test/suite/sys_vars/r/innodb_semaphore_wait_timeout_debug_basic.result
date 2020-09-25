@@ -9,7 +9,7 @@ Warnings:
 Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_debug value: '10'
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
-100
+25
 SET GLOBAL innodb_semaphore_wait_timeout_debug = 200;
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
@@ -29,7 +29,7 @@ Warnings:
 Warning	1292	Truncated incorrect innodb_semaphore_wait_timeout_debug value: '-1'
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug
-100
+25
 SET GLOBAL innodb_semaphore_wait_timeout_debug = default;
 SELECT @@global.innodb_semaphore_wait_timeout_debug;
 @@global.innodb_semaphore_wait_timeout_debug

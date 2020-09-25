@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -72,9 +72,9 @@ struct fil_node_t;
 extern bool os_has_said_disk_full;
 
 /** Number of pending read operations */
-extern ulint os_n_pending_reads;
+extern std::atomic<ulint> os_n_pending_reads;
 /** Number of pending write operations */
-extern ulint os_n_pending_writes;
+extern std::atomic<ulint> os_n_pending_writes;
 
 /* Flush after each os_fsync_threshold bytes */
 extern unsigned long long os_fsync_threshold;
@@ -94,10 +94,13 @@ struct Block {
   static void free(file::Block *obj) noexcept;
 
   /** Pointer to the memory block. */
-  byte *m_ptr{};
-
-  byte pad[ut::INNODB_CACHE_LINE_SIZE - sizeof(ulint)];
-  lock_word_t m_in_use;
+  byte *m_ptr;
+  /** This padding is needed to avoid false sharing. TBD: of what exactly? We
+  can't use alignas because std::vector<Block> uses std::allocator which in
+  C++14 doesn't have to handle overaligned types. (see § 20.7.9.1.5 of N4140
+  draft) */
+  byte pad[ut::INNODB_CACHE_LINE_SIZE];
+  std::atomic<bool> m_in_use;
 };
 }  // namespace file
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -710,7 +710,8 @@ extern bool srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulong srv_fatal_semaphore_wait_threshold;
-#define SRV_SEMAPHORE_WAIT_EXTENSION 7200
+extern std::atomic<int> srv_fatal_semaphore_wait_extend;
+
 extern ulint srv_dml_needed_delay;
 
 #ifdef UNIV_HOTBACKUP

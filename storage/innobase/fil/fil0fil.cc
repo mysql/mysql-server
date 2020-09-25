@@ -8524,7 +8524,7 @@ static void fil_buf_block_init(buf_block_t *block, byte *frame) {
 
   block->page.io_fix = BUF_IO_NONE;
   /* There are assertions that check for this. */
-  block->page.buf_fix_count = 1;
+  block->page.buf_fix_count.store(1);
   block->page.state = BUF_BLOCK_READY_FOR_USE;
 
   page_zip_des_init(&block->page.zip);

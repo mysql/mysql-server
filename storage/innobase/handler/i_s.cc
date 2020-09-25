@@ -1446,7 +1446,7 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
     ulint zip_free_len_local[BUF_BUDDY_SIZES_MAX + 1];
-    buf_buddy_stat_t buddy_stat_local[BUF_BUDDY_SIZES_MAX + 1];
+    buf_buddy_stat_t::snapshot_t buddy_stat_local[BUF_BUDDY_SIZES_MAX + 1];
 
     status = 0;
 
@@ -1460,10 +1460,10 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
           (x < BUF_BUDDY_SIZES) ? UT_LIST_GET_LEN(buf_pool->zip_free[x]) : 0;
 
       os_rmb;
-      buddy_stat_local[x] = buf_pool->buddy_stat[x];
+      buddy_stat_local[x] = buf_pool->buddy_stat[x].take_snapshot();
 
       if (reset) {
-        /* This is protected by buf_pool->mutex. */
+        /* This is protected by buf_pool->zip_free_mutex. */
         buf_pool->buddy_stat[x].relocated = 0;
         buf_pool->buddy_stat[x].relocated_usec = 0;
       }
@@ -1472,9 +1472,7 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
     mutex_exit(&buf_pool->zip_free_mutex);
 
     for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
-      buf_buddy_stat_t *buddy_stat;
-
-      buddy_stat = &buddy_stat_local[x];
+      const buf_buddy_stat_t::snapshot_t *buddy_stat = &buddy_stat_local[x];
 
       table->field[0]->store(BUF_BUDDY_LOW << x);
       table->field[1]->store(i, true);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -505,11 +505,9 @@ struct trx_sys_t {
                    read-only during multi-threaded
                    operation. */
 
-  ulint rseg_history_len;
-  /*!< Length of the TRX_RSEG_HISTORY
-  list (update undo logs for committed
-  transactions), protected by
-  rseg->mutex */
+  /** Length of the TRX_RSEG_HISTORY list (update undo logs for committed
+   * transactions). */
+  std::atomic<uint64_t> rseg_history_len;
 
   TrxIdSet rw_trx_set; /*!< Mapping from transaction id
                        to transaction instance */
