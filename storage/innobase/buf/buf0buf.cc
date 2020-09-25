@@ -89,8 +89,8 @@ struct set_numa_interleave_t {
     if (srv_numa_interleave) {
       ib::info(ER_IB_MSG_47) << "Setting NUMA memory policy to"
                                 " MPOL_INTERLEAVE";
-      if (set_mempolicy(MPOL_INTERLEAVE, numa_all_nodes_ptr->maskp,
-                        numa_all_nodes_ptr->size) != 0) {
+      if (set_mempolicy(MPOL_INTERLEAVE, numa_get_mems_allowed()->maskp,
+                        numa_get_mems_allowed()->size) != 0) {
         ib::warn(ER_IB_MSG_48) << "Failed to set NUMA memory"
                                   " policy to MPOL_INTERLEAVE: "
                                << strerror(errno);
@@ -1002,8 +1002,8 @@ static buf_chunk_t *buf_chunk_init(
 #ifdef HAVE_LIBNUMA
   if (srv_numa_interleave) {
     int st = mbind(chunk->mem, chunk->mem_size(), MPOL_INTERLEAVE,
-                   numa_all_nodes_ptr->maskp, numa_all_nodes_ptr->size,
-                   MPOL_MF_MOVE);
+                   numa_get_mems_allowed()->maskp,
+                   numa_get_mems_allowed()->size, MPOL_MF_MOVE);
     if (st != 0) {
       ib::warn(ER_IB_MSG_54) << "Failed to set NUMA memory policy of"
                                 " buffer pool page frames to MPOL_INTERLEAVE"
