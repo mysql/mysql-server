@@ -1298,6 +1298,15 @@ Ndb::getAutoIncrementValue(const char* aTableName,
 {
   DBUG_ENTER("Ndb::getAutoIncrementValue");
   ASSERT_NOT_MYSQLD;
+
+  // Check that db and schema name is set
+  if (theImpl->m_dbname.empty() ||
+      theImpl->m_schemaname.empty())
+  {
+    theError.code = 4377;
+    DBUG_RETURN(-1);
+  }
+
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
@@ -1456,6 +1465,15 @@ Ndb::readAutoIncrementValue(const char* aTableName,
 {
   DBUG_ENTER("Ndb::readAutoIncrementValue");
   ASSERT_NOT_MYSQLD;
+
+  // Check that db and schema name is set
+  if (theImpl->m_dbname.empty() ||
+      theImpl->m_schemaname.empty())
+  {
+    theError.code = 4377;
+    DBUG_RETURN(-1);
+  }
+
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
@@ -1550,6 +1568,15 @@ Ndb::setAutoIncrementValue(const char* aTableName,
 {
   DBUG_ENTER("Ndb::setAutoIncrementValue");
   ASSERT_NOT_MYSQLD;
+
+  // Check that db and schema name is set
+  if (theImpl->m_dbname.empty() ||
+      theImpl->m_schemaname.empty())
+  {
+    theError.code = 4377;
+    DBUG_RETURN(-1);
+  }
+
   BaseString internal_tabname(internalize_table_name(aTableName));
 
   Ndb_local_table_info *info=
@@ -1865,15 +1892,21 @@ const char * Ndb::getCatalogName() const
   return theImpl->m_dbname.c_str();
 }
 
-int Ndb::setCatalogName(const char * a_catalog_name)
+int Ndb::setCatalogName(const char * catalog_name)
 {
-  // TODO can table_name_separator be escaped?
-  if (a_catalog_name && ! strchr(a_catalog_name, table_name_separator)) {
-    if (!theImpl->m_dbname.assign(a_catalog_name))
-    {
-      theError.code = 4000;
-      return -1;
-    }
+  // Catalog name parameter is required and may not contain the separator (i.e
+  // forward slash) used for the internal name format
+  if (catalog_name == nullptr ||
+     strchr(catalog_name, table_name_separator))
+  {
+    theError.code = 4118; // Invalid parameter
+    return -1;
+  }
+
+  if (!theImpl->m_dbname.assign(catalog_name))
+  {
+    theError.code = 4000;
+    return -1;
   }
   return 0;
 }
@@ -1883,15 +1916,21 @@ const char * Ndb::getSchemaName() const
   return theImpl->m_schemaname.c_str();
 }
 
-int Ndb::setSchemaName(const char * a_schema_name)
+int Ndb::setSchemaName(const char * schema_name)
 {
-  // TODO can table_name_separator be escaped?
-  if (a_schema_name && ! strchr(a_schema_name, table_name_separator)) {
-    if (!theImpl->m_schemaname.assign(a_schema_name))
-    {
-      theError.code = 4000;
-      return -1;
-    }
+  // Schema name parameter is required and may not contain the separator (i.e
+  // forward slash) used for the internal name format
+  if (schema_name == nullptr ||
+     strchr(schema_name, table_name_separator))
+  {
+    theError.code = 4118; // Invalid parameter
+    return -1;
+  }
+
+  if (!theImpl->m_schemaname.assign(schema_name))
+  {
+    theError.code = 4000;
+    return -1;
   }
   return 0;
 }

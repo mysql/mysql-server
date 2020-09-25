@@ -3857,6 +3857,19 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   DBUG_RETURN(0);
 }
 
+
+bool NdbDictionaryImpl::checkDatabaseAndSchemaName()
+{
+  if (m_ndb.theImpl->m_dbname.empty() ||
+      m_ndb.theImpl->m_schemaname.empty())
+  {
+    m_error.code = 4377;
+    return false;
+  }
+  return true;
+
+}
+
 /*****************************************************************
  * Create table and alter table
  */
@@ -3864,6 +3877,11 @@ int
 NdbDictionaryImpl::createTable(NdbTableImpl &t, NdbDictObjectImpl & objid)
 { 
   DBUG_ENTER("NdbDictionaryImpl::createTable");
+
+  // Don't allow creating table without database or schema name specified
+  if (!checkDatabaseAndSchemaName()) {
+    DBUG_RETURN(-1);
+  }
 
   bool autoIncrement = false;
   Uint64 initialValue = 0;
@@ -4096,6 +4114,12 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
                                         NdbTableImpl &impl)
 {
   DBUG_ENTER("NdbDictionaryImpl::alterTableGlobal");
+
+  // Don't allow altering table without database or schema specified
+  if (!checkDatabaseAndSchemaName()) {
+    DBUG_RETURN(-1);
+  }
+
   // Alter the table
   Uint32 changeMask = 0;
   int ret = m_receiver.alterTable(m_ndb, old_impl, impl, changeMask);

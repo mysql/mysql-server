@@ -90,3 +90,6 @@ cmd: testBlobs
 args: -bug 28590428 -skip p -loop 10
 max-time: 900
 
+cmd: testNdbApi
+args: -n DatabaseAndSchemaName T1
+max-time: 180

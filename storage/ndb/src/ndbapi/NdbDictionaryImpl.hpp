@@ -1151,6 +1151,9 @@ public:
   int getDefaultHashmapSize() const;
 private:
   NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
+
+  // Check that both database and schema name is set on this Ndb object
+  bool checkDatabaseAndSchemaName();
 };
 
 inline
@@ -1407,6 +1410,11 @@ NdbDictionaryImpl::getTableGlobal(const char * table_name)
     }
   }
 
+  // Don't allow opening table without database or schema name specified,
+  // the internal name format depends on those to be set
+  if (!checkDatabaseAndSchemaName())
+    return NULL;
+
   const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
   return fetchGlobalTableImplRef(InitTable(internal_tabname));
 }
@@ -1425,6 +1433,11 @@ NdbDictionaryImpl::getTable(const char * table_name, void **data)
       DBUG_RETURN(t);
     }
   }
+
+  // Don't allow opening table without database or schema name specified,
+  // the internal name format depends on those to be set
+  if (!checkDatabaseAndSchemaName())
+    DBUG_RETURN(NULL);
 
   const BaseString internal_tabname(m_ndb.internalize_table_name(table_name));
   Ndb_local_table_info *info=
