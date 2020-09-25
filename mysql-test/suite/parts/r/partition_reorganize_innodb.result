@@ -54,13 +54,13 @@ test/emp#p#northeast#sp#ne1	test/emp#p#northeast#sp#ne1	97	7	Dynamic	0	Single
 test/emp#p#southwest#sp#sw2	test/emp#p#southwest#sp#sw2	97	7	Dynamic	0	Single
 test/emp#p#southwest#sp#sw3	test/emp#p#southwest#sp#sw3	97	7	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/emp#p#northeast#sp#ne0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
-test/emp#p#northeast#sp#ne1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
-test/emp#p#southwest#sp#sw2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
-test/emp#p#southwest#sp#sw3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/emp#p#northeast#sp#ne0	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
+test/emp#p#northeast#sp#ne1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
+test/emp#p#southwest#sp#sw2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
+test/emp#p#southwest#sp#sw3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -138,17 +138,17 @@ test/emp#p#south#sp#s1	test/emp#p#south#sp#s1	97	7	Dynamic	0	Single
 test/emp#p#west#sp#w0	test/emp#p#west#sp#w0	97	7	Dynamic	0	Single
 test/emp#p#west#sp#w1	test/emp#p#west#sp#w1	97	7	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/emp#p#east#sp#e0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
-test/emp#p#east#sp#e1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
-test/emp#p#north#sp#n0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
-test/emp#p#north#sp#n1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
-test/emp#p#south#sp#s0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
-test/emp#p#south#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
-test/emp#p#west#sp#w0	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
-test/emp#p#west#sp#w1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/emp#p#east#sp#e0	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
+test/emp#p#east#sp#e1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
+test/emp#p#north#sp#n0	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
+test/emp#p#north#sp#n1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
+test/emp#p#south#sp#s0	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
+test/emp#p#south#sp#s1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
+test/emp#p#west#sp#w0	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
+test/emp#p#west#sp#w1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
