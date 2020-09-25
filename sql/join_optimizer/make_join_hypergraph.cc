@@ -646,9 +646,9 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
       // Simple edge.
       int left_node = FindLowestBitSet(e.left);
       int right_node = FindLowestBitSet(e.right);
-      digraph += StringPrintf("  %s -> %s [label=\"%s\"]\n",
-                              graph.nodes[left_node]->alias,
-                              graph.nodes[right_node]->alias, label.c_str());
+      digraph += StringPrintf(
+          "  %s -> %s [label=\"%s\"]\n", graph.nodes[left_node].table->alias,
+          graph.nodes[right_node].table->alias, label.c_str());
     } else {
       // Hyperedge; draw it as a tiny “virtual node”.
       digraph += StringPrintf(
@@ -666,16 +666,16 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
       // Left side of the edge.
       for (int left_node : BitsSetIn(e.left)) {
         digraph += StringPrintf("  %s -> e%zu [arrowhead=none,label=\"%s\"]\n",
-                                graph.nodes[left_node]->alias, edge_idx,
+                                graph.nodes[left_node].table->alias, edge_idx,
                                 left_label.c_str());
         left_label = "";
       }
 
       // Right side of the edge.
       for (int right_node : BitsSetIn(e.right)) {
-        digraph +=
-            StringPrintf("  e%zu -> %s [label=\"%s\"]\n", edge_idx,
-                         graph.nodes[right_node]->alias, right_label.c_str());
+        digraph += StringPrintf("  e%zu -> %s [label=\"%s\"]\n", edge_idx,
+                                graph.nodes[right_node].table->alias,
+                                right_label.c_str());
         right_label = "";
       }
     }
@@ -698,20 +698,22 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
   producing all valid join orders, but makes sure we do not create any invalid
   ones.
  */
-void MakeJoinGraphFromRelationalExpression(const RelationalExpression *expr,
+void MakeJoinGraphFromRelationalExpression(THD *thd,
+                                           const RelationalExpression *expr,
                                            string *trace,
                                            JoinHypergraph *graph) {
   if (expr->type == RelationalExpression::TABLE) {
     graph->graph.AddNode();
-    graph->nodes.push_back(expr->table->table);
+    graph->nodes.push_back(JoinHypergraph::Node{
+        expr->table->table, Mem_root_array<SargablePredicate>{thd->mem_root}});
     assert(expr->table->tableno() < MAX_TABLES);
     graph->table_num_to_node_num[expr->table->tableno()] =
         graph->graph.nodes.size() - 1;
     return;
   }
 
-  MakeJoinGraphFromRelationalExpression(expr->left, trace, graph);
-  MakeJoinGraphFromRelationalExpression(expr->right, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, expr->left, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, expr->right, trace, graph);
 
   table_map used_tables = 0;
   for (Item *condition : expr->join_conditions) {
@@ -848,7 +850,7 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
   std::fill(begin(graph->table_num_to_node_num),
             end(graph->table_num_to_node_num), -1);
 #endif
-  MakeJoinGraphFromRelationalExpression(root, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
 
   if (trace != nullptr) {
     *trace += "\nConstructed hypergraph:\n";
@@ -859,7 +861,8 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
       // the algorithm, it is useful to have a link to the table names.
       *trace += "Node mappings, for reference:\n";
       for (size_t i = 0; i < graph->nodes.size(); ++i) {
-        *trace += StringPrintf("  R%zu = %s\n", i + 1, graph->nodes[i]->alias);
+        *trace +=
+            StringPrintf("  R%zu = %s\n", i + 1, graph->nodes[i].table->alias);
       }
     }
     *trace += "\n";

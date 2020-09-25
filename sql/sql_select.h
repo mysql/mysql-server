@@ -981,4 +981,14 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
                                   SJ_TMP_TABLE_TAB *first_tab,
                                   SJ_TMP_TABLE_TAB *last_tab);
 
+/**
+  Returns key flags depending on
+  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
+
+  @param  key_info  pointer to KEY structure
+
+  @return key flags.
+ */
+uint actual_key_flags(const KEY *key_info);
+
 #endif /* SQL_SELECT_INCLUDED */

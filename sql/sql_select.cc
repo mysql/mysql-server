@@ -126,7 +126,6 @@ static store_key *get_store_key(THD *thd, Item *val, table_map used_tables,
                                 table_map const_tables,
                                 const KEY_PART_INFO *key_part, uchar *key_buff,
                                 uint maybe_null);
-static uint actual_key_flags(KEY *key_info);
 
 using Global_tables_iterator =
     IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_global>;
@@ -5369,16 +5368,7 @@ uint actual_key_parts(const KEY *key_info) {
              : key_info->user_defined_key_parts;
 }
 
-/**
-  Returns key flags depending on
-  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
-
-  @param  key_info  pointer to KEY structure
-
-  @return key flags.
-*/
-
-static uint actual_key_flags(KEY *key_info) {
+uint actual_key_flags(const KEY *key_info) {
   return key_info->table->in_use->optimizer_switch_flag(
              OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
              ? key_info->actual_flags

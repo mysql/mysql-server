@@ -151,8 +151,7 @@ class Fake_TABLE : public TABLE {
     memset(record[0], 0, max_record_length);
     for (int i = 0; i < max_keys; i++)
       key_info[i].key_part = m_key_part_infos[i];
-    // We choose non-zero to avoid it working by coincidence.
-    highest_index_id = 3;
+    highest_index_id = 0;
 
     set_handler(&mock_handler);
     mock_handler.change_table_ptr(this, &table_share);
@@ -258,12 +257,30 @@ class Fake_TABLE : public TABLE {
   }
 
   // Defines an index over (column1, column2) and generates a unique id.
-  int create_index(Field *column1, Field *column2) {
+  int create_index(Field *column1, Field *column2, bool unique = false) {
     column1->set_flag(PART_KEY_FLAG);
     column2->set_flag(PART_KEY_FLAG);
     int index_id = highest_index_id++;
     column1->key_start.set_bit(index_id);
     keys_in_use_for_query.set_bit(index_id);
+    column1->part_of_key.set_bit(index_id);
+    column2->part_of_key.set_bit(index_id);
+
+    KEY *key = &m_keys[index_id];
+    key->table = this;
+    if (unique) {
+      key->flags = key->actual_flags = HA_NOSAME;
+    } else {
+      key->flags = key->actual_flags = 0;
+    }
+    key->actual_key_parts = key->user_defined_key_parts = 2;
+    key->key_part[0].field = column1;
+    key->key_part[0].store_length = 8;
+    key->key_part[1].field = column2;
+    key->key_part[1].store_length = 8;
+    key->name = "unittest_index";
+
+    ++s->keys;
     return index_id;
   }
 

@@ -845,3 +845,18 @@ DROP TABLE mytable;
 #
 create table t1 (b text not null, unique key(b(8)));
 drop table t1;
+#
+# Bug #32123039: WL#14333: RESULT DIFFERENCE WITH JOIN AND SUBQUERY
+#
+CREATE TABLE t1 (
+a INTEGER
+);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (
+a INTEGER,
+KEY idx (a)
+);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a
+WHERE ( SELECT 1 FROM t1 ) IS NULL OR t2.a = 2;
+a	a
+DROP TABLE t1, t2;

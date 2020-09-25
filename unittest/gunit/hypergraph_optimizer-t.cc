@@ -169,7 +169,7 @@ TEST_F(MakeHypergraphTest, SingleTable) {
   EXPECT_EQ(0, graph.edges.size());
   EXPECT_EQ(0, graph.predicates.size());
 
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
 }
 
 TEST_F(MakeHypergraphTest, InnerJoin) {
@@ -186,9 +186,9 @@ TEST_F(MakeHypergraphTest, InnerJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Simple edges; order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -222,9 +222,9 @@ TEST_F(MakeHypergraphTest, OuterJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -260,9 +260,9 @@ TEST_F(MakeHypergraphTest, SemiJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -298,9 +298,9 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -337,8 +337,8 @@ TEST_F(MakeHypergraphTest, Predicates) {
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(2, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
 
   // t1/t2.
   ASSERT_EQ(1, graph.edges.size());
@@ -555,6 +555,65 @@ TEST_F(HypergraphOptimizerTest, PartialPredicatePushdownOuterJoin) {
   AccessPath *inner_child = inner->filter().child;
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
   EXPECT_EQ(m_fake_tables["t2"], inner_child->table_scan().table);
+}
+
+TEST_F(HypergraphOptimizerTest, PredicatePushdownToRef) {
+  SELECT_LEX *select_lex =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x=3", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  // The condition should be gone, and only ref access should be in its place.
+  // There shouldn't be EQ_REF, since we only have a partial match.
+  ASSERT_EQ(AccessPath::REF, root->type);
+  EXPECT_EQ(0, root->ref().ref->key);
+  EXPECT_EQ(8, root->ref().ref->key_length);
+  EXPECT_EQ(1, root->ref().ref->key_parts);
+}
+
+TEST_F(HypergraphOptimizerTest, NotPredicatePushdownToRef) {
+  SELECT_LEX *select_lex =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.y=3", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  // t1.y can't be pushed since t1.x wasn't.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("(t1.y = 3)", ItemToString(root->filter().condition));
+}
+
+TEST_F(HypergraphOptimizerTest, MultiPartPredicatePushdownToRef) {
+  SELECT_LEX *select_lex = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.y=3 AND t1.x=2", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  // Both should be pushed, and we should now use the unique index.
+  ASSERT_EQ(AccessPath::EQ_REF, root->type);
+  EXPECT_EQ(0, root->eq_ref().ref->key);
+  EXPECT_EQ(16, root->eq_ref().ref->key_length);
+  EXPECT_EQ(2, root->eq_ref().ref->key_parts);
 }
 
 TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {

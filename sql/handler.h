@@ -4062,9 +4062,9 @@ class handler {
   typedef ulonglong Table_flags;
 
  protected:
-  TABLE_SHARE *table_share;       /* The table definition */
-  TABLE *table;                   /* The current open table */
-  Table_flags cached_table_flags; /* Set on init() and open() */
+  TABLE_SHARE *table_share;          /* The table definition */
+  TABLE *table;                      /* The current open table */
+  Table_flags cached_table_flags{0}; /* Set on init() and open() */
 
   ha_rows estimation_rows_to_insert;
 

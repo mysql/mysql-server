@@ -31,10 +31,28 @@
 #include "sql/mem_root_array.h"
 #include "sql/sql_const.h"
 
+class Field;
 class SELECT_LEX;
 class THD;
 struct MEM_ROOT;
 struct TABLE;
+
+/**
+  A sargable (from “Search ARGument”) predicate is one that we can attempt
+  to push down into an index (what we'd call “ref access” or “index range
+  scan”/“quick”). This structure denotes one such instance, precomputed from
+  all the predicates in the given hypergraph.
+ */
+struct SargablePredicate {
+  // Index into the “predicates” array in the graph.
+  int predicate_index;
+
+  // The predicate is assumed to be <field> = <other_side>.
+  // Later, we could push down other kinds of relations, such as
+  // greater-than.
+  Field *field;
+  Item *other_side;
+};
 
 /**
   A struct containing a join hypergraph of a single query block, encapsulating
@@ -57,7 +75,20 @@ struct JoinHypergraph {
   // except for when scalar-to-derived conversion is active.
   std::array<int, MAX_TABLES> table_num_to_node_num;
 
-  Mem_root_array<TABLE *> nodes;
+  struct Node {
+    TABLE *table;
+
+    // List of all sargable predicates (see SargablePredicate) where
+    // the field is part of this table. When we see the node for
+    // the first time, we will evaluate all of these and consider
+    // creating access paths that exploit these predicates.
+    //
+    // For now, only elements from the “predicates” array
+    // (WHERE conditions) are included; later, we should also include
+    // predicates from join conditions.
+    Mem_root_array<SargablePredicate> sargable_predicates;
+  };
+  Mem_root_array<Node> nodes;
 
   // Note that graph.edges contain each edge twice (see Hypergraph
   // for more information), so edges[i] corresponds to graph.edges[i*2].

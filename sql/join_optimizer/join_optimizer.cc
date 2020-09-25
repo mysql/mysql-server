@@ -56,6 +56,7 @@
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/mem_root_array.h"
+#include "sql/opt_range.h"
 #include "sql/query_options.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -64,6 +65,8 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_planner.h"
+#include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/table.h"
 
@@ -173,7 +176,7 @@ class CostingReceiver {
         ret += ",";
       }
       first = false;
-      ret += m_graph.nodes[node_idx]->alias;
+      ret += m_graph.nodes[node_idx].table->alias;
     }
     return ret + "}";
   }
@@ -186,12 +189,15 @@ class CostingReceiver {
   AccessPath *ProposeAccessPathForNodes(NodeMap nodes, const AccessPath &path,
                                         const char *description_for_trace);
   bool ProposeTableScan(TABLE *table, int node_idx);
+  bool ProposeRefAccess(TABLE *table, int node_idx, KEY *key, unsigned key_idx);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge);
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge,
                        bool *wrote_trace);
-  void ApplyPredicatesForBaseTable(int node_idx, AccessPath *path);
+  void ApplyPredicatesForBaseTable(int node_idx, uint64_t applied_predicates,
+                                   uint64_t subsumed_predicates,
+                                   AccessPath *path);
   void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
                                        const AccessPath *left_path,
                                        const AccessPath *right_path,
@@ -219,7 +225,7 @@ uint64_t SupportedAccessPathTypes(const THD *thd) {
   if there is a cost for materializing them.
  */
 bool CostingReceiver::FoundSingleNode(int node_idx) {
-  TABLE *table = m_graph.nodes[node_idx];
+  TABLE *table = m_graph.nodes[node_idx].table;
   TABLE_LIST *tl = table->pos_in_table_list;
 
   // Ask the storage engine to update stats.records, if needed.
@@ -231,6 +237,241 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     return true;
   }
 
+  if (!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
+    for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
+      if (ProposeRefAccess(table, node_idx, &table->key_info[key_idx],
+                           key_idx)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Specifies a mapping in a TABLE_REF between an index keypart and a condition,
+// with the intention to satisfy the condition with the index keypart (ref
+// access). Roughly comparable to Key_use in the non-hypergraph optimizer.
+struct KeypartForRef {
+  // The condition we are pushing down (e.g. t1.f1 = 3).
+  Item *condition;
+
+  // The field that is to be matched (e.g. t1.f1).
+  Field *field;
+
+  // The value we are matching against (e.g. 3). Could be another field.
+  Item *val;
+
+  // Whether this condition would never match if either side is NULL.
+  bool null_rejecting;
+
+  // Tables used by the condition. Necessarily includes the table “field”
+  // is part of.
+  table_map used_tables;
+};
+
+int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
+                       unsigned num_keyparts) {
+  for (unsigned keypart_idx = 0; keypart_idx < num_keyparts; keypart_idx++) {
+    if (condition->eq(keyparts[keypart_idx].condition,
+                      /*binary_cmp=*/true)) {
+      return keypart_idx;
+    }
+  }
+  return -1;
+}
+
+bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
+                                       unsigned key_idx) {
+  // NOTE: visible_index claims to contain “visible and enabled” indexes,
+  // but we still need to check keys_in_use to ignore disabled indexes.
+  if (!table->keys_in_use_for_query.is_set(key_idx) ||
+      (key->flags & HA_FULLTEXT)) {
+    return false;
+  }
+
+  // Go through each of the sargable predicates and see how many key parts
+  // we can match.
+  unsigned matched_keyparts = 0;
+  unsigned length = 0;
+  const unsigned usable_keyparts = actual_key_parts(key);
+  KeypartForRef keyparts[MAX_REF_PARTS];
+
+  for (unsigned keypart_idx = 0;
+       keypart_idx < usable_keyparts && keypart_idx < MAX_REF_PARTS;
+       ++keypart_idx) {
+    const KEY_PART_INFO &keyinfo = key->key_part[keypart_idx];
+    bool matched_this_keypart = false;
+
+    for (const SargablePredicate &sp :
+         m_graph.nodes[node_idx].sargable_predicates) {
+      if (!sp.field->part_of_key.is_set(key_idx)) {
+        // Quick reject.
+        continue;
+      }
+      // Only x = const for now. (And true const, not const_for_execution();
+      // so no execution of queries during optimization.)
+      Item_func *item = down_cast<Item_func *>(
+          m_graph.predicates[sp.predicate_index].condition);
+      if (sp.field->eq(keyinfo.field) && sp.other_side->const_item() &&
+          comparable_in_index(item, sp.field, Field::itRAW, item->functype(),
+                              sp.other_side) &&
+          !(sp.field->cmp_type() == STRING_RESULT &&
+            sp.field->match_collation_to_optimize_range() &&
+            sp.field->charset() != item->compare_collation())) {
+        matched_this_keypart = true;
+        keyparts[keypart_idx].field = sp.field;
+        keyparts[keypart_idx].condition = item;
+        keyparts[keypart_idx].val = sp.other_side;
+        keyparts[keypart_idx].null_rejecting = true;
+        keyparts[keypart_idx].used_tables = item->used_tables();
+        ++matched_keyparts;
+        length += keyinfo.store_length;
+        break;
+      }
+    }
+    if (!matched_this_keypart) {
+      break;
+    }
+  }
+  if (matched_keyparts == 0) {
+    return false;
+  }
+
+  if (matched_keyparts < usable_keyparts &&
+      (table->file->index_flags(key_idx, 0, false) & HA_ONLY_WHOLE_INDEX)) {
+    if (m_trace != nullptr) {
+      *m_trace += StringPrintf(
+          " - %s is whole-key only, and we could only match %d/%d "
+          "key parts for ref access\n",
+          key->name, matched_keyparts, usable_keyparts);
+    }
+    return false;
+  }
+
+  if (m_trace != nullptr) {
+    if (matched_keyparts < usable_keyparts) {
+      *m_trace += StringPrintf(
+          " - %s is applicable for ref access (using %d/%d key parts only)\n",
+          key->name, matched_keyparts, usable_keyparts);
+    } else {
+      *m_trace +=
+          StringPrintf(" - %s is applicable for ref access\n", key->name);
+    }
+  }
+
+  // Create TABLE_REF for this ref, and set it up based on the chosen keyparts.
+  TABLE_REF *ref = new (m_thd->mem_root) TABLE_REF;
+  if (init_ref(m_thd, matched_keyparts, length, key_idx, ref)) {
+    return true;
+  }
+
+  uchar *key_buff = ref->key_buff;
+  uchar *null_ref_key = nullptr;
+  bool null_rejecting_key = true;
+  for (unsigned keypart_idx = 0; keypart_idx < matched_keyparts;
+       keypart_idx++) {
+    KeypartForRef *keypart = &keyparts[keypart_idx];
+    const KEY_PART_INFO *keyinfo = &key->key_part[keypart_idx];
+
+    if (init_ref_part(m_thd, keypart_idx, keypart->val, /*cond_guard=*/nullptr,
+                      keypart->null_rejecting, /*const_tables=*/0,
+                      keypart->used_tables, keyinfo->null_bit, keyinfo,
+                      key_buff, ref)) {
+      return true;
+    }
+    // TODO(sgunders): When we get support for REF_OR_NULL,
+    // set null_ref_key = key_buff here if appropriate.
+    /*
+      The selected key will reject matches on NULL values if:
+       - the key field is nullable, and
+       - predicate rejects NULL values (keypart->null_rejecting is true), or
+       - JT_REF_OR_NULL is not effective.
+    */
+    if ((keyinfo->field->is_nullable() || table->is_nullable()) &&
+        (!keypart->null_rejecting || null_ref_key != nullptr)) {
+      null_rejecting_key = false;
+    }
+    key_buff += keyinfo->store_length;
+  }
+
+  double num_output_rows = table->file->stats.records;
+
+  uint64_t applied_predicates = 0;
+  uint64_t subsumed_predicates = 0;
+  for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
+    int keypart_idx = WasPushedDownToRef(m_graph.predicates[i].condition,
+                                         keyparts, matched_keyparts);
+    if (keypart_idx == -1) {
+      continue;
+    }
+
+    num_output_rows *= m_graph.predicates[i].selectivity;
+    applied_predicates |= uint64_t{1} << i;
+
+    const KeypartForRef &keypart = keyparts[keypart_idx];
+    if (ref_lookup_subsumes_comparison(keypart.field, keypart.val)) {
+      if (m_trace != nullptr) {
+        *m_trace +=
+            StringPrintf(" - %s is subsumed by ref access on %s.%s\n",
+                         ItemToString(m_graph.predicates[i].condition).c_str(),
+                         table->alias, keypart.field->field_name);
+      };
+      subsumed_predicates |= uint64_t{1} << i;
+    } else {
+      if (m_trace != nullptr) {
+        *m_trace += StringPrintf(
+            " - %s is not fully subsumed by ref access on %s.%s, keeping\n",
+            ItemToString(m_graph.predicates[i].condition).c_str(), table->alias,
+            keypart.field->field_name);
+      }
+    }
+  }
+
+  // We are guaranteed to get a single row back if all of these hold:
+  //
+  //  - The index must be unique.
+  //  - We can never query it with NULL (ie., no keyparts are nullable,
+  //    or our condition is already NULL-rejecting), since NULL is
+  //    an exception for unique indexes.
+  //  - We use all key parts.
+  //
+  // This matches the logic in create_ref_for_key().
+  const bool single_row = Overlaps(actual_key_flags(key), HA_NOSAME) &&
+                          (!Overlaps(actual_key_flags(key), HA_NULL_PART_KEY) ||
+                           null_rejecting_key) &&
+                          matched_keyparts == usable_keyparts;
+  if (single_row) {
+    num_output_rows = std::min(num_output_rows, 1.0);
+  }
+
+  const double table_scan_cost = table->file->table_scan_cost().total_cost();
+  const double worst_seeks =
+      find_worst_seeks(table->cost_model(), num_output_rows, table_scan_cost);
+  const double cost =
+      find_cost_for_ref(m_thd, table, key_idx, num_output_rows, worst_seeks);
+
+  AccessPath path;
+  if (single_row) {
+    path.type = AccessPath::EQ_REF;
+    path.eq_ref().table = table;
+    path.eq_ref().ref = ref;
+    path.eq_ref().use_order = false;
+  } else {
+    path.type = AccessPath::REF;
+    path.ref().table = table;
+    path.ref().ref = ref;
+    path.ref().use_order = false;
+    path.ref().reverse = false;
+  }
+  path.num_output_rows_before_filter = num_output_rows;
+  path.cost_before_filter = cost;
+  path.init_cost = 0.0;
+
+  ApplyPredicatesForBaseTable(node_idx, applied_predicates, subsumed_predicates,
+                              &path);
+
+  ProposeAccessPathForNodes(TableBitmap(node_idx), path, key->name);
   return false;
 }
 
@@ -252,11 +493,12 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
   table_path.init_cost = 0.0;
   table_path.cost_before_filter = cost;
 
-  ApplyPredicatesForBaseTable(node_idx, &table_path);
+  ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
+                              /*subsumed_predicates=*/0, &table_path);
 
   if (m_trace != nullptr) {
     *m_trace += StringPrintf("Found node %s [rows=%.0f]\n",
-                             m_graph.nodes[node_idx]->alias,
+                             m_graph.nodes[node_idx].table->alias,
                              table_path.num_output_rows);
     for (int pred_idx : BitsSetIn(table_path.filter_predicates)) {
       *m_trace += StringPrintf(
@@ -347,6 +589,8 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
 // See which predicates that apply to this table. Some can be applied right
 // away, some require other tables first and must be delayed.
 void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
+                                                  uint64_t applied_predicates,
+                                                  uint64_t subsumed_predicates,
                                                   AccessPath *path) {
   const NodeMap my_map = TableBitmap(node_idx);
   path->num_output_rows = path->num_output_rows_before_filter;
@@ -354,10 +598,18 @@ void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
   path->filter_predicates = 0;
   path->delayed_predicates = 0;
   for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
+    if (subsumed_predicates & (uint64_t{1} << i)) {
+      continue;
+    }
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
       path->filter_predicates |= uint64_t{1} << i;
       path->cost += path->num_output_rows * kApplyOneFilterCost;
-      path->num_output_rows *= m_graph.predicates[i].selectivity;
+      if (applied_predicates & (uint64_t{1} << i)) {
+        // We already factored in this predicate when calculating
+        // the selectivity of the ref access, so don't do it again.
+      } else {
+        path->num_output_rows *= m_graph.predicates[i].selectivity;
+      }
     } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
       path->delayed_predicates |= uint64_t{1} << i;
     }
@@ -1034,6 +1286,15 @@ void EstimateMaterializeCost(AccessPath *path) {
   path->cost = path->cost + std::max(table_path->cost, 0.0);
 }
 
+JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
+  for (JoinHypergraph::Node &node : graph->nodes) {
+    if (node.table == table) {
+      return &node;
+    }
+  }
+  return nullptr;
+}
+
 AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   JOIN *join = select_lex->join;
   if (CheckSupportedQuery(thd, join)) return nullptr;
@@ -1047,14 +1308,65 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
     return nullptr;
   }
 
+  // Find sargable predicates, ie., those that we can push down into indexes.
+  // See add_key_field().
+  //
+  // TODO(sgunders): Include predicates from join conditions, x=y OR NULL
+  // predicates,
+  // <=> and IS NULL predicates, and the special case of COLLATION accepted in
+  // add_key_field().
+  //
+  // TODO(sgunders): Integrate with the range optimizer, or find some other way
+  // of accepting <, >, <= and >= predicates.
+  if (trace != nullptr) {
+    *trace += "\n";
+  }
+  for (int i = 0; i < static_cast<int>(graph.predicates.size()); ++i) {
+    if (!IsSingleBitSet(graph.predicates[i].total_eligibility_set)) {
+      continue;
+    }
+    Item *item = graph.predicates[i].condition;
+    if (item->type() != Item::FUNC_ITEM ||
+        down_cast<Item_func *>(item)->functype() != Item_bool_func2::EQ_FUNC) {
+      continue;
+    }
+    Item_func_eq *eq_item = down_cast<Item_func_eq *>(item);
+    if (eq_item->get_comparator()->get_child_comparator_count() >= 2) {
+      continue;
+    }
+    for (unsigned arg_idx = 0; arg_idx < 2; ++arg_idx) {
+      Item *left = eq_item->arguments()[arg_idx];
+      Item *right = eq_item->arguments()[1 - arg_idx];
+      if (left->type() != Item::FIELD_ITEM) {
+        continue;
+      }
+      Field *field = down_cast<Item_field *>(left)->field;
+      if (field->part_of_key.is_clear_all()) {
+        // Not part of any key, so not sargable. (It could be part of a prefix
+        // keys, though, but we include them for now.)
+        continue;
+      }
+      JoinHypergraph::Node *node = FindNodeWithTable(&graph, field->table);
+      if (node == nullptr) {
+        // A field in a different query block, so not sargable for us.
+        continue;
+      }
+
+      node->sargable_predicates.push_back({i, field, right});
+      if (trace != nullptr) {
+        *trace += "Found sargable condition " + ItemToString(item) + "\n";
+      }
+    }
+  }
+
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
   // hopefully optimal execution time), with all pushable predicates applied.
   if (trace != nullptr) {
     *trace += "\nEnumerating subplans:\n";
   }
-  for (TABLE *table : graph.nodes) {
-    table->init_cost_model(thd->cost_model());
+  for (const JoinHypergraph::Node &node : graph.nodes) {
+    node.table->init_cost_model(thd->cost_model());
   }
   CostingReceiver receiver(thd, graph, SupportedAccessPathTypes(thd), trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver)) {
