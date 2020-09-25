@@ -932,6 +932,19 @@ ELSE()
   SET(COMPRESS_DEBUG_SECTIONS OFF)
 ENDIF()
 
+# For aarch64 some sub-architectures support LSE atomics and some don't. Thus,
+# compiling for the common denominator (-march=armv8-a) means LSE is not used.
+# The -moutline-atomics switch enables run-time detection of LSE support.
+# There are compilers (gcc 9.3.1 for example) which support this switch, but
+# do not enable it by default, even though it seems to help. So, we force it.
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  MY_CHECK_CXX_COMPILER_FLAG( "-moutline-atomics" HAVE_OUTLINE_ATOMICS)
+  IF(HAVE_OUTLINE_ATOMICS)
+    STRING_APPEND(CMAKE_C_FLAGS   " -moutline-atomics")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -moutline-atomics")
+  ENDIF()
+ENDIF()
+
 IF(LINUX)
   OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
   SET(LINK_RANDOMIZE_SEED "mysql"
