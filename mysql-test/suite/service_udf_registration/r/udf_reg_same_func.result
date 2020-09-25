@@ -9,7 +9,7 @@ SELECT * FROM performance_schema.user_defined_functions
 WHERE udf_name IN('myfunc_int')
 ORDER BY udf_name;
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
-myfunc_int	integer	function		1
+myfunc_int	integer	function	NULL	1
 INSTALL COMPONENT "file://component_udf_reg_int_func";
 ERROR HY000: Initialization method provided by component 'mysql:test_udf_registration' failed.
 select myfunc_int(5);
@@ -22,7 +22,7 @@ SELECT * FROM performance_schema.user_defined_functions
 WHERE udf_name IN('myfunc_int')
 ORDER BY udf_name;
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
-myfunc_int	integer	function		1
+myfunc_int	integer	function	NULL	1
 UNINSTALL COMPONENT "file://component_udf_reg_int_same_func";
 SELECT * FROM performance_schema.user_defined_functions
 WHERE udf_name IN('myfunc_int')

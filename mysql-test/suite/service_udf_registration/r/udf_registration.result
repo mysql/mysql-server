@@ -4,8 +4,8 @@ SELECT * FROM performance_schema.user_defined_functions
 WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
 ORDER BY UDF_NAME;
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
-dynamic_agg	integer	aggregate		1
-dynamic_udf	integer	function		1
+dynamic_agg	integer	aggregate	NULL	1
+dynamic_udf	integer	function	NULL	1
 # Must return 12
 SELECT dynamic_udf();
 dynamic_udf()
@@ -64,7 +64,7 @@ SELECT * FROM performance_schema.user_defined_functions
 WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
 ORDER BY UDF_NAME;
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
-dynamic_udf	integer	function		1
+dynamic_udf	integer	function	NULL	1
 # remove the plugin
 UNINSTALL COMPONENT "file://component_test_udf_registration";
 # should fail: no UDF

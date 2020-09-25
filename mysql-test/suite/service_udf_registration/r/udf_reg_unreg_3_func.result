@@ -3,9 +3,9 @@ SELECT * FROM performance_schema.user_defined_functions
 WHERE (udf_name LIKE 'myfunc%') or (udf_name LIKE 'avgcost%')
 ORDER BY udf_name;
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
-avgcost	double	aggregate		1
-myfunc_double	double	function		1
-myfunc_int	integer	function		1
+avgcost	double	aggregate	NULL	1
+myfunc_double	double	function	NULL	1
+myfunc_int	integer	function	NULL	1
 select myfunc_double();
 ERROR HY000: Can't initialize function 'myfunc_double'; myfunc_double must have at least one argument
 select myfunc_double(1);
