@@ -6889,13 +6889,22 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+/**
+ * The function remembers the old values such that they can be restored.
+ * If the configuration doesn't contain any value then it will be restored
+ * to 0 (which isn't generally correct, but correct for all current use
+ * cases).
+ */
 static Uint32
 setConfigValueAndRestartNode(NdbMgmd *mgmd,
-                             Uint32 key,
-                             Uint32 & value,
+                             Uint32 *keys,
+                             Uint32 *values,
+                             Uint32 num_values,
                              int nodeId,
+                             bool all_nodes,
                              NdbRestarter *restarter)
 {
+  g_err << "nodeId = " << nodeId << endl;
   // Get the binary config
   Config conf;
   if (!mgmd->get_config(conf)) 
@@ -6905,25 +6914,62 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
   }
   // Set the key
   ConfigValues::Iterator iter(conf.m_configValues->m_config);
-  Uint32 oldValue = 0;
-  bool first = true;
-  for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
+  Uint32 oldValue[4];
+  for (Uint32 i = 0; i < 4; i++)
   {
-    if (!iter.openSection(CFG_SECTION_NODE, nodeid))
+    oldValue[i] = 0;
+  }
+  require(num_values <= 4);
+  bool first = true;
+  for (int i = 0; i < MAX_NODES; i++)
+  {
+    if (!iter.openSection(CFG_SECTION_NODE, i))
       continue;
-    Uint32 prev_old_value = oldValue;
-    if (iter.get(key, &oldValue))
+    Uint32 nodeid;
+    Uint32 node_type;
+    iter.get(CFG_TYPE_OF_SECTION, &node_type);
+    if (node_type != NODE_TYPE_DB)
+      continue;
+    iter.get(CFG_NODE_ID, &nodeid);
+    if (all_nodes)
     {
-      iter.set(key, value);
+      for (Uint32 i = 0; i < num_values; i++)
+      {
+        Uint32 prev_old_value = oldValue[i];
+        if (iter.get(keys[i], &oldValue[i]))
+        {
+          iter.set(keys[i], values[i]);
+        }
+        if (!first && prev_old_value != oldValue[i])
+        {
+          iter.closeSection();
+          g_err << "Failed since node configs not equal" << endl;
+          return NDBT_FAILED;
+        }
+        if (!first)
+        {
+          values[i] = oldValue[i];
+        }
+      }
+      first = false;
+      iter.closeSection();
+    }
+    else if ((int)nodeid == nodeId)
+    {
+      for (Uint32 i = 0; i < num_values; i++)
+      {
+        if (!iter.get(keys[i], &oldValue[i]))
+        {
+          oldValue[i] = 0;
+        }
+        g_info << "Set key " << keys[i] << " to " << values[i] << endl;
+        g_info << "Node is " << nodeid << endl;
+        require(iter.set(keys[i], values[i]));
+        values[i] = oldValue[i];
+      }
     }
     iter.closeSection();
-    if (!first && prev_old_value != oldValue)
-    {
-      g_err << "Failed since node configs not equal" << endl;
-      return NDBT_FAILED;
-    }
   }
-  value = oldValue;
   // Set the modified config
   if (!mgmd->set_config(conf)) 
   {
@@ -6944,6 +6990,170 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
   }
   return NDBT_OK;
 } 
+
+int
+runChangeNumLDMsNR(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2) 
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_SKIPPED;
+  }
+  int node_1 = restarter.getDbNodeId(0);
+  int node_2 = restarter.getDbNodeId(1);
+  if (node_1 == -1 || node_2 == -1)
+  {
+    g_err << "Failed to find node ids of data nodes" << endl;
+    return NDBT_FAILED;
+  }
+  NdbMgmd mgmd;
+  Uint32 keys[2];
+  Uint32 values[2];
+  Uint32 save_values_first[2];
+  Uint32 save_values_second[2];
+  keys[0] = CFG_DB_AUTO_THREAD_CONFIG;
+  keys[1] = CFG_DB_NUM_CPUS;
+
+  if(!mgmd.connect()) 
+  {
+    g_err << "Failed to connect to ndb_mgmd." << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  values[0] = 1;
+  values[1] = 16;
+  if (setConfigValueAndRestartNode(&mgmd,
+                                   &keys[0],
+                                   &values[0],
+                                   2,
+                                   node_1,
+                                   false,
+                                   &restarter) == NDBT_FAILED)
+  {
+    g_err << "Failed to change first node" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  save_values_first[0] = values[0];
+  save_values_first[1] = values[1];
+  values[0] = 1;
+  values[1] = 16;
+  if (setConfigValueAndRestartNode(&mgmd,
+                                   &keys[0],
+                                   &values[0],
+                                   2,
+                                   node_2,
+                                   false,
+                                   &restarter) == NDBT_FAILED)
+  {
+    g_err << "Failed to change second node" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  } 
+  save_values_second[0] = values[0];
+  save_values_second[1] = values[1];
+  for (Uint32 test_index = 0; test_index < 8; test_index++)
+  {
+    switch (test_index)
+    {
+      case 0:
+      {
+        values[0] = 1;
+        values[1] = 2;
+        break;
+      }
+      case 1:
+      {
+        values[0] = 1;
+        values[1] = 4;
+        break;
+      }
+      case 2:
+      {
+        values[0] = 1;
+        values[1] = 8;
+        break;
+      }
+      case 3:
+      {
+        values[0] = 1;
+        values[1] = 16;
+        break;
+      }
+      case 4:
+      {
+        values[0] = 1;
+        values[1] = 24;
+        break;
+      }
+      case 5:
+      {
+        values[0] = 1;
+        values[1] = 30;
+        break;
+      }
+      case 6:
+      {
+        values[0] = 1;
+        values[1] = 20;
+        break;
+      }
+      case 7:
+      {
+        values[0] = 1;
+        values[1] = 10;
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+    if (setConfigValueAndRestartNode(&mgmd,
+                                     &keys[0],
+                                     &values[0],
+                                     2,
+                                     node_2,
+                                     false,
+                                     &restarter) == NDBT_FAILED)
+    {
+      g_err << "Failed to change second node, step " << test_index << endl;
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+  }
+  int ret_code = setConfigValueAndRestartNode(&mgmd,
+                                              &keys[0],
+                                              &save_values_first[0],
+                                              2,
+                                              node_1,
+                                              false,
+                                              &restarter);
+  if (ret_code == NDBT_FAILED)
+  {
+    g_err << "Failed to change back first node" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  ret_code = setConfigValueAndRestartNode(&mgmd,
+                                          &keys[0],
+                                          &save_values_second[0],
+                                          2,
+                                          node_2,
+                                          false,
+                                          &restarter);
+  if (ret_code == NDBT_FAILED)
+  {
+    g_err << "Failed to change back second node" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+  ctx->stopTest();
+  return NDBT_OK;
+}
 
 int
 runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
@@ -6970,8 +7180,14 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
     // to disable the LCP frag scan watchdog, set 
     // CFG_DB_LCP_SCAN_WATCHDOG_LIMIT = 0
     lcp_watchdog_limit = 0;
-    if (setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
-          lcp_watchdog_limit, victim, &restarter) == NDBT_FAILED)
+    Uint32 key = CFG_DB_LCP_SCAN_WATCHDOG_LIMIT;
+    if (setConfigValueAndRestartNode(&mgmd,
+                                     &key,
+                                     &lcp_watchdog_limit,
+                                     1,
+                                     victim,
+                                     true,
+                                     &restarter) == NDBT_FAILED)
       break;
 
     g_err << "Injecting fault in node " << victim;
@@ -7031,8 +7247,13 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "No LCP activity: LCP Frag watchdog successfully disabled..."
           << endl;
     g_err << "Restoring default LCP Frag watchdog config..." << endl;
-    if(setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT, 
-          lcp_watchdog_limit, victim, &restarter) == NDBT_FAILED)
+    if (setConfigValueAndRestartNode(&mgmd,
+                                     &key,
+                                     &lcp_watchdog_limit,
+                                     1,
+                                     victim,
+                                     true,
+                                     &restarter) == NDBT_FAILED)
       break;
 
     ctx->stopTest();
@@ -9069,8 +9290,14 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
     return NDBT_FAILED;
   }
   Uint32 gcp_interval = 200;
-  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
-                          gcp_interval, node_1, &restarter) == NDBT_FAILED)
+  Uint32 key = CFG_DB_GCP_INTERVAL;
+  if (setConfigValueAndRestartNode(&mgmd,
+                                   &key,
+                                   &gcp_interval,
+                                   1,
+                                   node_1,
+                                   true,
+                                   &restarter) == NDBT_FAILED)
   {
     g_err << "Failed to set TimeBetweenGlobalCheckpoints to 200" << endl;
     return NDBT_FAILED;
@@ -9192,8 +9419,13 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
   ndbout << "Reset TimeBetweenGlobalCheckpoints to "
          << gcp_interval << endl;
 
-  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
-                         gcp_interval, node_1, &restarter) == NDBT_FAILED)
+  if (setConfigValueAndRestartNode(&mgmd,
+                                   &key,
+                                   &gcp_interval,
+                                   1,
+                                   node_1,
+                                   true,
+                                   &restarter) == NDBT_FAILED)
   {
     g_err << "Failed to reset TimeBetweenGlobalCheckpoints" << endl;
     return NDBT_FAILED;
@@ -11061,7 +11293,14 @@ TESTCASE("InplaceCharPkChangeCI",
   FINALIZER(runClearErrorInsert);
   FINALIZER(runDropCharKeyTable);
 }
-
+TESTCASE("ChangeNumLDMsNR",
+         "Change the number of LDMs in a NR")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runChangeNumLDMsNR);
+  FINALIZER(runClearTable);
+}
 
 NDBT_TESTSUITE_END(testNodeRestart)
 
