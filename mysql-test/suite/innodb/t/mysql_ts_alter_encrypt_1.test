@@ -19,7 +19,7 @@
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
 # Waiting time when (re)starting the server
---let $explict_default_wait_counter=10000
+--let $explicit_default_wait_counter=10000
 
 --echo
 --echo #############################################################
