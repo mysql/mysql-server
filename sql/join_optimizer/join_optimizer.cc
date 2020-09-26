@@ -185,6 +185,7 @@ class CostingReceiver {
 
   AccessPath *ProposeAccessPathForNodes(NodeMap nodes, const AccessPath &path,
                                         const char *description_for_trace);
+  bool ProposeTableScan(TABLE *table, int node_idx);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge);
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
@@ -219,7 +220,21 @@ uint64_t SupportedAccessPathTypes(const THD *thd) {
  */
 bool CostingReceiver::FoundSingleNode(int node_idx) {
   TABLE *table = m_graph.nodes[node_idx];
+  TABLE_LIST *tl = table->pos_in_table_list;
 
+  // Ask the storage engine to update stats.records, if needed.
+  // NOTE: ha_archive breaks without this call! (That is probably a bug in
+  // ha_archive, though.)
+  tl->fetch_number_of_rows();
+
+  if (ProposeTableScan(table, node_idx)) {
+    return true;
+  }
+
+  return false;
+}
+
+bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
   AccessPath table_path;
   table_path.type = AccessPath::TABLE_SCAN;
   table_path.count_examined_rows = true;
@@ -229,13 +244,6 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   // TODO(sgunders): Move out when we get more types and this access path could
   // be replaced by something else.
   m_thd->set_status_no_index_used();
-
-  TABLE_LIST *tl = table->pos_in_table_list;
-
-  // Ask the storage engine to update stats.records, if needed.
-  // NOTE: ha_archive breaks without this call! (That is probably a bug in
-  // ha_archive, though.)
-  tl->fetch_number_of_rows();
 
   double num_output_rows = table->file->stats.records;
   double cost = table->file->table_scan_cost().total_cost();
@@ -259,6 +267,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
 
   // See if this is an information schema table that must be filled in before
   // we scan.
+  TABLE_LIST *tl = table->pos_in_table_list;
   if (tl->schema_table != nullptr && tl->schema_table->fill_table) {
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
