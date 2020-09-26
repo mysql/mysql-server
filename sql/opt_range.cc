@@ -7085,25 +7085,9 @@ static bool is_spatial_operator(Item_func::Functype op_type) {
   }
 }
 
-/**
-  Test if 'value' is comparable to 'field' when setting up range
-  access for predicate "field OP value". 'field' is a field in the
-  table being optimized for while 'value' is whatever 'field' is
-  compared to.
-
-  @param cond_func   the predicate item that compares 'field' with 'value'
-  @param field       field in the predicate
-  @param itype       itMBR if indexed field is spatial, itRAW otherwise
-  @param comp_type   comparator for the predicate
-  @param value       whatever 'field' is compared to
-
-  @return true if 'field' and 'value' are comparable, false otherwise
-*/
-
-static bool comparable_in_index(Item *cond_func, const Field *field,
-                                const Field::imagetype itype,
-                                Item_func::Functype comp_type,
-                                const Item *value) {
+bool comparable_in_index(Item *cond_func, const Field *field,
+                         const Field::imagetype itype,
+                         Item_func::Functype comp_type, const Item *value) {
   /*
     Usually an index cannot be used if the column collation differs
     from the operation collation. However, a case insensitive index
@@ -7128,9 +7112,11 @@ static bool comparable_in_index(Item *cond_func, const Field *field,
     string. A few examples: "01-01-2001", "1-1-2001", "2001-01-01",
     "2001#01#01". The same problem applies to time. Thus, we cannot
     create a useful range predicate for temporal values into VARCHAR
-    column indexes. @see add_key_field()
+    column indexes.
   */
-  if (!is_temporal_type(field->type()) && value->is_temporal()) return false;
+  if (field->result_type() == STRING_RESULT &&
+      !is_temporal_type(field->type()) && value->is_temporal())
+    return false;
 
   /*
     Temporal values: Cannot use range access if IndexedTimeComparedToDate:
@@ -7165,9 +7151,11 @@ static bool comparable_in_index(Item *cond_func, const Field *field,
     the string '{}' should compare equal to the JSON string "{}". If
     we use a string index to compare the two strings, we will be
     comparing '{}' and '"{}"', which don't compare equal.
+    The only exception is Item_json, which is a basic const item and is
+    used to contain value coerced to index's type.
   */
   if (value->result_type() == STRING_RESULT &&
-      value->data_type() == MYSQL_TYPE_JSON)
+      value->data_type() == MYSQL_TYPE_JSON && !value->basic_const_item())
     return false;
 
   return true;

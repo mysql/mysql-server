@@ -43,6 +43,7 @@
 #include "priority_queue.h"    // Priority_queue
 #include "sql/field.h"         // Field
 #include "sql/handler.h"
+#include "sql/item_func.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"  // IWYU pragma: keep
@@ -1144,5 +1145,24 @@ void range_optimizer_init();
 
 /// Global destruction of the null_element. Call on server stop.
 void range_optimizer_free();
+
+/**
+  Test if 'value' is comparable to 'field' when setting up range
+  access for predicate "field OP value". 'field' is a field in the
+  table being optimized for while 'value' is whatever 'field' is
+  compared to.
+
+  @param cond_func   the predicate item that compares 'field' with 'value'
+  @param field       field in the predicate
+  @param itype       itMBR if indexed field is spatial, itRAW otherwise
+  @param comp_type   comparator for the predicate
+  @param value       whatever 'field' is compared to
+
+  @return true if 'field' and 'value' are comparable, false otherwise
+*/
+
+bool comparable_in_index(Item *cond_func, const Field *field,
+                         const Field::imagetype itype,
+                         Item_func::Functype comp_type, const Item *value);
 
 #endif

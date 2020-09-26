@@ -2557,7 +2557,7 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "rows": 10,
-                      "cost": 3.56,
+                      "cost": 3.5,
                       "chosen": true
                     },
                     {
@@ -3632,7 +3632,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "rows": 10,
-                      "cost": 149.52,
+                      "cost": 147,
                       "chosen": true
                     },
                     {
@@ -3651,7 +3651,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 420,
-                "cost_for_plan": 168.68
+                "cost_for_plan": 166.16
               }
             ] /* considered_execution_plans */
           },

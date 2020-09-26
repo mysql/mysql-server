@@ -6903,56 +6903,12 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
 
       /*
         Check if the field and value are comparable in the index.
-        @todo: This code is almost identical to comparable_in_index()
-        in opt_range.cc. Consider replacing the checks below with a
-        function call to comparable_in_index()
-      */
-      if (field->result_type() == STRING_RESULT) {
-        if ((*value)->result_type() != STRING_RESULT) {
-          if (field->cmp_type() != (*value)->result_type()) {
-            warn_index_not_applicable(stat->join()->thd, field, possible_keys);
-            return false;
-          }
-        } else {
-          /*
-            Can't optimize datetime_column=indexed_varchar_column,
-            also can't use indexes if the effective collation
-            of the operation differ from the field collation.
-            IndexedTimeComparedToDate: can't optimize
-            'indexed_time = temporal_expr_with_date_part' because:
-            - without index, a TIME column with value '48:00:00' is equal to a
-              DATETIME column with value 'CURDATE() + 2 days'
-            - with ref access into the TIME column, CURDATE() + 2 days becomes
-              "00:00:00" (Field_timef::store_internal() simply extracts the time
-              part from the datetime) which is a lookup key which does not match
-              "48:00:00"; so ref access is not be able to give the same result
-              as without index, so is disabled.
-            On the other hand, we can optimize indexed_datetime = time
-            because Field_temporal_with_date::store_time() will convert
-            48:00:00 to CURDATE() + 2 days which is the correct lookup key.
-          */
-          if ((!is_temporal_type(field->type()) && value[0]->is_temporal()) ||
-              (field->cmp_type() == STRING_RESULT &&
-               field->match_collation_to_optimize_range() &&
-               field->charset() != cond->compare_collation()) ||
-              field_time_cmp_date(field, value[0])) {
-            warn_index_not_applicable(stat->join()->thd, field, possible_keys);
-            return false;
-          }
-        }
-      }
-
-      /*
-        We can't use indexes when comparing to a JSON value. For example,
-        the string '{}' should compare equal to the JSON string "{}". If
-        we use a string index to compare the two strings, we will be
-        comparing '{}' and '"{}"', which don't compare equal.
-        The only exception is Item_json, which is a basic const item and is
-        used to contain value coerced to index's type.
-      */
-      if (value[0]->result_type() == STRING_RESULT &&
-          value[0]->data_type() == MYSQL_TYPE_JSON &&
-          !value[0]->basic_const_item()) {
+       */
+      if (!comparable_in_index(cond, field, Field::itRAW, cond->functype(),
+                               *value) ||
+          (field->cmp_type() == STRING_RESULT &&
+           field->match_collation_to_optimize_range() &&
+           field->charset() != cond->compare_collation())) {
         warn_index_not_applicable(stat->join()->thd, field, possible_keys);
         return false;
       }
