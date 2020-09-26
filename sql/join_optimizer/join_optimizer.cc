@@ -190,6 +190,7 @@ class CostingReceiver {
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge,
                        bool *wrote_trace);
+  void ApplyPredicatesForBaseTable(int node_idx, AccessPath *path);
   void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
                                        const AccessPath *left_path,
                                        const AccessPath *right_path,
@@ -240,26 +241,10 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   double cost = table->file->table_scan_cost().total_cost();
 
   table_path.num_output_rows_before_filter = num_output_rows;
+  table_path.init_cost = 0.0;
   table_path.cost_before_filter = cost;
 
-  // See which predicates that apply to this table. Some can be applied right
-  // away, some require other tables first and must be delayed.
-  const NodeMap my_map = TableBitmap(node_idx);
-  table_path.filter_predicates = 0;
-  table_path.delayed_predicates = 0;
-  for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
-    if (m_graph.predicates[i].total_eligibility_set == my_map) {
-      table_path.filter_predicates |= uint64_t{1} << i;
-      cost += num_output_rows * kApplyOneFilterCost;
-      num_output_rows *= m_graph.predicates[i].selectivity;
-    } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
-      table_path.delayed_predicates |= uint64_t{1} << i;
-    }
-  }
-
-  table_path.num_output_rows = num_output_rows;
-  table_path.init_cost = 0.0;
-  table_path.cost = cost;
+  ApplyPredicatesForBaseTable(node_idx, &table_path);
 
   if (m_trace != nullptr) {
     *m_trace += StringPrintf("Found node %s [rows=%.0f]\n",
@@ -348,6 +333,26 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
 
   ProposeAccessPathForNodes(TableBitmap(node_idx), table_path, "");
   return false;
+}
+
+// See which predicates that apply to this table. Some can be applied right
+// away, some require other tables first and must be delayed.
+void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
+                                                  AccessPath *path) {
+  const NodeMap my_map = TableBitmap(node_idx);
+  path->num_output_rows = path->num_output_rows_before_filter;
+  path->cost = path->cost_before_filter;
+  path->filter_predicates = 0;
+  path->delayed_predicates = 0;
+  for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
+    if (m_graph.predicates[i].total_eligibility_set == my_map) {
+      path->filter_predicates |= uint64_t{1} << i;
+      path->cost += path->num_output_rows * kApplyOneFilterCost;
+      path->num_output_rows *= m_graph.predicates[i].selectivity;
+    } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
+      path->delayed_predicates |= uint64_t{1} << i;
+    }
+  }
 }
 
 /**
