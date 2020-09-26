@@ -122,9 +122,10 @@
 using std::max;
 using std::min;
 
-static store_key *get_store_key(THD *thd, Key_use *keyuse,
-                                table_map used_tables, KEY_PART_INFO *key_part,
-                                uchar *key_buff, uint maybe_null);
+static store_key *get_store_key(THD *thd, Item *val, table_map used_tables,
+                                table_map const_tables,
+                                const KEY_PART_INFO *key_part, uchar *key_buff,
+                                uint maybe_null);
 static uint actual_key_flags(KEY *key_info);
 
 using Global_tables_iterator =
@@ -2220,6 +2221,83 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
   *keyparts_out = keyparts;
 }
 
+bool init_ref(THD *thd, unsigned keyparts, unsigned length, unsigned keyno,
+              TABLE_REF *ref) {
+  ref->key_parts = keyparts;
+  ref->key_length = length;
+  ref->key = keyno;
+  if (!(ref->key_buff = thd->mem_root->ArrayAlloc<uchar>(ALIGN_SIZE(length))) ||
+      !(ref->key_buff2 =
+            thd->mem_root->ArrayAlloc<uchar>(ALIGN_SIZE(length))) ||
+      !(ref->key_copy = thd->mem_root->ArrayAlloc<store_key *>(keyparts)) ||
+      !(ref->items = thd->mem_root->ArrayAlloc<Item *>(keyparts)) ||
+      !(ref->cond_guards = thd->mem_root->ArrayAlloc<bool *>(keyparts))) {
+    return true;
+  }
+  ref->key_err = true;
+  ref->null_rejecting = 0;
+  ref->use_count = 0;
+  ref->disable_cache = false;
+  return false;
+}
+
+bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
+                   bool null_rejecting, table_map const_tables,
+                   table_map used_tables, bool nullable,
+                   const KEY_PART_INFO *key_part_info, uchar *key_buff,
+                   TABLE_REF *ref) {
+  ref->items[part_no] = val;  // Save for cond removal
+  ref->cond_guards[part_no] = cond_guard;
+  // Set ref as "null rejecting" only if either side is really nullable:
+  if (null_rejecting && (nullable || val->maybe_null))
+    ref->null_rejecting |= (key_part_map)1 << part_no;
+
+  store_key *s_key = get_store_key(thd, val, used_tables, const_tables,
+                                   key_part_info, key_buff, nullable);
+  if (unlikely(!s_key || thd->is_error())) return true;
+
+  if (used_tables & ~INNER_TABLE_BIT) {
+    /* Comparing against a non-constant. */
+    ref->key_copy[part_no] = s_key;
+  } else {
+    /*
+      The outer reference is to a const table, so we copy the value
+      straight from that table now (during optimization), instead of from
+      the temporary table created during execution.
+
+      TODO: Synchronize with the temporary table creation code, so that
+      there is no need to create a column for this value.
+    */
+    bool dummy_value = false;
+    val->walk(&Item::repoint_const_outer_ref, enum_walk::PREFIX,
+              pointer_cast<uchar *>(&dummy_value));
+    /*
+      key is const, copy value now and possibly skip it while ::exec().
+
+      Note:
+        Result check of store_key::copy() is unnecessary,
+        it could be an error returned by store_key::copy() method
+        but stored value is not null and default value could be used
+        in this case. Methods which used for storing the value
+        should be responsible for proper null value setting
+        in case of an error. Thus it's enough to check s_key->null_key
+        value only.
+    */
+    (void)s_key->copy();
+    /*
+      It should be reevaluated in ::exec() if
+      constant evaluated to NULL value which we might need to
+      handle as a special case during JOIN::exec()
+      (As in : 'Full scan on NULL key')
+    */
+    if (s_key->null_key)
+      ref->key_copy[part_no] = s_key;  // Reevaluate in JOIN::exec()
+    else
+      ref->key_copy[part_no] = nullptr;
+  }
+  return false;
+}
+
 /**
   Setup a ref access for looking up rows via an index (a key).
 
@@ -2249,9 +2327,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables) {
   DBUG_TRACE;
 
-  Key_use *keyuse = org_keyuse;
-  const uint key = keyuse->key;
-  const bool ftkey = (keyuse->keypart == FT_KEYPART);
+  const uint key = org_keyuse->key;
+  const bool ftkey = (org_keyuse->keypart == FT_KEYPART);
   THD *const thd = join->thd;
   uint keyparts, length;
   TABLE *const table = j->table();
@@ -2262,38 +2339,25 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
   /* Calculate the length of the used key. */
   if (ftkey) {
-    Item_func_match *ifm = down_cast<Item_func_match *>(keyuse->val);
+    Item_func_match *ifm = down_cast<Item_func_match *>(org_keyuse->val);
 
     length = 0;
     keyparts = 1;
     ifm->get_master()->join_key = true;
   } else /* not ftkey */
-    calc_length_and_keyparts(keyuse, j, key, used_tables, chosen_keyuses,
+    calc_length_and_keyparts(org_keyuse, j, key, used_tables, chosen_keyuses,
                              &length, &keyparts, nullptr, nullptr);
   /* set up fieldref */
-  j->ref().key_parts = keyparts;
-  j->ref().key_length = length;
-  j->ref().key = (int)key;
-  if (!(j->ref().key_buff = (uchar *)thd->mem_calloc(ALIGN_SIZE(length) * 2)) ||
-      !(j->ref().key_copy =
-            (store_key **)thd->alloc((sizeof(store_key *) * (keyparts)))) ||
-      !(j->ref().items = (Item **)thd->alloc(sizeof(Item *) * keyparts)) ||
-      !(j->ref().cond_guards =
-            (bool **)thd->alloc(sizeof(uint *) * keyparts))) {
+  if (init_ref(thd, keyparts, length, (int)key, &j->ref())) {
     return true;
   }
-  j->ref().key_buff2 = j->ref().key_buff + ALIGN_SIZE(length);
-  j->ref().key_err = true;
-  j->ref().null_rejecting = 0;
-  j->ref().use_count = 0;
-  j->ref().disable_cache = false;
-  keyuse = org_keyuse;
 
   uchar *key_buff = j->ref().key_buff;
   uchar *null_ref_key = nullptr;
   bool keyuse_uses_no_tables = true;
   bool null_rejecting_key = true;
   if (ftkey) {
+    Key_use *keyuse = org_keyuse;
     j->ref().items[0] = ((Item_func *)(keyuse->val))->key_item();
     /* Predicates pushed down into subquery can't be used FT access */
     j->ref().cond_guards[0] = nullptr;
@@ -2308,7 +2372,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   }
   // Set up TABLE_REF based on chosen Key_use-s.
   for (uint part_no = 0; part_no < keyparts; part_no++) {
-    keyuse = chosen_keyuses[part_no];
+    Key_use *keyuse = chosen_keyuses[part_no];
     bool nullable = keyinfo->key_part[part_no].null_bit;
 
     if (keyuse->val->type() == Item::FIELD_ITEM) {
@@ -2317,57 +2381,16 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                                    join->cond_equal);
       keyuse->used_tables = keyuse->val->used_tables();
     }
-    j->ref().items[part_no] = keyuse->val;  // Save for cond removal
-    j->ref().cond_guards[part_no] = keyuse->cond_guard;
-    // Set ref as "null rejecting" only if either side is really nullable:
-    if (keyuse->null_rejecting && (nullable || keyuse->val->maybe_null))
-      j->ref().null_rejecting |= (key_part_map)1 << part_no;
+
+    if (init_ref_part(thd, part_no, keyuse->val, keyuse->cond_guard,
+                      keyuse->null_rejecting, join->const_table_map,
+                      keyuse->used_tables, nullable,
+                      &keyinfo->key_part[part_no], key_buff, &j->ref())) {
+      return true;
+    }
+
     keyuse_uses_no_tables = keyuse_uses_no_tables && !keyuse->used_tables;
 
-    store_key *s_key =
-        get_store_key(thd, keyuse, join->const_table_map,
-                      &keyinfo->key_part[part_no], key_buff, nullable);
-    if (unlikely(!s_key || thd->is_error())) return true;
-
-    if (keyuse->used_tables & ~INNER_TABLE_BIT) {
-      /* Comparing against a non-constant. */
-      j->ref().key_copy[part_no] = s_key;
-    } else {
-      /*
-        The outer reference is to a const table, so we copy the value
-        straight from that table now (during optimization), instead of from
-        the temporary table created during execution.
-
-        TODO: Synchronize with the temporary table creation code, so that
-        there is no need to create a column for this value.
-      */
-      bool dummy_value = false;
-      keyuse->val->walk(&Item::repoint_const_outer_ref, enum_walk::PREFIX,
-                        pointer_cast<uchar *>(&dummy_value));
-      /*
-        key is const, copy value now and possibly skip it while ::exec().
-
-        Note:
-          Result check of store_key::copy() is unnecessary,
-          it could be an error returned by store_key::copy() method
-          but stored value is not null and default value could be used
-          in this case. Methods which used for storing the value
-          should be responsible for proper null value setting
-          in case of an error. Thus it's enough to check s_key->null_key
-          value only.
-      */
-      (void)s_key->copy();
-      /*
-        It should be reevaluated in ::exec() if
-        constant evaluated to NULL value which we might need to
-        handle as a special case during JOIN::exec()
-        (As in : 'Full scan on NULL key')
-      */
-      if (s_key->null_key)
-        j->ref().key_copy[part_no] = s_key;  // Reevaluate in JOIN::exec()
-      else
-        j->ref().key_copy[part_no] = nullptr;
-    }
     /*
       Remember if we are going to use REF_OR_NULL
       But only if field _really_ can be null i.e. we force JT_REF
@@ -2495,41 +2518,42 @@ class store_key_json_item final : public store_key_item {
 
 }  // namespace
 
-static store_key *get_store_key(THD *thd, Key_use *keyuse,
-                                table_map used_tables, KEY_PART_INFO *key_part,
-                                uchar *key_buff, uint maybe_null) {
+static store_key *get_store_key(THD *thd, Item *val, table_map used_tables,
+                                table_map const_tables,
+                                const KEY_PART_INFO *key_part, uchar *key_buff,
+                                uint maybe_null) {
   if (key_part->field->is_array()) {
-    return new (thd->mem_root) store_key_json_item(
-        thd, key_part->field, key_buff + maybe_null,
-        maybe_null ? key_buff : nullptr, key_part->length, keyuse->val,
-        (!((~used_tables) & keyuse->used_tables)));
+    return new (thd->mem_root)
+        store_key_json_item(thd, key_part->field, key_buff + maybe_null,
+                            maybe_null ? key_buff : nullptr, key_part->length,
+                            val, (!((~const_tables) & used_tables)));
   }
-  if (!((~used_tables) & keyuse->used_tables))  // if const item
+  if (!((~const_tables) & used_tables))  // if const item
   {
     return new (thd->mem_root) store_key_const_item(
         thd, key_part->field, key_buff + maybe_null,
-        maybe_null ? key_buff : nullptr, key_part->length, keyuse->val);
+        maybe_null ? key_buff : nullptr, key_part->length, val);
   }
 
   Item_field *field_item = nullptr;
-  if (keyuse->val->type() == Item::FIELD_ITEM)
-    field_item = static_cast<Item_field *>(keyuse->val->real_item());
-  else if (keyuse->val->type() == Item::REF_ITEM) {
-    Item_ref *item_ref = static_cast<Item_ref *>(keyuse->val);
+  if (val->type() == Item::FIELD_ITEM)
+    field_item = down_cast<Item_field *>(val->real_item());
+  else if (val->type() == Item::REF_ITEM) {
+    Item_ref *item_ref = down_cast<Item_ref *>(val);
     if (item_ref->ref_type() == Item_ref::OUTER_REF) {
       if ((*item_ref->ref)->type() == Item::FIELD_ITEM)
-        field_item = static_cast<Item_field *>(item_ref->real_item());
+        field_item = down_cast<Item_field *>(item_ref->real_item());
     }
   }
   if (field_item)
     return new (thd->mem_root)
         store_key_field(thd, key_part->field, key_buff + maybe_null,
                         maybe_null ? key_buff : nullptr, key_part->length,
-                        field_item->field, keyuse->val->full_name());
+                        field_item->field, val->full_name());
 
-  return new (thd->mem_root) store_key_item(
-      thd, key_part->field, key_buff + maybe_null,
-      maybe_null ? key_buff : nullptr, key_part->length, keyuse->val);
+  return new (thd->mem_root)
+      store_key_item(thd, key_part->field, key_buff + maybe_null,
+                     maybe_null ? key_buff : nullptr, key_part->length, val);
 }
 
 store_key::store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null,

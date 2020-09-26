@@ -949,6 +949,25 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
                               table_map *dep_map, bool *maybe_null);
 
 /**
+  Initialize the given TABLE_REF; setting basic fields and allocating memory
+  for arrays. Call init_ref_part() for each keypart (index field) that is to
+  take part in the ref lookup.
+ */
+bool init_ref(THD *thd, unsigned keyparts, unsigned length, unsigned keyno,
+              TABLE_REF *ref);
+
+/**
+  Initialize a given keypart in the table ref. In particular, sets up the
+  right function pointer to copy the value from “val” into the ref at
+  execution time (or copies the value right now, if it is constant).
+ */
+bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
+                   bool null_rejecting, table_map const_tables,
+                   table_map used_tables, bool nullable,
+                   const KEY_PART_INFO *key_part_info, uchar *key_buff,
+                   TABLE_REF *ref);
+
+/**
   Set up the support structures (NULL bits, row offsets, etc.) for a semijoin
   duplicate weedout table. The object is allocated on the given THD's MEM_ROOT.
 
