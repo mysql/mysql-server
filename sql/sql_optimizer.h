@@ -1149,4 +1149,12 @@ Item_equal *find_item_equal(COND_EQUAL *cond_equal,
 double find_worst_seeks(const Cost_model_table *cost_model, double num_rows,
                         double table_scan_cost);
 
+/**
+  Whether a ref lookup of “right_item” on “field” will give an exact
+  comparison in all cases, ie., one can remove any further checks on
+  field = right_item. If not, there may be false positives, and one
+  needs to keep the comparison after the ref lookup.
+ */
+bool ref_lookup_subsumes_comparison(Field *field, Item *right_item);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */

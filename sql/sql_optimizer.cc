@@ -8611,6 +8611,54 @@ static Item *part_of_refkey(TABLE *table, TABLE_REF *ref, const Field *field) {
   return nullptr;
 }
 
+bool ref_lookup_subsumes_comparison(Field *field, Item *right_item) {
+  right_item = right_item->real_item();
+  if (right_item->type() == Item::FIELD_ITEM)
+    return (field->eq_def(down_cast<Item_field *>(right_item)->field));
+  /* remove equalities injected by IN->EXISTS transformation */
+  else if (right_item->type() == Item::CACHE_ITEM)
+    return down_cast<Item_cache *>(right_item)->eq_def(field);
+  if (right_item->const_for_execution() && !right_item->is_null()) {
+    /*
+      We can remove all fields except:
+      1. String data types:
+       - For BINARY/VARBINARY fields with equality against a
+         string: Ref access can return more rows than match the
+         string. The reason seems to be that the string constant
+         is not "padded" to the full length of the field when
+         setting up ref access. @todo Change how ref access for
+         BINARY/VARBINARY fields are done so that only qualifying
+         rows are returned from the storage engine.
+      2. Float data type: Comparison of float can differ
+       - When we search "WHERE field=value" using an index,
+         the "value" side is converted from double to float by
+         Field_float::store(), then two floats are compared.
+       - When we search "WHERE field=value" without indexes,
+         the "field" side is converted from float to double by
+         Field_float::val_real(), then two doubles are compared.
+    */
+    if (field->type() == MYSQL_TYPE_STRING &&
+        field->charset()->pad_attribute == NO_PAD) {
+      /*
+        For "NO PAD" collations on CHAR columns, this function must return
+        false, because removal of trailing space in CHAR columns makes the
+        table value and the index value compare differently. As the column
+        strips trailing spaces, it can return false candidates. Further
+        comparison of the actual table values is required.
+       */
+      return false;
+    }
+    if (!((field->type() == MYSQL_TYPE_STRING ||  // 1
+           field->type() == MYSQL_TYPE_VARCHAR) &&
+          field->binary()) &&
+        !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
+    {
+      return !right_item->save_in_field_no_warnings(field, true);
+    }
+  }
+  return false;
+}
+
 /**
   @brief
   Identify redundant predicates.
@@ -8646,52 +8694,8 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
       /* "ref_or_null" implements "x=y or x is null", not "x=y" */
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
-    if (ref_item && ref_item->eq(right_item, true)) {
-      right_item = right_item->real_item();
-      if (right_item->type() == Item::FIELD_ITEM)
-        return (field->eq_def(down_cast<Item_field *>(right_item)->field));
-      /* remove equalities injected by IN->EXISTS transformation */
-      else if (right_item->type() == Item::CACHE_ITEM)
-        return down_cast<Item_cache *>(right_item)->eq_def(field);
-      if (right_item->const_for_execution() && !(right_item->is_null())) {
-        /*
-          We can remove all fields except:
-          1. String data types:
-           - For BINARY/VARBINARY fields with equality against a
-             string: Ref access can return more rows than match the
-             string. The reason seems to be that the string constant
-             is not "padded" to the full length of the field when
-             setting up ref access. @todo Change how ref access for
-             BINARY/VARBINARY fields are done so that only qualifying
-             rows are returned from the storage engine.
-          2. Float data type: Comparison of float can differ
-           - When we search "WHERE field=value" using an index,
-             the "value" side is converted from double to float by
-             Field_float::store(), then two floats are compared.
-           - When we search "WHERE field=value" without indexes,
-             the "field" side is converted from float to double by
-             Field_float::val_real(), then two doubles are compared.
-        */
-        if (field->type() == MYSQL_TYPE_STRING &&
-            field->charset()->pad_attribute == NO_PAD) {
-          /*
-            For "NO PAD" collations on CHAR columns, this function must return
-            false, because removal of trailing space in CHAR columns makes the
-            table value and the index value compare differently. As the column
-            strips trailing spaces, it can return false candidates. Further
-            comparison of the actual table values is required.
-           */
-          return false;
-        }
-        if (!((field->type() == MYSQL_TYPE_STRING ||  // 1
-               field->type() == MYSQL_TYPE_VARCHAR) &&
-              field->binary()) &&
-            !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
-        {
-          return !right_item->save_in_field_no_warnings(field, true);
-        }
-      }
-    }
+    return (ref_item && ref_item->eq(right_item, true) &&
+            ref_lookup_subsumes_comparison(field, right_item));
   }
   return false;  // keep predicate
 }
