@@ -238,7 +238,8 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
 
 /**
   Find the cost for a ref lookup on the given index, assumed to return
-  “num_rows” rows. The cost will be capped by “worst_seeks”.
+  “num_rows” rows. The cost will be capped by “worst_seeks”
+  (see find_worst_seeks()).
  */
 double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
                          double num_rows, double worst_seeks);

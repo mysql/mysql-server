@@ -1140,4 +1140,13 @@ bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal,
                             const Item_field *item_field, bool *inherited_fl);
 
+/**
+  Find an artificial cap for ref access. This is mostly a crutch to mitigate
+  that we don't estimate the cache effects of ref accesses properly
+  (ie., normally, if we do many, they will hit cache instead of being
+  separate seeks). Given to find_cost_for_ref().
+ */
+double find_worst_seeks(const Cost_model_table *cost_model, double num_rows,
+                        double table_scan_cost);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */

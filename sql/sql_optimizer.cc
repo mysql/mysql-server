@@ -5545,6 +5545,19 @@ void JOIN::update_sargable_from_const(SARGABLE_PARAM *sargables) {
   }
 }
 
+double find_worst_seeks(const Cost_model_table *cost_model, double num_rows,
+                        double table_scan_cost) {
+  /*
+    Set a max value for the cost of seek operations we can expect
+    when using key lookup. This can't be too high as otherwise we
+    are likely to use table scan.
+  */
+  double worst_seeks =
+      min(cost_model->page_read_cost(num_rows / 10), table_scan_cost * 3);
+  const double min_worst_seek = cost_model->page_read_cost(2.0);
+  return std::max(worst_seeks, min_worst_seek);  // Fix for small tables
+}
+
 /**
   Estimate the number of matched rows for each joined table.
   Set up range scan for tables that have proper predicates.
@@ -5580,17 +5593,8 @@ bool JOIN::estimate_rowcount() {
     const Cost_estimate table_scan_time = tab->table()->file->table_scan_cost();
     tab->read_time = table_scan_time.total_cost();
 
-    /*
-      Set a max value for the cost of seek operations we can expect
-      when using key lookup. This can't be too high as otherwise we
-      are likely to use table scan.
-    */
     tab->worst_seeks =
-        min(cost_model->page_read_cost((double)tab->found_records / 10),
-            tab->read_time * 3);
-    const double min_worst_seek = cost_model->page_read_cost(2.0);
-    if (tab->worst_seeks < min_worst_seek)  // Fix for small tables
-      tab->worst_seeks = min_worst_seek;
+        find_worst_seeks(cost_model, tab->found_records, tab->read_time);
 
     /*
       Add to tab->const_keys the indexes for which all group fields or
