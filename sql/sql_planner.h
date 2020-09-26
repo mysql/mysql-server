@@ -39,6 +39,7 @@ class JOIN_TAB;
 class Key_use;
 class Opt_trace_object;
 class THD;
+struct TABLE;
 struct TABLE_LIST;
 struct POSITION;
 
@@ -234,6 +235,13 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
                                  table_map used_tables, double fanout,
                                  bool is_join_buffering, bool write_to_trace,
                                  Opt_trace_object &parent_trace);
+
+/**
+  Find the cost for a ref lookup on the given index, assumed to return
+  “num_rows” rows. The cost will be capped by “worst_seeks”.
+ */
+double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
+                         double num_rows, double worst_seeks);
 
 class Join_tab_compare_default {
  public:

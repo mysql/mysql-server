@@ -130,6 +130,24 @@ Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
       found_plan_with_allowed_sj(false),
       got_final_plan(false) {}
 
+double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
+                         double num_rows, double worst_seeks) {
+  // Limit the number of matched rows
+  num_rows = std::min(num_rows, double(thd->variables.max_seeks_for_key));
+  if (table->covering_keys.is_set(keyno)) {
+    // We can use only index tree
+    const Cost_estimate index_read_cost =
+        table->file->index_scan_cost(keyno, 1, num_rows);
+    return index_read_cost.total_cost();
+  } else if (keyno == table->s->primary_key &&
+             table->file->primary_key_is_clustered()) {
+    const Cost_estimate table_read_cost =
+        table->file->read_cost(keyno, 1, num_rows);
+    return table_read_cost.total_cost();
+  } else
+    return min(table->cost_model()->page_read_cost(num_rows), worst_seeks);
+}
+
 /**
   Find the best index to do 'ref' access on for a table.
 
@@ -445,23 +463,9 @@ Key_use *Optimize_table_order::find_best_ref(
               cur_fanout = (double)table->quick_rows[key];
             }
           }
-          // Limit the number of matched rows
-          const double tmp_fanout =
-              min(cur_fanout, (double)thd->variables.max_seeks_for_key);
-          if (table->covering_keys.is_set(key)) {
-            // We can use only index tree
-            const Cost_estimate index_read_cost =
-                table->file->index_scan_cost(key, 1, tmp_fanout);
-            cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
-          } else if (key == table->s->primary_key &&
-                     table->file->primary_key_is_clustered()) {
-            const Cost_estimate table_read_cost =
-                table->file->read_cost(key, 1, tmp_fanout);
-            cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
-          } else
-            cur_read_cost = prefix_rowcount *
-                            min(table->cost_model()->page_read_cost(tmp_fanout),
-                                tab->worst_seeks);
+          cur_read_cost =
+              prefix_rowcount *
+              find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
         }
       } else if ((found_part & 1) &&
                  (!(table->file->index_flags(key, 0, false) &
@@ -514,13 +518,12 @@ Key_use *Optimize_table_order::find_best_ref(
 
           (C3) "range optimizer used (have ref_or_null?2:1) intervals"
         */
-        double tmp_fanout = 0.0;
         if (table->quick_keys.is_set(key) && !table_deps &&      //(C1)
             table->quick_key_parts[key] == cur_used_keyparts &&  //(C2)
             table->quick_n_ranges[key] ==
                 1 + (ref_or_null_part ? 1 : 0))  //(C3)
         {
-          tmp_fanout = cur_fanout = (double)table->quick_rows[key];
+          cur_fanout = (double)table->quick_rows[key];
         } else {
           // Check if we have statistic about the distribution
           if (keyinfo->has_records_per_key(cur_used_keyparts - 1)) {
@@ -555,8 +558,6 @@ Key_use *Optimize_table_order::find_best_ref(
                   .add_alnum("cause", "range_uses_more_keyparts");
               continue;
             }
-
-            tmp_fanout = cur_fanout;
           } else {
             /*
               Assume that the first key part matches 1% of the file
@@ -581,6 +582,7 @@ Key_use *Optimize_table_order::find_best_ref(
               rec_per_key =
                   rec_per_key_t(tab->records()) / distinct_keys_est + 1;
 
+            double tmp_fanout;
             if (tab->records() == 0)
               tmp_fanout = 0.0;
             else if (rec_per_key / tab->records() >= 0.01)
@@ -601,7 +603,6 @@ Key_use *Optimize_table_order::find_best_ref(
 
           if (ref_or_null_part) {
             // We need to do two key searches to find key
-            tmp_fanout *= 2.0;
             cur_fanout *= 2.0;
           }
 
@@ -623,27 +624,14 @@ Key_use *Optimize_table_order::find_best_ref(
               table->quick_n_ranges[key] ==
                   1 + ((ref_or_null_part & const_part) ? 1 : 0) &&
               cur_fanout > (double)table->quick_rows[key]) {
-            tmp_fanout = cur_fanout = (double)table->quick_rows[key];
+            cur_fanout = (double)table->quick_rows[key];
           }
         }
 
-        // Limit the number of matched rows
-        tmp_fanout =
-            std::min(tmp_fanout, double(thd->variables.max_seeks_for_key));
-        if (table->covering_keys.is_set(key)) {
-          // We can use only index tree
-          const Cost_estimate index_read_cost =
-              table->file->index_scan_cost(key, 1, tmp_fanout);
-          cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
-        } else if (key == table->s->primary_key &&
-                   table->file->primary_key_is_clustered()) {
-          const Cost_estimate table_read_cost =
-              table->file->read_cost(key, 1, tmp_fanout);
-          cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
-        } else
-          cur_read_cost = prefix_rowcount *
-                          min(table->cost_model()->page_read_cost(tmp_fanout),
-                              tab->worst_seeks);
+        cur_read_cost =
+            prefix_rowcount *
+            find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
+
       } else {
         // No useful predicates on the first keypart; cannot use key
         trace_access_idx.add("usable", false).add("chosen", false);
