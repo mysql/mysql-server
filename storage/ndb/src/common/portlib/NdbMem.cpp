@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -208,6 +208,24 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
     ret = madvise(ptr, len, MADV_DODUMP);
     if (ret == -1)
     {
+#ifdef __sun
+      if (errno == EINVAL)
+      {
+        /*
+         * Assume reservation of space was done without MADV_DONTDUMP too.
+         * Probably not using NdbMem_ReserveSpace but by calling mmap in some
+         * other way.
+         * In that case all memory is dumped anyway.
+         *
+         * This was a problem when compiling on a newer Solaris supporting
+         * MADV_DONTDUMP and MADV_DODUMP and then running on an older Solaris
+         * not supporting these.
+         */
+        errno = 0;
+        return 0;
+      }
+#endif
+      /* Unexpected failure, make memory unaccessible again. */
       (void) mprotect(ptr, len, PROT_NONE);
     }
 #endif
