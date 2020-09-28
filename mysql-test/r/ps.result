@@ -2090,9 +2090,17 @@ ERROR HY000: Unknown thread id: 0
 deallocate prepare abc;
 create procedure proc_1() flush hosts;
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 call proc_1();
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 create function func_1() returns int begin flush hosts; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function func_1() returns int begin call proc_1(); return 1; end|
@@ -2102,8 +2110,14 @@ drop function func_1;
 drop procedure proc_1;
 prepare abc from "flush hosts";
 execute abc;
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 execute abc;
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 execute abc;
+Warnings:
+Warning	1287	'FLUSH HOSTS' is deprecated and will be removed in a future release. Please use TRUNCATE TABLE performance_schema.host_cache instead
 deallocate prepare abc;
 create procedure proc_1() flush privileges;
 call proc_1();

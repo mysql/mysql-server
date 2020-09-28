@@ -3875,7 +3875,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       // Fall through.
     case SQLCOM_FLUSH: {
       int write_to_binlog;
-      if (check_global_access(thd, RELOAD_ACL)) goto error;
+      if (is_reload_request_denied(thd, lex->type)) goto error;
 
       if (first_table && lex->type & REFRESH_READ_LOCK) {
         /* Check table-level privileges. */

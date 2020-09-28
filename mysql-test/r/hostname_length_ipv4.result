@@ -4,7 +4,7 @@ call mtr.add_suppression("192.0.2.4");
 
 # Enforce a clean state
 flush status;
-flush hosts;
+TRUNCATE TABLE performance_schema.host_cache;
 flush user_resources;
 flush privileges;
 select @@global.debug;

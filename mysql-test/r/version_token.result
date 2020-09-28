@@ -276,6 +276,10 @@ Drop role	Server Admin	To drop roles
 ENCRYPTION_KEY_ADMIN	Server Admin	
 Event	Server Admin	To create, alter, drop and execute events
 Execute	Functions,Procedures	To execute stored routines
+FLUSH_OPTIMIZER_COSTS	Server Admin	
+FLUSH_STATUS	Server Admin	
+FLUSH_TABLES	Server Admin	
+FLUSH_USER_RESOURCES	Server Admin	
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess

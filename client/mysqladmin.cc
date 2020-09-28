@@ -961,7 +961,9 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         break;
       }
       case ADMIN_FLUSH_HOSTS: {
-        if (mysql_query(mysql, "flush hosts")) {
+        if (mysql_query(mysql,
+                        "TRUNCATE TABLE performance_schema.host_cache") &&
+            mysql_query(mysql, "flush hosts")) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
           return -1;

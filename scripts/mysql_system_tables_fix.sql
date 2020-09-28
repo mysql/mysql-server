@@ -1340,4 +1340,37 @@ ALTER TABLE user ROW_FORMAT=DYNAMIC;
 INSERT IGNORE INTO global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
   VALUES ('mysql.infoschema','localhost','SYSTEM_USER','N');
 
+
+-- Add the privilege FLUSH_OPTIMIZER_COSTS for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_OPTIMIZER_COSTS
+SET @hadFlushOptimizerCostsPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_OPTIMIZER_COSTS');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_OPTIMIZER_COSTS', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushOptimizerCostsPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_STATUS for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_STATUS
+SET @hadFlushStatusPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_STATUS');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_STATUS', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushStatusPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_USER_RESOURCES for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_USER_RESOURCES
+SET @hadFlushUserResourcesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_USER_RESOURCES');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_USER_RESOURCES', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushUserResourcesPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_TABLES for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_TABLES
+SET @hadFlushTablesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_TABLES');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_TABLES', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushTablesPriv = 0;
+COMMIT;
+
 SET @@session.sql_mode = @old_sql_mode;
