@@ -7540,6 +7540,7 @@ Options to control what engine/variation to run
                         Use fixed config template for all tests.
   explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT, INSERT,
                         REPLACE, UPDATE and DELETE queries.
+  hypergraph            Set the 'hypergraph_optimizer=on' optimizer switch.
   json-explain-protocol Run 'EXPLAIN FORMAT=JSON' on all SELECT, INSERT,
                         REPLACE, UPDATE and DELETE queries.
   opt-trace-protocol    Print optimizer trace.
