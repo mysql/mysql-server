@@ -462,10 +462,14 @@ Configuration::setupConfiguration(){
   const char * thrconfigstring = nullptr;
   Uint32 mtthreads = 0;
   Uint32 auto_thread_config = 0;
+  Uint32 num_cpus = 0;
   iter.get(CFG_DB_AUTO_THREAD_CONFIG, &auto_thread_config);
+  iter.get(CFG_DB_NUM_CPUS, &num_cpus);
+  g_eventLogger->info("AutomaticThreadConfig = %u, NumCPUs = %u", auto_thread_config, num_cpus);
   iter.get(CFG_DB_MT_THREADS, &mtthreads);
   iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring);
-  if (thrconfigstring != nullptr && thrconfigstring[0] != 0)
+  if (auto_thread_config == 0 &&
+      thrconfigstring != nullptr && thrconfigstring[0] != 0)
   {
     int res = m_thr_config.do_parse(thrconfigstring,
                                     _realtimeScheduler,

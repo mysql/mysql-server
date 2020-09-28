@@ -354,16 +354,14 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
         (RedoCacheLogPageRecord*)&logPartPtr.p->logPageRecord[0],
         clogPageFileSize/clogPartFileSize);
       logPartPtr.p->m_redo_page_cache.m_hash.setSize(1023);
-      logPartPtr.p->m_redo_page_cache.m_first_page = 0;;
+      logPartPtr.p->m_redo_page_cache.m_first_page = 0;
+
+      const Uint32 * base = (Uint32*)logPartPtr.p->logPageRecord;
+      const RedoCacheLogPageRecord* tmp1 =
+        (RedoCacheLogPageRecord*)logPartPtr.p->logPageRecord;
+      ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
+      ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
     }
-
-
-    const Uint32 * base = (Uint32*)logPartPtr.p->logPageRecord;
-    const RedoCacheLogPageRecord* tmp1 =
-      (RedoCacheLogPageRecord*)logPartPtr.p->logPageRecord;
-    ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
-    ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
-
     m_redo_open_file_cache.m_pool.set(logFileRecord, clogFileFileSize);
 
     pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
