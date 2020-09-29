@@ -542,9 +542,9 @@ int SortingIterator::DoSort() {
                             MYF(MY_WME | MY_ZEROFILL));
 
   ha_rows found_rows;
-  bool error = filesort(thd(), m_filesort, m_source_iterator.get(),
-                        m_tables_to_get_rowid_for, m_num_rows_estimate,
-                        &m_fs_info, &m_sort_result, &found_rows);
+  bool error = ::filesort(thd(), m_filesort, m_source_iterator.get(),
+                          m_tables_to_get_rowid_for, m_num_rows_estimate,
+                          &m_fs_info, &m_sort_result, &found_rows);
   for (TABLE *table : m_filesort->tables) {
     table->set_keyread(false);  // Restore if we used indexes
   }

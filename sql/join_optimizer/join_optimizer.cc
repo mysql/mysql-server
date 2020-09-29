@@ -53,6 +53,7 @@
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/mem_root_array.h"
 #include "sql/query_options.h"
 #include "sql/sql_class.h"
@@ -672,6 +673,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   if (CheckSupportedQuery(thd, join)) return nullptr;
 
   assert(join->temp_tables.empty());
+  assert(join->sorting_paths.empty());
 
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root);
@@ -850,6 +852,16 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   join->best_rowcount = lrint(root_path->num_output_rows);
   join->best_read = root_path->cost;
+
+  // Find any sorts that may have been added, and add them so that we are
+  // sure to clean up their buffers after execution.
+  WalkAccessPaths(root_path, join, /*cross_query_blocks=*/false,
+                  [join](AccessPath *path) {
+                    if (path->type == AccessPath::SORT) {
+                      join->sorting_paths.push_back(path);
+                    }
+                    return false;
+                  });
 
   // 0 or 1 rows has a special meaning; it means a _guarantee_ we have no more
   // than one (so-called “const tables”). Make sure we don't give that guarantee

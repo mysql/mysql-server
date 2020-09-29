@@ -73,6 +73,7 @@
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/json_dom.h"
 #include "sql/key.h"  // key_copy, key_cmp, key_cmp_if_same
@@ -92,6 +93,7 @@
 #include "sql/query_result.h"
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
+#include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -1839,7 +1841,16 @@ void JOIN::destroy() {
       free_tmp_table(cleanup.table);
       ::destroy(cleanup.temp_table_param);
     }
+    for (AccessPath *sorting_path : sorting_paths) {
+      if (sorting_path->iterator != nullptr) {
+        SortingIterator *iterator = down_cast<SortingIterator *>(
+            sorting_path->iterator->real_iterator());
+        ::destroy(iterator->filesort());
+        ::destroy(iterator);
+      }
+    }
     temp_tables.clear();
+    sorting_paths.clear();
   }
   if (join_tab || best_ref) {
     for (uint i = 0; i < tables; i++) {
