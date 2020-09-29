@@ -331,7 +331,7 @@ ANALYZE TABLE t1, t2;
 let $query =
 SELECT (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
                               SELECT a+1 FROM dt WHERE a<10)
-        SELECT t1.a * CONCAT(COUNT(*), ' - ', AVG(dt.a))
+        SELECT t1.a * CONCAT(COUNT(*), '.', FLOOR(AVG(dt.a)))
         FROM dt) AS subq
 FROM t1;
 eval $query;
@@ -345,7 +345,7 @@ FROM t1
      LEFT JOIN LATERAL (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
                                               SELECT (dt.a + 1)
                                               FROM dt WHERE dt.a < 10)
-                        SELECT t1.a * CONCAT(COUNT(0), ' - ', AVG(dt.a)) AS cnct
+                        SELECT t1.a * CONCAT(COUNT(0), '.', FLOOR(AVG(dt.a))) AS cnct
                         FROM dt) derived0
      ON TRUE;
 --sorted_result

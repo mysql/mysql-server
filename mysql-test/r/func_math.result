@@ -700,6 +700,9 @@ SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
 as foo;
 foo
 2
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '53064635.445796e3130837'
+Warning	1292	Truncated incorrect DOUBLE value: '179,769,313,486,231,570,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,'
 #
 # Bug #58137 char(0) column cause:
 #            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
@@ -907,6 +910,8 @@ SET sql_mode=default;
 # Bug#19047527 SQRT() : UNINITIALISED VALUE IN MY_STRTOD
 #
 do sqrt(weight_string(_eucjpms "0E+"));
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '0E+'
 #
 # Bug#21279005 - ROUND FUNCTION INCORRECT IN WHERE-CLAUSE
 #                USING LOCAL VARIABLE

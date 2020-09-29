@@ -573,6 +573,7 @@ LINESTRING(10 10,20 20,30 30)	LINESTRING(10 10,20 20,30 30)
 #check DELETE stmt with Where clause and a constant predicate
 DELETE FROM tab
 Where c8=c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
+ERROR 22007: Truncated incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x07\x00\x00\x00\x02\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF'
 #check the data, should 0
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -613,12 +614,25 @@ COUNT(ST_AsText(g))
 SELECT SUM(ST_AsText(g)) FROM gis_point;
 SUM(ST_AsText(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(10 10)'
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(20 10)'
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(20 20)'
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(10 20)'
 SELECT SUM(ST_AsText(g)) FROM gis_line;
 SUM(ST_AsText(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING(0 0,0 10,10 0)'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING(10 10,20 10,20 20,10 20,10 10)'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING(10 10,40 10)'
 SELECT AVG(ST_AsText(g)) FROM gis_polygon;
 AVG(ST_AsText(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON((10 10,20 10,20 20,10 20,10 10))'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON((0 0,30 0,30 30,0 0))'
 #here it show some string value no meaning
 SELECT MAX(ST_AsText(g)) FROM gis_multi_point;
 MAX(ST_AsText(g))
@@ -630,12 +644,39 @@ MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))
 SELECT STD(ST_AsText(g)) FROM gis_multi_polygon;
 STD(ST_AsText(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON(((0 3,3 3,3 0,0 3)))'
 SELECT COUNT(ST_AsText(g)) FROM gis_geometrycollection;
 COUNT(ST_AsText(g))
 3
 SELECT AVG(ST_AsText(g)) FROM gis_geometry;
 AVG(ST_AsText(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(10 10)'
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(20 10)'
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(20 20)'
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT(10 20)'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING(0 0,0 10,10 0)'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING(10 10,20 10,20 20,10 20,10 10)'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING(10 10,40 10)'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON((10 10,20 10,20 20,10 20,10 10))'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON((0 0,50 0,50 50,0 50,0 0),(10 10,20 10,20 20,10 20,10 10))'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON((0 0,30 0,30 30,0 0))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOINT((0 0),(10 10),(10 20),(20 20))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOINT((1 1),(11 11),(11 21),(21 21))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOINT((3 6),(4 10))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTILINESTRING((10 48,10 21,10 0))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTILINESTRING((1 2,3 5),(2 5,5 8,21 7))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON(((0 3,3 3,3 0,0 3)))'
+Warning	1292	Truncated incorrect DOUBLE value: 'GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(0 0,10 10))'
+Warning	1292	Truncated incorrect DOUBLE value: 'GEOMETRYCOLLECTION(POINT(10 10),LINESTRING(10 10,20 20))'
+Warning	1292	Truncated incorrect DOUBLE value: 'GEOMETRYCOLLECTION(POINT(44 6),LINESTRING(3 6,7 9))'
 #check Datatypes with compression tables
 CREATE TABLE tab3(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
 c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB

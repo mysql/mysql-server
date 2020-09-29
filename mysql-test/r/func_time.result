@@ -137,6 +137,8 @@ Saturday	5
 select monthname("1972-03-04"),monthname("1972-03-04")+0;
 monthname("1972-03-04")	monthname("1972-03-04")+0
 March	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'March'
 select time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
 time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T')
 00|12|0|12|00|AM|12:00:00 AM|00|00:00:00

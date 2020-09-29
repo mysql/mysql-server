@@ -1087,6 +1087,8 @@ Warning	1292	Truncated incorrect DOUBLE value: 'notnumber'
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 str	num
 notnumber	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'notnum'
 DROP TABLE t1,t2;
 CREATE TABLE t1(
 id int(11) NOT NULL auto_increment,
@@ -5111,6 +5113,7 @@ Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - 
 do ((repeat(1,9223372036854775808))or(convert((0x6d5b5d8d)using dec8)));
 Warnings:
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+Warning	1292	Truncated incorrect DOUBLE value: 'm[]'
 set sql_mode=default;
 #
 # Bug #30114420 ASSERTION `CURRENT_THD->IS_ERROR()'
@@ -5203,3 +5206,34 @@ DROP TABLE t1;
 SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');
 INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687')
 中文
+#
+# Bug #21943299 FAILED CAST OF STRING-RETURNING FUNCTION TO DOUBLE
+#               EMITS NO WARNING
+SELECT 'a' + 0;
+'a' + 0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT CAST('a' as DOUBLE);
+CAST('a' as DOUBLE)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT CAST(CONCAT('a') as DOUBLE);
+CAST(CONCAT('a') as DOUBLE)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+# Bug #22538859 "CONCAT( '2005' , '-01-01') - 100"
+#               DOESN'T THROW ANY WARNING
+#
+SELECT '2005-01-01' - 100;
+'2005-01-01' - 100
+1905
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2005-01-01'
+SELECT CONCAT('2005' , '-01-01') - 100;
+CONCAT('2005' , '-01-01') - 100
+1905
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2005-01-01'

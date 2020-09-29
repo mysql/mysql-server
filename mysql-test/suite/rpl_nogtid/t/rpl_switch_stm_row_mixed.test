@@ -153,11 +153,12 @@ insert into t1 select "yesterday_24_";
 
 create table t2 select rpad(UUID(),100,' ');
 create table t3 select 1 union select UUID();
-create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
+# UUID cannot be converted to DOUBLE
+# create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
 create table t5 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
 # what if UUID() is first:
 --disable_warnings
-insert ignore into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
+insert ignore into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3);
 --enable_warnings
 
 # inside a stored procedure
@@ -494,7 +495,7 @@ connection master;
 select count(*) from t1;
 select count(*) from t2;
 select count(*) from t3;
-select count(*) from t4;
+# select count(*) from t4;
 select count(*) from t5;
 select count(*) from t11;
 select count(*) from t20;

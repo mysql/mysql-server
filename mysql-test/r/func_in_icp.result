@@ -948,6 +948,8 @@ DROP TABLE t1;
 SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"");
 LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"")
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '\x00'
 # End of test BUG#11764651-57510
 End of 5.1 tests
 set optimizer_switch=default;

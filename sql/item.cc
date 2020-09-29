@@ -434,10 +434,8 @@ double Item::val_real_from_string() {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp;
   const String *res = val_str(&tmp);
   if (res == nullptr) return 0.0;
-  int err_not_used;
-  const char *end_not_used;
-  return my_strntod(res->charset(), res->ptr(), res->length(), &end_not_used,
-                    &err_not_used);
+  return double_from_string_with_check(res->charset(), res->ptr(),
+                                       res->ptr() + res->length());
 }
 
 longlong Item::val_int_from_decimal() {

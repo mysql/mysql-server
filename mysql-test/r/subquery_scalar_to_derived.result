@@ -675,15 +675,15 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 SELECT (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
 SELECT a+1 FROM dt WHERE a<10)
-SELECT t1.a * CONCAT(COUNT(*), ' - ', AVG(dt.a))
+SELECT t1.a * CONCAT(COUNT(*), '.', FLOOR(AVG(dt.a)))
 FROM dt) AS subq
 FROM t1;
 subq
-10
-18
+10.5
+19.2
 explain SELECT (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
 SELECT a+1 FROM dt WHERE a<10)
-SELECT t1.a * CONCAT(COUNT(*), ' - ', AVG(dt.a))
+SELECT t1.a * CONCAT(COUNT(*), '.', FLOOR(AVG(dt.a)))
 FROM dt) AS subq
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -695,25 +695,25 @@ NULL	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (with recursive `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` union /* select#4 */ select (`dt`.`a` + 1) AS `a+1` from `dt` where (`dt`.`a` < 10)) /* select#2 */ select (`test`.`t1`.`a` * concat(count(0),' - ',avg(`dt`.`a`))) from `dt`) AS `subq` from `test`.`t1`
+Note	1003	/* select#1 */ select (with recursive `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` union /* select#4 */ select (`dt`.`a` + 1) AS `a+1` from `dt` where (`dt`.`a` < 10)) /* select#2 */ select (`test`.`t1`.`a` * concat(count(0),'.',floor(avg(`dt`.`a`)))) from `dt`) AS `subq` from `test`.`t1`
 # Equivalent manually recrafted query: same plan as previous
 SELECT derived0.cnct AS subq
 FROM t1
 LEFT JOIN LATERAL (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
 SELECT (dt.a + 1)
 FROM dt WHERE dt.a < 10)
-SELECT t1.a * CONCAT(COUNT(0), ' - ', AVG(dt.a)) AS cnct
+SELECT t1.a * CONCAT(COUNT(0), '.', FLOOR(AVG(dt.a))) AS cnct
 FROM dt) derived0
 ON TRUE;
 subq
-10
-18
+10.5
+19.2
 explain SELECT derived0.cnct AS subq
 FROM t1
 LEFT JOIN LATERAL (WITH RECURSIVE dt AS (SELECT t1.a AS a UNION
 SELECT (dt.a + 1)
 FROM dt WHERE dt.a < 10)
-SELECT t1.a * CONCAT(COUNT(0), ' - ', AVG(dt.a)) AS cnct
+SELECT t1.a * CONCAT(COUNT(0), '.', FLOOR(AVG(dt.a))) AS cnct
 FROM dt) derived0
 ON TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -726,7 +726,7 @@ NULL	UNION RESULT	<union3,4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `derived0`.`cnct` AS `subq` from `test`.`t1` left join lateral (with recursive `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` union /* select#4 */ select (`dt`.`a` + 1) AS `(dt.a + 1)` from `dt` where (`dt`.`a` < 10)) /* select#2 */ select (`test`.`t1`.`a` * concat(count(0),' - ',avg(`dt`.`a`))) AS `cnct` from `dt`) `derived0` on(true) where true
+Note	1003	/* select#1 */ select `derived0`.`cnct` AS `subq` from `test`.`t1` left join lateral (with recursive `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` union /* select#4 */ select (`dt`.`a` + 1) AS `(dt.a + 1)` from `dt` where (`dt`.`a` < 10)) /* select#2 */ select (`test`.`t1`.`a` * concat(count(0),'.',floor(avg(`dt`.`a`)))) AS `cnct` from `dt`) `derived0` on(true) where true
 DROP TABLE t1, t2;
 # Detect correlation outside of transformed query block which
 # is not caught by the scalar aggregate function inspection in

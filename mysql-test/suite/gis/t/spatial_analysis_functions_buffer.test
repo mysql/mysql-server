@@ -793,11 +793,6 @@ SELECT ST_ASTEXT(ST_BUFFER(geom, 1, strategy)) FROM t1;
 DROP TABLE t1;
 
 SELECT HEX(ST_BUFFER_STRATEGY('join_miter', 10));
-SELECT ST_BUFFER_STRATEGY('join_miter', 10) + 5;
-SELECT 3 - ST_BUFFER_STRATEGY('join_miter', 10);
-SELECT ST_BUFFER_STRATEGY('join_miter', 10) + 3;
-SELECT ST_BUFFER_STRATEGY('join_miter', 10) / 3;
-SELECT ST_BUFFER_STRATEGY('join_miter', 10) * 3;
 
 # ST_BUFFER_STRATEGY must work with any charset that ST_GEOMFROMTEXT() can work with
 SET names gb18030;

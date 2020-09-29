@@ -2118,3 +2118,18 @@ DROP TABLE t1;
 
 # E4B8ADE69687 == Zhōngwén
 SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');
+
+--echo #
+--echo # Bug #21943299 FAILED CAST OF STRING-RETURNING FUNCTION TO DOUBLE
+--echo #               EMITS NO WARNING
+
+SELECT 'a' + 0;
+SELECT CAST('a' as DOUBLE);
+SELECT CAST(CONCAT('a') as DOUBLE);
+
+--echo # Bug #22538859 "CONCAT( '2005' , '-01-01') - 100"
+--echo #               DOESN'T THROW ANY WARNING
+--echo #
+
+SELECT '2005-01-01' - 100;
+SELECT CONCAT('2005' , '-01-01') - 100;
