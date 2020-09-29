@@ -2019,18 +2019,21 @@ CREATE TABLE t4 (
 INSERT INTO t4 VALUES (2,3), (6,1), (8,2);
 
 ANALYZE TABLE t2, t3, t4;
-let query=
+--replace_column 10 #
+EXPLAIN
 SELECT t4.col_int
   FROM t1 
     LEFT JOIN t2 ON t1.col_int = t2.col_int
     LEFT JOIN t3 ON t2.pk = t3.pk 
     LEFT JOIN t4 ON t4.pk = t2.pk
   WHERE t1.col_int OR t3.col_int;
-
-eval EXPLAIN $query;
 --sorted_result
-eval $query;
-
+SELECT t4.col_int
+  FROM t1 
+    LEFT JOIN t2 ON t1.col_int = t2.col_int
+    LEFT JOIN t3 ON t2.pk = t3.pk 
+    LEFT JOIN t4 ON t4.pk = t2.pk
+  WHERE t1.col_int OR t3.col_int;
 DROP TABLE t1, t2, t3, t4;
 
 --echo #

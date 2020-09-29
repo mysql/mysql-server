@@ -430,6 +430,10 @@ CREATE TABLE t2 (a int, d int, e int default 0);
 INSERT INTO t2 (a, d) VALUES (1,1),(2,2),(3,3),(4,4);
 INSERT INTO t2 (a, d) SELECT a+4, a+4 FROM t2;
 INSERT INTO t2 (a, d) SELECT a+8, a+8 FROM t2;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
@@ -877,6 +881,11 @@ create table t2 (a int not null, primary key(a));
 insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t3 (a int not null, primary key(a));
 insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 a	b	a	a
@@ -891,7 +900,7 @@ We expect rnd_next=5, and read_key must be 0 because of short-cutting:
 show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	5
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -920,9 +929,13 @@ create table t2 (a int, b int, primary key(a));
 insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select * from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 show status like '%cost%';
@@ -957,6 +970,10 @@ INSERT INTO t1 SELECT a + 16, b FROM t1;
 INSERT INTO t1 SELECT a + 32, b FROM t1;
 INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where
@@ -1134,6 +1151,14 @@ INSERT INTO t2 VALUES
 (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
 INSERT INTO t3 VALUES
 (3), (3), (3), (3), (3), (3), (3), (3), (3), (3);
+ANALYZE TABLE t1, t2, t3, t4, t5, t6;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
 EXPLAIN
 SELECT * 
 FROM 
@@ -1153,7 +1178,7 @@ ON t1.a = t3.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using join buffer (hash join)
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.a	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.a	10	100.00	Using where; Using index
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
@@ -1296,6 +1321,10 @@ c1 INTEGER NOT NULL,
 PRIMARY KEY (pk)
 );
 INSERT INTO t2 VALUES (1,4),(3,5),(2,6);
+ANALYZE  TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT t2.pk, t2.c1 FROM t2, t1 
 WHERE t2.pk = t1.c1 AND t2.pk >= 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
