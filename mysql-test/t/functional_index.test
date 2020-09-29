@@ -522,10 +522,12 @@ EXPLAIN FORMAT=JSON SELECT * FROM t1;
 # virtual column backing the functional index. Verify that only the
 # visible column (x) is used now.
 CREATE TABLE t2(j JSON);
+--skip_if_hypergraph  # FORMAT=JSON is not supported, file was never created.
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval
   LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/bug30838749' INTO TABLE t2
   LINES STARTING BY 'EXPLAIN' TERMINATED BY 'EOL';
+--skip_if_hypergraph  # FORMAT=JSON is not supported, file was never created.
 SELECT j->'$**.used_columns' FROM t2;
 
 DROP TABLE t1, t2;

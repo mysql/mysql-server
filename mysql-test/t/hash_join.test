@@ -1273,6 +1273,7 @@ eval $hash_join_file_operations;
 --echo # This should spill to disk since we have (implicit) grouping.
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT SUM(t1.col1) FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 10;
+--skip_if_hypergraph  # May choose not using a hash join due to the LIMIT.
 eval $hash_join_file_operations;
 
 SET join_buffer_size = DEFAULT;

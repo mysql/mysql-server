@@ -160,6 +160,7 @@ delimiter ;|
 #
 # Bug#7222 information_schema: errors in "routines"
 #
+--sorted_result
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 
@@ -867,6 +868,7 @@ DROP FUNCTION func2;
 #
 # Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
 #
+--skip_if_hypergraph  # Hits bug #31947466.
 SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name), COUNT(*) AS num
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
@@ -1170,7 +1172,7 @@ select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 # Tests printing of MaterializeInformationSchemaTableIterator with nontrivial
 # table iterators.
---replace_regex / *\(cost=\d+\.\d+\ rows=\d+\)//
+--replace_regex / *\(cost=(\d+\.\d+\.\.)?\d+\.\d+\ rows=\d+\)//
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 #

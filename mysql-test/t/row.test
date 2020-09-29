@@ -210,9 +210,11 @@ SELECT * FROM t2 WHERE (a,b)=(3,2);
 
 EXPLAIN SELECT * FROM t1,t2 WHERE t2.a=t1.a AND t2.b=2 AND t2.c=1;
 EXPLAIN SELECT * FROM t1,t2 WHERE (t2.a,(t2.b,t2.c))=(t1.a,(2,1));
+--sorted_result
 SELECT * FROM t1,t2 WHERE (t2.a,(t2.b,t2.c))=(t1.a,(2,1));
 
 EXPLAIN SELECT * FROM t1,t2 WHERE t2.a=t1.a AND (t2.b,t2.c)=(2,1);
+--sorted_result
 SELECT * FROM t1,t2 WHERE t2.a=t1.a AND (t2.b,t2.c)=(2,1);
 
 DROP TABLE t1,t2;

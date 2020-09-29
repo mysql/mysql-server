@@ -551,6 +551,7 @@ CREATE TABLE t2 (num int primary key);
 INSERT INTO t1 VALUES ('notnumber');
 INSERT INTO t2 VALUES (0), (1); 
 
+--skip_if_hypergraph  # Different warnings.
 SELECT * FROM t1, t2 WHERE num=str;
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 

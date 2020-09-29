@@ -379,7 +379,7 @@ SET @p1 = 10;
 eval PREPARE p FROM "$query";
 eval EXECUTE p USING @p1;
 eval PREPARE p FROM "EXPLAIN FORMAT=tree $query";
---replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--replace_regex /cost=(\d+\.\d+\.\.)?\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXECUTE p USING @p1;
 
 # Test for not supported conditions.
@@ -611,7 +611,7 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 let query = SELECT /*+ NO_DERIVED_CONDITION_PUSHDOWN() */ * FROM
 (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2 WHERE f1 > 3;
---replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--replace_regex /cost=(\d+\.\d+\.\.)?\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;

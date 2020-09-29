@@ -254,6 +254,7 @@ CREATE TABLE t2 (
   PRIMARY KEY  (id)
 ) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,'s1'),(2,'s2'),(3,'s3'),(4,'s4'),(5,'s5');
+--skip_if_hypergraph  # No ORDER BY, so depends on the query plan.
 select t1.*, t2.*  from t1, t2 where t2.id=t1.t2_id limit 2;
 drop table t1,t2;
 

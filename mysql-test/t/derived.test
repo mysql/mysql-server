@@ -760,6 +760,7 @@ INSERT INTO t3 VALUES(1,1),(2,2),(3,3),(5,5);
 let $query= SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
   JOIN t3 ON tt.f22=t3.f3;
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

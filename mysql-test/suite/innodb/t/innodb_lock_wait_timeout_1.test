@@ -179,6 +179,7 @@ delete from t1 where a in (19,20);
 --echo # because the previous select returned no rows. 
 --echo # Just demonstrate the effect.
 --echo #
+--skip_if_hypergraph  # Does not always lock the given row; depends on the plan.
 --error ER_LOCK_WAIT_TIMEOUT
 delete from t1;
 rollback;
