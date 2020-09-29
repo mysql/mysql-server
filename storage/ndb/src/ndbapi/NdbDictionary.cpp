@@ -3262,20 +3262,6 @@ NdbDictionary::Dictionary::removeCachedIndex(const char * indexName,
   }
 }
 
-const NdbDictionary::Table *
-NdbDictionary::Dictionary::getIndexTable(const char * indexName, 
-					 const char * tableName) const
-{
-  NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
-  NdbTableImpl * t = m_impl.getTable(tableName);
-  if(i && t) {
-    NdbTableImpl * it = m_impl.getIndexTable(i, t);
-    return it->m_facade;
-  }
-  return 0;
-}
-
-
 int
 NdbDictionary::Dictionary::createEvent(const Event & ev)
 {

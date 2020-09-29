@@ -992,8 +992,6 @@ public:
   int dropIndex(NdbIndexImpl &, const char * tableName);
   int dropIndex(NdbIndexImpl &, const char * tableName,
                 bool ignoreFKs);
-  NdbTableImpl * getIndexTable(NdbIndexImpl * index, 
-			       NdbTableImpl * table);
 
   int updateIndexStat(const NdbIndexImpl&, const NdbTableImpl&);
   int updateIndexStat(Uint32 indexId, Uint32 indexVersion, Uint32 tableId);
