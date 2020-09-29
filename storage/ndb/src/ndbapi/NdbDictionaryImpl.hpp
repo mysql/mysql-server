@@ -396,6 +396,13 @@ public:
   static NdbIndexImpl & getImpl(NdbDictionary::Index & t);
   static NdbIndexImpl & getImpl(const NdbDictionary::Index & t);
   NdbDictionary::Index * m_facade;
+
+  // Return string with old internal index format (used before 5.1.12)
+  static const BaseString old_internal_index_name(const NdbTableImpl * table,
+                                                  const char * index_name);
+  // Return string with internal index name format
+  static const BaseString internal_index_name(const NdbTableImpl * table,
+                                              const char * index_name);
 };
 
 class NdbOptimizeTableHandleImpl : public NdbDictionary::OptimizeTableHandle
@@ -756,7 +763,7 @@ public:
 
   int dropTable(const NdbTableImpl &);
 
-  int createIndex(class Ndb & ndb, const NdbIndexImpl &, const NdbTableImpl &,
+  int createIndex(const NdbIndexImpl &, const NdbTableImpl &,
                   bool offline);
   int dropIndex(const NdbIndexImpl &, const NdbTableImpl &);
   int doIndexStatReq(class Ndb& ndb,
@@ -1495,8 +1502,9 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
                                   NdbTableImpl &ndbtab)
 {
   DBUG_ENTER("NdbDictionaryImpl::getIndexGlobal");
-  const BaseString
-    internal_indexname(m_ndb.internalize_index_name(&ndbtab, index_name));
+
+  const BaseString internal_indexname(NdbIndexImpl::internal_index_name(&ndbtab,
+                                                          index_name));
   int retry= 2;
 
   while (retry)
@@ -1522,8 +1530,8 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
   {
     // Index not found, try old format
     const BaseString
-      old_internal_indexname(m_ndb.old_internalize_index_name(&ndbtab, 
-							      index_name));
+      old_internal_indexname(NdbIndexImpl::old_internal_index_name(&ndbtab,
+                                                                   index_name));
     retry= 2;
     while (retry)
     {
@@ -1626,7 +1634,7 @@ NdbDictionaryImpl::getIndex(const char* index_name,
 {
 
   const BaseString
-    internal_indexname(m_ndb.internalize_index_name(&prim, index_name));
+      internal_indexname(NdbIndexImpl::internal_index_name(&prim, index_name));
 
   Ndb_local_table_info *info= m_localHash.get(internal_indexname);
   NdbTableImpl *tab;
@@ -1651,7 +1659,8 @@ NdbDictionaryImpl::getIndex(const char* index_name,
 retry:
   // Index not found, try old format
   const BaseString
-    old_internal_indexname(m_ndb.old_internalize_index_name(&prim, index_name));
+      old_internal_indexname(NdbIndexImpl::old_internal_index_name(&prim,
+                                                                   index_name));
 
   info= m_localHash.get(old_internal_indexname);
   if (info == 0)

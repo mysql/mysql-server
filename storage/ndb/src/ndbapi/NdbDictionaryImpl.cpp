@@ -2054,6 +2054,78 @@ NdbIndexImpl::getIndexTable() const
   return m_table;
 }
 
+const BaseString
+NdbIndexImpl::old_internal_index_name(const NdbTableImpl * table,
+                                           const char * index_name)
+{
+  BaseString ret;
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("index_name: %s", index_name));
+
+  if (!table)
+  {
+    DBUG_PRINT("error", ("!table"));
+    return ret;
+  }
+
+  DBUG_PRINT("info", ("table_id: %d", table->m_id));
+
+  // The old index name format uses same database and schema as the table, get
+  // them from table
+  char dbname[MAX_TAB_NAME_SIZE];
+  char schemaname[MAX_TAB_NAME_SIZE];
+  if (table->getDbName(dbname, sizeof(dbname)) != 0 ||
+      table->getSchemaName(schemaname, sizeof(schemaname)) != 0)
+  {
+    assert(false);
+    return ret;
+  }
+
+  // Old internal index name format <db>/<schema>/<tabid>/<index_name>
+  ret.assfmt("%s%c%s%c%d%c%s",
+             dbname, table_name_separator,
+             schemaname, table_name_separator,
+             table->m_id, table_name_separator,
+             index_name);
+
+  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
+  return ret;
+}
+
+const BaseString
+NdbIndexImpl::internal_index_name(const NdbTableImpl * table,
+                                   const char * index_name)
+{
+  BaseString ret;
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("index_name: %s", index_name));
+
+  if (!table)
+  {
+    DBUG_PRINT("error", ("!table"));
+    return ret;
+  }
+
+  // Force use of old format if requested by DBUG keyword
+  if (DBUG_EVALUATE_IF("ndb_index_old_name_format", true, false)){
+    return old_internal_index_name(table, index_name);
+  }
+
+  DBUG_PRINT("info", ("table_id: %d", table->m_id));
+
+  // Internal index name format sys/def/<tabid>/<index_name>
+  ret.assfmt("%s%c%s%c%d%c%s",
+             NDB_SYSTEM_DATABASE, table_name_separator,
+             NDB_SYSTEM_SCHEMA, table_name_separator,
+             table->m_id,
+             table_name_separator,
+             index_name);
+
+  DBUG_PRINT("exit", ("internal_name: %s", ret.c_str()));
+  return ret;
+}
+
+
 /**
  * NdbOptimizeTableHandleImpl
  */
@@ -5402,19 +5474,18 @@ NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, bool offline)
     return -1;
   }
   
-  return m_receiver.createIndex(m_ndb, ix, * tab, offline);
+  return m_receiver.createIndex(ix, * tab, offline);
 }
 
 int
 NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, NdbTableImpl &tab,
                                bool offline)
 {
-  return m_receiver.createIndex(m_ndb, ix, tab, offline);
+  return m_receiver.createIndex(ix, tab, offline);
 }
 
 int 
-NdbDictInterface::createIndex(Ndb & ndb,
-			      const NdbIndexImpl & impl, 
+NdbDictInterface::createIndex(const NdbIndexImpl & impl,
 			      const NdbTableImpl & table,
                               bool offline)
 {
@@ -5428,7 +5499,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
     return -1;
   }
   const BaseString internalName(
-    ndb.internalize_index_name(&table, impl.getName()));
+    NdbIndexImpl::internal_index_name(&table, impl.getName()));
   w.add(DictTabInfo::TableName, internalName.c_str());
   w.add(DictTabInfo::TableLoggedFlag, impl.m_logging);
   w.add(DictTabInfo::TableTemporaryFlag, impl.m_temporary);
@@ -5713,7 +5784,7 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
   if (ret == INCOMPATIBLE_VERSION) {
     const BaseString internalIndexName((tableName)
       ?
-      m_ndb.internalize_index_name(getTable(tableName), indexName)
+      NdbIndexImpl::internal_index_name(getTable(tableName), indexName)
       :
       m_ndb.internalize_table_name(indexName)); // Index is also a table
 
@@ -5747,7 +5818,7 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
 
   const BaseString internalIndexName((tableName)
     ?
-    m_ndb.internalize_index_name(getTable(tableName), indexName)
+    NdbIndexImpl::internal_index_name(getTable(tableName), indexName)
     :
     m_ndb.internalize_table_name(indexName)); // Index is also a table
 

@@ -2193,10 +2193,6 @@ private:
   static
   const char * externalizeIndexName(const char * internalIndexName,
                                     bool fullyQualifiedNames);
-  const BaseString old_internalize_index_name(const NdbTableImpl * table,
-					      const char * external_name) const;
-  const BaseString internalize_index_name(const NdbTableImpl * table,
-                                          const char * external_name) const;
 
   static
   const BaseString getDatabaseFromInternalName(const char * internalName);
