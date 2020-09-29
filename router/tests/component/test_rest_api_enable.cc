@@ -478,7 +478,7 @@ VeZwMK4Cb8EO7PzsnX2tD6AA5Ums6GhNgYsbJgdq4MdKb3x6YWZ8DpksSIX2
  * WL13906:TS_FR06_01
  */
 TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
-  do_bootstrap({"--disable-rest"});
+  do_bootstrap({"--disable-rest", "--client-ssl-mode", "PASSTHROUGH"});
 
   EXPECT_FALSE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,

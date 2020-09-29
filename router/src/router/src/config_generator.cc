@@ -790,7 +790,8 @@ void ConfigGenerator::bootstrap_directory_deployment(
 }
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
-    const std::map<std::string, std::string> &user_options) {
+    const std::map<std::string, std::string> &user_options,
+    const std::map<std::string, std::string> &default_paths) {
   std::string bind_address{"0.0.0.0"};
   bool use_sockets = false;
   bool skip_tcp = false;
@@ -873,6 +874,46 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     options.disable_rest = true;
 
   options.https_port_str = get_opt(user_options, "https-port", "8443");
+
+  options.client_ssl_mode =
+      get_opt(user_options, "client_ssl_mode", "PREFERRED");
+  options.server_ssl_mode =
+      get_opt(user_options, "server_ssl_mode", "AS_CLIENT");
+
+  // default depends on client-ssl-mode and server-ssl-mode
+  std::string default_client_ssl_cert;
+  std::string default_client_ssl_key;
+
+  if (!((options.client_ssl_mode == "PASSTHROUGH") ||
+        (options.client_ssl_mode == "DISABLED"))) {
+    mysql_harness::Path datadir_path =
+        (user_options.find("datadir") != std::end(user_options))
+            ? mysql_harness::Path(user_options.at("datadir"))
+            : mysql_harness::Path(default_paths.at("data_folder"));
+
+    default_client_ssl_cert =
+        datadir_path.real_path().join(tls_filenames_.router_cert).str();
+    default_client_ssl_key =
+        datadir_path.real_path().join(tls_filenames_.router_key).str();
+  }
+
+  options.client_ssl_cert =
+      get_opt(user_options, "client_ssl_cert", default_client_ssl_cert);
+  options.client_ssl_key =
+      get_opt(user_options, "client_ssl_key", default_client_ssl_key);
+  options.client_ssl_cipher = get_opt(user_options, "client_ssl_cipher", "");
+  options.client_ssl_curves = get_opt(user_options, "client_ssl_curves", "");
+  options.client_ssl_dh_params =
+      get_opt(user_options, "client_ssl_dh_params", "");
+
+  options.server_ssl_ca = get_opt(user_options, "server_ssl_ca", "");
+  options.server_ssl_capath = get_opt(user_options, "server_ssl_capath", "");
+  options.server_ssl_crl = get_opt(user_options, "server_ssl_crl", "");
+  options.server_ssl_crlpath = get_opt(user_options, "server_ssl_crlpath", "");
+  options.server_ssl_cipher = get_opt(user_options, "server_ssl_cipher", "");
+  options.server_ssl_curves = get_opt(user_options, "server_ssl_curves", "");
+  options.server_ssl_verify =
+      get_opt(user_options, "server_ssl_verify", "DISABLED");
 
   return options;
 }
@@ -1151,7 +1192,8 @@ void ConfigGenerator::set_log_file_permissions(
 #endif
 }
 
-void ConfigGenerator::prepare_web_service_certificate_files(
+// create certificates in default locations if key and cert don't exist.
+void ConfigGenerator::prepare_ssl_certificate_files(
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::string> &default_paths,
     AutoCleaner *auto_cleaner) const {
@@ -1247,7 +1289,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     print_bootstrap_start_msg(router_id, directory_deployment,
                               config_file_path);
 
-  Options options(fill_options(user_options));
+  Options options(fill_options(user_options, default_paths));
   // Prompt for the Router's runtime account that's used by metadata_cache and
   // specified by "--account".
   // If running in --account mode, the user provides the password (ALWAYS,
@@ -1272,8 +1314,7 @@ std::string ConfigGenerator::bootstrap_deployment(
 
     // note: try_bootstrap_deployment() can update router_id, username and
     // password note: failover is performed only on specific errors (subset of
-    // what
-    //       appears in enum class MySQLErrorc)
+    // what appears in enum class MySQLErrorc)
     std::tie(password) =
         cluster_aware.failover_on_failure<std::tuple<std::string>>([&]() {
           return try_bootstrap_deployment(
@@ -1283,9 +1324,18 @@ std::string ConfigGenerator::bootstrap_deployment(
         });
   }
 
-  if (user_options.count("disable-rest") == 0) {
-    prepare_web_service_certificate_files(user_options, default_paths,
-                                          &auto_clean);
+  // check if self-signed certs need to be generated:
+  //
+  // - REST API is enabled
+  // - client-ssl-mode is neither PASSTHROUGH nor DISABLED
+  // - client-ssl-key and client-cert are both not specified
+  const bool with_rest_api = user_options.count("disable-rest") == 0;
+
+  if (with_rest_api || ((options.client_ssl_mode != "PASSTHROUGH") &&
+                        (options.client_ssl_mode != "DISABLED") &&
+                        (get_opt(user_options, "client_ssl_cert", "") == "") &&
+                        (get_opt(user_options, "client_ssl_key", "") == ""))) {
+    prepare_ssl_certificate_files(user_options, default_paths, &auto_clean);
   }
 
   // test out the connection that Router would use
@@ -1857,26 +1907,19 @@ void ConfigGenerator::create_config(
       << "# File automatically generated during MySQL Router bootstrap\n";
 
   config_file << "[DEFAULT]\n";
-  if (!router_name.empty()) config_file << "name=" << router_name << "\n";
-  if (!system_username.empty())
-    config_file << "user=" << system_username << "\n";
-  if (!options.override_logdir.empty())
-    config_file << "logging_folder=" << options.override_logdir << "\n";
-  if (!options.override_rundir.empty())
-    config_file << "runtime_folder=" << options.override_rundir << "\n";
-  if (!options.override_datadir.empty())
-    config_file << "data_folder=" << options.override_datadir << "\n";
-  if (!options.keyring_file_path.empty())
-    config_file << "keyring_path=" << options.keyring_file_path << "\n";
-  if (!options.keyring_master_key_file_path.empty())
-    config_file << "master_key_path=" << options.keyring_master_key_file_path
-                << "\n";
-  if (!keyring_info_.get_master_key_reader().empty())
-    config_file << "master_key_reader=" << keyring_info_.get_master_key_reader()
-                << "\n";
-  if (!keyring_info_.get_master_key_writer().empty())
-    config_file << "master_key_writer=" << keyring_info_.get_master_key_writer()
-                << "\n";
+
+  config_file << option_line("name", router_name)
+              << option_line("user", system_username)
+              << option_line("logging_folder", options.override_logdir)
+              << option_line("runtime_folder", options.override_rundir)
+              << option_line("data_folder", options.override_datadir)
+              << option_line("keyring_path", options.keyring_file_path)
+              << option_line("master_key_path",
+                             options.keyring_master_key_file_path)
+              << option_line("master_key_reader",
+                             keyring_info_.get_master_key_reader())
+              << option_line("master_key_writer",
+                             keyring_info_.get_master_key_writer());
 
   config_file << "connect_timeout=" << connect_timeout_ << "\n";
   config_file << "read_timeout=" << read_timeout_ << "\n";
@@ -1886,11 +1929,28 @@ void ConfigGenerator::create_config(
   save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,
                              cluster_info.metadata_servers);
 
+  config_file << option_line("client_ssl_cert", options.client_ssl_cert)
+              << option_line("client_ssl_key", options.client_ssl_key)
+              << option_line("client_ssl_cipher", options.client_ssl_cipher)
+              << option_line("client_ssl_curves", options.client_ssl_curves)
+              << option_line("client_ssl_mode", options.client_ssl_mode)
+              << option_line("client_ssl_dh_params",
+                             options.client_ssl_dh_params)
+              << option_line("server_ssl_ca", options.server_ssl_ca)
+              << option_line("server_ssl_capath", options.server_ssl_capath)
+              << option_line("server_ssl_crl", options.server_ssl_crl)
+              << option_line("server_ssl_crlpath", options.server_ssl_crlpath)
+              << option_line("server_ssl_cipher", options.server_ssl_cipher)
+              << option_line("server_ssl_curves", options.server_ssl_curves)
+              << option_line("server_ssl_mode", options.server_ssl_mode)
+              << option_line("server_ssl_verify", options.server_ssl_verify);
+
   config_file << "\n"
               << "[" << mysql_harness::logging::kConfigSectionLogger << "]\n"
               << mysql_harness::logging::kConfigOptionLogLevel << " = INFO\n";
-  if (!options.override_logfilename.empty())
-    config_file << "filename=" << options.override_logfilename << "\n";
+
+  config_file << option_line("filename", options.override_logfilename);
+
   config_file << "\n";
 
   const auto &metadata_key = cluster_info.metadata_cluster_name;
@@ -1921,13 +1981,13 @@ void ConfigGenerator::create_config(
               << use_gr_notifications;
 
   // SSL options
-  config_file << option_line("ssl_mode", options.ssl_options.mode);
-  config_file << option_line("ssl_cipher", options.ssl_options.cipher);
-  config_file << option_line("tls_version", options.ssl_options.tls_version);
-  config_file << option_line("ssl_ca", options.ssl_options.ca);
-  config_file << option_line("ssl_capath", options.ssl_options.capath);
-  config_file << option_line("ssl_crl", options.ssl_options.crl);
-  config_file << option_line("ssl_crlpath", options.ssl_options.crlpath);
+  config_file << option_line("ssl_mode", options.ssl_options.mode)
+              << option_line("ssl_cipher", options.ssl_options.cipher)
+              << option_line("tls_version", options.ssl_options.tls_version)
+              << option_line("ssl_ca", options.ssl_options.ca)
+              << option_line("ssl_capath", options.ssl_options.capath)
+              << option_line("ssl_crl", options.ssl_options.crl)
+              << option_line("ssl_crlpath", options.ssl_options.crlpath);
   // Note: we don't write cert and key because
   // creating router accounts with REQUIRE X509 is not yet supported.
   // The cert and key options passed to bootstrap if for the bootstrap
