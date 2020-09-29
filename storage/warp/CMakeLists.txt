@@ -31,6 +31,7 @@ ExternalProject_Add(
 )
 
 SET(WARP_PLUGIN_STATIC  "warp")
+SET(WARP_PLUGIN_SHARED  "warp_udf")
 SET(WARP_PLUGIN_MANDATORY TRUE)
 
 SET(WARP_SOURCES  ha_warp.cc ha_warp.h)
@@ -43,4 +44,12 @@ set_property(TARGET fastbit PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DI
 add_dependencies(warp fastbit fastbit-2.0.3)
 target_link_libraries(warp fastbit)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
-install(FILES ${FASTBIT_LIBS} DESTINATION ${PLUGINDIR})
+
+MYSQL_ADD_PLUGIN(warp_udf udf.cc
+  MODULE_ONLY MODULE_OUTPUT_NAME "warp_udf")
+
+add_subdirectory("warp_rewrite")
+
+install(FILES ${FASTBIT_LIBS} ${CMAKE_BINARY_DIR}/plugin_output_directory/warp_udf.so DESTINATION ${PLUGINDIR})
+
+

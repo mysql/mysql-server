@@ -1581,7 +1581,27 @@ bool ha_warp::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
 int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
   auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
+  char* partition_filter = THDVAR(table->in_use, partition_filter);
+  
+  /* extract/use the partition filter if provided*/
+  uint partition_filter_len = strlen(partition_filter);
+  partition_filter_alias = "";
+  partition_filter_partition_name = "";
+  if(partition_filter_len > 2) {
+    for(uint delim_at = 0;delim_at<partition_filter_len;delim_at++) {
+      std::cout << partition_filter[delim_at] << "\n";
+      if(partition_filter[delim_at] == ':' && partition_filter[delim_at+1] == ' ') {
+        partition_filter_alias.assign(partition_filter, delim_at);
+        if(partition_filter_alias == table->alias) {
+          partition_filter_partition_name.assign(partition_filter + delim_at+2);
+        }
+        break;
+      }
+    }
+  }
+
   bitmap_merge_join();
+
   current_rowid = 0;
   /* When scanning this is used to skip evaluation of transactions
      that have already been evaluated
@@ -1621,8 +1641,17 @@ int ha_warp::rnd_init(bool) {
   } else {
     base_table = NULL;
     partitions = new ibis::partList;
-    ibis::util::gatherParts(*partitions, share->data_dir_name, true);
-    part_it = partitions->begin() + 1;
+    // read all partitions unless a filter is set
+    if(partition_filter_partition_name == "") {
+      ibis::util::gatherParts(*partitions, share->data_dir_name, true);
+      part_it = partitions->begin() + 1;
+    } else {
+      // only read one partition if filter is set
+      std::string tmpstr = std::string(share->data_dir_name);
+      tmpstr += "/" + partition_filter_partition_name;
+      ibis::util::gatherParts(*partitions, tmpstr.c_str(), true);
+      part_it = partitions->begin();
+    }
   }
 
   DBUG_RETURN(0);
@@ -1657,8 +1686,10 @@ fetch_again:
     if(part_it == partitions->end()) {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
+
     if(cursor == NULL) {
       base_table = ibis::table::create((*part_it)->currentDataDir());
+    
       if(!base_table) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
@@ -1667,13 +1698,13 @@ fetch_again:
       if(!filtered_table) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
-      
       cursor = filtered_table->createCursor();
       if(!cursor) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
     }
   }
+  
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   ++fetch_count;
   if(cursor->fetch() != 0) {
