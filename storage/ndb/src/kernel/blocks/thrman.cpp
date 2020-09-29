@@ -111,10 +111,10 @@ Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
     jam();
     /* Main and rep threads are handled by first receive thread */
     m_rep_thrman_instance =
-      globalData.ndbMtLqhThreads +
-      globalData.ndbMtTcThreads +
-      globalData.ndbMtQueryThreads +
-      globalData.ndbMtRecoverThreads;
+      1 + globalData.ndbMtLqhThreads +
+          globalData.ndbMtTcThreads +
+          globalData.ndbMtQueryThreads +
+          globalData.ndbMtRecoverThreads;
   }
 }
 
