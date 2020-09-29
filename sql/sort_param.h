@@ -32,7 +32,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"      // mysql_com.h needs my_socket
 #include "mysql_com.h"  // Item_result
-#include "prealloced_array.h"
+#include "sql/mem_root_array.h"
 #include "sql/sql_array.h"  // Bounds_checked_array
 #include "sql/sql_const.h"
 #include "sql/sql_sort.h"  // Filesort_info
@@ -325,7 +325,7 @@ class Sort_param {
   /// make_sortkey() check the read set at runtime, at the cost of slightly less
   /// precise estimation of packed row size.
   void decide_addon_fields(Filesort *file_sort,
-                           const Prealloced_array<TABLE *, 4> &tables,
+                           const Mem_root_array<TABLE *> &tables,
                            bool sort_positions);
 
   /// Reset the decision made in decide_addon_fields(). Only used in exceptional
@@ -345,8 +345,7 @@ class Sort_param {
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
-                         uint sortlen,
-                         const Prealloced_array<TABLE *, 4> &tables,
+                         uint sortlen, const Mem_root_array<TABLE *> &tables,
                          ha_rows maxrows, bool remove_duplicates);
 
   /**
@@ -389,12 +388,12 @@ class Sort_param {
       provably fit within the destination buffer.
    */
   uint make_sortkey(Bounds_checked_array<uchar> dst,
-                    const Prealloced_array<TABLE *, 4> &tables,
+                    const Mem_root_array<TABLE *> &tables,
                     size_t *longest_addons);
 
   // Adapter for Bounded_queue.
   uint make_sortkey(uchar *dst, size_t dst_len,
-                    const Prealloced_array<TABLE *, 4> &tables) {
+                    const Mem_root_array<TABLE *> &tables) {
     size_t longest_addons = 0;  // Unused.
     return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), tables,
                         &longest_addons);

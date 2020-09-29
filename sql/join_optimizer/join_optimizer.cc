@@ -454,9 +454,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
 /**
   Create a table array from a table bitmap.
  */
-Prealloced_array<TABLE *, 4> CollectTables(SELECT_LEX *select_lex,
-                                           table_map tmap) {
-  Prealloced_array<TABLE *, 4> tables(PSI_NOT_INSTRUMENTED);
+Mem_root_array<TABLE *> CollectTables(SELECT_LEX *select_lex, table_map tmap) {
+  Mem_root_array<TABLE *> tables(select_lex->join->thd->mem_root);
   for (TABLE_LIST *tl = select_lex->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
     if (tl->map() & tmap) {
@@ -725,7 +724,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
       return nullptr;
 
     if (select_lex->is_explicitly_grouped()) {
-      Prealloced_array<TABLE *, 4> tables =
+      Mem_root_array<TABLE *> tables =
           CollectTables(select_lex, GetUsedTables(root_path));
       Filesort *filesort = new (thd->mem_root)
           Filesort(thd, std::move(tables), /*keep_buffers=*/false,
@@ -797,7 +796,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   // Apply ORDER BY, if applicable.
   if (select_lex->is_ordered()) {
-    Prealloced_array<TABLE *, 4> tables =
+    Mem_root_array<TABLE *> tables =
         CollectTables(select_lex, GetUsedTables(root_path));
     Temp_table_param *temp_table_param = nullptr;
     TABLE *temp_table = nullptr;

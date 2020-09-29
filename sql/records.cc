@@ -190,7 +190,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
     iterator = NewIterator<SortFileIndirectIterator>(
-        thd, Prealloced_array<TABLE *, 4>{table}, table->unique_result.io_cache,
+        thd, Mem_root_array<TABLE *>{table}, table->unique_result.io_cache,
         ignore_not_found_rows, /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
     table->unique_result.io_cache =
@@ -203,7 +203,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
     DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
     iterator = NewIterator<SortBufferIndirectIterator>(
-        thd, Prealloced_array<TABLE *, 4>{table}, &table->unique_result,
+        thd, Mem_root_array<TABLE *>{table}, &table->unique_result,
         ignore_not_found_rows, /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
   } else {

@@ -26,11 +26,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "mem_root_array.h"
 #include "my_base.h" /* ha_rows */
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "prealloced_array.h"
 #include "sql/sort_param.h"
 
 class Addon_fields;
@@ -52,7 +52,7 @@ class Filesort {
  public:
   THD *m_thd;
   /// The tables we are sorting.
-  Prealloced_array<TABLE *, 4> tables;
+  Mem_root_array<TABLE *> tables;
   /// If true, do not free the filesort buffers (use if you expect to sort many
   /// times, like in an uncacheable subquery).
   const bool keep_buffers;
@@ -75,7 +75,7 @@ class Filesort {
   // TODO(sgunders): Change tables to a table_map; however, currently
   // some semijoin tables are missing from select_lex->leaf_tables,
   // so we can't do that yet.
-  Filesort(THD *thd, Prealloced_array<TABLE *, 4> tables, bool keep_buffers,
+  Filesort(THD *thd, Mem_root_array<TABLE *> tables, bool keep_buffers,
            ORDER *order, ha_rows limit_arg, bool force_stable_sort,
            bool remove_duplicates, bool force_sort_positions,
            bool unwrap_rollup);

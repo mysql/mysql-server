@@ -142,7 +142,7 @@ struct Mem_compare_queue_key {
 /* functions defined in this file */
 
 static ha_rows read_all_rows(
-    THD *thd, Sort_param *param, const Prealloced_array<TABLE *, 4> &tables,
+    THD *thd, Sort_param *param, const Mem_root_array<TABLE *> &tables,
     table_map tables_to_get_rowid_for, Filesort_info *fs_info,
     IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
@@ -161,7 +161,7 @@ static bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
                                    ulong memory_available);
 
 void Sort_param::decide_addon_fields(Filesort *file_sort,
-                                     const Prealloced_array<TABLE *, 4> &tables,
+                                     const Mem_root_array<TABLE *> &tables,
                                      bool force_sort_positions) {
   if (m_addon_fields_status != Addon_fields_status::unknown_status) {
     // Already decided.
@@ -223,7 +223,7 @@ void Sort_param::clear_addon_fields() {
 void Sort_param::init_for_filesort(Filesort *file_sort,
                                    Bounds_checked_array<st_sort_field> sf_array,
                                    uint sortlen,
-                                   const Prealloced_array<TABLE *, 4> &tables,
+                                   const Mem_root_array<TABLE *> &tables,
                                    ha_rows maxrows, bool remove_duplicates) {
   m_fixed_sort_length = sortlen;
   m_force_stable_sort = file_sort->m_force_stable_sort;
@@ -677,7 +677,7 @@ void filesort_free_buffers(TABLE *table, bool full) {
   }
 }
 
-Filesort::Filesort(THD *thd, Prealloced_array<TABLE *, 4> tables_arg,
+Filesort::Filesort(THD *thd, Mem_root_array<TABLE *> tables_arg,
                    bool keep_buffers_arg, ORDER *order, ha_rows limit_arg,
                    bool force_stable_sort, bool remove_duplicates,
                    bool sort_positions, bool unwrap_rollup)
@@ -856,7 +856,7 @@ class Filesort_error_handler : public Internal_error_handler {
 };
 
 static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
-                                   const Prealloced_array<TABLE *, 4> &tables,
+                                   const Mem_root_array<TABLE *> &tables,
                                    size_t *key_length, size_t *longest_addons) {
   size_t min_bytes = 1;
   for (;;) {  // Termination condition within loop.
@@ -942,7 +942,7 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
 */
 
 static ha_rows read_all_rows(
-    THD *thd, Sort_param *param, const Prealloced_array<TABLE *, 4> &tables,
+    THD *thd, Sort_param *param, const Mem_root_array<TABLE *> &tables,
     table_map tables_to_get_rowid_for, Filesort_info *fs_info,
     IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
@@ -1388,7 +1388,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
 }  // namespace
 
 uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
-                              const Prealloced_array<TABLE *, 4> &tables,
+                              const Mem_root_array<TABLE *> &tables,
                               size_t *longest_addon_so_far) {
   uchar *to = dst.array();
   uchar *to_end = dst.array() + dst.size();
