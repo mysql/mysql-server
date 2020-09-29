@@ -5383,20 +5383,16 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     if (remove_condition) continue;
 
     /*
-      Do this optimization if fix_fields is allowed to change the condition
-      and if this is the first execution.
-      Check if the const item does not contain param's, SP args etc.  We also
-      cannot optimize conditions if it's a view. The condition has to be a
-      top_level_item to get optimized as they can have only two return values,
-      true or false. A non-top_level_item can have true, false and NULL return.
+      Do this optimization if fix_fields() is allowed to change the condition.
+      We also cannot optimize conditions when creating a view.
+      The condition must ignore unknown return values to get optimized as
+      they can have only two return values, true or false.
       Fulltext funcs cannot be removed as ftfunc_list stores the list
       of pointers to these functions. The list gets accessed later
       in the call to init_ftfuncs() from JOIN::reset.
       TODO: Lift this restriction once init_ft_funcs gets moved to JOIN::exec
     */
-    if (ref != nullptr && select->first_execution && item->const_item() &&
-        !item->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                    nullptr) &&
+    if (ref != nullptr && item->const_item() &&
         !thd->lex->is_view_context_analysis() && ignore_unknown() &&
         !select->has_ft_funcs() && can_remove_cond) {
       if (remove_const_conds(thd, item, &new_item)) return true;

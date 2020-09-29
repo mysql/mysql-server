@@ -344,8 +344,6 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       is still marked as having a HAVING condition.
     */
     if (m_having_cond->const_item() && !thd->lex->is_view_context_analysis() &&
-        !m_having_cond->walk(&Item::is_non_const_over_literals,
-                             enum_walk::POSTFIX, nullptr) &&
         simplify_const_condition(thd, &m_having_cond, false))
       return true;
   }
@@ -1617,8 +1615,6 @@ bool SELECT_LEX::setup_conds(THD *thd) {
 
     // Simplify the where condition if it's a const item
     if (m_where_cond->const_item() && !thd->lex->is_view_context_analysis() &&
-        !m_where_cond->walk(&Item::is_non_const_over_literals,
-                            enum_walk::POSTFIX, nullptr) &&
         simplify_const_condition(thd, &m_where_cond))
       return true;
 
@@ -1673,8 +1669,6 @@ bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
       assert(tr->join_cond()->data_type() != MYSQL_TYPE_INVALID);
 
       if ((*ref)->const_item() && !thd->lex->is_view_context_analysis() &&
-          !(*ref)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                        nullptr) &&
           simplify_const_condition(thd, ref, remove_cond))
         return true;
 
@@ -2046,9 +2040,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
       // always false the semi/antijoin can be partially simplified
       // (note that the semi/antijoin nest will still be created and used in
       // optimization and execution).
-      if (*cond && (*cond)->const_item() &&
-          !(*cond)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                         nullptr)) {
+      if (*cond != nullptr && (*cond)->const_item()) {
         bool cond_value = true;
         if (simplify_const_condition(thd, cond, false, &cond_value))
           return true;
@@ -2366,25 +2358,20 @@ void SELECT_LEX::clear_sj_expressions(NESTED_JOIN *nested_join) {
   @param nested_join    Join nest
   @param subq_select    Query block for the subquery
   @param outer_tables_map Map of tables from original outer query block
-  @param[out] sj_cond   Semi-join condition to be constructed
+  @param[in,out] sj_cond Semi-join condition to be constructed
+                         Contains subquery WHERE predicate on input
 
   @return false if success, true if error
 */
 bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
                                SELECT_LEX *subq_select,
                                table_map outer_tables_map, Item **sj_cond) {
-  if (nested_join->sj_inner_exprs.empty()) {
-    // Semi-join materialization requires a key, push a constant integer item
-    Item *const_item = new Item_int(1);
-    if (const_item == nullptr) return true;
-    nested_join->sj_inner_exprs.push_back(const_item);
-    nested_join->sj_outer_exprs.push_back(const_item);
-  }
-
   auto ii = nested_join->sj_inner_exprs.begin();
   auto oi = nested_join->sj_outer_exprs.begin();
-  while (ii != nested_join->sj_inner_exprs.end() &&
-         oi != nested_join->sj_outer_exprs.end()) {
+  Item *in_sj_cond = *sj_cond;
+  bool cond_value = true;
+
+  while (ii != nested_join->sj_inner_exprs.end()) {
     bool should_remove = false;
     Item *inner = *ii;
     Item *outer = *oi;
@@ -2400,13 +2387,9 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
     Item *predicate = item_eq;
     if (!item_eq->fixed && item_eq->fix_fields(thd, &predicate)) return true;
 
-    // Evaluate if the condition is on const expressions
-    if (predicate->const_item() &&
-        !(predicate)->walk(&Item::is_non_const_over_literals,
-                           enum_walk::POSTFIX, nullptr)) {
-      bool cond_value = true;
-
-      /* Push ignore / strict error handler */
+    // If the predicate is constant, evaluate it now and take proper action:
+    if (predicate->const_item()) {
+      // Push ignore / strict error handler before evaluation:
       Ignore_error_handler ignore_handler;
       Strict_error_handler strict_handler;
       if (thd->lex->is_ignore())
@@ -2423,21 +2406,16 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
 
       if (cond_value) {
         /*
-          Remove the expression from inner/outer expression list if the
-          const condition evalutes to true as Item_cond::fix_fields will
-          remove the condition later.
-          Do the above if this is not the last expression in the list.
-          Semijoin processing expects atleast one inner/outer expression
-          in the list if there is a sj_nest present.
+          When the value is always true, remove the expressions that are
+          part of the predicate from the inner/outer expression lists.
+          Item_cond::fix_fields() will remove the predicate later.
         */
-        if (nested_join->sj_inner_exprs.size() != 1) {
-          should_remove = true;
-        }
+        should_remove = true;
       } else {
         /*
-          Remove all the expressions in inner/outer expression list if
-          one of condition evaluates to always false. Add an always false
-          condition to semi-join condition.
+          When the value is always false, remove all the expressions in
+          the inner/outer expression lists, and add an always false
+          condition to the semi-join condition.
         */
         nested_join->sj_inner_exprs.clear();
         nested_join->sj_outer_exprs.clear();
@@ -2471,6 +2449,21 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
       ++ii, ++oi;
     }
   }
+  if (nested_join->sj_inner_exprs.empty() && cond_value) {
+    // Semi-join materialization requires a key, push a constant integer item
+    Item *const_item = new Item_int(1);
+    if (const_item == nullptr) return true;
+    if (nested_join->sj_inner_exprs.push_back(const_item)) return true;
+    if (nested_join->sj_outer_exprs.push_back(const_item)) return true;
+    if (in_sj_cond != nullptr) {
+      *sj_cond = in_sj_cond;
+    } else {
+      Item *new_item = new Item_func_true();
+      if (new_item == nullptr) return true;
+      (*sj_cond) = new_item;
+    }
+  }
+
   return false;
 }
 
@@ -3298,9 +3291,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   }
 
   Item *cond = emb_tbl_nest ? emb_tbl_nest->join_cond() : m_where_cond;
-  if (cond && cond->const_item() &&
-      !cond->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                  nullptr)) {
+  if (cond != nullptr && cond->const_item()) {
     bool cond_value = true;
     if (simplify_const_condition(thd, &cond, false, &cond_value)) return true;
     if (!cond_value) {
@@ -3794,9 +3785,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
       the subquery in transformations.
     */
     bool cond_value = true;
-    if (subq_where && subq_where->const_item() &&
-        !subq_where->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
-                          nullptr) &&
+    if (subq_where != nullptr && subq_where->const_item() &&
         simplify_const_condition(thd, &subq_where, false, &cond_value))
       return true;
 

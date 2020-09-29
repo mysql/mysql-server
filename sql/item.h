@@ -2433,9 +2433,6 @@ class Item : public Parse_tree_node {
   virtual bool find_item_in_field_list_processor(uchar *) { return false; }
   virtual bool change_context_processor(uchar *) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *)arg; }
-  virtual bool is_non_const_over_literals(uchar *) {
-    return !basic_const_item();
-  }
   /// Is this an Item_field which references the given Field argument?
   virtual bool find_field_processor(uchar *) { return false; }
   /// Wrap incompatible arguments in CAST nodes to the expected data types
@@ -4530,7 +4527,6 @@ class Item_param final : public Item, private Settable_routine_parameter {
   */
   bool eq(const Item *item, bool binary_cmp) const override;
   void set_param_type_and_swap_value(Item_param *from);
-  bool is_non_const_over_literals(uchar *) override { return true; }
   /**
     This should be called after any modification done to this Item, to
     propagate the said modification to all its clones.
@@ -5544,7 +5540,6 @@ class Item_ref : public Item_ident {
 
   bool repoint_const_outer_ref(uchar *arg) override;
   bool references_select_expr_of(uchar *arg) override;
-  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -6389,7 +6384,6 @@ class Item_cache : public Item_basic_constant {
   bool is_null() override {
     return value_cached ? null_value : example->is_null();
   }
-  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
