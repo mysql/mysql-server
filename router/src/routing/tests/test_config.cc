@@ -22,30 +22,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "../../router/src/router_app.h"
-#include "../../routing/src/mysql_routing.h"
-#include "../../routing/src/utils.h"
-#include "gtest_consoleoutput.h"
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/plugin.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/routing.h"
-#include "router_test_helpers.h"
-#include "test/helpers.h"
-
 #include <cstdio>
 #include <fstream>
-#include <future>
-#include <memory>
+#include <memory>  // unique_ptr
 #include <string>
-#include <thread>
-#ifndef _WIN32
-#include <netinet/in.h>
-#else
-#include <WinSock2.h>
-#endif
 
 #include <gmock/gmock.h>
+
+#include "../../router/src/router_app.h"  // MySQLRouter
+#include "gtest_consoleoutput.h"
+#include "router_test_helpers.h"  // ASSERT_THROW_LIKE
+#include "test/helpers.h"         // init_test_logger
 
 using mysql_harness::Path;
 using std::string;

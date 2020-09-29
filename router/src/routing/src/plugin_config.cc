@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,20 @@
 #include "plugin_config.h"
 
 #include <algorithm>  // transform
+#include <array>
+#include <initializer_list>
 #include <stdexcept>  // invalid_argument
+#include <string>
 #include <vector>
 
+#include "context.h"
 #include "mysql/harness/config_option.h"
+#include "mysql/harness/config_parser.h"
 #include "mysql/harness/string_utils.h"  // trim
 #include "mysql_router_thread.h"         // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/routing.h"         // AccessMode
 #include "mysqlrouter/uri.h"
+#include "ssl_mode.h"
 
 using namespace stdx::string_view_literals;
 
@@ -339,6 +345,114 @@ static T get_uint_option(const mysql_harness::ConfigSection *section,
   return result;
 }
 
+static SslMode get_option_ssl_mode(
+    const mysql_harness::ConfigSection *section,
+    const mysql_harness::ConfigOption &option,
+    std::initializer_list<SslMode> allowed_ssl_modes) {
+  auto res = option.get_option_string(section);
+  if (!res) {
+    throw std::invalid_argument(res.error().message());
+  }
+
+  // convert name to upper-case to get case-insenstive comparision.
+  auto name = res.value();
+  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+
+  // check if the mode is allowed
+  const auto it =
+      std::find_if(allowed_ssl_modes.begin(), allowed_ssl_modes.end(),
+                   [name](auto const &allowed_ssl_mode) {
+                     return name == ssl_mode_to_string(allowed_ssl_mode);
+                   });
+  if (it != allowed_ssl_modes.end()) {
+    return *it;
+  }
+
+  // build list of allowed modes, but don't mention the default case.
+  std::string allowed_names;
+  for (const auto &allowed_ssl_mode : allowed_ssl_modes) {
+    if (allowed_ssl_mode == SslMode::kDefault) continue;
+
+    if (!allowed_names.empty()) {
+      allowed_names.append(",");
+    }
+
+    allowed_names += ssl_mode_to_string(allowed_ssl_mode);
+  }
+
+  throw std::invalid_argument("invalid value '" + res.value() + "' for " +
+                              option.name() +
+                              ". Allowed are: " + allowed_names + ".");
+}
+
+/**
+ * get the name for a SslVerify.
+ *
+ * @param verify a SslVerify value
+ *
+ * @returns name of a SslVerify
+ * @retval nullptr if verify is unknown.
+ */
+static const char *ssl_verify_to_string(SslVerify verify) {
+  switch (verify) {
+    case SslVerify::kVerifyCa:
+      return "VERIFY_CA";
+    case SslVerify::kVerifyIdentity:
+      return "VERIFY_IDENTITY";
+    case SslVerify::kDisabled:
+      return "DISABLED";
+  }
+
+  return nullptr;
+}
+
+static SslVerify get_option_ssl_verify(
+    const mysql_harness::ConfigSection *section,
+    const mysql_harness::ConfigOption &option,
+    std::initializer_list<SslVerify> allowed_ssl_verifies) {
+  auto res = option.get_option_string(section);
+  if (!res) {
+    throw std::invalid_argument(res.error().message());
+  }
+
+  // convert name to upper-case to get case-insenstive comparision.
+  auto name = res.value();
+  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+
+  const auto it =
+      std::find_if(allowed_ssl_verifies.begin(), allowed_ssl_verifies.end(),
+                   [name](auto const &allowed_ssl_verify) {
+                     return name == ssl_verify_to_string(allowed_ssl_verify);
+                   });
+  if (it != allowed_ssl_verifies.end()) {
+    return *it;
+  }
+
+  std::string allowed_names;
+  for (const auto &allowed_ssl_verify : allowed_ssl_verifies) {
+    if (!allowed_names.empty()) {
+      allowed_names.append(",");
+    }
+
+    allowed_names += ssl_verify_to_string(allowed_ssl_verify);
+  }
+
+  throw std::invalid_argument("invalid value '" + res.value() + "' for " +
+                              option.name() +
+                              ". Allowed are: " + allowed_names + ".");
+}
+
+static std::string get_option_string(
+    const mysql_harness::ConfigSection *section,
+    const mysql_harness::ConfigOption &option) {
+  auto res = option.get_option_string(section);
+  if (!res) {
+    throw std::invalid_argument(res.error().message());
+  }
+
+  return res.value();
+}
+
 /** @brief Constructor
  *
  * @param section from configuration file provided as ConfigSection
@@ -403,10 +517,90 @@ RoutingPluginConfig::RoutingPluginConfig(
           mysql_harness::ConfigOption(
               "thread_stack_size"_sv,
               std::to_string(mysql_harness::kDefaultStackSizeInKiloBytes)),
-          1, 65535)) {
+          1, 65535)),
+      source_ssl_mode{get_option_ssl_mode(
+          section, mysql_harness::ConfigOption("client_ssl_mode"_sv, ""_sv),
+          {SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
+           SslMode::kPassthrough, SslMode::kDefault})},
+      source_ssl_cert{get_option_string(
+          section, mysql_harness::ConfigOption("client_ssl_cert"_sv, ""_sv))},
+      source_ssl_key{get_option_string(
+          section, mysql_harness::ConfigOption("client_ssl_key"_sv, ""_sv))},
+      source_ssl_cipher{get_option_string(
+          section, mysql_harness::ConfigOption("client_ssl_cipher"_sv, ""_sv))},
+      source_ssl_curves{get_option_string(
+          section, mysql_harness::ConfigOption("client_ssl_curves"_sv, ""_sv))},
+      source_ssl_dh_params{get_option_string(
+          section,
+          mysql_harness::ConfigOption("client_ssl_dh_params"_sv, ""_sv))},
+      dest_ssl_mode{get_option_ssl_mode(
+          section,
+          mysql_harness::ConfigOption("server_ssl_mode"_sv, "as_client"_sv),
+          {SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
+           SslMode::kAsClient})},
+      dest_ssl_verify{get_option_ssl_verify(
+          section,
+          mysql_harness::ConfigOption("server_ssl_verify"_sv, "disabled"_sv),
+          {SslVerify::kDisabled, SslVerify::kVerifyCa,
+           SslVerify::kVerifyIdentity})},
+      dest_ssl_cipher{get_option_string(
+          section, mysql_harness::ConfigOption("server_ssl_cipher"_sv, ""_sv))},
+      dest_ssl_ca_file{get_option_string(
+          section, mysql_harness::ConfigOption("server_ssl_ca"_sv, ""_sv))},
+      dest_ssl_ca_dir{get_option_string(
+          section, mysql_harness::ConfigOption("server_ssl_capath"_sv, ""_sv))},
+      dest_ssl_crl_file{get_option_string(
+          section, mysql_harness::ConfigOption("server_ssl_crl"_sv, ""_sv))},
+      dest_ssl_crl_dir{get_option_string(
+          section,
+          mysql_harness::ConfigOption("server_ssl_crlpath"_sv, ""_sv))},
+      dest_ssl_curves{get_option_string(
+          section,
+          mysql_harness::ConfigOption("server_ssl_curves"_sv, ""_sv))} {
+  using namespace std::string_literals;
+
   // either bind_address or socket needs to be set, or both
   if (!bind_address.port && !named_socket.is_set()) {
     throw std::invalid_argument(
         "either bind_address or socket option needs to be supplied, or both");
+  }
+
+  // if client-ssl-mode isn't set, use either PASSTHROUGH or PREFERRED
+  if (source_ssl_mode == SslMode::kDefault) {
+    if (source_ssl_cert.empty() && source_ssl_key.empty()) {
+      source_ssl_mode = SslMode::kPassthrough;
+    } else {
+      source_ssl_mode = SslMode::kPreferred;
+    }
+  }
+
+  if (source_ssl_mode != SslMode::kDisabled &&
+      source_ssl_mode != SslMode::kPassthrough) {
+    if (source_ssl_cert.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_cert must be set, if client_ssl_mode is '"s +
+          ssl_mode_to_string(source_ssl_mode) + "'.");
+    }
+    if (source_ssl_key.empty()) {
+      throw std::invalid_argument(
+          "client_ssl_key must be set, if client_ssl_mode is '"s +
+          ssl_mode_to_string(source_ssl_mode) + "'.");
+    }
+  }
+
+  if (source_ssl_mode == SslMode::kPassthrough &&
+      dest_ssl_mode != SslMode::kAsClient) {
+    throw std::invalid_argument(
+        "If client_ssl_mode is PASSTHROUGH, server_ssl_mode must be "
+        "AS_CLIENT.");
+  }
+
+  if (dest_ssl_verify != SslVerify::kDisabled) {
+    if (dest_ssl_ca_dir.empty() && dest_ssl_ca_file.empty()) {
+      throw std::invalid_argument(
+          "server_ssl_ca or server_ssl_capath must be set, if "
+          "server_ssl_verify is '"s +
+          ssl_verify_to_string(dest_ssl_verify) + "'.");
+    }
   }
 }

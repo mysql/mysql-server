@@ -67,7 +67,7 @@ SET(system_include_dirs
 # The Plugin
 add_harness_plugin(routing
  SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}
- REQUIRES mysql_protocol metadata_cache
+ REQUIRES mysql_protocol metadata_cache harness_tls
  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
  )
 TARGET_INCLUDE_DIRECTORIES(routing

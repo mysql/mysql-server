@@ -71,6 +71,7 @@
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
 #include "router_config.h"
+#include "ssl_mode.h"
 #include "tcp_address.h"
 #include "utils.h"
 
@@ -228,6 +229,10 @@ class MySQLRouting {
    * @param net_buffer_length send/receive buffer size
    * @param sock_ops object handling the operations on network sockets
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
+   * @param client_ssl_mode SSL mode of the client side
+   * @param client_ssl_ctx SSL context of the client side
+   * @param server_ssl_mode SSL mode of the serer side
+   * @param dest_ssl_ctx SSL contexts of the destinations
    */
   MySQLRouting(
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
@@ -245,7 +250,11 @@ class MySQLRouting {
       unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
       mysql_harness::SocketOperationsBase *sock_ops =
           mysql_harness::SocketOperations::instance(),
-      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
+      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
+      SslMode client_ssl_mode = SslMode::kDisabled,
+      TlsServerContext *client_ssl_ctx = nullptr,
+      SslMode server_ssl_mode = SslMode::kDisabled,
+      DestinationTlsContext *dest_ssl_ctx = nullptr);
 
   /** @brief Starts the service and accept incoming connections
    *

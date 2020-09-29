@@ -37,6 +37,7 @@
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
 #include "socket_operations.h"
+#include "ssl_mode.h"
 #include "tcp_address.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"
@@ -92,7 +93,8 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   MySQLRoutingContext context(
       new MockProtocol, &socket_operations_, name_, net_buffer_length_,
       destination_connect_timeout_, client_connect_timeout_, bind_address_,
-      bind_named_socket_, max_connect_errors_, thread_stack_size_);
+      bind_named_socket_, max_connect_errors_, thread_stack_size_,
+      SslMode::kPassthrough, nullptr, SslMode::kAsClient, nullptr);
 
   auto &sock_ops = *dynamic_cast<MockSocketService *>(io_ctx_.socket_service());
   auto &io_ops = *dynamic_cast<MockIoService *>(io_ctx_.io_service());

@@ -23,35 +23,31 @@
 */
 
 #include <chrono>
-#include <cstdio>
 #include <fstream>
 #include <functional>
-#include <sstream>
-#include <thread>
-#include "mysqlrouter/io_backend.h"
+#include <system_error>
 #ifndef _WIN32
-#include <sys/un.h>
 #include <unistd.h>
 #endif
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "common.h"
 
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/loader.h"
+#include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/logging/logging.h"
-#include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin.h"  // AppInfo
+#include "mysqlrouter/io_backend.h"
 #include "mysqlrouter/io_component.h"
 
 #include "gtest_consoleoutput.h"
-#include "mysql/harness/logging/logging.h"
 #include "mysql_routing.h"
 #include "plugin_config.h"
 #include "router_test_helpers.h"
 #include "tcp_port_pool.h"
-#include "test/helpers.h"
+#include "test/helpers.h"  // init_test_logger
 
 // since this function is only meant to be used here (for testing purposes),
 // it's not available in the headers.
@@ -59,9 +55,7 @@ void validate_socket_info_test_proxy(
     const std::string &err_prefix, const mysql_harness::ConfigSection *section,
     const RoutingPluginConfig &config);
 
-using mysql_harness::get_strerror;
 using mysql_harness::Path;
-using std::string;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsNull;
@@ -147,9 +141,10 @@ class RoutingPluginTests : public ConsoleOutputTest {
   void TearDown() override {
     if (unlink(config_path->c_str()) == -1) {
       if (errno != ENOENT) {
+        auto ec = std::error_code{errno, std::generic_category()};
         // File missing is OK.
         std::cerr << "Failed removing " << config_path->str() << ": "
-                  << get_strerror(errno) << "(" << errno << ")" << std::endl;
+                  << ec.message() << "(" << ec.value() << ")" << std::endl;
       }
     }
     ConsoleOutputTest::TearDown();
@@ -458,6 +453,478 @@ TEST_F(RoutingPluginTests, InvalidIpv6) {
                               "invalid IPv6 address: illegal character(s)"));
   }
 }
+
+struct RoutingConfigParam {
+  const char *test_name;
+
+  std::vector<std::pair<const char *, const char *>> entries;
+
+  std::function<void(const RoutingPluginConfig &)> checker;
+};
+
+/**
+ * check valid routing config constructs.
+ */
+class RoutingConfigTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<RoutingConfigParam> {
+ public:
+  void SetUp() override {
+    cfg_.clear();
+
+    mysql_harness::ConfigSection &section = cfg_.add("routing", "test_route");
+    section.add("destinations", "127.0.0.1:3306");
+    section.add("mode", "read-only");
+    section.add("bind_port", "6446");
+  }
+  mysql_harness::Config cfg_{mysql_harness::Config::allow_keys};
+};
+
+/**
+ * check the option works in the [DEFAULT] section.
+ */
+TEST_P(RoutingConfigTest, default_option) {
+  for (auto const &kv : GetParam().entries) {
+    cfg_.set_default(kv.first, kv.second);
+  }
+
+  mysql_harness::ConfigSection &section = cfg_.get("routing", "test_route");
+
+  try {
+    RoutingPluginConfig config(&section);
+
+    ASSERT_NO_FATAL_FAILURE(GetParam().checker(config));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+}
+
+/**
+ * check the option works in the [routing] section.
+ */
+TEST_P(RoutingConfigTest, section_option) {
+  mysql_harness::ConfigSection &section = cfg_.get("routing", "test_route");
+  for (auto const &kv : GetParam().entries) {
+    section.add(kv.first, kv.second);
+  }
+
+  try {
+    RoutingPluginConfig config(&section);
+
+    ASSERT_NO_FATAL_FAILURE(GetParam().checker(config));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+}
+
+/**
+ * check the option works in the [routing] section and broken [DEFAULT] is
+ * ignored.
+ */
+TEST_P(RoutingConfigTest, section_option_with_default) {
+  // set the 'key' to some value, just to check it isn't used
+  for (auto const &kv : GetParam().entries) {
+    cfg_.set_default(kv.first, "some-other-value");
+  }
+
+  mysql_harness::ConfigSection &section = cfg_.get("routing", "test_route");
+  for (auto const &kv : GetParam().entries) {
+    section.add(kv.first, kv.second);
+  }
+
+  try {
+    RoutingPluginConfig config(&section);
+
+    ASSERT_NO_FATAL_FAILURE(GetParam().checker(config));
+  } catch (const std::exception &e) {
+    FAIL() << e.what();
+  }
+}
+
+RoutingConfigParam routing_config_params[] = {
+    // server-ssl-mode
+    //
+    {"server_ssl_mode_default",
+     {},
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kAsClient);
+     }},
+    {"server_ssl_mode_empty",
+     {
+         {"server_ssl_mode", ""},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kAsClient);
+     }},
+
+    {"server_ssl_mode_as_client",
+     {
+         {"server_ssl_mode", "as_client"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kAsClient);
+     }},
+    {"server_ssl_mode_as_client_mixed_case",
+     {
+         {"server_ssl_mode", "as_Client"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kAsClient);
+     }},
+    {"server_ssl_mode_preferred",
+     {
+         {"server_ssl_mode", "preferred"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kPreferred);
+     }},
+    {"server_ssl_mode_preferred_mixed_case",
+     {
+         {"server_ssl_mode", "PreFerred"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kPreferred);
+     }},
+    {"server_ssl_mode_disabled",
+     {
+         {"server_ssl_mode", "disabled"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kDisabled);
+     }},
+    {"server_ssl_mode_disabled_mixed_case",
+     {
+         {"server_ssl_mode", "DisAbled"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kDisabled);
+     }},
+    {"server_ssl_mode_required",
+     {
+         {"server_ssl_mode", "required"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kRequired);
+     }},
+    {"server_ssl_mode_required_mixed_case",
+     {
+         {"server_ssl_mode", "reQuired"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.dest_ssl_mode, SslMode::kRequired);
+     }},
+
+    // client-ssl-mode
+
+    {"client_ssl_mode_default",
+     {},
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kPassthrough);
+     }},
+    {"client_ssl_mode_empty",
+     {
+         {"client_ssl_mode", ""},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kPassthrough);
+     }},
+
+    {"client_ssl_mode_passthrough",
+     {
+         {"client_ssl_mode", "passthrough"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kPassthrough);
+     }},
+    {"client_ssl_mode_passthrough_mixed_case",
+     {
+         {"client_ssl_mode", "PassThrough"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kPassthrough);
+     }},
+    {"client_ssl_mode_preferred",
+     {
+         {"client_ssl_mode", "preferred"},
+         {"client_ssl_cert", "some-cert.pem"},
+         {"client_ssl_key", "some-key.pem"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kPreferred);
+     }},
+    {"client_ssl_mode_preferred_mixed_case",
+     {
+         {"client_ssl_mode", "PreFerred"},
+         {"client_ssl_cert", "some-cert.pem"},
+         {"client_ssl_key", "some-key.pem"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kPreferred);
+     }},
+    {"client_ssl_mode_disabled",
+     {
+         {"client_ssl_mode", "disabled"},
+         {"client_ssl_cert", "some-cert.pem"},
+         {"client_ssl_key", "some-key.pem"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kDisabled);
+     }},
+    {"client_ssl_mode_disabled_mixed_case",
+     {
+         {"client_ssl_mode", "DisAbled"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kDisabled);
+     }},
+    {"client_ssl_mode_required",
+     {
+         {"client_ssl_mode", "required"},
+         {"client_ssl_cert", "some-cert.pem"},
+         {"client_ssl_key", "some-key.pem"},
+     },
+     [](const auto &config) {
+       ASSERT_THAT(config.source_ssl_mode, SslMode::kRequired);
+     }},
+    {"client_ssl_mode_required_mixed_case",
+     {
+         {"client_ssl_mode", "reQuired"},
+         {"client_ssl_cert", "some-cert.pem"},
+         {"client_ssl_key", "some-key.pem"},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.source_ssl_mode, SslMode::kRequired);
+       ASSERT_EQ(config.source_ssl_cert, "some-cert.pem");
+       ASSERT_EQ(config.source_ssl_key, "some-key.pem");
+     }},
+
+    // server-ssl-verify
+    {"server_ssl_verify_default",
+     {},
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kDisabled);
+     }},
+    {"server_ssl_verify_empty",
+     {
+         {"server_ssl_verify", ""},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kDisabled);
+     }},
+    {"server_ssl_verify_disabled",
+     {
+         {"server_ssl_verify", "disabled"},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kDisabled);
+     }},
+    {"server_ssl_verify_disabled_mixed_case",
+     {
+         {"server_ssl_verify", "dIsabled"},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kDisabled);
+     }},
+    {"server_ssl_verify_verify_ca_with_ca_file",
+     {
+         {"server_ssl_verify", "verify_ca"},
+         {"server_ssl_ca", "some-ca.pem"},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kVerifyCa);
+       ASSERT_EQ(config.dest_ssl_ca_file, "some-ca.pem");
+       ASSERT_EQ(config.dest_ssl_ca_dir, "");
+     }},
+    {"server_ssl_verify_verify_ca_with_capath",
+     {
+         {"server_ssl_verify", "verify_ca"},
+         {"server_ssl_capath", "some-capath"},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kVerifyCa);
+       ASSERT_EQ(config.dest_ssl_ca_file, "");
+       ASSERT_EQ(config.dest_ssl_ca_dir, "some-capath");
+     }},
+    {"server_ssl_verify_verify_ca_mixed_case_with_ca",
+     {
+         {"server_ssl_verify", "Verify_Ca"},
+         {"server_ssl_ca", "some-ca.pem"},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kVerifyCa);
+       ASSERT_EQ(config.dest_ssl_ca_file, "some-ca.pem");
+       ASSERT_EQ(config.dest_ssl_ca_dir, "");
+     }},
+    {"server_ssl_verify_verify_ca_mixed_case_with_capath",
+     {
+         {"server_ssl_verify", "Verify_Ca"},
+         {"server_ssl_capath", "some-capath"},
+     },
+     [](const auto &config) {
+       ASSERT_EQ(config.dest_ssl_verify, SslVerify::kVerifyCa);
+       ASSERT_EQ(config.dest_ssl_ca_file, "");
+       ASSERT_EQ(config.dest_ssl_ca_dir, "some-capath");
+     }},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, RoutingConfigTest,
+                         ::testing::ValuesIn(routing_config_params),
+                         [](auto const &info) { return info.param.test_name; });
+
+struct RoutingConfigFailParam {
+  const char *test_name;
+
+  std::vector<std::pair<const char *, const char *>> entries;
+
+  std::function<void(const std::exception &)> checker;
+};
+
+/**
+ * check invalid routing config fails.
+ */
+class RoutingConfigFailTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<RoutingConfigFailParam> {
+ public:
+  void SetUp() override {
+    cfg_ = mysql_harness::Config{mysql_harness::Config::allow_keys};
+
+    mysql_harness::ConfigSection &section = cfg_.add("routing", "test_route");
+    section.add("destinations", "127.0.0.1:3306");
+    section.add("mode", "read-only");
+    section.add("bind_port", "6446");
+  }
+
+ protected:
+  mysql_harness::Config cfg_;
+};
+
+TEST_P(RoutingConfigFailTest, default_option) {
+  for (auto const &kv : GetParam().entries) {
+    cfg_.set_default(kv.first, kv.second);
+  }
+
+  mysql_harness::ConfigSection &section = cfg_.get("routing", "test_route");
+  try {
+    RoutingPluginConfig config(&section);
+
+    FAIL() << "expected to fail";
+  } catch (const std::exception &e) {
+    ASSERT_NO_FATAL_FAILURE(GetParam().checker(e));
+  }
+}
+
+TEST_P(RoutingConfigFailTest, section_option) {
+  mysql_harness::ConfigSection &section = cfg_.get("routing", "test_route");
+  for (auto const &kv : GetParam().entries) {
+    section.add(kv.first, kv.second);
+  }
+
+  try {
+    RoutingPluginConfig config(&section);
+
+    FAIL() << "expected to fail";
+  } catch (const std::exception &e) {
+    ASSERT_NO_FATAL_FAILURE(GetParam().checker(e));
+  }
+}
+
+RoutingConfigFailParam routing_config_fail_params[] = {
+    // server-ssl-mode
+    //
+    {"server_ssl_mode_unknown",
+     {
+         {"server_ssl_mode", "unknown"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(e.what(),
+                    "invalid value 'unknown' for server_ssl_mode. Allowed are: "
+                    "DISABLED,PREFERRED,REQUIRED,AS_CLIENT.");
+     }},
+    // client-ssl-mode
+    //
+    {"client_ssl_mode_unknown",
+     {
+         {"client_ssl_mode", "unknown"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(e.what(),
+                    "invalid value 'unknown' for client_ssl_mode. Allowed are: "
+                    "DISABLED,PREFERRED,REQUIRED,PASSTHROUGH.");
+     }},
+    {"client_ssl_mode_preferred_missing_cert",
+     {
+         {"client_ssl_mode", "preferred"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(
+           e.what(),
+           "client_ssl_cert must be set, if client_ssl_mode is 'PREFERRED'.");
+     }},
+    {"client_ssl_mode_required_missing_cert",
+     {
+         {"client_ssl_mode", "required"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(
+           e.what(),
+           "client_ssl_cert must be set, if client_ssl_mode is 'REQUIRED'.");
+     }},
+    {"client_ssl_mode_preferred_missing_key",
+     {
+         {"client_ssl_mode", "preferred"},
+         {"client_ssl_cert", "some-cert.pem"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(
+           e.what(),
+           "client_ssl_key must be set, if client_ssl_mode is 'PREFERRED'.");
+     }},
+    {"client_ssl_mode_required_missing_key",
+     {
+         {"client_ssl_mode", "required"},
+         {"client_ssl_cert", "some-cert.pem"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(
+           e.what(),
+           "client_ssl_key must be set, if client_ssl_mode is 'REQUIRED'.");
+     }},
+
+    // server-ssl-verify
+    {"server_ssl_verify_unknown",
+     {
+         {"server_ssl_verify", "unknown"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(
+           e.what(),
+           "invalid value 'unknown' for server_ssl_verify. Allowed are: "
+           "DISABLED,VERIFY_CA,VERIFY_IDENTITY.");
+     }},
+    {"server_ssl_verify_verify_ca_missing_ca",
+     {
+         {"server_ssl_verify", "verify_ca"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(e.what(),
+                    "server_ssl_ca or server_ssl_capath must be set, if "
+                    "server_ssl_verify is 'VERIFY_CA'.");
+     }},
+    {"server_ssl_verify_verify_identity_missing_ca",
+     {
+         {"server_ssl_verify", "verify_identity"},
+     },
+     [](const auto &e) {
+       ASSERT_STREQ(e.what(),
+                    "server_ssl_ca or server_ssl_capath must be set, if "
+                    "server_ssl_verify is 'VERIFY_IDENTITY'.");
+     }},
+};
+
+INSTANTIATE_TEST_SUITE_P(Fail, RoutingConfigFailTest,
+                         ::testing::ValuesIn(routing_config_fail_params),
+                         [](auto const &info) { return info.param.test_name; });
 
 int main(int argc, char *argv[]) {
   init_test_logger();
