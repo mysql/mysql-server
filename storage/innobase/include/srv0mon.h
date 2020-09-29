@@ -757,7 +757,6 @@ inline void monitor_dec_value(monitor_id_t monitor, mon_type_t value) {
 }
 
 inline void monitor_dec(monitor_id_t monitor) {
-  MONITOR_CHECK_DEFINED(value);
   if (MONITOR_IS_ON(monitor)) {
     monitor_dec_value_nocheck(monitor, 1);
   }
