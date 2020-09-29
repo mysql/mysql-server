@@ -430,6 +430,17 @@ static void disconnect(int sock) {
               << write_res.error().message() << "\n";
   }
 
+  net::impl::socket::shutdown(sock, SHUT_WR);
+
+  // wait until the shutdown is acknowledged.
+  std::array<uint8_t, 16> read_buf;
+  const auto read_res =
+      net::impl::socket::read(sock, read_buf.data(), read_buf.size());
+  if (!read_res) {
+    std::cout << "read::linger(xproto-connection-close) returned error: "
+              << read_res.error().message() << "\n";
+  }
+
   net::impl::socket::close(sock);
 }
 
@@ -631,7 +642,8 @@ TEST_F(RoutingTests, bug_24841281) {
   EXPECT_EQ(0, routing.get_context().info_active_routes_.load());
 
 #ifndef _WIN32
-  // now try the same with socket ops
+  SCOPED_TRACE("// open/close two unix-socket connections and check counters");
+  // now try the same with unix sockets
   const auto unix_sock_ep = local::stream_protocol::endpoint(sock_path.str());
   auto sock3_res = connect_socket(unix_sock_ep);
   auto sock4_res = connect_socket(unix_sock_ep);
@@ -657,6 +669,8 @@ TEST_F(RoutingTests, bug_24841281) {
   });
   EXPECT_EQ(1, routing.get_context().info_active_routes_.load());
 
+  SCOPED_TRACE(
+      "// close the last connect and check the active routes decrease.");
   disconnect(sock4);
   call_until([&routing]() -> bool {
     return routing.get_context().info_active_routes_.load() == 0;
