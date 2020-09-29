@@ -1649,7 +1649,7 @@ NdbDictionaryImpl::getIndex(const char* index_name,
   return tab->m_index;
 
 retry:
-  // Index not found, try fetching it from current database
+  // Index not found, try old format
   const BaseString
     old_internal_indexname(m_ndb.old_internalize_index_name(&prim, index_name));
 

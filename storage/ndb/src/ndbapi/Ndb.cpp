@@ -2054,16 +2054,21 @@ Ndb::old_internalize_index_name(const NdbTableImpl * table,
     DBUG_RETURN(ret);
   }
 
-#ifdef VM_TRACE
-  // verify that both db and schema name are set
-  assert(theImpl->m_dbname.length());
-  assert(theImpl->m_schemaname.length());
-#endif
+  // The old index name format uses same database and schema as the table, get
+  // them from table
+  char dbname[MAX_TAB_NAME_SIZE];
+  char schemaname[MAX_TAB_NAME_SIZE];
+  if (table->getDbName(dbname, sizeof(dbname)) != 0 ||
+      table->getSchemaName(schemaname, sizeof(schemaname)) != 0)
+  {
+    assert(false);
+    DBUG_RETURN(ret);
+  }
 
   // Old internal index name format <db>/<schema>/<tabid>/<table>
   ret.assfmt("%s%c%s%c%d%c%s",
-             theImpl->m_dbname.c_str(), table_name_separator,
-             theImpl->m_schemaname.c_str(), table_name_separator,
+             dbname, table_name_separator,
+             schemaname, table_name_separator,
              table->m_id, table_name_separator,
              external_name);
 
