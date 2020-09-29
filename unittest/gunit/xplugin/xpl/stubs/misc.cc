@@ -122,6 +122,9 @@ bool check_address_is_wildcard(const char *, size_t) { return false; }
 
 void conditional_sync_point(std::string) {}
 
+uint opt_debug_sync_timeout;
+void debug_sync(THD *, char const *, size_t) {}
+
 #ifdef HAVE_SETNS
 bool set_network_namespace(const std::string &) { return false; }
 

@@ -153,10 +153,14 @@ The following commands may appear in the input script:
   End block of instructions that should be repeated - next iteration
 -->stmtsql <CMD>
   Send StmtExecute with sql command
+-->env <XVARIABLE> <ENV>
+  Assign environment variable to X variable.
 -->stmtadmin <CMD> [json_string]
   Send StmtExecute with admin command with given aguments (formated as json object)
+-->system_in_background <CMD>
+  Execute application or script.
 -->system <CMD>
-  Execute application or script (dev only)
+  Execute application or script
 -->exit
   Stops reading commands, disconnects and exits (same as <eof>/^D)
 -->abort

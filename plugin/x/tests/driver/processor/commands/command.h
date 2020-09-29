@@ -222,6 +222,8 @@ class Command {
   Result cmd_clear_stored_metadata(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args);
+  Result cmd_env(std::istream &input, Execution_context *context,
+                 const std::string &args);
 
   Result do_newsession(std::istream &input, Execution_context *context,
                        const std::string &args,
