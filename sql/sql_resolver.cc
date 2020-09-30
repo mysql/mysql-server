@@ -680,6 +680,16 @@ bool SELECT_LEX::prepare_values(THD *thd) {
     if (resolve_subquery(thd)) return true;
   }
 
+  /*
+    A table value constructor may have a defined ordering, thus calling
+    setup_order() is needed, however calling setup_order_final() is
+    not necessary since this construct cannot be aggregated.
+  */
+  if (is_ordered() && setup_order(thd, base_ref_items, get_table_list(),
+                                  &fields, order_list.first)) {
+    return true;
+  }
+
   if (query_result() && query_result()->prepare(thd, fields, unit))
     return true; /* purecov: inspected */
 

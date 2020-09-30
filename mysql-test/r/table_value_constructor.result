@@ -422,3 +422,236 @@ CREATE TABLE t1 VALUES ROW(1), ROW(2), ROW(3), ROW(4), ROW(5);
 TABLE t1 LIMIT 5 OFFSET 5;
 column_0
 DROP TABLE t1;
+# Bug#31387510: Error with VALUES() query
+VALUES ROW(1) ORDER BY 1;
+column_0
+1
+VALUES ROW(1) ORDER BY 1 DESC;
+column_0
+1
+(VALUES ROW(1)) ORDER BY 1;
+column_0
+1
+(VALUES ROW(1)) ORDER BY 1 DESC;
+column_0
+1
+VALUES ROW(1),ROW(2) ORDER BY 1;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY 1 DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY 1;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY 1 DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY 2;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY 2 DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY 2;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY 2 DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1) ORDER BY '1';
+column_0
+1
+VALUES ROW(1) ORDER BY '1' DESC;
+column_0
+1
+(VALUES ROW(1)) ORDER BY '1';
+column_0
+1
+(VALUES ROW(1)) ORDER BY '1' DESC;
+column_0
+1
+VALUES ROW(1),ROW(2) ORDER BY '1';
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY '1' DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY '1';
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY '1' DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY '2';
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY '2' DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY '2';
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY '2' DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1),ROW(2) ORDER BY 1;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY 1 DESC;
+column_0
+1
+2
+VALUES ROW(1) ORDER BY (SELECT 1);
+column_0
+1
+VALUES ROW(1) ORDER BY (SELECT 1) DESC;
+column_0
+1
+(VALUES ROW(1)) ORDER BY (SELECT 1);
+column_0
+1
+(VALUES ROW(1)) ORDER BY (SELECT 1) DESC;
+column_0
+1
+VALUES ROW(1),ROW(2) ORDER BY (SELECT 1);
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY (SELECT 1) DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT 1);
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT 1) DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT 2);
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT 2) DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT 2);
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT 2) DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1) ORDER BY column_0;
+column_0
+1
+VALUES ROW(1) ORDER BY column_0 DESC;
+column_0
+1
+(VALUES ROW(1),ROW(2)) ORDER BY column_0;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY column_0 DESC;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY column_0;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY column_0 DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY column_0;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY column_0 DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY column_1;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY column_1 DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY column_1;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY column_1 DESC;
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1) ORDER BY (SELECT column_0);
+column_0
+1
+VALUES ROW(1) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0);
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY (SELECT column_0);
+column_0
+1
+2
+VALUES ROW(1),ROW(2) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0);
+column_0
+1
+2
+(VALUES ROW(1),ROW(2)) ORDER BY (SELECT column_0) DESC;
+column_0
+1
+2
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT column_1);
+column_0	column_1
+1	9
+2	4
+VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT column_1) DESC;
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT column_1);
+column_0	column_1
+1	9
+2	4
+(VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT column_1) DESC;
+column_0	column_1
+1	9
+2	4

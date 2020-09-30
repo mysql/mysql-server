@@ -6621,7 +6621,7 @@ int TableValueConstructorIterator::Read() {
   // objects during resolving. We will instead use the single row directly from
   // SELECT_LEX::item_list, such that we don't have to change references here.
   if (m_row_value_list.size() != 1) {
-    auto output_refs_it = m_output_refs->begin();
+    auto output_refs_it = VisibleFields(*m_output_refs).begin();
     for (const Item *value : **m_row_it) {
       Item_values_column *ref =
           down_cast<Item_values_column *>(*output_refs_it);
