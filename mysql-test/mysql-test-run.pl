@@ -2947,6 +2947,7 @@ sub environment_setup {
       ndb_mgm
       ndb_move_data
       ndb_perror
+      ndb_print_backup_file
       ndb_restore
       ndb_select_all
       ndb_select_count
@@ -2966,7 +2967,6 @@ sub environment_setup {
 
     # Tools not supporting --defaults-file=xxx, only define NDB_PROG_EXE
     @ndb_tools = qw(
-      ndb_print_backup_file
       ndb_print_file
       ndb_print_sys_file
     );
