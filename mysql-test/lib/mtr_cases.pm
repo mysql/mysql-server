@@ -835,6 +835,8 @@ sub collect_one_suite($$$$) {
   if (-f $suite_opt_file) {
     $suite_opts = opts_from_file($suite_opt_file);
   }
+  # Make sure all suites take plugins from the default location
+  push(@$suite_opts, '$AUDIT_NULL_OPT');
 
   if (@$opt_cases) {
     # Collect in specified order
