@@ -55,6 +55,10 @@ using hash_join_buffer::LoadImmutableStringIntoTableBuffers;
 
 constexpr size_t HashJoinIterator::kMaxChunks;
 
+// An arbitrary hash value for the empty string, to avoid the hash function
+// from doing arithmetic on nullptr, which is undefined behavior.
+static constexpr size_t kZeroKeyLengthHash = 2669509769;
+
 HashJoinIterator::HashJoinIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
     table_map build_input_tables, double estimated_build_rows,
@@ -260,8 +264,10 @@ static bool WriteRowToChunk(
   }
 
   const uint64_t join_key_hash =
-      MY_XXH64(join_key_and_row_buffer->ptr(),
-               join_key_and_row_buffer->length(), xxhash_seed);
+      join_key_and_row_buffer->length() == 0
+          ? kZeroKeyLengthHash
+          : MY_XXH64(join_key_and_row_buffer->ptr(),
+                     join_key_and_row_buffer->length(), xxhash_seed);
 
   DBUG_ASSERT((chunks->size() & (chunks->size() - 1)) == 0);
   // Since we know that the number of chunks will be a power of two, do a
