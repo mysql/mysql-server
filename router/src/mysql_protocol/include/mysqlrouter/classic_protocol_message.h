@@ -494,6 +494,8 @@ class Greeting {
   // [key, value]* in Codec<wire::VarString> encoding
   std::string attributes() const { return attributes_; }
 
+  void attributes(const std::string &attrs) { attributes_ = attrs; }
+
  private:
   classic_protocol::capabilities::value_type capabilities_;
   uint32_t max_packet_size_;

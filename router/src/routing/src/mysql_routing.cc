@@ -32,6 +32,7 @@
 #include <stdexcept>
 #include <system_error>  // error_code
 #include <thread>
+#include <type_traits>
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -347,8 +348,12 @@ class Connector : public ConnectorBase {
     }
 
     while (true) {
-      // log_debug("fd=%d state: %s", client_sock_.native_handle(),
-      //           mysqlrouter::to_string(state()).c_str());
+#if 0
+      if (client_sock_still_owned_) {
+        log_debug("fd=%d state: %s", client_sock_.native_handle(),
+                  mysqlrouter::to_string(state()).c_str());
+      }
+#endif
       switch (state()) {
         case State::INIT:
           state(init());
@@ -395,7 +400,9 @@ class Connector : public ConnectorBase {
  private:
   State init() {
     client_sock_.native_non_blocking(true);
-    client_sock_.set_option(net::ip::tcp::no_delay{true});
+    if (std::is_same<client_protocol_type, net::ip::tcp>::value) {
+      client_sock_.set_option(net::ip::tcp::no_delay{true});
+    }
 
     return State::INIT_DESTINATION;
   }

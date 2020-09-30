@@ -30,6 +30,7 @@
 
 #include "dim.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -227,6 +228,23 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
+static void ensure_readable_directory(const std::string &opt_name,
+                                      const std::string &opt_value) {
+  const auto p = mysql_harness::Path(opt_value);
+
+  // if it is set, check it exists.
+  if (!p.exists()) {
+    throw std::runtime_error(opt_name + "=" + opt_value + " does not exist");
+  }
+  if (!p.is_directory()) {
+    throw std::runtime_error(opt_name + "=" + opt_value +
+                             " is not a directory");
+  }
+  if (!p.is_readable()) {
+    throw std::runtime_error(opt_name + "=" + opt_value + " is not readable");
+  }
+}
+
 static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
@@ -260,6 +278,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         throw std::invalid_argument(
             "client_ssl_key must be set, if client_ssl_mode is enabled.");
       }
+
       const auto res = source_tls_ctx.load_key_and_cert(config.source_ssl_key,
                                                         config.source_ssl_cert);
       if (!res) {
@@ -327,6 +346,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         }
       }
       if (!config.dest_ssl_ca_file.empty() || !config.dest_ssl_ca_dir.empty()) {
+        if (!config.dest_ssl_ca_dir.empty()) {
+          // throws on error
+          ensure_readable_directory("server_ssl_capath",
+                                    config.dest_ssl_ca_dir);
+        }
         const auto res = tls_server_ctx.ssl_ca(config.dest_ssl_ca_file,
                                                config.dest_ssl_ca_dir);
         if (!res) {
@@ -338,6 +362,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       }
       if (!config.dest_ssl_crl_file.empty() ||
           !config.dest_ssl_crl_dir.empty()) {
+        if (!config.dest_ssl_crl_dir.empty()) {
+          // throws on error
+          ensure_readable_directory("server_ssl_crlpath",
+                                    config.dest_ssl_crl_dir);
+        }
         const auto res = tls_server_ctx.crl(config.dest_ssl_crl_file,
                                             config.dest_ssl_crl_dir);
         if (!res) {

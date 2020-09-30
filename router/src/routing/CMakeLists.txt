@@ -44,6 +44,10 @@ SET(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql_routing_common.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/connection_container.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing_component.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/channel.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/basic_protocol_splicer.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/classic_protocol_splicer.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/x_protocol_splicer.cc
   ${ROUTING_SOURCE_FILES_X_PROTOCOL}
 )
 
