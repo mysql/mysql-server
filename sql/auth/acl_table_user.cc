@@ -1993,7 +1993,7 @@ bool Acl_table_user_reader::driver() {
 
   m_iterator.reset();
   if (read_rec_errcode > 0) return true;
-  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
+  std::sort(acl_users->begin(), acl_users->end(), ACL_USER_compare());
   acl_users->shrink_to_fit();
   rebuild_cached_acl_users_for_name();
 

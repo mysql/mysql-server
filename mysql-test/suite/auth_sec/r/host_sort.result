@@ -1,0 +1,166 @@
+## Scenario 1 - A ###################################################
+CREATE USER 'user'@'localhost';
+CREATE USER 'user'@'127.0.0.1';
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'localhost';
+DROP USER 'user'@'127.0.0.1';
+## Scenario 1 - B ###################################################
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER 'user'@'localhost';
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'127.0.0.1';
+DROP USER 'user'@'localhost';
+## Scenario 2 - A ###################################################
+CREATE USER 'user'@'localhost';
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+Expected	CURRENT_USER()
+user@127.0.0.1/255.255.255.255	user@127.0.0.1/255.255.255.255
+DROP USER 'user'@'localhost';
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+## Scenario 2 - B ###################################################
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+CREATE USER 'user'@'localhost';
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+Expected	CURRENT_USER()
+user@127.0.0.1/255.255.255.255	user@127.0.0.1/255.255.255.255
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+DROP USER 'user'@'localhost';
+#####################################################################
+## Scenario 3 - A ###################################################
+#####################################################################
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'127.0.0.1';
+Expected	CURRENT_USER()
+user@127.0.0.1/255.255.255.255	user@127.0.0.1/255.255.255.255
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+#####################################################################
+## Scenario 3 - B ###################################################
+#####################################################################
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+CREATE USER 'user'@'127.0.0.1';
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'127.0.0.1';
+#####################################################################
+## Scenario 4 - A ###################################################
+#####################################################################
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.1/32';
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'127.0.0.1';
+Expected	CURRENT_USER()
+user@127.0.0.1/32	user@127.0.0.1/32
+DROP USER 'user'@'127.0.0.1/32';
+#####################################################################
+## Scenario 4 - B ###################################################
+#####################################################################
+CREATE USER 'user'@'127.0.0.1/32';
+CREATE USER 'user'@'127.0.0.1';
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'127.0.0.1/32';
+DROP USER 'user'@'127.0.0.1';
+#####################################################################
+## Scenario 5 - A ###################################################
+#####################################################################
+CREATE USER 'user'@'127.0.0.0/255.255.255.0';
+CREATE USER ''@'127.0.0.1';
+Expected	CURRENT_USER()
+@127.0.0.1	@127.0.0.1
+DROP USER 'user'@'127.0.0.0/255.255.255.0';
+Expected	CURRENT_USER()
+@127.0.0.1	@127.0.0.1
+DROP USER ''@'127.0.0.1';
+#####################################################################
+## Scenario 5 - B ###################################################
+#####################################################################
+CREATE USER ''@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.0/255.255.255.0';
+Expected	CURRENT_USER()
+@127.0.0.1	@127.0.0.1
+DROP USER ''@'127.0.0.1';
+Expected	CURRENT_USER()
+user@127.0.0.0/255.255.255.0	user@127.0.0.0/255.255.255.0
+DROP USER 'user'@'127.0.0.0/255.255.255.0';
+#####################################################################
+## Scenario 6 - A ###################################################
+#####################################################################
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER ''@'127.0.0.1';
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER 'user'@'127.0.0.1';
+DROP USER ''@'127.0.0.1';
+#####################################################################
+## Scenario 6 - B ###################################################
+#####################################################################
+CREATE USER ''@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.1';
+Expected	CURRENT_USER()
+user@127.0.0.1	user@127.0.0.1
+DROP USER ''@'127.0.0.1';
+DROP USER 'user'@'127.0.0.1';
+#####################################################################
+## Scenario 7 - A ###################################################
+#####################################################################
+CREATE USER 'user'@'localhos%';
+CREATE USER 'user'@'localhos_';
+Expected	CURRENT_USER()
+user@localhos%	user@localhos%
+DROP USER 'user'@'localhos%';
+Expected	CURRENT_USER()
+user@localhos_	user@localhos_
+DROP USER 'user'@'localhos_';
+#####################################################################
+## Scenario 7 - B ###################################################
+#####################################################################
+CREATE USER 'user'@'localhos_';
+CREATE USER 'user'@'localhos%';
+Expected	CURRENT_USER()
+user@localhos_	user@localhos_
+DROP USER 'user'@'localhos_';
+Expected	CURRENT_USER()
+user@localhos%	user@localhos%
+DROP USER 'user'@'localhos%';
+#####################################################################
+## Scenario 8 - A ###################################################
+#####################################################################
+CREATE USER 'user'@'localhost';
+CREATE USER 'user'@'::1';
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+DROP USER 'user'@'localhost';
+Expected	CURRENT_USER()
+user@::1	user@::1
+DROP USER 'user'@'::1';
+#####################################################################
+## Scenario 8 - B ###################################################
+#####################################################################
+CREATE USER 'user'@'::1';
+CREATE USER 'user'@'localhost';
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+Expected	CURRENT_USER()
+user@::1	user@::1
+DROP USER 'user'@'::1';
+Expected	CURRENT_USER()
+user@localhost	user@localhost
+DROP USER 'user'@'localhost';

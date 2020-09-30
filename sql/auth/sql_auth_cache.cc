@@ -221,7 +221,30 @@ const ACL_internal_schema_access *ACL_internal_schema_registry::lookup(
   return nullptr;
 }
 
-const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
+bool ACL_HOST_AND_IP::calc_cidr_mask(const char *ip_arg, long *val) {
+  long tmp;
+  if (!(ip_arg = str2int(ip_arg, 10, 0, 32, &tmp)) || *ip_arg != '\0')
+    return true;
+
+  /* Create IP mask. */
+  *val = UINT_MAX32 << (32 - tmp);
+
+  return false;
+}
+
+bool ACL_HOST_AND_IP::calc_ip_mask(const char *ip_arg, long *val) {
+  long tmp = 0;
+  if (!(ip_arg = calc_ip(ip_arg, &tmp)) || *ip_arg != '\0') return true;
+
+  /* Valid IP mask must be continuous bit flags. */
+  if (((~tmp & UINT_MAX32) + 1) & ~tmp) return true;
+
+  *val = tmp;
+
+  return false;
+}
+
+const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val) {
   long ip_val, tmp;
   if (!(ip_arg = str2int(ip_arg, 10, 0, 255, &ip_val)) || *ip_arg != '.')
     return nullptr;
@@ -232,8 +255,7 @@ const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
   if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp)) || *ip_arg != '.')
     return nullptr;
   ip_val += tmp << 8;
-  if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp)) || *ip_arg != end)
-    return nullptr;
+  if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp))) return nullptr;
   *val = ip_val + tmp;
   return ip_arg;
 }
@@ -245,10 +267,30 @@ const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
  */
 void ACL_HOST_AND_IP::update_hostname(const char *host_arg) {
   hostname = host_arg;  // This will not be modified!
-  hostname_length = hostname ? strlen(hostname) : 0;
-  if (!host_arg || (!(host_arg = calc_ip(host_arg, &ip, '/')) ||
-                    !(host_arg = calc_ip(host_arg + 1, &ip_mask, '\0')))) {
-    ip = ip_mask = 0;  // Not a masked ip
+
+  ip = ip_mask = 0;
+
+  if (!host_arg) {
+    hostname_length = 0;
+    return;
+  }
+
+  hostname_length = strlen(hostname);
+
+  if ((host_arg = calc_ip(host_arg, &ip))) {
+    if (*host_arg == '\0') {
+      /* There is only IP part specified. */
+      ip_mask_type = ip_mask_type_implicit;
+      ip_mask = UINT_MAX32;
+    } else if (*host_arg == '/') {
+      if (!calc_ip_mask(host_arg + 1, &ip_mask)) {
+        ip_mask_type = ip_mask_type_subnet;
+      } else if (!calc_cidr_mask(host_arg + 1, &ip_mask)) {
+        ip_mask_type = ip_mask_type_cidr;
+      } else
+        /* Invalid or unsupported IP mask.*/
+        ip = 0;
+    }
   }
 }
 
@@ -278,7 +320,8 @@ void ACL_HOST_AND_IP::update_hostname(const char *host_arg) {
 bool ACL_HOST_AND_IP::compare_hostname(const char *host_arg,
                                        const char *ip_arg) {
   long tmp;
-  if (ip_mask && ip_arg && calc_ip(ip_arg, &tmp, '\0')) {
+  const char *p;
+  if (ip_mask && ip_arg && (p = calc_ip(ip_arg, &tmp)) && *p == '\0') {
     return (tmp & ip_mask) == ip;
   }
   return (!hostname ||
@@ -1036,7 +1079,7 @@ void rebuild_cached_acl_users_for_name(void) {
       list->push_back(*it2);
     }
 
-    list->sort(ACL_compare());
+    list->sort(ACL_USER_compare());
   }
 }
 
@@ -2906,7 +2949,7 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                     mqh, privileges, plugin, auth, EMPTY_CSTR,
                     password_change_time, password_life, true, restrictions,
                     failed_login_attempts, password_lock_time, thd);
-  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
+  std::sort(acl_users->begin(), acl_users->end(), ACL_USER_compare());
   rebuild_cached_acl_users_for_name();
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
@@ -3613,28 +3656,56 @@ end:
   return retval;
 }
 
-/**
-  Determine sort order for two user accounts
-
-  @param [in] a First user account's sort value
-  @param [in] b Secound user account's sort value
-
-  @returns Whether a comes before b or not
-*/
 bool ACL_compare::operator()(const ACL_ACCESS &a, const ACL_ACCESS &b) {
+  if (a.host.ip != 0) {
+    if (b.host.ip != 0) {
+      /* Both elements have specified IPs. The one with the greater mask goes
+       * first. */
+      if (a.host.ip_mask_type != b.host.ip_mask_type)
+        return a.host.ip_mask_type < b.host.ip_mask_type;
+
+      return a.host.ip_mask > b.host.ip_mask;
+    }
+    /* The element with the IP goes first. */
+    return true;
+  }
+
+  /* The element with the IP goes first. */
+  if (b.host.ip != 0) return false;
+
+  /* None of the elements has IP defined. Use default comparison. */
   return a.sort > b.sort;
 }
 
-/**
-  Determine sort order for two user accounts
-
-  @param [in] a First user account's sort value
-  @param [in] b Secound user account's sort value
-
-  @returns Whether a comes before b or not
-*/
 bool ACL_compare::operator()(const ACL_ACCESS *a, const ACL_ACCESS *b) {
-  return a->sort > b->sort;
+  return this->operator()(*a, *b);
+}
+
+bool ACL_USER_compare::operator()(const ACL_USER &a, const ACL_USER &b) {
+  if (a.host.ip != 0) {
+    if (b.host.ip != 0) {
+      /* Both elements have specified IPs. The one with the greater mask goes
+       * first. */
+      if (a.host.ip_mask_type != b.host.ip_mask_type)
+        return a.host.ip_mask_type < b.host.ip_mask_type;
+
+      if (a.host.ip_mask == b.host.ip_mask) return a.user > b.user;
+
+      return a.host.ip_mask > b.host.ip_mask;
+    }
+    /* The element with the IP goes first. */
+    return true;
+  }
+
+  /* The element with the IP goes first. */
+  if (b.host.ip != 0) return false;
+
+  /* None of the elements has IP defined. Use default comparison. */
+  return a.sort > b.sort;
+}
+
+bool ACL_USER_compare::operator()(const ACL_USER *a, const ACL_USER *b) {
+  return this->operator()(*a, *b);
 }
 
 /**

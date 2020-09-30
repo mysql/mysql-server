@@ -70,15 +70,77 @@ enum class Lex_acl_attrib_udyn;
 /* Classes */
 
 class ACL_HOST_AND_IP {
+ public:
+  /**
+    IP mask type enum.
+  */
+  enum enum_ip_mask_type {
+    /**
+    Only IP is specified.
+    */
+    ip_mask_type_implicit,
+    /**
+    IP specified with a mask in a CIDR form.
+    */
+    ip_mask_type_cidr,
+    /**
+    IP specified with a mask in a form of a subnet.
+    */
+    ip_mask_type_subnet
+  };
+
   const char *hostname;
   size_t hostname_length;
   long ip, ip_mask;  // Used with masked ip:s
+  /**
+    IP mask type.
+  */
+  enum_ip_mask_type ip_mask_type;
 
-  const char *calc_ip(const char *ip_arg, long *val, char end);
+  /**
+    IP mask parsing in the CIDR format.
+
+    @param[in]  ip_arg Buffer containing CIDR mask value.
+    @param[out] val    Numeric IP mask value on success.
+
+    @return
+    @retval false Parsing succeeded.
+    @retval true  Parsing failed.
+  */
+  static bool calc_cidr_mask(const char *ip_arg, long *val);
+
+  /**
+    IP mask parsing in the subnet format.
+
+    @param[in]  ip_arg Buffer containing subnet mask value.
+    @param[out] val    Numeric IP mask value on success.
+
+    @return
+    @retval false Parsing succeeded.
+    @retval true  Parsing failed.
+  */
+  static bool calc_ip_mask(const char *ip_arg, long *val);
+
+  /**
+    IP parsing.
+
+    @param[in]  ip_arg Buffer containing IP value.
+    @param[out] val    Numeric IP value on success.
+
+    @return
+    @retval !nullptr Parsing succeeded. Returned value is the pointer following
+    the buffer holding the IP.
+    @retval nullptr  Parsing failed. The buffer does not contain valid IP value.
+  */
+  static const char *calc_ip(const char *ip_arg, long *val);
 
  public:
   ACL_HOST_AND_IP()
-      : hostname(nullptr), hostname_length(0), ip(0), ip_mask(0) {}
+      : hostname(nullptr),
+        hostname_length(0),
+        ip(0),
+        ip_mask(0),
+        ip_mask_type(ip_mask_type_implicit) {}
   const char *get_host() const { return hostname ? hostname : ""; }
   size_t get_host_len() const { return hostname_length; }
 
@@ -104,10 +166,50 @@ class ACL_ACCESS {
   ulong access;
 };
 
+/**
+  @class ACL_compare
+
+  Class that compares ACL_ACCESS objects. Used in std::sort funciton.
+*/
 class ACL_compare {
  public:
+  /**
+    Determine sort order of two user accounts.
+
+    ACL_ACCESS with IP specified is sorted before host name.
+
+    @param [in] a First object to compare.
+    @param [in] b Second object to compare.
+
+    @retval true  First element goes first.
+    @retval false Second element goes first.
+  */
   bool operator()(const ACL_ACCESS &a, const ACL_ACCESS &b);
   bool operator()(const ACL_ACCESS *a, const ACL_ACCESS *b);
+};
+
+/**
+  @class ACL_USER_compare
+
+  Class that compares ACL_USER objects.
+*/
+class ACL_USER_compare {
+ public:
+  /**
+    Determine sort order of two user accounts.
+
+    ACL_USER with IP specified is sorted before host name.
+    Non anonymous user is sorted before anonymous user, when properties of both
+    are equal.
+
+    @param [in] a First object to compare.
+    @param [in] b Second object to compare.
+
+    @retval true  First element goes first.
+    @retval false Second element goes first.
+  */
+  bool operator()(const ACL_USER &a, const ACL_USER &b);
+  bool operator()(const ACL_USER *a, const ACL_USER *b);
 };
 
 /* ACL_HOST is used if no host is specified */
