@@ -22,10 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysqlrouter/tls_client_context.h"
+#include "mysql/harness/tls_client_context.h"
 
 #include <openssl/ssl.h>
 
+#include "mysql/harness/stdx/expected.h"
 #include "openssl_version.h"
 #include "tls_error.h"
 
@@ -40,7 +41,8 @@ TlsClientContext::TlsClientContext(TlsVerify mode)
   verify(mode);
 }
 
-void TlsClientContext::verify(TlsVerify verify) {
+stdx::expected<void, std::error_code> TlsClientContext::verify(
+    TlsVerify verify) {
   int mode = 0;
   switch (verify) {
     case TlsVerify::NONE:
@@ -50,26 +52,60 @@ void TlsClientContext::verify(TlsVerify verify) {
       mode = SSL_VERIFY_PEER;
       break;
   }
+
   SSL_CTX_set_verify(ssl_ctx_.get(), mode, nullptr);
+
+  return {};
 }
 
-void TlsClientContext::cipher_suites(const std::string &ciphers) {
+stdx::expected<void, std::error_code> TlsClientContext::cipher_suites(
+    const std::string &ciphers) {
 // TLSv1.3 ciphers are controlled via SSL_CTX_set_ciphersuites()
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 1)
   if (1 != SSL_CTX_set_ciphersuites(ssl_ctx_.get(), ciphers.c_str())) {
-    throw TlsError("set-cipher-suites");
+    return stdx::make_unexpected(make_tls_error());
   }
 #else
-  throw std::invalid_argument(
-      "::cipher_suites(" + ciphers +
-      ") isn't implemented. Use .has_set_cipher_suites() "
-      "to check before calling");
+  (void)ciphers;
+  return stdx::make_unexpected(
+      make_error_code(std::errc::function_not_supported));
 #endif
+
+  return {};
 }
 
-void TlsClientContext::cipher_list(const std::string &ciphers) {
+stdx::expected<void, std::error_code> TlsClientContext::cipher_list(
+    const std::string &ciphers) {
   // TLSv1.3 ciphers are controlled via SSL_CTX_set_ciphersuites()
   if (1 != SSL_CTX_set_cipher_list(ssl_ctx_.get(), ciphers.c_str())) {
-    throw TlsError("set-cipher-list");
+    return stdx::make_unexpected(make_tls_error());
   }
+
+  return {};
+}
+
+stdx::expected<void, std::error_code> TlsClientContext::verify_hostname(
+    const std::string &server_host) {
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
+  // get0_param() is added in openssl 1.0.2
+  auto *ssl_ctx = ssl_ctx_.get();
+
+  X509_VERIFY_PARAM *param = SSL_CTX_get0_param(ssl_ctx);
+  /*
+    As we don't know if the server_host contains IP addr or hostname
+    call X509_VERIFY_PARAM_set1_ip_asc() first and if it returns an error
+    (not valid IP address), call X509_VERIFY_PARAM_set1_host().
+  */
+  if (1 != X509_VERIFY_PARAM_set1_ip_asc(param, server_host.c_str())) {
+    if (1 != X509_VERIFY_PARAM_set1_host(param, server_host.c_str(), 0)) {
+      return stdx::make_unexpected(
+          make_error_code(std::errc::invalid_argument));
+    }
+  }
+#else
+  (void)server_host;
+  return stdx::make_unexpected(
+      make_error_code(std::errc::function_not_supported));
+#endif
+  return {};
 }

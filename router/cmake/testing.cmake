@@ -28,10 +28,84 @@ MACRO(ROUTERTEST_GET_TARGET OUTVAR FIL MODUL)
   SET(${OUTVAR} "routertest_${MODUL}_${test_target}")
 ENDMACRO()
 
-FUNCTION(add_test_file FILE)
+# ADD_TEST_FILE(FILE)
+#
+# a router-test
+#
+# deprecated: use ADD_ROUTER_TEST_FILE, ADD_HARNESS_TEST_FILE, ADD_GOOGLETEST_FILE instead.
+#
+FUNCTION(ADD_TEST_FILE FILE)
+  ADD_ROUTER_TEST_FILE("${FILE}" ${ARGN})
+ENDFUNCTION()
+
+# ADD_ROUTER_TEST_FILE(FILE)
+#
+# add a test that depends on the 'router_lib', 'harness-library' and 'gtest'
+FUNCTION(ADD_ROUTER_TEST_FILE FILE)
+  SET(DEFAULT_LIB_DEPENDS
+    harness-library
+    router_lib
+    routertest_helpers
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${GTEST_LIBRARIES})
+
+  _ADD_TEST_FILE(${FILE}
+    DEFAULT_LIB_DEPENDS ${DEFAULT_LIB_DEPENDS}
+    ${ARGN}
+    )
+ENDFUNCTION()
+
+# ADD_HARNESS_TEST_FILE(FILE)
+#
+# add a test that depends on the 'harness-library' and 'gtest'
+FUNCTION(ADD_HARNESS_TEST_FILE FILE)
+  SET(DEFAULT_LIB_DEPENDS
+    harness-library
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${GTEST_LIBRARIES})
+
+  _ADD_TEST_FILE(${FILE}
+    DEFAULT_LIB_DEPENDS ${DEFAULT_LIB_DEPENDS}
+    ${ARGN}
+    )
+ENDFUNCTION()
+
+# ADD_GOOGLETEST_FILE(FILE)
+#
+# add a test that depends on 'gtest'
+FUNCTION(ADD_GOOGLETEST_FILE FILE)
+  SET(DEFAULT_LIB_DEPENDS
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${GTEST_LIBRARIES})
+
+  _ADD_TEST_FILE(${FILE}
+    DEFAULT_LIB_DEPENDS ${DEFAULT_LIB_DEPENDS}
+    ${ARGN}
+    )
+ENDFUNCTION()
+
+# _ADD_TEST_FILE(FILE)
+#
+# add a test for mysqlrouter project
+#
+# - adds dependency to the mysqlrouter_all target
+# - adjusts runtime library search path for the build
+# - adds ASAN/LSAN suppressions
+#
+# @param LIB_DEPENDS list of libraries the tests depends on
+# @param INCLUDE_DIRS include-dirs for the test
+# @param SYSTEM_INCLUDE_DIRS system-include-dits for the test
+# @param DEPENDS explicit dependencies of the test
+# @param EXTRA_SOURCES sources to add additionally to FILE
+FUNCTION(_ADD_TEST_FILE FILE)
   SET(one_value_args MODULE LABEL ENVIRONMENT)
   SET(multi_value_args
-    LIB_DEPENDS INCLUDE_DIRS SYSTEM_INCLUDE_DIRS DEPENDS EXTRA_SOURCES)
+    LIB_DEPENDS
+    INCLUDE_DIRS
+    SYSTEM_INCLUDE_DIRS
+    DEPENDS
+    EXTRA_SOURCES
+    DEFAULT_LIB_DEPENDS)
   CMAKE_PARSE_ARGUMENTS(TEST
     "" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
@@ -44,21 +118,15 @@ FUNCTION(add_test_file FILE)
   SET(test_name "${test_target}")
   MYSQL_ADD_EXECUTABLE(${test_target}
     ${FILE} ${TEST_EXTRA_SOURCES}
-
-    ADD_TEST ${test_name}
-
-    LINK_LIBRARIES
-    harness-library
-    router_lib
-    routertest_helpers
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${GTEST_LIBRARIES}
-    )
+    ADD_TEST ${test_name})
 
   ADD_DEPENDENCIES(mysqlrouter_all ${test_target})
 
   FOREACH(libtarget ${TEST_LIB_DEPENDS})
     #add_dependencies(${test_target} ${libtarget})
+    TARGET_LINK_LIBRARIES(${test_target} ${libtarget})
+  ENDFOREACH()
+  FOREACH(libtarget ${TEST_DEFAULT_LIB_DEPENDS})
     TARGET_LINK_LIBRARIES(${test_target} ${libtarget})
   ENDFOREACH()
   IF(TEST_DEPENDS)
@@ -99,7 +167,7 @@ FUNCTION(add_test_file FILE)
       ENVIRONMENT
       "${TEST_ENV_PREFIX};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
   ENDIF()
-ENDFUNCTION(add_test_file)
+ENDFUNCTION()
 
 # Copy and configure configuration files templates
 # from selected directory to common place in tests/data

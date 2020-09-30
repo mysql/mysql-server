@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysqlrouter/tls_context.h"
+#include "mysql/harness/tls_context.h"
 
 #include <array>
 #include <string>
@@ -31,6 +31,7 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#include "mysql/harness/stdx/expected.h"
 #include "openssl_version.h"
 #include "tls_error.h"
 
@@ -47,34 +48,57 @@ TlsLibraryContext::TlsLibraryContext() {
 TlsContext::TlsContext(const SSL_METHOD *method)
     : ssl_ctx_{SSL_CTX_new(const_cast<SSL_METHOD *>(method)), &SSL_CTX_free} {
   // SSL_CTX_new may fail if ciphers aren't loaded.
-  if (!ssl_ctx_) {
-    throw TlsError("ssl-ctx-new");
-  }
 }
 
-bool TlsContext::ssl_ca(const std::string &ca_file,
-                        const std::string &ca_path) {
-  if (1 == SSL_CTX_load_verify_locations(
+stdx::expected<void, std::error_code> TlsContext::ssl_ca(
+    const std::string &ca_file, const std::string &ca_path) {
+  if (!ssl_ctx_) {
+    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+  }
+
+  if (1 != SSL_CTX_load_verify_locations(
                ssl_ctx_.get(), ca_file.empty() ? nullptr : ca_file.c_str(),
                ca_path.empty() ? nullptr : ca_path.c_str())) {
-    return true;
-  } else {
-    return false;
+    return stdx::make_unexpected(make_tls_error());
   }
+  return {};
 }
 
-void TlsContext::curves_list(const std::string &curves) {
-  if (curves.empty()) return;
+stdx::expected<void, std::error_code> TlsContext::crl(
+    const std::string &crl_file, const std::string &crl_path) {
+  if (!ssl_ctx_) {
+    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+  }
+
+  auto *store = SSL_CTX_get_cert_store(ssl_ctx_.get());
+
+  if (1 != X509_STORE_load_locations(
+               store, crl_file.empty() ? nullptr : crl_file.c_str(),
+               crl_path.empty() ? nullptr : crl_path.c_str())) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+
+  if (1 != X509_STORE_set_flags(
+               store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL)) {
+    return stdx::make_unexpected(make_tls_error());
+  }
+
+  return {};
+}
+
+stdx::expected<void, std::error_code> TlsContext::curves_list(
+    const std::string &curves) {
+  if (curves.empty()) return {};
 
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
   if (1 != SSL_CTX_set1_curves_list(ssl_ctx_.get(),
                                     const_cast<char *>(curves.c_str()))) {
-    throw TlsError("setting curves to " + curves + " failed");
+    return stdx::make_unexpected(make_tls_error());
   }
+  return {};
 #else
-  throw std::invalid_argument(
-      "::curves_list() isn't implemented. Use .has_set_curves_list() "
-      "to check before calling");
+  return stdx::make_unexpected(
+      make_error_code(std::errc::function_not_supported));
 #endif
 }
 
@@ -101,16 +125,17 @@ static int o11x_version(TlsVersion version) {
 }
 #endif
 
-void TlsContext::version_range(TlsVersion min_version, TlsVersion max_version) {
+stdx::expected<void, std::error_code> TlsContext::version_range(
+    TlsVersion min_version, TlsVersion max_version) {
 // set min TLS version
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
   if (1 != SSL_CTX_set_min_proto_version(ssl_ctx_.get(),
                                          o11x_version(min_version))) {
-    throw TlsError("set min-TLS-version failed");
+    return stdx::make_unexpected(make_tls_error());
   }
   if (1 != SSL_CTX_set_max_proto_version(ssl_ctx_.get(),
                                          o11x_version(max_version))) {
-    throw TlsError("set max-TLS-version failed");
+    return stdx::make_unexpected(make_tls_error());
   }
 #else
   // disable all by default
@@ -156,7 +181,9 @@ void TlsContext::version_range(TlsVersion min_version, TlsVersion max_version) {
 
   // returns the updated options
   SSL_CTX_set_options(ssl_ctx_.get(), opts);
+
 #endif
+  return {};
 }
 
 TlsVersion TlsContext::min_version() const {

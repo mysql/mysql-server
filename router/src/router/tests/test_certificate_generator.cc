@@ -30,7 +30,7 @@
 #include <openssl/evp.h>
 
 #include "mysql/harness/filesystem.h"
-#include "mysqlrouter/tls_context.h"
+#include "mysql/harness/tls_context.h"
 #include "router_test_helpers.h"
 #include "test/helpers.h"
 

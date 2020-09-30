@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_TLS_SERVER_CONTEXT_INCLUDED
-#define MYSQLROUTER_TLS_SERVER_CONTEXT_INCLUDED
+#ifndef MYSQL_HARNESS_TLS_SERVER_CONTEXT_INCLUDED
+#define MYSQL_HARNESS_TLS_SERVER_CONTEXT_INCLUDED
 
 #include <array>
 #include <bitset>
 #include <string>
 #include <vector>
 
-#include "mysqlrouter/tls_context.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_context.h"
+#include "mysql/harness/tls_export.h"
 
 namespace TlsVerifyOpts {
 constexpr size_t kFailIfNoPeerCert = 1 << 0;
@@ -40,7 +42,7 @@ constexpr size_t kClientOnce = 1 << 1;
 /**
  * TLS Context for the server side.
  */
-class TlsServerContext : public TlsContext {
+class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
  public:
   /**
    * unacceptable ciphers.
@@ -64,18 +66,17 @@ class TlsServerContext : public TlsContext {
    *
    * @param cert_chain_file filename of a PEM file containing a certificate
    * @param private_key_file filename of a PEM file containing a key
-   * @throws TlsError on error
    */
-  void load_key_and_cert(const std::string &cert_chain_file,
-                         const std::string &private_key_file);
+  stdx::expected<void, std::error_code> load_key_and_cert(
+      const std::string &cert_chain_file, const std::string &private_key_file);
 
   /**
    * init temporary DH parameters.
    *
    * @param dh_params filename of a PEM file with DH parameters
-   * @throws TlsError
    */
-  void init_tmp_dh(const std::string &dh_params);
+  stdx::expected<void, std::error_code> init_tmp_dh(
+      const std::string &dh_params);
 
   /**
    * set cipher-list.
@@ -86,7 +87,7 @@ class TlsServerContext : public TlsContext {
    *
    * @see openssl ciphers
    */
-  void cipher_list(const std::string &ciphers);
+  stdx::expected<void, std::error_code> cipher_list(const std::string &ciphers);
 
   /**
    * set how cerifiticates should be verified.
@@ -95,7 +96,8 @@ class TlsServerContext : public TlsContext {
    * @param tls_opts extra options for PEER
    * @throws std::illegal_argument if verify is NONE and tls_opts is != 0
    */
-  void verify(TlsVerify verify, std::bitset<2> tls_opts = 0);
+  stdx::expected<void, std::error_code> verify(TlsVerify verify,
+                                               std::bitset<2> tls_opts = 0);
 
   /**
    * default ciphers.

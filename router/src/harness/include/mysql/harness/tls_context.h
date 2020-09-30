@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_TLS_CONTEXT_INCLUDED
-#define MYSQLROUTER_TLS_CONTEXT_INCLUDED
+#ifndef MYSQL_HARNESS_TLS_CONTEXT_INCLUDED
+#define MYSQL_HARNESS_TLS_CONTEXT_INCLUDED
 
-#include "mysqlrouter/http_common_export.h"
+#include "mysql/harness/tls_export.h"
 
 #include <memory>  // unique_ptr
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include <openssl/ssl.h>  // SSL_METHOD
+
+#include "mysql/harness/stdx/expected.h"
 
 /**
  * TLS Versions.
@@ -50,7 +53,7 @@ enum class TlsVersion { AUTO, SSL_3, TLS_1_0, TLS_1_1, TLS_1_2, TLS_1_3 };
  */
 enum class TlsVerify { NONE, PEER };
 
-class HTTP_COMMON_EXPORT TlsLibraryContext {
+class HARNESS_TLS_EXPORT TlsLibraryContext {
  public:
   TlsLibraryContext();
 };
@@ -67,7 +70,7 @@ class HTTP_COMMON_EXPORT TlsLibraryContext {
  * - SSL_CTX_set_cert_verify_callback() vs. SSL_CTX_set_verify()
  *
  */
-class HTTP_COMMON_EXPORT TlsContext {
+class HARNESS_TLS_EXPORT TlsContext {
  public:
   /**
    * if TLS context allows to change elliptic curves list.
@@ -125,7 +128,29 @@ class HTTP_COMMON_EXPORT TlsContext {
    * @returns success
    * @retval false if both ca_file and ca_path are empty
    */
-  bool ssl_ca(const std::string &ca_file, const std::string &ca_path);
+  stdx::expected<void, std::error_code> ssl_ca(const std::string &ca_file,
+                                               const std::string &ca_path);
+
+  /**
+   * set CRL file and CRL directory.
+   *
+   * Search-order:
+   *
+   * 1. crl_file (if not empty)
+   * 2. all PEMs in crl_dir (if not empty)
+   *
+   * @see X509_STORE_load_locations
+   *
+   * @param crl_file path to a PEM file containing CRL file,
+   * ignored if empty()
+   * @param crl_path path to a directory of PEM files containing CRL files,
+   * ignored if empty()
+   *
+   * @returns success
+   * @retval false if both ca_file and ca_path are empty
+   */
+  stdx::expected<void, std::error_code> crl(const std::string &crl_file,
+                                            const std::string &crl_path);
 
   /**
    * get non-owning pointer to SSL_CTX.
@@ -135,7 +160,8 @@ class HTTP_COMMON_EXPORT TlsContext {
   /**
    * set the supported TLS version range.
    */
-  void version_range(TlsVersion min_version, TlsVersion max_version);
+  stdx::expected<void, std::error_code> version_range(TlsVersion min_version,
+                                                      TlsVersion max_version);
 
   /**
    * get the min TLS version.
@@ -154,7 +180,7 @@ class HTTP_COMMON_EXPORT TlsContext {
    * @throws std::invalid_argument if API isn't supported
    * @see has_set_curves_list()
    */
-  void curves_list(const std::string &curves);
+  stdx::expected<void, std::error_code> curves_list(const std::string &curves);
 
   /**
    * get current cipher-list.
