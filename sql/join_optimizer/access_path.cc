@@ -87,7 +87,10 @@ static AccessPath *FindSingleAccessPathOfType(AccessPath *path,
     }
     return false;
   };
-  WalkAccessPaths(path, /*cross_query_blocks=*/false, func);
+  // Our users generally want to stop at STREAM or MATERIALIZE nodes,
+  // since they are table-oriented and those nodes have their own tables.
+  // join == nullptr achieves that.
+  WalkAccessPaths(path, /*join=*/nullptr, /*cross_query_blocks=*/false, func);
   return found_path;
 }
 
@@ -740,29 +743,32 @@ void FindTablesToGetRowidFor(AccessPath *path) {
         }
       };
 
+  // We use join == nullptr, so that we stop at MATERIALIZE and STREAM
+  // (they supply row IDs for us without having to ask the tables below).
   switch (path->type) {
     case AccessPath::HASH_JOIN:
-      WalkAccessPaths(path, /*cross_query_blocks=*/false,
+      WalkAccessPaths(path, /*join=*/nullptr, /*cross_query_blocks=*/false,
                       add_tables_handled_by_others);
       path->hash_join().store_rowids = true;
       path->hash_join().tables_to_get_rowid_for =
           GetUsedTables(path) & ~handled_by_others;
       break;
     case AccessPath::BKA_JOIN:
-      WalkAccessPaths(path->bka_join().outer, /*cross_query_blocks=*/false,
+      WalkAccessPaths(path->bka_join().outer, /*join=*/nullptr,
+                      /*cross_query_blocks=*/false,
                       add_tables_handled_by_others);
       path->bka_join().store_rowids = true;
       path->bka_join().tables_to_get_rowid_for =
           GetUsedTables(path->bka_join().outer) & ~handled_by_others;
       break;
     case AccessPath::WEEDOUT:
-      WalkAccessPaths(path, /*cross_query_blocks=*/false,
+      WalkAccessPaths(path, /*join=*/nullptr, /*cross_query_blocks=*/false,
                       add_tables_handled_by_others);
       path->weedout().tables_to_get_rowid_for =
           GetUsedTables(path) & ~handled_by_others;
       break;
     case AccessPath::SORT:
-      WalkAccessPaths(path, /*cross_query_blocks=*/false,
+      WalkAccessPaths(path, /*join=*/nullptr, /*cross_query_blocks=*/false,
                       add_tables_handled_by_others);
       path->sort().tables_to_get_rowid_for =
           GetUsedTables(path) & ~handled_by_others;
@@ -789,10 +795,10 @@ static Item *ConditionFromFilterPredicates(
   }
 }
 
-void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg,
+void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
                              const Mem_root_array<Predicate> &predicates) {
   WalkAccessPaths(
-      path_arg, /*cross_query_blocks=*/false,
+      path_arg, join, /*cross_query_blocks=*/false,
       [thd, &predicates](AccessPath *path) {
         if (path->filter_predicates != 0) {
           Item *condition = ConditionFromFilterPredicates(

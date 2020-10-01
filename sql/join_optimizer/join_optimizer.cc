@@ -716,7 +716,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   // Now that we have decided on a full plan, expand all the applied
   // filter maps into proper FILTER nodes for execution.
-  ExpandFilterAccessPaths(thd, root_path, graph.predicates);
+  ExpandFilterAccessPaths(thd, root_path, join, graph.predicates);
 
   // Apply GROUP BY, if applicable. We currently always do this by sorting
   // first and then using streaming aggregation.

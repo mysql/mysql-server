@@ -1210,8 +1210,10 @@ table_map GetUsedTables(const AccessPath *path);
   predicate list. This is used after finding an optimal set of access paths,
   to normalize the tree so that the remaining consumers do not need to worry
   about filter_predicates and cost_before_filter.
+
+  “join” is the join that “path” is part of.
  */
-void ExpandFilterAccessPaths(THD *thd, AccessPath *path,
+void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
                              const Mem_root_array<Predicate> &predicates);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H
