@@ -26,8 +26,6 @@
 # Look for [ERROR] in error log (there should be none):
 # Look for output (there should be none):
 # Supressing output for initialize:
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
 # Wait for daemon server to start
 # Execute a query to see that it is running OK
 SHOW DATABASES;

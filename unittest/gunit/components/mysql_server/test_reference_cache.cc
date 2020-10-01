@@ -82,10 +82,10 @@ class foo_cache {
     @return: number of consumers called
   */
   unsigned call(int arg) {
-    const my_h_service *refs;
+    const my_h_service *refs = nullptr;
     unsigned called = 0;
-    if (is_valid() &&
-        !mysql_service_reference_caching_cache->get(cache_, 0, &refs)) {
+    if (is_valid() && !mysql_service_reference_caching_cache->get(
+                          cache_, arg /* service_name_index */, &refs)) {
       for (const my_h_service *svc = refs; *svc; svc++) {
         SERVICE_TYPE(mysql_test_foo) *f =
             reinterpret_cast<SERVICE_TYPE(mysql_test_foo) *>(*svc);
@@ -184,7 +184,7 @@ static DEFINE_BOOL_METHOD(mysql_test_ref_cache_benchmark_run,
         if (kill_switch.load(std::memory_order_relaxed)) break;
 
         if (c) {
-          c->call((arg % INT_MAX));
+          c->call(0 /* service_name_index */);
           if (n_flush && arg % n_flush == 0) c->flush();
         } else
           std::this_thread::sleep_for(std::chrono::milliseconds(n_sleep));

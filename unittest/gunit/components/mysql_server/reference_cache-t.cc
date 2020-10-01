@@ -102,8 +102,10 @@ TEST_F(reference_cache, ref_cache_components_load_unload) {
   ASSERT_FALSE(
       ref_cache_consumer->mysql_test_ref_cache_consumer_counter_reset());
   ASSERT_FALSE(ref_cache_consumer->mysql_test_ref_cache_consumer_counter_get());
-  /* It will give one cache event */
+  /* It will give one cache event, passing valid service_name_index */
   ASSERT_TRUE(ref_cache_producer->mysql_test_ref_cache_produce_event(0));
+  /* It will give no cache event, passing invalid service_name_index */
+  ASSERT_FALSE(ref_cache_producer->mysql_test_ref_cache_produce_event(1));
   ASSERT_FALSE(ref_cache_producer->mysql_test_ref_cache_flush());
   ASSERT_FALSE(ref_cache_producer->mysql_test_ref_cache_release_cache());
   ASSERT_FALSE(
