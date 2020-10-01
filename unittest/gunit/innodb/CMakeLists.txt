@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,6 @@ IF(WIN32)
 ENDIF()
 MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
   ENABLE_EXPORTS
-  EXCLUDE_ON_SOLARIS
   ADD_TEST merge_innodb_tests-t)
 
 TARGET_LINK_LIBRARIES(merge_innodb_tests-t

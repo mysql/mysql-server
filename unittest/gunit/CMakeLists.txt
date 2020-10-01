@@ -331,7 +331,6 @@ LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   ENABLE_EXPORTS
-  EXCLUDE_ON_SOLARIS
   ADD_TEST merge_large_tests)
 
 TARGET_LINK_LIBRARIES(merge_large_tests-t

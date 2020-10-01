@@ -58,7 +58,6 @@ MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
   ${MYSQLD_EXTRA_SOURCES}
-  EXCLUDE_ON_SOLARIS
   ADD_TEST pfs_connect_attr
 )
 IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
