@@ -1455,7 +1455,7 @@ static void check_secondary_engine_statement(THD *thd,
   thd->variables.option_bits |= OPTION_LOG_OFF;
 
   // Restart the statement.
-  mysql_parse(thd, parser_state);
+  dispatch_sql_command(thd, parser_state);
 
   // Restore the original option bits.
   thd->variables.option_bits = saved_option_bits;
@@ -1833,7 +1833,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       copy_bind_parameter_values(thd, com_data->com_query.parameters,
                                  com_data->com_query.parameter_count);
 
-      mysql_parse(thd, &parser_state);
+      dispatch_sql_command(thd, &parser_state);
 
       // Check if the statement failed and needs to be restarted in
       // another storage engine.
@@ -1918,7 +1918,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-        mysql_parse(thd, &parser_state);
+        dispatch_sql_command(thd, &parser_state);
 
         check_secondary_engine_statement(thd, &parser_state,
                                          beginning_of_next_stmt, length);
@@ -4856,20 +4856,21 @@ void THD::reset_for_next_command() {
 }
 
 /*
-  When you modify mysql_parse(), you may need to mofify
+  When you modify dispatch_sql_command(), you may need to modify
   mysql_test_parse_for_slave() in this same file.
 */
 
 /**
-  Parse a query.
+  Parse an SQL command from a text string and pass the resulting AST to the
+  query executor.
 
   @param thd          Current session.
   @param parser_state Parser state.
 */
 
-void mysql_parse(THD *thd, Parser_state *parser_state) {
+void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
   DBUG_TRACE;
-  DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
+  DBUG_PRINT("dispatch_sql_command", ("query: '%s'", thd->query().str));
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 

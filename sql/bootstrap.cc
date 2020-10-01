@@ -58,7 +58,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_initialize.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_parse.h"  // mysql_parse
+#include "sql/sql_parse.h"  // dispatch_sql_command
 #include "sql/sql_profile.h"
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
 #include "sql/system_variables.h"
@@ -208,8 +208,9 @@ static int process_iterator(THD *thd, Command_iterator *it,
     */
     if (rc != READ_BOOTSTRAP_SUCCESS) {
       /*
-        mysql_parse() may have set a successful error status for the previous
-        query. We must clear the error status to report the bootstrap error.
+        dispatch_sql_command() may have set a successful error status for the
+        previous query.
+        We must clear the error status to report the bootstrap error.
       */
       thd->get_stmt_da()->reset_diagnostics_area();
 
@@ -249,7 +250,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
 
     // Ignore ER_TOO_LONG_KEY for system tables.
     thd->push_internal_handler(&error_handler);
-    mysql_parse(thd, &parser_state);
+    dispatch_sql_command(thd, &parser_state);
     thd->pop_internal_handler();
 
     error = thd->is_error();

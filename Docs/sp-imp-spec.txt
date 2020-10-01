@@ -1,4 +1,4 @@
-Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,11 +26,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 - How parsing and execution of queries work
 
-  In order to execute a query, the function sql_parse.cc:mysql_parse() is
-  called, which in turn calls the parser (yyparse()) with an updated Lex
-  structure as the result. mysql_parse() then calls mysql_execute_command()
-  which dispatches on the command code (in Lex) to the corresponding code for
-  executing that particular query.
+  In order to execute a query, the function sql_parse.cc:dispatch_sql_command()
+  is called, which in turn calls the parser (yyparse()) with an updated Lex
+  structure as the result. dispatch_sql_command() then calls
+  mysql_execute_command() which dispatches on the command code (in Lex) to the
+  corresponding code for executing that particular query.
 
   There are three structures involved in the execution of a query which are of
   interest to the stored procedure implementation:
