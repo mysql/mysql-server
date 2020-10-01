@@ -40,10 +40,15 @@ bool cache_imp::destroy(cache_imp *cache) {
 bool cache_imp::get(unsigned service_name_index, const my_h_service **out_ref) {
   bool channel_is_valid = m_channel->is_valid();
 
+  if (service_name_index >= m_service_names.size()) {
+    *out_ref = nullptr;
+    return true;
+  }
+
   if (m_cache && channel_is_valid) {
     // cache hit
     *out_ref = m_cache[service_name_index];
-    return false;
+    return *out_ref ? false : true;
   }
 
   // cache miss
@@ -107,7 +112,7 @@ bool cache_imp::get(unsigned service_name_index, const my_h_service **out_ref) {
 
     m_cache[offset++] = cache_row;
   }
-  return false;
+  return *out_ref ? false : true;
 }
 
 bool cache_imp::flush() {
