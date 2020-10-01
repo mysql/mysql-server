@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,37 +24,10 @@
 #ifndef AUTH_UTILITY_INCLUDED
 #define AUTH_UTILITY_INCLUDED
 
-#include "my_alloc.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "rwlock_scoped_lock.h"
 
 #include <map>
-
-/**
- Class to manage MEM_ROOT. It either accepts and initialized MEM_ROOT
- or initializes a new one and controls its lifespan.
-*/
-class Mem_root_base {
- public:
-  explicit Mem_root_base(MEM_ROOT *mem_root);
-  Mem_root_base(const Mem_root_base &) = delete;
-  Mem_root_base &operator=(const Mem_root_base &) = delete;
-  ~Mem_root_base();
-  MEM_ROOT *get_mem_root() const;
-
- protected:
-  MEM_ROOT *m_mem_root;
-  MEM_ROOT m_internal_mem_root;
-
- private:
-  Mem_root_base();
-  bool m_inited;
-};
-
-/**
-  Return MEM_ROOT handle.
-*/
-inline MEM_ROOT *Mem_root_base::get_mem_root() const { return m_mem_root; }
 
 /**
   Map with RWLock protections

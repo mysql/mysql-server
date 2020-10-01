@@ -45,7 +45,7 @@ class Restrictions_aggregator;
 extern MEM_ROOT global_acl_memory;
 
 // Alias declarations
-using db_revocations = mem_root_collation_unordered_map<std::string, ulong>;
+using db_revocations = collation_unordered_map<std::string, ulong>;
 using Db_access_map = std::map<std::string, unsigned long>;
 
 /**
@@ -53,15 +53,11 @@ using Db_access_map = std::map<std::string, unsigned long>;
 */
 class Abstract_restrictions {
  public:
-  explicit Abstract_restrictions(MEM_ROOT *mem_root);
+  explicit Abstract_restrictions();
   virtual ~Abstract_restrictions();
   virtual bool is_empty() const = 0;
   virtual size_t size() const = 0;
   virtual void clear() = 0;
-
- protected:
-  /** MEM_ROOT manager */
-  Mem_root_base m_mem_root_base;
 };
 
 /**
@@ -79,7 +75,7 @@ class Abstract_restrictions {
 */
 class DB_restrictions final : public Abstract_restrictions {
  public:
-  DB_restrictions(MEM_ROOT *mem_root);
+  DB_restrictions();
   ~DB_restrictions() override;
 
   db_revocations &operator()(void) { return db_restrictions(); }
@@ -122,7 +118,7 @@ class DB_restrictions final : public Abstract_restrictions {
 */
 class Restrictions {
  public:
-  explicit Restrictions(MEM_ROOT *mem_root);
+  explicit Restrictions();
 
   Restrictions(const Restrictions &);
   Restrictions(Restrictions &&);

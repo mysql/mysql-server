@@ -204,16 +204,15 @@ using acl_table_user_writer_status =
 
 class Acl_table_user_writer_status {
  public:
-  Acl_table_user_writer_status(MEM_ROOT *mem_root);
+  Acl_table_user_writer_status();
   Acl_table_user_writer_status(bool skip, ulong rights, Table_op_error_code err,
                                struct timeval pwd_timestamp, std::string cred,
-                               MEM_ROOT *mem_root, Password_lock &password_lock)
+                               Password_lock &password_lock)
       : skip_cache_update(skip),
         updated_rights(rights),
         error(err),
         password_change_timestamp(pwd_timestamp),
         second_cred(cred),
-        restrictions(mem_root),
         password_lock(password_lock) {}
 
   bool skip_cache_update;

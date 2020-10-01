@@ -93,6 +93,7 @@ PSI_memory_key key_memory_XID;
 PSI_memory_key key_memory_acl_mem;
 PSI_memory_key key_memory_acl_memex;
 PSI_memory_key key_memory_acl_cache;
+PSI_memory_key key_memory_acl_db_restrictions;
 PSI_memory_key key_memory_acl_map_cache;
 PSI_memory_key key_memory_binlog_cache_mngr;
 PSI_memory_key key_memory_binlog_pos;
@@ -354,7 +355,9 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_log_sink_pfs, "log_sink_pfs", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME}};
+    {&key_memory_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_acl_db_restrictions, "acl_db_restrictions", 0, 0,
+     "Memory claimed by the PARTIAL REVOKE subsystem"}};
 
 void register_server_memory_keys() {
   const char *category = "sql";
