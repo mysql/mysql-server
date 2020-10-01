@@ -58,8 +58,6 @@ public:
   NdbDictionary::Object::Type m_type;
   NdbDictionary::Object::Status m_status;
   
-  bool change();
-  
   static NdbDictObjectImpl & getImpl(NdbDictionary::ObjectId & t) { 
     return t.m_impl;
   }
@@ -371,8 +369,8 @@ public:
   void init();
   int setName(const char * name);
   const char * getName() const;
-  int setTable(const char * table);
-  const char * getTable() const;
+  int setTableName(const char * table);
+  const char * getTableName() const;
   const NdbTableImpl * getIndexTable() const;
 
   BaseString m_internalName;
@@ -775,7 +773,6 @@ public:
   
   int createEvent(NdbEventImpl &, int getFlag);
   int dropEvent(const NdbEventImpl &);
-  int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 
   int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
   int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &,
@@ -972,7 +969,6 @@ public:
   ~NdbDictionaryImpl();
 
   bool setTransporter(class Ndb * ndb, class TransporterFacade * tf);
-  bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t, NdbDictObjectImpl &);
   int optimizeTable(const NdbTableImpl &t,
@@ -983,22 +979,17 @@ public:
   bool supportedAlterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int alterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int dropTable(const char * name);
-  int dropTable(NdbTableImpl &);
-  int dropBlobTables(NdbTableImpl &);
+  int dropTable(const NdbTableImpl&);
+  int dropBlobTables(const NdbTableImpl&);
   int alterBlobTables(const NdbTableImpl &old_impl, const NdbTableImpl &impl, Uint32 tabChangeMask);
   int invalidateObject(NdbTableImpl &);
   int removeCachedObject(NdbTableImpl &);
 
   int createIndex(NdbIndexImpl &ix, bool offline);
   int createIndex(NdbIndexImpl &ix, NdbTableImpl & tab, bool offline);
-  int dropIndex(const char * indexName, 
-		const char * tableName);
-  int dropIndex(const char * indexName, 
-		const char * tableName,
+  int dropIndex(const char * indexName,  const char * tableName,
                 bool ignoreFKs);
-  int dropIndex(NdbIndexImpl &, const char * tableName);
-  int dropIndex(NdbIndexImpl &, const char * tableName,
-                bool ignoreFKs);
+  int dropIndex(NdbIndexImpl &, const char * tableName, bool ignoreFKs);
 
   int updateIndexStat(const NdbIndexImpl&, const NdbTableImpl&);
   int updateIndexStat(Uint32 indexId, Uint32 indexVersion, Uint32 tableId);
@@ -1029,9 +1020,7 @@ public:
   NdbIndexImpl * getIndexGlobal(const char * indexName,
                                 const char * tableName);
   int alterTableGlobal(NdbTableImpl &orig_impl, NdbTableImpl &impl);
-  int dropTableGlobal(NdbTableImpl &);
   int dropTableGlobal(NdbTableImpl &, int flags);
-  int dropIndexGlobal(NdbIndexImpl & impl);
   int dropIndexGlobal(NdbIndexImpl &, bool ignoreFKs);
   int releaseTableGlobal(const NdbTableImpl & impl, int invalidate);
   int releaseIndexGlobal(const NdbIndexImpl & impl, int invalidate);
@@ -1048,7 +1037,6 @@ public:
   NdbIndexImpl * getIndex(const char * indexName, const NdbTableImpl& prim);
   NdbEventImpl * getEvent(const char * eventName, NdbTableImpl* = NULL);
   NdbEventImpl * getBlobEvent(const NdbEventImpl& ev, uint col_no);
-  NdbEventImpl * getEventImpl(const char * internalName);
 
   int createDatafile(const NdbDatafileImpl &, bool force, NdbDictObjectImpl*);
   int dropDatafile(const NdbDatafileImpl &);
@@ -1086,14 +1074,6 @@ public:
 
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
-
-  NdbIndexImpl* getIndexImpl(const char * externalName,
-                             const BaseString& internalName,
-                             NdbTableImpl &tab,
-                             NdbTableImpl &prim);
-  NdbIndexImpl * getIndexImpl(const char * name,
-                              const BaseString& internalName);
-
 
   int createDefaultNdbRecord(NdbTableImpl* tableOrIndex,
                              const NdbTableImpl* baseTableForIndex);

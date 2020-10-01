@@ -1188,12 +1188,12 @@ NdbDictionary::Index::getName() const {
 
 int
 NdbDictionary::Index::setTable(const char * table){
-  return m_impl.setTable(table);
+  return m_impl.setTableName(table);
 }
 
 const char * 
 NdbDictionary::Index::getTable() const {
-  return m_impl.getTable();
+  return m_impl.getTableName();
 }
 
 unsigned
@@ -3112,7 +3112,7 @@ NdbDictionary::Dictionary::dropIndex(const char * indexName,
   int ret;
   DO_TRANS(
     ret,
-    m_impl.dropIndex(indexName, tableName)
+    m_impl.dropIndex(indexName, tableName, false)
   );
   return ret;
 }
@@ -3123,7 +3123,7 @@ NdbDictionary::Dictionary::dropIndexGlobal(const Index &ind)
   int ret;
   DO_TRANS(
     ret,
-    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind))
+    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind), false)
   );
   return ret;
 }

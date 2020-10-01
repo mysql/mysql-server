@@ -54,7 +54,6 @@
 #include <signaldata/CreateFK.hpp>
 #include <signaldata/DropFK.hpp>
 
-#define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
 
 
@@ -114,7 +113,7 @@ is_ndb_blob_table(const NdbTableImpl* t)
   return is_ndb_blob_table(t->m_internalName.c_str());
 }
 
-bool
+static bool
 ignore_broken_blob_tables()
 {
   /* To be able to fix broken blob tables, we must be able
@@ -126,8 +125,6 @@ ignore_broken_blob_tables()
                                 10);
   return (v != NULL && *v != 0 && *v != '0' && *v != 'n' && *v != 'N');
 }
-
-//#define EVENT_DEBUG
 
 /**
  * Column
@@ -2037,13 +2034,13 @@ NdbIndexImpl::getName() const
 }
  
 int
-NdbIndexImpl::setTable(const char * table)
+NdbIndexImpl::setTableName(const char * table)
 {
   return !m_tableName.assign(table);
 }
  
 const char * 
-NdbIndexImpl::getTable() const
+NdbIndexImpl::getTableName() const
 {
   return m_tableName.c_str();
 }
@@ -3963,7 +3960,7 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t, NdbDictObjectImpl & objid)
 
     if (createBlobTables(*t2) != 0) {
       int save_code = m_error.code;
-      (void)dropTableGlobal(*t2);
+      (void)dropTableGlobal(*t2, 0);
       m_error.code = save_code;
       delete t2;
       DBUG_RETURN(-1);
@@ -4987,7 +4984,7 @@ NdbDictionaryImpl::dropTable(const char * name)
   if(tab == 0){
     DBUG_RETURN(-1);
   }
-  int ret = dropTable(* tab);
+  const int ret = dropTable(* tab);
   // If table stored in cache is incompatible with the one in the kernel
   // we must clear the cache and try again
   if (ret == INCOMPATIBLE_VERSION) {
@@ -5053,7 +5050,7 @@ dropTableAllowDropChildFK(const NdbTableImpl& impl,
 }
 
 int
-NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
+NdbDictionaryImpl::dropTable(const NdbTableImpl & impl)
 {
   int res;
   const char * name = impl.getName();
@@ -5132,12 +5129,6 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
   
   return ret;
-}
-
-int
-NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
-{
-  return dropTableGlobal(impl, 0);
 }
 
 int
@@ -5254,7 +5245,7 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
 }
 
 int
-NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
+NdbDictionaryImpl::dropBlobTables(const NdbTableImpl & t)
 {
   DBUG_ENTER("NdbDictionaryImpl::dropBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
@@ -5490,7 +5481,7 @@ int
 NdbDictionaryImpl::createIndex(NdbIndexImpl &ix, bool offline)
 {
   ASSERT_NOT_MYSQLD;
-  NdbTableImpl* tab = getTable(ix.getTable());
+  NdbTableImpl* tab = getTable(ix.getTableName());
   if(tab == 0)
   {
     if(m_error.code == 0)
@@ -5784,15 +5775,8 @@ NdbDictInterface::execINDEX_STAT_REF(const NdbApiSignal * signal,
  * Drop index
  */
 int
-NdbDictionaryImpl::dropIndex(const char * indexName, 
-			     const char * tableName)
-{
-  return dropIndex(indexName, tableName, false);
-}
-
-int
-NdbDictionaryImpl::dropIndex(const char * indexName, 
-			     const char * tableName,
+NdbDictionaryImpl::dropIndex(const char * indexName,
+                             const char * tableName,
                              bool ignoreFKs)
 {
   ASSERT_NOT_MYSQLD;
@@ -5816,16 +5800,10 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
     m_globalHash->lock();
     m_globalHash->release(idx->m_table, 1);
     m_globalHash->unlock();
-    return dropIndex(indexName, tableName);
+    return dropIndex(indexName, tableName, false);
   }
 
   return ret;
-}
-
-int
-NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
-{
-  return dropIndex(impl, tableName, false);
 }
 
 int
@@ -5859,12 +5837,6 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
     m_localHash.drop(internalIndexName);
   }
   return ret;
-}
-
-int
-NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl & impl)
-{
-  return dropIndexGlobal(impl, false);
 }
 
 int
