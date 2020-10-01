@@ -230,8 +230,8 @@ public:
 
   bool matchDb(const char * name, size_t len) const;
 
-  int aggregate(NdbError& error);
-  int validate(NdbError& error);
+  int aggregate();
+  int validate();
 
   Uint32 m_primaryTableId;
   BaseString m_internalName; // db/schema/table
@@ -433,7 +433,7 @@ private:
 
   NdbDictionary::OptimizeTableHandle * m_facade;
 public:
-  NdbOptimizeTableHandleImpl(NdbDictionary::OptimizeTableHandle &);
+  NdbOptimizeTableHandleImpl();
   ~NdbOptimizeTableHandleImpl();
   static NdbOptimizeTableHandleImpl & getImpl(NdbDictionary::OptimizeTableHandle &h)
     { return h.m_impl; }
@@ -453,7 +453,7 @@ private:
   class NdbDictionary::OptimizeTableHandle m_optimize_table_handle;
   NdbDictionary::OptimizeIndexHandle * m_facade;
 public:
-  NdbOptimizeIndexHandleImpl(NdbDictionary::OptimizeIndexHandle &);
+  NdbOptimizeIndexHandleImpl();
   ~NdbOptimizeIndexHandleImpl();
   static NdbOptimizeIndexHandleImpl & getImpl(NdbDictionary::OptimizeIndexHandle &h)
     { return h.m_impl; }
@@ -751,32 +751,26 @@ public:
   int compChangeMask(const NdbTableImpl &old_impl,
                      const NdbTableImpl &impl,
                      Uint32 &change_mask);
-  int serializeTableDesc(Ndb & ndb,
-                         NdbTableImpl & impl,
-                         UtilBufferWriter & w);
+  int serializeTableDesc(NdbTableImpl & impl, UtilBufferWriter & w);
   int sendAlterTable(const NdbTableImpl &impl,
-                     Uint32 change_mask,
-                     UtilBufferWriter &w);
-  int sendCreateTable(const NdbTableImpl &impl, UtilBufferWriter &w);
+                     Uint32 change_mask);
+  int sendCreateTable();
 
   int dropTable(const NdbTableImpl &);
 
   int createIndex(const NdbIndexImpl &, const NdbTableImpl &,
                   bool offline);
-  int dropIndex(const NdbIndexImpl &, const NdbTableImpl &);
-  int doIndexStatReq(class Ndb& ndb,
-                     const NdbIndexImpl&, const NdbTableImpl&,
+  int dropIndex(const NdbTableImpl &);
+  int doIndexStatReq(const NdbIndexImpl&, const NdbTableImpl&,
                      Uint32 requestType);
-  int doIndexStatReq(class Ndb& ndb,
-                     Uint32 indexId, Uint32 indexVersion, Uint32 tableId,
+  int doIndexStatReq(Uint32 indexId, Uint32 indexVersion, Uint32 tableId,
                      Uint32 requestType);
   
   int createEvent(NdbEventImpl &, int getFlag);
   int dropEvent(const NdbEventImpl &);
 
-  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
-  int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &,
-                         Uint64& stop_gci);
+  int executeSubscribeEvent(NdbEventOperationImpl &);
+  int stopSubscribeEvent(NdbEventOperationImpl &, Uint64& stop_gci);
   
   int listObjects(NdbDictionary::Dictionary::List& list,
                   ListTablesReq& ltreq, bool fullyQualifiedNames);
@@ -862,78 +856,63 @@ private:
 			 const class NdbApiSignal* signal,
 			 const struct LinearSectionPtr ptr[3]);
   
-  static void execNodeStatus(void* dictImpl, Uint32, Uint32);
-  
-  void execGET_TABINFO_REF(const NdbApiSignal *, const LinearSectionPtr p[3]);
+  void execGET_TABINFO_REF(const NdbApiSignal *);
   void execGET_TABINFO_CONF(const NdbApiSignal *, const LinearSectionPtr p[3]);
-  void execCREATE_TABLE_REF(const NdbApiSignal *, const LinearSectionPtr p[3]);
-  void execCREATE_TABLE_CONF(const NdbApiSignal *, const LinearSectionPtr [3]);
-  void execALTER_TABLE_REF(const NdbApiSignal *, const LinearSectionPtr pr[3]);
-  void execALTER_TABLE_CONF(const NdbApiSignal *, const LinearSectionPtr p[3]);
+  void execCREATE_TABLE_REF(const NdbApiSignal *);
+  void execCREATE_TABLE_CONF(const NdbApiSignal *);
+  void execALTER_TABLE_REF(const NdbApiSignal *);
+  void execALTER_TABLE_CONF(const NdbApiSignal *);
 
-  void execCREATE_INDX_REF(const NdbApiSignal *, const LinearSectionPtr pr[3]);
-  void execCREATE_INDX_CONF(const NdbApiSignal *, const LinearSectionPtr p[3]);
-  void execDROP_INDX_REF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
-  void execDROP_INDX_CONF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
+  void execCREATE_INDX_REF(const NdbApiSignal *);
+  void execCREATE_INDX_CONF(const NdbApiSignal *);
+  void execDROP_INDX_REF(const NdbApiSignal *);
+  void execDROP_INDX_CONF(const NdbApiSignal *);
 
-  void execINDEX_STAT_CONF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
-  void execINDEX_STAT_REF(const NdbApiSignal *, const LinearSectionPtr ptr[3]);
+  void execINDEX_STAT_CONF(const NdbApiSignal *);
+  void execINDEX_STAT_REF(const NdbApiSignal *);
 
-  void execCREATE_EVNT_REF(const NdbApiSignal *, const LinearSectionPtr pr[3]);
+  void execCREATE_EVNT_REF(const NdbApiSignal *);
   void execCREATE_EVNT_CONF(const NdbApiSignal *, const LinearSectionPtr p[3]);
-  void execSUB_START_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execSUB_START_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execSUB_STOP_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execSUB_STOP_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execDROP_EVNT_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execDROP_EVNT_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
+  void execSUB_START_CONF(const NdbApiSignal*);
+  void execSUB_START_REF(const NdbApiSignal*);
+  void execSUB_STOP_CONF(const NdbApiSignal*);
+  void execSUB_STOP_REF(const NdbApiSignal*);
+  void execDROP_EVNT_REF(const NdbApiSignal*);
+  void execDROP_EVNT_CONF();
 
-  void execDROP_TABLE_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execDROP_TABLE_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execLIST_TABLES_CONF(const NdbApiSignal*, const LinearSectionPtr pt[3]);
+  void execDROP_TABLE_REF(const NdbApiSignal*);
+  void execDROP_TABLE_CONF(const NdbApiSignal*);
+  void execLIST_TABLES_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[]);
 
-  void execCREATE_FILE_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execCREATE_FILE_CONF(const NdbApiSignal*, const LinearSectionPtr pr[3]);
+  void execCREATE_FILE_REF(const NdbApiSignal*);
+  void execCREATE_FILE_CONF(const NdbApiSignal*);
 
-  void execCREATE_FILEGROUP_REF(const NdbApiSignal*,
-				const LinearSectionPtr ptr[3]);
-  void execCREATE_FILEGROUP_CONF(const NdbApiSignal*,
-				 const LinearSectionPtr ptr[3]);
+  void execCREATE_FILEGROUP_REF(const NdbApiSignal*);
+  void execCREATE_FILEGROUP_CONF(const NdbApiSignal*);
 
-  void execDROP_FILE_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execDROP_FILE_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
+  void execDROP_FILE_REF(const NdbApiSignal*);
+  void execDROP_FILE_CONF(const NdbApiSignal*);
 
-  void execDROP_FILEGROUP_REF(const NdbApiSignal*, const LinearSectionPtr [3]);
-  void execDROP_FILEGROUP_CONF(const NdbApiSignal*,
-			       const LinearSectionPtr ptr[3]);
+  void execDROP_FILEGROUP_REF(const NdbApiSignal*);
+  void execDROP_FILEGROUP_CONF(const NdbApiSignal*);
 
-  void execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal*,
-				   const LinearSectionPtr ptr[3]);
-  void execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal*,
-				  const LinearSectionPtr ptr[3]);
-  void execSCHEMA_TRANS_END_CONF(const NdbApiSignal*,
-				 const LinearSectionPtr ptr[3]);
-  void execSCHEMA_TRANS_END_REF(const NdbApiSignal*,
-				const LinearSectionPtr ptr[3]);
-  void execSCHEMA_TRANS_END_REP(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
+  void execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal*);
+  void execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal*);
+  void execSCHEMA_TRANS_END_CONF(const NdbApiSignal*);
+  void execSCHEMA_TRANS_END_REF(const NdbApiSignal*);
+  void execSCHEMA_TRANS_END_REP(const NdbApiSignal*);
 
-  void execWAIT_GCP_CONF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
-  void execWAIT_GCP_REF(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
+  void execWAIT_GCP_CONF(const NdbApiSignal*);
+  void execWAIT_GCP_REF(const NdbApiSignal*);
 
-  void execCREATE_HASH_MAP_REF(const NdbApiSignal*,
-			       const LinearSectionPtr ptr[3]);
-  void execCREATE_HASH_MAP_CONF(const NdbApiSignal*,
-				const LinearSectionPtr ptr[3]);
+  void execCREATE_HASH_MAP_REF(const NdbApiSignal*);
+  void execCREATE_HASH_MAP_CONF(const NdbApiSignal*);
 
-  void execCREATE_FK_REF(const NdbApiSignal*,
-                         const LinearSectionPtr ptr[3]);
-  void execCREATE_FK_CONF(const NdbApiSignal*,
-                          const LinearSectionPtr ptr[3]);
+  void execCREATE_FK_REF(const NdbApiSignal*);
+  void execCREATE_FK_CONF(const NdbApiSignal*);
 
-  void execDROP_FK_REF(const NdbApiSignal*,
-                         const LinearSectionPtr ptr[3]);
-  void execDROP_FK_CONF(const NdbApiSignal*,
-                          const LinearSectionPtr ptr[3]);
+  void execDROP_FK_REF(const NdbApiSignal*);
+  void execDROP_FK_CONF(const NdbApiSignal*);
 
   Uint32 m_fragmentId;
   UtilBuffer m_buffer;
@@ -1091,7 +1070,6 @@ public:
   NdbRecord *createRecordInternal(const NdbTableImpl *table,
                                   const NdbDictionary::RecordSpecification *recSpec,
                                   Uint32 length,
-                                  Uint32 elemSize,
                                   Uint32 flags,
                                   bool defaultRecord);
   void releaseRecord_impl(NdbRecord *rec);

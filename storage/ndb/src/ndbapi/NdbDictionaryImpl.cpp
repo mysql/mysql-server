@@ -1244,15 +1244,15 @@ NdbTableImpl::computeAggregates()
 // TODO add error checks
 // TODO use these internally at create and retrieve
 int
-NdbTableImpl::aggregate(NdbError& error)
+NdbTableImpl::aggregate()
 {
   computeAggregates();
   return 0;
 }
 int
-NdbTableImpl::validate(NdbError& error)
+NdbTableImpl::validate()
 {
-  if (aggregate(error) == -1)
+  if (aggregate() == -1)
     return -1;
   return 0;
 }
@@ -2127,7 +2127,7 @@ NdbIndexImpl::internal_index_name(const NdbTableImpl * table,
  * NdbOptimizeTableHandleImpl
  */
 
-NdbOptimizeTableHandleImpl::NdbOptimizeTableHandleImpl(NdbDictionary::OptimizeTableHandle &f)
+NdbOptimizeTableHandleImpl::NdbOptimizeTableHandleImpl()
   : NdbDictionary::OptimizeTableHandle(* this),
     m_state(NdbOptimizeTableHandleImpl::CREATED),
     m_ndb(NULL), m_table(NULL),
@@ -2401,7 +2401,7 @@ int NdbOptimizeTableHandleImpl::close()
  * NdbOptimizeIndexHandleImpl
  */
 
-NdbOptimizeIndexHandleImpl::NdbOptimizeIndexHandleImpl(NdbDictionary::OptimizeIndexHandle &f)
+NdbOptimizeIndexHandleImpl::NdbOptimizeIndexHandleImpl()
   : NdbDictionary::OptimizeIndexHandle(* this),
     m_state(NdbOptimizeIndexHandleImpl::CREATED),
     m_ndb(NULL), m_index(NULL),
@@ -2857,137 +2857,137 @@ NdbDictInterface::execSignal(void* dictImpl,
   const Uint32 gsn = signal->readSignalNumber();
   switch(gsn){
   case GSN_GET_TABINFOREF:
-    tmp->execGET_TABINFO_REF(signal, ptr);
+    tmp->execGET_TABINFO_REF(signal);
     break;
   case GSN_GET_TABINFO_CONF:
     tmp->execGET_TABINFO_CONF(signal, ptr);
     break;
   case GSN_CREATE_TABLE_REF:
-    tmp->execCREATE_TABLE_REF(signal, ptr);
+    tmp->execCREATE_TABLE_REF(signal);
     break;
   case GSN_CREATE_TABLE_CONF:
-    tmp->execCREATE_TABLE_CONF(signal, ptr);
+    tmp->execCREATE_TABLE_CONF(signal);
     break;
   case GSN_DROP_TABLE_REF:
-    tmp->execDROP_TABLE_REF(signal, ptr);
+    tmp->execDROP_TABLE_REF(signal);
     break;
   case GSN_DROP_TABLE_CONF:
-    tmp->execDROP_TABLE_CONF(signal, ptr);
+    tmp->execDROP_TABLE_CONF(signal);
     break;
   case GSN_ALTER_TABLE_REF:
-    tmp->execALTER_TABLE_REF(signal, ptr);
+    tmp->execALTER_TABLE_REF(signal);
     break;
   case GSN_ALTER_TABLE_CONF:
-    tmp->execALTER_TABLE_CONF(signal, ptr);
+    tmp->execALTER_TABLE_CONF(signal);
     break;
   case GSN_CREATE_INDX_REF:
-    tmp->execCREATE_INDX_REF(signal, ptr);
+    tmp->execCREATE_INDX_REF(signal);
     break;
   case GSN_CREATE_INDX_CONF:
-    tmp->execCREATE_INDX_CONF(signal, ptr);
+    tmp->execCREATE_INDX_CONF(signal);
     break;
   case GSN_DROP_INDX_REF:
-    tmp->execDROP_INDX_REF(signal, ptr);
+    tmp->execDROP_INDX_REF(signal);
     break;
   case GSN_DROP_INDX_CONF:
-    tmp->execDROP_INDX_CONF(signal, ptr);
+    tmp->execDROP_INDX_CONF(signal);
     break;
   case GSN_INDEX_STAT_CONF:
-    tmp->execINDEX_STAT_CONF(signal, ptr);
+    tmp->execINDEX_STAT_CONF(signal);
     break;
   case GSN_INDEX_STAT_REF:
-    tmp->execINDEX_STAT_REF(signal, ptr);
+    tmp->execINDEX_STAT_REF(signal);
     break;
   case GSN_CREATE_EVNT_REF:
-    tmp->execCREATE_EVNT_REF(signal, ptr);
+    tmp->execCREATE_EVNT_REF(signal);
     break;
   case GSN_CREATE_EVNT_CONF:
     tmp->execCREATE_EVNT_CONF(signal, ptr);
     break;
   case GSN_SUB_START_CONF:
-    tmp->execSUB_START_CONF(signal, ptr);
+    tmp->execSUB_START_CONF(signal);
     break;
   case GSN_SUB_START_REF:
-    tmp->execSUB_START_REF(signal, ptr);
+    tmp->execSUB_START_REF(signal);
     break;
   case GSN_SUB_STOP_CONF:
-    tmp->execSUB_STOP_CONF(signal, ptr);
+    tmp->execSUB_STOP_CONF(signal);
     break;
   case GSN_SUB_STOP_REF:
-    tmp->execSUB_STOP_REF(signal, ptr);
+    tmp->execSUB_STOP_REF(signal);
     break;
   case GSN_DROP_EVNT_REF:
-    tmp->execDROP_EVNT_REF(signal, ptr);
+    tmp->execDROP_EVNT_REF(signal);
     break;
   case GSN_DROP_EVNT_CONF:
-    tmp->execDROP_EVNT_CONF(signal, ptr);
+    tmp->execDROP_EVNT_CONF();
     break;
   case GSN_LIST_TABLES_CONF:
     tmp->execLIST_TABLES_CONF(signal, ptr);
     break;
   case GSN_CREATE_FILEGROUP_REF:
-    tmp->execCREATE_FILEGROUP_REF(signal, ptr);
+    tmp->execCREATE_FILEGROUP_REF(signal);
     break;
   case GSN_CREATE_FILEGROUP_CONF:
-    tmp->execCREATE_FILEGROUP_CONF(signal, ptr);
+    tmp->execCREATE_FILEGROUP_CONF(signal);
     break;
   case GSN_CREATE_FILE_REF:
-    tmp->execCREATE_FILE_REF(signal, ptr);
+    tmp->execCREATE_FILE_REF(signal);
     break;
   case GSN_CREATE_FILE_CONF:
-    tmp->execCREATE_FILE_CONF(signal, ptr);
+    tmp->execCREATE_FILE_CONF(signal);
     break;
   case GSN_DROP_FILEGROUP_REF:
-    tmp->execDROP_FILEGROUP_REF(signal, ptr);
+    tmp->execDROP_FILEGROUP_REF(signal);
     break;
   case GSN_DROP_FILEGROUP_CONF:
-    tmp->execDROP_FILEGROUP_CONF(signal, ptr);
+    tmp->execDROP_FILEGROUP_CONF(signal);
     break;
   case GSN_DROP_FILE_REF:
-    tmp->execDROP_FILE_REF(signal, ptr);
+    tmp->execDROP_FILE_REF(signal);
     break;
   case GSN_DROP_FILE_CONF:
-    tmp->execDROP_FILE_CONF(signal, ptr);
+    tmp->execDROP_FILE_CONF(signal);
     break;
   case GSN_SCHEMA_TRANS_BEGIN_CONF:
-    tmp->execSCHEMA_TRANS_BEGIN_CONF(signal, ptr);
+    tmp->execSCHEMA_TRANS_BEGIN_CONF(signal);
     break;
   case GSN_SCHEMA_TRANS_BEGIN_REF:
-    tmp->execSCHEMA_TRANS_BEGIN_REF(signal, ptr);
+    tmp->execSCHEMA_TRANS_BEGIN_REF(signal);
     break;
   case GSN_SCHEMA_TRANS_END_CONF:
-    tmp->execSCHEMA_TRANS_END_CONF(signal, ptr);
+    tmp->execSCHEMA_TRANS_END_CONF(signal);
     break;
   case GSN_SCHEMA_TRANS_END_REF:
-    tmp->execSCHEMA_TRANS_END_REF(signal, ptr);
+    tmp->execSCHEMA_TRANS_END_REF(signal);
     break;
   case GSN_SCHEMA_TRANS_END_REP:
-    tmp->execSCHEMA_TRANS_END_REP(signal, ptr);
+    tmp->execSCHEMA_TRANS_END_REP(signal);
     break;
   case GSN_WAIT_GCP_CONF:
-    tmp->execWAIT_GCP_CONF(signal, ptr);
+    tmp->execWAIT_GCP_CONF(signal);
     break;
   case GSN_WAIT_GCP_REF:
-    tmp->execWAIT_GCP_REF(signal, ptr);
+    tmp->execWAIT_GCP_REF(signal);
     break;
   case GSN_CREATE_HASH_MAP_REF:
-    tmp->execCREATE_HASH_MAP_REF(signal, ptr);
+    tmp->execCREATE_HASH_MAP_REF(signal);
     break;
   case GSN_CREATE_HASH_MAP_CONF:
-    tmp->execCREATE_HASH_MAP_CONF(signal, ptr);
+    tmp->execCREATE_HASH_MAP_CONF(signal);
     break;
   case GSN_CREATE_FK_REF:
-    tmp->execCREATE_FK_REF(signal, ptr);
+    tmp->execCREATE_FK_REF(signal);
     break;
   case GSN_CREATE_FK_CONF:
-    tmp->execCREATE_FK_CONF(signal, ptr);
+    tmp->execCREATE_FK_CONF(signal);
     break;
 
   case GSN_DROP_FK_REF:
-    tmp->execDROP_FK_REF(signal, ptr);
+    tmp->execDROP_FK_REF(signal);
     break;
   case GSN_DROP_FK_CONF:
-    tmp->execDROP_FK_CONF(signal, ptr);
+    tmp->execDROP_FK_CONF(signal);
     break;
 
   case GSN_NODE_FAILREP:
@@ -3024,11 +3024,6 @@ NdbDictInterface::execSignal(void* dictImpl,
   default:
     abort();
   }
-}
-
-void
-NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode, Uint32 ns_event)
-{
 }
 
 int
@@ -3361,8 +3356,7 @@ end:
 }
 
 void
-NdbDictInterface::execGET_TABINFO_REF(const NdbApiSignal * signal,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execGET_TABINFO_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execGET_TABINFO_REF");
   const GetTabInfoRef* ref = CAST_CONSTPTR(GetTabInfoRef, 
@@ -4079,13 +4073,13 @@ NdbDictInterface::createTable(Ndb & ndb,
   syncInternalName(ndb, impl);
 
   UtilBufferWriter w(m_buffer);
-  ret= serializeTableDesc(ndb, impl, w);
+  ret= serializeTableDesc(impl, w);
   if(ret != 0)
   {
     DBUG_RETURN(ret);
   }
 
-  DBUG_RETURN(sendCreateTable(impl, w));
+  DBUG_RETURN(sendCreateTable());
 }
 
 bool NdbDictionaryImpl::supportedAlterTable(NdbTableImpl &old_impl,
@@ -4279,11 +4273,11 @@ NdbDictInterface::alterTable(Ndb & ndb,
     DBUG_RETURN(ret);
 
   UtilBufferWriter w(m_buffer);
-  ret= serializeTableDesc(ndb, impl, w);
+  ret= serializeTableDesc(impl, w);
   if(ret != 0)
     DBUG_RETURN(ret);
 
-  DBUG_RETURN(sendAlterTable(impl, change_mask, w));
+  DBUG_RETURN(sendAlterTable(impl, change_mask));
 }
 
 void
@@ -4537,8 +4531,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
 }
 
 int 
-NdbDictInterface::serializeTableDesc(Ndb & ndb,
-				     NdbTableImpl & impl,
+NdbDictInterface::serializeTableDesc(NdbTableImpl & impl,
 				     UtilBufferWriter & w)
 {
   unsigned i, err;
@@ -4818,8 +4811,7 @@ loop:
 
 int
 NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
-                                 Uint32 change_mask,
-                                 UtilBufferWriter &w)
+                                 Uint32 change_mask)
 {
   LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32*)m_buffer.get_data();
@@ -4866,8 +4858,7 @@ NdbDictInterface::sendAlterTable(const NdbTableImpl &impl,
 }
 
 int
-NdbDictInterface::sendCreateTable(const NdbTableImpl &impl,
-                                  UtilBufferWriter &w)
+NdbDictInterface::sendCreateTable()
 {
   LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32*)m_buffer.get_data();
@@ -4904,8 +4895,7 @@ NdbDictInterface::sendCreateTable(const NdbTableImpl &impl,
 }
 
 void
-NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal,
-					const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_TABLE_CONF");
   const CreateTableConf* const conf=
@@ -4923,8 +4913,7 @@ NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_TABLE_REF(const NdbApiSignal * sig,
-				       const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_TABLE_REF(const NdbApiSignal * sig)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_TABLE_REF");
   const CreateTableRef* ref = CAST_CONSTPTR(CreateTableRef, sig->getDataPtr());
@@ -4940,8 +4929,7 @@ NdbDictInterface::execCREATE_TABLE_REF(const NdbApiSignal * sig,
 }
 
 void
-NdbDictInterface::execALTER_TABLE_CONF(const NdbApiSignal * signal,
-                                       const LinearSectionPtr ptr[3])
+NdbDictInterface::execALTER_TABLE_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execALTER_TABLE_CONF");
   const AlterTableConf * conf = CAST_CONSTPTR(AlterTableConf,
@@ -4955,8 +4943,7 @@ NdbDictInterface::execALTER_TABLE_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execALTER_TABLE_REF(const NdbApiSignal * sig,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execALTER_TABLE_REF(const NdbApiSignal * sig)
 {
   DBUG_ENTER("NdbDictInterface::execALTER_TABLE_REF");
   const AlterTableRef * ref = CAST_CONSTPTR(AlterTableRef, sig->getDataPtr());
@@ -5314,8 +5301,7 @@ NdbDictInterface::dropTable(const NdbTableImpl & impl)
 }
 
 void
-NdbDictInterface::execDROP_TABLE_CONF(const NdbApiSignal * signal,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_TABLE_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_CONF");
   const DropTableConf* conf = CAST_CONSTPTR(DropTableConf,
@@ -5329,8 +5315,7 @@ NdbDictInterface::execDROP_TABLE_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_TABLE_REF(const NdbApiSignal * signal,
-				     const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_TABLE_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_REF");
   const DropTableRef* ref = CAST_CONSTPTR(DropTableRef, signal->getDataPtr());
@@ -5623,8 +5608,7 @@ NdbDictInterface::createIndex(const NdbIndexImpl & impl,
 }
 
 void
-NdbDictInterface::execCREATE_INDX_CONF(const NdbApiSignal * signal,
-				       const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_INDX_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_INDX_CONF");
   const CreateIndxConf* conf = CAST_CONSTPTR(CreateIndxConf,
@@ -5638,8 +5622,7 @@ NdbDictInterface::execCREATE_INDX_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_INDX_REF(const NdbApiSignal * sig,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_INDX_REF(const NdbApiSignal * sig)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_INDX_REF");
   const CreateIndxRef* ref = CAST_CONSTPTR(CreateIndxRef, sig->getDataPtr());
@@ -5662,7 +5645,7 @@ NdbDictionaryImpl::updateIndexStat(const NdbIndexImpl& index,
                                    const NdbTableImpl& table)
 {
   Uint32 rt = IndexStatReq::RT_UPDATE_STAT;
-  return m_receiver.doIndexStatReq(m_ndb, index, table, rt);
+  return m_receiver.doIndexStatReq(index, table, rt);
 }
 
 int
@@ -5671,7 +5654,7 @@ NdbDictionaryImpl::updateIndexStat(Uint32 indexId,
                                    Uint32 tableId)
 {
   Uint32 rt = IndexStatReq::RT_UPDATE_STAT;
-  return m_receiver.doIndexStatReq(m_ndb, indexId, indexVersion, tableId, rt);
+  return m_receiver.doIndexStatReq(indexId, indexVersion, tableId, rt);
 }
 
 int
@@ -5679,7 +5662,7 @@ NdbDictionaryImpl::deleteIndexStat(const NdbIndexImpl& index,
                                    const NdbTableImpl& table)
 {
   Uint32 rt = IndexStatReq::RT_DELETE_STAT;
-  return m_receiver.doIndexStatReq(m_ndb, index, table, rt);
+  return m_receiver.doIndexStatReq(index, table, rt);
 }
 
 int
@@ -5688,21 +5671,19 @@ NdbDictionaryImpl::deleteIndexStat(Uint32 indexId,
                                    Uint32 tableId)
 {
   Uint32 rt = IndexStatReq::RT_DELETE_STAT;
-  return m_receiver.doIndexStatReq(m_ndb, indexId, indexVersion, tableId, rt);
+  return m_receiver.doIndexStatReq(indexId, indexVersion, tableId, rt);
 }
 
 int
-NdbDictInterface::doIndexStatReq(Ndb& ndb,
-                                 const NdbIndexImpl& index,
+NdbDictInterface::doIndexStatReq(const NdbIndexImpl& index,
                                  const NdbTableImpl& table,
                                  Uint32 rt)
 {
-  return doIndexStatReq(ndb, index.m_id, index.m_version, table.m_id, rt);
+  return doIndexStatReq(index.m_id, index.m_version, table.m_id, rt);
 }
 
 int
-NdbDictInterface::doIndexStatReq(Ndb& ndb,
-                                 Uint32 indexId,
+NdbDictInterface::doIndexStatReq(Uint32 indexId,
                                  Uint32 indexVersion,
                                  Uint32 tableId,
                                  Uint32 requestType)
@@ -5739,8 +5720,7 @@ NdbDictInterface::doIndexStatReq(Ndb& ndb,
 }
 
 void
-NdbDictInterface::execINDEX_STAT_CONF(const NdbApiSignal * signal,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execINDEX_STAT_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execINDEX_STAT_CONF");
   const IndexStatConf* conf = CAST_CONSTPTR(IndexStatConf,
@@ -5754,8 +5734,7 @@ NdbDictInterface::execINDEX_STAT_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execINDEX_STAT_REF(const NdbApiSignal * signal,
-				     const LinearSectionPtr ptr[3])
+NdbDictInterface::execINDEX_STAT_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execINDEX_STAT_REF");
   const IndexStatRef* ref = CAST_CONSTPTR(IndexStatRef, signal->getDataPtr());
@@ -5885,7 +5864,7 @@ NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl & impl, bool ignoreFKs)
     }
   }
 
-  int ret = m_receiver.dropIndex(impl, *impl.m_table);
+  const int ret = m_receiver.dropIndex(*impl.m_table);
   impl.m_status = NdbDictionary::Object::Invalid;
   if(ret == 0)
   {
@@ -5895,8 +5874,7 @@ NdbDictionaryImpl::dropIndexGlobal(NdbIndexImpl & impl, bool ignoreFKs)
 }
 
 int
-NdbDictInterface::dropIndex(const NdbIndexImpl & impl, 
-			    const NdbTableImpl & timpl)
+NdbDictInterface::dropIndex(const NdbTableImpl & timpl)
 {
   DBUG_ENTER("NdbDictInterface::dropIndex");
   DBUG_PRINT("enter", ("indexId: %d  indexVersion: %d",
@@ -5938,8 +5916,7 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
 }
 
 void
-NdbDictInterface::execDROP_INDX_CONF(const NdbApiSignal * signal,
-				       const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_INDX_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::DROP_INDX_CONF");
   const DropIndxConf* conf = CAST_CONSTPTR(DropIndxConf, signal->getDataPtr());
@@ -5952,8 +5929,7 @@ NdbDictInterface::execDROP_INDX_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_INDX_REF(const NdbApiSignal * signal,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_INDX_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_INDX_REF");
   const DropIndxRef* ref = CAST_CONSTPTR(DropIndxRef, signal->getDataPtr());
@@ -6229,12 +6205,11 @@ int
 NdbDictionaryImpl::executeSubscribeEvent(NdbEventOperationImpl & ev_op)
 {
   // NdbDictInterface m_receiver;
-  return m_receiver.executeSubscribeEvent(m_ndb, ev_op);
+  return m_receiver.executeSubscribeEvent(ev_op);
 }
 
 int
-NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
-					NdbEventOperationImpl & ev_op)
+NdbDictInterface::executeSubscribeEvent(NdbEventOperationImpl & ev_op)
 {
   DBUG_ENTER("NdbDictInterface::executeSubscribeEvent");
   NdbApiSignal tSignal(m_reference);
@@ -6272,12 +6247,11 @@ NdbDictionaryImpl::stopSubscribeEvent(NdbEventOperationImpl & ev_op,
                                       Uint64& stop_gci)
 {
   // NdbDictInterface m_receiver;
-  return m_receiver.stopSubscribeEvent(m_ndb, ev_op, stop_gci);
+  return m_receiver.stopSubscribeEvent(ev_op, stop_gci);
 }
 
 int
-NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
-				     NdbEventOperationImpl & ev_op,
+NdbDictInterface::stopSubscribeEvent(NdbEventOperationImpl & ev_op,
                                      Uint64& stop_gci)
 {
   DBUG_ENTER("NdbDictInterface::stopSubscribeEvent");
@@ -6553,8 +6527,7 @@ NdbDictInterface::execCREATE_EVNT_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_EVNT_REF(const NdbApiSignal * signal,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_EVNT_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_EVNT_REF");
 
@@ -6570,8 +6543,7 @@ NdbDictInterface::execCREATE_EVNT_REF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_CONF");
   const SubStopConf * const subStopConf=
@@ -6600,8 +6572,7 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
-				     const LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
   const SubStopRef * const subStopRef=
@@ -6624,8 +6595,7 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
-				     const LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSUB_START_CONF");
   const SubStartConf * const subStartConf=
@@ -6668,8 +6638,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSUB_START_REF(const NdbApiSignal * signal,
-				    const LinearSectionPtr ptr[3])
+NdbDictInterface::execSUB_START_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSUB_START_REF");
   const SubStartRef * const subStartRef=
@@ -6810,8 +6779,7 @@ NdbDictInterface::dropEvent(const NdbEventImpl &evnt)
 }
 
 void
-NdbDictInterface::execDROP_EVNT_CONF(const NdbApiSignal * signal,
-				     const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_EVNT_CONF()
 {
   DBUG_ENTER("NdbDictInterface::execDROP_EVNT_CONF");
   m_impl->theWaiter.signal(NO_WAIT);
@@ -6819,8 +6787,7 @@ NdbDictInterface::execDROP_EVNT_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_EVNT_REF(const NdbApiSignal * signal,
-				    const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_EVNT_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_EVNT_REF");
   const DropEvntRef* const ref=
@@ -7622,8 +7589,7 @@ NdbDictionaryImpl::getRestartGCI(Uint32 * gci)
 }
 
 void
-NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal,
-				    const LinearSectionPtr ptr[3])
+NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal)
 {
   const WaitGCPConf* conf = CAST_CONSTPTR(WaitGCPConf, signal->getDataPtr());
 
@@ -7636,8 +7602,7 @@ NdbDictInterface::execWAIT_GCP_CONF(const NdbApiSignal* signal,
 }
 
 void
-NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal,
-                                   const LinearSectionPtr ptr[3])
+NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal)
 {
   DBUG_ENTER("NdbDictInterface::WAIT_GCP_REF");
   const WaitGCPRef* ref = CAST_CONSTPTR(WaitGCPRef, signal->getDataPtr());
@@ -8058,7 +8023,6 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
  */
 static Uint32
 ndb_set_record_specification(Uint32 storageOffset,
-                             Uint32 field_num,
                              Uint32& nullableColNum,
                              NdbDictionary::RecordSpecification *spec,
                              NdbColumnImpl *col)
@@ -8250,8 +8214,7 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
       } 
     }
 
-    offset= ndb_set_record_specification(offset, 
-                                         i,
+    offset= ndb_set_record_specification(offset,
                                          nullableColNum,
                                          &spec[i], 
                                          col);
@@ -8397,7 +8360,6 @@ NdbRecord *
 NdbDictionaryImpl::createRecordInternal(const NdbTableImpl *table,
                                         const NdbDictionary::RecordSpecification *recSpec,
                                         Uint32 length,
-                                        Uint32 elemSize,
                                         Uint32 flags,
                                         bool defaultRecord)
 {
@@ -8709,7 +8671,6 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   NdbRecord *ndbRec = createRecordInternal(table,
                                            recSpec,
                                            length,
-                                           elemSize,
                                            flags,
                                            defaultRecord);
   free(newRecordSpec);
@@ -9133,8 +9094,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
 }
 
 void
-NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal,
-				       const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_FILE_CONF");
   const CreateFileConf* conf=
@@ -9154,8 +9114,7 @@ NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_FILE_REF(const NdbApiSignal * signal,
-				      const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILE_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_FILE_REF");
   const CreateFileRef* ref = 
@@ -9207,8 +9166,7 @@ NdbDictInterface::drop_file(const NdbFileImpl & file)
 }
 
 void
-NdbDictInterface::execDROP_FILE_CONF(const NdbApiSignal * signal,
-					    const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILE_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FILE_CONF");
   const DropFileConf* conf =
@@ -9222,8 +9180,7 @@ NdbDictInterface::execDROP_FILE_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_FILE_REF(const NdbApiSignal * signal,
-					   const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILE_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FILE_REF");
   const DropFileRef* ref = 
@@ -9344,8 +9301,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
 }
 
 void
-NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal,
-					    const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("execCREATE_FILEGROUP_CONF");
   const CreateFilegroupConf* conf=
@@ -9364,8 +9320,7 @@ NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_FILEGROUP_REF(const NdbApiSignal * signal,
-					   const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FILEGROUP_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_FILEGROUP_REF");
   const CreateFilegroupRef* ref = 
@@ -9415,8 +9370,7 @@ NdbDictInterface::drop_filegroup(const NdbFilegroupImpl & group)
 }
 
 void
-NdbDictInterface::execDROP_FILEGROUP_CONF(const NdbApiSignal * signal,
-					    const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILEGROUP_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FILEGROUP_CONF");
   const DropFilegroupConf* conf =
@@ -9430,8 +9384,7 @@ NdbDictInterface::execDROP_FILEGROUP_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_FILEGROUP_REF(const NdbApiSignal * signal,
-					   const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FILEGROUP_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FILEGROUP_REF");
   const DropFilegroupRef* ref = 
@@ -10017,8 +9970,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
 }
 
 void
-NdbDictInterface::execCREATE_HASH_MAP_REF(const NdbApiSignal * signal,
-                                          const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_HASH_MAP_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_HASH_MAP_REF");
   const CreateHashMapRef* ref =
@@ -10036,8 +9988,7 @@ NdbDictInterface::execCREATE_HASH_MAP_REF(const NdbApiSignal * signal,
 
 
 void
-NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
-                                           const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_HASH_MAP_CONF");
   const CreateHashMapConf* conf=
@@ -10248,8 +10199,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
 }
 
 void
-NdbDictInterface::execCREATE_FK_REF(const NdbApiSignal * signal,
-                                          const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FK_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_FK_REF");
   const CreateFKRef* ref = CAST_CONSTPTR(CreateFKRef, signal->getDataPtr());
@@ -10265,8 +10215,7 @@ NdbDictInterface::execCREATE_FK_REF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execCREATE_FK_CONF(const NdbApiSignal * signal,
-                                           const LinearSectionPtr ptr[3])
+NdbDictInterface::execCREATE_FK_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execCREATE_FK_CONF");
   const CreateFKConf* conf= CAST_CONSTPTR(CreateFKConf, signal->getDataPtr());
@@ -10444,8 +10393,7 @@ NdbDictInterface::drop_fk(const NdbDictObjectImpl & impl)
 }
 
 void
-NdbDictInterface::execDROP_FK_CONF(const NdbApiSignal * signal,
-                                   const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FK_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FK_CONF");
   const DropFKConf* conf = CAST_CONSTPTR(DropFKConf, signal->getDataPtr());
@@ -10458,8 +10406,7 @@ NdbDictInterface::execDROP_FK_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execDROP_FK_REF(const NdbApiSignal * signal,
-                                  const LinearSectionPtr ptr[3])
+NdbDictInterface::execDROP_FK_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execDROP_FK_REF");
   const DropFKRef* ref = CAST_CONSTPTR(DropFKRef, signal->getDataPtr());
@@ -10673,8 +10620,7 @@ NdbDictInterface::endSchemaTrans(Uint32 flags)
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal,
-                                              const LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF");
   const SchemaTransBeginConf* conf=
@@ -10688,8 +10634,7 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal * signal,
-                                             const LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF");
   const SchemaTransBeginRef* ref =
@@ -10702,8 +10647,7 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal,
-                                            const LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_END_CONF");
 #ifndef NDEBUG
@@ -10716,8 +10660,7 @@ NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_END_REF(const NdbApiSignal * signal,
-                                           const LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_END_REF(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_END_REF");
   const SchemaTransEndRef* ref =
@@ -10731,8 +10674,7 @@ NdbDictInterface::execSCHEMA_TRANS_END_REF(const NdbApiSignal * signal,
 }
 
 void
-NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal,
-                                           const LinearSectionPtr ptr[3])
+NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal)
 {
   DBUG_ENTER("NdbDictInterface::SCHEMA_TRANS_END_REP");
   const SchemaTransEndRep* rep =

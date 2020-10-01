@@ -371,7 +371,7 @@ NdbDictionary::Column::getSizeInBytesForRecord() const {
 * for backward compatible api consideration, but is broken.
 */
 int
-NdbDictionary::Column::setDefaultValue(const char* defaultValue)
+NdbDictionary::Column::setDefaultValue(const char*)
 {
   return -1;
 }
@@ -926,7 +926,7 @@ NdbDictionary::Table::setTemporary(bool val) {
 }
 
 int
-NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {  
+NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool) const {
   const NdbDictionary::Table * pTab = 
     pNdb->getDictionary()->getTable(getName());
   if(pTab != 0 && equal(* pTab))
@@ -1069,15 +1069,15 @@ NdbDictionary::Table::getDefaultRecord() const {
 }
 
 int
-NdbDictionary::Table::aggregate(NdbError& error)
+NdbDictionary::Table::aggregate(NdbError&)
 {
-  return m_impl.aggregate(error);
+  return m_impl.aggregate();
 }
 
 int
-NdbDictionary::Table::validate(NdbError& error)
+NdbDictionary::Table::validate(NdbError&)
 {
-  return m_impl.validate(error);
+  return m_impl.validate();
 }
 
 Uint32
@@ -1335,7 +1335,7 @@ NdbDictionary::Index::getObjectId() const {
  * OptimizeTableHandle facade
  */
 NdbDictionary::OptimizeTableHandle::OptimizeTableHandle()
-  : m_impl(* new NdbOptimizeTableHandleImpl(* this))
+  : m_impl(* new NdbOptimizeTableHandleImpl())
 {}
 
 NdbDictionary::OptimizeTableHandle::OptimizeTableHandle(NdbOptimizeTableHandleImpl & impl)
@@ -1367,7 +1367,7 @@ NdbDictionary::OptimizeTableHandle::close()
  * OptimizeIndexHandle facade
  */
 NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle()
-  : m_impl(* new NdbOptimizeIndexHandleImpl(* this))
+  : m_impl(* new NdbOptimizeIndexHandleImpl())
 {}
 
 NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle(NdbOptimizeIndexHandleImpl & impl)
