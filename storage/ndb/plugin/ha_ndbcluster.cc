@@ -8683,7 +8683,6 @@ static const NdbDictionary::Object::PartitionBalance
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info) {
   DBUG_TRACE;
   THD *thd = current_thd;
-  const NDBTAB *ndbtab = m_table;
   Ndb *ndb = check_ndb_in_thd(thd);
 
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO)) {
@@ -8697,7 +8696,7 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info) {
         uint retries = NDB_AUTO_INCREMENT_RETRIES;
         for (;;) {
           NDB_SHARE::Tuple_id_range_guard g(m_share);
-          if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value)) {
+          if (ndb->readAutoIncrementValue(m_table, g.range, auto_value)) {
             if (--retries && !thd_killed(thd) &&
                 ndb->getNdbError().status == NdbError::TemporaryError) {
               ndb_trans_retry_sleep();
@@ -10340,6 +10339,8 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   NDBDICT *dict = ndb->getDictionary();
   NDBDICT::List index_list;
   if (my_strcasecmp(system_charset_info, new_dbname, old_dbname)) {
+    // NOTE! This is backwards compatibility code for preserving the old
+    // index name format during a rename table.
     // When moving tables between databases the indexes need to be
     // recreated, save list of indexes before rename to allow
     // them to be recreated afterwards
@@ -10600,22 +10601,33 @@ int rename_table_impl(THD *thd, Ndb *ndb,
 
   for (unsigned i = 0; i < index_list.count; i++) {
     NDBDICT::List::Element &index_el = index_list.elements[i];
+    // NOTE! This is backwards compatibility code for preserving the old
+    // index name format during a rename table, the actual table rename is done
+    // inplace and then these indexes are renamed separately.
     // Recreate any indexes not stored in the system database
     if (my_strcasecmp(system_charset_info, index_el.database,
                       NDB_SYSTEM_DATABASE)) {
       // Get old index
       ndb->setDatabaseName(old_dbname);
       const NdbDictionary::Index *index =
-          dict->getIndexGlobal(index_el.name, new_tab);
-      DBUG_PRINT("info",
-                 ("Creating index %s/%s", index_el.database, index->getName()));
-      // Create the same "old" index on new tab
-      dict->createIndex(*index, new_tab);
-      DBUG_PRINT("info",
-                 ("Dropping index %s/%s", index_el.database, index->getName()));
-      // Drop old index
-      ndb->setDatabaseName(old_dbname);
-      dict->dropIndexGlobal(*index);
+          dict->getIndexGlobal(index_el.name, *orig_tab);
+      if (!index) {
+        // Could not open the old index, push warning and then skip
+        // create new and drop old index.
+        thd_ndb->push_ndb_error_warning(dict->getNdbError());
+        thd_ndb->push_warning("Failed to move index with old name");
+        DBUG_ASSERT(false);
+      } else {
+        DBUG_PRINT("info", ("Creating index %s/%s", index_el.database,
+                            index->getName()));
+        // Create the same "old" index on new tab
+        dict->createIndex(*index, new_tab);
+        DBUG_PRINT("info", ("Dropping index %s/%s", index_el.database,
+                            index->getName()));
+        // Drop old index
+        ndb->setDatabaseName(old_dbname);
+        dict->dropIndexGlobal(*index);
+      }
     }
   }
   return 0;

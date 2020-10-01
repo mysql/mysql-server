@@ -2124,6 +2124,11 @@ Ndb::internalize_index_name(const NdbTableImpl * table,
     DBUG_RETURN(ret);
   }
 
+  // Force use of old format if requested by DBUG keyword
+  if (DBUG_EVALUATE_IF("ndb_index_old_name_format", true, false)){
+    DBUG_RETURN(old_internalize_index_name(table, external_name));
+  }
+
   if (fullyQualifiedNames)
   {
     /* Internal index name format sys/def/<tabid>/<table> */
