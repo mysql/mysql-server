@@ -61,6 +61,7 @@
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/variables/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_error.h"
+#include "sql/debug_sync.h"
 
 namespace ngs {
 
@@ -623,10 +624,21 @@ bool Client::create_session() {
     return false;
   }
 
+  // Prolong the life time of old session object (m_session),
+  // in a way that object underhood is released after
+  // unlocking "session-exit-mutex".
+  std::shared_ptr<xpl::iface::Session> keep_alive = m_session;
+
   {
     MUTEX_LOCK(lock_session_exit, get_session_exit_mutex());
+#if defined(ENABLED_DEBUG_SYNC)
+    if (m_session) {
+      DEBUG_SYNC(m_session->get_thd(), "syncpoint_create_session_locked");
+    }
+#endif  // defined(ENABLED_DEBUG_SYNC)
     m_session = session;
   }
+
   return true;
 }
 

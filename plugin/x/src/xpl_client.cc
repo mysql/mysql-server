@@ -46,6 +46,7 @@
 #include "plugin/x/src/ssl_session_options.h"
 #include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/xpl_session.h"
+#include "sql/debug_sync.h"
 #include "sql/hostname_cache.h"  // ip_to_hostname
 
 namespace xpl {
@@ -113,6 +114,9 @@ void Client::kill() {
    The method can be called from different thread/xpl_client.
  */
 bool Client::is_handler_thd(const THD *thd) const {
+  log_debug("is_handler_thd(this:%p)", this);
+  DEBUG_SYNC(const_cast<THD *>(thd), "syncpoint_is_handled_by_thd");
+
   // When accessing the session we need to hold it in
   // shared_pointer to be sure that the session is
   // not reseted (by Mysqlx::Session::Reset) in middle
