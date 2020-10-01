@@ -1632,15 +1632,24 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     m_use_classic_fragmentation = 1;
   }
 
+  c_fragments_per_node_ = 0;
+  if (!m_use_classic_fragmentation)
   {
     jam();
-    c_fragments_per_node_ = 0;
+    c_fragments_per_node_ = 4;
     ndb_mgm_get_int_parameter(p, CFG_DB_PARTITIONS_PER_NODE,
                               &c_fragments_per_node_);
     // try to get some LQH workers which initially handle no fragments
     if (ERROR_INSERTED(7215)) {
       c_fragments_per_node_ = 1;
       ndbout_c("Using %u fragments per node", c_fragments_per_node_);
+    }
+    if (c_fragments_per_node_ * cnoReplicas /
+        globalData.ndbMtLqhWorkers > MAX_FRAG_PER_LQH)
+    {
+      progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
+        "PartitionsPerNode * NoOfReplicas / Number of LDM threads must"
+        " be smaller than 16, increase number of LDMs in configuration");
     }
   }
   ndb_mgm_get_int_parameter(p, CFG_DB_LCP_TRY_LOCK_TIMEOUT, 
@@ -12765,15 +12774,8 @@ Dbdih::getFragmentsPerNode()
   {
     return c_fragments_per_node_;
   }
-
-  if (m_use_classic_fragmentation)
-  {
-    c_fragments_per_node_ = getLqhWorkers();
-  }
-  else
-  {
-    c_fragments_per_node_ = globalData.ndbLogParts;
-  }
+  ndbrequire(m_use_classic_fragmentation);
+  c_fragments_per_node_ = getLqhWorkers();
 
   NodeRecordPtr nodePtr;
   nodePtr.i = cfirstAliveNode;
@@ -12782,16 +12784,7 @@ Dbdih::getFragmentsPerNode()
     jam();
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     Uint32 workers;
-    if (m_use_classic_fragmentation)
-    {
-      jam();
-      workers = getNodeInfo(nodePtr.i).m_lqh_workers;
-    }
-    else
-    {
-      jam();
-      workers = getNodeInfo(nodePtr.i).m_log_parts;
-    }
+    workers = getNodeInfo(nodePtr.i).m_lqh_workers;
     c_fragments_per_node_ = MIN(workers, c_fragments_per_node_);
     nodePtr.i = nodePtr.p->nextNode;
   } while (nodePtr.i != RNIL);

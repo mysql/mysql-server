@@ -96,7 +96,12 @@ Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
   m_allowed_spin_overhead = 130;
   m_phase2_done = false;
   m_is_idle = true;
-  if (globalData.ndbMtMainThreads == 2)
+  if (!isNdbMtLqh())
+  {
+    jam();
+    m_rep_thrman_instance = 0;
+  }
+  else if (globalData.ndbMtMainThreads == 2)
   {
     jam();
     m_rep_thrman_instance = 2;

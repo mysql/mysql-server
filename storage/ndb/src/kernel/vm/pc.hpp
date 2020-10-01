@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,7 +236,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 // need large value.
 /* ------------------------------------------------------------------------- */
 #define NO_OF_FRAG_PER_NODE 1
-#define MAX_FRAG_PER_LQH 8
+#define MAX_FRAG_PER_LQH 16
 
 /**
 * DIH allocates fragments in chunk for fast find of fragment record.
