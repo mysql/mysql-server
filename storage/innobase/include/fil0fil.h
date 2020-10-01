@@ -758,6 +758,12 @@ class Fil_path {
   static std::string get_real_path(const std::string &path, bool force = true)
       MY_ATTRIBUTE((warn_unused_result));
 
+  /** Get the basename of the file path. This is the file name without any
+  directory separators. In other words, the file name after the last separator.
+  @param[in]  filepath  The name of a file, optionally with a path. */
+  static std::string get_basename(const std::string &filepath)
+      MY_ATTRIBUTE((warn_unused_result));
+
   /** Separate the portion of a directory path that exists and the portion that
   does not exist.
   @param[in]      path   Path to evaluate

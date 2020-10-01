@@ -9,7 +9,7 @@
 # *************************************************************************
 --source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
---source include/linux.inc
+--source include/not_windows.inc
 
 # Added below inc file due to Bug#22740362
 --source include/have_64bit.inc
@@ -153,7 +153,7 @@ SELECT * FROM purchase;
 --echo ## Stop DB server for moving tablespaces around
 --source include/shutdown_mysqld.inc
 
---echo ## Moving tablespace files in criss-cross form 
+--echo ## Moving tablespace files in criss-cross form
 --move_file $MYSQL_TMP_DIR/part0/test/purchase#p#p0#sp#s0.ibd  $MYSQL_TMP_DIR/datadir1/test/purchase#p#p0#sp#s0.ibd
 --move_file $MYSQL_TMP_DIR/part1/test/purchase#p#p0#sp#s1.ibd  $MYSQL_TMP_DIR/datadir1/test/purchase#p#p0#sp#s1.ibd
 --move_file $MYSQL_TMP_DIR/datadir1/test/tab3#p#p0.ibd $MYSQL_TMP_DIR/part0/test/tab3#p#p0.ibd
@@ -323,5 +323,3 @@ SELECT @@datadir;
 SELECT * FROM tab;
 
 DROP TABLE tab;
-
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace 'innodb_system' filename is unknown. Use \\--innodb-directories to locate of the file.");

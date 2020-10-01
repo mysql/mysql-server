@@ -2171,13 +2171,7 @@ bool Fil_path::is_undo_tablespace_name(const std::string &name) {
     return (false);
   }
 
-  std::string basename(name);
-
-  auto sep = basename.find_last_of(SEPARATOR);
-
-  if (sep != std::string::npos) {
-    basename.erase(basename.begin(), basename.begin() + sep + 1);
-  }
+  std::string basename = Fil_path::get_basename(name);
 
   const auto end = basename.end();
 
@@ -4258,6 +4252,14 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
   }
 
   return (real_path);
+}
+
+std::string Fil_path::get_basename(const std::string &filepath) {
+  auto sep = filepath.find_last_of(SEPARATOR);
+
+  return (sep == std::string::npos)
+             ? filepath
+             : filepath.substr(sep + 1, filepath.length() - sep);
 }
 
 /** Constructor

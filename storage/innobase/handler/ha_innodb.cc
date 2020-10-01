@@ -17127,34 +17127,47 @@ static bool innobase_get_tablespace_statistics(
 
   const fil_node_t *file = nullptr;
 
+  /* Use only the basename when searching for system tablespaces since
+  InnoDB places them in innodb_data_home_dir and the DD may only know
+  the basename. Since they are open, they are in the right place. */
+  std::string search_name =
+      (space->id == TRX_SYS_SPACE || space->id == dict_sys_t::s_temp_space_id)
+          ? Fil_path::get_basename(file_name)
+          : file_name;
+
+  /* Normalize the file name to search for. */
+  Fil_path::normalize(search_name);
+
   /* Find the fil_node_t that matches the filename. */
   for (const auto &f : space->files) {
-    char name[OS_FILE_MAX_PATH + 1];
-
-    strncpy(name, file_name, sizeof(name) - 1);
-
-    /* Ensure that it's always NUL terminated. */
-    name[OS_FILE_MAX_PATH] = 0;
-
-    Fil_path::normalize(name);
-
-    if (Fil_path::is_same_as(f.name, name)) {
+    if (Fil_path::is_same_as(search_name, f.name)) {
       file = &f;
       break;
+    }
 
-    } else if (space->files.size() == 1) {
+    /* Try to compare only the basename. */
+    if (space->id == TRX_SYS_SPACE ||
+        space->id == dict_sys_t::s_temp_space_id) {
+      if (Fil_path::is_same_as(search_name, Fil_path::get_basename(f.name))) {
+        file = &f;
+        break;
+      }
+    }
+
+    if (space->files.size() == 1) {
       file = &f;
 
       ib::info(ER_IB_MSG_570)
-          << "Tablespace '" << tablespace_name << "' DD filename '" << name
-          << "' doesn't match the InnoDB filename '" << f.name << "'";
+          << "Tablespace '" << tablespace_name << "'with DD filename '"
+          << file_name << "' doesn't match the InnoDB filename '" << f.name
+          << "'";
     }
   }
 
   if (file == nullptr) {
     ib::warn(ER_IB_MSG_571) << "Tablespace '" << tablespace_name << "'"
                             << " filename is unknown. Use --innodb-directories"
-                            << " to locate of the file.";
+                            << " to tell InnoDB the location of the file.";
 
     my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
 
