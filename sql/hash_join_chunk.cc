@@ -73,6 +73,7 @@ bool HashJoinChunk::Init(const TableCollection &tables, bool uses_match_flags) {
   m_file.file_key = key_file_hash_join;
   m_num_rows = 0;
   m_uses_match_flags = uses_match_flags;
+  close_cached_file(&m_file);
   return open_cached_file(&m_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                           MYF(MY_WME));
 }

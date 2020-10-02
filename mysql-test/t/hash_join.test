@@ -2418,3 +2418,29 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #31940549: NEW MEMORY LEAK ON TRUNK RELATING TO HASHJOINITERATOR::BUILDHASHTABLE , OPEN_CACHED_FILE
+--echo #
+
+SET join_buffer_size=32768;
+CREATE TABLE t(a DOUBLE NOT NULL, b VARCHAR(15873) NOT NULL);
+INSERT INTO t VALUES(1, REPEAT('abs',1000));
+INSERT INTO t VALUES(2, REPEAT('ajs',1000));
+INSERT INTO t VALUES(3, REPEAT('ajj',1000));
+INSERT INTO t VALUES(4, REPEAT('jjs',1000));
+INSERT INTO t SELECT * FROM t;
+INSERT INTO t SELECT * FROM t;
+
+--disable_warnings
+# Enables probe row saving (due to the LIMIT) on a subquery
+# that is run multiple times per query.
+SELECT
+(
+  SELECT 1 FROM (SELECT t_outer.a) Z LEFT JOIN t
+  ON t.a > t.b LIMIT 1
+) FROM t AS t_outer;
+--enable_warnings
+
+DROP TABLE t;
+SET join_buffer_size=DEFAULT;
