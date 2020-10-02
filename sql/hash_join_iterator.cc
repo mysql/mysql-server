@@ -233,12 +233,14 @@ static bool ConstructJoinKey(
     THD *thd, const Prealloced_array<HashJoinCondition, 4> &join_conditions,
     table_map tables_bitmap, String *join_key_buffer) {
   join_key_buffer->length(0);
+  assert(!thd->is_error());
   for (const HashJoinCondition &hash_join_condition : join_conditions) {
     if (hash_join_condition.join_condition()->append_join_key_for_hash_join(
             thd, tables_bitmap, hash_join_condition, join_key_buffer)) {
       // The join condition returned SQL NULL.
       return true;
     }
+    if (thd->is_error()) return true;
   }
   return false;
 }
@@ -253,8 +255,10 @@ static bool WriteRowToChunk(
     const Prealloced_array<HashJoinCondition, 4> &join_conditions,
     const uint32 xxhash_seed, bool row_has_match,
     bool store_row_with_null_in_join_key, String *join_key_and_row_buffer) {
+  assert(!thd->is_error());
   bool null_in_join_key = ConstructJoinKey(
       thd, join_conditions, tables.tables_bitmap(), join_key_and_row_buffer);
+  if (thd->is_error()) return true;
 
   if (null_in_join_key && !store_row_with_null_in_join_key) {
     // NULL values will never match in a inner join or a semijoin. The optimizer
@@ -648,7 +652,9 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
     RequestRowId(m_probe_input_tables.tables(), m_tables_to_get_rowid_for);
 
     // A row from the probe iterator is ready.
+    assert(!thd()->is_error());
     LookupProbeRowInHashTable();
+    if (thd()->is_error()) return true;
     return false;
   }
 
