@@ -99,7 +99,8 @@ SET @@local.sql_slave_skip_counter = 13;
 SET @@global.sql_slave_skip_counter = 0;
 
 #
-# Verify that it settable when gtid_mode!=on
+# Verify that it settable when irrespective of GTID_MODE
+# but gives a warning with GTID_MODE = ON
 #
 
 SET @@global.enforce_gtid_consistency = on;
@@ -112,10 +113,15 @@ set global sql_slave_skip_counter= 1;
 set global sql_slave_skip_counter= 0;
 
 SET @@global.gtid_mode = on;
---error ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
 set global sql_slave_skip_counter= 1;
+--let $assert_text= A warning will be generated stating "The value of sql_slave_skip_counter will only take effect for channels running with"
+--let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
+--let $expected_code= convert_error(ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON)
+--let $assert_cond= $warning_code = $expected_code
+--source include/assert.inc
+
 select @@global.sql_slave_skip_counter;
---error ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+# No warnings while setting the value to 0
 set global sql_slave_skip_counter= 0;
 select @@global.sql_slave_skip_counter;
 

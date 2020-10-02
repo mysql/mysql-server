@@ -326,6 +326,11 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
         rli->get_privilege_checks_hostname().c_str());
   }
 
+  if (this->m_assign_gtids_to_anonymous_transactions_info.set_info(
+          rli->m_assign_gtids_to_anonymous_transactions_info.get_type(),
+          (rli->m_assign_gtids_to_anonymous_transactions_info.get_value()
+               .c_str())))
+    return 1;
   id = i;
   curr_group_exec_parts.clear();
   relay_log_change_notified = false;  // the 1st group to contain relaylog name

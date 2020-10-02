@@ -429,6 +429,15 @@ struct LEX_MASTER_INFO {
     LEX_MI_PK_CHECK_OFF = 3
   } require_table_primary_key_check;
 
+  enum {
+    LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED = 0,
+    LEX_MI_ANONYMOUS_TO_GTID_OFF,
+    LEX_MI_ANONYMOUS_TO_GTID_LOCAL,
+    LEX_MI_ANONYMOUS_TO_GTID_UUID
+  } assign_gtids_to_anonymous_transactions_type;
+
+  const char *assign_gtids_to_anonymous_transactions_manual_uuid{nullptr};
+
   /// Initializes everything to zero/NULL/empty.
   void initialize();
   /// Sets all fields to their "unspecified" value.

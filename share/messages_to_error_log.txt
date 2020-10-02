@@ -11142,6 +11142,15 @@ ER_RPL_ASYNC_READ_FAILOVER_TABLE
 ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL
   eng "Error %s the channel '%s', the operation will be automatically retried."
 
+ER_SLAVE_ANONYMOUS_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s', which is invalid when GTID_MODE <> ON. If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF and use the procedure for enabling GTIDs online (see the documentation). If you intend to use GTIDs on this replica and cannot enable GTIDs on the source, enable GTID_MODE = ON and leave ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>. If you intend to not use GTIDs at all in the replication topology, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS=OFF and leave GTID_MODE = '%s'."
+
+ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s' which is equal to group_replication_group_name. To fix this issue, either change the group_replication_group_name  or use a different value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS."
+
+ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID
+  eng "The group_replication_group_name '%s' is the same as the UUID value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS in a server channel"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

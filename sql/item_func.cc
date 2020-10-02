@@ -4942,6 +4942,14 @@ longlong Item_master_gtid_set_wait::val_int() {
       mi = channel_map.get_default_channel_mi();
   }
 
+  if ((mi != nullptr) &&
+      mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+          Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+    my_error(ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS,
+             MYF(0));
+    channel_map.unlock();
+    return 0;
+  }
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
     null_value = true;
     channel_map.unlock();

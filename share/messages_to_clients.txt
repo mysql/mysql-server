@@ -7020,7 +7020,7 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
   eng "Fulltext index creation requires a lock"
 
-ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+OBSOLETE_ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
   eng "sql_slave_skip_counter can not be set when the server is running with @@GLOBAL.GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
 
 ER_DUP_UNKNOWN_IN_INDEX 23000
@@ -9450,6 +9450,33 @@ ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT
 
 ER_STARTING_REPLICA_MONITOR_IO_THREAD
   eng "The Replica Monitor thread failed to start."
+
+ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON
+ eng "Replication cannot start%.192s with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> as this server uses @@GLOBAL.GTID_MODE <> ON."
+
+ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
+  eng "The options ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> and MASTER_AUTO_POSITION = 1 cannot be used together."
+
+ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON
+  eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> cannot be executed because @@GLOBAL.GTID_MODE <> ON."
+
+ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON
+  eng "The value of sql_slave_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF."
+
+ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID
+  eng "Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation."
+
+ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS
+  eng "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS cannot be used on a channel configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>"
+
+ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID
+  eng "The SQL_AFTER_GTIDS or SQL_BEFORE_GTIDS clauses for START REPLICA cannot be used when the replication channel is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>."
+
+ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
+  eng "Replication '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> where the UUID value is equal to the group_replication_group_name"
+
+ER_CANT_USE_SAME_UUID_AS_GROUP_NAME
+  eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_group_name."
 
 #
 #  End of 8.0 error messages (server-to-client).

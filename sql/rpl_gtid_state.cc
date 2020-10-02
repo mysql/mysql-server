@@ -390,6 +390,7 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set *wait_for,
 
 rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const {
   DBUG_TRACE;
+  assert_sidno_lock_owner(sidno);
   Gtid_set::Const_interval_iterator ivit(&executed_gtids, sidno);
   /*
     When assigning new automatic GTIDs, we can optimize the assignment by start
@@ -500,9 +501,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(
         next_free_gno = automatic_gtid.gno + 1;
     }
 
-    if (automatic_gtid.gno != -1)
-      acquire_ownership(thd, automatic_gtid);
-    else
+    if (automatic_gtid.gno == -1 || acquire_ownership(thd, automatic_gtid))
       ret = RETURN_STATUS_REPORTED_ERROR;
 
     /* The caller will unlock the sidno_lock if locked_sidno was passed */

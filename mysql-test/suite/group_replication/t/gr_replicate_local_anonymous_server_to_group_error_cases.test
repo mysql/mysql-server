@@ -1,0 +1,24 @@
+# ==== Purpose ====
+#
+# This test checks that the replica parameter ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL
+# works as expected and throws the expected errors while replicating into a Group replication
+# member server, where group_name will be the server_uuid of the member server
+# 
+#
+# ==== Requirements ====
+#
+# + TC1: **ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS** gives expected errors & warning when
+#        replicating into a group with same group_name as the server_uuid of the member server
+#        into a group with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL
+#
+# ==== Implementation ====
+#
+# See gr_replicate_anonymous_server_to_group_error_cases.inc
+#
+# ==== References ====
+#
+# WL#12819:GTIDs: Replicate from GTID disabled source to GTID enabled replica directly
+#
+
+--let $_rename_parameter = LOCAL
+--source ../include/gr_replicate_anonymous_server_to_group_error_cases.inc

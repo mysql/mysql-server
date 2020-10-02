@@ -162,6 +162,9 @@
   80023:
 
   performance_schema tables changed in MySQL 8.0.23
+  - WL#12819 replication_applier_configuration, added column
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
   - performance_schema.replication_asynchronous_connection_failover,
   added column MANAGED_NAME
   - added table

@@ -354,6 +354,19 @@ class Replication_thread_api {
   bool get_channel_credentials(std::string &username, std::string &password,
                                const char *channel_name = nullptr);
 
+  /**
+    Checks if any channel uses the same UUID for
+    assign_gtids_to_anonymous_transactions as the given uuid
+
+    @param[in]       uuid_param         the group name
+
+    @retval          true               at least one channel has the same uuid
+    @retval          false              none of the the channels have the same
+    uuid
+  */
+  bool is_any_channel_using_uuid_for_assign_gtids_to_anonymous_transaction(
+      const char *uuid_param);
+
  private:
   ulong stop_wait_timeout;
   const char *interface_channel;

@@ -4129,12 +4129,11 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
-  // Not allowed with slave_sql_skip_counter
   DBUG_PRINT("info", ("sql_slave_skip_counter=%d", sql_slave_skip_counter));
   if (new_gtid_mode == Gtid_mode::ON && sql_slave_skip_counter > 0) {
-    my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
-             "@@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero");
-    goto err;
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
+                 ER_THD(thd, ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
   }
 
   if (new_gtid_mode != Gtid_mode::ON && replicate_same_server_id &&
@@ -4156,9 +4155,9 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
       Master_info *mi = it->second;
-      DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
-                          mi->get_channel(), mi->is_auto_position()));
       if (mi != nullptr && mi->is_auto_position()) {
+        DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
+                            mi->get_channel(), mi->is_auto_position()));
         char buf[1024];
         snprintf(buf, sizeof(buf),
                  "replication channel '%.192s' is configured "
@@ -4173,6 +4172,38 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     }
   }
 
+  // Cannot set to GTID_MODE <> ON when some channel uses
+  // ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|UUID.
+  if (old_gtid_mode == Gtid_mode::ON && new_gtid_mode != Gtid_mode::ON) {
+    for (auto it : channel_map) {
+      Master_info *mi = it.second;
+      if (mi != nullptr &&
+          mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+              Assign_gtids_to_anonymous_transactions_info::enum_type::
+                  AGAT_OFF) {
+        DBUG_PRINT(
+            "info",
+            ("assign_gtids_to_anonymous_transactions for channel '%s' is %d",
+             mi->get_channel(),
+             static_cast<int>(
+                 mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                     .get_type())));
+        char buf[1024];
+        snprintf(buf, sizeof(buf),
+                 "replication channel '%.192s' is configured "
+                 "with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS set to LOCAL or "
+                 "to a UUID. "
+                 "Execute CHANGE MASTER TO "
+                 "ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF "
+                 "FOR CHANNEL '%.192s' before you set "
+                 "@@GLOBAL.GTID_MODE = '%s'.",
+                 mi->get_channel(), mi->get_channel(),
+                 Gtid_mode::to_string(new_gtid_mode));
+        my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
+        goto err;
+      }
+    }
+  }
   /*
     Cannot set OFF when source_connection_auto_failover is enabled for any
     channel.
@@ -5806,18 +5837,18 @@ static Sys_var_uint Sys_slave_net_timeout(
     &PLock_slave_net_timeout, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_slave_net_timeout));
 
-static bool check_slave_skip_counter(sys_var *, THD *, set_var *) {
+static bool check_slave_skip_counter(sys_var *, THD *thd, set_var *var) {
   /*
     @todo: move this check into the set function and hold the lock on
     Gtid_mode::lock until the operation has completed, so that we are
     sure a concurrent connection does not change gtid_mode between
     check and fix.
   */
-  if (global_gtid_mode.get() == Gtid_mode::ON) {
-    my_error(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE, MYF(0));
-    return true;
-  }
-
+  if (global_gtid_mode.get() == Gtid_mode::ON &&
+      var->save_result.ulonglong_value > 0)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
+                 ER_THD(thd, ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
   return false;
 }
 

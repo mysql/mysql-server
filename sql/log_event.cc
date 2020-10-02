@@ -12973,6 +12973,14 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
       global_sid_lock->unlock();
       return 1;  // out of memory
     }
+  } else if ((spec.type == ANONYMOUS_GTID) &&
+             (rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+              Assign_gtids_to_anonymous_transactions_info::enum_type::
+                  AGAT_OFF)) {
+    DBUG_ASSERT(global_gtid_mode.get() == Gtid_mode::ON);
+    spec.type = PRE_GENERATE_GTID;
+    spec.gtid.sidno =
+        rli->m_assign_gtids_to_anonymous_transactions_info.get_sidno();
   }
 
   // set_gtid_next releases global_sid_lock

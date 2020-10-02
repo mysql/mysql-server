@@ -123,13 +123,18 @@ if ( $_privilege_checks_user == NULL)
   --let $assert_cond = $count = 1
   --source include/assert.inc
 
-  --let $assert_text = In the file the field is set to $require_table_primary_key_check_file_value
-  --let $assert_file = $MYSQLD_DATADIR/$rl_info_filename
-  --let $assert_only_after = $_privilege_checks_user_host
-  --let $assert_select = $require_table_primary_key_check_file_value
-  --let $assert_count = 1
-  --source include/assert_grep.inc
+# There might be more occurence of same value as of $require_table_primary_key_check_file_value in the file so
+# just extract the relay-log.info file just till the value of $require_table_primary_key_check_file_value
 
+  CREATE TABLE relay_log_info_content (line_content TEXT);
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+  --eval LOAD DATA INFILE '$MYSQLD_DATADIR/$rl_info_filename' INTO TABLE relay_log_info_content
+
+  --let $expected_value = `SELECT *from relay_log_info_content LIMIT 12,13`
+  --let $assert_text = In the file the field is set to $require_table_primary_key_check_file_value
+  --let $assert_cond = $require_table_primary_key_check_file_value = $expected_value
+  --source include/assert.inc
+  DROP TABLE relay_log_info_content;
 END_OF_PROCEDURE
 
 --let $MYSQLD_DATADIR= `select @@datadir`

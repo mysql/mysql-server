@@ -358,3 +358,10 @@ int Replication_thread_api::delete_credential(const char *channel_name) {
   DBUG_TRACE;
   return channel_delete_credentials(channel_name);
 }
+
+bool Replication_thread_api::
+    is_any_channel_using_uuid_for_assign_gtids_to_anonymous_transaction(
+        const char *group_name) {
+  DBUG_TRACE;
+  return channel_has_same_uuid_as_group_name(group_name);
+}

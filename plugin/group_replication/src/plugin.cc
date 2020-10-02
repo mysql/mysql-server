@@ -134,6 +134,8 @@ SERVICE_TYPE_NO_CONST(mysql_runtime_error) *mysql_runtime_error_service =
 /*
   Internal auxiliary functions signatures.
 */
+static bool check_group_name_against_rpl_channel_settings(const char *str);
+
 static int check_group_name_string(const char *str, bool is_var_update = false);
 
 static int check_recovery_ssl_string(const char *str, const char *var_name,
@@ -590,6 +592,20 @@ int initialize_plugin_and_join(
 
   Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
+
+  /**
+    We redo the check for the group name here when starting on boot as only
+    now the information about channels and the
+    assign_gtids_to_anonymous_transactions is available.
+  */
+  if (lv.plugin_is_auto_starting_on_boot &&
+      check_group_name_against_rpl_channel_settings(ov.group_name_var)) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID,
+                 ov.group_name_var);
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
 
   // GCS interface.
   if ((error = gcs_module->initialize())) goto err; /* purecov: inspected */
@@ -2416,6 +2432,16 @@ static int plugin_running_mutex_trylock() {
 
   return res;
 }
+static bool check_group_name_against_rpl_channel_settings(const char *str) {
+  DBUG_TRACE;
+  Replication_thread_api replication_api_lookup;
+  if (replication_api_lookup
+          .is_any_channel_using_uuid_for_assign_gtids_to_anonymous_transaction(
+              str)) {
+    return true;
+  }
+  return false;
+}
 
 static int check_group_name_string(const char *str, bool is_var_update) {
   DBUG_TRACE;
@@ -2453,7 +2479,18 @@ static int check_group_name_string(const char *str, bool is_var_update) {
                  MYF(0));
     return 1;
   }
-
+  if (check_group_name_against_rpl_channel_settings(str)) {
+    if (!is_var_update) {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID, str);
+    } else {
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "The group_replication_group_name is already used for "
+                 "ASSIGN_GTIDS_TO_ANOYMOUS_TRANSACTIONS in a server channel",
+                 MYF(0));
+    }
+    return 1;
+  }
   return 0;
 }
 

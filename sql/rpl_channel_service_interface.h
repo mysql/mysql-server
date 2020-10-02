@@ -426,6 +426,18 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel);
 bool is_any_slave_channel_running(int thread_mask);
 
 /**
+  Checks if any running channel uses the same UUID for
+  assign_gtids_to_anonymous_transactions as the group_name
+
+  @param[in]        group_name        the group name
+
+  @retval          true               atleast one channel has the same uuid
+  @retval          false              none of the the channels have the same
+  uuid
+*/
+bool channel_has_same_uuid_as_group_name(const char *group_name);
+
+/**
   Method to get the credentials configured for a channel
 
   @param[in]  channel       The channel name

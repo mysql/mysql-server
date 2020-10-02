@@ -53,6 +53,7 @@
 #include "sql/mysqld.h"              // opt_mts_slave_parallel_workers
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
+#include "sql/raii/sentry.h"
 #include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_info_factory.h"
@@ -1134,6 +1135,29 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel) {
   bool ret = mi->transaction_parser.is_inside_transaction();
   channel_map.unlock();
   return ret;
+}
+
+bool channel_has_same_uuid_as_group_name(const char *group_name) {
+  DBUG_TRACE;
+  Master_info *mi = nullptr;
+  channel_map.rdlock();
+  raii::Sentry<> map_lock_sentry{[&]() -> void { channel_map.unlock(); }};
+
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       it++) {
+    mi = it->second;
+    if (mi != nullptr &&
+        mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+      if (!(strcmp((mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                        .get_value())
+                       .data(),
+                   group_name))) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 bool is_any_slave_channel_running(int thread_mask) {

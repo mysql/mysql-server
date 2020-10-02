@@ -18,7 +18,10 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is ON]
-include/assert_grep.inc [In the file the field is set to 2]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 2]
+DROP TABLE relay_log_info_content;
 
 # 1.2. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to OFF
 #      Check the performance_schema table and file repository are correct
@@ -31,7 +34,10 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is OFF]
-include/assert_grep.inc [In the file the field is set to 3]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 3]
+DROP TABLE relay_log_info_content;
 
 # 1.3. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to STREAM
 #      Check the performance_schema table and file repository are correct
@@ -44,7 +50,10 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
-include/assert_grep.inc [In the file the field is set to 1]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 1]
+DROP TABLE relay_log_info_content;
 
 # 2.1 Upgrade the server while using File repositories
 #     Start the server using a file repository that has no REQUIRE_TABLE_PRIMARY_KEY_CHECK
@@ -53,7 +62,10 @@ include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is STREAM]
-include/assert_grep.inc [In the file the field is set to 1]
+CREATE TABLE relay_log_info_content (line_content TEXT);
+LOAD DATA INFILE 'MYSQLD_DATADIR/relay-log.info' INTO TABLE relay_log_info_content;
+include/assert.inc [In the file the field is set to 1]
+DROP TABLE relay_log_info_content;
 
 # 2.2 Check FILE repository corruptions
 #     Start the server using a file repository that has an invalid Require_table_primary_key_check value

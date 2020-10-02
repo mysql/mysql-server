@@ -20,6 +20,8 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
+  `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
+  `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
@@ -39,6 +41,8 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
+  `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
+  `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SET @@global.relay_log_info_repository="TABLE";
@@ -69,7 +73,7 @@ include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_sql_error.inc [errno=1805]
-Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 13, found 12. The table is probably corrupted'
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted'
 include/stop_slave_io.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
@@ -83,14 +87,14 @@ include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_sql_error.inc [errno=1805]
-Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 13, found 12. The table is probably corrupted'
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted'
 include/stop_slave_io.inc
 START SLAVE SQL_THREAD;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 13, found 12. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
 RESET SLAVE ALL;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 13, found 12. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 13, found 12. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 15, found 14. The table is probably corrupted
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET SLAVE ALL;
@@ -207,6 +211,8 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
+  `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
+  `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 # Search for occurrences of slave_master_info in the output from mysqldump

@@ -23,6 +23,7 @@
 #ifndef RPL_GROUP_REPLICATION_INCLUDED
 #define RPL_GROUP_REPLICATION_INCLUDED
 
+#include <string>
 class THD;
 class View_change_log_event;
 struct GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS;
@@ -50,5 +51,10 @@ bool get_group_replication_group_member_stats_info(
     unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks);
 unsigned int get_group_replication_members_number_info();
+/**
+  Getter to extract the group_name in GR which, this can be used
+  outside GR to find out the group name.
+*/
+std::string get_group_replication_group_name();
 
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */

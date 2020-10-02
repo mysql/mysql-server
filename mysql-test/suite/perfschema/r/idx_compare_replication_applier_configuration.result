@@ -4,8 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 select * from performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
-	0	NULL	NO	STREAM
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	NULL	NO	STREAM	OFF	NULL
 set @pfs_columns = "*";
 TABLE: "replication_applier_configuration"
 INDEXES: PK (CHANNEL_NAME)

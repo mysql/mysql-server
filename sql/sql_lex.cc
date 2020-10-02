@@ -4807,6 +4807,9 @@ void LEX_MASTER_INFO::initialize() {
   privilege_checks_username = privilege_checks_hostname = nullptr;
   require_row_format = -1;
   require_table_primary_key_check = LEX_MI_PK_CHECK_UNCHANGED;
+  assign_gtids_to_anonymous_transactions_type =
+      LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED;
+  assign_gtids_to_anonymous_transactions_manual_uuid = nullptr;
 }
 
 void LEX_MASTER_INFO::set_unspecified() {

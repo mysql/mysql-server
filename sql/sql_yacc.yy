@@ -1327,6 +1327,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> REPLICAS_SYM 1160
 
 
+%token<lexer.keyword> ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM 1161      /* MYSQL */
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -2884,6 +2885,7 @@ master_def:
                 MYSQL_YYABORT;
             }
           }
+        | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM EQ assign_gtids_to_anonymous_transactions_def
         | master_file_def
         ;
 
@@ -2928,6 +2930,28 @@ table_primary_key_check_def:
             Lex->mi.require_table_primary_key_check= LEX_MASTER_INFO::LEX_MI_PK_CHECK_OFF;
           }
         ;
+
+assign_gtids_to_anonymous_transactions_def:
+          OFF_SYM
+          {
+            Lex->mi.assign_gtids_to_anonymous_transactions_type = LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF;
+          }
+        | LOCAL_SYM
+          {
+            Lex->mi.assign_gtids_to_anonymous_transactions_type = LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL;
+          }
+        | TEXT_STRING
+          {
+            Lex->mi.assign_gtids_to_anonymous_transactions_type = LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID;
+            Lex->mi.assign_gtids_to_anonymous_transactions_manual_uuid = $1.str;
+            if (!binary_log::Uuid::is_valid($1.str, binary_log::Uuid::TEXT_LENGTH))
+            {
+              my_error(ER_WRONG_VALUE, MYF(0), "UUID", $1.str);
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
 
 master_tls_ciphersuites_def:
           TEXT_STRING_sys_nonewline
@@ -14990,6 +15014,7 @@ ident_keywords_unambiguous:
         | RELAY_LOG_POS_SYM
         | RELAY_THREAD
         | REMOVE_SYM
+        | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM
         | REORGANIZE_SYM
         | REPEATABLE_SYM
         | REPLICAS_SYM

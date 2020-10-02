@@ -14,11 +14,14 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_only_running_threads= 1]
-# [--let $rpl_debug= 1]
-# [--let $rpl_group_replication= 1]
-# [--let $rpl_gtid_utils= 1]
-# [--let $rpl_assert_transaction_length= 1]
+# [--let $rpl_skip_sync = 1]
+# [--let $rpl_skip_delete_channels = 1]
+# [--let $rpl_skip_stop_slave = 1]
+# [--let $rpl_only_running_threads = 1]
+# [--let $rpl_debug = 1]
+# [--let $rpl_group_replication = 1]
+# [--let $rpl_gtid_utils = 1]
+# [--let $rpl_assert_transaction_length = 1]
 # --source include/rpl_end.inc
 #
 # Parameters:

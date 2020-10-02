@@ -524,6 +524,41 @@ int init_slave() {
     }
   }
 
+  std::string group_name = get_group_replication_group_name();
+  if ((global_gtid_mode.get() != Gtid_mode::ON) || group_name.length() > 0) {
+    for (auto it : channel_map) {
+      Master_info *mi = it.second;
+      if (mi != nullptr &&
+          mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+              Assign_gtids_to_anonymous_transactions_info::enum_type::
+                  AGAT_OFF) {
+        if (global_gtid_mode.get() != Gtid_mode::ON) {
+          std::string assign_gtid_type;
+          if (mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                  .get_type() == Assign_gtids_to_anonymous_transactions_info::
+                                     enum_type::AGAT_LOCAL)
+            assign_gtid_type.assign("LOCAL");
+          else
+            assign_gtid_type.assign("a UUID");
+          LogErr(
+              WARNING_LEVEL,
+              ER_SLAVE_ANONYMOUS_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON,
+              mi->get_channel(), assign_gtid_type.data(),
+              Gtid_mode::to_string(global_gtid_mode.get()));
+        } else {
+          if (!(group_name.compare(
+                  mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                      .get_value())))
+            LogErr(WARNING_LEVEL,
+                   ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME,
+                   mi->get_channel(),
+                   mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                       .get_value()
+                       .c_str());
+        }
+      }
+    }
+  }
   if (check_slave_sql_config_conflict(nullptr)) {
     error = 1;
     goto err;
@@ -2008,6 +2043,38 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     return true;
   }
 
+  if ((mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+       Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) &&
+      global_gtid_mode.get() != Gtid_mode::ON) {
+    /*
+      This function may be called either during server start (when
+      --skip-start-slave is not used) or during START SLAVE. The error should
+      only be generated during START SLAVE. During server start, an error has
+      already been written to the log for this case (in init_slave).
+    */
+    if (current_thd)
+      my_error(ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON, MYF(0),
+               mi->get_for_channel_str());
+    return true;
+  }
+  if (mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+      Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+    std::string group_name = get_group_replication_group_name();
+    if ((group_name.length() > 0) &&
+        !(group_name.compare(
+            mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                .get_value()))) {
+      my_error(ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME, MYF(0),
+               mi->get_channel());
+      return true;
+    }
+    if (mi->rli->until_condition == Relay_log_info::UNTIL_SQL_BEFORE_GTIDS ||
+        mi->rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS) {
+      my_error(ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID,
+               MYF(0));
+      return true;
+    }
+  }
   if (need_lock_slave) {
     lock_io = &mi->run_lock;
     lock_sql = &mi->rli->run_lock;
@@ -2906,7 +2973,10 @@ maybe it is a *VERY OLD MASTER*.");
     if ((slave_gtid_mode == Gtid_mode::OFF &&
          master_gtid_mode >= Gtid_mode::ON_PERMISSIVE) ||
         (slave_gtid_mode == Gtid_mode::ON &&
-         master_gtid_mode <= Gtid_mode::OFF_PERMISSIVE)) {
+         master_gtid_mode <= Gtid_mode::OFF_PERMISSIVE &&
+         mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() ==
+             Assign_gtids_to_anonymous_transactions_info::enum_type::
+                 AGAT_OFF)) {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The replication receiver thread cannot start because "
                  "the master has GTID_MODE = %.192s and this server has "
@@ -7838,8 +7908,14 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         uses GTID_MODE=ON.  Each connection is allowed, but the master A
         will generate anonymous transactions which will be sent through
         B to C.  Then C will hit this error.
+        There is a special case where on the slave
+        ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS= LOCAL/UUID in that case it is
+        possible to replicate from a GTID_MODE=OFF master to a GTID_MODE=ON
+        slave
       */
-      else {
+      else if (mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                   .get_type() == Assign_gtids_to_anonymous_transactions_info::
+                                      enum_type::AGAT_OFF) {
         if (global_gtid_mode.get() == Gtid_mode::ON) {
           mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON,
                      ER_THD(current_thd,
@@ -8723,7 +8799,11 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
           rli->slave_skip_counter, it is reset to 0.
         */
         mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
-        mi->rli->slave_skip_counter = sql_slave_skip_counter;
+        if (mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() !=
+                Assign_gtids_to_anonymous_transactions_info::enum_type::
+                    AGAT_OFF ||
+            global_gtid_mode.get() != Gtid_mode::ON)
+          mi->rli->slave_skip_counter = sql_slave_skip_counter;
         sql_slave_skip_counter = 0;
         mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
         /*
@@ -9179,7 +9259,9 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO *lex_mi) {
       lex_mi->public_key_path ||
       lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
-      lex_mi->require_row_format != -1)
+      lex_mi->require_row_format != -1 ||
+      lex_mi->assign_gtids_to_anonymous_transactions_type !=
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED)
     have_receive_option = true;
 
   return have_receive_option;
@@ -9256,7 +9338,9 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO *lex_mi,
       lex_mi->sql_delay != -1 || lex_mi->privilege_checks_username != nullptr ||
       lex_mi->privilege_checks_none || lex_mi->require_row_format != -1 ||
       lex_mi->require_table_primary_key_check !=
-          LEX_MASTER_INFO::LEX_MI_PK_CHECK_UNCHANGED)
+          LEX_MASTER_INFO::LEX_MI_PK_CHECK_UNCHANGED ||
+      lex_mi->assign_gtids_to_anonymous_transactions_type !=
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED)
     have_execute_option = true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
@@ -9522,6 +9606,32 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
     }
   }
 
+  if (lex_mi->assign_gtids_to_anonymous_transactions_type !=
+      LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED) {
+    switch (lex_mi->assign_gtids_to_anonymous_transactions_type) {
+      case (LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL):
+        mi->rli->m_assign_gtids_to_anonymous_transactions_info.set_info(
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_LOCAL,
+            ::server_uuid);
+        break;
+      case (LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID):
+        if (mi->rli->m_assign_gtids_to_anonymous_transactions_info.set_info(
+                Assign_gtids_to_anonymous_transactions_info::enum_type::
+                    AGAT_UUID,
+                lex_mi->assign_gtids_to_anonymous_transactions_manual_uuid))
+          return true;
+        break;
+      case (LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF):
+        mi->rli->m_assign_gtids_to_anonymous_transactions_info.set_info(
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF,
+            "");
+        break;
+      default:
+        DBUG_ASSERT(0);
+        break;
+    }
+  }
+
   if (lex_mi->relay_log_name) {
     char relay_log_name[FN_REFLEN];
     mi->rli->relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
@@ -9661,6 +9771,12 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
       goto err;
     }
+    if (lex_mi->assign_gtids_to_anonymous_transactions_type !=
+        LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED) {
+      error = ER_SLAVE_CHANNEL_MUST_STOP;
+      my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
+      goto err;
+    }
     /*
       Prior to WL#6120, we imposed the condition that STOP SLAVE is required
       before CHANGE MASTER. Since the slave threads die on STOP SLAVE, it was
@@ -9705,6 +9821,95 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       global_gtid_mode.get() == Gtid_mode::OFF) {
     error = ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF;
     my_error(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF, MYF(0));
+    goto err;
+  }
+
+  if (lex_mi->assign_gtids_to_anonymous_transactions_type >
+      LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF) {
+    push_warning(
+        thd, Sql_condition::SL_NOTE,
+        ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID,
+        ER_THD(
+            thd,
+            ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID));
+    std::string group_name = get_group_replication_group_name();
+    if (group_name.length() > 0) {
+      bool is_same = false;
+      auto type = lex_mi->assign_gtids_to_anonymous_transactions_type;
+      if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL)
+        if (!(group_name.compare(::server_uuid))) is_same = true;
+      if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID)
+        if (!(group_name.compare(
+                lex_mi->assign_gtids_to_anonymous_transactions_manual_uuid)))
+          is_same = true;
+      if (is_same) {
+        error = ER_CANT_USE_SAME_UUID_AS_GROUP_NAME;
+        my_error(ER_CANT_USE_SAME_UUID_AS_GROUP_NAME, MYF(0));
+        goto err;
+      }
+    }
+  }
+
+  /*
+    CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF requires
+    AUTO_POSITION = 0
+   */
+  if (lex_mi->assign_gtids_to_anonymous_transactions_type !=
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
+      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+    auto assign_gtids_to_anonymous_transactions_type =
+        mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type();
+    switch (lex_mi->assign_gtids_to_anonymous_transactions_type) {
+      case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF:
+        assign_gtids_to_anonymous_transactions_type =
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF;
+        break;
+      case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL:
+        assign_gtids_to_anonymous_transactions_type =
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_LOCAL;
+        break;
+      case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID:
+        assign_gtids_to_anonymous_transactions_type =
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID;
+        break;
+      case LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED:
+        break;
+      default:
+        DBUG_ASSERT(0);
+        break;
+    }
+    auto auto_position = mi->is_auto_position();
+    switch (lex_mi->auto_position) {
+      case LEX_MASTER_INFO::LEX_MI_ENABLE:
+        auto_position = 1;
+        break;
+      case LEX_MASTER_INFO::LEX_MI_DISABLE:
+        auto_position = 0;
+        break;
+      case LEX_MASTER_INFO::LEX_MI_UNCHANGED:
+        break;
+      default:
+        DBUG_ASSERT(0);
+        break;
+    }
+    if (assign_gtids_to_anonymous_transactions_type !=
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF &&
+        auto_position) {
+      error = ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION;
+      my_error(ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION, MYF(0));
+      goto err;
+    }
+  }
+
+  /* CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF requires
+   * GTID_MODE = ON
+   * */
+  if (lex_mi->assign_gtids_to_anonymous_transactions_type >
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_OFF &&
+      global_gtid_mode.get() != Gtid_mode::ON) {
+    error = ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON;
+    my_error(ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON,
+             MYF(0));
     goto err;
   }
 
@@ -10171,7 +10376,9 @@ static bool is_invalid_change_master_for_group_replication_recovery(
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
       lex_mi->require_row_format != -1 ||
       lex_mi->m_source_connection_auto_failover !=
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+          LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->assign_gtids_to_anonymous_transactions_type !=
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;
@@ -10217,7 +10424,9 @@ static bool is_invalid_change_master_for_group_replication_applier(
       lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
       lex_mi->require_row_format != -1 ||
       lex_mi->m_source_connection_auto_failover !=
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+          LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->assign_gtids_to_anonymous_transactions_type !=
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;
