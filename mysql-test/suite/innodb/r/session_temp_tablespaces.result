@@ -150,7 +150,12 @@ PATH	SIZE	STATE	PURPOSE
 ./#innodb_temp/temp_9.ibt	950272	ACTIVE	USER
 ./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
 # Create a new connection.
+# This CREATE will cause 10 more session temporary tablespaces to be
+# created.  Use a debug flag to simulate a failure in fallocate on Linux
+# so the code will fall back to setting the file size by writing zeros.
+SET SESSION DEBUG = "+d,fil_create_temp_tablespace_fail_fallocate";
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+SET SESSION DEBUG = "-d,fil_create_temp_tablespace_fail_fallocate";
 SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 PATH	SIZE	STATE	PURPOSE
 ./#innodb_temp/temp_1.ibt	98304	ACTIVE	INTRINSIC

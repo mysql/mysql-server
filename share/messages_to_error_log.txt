@@ -6441,7 +6441,7 @@ ER_IB_MSG_UNEXPECTED_FILE_EXISTS
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
 ER_IB_MSG_303
-  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Refer to your operating system documentation for operating system error code information."
+  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d - %s. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Refer to your operating system documentation for operating system error code information."
 
 ER_IB_MSG_304
   eng "Could not write the first page to tablespace '%s'"

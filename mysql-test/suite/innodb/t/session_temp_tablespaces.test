@@ -153,7 +153,12 @@ SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TA
 connect (con6, localhost, root,,);
 connection con6;
 
+--echo # This CREATE will cause 10 more session temporary tablespaces to be
+--echo # created.  Use a debug flag to simulate a failure in fallocate on Linux
+--echo # so the code will fall back to setting the file size by writing zeros.
+SET SESSION DEBUG = "+d,fil_create_temp_tablespace_fail_fallocate";
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+SET SESSION DEBUG = "-d,fil_create_temp_tablespace_fail_fallocate";
 
 # At this point, all 10 tablespaces have been allocated.
 # On executing select query from INNODB_SESSION_TEMP_TABLESPACES,
@@ -242,10 +247,6 @@ SET GLOBAL big_tables=ON;
 --replace_regex /\.[\\\/]#innodb_temp[\\\/]/#innodb_temp/
 SELECT @@innodb_temp_tablespaces_dir;
 
---disable_query_log
-call mtr.add_suppression("Unable to allocate temporary tablespace for this session");
---enable_query_log
-
 --echo # Create a new connection.
 connect (con1, localhost, root,,);
 
@@ -319,3 +320,8 @@ SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TA
 --echo # Cleanup
 --echo #########################################################################
 DROP TABLESPACE tbs;
+
+--disable_query_log
+call mtr.add_suppression("Unable to allocate temporary tablespace for this session");
+call mtr.add_suppression("Failed to preallocate data for file");
+--enable_query_log
