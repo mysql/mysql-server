@@ -29,6 +29,13 @@ export DH_VERBOSE=1
 export CFLAGS=
 export CXXFLAGS=
 
+ifeq (,$(MYSQL_BUILD_MAKE_JFLAG))
+	JOBS=-j8
+else
+	JOBS=$(MYSQL_BUILD_MAKE_JFLAG)
+endif
+
+
 override_dh_auto_configure:
 	@echo "RULES.$@"
 
@@ -57,7 +64,7 @@ override_dh_auto_build:
 	@echo "RULES.$@"
 	@DEB_RULES_DEBUG_MAKE@
 	cd release && \
-	$(MAKE) -j8 VERBOSE=1
+	$(MAKE) $(JOBS) VERBOSE=1
 	touch $@
 
 override_dh_auto_test:
