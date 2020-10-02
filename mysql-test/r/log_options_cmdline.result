@@ -21,14 +21,6 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 DROP TABLE t1;
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
 # restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
@@ -49,8 +41,6 @@ connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 SET GLOBAL log_error_services= default;
 UNINSTALL COMPONENT "file://component_log_sink_json";
-Can't open shared library component_reference_cache
-Can't open shared library component_reference_cache
 Pattern "\[ERROR\].*unknown variable 'dragnet.log_error_filter_rules=a'" found
 INSTALL COMPONENT "file://component_log_filter_dragnet";
 # restart: --no-console --log-error=LOG_FILE13 --log-error-services=log_filter_internal;log_filter_dragnet;log_sink_internal --dragnet.log-error-filter-rules=
