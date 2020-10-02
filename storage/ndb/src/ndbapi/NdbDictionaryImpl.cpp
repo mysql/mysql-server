@@ -4972,12 +4972,12 @@ NdbDictionaryImpl::dropTable(const char * name)
     DBUG_RETURN(-1);
   }
   const int ret = dropTable(* tab);
-  // If table stored in cache is incompatible with the one in the kernel
-  // we must clear the cache and try again
+  // If table stored in cache is incompatible with the one in the kernel,
+  // clear the cache and try again
   if (ret == INCOMPATIBLE_VERSION) {
-    const BaseString internalTableName(m_ndb.internalize_table_name(name));
-    DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s", internalTableName.c_str()));
-    m_localHash.drop(internalTableName);
+    DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s",
+                       tab->m_internalName.c_str()));
+    m_localHash.drop(tab->m_internalName);
     m_globalHash->lock();
     m_globalHash->release(tab, 1);
     m_globalHash->unlock();
@@ -5104,10 +5104,7 @@ NdbDictionaryImpl::dropTable(const NdbTableImpl & impl)
   
   int ret = m_receiver.dropTable(impl);  
   if(ret == 0 || m_error.code == 709 || m_error.code == 723){
-    const char * internalTableName = impl.m_internalName.c_str();
-
-    
-    m_localHash.drop(internalTableName);
+    m_localHash.drop(impl.m_internalName);
     m_globalHash->lock();
     m_globalHash->release(&impl, 1);
     m_globalHash->unlock();
@@ -5333,11 +5330,10 @@ NdbDictInterface::execDROP_TABLE_REF(const NdbApiSignal * signal)
 int
 NdbDictionaryImpl::invalidateObject(NdbTableImpl & impl)
 {
-  const char * internalTableName = impl.m_internalName.c_str();
   DBUG_ENTER("NdbDictionaryImpl::invalidateObject");
-  DBUG_PRINT("enter", ("internal_name: %s", internalTableName));
+  DBUG_PRINT("enter", ("internal_name: %s", impl.m_internalName.c_str()));
 
-  m_localHash.drop(internalTableName);
+  m_localHash.drop(impl.m_internalName);
   m_globalHash->lock();
   m_globalHash->release(&impl, 1);
   m_globalHash->unlock();
@@ -5347,11 +5343,10 @@ NdbDictionaryImpl::invalidateObject(NdbTableImpl & impl)
 int
 NdbDictionaryImpl::removeCachedObject(NdbTableImpl & impl)
 {
-  const char * internalTableName = impl.m_internalName.c_str();
   DBUG_ENTER("NdbDictionaryImpl::removeCachedObject");
-  DBUG_PRINT("enter", ("internal_name: %s", internalTableName));
+  DBUG_PRINT("enter", ("internal_name: %s", impl.m_internalName.c_str()));
 
-  m_localHash.drop(internalTableName);  
+  m_localHash.drop(impl.m_internalName);
   m_globalHash->lock();
   m_globalHash->release(&impl);
   m_globalHash->unlock();
@@ -5765,17 +5760,17 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
       m_error.code = 4243;
     return -1;
   }
-  int ret = dropIndex(*idx, tableName, ignoreFKs);
-  // If index stored in cache is incompatible with the one in the kernel
-  // we must clear the cache and try again
-  if (ret == INCOMPATIBLE_VERSION) {
-    const BaseString internalIndexName((tableName)
-      ?
-      NdbIndexImpl::internal_index_name(getTable(tableName), indexName)
-      :
-      m_ndb.internalize_table_name(indexName)); // Index is also a table
+  // Calling getIndex() without tableName will return nullptr, this means
+  // that tableName must be set at this point
+  DBUG_ASSERT(tableName);
 
-    m_localHash.drop(internalIndexName);
+  int ret = dropIndex(*idx, tableName, ignoreFKs);
+  // If index stored in cache is incompatible with the one in the kernel,
+  // clear the cache and try again
+  if (ret == INCOMPATIBLE_VERSION) {
+    DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s",
+                       idx->m_internalName.c_str()));
+    m_localHash.drop(idx->m_internalName);
     m_globalHash->lock();
     m_globalHash->release(idx->m_table, 1);
     m_globalHash->unlock();
@@ -5797,12 +5792,6 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
     return -1;
   }
 
-  const BaseString internalIndexName((tableName)
-    ?
-    NdbIndexImpl::internal_index_name(getTable(tableName), indexName)
-    :
-    m_ndb.internalize_table_name(indexName)); // Index is also a table
-
   if(impl.m_status == NdbDictionary::Object::New){
     return dropIndex(indexName, tableName, ignoreFKs);
   }
@@ -5810,10 +5799,10 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
   int ret= dropIndexGlobal(impl, ignoreFKs);
   if (ret == 0)
   {
+    m_localHash.drop(impl.m_internalName);
     m_globalHash->lock();
     m_globalHash->release(impl.m_table, 1);
     m_globalHash->unlock();
-    m_localHash.drop(internalIndexName);
   }
   return ret;
 }
