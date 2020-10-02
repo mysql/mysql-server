@@ -216,6 +216,7 @@ SET(SERVER_TESTS
   gis_algos
   gis_area
   gis_distance
+  gis_frechet_distance
   gis_geometries
   gis_is_simple
   gis_isvalid

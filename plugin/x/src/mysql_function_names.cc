@@ -200,6 +200,7 @@ const char *const native_mysql_functions[] = {
     "ST_ENVELOPE",
     "ST_EQUALS",
     "ST_EXTERIORRING",
+    "ST_FRECHETDISTANCE",
     "ST_GEOHASH",
     "ST_GEOMCOLLFROMTEXT",
     "ST_GEOMCOLLFROMTXT",

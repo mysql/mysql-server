@@ -1513,6 +1513,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_CROSSES", SQL_FN(Item_func_st_crosses, 2)},
     {"ST_DIFFERENCE", SQL_FN(Item_func_st_difference, 2)},
     {"ST_DIMENSION", SQL_FN(Item_func_dimension, 1)},
+    {"ST_FRECHETDISTANCE", SQL_FN_V_LIST(Item_func_st_frechet_distance, 2, 3)},
     {"ST_DISJOINT", SQL_FN(Item_func_st_disjoint, 2)},
     {"ST_DISTANCE", SQL_FN_V_LIST(Item_func_distance, 2, 3)},
     {"ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_st_distance_sphere, 2, 3)},
