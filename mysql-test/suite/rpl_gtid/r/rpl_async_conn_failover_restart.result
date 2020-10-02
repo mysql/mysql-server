@@ -26,6 +26,8 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    count and retry time to 2 and verify its enabled in
 #    performance_schema.replication_connection_configuration.
 #
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/start_slave.inc
@@ -45,7 +47,6 @@ include/assert.inc ['There are three rows in performance_schema.replication_asyn
 #    Reconnect to server 2 and start replica on it.
 #
 include/rpl_start_server.inc [server_number=2]
-SET @debug_saved= @@GLOBAL.DEBUG;
 SET GLOBAL debug = '+d,async_conn_failover_crash';
 include/rpl_stop_server.inc [server_number=1]
 include/rpl_reconnect.inc
@@ -61,10 +62,13 @@ include/assert_grep.inc [Assert that the IO thread tried five times connecting t
 #
 [connection server_2]
 SET @@GLOBAL.DEBUG= @debug_saved;
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
-include/rpl_start_server.inc [server_number=1]
-[connection server_1]
+include/stop_slave.inc
+include/rpl_reset_slave.inc
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
 DROP TABLE t1;
-[connection server_2]
+[connection server_1]
+include/rpl_start_server.inc [server_number=1]
 DROP TABLE t1;
 include/rpl_end.inc

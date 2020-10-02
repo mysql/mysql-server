@@ -439,6 +439,7 @@ extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
+extern PSI_mutex_key key_monitor_info_run_lock;
 
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_slave_worker_hash;
@@ -483,6 +484,7 @@ extern PSI_thread_key key_thread_one_connection;
 extern PSI_thread_key key_thread_compress_gtid_table;
 extern PSI_thread_key key_thread_parser_service;
 extern PSI_thread_key key_thread_handle_con_admin_sockets;
+extern PSI_cond_key key_monitor_info_run_cond;
 
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;
@@ -606,6 +608,9 @@ extern PSI_stage_info stage_waiting_for_no_channel_reference;
 extern PSI_stage_info stage_hook_begin_trans;
 extern PSI_stage_info stage_binlog_transaction_compress;
 extern PSI_stage_info stage_binlog_transaction_decompress;
+extern PSI_stage_info stage_rpl_failover_fetching_source_member_details;
+extern PSI_stage_info stage_rpl_failover_updating_source_member_details;
+extern PSI_stage_info stage_rpl_failover_wait_before_next_fetch;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

@@ -119,6 +119,11 @@ def	mysql	replication_asynchronous_connection_failover	Host	2	NULL	NO	char	255	2
 def	mysql	replication_asynchronous_connection_failover	Port	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned	PRI		select,insert,update,references	The source port that the replica will attempt to switch over the replication connection to in case of a failure.		NULL
 def	mysql	replication_asynchronous_connection_failover	Network_namespace	4	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The source network namespace that the replica will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.		NULL
 def	mysql	replication_asynchronous_connection_failover	Weight	5	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references	The order in which the replica shall try to switch the connection over to when there are failures. Weight can be set to a number between 1 and 100, where 100 is the highest weight and 1 the lowest.		NULL
+def	mysql	replication_asynchronous_connection_failover	Managed_name	6		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The name of the group which this server belongs to.		NULL
+def	mysql	replication_asynchronous_connection_failover_managed	Channel_name	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The replication channel name that connects source and replica.		NULL
+def	mysql	replication_asynchronous_connection_failover_managed	Managed_name	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The name of the source which needs to be managed.		NULL
+def	mysql	replication_asynchronous_connection_failover_managed	Managed_type	3		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	Determines the managed type.		NULL
+def	mysql	replication_asynchronous_connection_failover_managed	Configuration	4	NULL	YES	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references	The data to help manage group. For Managed_type = GroupReplication, Configuration value should contain {"Primary_weight": 80, "Secondary_weight": 60}, so that it assigns weight=80 to PRIMARY of the group, and weight=60 for rest of the members in mysql.replication_asynchronous_connection_failover table.		NULL
 def	mysql	role_edges	FROM_HOST	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	FROM_USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	TO_HOST	3		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
@@ -466,6 +471,11 @@ NULL	mysql	proxies_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	replication_asynchronous_connection_failover	Port	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	mysql	replication_asynchronous_connection_failover	Network_namespace	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	replication_asynchronous_connection_failover	Weight	tinyint	NULL	NULL	NULL	NULL	tinyint unsigned
+3.0000	mysql	replication_asynchronous_connection_failover	Managed_name	char	64	192	utf8	utf8_general_ci	char(64)
+3.0000	mysql	replication_asynchronous_connection_failover_managed	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
+3.0000	mysql	replication_asynchronous_connection_failover_managed	Managed_name	char	64	192	utf8	utf8_general_ci	char(64)
+3.0000	mysql	replication_asynchronous_connection_failover_managed	Managed_type	char	64	192	utf8	utf8_general_ci	char(64)
+NULL	mysql	replication_asynchronous_connection_failover_managed	Configuration	json	NULL	NULL	NULL	NULL	json
 1.0000	mysql	role_edges	FROM_HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	role_edges	FROM_USER	char	32	96	utf8	utf8_bin	char(32)
 1.0000	mysql	role_edges	TO_HOST	char	255	255	ascii	ascii_general_ci	char(255)

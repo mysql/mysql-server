@@ -433,7 +433,21 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS replication_asynchronous_connection_failov
     Port INTEGER UNSIGNED NOT NULL COMMENT 'The source port that the replica will attempt to switch over the replication connection to in case of a failure.',
     Network_namespace CHAR(64) COMMENT 'The source network namespace that the replica will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.',
     Weight TINYINT UNSIGNED NOT NULL COMMENT 'The order in which the replica shall try to switch the connection over to when there are failures. Weight can be set to a number between 1 and 100, where 100 is the highest weight and 1 the lowest.',
-    PRIMARY KEY(Channel_name, Host, Port, Network_namespace)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'The source configuration details'";
+    Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the group which this server belongs to.',
+    PRIMARY KEY(Channel_name, Host, Port, Network_namespace, Managed_name), KEY(Channel_name, Managed_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'The source configuration details'";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- replication_asynchronous_connection_failover_managed table
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_asynchronous_connection_failover_managed (
+    Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The replication channel name that connects source and replica.',
+    Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the source which needs to be managed.',
+    Managed_type CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'Determines the managed type.',
+    Configuration JSON DEFAULT NULL COMMENT 'The data to help manage group. For Managed_type = GroupReplication, Configuration value should contain {\"Primary_weight\": 80, \"Secondary_weight\": 60}, so that it assigns weight=80 to PRIMARY of the group, and weight=60 for rest of the members in mysql.replication_asynchronous_connection_failover table.',
+    PRIMARY KEY(Channel_name, Managed_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'The managed source configuration details'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
 PREPARE stmt FROM @str;

@@ -22,94 +22,188 @@
 
 #include "mysql/components/services/log_builtins.h"
 
-#include "sql/auto_thd.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/rpl_async_conn_failover.h"
+#include "sql/rpl_async_conn_failover_table_operations.h"
+#include "sql/rpl_io_monitor.h"
 #include "sql/rpl_msr.h"  // channel_map
 #include "sql/rpl_slave.h"
 
 #include <algorithm>
 
-bool Async_conn_failover_manager::do_auto_conn_failover(Master_info *mi) {
-  DBUG_TRACE;
+/* replication_asynchronous_connection_failover table column position */
+enum class enum_sender_tuple : std::size_t {
+  CHANNEL = 0,
+  HOST,
+  PORT,
+  NETNS,
+  WEIGHT,
+  MANAGED_NAME
+};
 
-  /* Current position in m_source_conn_detail_list list */
-  auto current_pos{m_pos++};
-  auto error{false};
-  auto ignore_rm_last_source{false};
+/* Cast enum_sender_tuple to uint */
+constexpr uint enum_convert(enum_sender_tuple eval) {
+  return static_cast<uint>(eval);
+}
+
+Async_conn_failover_manager::enum_do_auto_conn_failover_error
+Async_conn_failover_manager::do_auto_conn_failover(
+    const std::string &channel_name, bool force_highest_weight) {
+  DBUG_TRACE;
+  Async_conn_failover_manager::enum_do_auto_conn_failover_error error{
+      ACF_RETRIABLE_ERROR};
+
+  /* The list of different source connection details. */
+  RPL_FAILOVER_SOURCE_LIST source_conn_detail_list{};
 
   /*
-    When sender list is exhausted reset position and enable
-    ignore_rm_last_source so that all the senders are considered without
-    ignoring last failed sender.
+    On the first connection to a group through a source that is in RECOVERING
+    state, the replication_asynchronous_connection_failover table may not be
+    yet populated with the group membership. Instead of immediately bailing out
+    we do retry read the sources for this channel.
   */
-  if (current_pos >= m_source_conn_detail_list.size()) {
-    current_pos = 0;
-    reset_pos();
-    ignore_rm_last_source = true;  // for endless loop add all source
+  int retries = 0;
+  do {
+    if (retries > 0) {
+      my_sleep(500000);
+    }
+
+    /* Get network configuration details of all sources from this channel. */
+    Rpl_async_conn_failover_table_operations table_op(TL_READ);
+    auto tmp_details = table_op.read_source_rows_for_channel(channel_name);
+    bool table_error = std::get<0>(tmp_details);
+
+    if (!table_error) {
+      source_conn_detail_list = std::get<1>(tmp_details);
+      std::sort(
+          source_conn_detail_list.begin(), source_conn_detail_list.end(),
+          [](auto const &t1, auto const &t2) {
+            auto tmp_t1 = std::make_tuple(
+                std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t1),
+                std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t1),
+                std::get<enum_convert(enum_sender_tuple::HOST)>(t1),
+                std::get<enum_convert(enum_sender_tuple::PORT)>(t1),
+                std::get<enum_convert(enum_sender_tuple::NETNS)>(t1));
+            auto tmp_t2 = std::make_tuple(
+                std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t2),
+                std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t2),
+                std::get<enum_convert(enum_sender_tuple::HOST)>(t2),
+                std::get<enum_convert(enum_sender_tuple::PORT)>(t2),
+                std::get<enum_convert(enum_sender_tuple::NETNS)>(t2));
+            return (
+                (std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t1) >
+                 std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t2)) ||
+                ((std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t1) >
+                  std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t2))) ||
+                ((std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::HOST)>(t1) >
+                  std::get<enum_convert(enum_sender_tuple::HOST)>(t2))) ||
+                ((std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::HOST)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::HOST)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::PORT)>(t1) >
+                  std::get<enum_convert(enum_sender_tuple::PORT)>(t2))) ||
+                ((std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::HOST)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::HOST)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::PORT)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::PORT)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::NETNS)>(t1) >
+                  std::get<enum_convert(enum_sender_tuple::NETNS)>(t2))) ||
+                ((std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::WEIGHT)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::CHANNEL)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::HOST)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::HOST)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::PORT)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::PORT)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::NETNS)>(t1) ==
+                  std::get<enum_convert(enum_sender_tuple::NETNS)>(t2)) &&
+                 (std::get<enum_convert(enum_sender_tuple::MANAGED_NAME)>(t1) >
+                  std::get<enum_convert(enum_sender_tuple::MANAGED_NAME)>(
+                      t2))));
+          });
+    }
+
+    retries++;
+  } while (source_conn_detail_list.size() == 0 && retries < 10);
+
+  /* if there are no source to connect */
+  if (source_conn_detail_list.size() == 0) {
+    LogErr(SYSTEM_LEVEL, ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE,
+           channel_name.c_str(),
+           "no alternative source is"
+           " specified",
+           "add new source details for the channel");
+    return ACF_NO_SOURCES_ERROR;
   }
 
-  if (current_pos == 0) {
-    m_source_conn_detail_list.clear();
+  channel_map.rdlock();
+  Master_info *mi = channel_map.get_mi(channel_name.c_str());
+  if (nullptr == mi) {
+    channel_map.unlock();
+    return error;
+  }
 
-    /* Get network configuration details of all source. */
-    {
-      Rpl_async_conn_failover_table_operations table_op(TL_READ);
-      std::tie(error, m_source_conn_detail_list) =
-          table_op.read_rows(mi->get_channel());
-    }
+  /* When sender list is exhausted reset position. */
+  if (force_highest_weight ||
+      mi->get_failover_list_position() >= source_conn_detail_list.size()) {
+    mi->reset_failover_list_position();
+  }
 
-    if (!error && Master_info::is_configured(mi) && !ignore_rm_last_source) {
-      /*
-       Remove the connection details of last failed source from the list
-       as it was already tried MASTER_RETRY_COUNT times.
-      */
-      auto it = std::find_if(
-          m_source_conn_detail_list.begin(), m_source_conn_detail_list.end(),
-          [mi](const SENDER_CONN_TUPLE &e) {
-            return (strcmp((std::get<2>(e)).c_str(), mi->host) == 0 &&
-                    std::get<3>(e) == mi->port &&
-                    strcmp((std::get<4>(e)).c_str(),
-                           mi->network_namespace_str()) == 0);
-          });
-      if (it != m_source_conn_detail_list.end()) {
-        m_source_conn_detail_list.erase(it);
-      }
-    }
-
+#ifndef DBUG_OFF
+  if (mi->get_failover_list_position() == 0) {
     DBUG_EXECUTE_IF("async_conn_failover_wait_new_sender", {
       const char act[] =
           "now SIGNAL wait_for_new_sender_selection "
           "WAIT_FOR continue_connect_new_sender";
-      Auto_THD thd;
-      DBUG_ASSERT(m_source_conn_detail_list.size() == 3UL);
+      DBUG_ASSERT(source_conn_detail_list.size() == 3UL);
       DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
-    /* if there are no source to connect */
-    if (m_source_conn_detail_list.size() == 0) {
-      LogErr(SYSTEM_LEVEL, ER_RPL_ASYNC_RECONNECT_FAIL_NO_SOURCE,
-             mi->get_channel(),
-             "no alternative source is"
-             " specified",
-             "add new source details for the channel");
-      return true;
-    }
+    DBUG_EXECUTE_IF("async_conn_failover_wait_new_4sender", {
+      const char act[] =
+          "now SIGNAL wait_for_new_4sender_selection "
+          "WAIT_FOR continue_connect_new_4sender";
+      DBUG_ASSERT(source_conn_detail_list.size() == 4UL);
+      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
   }
+#endif
 
   /*
     reset current network configuration details with new network
     configuration details of choosen source.
   */
   if (!set_channel_conn_details(
-          mi, std::get<2>(m_source_conn_detail_list[current_pos]),
-          std::get<3>(m_source_conn_detail_list[current_pos]),
-          std::get<4>(m_source_conn_detail_list[current_pos]))) {
-    return false;
-  }
+          mi,
+          std::get<enum_convert(enum_sender_tuple::HOST)>(
+              source_conn_detail_list[mi->get_failover_list_position()]),
+          std::get<enum_convert(enum_sender_tuple::PORT)>(
+              source_conn_detail_list[mi->get_failover_list_position()]),
+          std::get<enum_convert(enum_sender_tuple::NETNS)>(
+              source_conn_detail_list[mi->get_failover_list_position()]))) {
+    error = ACF_NO_ERROR;
 
-  return true;
+    /* Increment to next position in source_conn_detail_list list. */
+    mi->increment_failover_list_position();
+  }
+  channel_map.unlock();
+
+  return error;
 }
 
 bool Async_conn_failover_manager::set_channel_conn_details(
@@ -126,8 +220,9 @@ bool Async_conn_failover_manager::set_channel_conn_details(
     options so that it can update 'mysql.slave_master_info' replication
     repository tables.
   */
-  channel_map.rdlock();
-  mi->channel_wrlock();
+  if (mi->channel_trywrlock()) {
+    return true;
+  }
 
   /*
     When we change master, we first decide which thread is running and
@@ -175,6 +270,73 @@ bool Async_conn_failover_manager::set_channel_conn_details(
 
   unlock_slave_threads(mi);
   mi->channel_unlock();
-  channel_map.unlock();
   return error;
+}
+
+int Async_conn_failover_manager::get_source_quorum_status(MYSQL *mysql,
+                                                          Master_info *mi) {
+  int ret = 0;
+  MYSQL_RES *source_res = nullptr;
+  MYSQL_ROW source_row = nullptr;
+  std::vector<SENDER_CONN_MERGE_TUPLE> source_conn_merged_list{};
+  bool error{false}, connected_source_in_sender_list{false};
+
+  mi->reset_network_error();
+
+  /*
+    Get stored primary details for channel from
+    replication_asynchronous_connection_failover table.
+  */
+  std::tie(error, source_conn_merged_list) =
+      Source_IO_monitor::get_instance().get_senders_details(mi->get_channel());
+  if (error) {
+    return 2;
+  }
+
+  for (auto source_conn_detail : source_conn_merged_list) {
+    std::string host{}, managed_name{};
+    uint port{0};
+
+    std::tie(std::ignore, host, port, std::ignore, std::ignore, managed_name,
+             std::ignore, std::ignore) = source_conn_detail;
+    if (host.compare(mi->host) == 0 && port == mi->port &&
+        !managed_name.empty()) {
+      connected_source_in_sender_list = true;
+      break;
+    }
+  }
+
+  if (!connected_source_in_sender_list) return 0;
+
+  std::string query = Source_IO_monitor::get_instance().get_query(
+      enum_sql_query_tag::CONFIG_MODE_QUORUM_IO);
+
+  if (!mysql_real_query(mysql, query.c_str(), query.length()) &&
+      (source_res = mysql_store_result(mysql)) &&
+      (source_row = mysql_fetch_row(source_res))) {
+    auto quorum_status{
+        static_cast<enum_conf_mode_quorum_status>(std::stoi(source_row[0]))};
+    if (quorum_status == enum_conf_mode_quorum_status::MANAGED_GR_HAS_QUORUM) {
+      ret = 0;
+    } else if (quorum_status ==
+               enum_conf_mode_quorum_status::MANAGED_GR_HAS_ERROR) {
+      LogErr(ERROR_LEVEL, ER_RPL_ASYNC_CHANNEL_CANT_CONNECT_NO_QUORUM, mi->host,
+             mi->port, "", mi->get_channel());
+      ret = 1;
+    }
+  } else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE) {
+    if (is_network_error(mysql_errno(mysql))) {
+      mi->set_network_error();
+      ret = 2;
+    } else {
+      LogErr(WARNING_LEVEL, ER_RPL_ASYNC_EXECUTING_QUERY,
+             "The IO thread failed to detect if the source belongs to the "
+             "group majority",
+             mi->host, mi->port, "", mi->get_channel());
+      ret = 1;
+    }
+  }
+
+  if (source_res) mysql_free_result(source_res);
+  return ret;
 }

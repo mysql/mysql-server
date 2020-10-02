@@ -1,0 +1,104 @@
+include/group_replication.inc [rpl_server_count=5]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a 2 members group A in single primary mode.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Deploy a 2 members group B in single primary mode.
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+[connection server4]
+include/start_group_replication.inc
+
+############################################################
+# 3. Configure replica to manage the asynchronous connection
+#    to groups A and B.
+[connection server5]
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_A', '127.0.0.1', SERVER_MYPORT_1, '', 90, 70);;
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_A', '127.0.0.1', SERVER_MYPORT_1, '', 90, 70)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_B', '127.0.0.1', SERVER_MYPORT_3, '', 85, 65);;
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_B', '127.0.0.1', SERVER_MYPORT_3, '', 85, 65)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover for server1']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover for server3']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group A']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group B']
+
+############################################################
+# 4. Create and start the managed channel.
+[connection server5]
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=SERVER_1_PORT, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
+
+############################################################
+# 5. Kill server2, group A will block due no majority.
+[connection server2]
+[connection server1]
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 6. Since the group A has no majority, the replica will connect
+#    to server3 on group B.
+[connection server5]
+Wait until ch1 IO_THREAD is connected to server3
+include/assert_grep.inc [The ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST error is logged]
+
+############################################################
+# 7. Assert that group A information did not change, since it
+#    lost the majority.
+[connection server5]
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover for server1']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover for server2']
+
+############################################################
+# 8. Clean up.
+[connection server5]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl_reset_slave.inc
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP_A');
+asynchronous_connection_failover_delete_managed('ch1', 'GROUP_A')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover_managed for group A']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed for group B']
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover for group A']
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover for group B']
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP_B');
+asynchronous_connection_failover_delete_managed('ch1', 'GROUP_B')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover_managed']
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The source .* for channel 'ch1' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.*");
+call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
+call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.*");
+call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
+call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+SET SESSION sql_log_bin = 1;
+[connection server1]
+include/stop_group_replication.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+SET SESSION sql_log_bin = 1;
+[connection server2]
+include/rpl_reconnect.inc
+[connection server4]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+include/group_replication_end.inc

@@ -1,0 +1,435 @@
+# ==== Purpose ====
+#
+# wl#14019: Automatic connection failover for Async Replication Channels
+# - Step II: Automatic senders list
+#
+# It tests add and delete managed sender configuration UDF's.
+#
+# ==== Implementation ====
+#
+# 0. The test requires 2 servers:
+#      server1: source
+#      server2: replica
+#
+# For asynchronous_connection_failover_add_managed:
+# 1. Check that the parameter count is equal to 8.
+# 2. Check that the channel name is provided.
+# 3. Check that host parameters values is provided and not empty.
+# 4. Check that port parameters values is provided.
+# 5. Check that the primary_weight parameter value is integer value between
+#    1-100.
+# 6. Check that the secondary_weight parameter value is integer value between
+#    1-100.
+# 7. Check that the default value of weight parameter is secondary_weight.
+# 8. Check that correct string value is provided for network_namespace.
+#
+# For asynchronous_connection_failover_delete_managed:
+# 9. Check that the parameter count is equal to 2.
+#    i.e. channel_name, managed_name must be provided.
+# 10. Check that the channel name is provided.
+# 11. Check that managed_name parameter value is provided and not empty.
+# 12. Verify user without SUPER or REPLICATION_SLAVE_ADMIN fails with
+#     ER_SPECIFIC_ACCESS_DENIED_ERROR error when execute
+#     asynchronous_connection_failover_add_managed and
+#     asynchronous_connection_failover_delete_managed UDF.
+# 13. Verify user with REPLICATION_SLAVE_ADMIN privilege can execute
+#     asynchronous_connection_failover_add_source and
+#     asynchronous_connection_failover_delete_source UDF.
+# 14. Cleanup.
+#
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# Checks for add managed sender configuration UDF
+# i.e. asynchronous_connection_failover_add_managed()
+
+--echo #
+--echo # 1. Check that the parameter count is equal to 8.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60, 11);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 2. Check that the channel name is provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed(9, 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 3. Check that host parameters values is provided and not empty.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '', 3310, '', 80, 60);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 4. Check that port parameters values is provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', '3310', '', 80, 60);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 5. Check that the primary_weight parameter value is integer value
+--echo #    between 1-100.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 0, 60);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 180, 60);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', '80', 60);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 6. Check that the secondary_weight parameter value is integer value
+--echo #    between 1-100.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 0);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 160);
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, '60');
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 7. Check that the default value of weight parameter is
+--echo #    secondary_weight.
+--echo #
+
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, '', 80, 60);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover with weight=60'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE weight=60, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 8. Check correct string value is provided for network_namespace.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3310, 100, 80, 60);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+
+# network_space only exists on mysql.replication_asynchronous_connection_failover table,
+# as such the below managed entry is equal to the previous and its `add` must error out,
+# without changing any configuration.
+--error ER_UDF_ERROR
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.10', 1111, 'nets', 20, 10);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+
+# Adding a different managed channel does work.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.11', 2222, 'blue', 25, 15);
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 2
+--source include/assert.inc
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+
+
+# Checks for delete managed sender configuration UDF
+# i.e. asynchronous_connection_failover_delete_managed()
+
+--echo #
+--echo # 9. Check that the parameter count is equal to 2.
+--echo #    i.e. channel_name, managed_name must be provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_managed('');
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 3);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 10. Check that the channel name is provided.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_managed(9, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 11. Check that managed_name parameter value is provided and not empty.
+--echo #
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_managed('', '');
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 12. Verify user without SUPER or REPLICATION_SLAVE_ADMIN fails with
+--echo #     ER_SPECIFIC_ACCESS_DENIED_ERROR error when execute
+--echo #     asynchronous_connection_failover_add_managed and
+--echo #     asynchronous_connection_failover_delete_managed UDF.
+--echo #
+
+CREATE USER 'async_user' IDENTIFIED BY 'pass';
+
+--echo [connection connect_async]
+connect(connect_async, localhost, async_user, pass);
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa');
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysql.replication_asynchronous_connection_failover;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysql.replication_asynchronous_connection_failover_managed;
+
+--disconnect connect_async
+
+
+--echo #
+--echo # 13. Verify user with REPLICATION_SLAVE_ADMIN privilege can execute
+--echo #     asynchronous_connection_failover_add_source and
+--echo #     asynchronous_connection_failover_delete_source UDF.
+--echo #
+
+--source include/rpl_connection_master.inc
+
+GRANT REPLICATION_SLAVE_ADMIN ON *.* TO 'async_user';
+
+--echo [connection connect_async]
+connect(connect_async, localhost, async_user, pass);
+
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+
+--error ER_UDF_ERROR
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'AsyncReplication', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa', '127.0.0.1', 3100, '', 80, 60);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_add_managed('', 'GroupReplication', 'UUID', '127.0.0.1', 3100, '', 80, 60);
+
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa');
+
+--error ER_UDF_ERROR
+SELECT asynchronous_connection_failover_delete_managed('', 'aaaaaaaa-bbbb-bbbb-aaaa-aaaaaaaaaaaa');
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT asynchronous_connection_failover_delete_managed('', 'UUID');
+
+--disconnect connect_async
+--source include/rpl_connection_master.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover_managed table is empty'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+
+--echo #
+--echo # 14. Cleanup.
+--echo #
+DROP USER 'async_user';
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The source .* for channel '.*' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

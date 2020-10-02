@@ -64,16 +64,19 @@ struct st_row_rpl_async_conn_failover {
   char network_namespace[NAME_LEN];
   uint network_namespace_length;
   uint weight;
+  char managed_name[HOSTNAME_LENGTH];
+  uint managed_name_length;
 };
 
 class PFS_index_rpl_async_conn_failover : public PFS_engine_index {
  public:
   PFS_index_rpl_async_conn_failover()
-      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3, &m_key_4),
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3, &m_key_4, &m_key_5),
         m_key_1("CHANNEL_NAME"),
         m_key_2("HOST"),
         m_key_3("PORT"),
-        m_key_4("NETWORK_NAMESPACE") {}
+        m_key_4("NETWORK_NAMESPACE"),
+        m_key_5("MANAGED_NAME") {}
 
   ~PFS_index_rpl_async_conn_failover() override {}
 
@@ -83,13 +86,14 @@ class PFS_index_rpl_async_conn_failover : public PFS_engine_index {
     @param source_conn_detail  the tuple contains source network configuration
                                details to be matched.
   */
-  virtual bool match(SENDER_CONN_TUPLE source_conn_detail);
+  virtual bool match(RPL_FAILOVER_SOURCE_TUPLE source_conn_detail);
 
  private:
   PFS_key_name m_key_1;  // channel_name key
   PFS_key_name m_key_2;  // host key
   PFS_key_port m_key_3;  // port key
   PFS_key_name m_key_4;  // network_namespace key
+  PFS_key_name m_key_5;  // managed_name key
 };
 
 /**
@@ -102,7 +106,7 @@ class table_replication_asynchronous_connection_failover
   typedef PFS_simple_index pos_t;
 
  private:
-  int make_row(SENDER_CONN_TUPLE source_tuple);
+  int make_row(RPL_FAILOVER_SOURCE_TUPLE source_tuple);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -214,7 +218,7 @@ class table_replication_asynchronous_connection_failover
   PFS_index_rpl_async_conn_failover *m_opened_index;
 
   /* Stores the data being read i.e. source connection details. */
-  SENDER_CONN_LIST source_conn_detail;
+  RPL_FAILOVER_SOURCE_LIST source_conn_detail;
 
   /* Stores error happened while reading rows */
   bool read_error;

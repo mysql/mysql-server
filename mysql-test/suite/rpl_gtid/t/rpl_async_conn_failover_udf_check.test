@@ -131,6 +131,8 @@ SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100);
 --let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE weight=50, count, 1] = 1
 --source include/assert.inc
 
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
+
 
 --echo #
 --echo # 7. Check correct string value is provided for network_namespace.
@@ -139,8 +141,8 @@ SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100);
 --error ER_CANT_INITIALIZE_UDF
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 100);
 
---let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
---let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--let $assert_text= 'There is no row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
 --source include/assert.inc
 
 
@@ -234,6 +236,7 @@ SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, '')
 --echo # 13. Delete non existing credentials.
 --echo #
 
+--error ER_UDF_ERROR
 SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 77100);
 
 --let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table is empty'
@@ -286,6 +289,10 @@ SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
 
 --source include/rpl_connection_master.inc
 DROP USER 'async_user';
+
+--let $assert_text= 'There are 0 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE managed_name="", count, 1] = 0
+--source include/assert.inc
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

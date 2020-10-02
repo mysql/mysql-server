@@ -31,19 +31,14 @@
   current replica IO connection gets interrupted.
 */
 class Async_conn_failover_manager {
- private:
-  /*
-    Current position in m_source_conn_detail_list list, whose value it will read
-    and re-establish connection. It increments this value each time connection
-    is unsuccessful.
-  */
-  uint m_pos{0};
-
-  /* The list of different source connection details. */
-  SENDER_CONN_LIST m_source_conn_detail_list{};
-
  public:
-  Async_conn_failover_manager() {}
+  enum enum_do_auto_conn_failover_error {
+    ACF_NO_ERROR = 0,
+    ACF_RETRIABLE_ERROR,
+    ACF_NO_SOURCES_ERROR
+  };
+
+  Async_conn_failover_manager() = delete;
 
   Async_conn_failover_manager(const Async_conn_failover_manager &) = delete;
   Async_conn_failover_manager(Async_conn_failover_manager &&) = delete;
@@ -55,21 +50,36 @@ class Async_conn_failover_manager {
   /**
     Re-establishes connection to next available source.
 
-    @param[in] mi   the Master_info object of the failed connection which
-                    needs to be reconnected to the new source.
+    @param[in] channel_name    the channel of the failed connection which
+                               needs to be reconnected to the new source.
+    @param[in] force_highest_weight When true, sender with highest weight is
+    chosen, otherwise the next sender from the current one is chosen.
 
-    @retval true   Error connecting to new source.
-    @retval false  Success connecting to new source.
+    @retval Please see enum_do_auto_conn_failover_error.
  */
-  bool do_auto_conn_failover(Master_info *mi);
+  static enum_do_auto_conn_failover_error do_auto_conn_failover(
+      const std::string &channel_name, bool force_highest_weight);
 
+  /*
+    Get source quorum status in case source has Group Replication enabled.
+
+    @param  mysql MYSQL to request uuid from source.
+    @param  mi    Master_info to set master_uuid
+
+    @return 0: Success,
+            1: Fatal error,
+            2: Transient network error.
+  */
+  static int get_source_quorum_status(MYSQL *mysql, Master_info *mi);
+
+ private:
   /**
     Sets source network configuration details <host, port, network_namespace>
     for the provided Master_info object. The function is used by async conn
     failure to set configuration details of new source.
 
-    @param[in] mi   the Master_info object of the failed connection which
-                    needs to be reconnected to the new source.
+    @param[in] mi              the channel of the failed connection which
+                               needs to be reconnected to the new source.
     @param[in] host the source hostname to be set for Master_info object
     @param[in] port the source port to be set for Master_info object
     @param[in] network_namespace the source network_namespace to be set for
@@ -78,15 +88,8 @@ class Async_conn_failover_manager {
     @retval true   Error
     @retval false  Success
   */
-  bool set_channel_conn_details(Master_info *mi, const std::string host,
-                                const uint port,
-                                const std::string network_namespace);
-
-  /**
-    Reset position to start so that all source can be considered on
-    next replica IO failure.
-  */
-  void reset_pos() { m_pos = 0; }
+  static bool set_channel_conn_details(Master_info *mi, const std::string host,
+                                       const uint port,
+                                       const std::string network_namespace);
 };
-
 #endif /* RPL_ASYNC_CONN_FAILOVER_H */

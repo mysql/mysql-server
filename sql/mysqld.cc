@@ -770,8 +770,6 @@
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
-#include "sql/rpl_async_conn_failover_add_source_udf.h"
-#include "sql/rpl_async_conn_failover_delete_source_udf.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"  // Gtid_table_persistor
@@ -822,6 +820,7 @@
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"  // Time_zone
+#include "sql/udf_service_impl.h"
 #include "sql/xa.h"
 #include "sql_common.h"  // mysql_client_plugin_init
 #include "sql_string.h"
@@ -1439,8 +1438,7 @@ Le_creator le_creator;
 
 Rpl_global_filter rpl_global_filter;
 Rpl_filter *binlog_filter;
-Rpl_async_conn_failover_add_source rpl_async_conn_failover_add_source;
-Rpl_async_conn_failover_delete_source rpl_async_conn_failover_delete_source;
+Udf_load_service udf_load_service;
 
 struct System_variables global_system_variables;
 struct System_variables max_system_variables;
@@ -2417,8 +2415,7 @@ static void clean_up(bool print_message) {
   injector::free_instance();
   mysql_bin_log.cleanup();
 
-  rpl_async_conn_failover_add_source.deinit();
-  rpl_async_conn_failover_delete_source.deinit();
+  udf_load_service.deinit();
 
   if (use_slave_mask) bitmap_free(&slave_error_mask);
   my_tz_free();
@@ -6369,8 +6366,7 @@ static int init_server_components() {
 #endif
     locked_in_memory = false;
 
-  rpl_async_conn_failover_add_source.init();
-  rpl_async_conn_failover_delete_source.init();
+  udf_load_service.init();
 
   /* Initialize the optimizer cost module */
   init_optimizer_cost_module(true);
@@ -10915,6 +10911,7 @@ PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
+PSI_mutex_key key_monitor_info_run_lock;
 
 /* clang-format off */
 static PSI_mutex_info all_server_mutexes[]=
@@ -11003,7 +11000,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for client server connection port"},
   { &key_LOCK_admin_tls_ctx_options, "LOCK_admin_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for administrative connection port"},
-  { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
+  { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_monitor_info_run_lock, "Source_IO_monitor::run_lock", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 
@@ -11074,6 +11072,7 @@ PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_thr_lock;
 PSI_cond_key key_commit_order_manager_cond;
 PSI_cond_key key_cond_slave_worker_hash;
+PSI_cond_key key_monitor_info_run_cond;
 
 /* clang-format off */
 static PSI_cond_info all_server_conds[]=
@@ -11114,7 +11113,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME}
+  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_monitor_info_run_cond, "Source_IO_monitor::run_cond", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 
@@ -11293,6 +11293,9 @@ PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no chan
 PSI_stage_info stage_hook_begin_trans= { 0, "Executing hook on transaction begin.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_binlog_transaction_compress= { 0, "Compressing transaction changes.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_binlog_transaction_decompress= { 0, "Decompressing transaction changes.", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_rpl_failover_fetching_source_member_details= { 0, "Fetching source member details from connected source", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_rpl_failover_updating_source_member_details= { 0, "Updating fetched source member details on receiver", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_rpl_failover_wait_before_next_fetch= { 0, "Wait before trying to fetch next membership changes from source", 0, PSI_DOCUMENT_ME};
 /* clang-format on */
 
 extern PSI_stage_info stage_waiting_for_disk_space;
@@ -11386,7 +11389,10 @@ PSI_stage_info *all_server_stages[] = {
     &stage_hook_begin_trans,
     &stage_waiting_for_disk_space,
     &stage_binlog_transaction_compress,
-    &stage_binlog_transaction_decompress};
+    &stage_binlog_transaction_decompress,
+    &stage_rpl_failover_fetching_source_member_details,
+    &stage_rpl_failover_updating_source_member_details,
+    &stage_rpl_failover_wait_before_next_fetch};
 
 PSI_socket_key key_socket_tcpip;
 PSI_socket_key key_socket_unix;

@@ -331,27 +331,40 @@ class PFS_engine_index : public PFS_engine_index_abstract {
       : m_key_ptr_1(key_1),
         m_key_ptr_2(nullptr),
         m_key_ptr_3(nullptr),
-        m_key_ptr_4(nullptr) {}
+        m_key_ptr_4(nullptr),
+        m_key_ptr_5(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
         m_key_ptr_3(nullptr),
-        m_key_ptr_4(nullptr) {}
+        m_key_ptr_4(nullptr),
+        m_key_ptr_5(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
                    PFS_engine_key *key_3)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
         m_key_ptr_3(key_3),
-        m_key_ptr_4(nullptr) {}
+        m_key_ptr_4(nullptr),
+        m_key_ptr_5(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
                    PFS_engine_key *key_3, PFS_engine_key *key_4)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
         m_key_ptr_3(key_3),
-        m_key_ptr_4(key_4) {}
+        m_key_ptr_4(key_4),
+        m_key_ptr_5(nullptr) {}
+
+  PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
+                   PFS_engine_key *key_3, PFS_engine_key *key_4,
+                   PFS_engine_key *key_5)
+      : m_key_ptr_1(key_1),
+        m_key_ptr_2(key_2),
+        m_key_ptr_3(key_3),
+        m_key_ptr_4(key_4),
+        m_key_ptr_5(key_5) {}
 
   ~PFS_engine_index() override {}
 
@@ -362,6 +375,7 @@ class PFS_engine_index : public PFS_engine_index_abstract {
   PFS_engine_key *m_key_ptr_2;
   PFS_engine_key *m_key_ptr_3;
   PFS_engine_key *m_key_ptr_4;
+  PFS_engine_key *m_key_ptr_5;
 };
 
 /**

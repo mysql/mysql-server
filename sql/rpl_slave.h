@@ -33,6 +33,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_thread.h"  // my_start_routine
+#include "mysql.h"      // MYSQL
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
@@ -47,7 +48,12 @@ struct mysql_mutex_t;
 
 typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
 
-typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
+typedef enum {
+  SLAVE_THD_IO,
+  SLAVE_THD_SQL,
+  SLAVE_THD_WORKER,
+  SLAVE_THD_MONITOR
+} SLAVE_THD_TYPE;
 
 /**
   MASTER_DELAY can be at most (1 << 31) - 1.
@@ -522,7 +528,8 @@ void delete_slave_info_objects(); /* clean up slave threads data */
 */
 void lock_slave_threads(Master_info *mi);
 void unlock_slave_threads(Master_info *mi);
-void init_thread_mask(int *mask, Master_info *mi, bool inverse);
+void init_thread_mask(int *mask, Master_info *mi, bool inverse,
+                      bool ignore_monitor_thread = false);
 void set_slave_thread_options(THD *thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int rotate_relay_log(Master_info *mi, bool log_master_fd = true,
@@ -537,6 +544,33 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
+
+/*
+  SYNPOSIS
+    connect_to_master()
+
+  IMPLEMENTATION
+    Try to connect until successful or replica killed or we have retried
+
+    @param[in] thd   The thread.
+    @param[in] mysql MySQL connection handle
+    @param[in] mi    The Master_info object of the failed connection which
+                     needs to be reconnected to the new source.
+    @param[in] reconnect  If its need to reconnect to existing source.
+    @param[in] host       The Host name or ip address of the source to which
+                          connection need to be made.
+    @param[in] port       The Port fo the source to which connection need to
+                          be made.
+    @param[in] is_io_thread  To determine if its IO or Monitor IO thread.
+
+    @retval 0    Success connecting to the source.
+    @retval #    Error connecting to the source.
+*/
+int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
+                      bool suppress_warnings,
+                      const std::string &host = std::string(),
+                      const uint port = 0, bool is_io_thread = true);
+
 bool net_request_file(NET *net, const char *fname);
 
 extern bool replicate_same_server_id;
@@ -564,9 +598,21 @@ bool mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, bool force);
 bool sql_slave_killed(THD *thd, Relay_log_info *rli);
 
+/*
+  Check if the error is caused by network.
+  @param[in]   errorno   Number of the error.
+  RETURNS:
+  true         network error
+  false        not network error
+*/
+bool is_network_error(uint errorno);
+
 /* masks for start/stop operations on io and sql slave threads */
 #define SLAVE_IO 1
 #define SLAVE_SQL 2
+#define SLAVE_MONITOR 4
+
+int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type);
 
 /**
   @} (end of group Replication)

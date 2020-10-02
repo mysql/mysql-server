@@ -129,18 +129,17 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION
 --echo #    according to wl#12649 FR8.
 --echo #
 SET @old_debug= @@global.debug;
-SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender';
+SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender, async_conn_failover_check_interim_sender';
 
 --let $rpl_server_number= 1
 --source include/rpl_stop_server.inc
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
 
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
 
 # add a new sender with higher weight
 --eval SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 50001, '', 80);
@@ -195,7 +194,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_connect_new_sender';
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender';
+SET GLOBAL debug = '+d,async_conn_failover_wait_new_4sender';
 
 --let $rpl_server_number= 3
 --source include/rpl_stop_server.inc
@@ -203,12 +202,12 @@ SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender';
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
---let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_3
+--let $wait_condition= SELECT COUNT(*) = 0 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_3
 --source include/wait_condition.inc
 
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
-SET GLOBAL debug = '-d,async_conn_failover_wait_new_sender';
-SET DEBUG_SYNC= 'now SIGNAL continue_connect_new_sender';
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_4sender_selection';
+SET GLOBAL debug = '-d,async_conn_failover_wait_new_4sender';
+SET DEBUG_SYNC= 'now SIGNAL continue_connect_new_4sender';
 
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=50001
 --source include/wait_condition.inc
@@ -226,14 +225,22 @@ DROP TABLE t1;
 --source include/rpl_connection.inc
 
 SET GLOBAL debug= @old_debug;
+
 --let $slave_error_param= Last_IO_Errno
 --let $slave_io_errno=2003
 --source include/stop_slave.inc
+--let $rpl_reset_slave_all= 1
 --source include/rpl_reset_slave.inc
+--let $rpl_reset_slave_all=
 
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_1, '');
+--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_3, '');
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 40001, '');
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 50001, '');
 
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
 
 --let $rpl_server_number= 3
 --source include/rpl_start_server.inc

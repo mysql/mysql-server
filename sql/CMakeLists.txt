@@ -925,7 +925,9 @@ SET (SLAVE_SOURCE
   rpl_applier_reader.cc
   rpl_async_conn_failover.cc
   rpl_async_conn_failover_table_operations.cc
+  rpl_async_conn_failover_add_managed_udf.cc
   rpl_async_conn_failover_add_source_udf.cc
+  rpl_async_conn_failover_delete_managed_udf.cc
   rpl_async_conn_failover_delete_source_udf.cc
   rpl_channel_service_interface.cc
   rpl_channel_credentials.cc
@@ -937,9 +939,11 @@ SET (SLAVE_SOURCE
   rpl_info_table.cc
   rpl_info_table_access.cc
   rpl_info_values.cc
+  rpl_io_monitor.cc
   rpl_mi.cc
   rpl_msr.cc
   rpl_mts_submode.cc
+  rpl_mysql_connect.cc
   rpl_reporting.cc
   rpl_rli.cc
   rpl_rli_pdb.cc

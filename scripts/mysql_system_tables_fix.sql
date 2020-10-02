@@ -805,6 +805,7 @@ ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover STATS_PERSISTENT=0;
+ALTER TABLE replication_asynchronous_connection_failover_managed STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
 #
@@ -850,6 +851,15 @@ ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLA
 
 ALTER TABLE slave_master_info ADD Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.';
 
+-- This would add the Managed_name column to
+-- replication_asynchronous_connection_failover table on upgrade from older
+-- mysql version.
+ALTER TABLE replication_asynchronous_connection_failover
+  ADD Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the group which this server belongs to.',
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(Channel_name, Host, Port, Network_namespace, Managed_name),
+  ADD KEY(Channel_name, Managed_name);
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -873,6 +883,13 @@ ALTER TABLE slave_master_info
   MODIFY COLUMN Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE
   COMMENT 'Indicates whether the channel connection failover is enabled.'
   AFTER Tls_ciphersuites;
+
+-- This would position the Managed_name column after Weight column.
+ALTER TABLE replication_asynchronous_connection_failover
+  MODIFY COLUMN Managed_name CHAR(64) CHARACTER SET utf8
+  COLLATE utf8_general_ci NOT NULL DEFAULT ''
+  COMMENT 'The name of the group which this server belongs to.'
+  AFTER Weight;
 
 # Columns added to keep information about the replication applier thread
 # privilege context user
@@ -1258,6 +1275,7 @@ ALTER TABLE mysql.slave_relay_log_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_master_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
+ALTER TABLE mysql.replication_asynchronous_connection_failover_managed TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
@@ -1327,6 +1345,7 @@ ALTER TABLE server_cost ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_asynchronous_connection_failover_managed ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;

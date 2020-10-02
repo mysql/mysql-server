@@ -752,6 +752,11 @@ void Master_info::channel_wrlock() {
   m_channel_lock->wrlock();
 }
 
+int Master_info::channel_trywrlock() {
+  channel_map.assert_some_lock();
+  return m_channel_lock->trywrlock();
+}
+
 void Master_info::wait_until_no_reference(THD *thd) {
   PSI_stage_info *old_stage = nullptr;
 

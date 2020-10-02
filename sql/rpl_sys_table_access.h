@@ -28,7 +28,9 @@
 #include "sql/table.h"
 #include "thr_lock.h"
 
+class Json_wrapper;
 class THD;
+struct TABLE;
 
 /**
   @class Rpl_sys_table_access
@@ -41,8 +43,12 @@ class Rpl_sys_table_access : public System_table_access {
  public:
   /**
     Construction.
+    @param[in]  schema_name   Database where the table resides
+    @param[in]  table_name    Table to be openned
+    @param[in]  max_num_field Maximum number of fields
   */
-  Rpl_sys_table_access() {}
+  Rpl_sys_table_access(const std::string &schema_name,
+                       const std::string &table_name, uint max_num_field);
 
   /**
     Destruction. All opened tables with the open_tables are closed during
@@ -54,25 +60,24 @@ class Rpl_sys_table_access : public System_table_access {
     Creates new thread/session context (THD) and open's table on class object
     creation.
 
-    @param[in]  db            Database where the table resides
-    @param[in]  table         Table to be openned
-    @param[in]  max_num_field Maximum number of fields
     @param[in]  lock_type     How to lock the table
 
     @retval true  if there is error
     @retval false if there is no error
   */
-  bool init(std::string db, std::string table, uint max_num_field,
-            enum thr_lock_type lock_type);
+  bool open(enum thr_lock_type lock_type);
 
   /**
     All opened tables with the open_tables are closed and removes
-    THD created in init().
+    THD created in close().
+
+    @param[in]  error         State that there was a error on the table
+                              operations
 
     @retval true  if there is error
     @retval false if there is no error
   */
-  bool deinit();
+  bool close(bool error);
 
   /**
     Get TABLE object created for the table access purposes.
@@ -101,6 +106,114 @@ class Rpl_sys_table_access : public System_table_access {
   */
   void before_open(THD *thd) override;
 
+  /**
+    Stores provided string to table's field.
+
+    @param[in]  field        Field class object
+    @param[in]  fld          The std::string value to be saved.
+    @param[in]  cs           Charset info
+
+    @retval true   Error
+    @retval false  Success
+  */
+  bool store_field(Field *field, std::string fld,
+                   CHARSET_INFO *cs = &my_charset_bin);
+
+  /**
+    Stores provided integer to table's field.
+
+    @param[in]  field        Field class object
+    @param[in]  fld          The long long value to be saved.
+    @param[in]  unsigned_val If value is unsigned.
+
+    @retval true   Error
+    @retval false  Success
+  */
+  bool store_field(Field *field, long long fld, bool unsigned_val = true);
+
+  /**
+    Stores provided Json to table's field.
+
+    @param[in]  field        Field class object
+    @param[in]  wrapper      The Json_wrapper class object value
+
+    @retval true   Error
+    @retval false  Success
+  */
+  bool store_field(Field *field, const Json_wrapper &wrapper);
+
+  /**
+    Retrieves string field from provided table's field.
+
+    @param[in]  field        Field class object
+    @param[in]  fld          The std::string value to be retrieved.
+    @param[in]  cs           Charset info
+
+    @retval true   Error
+    @retval false  Success
+  */
+  bool get_field(Field *field, std::string &fld,
+                 CHARSET_INFO *cs = &my_charset_bin);
+
+  /**
+    Retrieves long long integer field from provided table's field.
+
+    @param[in]  field        Field class object
+    @param[in]  fld          The uint value to be retrieved.
+
+    @retval true   Error
+    @retval false  Success
+  */
+  bool get_field(Field *field, uint &fld);
+
+  /**
+    Retrieves Json field from provided table's field.
+
+    @param[in]  field        Field class object
+    @param[in]  wrapper      The retrieved field would be saved in
+                             Json_wrapper format.
+
+    @retval true   Error
+    @retval false  Success
+  */
+  bool get_field(Field *field, Json_wrapper &wrapper);
+
+  std::string get_field_error_msg(std::string field_name) const;
+
+  static void handler_write_row_func(Rpl_sys_table_access &table_op,
+                                     bool &err_val, std::string &err_msg,
+                                     uint table_index = 0,
+                                     key_part_map keypart_map = HA_WHOLE_KEY);
+
+  static void handler_delete_row_func(Rpl_sys_table_access &table_op,
+                                      bool &err_val, std::string &err_msg,
+                                      uint table_index = 0,
+                                      key_part_map keypart_map = HA_WHOLE_KEY);
+
+  template <class F, class... Ts, std::size_t... Is>
+  static void for_each_in_tuple(std::tuple<Ts...> &tuple, F func,
+                                std::index_sequence<Is...>) {
+    using tuple_list = int[255];
+    (void)tuple_list{0, ((void)func(Is, std::get<Is>(tuple)), 0)...};
+  }
+
+  template <class F, class... Ts>
+  static void for_each_in_tuple(std::tuple<Ts...> &tuple, F func) {
+    for_each_in_tuple(tuple, func, std::make_index_sequence<sizeof...(Ts)>());
+  }
+
+  template <class F, class... Ts, std::size_t... Is>
+  static void for_each_in_tuple(const std::tuple<Ts...> &tuple, F func,
+                                std::index_sequence<Is...>) {
+    using tuple_list = int[255];
+    (void)tuple_list{0, ((void)func(Is, std::get<Is>(tuple)), 0)...};
+  }
+
+  template <class F, class... Ts>
+  static void for_each_in_tuple(const std::tuple<Ts...> &tuple, F func) {
+    for_each_in_tuple(tuple, func, std::make_index_sequence<sizeof...(Ts)>());
+  }
+
  protected:
   /* THD created for TableAccess object purpose. */
   THD *m_thd{nullptr};
@@ -119,5 +232,10 @@ class Rpl_sys_table_access : public System_table_access {
 
   /* Save the lock info. */
   Open_tables_backup m_backup;
+
+  std::string m_schema_name;
+  std::string m_table_name;
+  uint m_max_num_field;
 };
+
 #endif /* RPL_SYS_TABLE_ACCESS_INCLUDED */

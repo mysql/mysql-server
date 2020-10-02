@@ -24,6 +24,7 @@ mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.replication_asynchronous_connection_failover OK
+mysql.replication_asynchronous_connection_failover_managed OK
 mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
@@ -110,6 +111,9 @@ status   : OK
 mysql.replication_asynchronous_connection_failover
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.replication_asynchronous_connection_failover_managed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.role_edges
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -175,6 +179,7 @@ mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.replication_asynchronous_connection_failover OK
+mysql.replication_asynchronous_connection_failover_managed OK
 mysql.role_edges                                   OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
@@ -252,6 +257,9 @@ mysql.proxies_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.replication_asynchronous_connection_failover
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
+mysql.replication_asynchronous_connection_failover_managed
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.role_edges

@@ -9445,6 +9445,12 @@ WARN_UNSUPPORTED_ACL_TABLES_READ
 ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL
   eng "The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave."
 
+ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT
+  eng "STOP REPLICA command execution is incomplete: Replica Monitor thread got the stop signal, thread is busy, Monitor thread will stop once the current task is complete."
+
+ER_STARTING_REPLICA_MONITOR_IO_THREAD
+  eng "The Replica Monitor thread failed to start."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

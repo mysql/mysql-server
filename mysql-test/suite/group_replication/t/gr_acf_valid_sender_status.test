@@ -1,0 +1,233 @@
+#
+# Validate that when replica IO thread connects to a source which is part of a
+# replication group, the replication asynchronous connection failover feature
+# is enabled on the replica and Managed_type of source is  'GroupReplication',
+# then group members with status ONLINE AND RECOVERY are added to the list of
+# sources of the replica and warning ER_RPL_ASYNC_SENDER_ADDED is logged.
+#
+# Test:
+#   0. This test requires 4 servers:
+#        server1: primary
+#        server2: secondary
+#        server3: secondary (blocked in RECOVERY state)
+#        server4: single server replica
+#   1. Bootstrap GR on server1 and join server2
+#   2. Get server3 pid to later expel it from the group
+#   3. Add asynchronous connection failover server between server4 and server1
+#   4. Create and start new channel ch1_4: server4(slave), server1(master)
+#   5. Confirm server1 and  server2 members of group are added to
+#      performance_schema.replication_asynchronous_connection_failover.
+#   6. Validate that server1 and server2 entries are logged with
+#      ER_RPL_ASYNC_SENDER_ADDED on error log
+#   7. Lock server3 on recovery and confirm it was added to
+#      performance_schema.replication_asynchronous_connection_failover.
+#   8. Validate that server1, server2 and server3 entries are logged with
+#      ER_RPL_ASYNC_SENDER_ADDED on error log
+#   9. Unlock recovery on server3 and confirm it will continue on
+#      performance_schema.replication_asynchronous_connection_failover.
+#   10. Change of server status will not cause to be logged any extra
+#       message
+#   11. Clean Up.
+#
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap GR on server1 and join server2
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $_tmp_gr_group_name= `SELECT @@GLOBAL.group_replication_group_name`
+
+INSERT INTO test.t1 (b) VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Get server3 pid to later expel it from the group
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+
+--let $member3_uuid = `SELECT @@GLOBAL.server_uuid`
+
+
+--echo
+--echo # 3. Add asynchronous connection failover server between server4 and server1
+--echo
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $_tmp_gr_group_name FAILOVER_GROUP_NAME
+--eval SELECT asynchronous_connection_failover_add_managed('ch1_4', 'GroupReplication', '$_tmp_gr_group_name', '127.0.0.1', $SERVER_MYPORT_1, '', 80, 60);
+
+--echo
+--echo # 4. Create and start new channel ch1_4: server4(slave), server1(master)
+--echo
+
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=$SERVER_MYPORT_1, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2 FOR CHANNEL 'ch1_4'
+
+--let $rpl_channel_name='ch1_4'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--echo
+--echo # 5. Confirm server1 and  server2 members of group are added to
+--echo #    performance_schema.replication_asynchronous_connection_failover.
+--echo
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover;
+--source include/wait_condition.inc
+
+--let $assert_text= Verify server1 is on replication_asynchronous_connection_failover
+--let $assert_cond= "[SELECT count(*) COUNT FROM performance_schema.replication_asynchronous_connection_failover WHERE PORT=$SERVER_MYPORT_1, COUNT, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Verify server2 is on replication_asynchronous_connection_failover
+--let $assert_cond= "[SELECT count(*) COUNT FROM performance_schema.replication_asynchronous_connection_failover WHERE PORT=$SERVER_MYPORT_2, COUNT, 1]" = "1"
+--source include/assert.inc
+
+--let $assert_text= Verify server3 is not on replication_asynchronous_connection_failover
+--let $assert_cond= "[SELECT count(*) COUNT FROM performance_schema.replication_asynchronous_connection_failover WHERE PORT=$SERVER_MYPORT_3, COUNT, 1]" = "0"
+--source include/assert.inc
+
+
+--echo
+--echo # 6. Validate that server1 and server2 entries are logged with
+--echo #    ER_RPL_ASYNC_SENDER_ADDED on error log
+--echo
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.error_log WHERE error_code='MY-013680' AND data LIKE "%for channel 'ch1_4' has joined the group%"
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 7. Lock server3 on recovery and confirm it was added to
+--echo #    performance_schema.replication_asynchronous_connection_failover.
+--echo
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+LOCK TABLES t1 READ;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover;
+--source include/wait_condition.inc
+
+--let $assert_text= Verify server3 is on replication_asynchronous_connection_failover
+--let $assert_cond= "[SELECT count(*) COUNT FROM performance_schema.replication_asynchronous_connection_failover WHERE PORT=$SERVER_MYPORT_3, COUNT, 1]" = "1"
+--source include/assert.inc
+
+
+--echo
+--echo # 8. Validate that server1, server2 and server3 entries are logged with
+--echo #    ER_RPL_ASYNC_SENDER_ADDED on error log
+--echo
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.error_log WHERE error_code='MY-013680' AND data LIKE "%for channel 'ch1_4' has joined the group%"
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 9. Unlock recovery on server3 and confirm it will continue on
+--echo #    performance_schema.replication_asynchronous_connection_failover.
+--echo
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover;
+--source include/wait_condition.inc
+
+--echo
+--echo # 10. Change of server status will not cause to be logged any extra
+--echo #     message
+--echo
+
+--let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.error_log WHERE error_code='MY-013680' AND data LIKE "%for channel 'ch1_4' has joined the group%"
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 11. Clean Up.
+--echo
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The source .* for channel 'ch1_4' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_channel_name='ch1_4'
+--source include/stop_slave.inc
+
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--replace_result $group_replication_group_name GROUP_NAME
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1_4', '$group_replication_group_name')
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/group_replication_end.inc

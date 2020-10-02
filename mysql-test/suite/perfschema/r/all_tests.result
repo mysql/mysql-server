@@ -25,12 +25,15 @@ delete from t2 where t2.test_name in (select t1.test_name from t1);
 select test_name as `MISSING DDL/DML TESTS` from t2;
 MISSING DDL/DML TESTS
 ddl_replication_asynchronous_connection_failover.test
+ddl_replication_asynchronous_connection_failover_managed.test
 dml_replication_asynchronous_connection_failover.test
+dml_replication_asynchronous_connection_failover_managed.test
 idx_binary_log_transaction_compression_stats.test
 idx_log_status.test
 idx_replication_applier_filters.test
 idx_replication_applier_global_filters.test
 idx_replication_asynchronous_connection_failover.test
+idx_replication_asynchronous_connection_failover_managed.test
 idx_user_defined_functions.test
 drop table t1;
 drop table t2;

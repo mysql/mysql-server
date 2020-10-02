@@ -29,6 +29,11 @@
 #include "sql/sql_class.h"
 #include "sql/udf_service_impl.h"
 
+#include "sql/rpl_async_conn_failover_add_managed_udf.h"
+#include "sql/rpl_async_conn_failover_add_source_udf.h"
+#include "sql/rpl_async_conn_failover_delete_managed_udf.h"
+#include "sql/rpl_async_conn_failover_delete_source_udf.h"
+
 bool Udf_service_impl::register_udf(Udf_data &udf) {
   DBUG_TRACE;
 
@@ -92,4 +97,37 @@ bool Udf_service_impl::deinit() {
   }
 
   return false;
+}
+
+Udf_load_service::Udf_load_service() { register_udf(); }
+
+Udf_load_service::~Udf_load_service() { unregister_udf(); }
+
+bool Udf_load_service::init() {
+  bool error{false};
+  for (auto udf : m_udfs_registered) {
+    if (udf->init()) error = true;
+  }
+  return error;
+}
+
+bool Udf_load_service::deinit() {
+  bool error{false};
+  for (auto udf : m_udfs_registered) {
+    if (udf->deinit()) error = true;
+  }
+  return error;
+}
+
+void Udf_load_service::register_udf() {
+  add<Rpl_async_conn_failover_add_source>();
+  add<Rpl_async_conn_failover_delete_source>();
+  add<Rpl_async_conn_failover_add_managed>();
+  add<Rpl_async_conn_failover_delete_managed>();
+}
+
+void Udf_load_service::unregister_udf() {
+  for (auto udf : m_udfs_registered) {
+    delete udf;
+  }
 }

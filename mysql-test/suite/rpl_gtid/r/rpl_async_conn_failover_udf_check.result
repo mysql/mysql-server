@@ -51,15 +51,18 @@ asynchronous_connection_failover_add_source('', '127.0.0.1', 3100)
 The UDF asynchronous_connection_failover_add_source() executed successfully.
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100);
+asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100)
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
 #
 # 7. Check correct string value is provided for network_namespace.
 #
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, 100);
 ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_source'; Wrong arguments: You need to specify correct value for network_namespace.
-include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is no row in performance_schema.replication_asynchronous_connection_failover']
 SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '');
 asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '')
-Error executing asynchronous_connection_failover_add_source() UDF function.
+The UDF asynchronous_connection_failover_add_source() executed successfully.
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
 #
 # 8. Check that the parameter count is greater than 3 and less then 4,
@@ -103,8 +106,7 @@ include/assert.inc ['The performance_schema.replication_asynchronous_connection_
 # 13. Delete non existing credentials.
 #
 SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 77100);
-asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 77100)
-Error no matching row was found to be deleted.
+ERROR HY000: asynchronous_connection_failover_delete_source UDF failed; Error no matching row was found to be deleted.
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
 #
 # 14. Verify user without SUPER or REPLICATION_SLAVE_ADMIN fails with
@@ -136,4 +138,5 @@ asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100)
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
 [connection master]
 DROP USER 'async_user';
+include/assert.inc ['There are 0 rows in performance_schema.replication_asynchronous_connection_failover']
 include/rpl_end.inc

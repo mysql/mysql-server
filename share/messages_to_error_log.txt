@@ -11109,6 +11109,39 @@ ER_INNODB_IO_WRITE_FAILED
 ER_LOG_COMPONENT_CANNOT_INIT
   eng "Log component %s failed to initialize."
 
+ER_RPL_ASYNC_CHANNEL_CANT_CONNECT
+  eng "The Monitor IO thread failed to connect to the source (host:%s port:%u network_namespace:%s) for channel '%s', thence it will try to connect to another source."
+
+ER_RPL_ASYNC_SENDER_ADDED
+  eng  "The source (host:%s port:%u network_namespace:%s) for channel '%s' has joined the group (group_name: %s), and so added its entry into replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_SENDER_REMOVED
+  eng "The source (host:%s port:%u network_namespace:%s) for channel '%s' has left the group (group_name: %s), and so removed its entry from replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST
+  eng "The Monitor IO thread detected that the source (host:%s port:%u network_namespace:%s) does not belong to the group majority, thence the channel '%s' will try to connect to another source."
+
+ER_RPL_ASYNC_CHANNEL_CANT_CONNECT_NO_QUORUM
+  eng "The IO thread detected that the source (host:%s port:%u network_namespace:%s) does not belong to the group majority, thence the channel '%s' will try to connect to another source."
+
+ER_RPL_ASYNC_EXECUTING_QUERY
+  eng "%s on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
+
+ER_RPL_REPLICA_MONITOR_IO_THREAD_EXITING
+  eng "Replica Monitor IO thread exiting."
+
+ER_RPL_ASYNC_MANAGED_NAME_REMOVED
+  eng "The group (group_name: %s) for the channel '%s' has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_MANAGED_NAME_ADDED
+  eng "The group (group_name: %s) for the channel '%s' has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_READ_FAILOVER_TABLE
+  eng "Error reading failover sources for channel '%s' from replication_asynchronous_connection_failover table."
+
+ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL
+  eng "Error %s the channel '%s', the operation will be automatically retried."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

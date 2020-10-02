@@ -1,0 +1,100 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap GR on server1 and join server2
+
+[connection server1]
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+INSERT INTO test.t1 (b) VALUES (1);
+[connection server2]
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+include/start_group_replication.inc
+
+# 2. Get server3 pid to later expel it from the group
+
+[connection server3]
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+
+# 3. Add asynchronous connection failover server between server4 and server1
+
+[connection server4]
+set session sql_log_bin=0;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+set session sql_log_bin=1;
+SELECT asynchronous_connection_failover_add_managed('ch1_4', 'GroupReplication', 'FAILOVER_GROUP_NAME', '127.0.0.1', SERVER_MYPORT_1, '', 80, 60);;
+asynchronous_connection_failover_add_managed('ch1_4', 'GroupReplication', 'FAILOVER_GROUP_NAME', '127.0.0.1', SERVER_MYPORT_1, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+
+# 4. Create and start new channel ch1_4: server4(slave), server1(master)
+
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, MASTER_PORT=SERVER_1_PORT, MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2 FOR CHANNEL 'ch1_4';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1_4']
+
+# 5. Confirm server1 and  server2 members of group are added to
+#    performance_schema.replication_asynchronous_connection_failover.
+
+include/assert.inc [Verify server1 is on replication_asynchronous_connection_failover]
+include/assert.inc [Verify server2 is on replication_asynchronous_connection_failover]
+include/assert.inc [Verify server3 is not on replication_asynchronous_connection_failover]
+
+# 6. Validate that server1 and server2 entries are logged with
+#    ER_RPL_ASYNC_SENDER_ADDED on error log
+
+[connection server4]
+
+# 7. Lock server3 on recovery and confirm it was added to
+#    performance_schema.replication_asynchronous_connection_failover.
+
+[connection server_3]
+LOCK TABLES t1 READ;
+[connection server3]
+include/start_group_replication.inc
+[connection server4]
+include/assert.inc [Verify server3 is on replication_asynchronous_connection_failover]
+
+# 8. Validate that server1, server2 and server3 entries are logged with
+#    ER_RPL_ASYNC_SENDER_ADDED on error log
+
+[connection server4]
+
+# 9. Unlock recovery on server3 and confirm it will continue on
+#    performance_schema.replication_asynchronous_connection_failover.
+
+[connection server_3]
+UNLOCK TABLES;
+[connection server4]
+
+# 10. Change of server status will not cause to be logged any extra
+#     message
+
+
+# 11. Clean Up.
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The source .* for channel 'ch1_4' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+SET SESSION sql_log_bin = 1;
+include/stop_slave.inc [FOR CHANNEL 'ch1_4']
+include/rpl_reset_slave.inc
+SELECT asynchronous_connection_failover_delete_managed('ch1_4', 'GROUP_NAME');
+asynchronous_connection_failover_delete_managed('ch1_4', 'GROUP_NAME')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+DROP TABLE t1;
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

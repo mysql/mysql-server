@@ -126,6 +126,7 @@ plugin
 procs_priv
 proxies_priv
 replication_asynchronous_connection_failover
+replication_asynchronous_connection_failover_managed
 role_edges
 server_cost
 servers
@@ -887,7 +888,7 @@ AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like '
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
 information_schema	48
-mysql	32
+mysql	33
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin

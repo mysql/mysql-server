@@ -27,8 +27,12 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/rpl_async_conn_failover_add_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
+#include "sql/rpl_io_monitor.h"
 
 const int DEFAULT_WEIGHT_VAL = 50;
+
+const std::string Rpl_async_conn_failover_add_source::m_udf_name =
+    "asynchronous_connection_failover_add_source";
 
 bool Rpl_async_conn_failover_add_source::init() {
   DBUG_TRACE;
@@ -59,8 +63,7 @@ char *Rpl_async_conn_failover_add_source::add_source(UDF_INIT *, UDF_ARGS *args,
                                                      unsigned char *error) {
   DBUG_TRACE;
   *error = 0;
-  Rpl_async_conn_failover_table_operations sql_operations(TL_WRITE,
-                                                          args->arg_count);
+  Rpl_async_conn_failover_table_operations sql_operations(TL_WRITE);
 
   auto err_val{false};    // error value
   std::string err_msg{};  // error message
@@ -78,11 +81,18 @@ char *Rpl_async_conn_failover_add_source::add_source(UDF_INIT *, UDF_ARGS *args,
   uint weight = (args->arg_count > 4) ? *((long long *)args->args[4])
                                       : DEFAULT_WEIGHT_VAL;
 
-  auto source_conn_details =
-      std::make_tuple(weight, channel, host, port, network_namespace);
-
   /* add row */
-  std::tie(err_val, err_msg) = sql_operations.insert_row(source_conn_details);
+  std::tie(err_val, err_msg) =
+      sql_operations.add_source(channel, host, port, network_namespace, weight);
+
+  if (err_val) {
+    *error = 1;
+    my_error(ER_UDF_ERROR, MYF(0), m_udf_name.c_str(), err_msg.c_str());
+  } else {
+    err_msg.assign(
+        "The UDF asynchronous_connection_failover_add_source() "
+        "executed successfully.");
+  }
 
   strcpy(result, err_msg.c_str());
   *length = err_msg.length();

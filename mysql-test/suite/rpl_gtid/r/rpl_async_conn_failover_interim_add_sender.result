@@ -59,7 +59,7 @@ include/assert.inc ['There are three rows in performance_schema.replication_asyn
 #    according to wl#12649 FR8.
 #
 SET @old_debug= @@global.debug;
-SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender';
+SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender, async_conn_failover_check_interim_sender';
 include/rpl_stop_server.inc [server_number=1]
 [connection server_2]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
@@ -94,12 +94,12 @@ include/assert_grep.inc [Assert that the IO thread tried two times connecting to
 #
 include/rpl_start_server.inc [server_number=1]
 [connection server_2]
-SET GLOBAL debug = '+d,async_conn_failover_wait_new_sender';
+SET GLOBAL debug = '+d,async_conn_failover_wait_new_4sender';
 include/rpl_stop_server.inc [server_number=3]
 [connection server_2]
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_sender_selection';
-SET GLOBAL debug = '-d,async_conn_failover_wait_new_sender';
-SET DEBUG_SYNC= 'now SIGNAL continue_connect_new_sender';
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_new_4sender_selection';
+SET GLOBAL debug = '-d,async_conn_failover_wait_new_4sender';
+SET DEBUG_SYNC= 'now SIGNAL continue_connect_new_4sender';
 #
 # 9. Clean up
 #
@@ -109,7 +109,18 @@ DROP TABLE t1;
 SET GLOBAL debug= @old_debug;
 include/stop_slave.inc
 include/rpl_reset_slave.inc
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
-DROP TABLE t1;
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 40001, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', 40001, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 50001, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', 50001, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+DROP TABLE IF EXISTS t1;
 include/rpl_start_server.inc [server_number=3]
 include/rpl_end.inc

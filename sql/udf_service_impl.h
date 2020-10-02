@@ -62,7 +62,7 @@ class Udf_service_impl {
   /* UDF registry service. */
   SERVICE_TYPE(registry) * m_registry{nullptr};
 
-  /* List of registered udfs. */
+  /* List of registered udfs name. */
   std::vector<std::string> m_udfs_registered;
 
  public:
@@ -113,6 +113,48 @@ class Udf_service_impl {
     @retval false  if all UDFs were unregistered
    */
   bool unregister_udf(const std::string udf_name);
+};
+
+/*
+  Used to load registered UDFs
+*/
+class Udf_load_service {
+ private:
+  /* List of registered udfs functions. */
+  std::vector<Udf_service_impl *> m_udfs_registered;
+
+  template <class T>
+  void add() {
+    T *obj = new T();
+    m_udfs_registered.emplace_back(obj);
+  }
+
+  void register_udf();
+
+  void unregister_udf();
+
+ public:
+  Udf_load_service();
+
+  ~Udf_load_service();
+
+  /**
+    Registers the Asynchronous Connection Failover's UDFs.
+    If there is an error registering any UDF, all installed UDFs are
+    unregistered.
+
+    @retval true if there was an error
+    @retval false if all UDFs were registered
+   */
+  bool init();
+
+  /**
+    Unregisters the Asynchronous Connection Failover's UDFs.
+
+    @retval true   if there was an error
+    @retval false  if all UDFs were unregistered
+   */
+  bool deinit();
 };
 
 #endif /* UDF_SERVICE_IMPL_H */

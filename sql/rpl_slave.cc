@@ -130,6 +130,7 @@
 #include "sql/rpl_info.h"
 #include "sql/rpl_info_factory.h"  // Rpl_info_factory
 #include "sql/rpl_info_handler.h"
+#include "sql/rpl_io_monitor.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"  // Multisource_info
 #include "sql/rpl_mts_submode.h"
@@ -285,14 +286,16 @@ enum enum_slave_apply_event_and_update_pos_retval {
 static int process_io_rotate(Master_info *mi, Rotate_log_event *rev);
 static bool wait_for_relay_log_space(Relay_log_info *rli);
 static inline bool io_slave_killed(THD *thd, Master_info *mi);
+static inline bool monitor_io_replica_killed(THD *thd, Master_info *mi);
 static inline bool is_autocommit_off_and_infotables(THD *thd);
-static int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type);
 static void print_slave_skip_errors(void);
-static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi);
+static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi,
+                        const std::string &host = std::string(),
+                        const uint port = 0);
 static int safe_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
-                          bool suppress_warnings);
-static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
-                             bool reconnect, bool suppress_warnings);
+                          bool suppress_warnings,
+                          const std::string &host = std::string(),
+                          const uint port = 0);
 static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi);
 static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
@@ -363,6 +366,7 @@ static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql) {
     mask                Return value here
     mi                  master_info for slave
     inverse             If set, returns which threads are not running
+    ignore_monitor_thread    If set, ignores monitor io thread
 
   IMPLEMENTATION
     Get a bit mask for which threads are running so that we can later restart
@@ -373,14 +377,28 @@ static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql) {
                 If inverse == 1, stopped threads
 */
 
-void init_thread_mask(int *mask, Master_info *mi, bool inverse) {
+void init_thread_mask(int *mask, Master_info *mi, bool inverse,
+                      bool ignore_monitor_thread) {
   bool set_io = mi->slave_running, set_sql = mi->rli->slave_running;
-  int tmp_mask = 0;
+  bool set_monitor{
+      Source_IO_monitor::get_instance().is_monitoring_process_running()};
+  int tmp_mask{0};
   DBUG_TRACE;
 
   if (set_io) tmp_mask |= SLAVE_IO;
   if (set_sql) tmp_mask |= SLAVE_SQL;
-  if (inverse) tmp_mask ^= (SLAVE_IO | SLAVE_SQL);
+  if (!ignore_monitor_thread && set_monitor &&
+      mi->is_source_connection_auto_failover()) {
+    tmp_mask |= SLAVE_MONITOR;
+  }
+
+  if (inverse) {
+    tmp_mask ^= (SLAVE_IO | SLAVE_SQL);
+    if (!ignore_monitor_thread && mi->is_source_connection_auto_failover()) {
+      tmp_mask ^= SLAVE_MONITOR;
+    }
+  }
+
   *mask = tmp_mask;
 }
 
@@ -416,7 +434,7 @@ void unlock_slave_threads(Master_info *mi) {
 static PSI_memory_key key_memory_rli_mts_coor;
 
 static PSI_thread_key key_thread_slave_io, key_thread_slave_sql,
-    key_thread_slave_worker;
+    key_thread_slave_worker, key_thread_replica_monitor_io;
 
 static PSI_thread_info all_slave_threads[] = {
     {&key_thread_slave_io, "slave_io",
@@ -424,6 +442,8 @@ static PSI_thread_info all_slave_threads[] = {
     {&key_thread_slave_sql, "slave_sql",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
     {&key_thread_slave_worker, "slave_worker",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_thread_replica_monitor_io, "replica_monitor",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
 
 static PSI_memory_info all_slave_memory[] = {{&key_memory_rli_mts_coor,
@@ -527,6 +547,10 @@ int init_slave() {
           mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
         else
           mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+
+        if (mi->is_source_connection_auto_failover())
+          thread_mask |= SLAVE_MONITOR;
+
         if (start_slave_threads(true /*need_lock_slave=true*/,
                                 false /*wait_for_start=false*/, mi,
                                 thread_mask)) {
@@ -1619,7 +1643,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
 
   if (!mi->inited) return 0; /* successfully do nothing */
   int error, force_all = (thread_mask & SLAVE_FORCE_ALL);
-  mysql_mutex_t *sql_lock = &mi->rli->run_lock, *io_lock = &mi->run_lock;
+  mysql_mutex_t *sql_lock{&mi->rli->run_lock}, *io_lock{&mi->run_lock};
   mysql_mutex_t *log_lock = mi->rli->relay_log.get_log_lock();
   /*
     Set it to a variable, so the value is shared by both stop methods.
@@ -1654,6 +1678,25 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
       return ER_ERROR_DURING_FLUSH_LOGS;
     }
   }
+
+  /*
+    Only stops the monitoring thread if this is the only failover channel
+    running.
+  */
+  if ((thread_mask & (SLAVE_MONITOR | SLAVE_FORCE_ALL)) &&
+      channel_map.get_number_of_connection_auto_failover_channels_running() ==
+          1) {
+    DBUG_PRINT("info", ("Terminating Monitor IO thread"));
+    if ((error = Source_IO_monitor::get_instance().terminate_monitoring_process(
+             true, 5)) &&
+        !force_all) {
+      if (error == 1) {
+        return ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT;
+      }
+      return error;
+    }
+  }
+
   if (thread_mask & (SLAVE_IO | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating IO thread"));
     mi->abort_slave = true;
@@ -1937,10 +1980,10 @@ end:
 
 bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
                          Master_info *mi, int thread_mask) {
-  mysql_mutex_t *lock_io = nullptr, *lock_sql = nullptr,
-                *lock_cond_io = nullptr, *lock_cond_sql = nullptr;
-  mysql_cond_t *cond_io = nullptr, *cond_sql = nullptr;
-  bool is_error = false;
+  mysql_mutex_t *lock_io{nullptr}, *lock_sql{nullptr}, *lock_cond_io{nullptr},
+      *lock_cond_sql{nullptr};
+  mysql_cond_t *cond_io{nullptr}, *cond_sql{nullptr};
+  bool is_error{false};
   DBUG_TRACE;
   DBUG_EXECUTE_IF("uninitialized_master-info_structure", mi->inited = false;);
 
@@ -1983,6 +2026,18 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
 #endif
         handle_slave_io, lock_io, lock_cond_io, cond_io, &mi->slave_running,
         &mi->slave_run_id, mi);
+
+  if (!is_error && (thread_mask & (SLAVE_IO | SLAVE_MONITOR)) &&
+      mi->is_source_connection_auto_failover() &&
+      !Source_IO_monitor::get_instance().is_monitoring_process_running()) {
+    is_error = Source_IO_monitor::get_instance().launch_monitoring_process(
+        key_thread_replica_monitor_io);
+
+    if (is_error)
+      terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
+                              rpl_stop_slave_timeout, need_lock_slave);
+  }
+
   if (!is_error && (thread_mask & SLAVE_SQL)) {
     /*
       MTS-recovery gaps gathering is placed onto common execution path
@@ -2002,7 +2057,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
           handle_slave_sql, lock_sql, lock_cond_sql, cond_sql,
           &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
     if (is_error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_IO,
+      terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
                               rpl_stop_slave_timeout, need_lock_slave);
   }
   return is_error;
@@ -2099,6 +2154,10 @@ static bool is_autocommit_off_and_infotables(THD *thd) {
            opt_rli_repository_id == INFO_REPOSITORY_TABLE))
              ? true
              : false;
+}
+
+static bool monitor_io_replica_killed(THD *thd, Master_info *mi) {
+  return Source_IO_monitor::get_instance().is_monitor_killed(thd, mi);
 }
 
 static bool io_slave_killed(THD *thd, Master_info *mi) {
@@ -2253,15 +2312,7 @@ const char *print_slave_db_safe(const char *db) {
   return (db ? db : "");
 }
 
-/*
-  Check if the error is caused by network.
-  @param[in]   errorno   Number of the error.
-  RETURNS:
-  true         network error
-  false        not network error
-*/
-
-static bool is_network_error(uint errorno) {
+bool is_network_error(uint errorno) {
   return errorno == CR_CONNECTION_ERROR || errorno == CR_CONN_HOST_ERROR ||
          errorno == CR_SERVER_GONE_ERROR || errorno == CR_SERVER_LOST ||
          errorno == ER_CON_COUNT_ERROR || errorno == ER_SERVER_SHUTDOWN ||
@@ -3867,7 +3918,7 @@ void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli) {
   init_slave_thread()
 */
 
-static int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
+int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
   DBUG_TRACE;
 #if !defined(DBUG_OFF)
   int simulate_error = 0;
@@ -5154,8 +5205,6 @@ extern "C" void *handle_slave_io(void *arg) {
   bool suppress_warnings;
   int ret;
   bool successfully_connected;
-  auto async_failover_enabled{false};
-  Async_conn_failover_manager async_conn_failover_manager;
 #ifndef DBUG_OFF
   uint retry_count_reg = 0, retry_count_dump = 0, retry_count_event = 0;
 #endif
@@ -5166,11 +5215,10 @@ extern "C" void *handle_slave_io(void *arg) {
     DBUG_TRACE;
 
     DBUG_ASSERT(mi->inited);
-  connect_init:
     mysql = nullptr;
-    async_failover_enabled = false;
 
     mysql_mutex_lock(&mi->run_lock);
+
     /* Inform waiting threads that slave has started */
     mi->slave_run_id++;
 
@@ -5221,6 +5269,7 @@ extern "C" void *handle_slave_io(void *arg) {
       goto err;
     }
 
+  connect_init:
     retry_count = 0;
     if (!(mi->mysql = mysql = mysql_init(nullptr))) {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
@@ -5254,7 +5303,6 @@ extern "C" void *handle_slave_io(void *arg) {
 #endif
 
     if (successfully_connected) {
-      async_conn_failover_manager.reset_pos();
       LogErr(SYSTEM_LEVEL, ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_STARTED,
              mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
              mi->get_io_rpl_log_name(),
@@ -5303,6 +5351,10 @@ extern "C" void *handle_slave_io(void *arg) {
     ret = get_master_version_and_clock(mysql, mi);
     if (!ret) ret = get_master_uuid(mysql, mi);
     if (!ret) ret = io_thread_init_commands(mysql, mi);
+
+    if (!ret && mi->is_source_connection_auto_failover()) {
+      ret = Async_conn_failover_manager::get_source_quorum_status(mysql, mi);
+    }
 
     if (ret == 1) /* Fatal error */
       goto err;
@@ -5588,14 +5640,32 @@ ignore_log_space_limit=%d",
   err:
     /*
       If source_connection_auto_failover (async connection failover) is enabled
-      and Replica IO thread is not killed but failed due to network error, then
-      async_failover_enabled is enabled so that it can setup a connection to the
-      new source after cleanup.
+      and Replica IO thread is not killed but failed due to network error, a
+      connection to another source is attempted.
     */
-    if (!io_slave_killed(thd, mi) && mi->is_source_connection_auto_failover() &&
-        mi->is_network_error()) {
+    if (mi->is_source_connection_auto_failover() &&
+        (!io_slave_killed(thd, mi) ||
+         (!io_slave_killed(thd, mi) && mi->is_network_error()))) {
       DBUG_EXECUTE_IF("async_conn_failover_crash", DBUG_SUICIDE(););
-      async_failover_enabled = true;
+
+      /* Get the sender to connect to. */
+      if (Async_conn_failover_manager::ACF_NO_SOURCES_ERROR !=
+          Async_conn_failover_manager::do_auto_conn_failover(mi->get_channel(),
+                                                             false)) {
+        /* Wait before reconnect to avoid resources starvation. */
+        my_sleep(1000000);
+
+        /* After waiting, recheck that a STOP REPLICA did not happen. */
+        if (!io_slave_killed(thd, mi)) {
+          /* Reconnect. */
+          if (mysql) {
+            thd->clear_active_vio();
+            mysql_close(mysql);
+            mi->mysql = nullptr;
+          }
+          goto connect_init;
+        }
+      }
     }
 
     // print the current replication position
@@ -5674,15 +5744,6 @@ ignore_log_space_limit=%d",
     mysql_cond_broadcast(&mi->stop_cond);  // tell the world we are done
     DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
     mysql_mutex_unlock(&mi->run_lock);
-
-    /*
-      Setup channel if async conn failover has replaced network configuration
-      details with new choosen source.
-    */
-    if (async_failover_enabled &&
-        !async_conn_failover_manager.do_auto_conn_failover(mi)) {
-      goto connect_init;
-    }
   }
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -8020,23 +8081,16 @@ void slave_io_thread_detach_vio() {
     #   Error
 */
 
-static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi) {
+static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi,
+                        const std::string &host, const uint port) {
   DBUG_TRACE;
 
-  return connect_to_master(thd, mysql, mi, false, false);
+  return connect_to_master(thd, mysql, mi, false, false, host, port);
 }
 
-/*
-  SYNPOSIS
-    connect_to_master()
-
-  IMPLEMENTATION
-    Try to connect until successful or slave killed or we have retried
-    mi->retry_count times
-*/
-
-static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
-                             bool reconnect, bool suppress_warnings) {
+int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
+                      bool suppress_warnings, const std::string &host,
+                      const uint port, bool is_io_thread) {
   int slave_was_killed = 0;
   int last_errno = -2;  // impossible error
   ulong err_count = 0;
@@ -8133,7 +8187,7 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
   DBUG_PRINT("info", ("Set preference to get public key from master"));
   mysql_options(mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY, &mi->get_public_key);
 
-  if (!mi->is_start_user_configured())
+  if (is_io_thread && !mi->is_start_user_configured())
     LogErr(WARNING_LEVEL, ER_RPL_SLAVE_INSECURE_CHANGE_MASTER);
 
   if (mi->get_password(password, &password_size)) {
@@ -8160,11 +8214,17 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
                  "binary_log_listener");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "_client_replication_channel_name", mi->get_channel());
-  while (!(slave_was_killed = io_slave_killed(thd, mi)) &&
-         (reconnect ? mysql_reconnect(mysql) != 0
-                    : mysql_real_connect(mysql, mi->host, user, password,
-                                         nullptr, mi->port, nullptr,
-                                         client_flag) == nullptr)) {
+
+  const char *tmp_host = host.empty() ? mi->host : host.c_str();
+  uint tmp_port = (port == 0) ? mi->port : port;
+
+  while (
+      !(slave_was_killed = is_io_thread ? io_slave_killed(thd, mi)
+                                        : monitor_io_replica_killed(thd, mi)) &&
+      (reconnect
+           ? mysql_reconnect(mysql) != 0
+           : mysql_real_connect(mysql, tmp_host, user, password, nullptr,
+                                tmp_port, nullptr, client_flag) == nullptr)) {
     /*
        SHOW REPLICA STATUS will display the number of retries which
        would be real retry counts instead of mi->retry_count for
@@ -8172,12 +8232,14 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
     */
     last_errno = mysql_errno(mysql);
     suppress_warnings = false;
-    mi->report(ERROR_LEVEL, last_errno,
-               "error %s to master '%s@%s:%d'"
-               " - retry-time: %d retries: %lu message: %s",
-               (reconnect ? "reconnecting" : "connecting"), mi->get_user(),
-               mi->host, mi->port, mi->connect_retry, err_count + 1,
-               mysql_error(mysql));
+    if (is_io_thread) {
+      mi->report(ERROR_LEVEL, last_errno,
+                 "error %s to master '%s@%s:%d'"
+                 " - retry-time: %d retries: %lu message: %s",
+                 (reconnect ? "reconnecting" : "connecting"), mi->get_user(),
+                 tmp_host, tmp_port, mi->connect_retry, err_count + 1,
+                 mysql_error(mysql));
+    }
 
     /*
       By default we try forever. The reason is that failure will trigger
@@ -8186,28 +8248,32 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
       connect
     */
     if (++err_count == mi->retry_count) {
-      if (is_network_error(last_errno)) mi->set_network_error();
+      if (is_network_error(last_errno) && is_io_thread) mi->set_network_error();
       slave_was_killed = 1;
       DBUG_EXECUTE_IF("replica_retry_count_exceed", {
         rpl_slave_debug_point(DBUG_RPL_S_RETRY_COUNT_EXCEED, thd);
       });
       break;
     }
-    slave_sleep(thd, mi->connect_retry, io_slave_killed, mi);
+    slave_sleep(thd, mi->connect_retry,
+                is_io_thread ? io_slave_killed : monitor_io_replica_killed, mi);
   }
 
   if (!slave_was_killed) {
-    mi->clear_error();  // clear possible left over reconnect error
-    mi->reset_network_error();
+    if (is_io_thread) {
+      mi->clear_error();  // clear possible left over reconnect error
+      mi->reset_network_error();
+    }
+
     if (reconnect) {
       if (!suppress_warnings)
         LogErr(
             SYSTEM_LEVEL, ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_RESUMED,
-            mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
+            mi->get_for_channel_str(), mi->get_user(), tmp_host, tmp_port,
             mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
     } else {
       query_logger.general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
-                                     mi->get_user(), mi->host, mi->port);
+                                     mi->get_user(), tmp_host, tmp_port);
     }
 
     thd->set_active_vio(mysql->net.vio);
@@ -8226,9 +8292,10 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
 */
 
 static int safe_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
-                          bool suppress_warnings) {
+                          bool suppress_warnings, const std::string &host,
+                          const uint port) {
   DBUG_TRACE;
-  return connect_to_master(thd, mysql, mi, true, suppress_warnings);
+  return connect_to_master(thd, mysql, mi, true, suppress_warnings, host, port);
 }
 
 /*
@@ -8817,6 +8884,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
 
   if (slave_errno) {
     if ((slave_errno == ER_STOP_SLAVE_SQL_THREAD_TIMEOUT) ||
+        (slave_errno == ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT) ||
         (slave_errno == ER_STOP_SLAVE_IO_THREAD_TIMEOUT)) {
       push_warning(thd, Sql_condition::SL_NOTE, slave_errno,
                    ER_THD_NONCONST(thd, slave_errno));
@@ -8956,7 +9024,8 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
   mi->channel_wrlock();
 
   lock_slave_threads(mi);
-  init_thread_mask(&thread_mask, mi, false /* not inverse */);
+  init_thread_mask(&thread_mask, mi, false /* not inverse */,
+                   true /* ignore_monitor_thread */);
   if (thread_mask)  // We refuse if any slave thread is running
   {
     my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
@@ -9803,6 +9872,19 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       auto gtid_mode = global_gtid_mode.get();
       if (gtid_mode == Gtid_mode::ON && mi->is_auto_position()) {
         mi->set_source_connection_auto_failover();
+        /*
+          If IO thread is running and the monitoring thread is not, start
+          the monitoring thread.
+        */
+        if (mi->slave_running && !Source_IO_monitor::get_instance()
+                                      .is_monitoring_process_running()) {
+          if (Source_IO_monitor::get_instance().launch_monitoring_process(
+                  key_thread_replica_monitor_io)) {
+            error = ER_STARTING_REPLICA_MONITOR_IO_THREAD;
+            my_error(error, MYF(0));
+            goto err;
+          }
+        }
       } else {
         error = (gtid_mode == Gtid_mode::ON)
                     ? ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
@@ -9811,6 +9893,21 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         goto err;
       }
     } else {
+      /*
+        If this is the only channel with source_connection_auto_failover,
+        then stop the monitoring thread.
+      */
+      if (mi->is_source_connection_auto_failover() && mi->slave_running &&
+          channel_map
+                  .get_number_of_connection_auto_failover_channels_running() ==
+              1) {
+        if (Source_IO_monitor::get_instance().terminate_monitoring_process(true,
+                                                                           5)) {
+          error = ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT;
+          my_error(error, MYF(0));
+          goto err;
+        }
+      }
       mi->unset_source_connection_auto_failover();
     }
   }

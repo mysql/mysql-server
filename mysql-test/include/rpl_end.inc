@@ -129,6 +129,25 @@ if ($rpl_assert_transaction_length)
   }
 }
 
+# Assert that replication asynchronous connection failover tables are properly
+# clean on the tests that do use them.
+--let $_rpl_server= $rpl_server_count
+while ($_rpl_server)
+{
+  --let $rpl_connection_name= server_$_rpl_server
+  --source include/rpl_connection.inc
+
+  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover on server$_rpl_server'
+  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover, count, 1] = 0
+  --source include/assert.inc
+
+  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover_managed on server$_rpl_server'
+  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover_managed, count, 1] = 0
+  --source include/assert.inc
+
+  --dec $_rpl_server
+}
+
 if ($rpl_group_replication)
 {
   --let $_rpl_server= $rpl_server_count

@@ -123,6 +123,10 @@ mysql.replication_asynchronous_connection_failover
 ERROR
 Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover]
 @table_name
+mysql.replication_asynchronous_connection_failover_managed
+ERROR
+Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover_managed]
+@table_name
 mysql.role_edges
 ERROR
 Storage engine 'MyISAM' does not support system tables. [mysql.role_edges]
@@ -266,6 +270,8 @@ SEVERITY	ERRNO	MESSAGE
 Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.proxies_priv]
 SEVERITY	ERRNO	MESSAGE
 Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover]
+SEVERITY	ERRNO	MESSAGE
+Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.replication_asynchronous_connection_failover_managed]
 SEVERITY	ERRNO	MESSAGE
 Warning	1726	Storage engine 'MyISAM' does not support system tables. [mysql.role_edges]
 SEVERITY	ERRNO	MESSAGE

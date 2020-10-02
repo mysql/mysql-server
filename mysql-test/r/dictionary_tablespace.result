@@ -51,6 +51,7 @@ plugin	mysql
 procs_priv	mysql
 proxies_priv	mysql
 replication_asynchronous_connection_failover	mysql
+replication_asynchronous_connection_failover_managed	mysql
 resource_groups	mysql
 role_edges	mysql
 routines	mysql
@@ -120,6 +121,7 @@ plugin
 procs_priv
 proxies_priv
 replication_asynchronous_connection_failover
+replication_asynchronous_connection_failover_managed
 resource_groups
 role_edges
 routines

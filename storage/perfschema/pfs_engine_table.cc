@@ -124,6 +124,7 @@
 #include "storage/perfschema/table_replication_connection_status.h"
 #include "storage/perfschema/table_replication_group_member_stats.h"
 #include "storage/perfschema/table_replication_group_members.h"
+#include "storage/perfschema/table_rpl_async_connection_failover_managed.h"
 #include "storage/perfschema/table_session_account_connect_attrs.h"
 #include "storage/perfschema/table_session_connect_attrs.h"
 #include "storage/perfschema/table_session_status.h"
@@ -660,6 +661,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_replication_applier_filters::m_share,
     &table_replication_applier_global_filters::m_share,
     &table_replication_asynchronous_connection_failover::m_share,
+    &table_rpl_async_connection_failover_managed::m_share,
     &table_log_status::m_share,
 
     &table_prepared_stmt_instances::m_share,
@@ -1516,6 +1518,12 @@ void PFS_engine_index::read_key(const uchar *key, uint key_len,
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[3].field->field_name,
                                   m_key_ptr_4->m_name) == 0);
     m_key_ptr_4->read(reader, find_flag);
+  }
+
+  if (m_key_ptr_5 != nullptr) {
+    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[4].field->field_name,
+                                  m_key_ptr_5->m_name) == 0);
+    m_key_ptr_5->read(reader, find_flag);
   }
 
   m_fields = reader.m_parts_found;

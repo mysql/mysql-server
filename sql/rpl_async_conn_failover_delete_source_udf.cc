@@ -27,6 +27,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/rpl_async_conn_failover_delete_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
+#include "sql/rpl_io_monitor.h"
+
+const std::string Rpl_async_conn_failover_delete_source::m_udf_name =
+    "asynchronous_connection_failover_delete_source";
 
 bool Rpl_async_conn_failover_delete_source::init() {
   DBUG_TRACE;
@@ -56,8 +60,7 @@ char *Rpl_async_conn_failover_delete_source::delete_source(
   std::string err_msg{};  // error message returned during delete row operation
 
   {
-    Rpl_async_conn_failover_table_operations sql_operations(TL_WRITE,
-                                                            args->arg_count);
+    Rpl_async_conn_failover_table_operations sql_operations(TL_WRITE);
 
     std::string channel(args->args[0], args->lengths[0]);  // channel name
     std::string host(args->args[1], args->lengths[1]);     // hostname
@@ -68,11 +71,18 @@ char *Rpl_async_conn_failover_delete_source::delete_source(
     if (args->arg_count > 3 && args->lengths[3])
       network_namespace.assign(args->args[3], args->lengths[3]);
 
-    auto source_conn_details =
-        std::make_tuple(0, channel, host, port, network_namespace);
-
     /* delete row */
-    std::tie(err_val, err_msg) = sql_operations.delete_row(source_conn_details);
+    std::tie(err_val, err_msg) =
+        sql_operations.delete_source(channel, host, port, network_namespace);
+  }
+
+  if (err_val) {
+    *error = 1;
+    my_error(ER_UDF_ERROR, MYF(0), m_udf_name.c_str(), err_msg.c_str());
+  } else {
+    err_msg.assign(
+        "The UDF asynchronous_connection_failover_delete_source() "
+        "executed successfully.");
   }
 
   my_stpcpy(result, err_msg.c_str());
