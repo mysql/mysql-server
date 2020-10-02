@@ -675,6 +675,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
     @return true if the function item can have named parameters
   */
   virtual bool may_have_named_parameters() const { return false; }
+  bool is_non_const_over_literals(uchar *) override { return false; }
 
   bool check_function_as_value_generator(uchar *checker_args) override {
     if (is_deprecated()) {
@@ -2256,9 +2257,6 @@ class Item_func_get_lock final : public Item_int_func {
   Item_func_get_lock(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
 
-  table_map get_initial_pseudo_tables() const override {
-    return INNER_TABLE_BIT;
-  }
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "get_lock"; }
@@ -2269,6 +2267,7 @@ class Item_func_get_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -2286,10 +2285,6 @@ class Item_func_release_lock final : public Item_int_func {
 
  public:
   Item_func_release_lock(const POS &pos, Item *a) : Item_int_func(pos, a) {}
-
-  table_map get_initial_pseudo_tables() const override {
-    return INNER_TABLE_BIT;
-  }
   bool itemize(Parse_context *pc, Item **res) override;
 
   longlong val_int() override;
@@ -2300,6 +2295,7 @@ class Item_func_release_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -2315,10 +2311,6 @@ class Item_func_release_all_locks final : public Item_int_func {
 
  public:
   explicit Item_func_release_all_locks(const POS &pos) : Item_int_func(pos) {}
-
-  table_map get_initial_pseudo_tables() const override {
-    return INNER_TABLE_BIT;
-  }
   bool itemize(Parse_context *pc, Item **res) override;
 
   longlong val_int() override;
@@ -2327,6 +2319,7 @@ class Item_func_release_all_locks final : public Item_int_func {
     unsigned_flag = true;
     return false;
   }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -3297,6 +3290,7 @@ class Item_func_get_user_var : public Item_var_func,
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
   const char *func_name() const override { return "get_user_var"; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool eq(const Item *item, bool binary_cmp) const override;
 
  private:
@@ -3415,6 +3409,7 @@ class Item_func_get_system_var final : public Item_var_func {
   bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  bool is_non_const_over_literals(uchar *) override { return true; }
   enum Item_result result_type() const override;
   double val_real() override;
   longlong val_int() override;
@@ -3714,9 +3709,6 @@ class Item_func_is_free_lock final : public Item_int_func {
  public:
   Item_func_is_free_lock(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
-  table_map get_initial_pseudo_tables() const override {
-    return INNER_TABLE_BIT;
-  }
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "is_free_lock"; }
@@ -3726,6 +3718,7 @@ class Item_func_is_free_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -3743,9 +3736,6 @@ class Item_func_is_used_lock final : public Item_int_func {
  public:
   Item_func_is_used_lock(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
-  table_map get_initial_pseudo_tables() const override {
-    return INNER_TABLE_BIT;
-  }
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "is_used_lock"; }
@@ -3755,6 +3745,7 @@ class Item_func_is_used_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(

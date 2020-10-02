@@ -979,7 +979,7 @@ EXPLAIN SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1`
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXPLAIN FORMAT= JSON SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 EXPLAIN
 {
@@ -989,7 +989,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1`
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DROP TABLE t1;
 # complex subqueries
 CREATE TABLE t1 (a INT, b INT);

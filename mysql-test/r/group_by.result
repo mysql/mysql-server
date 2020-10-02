@@ -3447,7 +3447,8 @@ EXPLAIN SELECT MIN(t1.f3 ) FROM t1
 WHERE t1.f3 IN (SELECT t2.f1 FROM t2 WHERE NOT t1.f2 IS NOT NULL) AND t1.f1 IS NULL OR
 NOT t1 . f3 < 'q';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.f2' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select min(`test`.`t1`.`f3`) AS `MIN(t1.f3 )` from `test`.`t1` where (`test`.`t1`.`f3` >= 'q')
