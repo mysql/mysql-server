@@ -254,6 +254,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
     DAY_FUNC,
     DAYNAME_FUNC,
     TO_DAYS_FUNC,
+    TO_SECONDS_FUNC,
     DATE_FUNC,
     HOUR_FUNC,
     MINUTE_FUNC,

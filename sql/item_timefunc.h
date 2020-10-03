@@ -112,6 +112,7 @@ class Item_func_to_seconds final : public Item_int_func {
   Item_func_to_seconds(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "to_seconds"; }
+  enum Functype functype() const override { return TO_SECONDS_FUNC; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
