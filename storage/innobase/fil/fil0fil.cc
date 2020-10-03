@@ -5471,34 +5471,38 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     }
   }
 
-  bool atomic_write;
+  bool atomic_write{};
+  const auto sz = ulonglong{size * page_size.physical()};
+
+  ut_a(success);
+  success = false;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   if (type == FIL_TYPE_TEMPORARY || fil_fusionio_enable_atomic_write(file)) {
-    int ret = posix_fallocate(file.m_file, 0, size * page_size.physical());
-
-    if (ret != 0) {
-      ib::error(ER_IB_MSG_303, path, ulonglong{size * page_size.physical()},
-                ret);
-      success = false;
-    } else {
-      success = true;
+    int ret = 0;
+#ifdef UNIV_DEBUG
+    DBUG_EXECUTE_IF("fil_create_temp_tablespace_fail_fallocate", ret = -1;);
+    if (ret == 0)
+#endif /* UNIV_DEBUG */
+    {
+      ret = posix_fallocate(file.m_file, 0, sz);
     }
 
-    atomic_write = true;
-  } else {
-    atomic_write = false;
-
-    success = os_file_set_size(path, file, 0, size * page_size.physical(),
-                               srv_read_only_mode, true);
+    if (ret == 0) {
+      success = true;
+      atomic_write = true;
+    } else {
+      /* If posix_fallocate() fails for any reason, issue only a warning
+      and then fall back to os_file_set_size() */
+      ib::warn(ER_IB_MSG_303, path, sz, ret, strerror(errno));
+    }
   }
-#else
-  atomic_write = false;
-
-  success = os_file_set_size(path, file, 0, size * page_size.physical(),
-                             srv_read_only_mode, true);
-
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
+
+  if (!success) {
+    atomic_write = false;
+    success = os_file_set_size(path, file, 0, sz, srv_read_only_mode, true);
+  }
 
   if (!success) {
     os_file_close(file);
