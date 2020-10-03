@@ -409,6 +409,7 @@ SET(SQL_SHARED_SOURCES
   lock.cc
   locked_tables_list.cc
   locking_service.cc
+  locks/shared_spin_lock.cc
   log.cc
   mdl.cc
   mdl_context_backup.cc
@@ -927,6 +928,7 @@ TARGET_LINK_LIBRARIES(master binlog sql_main)
 
 SET (SLAVE_SOURCE
   dynamic_ids.cc
+  changestreams/apply/commit_order_queue.cc
   rpl_applier_reader.cc
   rpl_async_conn_failover.cc
   rpl_async_conn_failover_table_operations.cc

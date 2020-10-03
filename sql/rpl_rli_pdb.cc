@@ -1843,17 +1843,6 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
                             &silent)) {
       error = ER_LOCK_DEADLOCK;
     }
-#ifndef DBUG_OFF
-    else {
-      /*
-        The non-debug binary will not retry this transactions, stopping the
-        SQL thread because of the non-temporary error. But, as this situation
-        is not supposed to happen as described in the comment above, we will
-        fail an assert to ease the issue investigation when it happens.
-      */
-      if (DBUG_EVALUATE_IF("rpl_fake_cod_deadlock", 0, 1)) DBUG_ASSERT(false);
-    }
-#endif
   }
 
   if (!has_temporary_error(thd, error, &silent) ||

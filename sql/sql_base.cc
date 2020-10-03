@@ -110,8 +110,9 @@
 #include "sql/psi_memory_key.h"  // key_memory_TABLE
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"  // RUN_HOOK
-#include "sql/rpl_rli.h"      //Relay_log_information
+#include "sql/rpl_handler.h"                     // RUN_HOOK
+#include "sql/rpl_rli.h"                         //Relay_log_information
+#include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sp.h"               // Sroutine_hash_entry
 #include "sql/sp_cache.h"         // sp_cache_version
@@ -4097,7 +4098,7 @@ bool Open_table_context::request_backoff_action(
       is not possible.
   */
   if ((action_arg == OT_BACKOFF_AND_RETRY || action_arg == OT_FIX_ROW_TYPE) &&
-      m_has_locks) {
+      (has_commit_order_manager(m_thd) || m_has_locks)) {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     m_thd->mark_transaction_to_rollback(true);
     return true;

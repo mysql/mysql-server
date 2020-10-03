@@ -5965,6 +5965,10 @@ static void *handle_slave_worker(void *arg) {
     goto err;
   }
 
+  if (rli->get_commit_order_manager() != nullptr)
+    rli->get_commit_order_manager()->init_worker_context(
+        *w);  // Initialize worker context within Commit_order_manager
+
   mysql_mutex_lock(&w->jobs_lock);
   w->running_status = Slave_worker::RUNNING;
   mysql_cond_signal(&w->jobs_cond);
@@ -7294,8 +7298,8 @@ extern "C" void *handle_slave_sql(void *arg) {
     mysql_mutex_lock(&rli->info_thd_lock);
     rli->info_thd = nullptr;
     if (commit_order_mngr) {
-      delete commit_order_mngr;
       rli->set_commit_order_manager(nullptr);
+      delete commit_order_mngr;
     }
 
     mysql_mutex_unlock(&rli->info_thd_lock);

@@ -381,6 +381,16 @@ MYSQL_ADD_EXECUTABLE(rpl_channel_credentials-t rpl_channel_credentials-t.cc
   LINK_LIBRARIES rpl_channel_credentials_lib gunit_small
 )
 
+ADD_LIBRARY(rpl_commit_order_queue_lib STATIC
+  ${CMAKE_SOURCE_DIR}/sql/changestreams/apply/commit_order_queue.cc
+)
+
+MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
+  ENABLE_EXPORTS
+  ADD_TEST rpl_commit_order_queue
+  LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sql_main
+)
+
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
@@ -390,3 +400,6 @@ ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)
 ADD_SUBDIRECTORY(temptable)
 ADD_SUBDIRECTORY(binlogevents)
+ADD_SUBDIRECTORY(memory)
+ADD_SUBDIRECTORY(containers)
+ADD_SUBDIRECTORY(locks)
