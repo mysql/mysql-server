@@ -940,6 +940,7 @@ class Rows_event : public Binary_log_event {
   /** Post header content */
   Table_id m_table_id;
   uint16_t m_flags; /** Flags for row-level events */
+  unsigned long long m_flags_pos; /* The position of the m_flags */
 
   /* Body of the event */
   unsigned long m_width; /** The width of the columns bitmap */
@@ -949,6 +950,7 @@ class Rows_event : public Binary_log_event {
   std::vector<uint8_t> columns_before_image;
   std::vector<uint8_t> columns_after_image;
   std::vector<uint8_t> row;
+  unsigned long long m_rows_before_size; /* The length before row */
 
  public:
   class Extra_row_info {

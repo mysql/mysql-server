@@ -879,6 +879,11 @@ class Log_event {
                     bool is_more) const;
 #endif  // ifdef MYSQL_SERVER ... else
 
+#ifndef MYSQL_SERVER
+  bool is_flashback=false;
+  String output_buf; // Storing the event flashback output
+#endif
+
   void *operator new(size_t size);
 
   static void operator delete(void *ptr, size_t) { my_free(ptr); }
@@ -2734,6 +2739,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   void set_flags(flag_set flags_arg) { m_flags |= flags_arg; }
   void clear_flags(flag_set flags_arg) { m_flags &= ~flags_arg; }
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
+  void update_flags() { int2store(temp_buf + m_flags_pos, m_flags); }
 
   virtual Log_event_type
   get_general_type_code() = 0; /* General rows op type, no version */
@@ -2743,12 +2749,15 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
 #endif
 
 #ifndef MYSQL_SERVER
+  void change_to_flashback_event(PRINT_EVENT_INFO *print_event_info,
+                                 uchar *rows_buff, Log_event_type ev_type);
   void print_verbose(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info);
   size_t print_verbose_one_row(IO_CACHE *file, table_def *td,
                                PRINT_EVENT_INFO *print_event_info,
                                MY_BITMAP *cols_bitmap, const uchar *ptr,
                                const uchar *prefix,
-                               enum_row_image_type row_image_type);
+                               enum_row_image_type row_image_type,
+                               const bool no_fill_output=0);
 #endif
 
 #ifdef MYSQL_SERVER
@@ -3679,6 +3688,10 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
          (flush_stream ? (fflush(file) || ferror(file)) : 0) ||
          reinit_io_cache(cache, WRITE_CACHE, 0, false, true);
 }
+
+#ifndef MYSQL_SERVER
+bool copy_event_cache_to_string_and_reinit(IO_CACHE *cache, LEX_STRING *to);
+#endif
 
 #ifdef MYSQL_SERVER
 /*****************************************************************************

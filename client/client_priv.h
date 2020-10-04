@@ -175,7 +175,8 @@ enum options_client {
   OPT_MYSQL_BINARY_AS_HEX,
   OPT_LOAD_DATA_LOCAL_DIR,
   /* Add new option above this */
-  OPT_MAX_CLIENT_OPTION
+  OPT_FLASHBACK_TABLES,
+  OPT_MAX_CLIENT_OPTION,
 };
 
 /**

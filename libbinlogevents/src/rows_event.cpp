@@ -383,6 +383,7 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   } else {
     READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 6);
   }
+  m_flags_pos = reader().position();
   READER_TRY_SET(m_flags, read_and_letoh<uint16_t>);
 
   if (post_header_len == ROWS_HEADER_LEN_V2) {
@@ -453,6 +454,7 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   } else
     columns_after_image = columns_before_image;
 
+  m_rows_before_size = reader().position();  // Get the size that before SET part
   data_size = READER_CALL(available_to_read);
   READER_TRY_CALL(assign, &row, data_size);
   // JAG: TODO: Investigate and comment here about the need of this extra byte

@@ -1,0 +1,860 @@
+SET  binlog_row_image=full;
+# BINLOG_FORMAT = ROW
+# BINLOG_ROW_IMAGE = FULL
+#
+# Preparatory cleanup.
+#
+DROP TABLE IF EXISTS t1;
+#
+# We need a fixed timestamp to avoid varying results.
+#
+SET timestamp=1000000000;
+# < CASE 1 >
+# Delete all existing binary logs.
+#
+RESET MASTER;
+CREATE TABLE t1 (
+c01 tinyint,
+c02 smallint,
+c03 mediumint,
+c04 int,
+c05 bigint,
+c06 char(10),
+c07 varchar(20),
+c08 TEXT
+) ENGINE=InnoDB;
+# < CASE 1 >
+# Insert data to t1
+#
+INSERT INTO t1 VALUES(0,0,0,0,0,'','','');
+INSERT INTO t1 VALUES(1,2,3,4,5, "abc", "abcdefg", "abcedfghijklmnopqrstuvwxyz");
+INSERT INTO t1 VALUES(127, 32767, 8388607, 2147483647, 9223372036854775807, repeat('a', 10), repeat('a', 20), repeat('a', 255));
+# < CASE 1 >
+# Update t1
+#
+UPDATE t1 SET c01=100 WHERE c02=0 OR c03=3;
+# < CASE 1 >
+# Clear t1
+#
+DELETE FROM t1;
+FLUSH LOGS;
+# < CASE 1 >
+# Show mysqlbinlog result without -B
+#
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Start: binlog v 4, server v #.##.## created 010909  9:46:40 at startup
+ROLLBACK/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Previous-GTIDs
+# [empty]
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Anonymous_GTID	last_committed=0	sequence_number=1	rbr_only=no	original_committed_timestamp=X	immediate_commit_timestamp=X	transaction_length=X
+# original_commit_timestamp=X (X-X-X X:X:X.X GMT)
+# immediate_commit_timestamp=X (X-X-X X:X:X.X GMT)
+/*!80001 SET @@session.original_commit_timestamp=X*//*!*/;
+/*!80014 SET @@session.original_server_version=X*//*!*/;
+/*!80014 SET @@session.immediate_server_version=X*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
+use `test`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=X/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=X,@@session.collation_connection=X,@@session.collation_server=X/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+/*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
+/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
+CREATE TABLE t1 (
+c01 tinyint,
+c02 smallint,
+c03 mediumint,
+c04 int,
+c05 bigint,
+c06 char(10),
+c07 varchar(20),
+c08 TEXT
+) ENGINE=InnoDB
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Anonymous_GTID	last_committed=1	sequence_number=2	rbr_only=yes	original_committed_timestamp=X	immediate_commit_timestamp=X	transaction_length=X
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp=X (X-X-X X:X:X.X GMT)
+# immediate_commit_timestamp=X (X-X-X X:X:X.X GMT)
+/*!80001 SET @@session.original_commit_timestamp=X*//*!*/;
+/*!80014 SET @@session.original_server_version=X*//*!*/;
+/*!80014 SET @@session.immediate_server_version=X*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+COMMIT/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Anonymous_GTID	last_committed=2	sequence_number=3	rbr_only=yes	original_committed_timestamp=X	immediate_commit_timestamp=X	transaction_length=X
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp=X (X-X-X X:X:X.X GMT)
+# immediate_commit_timestamp=X (X-X-X X:X:X.X GMT)
+/*!80001 SET @@session.original_commit_timestamp=X*//*!*/;
+/*!80014 SET @@session.original_server_version=X*//*!*/;
+/*!80014 SET @@session.immediate_server_version=X*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+COMMIT/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Anonymous_GTID	last_committed=3	sequence_number=4	rbr_only=yes	original_committed_timestamp=X	immediate_commit_timestamp=X	transaction_length=X
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp=X (X-X-X X:X:X.X GMT)
+# immediate_commit_timestamp=X (X-X-X X:X:X.X GMT)
+/*!80001 SET @@session.original_commit_timestamp=X*//*!*/;
+/*!80014 SET @@session.original_server_version=X*//*!*/;
+/*!80014 SET @@session.immediate_server_version=X*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=127 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=8388607 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=2147483647 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='aaaaaaaaaa' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='aaaaaaaaaaaaaaaaaaaa' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+COMMIT/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Anonymous_GTID	last_committed=4	sequence_number=5	rbr_only=yes	original_committed_timestamp=X	immediate_commit_timestamp=X	transaction_length=X
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp=X (X-X-X X:X:X.X GMT)
+# immediate_commit_timestamp=X (X-X-X X:X:X.X GMT)
+/*!80001 SET @@session.original_commit_timestamp=X*//*!*/;
+/*!80014 SET @@session.original_server_version=X*//*!*/;
+/*!80014 SET @@session.immediate_server_version=X*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### SET
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### SET
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+COMMIT/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Anonymous_GTID	last_committed=5	sequence_number=6	rbr_only=yes	original_committed_timestamp=X	immediate_commit_timestamp=X	transaction_length=X
+/*!50718 SET TRANSACTION ISOLATION LEVEL READ COMMITTED*//*!*/;
+# original_commit_timestamp=X (X-X-X X:X:X.X GMT)
+# immediate_commit_timestamp=X (X-X-X X:X:X.X GMT)
+/*!80001 SET @@session.original_commit_timestamp=X*//*!*/;
+/*!80014 SET @@session.original_server_version=X*//*!*/;
+/*!80014 SET @@session.immediate_server_version=X*//*!*/;
+SET @@SESSION.GTID_NEXT= 'ANONYMOUS'/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=127 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=8388607 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=2147483647 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='aaaaaaaaaa' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='aaaaaaaaaaaaaaaaaaaa' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+COMMIT/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Rotate to binlog.000002  pos: 4
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC' /* added by mysqlbinlog */ /*!*/;
+DELIMITER ;
+# End of log file
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+# < CASE 1 >
+# Show mysqlbinlog result with -B
+#
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Start: binlog v 4, server v #.##.## created 010909  9:46:40 at startup
+ROLLBACK/*!*/;
+/*!50616 SET @@SESSION.GTID_NEXT='AUTOMATIC'*//*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Previous-GTIDs
+# [empty]
+# at #
+# at #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Rotate to binlog.000002  pos: 4
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+BEGIN/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=127 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=8388607 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=2147483647 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='aaaaaaaaaa' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='aaaaaaaaaaaaaaaaaaaa' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+BEGIN/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### SET
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=100 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+### SET
+###   @1=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+BEGIN/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=127 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=8388607 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=2147483647 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=9223372036854775807 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='aaaaaaaaaa' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='aaaaaaaaaaaaaaaaaaaa' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+BEGIN/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=2 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=3 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=4 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=5 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='abc' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='abcdefg' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='abcedfghijklmnopqrstuvwxyz' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Xid = #
+BEGIN/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @2=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
+###   @3=0 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
+###   @4=0 /* INT meta=0 nullable=1 is_null=0 */
+###   @5=0 /* LONGINT meta=0 nullable=1 is_null=0 */
+###   @6='' /* STRING(40) meta=65064 nullable=1 is_null=0 */
+###   @7='' /* VARSTRING(80) meta=80 nullable=1 is_null=0 */
+###   @8='' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  9:46:40 server id 1  end_log_pos # CRC32 XXX 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
+use `test`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=X/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=X,@@session.collation_connection=X,@@session.collation_server=X/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+/*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
+/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
+COMMIT /* added by mysqlbinlog *//*!*/;
+DELIMITER ;
+# End of log file
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+# < CASE 1 >
+# Insert data to t1
+#
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(0,0,0,0,0,'','','');
+INSERT INTO t1 VALUES(1,2,3,4,5, "abc", "abcdefg", "abcedfghijklmnopqrstuvwxyz");
+INSERT INTO t1 VALUES(127, 32767, 8388607, 2147483647, 9223372036854775807, repeat('a', 10), repeat('a', 20), repeat('a', 60));
+# < CASE 1 >
+# Delete all existing binary logs.
+#
+RESET MASTER;
+SELECT * FROM t1;
+c01	c02	c03	c04	c05	c06	c07	c08
+0	0	0	0	0			
+1	2	3	4	5	abc	abcdefg	abcedfghijklmnopqrstuvwxyz
+127	32767	8388607	2147483647	9223372036854775807	aaaaaaaaaa	aaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# < CASE 1 >
+# Operate some data
+#
+UPDATE t1 SET c01=20;
+UPDATE t1 SET c02=200;
+UPDATE t1 SET c03=2000;
+DELETE FROM t1;
+FLUSH LOGS;
+# < CASE 1 >
+# Flashback & Check the result
+#
+SELECT * FROM t1;
+c01	c02	c03	c04	c05	c06	c07	c08
+127	32767	8388607	2147483647	9223372036854775807	aaaaaaaaaa	aaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+1	2	3	4	5	abc	abcdefg	abcedfghijklmnopqrstuvwxyz
+0	0	0	0	0			
+RESET MASTER;
+# < CASE 2 >
+# UPDATE multi-rows in one event
+#
+BEGIN;
+UPDATE t1 SET c01=10 WHERE c01=0;
+UPDATE t1 SET c01=20 WHERE c01=10;
+COMMIT;
+FLUSH LOGS;
+# < CASE 2 >
+# Flashback & Check the result
+#
+SELECT * FROM t1;
+c01	c02	c03	c04	c05	c06	c07	c08
+127	32767	8388607	2147483647	9223372036854775807	aaaaaaaaaa	aaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+1	2	3	4	5	abc	abcdefg	abcedfghijklmnopqrstuvwxyz
+0	0	0	0	0			
+DROP TABLE t1;
+# < CASE 3 >
+# Self-referencing foreign keys
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, FOREIGN KEY my_fk(b) REFERENCES t1(a)) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 1), (3, 2), (4, 3);
+COMMIT;
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+RESET MASTER;
+DELETE FROM t1 ORDER BY a DESC;
+FLUSH LOGS;
+# < CASE 3 >
+# Flashback & Check the result
+#
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+DROP TABLE t1;
+# < CASE 4 >
+# Trigger
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 1), (3, 2), (4, 3);
+INSERT INTO t2 VALUES (6, 7), (7, 8), (8, 9);
+COMMIT;
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+SELECT * FROM t2;
+a	b
+6	7
+7	8
+8	9
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t2 WHERE a = NEW.b;
+RESET MASTER;
+INSERT INTO t1 VALUES (5, 6), (7, 8);
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+5	6
+7	8
+SELECT * FROM t2;
+a	b
+7	8
+FLUSH LOGS;
+# < CASE 4 >
+# Flashback & Check the result
+#
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+SELECT * FROM t2;
+a	b
+6	7
+7	8
+8	9
+DROP TRIGGER trg1;
+DROP TABLE t1;
+DROP TABLE t2;
+# < CASE 5 >
+# REPLCAE Queries
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE uk(b)) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 1), (3, 2), (4, 3);
+INSERT INTO t1 VALUES (5, 4), (6, 5), (7, 6);
+COMMIT;
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+5	4
+6	5
+7	6
+RESET MASTER;
+REPLACE INTO t1 VALUES (3, 100);
+REPLACE INTO t1 SET a=4, b=200;
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+5	4
+6	5
+7	6
+3	100
+4	200
+REPLACE INTO t1 VALUES (5,5);
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+5	5
+7	6
+3	100
+4	200
+FLUSH LOGS;
+# < CASE 5 >
+# Flashback & Check the result
+#
+SELECT * FROM t1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+5	4
+6	5
+7	6
+DROP TABLE t1;
+# < CASE 6 >
+# Partial Tables Flashback
+#
+CREATE DATABASE world;
+CREATE TABLE world.city (
+ID INT AUTO_INCREMENT PRIMARY KEY,
+Name VARCHAR(64),
+CountryCode VARCHAR(64),
+District VARCHAR(64),
+Population INT
+) ENGINE=InnoDB;
+CREATE TABLE world.w1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE test.test (
+ID INT AUTO_INCREMENT PRIMARY KEY,
+REC VARCHAR(64),
+ts TIMESTAMP
+) ENGINE=InnoDB;
+INSERT INTO world.city VALUES (NULL, 'Davenport', 'USA', 'Iowa', 100);
+INSERT INTO world.city VALUES (NULL, 'Boulder', 'USA', 'Colorado', 1000);
+INSERT INTO world.city VALUES (NULL, 'Gweru', 'ZWE', 'Midlands', 10000);
+INSERT INTO world.w1 VALUES (1, NULL);
+INSERT INTO world.w1 VALUES (2, 1), (3, 2), (4, 3);
+SELECT * FROM world.city;
+ID	Name	CountryCode	District	Population
+1	Davenport	USA	Iowa	100
+2	Boulder	USA	Colorado	1000
+3	Gweru	ZWE	Midlands	10000
+RESET MASTER;
+CHECKSUM TABLE world.city;
+Table	Checksum
+world.city	563256876
+INSERT INTO test.test VALUES (NULL, 'Good record 1', CURRENT_TIMESTAMP());
+INSERT INTO world.city VALUES (NULL, 'Wrong value 1', '000', 'Wrong', 0);
+INSERT INTO world.city VALUES (NULL, 'Wrong value 2', '000', 'Wrong', 0) , (NULL, 'Wrong value 3', '000', 'Wrong', 0);
+INSERT INTO test.test VALUES (NULL, 'Good record 2', CURRENT_TIMESTAMP());
+UPDATE world.city SET Population = 99999999 WHERE ID IN (1, 2, 3);
+INSERT INTO test.test VALUES (NULL, 'Good record 3', CURRENT_TIMESTAMP());
+DELETE FROM world.city WHERE ID BETWEEN 1 AND 2;
+INSERT INTO test.test VALUES (NULL, 'Good record 5', CURRENT_TIMESTAMP());
+REPLACE INTO world.city VALUES (4074, 'Wrong value 4', '000', 'Wrong', 0);
+REPLACE INTO world.city VALUES (4078, 'Wrong value 5', '000', 'Wrong', 0), (NULL, 'Wrong value 6', '000', 'Wrong', 0);
+INSERT INTO test.test VALUES (NULL, 'Good record 6', CURRENT_TIMESTAMP());
+INSERT INTO world.city
+SELECT NULL, Name, CountryCode, District, Population FROM world.city WHERE ID BETWEEN 2 AND 10;
+INSERT INTO test.test VALUES (NULL, 'Good record 7', CURRENT_TIMESTAMP());
+INSERT INTO test.test VALUES (NULL, 'Good record 8', CURRENT_TIMESTAMP());
+DELETE FROM world.city;
+INSERT INTO world.w1 VALUES (5, 4), (6, 5), (7, 6);
+INSERT INTO test.test VALUES (NULL, 'Good record 9', CURRENT_TIMESTAMP());
+SELECT * FROM test.test;
+ID	REC	ts
+1	Good record 1	2001-09-09 09:46:40
+2	Good record 2	2001-09-09 09:46:40
+3	Good record 3	2001-09-09 09:46:40
+4	Good record 5	2001-09-09 09:46:40
+5	Good record 6	2001-09-09 09:46:40
+6	Good record 7	2001-09-09 09:46:40
+7	Good record 8	2001-09-09 09:46:40
+8	Good record 9	2001-09-09 09:46:40
+SELECT * FROM world.w1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+5	4
+6	5
+7	6
+FLUSH LOGS;
+# < CASE 6 >
+# Flashback & Check the result
+#
+SELECT * FROM world.city;
+ID	Name	CountryCode	District	Population
+1	Davenport	USA	Iowa	100
+2	Boulder	USA	Colorado	1000
+3	Gweru	ZWE	Midlands	10000
+SELECT * FROM test.test;
+ID	REC	ts
+1	Good record 1	2001-09-09 09:46:40
+2	Good record 2	2001-09-09 09:46:40
+3	Good record 3	2001-09-09 09:46:40
+4	Good record 5	2001-09-09 09:46:40
+5	Good record 6	2001-09-09 09:46:40
+6	Good record 7	2001-09-09 09:46:40
+7	Good record 8	2001-09-09 09:46:40
+8	Good record 9	2001-09-09 09:46:40
+SELECT * FROM world.w1;
+a	b
+1	NULL
+2	1
+3	2
+4	3
+5	4
+6	5
+7	6
+CHECKSUM TABLE world.city;
+Table	Checksum
+world.city	563256876
+DROP TABLE test.test;
+DROP TABLE world.city;
+DROP TABLE world.w1;
+DROP DATABASE world;
+# < CASE 7 >
+# Update join, Delete join
+#
+create table school(
+schoolID int not null default 0 primary key,
+schoolName blob not null
+)ENGINE=InnoDB;
+create table class(
+classID int not null default 0 primary key,
+className blob not null,
+schoolID int not null default 0
+)ENGINE=InnoDB;
+create table student(
+stdID int not null default 0 primary key,
+stdName blob not null,
+classID int not null default 0,
+schoolID int not null default 0
+)ENGINE=InnoDB;
+INSERT INTO school (schoolID,schoolName) VALUES (1,"S-a"),(2,"S-b");
+INSERT INTO class(classID,className,schoolID) VALUES (1,"C-a",1),(2,"C-b",1),(3,"C-c",1),(4,"C-d",1);
+INSERT INTO student(stdID,stdName,classID,schoolID) VALUES (1,"S-a",1,1),(2,"S-b",1,1),(3,"S-c",1,1),(4,"S-d",4,1),(5,"S-e",2,1),(6,"S-f",3,1),(7,"S-g",4,1);
+SELECT * FROM school;
+schoolID	schoolName
+1	S-a
+2	S-b
+SELECT * FROM class;
+classID	className	schoolID
+1	C-a	1
+2	C-b	1
+3	C-c	1
+4	C-d	1
+SELECT * FROM student;
+stdID	stdName	classID	schoolID
+1	S-a	1	1
+2	S-b	1	1
+3	S-c	1	1
+4	S-d	4	1
+5	S-e	2	1
+6	S-f	3	1
+7	S-g	4	1
+RESET MASTER;
+BEGIN;
+UPDATE school,student,class 
+SET school.schoolName='school_deleted',student.schoolID=2,class.schoolID=2
+WHERE school.schoolID= class.schoolID AND class.schoolID = student.schoolID AND school.schoolID=1;
+DELETE school,student,class
+FROM school INNER JOIN student INNER JOIN class  
+WHERE school.schoolID IN (2);
+COMMIT;
+SELECT * FROM school;
+schoolID	schoolName
+1	school_deleted
+SELECT * FROM class;
+classID	className	schoolID
+SELECT * FROM student;
+stdID	stdName	classID	schoolID
+FLUSH LOGS;
+# < CASE 7 >
+# Flashback & Check the result
+#
+SELECT * FROM school;
+schoolID	schoolName
+1	school_deleted
+SELECT * FROM class;
+classID	className	schoolID
+1	C-a	1
+2	C-b	1
+3	C-c	1
+4	C-d	1
+SELECT * FROM student;
+stdID	stdName	classID	schoolID
+1	S-a	1	1
+2	S-b	1	1
+3	S-c	1	1
+4	S-d	4	1
+5	S-e	2	1
+6	S-f	3	1
+7	S-g	4	1
+DROP TABLE school;
+DROP TABLE class;
+DROP TABLE student;

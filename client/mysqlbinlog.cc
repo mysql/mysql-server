@@ -703,7 +703,8 @@ static const char *default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[] = {"mysqlbinlog", "client", nullptr};
 
-static bool one_database = false, disable_log_bin = false;
+static bool one_database=false, disable_log_bin= false;
+static bool flashback_multi_tables=0;
 static bool opt_hexdump = false;
 const char *base64_output_mode_names[] = {"NEVER", "AUTO", "UNSPEC",
                                           "DECODE-ROWS", NullS};
@@ -724,6 +725,14 @@ static enum enum_remote_proto {
 } opt_remote_proto = BINLOG_LOCAL;
 static char *opt_remote_proto_str = nullptr;
 static char *database = nullptr;
+static std::set<std::string> filter_databases;
+
+static char *flashback_tables=0;
+static std::set<std::string> flashback_filter_tables;
+static bool opt_flashback;
+std::vector<std::string> binlog_events; // Storing the events flashback output string
+std::vector<Log_event *> events_in_stmt; // Storing the events that in one statement
+
 static char *output_file = nullptr;
 static char *rewrite = nullptr;
 bool force_opt = false, short_form = false, idempotent_mode = false;
@@ -1076,7 +1085,7 @@ static void convert_path_to_forward_slashes(char *fname) {
 
 /**
   Indicates whether the given database should be filtered out,
-  according to the --database=X option.
+  according to the --database=X or --databases=X,X,X option.
 
   @param log_dbname Name of database.
 
@@ -1084,8 +1093,31 @@ static void convert_path_to_forward_slashes(char *fname) {
   filtered out, 0 otherwise.
 */
 static bool shall_skip_database(const char *log_dbname) {
-  return one_database && (log_dbname != nullptr) &&
-         strcmp(log_dbname, database);
+  if (log_dbname == NULL) 
+    return false;
+
+  if (one_database)
+    return filter_databases.count(log_dbname) == 0;
+  return false;
+}
+
+/**
+  Indicates whether the given table should be filtered out,
+  according to the --flashback-tables=X,X,X option.
+
+  @param log_tblname Name of table.
+
+  @return nonzero if the table with the given name should be
+  filtered out, 0 otherwise.
+*/
+static bool flashback_shall_skip_table(const char *log_tblname)
+{
+    if (log_tblname == NULL)
+        return false;
+
+    if (flashback_multi_tables)
+      return flashback_filter_tables.count(log_tblname) == 0;
+    return false;
 }
 
 /**
@@ -1322,7 +1354,7 @@ void end_binlog(PRINT_EVENT_INFO *print_event_info) {
             print_event_info->delimiter, print_event_info->delimiter);
   }
 
-  if (!opt_skip_gtids)
+  if (!opt_skip_gtids && !opt_flashback)
     fprintf(result_file, "%sAUTOMATIC' /* added by mysqlbinlog */ %s\n",
             Gtid_log_event::SET_STRING_PREFIX, print_event_info->delimiter);
 
@@ -1361,6 +1393,13 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
   DBUG_TRACE;
   Exit_status retval = OK_CONTINUE;
   IO_CACHE *const head = &print_event_info->head_cache;
+
+  /* Bypass flashback settings to event */
+  ev->is_flashback = opt_flashback;
+  /* Only part of events output (for example,Query_log_event Xid_log_event
+     Query_log_event Update_rows_log_event Write_rows_log_event
+     Delete_rows_log_event) would be affected by --flashback */
+  bool affected_by_flashback = false;
 
   /*
     Format events are not concerned by --offset and such, we always need to
@@ -1428,6 +1467,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
             !qle->is_trans_keyword() && shall_skip_database(qle->db);
         bool ends_group = ((Query_log_event *)ev)->ends_group();
         bool starts_group = ((Query_log_event *)ev)->starts_group();
+
+        affected_by_flashback=true;
 
         for (size_t i = 0; i < buff_ev->size(); i++) {
           buff_event_info pop_event_array = buff_ev->at(i);
@@ -1593,13 +1634,31 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
       }
       case binary_log::TABLE_MAP_EVENT: {
         Table_map_log_event *map = ((Table_map_log_event *)ev);
-        if (shall_skip_database(map->get_db_name())) {
-          print_event_info->skipped_event_in_transaction = true;
-          print_event_info->m_table_map_ignored.set_table(map->get_table_id(),
-                                                          map);
-          ev = nullptr;
-          goto end;
+        if (!opt_flashback){
+          if (shall_skip_database(map->get_db_name())) {
+            print_event_info->skipped_event_in_transaction = true;
+            print_event_info->m_table_map_ignored.set_table(map->get_table_id(),
+                                                            map);
+            ev = nullptr;
+            goto end;
+          }
+        }else{
+          if (shall_skip_database(map->get_db_name()) ||
+              flashback_shall_skip_table(map->get_table_name())) {
+            print_event_info->skipped_event_in_transaction = true;
+            print_event_info->m_table_map_ignored.set_table(map->get_table_id(),
+                                                            map);
+            ev = nullptr;
+            goto end;
+          }
         }
+        /* Table_map_log_event output not be affected by --flashback option.
+         * Table_map_log_event print result to body_cache, and next
+         * Rows_log_event do it too (WRITE_ROWS_EVENT UPDATE_ROWS_EVENT...).
+         * When STMT_END_F occurs, body_cache would be flushed into result_file
+         * or binlog_events.  */
+        affected_by_flashback = false;
+        if (opt_flashback) events_in_stmt.clear();
       }
       // Fall through
       case binary_log::ROWS_QUERY_LOG_EVENT:
@@ -1619,6 +1678,13 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
             ev_type == binary_log::DELETE_ROWS_EVENT_V1 ||
             ev_type == binary_log::UPDATE_ROWS_EVENT_V1 ||
             ev_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT) {
+          affected_by_flashback = true;
+
+          if (opt_flashback && ev_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT) {
+            fprintf( stderr,"\nAt %llu. Partial updates of json values cannot flashback\n",pos);
+            exit(1);
+          }
+
           Rows_log_event *new_ev = (Rows_log_event *)ev;
           if (new_ev->get_flags(Rows_log_event::STMT_END_F)) stmt_end = true;
           ignored_map = print_event_info->m_table_map_ignored.get_table(
@@ -1626,6 +1692,18 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         }
 
         bool skip_event = (ignored_map != nullptr);
+        if (affected_by_flashback && opt_flashback && !skip_event) {
+          Rows_log_event *e = (Rows_log_event *)ev;
+          // The last Row_log_event will be the first event in Flashback
+          if (stmt_end) e->clear_flags(Rows_log_event::STMT_END_F);
+          // The first Row_log_event will be the last event in Flashback
+          if (events_in_stmt.size() == 0)
+            e->set_flags(Rows_log_event::STMT_END_F);
+          // Update the temp_buf flags
+          e->update_flags();
+
+          events_in_stmt.push_back(ev);
+        }
         /*
           end of statement check:
           i) destroy/free ignored maps
@@ -1652,25 +1730,67 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
              event was not skipped).
           */
           if (skip_event) {
-            // set the unflushed_events flag to false
-            print_event_info->have_unflushed_events = false;
+            if (!opt_flashback){
+              // set the unflushed_events flag to false
+              print_event_info->have_unflushed_events = false;
 
-            // append END-MARKER(') with delimiter
-            IO_CACHE *const body_cache = &print_event_info->body_cache;
-            if (my_b_tell(body_cache))
-              my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
+              // append END-MARKER(') with delimiter
+              IO_CACHE *const body_cache = &print_event_info->body_cache;
+              if (my_b_tell(body_cache))
+                my_b_printf(body_cache, "'%s\n", print_event_info->delimiter);
 
-            // flush cache
-            if ((copy_event_cache_to_file_and_reinit(
-                     &print_event_info->head_cache, result_file,
-                     stop_never /* flush result_file */) ||
-                 copy_event_cache_to_file_and_reinit(
-                     &print_event_info->body_cache, result_file,
-                     stop_never /* flush result_file */) ||
-                 copy_event_cache_to_file_and_reinit(
-                     &print_event_info->footer_cache, result_file,
-                     stop_never /* flush result_file */)))
-              goto err;
+              // flush cache
+              if ((copy_event_cache_to_file_and_reinit(
+                       &print_event_info->head_cache, result_file,
+                       stop_never /* flush result_file */) ||
+                   copy_event_cache_to_file_and_reinit(
+                       &print_event_info->body_cache, result_file,
+                       stop_never /* flush result_file */) ||
+                   copy_event_cache_to_file_and_reinit(
+                       &print_event_info->footer_cache, result_file,
+                       stop_never /* flush result_file */)))
+                goto err;
+            }else if (opt_flashback && events_in_stmt.size() > 0 ){
+              print_event_info->have_unflushed_events = false;
+              Log_event *e = NULL;
+              LEX_STRING tmp_str;
+
+              /* During for loop,all flashbacked result of events in
+               * events_in_stmt is kept in head_cache/body_cache/footer_cache
+               */
+              for (uint i = events_in_stmt.size() ; i > 0; i--) {
+                e = events_in_stmt[i - 1];
+                e->print(result_file, print_event_info);
+              }
+              /* Copy flashbacked result from head_cache/body_cache/footer_cache
+               * and save to ev->output_buf*/
+              if (copy_event_cache_to_string_and_reinit(
+                      &print_event_info->head_cache, &tmp_str))
+                goto err;
+              ev->output_buf.append((const char *)tmp_str.str,
+                                    tmp_str.length);  // Not \0 terminated);
+              if(tmp_str.str) my_free(tmp_str.str);
+
+              if (copy_event_cache_to_string_and_reinit(
+                      &print_event_info->body_cache, &tmp_str))
+                goto err;
+              ev->output_buf.append(tmp_str.str, tmp_str.length);
+              if(tmp_str.str) my_free(tmp_str.str);
+
+              if (print_event_info->verbose) {  // --verbose
+                if (copy_event_cache_to_string_and_reinit(
+                        &print_event_info->footer_cache, &tmp_str))
+                  goto err;
+                ev->output_buf.append(tmp_str.str, tmp_str.length);
+                if(tmp_str.str) my_free(tmp_str.str);
+              }
+              /* All events in the events_in_stmt should be deleted. ev not be appended to events_in_stmt */
+              for (uint i = 0; i < events_in_stmt.size(); i++) {
+                e = events_in_stmt[i];
+                delete e;
+              }
+              events_in_stmt.clear();
+            }
           }
         }
 
@@ -1707,22 +1827,69 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
           goto err;
         }
 
-        ev->print(result_file, print_event_info);
-        print_event_info->have_unflushed_events = true;
-        /* Flush head,body and footer cache to result_file */
-        if (stmt_end) {
-          print_event_info->have_unflushed_events = false;
-          if (copy_event_cache_to_file_and_reinit(
-                  &print_event_info->head_cache, result_file,
-                  stop_never /* flush result file */) ||
-              copy_event_cache_to_file_and_reinit(
-                  &print_event_info->body_cache, result_file,
-                  stop_never /* flush result file */) ||
-              copy_event_cache_to_file_and_reinit(
-                  &print_event_info->footer_cache, result_file,
-                  stop_never /* flush result file */))
-            goto err;
-          goto end;
+        if (affected_by_flashback && opt_flashback) {
+          print_event_info->have_unflushed_events = true;
+          if (stmt_end) {
+            print_event_info->have_unflushed_events = false;
+            Log_event *e = NULL;
+            LEX_STRING tmp_str;
+
+            /* During for loop,all flashbacked result of events in events_in_stmt is kept in head_cache/body_cache/footer_cache */
+            for (uint i = events_in_stmt.size(); i > 0; i--) {
+              e = events_in_stmt[i - 1];
+              e->print(result_file, print_event_info);
+            }
+
+            /* Copy flashbacked result from head_cache/body_cache/footer_cache and save to ev->output_buf*/
+            if (copy_event_cache_to_string_and_reinit(
+                    &print_event_info->head_cache, &tmp_str))
+              goto err;
+            ev->output_buf.append((const char *)tmp_str.str,
+                                  tmp_str.length);
+            if (tmp_str.str) my_free(tmp_str.str);
+
+            if (copy_event_cache_to_string_and_reinit(
+                    &print_event_info->body_cache, &tmp_str))
+              goto err;
+            ev->output_buf.append(tmp_str.str, tmp_str.length);
+            if (tmp_str.str) my_free(tmp_str.str);
+
+            if (print_event_info->verbose) {  // --verbose
+              if (copy_event_cache_to_string_and_reinit(
+                      &print_event_info->footer_cache, &tmp_str))
+                goto err;
+              ev->output_buf.append(tmp_str.str, tmp_str.length);
+              if (tmp_str.str) my_free(tmp_str.str);
+            }
+            /* Last event in the events_in_stmt cannot be deleted here,because the last event is ev.
+               It will be deleted later.
+             */
+            for (uint i = 0; i < events_in_stmt.size() - 1; i++) {
+              e = events_in_stmt[i];
+              delete e;
+            }
+            events_in_stmt.clear();
+          } else {
+            ev = nullptr;  // not delete event
+          }
+        }else{
+          ev->print(result_file, print_event_info);
+          print_event_info->have_unflushed_events = true;
+          /* Flush head,body and footer cache to result_file */
+          if (stmt_end) {
+            print_event_info->have_unflushed_events = false;
+            if (copy_event_cache_to_file_and_reinit(
+                    &print_event_info->head_cache, result_file,
+                    stop_never /* flush result file */) ||
+                copy_event_cache_to_file_and_reinit(
+                    &print_event_info->body_cache, result_file,
+                    stop_never /* flush result file */) ||
+                copy_event_cache_to_file_and_reinit(
+                    &print_event_info->footer_cache, result_file,
+                    stop_never /* flush result file */))
+              goto err;
+            goto end;
+          }
         }
         break;
       }
@@ -1739,6 +1906,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         break;
       }
       case binary_log::XID_EVENT: {
+        affected_by_flashback=true;
         in_transaction = false;
         print_event_info->skipped_event_in_transaction = false;
         seen_gtid = false;
@@ -1759,11 +1927,21 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         ev->print(result_file, print_event_info);
         if (head->error == -1) goto err;
     }
-    /* Flush head cache to result_file for every event */
-    if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
-                                            result_file,
-                                            stop_never /* flush result_file */))
-      goto err;
+    if (affected_by_flashback && opt_flashback && ev) {
+      /* Flush head cache to ev->output_buf for every event */
+      LEX_STRING tmp_str;
+      copy_event_cache_to_string_and_reinit(&print_event_info->head_cache,
+                                            &tmp_str);
+      /* use 2 argument append as tmp_str is not \0 terminated */
+      ev->output_buf.append(tmp_str.str, tmp_str.length);
+      my_free(tmp_str.str);
+    } else {
+      /* Flush head cache to result_file for every event */
+      if (copy_event_cache_to_file_and_reinit(
+              &print_event_info->head_cache, result_file,
+              stop_never /* flush result_file */))
+        goto err;
+    }
   }
 
   goto end;
@@ -1775,6 +1953,12 @@ end:
   /*
     Destroy the log_event object.
   */
+  if (opt_flashback && affected_by_flashback && ev &&
+      !ev->output_buf.is_empty()) {
+    std::string tmp_str;
+    tmp_str.assign(ev->output_buf.ptr(), ev->output_buf.length());
+    binlog_events.push_back(tmp_str);
+  }
   delete ev;
   return retval;
 }
@@ -1806,7 +1990,8 @@ static struct my_option my_long_options[] = {
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &charsets_dir, &charsets_dir,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"database", 'd', "List entries for just this database (local log only).",
+    {"database", 'd', "List entries for just these databases (local log only)."
+    "Give the database names in a comma separated list.",
      &database, &database, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
     {"rewrite-db", OPT_REWRITE_DB,
@@ -1848,6 +2033,13 @@ static struct my_option my_long_options[] = {
      "already have. NOTE: you will need a SUPER privilege to use this option.",
      &disable_log_bin, &disable_log_bin, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"flashback", 'B', 
+      "Flashback feature can rollback you committed data to a special time point.",
+      &opt_flashback, &opt_flashback, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"flashback-tables", OPT_FLASHBACK_TABLES, 
+      "List entries for these flashback tables (local log only)."
+      "Give the tables names in a comma separated list.",
+     &flashback_tables, &flashback_tables, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"force-if-open", 'F', "Force if binlog was not closed properly.",
      &force_if_open_opt, &force_if_open_opt, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
@@ -2180,8 +2372,23 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       break;
 #endif
 #include "sslopt-case.h"
-
+    case 'B':
+      opt_flashback = true;
+      break;
+    case OPT_FLASHBACK_TABLES:
+      for (char *p = flashback_tables;; p = NULL) {
+        char *q = strtok(p, ",");
+        if (q == NULL) break;
+        flashback_filter_tables.insert(q);
+      }
+      flashback_multi_tables = true;
+      break;
     case 'd':
+      for (char *p = database;; p = NULL) {
+        char *q = strtok(p, ",");
+        if (q == NULL) break;
+        filter_databases.insert(q);
+      }
       one_database = true;
       break;
     case OPT_REWRITE_DB: {
@@ -2285,6 +2492,14 @@ static int parse_args(int *argc, char ***argv) {
   result_file = stdout;
   if ((ho_error = handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+
+  if (flashback_multi_tables && !opt_flashback) {
+    error(
+        "options --flashback-tables must be used together with "
+        "-B/--flashback.");
+    exit(1);
+  }
+
   if (debug_info_flag) my_end_arg = MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag) my_end_arg = MY_CHECK_ERROR;
   return 0;
@@ -2408,6 +2623,10 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
   print_event_info.short_form = short_form;
   print_event_info.base64_output_mode = opt_base64_output_mode;
   print_event_info.skip_gtids = opt_skip_gtids;
+  // flashback must skip Gtid_log_event
+  if (opt_flashback) {
+    print_event_info.skip_gtids = true;
+  }
   print_event_info.print_table_metadata = opt_print_table_metadata;
   print_event_info.require_row_format = opt_require_row_format;
 
@@ -2446,7 +2665,12 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
 
   /* Set delimiter back to semicolon */
   if (!raw_mode) {
-    if (print_event_info.skipped_event_in_transaction)
+    if (opt_flashback) {
+      for (uint i = binlog_events.size(); i > 0; i--) {
+        fprintf(result_file, "%s", binlog_events[i - 1].c_str());
+      }
+    }
+    if (print_event_info.skipped_event_in_transaction || opt_flashback)
       fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n",
               print_event_info.delimiter);
 

@@ -1,0 +1,441 @@
+--source include/have_binlog_format_row.inc
+#--source include/have_innodb.inc
+
+SET  binlog_row_image=full;
+let $BINLOG_FORMAT= `select @@binlog_format`;
+let $BINLOG_ROW_IMAGE= `select @@binlog_row_image`;
+--echo # BINLOG_FORMAT = $BINLOG_FORMAT
+--echo # BINLOG_ROW_IMAGE = $BINLOG_ROW_IMAGE
+
+--echo #
+--echo # Preparatory cleanup.
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # We need a fixed timestamp to avoid varying results.
+--echo #
+SET timestamp=1000000000;
+
+--echo # < CASE 1 >
+--echo # Delete all existing binary logs.
+--echo #
+RESET MASTER;
+
+CREATE TABLE t1 (
+  c01 tinyint,
+  c02 smallint,
+  c03 mediumint,
+  c04 int,
+  c05 bigint,
+  c06 char(10),
+  c07 varchar(20),
+  c08 TEXT
+) ENGINE=InnoDB;
+
+--echo # < CASE 1 >
+--echo # Insert data to t1
+--echo #
+INSERT INTO t1 VALUES(0,0,0,0,0,'','','');
+INSERT INTO t1 VALUES(1,2,3,4,5, "abc", "abcdefg", "abcedfghijklmnopqrstuvwxyz");
+INSERT INTO t1 VALUES(127, 32767, 8388607, 2147483647, 9223372036854775807, repeat('a', 10), repeat('a', 20), repeat('a', 255));
+
+
+--echo # < CASE 1 >
+--echo # Update t1
+--echo #
+UPDATE t1 SET c01=100 WHERE c02=0 OR c03=3;
+
+--echo # < CASE 1 >
+--echo # Clear t1
+--echo #
+DELETE FROM t1;
+
+FLUSH LOGS;
+
+--echo # < CASE 1 >
+--echo # Show mysqlbinlog result without -B
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /CRC32 0x[0-9a-f]*/CRC32 XXX/ /collation_server=[0-9]+/collation_server=X/ /character_set_client=[0-9]+/character_set_client=X/ /collation_connection=[0-9]+/collation_connection=X/ /sql_mode=[0-9]+/sql_mode=X/ /(original_commit[a-z]*_timestamp)=[0-9]+/\1=X/ /immediate_commit_timestamp=[0-9]+/immediate_commit_timestamp=X/ /transaction_length=[0-9]+/transaction_length=X/ /[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+.[0-9]* GMT/X-X-X X:X:X.X GMT/ /(original_server_version)=[0-9]+/\1=X/ /(immediate_server_version)=[0-9]+/\1=X/
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
+
+--echo # < CASE 1 >
+--echo # Show mysqlbinlog result with -B
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/ /exec_time=[0-9]*/exec_time=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /CRC32 0x[0-9a-f]*/CRC32 XXX/ /collation_server=[0-9]+/collation_server=X/ /character_set_client=[0-9]+/character_set_client=X/ /collation_connection=[0-9]+/collation_connection=X/ /sql_mode=[0-9]+/sql_mode=X/ /(original_commit[a-z]*_timestamp)=[0-9]+/\1=X/ /immediate_commit_timestamp=[0-9]+/immediate_commit_timestamp=X/ /transaction_length=[0-9]+/transaction_length=X/ /[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+.[0-9]* GMT/X-X-X X:X:X.X GMT/ /(original_server_version)=[0-9]+/\1=X/ /(immediate_server_version)=[0-9]+/\1=X/
+--exec $MYSQL_BINLOG -B --base64-output=decode-rows -v -v $MYSQLD_DATADIR/binlog.000001
+
+--echo # < CASE 1 >
+--echo # Insert data to t1
+--echo #
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(0,0,0,0,0,'','','');
+INSERT INTO t1 VALUES(1,2,3,4,5, "abc", "abcdefg", "abcedfghijklmnopqrstuvwxyz");
+INSERT INTO t1 VALUES(127, 32767, 8388607, 2147483647, 9223372036854775807, repeat('a', 10), repeat('a', 20), repeat('a', 60));
+
+--echo # < CASE 1 >
+--echo # Delete all existing binary logs.
+--echo #
+RESET MASTER;
+SELECT * FROM t1;
+
+--echo # < CASE 1 >
+--echo # Operate some data
+--echo #
+
+UPDATE t1 SET c01=20;
+UPDATE t1 SET c02=200;
+UPDATE t1 SET c03=2000;
+
+DELETE FROM t1;
+
+FLUSH LOGS;
+
+--echo # < CASE 1 >
+--echo # Flashback & Check the result
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_1.sql
+--exec $MYSQL_BINLOG -B -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_1.sql
+--exec $MYSQL -e "SET binlog_format= ROW; source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_1.sql;"
+
+SELECT * FROM t1;
+
+RESET MASTER;
+
+--echo # < CASE 2 >
+--echo # UPDATE multi-rows in one event
+--echo #
+
+BEGIN;
+UPDATE t1 SET c01=10 WHERE c01=0;
+UPDATE t1 SET c01=20 WHERE c01=10;
+COMMIT;
+
+FLUSH LOGS;
+
+--echo # < CASE 2 >
+--echo # Flashback & Check the result
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_2.sql
+--exec $MYSQL_BINLOG -B -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_2.sql
+--exec $MYSQL -e "SET binlog_format= ROW; source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_2.sql;"
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # < CASE 3 >
+--echo # Self-referencing foreign keys
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, FOREIGN KEY my_fk(b) REFERENCES t1(a)) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 1), (3, 2), (4, 3);
+COMMIT;
+
+SELECT * FROM t1;
+
+# New binlog
+RESET MASTER;
+
+DELETE FROM t1 ORDER BY a DESC;
+
+FLUSH LOGS;
+
+--echo # < CASE 3 >
+--echo # Flashback & Check the result
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_3.sql
+--exec $MYSQL_BINLOG -B -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_3.sql
+--exec $MYSQL -e "SET binlog_format= ROW; source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_3.sql;"
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # < CASE 4 >
+--echo # Trigger
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 1), (3, 2), (4, 3);
+INSERT INTO t2 VALUES (6, 7), (7, 8), (8, 9);
+COMMIT;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t2 WHERE a = NEW.b;
+
+# New binlog
+RESET MASTER;
+
+INSERT INTO t1 VALUES (5, 6), (7, 8);
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+FLUSH LOGS;
+
+--echo # < CASE 4 >
+--echo # Flashback & Check the result
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_4.sql
+--exec $MYSQL_BINLOG -B $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_4.sql
+--exec $MYSQL -e "SET binlog_format= ROW; source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_4.sql;"
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo # < CASE 5 >
+--echo # REPLCAE Queries
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE uk(b)) ENGINE=InnoDB;
+
+BEGIN;
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, 1), (3, 2), (4, 3);
+INSERT INTO t1 VALUES (5, 4), (6, 5), (7, 6);
+COMMIT;
+
+SELECT * FROM t1;
+
+# New binlog
+RESET MASTER;
+
+REPLACE INTO t1 VALUES (3, 100);
+REPLACE INTO t1 SET a=4, b=200;
+
+SELECT * FROM t1;
+
+REPLACE INTO t1 VALUES (5,5);
+
+SELECT * FROM t1;
+
+FLUSH LOGS;
+
+--echo # < CASE 5 >
+--echo # Flashback & Check the result
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_5.sql
+--exec $MYSQL_BINLOG -B $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_5.sql
+--exec $MYSQL -e "SET binlog_format= ROW; source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_5.sql;"
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # < CASE 6 >
+--echo # Partial Tables Flashback
+--echo #
+
+# Init Structure
+CREATE DATABASE world;
+CREATE TABLE world.city (
+     ID INT AUTO_INCREMENT PRIMARY KEY,
+     Name VARCHAR(64),
+     CountryCode VARCHAR(64),
+     District VARCHAR(64),
+     Population INT
+) ENGINE=InnoDB;
+CREATE TABLE world.w1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+CREATE TABLE test.test (
+     ID INT AUTO_INCREMENT PRIMARY KEY,
+     REC VARCHAR(64),
+     ts TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO world.city VALUES (NULL, 'Davenport', 'USA', 'Iowa', 100);
+INSERT INTO world.city VALUES (NULL, 'Boulder', 'USA', 'Colorado', 1000);
+INSERT INTO world.city VALUES (NULL, 'Gweru', 'ZWE', 'Midlands', 10000);
+INSERT INTO world.w1 VALUES (1, NULL);
+INSERT INTO world.w1 VALUES (2, 1), (3, 2), (4, 3);
+
+SELECT * FROM world.city;
+
+RESET MASTER;
+
+CHECKSUM TABLE world.city;
+
+# Insert test data
+INSERT INTO test.test VALUES (NULL, 'Good record 1', CURRENT_TIMESTAMP());
+
+INSERT INTO world.city VALUES (NULL, 'Wrong value 1', '000', 'Wrong', 0);
+INSERT INTO world.city VALUES (NULL, 'Wrong value 2', '000', 'Wrong', 0) , (NULL, 'Wrong value 3', '000', 'Wrong', 0);
+
+INSERT INTO test.test VALUES (NULL, 'Good record 2', CURRENT_TIMESTAMP());
+
+UPDATE world.city SET Population = 99999999 WHERE ID IN (1, 2, 3);
+
+INSERT INTO test.test VALUES (NULL, 'Good record 3', CURRENT_TIMESTAMP());
+
+DELETE FROM world.city WHERE ID BETWEEN 1 AND 2;
+
+INSERT INTO test.test VALUES (NULL, 'Good record 5', CURRENT_TIMESTAMP());
+
+REPLACE INTO world.city VALUES (4074, 'Wrong value 4', '000', 'Wrong', 0);
+REPLACE INTO world.city VALUES (4078, 'Wrong value 5', '000', 'Wrong', 0), (NULL, 'Wrong value 6', '000', 'Wrong', 0);
+
+INSERT INTO test.test VALUES (NULL, 'Good record 6', CURRENT_TIMESTAMP());
+
+INSERT INTO world.city
+SELECT NULL, Name, CountryCode, District, Population FROM world.city WHERE ID BETWEEN 2 AND 10;
+
+INSERT INTO test.test VALUES (NULL, 'Good record 7', CURRENT_TIMESTAMP());
+
+INSERT INTO test.test VALUES (NULL, 'Good record 8', CURRENT_TIMESTAMP());
+
+DELETE FROM world.city;
+INSERT INTO world.w1 VALUES (5, 4), (6, 5), (7, 6);
+
+INSERT INTO test.test VALUES (NULL, 'Good record 9', CURRENT_TIMESTAMP());
+
+SELECT * FROM test.test;
+
+SELECT * FROM world.w1;
+
+FLUSH LOGS;
+
+--echo # < CASE 6 >
+--echo # Flashback & Check the result
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG  -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_6.sql
+--exec $MYSQL_BINLOG --flashback --database=world --flashback-tables=city -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_6.sql
+--exec $MYSQL -e "SET binlog_format= ROW; source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_6.sql;"
+
+SELECT * FROM world.city;
+
+SELECT * FROM test.test;
+
+SELECT * FROM world.w1;
+
+CHECKSUM TABLE world.city;
+
+DROP TABLE test.test;
+DROP TABLE world.city;
+DROP TABLE world.w1;
+DROP DATABASE world;
+
+--echo # < CASE 7 >
+--echo # Update join, Delete join
+--echo #
+
+create table school(
+        schoolID int not null default 0 primary key,
+        schoolName blob not null
+)ENGINE=InnoDB;
+create table class(
+        classID int not null default 0 primary key,
+        className blob not null,
+        schoolID int not null default 0
+)ENGINE=InnoDB;
+create table student(
+        stdID int not null default 0 primary key,
+        stdName blob not null,
+        classID int not null default 0,
+        schoolID int not null default 0
+)ENGINE=InnoDB;
+INSERT INTO school (schoolID,schoolName) VALUES (1,"S-a"),(2,"S-b");
+INSERT INTO class(classID,className,schoolID) VALUES (1,"C-a",1),(2,"C-b",1),(3,"C-c",1),(4,"C-d",1);
+INSERT INTO student(stdID,stdName,classID,schoolID) VALUES (1,"S-a",1,1),(2,"S-b",1,1),(3,"S-c",1,1),(4,"S-d",4,1),(5,"S-e",2,1),(6,"S-f",3,1),(7,"S-g",4,1);
+
+SELECT * FROM school;
+
+SELECT * FROM class;
+
+SELECT * FROM student;
+
+RESET MASTER;
+
+# Update and Delete test data
+BEGIN;
+
+UPDATE school,student,class 
+SET school.schoolName='school_deleted',student.schoolID=2,class.schoolID=2
+WHERE school.schoolID= class.schoolID AND class.schoolID = student.schoolID AND school.schoolID=1;
+
+DELETE school,student,class
+FROM school INNER JOIN student INNER JOIN class  
+WHERE school.schoolID IN (2);
+
+COMMIT;
+
+SELECT * FROM school;
+
+SELECT * FROM class;
+
+SELECT * FROM student;
+
+FLUSH LOGS;
+
+--echo # < CASE 7 >
+--echo # Flashback & Check the result
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_BINLOG  -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_7.sql
+--exec $MYSQL_BINLOG --flashback --flashback-tables=student,class -vv $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_7.sql
+--exec $MYSQL -e "SET binlog_format= ROW; source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_7.sql;"
+
+SELECT * FROM school;
+
+SELECT * FROM class;
+
+SELECT * FROM student;
+
+DROP TABLE school;
+DROP TABLE class;
+DROP TABLE student;
+
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_1.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_1.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_2.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_2.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_3.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_3.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_4.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_4.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_5.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_5.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_6.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_6.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_original_7.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_row_flashback_7.sql;

@@ -1,0 +1,3 @@
+--timezone=GMT-8
+--binlog-format=row
+--binlog-row-image=full
