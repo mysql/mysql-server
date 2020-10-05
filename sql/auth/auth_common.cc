@@ -42,39 +42,6 @@ const std::string mysql("mysql");
 const std::string system_user("SYSTEM_USER");
 }  // namespace consts
 
-/**
-  Explicit Mem_root_base constructor.
-
-  @param [in] mem_root MEM_ROOT handle
-
-  If mem_root is provided, constructor initializes one
-  and marks it to be freed as a part of destructor.
-*/
-Mem_root_base::Mem_root_base(MEM_ROOT *mem_root) : m_mem_root(mem_root) {
-  m_inited = false;
-  if (m_mem_root == nullptr) {
-    m_mem_root = &m_internal_mem_root;
-    init_sql_alloc(PSI_NOT_INSTRUMENTED, m_mem_root, ACL_ALLOC_BLOCK_SIZE, 0);
-    m_inited = true;
-  }
-}
-
-/** Meme_root_base constructor */
-Mem_root_base::Mem_root_base() : Mem_root_base(nullptr) {}
-
-/**
-  Destructor.
-
-  Frees MEM_ROOT if it was allocated as a part of constructor.
-*/
-Mem_root_base::~Mem_root_base() {
-  if (m_inited) {
-    free_root(m_mem_root, MYF(0));
-    m_mem_root = nullptr;
-    m_inited = false;
-  }
-}
-
 bool User_table_schema_factory::is_old_user_table_schema(TABLE *table) {
   if (table->visible_field_count() <
       User_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56)

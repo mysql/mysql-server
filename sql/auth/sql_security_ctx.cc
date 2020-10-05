@@ -51,19 +51,14 @@
 extern bool initialized;
 
 Security_context::Security_context(THD *thd /*= nullptr */)
-    : m_restrictions(nullptr), m_thd(thd) {
-  init();
-}
-
-Security_context::Security_context(MEM_ROOT *mem_root, THD *thd /* = nullptr*/)
-    : m_restrictions(mem_root), m_thd(thd) {
+    : m_restrictions(), m_thd(thd) {
   init();
 }
 
 Security_context::~Security_context() { destroy(); }
 
 Security_context::Security_context(const Security_context &src_sctx)
-    : m_restrictions(nullptr), m_thd(nullptr) {
+    : m_restrictions(), m_thd(nullptr) {
   copy_security_ctx(src_sctx);
 }
 
@@ -109,8 +104,8 @@ void Security_context::logout() {
     get_global_acl_cache()->return_acl_map(m_acl_map);
     m_acl_map = nullptr;
     clear_active_roles();
-    clear_db_restrictions();
   }
+  clear_db_restrictions();
 }
 
 bool Security_context::has_drop_policy(void) { return m_has_drop_policy; }

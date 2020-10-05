@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3048,7 +3048,7 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->ip = thd->security_context()->ip().str;
   mpvio->host = thd->security_context()->host().str;
   mpvio->charset_adapter = charset_adapter;
-  mpvio->restrictions = new (mpvio->mem_root) Restrictions(mpvio->mem_root);
+  mpvio->restrictions = new (mpvio->mem_root) Restrictions();
 }
 
 static void server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio) {

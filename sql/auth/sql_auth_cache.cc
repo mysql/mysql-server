@@ -3167,7 +3167,7 @@ Acl_cache::~Acl_cache() {
 }
 
 Acl_map::Acl_map(Security_context *sctx, uint64 ver)
-    : m_reference_count(0), m_version(ver), m_restrictions(nullptr) {
+    : m_reference_count(0), m_version(ver), m_restrictions() {
   DBUG_TRACE;
   Acl_cache_lock_guard acl_cache_lock(current_thd,
                                       Acl_cache_lock_mode::READ_MODE);
@@ -3197,9 +3197,7 @@ Acl_map::~Acl_map() {
   // Db_access_map is automatically destroyed and cleaned up.
 }
 
-Acl_map::Acl_map(const Acl_map &&map) : m_restrictions(nullptr) {
-  operator=(map);
-}
+Acl_map::Acl_map(const Acl_map &&map) { operator=(map); }
 
 Acl_map &Acl_map::operator=(Acl_map &&map) {
   m_db_acls = move(map.m_db_acls);
@@ -3773,7 +3771,7 @@ Restrictions Acl_restrictions::find_restrictions(
   if (restrictions_itr != m_restrictions_map.end())
     return restrictions_itr->second;
   else
-    return Restrictions(nullptr);
+    return Restrictions{};
 }
 
 /**
