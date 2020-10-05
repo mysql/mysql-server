@@ -361,7 +361,7 @@ extern const char *client_errors[];
 static inline const char *ER_CLIENT(int client_errno) {
   if (client_errno >= 2000 && client_errno <= 2070)
     return client_errors[client_errno - 2000];
-  return client_errors[2000];
+  return client_errors[2000 - 2000];
 }
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
