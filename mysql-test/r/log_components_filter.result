@@ -682,6 +682,7 @@ INSERT INTO my_rules VALUES(NULL, 'IF EXISTS thread THEN set thread:=0.'),
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val1 < 1 THEN set wl9651_result1:="IF" ELSE IF wl9651_val1 == 1 THEN set wl9651_result1:="ELSEIF1" ELSE IF wl9651_val1 == 2 THEN set wl9651_result1:="ELSEIF2" ELSE set wl9651_result1:="ELSE".');
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val2==1 OR wl9651_val2==2 OR wl9651_val2==3 THEN set wl9651_result2:="SUCCESS" ELSE set wl9651_result2:="FAILURE".');
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val3a==1 AND wl9651_val3b==2 AND wl9651_val3c==3 THEN set wl9651_result3:="SUCCESS" ELSE set wl9651_result3:="FAILURE".');
+INSERT INTO my_rules VALUES(NULL, 'IF err_code==011825 THEN drop.');
 SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
 SET @@global.dragnet.log_error_filter_rules= @rules;
 INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".');
@@ -1043,21 +1044,21 @@ SET @@global.log_error_verbosity=DEFAULT;
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= REPEAT(\"IF prio>9 THEN drop. \", 1025)", "time" : "1970-01-01T00:00:00.012345Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.012345Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
 { "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @rules= CONCAT(\"IF \", REPEAT(\"x\", 20000), \">9 THEN drop.\")", "time" : "1970-01-01T00:00:00.012345Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules", "time" : "1970-01-01T00:00:00.000319Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000320Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name=\"dragnet.Status\"", "time" : "1970-01-01T00:00:00.000321Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-1970-01-01T00:00:00.000322Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
-1970-01-01T00:00:00.000323Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000324Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000325Z 0 [Note] [MY-010000] [Server] This is a message from the Server subsystem
-1970-01-01T00:00:00.000326Z 0 [Note] [MY-010000] [Repl] Dropping subsystem if it is "Server" and setting it to Repl
-1970-01-01T00:00:00.000327Z 0 [Note] [MY-010000] [InnoDB] The subsystem for this message has been overriden to InnoDB
-1970-01-01T00:00:00.000328Z 0 [Note] [MY-010000] [Server] This message is seen as the the subsystem is specified in upper case
-1970-01-01T00:00:00.000335Z 0 [System] [MY-010000] [Server] System messages should not be suppressed
-1970-01-01T00:00:00.000336Z 0 [ERROR] [MY-010000] [Server] Errors should not be suppressed
-1970-01-01T00:00:00.000342Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_suppression_list=@save_suppression_list
-1970-01-01T00:00:00.000343Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=@save_filters
-1970-01-01T00:00:00.000344Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_filter_dragnet"
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules", "time" : "1970-01-01T00:00:00.000320Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000321Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name=\"dragnet.Status\"", "time" : "1970-01-01T00:00:00.000322Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+1970-01-01T00:00:00.000323Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
+1970-01-01T00:00:00.000324Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000325Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000326Z 0 [Note] [MY-010000] [Server] This is a message from the Server subsystem
+1970-01-01T00:00:00.000327Z 0 [Note] [MY-010000] [Repl] Dropping subsystem if it is "Server" and setting it to Repl
+1970-01-01T00:00:00.000328Z 0 [Note] [MY-010000] [InnoDB] The subsystem for this message has been overriden to InnoDB
+1970-01-01T00:00:00.000329Z 0 [Note] [MY-010000] [Server] This message is seen as the the subsystem is specified in upper case
+1970-01-01T00:00:00.000336Z 0 [System] [MY-010000] [Server] System messages should not be suppressed
+1970-01-01T00:00:00.000337Z 0 [ERROR] [MY-010000] [Server] Errors should not be suppressed
+1970-01-01T00:00:00.000343Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_suppression_list=@save_suppression_list
+1970-01-01T00:00:00.000344Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=@save_filters
+1970-01-01T00:00:00.000345Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_filter_dragnet"
 SET @@global.log_error_verbosity=@old_log_error_verbosity;
 
 ###

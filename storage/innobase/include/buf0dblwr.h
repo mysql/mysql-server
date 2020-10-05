@@ -340,10 +340,6 @@ class DBLWR {
         false if dblwr file contains no encrypted pages. */
 bool has_encrypted_pages() noexcept MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
-
-/** Remove the given space from the dblwr module level space object cache.
-@param[in]  space_id  the tablespace identifier. */
-void space_remove(space_id_t space_id);
 }  // namespace dblwr
 
 #endif /* buf0dblwr_h */

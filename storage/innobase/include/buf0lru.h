@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -196,6 +196,14 @@ void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
 /** Validates the LRU list.
  @return true */
 ibool buf_LRU_validate(void);
+
+using Space_References = std::map<struct fil_space_t *, size_t>;
+
+/** Counts number of pages that are still in the LRU  for each space instance
+encountered.
+@returns map of space instances into count of pages in LRU. */
+Space_References buf_LRU_count_space_references();
+
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Prints the LRU list. */

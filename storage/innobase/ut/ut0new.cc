@@ -46,10 +46,10 @@ PSI_memory_key mem_key_buf_buf_pool;
 PSI_memory_key mem_key_buf_stat_per_index_t;
 /** Memory key for clone */
 PSI_memory_key mem_key_clone;
-PSI_memory_key mem_key_dblwr_space_cache;
 PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key mem_key_dict_stats_index_map_t;
 PSI_memory_key mem_key_dict_stats_n_diff_on_level;
+PSI_memory_key mem_key_fil_space_t;
 PSI_memory_key mem_key_other;
 PSI_memory_key mem_key_partitioning;
 PSI_memory_key mem_key_row_log_buf;
@@ -84,14 +84,13 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_buf_stat_per_index_t, "buf_stat_per_index_t", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_clone, "clone", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_dblwr_space_cache, "Tablespace cache in DBLWR module",
-     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_bg_recalc_pool_t, "dict_stats_bg_recalc_pool_t", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0, 0,
      PSI_DOCUMENT_ME},
+    {&mem_key_fil_space_t, "fil_space_t", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_other, "other", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_partitioning, "partitioning", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_row_log_buf, "row_log_buf", 0, 0, PSI_DOCUMENT_ME},

@@ -53,7 +53,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 # - UNDO tablespace would have been encrypted with default master key
 # - Header page for UNDO tablespace wouldn't have been flushed
 # - So encryption information is still in REDO Log.
-let $NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=ON --debug=d,crash_before_purge_thread;
+let $NEW_CMD = $MYSQLD --innodb_dedicated_server=OFF --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_undo_log_encrypt=ON --debug=d,crash_before_purge_thread;
 --error 1,2,42,137
 --exec $NEW_CMD
 

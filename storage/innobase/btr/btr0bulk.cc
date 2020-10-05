@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -280,8 +280,8 @@ void PageBulk::finish() {
   ulint n_rec_to_assign = m_rec_no - m_slotted_rec_no;
 
   /* Fill slots for non-supremum records if possible.
-   * Slot for supremum record could store up to
-   * PAGE_DIR_SLOT_MAX_N_OWNED-1 records. */
+   Slot for supremum record could store up to
+   PAGE_DIR_SLOT_MAX_N_OWNED-1 records. */
   while (n_rec_to_assign >= PAGE_DIR_SLOT_MAX_N_OWNED) {
     static constexpr ulint RECORDS_PER_SLOT =
         (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2;
@@ -412,7 +412,7 @@ PageBulk::SplitPoint PageBulk::getSplitRec() {
     ut_ad(page_rec_is_user_rec(rec));
   } else {
     /* rec is to be moved, and this is used as number of records
-     * before split */
+     before split */
     n_recs--;
   }
 
@@ -1105,7 +1105,7 @@ dberr_t BtrBulk::finish(dberr_t err) {
       btr_page_free_low(m_index, last_block, m_root_level, &mtr);
 
       /* Do not flush the last page. */
-      last_block->page.flush_observer = nullptr;
+      last_block->page.reset_flush_observer();
 
       mtr_commit(&mtr);
 

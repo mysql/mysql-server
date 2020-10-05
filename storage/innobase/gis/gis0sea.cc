@@ -986,8 +986,10 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
         UT_DELETE(rtr_info->matches->matched_recs);
       }
 
-      rw_lock_free(&(rtr_info->matches->block.lock));
+      /* Clear any space references in the page copied. */
+      buf_page_prepare_for_free(&rtr_info->matches->block.page);
 
+      rw_lock_free(&(rtr_info->matches->block.lock));
       mutex_destroy(&rtr_info->matches->rtr_match_mutex);
     }
 
@@ -1371,6 +1373,9 @@ static void rtr_non_leaf_insert_stack_push(
 @param[in,out]	matches	copy to match->block
 @param[in]	block	block to copy */
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
+  /* Clear any space references in the page if it was copied before. */
+  buf_page_prepare_for_free(&matches->block.page);
+
   /* Copy all members of "block" to "matches->block" except "mutex"
   and "lock". We skip "mutex" and "lock" because they are not used
   from the dummy buf_block_t we create here and because memcpy()ing

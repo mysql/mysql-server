@@ -181,7 +181,7 @@ Ret_t Tester::find_fil_page_lsn(std::vector<std::string> &tokens) noexcept {
   mtr_t mtr;
   mtr_start(&mtr);
   buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
-  lsn_t newest_lsn = block->page.newest_modification;
+  lsn_t newest_lsn = block->page.get_newest_lsn();
   mtr_commit(&mtr);
 
   std::ostringstream sout;
@@ -414,11 +414,11 @@ Ret_t Tester::corrupt_ondisk_page0(std::vector<std::string> &tokens) noexcept {
   fil_node_t *node = space->get_file_node(&page_no);
   if (node->is_open) {
     /* When the space file is currently open we are not able to write to it
-     * directly on Windows. We must use the currently opened handle. Moreover,
-     * on Windows a file opened for the AIO access must be accessed only by AIO
-     * methods. The AIO requires the operations to be aligned and with size
-     * divisible by OS block size, so we first read block of the first page, to
-     * corrupt it and write back. */
+     directly on Windows. We must use the currently opened handle. Moreover,
+     on Windows a file opened for the AIO access must be accessed only by AIO
+     methods. The AIO requires the operations to be aligned and with size
+     divisible by OS block size, so we first read block of the first page, to
+     corrupt it and write back. */
 
     IORequest read_io_type(IORequest::READ);
     IORequest write_io_type(IORequest::WRITE);

@@ -804,6 +804,16 @@ class Fil_shard {
   /** Close all open files. */
   void close_all_files();
 
+#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+  /** Check that each fil_space_t::m_n_ref_count in this shard matches the
+  number of pages counted in the buffer pool.
+  @param[in]  buffer_pool_references  Map of spaces instances to the count
+  of their pages in the buffer pool. */
+  void validate_space_reference_count(Space_References &buffer_pool_references);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
+
   /** Determine if the tablespace needs encryption rotation.
   @param[in]  space  tablespace to rotate
   @return true if the tablespace needs to be rotated, false if not. */
@@ -822,9 +832,9 @@ class Fil_shard {
   @param[in,out]	space		tablespace */
   void space_detach(fil_space_t *space);
 
-  /** Delete the instance that maps to space_id
-  @param[in]	space_id	Tablespace ID to delete */
-  void space_delete(space_id_t space_id) {
+  /** Remove the fil_space_t instance from the maps used to search for it.
+  @param[in]	space_id	Tablespace ID to remove from maps. */
+  void space_remove_from_lookup_maps(space_id_t space_id) {
     ut_ad(mutex_owned());
 
     auto it = m_spaces.find(space_id);
@@ -836,24 +846,43 @@ class Fil_shard {
   }
 
 #ifndef UNIV_HOTBACKUP
-  /** Purge entries from m_deleted that are lower than LWM.
-  @param[in]  lwm  No dirty pages in the buffer pool less than this LSN. */
-  void checkpoint(lsn_t lwm) {
+  /** Move the space to the deleted list and remove from the default
+  lookup set.
+  @param[in, out] space         Space instance to delete. */
+  void space_prepare_for_delete(fil_space_t *space) noexcept {
+    mutex_acquire();
+
+    space->set_deleted();
+
+    /* Remove access to the fil_space_t instance. */
+    space_remove_from_lookup_maps(space->id);
+
+    m_deleted_spaces.push_back({space->id, space});
+
+    space_detach(space);
+    ut_a(space->files.front().n_pending == 0);
+
+    mutex_release();
+  }
+
+  /** Purge entries from m_deleted_spaces that are no longer referenced by a
+  buffer pool page. This is no longer required to be done during checkpoint -
+  this is done here for historical reasons - it has to be done periodically
+  somewhere. */
+  void checkpoint() {
     /* Avoid cleaning up old undo files while this is on. */
     DBUG_EXECUTE_IF("ib_undo_trunc_checkpoint_off", return;);
 
     mutex_acquire();
-
-    for (auto it = m_deleted.begin(); it != m_deleted.end(); /* No op */) {
+    for (auto it = m_deleted_spaces.begin(); it != m_deleted_spaces.end();) {
       auto space = it->second;
 
-      if (space->m_deleted_lsn <= lwm) {
+      if (space->has_no_references()) {
         ut_a(space->files.front().n_pending == 0);
 
-        space_delete(space->id);
         space_free_low(space);
 
-        it = m_deleted.erase(it);
+        it = m_deleted_spaces.erase(it);
       } else {
         ++it;
       }
@@ -862,12 +891,16 @@ class Fil_shard {
     mutex_release();
   }
 
-  size_t count_deleted(space_id_t undo_num) {
+  /** Count how many truncated undo space IDs are still tracked in
+  the buffer pool and the file_system cache.
+  @param[in]  undo_num  undo tablespace number.
+  @return number of undo tablespaces that are still in memory. */
+  size_t count_undo_deleted(space_id_t undo_num) noexcept {
     size_t count = 0;
 
     mutex_acquire();
 
-    for (auto deleted : m_deleted) {
+    for (auto deleted : m_deleted_spaces) {
       if (undo::id2num(deleted.first) == undo_num) {
         count++;
       }
@@ -878,17 +911,17 @@ class Fil_shard {
     return (count);
   }
 
-  /** Check if a particular undo space_id for a page in the buffer pool has
-  been deleted recently.  Its space_id will be found in m_deleted until
-  Fil:shard::checkpoint removes all its pages from the buffer pool and the
-  fil_space_t from Fil_system.
+  /** Check if a particular space_id for a page in the buffer pool has
+  been deleted recently.  Its space_id will be found in m_deleted_spaces
+  until Fil:shard::checkpoint removes the fil_space_t from Fil_system.
+  @param[in]  space_id  Tablespace ID to check.
   @return true if this space_id is in the list of recently deleted spaces. */
   bool is_deleted(space_id_t space_id) {
     bool found = false;
 
     mutex_acquire();
 
-    for (auto deleted : m_deleted) {
+    for (auto deleted : m_deleted_spaces) {
       if (deleted.first == space_id) {
         found = true;
         break;
@@ -1204,7 +1237,7 @@ class Fil_shard {
   completion often performs another read from the insert buffer. The
   insert buffer is in tablespace TRX_SYS_SPACE, and we cannot end up
   waiting in this function.
-  @param[in]	space_id	Tablespace ID to look up
+  @param[in]  space_id  Tablespace ID to look up
   @return tablespace instance */
   fil_space_t *get_reserved_space(space_id_t space_id)
       MY_ATTRIBUTE((warn_unused_result));
@@ -1212,14 +1245,14 @@ class Fil_shard {
   /** Prepare for truncating a single-table tablespace.
   1) Wait for pending operations on the tablespace to stop;
   2) Remove all insert buffer entries for the tablespace;
-  @param[in]  space_id  Tablespace ID
+  @param[in]   space_id  Tablespace ID
+  @param[out]  space     Instance that maps to the space ID.
   @return DB_SUCCESS or error */
-  dberr_t space_prepare_for_truncate(space_id_t space_id)
+  dberr_t space_prepare_for_truncate(space_id_t space_id, fil_space_t *&space)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Note that a write IO has completed.
-  @param[in,out]	file		File on which a write was
-                                  completed */
+  @param[in,out]  file  File on which a write was completed */
   void write_completed(fil_node_t *file);
 
   /** If the tablespace is not on the unflushed list, add it.
@@ -1275,24 +1308,23 @@ class Fil_shard {
 
  private:
   /** Fil_shard ID */
-
   const size_t m_id;
 
   /** Tablespace instances hashed on the space id */
-
   Spaces m_spaces;
 
   /** Tablespace instances hashed on the space name */
-
   Names m_names;
 
 #ifndef UNIV_HOTBACKUP
-  /** Deleted space IDs, ignore writes to these tablespaces. Note the
-  LSN at which the tablespace was deleted. All pages before this LSN
-  should not be flushed to disk. Once the LWM is >= the recorded LSN
-  we can delete the entry from m_deleted. */
+  using Pair = std::pair<space_id_t, fil_space_t *>;
+  using Deleted_spaces = std::vector<Pair, ut_allocator<Pair>>;
 
-  std::vector<std::pair<space_id_t, fil_space_t *>> m_deleted;
+  /** Deleted tablespaces.  All pages for these tablespaces in the buffer
+  pool will be passively deleted.  They need not be written. Once the
+  reference count is zero, this fil_space_t can be deleted from
+  m_deleted_spaces and removed from memory. */
+  Deleted_spaces m_deleted_spaces;
 #endif /* !UNIV_HOTBACKUP */
 
   /** Base node for the LRU list of the most recently used open
@@ -1332,6 +1364,7 @@ class Fil_shard {
   // Disable copying
   Fil_shard(Fil_shard &&) = delete;
   Fil_shard(const Fil_shard &) = delete;
+  Fil_shard &operator=(Fil_shard &&) = delete;
   Fil_shard &operator=(const Fil_shard &) = delete;
 
   friend class Fil_system;
@@ -1468,11 +1501,10 @@ class Fil_system {
   void flush_file_spaces(uint8_t purpose);
 
 #ifndef UNIV_HOTBACKUP
-  /** Clean up the shards.
-  @param[in] lwm No dirty pages less than this LSN in the buffer pool. */
-  void checkpoint(lsn_t lwm) {
+  /** Clean up the shards. */
+  void checkpoint() {
     for (auto shard : m_shards) {
-      shard->checkpoint(lwm);
+      shard->checkpoint();
     }
   }
 
@@ -1480,25 +1512,26 @@ class Fil_system {
   the buffer pool and the file_system cache.
   @param[in]  undo_num  undo tablespace number.
   @return number of undo tablespaces that are still in memory. */
-  size_t count_deleted(space_id_t undo_num) {
+  size_t count_undo_deleted(space_id_t undo_num) {
     size_t count = 0;
 
     for (auto shard : m_shards) {
-      count += shard->count_deleted(undo_num);
+      count += shard->count_undo_deleted(undo_num);
     }
 
     return (count);
   }
 
   /** Check if a particular undo space_id for a page in the buffer pool has
-  been deleted recently.  Its space_id will be found in Fil_shard::m_deleted
-  until Fil:shard::checkpoint removes all its pages from the buffer pool and
-  the fil_space_t from Fil_system.
+  been deleted recently.
+  Its space_id will be found in Fil_shard::m_deleted_spaces until
+  Fil:shard::checkpoint removes the fil_space_t from Fil_system.
+  @param[in]  space_id  Tablespace ID to check.
   @return true if this space_id is in the list of recently deleted spaces. */
-  bool is_deleted(space_id_t space_id) {
+  bool is_deleted(space_id_t space_id) noexcept {
     auto shard = shard_by_id(space_id);
 
-    return (shard->is_deleted(space_id));
+    return shard->is_deleted(space_id);
   }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2054,7 +2087,7 @@ bool Fil_shard::reserve_open_slot(size_t shard_id) {
 }
 
 /** Release the slot reserved for opening a file.
-@param[in]	shard_id	ID of shard relasing the slot */
+@param[in]	shard_id	ID of shard releasing the slot */
 void Fil_shard::release_open_slot(size_t shard_id) {
   size_t expected = shard_id;
 
@@ -2338,7 +2371,7 @@ fil_type_t fil_space_get_type(space_id_t space_id) {
 /** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
-Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
+Now we change it to FIL_TYPE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
 @param[in]	space_id	Tablespace ID */
 void fil_space_set_imported(space_id_t space_id) {
@@ -2996,7 +3029,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
   space = get_space_by_id(space_id);
 
   if (space == nullptr) {
-    /* Caller handles the case of a missing tablespce. */
+    /* Caller handles the case of a missing tablespace. */
     return (false);
   }
 
@@ -3154,6 +3187,18 @@ void Fil_shard::space_detach(fil_space_t *space) {
 There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void Fil_shard::space_free_low(fil_space_t *&space) {
+#ifndef UNIV_HOTBACKUP
+  {
+    /* Temporary and undo tablespaces IDs are assigned from a large but
+    fixed size pool of reserved IDs. Therefore we must ensure that a
+    fil_space_t instance can't be dropped until all the pages that point
+    to it are also purged from the buffer pool. */
+
+    ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_LAST_PHASE ||
+         space->has_no_references());
+  }
+#endif /* !UNIV_HOTBACKUP */
+
   for (auto &file : space->files) {
     ut_d(space->size -= file.size);
 
@@ -3165,8 +3210,6 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
   call_destructor(&space->files);
 
   ut_ad(space->size == 0);
-
-  dblwr::space_remove(space->id);
 
   rw_lock_free(&space->latch);
   ut_free(space->name);
@@ -3188,7 +3231,7 @@ fil_space_t *Fil_shard::space_free(space_id_t space_id) {
   if (space != nullptr) {
     space_detach(space);
 
-    space_delete(space_id);
+    space_remove_from_lookup_maps(space_id);
   }
 
   mutex_release();
@@ -3283,12 +3326,13 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
   }
 
   space = static_cast<fil_space_t *>(ut_zalloc_nokey(sizeof(*space)));
+  /* This could be just a placement new constructor call if, only if it compiles
+  OK on SunPro. */
+  space->initialize();
 
   space->id = space_id;
 
   space->name = mem_strdup(name);
-
-  new (&space->files) fil_space_t::Files();
 
 #ifndef UNIV_HOTBACKUP
   if (fil_system->is_greater_than_max_id(space_id) &&
@@ -3706,14 +3750,46 @@ void fil_open_log_and_system_tablespace_files() {
   fil_system->open_all_system_tablespaces();
 }
 
+#ifndef UNIV_HOTBACKUP
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+static void fil_validate_space_reference_count(
+    fil_space_t *space, Space_References &buffer_pool_references) {
+  const auto space_reference_count = space->get_reference_count();
+
+  if (space_reference_count != buffer_pool_references[space]) {
+    ib::error() << "Space id=" << space->id << " reference count is "
+                << space_reference_count
+                << ", while references count found in buffer pool is "
+                << buffer_pool_references[space] << ". fast_shutdown is "
+                << srv_fast_shutdown;
+  }
+}
+
+void Fil_shard::validate_space_reference_count(
+    Space_References &buffer_pool_references) {
+  ut_ad(!mutex_owned());
+
+  mutex_acquire();
+
+  for (auto &e : m_spaces) {
+    fil_validate_space_reference_count(e.second, buffer_pool_references);
+  }
+
+  for (auto &e : m_deleted_spaces) {
+    fil_validate_space_reference_count(e.second, buffer_pool_references);
+  }
+
+  mutex_release();
+}
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
+
 /** Close all open files. */
 void Fil_shard::close_all_files() {
   ut_ad(mutex_owned());
 
-  auto end = m_spaces.end();
-
-  for (auto it = m_spaces.begin(); it != end; it = m_spaces.erase(it)) {
-    auto space = it->second;
+  for (auto &e : m_spaces) {
+    auto space = e.second;
 
     ut_a(space->id == TRX_SYS_SPACE || space->purpose == FIL_TYPE_TEMPORARY ||
          space->id == dict_sys_t::s_log_space_first_id ||
@@ -3735,10 +3811,50 @@ void Fil_shard::close_all_files() {
 
     ut_a(space == nullptr);
   }
+
+  m_spaces.clear();
+
+#ifndef UNIV_HOTBACKUP
+  for (auto e : m_deleted_spaces) {
+    auto space = e.second;
+
+    /* These cannot be lazily deleted. */
+    ut_a(space->id != TRX_SYS_SPACE &&
+         space->id != dict_sys_t::s_log_space_first_id &&
+         space->id != dict_sys_t::s_space_id);
+
+    ut_a(space->files.size() <= 1);
+
+    for (auto &file : space->files) {
+      if (file.is_open) {
+        close_file(&file, false);
+      }
+    }
+
+    space_free_low(space);
+
+    ut_a(space == nullptr);
+  }
+
+  m_deleted_spaces.clear();
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Close all open files. */
 void Fil_system::close_all_files() {
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+  bool should_validate_space_reference_count = srv_fast_shutdown == 0;
+  DBUG_EXECUTE_IF("buf_disable_space_reference_count_check",
+                  should_validate_space_reference_count = false;);
+
+  if (should_validate_space_reference_count) {
+    auto buffer_pool_references = buf_LRU_count_space_references();
+    for (auto shard : m_shards) {
+      shard->validate_space_reference_count(buffer_pool_references);
+    }
+  }
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
   for (auto shard : m_shards) {
     shard->mutex_acquire();
 
@@ -4275,36 +4391,26 @@ memory cache. Free all pages used by the tablespace.
 @param[in]	space_id	Tablespace ID
 @return DB_SUCCESS or error */
 dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
-  char *path = nullptr;
-  fil_space_t *space = nullptr;
-
   ut_ad(!fsp_is_undo_tablespace(space_id));
   ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 
   auto shard = fil_system->shard_by_id(space_id);
 
-  dberr_t err;
+  char *path{};
+  fil_space_t *space{};
 
-  err = shard->wait_for_pending_operations(space_id, space, &path);
+  auto err = shard->wait_for_pending_operations(space_id, space, &path);
 
   if (err != DB_SUCCESS) {
-    return (err);
+    return err;
   }
 
   ut_a(path != nullptr);
 
-  rw_lock_x_lock(&space->latch);
-
 #ifndef UNIV_HOTBACKUP
-  /* Invalidate in the buffer pool all pages belonging to the
-  tablespace. Since we have set space->stop_new_ops = true, readahead
-  or ibuf merge can no longer read more pages of this tablespace to the
-  buffer pool. Thus we can clean the tablespace out of the buffer pool
-  completely and permanently. The flag stop_new_ops also prevents
-  fil_flush() from being applied to this tablespace. */
-
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, trx);
-#endif /* !UNIV_HOTBACKUP */
+  shard->space_prepare_for_delete(space);
+#else
+  rw_lock_x_lock(&space->latch);
 
   /* If the free is successful, the X lock will be released before
   the space memory data structure is freed. */
@@ -4315,11 +4421,12 @@ dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
   } else {
     err = DB_SUCCESS;
   }
+#endif /* !UNIV_HOTBACKUP */
 
-  /* If it is a delete then also delete any generated files, otherwise
-  when we drop the database the remove directory will fail. */
+  /* Delete any generated files, otherwise if we drop the database the
+  remove directory will fail. */
 
-  char *cfg_name = Fil_path::make_cfg(path);
+  auto cfg_name = Fil_path::make_cfg(path);
 
   if (cfg_name != nullptr) {
     os_file_delete_if_exists(innodb_data_file_key, cfg_name, nullptr);
@@ -4327,7 +4434,7 @@ dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
     ut_free(cfg_name);
   }
 
-  char *cfp_name = Fil_path::make_cfp(path);
+  auto cfp_name = Fil_path::make_cfp(path);
 
   if (cfp_name != nullptr) {
     os_file_delete_if_exists(innodb_data_file_key, cfp_name, nullptr);
@@ -4456,8 +4563,9 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   we'll wait for IO to complete.
 
   For buf_remove == BUF_REMOVE_NONE we mark the fil_space_t instance
-  as deleted by setting the fil_space_t::m_deleted_lsn to the current
-  LSN. We wait for any pending IO to complete after that.
+  as deleted by bumping up the file_space_t::m_version. All pages
+  that are less than this version number will be discarded. We wait
+  for any pending IO to complete after that.
 
   To deal with potential read requests, we will check the
   ::stop_new_ops flag in fil_io(). */
@@ -4511,62 +4619,43 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   /* Must set back to active before returning from function. */
   clone_mark_abort(true);
 
-#ifndef UNIV_HOTBACKUP
-  lsn_t lsn = log_get_lsn(*log_sys);
-#endif /* !UNIV_HOTBACKUP */
-
   mutex_acquire();
 
   /* Double check the sanity of pending ops after reacquiring
   the fil_system::mutex. */
   if (const fil_space_t *s = get_space_by_id(space_id)) {
     ut_a(s == space);
-    ut_a(space->files.size() == 1);
-    ut_a(space->n_pending_ops == 0);
+
+    space->set_deleted();
 
 #ifndef UNIV_HOTBACKUP
-    if (buf_remove == BUF_REMOVE_NONE) {
-      ut_a(space->m_deleted_lsn == 0);
+    auto &file = space->files.front();
 
-      /* Mark the instance as deleted, this should inform any writer
-      threads that the tablespace can't be written to anymore. */
-      space->m_deleted_lsn = lsn;
-
-      /* Release the mutex because we want the IO to complete. */
+    /* Wait for any pending writes. */
+    while (file.n_pending > 0 || file.in_use > 0) {
+      /* Release and reacquire the mutex because we want the IO to complete. */
       mutex_release();
 
       os_thread_yield();
 
       mutex_acquire();
-
-      /* Wait for any pending writes. */
-      while (space->files.front().n_pending > 0) {
-        mutex_release();
-
-        os_thread_yield();
-
-        mutex_acquire();
-      }
-
-      m_deleted.push_back({space->id, space});
     }
+
+    m_deleted_spaces.push_back({space->id, space});
 #endif /* !UNIV_HOTBACKUP */
 
     space_detach(space);
 
-    /* Delete the tablespace unless BUF_REMOVE_NONE was used. */
-    if (space->m_deleted_lsn == 0) {
-      ut_a(space->files.front().n_pending == 0);
-
-      space_delete(space_id);
-    }
+    ut_a(space->files.front().n_pending == 0);
+    space_remove_from_lookup_maps(space_id);
 
     mutex_release();
 
-    if (space->m_deleted_lsn == 0) {
-      space_free_low(space);
-      ut_a(space == nullptr);
-    }
+#ifdef UNIV_HOTBACKUP
+    /* For usage inside MEB we don't support lazy stale page eviction, we just
+     do what fil_shard::checkpoint() does directly here. */
+    space_free_low(space);
+#endif /* UNIV_HOTBACKUP */
 
     if (!os_file_delete(innodb_data_file_key, path) &&
         !os_file_delete_if_exists(innodb_data_file_key, path, nullptr)) {
@@ -4585,7 +4674,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 
   clone_mark_active();
 
-  return (err);
+  return err;
 }
 
 dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove) {
@@ -4594,49 +4683,45 @@ dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove) {
   return (shard->space_delete(space_id, buf_remove));
 }
 
-dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id) {
-  char *path = nullptr;
-  fil_space_t *space = nullptr;
-
+dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id,
+                                              fil_space_t *&space) {
   ut_ad(space_id != TRX_SYS_SPACE);
   ut_ad(!fsp_is_system_tablespace(space_id));
   ut_ad(!fsp_is_global_temporary(space_id));
-  ut_ad(fsp_is_undo_tablespace(space_id) || fsp_is_session_temporary(space_id));
 
-  dberr_t err = wait_for_pending_operations(space_id, space, &path);
+  char *path{};
+  auto err = wait_for_pending_operations(space_id, space, &path);
 
   ut_free(path);
 
-  return (err);
+  return err;
 }
 
-/** Truncate the tablespace to needed size.
-@param[in]	space_id	Tablespace ID to truncate
-@param[in]	size_in_pages	Truncate size.
-@return true if truncate was successful. */
 bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
+#ifndef UNIV_HOTBACKUP
+  fil_space_t *space{};
+
   /* Step-1: Prepare tablespace for truncate. This involves
-  stopping all the new operations + IO on that tablespace
-  and ensuring that related pages are flushed to disk. */
-  if (space_prepare_for_truncate(space_id) != DB_SUCCESS) {
-    return (false);
+  stopping all the new operations + IO on that tablespace. Any future attempts
+  to flush will be ignored and pages discarded. */
+  if (space_prepare_for_truncate(space_id, space) != DB_SUCCESS) {
+    return false;
   }
 
-#ifndef UNIV_HOTBACKUP
-  /* Step-2: Invalidate buffer pool pages belonging to the tablespace
-  to re-create. Remove all insert buffer entries for the tablespace */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, nullptr);
-#endif /* !UNIV_HOTBACKUP */
+  mutex_acquire();
+
+  /* Step-2: Mark the tablespace pages in the buffer pool as stale by bumping
+   the version number of the space. Those stale pages will be ignored and freed
+   lazily later. This includes AHI, for which entries will be removed on
+   buf_page_free_stale*() -> buf_LRU_free_page ->
+   btr_search_drop_page_hash_index() */
+  space->bump_version();
 
   /* Step-3: Truncate the tablespace and accordingly update
   the fil_space_t handler that is used to access this tablespace. */
-  mutex_acquire();
-
-  fil_space_t *space = get_space_by_id(space_id);
-
   ut_a(space->files.size() == 1);
 
-  fil_node_t &file = space->files.front();
+  auto &file = space->files.front();
 
   ut_ad(file.is_open);
 
@@ -4658,6 +4743,10 @@ bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
   mutex_release();
 
   return (success);
+#else
+  /* Truncating a tablespace is not supported for MEB. */
+  ut_error;
+#endif
 }
 
 /** Truncate the tablespace to needed size.
@@ -4743,7 +4832,7 @@ memory cache. Discarding is like deleting a tablespace, but
 dberr_t fil_discard_tablespace(space_id_t space_id) {
   dberr_t err;
 
-  err = fil_delete_tablespace(space_id, BUF_REMOVE_ALL_NO_WRITE);
+  err = fil_delete_tablespace(space_id, BUF_REMOVE_NONE);
 
   switch (err) {
     case DB_SUCCESS:
@@ -5568,10 +5657,10 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
     page_zip_set_size(&page_zip, page_size.physical());
     page_zip.data = page + page_size.logical();
-#ifdef UNIV_DEBUG
-    page_zip.m_start =
-#endif /* UNIV_DEBUG */
-        page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
+    ut_d(page_zip.m_start = 0);
+    page_zip.m_end = 0;
+    page_zip.n_blobs = 0;
+    page_zip.m_nonempty = false;
 
     buf_flush_init_for_writing(nullptr, page, &page_zip, 0,
                                fsp_is_checksum_disabled(space_id),
@@ -5698,8 +5787,8 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
 
   /* Mark the old tablespace to be deleted. We defer the actual deletion
   to avoid concurrency bottleneck.  Leave the pages in the buffer pool
-  and record the lsn in fil_space_t::m_deleted_lsn. */
-  dberr_t err = fil_delete_tablespace(old_space_id, BUF_REMOVE_NONE);
+  and increment the space version number. */
+  auto err = fil_delete_tablespace(old_space_id, BUF_REMOVE_NONE);
 
   if (err != DB_SUCCESS) {
     return (false);
@@ -5771,7 +5860,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 
   if (space != nullptr) {
     shard->space_detach(space);
-    shard->space_delete(space->id);
+    shard->space_remove_from_lookup_maps(space->id);
     shard->space_free_low(space);
     ut_a(space == nullptr);
   }
@@ -6560,7 +6649,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     if (file->in_use == 0) {
       /* Mark this file as undergoing extension. This flag
       is used by other threads to wait for the extension
-      opereation to finish or wait for open to complete. */
+      operation to finish or wait for open to complete. */
 
       ++file->in_use;
 
@@ -7786,9 +7875,17 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     }
 
 #ifdef UNIV_DEBUG
-    /* Should never attempt to read from a deleted tablespace. */
-    for (auto pair : m_deleted) {
-      ut_ad(pair.first != page_id.space());
+    /* Should never attempt to read from a deleted tablespace, unless we
+    are also importing the tablespace. By the time we get here in the final
+    phase of import the state has changed. Therefore we check if there is
+    an active fil_space_t instance with the same ID. */
+    for (auto pair : m_deleted_spaces) {
+      if (pair.first == page_id.space()) {
+        auto space = fil_space_get(page_id.space());
+        if (space != nullptr) {
+          ut_a(pair.second != space);
+        }
+      }
     }
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
@@ -7806,6 +7903,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   least one file while holding it, if the file is not already open */
 
   fil_space_t *space;
+  auto bpage = static_cast<buf_page_t *>(message);
 
   bool slot = mutex_acquire_and_get_space(page_id.space(), space);
 
@@ -7818,28 +7916,62 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
       release_open_slot(m_id);
     }
 
+#ifndef UNIV_HOTBACKUP
+    const auto is_page_stale = bpage != nullptr && bpage->is_stale();
+#endif /* !UNIV_HOTBACKUP */
+
     mutex_release();
 
-    if (!req_type.ignore_missing()) {
-      if (space == nullptr) {
-        ib::error(ER_IB_MSG_330)
-            << "Trying to do I/O on a tablespace"
-            << " which does not exist. I/O type: "
-            << (req_type.is_read() ? "read" : "write") << ", page: " << page_id
-            << ", I/O length: " << len << " bytes";
-      } else {
-        ib::error(ER_IB_MSG_331)
-            << "Trying to do async read on a"
-            << " tablespace which is being deleted."
-            << " Tablespace name: \"" << space->name << "\", page: " << page_id
-            << ", read length: " << len << " bytes";
+    if (space == nullptr) {
+#ifndef UNIV_HOTBACKUP
+      if (req_type.is_write() && is_page_stale) {
+        ut_a(bpage->get_space()->id == page_id.space());
+        return DB_PAGE_IS_STALE;
+      }
+#endif /* !UNIV_HOTBACKUP */
+
+      if (!req_type.ignore_missing()) {
+#ifndef UNIV_HOTBACKUP
+        /* Don't have any record of this tablespace. print a warning. */
+        if (!Fil_shard::is_deleted(page_id.space())) {
+#endif /* !UNIV_HOTBACKUP */
+          if (space == nullptr) {
+            ib::error(ER_IB_MSG_330)
+                << "Trying to do I/O on a tablespace"
+                << " which does not exist. I/O type: "
+                << (req_type.is_read() ? "read" : "write")
+                << ", page: " << page_id << ", I/O length: " << len << " bytes";
+          } else {
+            ib::error(ER_IB_MSG_331)
+                << "Trying to do async read on a tablespace which is being"
+                << " deleted. Tablespace name: \"" << space->name << "\","
+                << " page: " << page_id << ", read length: " << len << " bytes";
+          }
+#ifndef UNIV_HOTBACKUP
+        }
+#endif /* !UNIV_HOTBACKUP */
       }
     }
 
-    return (DB_TABLESPACE_DELETED);
+    return DB_TABLESPACE_DELETED;
   }
 
   ut_ad(aio_mode != AIO_mode::IBUF || fil_type_is_data(space->purpose));
+
+#ifndef UNIV_HOTBACKUP
+  if (aio_mode != AIO_mode::LOG && bpage != nullptr) {
+    ut_a(bpage->get_space()->id == page_id.space());
+
+    if (req_type.is_write() && bpage->is_stale()) {
+      if (slot) {
+        release_open_slot(m_id);
+      }
+      mutex_release();
+      return DB_PAGE_IS_STALE;
+    }
+    ut_a(bpage->get_space() == space);
+  }
+#endif /* !UNIV_HOTBACKUP */
 
   fil_node_t *file;
   auto page_no = page_id.page_no();
@@ -7858,6 +7990,19 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
       return (DB_ERROR);
     }
 
+#ifndef UNIV_HOTBACKUP
+    if (req_type.is_write() && bpage != nullptr && bpage->is_stale()) {
+      ut_a(bpage->get_space()->id == page_id.space());
+
+      if (slot) {
+        release_open_slot(m_id);
+      }
+
+      mutex_release();
+      return DB_PAGE_IS_STALE;
+    }
+#endif /* !UNIV_HOTBACKUP */
+
     /* This is a hard error. */
     fil_report_invalid_page_access(page_id.page_no(), page_id.space(),
                                    space->name, byte_offset, len,
@@ -7873,14 +8018,13 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   if (!opened) {
 #ifndef UNIV_HOTBACKUP
     if (space->is_deleted()) {
-      ut_a(fsp_is_undo_tablespace(space->id));
       mutex_release();
 
       if (!sync) {
-        buf_page_io_complete(static_cast<buf_page_t *>(message), false);
+        buf_page_io_complete(bpage, false);
       }
 
-      return (DB_TABLESPACE_DELETED);
+      return DB_TABLESPACE_DELETED;
     }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -7896,7 +8040,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
             << ", I/O length: " << len << " bytes";
       }
 
-      return (DB_TABLESPACE_DELETED);
+      return DB_TABLESPACE_DELETED;
     }
 
     /* The tablespace is for log. Currently, we just assert here
@@ -7910,6 +8054,13 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   single-table tablespace, including rollback tablespaces. */
   if (file->size <= page_no && space->id != TRX_SYS_SPACE &&
       fil_type_is_data(space->purpose)) {
+#ifndef UNIV_HOTBACKUP
+    if (req_type.is_write() && bpage != nullptr && bpage->is_stale()) {
+      ut_a(bpage->get_space()->id == page_id.space());
+      return DB_PAGE_IS_STALE;
+    }
+#endif /* !UNIV_HOTBACKUP */
+
     if (req_type.ignore_missing()) {
       /* If we can tolerate the non-existent pages, we
       should return with DB_ERROR and let caller decide
@@ -7919,7 +8070,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
 
       mutex_release();
 
-      return (DB_ERROR);
+      return DB_ERROR;
     }
 
     /* This is a hard error. */
@@ -7943,10 +8094,8 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
   ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 
-  /* Don't compress the log, page 0 of all tablespaces, tables
-  compresssed with the old compression scheme and all pages from
-  the system tablespace. */
-
+  /* Don't compress the log, page 0 of all tablespaces, tables compressed with
+   the old compression scheme and all pages from the system tablespace. */
   if (req_type.is_write() && !req_type.is_log() && !page_size.is_compressed() &&
       page_id.page_no() > 0 && IORequest::is_punch_hole_supported() &&
       file->punch_hole) {
@@ -11850,16 +11999,10 @@ void Fil_path::convert_to_lower_case(std::string &path) {
   path.assign(lc_path);
 }
 
-void fil_checkpoint(lsn_t lwm) { fil_system->checkpoint(lwm); }
+void fil_checkpoint() { fil_system->checkpoint(); }
 
-size_t fil_count_deleted(space_id_t undo_num) {
-  return (fil_system->count_deleted(undo_num));
-}
-
-bool fil_is_deleted(space_id_t space_id) {
-  ut_ad(fsp_is_undo_tablespace(space_id));
-
-  return (fil_system->is_deleted(space_id));
+size_t fil_count_undo_deleted(space_id_t undo_num) {
+  return fil_system->count_undo_deleted(undo_num);
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -11989,8 +12132,71 @@ fil_node_t *fil_space_t::get_file_node(page_no_t *page_no) noexcept {
     /* The page is outside the current bounds of the file.
     Return DB_ERROR.  This should not occur for undo tablespaces
     since each truncation assigns a new space ID. */
-    ut_ad(m_deleted_lsn == 0);
+    ut_ad(!fsp_is_undo_tablespace(id));
   }
 
   return nullptr;
 }
+
+bool fil_space_t::is_deleted() const {
+  ut_ad(fil_system->shard_by_id(id)->mutex_owned());
+  return m_deleted;
+}
+
+bool fil_space_t::was_not_deleted() const {
+  /* This is not a critical assertion - if you have this mutex, then possibly
+  you want to call !is_deleted(). */
+  ut_ad(!fil_system->shard_by_id(id)->mutex_owned());
+  return !m_deleted;
+}
+
+#ifndef UNIV_HOTBACKUP
+uint32_t fil_space_t::get_current_version() const {
+  ut_ad(fil_system->shard_by_id(id)->mutex_owned());
+  return m_version;
+}
+uint32_t fil_space_t::get_recent_version() const {
+  /* This is not a critical assertion - if you have this mutex, then possibly
+  you want to call get_current_version(). */
+  ut_ad(!fil_system->shard_by_id(id)->mutex_owned());
+  return m_version;
+}
+bool fil_space_t::has_no_references() const {
+  ut_ad(fil_system->shard_by_id(id)->mutex_owned());
+  return m_n_ref_count.load() == 0;
+}
+size_t fil_space_t::get_reference_count() const {
+  /* This should be only called on server shutdown. */
+  ut_ad(fil_system->shard_by_id(id)->mutex_owned());
+  return m_n_ref_count.load();
+}
+
+#endif /* !UNIV_HOTBACKUP */
+
+void fil_space_t::set_deleted() {
+  ut_ad(fil_system->shard_by_id(id)->mutex_owned());
+  ut_a(files.size() == 1);
+  ut_a(n_pending_ops == 0);
+
+#ifndef UNIV_HOTBACKUP
+  bump_version();
+
+  m_deleted = true;
+#endif /* !UNIV_HOTBACKUP */
+}
+
+#ifndef UNIV_HOTBACKUP
+
+void fil_space_t::bump_version() {
+  ut_ad(fil_system->shard_by_id(id)->mutex_owned());
+  ut_a(files.size() == 1);
+  ut_a(n_pending_ops == 0);
+
+  /* Bump the version. This will make all pages in buffer pool that reference
+  the current space version to be stale and freed on first encounter. */
+  ut_a(stop_new_ops);
+  ut_a(!m_deleted);
+
+  ++m_version;
+}
+#endif /* !UNIV_HOTBACKUP */
