@@ -1497,9 +1497,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(DBLWR, SYNC_DBLWR, dblwr_mutex_key);
 
-  LATCH_ADD_MUTEX(DBLWR_SPACE_CACHE, SYNC_NO_ORDER_CHECK,
-                  mem_key_dblwr_space_cache);
-
   LATCH_ADD_MUTEX(TEST_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 
   latch_id_t id = LATCH_ID_NONE;

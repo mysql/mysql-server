@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1021,22 +1021,9 @@ bool fsp_header_dict_get_server_version(uint *version) {
   return (false);
 }
 
-/** Initializes the space header of a new created space and creates also the
-insert buffer tree root if space == 0.
-@param[in]	space_id	Space id
-@param[in]	size		Current size in blocks
-@param[in,out]	mtr		Mini-transaction
-@param[in]	is_boot		If it's for bootstrap
-@return	true on success, otherwise false. */
 bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
                      bool is_boot) {
-  fsp_header_t *header;
-  buf_block_t *block;
-  page_t *page;
-
-  ut_ad(mtr);
-
-  fil_space_t *space = fil_space_get(space_id);
+  auto space = fil_space_get(space_id);
   ut_ad(space != nullptr);
 
   mtr_x_lock_space(space, mtr);
@@ -1044,7 +1031,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   const page_id_t page_id(space_id, 0);
   const page_size_t page_size(space->flags);
 
-  block = buf_page_create(page_id, page_size, RW_SX_LATCH, mtr);
+  auto block = buf_page_create(page_id, page_size, RW_SX_LATCH, mtr);
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
   space->size_in_header = size;
@@ -1054,7 +1041,12 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   /* The prior contents of the file page should be ignored */
 
   fsp_init_file_page(block, mtr);
-  page = buf_block_get_frame(block);
+
+  auto page = buf_block_get_frame(block);
+
+  /* This page was just created or returned by the buffer pool - it can't be
+  stale. */
+  ut_ad(block->page.get_space() != nullptr && !block->page.was_stale());
 
   mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR, MLOG_2BYTES,
                    mtr);
@@ -1064,7 +1056,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
                    DD_SPACE_CURRENT_SPACE_VERSION, MLOG_4BYTES, mtr);
 
-  header = FSP_HEADER_OFFSET + page;
+  auto header = FSP_HEADER_OFFSET + page;
 
   mlog_write_ulint(header + FSP_SPACE_ID, space_id, MLOG_4BYTES, mtr);
   mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
@@ -1089,10 +1081,12 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   /* For encryption tablespace, we need to save the encryption
   info to the page 0. */
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    ulint offset = fsp_header_get_encryption_offset(page_size);
+    auto offset = fsp_header_get_encryption_offset(page_size);
     byte encryption_info[Encryption::INFO_SIZE];
 
-    if (offset == 0) return (false);
+    if (offset == 0) {
+      return (false);
+    }
 
     if (!Encryption::fill_encryption_info(space->encryption_key,
                                           space->encryption_iv, encryption_info,
@@ -1482,6 +1476,8 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
         fsp_init_file_page(block, mtr);
         mlog_write_ulint(buf_block_get_frame(block) + FIL_PAGE_TYPE,
                          FIL_PAGE_TYPE_XDES, MLOG_2BYTES, mtr);
+
+        ut_a(block->page.get_space() != nullptr && !block->page.was_stale());
       }
 
       /* Initialize the ibuf bitmap page in a separate
@@ -1505,6 +1501,8 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
         buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
         fsp_init_file_page(block, &ibuf_mtr);
+
+        ut_a(block->page.get_space() != nullptr && !block->page.was_stale());
 
         ibuf_bitmap_page_init(block, &ibuf_mtr);
 

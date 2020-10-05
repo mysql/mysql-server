@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -195,6 +195,8 @@ enum dberr_t {
   DB_SCHEMA_MISMATCH,
   /** System has run out of resources. */
   DB_OUT_OF_RESOURCES,
+  /** Page was discarded, was not written to storage. */
+  DB_PAGE_IS_STALE,
 
   /* The following are partial failure codes */
 

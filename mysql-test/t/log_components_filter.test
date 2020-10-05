@@ -521,6 +521,9 @@ INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val2==1 OR wl9651_val2==2 OR wl9651
 # 3 - IF/AND/AND
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val3a==1 AND wl9651_val3b==2 AND wl9651_val3c==3 THEN set wl9651_result3:="SUCCESS" ELSE set wl9651_result3:="FAILURE".');
 
+# Add more exceptions here for all messages that are not revelant to test and should be ignored.
+INSERT INTO my_rules VALUES(NULL, 'IF err_code==011825 THEN drop.');
+
 SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
 SET @@global.dragnet.log_error_filter_rules= @rules;
 

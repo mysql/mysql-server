@@ -66,6 +66,8 @@ perfschema.threads_history      : BUG#27712231
 perfschema.ssl                  : BUG#30910698
 perfschema.idx_compare_events_waits_current : BUG#27865960
 perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
+perfschema.idx_compare_ews_by_instance : BUG#31791537
+perfschema.idx_compare_rwlock_instances : BUG#31791537
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040

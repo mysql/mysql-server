@@ -3644,7 +3644,7 @@ void srv_shutdown() {
   pars_lexer_close();
   buf_pool_free_all();
 
-  /* 6. Free the thread management resoruces. */
+  /* 6. Free the thread management resources. */
   clone_free();
   arch_free();
 

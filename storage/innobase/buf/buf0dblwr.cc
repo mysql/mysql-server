@@ -44,137 +44,6 @@ Atomic writes handling. */
 #include <regex>
 #include <vector>
 
-/** The cached local copy of the fil_space_t pointer.  Copy some members
-locally so that it can be used for cache validation. */
-struct Local_fil_space {
-  /** Default constructor. */
-  Local_fil_space() noexcept
-      : m_space(nullptr), m_space_id(SPACE_UNKNOWN), m_flags(0) {}
-
-  /** Allocate an object of type Local_fil_space.
-  @return the allocated object. */
-  static Local_fil_space *alloc() noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return UT_NEW(Local_fil_space(), mem_key_dblwr_space_cache);
-  }
-
-  /** Free the given cached object.
-  @param[in]   obj   the locally cached tablespace object. */
-  static void free(Local_fil_space *obj) noexcept { UT_DELETE(obj); }
-
-  /** Check if the cached value is valid.
-  @return true if valid, false otherwise. */
-  bool is_valid() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_space->magic_n != FIL_SPACE_MAGIC_N || m_space->id != m_space_id ||
-        m_space->flags != m_flags || m_space->is_deleted()) {
-      return false;
-    }
-    return true;
-  }
-
-  /** The cached object. */
-  fil_space_t *m_space{};
-
-  /** Copy of the space identifier from the m_space object.  */
-  space_id_t m_space_id{};
-
-  /** Copy of the tablespace flags from the m_space object.  */
-  uint32_t m_flags{};
-};
-
-/** A local doublewrite module level cache of fil_space_t object pointers. */
-struct Cached_fil_space {
- public:
-  /** Default constructor. */
-  Cached_fil_space() noexcept {
-    mutex_create(LATCH_ID_DBLWR_SPACE_CACHE, &m_mutex);
-  }
-
-  /** Destructor. */
-  ~Cached_fil_space() noexcept {
-    free_all();
-    mutex_free(&m_mutex);
-  }
-
-  /** Remove the given space_id from the cache.
-  @param[in]  space_id  the tablespace identifier. */
-  void space_remove(space_id_t space_id) noexcept {
-#ifndef UNIV_HOTBACKUP
-    IB_mutex_guard guard(&m_mutex);
-#endif /* !UNIV_HOTBACKUP */
-    auto iter = m_cache.find(space_id);
-    if (iter != m_cache.end()) {
-      Local_fil_space::free(iter->second);
-      m_cache.erase(iter);
-    }
-  }
-
-  /** Get the fil_space_t object pointer given the table space identifier.
-  Obtain from the local cache.  If there is a cache miss, then get it from
-  the global data structure.
-  @return nullptr if there is no tablespace with given space_id.
-  @return pointer to the fil_space_t object. */
-  fil_space_t *space_get(space_id_t space_id) noexcept
-      MY_ATTRIBUTE((warn_unused_result)) {
-#ifndef UNIV_HOTBACKUP
-    IB_mutex_guard guard(&m_mutex);
-#endif /* !UNIV_HOTBACKUP */
-
-    auto iter = m_cache.find(space_id);
-    if (iter != m_cache.end()) {
-      Local_fil_space *local = iter->second;
-      if (local->is_valid()) {
-        return local->m_space;
-      } else {
-        Local_fil_space::free(iter->second);
-        m_cache.erase(iter);
-      }
-    }
-
-    /* Cache miss */
-    return reload(space_id);
-  }
-
- private:
-  /** Load the fil_space_t object from the global data structure into this
-  local (dblwr level) cache.
-  @return the fil_space_t object pointer */
-  fil_space_t *reload(space_id_t space_id) noexcept
-      MY_ATTRIBUTE((warn_unused_result)) {
-    ut_ad(mutex_own(&m_mutex));
-
-    fil_space_t *space = fil_space_get(space_id);
-    if (space == nullptr) {
-      return nullptr;
-    }
-
-    Local_fil_space *local = Local_fil_space::alloc();
-    local->m_space_id = space_id;
-    local->m_space = space;
-    local->m_flags = space->flags;
-
-    m_cache.insert(std::make_pair(space_id, local));
-    return space;
-  }
-
-  /** Free all the heap allocated objects and then clear the cache. */
-  void free_all() {
-    using my_pair = std::pair<space_id_t, Local_fil_space *>;
-    std::for_each(m_cache.begin(), m_cache.end(),
-                  [](const my_pair &i) { Local_fil_space::free(i.second); });
-    m_cache.clear();
-  }
-
-  /** Mutex protecting the cache for concurrent access and modification. */
-  ib_mutex_t m_mutex{};
-
-  /** Cache of fil_space_t object pointers.  */
-  std::unordered_map<
-      space_id_t, Local_fil_space *, std::hash<space_id_t>,
-      std::equal_to<space_id_t>,
-      ut_allocator<std::pair<const space_id_t, Local_fil_space *>>>
-      m_cache{};
-};
-
 /** Doublewrite buffer */
 
 /** fseg header of the fseg containing the doublewrite buffer */
@@ -640,7 +509,7 @@ class Double_write {
   }
 
   /** Updates the double write buffer when a write request is completed.
-  @param[in,out] bpage          Block that has just been writtent to disk.
+  @param[in,out] bpage          Block that has just been written to disk.
   @param[in] flush_type         Flush type that triggered the write. */
   static void write_complete(buf_page_t *bpage, buf_flush_t flush_type)
       noexcept;
@@ -753,7 +622,7 @@ class Double_write {
   // clang-format on
 
   /** Write the data to disk synchronously.
-  @param[in]    segment      Segement to write to.
+  @param[in]    segment      Segment to write to.
   @param[in]	bpage        Page to write.
   @param[in]    e_block      Encrypted block.  Can be nullptr.
   @param[in]    e_len        Encrypted data length in e_block. */
@@ -761,7 +630,7 @@ class Double_write {
                            file::Block *e_block, uint32_t e_len) noexcept;
 
  private:
-  /** Create the singletone instance, start the flush thread
+  /** Create the singleton instance, start the flush thread
   @return DB_SUCCESS or error code */
   static dberr_t start() noexcept MY_ATTRIBUTE((warn_unused_result));
 
@@ -833,30 +702,7 @@ class Double_write {
   Double_write(const Double_write &&) = delete;
   Double_write &operator=(Double_write &&) = delete;
   Double_write &operator=(const Double_write &) = delete;
-
-  /** Get the fil_space_t object pointer given the tablespace identifier.
-  @param[in]  space_id   tablespace identifier.
-  @return the fil_space_t object pointer.
-  @return nullptr if there is no tablespace with given identifier. */
-  static fil_space_t *space_get(space_id_t space_id) noexcept
-      MY_ATTRIBUTE((warn_unused_result)) {
-    return s_cached_space->space_get(space_id);
-  }
-
-  /** Remove the fil_space_t object from cache.
-  @param[in]  space_id   tablespace identifier. */
-  static void space_remove(space_id_t space_id) noexcept {
-    if (s_cached_space != nullptr) {
-      s_cached_space->space_remove(space_id);
-    }
-  }
-
- private:
-  /** The cache of tablespace object. */
-  static Cached_fil_space *s_cached_space;
 };
-
-Cached_fil_space *Double_write::s_cached_space{};
 
 /** File segment of a double write file. */
 class Segment {
@@ -884,7 +730,7 @@ class Segment {
 
     auto err = os_file_write_retry(req, m_file.m_name.c_str(), m_file.m_pfs,
                                    ptr, m_start, len);
-    ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
+    ut_a(err == DB_SUCCESS);
   }
 
   /** Flush the segment to disk. */
@@ -1071,12 +917,6 @@ dberr_t Double_write::create_v2() noexcept {
   ut_a(!s_files.empty());
   ut_a(s_instances == nullptr);
 
-  s_cached_space = UT_NEW(Cached_fil_space(), mem_key_dblwr_space_cache);
-
-  if (s_cached_space == nullptr) {
-    return DB_OUT_OF_MEMORY;
-  }
-
   s_instances = UT_NEW_NOKEY(Instances{});
 
   if (s_instances == nullptr) {
@@ -1108,8 +948,6 @@ dberr_t Double_write::create_v2() noexcept {
 }
 
 void Double_write::shutdown() noexcept {
-  UT_DELETE(s_cached_space);
-
   if (s_instances == nullptr) {
     return;
   }
@@ -1285,8 +1123,9 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
       fil_io(io_request, sync, bpage->id, bpage->size, 0, len, frame, bpage);
 
   /* When a tablespace is deleted with BUF_REMOVE_NONE, fil_io() might
-  return DB_TABLESPACE_DELETED. */
-  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
+  return DB_PAGE_IS_STALE or DB_TABLESPACE_DELETED. */
+  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED ||
+       err == DB_PAGE_IS_STALE);
 
   return err;
 }
@@ -1329,6 +1168,11 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage, file::Block *e_block,
 
   if (err == DB_SUCCESS) {
     fil_flush(bpage->id.space());
+  } else {
+    /* This block is not freed if the write_to_datafile doesn't succeed. */
+    if (e_block != nullptr) {
+      os_free_block(e_block);
+    }
   }
 
   while (!s_single_segments->enqueue(segment)) {
@@ -1659,13 +1503,17 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
         write_to_datafile(bpage, false, std::get<1>(m_buf_pages.m_pages[i]),
                           std::get<2>(m_buf_pages.m_pages[i]));
 
-    ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
+    if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
+      write_complete(bpage, flush_type);
+      buf_page_free_stale_during_write(
+          bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
 
-    if (err != DB_SUCCESS) {
       const file::Block *block = std::get<1>(m_buf_pages.m_pages[i]);
       if (block != nullptr) {
         os_free_block(const_cast<file::Block *>(block));
       }
+    } else {
+      ut_a(err == DB_SUCCESS);
     }
 
 #ifdef UNIV_DEBUG
@@ -1793,7 +1641,7 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
     return nullptr;
   }
 
-  fil_space_t *space = Double_write::space_get(space_id);
+  fil_space_t *space = bpage->get_space();
   if (space->encryption_op_in_progress == DECRYPTION ||
       !space->is_encrypted()) {
     return nullptr;
@@ -1848,25 +1696,30 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
                      bool sync) noexcept {
   dberr_t err;
   const space_id_t space_id = bpage->id.space();
-  const bool is_undo = fsp_is_undo_tablespace(space_id);
 
-  if (is_undo && fil_is_deleted(space_id)) {
+  /* This is not required for correctness, but it aborts the processing early.
+   */
+  if (bpage->was_stale()) {
     /* Disable batch completion in write_complete(). */
     bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
-    buf_page_io_complete(bpage, flush_type == BUF_FLUSH_LRU);
-
-    return DB_TABLESPACE_DELETED;
+    buf_page_free_stale_during_write(
+        bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+    return DB_SUCCESS;
   }
 
   if (srv_read_only_mode || fsp_is_system_temporary(space_id) ||
       !dblwr::enabled || Double_write::s_instances == nullptr ||
       mtr_t::s_logging.dblwr_disabled()) {
-    /* Skip the double-write buffer since it is not needed.
-    Temporary tablespaces are never recovered, therefore we don't care
-    about torn writes. */
+    /* Skip the double-write buffer since it is not needed. Temporary
+    tablespaces are never recovered, therefore we don't care about
+    torn writes. */
     bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
     err = Double_write::write_to_datafile(bpage, sync, nullptr, 0);
-    if (sync) {
+    if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
+      buf_page_free_stale_during_write(
+          bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+      err = DB_SUCCESS;
+    } else if (sync) {
       ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_SINGLE_PAGE);
 
       if (err == DB_SUCCESS) {
@@ -1980,7 +1833,7 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
       /* This is an existing directory. */
       break;
     case OS_FILE_TYPE_MISSING:
-      /* This path is missing but otherwise useable. It will be created. */
+      /* This path is missing but otherwise usable. It will be created. */
       ut_ad(!dir_exists);
       break;
     case OS_FILE_TYPE_LINK:
@@ -2698,11 +2551,5 @@ bool has_encrypted_pages() noexcept {
   return st;
 }
 #endif /* UNIV_DEBUG */
-
-void space_remove(space_id_t space_id) {
-#ifndef UNIV_HOTBACKUP
-  Double_write::space_remove(space_id);
-#endif /* !UNIV_HOTBACKUP */
-}
 
 }  // namespace dblwr

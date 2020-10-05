@@ -4446,9 +4446,9 @@ static void i_s_innodb_buffer_page_get_info(
 
     page_info->fix_count = bpage->buf_fix_count;
 
-    page_info->newest_mod = bpage->newest_modification;
+    page_info->newest_mod = bpage->get_newest_lsn();
 
-    page_info->oldest_mod = bpage->oldest_modification;
+    page_info->oldest_mod = bpage->get_oldest_lsn();
 
     page_info->access_time = bpage->access_time;
 

@@ -3708,9 +3708,9 @@ static void innobase_post_recover() {
       mutex_exit(&undo::ddl_mutex);
 
       /* We have to ensure that the first page of the undo tablespaces gets
-       * flushed to disk.  Otherwise during recovery, since we read the first
-       * page without applying the redo logs, it will be determined that
-       * encryption is off. */
+       flushed to disk.  Otherwise during recovery, since we read the first
+       page without applying the redo logs, it will be determined that
+       encryption is off. */
       buf_flush_sync_all_buf_pools();
     }
   }
@@ -15397,7 +15397,7 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
   /* If truncation is happening too often on this undo tablespace there
   may be too many old files still in the fil_system with their pages
   still in the buffer pool.  If this is the case, return an error. */
-  auto count = fil_count_deleted(undo_space->num());
+  auto count = fil_count_undo_deleted(undo_space->num());
   if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
     my_printf_error(ER_DISALLOWED_OPERATION,
                     "Cannot set %s inactive since there would be"
@@ -15578,9 +15578,9 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
     return HA_ERR_TABLESPACE_IS_NOT_EMPTY;
   }
 
-  /* Invalidate buffer pool pages belonging to this undo tablespace before
-  dropping it. */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, nullptr);
+  /* We don't need to invalidate buffer pool pages belonging to this undo
+   tablespace before dropping it, as they will be set as stale and to be
+   lazily freed. */
 
   /* Save the file name before undo_space is dropped. */
   std::string file_name{undo_space->file_name()};

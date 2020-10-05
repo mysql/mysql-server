@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -765,7 +765,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     }
 
     /* We don't support upgrade from 5.7 with discarded Tablespaces.
-     * Upgrade should stop in a dd_upgrade_tablespace function. */
+     Upgrade should stop in a dd_upgrade_tablespace function. */
     ut_ad(!dict_table_is_discarded(part_table));
 
     if (!dd_upgrade_ensure_has_dd_space_id(thd, part_table)) {
@@ -911,7 +911,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   }
 
   /* We don't support upgrade from 5.7 with discarded Tablespaces.
-   * Upgrade should stop in a dd_upgrade_tablespace function. */
+   Upgrade should stop in a dd_upgrade_tablespace function. */
   ut_ad(!dict_table_is_discarded(ib_table));
 
   /* If all FTS index are dropped but Innodb still retains the
@@ -1420,7 +1420,7 @@ static void dd_upgrade_drop_57_backup_spaces() {
       continue;
     }
 
-    auto err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+    auto err = fil_delete_tablespace(space_id, BUF_REMOVE_NONE);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL, space_name);

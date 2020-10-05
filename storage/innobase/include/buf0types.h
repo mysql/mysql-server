@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,13 +62,18 @@ class FlushObserver;
 typedef byte buf_frame_t;
 
 /** Flags for flush types */
-enum buf_flush_t {
-  BUF_FLUSH_LRU = 0,     /*!< flush via the LRU list */
-  BUF_FLUSH_LIST,        /*!< flush via the flush list
-                         of dirty blocks */
-  BUF_FLUSH_SINGLE_PAGE, /*!< flush via the LRU list
-                         but only a single page */
-  BUF_FLUSH_N_TYPES      /*!< index of last element + 1  */
+enum buf_flush_t : uint8_t {
+  /** Flush via the LRU list */
+  BUF_FLUSH_LRU = 0,
+
+  /** Flush via the flush list of dirty blocks */
+  BUF_FLUSH_LIST,
+
+  /** Flush via the LRU list but only a single page */
+  BUF_FLUSH_SINGLE_PAGE,
+
+  /** Index of last element + 1  */
+  BUF_FLUSH_N_TYPES
 };
 
 /** Algorithm to remove the pages for a tablespace from the buffer pool.
@@ -88,13 +93,18 @@ enum buf_remove_t {
 };
 
 /** Flags for io_fix types */
-enum buf_io_fix {
-  BUF_IO_NONE = 0, /**< no pending I/O */
-  BUF_IO_READ,     /**< read pending */
-  BUF_IO_WRITE,    /**< write pending */
-  BUF_IO_PIN       /**< disallow relocation of
-                   block and its removal of from
-                   the flush_list */
+enum buf_io_fix : uint8_t {
+  /** no pending I/O */
+  BUF_IO_NONE = 0,
+
+  /** read pending */
+  BUF_IO_READ,
+
+  /** write pending */
+  BUF_IO_WRITE,
+
+  /** disallow relocation of block and its removal from the flush_list */
+  BUF_IO_PIN
 };
 
 /** Alternatives for srv_checksum_algorithm, which can be changed by

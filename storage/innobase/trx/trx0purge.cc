@@ -731,7 +731,7 @@ bool Tablespace::needs_truncation() {
   with BUF_REMOVE_NONE, the actual space is not deleted for that old
   space ID until all pages have been passively removed from the buffer
   pool. */
-  auto count = fil_count_deleted(undo::id2num(m_id));
+  auto count = fil_count_undo_deleted(undo::id2num(m_id));
   if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
     ib::warn(ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN);
     return (false);

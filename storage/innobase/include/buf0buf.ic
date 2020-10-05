@@ -432,6 +432,7 @@ UNIV_INLINE
 void buf_page_set_flush_type(buf_page_t *bpage,      /*!< in: buffer page */
                              buf_flush_t flush_type) /*!< in: flush type */
 {
+  ut_ad(mutex_own(buf_page_get_mutex(bpage)));
   bpage->flush_type = flush_type;
   ut_ad(buf_page_get_flush_type(bpage) == flush_type);
 }
@@ -442,7 +443,7 @@ void buf_page_set_flush_type(buf_page_t *bpage,      /*!< in: buffer page */
 UNIV_INLINE
 void buf_block_set_file_page(buf_block_t *block, const page_id_t &page_id) {
   buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
-  block->page.id = page_id;
+  block->page.reset_page_id(page_id);
 }
 
 /** Gets the io_fix state of a block.
@@ -760,14 +761,6 @@ buf_page_t *buf_page_alloc_descriptor(void) {
   return (bpage);
 }
 
-/** Free a buf_page_t descriptor. */
-UNIV_INLINE
-void buf_page_free_descriptor(
-    buf_page_t *bpage) /*!< in: bpage descriptor to free. */
-{
-  ut_free(bpage);
-}
-
 /** Frees a buffer block which does not contain a file page. */
 UNIV_INLINE
 void buf_block_free(buf_block_t *block) /*!< in, own: block to be freed */
@@ -792,28 +785,17 @@ byte *buf_frame_copy(byte *buf,                /*!< in: buffer to copy to */
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Gets the youngest modification log sequence number for a frame.
- Returns zero if not file page or no modification occurred yet.
- @return newest modification to page */
 UNIV_INLINE
-lsn_t buf_page_get_newest_modification(
-    const buf_page_t *bpage) /*!< in: block containing the
-                             page frame */
-{
-  lsn_t lsn;
-  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+lsn_t buf_page_get_newest_modification(const buf_page_t *bpage) {
+  auto block_mutex = buf_page_get_mutex(bpage);
 
   mutex_enter(block_mutex);
 
-  if (buf_page_in_file(bpage)) {
-    lsn = bpage->newest_modification;
-  } else {
-    lsn = 0;
-  }
+  auto lsn = buf_page_in_file(bpage) ? bpage->get_newest_lsn() : 0;
 
   mutex_exit(block_mutex);
 
-  return (lsn);
+  return lsn;
 }
 
 /** Increment the modify clock.
@@ -849,6 +831,15 @@ ib_uint64_t buf_block_get_modify_clock(const buf_block_t *block) {
                             RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX | RW_LOCK_FLAG_S));
 
   return (block->modify_clock);
+}
+
+inline void buf_page_t::set_oldest_lsn(lsn_t lsn) noexcept {
+  ut_ad(buf_page_get_state(this) == BUF_BLOCK_POOL_WATCH ||
+        mutex_own(buf_page_get_mutex(this)));
+  /* To modify the page we should have matching MDL latches, that will make the
+  result of stale guaranteed to be current. */
+  ut_ad(lsn == 0 || !was_stale());
+  oldest_modification = lsn;
 }
 
 /** Increments the bufferfix count.

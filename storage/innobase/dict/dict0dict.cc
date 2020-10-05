@@ -1535,7 +1535,7 @@ dberr_t dict_table_rename_in_cache(
       return (DB_OUT_OF_MEMORY);
     }
 
-    err = fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
+    err = fil_delete_tablespace(table->space, BUF_REMOVE_NONE);
 
     ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND ||
          err == DB_IO_ERROR);
@@ -5697,7 +5697,7 @@ size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
 }
 
 /** Close SDI table.
-@param[in]	table		the in-meory SDI table object */
+@param[in]	table		the in-memory SDI table object */
 void dict_sdi_close_table(dict_table_t *table) {
   ut_ad(dict_table_is_sdi(table->id));
   dict_table_close(table, true, false);
@@ -5889,10 +5889,10 @@ happening on SDI table records. Purge will acquired shared
 MDL on SDI table.
 
 Exclusive MDL is transactional(released on trx commit). So
-for successful acquistion, there should be valid thd with
+for successful acquisition, there should be valid thd with
 trx associated.
 
-Acquistion order of SDI MDL and SDI table has to be in same
+Acquisition order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
@@ -5949,7 +5949,7 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
 prevent concurrent DROP table/tablespace.
 DROP table/tablespace will acquire exclusive MDL on SDI table
 
-Acquistion order of SDI MDL and SDI table has to be in same
+Acquisition order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl

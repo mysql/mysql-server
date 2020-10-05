@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,7 +78,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
     /* Trx sys header is so low in the latching order that we play
     safe and do not leave the i/o-completion to an asynchronous
     i/o-thread. Ibuf bitmap pages must always be read with
-    syncronous i/o, to make sure they do not get involved in
+    synchronous i/o, to make sure they do not get involved in
     thread deadlocks. */
 
     sync = true;
@@ -89,6 +89,8 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   pool for read, then DISCARD cannot proceed until the read has
   completed */
   bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
+
+  ut_a(bpage == nullptr || bpage->get_space()->id == page_id.space());
 
   if (bpage == nullptr) {
     return (0);
@@ -427,7 +429,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     return (0);
   }
 
-  /* Remember the tablespace version before we ask te tablespace size
+  /* Remember the tablespace version before we ask the tablespace size
   below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
   do not try to read outside the bounds of the tablespace! */
   ulint space_size;

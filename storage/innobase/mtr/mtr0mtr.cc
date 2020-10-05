@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -457,7 +457,7 @@ bool mtr_t::is_block_dirtied(const buf_block_t *block) {
   /* It is OK to read oldest_modification because no
   other thread can be performing a write of it and it
   is only during write that the value is reset to 0. */
-  return (block->page.oldest_modification == 0);
+  return !block->page.is_dirty();
 }
 
 #ifndef UNIV_HOTBACKUP
