@@ -246,6 +246,10 @@ public:
   int getSchemaName(char * buf, size_t len) const;
   void setDbSchema(const char * db, const char * schema);
 
+  // Return string with internal name format using same prefix
+  // i.e name prefixed with "db/schema/" part of the internal name
+  const BaseString get_internal_name_prefix(const char* name);
+
   /**
    * 
    */

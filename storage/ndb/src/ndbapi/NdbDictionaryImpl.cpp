@@ -1185,6 +1185,20 @@ NdbTableImpl::setDbSchema(const char * db, const char * schema)
   updateMysqlName();
 }
 
+const BaseString NdbTableImpl::get_internal_name_prefix(const char *name) {
+  DBUG_TRACE;
+  // Function should only be called with both internal and external name set
+  DBUG_ASSERT(m_internalName.length() && m_externalName.length());
+
+  // Get prefix, first part of internal name minus length of external name
+  BaseString prefixed_name = m_internalName.substr(
+      0, m_internalName.length() - m_externalName.length());
+  // Append name to prefix
+  prefixed_name.append(name);
+  DBUG_PRINT("exit", ("prefixed_name: %s", prefixed_name.c_str()));
+  return prefixed_name;
+}
+
 void
 NdbTableImpl::computeAggregates()
 {
@@ -2752,7 +2766,8 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
     // retrieve blob table def from DICT - by-pass cache
     char btname[NdbBlobImpl::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
-    BaseString btname_internal = m_ndb.internalize_table_name(btname);
+    // Use same prefix as table for the internal blob table name
+    const BaseString btname_internal = t.get_internal_name_prefix(btname);
     NdbTableImpl* bt = m_receiver.getTable(btname_internal);
     if (bt == NULL)
     {
