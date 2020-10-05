@@ -861,10 +861,17 @@ bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
 
   for (TABLE_LIST *tr = u->first_select()->leaf_tables; tr;
        tr = tr->next_leaf) {
-    if (tr->is_deleted()) {
-      // Count number of tables deleted from
-      delete_table_count++;
-    }
+    if (!tr->is_deleted()) continue;
+
+    // Count number of tables deleted from
+    delete_table_count++;
+    delete_table_map |= tr->map();
+
+    // Record transactional and non-transactional tables that are deleted from:
+    if (tr->table->file->has_transactions())
+      transactional_table_map |= tr->map();
+    else
+      non_transactional_table_map |= tr->map();
   }
 
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
@@ -903,7 +910,6 @@ bool Query_result_delete::optimize() {
   bool delete_while_scanning = true;
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (!tr->is_deleted()) continue;
-    delete_table_map |= tr->map();
     if (delete_while_scanning && unique_table(tr, join->tables_list, false)) {
       /*
         If the table being deleted from is also referenced in the query,
@@ -923,10 +929,6 @@ bool Query_result_delete::optimize() {
     // Don't use record cache
     table->no_cache = true;
     table->covering_keys.clear_all();
-    if (table->file->has_transactions())
-      transactional_table_map |= map;
-    else
-      non_transactional_table_map |= map;
     if (table->triggers &&
         table->triggers->has_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER)) {
       /*
@@ -953,6 +955,8 @@ bool Query_result_delete::optimize() {
         join->best_ref[join->const_tables]->table_ref->map();  // 2
   if (delete_while_scanning)
     delete_immediate = delete_table_map & possible_tables;
+  else
+    delete_immediate = 0;
 
   // Set up a Unique object for each table whose delete operation is deferred:
 
@@ -973,7 +977,9 @@ bool Query_result_delete::optimize() {
 
   if (select->has_ft_funcs() && init_ftfuncs(thd, select)) return true;
 
-  return thd->is_fatal_error();
+  assert(!thd->is_error());
+
+  return false;
 }
 
 void Query_result_delete::cleanup(THD *) {
@@ -986,6 +992,12 @@ void Query_result_delete::cleanup(THD *) {
   }
   tempfiles = nullptr;
   tables = nullptr;
+  // Reset state and statistics members:
+  non_transactional_deleted = false;
+  error_handled = false;
+  delete_error = 0;
+  found_rows = 0;
+  deleted_rows = 0;
 }
 
 bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
@@ -1027,7 +1039,8 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
         return true;
       table->set_deleted_row();
       if (map & non_transactional_table_map) non_transactional_deleted = true;
-      if (!(error = table->file->ha_delete_row(table->record[0]))) {
+      delete_error = table->file->ha_delete_row(table->record[0]);
+      if (delete_error == 0) {
         deleted_rows++;
         if (!table->file->has_transactions())
           thd->get_transaction()->mark_modified_non_trans_table(
@@ -1038,8 +1051,9 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
           return true;
       } else {
         myf error_flags = MYF(0);
-        if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
-        table->file->print_error(error, error_flags);
+        if (table->file->is_fatal_error(delete_error))
+          error_flags |= ME_FATALERROR;
+        table->file->print_error(delete_error, error_flags);
 
         /*
           If IGNORE option is used errors caused by ha_delete_row will
@@ -1052,14 +1066,14 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
           number which is ignored. Reset the 'error' variable if IGNORE is used.
           This is necessary to call my_ok().
         */
-        error = 0;
+        delete_error = 0;
       }
     } else {
       // Save deletes in a Unique object, to be carried out later.
-      error = tempfile->unique_add((char *)table->file->ref);
-      if (error) {
+      delete_error = tempfile->unique_add((char *)table->file->ref);
+      if (delete_error != 0) {
         /* purecov: begin inspected */
-        error = 1;
+        delete_error = 1;
         return true;
         /* purecov: end */
       }
@@ -1091,11 +1105,8 @@ void Query_result_delete::abort_result_set(THD *thd) {
     In all other cases do attempt deletes ...
   */
   if (!delete_completed && non_transactional_deleted) {
-    /*
-      We have to execute the recorded do_deletes() and write info into the
-      error log
-    */
-    error = 1;
+    // Execute the recorded do_deletes() and write info into the error log
+    delete_error = 1;
     send_eof(thd);
     DBUG_ASSERT(error_handled);
     return;
@@ -1246,7 +1257,7 @@ bool Query_result_delete::send_eof(THD *thd) {
   int local_error = do_deletes(thd);  // returns 0 if success
 
   /* compute a total error to know if something failed */
-  local_error = local_error || error;
+  local_error = local_error || delete_error;
   killed_status = (local_error == 0) ? THD::NOT_KILLED : thd->killed.load();
   /* reset used flags */
 

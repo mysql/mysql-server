@@ -2806,13 +2806,7 @@ Query_result_create::Query_result_create(TABLE_LIST *table_arg,
                           nullptr,  // update_values
                           duplic),
       create_table(table_arg),
-      create_info(nullptr),
-      alter_info(nullptr),
-      select_tables(select_tables_arg),
-      table_fields(nullptr),
-      m_lock(nullptr),
-      m_plock(nullptr),
-      m_post_ddl_ht(nullptr) {}
+      select_tables(select_tables_arg) {}
 
 bool Query_result_create::prepare(THD *, const mem_root_deque<Item *> &,
                                   SELECT_LEX_UNIT *u) {
