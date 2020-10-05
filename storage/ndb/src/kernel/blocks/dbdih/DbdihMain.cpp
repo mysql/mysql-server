@@ -12800,7 +12800,7 @@ Dbdih::getFragmentsPerNode()
 
   if (c_fragments_per_node_ == 0)
   {
-    ndbassert(false);
+    jam();
     c_fragments_per_node_ = 1;
   }
 #ifdef VM_TRACE
