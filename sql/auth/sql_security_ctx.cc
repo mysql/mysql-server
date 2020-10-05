@@ -50,14 +50,20 @@
 
 extern bool initialized;
 
-Security_context::Security_context(THD *thd /*= nullptr */) : m_thd(thd) {
+Security_context::Security_context(THD *thd /*= nullptr */)
+    : m_restrictions(nullptr), m_thd(thd) {
+  init();
+}
+
+Security_context::Security_context(MEM_ROOT *mem_root, THD *thd /* = nullptr*/)
+    : m_restrictions(mem_root), m_thd(thd) {
   init();
 }
 
 Security_context::~Security_context() { destroy(); }
 
 Security_context::Security_context(const Security_context &src_sctx)
-    : m_thd(nullptr) {
+    : m_restrictions(nullptr), m_thd(nullptr) {
   copy_security_ctx(src_sctx);
 }
 
@@ -92,7 +98,6 @@ void Security_context::init() {
   m_is_skip_grants_user = false;
   m_has_drop_policy = false;
   m_executed_drop_policy = false;
-  m_restrictions.reset(new Restrictions);
 }
 
 void Security_context::logout() {
@@ -104,8 +109,8 @@ void Security_context::logout() {
     get_global_acl_cache()->return_acl_map(m_acl_map);
     m_acl_map = nullptr;
     clear_active_roles();
+    clear_db_restrictions();
   }
-  m_restrictions.reset();
 }
 
 bool Security_context::has_drop_policy(void) { return m_has_drop_policy; }
@@ -158,7 +163,7 @@ void Security_context::destroy() {
   m_master_access = m_db_access = 0;
   m_password_expired = false;
   m_is_skip_grants_user = false;
-  m_restrictions.reset();
+  clear_db_restrictions();
 }
 
 /**
@@ -217,7 +222,7 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
       nullptr;  // acl maps are reference counted we can't copy or share them!
   m_has_drop_policy = false;  // you cannot copy a drop policy
   m_executed_drop_policy = false;
-  m_restrictions.reset(new Restrictions(*(src_sctx.m_restrictions)));
+  m_restrictions = src_sctx.restrictions();
 }
 
 /**
@@ -408,11 +413,7 @@ void Security_context::checkout_access_maps(void) {
                 " %lu",
                 (int)m_priv_user_length, m_priv_user, (int)m_priv_host_length,
                 m_priv_host, m_acl_map->global_acl()));
-    /* Only update partial revokes if partial revokes are enabled.*/
-    if (mysqld_partial_revokes())
-      set_master_access(m_acl_map->global_acl(), m_acl_map->restrictions());
-    else
-      set_master_access(m_acl_map->global_acl());
+    set_master_access(m_acl_map->global_acl(), m_acl_map->restrictions());
   } else {
     set_master_access(0);
   }
@@ -1106,7 +1107,7 @@ void Security_context::assign_priv_host(const char *priv_host_arg,
 }
 
 void Security_context::init_restrictions(const Restrictions &restrictions) {
-  m_restrictions.reset(new Restrictions(restrictions));
+  m_restrictions = restrictions;
 }
 
 bool Security_context::is_access_restricted_on_db(
@@ -1127,7 +1128,7 @@ bool Security_context::is_access_restricted_on_db(
 ulong Security_context::filter_access(const ulong access,
                                       const std::string &db_name) const {
   ulong access_mask = access;
-  auto &db_restrictions = m_restrictions->db();
+  auto &db_restrictions = m_restrictions.db();
   if (db_restrictions.is_not_empty()) {
     ulong restrictions_mask;
     if (db_restrictions.find(db_name, restrictions_mask))

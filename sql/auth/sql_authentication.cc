@@ -3048,7 +3048,7 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->ip = thd->security_context()->ip().str;
   mpvio->host = thd->security_context()->host().str;
   mpvio->charset_adapter = charset_adapter;
-  mpvio->restrictions = new (mpvio->mem_root) Restrictions();
+  mpvio->restrictions = new (mpvio->mem_root) Restrictions(mpvio->mem_root);
 }
 
 static void server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio) {

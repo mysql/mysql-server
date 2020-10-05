@@ -133,7 +133,7 @@ Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
       m_read_restrictions(read_restrictions),
       m_auth_id(auth_id),
       m_additional_password(),
-      m_restrictions(),
+      m_restrictions(mem_root),
       m_global_privs(global_privs),
       m_password_lock(),
       m_user_attributes_json(nullptr) {}
@@ -265,7 +265,7 @@ bool Acl_user_attributes::deserialize(const Json_object &json_object) {
 
   /* In cse of writes, DB restrictions are always overwritten */
   if (m_read_restrictions) {
-    DB_restrictions db_restrictions;
+    DB_restrictions db_restrictions(nullptr);
     if (db_restrictions.add(json_object)) return true;
     /* Filtering & warnings */
     report_and_remove_invalid_db_restrictions(
@@ -393,13 +393,13 @@ bool parse_user_attributes(THD *thd, TABLE *table,
 }
 }  // namespace
 
-Acl_table_user_writer_status::Acl_table_user_writer_status()
+Acl_table_user_writer_status::Acl_table_user_writer_status(MEM_ROOT *mem_root)
     : skip_cache_update(true),
       updated_rights(NO_ACCESS),
       error(consts::CRITICAL_ERROR),
       password_change_timestamp(consts::BEGIN_TIMESTAMP),
       second_cred(consts::empty_string),
-      restrictions(),
+      restrictions(mem_root),
       password_lock() {}
 
 /**
@@ -451,8 +451,8 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   bool update_password = (m_what_to_update.m_what & PLUGIN_ATTR);
   Table_op_error_code error;
   LEX *lex = m_thd->lex;
-  Acl_table_user_writer_status return_value;
-  Acl_table_user_writer_status err_return_value;
+  Acl_table_user_writer_status return_value(m_thd->mem_root);
+  Acl_table_user_writer_status err_return_value(m_thd->mem_root);
 
   DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(m_thd));
@@ -1276,9 +1276,9 @@ std::string Acl_table_user_writer::get_current_credentials() {
   @param [in] table  mysql.user table handle. Must be non-null
 */
 Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
-    : Acl_table(thd, table, acl_table::Acl_table_operation::OP_READ),
-      m_restrictions(new Restrictions) {
+    : Acl_table(thd, table, acl_table::Acl_table_operation::OP_READ) {
   init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, ACL_ALLOC_BLOCK_SIZE, 0);
+  m_restrictions = new Restrictions(&m_mem_root);
 }
 
 /**
@@ -2080,7 +2080,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
       return false;
     });
   }
-  acl_table::Acl_table_user_writer_status return_value;
+  acl_table::Acl_table_user_writer_status return_value(thd->mem_root);
 
   DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));

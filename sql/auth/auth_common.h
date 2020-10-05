@@ -971,7 +971,7 @@ class Security_context_factory {
         m_static_privileges(std::move(static_priv)),
         m_drop_policy(std::move(drop_policy)) {}
 
-  Sctx_ptr<Security_context> create();
+  Sctx_ptr<Security_context> create(MEM_ROOT *mem_root);
 
  private:
   bool apply_pre_constructed_policies(Security_context *sctx);

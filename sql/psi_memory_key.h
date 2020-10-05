@@ -118,7 +118,6 @@ extern PSI_memory_key key_memory_acl_mem;
 extern PSI_memory_key key_memory_acl_memex;
 extern PSI_memory_key key_memory_acl_cache;
 extern PSI_memory_key key_memory_acl_map_cache;
-extern PSI_memory_key key_memory_acl_db_restrictions;
 extern PSI_memory_key key_memory_binlog_cache_mngr;
 extern PSI_memory_key key_memory_binlog_pos;
 extern PSI_memory_key key_memory_binlog_recover_exec;

@@ -1612,7 +1612,7 @@ class Get_access_maps : public boost::default_bfs_visitor {
               *m_access & DB_ACLS, restrictions.db(), m_restrictions->db(),
               acl_user.access & DB_ACLS, m_db_map);
       if (aggregator) {
-        DB_restrictions db_restrictions;
+        DB_restrictions db_restrictions(nullptr);
         if (aggregator->generate(db_restrictions)) return;
         m_restrictions->set_db(db_restrictions);
       }
@@ -3407,8 +3407,8 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
       }
 
       ACL_USER *this_user = find_acl_user(user->host.str, user->user.str, true);
-      Restrictions restrictions;
-      DB_restrictions db_restrictions;
+      Restrictions restrictions(nullptr);
+      DB_restrictions db_restrictions(nullptr);
       ulong filtered_rights = rights;
       std::unique_ptr<Restrictions_aggregator> aggregator =
           Restrictions_aggregator_factory::create(thd, this_user, db, rights,
@@ -4736,7 +4736,7 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   Grant_acl_set with_admin_acl;
   Dynamic_privileges dynamic_acl;
   List_of_granted_roles granted_roles;
-  Restrictions restrictions;
+  Restrictions restrictions(thd->mem_root);
   ulong access;
   table_map.set_thd(thd);
   get_privilege_access_maps(acl_user, &using_roles, &access, &db_map,
@@ -5062,8 +5062,8 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
       acl_table::Pod_user_what_to_update what_to_update;
       what_to_update.m_what = (what_to_set | ACCESS_RIGHTS_ATTR);
       ulong rights = ~(ulong)0;
-      DB_restrictions db_restrictions;
-      Restrictions restrictions;
+      DB_restrictions db_restrictions(nullptr);
+      Restrictions restrictions(nullptr);
       std::unique_ptr<Restrictions_aggregator> aggregator =
           Restrictions_aggregator_factory::create(thd, acl_user, nullptr,
                                                   rights, false);
@@ -7297,9 +7297,10 @@ bool Security_context_factory::apply_pre_constructed_policies(
   return error;
 }
 
-Sctx_ptr<Security_context> Security_context_factory::create() {
+Sctx_ptr<Security_context> Security_context_factory::create(
+    MEM_ROOT *mem_root) {
   /* Setup default Security context */
-  Security_context *sctx = new Security_context;
+  Security_context *sctx = new Security_context(mem_root);
   sctx->assign_user(m_user.c_str(), m_user.length());
   sctx->assign_host(m_host.c_str(), m_host.length());
   sctx->assign_priv_user(m_user.c_str(), m_user.length());

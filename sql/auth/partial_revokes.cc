@@ -43,12 +43,14 @@ const std::string Privileges("Privileges");
 const std::string Restrictions("Restrictions");
 }  // namespace consts
 
-extern PSI_memory_key key_memory_acl_db_restrictions;
-
 /**
   Abstract restriction constructor
+
+  @param [in] mem_root MEM_ROOT handle to be used to store restrictions.
+                       Can be nullptr.
 */
-Abstract_restrictions::Abstract_restrictions() {}
+Abstract_restrictions::Abstract_restrictions(MEM_ROOT *mem_root)
+    : m_mem_root_base(mem_root) {}
 
 /** Abstract restriction destructor */
 Abstract_restrictions::~Abstract_restrictions() {}
@@ -59,20 +61,21 @@ Abstract_restrictions::~Abstract_restrictions() {}
   @param [in] mem_root MEM_ROOT handle. Can be nullptr.
 
 */
-DB_restrictions::DB_restrictions()
-    : Abstract_restrictions(),
+DB_restrictions::DB_restrictions(MEM_ROOT *mem_root)
+    : Abstract_restrictions(mem_root),
       m_restrictions(system_charset_info ? system_charset_info
                                          : &my_charset_utf8_general_ci,
-                     key_memory_acl_db_restrictions) {}
+                     m_mem_root_base.get_mem_root()) {}
 
 /**
   Copy constructor for DB Restrictions
 
   @param [in] restrictions Source DB restrictions
 */
-DB_restrictions::DB_restrictions(const DB_restrictions &other)
-    : m_restrictions(other.m_restrictions) {}
-
+DB_restrictions::DB_restrictions(const DB_restrictions &restrictions)
+    : DB_restrictions(nullptr) {
+  add(restrictions);
+}
 /** Destructor */
 DB_restrictions::~DB_restrictions() { m_restrictions.clear(); }
 
@@ -81,13 +84,27 @@ DB_restrictions::~DB_restrictions() { m_restrictions.clear(); }
 
   @param [in] restrictions Source DB restrictions
 */
-DB_restrictions &DB_restrictions::operator=(const DB_restrictions &other) {
-  if (this != &other) {
-    m_restrictions = other.m_restrictions;
+DB_restrictions &DB_restrictions::operator=(
+    const DB_restrictions &restrictions) {
+  if (this != &restrictions) {
+    this->clear();
+    this->add(restrictions);
   }
   return *this;
 }
 
+/**
+  Assignment operator
+
+  @param [in] restrictions Source DB restrictions
+*/
+DB_restrictions &DB_restrictions::operator=(DB_restrictions &&restrictions) {
+  if (this != &restrictions) {
+    this->clear();
+    this->add(restrictions);
+  }
+  return *this;
+}
 /**
   Compare the two restrictions.
 
@@ -257,17 +274,7 @@ bool DB_restrictions::is_not_empty() const { return !is_empty(); }
 size_t DB_restrictions::size() const { return m_restrictions.size(); }
 
 /** Clear restriction list */
-void DB_restrictions::clear() {
-  /*
-   We swap with an empty map to ensure the memory is also freed after clearing
-   the content of map.
-  */
-  m_restrictions.clear();
-  db_revocations(
-      system_charset_info ? system_charset_info : &my_charset_utf8_general_ci,
-      key_memory_acl_db_restrictions)
-      .swap(m_restrictions);
-}
+void DB_restrictions::clear() { m_restrictions.clear(); }
 
 /**
   Serializer. Converts restriction list to JSON format.
@@ -372,12 +379,12 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
   const Auth_id grantee = fetch_grantee(acl_user);
   /* Fetch access information of grantor */
   ulong grantor_global_access;
-  Restrictions grantor_restrictions;
+  Restrictions grantor_restrictions(nullptr);
   fetch_grantor_access(security_context, db, grantor_global_access,
                        grantor_restrictions);
   /* Fetch access infomation of grantee */
   ulong grantee_global_access;
-  Restrictions grantee_restrictions;
+  Restrictions grantee_restrictions(nullptr);
   fetch_grantee_access(acl_user, grantee_global_access, grantee_restrictions);
   if (db) {
     /* Fetch DB privileges of grantor */
@@ -1436,8 +1443,10 @@ void DB_restrictions_aggregator_db_revoke::aggregate(
 
 /**
   Constructor for Restrictions
+
+  @param [in] mem_root MEM_ROOT to be used to store restrictions
 */
-Restrictions::Restrictions() : m_db_restrictions() {}
+Restrictions::Restrictions(MEM_ROOT *mem_root) : m_db_restrictions(mem_root) {}
 
 /** Destructor */
 Restrictions ::~Restrictions() { m_db_restrictions.clear(); }
