@@ -3046,8 +3046,29 @@ static inline longlong compare_between_int_result(
         value = 1;
       }
     } else {
+      // Comparing as signed, but a is unsigned and > LLONG_MAX.
+      if (args[1]->unsigned_flag && static_cast<longlong>(a) < 0) {
+        if (value < 0) {
+          /*
+            value BETWEEN <large number> AND b
+            rewritten to
+            value BETWEEN 0 AND b
+          */
+          a = 0;
+        } else {
+          /*
+            value BETWEEN <large number> AND b
+            rewritten to
+            value BETWEEN LLONG_MAX AND b
+          */
+          a = LLONG_MAX;
+          // rewrite to: (value-1) BETWEEN LLONG_MAX AND b
+          if (value == LLONG_MAX) value -= 1;
+        }
+      }
+
       // Comparing as signed, but b is unsigned, and really large
-      if (args[2]->unsigned_flag && (longlong)b < 0) b = LLONG_MAX;
+      if (args[2]->unsigned_flag && static_cast<longlong>(b) < 0) b = LLONG_MAX;
     }
 
     if (!args[1]->null_value && !args[2]->null_value)
