@@ -213,6 +213,7 @@ class Acl_table_user_writer_status {
         error(err),
         password_change_timestamp(pwd_timestamp),
         second_cred(cred),
+        restrictions(),
         password_lock(password_lock) {}
 
   bool skip_cache_update;
@@ -302,11 +303,11 @@ class Acl_table_user_reader : public Acl_table {
   void add_row_to_acl_users(ACL_USER &user);
 
  private:
-  User_table_schema *m_table_schema;
+  User_table_schema *m_table_schema = nullptr;
   unique_ptr_destroy_only<RowIterator> m_iterator;
   MEM_ROOT m_mem_root;
-  Restrictions *m_restrictions;
-  Json_object *m_user_application_user_metadata_json;
+  Restrictions *m_restrictions = nullptr;
+  Json_object *m_user_application_user_metadata_json = nullptr;
 };
 
 }  // namespace acl_table

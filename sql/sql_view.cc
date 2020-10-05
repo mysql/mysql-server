@@ -34,7 +34,6 @@
 #include "m_string.h"
 #include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"        // operator new
-#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

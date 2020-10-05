@@ -7299,7 +7299,7 @@ bool Security_context_factory::apply_pre_constructed_policies(
 
 Sctx_ptr<Security_context> Security_context_factory::create() {
   /* Setup default Security context */
-  Security_context *sctx = new Security_context;
+  Security_context *sctx = new Security_context();
   sctx->assign_user(m_user.c_str(), m_user.length());
   sctx->assign_host(m_host.c_str(), m_host.length());
   sctx->assign_priv_user(m_user.c_str(), m_user.length());

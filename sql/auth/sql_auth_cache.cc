@@ -3771,7 +3771,7 @@ Restrictions Acl_restrictions::find_restrictions(
   if (restrictions_itr != m_restrictions_map.end())
     return restrictions_itr->second;
   else
-    return Restrictions();
+    return Restrictions{};
 }
 
 /**

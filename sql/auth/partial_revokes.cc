@@ -43,10 +43,11 @@ const std::string Privileges("Privileges");
 const std::string Restrictions("Restrictions");
 }  // namespace consts
 
-extern PSI_memory_key key_memory_acl_db_restrictions;
-
 /**
   Abstract restriction constructor
+
+  @param [in] mem_root MEM_ROOT handle to be used to store restrictions.
+                       Can be nullptr.
 */
 Abstract_restrictions::Abstract_restrictions() {}
 
@@ -60,10 +61,7 @@ Abstract_restrictions::~Abstract_restrictions() {}
 
 */
 DB_restrictions::DB_restrictions()
-    : Abstract_restrictions(),
-      m_restrictions(system_charset_info ? system_charset_info
-                                         : &my_charset_utf8_general_ci,
-                     key_memory_acl_db_restrictions) {}
+    : Abstract_restrictions(), m_restrictions() {}
 
 /**
   Copy constructor for DB Restrictions
@@ -88,6 +86,18 @@ DB_restrictions &DB_restrictions::operator=(const DB_restrictions &other) {
   return *this;
 }
 
+/**
+  Assignment operator
+
+  @param [in] restrictions Source DB restrictions
+*/
+DB_restrictions &DB_restrictions::operator=(DB_restrictions &&restrictions) {
+  if (this != &restrictions) {
+    this->clear();
+    this->add(restrictions);
+  }
+  return *this;
+}
 /**
   Compare the two restrictions.
 
@@ -259,14 +269,10 @@ size_t DB_restrictions::size() const { return m_restrictions.size(); }
 /** Clear restriction list */
 void DB_restrictions::clear() {
   /*
-   We swap with an empty map to ensure the memory is also freed after clearing
-   the content of map.
+    we use swap (with temporary object) trick here to force the container to
+    return the memory
   */
-  m_restrictions.clear();
-  db_revocations(
-      system_charset_info ? system_charset_info : &my_charset_utf8_general_ci,
-      key_memory_acl_db_restrictions)
-      .swap(m_restrictions);
+  db_revocations().swap(m_restrictions);
 }
 
 /**

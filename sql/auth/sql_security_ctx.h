@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,6 @@ struct Grant_table_aggregate;
 class Security_context {
  public:
   Security_context(THD *thd = nullptr);
-  Security_context(MEM_ROOT *m_mem_root, THD *thd = nullptr);
   ~Security_context();
 
   Security_context(const Security_context &src_sctx);
@@ -382,7 +381,7 @@ class Security_context {
   bool m_executed_drop_policy;
   bool m_has_drop_policy;
   std::unique_ptr<std::function<void(Security_context *)>> m_drop_policy;
-  std::unique_ptr<Restrictions> m_restrictions;
+  Restrictions m_restrictions;
 
   /**
     m_thd - Thread handle, set to nullptr if this does not belong to any THD yet
@@ -441,7 +440,7 @@ inline LEX_CSTRING Security_context::external_user() const {
 inline ulong Security_context::master_access() const { return m_master_access; }
 
 inline const Restrictions Security_context::restrictions() const {
-  return *m_restrictions;
+  return m_restrictions;
 }
 
 inline void Security_context::set_master_access(ulong master_access) {
@@ -483,7 +482,7 @@ inline bool Security_context::is_skip_grants_user() {
 }
 
 inline void Security_context::clear_db_restrictions() {
-  m_restrictions->clear_db();
+  m_restrictions.clear_db();
 }
 
 inline void Security_context::set_thd(THD *thd) { m_thd = thd; }

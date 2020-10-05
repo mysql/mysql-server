@@ -26,15 +26,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <map>
 #include <memory>
 #include <set>
+#include <unordered_map>
 
 #include "map_helpers.h"
 #include "memory_debugging.h"
-#include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_utility.h"
-#include "sql/mem_root_allocator.h"
 
 // Forward declarations
 class THD;
@@ -42,10 +41,9 @@ class ACL_USER;
 class Json_array;
 class Json_object;
 class Restrictions_aggregator;
-extern MEM_ROOT global_acl_memory;
 
 // Alias declarations
-using db_revocations = collation_unordered_map<std::string, ulong>;
+using db_revocations = std::unordered_map<std::string, ulong>;
 using Db_access_map = std::map<std::string, unsigned long>;
 
 /**
