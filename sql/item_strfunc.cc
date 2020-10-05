@@ -1292,6 +1292,7 @@ String *Item_func_insert::val_str(String *str) {
     res = copy_if_not_alloced(str, res, orig_len);
 
   res->replace((uint32)start, (uint32)length, *res2);
+  res->set_charset(collation.collation);
   return res;
 }
 

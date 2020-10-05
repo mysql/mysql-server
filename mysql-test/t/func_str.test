@@ -2110,3 +2110,11 @@ LPAD(c1, 11, _utf8mb4 x'E4B8ADE69687') as lpad_c1
 FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #22523946 GET MESS CODE FOR FUNC INSERT()
+--echo #               WITH STR AS INT CONST AND NEWSTR AS MULTI-BYTE
+--echo #
+
+# E4B8ADE69687 == Zhōngwén
+SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');

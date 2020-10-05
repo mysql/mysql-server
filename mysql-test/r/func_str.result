@@ -5196,3 +5196,10 @@ FROM t1;
 rpad_id	lpad_id	rpad_c1	lpad_c1
 111中文中文中文中文	中文中文中文中文111	111中文中文中文中文	中文中文中文中文111
 DROP TABLE t1;
+#
+# Bug #22523946 GET MESS CODE FOR FUNC INSERT()
+#               WITH STR AS INT CONST AND NEWSTR AS MULTI-BYTE
+#
+SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');
+INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687')
+中文
