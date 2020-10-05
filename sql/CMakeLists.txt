@@ -281,14 +281,15 @@ SET(SQL_GIS_SOURCES
   gis/covered_by.cc
   gis/crosses.cc
   gis/difference.cc
-  gis/frechet_distance.cc
   gis/disjoint.cc
   gis/distance.cc
   gis/distance_functor.cc
   gis/distance_sphere.cc
   gis/equals.cc
+  gis/frechet_distance.cc
   gis/gc_utils.cc
   gis/geometries.cc
+  gis/hausdorff_distance.cc
   gis/intersects.cc
   gis/is_simple.cc
   gis/is_valid.cc
