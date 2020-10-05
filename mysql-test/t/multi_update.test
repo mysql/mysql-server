@@ -813,3 +813,17 @@ eval $query;
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+--echo # Bug#31640267: Assertion `trans_safe || updated_rows == 0 || thd->get_transaction()
+
+CREATE TABLE t1(pk INTEGER PRIMARY KEY, a INTEGER);
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+
+PREPARE s FROM 'UPDATE t1, (SELECT 1 FROM DUAL) AS dt SET a=a+1';
+EXECUTE s;
+SELECT ROW_COUNT();
+EXECUTE s;
+SELECT ROW_COUNT();
+DEALLOCATE PREPARE s;
+
+DROP TABLE t1;

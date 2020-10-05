@@ -46,51 +46,37 @@ class SQL_I_List;
 
 class Query_result_delete final : public Query_result_interceptor {
   /// Pointers to temporary files used for delayed deletion of rows
-  Unique **tempfiles;
+  Unique **tempfiles{nullptr};
   /// Pointers to table objects matching tempfiles
-  TABLE **tables;
+  TABLE **tables{nullptr};
   /// Number of tables being deleted from
-  uint delete_table_count;
+  uint delete_table_count{0};
   /// Number of rows produced by the join
-  ha_rows found_rows;
+  ha_rows found_rows{0};
   /// Number of rows deleted
-  ha_rows deleted_rows;
+  ha_rows deleted_rows{0};
   /// Handler error status for the operation.
-  int error;
+  int delete_error{0};
   /// Map of all tables to delete rows from
-  table_map delete_table_map;
+  table_map delete_table_map{0};
   /// Map of tables to delete from immediately
-  table_map delete_immediate;
+  table_map delete_immediate{0};
   // Map of transactional tables to be deleted from
-  table_map transactional_table_map;
+  table_map transactional_table_map{0};
   /// Map of non-transactional tables to be deleted from
-  table_map non_transactional_table_map;
+  table_map non_transactional_table_map{0};
   /// True if the full delete operation is complete
-  bool delete_completed;
+  bool delete_completed{false};
   /// True if some actual delete operation against non-transactional table done
-  bool non_transactional_deleted;
+  bool non_transactional_deleted{false};
   /*
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
   */
-  bool error_handled;
+  bool error_handled{false};
 
  public:
-  Query_result_delete()
-      : Query_result_interceptor(),
-        tempfiles(nullptr),
-        tables(nullptr),
-        delete_table_count(0),
-        found_rows(0),
-        deleted_rows(0),
-        error(0),
-        delete_table_map(0),
-        delete_immediate(0),
-        transactional_table_map(0),
-        non_transactional_table_map(0),
-        delete_completed(false),
-        non_transactional_deleted(false),
-        error_handled(false) {}
+  Query_result_delete() : Query_result_interceptor() {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                SELECT_LEX_UNIT *u) override;

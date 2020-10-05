@@ -52,15 +52,15 @@ bool should_switch_to_multi_table_if_subqueries(const THD *thd,
 
 class Query_result_update final : public Query_result_interceptor {
   /// Number of tables being updated
-  uint update_table_count;
+  uint update_table_count{0};
   /// Pointer to list of updated tables, linked via 'next_local'
-  TABLE_LIST *update_tables;
+  TABLE_LIST *update_tables{nullptr};
   /// Array of references to temporary tables used to store cached updates
-  TABLE **tmp_tables;
+  TABLE **tmp_tables{nullptr};
   /// Array of parameter structs for creation of temporary tables
-  Temp_table_param *tmp_table_param;
+  Temp_table_param *tmp_table_param{nullptr};
   /// The first table in the join operation
-  TABLE *main_table;
+  TABLE *main_table{nullptr};
   /**
     In a multi-table update, this is equal to the first table in the join
     operation (#main_table) if that table can be updated on the fly while
@@ -68,11 +68,11 @@ class Query_result_update final : public Query_result_interceptor {
 
     @see safe_update_on_fly
   */
-  TABLE *table_to_update;
+  TABLE *table_to_update{nullptr};
   /// Number of rows found that matches join and WHERE conditions
-  ha_rows found_rows;
+  ha_rows found_rows{0};
   /// Number of rows actually updated, in all affected tables
-  ha_rows updated_rows;
+  ha_rows updated_rows{0};
   /// List of pointers to fields to update, in order from statement
   mem_root_deque<Item *> *fields;
   /// List of pointers to values to update with, in order from statement
@@ -87,20 +87,20 @@ class Query_result_update final : public Query_result_interceptor {
   */
   List<TABLE> unupdated_check_opt_tables;
   /// ???
-  Copy_field *copy_field;
+  Copy_field *copy_field{nullptr};
   /// Length of the copy_field array.
   size_t max_fields{0};
   /// True if the full update operation is complete
-  bool update_completed;
+  bool update_completed{false};
   /// True if all tables to be updated are transactional.
-  bool trans_safe;
+  bool trans_safe{true};
   /// True if the update operation has made a change in a transactional table
-  bool transactional_tables;
+  bool transactional_tables{false};
   /**
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
   */
-  bool error_handled;
+  bool error_handled{false};
 
   /**
      Array of update operations, arranged per _updated_ table. For each
@@ -116,27 +116,12 @@ class Query_result_update final : public Query_result_interceptor {
 
      @see Query_result_update::prepare
   */
-  COPY_INFO **update_operations;
+  COPY_INFO **update_operations{nullptr};
 
  public:
   Query_result_update(mem_root_deque<Item *> *field_list,
                       mem_root_deque<Item *> *value_list)
-      : Query_result_interceptor(),
-        update_table_count(0),
-        update_tables(nullptr),
-        tmp_tables(nullptr),
-        main_table(nullptr),
-        table_to_update(nullptr),
-        found_rows(0),
-        updated_rows(0),
-        fields(field_list),
-        values(value_list),
-        copy_field(nullptr),
-        update_completed(false),
-        trans_safe(true),
-        transactional_tables(false),
-        error_handled(false),
-        update_operations(nullptr) {}
+      : Query_result_interceptor(), fields(field_list), values(value_list) {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                SELECT_LEX_UNIT *u) override;

@@ -2245,6 +2245,12 @@ void Query_result_update::cleanup(THD *thd) {
 
   if (main_table) main_table->file->try_semi_consistent_read(false);
   main_table = nullptr;
+  // Reset state and statistics members:
+  trans_safe = true;
+  transactional_tables = false;
+  error_handled = false;
+  found_rows = 0;
+  updated_rows = 0;
 }
 
 bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
