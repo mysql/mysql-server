@@ -858,8 +858,8 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   // Find any sorts that may have been added, and add them so that we are
   // sure to clean up their buffers after execution.
-  WalkAccessPaths(root_path, join, /*cross_query_blocks=*/false,
-                  [join](AccessPath *path) {
+  WalkAccessPaths(root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+                  [join](AccessPath *path, const JOIN *) {
                     if (path->type == AccessPath::SORT) {
                       join->sorting_paths.push_back(path);
                     }

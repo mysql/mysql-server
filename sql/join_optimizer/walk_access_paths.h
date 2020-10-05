@@ -25,26 +25,44 @@
 
 #include "sql/join_optimizer/access_path.h"
 
+enum class WalkAccessPathPolicy {
+  // Stop on _any_ MATERIALIZE or STREAM path, even if they do not cross query
+  // blocks.
+  // Also stops on APPEND paths, which always cross query blocks.
+  STOP_AT_MATERIALIZATION,
+
+  // Stop on MATERIALIZE, STREAM or APPEND paths that cross query blocks.
+  ENTIRE_QUERY_BLOCK,
+
+  // Do not stop at any kind of access path, unless func() returns true.
+  ENTIRE_TREE
+};
+
 /**
   Traverse every access path below `path` (limited to the current query block
   if cross_query_blocks is false), calling func() for each one with pre-
   or post-order traversal. If func() returns true, traversal is stopped early.
 
-  The `join` parameter, signifying what query block `path` is part of, is only
-  used if you set cross_query_blocks = false. It is used to know whether a
-  MATERIALIZE or STREAM access path is part of the same query block or not.
-  If you give join == nullptr and cross_query_blocks == false, the walk will
-  always stop at such access paths.
+  The `join` parameter signifies what query block `path` is part of, since that
+  is not implicit from the path itself. The function will track this as it
+  changes throughout the tree (in MATERIALIZE or STREAM access paths), and
+  will give the correct value to the func() callback. It is only used by
+  WalkAccesspath() itself if the policy is ENTIRE_QUERY_BLOCK; if not, it is
+  only used for the func() callback, and you can set it to nullptr if you wish.
+  func() must have signature func(AccessPath *, const JOIN *).
 
   Nothing currently uses post-order traversal, but it has been requested for
   future use.
  */
 template <class Func>
 void WalkAccessPaths(AccessPath *path, const JOIN *join,
-                     bool cross_query_blocks, Func &&func,
+                     WalkAccessPathPolicy cross_query_blocks, Func &&func,
                      bool post_order_traversal = false) {
+  if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK) {
+    assert(join != nullptr);
+  }
   if (!post_order_traversal) {
-    if (func(path)) {
+    if (func(path, join)) {
       // Stop recursing in this branch.
       return;
     }
@@ -121,9 +139,12 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
                       std::forward<Func &&>(func), post_order_traversal);
       break;
     case AccessPath::STREAM:
-      if (cross_query_blocks || path->stream().join == join) {
-        WalkAccessPaths(path->stream().child, join, cross_query_blocks,
-                        std::forward<Func &&>(func), post_order_traversal);
+      if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
+          (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
+           path->stream().join == join)) {
+        WalkAccessPaths(path->stream().child, path->stream().join,
+                        cross_query_blocks, std::forward<Func &&>(func),
+                        post_order_traversal);
       }
       break;
     case AccessPath::MATERIALIZE:
@@ -131,9 +152,12 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
                       std::forward<Func &&>(func), post_order_traversal);
       for (const MaterializePathParameters::QueryBlock &query_block :
            path->materialize().param->query_blocks) {
-        if (cross_query_blocks || query_block.join == join) {
-          WalkAccessPaths(query_block.subquery_path, join, cross_query_blocks,
-                          std::forward<Func &&>(func), post_order_traversal);
+        if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
+            (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
+             path->stream().join == join)) {
+          WalkAccessPaths(query_block.subquery_path, query_block.join,
+                          cross_query_blocks, std::forward<Func &&>(func),
+                          post_order_traversal);
         }
       }
       break;
@@ -143,9 +167,9 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
                       post_order_traversal);
       break;
     case AccessPath::APPEND:
-      if (cross_query_blocks) {
+      if (cross_query_blocks != WalkAccessPathPolicy::ENTIRE_TREE) {
         for (const AppendPathParameters &child : *path->append().children) {
-          WalkAccessPaths(child.path, join, cross_query_blocks,
+          WalkAccessPaths(child.path, child.join, cross_query_blocks,
                           std::forward<Func &&>(func), post_order_traversal);
         }
       }
@@ -172,7 +196,7 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
       break;
   }
   if (post_order_traversal) {
-    if (func(path)) {
+    if (func(path, join)) {
       // Stop recursing in this branch.
       return;
     }
