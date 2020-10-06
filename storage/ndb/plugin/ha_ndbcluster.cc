@@ -1993,9 +1993,6 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table *table_def) {
     return HA_ERR_TABLE_DEF_CHANGED;
   }
 
-  // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, tab, table_def));
-
   if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false)) {
     fprintf(stderr, "ndb_get_metadata_fail\n");
     DBUG_SET("-d,ndb_get_metadata_fail");
@@ -10042,9 +10039,6 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     ndb_dd_table_fix_partition_count(table_def, ndbtab->getPartitionCount());
   }
 
-  // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, ndbtab, table_def));
-
   mysql_mutex_lock(&ndbcluster_mutex);
 
   // Create NDB_SHARE for the new table
@@ -10065,6 +10059,9 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     // Temporary named table created OK
     return create.succeeded();  // All OK
   }
+
+  // Check that NDB and DD metadata matches
+  DBUG_ASSERT(Ndb_metadata::compare(thd, ndb, ndbtab, table_def));
 
   // Apply the mysql.ndb_replication settings
   if (binlog_client.apply_replication_info(ndb, share, ndbtab, conflict_fn,
@@ -10621,8 +10618,13 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   }
 
   if (commit_alter) {
-    /* Final phase of offline alter table.
-       Skip logging on participant if this is a rollback.
+    // Final phase of offline alter table.
+
+    // Check that NDB and DD metadata matches if this isn't a rollback
+    DBUG_ASSERT(rollback_in_progress ||
+                Ndb_metadata::compare(thd, ndb, ndbtab, to_table_def));
+
+    /* Skip logging on participant if this is a rollback.
        Note : Regardless of the outcome, during rollback, we always have to
               schema distribute an ALTER COPY to update the table version in
               connected servers' DD. So we don't have to log this in the DDL
@@ -11896,6 +11898,30 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
             "not install table in DD",
             name);
         my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
+        ndbtab_g.invalidate();
+        free(unpacked_data);
+        return 1;
+      }
+    }
+    // Run metadata check except if this is discovery during a DROP TABLE
+    if (thd_sql_command(thd) != SQLCOM_DROP_TABLE) {
+      const dd::Table *dd_table;
+      if (!dd_client.get_table(db, name, &dd_table)) {
+        thd_ndb->push_warning(
+            "Failed to discover table '%s' from NDB, could "
+            "not get table from DD after it was created",
+            name);
+        my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
+        ndbtab_g.invalidate();
+        free(unpacked_data);
+        return 1;
+      }
+      if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
+        thd_ndb->push_warning(
+            "Failed to discover table '%s' from NDB, table "
+            "definition changed",
+            name);
+        my_error(HA_ERR_TABLE_DEF_CHANGED, MYF(0), db, name);
         ndbtab_g.invalidate();
         free(unpacked_data);
         return 1;
@@ -16205,6 +16231,10 @@ bool ha_ndbcluster::commit_inplace_alter_table(
         ndb_dd_table_fix_partition_count(new_table_def,
                                          ndbtab->getPartitionCount());
       }
+
+      // Check that NDB and DD metadata matches
+      DBUG_ASSERT(
+          Ndb_metadata::compare(thd, thd_ndb->ndb, ndbtab, new_table_def));
     }
   }
 
