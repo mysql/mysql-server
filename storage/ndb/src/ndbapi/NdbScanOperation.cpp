@@ -1376,7 +1376,14 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
   }
 
   theNdbCon->theScanningOp = this;
+  // The number of acc-scans are limited therefore use tup-scans instead.
   bool tupScan = (scan_flags & SF_TupScan) || true;
+#if defined(VM_TRACE)
+  if (theNdb->theImpl->forceAccTableScans)
+  {
+    tupScan = false;
+  }
+#endif
 
 #if 0 // XXX temp for testing
   { char* p = getenv("NDB_USE_TUPSCAN");
