@@ -30,6 +30,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "mysql/components/services/log_builtins.h"  //LogErr
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
@@ -153,6 +154,7 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
 void Gtid_state::update_commit_group(THD *first_thd) {
   DBUG_TRACE;
 
+  bool gtid_threshold_breach = false;
   /*
     We are going to loop in all sessions of the group commit in order to avoid
     being taking and releasing the global_sid_lock and sidno_lock for each
@@ -173,6 +175,9 @@ void Gtid_state::update_commit_group(THD *first_thd) {
 
     bool more_trx_with_same_gtid_next = update_gtids_impl_begin(thd);
 
+    if (!gtid_threshold_breach)
+      gtid_threshold_breach = (thd->owned_gtid.gno > GNO_WARNING_THRESHOLD);
+
     if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET) {
       update_gtids_impl_own_gtid_set(thd, is_commit);
     } else if (thd->owned_gtid.sidno > 0) {
@@ -189,6 +194,9 @@ void Gtid_state::update_commit_group(THD *first_thd) {
   update_gtids_impl_broadcast_and_unlock_sidnos();
 
   global_sid_lock->unlock();
+
+  if (gtid_threshold_breach)
+    LogErr(WARNING_LEVEL, ER_WARN_GTID_THRESHOLD_BREACH);
 }
 
 void Gtid_state::update_on_commit(THD *thd) {
@@ -215,6 +223,7 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit) {
   DEBUG_SYNC(thd, "update_gtid_state_before_global_sid_lock");
   global_sid_lock->rdlock();
   DEBUG_SYNC(thd, "update_gtid_state_after_global_sid_lock");
+  bool gtid_threshold_breach = (thd->owned_gtid.gno > GNO_WARNING_THRESHOLD);
 
   if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET) {
     update_gtids_impl_own_gtid_set(thd, is_commit);
@@ -232,6 +241,9 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit) {
   global_sid_lock->unlock();
 
   update_gtids_impl_end(thd, more_trx_with_same_gtid_next);
+
+  if (gtid_threshold_breach)
+    LogErr(WARNING_LEVEL, ER_WARN_GTID_THRESHOLD_BREACH);
 
   thd->owned_gtid.dbug_print(nullptr,
                              "set owned_gtid (clear) in update_gtids_impl");

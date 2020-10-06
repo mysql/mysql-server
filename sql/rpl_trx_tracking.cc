@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -379,7 +379,8 @@ void Transaction_dependency_tracker::update_max_committed(THD *thd) {
   trn_ctx->sequence_number = SEQ_UNINIT;
 
   DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
-              thd->commit_error == THD::CE_FLUSH_ERROR);
+              thd->commit_error == THD::CE_FLUSH_ERROR ||
+              thd->commit_error == THD::CE_FLUSH_GNO_EXHAUSTED_ERROR);
 }
 
 int64 Transaction_dependency_tracker::step() { return m_commit_order.step(); }

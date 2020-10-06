@@ -6764,7 +6764,7 @@ ER_MALFORMED_GTID_SPECIFICATION
   eng "Malformed GTID specification '%.200s'."
 
 ER_GNO_EXHAUSTED
-  eng "Impossible to generate Global Transaction Identifier: the integer component reached the maximal value. Restart the server with a new server_uuid."
+  eng "Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid."
 
 ER_BAD_SLAVE_AUTO_POSITION
   eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."

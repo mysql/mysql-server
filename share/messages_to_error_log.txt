@@ -11151,6 +11151,9 @@ ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
 ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID
   eng "The group_replication_group_name '%s' is the same as the UUID value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS in a server channel"
 
+ER_WARN_GTID_THRESHOLD_BREACH
+  eng "The integer component of the GTID number is high. Suggest restarting the server with a new server_uuid to prevent it from reaching the maximum number 2^63-1, which will make it impossible to write the binary log and invoke the behavior specified by binlog_error_action."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

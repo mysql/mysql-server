@@ -6208,6 +6208,7 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
 bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
   DBUG_TRACE;
   bool error = false;
+  bool gtid_threshold_breach = false;
 
   global_sid_lock->wrlock();
 
@@ -6244,6 +6245,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
   gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
+  gtid_threshold_breach = (gtid_state->get_executed_gtids()->get_gtid_number() >
+                           GNO_WARNING_THRESHOLD);
+
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_UPDATED, previous_gtid_purged,
          current_gtid_purged);
@@ -6256,6 +6260,10 @@ end:
   my_free(previous_gtid_purged);
   my_free(current_gtid_executed);
   my_free(current_gtid_purged);
+
+  if (gtid_threshold_breach)
+    LogErr(WARNING_LEVEL, ER_WARN_GTID_THRESHOLD_BREACH);
+
   return error;
 }
 

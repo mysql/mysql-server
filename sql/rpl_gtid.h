@@ -261,6 +261,8 @@ inline const char *get_gtid_consistency_mode_string() {
 
 /// The maximum value of GNO
 const rpl_gno MAX_GNO = LLONG_MAX;
+/// If the GNO goes above the number, generate a warning.
+const rpl_gno GNO_WARNING_THRESHOLD = (MAX_GNO / 100) * 99;
 /// The length of MAX_GNO when printed in decimal.
 const int MAX_GNO_TEXT_LENGTH = 19;
 /// The maximal possible length of thread_id when printed in decimal.

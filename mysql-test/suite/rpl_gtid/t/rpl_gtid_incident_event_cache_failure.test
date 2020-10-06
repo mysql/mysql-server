@@ -124,8 +124,8 @@ eval INSERT INTO t1 (c1, data)
 # Check that error is present in error log
 --source include/rpl_connection_master.inc
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = Hence aborting the server
---let $assert_match = .*Hence aborting the server.*
+--let $assert_select = Server is being stopped
+--let $assert_match = .*Server is being stopped.*
 --let $assert_text = Found the message about the failure of cache creation in the error log.
 --source include/assert_grep.inc
 
