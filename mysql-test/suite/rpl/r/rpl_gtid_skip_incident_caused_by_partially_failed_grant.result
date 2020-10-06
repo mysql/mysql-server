@@ -310,7 +310,7 @@ include/rpl_restart_server.inc [server_number=1]
 [connection master]
 # Adding debug point 'simulate_cache_creation_failure' to @@GLOBAL.debug
 GRANT SELECT(a) ON t1 TO u1@h, u2@h;
-ERROR HY000: Binary logging not possible. Message: Could not create IO cache while writing an incident event to the binary log for query: 'GRANT SELECT(a) ON t1 TO u1@h, u2@h'. Since GTID_MODE= ON, server is unable to proceed with logging. Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: Could not create IO cache while writing an incident event to the binary log for query: 'GRANT SELECT(a) ON t1 TO u1@h, u2@h'. Since GTID_MODE= ON, server is unable to proceed with logging. Server is being stopped.
 # Restart the master server
 include/rpl_reconnect.inc
 include/assert_grep.inc [Found the message about the failure of cache creation in the error log.]

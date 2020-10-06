@@ -293,7 +293,7 @@ GRANT SELECT(a) ON t1 TO u1@h, u2@h;
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: rpl.rpl_gtid_skip_incident_caused_by_partially_failed_grant
 --let $assert_count = 1
---let $assert_select = Could not create IO cache while writing an incident event to the binary log.*Hence aborting the server.
+--let $assert_select = Could not create IO cache while writing an incident event to the binary log.*Server is being stopped.
 --let $assert_text = Found the message about the failure of cache creation in the error log.
 --source include/assert_grep.inc
 
