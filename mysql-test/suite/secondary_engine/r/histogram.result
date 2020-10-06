@@ -10,39 +10,51 @@ ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+EXPLAIN
+-> Filter: (t1.x = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+EXPLAIN
+-> Filter: (t1.x = 2)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
+EXPLAIN
+-> Filter: (t1.x = 3)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where; Using secondary engine MOCK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+EXPLAIN
+-> Filter: (t1.x = 1)  (cost=X rows=8)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+EXPLAIN
+-> Filter: (t1.x = 2)  (cost=X rows=2)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
+EXPLAIN
+-> Filter: (t1.x = 3)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 SELECT * FROM t1 WHERE x = 1;
 id	x
 SELECT * FROM t1 WHERE x = 2;
@@ -52,37 +64,49 @@ id	x
 ANALYZE TABLE t1 DROP HISTOGRAM ON x;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics removed for column 'x'.
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+EXPLAIN
+-> Filter: (t1.x = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+EXPLAIN
+-> Filter: (t1.x = 2)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
+EXPLAIN
+-> Filter: (t1.x = 3)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where; Using secondary engine MOCK
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+EXPLAIN
+-> Filter: (t1.x = 1)  (cost=X rows=8)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+EXPLAIN
+-> Filter: (t1.x = 2)  (cost=X rows=2)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
+EXPLAIN
+-> Filter: (t1.x = 3)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 DROP TABLE t1;

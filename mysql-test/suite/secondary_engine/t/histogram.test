@@ -18,16 +18,25 @@ ALTER TABLE t1 SECONDARY_LOAD;
 
 # Without histograms, all three queries get the same selectivity (10%).
 ANALYZE TABLE t1;
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 
 # With histograms, the selectivity varies with the constant used in
 # the predicate.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+# The hypergraph optimizer estimates 0 rows when the value is not
+# found in the histogram, whereas the old optimizer estimates 1 row.
+--replace_result rows=0 rows=1
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 
 # Verify that the secondary storage engine is used for the queries
 # (they all return empty results when offloaded to the mock engine).
@@ -37,15 +46,24 @@ SELECT * FROM t1 WHERE x = 3;
 
 # Drop the histogram and lose the histogram statistics in the query plans.
 ANALYZE TABLE t1 DROP HISTOGRAM ON x;
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 
 # Recreate the histogram and get the good selectivity estimates back.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+# The hypergraph optimizer estimates 0 rows when the value is not
+# found in the histogram, whereas the old optimizer estimates 1 row.
+--replace_result rows=0 rows=1
+--replace_regex /cost=[0-9.]*/cost=X/
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 
 DROP TABLE t1;
 

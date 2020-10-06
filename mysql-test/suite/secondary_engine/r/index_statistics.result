@@ -15,153 +15,233 @@ ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1 WHERE id = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+# Uses the primary index to determine 10% filtering effect (one row).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 1;
+EXPLAIN
+-> Filter: (t1.id = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` = 1)
-EXPLAIN SELECT * FROM t1 WHERE x = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Uses the secondary index to determine 70% filtering effect (matches
+# rows 1 to 7).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
+EXPLAIN
+-> Filter: (t1.x = 1)  (cost=X rows=7)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 1)
-EXPLAIN SELECT * FROM t1 WHERE x = 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Uses the secondary index to determine 20% filtering effect (matches
+# rows 8 and 9).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
+EXPLAIN
+-> Filter: (t1.x = 2)  (cost=X rows=2)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 2)
-EXPLAIN SELECT * FROM t1 WHERE x = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Uses the secondary index to determine 10% filtering effect (matches
+# row 10).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
+EXPLAIN
+-> Filter: (t1.x = 3)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 3)
-EXPLAIN SELECT * FROM t1 WHERE y = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# No index on y, so a heuristic is used for the filtering effect.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE y = 1;
+EXPLAIN
+-> Filter: (t1.y = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`y` = 1)
-EXPLAIN SELECT * FROM t1 USE INDEX () WHERE id = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Ignoring indexes cause heuristics to be used.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE id = 1;
+EXPLAIN
+-> Filter: (t1.id = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` USE INDEX () where (`test`.`t1`.`id` = 1)
-EXPLAIN SELECT * FROM t1 USE INDEX () WHERE x = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE x = 1;
+EXPLAIN
+-> Filter: (t1.x = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` USE INDEX () where (`test`.`t1`.`x` = 1)
-EXPLAIN SELECT * FROM t1 IGNORE INDEX (PRIMARY) WHERE id = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (PRIMARY) WHERE id = 1;
+EXPLAIN
+-> Filter: (t1.id = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` IGNORE INDEX (PRIMARY) where (`test`.`t1`.`id` = 1)
-EXPLAIN SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
+EXPLAIN
+-> Filter: (t1.x = 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` IGNORE INDEX (`x`) where (`test`.`t1`.`x` = 1)
-EXPLAIN SELECT * FROM t1 WHERE id = 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# No matching rows. Rounds up estimates to one matching row (10%).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 100;
+EXPLAIN
+-> Filter: (t1.id = 100)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` = 100)
-EXPLAIN SELECT * FROM t1 WHERE x = 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 100;
+EXPLAIN
+-> Filter: (t1.x = 100)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = 100)
-EXPLAIN SELECT * FROM t1 WHERE id = 3 OR id = 7;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Matches two rows in the primary index (20%).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 3 OR id = 7;
+EXPLAIN
+-> Filter: ((t1.id = 3) or (t1.id = 7))  (cost=X rows=2)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`id` = 3) or (`test`.`t1`.`id` = 7))
-EXPLAIN SELECT * FROM t1 WHERE x = 2 OR x = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Matches three rows in the secondary index (30%).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2 OR x = 3;
+EXPLAIN
+-> Filter: ((t1.x = 2) or (t1.x = 3))  (cost=X rows=3)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`x` = 2) or (`test`.`t1`.`x` = 3))
-EXPLAIN SELECT * FROM t1 WHERE x = 1 OR x = 2 OR x = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Matches all rows in the secondary index (100%).
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1 OR x = 2 OR x = 3;
+EXPLAIN
+-> Filter: ((t1.x = 1) or (t1.x = 2) or (t1.x = 3))  (cost=X rows=10)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where ((`test`.`t1`.`x` = 1) or (`test`.`t1`.`x` = 2) or (`test`.`t1`.`x` = 3))
-EXPLAIN SELECT * FROM t1 WHERE id > 0;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Ranges in the primary index.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 0;
+EXPLAIN
+-> Filter: (t1.id > 0)  (cost=X rows=10)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 0)
-EXPLAIN SELECT * FROM t1 WHERE id > 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 1;
+EXPLAIN
+-> Filter: (t1.id > 1)  (cost=X rows=9)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 1)
-EXPLAIN SELECT * FROM t1 WHERE id > 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 3;
+EXPLAIN
+-> Filter: (t1.id > 3)  (cost=X rows=7)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 3)
-EXPLAIN SELECT * FROM t1 WHERE id > 9;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 9;
+EXPLAIN
+-> Filter: (t1.id > 9)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 9)
-EXPLAIN SELECT * FROM t1 WHERE id > 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 10;
+EXPLAIN
+-> Filter: (t1.id > 10)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` > 10)
-EXPLAIN SELECT * FROM t1 WHERE id < 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 1;
+EXPLAIN
+-> Filter: (t1.id < 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 1)
-EXPLAIN SELECT * FROM t1 WHERE id < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 3;
+EXPLAIN
+-> Filter: (t1.id < 3)  (cost=X rows=2)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 3)
-EXPLAIN SELECT * FROM t1 WHERE id < 10;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 10;
+EXPLAIN
+-> Filter: (t1.id < 10)  (cost=X rows=9)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` < 10)
-EXPLAIN SELECT * FROM t1 WHERE id BETWEEN 3 AND 7;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	50.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id BETWEEN 3 AND 7;
+EXPLAIN
+-> Filter: (t1.id between 3 and 7)  (cost=X rows=5)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`id` between 3 and 7)
-EXPLAIN SELECT * FROM t1 WHERE x < 1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Ranges in the secondary index.
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 1;
+EXPLAIN
+-> Filter: (t1.x < 1)  (cost=X rows=1)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 1)
-EXPLAIN SELECT * FROM t1 WHERE x < 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	70.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 2;
+EXPLAIN
+-> Filter: (t1.x < 2)  (cost=X rows=7)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 2)
-EXPLAIN SELECT * FROM t1 WHERE x < 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 3;
+EXPLAIN
+-> Filter: (t1.x < 3)  (cost=X rows=9)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 3)
-EXPLAIN SELECT * FROM t1 WHERE x < 4;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 4;
+EXPLAIN
+-> Filter: (t1.x < 4)  (cost=X rows=10)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` < 4)
-EXPLAIN SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where; Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
+EXPLAIN
+-> Filter: (t1.x between 1 and 2)  (cost=X rows=9)
+    -> Table scan on t1  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` between 1 and 2)
-EXPLAIN SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using secondary engine MOCK
-1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+# Indexes should only be used during optimization. Verify that the
+# execution plan for this query does not use DYNAMIC RANGE access.
+# (No occurrence of "Range checked for each record" in the plan.)
+EXPLAIN FORMAT=TREE SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
+EXPLAIN
+-> Filter: (a.id < b.id)  (cost=X rows=33)
+    -> Inner hash join (no condition)  (cost=X rows=33)
+        -> Table scan on b  (cost=X rows=10)
+        -> Hash
+            -> Table scan on a  (cost=X rows=10)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`x` AS `x`,`test`.`a`.`y` AS `y`,`test`.`b`.`id` AS `id`,`test`.`b`.`x` AS `x`,`test`.`b`.`y` AS `y` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`id` < `test`.`b`.`id`)
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 DROP TABLE t1;
+# Getting range statistics from spatial indexes is not supported,
+# since spatial indexes are not ordered.
 CREATE TABLE geom(g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(g))
 SECONDARY_ENGINE MOCK;
 INSERT INTO geom VALUES (POINT(1, 1)), (POINT(2, 2)), (POINT(3, 3));
@@ -169,12 +249,14 @@ ALTER TABLE geom SECONDARY_LOAD;
 ANALYZE TABLE geom;
 Table	Op	Msg_type	Msg_text
 test.geom	analyze	status	OK
-EXPLAIN SELECT ST_AsText(g) FROM geom
+EXPLAIN FORMAT=TREE SELECT ST_AsText(g) FROM geom
 WHERE MBRContains(POLYGON(LINESTRING(POINT(0,0), POINT(3,0),
 POINT(3,3), POINT(0,0))),
 g);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	geom	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using secondary engine MOCK
+EXPLAIN
+-> Filter: mbrcontains(<cache>(polygon(linestring(point(0,0),point(3,0),point(3,3),point(0,0)))),geom.g)  (cost=X rows=3)
+    -> Table scan on geom  (cost=X rows=3)
+
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`geom`.`g`) AS `ST_AsText(g)` from `test`.`geom` where mbrcontains(<cache>(polygon(linestring(point(0,0),point(3,0),point(3,3),point(0,0)))),`test`.`geom`.`g`)
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 DROP TABLE geom;

@@ -85,11 +85,12 @@ Secondary_engine_execution_count	5
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+EXPLAIN FORMAT=TREE SELECT * FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=X rows=3)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 FLUSH STATUS;
 SELECT * FROM t1 JOIN t2 USING (id);
 id	x	y	z
@@ -260,12 +261,11 @@ DROP PREPARE ps;
 SELECT * FROM t1, t2, t_primary_only tp WHERE t1.id = t2.id AND t2.id = tp.id;
 id	x	y	id	z	id	x
 1	2	3	1	2	1	1
-EXPLAIN SELECT * FROM t1, INFORMATION_SCHEMA.COLUMN_PRIVILEGES t2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t2`.`GRANTEE` AS `GRANTEE`,`t2`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`t2`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`t2`.`TABLE_NAME` AS `TABLE_NAME`,`t2`.`COLUMN_NAME` AS `COLUMN_NAME`,`t2`.`PRIVILEGE_TYPE` AS `PRIVILEGE_TYPE`,`t2`.`IS_GRANTABLE` AS `IS_GRANTABLE` from `test`.`t1` join `information_schema`.`COLUMN_PRIVILEGES` `t2`
+FLUSH STATUS;
+SELECT * FROM t1, INFORMATION_SCHEMA.COLUMN_PRIVILEGES t2;
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 CREATE TABLE t_with_autoinc(id INT PRIMARY KEY AUTO_INCREMENT, x INT)
 SECONDARY_ENGINE MOCK;
 INSERT INTO t_with_autoinc(x) VALUES (4), (5), (6);
@@ -741,87 +741,6 @@ SELECT 1;
 1
 DROP TABLE t;
 #
-# Bug#28556942: ADD USING SECONDARY ENGINE TO EXPLAIN
-#
-CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
-# Before table is loaded, the secondary engine should not be used.
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-EXPLAIN FORMAT=JSON SELECT * FROM t1;
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "0.35"
-    },
-    "table": {
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 1,
-      "rows_produced_per_join": 1,
-      "filtered": "100.00",
-      "cost_info": {
-        "read_cost": "0.25",
-        "eval_cost": "0.10",
-        "prefix_cost": "0.35",
-        "data_read_per_join": "8"
-      },
-      "used_columns": [
-        "a"
-      ]
-    }
-  }
-}
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-ALTER TABLE t1 SECONDARY_LOAD;
-# After table is loaded, the secondary engine should be used.
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-EXPLAIN FORMAT=JSON SELECT * FROM t1;
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "0.60"
-    },
-    "table": {
-      "table_name": "t1",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 1,
-      "rows_produced_per_join": 1,
-      "filtered": "100.00",
-      "using_secondary_engine": "MOCK",
-      "cost_info": {
-        "read_cost": "0.50",
-        "eval_cost": "0.10",
-        "prefix_cost": "0.60",
-        "data_read_per_join": "8"
-      },
-      "used_columns": [
-        "a"
-      ]
-    }
-  }
-}
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
-DROP TABLE t1;
-#
 # Load only a subset of columns into secondary engine.
 #
 SET @my_use_secondary_engine = @@use_secondary_engine;
@@ -1016,7 +935,7 @@ Variable_name	Value
 Secondary_engine_execution_count	2
 DROP TABLE t1;
 #
-# Use NOT SECONADRY with other constraint on column.
+# Use NOT SECONDARY with other constraint on column.
 #
 CREATE TABLE t1 (a INT, b INT NOT SECONDARY UNIQUE KEY) SECONDARY_ENGINE MOCK;
 INSERT INTO t1 VALUES (1, 1);
@@ -1056,11 +975,13 @@ INSERT INTO t VALUES ();
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
-EXPLAIN SELECT * FROM t WHERE a IS NULL;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using secondary engine MOCK
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE a IS NULL;
+EXPLAIN
+Found last_insert_id() in the plan.
+    -> Table scan on t  (cost=X rows=1)
+
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`a` = <cache>(last_insert_id()))
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 DROP TABLE t;
 SET @@sql_auto_is_null = @saved_sql_auto_is_null;
 # Bug#29288023: Join condition is substituted with REF access
@@ -1068,20 +989,10 @@ CREATE TABLE t1(f1 int, f11 int);
 CREATE TABLE t2(f2 int, f22 int);
 INSERT INTO t1 VALUES(1,1),(2,2),(3,3),(5,5),(9,9),(7,7);
 INSERT INTO t2 VALUES(1,1),(3,3),(2,2),(4,4),(8,8),(6,6);
-Explain should show <auto_key0> for indexes on derived tables
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-EXPLAIN SELECT *
-FROM t1 JOIN (SELECT f2, SUM(f22) AS b FROM t2 GROUP BY f2) AS dt
-ON t1.f1=dt.f2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.f1	2	100.00	NULL
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`dt`.`f2` AS `f2`,`dt`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,sum(`test`.`t2`.`f22`) AS `b` from `test`.`t2` group by `test`.`t2`.`f2`) `dt` where (`dt`.`f2` = `test`.`t1`.`f1`)
 ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
 ALTER TABLE t1 SECONDARY_LOAD;
 ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
@@ -1090,16 +1001,7 @@ ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
-Secondary engine does not support indexes on derived tables
-EXPLAIN SELECT *
-FROM t1 JOIN (SELECT f2, SUM(f22) AS b FROM t2 GROUP BY f2) AS dt
-ON t1.f1=dt.f2;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using secondary engine MOCK
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`dt`.`f2` AS `f2`,`dt`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,sum(`test`.`t2`.`f22`) AS `b` from `test`.`t2` group by `test`.`t2`.`f2`) `dt` where (`dt`.`f2` = `test`.`t1`.`f1`)
+include/assert_grep.inc [Secondary engine does not support indexes on derived tables]
 DROP TABLE t1, t2;
 CREATE TABLE t1(x INT, y INT, z INT, c INT, d INT);
 INSERT INTO t1 VALUES
@@ -1114,18 +1016,7 @@ ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN
-SELECT *
-FROM (SELECT * FROM t1 WHERE x < 7 LIMIT 20) tt1,
-(SELECT * FROM t1 WHERE x < y LIMIT 20) tt2
-WHERE tt1.x> 5 and tt1.x=tt2.x;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
-3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	21	33.33	Using where; Using secondary engine MOCK
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	21	33.33	Using where; Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `tt1`.`x` AS `x`,`tt1`.`y` AS `y`,`tt1`.`z` AS `z`,`tt1`.`c` AS `c`,`tt1`.`d` AS `d`,`tt2`.`x` AS `x`,`tt2`.`y` AS `y`,`tt2`.`z` AS `z`,`tt2`.`c` AS `c`,`tt2`.`d` AS `d` from (/* select#2 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`x` < 7) limit 20) `tt1` join (/* select#3 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`x` < `test`.`t1`.`y`) limit 20) `tt2` where ((`tt2`.`x` = `tt1`.`x`) and (`tt1`.`x` > 5))
+include/assert_grep.inc [Secondary engine does not support indexes on derived tables]
 DROP TABLE t1;
 #
 # Bug#29994087: SIG11 AT MATERIALIZEITERATOR::INIT() IN
