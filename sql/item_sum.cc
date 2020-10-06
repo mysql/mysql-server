@@ -1937,6 +1937,7 @@ bool Item_sum_sum::add() {
     }
   } else {
     sum += aggr->arg_val_real();
+    if (current_thd->is_error()) return true;
     if (!aggr->arg_is_null(true)) null_value = false;
   }
   return false;
