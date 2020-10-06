@@ -22,6 +22,8 @@
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
+
 #Test case 1:
 SET GLOBAL binlog_error_action=IGNORE_ERROR;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
@@ -32,6 +34,12 @@ SET GLOBAL gtid_purged = CONCAT(@@GLOBAL.server_uuid, ':1-9223372036854775805');
 INSERT INTO t1 VALUES (1);
 --error ER_GNO_EXHAUSTED
 INSERT INTO t1 VALUES (2);
+
+# BUG26035544 Assert that an error was logged to the server error log.
+--let $assert_select = Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid. Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
+--let $assert_count = 1
+--let $assert_text = ER_GNO_EXHAUSTED found in server error log
+--source include/assert_grep.inc
 
 # Check that transaction is committed
 --let $assert_cond = COUNT(*) = 2 FROM t1;
@@ -72,3 +80,77 @@ INSERT INTO t1 VALUES (2);
 
 RESET MASTER;
 DROP TABLE t1;
+
+## BUG26035544 Assert that an error was logged to the server error log.
+--let $assert_select = Binary logging not possible. Message: Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid. Server is being stopped.
+--let $assert_count = 1
+--let $assert_text = ER_GNO_EXHAUSTED server is being stopped found in server error log
+--source include/assert_grep.inc
+
+##############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that warning message is logged into
+# server error log when GTID.GNO breaches the threshold limit.
+#
+# ==== Requirements ====
+# Generate a warning message when GTID.GNO getting close to Max limit
+# (i.e the last 1% of the range [(LLONG_MAX/100)*99])
+#
+# ==== Implementation ====
+# 1. Set GTID value > Threshold[(LLONG_MAX/100)*99]
+#    - Update GTID value by executing SET GTID_PURGED.
+#    - Verify that warning message is logged into the error log.
+#    - Perform a transaction.
+#    - Verify that warning messages is logged into the error log.
+# 2. Set GTID value < Threshold[(LLONG_MAX/100)*99]
+#    - Update GTID value by executing SET GTID_PURGED.
+#    - Perform a transaction.
+#    - Verify that no warning message is logged into the error log.
+#
+# ==== References ====
+# Bug#26035544: 'BINLOG_ERROR_ACTION' IS SET TO 'ABORT_SERVER'. HENCE ABORTING
+# THE SERVER
+#
+###############################################################################
+
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
+--source include/start_mysqld.inc
+
+--let $server_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
+--let $assert_select = The integer component of the GTID number is high.
+
+# Test case 3:
+# Test scenario set GTID > Threshold[(LLONG_MAX/100)*99].
+RESET MASTER;
+--disable_query_log
+--eval SET GLOBAL gtid_purged = CONCAT('$server_uuid:1-', (1 << 63) - 10);
+--enable_query_log
+CREATE TABLE t1(i INT);
+
+# Assert that a warning was logged to the server error log.
+--let $assert_count = 2
+--let $assert_text = ER_WARN_GTID_THRESHOLD_BREACH found in server error log
+--source include/assert_grep.inc
+
+# Cleanup
+DROP TABLE t1;
+
+# Test case 4:
+# Test scenario set GTID < Threshold.
+--exec echo "" > $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
+RESET MASTER;
+--disable_query_log
+--eval SET GLOBAL gtid_purged = CONCAT('$server_uuid:1-', (1 << 63) - (1 << 57));
+--enable_query_log
+CREATE TABLE t1(i INT);
+
+# Assert that no GTID_THRESHOLD_BREACH warning was logged to the server error log.
+--let $assert_count= 0
+--let $assert_text = No ER_WARN_GTID_THRESHOLD_BREACH found in server error log
+--source include/assert_grep.inc
+
+# Cleanup
+DROP TABLE t1;
+--source include/restart_mysqld.inc

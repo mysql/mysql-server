@@ -77,7 +77,7 @@ BEGIN;
 INSERT INTO t2 VALUES (repeat('b', 8192));
 SET SESSION debug = "+d,fault_injection_reinit_io_cache_while_flushing_to_file";
 COMMIT;
-ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Server is being stopped.
 # restart
 select * from t2;
 c1
