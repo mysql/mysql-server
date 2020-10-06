@@ -65,7 +65,7 @@ class Timers_test_suite : public ::testing::Test {
         .WillRepeatedly(ReturnRef(mock_notice_output_queue));
 
     sut = std::make_shared<StrictMock<Mock_ngs_client>>(
-        mock_vio, mock_server, /* id */ 1, &mock_protocol_monitor);
+        mock_vio, &mock_server, /* id */ 1, &mock_protocol_monitor);
     sut->set_session(mock_session);
     sut->set_idle_reporting(mock_wait_for_io);
   }
@@ -147,7 +147,7 @@ TEST_F(Timers_test_suite,
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
 
   StrictMock<Mock_ssl_context> mock_ssl_context;
-  Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+  Mock_ngs_client client(temp_vio, &mock_server, /* id */ 1,
                          &mock_protocol_monitor);
   client.set_session(mock_session);
   auto *mock_wait_for_io = new StrictMock<Mock_wait_for_io>();
@@ -176,7 +176,7 @@ TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_custom_wait_timer) {
   config->m_timeouts.m_wait_timeout = 22;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
-  Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+  Mock_ngs_client client(temp_vio, &mock_server, /* id */ 1,
                          &mock_protocol_monitor);
   client.set_session(mock_session);
   auto *mock_wait_for_io = new StrictMock<Mock_wait_for_io>();
@@ -228,7 +228,7 @@ TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
 TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
   config->m_timeouts.m_read_timeout = 33;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
-  Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+  Mock_ngs_client client(temp_vio, &mock_server, /* id */ 1,
                          &mock_protocol_monitor);
   client.set_session(mock_session);
   auto *mock_wait_for_io = new StrictMock<Mock_wait_for_io>();
@@ -309,7 +309,7 @@ TEST_F(Timers_test_suite, send_message_default_write_timeout) {
 TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
   config->m_timeouts.m_write_timeout = 44;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
-  Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
+  Mock_ngs_client client(temp_vio, &mock_server, /* id */ 1,
                          &mock_protocol_monitor);
   client.set_session(mock_session);
 

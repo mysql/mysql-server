@@ -123,7 +123,6 @@ stmtsql CALL test.loop_in_sp();
 
 setsession;
 quiet;
-wait_for 3	SELECT count(*) FROM information_schema.processlist WHERE (state like "Waiting%" or  state like "User sleep%" or state like 'closing tables%') and user = "x_root";
 wait_for 2	SELECT count(*) FROM information_schema.processlist WHERE (state like "Waiting%" or  state like "User sleep%") and user = "x_root";
 noquiet;
 

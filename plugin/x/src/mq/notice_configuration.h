@@ -109,9 +109,9 @@ class Notice_configuration : public iface::Notice_configuration {
     return notice_name_to_type;
   }
 
-  std::array<bool, static_cast<int>(Notice_type::k_last_element)> m_notices = {
-      false};
-  bool m_is_dispatchable_enabled = false;
+  std::array<bool, static_cast<int>(Notice_type::k_last_element)> m_notices{
+      {false}};
+  bool m_is_dispatchable_enabled{false};
 };
 
 }  // namespace xpl

@@ -83,18 +83,16 @@ class Client::Client_idle_reporting : public xpl::iface::Waiting_for_io {
 
   bool on_idle_or_before_read() override {
     DBUG_TRACE;
-    if (m_is_killed) return false;
+    const auto state = m_client->get_state();
 
-    if (m_client->server().is_running() &&
-        m_client->session()->data_context().is_killed() &&
-        m_client->session()->state() >
-            xpl::iface::Session::State::k_authenticating) {
-      m_client->queue_up_disconnection_notice(SQLError(ER_SESSION_WAS_KILLED));
-      m_is_killed = true;
+    if (state == xpl::iface::Client::State::k_running &&
+        m_client->session()->data_context().is_killed()) {
+      // Try to set the reason now, decide make the decision
+      // about sending a notice, later on.
+      m_client->set_close_reason_if_non_fatal(Close_reason::k_kill);
       return false;
     }
 
-    const auto state = m_client->get_state();
     if (state == Client::State::k_closed || state == Client::State::k_closing)
       return false;
 
@@ -108,17 +106,16 @@ class Client::Client_idle_reporting : public xpl::iface::Waiting_for_io {
   Client *m_client;
   Waiting_for_io *m_global_idle_reporting;
   bool m_global_need_reporting = false;
-  bool m_is_killed = false;
 };
 
 Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
-               xpl::iface::Server &server, Client_id client_id,
+               xpl::iface::Server *server, Client_id client_id,
                xpl::iface::Protocol_monitor *pmon)
     : m_client_id(client_id),
       m_server(server),
       m_idle_reporting(new Client_idle_reporting(this, nullptr)),
       m_connection(connection),
-      m_config(std::make_shared<Protocol_config>(m_server.get_config())),
+      m_config(std::make_shared<Protocol_config>(m_server->get_config())),
       m_dispatcher(this),
       m_decoder(&m_dispatcher, m_connection, pmon, m_config),
       m_client_addr("n/c"),
@@ -156,13 +153,13 @@ void Client::activate_tls() {
   log_debug("%s: enabling TLS for client", client_id());
 
   const auto connect_timeout =
-      xpl::chrono::to_seconds(m_server.get_config()->connect_timeout);
+      xpl::chrono::to_seconds(m_server->get_config()->connect_timeout);
 
   const auto real_connect_timeout =
       std::min<uint32_t>(connect_timeout, m_read_timeout);
 
-  if (m_server.ssl_context()->activate_tls(&connection(),
-                                           real_connect_timeout)) {
+  if (m_server->ssl_context()->activate_tls(&connection(),
+                                            real_connect_timeout)) {
     session()->mark_as_tls_session();
   } else {
     log_debug("%s: Error during SSL handshake", client_id());
@@ -218,7 +215,8 @@ void Client::set_capabilities(
   }
 }
 
-bool Client::handle_session_connect_attr_set(ngs::Message_request &command) {
+bool Client::handle_session_connect_attr_set(
+    const ngs::Message_request &command) {
   const auto capabilities_set =
       static_cast<const Mysqlx::Connection::CapabilitiesSet &>(
           *command.get_message());
@@ -311,16 +309,15 @@ void Client::handle_message(Message_request *request) {
   }
 }
 
-void Client::set_close_reason_if_non_fatal(const Close_reason reason) {
-  switch (m_close_reason) {
-    case Close_reason::k_normal:
-    case Close_reason::k_none:
-      m_close_reason = reason;
-      return;
-
-    default:
+void Client::set_close_reason_if_non_fatal(const Close_reason new_reason) {
+  Close_reason expected_reason = Close_reason::k_normal;
+  if (!m_close_reason.compare_exchange_strong(expected_reason, new_reason)) {
+    expected_reason = Close_reason::k_none;
+    if (!m_close_reason.compare_exchange_strong(expected_reason, new_reason))
       return;
   }
+
+  m_state_when_reason_changed = m_state.load();
 }
 
 void Client::disconnect_and_trigger_close() {
@@ -375,6 +372,8 @@ void Client::update_counters() {
       ++xpl::Global_status_variables::instance().m_connection_errors_count;
       break;
 
+    case Close_reason::k_server_shutdown:
+    case Close_reason::k_kill:
     default:
       return;
   }
@@ -383,7 +382,7 @@ void Client::update_counters() {
 void Client::remove_client_from_server() {
   if (false == m_removed.exchange(true)) {
     update_counters();
-    m_server.on_client_closed(*this);
+    m_server->on_client_closed(*this);
   }
 }
 
@@ -429,7 +428,7 @@ void Client::on_accept() {
   DBUG_EXECUTE_IF("client_accept_timeout", {
     int32_t i = 0;
     const int32_t max_iterations = 1000;
-    while (m_server.is_running() && i < max_iterations) {
+    while (m_server->is_running() && i < max_iterations) {
       my_sleep(10000);
       ++i;
     }
@@ -511,13 +510,11 @@ void Client::on_server_shutdown() {
   log_debug("%s: closing client because of shutdown (state: %" PRIu32 ")",
             client_id(), static_cast<uint32_t>(m_state.load()));
   if (m_session) {
-    const bool queue_up_notice = m_state > State::k_authenticating_first;
     if (m_state != State::k_closed) {
-      set_close_reason_if_non_fatal(Close_reason::k_normal);
+      set_close_reason_if_non_fatal(Close_reason::k_server_shutdown);
       m_state = State::k_closing;
     }
-    if (queue_up_notice)
-      queue_up_disconnection_notice(SQLError(ER_SERVER_SHUTDOWN));
+
     m_session->on_close(xpl::iface::Session::Close_flags::k_update_old_state);
   }
 }
@@ -526,7 +523,7 @@ void Client::kill() {
   DBUG_TRACE;
   if (m_session) {
     if (m_state != State::k_closed) {
-      set_close_reason_if_non_fatal(Close_reason::k_normal);
+      set_close_reason_if_non_fatal(Close_reason::k_kill);
       m_state = State::k_closing;
     }
     m_session->on_kill();
@@ -578,6 +575,8 @@ void Client::run() {
       // read could took some time, thus lets recheck the state
       if (m_state == State::k_closing) break;
 
+      // Error generated by decoding
+      // not by request-response model
       if (error) {
         // !message and !error = EOF
         m_encoder->send_result(Fatal(error));
@@ -588,7 +587,11 @@ void Client::run() {
   } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FORCE_STOP_CLIENT, client_id(), e.what());
   }
-  if (m_session) m_session->get_notice_output_queue().encode_queued_items(true);
+
+  if (m_session) {
+    queue_up_disconnection_notice_if_necessary();
+    m_session->get_notice_output_queue().encode_queued_items(true);
+  }
 
   {
     MUTEX_LOCK(lock, server().get_client_exit_mutex());
@@ -642,7 +645,7 @@ void Client::configure_compression_opts(
 
 bool Client::create_session() {
   std::shared_ptr<xpl::iface::Session> session(
-      m_server.create_session(this, m_encoder.get(), 1));
+      m_server->create_session(this, m_encoder.get(), 1));
   if (!session) {
     log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
                 m_client_addr.c_str());
@@ -733,4 +736,21 @@ void Client::queue_up_disconnection_notice(const Error_code &error) {
                                       error.error, error.message));
   m_session->get_notice_output_queue().emplace(notice);
 }
+
+void Client::queue_up_disconnection_notice_if_necessary() {
+  if (State::k_running == m_state_when_reason_changed) {
+    switch (m_close_reason) {
+      case Close_reason::k_server_shutdown:
+        queue_up_disconnection_notice(SQLError(ER_SERVER_SHUTDOWN));
+        break;
+      case Close_reason::k_kill:
+        if (m_session->get_status_variables().m_fatal_errors_sent.load() == 0)
+          queue_up_disconnection_notice(SQLError(ER_SESSION_WAS_KILLED));
+        break;
+      default: {
+      }
+    }
+  }
+}
+
 }  // namespace ngs

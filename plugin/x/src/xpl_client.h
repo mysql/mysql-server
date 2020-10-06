@@ -40,7 +40,7 @@ class Client;
 
 class Protocol_monitor : public iface::Protocol_monitor {
  public:
-  Protocol_monitor() : m_client(nullptr) {}
+  Protocol_monitor() = default;
   void init(Client *client);
 
   void on_notice_warning_send() override;
@@ -61,12 +61,12 @@ class Protocol_monitor : public iface::Protocol_monitor {
   void on_messages_sent(const uint32_t messages) override;
 
  private:
-  Client *m_client;
+  Client *m_client{nullptr};
 };
 
 class Client : public ngs::Client {
  public:
-  Client(std::shared_ptr<iface::Vio> connection, iface::Server &server,
+  Client(std::shared_ptr<iface::Vio> connection, iface::Server *server,
          Client_id client_id, Protocol_monitor *pmon);
   ~Client() override;
 
