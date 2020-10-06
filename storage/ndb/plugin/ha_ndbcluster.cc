@@ -1994,7 +1994,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table *table_def) {
   }
 
   // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, tab, table_def));
+  DBUG_ASSERT(Ndb_metadata::compare(thd, ndb, tab, table_def));
 
   if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false)) {
     fprintf(stderr, "ndb_get_metadata_fail\n");
@@ -10043,7 +10043,7 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
   }
 
   // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, ndbtab, table_def));
+  DBUG_ASSERT(Ndb_metadata::compare(thd, ndb, ndbtab, table_def));
 
   mysql_mutex_lock(&ndbcluster_mutex);
 

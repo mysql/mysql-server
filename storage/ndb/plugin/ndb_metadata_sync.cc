@@ -1007,7 +1007,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       temp_error = true;
       return false;
     }
-    if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
+    if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                     schema_name.c_str(), table_name.c_str());
@@ -1126,7 +1126,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     temp_error = true;
     return false;
   }
-  if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
+  if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                   schema_name.c_str(), table_name.c_str());

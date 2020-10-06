@@ -53,14 +53,45 @@ class Ndb_metadata {
   dd::String_type partition_expression() const;
 
   /*
+    @brief Create table columns in the DD
+
+    @param table_def [out]  DD table definition
+
+    @return void
+  */
+  void create_columns(dd::Table *table_def) const;
+
+  /*
+    @brief Create table indexes in the DD
+
+    @param dict             NDB Dictionary object
+    @param table_def [out]  DD table definition
+
+    @return true if indexes were created successfully, false if not
+  */
+  bool create_indexes(const NdbDictionary::Dictionary *dict,
+                      dd::Table *table_def) const;
+
+  /*
+    @brief Create table foreign keys in the DD
+
+    @param ndb              NDB object
+    @param table_def [out]  DD table definition
+
+    @return true if foreign keys were created successfully, false if not
+  */
+  bool create_foreign_keys(Ndb *ndb, dd::Table *table_def) const;
+
+  /*
     @brief Create DD table definition
 
-    @table_def[out]     DD table definition
+    @param ndb              NDB object
+    @param table_def [out]  DD table definition
 
-    @return ?
+    @return true if the table is created successfully, false if not
 
   */
-  bool create_table_def(dd::Table *table_def);
+  bool create_table_def(Ndb *ndb, dd::Table *table_def) const;
 
   /*
     @brief Lookup tablespace_id from DD
@@ -98,12 +129,13 @@ class Ndb_metadata {
     @brief Compare the NdbApi table with the DD table definition
 
     @param thd           Thread context
+    @param ndb           Ndb object
     @param ndbtab        NdbApi table
     @param dd_table_def  DD table definition
 
     @return true if the NdbApi table is identical to the DD table def.
   */
-  static bool compare(THD *thd, const NdbDictionary::Table *ndbtab,
+  static bool compare(THD *thd, Ndb *ndb, const NdbDictionary::Table *ndbtab,
                       const dd::Table *dd_table_def);
 
   /*

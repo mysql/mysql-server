@@ -28,26 +28,40 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "my_base.h"  // For HA_SM_DISK and HA_SM_MEMORY, fix by bug27309072
 #include "sql/dd/dd.h"
 #include "sql/dd/impl/properties_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"
+#include "sql/dd/types/column.h"               // dd:Column
+#include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h"  // dd::Foreign_key_element
+#include "sql/dd/types/index.h"                // dd::Index
+#include "sql/dd/types/index_element.h"        // dd::Index_element
 #include "sql/dd/types/partition.h"
 #include "sql/dd/types/table.h"
+#include "sql/field.h"  // COLUMN_FORMAT_TYPE_DYNAMIC and _FIXED
 #include "storage/ndb/plugin/ndb_dd.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
 #include "storage/ndb/plugin/ndb_dd_table.h"
+#include "storage/ndb/plugin/ndb_fk_util.h"    // fk_split_name
 #include "storage/ndb/plugin/ndb_log.h"        // ndb_log_error
 #include "storage/ndb/plugin/ndb_name_util.h"  // ndb_name_is_temp
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
+#include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
 
 // Key used for magic flag "explicit_tablespace" in table options
 static const char *magic_key_explicit_tablespace = "explicit_tablespace";
 
-// Key used for flag "storage" in table options
+// Keys used for flags in table and column options
 const char *key_storage = "storage";
+const char *key_column_format = "column_format";
+const char *key_column_bit_as_char = "treat_bit_as_char";
+const char *key_column_not_secondary = "not_secondary";
+const char *key_column_is_array = "is_array";
+const char *key_column_geom_type = "geom_type";
 
 // Check also partitioning properties
 constexpr bool check_partitioning = false;  // disabled
@@ -74,7 +88,459 @@ dd::String_type Ndb_metadata::partition_expression() const {
   return expr;
 }
 
-bool Ndb_metadata::create_table_def(dd::Table *table_def) {
+void Ndb_metadata::create_columns(dd::Table *table_def) const {
+  const bool hidden_pk = ndb_table_has_hidden_pk(m_ndbtab);
+
+  // Virtual generated columns are a problem since they aren't stored in NDB
+  // Dictionary
+  for (int i = 0; i < m_ndbtab->getNoOfColumns(); i++) {
+    const NdbDictionary::Column *ndb_column = m_ndbtab->getColumn(i);
+    if (hidden_pk && !strcmp("$PK", ndb_column->getName())) {
+      // Hidden PKs aren't stored in DD. Skip
+      continue;
+    }
+    dd::Column *dd_column = table_def->add_column();
+    dd_column->set_name(ndb_column->getName());
+
+    switch (ndb_column->getType()) {
+      // Based on create_ndb_column() in ha_ndbcluster.cc
+      case NdbDictionary::Column::Tinyint:
+        dd_column->set_type(dd::enum_column_types::TINY);
+        dd_column->set_unsigned(false);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Tinyunsigned:
+        dd_column->set_type(dd::enum_column_types::TINY);
+        dd_column->set_unsigned(true);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Smallint:
+        dd_column->set_type(dd::enum_column_types::SHORT);
+        dd_column->set_unsigned(false);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Smallunsigned:
+        dd_column->set_type(dd::enum_column_types::SHORT);
+        dd_column->set_unsigned(true);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Mediumint:
+        dd_column->set_type(dd::enum_column_types::INT24);
+        dd_column->set_unsigned(false);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Mediumunsigned:
+        dd_column->set_type(dd::enum_column_types::INT24);
+        dd_column->set_unsigned(true);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Int:
+        dd_column->set_type(dd::enum_column_types::LONG);
+        dd_column->set_unsigned(false);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Unsigned:
+        dd_column->set_type(dd::enum_column_types::LONG);
+        dd_column->set_unsigned(true);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Bigint:
+        dd_column->set_type(dd::enum_column_types::LONGLONG);
+        dd_column->set_unsigned(false);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Bigunsigned:
+        dd_column->set_type(dd::enum_column_types::LONGLONG);
+        dd_column->set_unsigned(true);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Float:
+        dd_column->set_type(dd::enum_column_types::FLOAT);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Double:
+        dd_column->set_type(dd::enum_column_types::DOUBLE);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Olddecimal:
+        dd_column->set_type(dd::enum_column_types::DECIMAL);
+        dd_column->set_unsigned(false);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Olddecimalunsigned:
+        dd_column->set_type(dd::enum_column_types::DECIMAL);
+        dd_column->set_unsigned(true);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Decimal:
+        dd_column->set_type(dd::enum_column_types::NEWDECIMAL);
+        dd_column->set_unsigned(false);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Decimalunsigned:
+        dd_column->set_type(dd::enum_column_types::NEWDECIMAL);
+        dd_column->set_unsigned(true);
+        dd_column->set_numeric_precision(ndb_column->getPrecision());
+        dd_column->set_numeric_scale(ndb_column->getScale());
+        break;
+      case NdbDictionary::Column::Char:
+        dd_column->set_type(dd::enum_column_types::STRING);
+        break;
+      case NdbDictionary::Column::Varchar:
+        dd_column->set_type(dd::enum_column_types::VARCHAR);
+        break;
+      case NdbDictionary::Column::Binary:
+        dd_column->set_type(dd::enum_column_types::STRING);
+        break;
+      case NdbDictionary::Column::Varbinary:
+        dd_column->set_type(dd::enum_column_types::VARCHAR);
+        break;
+      case NdbDictionary::Column::Datetime:
+        dd_column->set_type(dd::enum_column_types::DATETIME);
+        break;
+      case NdbDictionary::Column::Date:
+        dd_column->set_type(dd::enum_column_types::NEWDATE);
+        break;
+      case NdbDictionary::Column::Blob:
+      case NdbDictionary::Column::Text:
+        switch (ndb_column->getPartSize()) {
+          case 0:
+            dd_column->set_type(dd::enum_column_types::TINY_BLOB);
+            break;
+          case 2000:
+            dd_column->set_type(dd::enum_column_types::BLOB);
+            break;
+          case 4000:
+            dd_column->set_type(dd::enum_column_types::MEDIUM_BLOB);
+            break;
+          case 8100:
+            dd_column->set_type(dd::enum_column_types::JSON);
+            break;
+          default:
+            dd_column->set_type(dd::enum_column_types::LONG_BLOB);
+            break;
+        }
+        break;
+      case NdbDictionary::Column::Bit:
+        dd_column->set_type(dd::enum_column_types::BIT);
+        dd_column->options().set(key_column_bit_as_char, false);
+        break;
+      case NdbDictionary::Column::Longvarchar:
+        dd_column->set_type(dd::enum_column_types::VARCHAR);
+        break;
+      case NdbDictionary::Column::Longvarbinary:
+        dd_column->set_type(dd::enum_column_types::VARCHAR);
+        break;
+      case NdbDictionary::Column::Time:
+        dd_column->set_type(dd::enum_column_types::TIME);
+        break;
+      case NdbDictionary::Column::Year:
+        dd_column->set_type(dd::enum_column_types::YEAR);
+        dd_column->set_unsigned(true);
+        dd_column->set_zerofill(true);
+        break;
+      case NdbDictionary::Column::Timestamp:
+        dd_column->set_type(dd::enum_column_types::TIMESTAMP);
+        break;
+      case NdbDictionary::Column::Time2:
+        dd_column->set_type(dd::enum_column_types::TIME2);
+        dd_column->set_datetime_precision(ndb_column->getPrecision());
+        break;
+      case NdbDictionary::Column::Datetime2:
+        dd_column->set_type(dd::enum_column_types::DATETIME2);
+        dd_column->set_datetime_precision(ndb_column->getPrecision());
+        break;
+      case NdbDictionary::Column::Timestamp2:
+        dd_column->set_type(dd::enum_column_types::TIMESTAMP2);
+        dd_column->set_datetime_precision(ndb_column->getPrecision());
+        break;
+      default:
+        ndb_log_error("Type = %d", ndb_column->getType());
+        DBUG_ASSERT(false);
+        break;
+    }
+
+    dd_column->set_nullable(ndb_column->getNullable());
+
+    dd_column->set_auto_increment(ndb_column->getAutoIncrement());
+
+    dd_column->set_char_length(ndb_column->getLength());
+
+    unsigned int default_value_length;
+    const char *ndb_default_value = static_cast<const char *>(
+        ndb_column->getDefaultValue(&default_value_length));
+    /*
+      Seems like NDB Dictionary doesn't differentiate between no default and
+      NULL default. We try and differentiate between the 2 by looking at
+      getNullable() and getAutoIncrement()
+    */
+    dd_column->set_has_no_default(!ndb_column->getNullable() &&
+                                  !ndb_default_value &&
+                                  !ndb_column->getAutoIncrement());
+    if (ndb_default_value) {
+      dd_column->set_default_value(
+          dd::String_type(ndb_default_value, default_value_length));
+    } else {
+      dd_column->set_default_value_null(ndb_column->getNullable());
+    }
+
+    // Looks like DD expects the value set to this column to be human readable.
+    // The actual values from ndb_default_value should be extracted based on the
+    // column type and then set. See NdbDictionary::printFormattedValue() and
+    // prepare_default_value_string() in dd_table.cc
+    if (ndb_default_value) {
+      dd_column->set_default_value_utf8(
+          dd::String_type(ndb_default_value, default_value_length));
+    } else {
+      dd_column->set_default_value_utf8_null(ndb_column->getNullable());
+    }
+
+    if (ndb_column->getPrimaryKey())
+      dd_column->set_column_key(dd::Column::enum_column_key::CK_PRIMARY);
+
+    // Column storage is set only for disk storage
+    if (ndb_column->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+      dd_column->options().set(key_storage, static_cast<uint32>(HA_SM_DISK));
+
+    // Column format is set only for dynamic
+    if (ndb_column->getDynamic())
+      dd_column->options().set(key_column_format,
+                               static_cast<uint32>(COLUMN_FORMAT_TYPE_DYNAMIC));
+  }
+}
+
+bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
+                                  dd::Table *table_def) const {
+  NdbDictionary::Dictionary::List list;
+  if (dict->listIndexes(list, *m_ndbtab) != 0) {
+    ndb_log_error("Failed to list indexes due to NDB error %u: %s",
+                  dict->getNdbError().code, dict->getNdbError().message);
+    return false;
+  }
+  // Sort the list by id so that it matches the order of creation. This doesn't
+  // work when the indexes are created during ndb_restore
+  list.sortById();
+
+  // Separate indexes into ordered and unique indexes for quick lookup later
+  std::unordered_set<std::string> ordered_indexes;
+  std::unordered_set<std::string> hash_indexes;
+  for (unsigned int i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &element = list.elements[i];
+    switch (element.type) {
+      case NdbDictionary::Object::UniqueHashIndex:
+        hash_indexes.insert(element.name);
+        break;
+      case NdbDictionary::Object::OrderedIndex:
+        ordered_indexes.insert(element.name);
+        break;
+      default:
+        // Unexpected object type
+        DBUG_ASSERT(false);
+        return false;
+    }
+  }
+
+  for (unsigned int i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &element = list.elements[i];
+    const NdbDictionary::Index *ndb_index =
+        dict->getIndexGlobal(element.name, m_ndbtab->getName());
+    std::string index_name = ndb_index->getName();
+    for (std::string::size_type n = index_name.find("@0047");
+         n != std::string::npos; n = index_name.find("@0047")) {
+      index_name.replace(n, 5, "/");
+    }
+    if (ndb_index->getType() == NdbDictionary::Index::OrderedIndex &&
+        hash_indexes.find(index_name + "$unique") != hash_indexes.end()) {
+      // Unless "USING HASH" is specified, creation of a unique index results in
+      // the creation of both an ordered index and a hash index in NDB. Discount
+      // the extra ordered index since DD has no notion of it
+      continue;
+    }
+
+    dd::Index *dd_index = table_def->add_index();
+
+    if (ndb_index->getType() == NdbDictionary::Index::UniqueHashIndex) {
+      // Extract the actual index name by dropping the $unique suffix
+      const std::string::size_type n = index_name.rfind("$unique");
+      const std::string real_name = index_name.substr(0, n);
+      dd_index->set_name(real_name.c_str());
+      // PKs using HASH aren't created in NDB Dictionary so the type can only
+      // be IT_UNIQUE
+      dd_index->set_type(dd::Index::enum_index_type::IT_UNIQUE);
+      if (ordered_indexes.find(real_name) == ordered_indexes.end()) {
+        dd_index->set_algorithm(dd::Index::enum_index_algorithm::IA_HASH);
+        dd_index->set_algorithm_explicit(true);
+      }
+    } else if (ndb_index->getType() == NdbDictionary::Index::OrderedIndex) {
+      dd_index->set_name(index_name.c_str());
+      if (index_name == "PRIMARY") {
+        dd_index->set_type(dd::Index::enum_index_type::IT_PRIMARY);
+      } else {
+        dd_index->set_type(dd::Index::enum_index_type::IT_MULTIPLE);
+      }
+    } else {
+      // Unexpected object type
+      DBUG_ASSERT(false);
+      return false;
+    }
+
+    dd_index->set_engine("ndbcluster");
+
+    // Cycle through the columns retrieved from NDB Dictionary and add them as
+    // index elements to the DD definition
+    for (unsigned int j = 0; j < ndb_index->getNoOfColumns(); j++) {
+      const dd::Column *column =
+          table_def->get_column(ndb_index->getColumn(j)->getName());
+      DBUG_ASSERT(column != nullptr);
+      (void)dd_index->add_element(const_cast<dd::Column *>(column));
+    }
+  }
+  return true;
+}
+
+bool Ndb_metadata::create_foreign_keys(Ndb *ndb, dd::Table *table_def) const {
+  NdbDictionary::Dictionary::List list;
+  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  if (dict->listDependentObjects(list, *m_ndbtab) != 0) {
+    ndb_log_error(
+        "Failed to list dependant objects of table %s due to NDB "
+        "error %u: %s",
+        m_ndbtab->getName(), dict->getNdbError().code,
+        dict->getNdbError().message);
+    return false;
+  }
+
+  std::unordered_set<std::string> fk_created_names;
+  for (unsigned int i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element element = list.elements[i];
+    if (element.type != NdbDictionary::Object::ForeignKey) continue;
+
+    NdbDictionary::ForeignKey ndb_fk;
+    if (const_cast<NdbDictionary::Dictionary *>(dict)->getForeignKey(
+            ndb_fk, element.name) != 0) {
+      ndb_log_error("Failed to get foreign key %s from NDB due to error %u: %s",
+                    element.name, dict->getNdbError().code,
+                    dict->getNdbError().message);
+      return false;
+    }
+
+    char parent_db[FN_LEN + 1];
+    const char *parent_name = fk_split_name(parent_db, ndb_fk.getParentTable());
+    char child_db[FN_LEN + 1];
+    const char *child_name = fk_split_name(child_db, ndb_fk.getChildTable());
+    // Skip creating FKs for parent tables if it's not a self referential FK
+    if (strcmp(child_db, ndb->getDatabaseName()) != 0 ||
+        strcmp(child_name, m_ndbtab->getName()) != 0)
+      continue;
+
+    char fk_name_buffer[FN_LEN + 1];
+    const char *fk_name = fk_split_name(fk_name_buffer, ndb_fk.getName());
+
+    // Check if the FK has been created already. This is needed for self
+    // referential FKs where two copies of the same FK seems to exist. This
+    // occurs during copying ALTER statements where multiple copies of the FK
+    // exist quite late in the life cycle when this comparison is done
+    if (fk_created_names.find(fk_name) != fk_created_names.end()) {
+      continue;
+    }
+    fk_created_names.insert(fk_name);
+
+    dd::Foreign_key *dd_fk = table_def->add_foreign_key();
+    dd_fk->set_name(fk_name);
+
+    if (ndb_fk.getParentIndex() == nullptr) {
+      dd_fk->set_unique_constraint_name("PRIMARY");
+    } else {
+      char index_name_buffer[FN_LEN + 1];
+      std::string constraint_name =
+          fk_split_name(index_name_buffer, ndb_fk.getParentIndex(), true);
+      // Extract the actual index name by dropping the $unique suffix
+      const std::string::size_type n = constraint_name.rfind("$unique");
+      DBUG_ASSERT(n != std::string::npos);
+      const std::string real_constraint_name = constraint_name.substr(0, n);
+      dd_fk->set_unique_constraint_name(real_constraint_name.c_str());
+    }
+
+    switch (ndb_fk.getOnUpdateAction()) {
+      case NdbDictionary::ForeignKey::FkAction::NoAction:
+        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_NO_ACTION);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::Restrict:
+        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_RESTRICT);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::Cascade:
+        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_CASCADE);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::SetNull:
+        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_SET_NULL);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::SetDefault:
+        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_SET_DEFAULT);
+        break;
+      default:
+        DBUG_ASSERT(false);
+        return false;
+    }
+
+    switch (ndb_fk.getOnDeleteAction()) {
+      case NdbDictionary::ForeignKey::FkAction::NoAction:
+        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_NO_ACTION);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::Restrict:
+        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_RESTRICT);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::Cascade:
+        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_CASCADE);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::SetNull:
+        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_SET_NULL);
+        break;
+      case NdbDictionary::ForeignKey::FkAction::SetDefault:
+        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_SET_DEFAULT);
+        break;
+      default:
+        DBUG_ASSERT(false);
+        return false;
+    }
+
+    dd_fk->set_referenced_table_catalog_name("def");
+    dd_fk->set_referenced_table_schema_name(parent_db);
+    dd_fk->set_referenced_table_name(parent_name);
+
+    Ndb_table_guard ndb_table_guard(ndb, parent_db, parent_name);
+    const NdbDictionary::Table *parent_table = ndb_table_guard.get_table();
+    for (unsigned int j = 0; j < ndb_fk.getChildColumnCount(); j++) {
+      // Create FK element(s) for child columns
+      dd::Foreign_key_element *fk_element = dd_fk->add_element();
+      const dd::Column *column = table_def->get_column(
+          m_ndbtab->getColumn(ndb_fk.getChildColumnNo(j))->getName());
+      DBUG_ASSERT(column != nullptr);
+      fk_element->set_column(column);
+
+      // Set referenced column which is in the parent table
+      fk_element->referenced_column_name(
+          parent_table->getColumn(ndb_fk.getParentColumnNo(j))->getName());
+    }
+  }
+  return true;
+}
+
+bool Ndb_metadata::create_table_def(Ndb *ndb, dd::Table *table_def) const {
   DBUG_TRACE;
 
   // name
@@ -169,6 +635,18 @@ bool Ndb_metadata::create_table_def(dd::Table *table_def) {
     // table_def->set_subpartition_expression_utf8();
   }
 
+  create_columns(table_def);
+
+  if (!create_indexes(ndb->getDictionary(), table_def)) {
+    ndb_log_error("Failed to create indexes");
+    return false;
+  }
+
+  if (!create_foreign_keys(ndb, table_def)) {
+    ndb_log_error("Failed to create foreign keys");
+    return false;
+  }
+
   return true;
 }
 
@@ -196,7 +674,8 @@ bool Ndb_metadata::lookup_tablespace_id(THD *thd, dd::Table *table_def) {
     DBUG_PRINT("info", ("tablespace_name: '%s'", tablespace_name));
     dd::Object_id tablespace_id;
     if (!dd_client.lookup_tablespace_id(tablespace_name, &tablespace_id)) {
-      // Failed
+      ndb_log_error("Failed to look up tablepace id of table %s",
+                    m_ndbtab->getName());
       return false;
     }
 
@@ -423,14 +902,18 @@ bool Ndb_metadata::compare_indexes(const NdbDictionary::Dictionary *dict,
   return ctx.equal();
 }
 
-bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *ndbtab,
+bool Ndb_metadata::compare(THD *thd, Ndb *ndb,
+                           const NdbDictionary::Table *ndbtab,
                            const dd::Table *dd_table_def) {
   Ndb_metadata ndb_metadata(ndbtab);
 
   // Transform NDB table to DD table def
   std::unique_ptr<dd::Table> ndb_table_def{dd::create_object<dd::Table>()};
-  if (!ndb_metadata.create_table_def(ndb_table_def.get())) {
-    DBUG_ASSERT(false);
+  if (!ndb_metadata.create_table_def(ndb, ndb_table_def.get())) {
+    ndb_log_error(
+        "Failed to transform the NDB definition of table %s to its "
+        "equivalent DD definition",
+        ndbtab->getName());
     return false;
   }
 
