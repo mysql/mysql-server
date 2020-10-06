@@ -24798,7 +24798,6 @@ void Dbdih::initCommonData()
   cnoOfActiveTables = 0;
   cnoOfNodeGroups = 0;
   c_nextNodeGroup = 0;
-  cnoReplicas = 0;
   con_lineNodes = 0;
   creceivedfrag = 0;
   crestartGci = 0;
