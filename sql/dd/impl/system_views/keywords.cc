@@ -37,16 +37,17 @@ const Keywords &Keywords::instance() {
 }
 
 Keywords::Keywords() {
-  size_t max_word_size = 0;
-  for (auto x : keyword_list)
-    max_word_size = std::max(max_word_size, strlen(x.word));
+  const size_t MAX_WORD_SIZE = 128;
+#ifndef DBUG_OFF
+  for (auto x : keyword_list) DBUG_ASSERT(strlen(x.word) < MAX_WORD_SIZE);
+#endif
 
   Stringstream_type ss;
   ss << "JSON_TABLE('[";
   for (auto x : keyword_list)
     ss << "[\"" << x.word << "\"," << x.reserved << "],";
   ss.seekp(ss.tellp() - static_cast<std::streamoff>(1));  // remove last ','
-  ss << "]', '$[*]' COLUMNS(word VARCHAR(" << max_word_size
+  ss << "]', '$[*]' COLUMNS(word VARCHAR(" << MAX_WORD_SIZE
      << ") CHARSET utf8mb4 PATH '$[0]',"
      << "reserved INT PATH '$[1]')) AS j";
 
