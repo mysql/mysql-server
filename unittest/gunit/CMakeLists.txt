@@ -310,6 +310,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
+  ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )
 
 ADD_LIBRARY(sqlgunitlib STATIC ${SQL_GUNIT_LIB_SOURCE})
@@ -388,7 +389,7 @@ ADD_LIBRARY(rpl_commit_order_queue_lib STATIC
 MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
   ENABLE_EXPORTS
   ADD_TEST rpl_commit_order_queue
-  LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sql_main
+  LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sqlgunitlib
 )
 
 ADD_SUBDIRECTORY(ddl_rewriter)
