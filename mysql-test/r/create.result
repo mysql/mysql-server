@@ -1154,7 +1154,7 @@ t1	CREATE TABLE `t1` (
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 drop table t1;
 create temporary table t1 like information_schema.processlist;
 show create table t1;
@@ -1168,7 +1168,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 drop table t1;
 create table t1 as select * from information_schema.character_sets;
 show create table t1;

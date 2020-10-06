@@ -894,7 +894,7 @@ INNODB_TEMP_TABLE_INFO	CREATE TEMPORARY TABLE `INNODB_TEMP_TABLE_INFO` (
   `NAME` varchar(64) DEFAULT NULL,
   `N_COLS` int unsigned NOT NULL DEFAULT '0',
   `SPACE` int unsigned NOT NULL DEFAULT '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_temp_table_info;
 Expect 0
 0

@@ -501,7 +501,7 @@ t1	CREATE TABLE `t1` (
   `b` text,
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`a`,`b`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 ROW_FORMAT=COMPRESSED
 SELECT count(*) FROM information_schema.innodb_tables WHERE name LIKE "%FTS_%" AND space !=0;
 count(*)
 11

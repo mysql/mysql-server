@@ -42,7 +42,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
   `b` varchar(40) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 DROP TABLE t1;
 DROP DATABASE db1;
 '--ascii character set specified--'

@@ -252,6 +252,13 @@ static inline int is_prefix(const char *s, const char *t) {
   return 1; /* WRONG */
 }
 
+/*
+   Replace the deprecated character set name "utf8" with "utf8mb3".
+ */
+static inline const char *replace_utf8_utf8mb3(const char *csname) {
+  return (native_strcasecmp(csname, "utf8") != 0) ? csname : "utf8mb3";
+}
+
 /* Conversion routines */
 typedef enum { MY_GCVT_ARG_FLOAT, MY_GCVT_ARG_DOUBLE } my_gcvt_arg_type;
 

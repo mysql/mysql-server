@@ -245,7 +245,7 @@ user	CREATE TABLE `user` (
   `Password_require_current` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `User_attributes` json DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Users and global privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;
 Table	Create Table
 innodb_table_stats	CREATE TABLE `innodb_table_stats` (
@@ -256,7 +256,7 @@ innodb_table_stats	CREATE TABLE `innodb_table_stats` (
   `clustered_index_size` bigint unsigned NOT NULL,
   `sum_of_other_index_sizes` bigint unsigned NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.innodb_index_stats;
 Table	Create Table
 innodb_index_stats	CREATE TABLE `innodb_index_stats` (
@@ -269,7 +269,7 @@ innodb_index_stats	CREATE TABLE `innodb_index_stats` (
   `sample_size` bigint unsigned DEFAULT NULL,
   `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SELECT COLUMN_NAME,CHARACTER_MAXIMUM_LENGTH
 FROM INFORMATION_SCHEMA.COLUMNS col
 JOIN INFORMATION_SCHEMA.TABLES tab ON col.table_name=tab.table_name
@@ -467,7 +467,7 @@ threads	CREATE TABLE `threads` (
   KEY `PROCESSLIST_ACCOUNT` (`PROCESSLIST_USER`,`PROCESSLIST_HOST`),
   KEY `PROCESSLIST_HOST` (`PROCESSLIST_HOST`),
   KEY `RESOURCE_GROUP` (`RESOURCE_GROUP`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb3
 # Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation

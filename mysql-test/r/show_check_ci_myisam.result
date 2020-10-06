@@ -266,7 +266,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Table	253	256	2	N	1	31	255
-def					Create Table	253	4096	437	N	1	31	255
+def					Create Table	253	4096	440	N	1	31	255
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `Codigo` int unsigned NOT NULL AUTO_INCREMENT,
@@ -279,5 +279,5 @@ t1	CREATE TABLE `t1` (
   `Provincia` varchar(255) DEFAULT NULL,
   `Poblacion` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`Codigo`)
-) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb3
 drop table t1;

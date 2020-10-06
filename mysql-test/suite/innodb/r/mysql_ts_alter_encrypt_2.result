@@ -206,7 +206,7 @@ plugin	CREATE TABLE `plugin` (
   `name` varchar(64) NOT NULL DEFAULT '',
   `dl` varchar(128) NOT NULL DEFAULT '',
   PRIMARY KEY (`name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='MySQL plugins'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='MySQL plugins'
 -------------------
 Drop mysql database
 -------------------

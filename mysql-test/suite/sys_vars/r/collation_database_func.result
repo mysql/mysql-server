@@ -44,7 +44,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(20) COLLATE utf8_roman_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_roman_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_roman_ci
 '---check if updating collation_database effects new table/column---'
 SET @@session.collation_database = latin7_general_cs;
 Warnings:
@@ -54,7 +54,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` char(10) COLLATE utf8_roman_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_roman_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_roman_ci
 DROP TABLE t1,t2;
 '--check value of collation and character set when current db is dropped'
 DROP DATABASE db1;
