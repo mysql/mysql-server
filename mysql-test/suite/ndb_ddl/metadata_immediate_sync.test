@@ -327,6 +327,13 @@ INSERT INTO child VALUES (1,1),(2,2);
 
 DROP TABLE t1,child,parent;
 
+# Suppress expected errors
+--disable_query_log
+call mtr.add_suppression("Metadata check has failed");
+call mtr.add_suppression("The NDB Dictionary table definition is not identical to the DD table definition");
+call mtr.add_suppression("Diff in 'index_count'");
+--enable_query_log
+
 --echo Restore with --disable-indexes
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT

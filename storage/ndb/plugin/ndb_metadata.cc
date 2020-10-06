@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,8 @@
 #include "storage/ndb/plugin/ndb_dd.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
 #include "storage/ndb/plugin/ndb_dd_table.h"
+#include "storage/ndb/plugin/ndb_log.h"        // ndb_log_error
+#include "storage/ndb/plugin/ndb_name_util.h"  // ndb_name_is_temp
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 
 // Key used for magic flag "explicit_tablespace" in table options
@@ -50,7 +52,7 @@ const char *key_storage = "storage";
 // Check also partitioning properties
 constexpr bool check_partitioning = false;  // disabled
 
-dd::String_type Ndb_metadata::partition_expression() {
+dd::String_type Ndb_metadata::partition_expression() const {
   dd::String_type expr;
   if (m_ndbtab->getFragmentType() == NdbDictionary::Table::HashMapPartition &&
       m_ndbtab->getDefaultNoPartitionsFlag() &&
@@ -251,20 +253,25 @@ class Compare_context {
     if (diffs.size() == 0) return true;
 
     // Print the list of diffs
-    for (std::string diff : diffs) std::cout << diff << std::endl;
+    ndb_log_error("Metadata check has failed");
+    ndb_log_error(
+        "The NDB Dictionary table definition is not identical to the DD table "
+        "definition");
+    for (const std::string &diff : diffs) ndb_log_error("%s", diff.c_str());
 
     return false;
   }
 };
 
-bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
+bool Ndb_metadata::compare_table_def(const dd::Table *t1,
+                                     const dd::Table *t2) const {
   DBUG_TRACE;
   Compare_context ctx;
 
   // name
   // When using lower_case_table_names==2 the table will be
   // created using lowercase in NDB while still be original case in DD.
-  ctx.compare("name", ndb_dd_fs_name_case(t1->name()).c_str(), t2->name());
+  ctx.compare("name", t1->name(), ndb_dd_fs_name_case(t2->name()).c_str());
 
   // collation_id
   // ctx.compare("collation_id", t1->collation_id(), t2->collation_id());
@@ -276,7 +283,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
   } else {
     // It's known that table has tablespace but it could not be
     // looked up(yet), just check that DD definition have tablespace_id
-    DBUG_ASSERT(t1->tablespace_id());
+    DBUG_ASSERT(t2->tablespace_id());
   }
 
   // Check magic flag "options.explicit_tablespace"
@@ -327,10 +334,10 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
     // present in the .frm. Thus, we accept that this is a known mismatch and
     // skip the comparison of this attribute for tables created using earlier
     // versions
-    ulong t1_previous_mysql_version = UINT_MAX32;
-    if (!ndb_dd_table_get_previous_mysql_version(t1,
-                                                 t1_previous_mysql_version) ||
-        t1_previous_mysql_version > 50157) {
+    ulong t2_previous_mysql_version = UINT_MAX32;
+    if (!ndb_dd_table_get_previous_mysql_version(t2,
+                                                 t2_previous_mysql_version) ||
+        t2_previous_mysql_version > 50157) {
       ctx.compare("options.storage", t1_storage, t2_storage);
     }
   }
@@ -365,18 +372,18 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1, const dd::Table *t2) {
   return ctx.equal();
 }
 
-bool Ndb_metadata::check_partition_info(const dd::Table *table_def) {
+bool Ndb_metadata::check_partition_info(const dd::Table *dd_table_def) const {
   DBUG_TRACE;
   Compare_context ctx;
 
   // Compare the partition count of the NDB table with the partition
   // count of the table definition used by the caller
-  ctx.compare("partition_count", table_def->partitions().size(),
-              m_ndbtab->getPartitionCount());
+  ctx.compare("partition_count", m_ndbtab->getPartitionCount(),
+              dd_table_def->partitions().size());
 
   // Check if the engine of the partitions are as expected
-  for (size_t i = 0; i < table_def->partitions().size(); i++) {
-    const dd::Partition *partition = table_def->partitions().at(i);
+  for (size_t i = 0; i < dd_table_def->partitions().size(); i++) {
+    const dd::Partition *partition = dd_table_def->partitions().at(i);
     ctx.compare("partition_engine", "ndbcluster", partition->engine());
   }
 
@@ -385,16 +392,16 @@ bool Ndb_metadata::check_partition_info(const dd::Table *table_def) {
 
 bool Ndb_metadata::compare_indexes(const NdbDictionary::Dictionary *dict,
                                    const NdbDictionary::Table *ndbtab,
-                                   const dd::Table *table_def) {
+                                   const dd::Table *dd_table_def) {
   DBUG_TRACE;
   DBUG_ASSERT(dict != nullptr);
   unsigned int ndb_index_count;
   if (!ndb_table_index_count(dict, ndbtab, ndb_index_count)) {
     return false;
   }
-  size_t dd_index_count = table_def->indexes().size();
-  for (size_t i = 0; i < table_def->indexes().size(); i++) {
-    const dd::Index *index = table_def->indexes().at(i);
+  size_t dd_index_count = dd_table_def->indexes().size();
+  for (size_t i = 0; i < dd_table_def->indexes().size(); i++) {
+    const dd::Index *index = dd_table_def->indexes().at(i);
     if (index->type() == dd::Index::enum_index_type::IT_PRIMARY &&
         index->algorithm() == dd::Index::enum_index_algorithm::IA_HASH) {
       // PKs using hash are a special case since there's no separate index
@@ -403,22 +410,22 @@ bool Ndb_metadata::compare_indexes(const NdbDictionary::Dictionary *dict,
     }
     if (index->type() == dd::Index::enum_index_type::IT_UNIQUE &&
         index->algorithm() == dd::Index::enum_index_algorithm::IA_HASH) {
-      // In case the table is not created with a primary key, unique keys using
-      // hash could be mapped to being a primary key which will once again lead
-      // to no separate index created in NDB
+      // In case the table is not created with a primary key, unique keys
+      // using hash could be mapped to being a primary key which will once
+      // again lead to no separate index created in NDB
       if (ndb_index_count == 0) {
         dd_index_count--;
       }
     }
   }
   Compare_context ctx;
-  ctx.compare("index_count", dd_index_count, ndb_index_count);
+  ctx.compare("index_count", ndb_index_count, dd_index_count);
   return ctx.equal();
 }
 
-bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *m_ndbtab,
-                           const dd::Table *table_def) {
-  Ndb_metadata ndb_metadata(m_ndbtab);
+bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *ndbtab,
+                           const dd::Table *dd_table_def) {
+  Ndb_metadata ndb_metadata(ndbtab);
 
   // Transform NDB table to DD table def
   std::unique_ptr<dd::Table> ndb_table_def{dd::create_object<dd::Table>()};
@@ -429,20 +436,17 @@ bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *m_ndbtab,
 
   // Lookup tablespace id from DD
   if (!ndb_metadata.lookup_tablespace_id(thd, ndb_table_def.get())) {
-    DBUG_ASSERT(false);
     return false;
   }
 
   // Compare the table definition generated from the NDB table
   // with the table definition used by caller
-  if (!ndb_metadata.compare_table_def(table_def, ndb_table_def.get())) {
-    DBUG_ASSERT(false);
+  if (!ndb_metadata.compare_table_def(ndb_table_def.get(), dd_table_def)) {
     return false;
   }
 
   // Check the partition information of the table definition used by caller
-  if (!ndb_metadata.check_partition_info(table_def)) {
-    DBUG_ASSERT(false);
+  if (!ndb_metadata.check_partition_info(dd_table_def)) {
     return false;
   }
 

@@ -994,13 +994,6 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       error_msg = "Failed to get object from DD";
       return false;
     }
-    if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
-      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
-      ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
-                    schema_name.c_str(), table_name.c_str());
-      error_msg = "Definition of table has changed in NDB Dictionary";
-      return false;
-    }
     if (!Ndb_metadata::compare_indexes(dict, ndbtab, dd_table)) {
       // Mismatch in terms of number of indexes in NDB Dictionary and DD. This
       // is likely due to the fact that a table has been created in NDB
@@ -1012,6 +1005,13 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
                    schema_name.c_str(), table_name.c_str());
       error_msg = "Mismatch in indexes detected";
       temp_error = true;
+      return false;
+    }
+    if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
+      ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
+                    schema_name.c_str(), table_name.c_str());
+      error_msg = "Definition of table has changed in NDB Dictionary";
       return false;
     }
     if (ndbcluster_binlog_setup_table(thd, ndb, schema_name.c_str(),
@@ -1113,13 +1113,6 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     error_msg = "Failed to get object from DD";
     return false;
   }
-  if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
-    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
-    ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
-                  schema_name.c_str(), table_name.c_str());
-    error_msg = "Definition of table has changed in NDB Dictionary";
-    return false;
-  }
   if (!Ndb_metadata::compare_indexes(dict, ndbtab, dd_table)) {
     // Mismatch in terms of number of indexes in NDB Dictionary and DD. This is
     // likely due to the fact that a table has been created in NDB Dictionary
@@ -1131,6 +1124,13 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
                  schema_name.c_str(), table_name.c_str());
     error_msg = "Mismatch in indexes detected";
     temp_error = true;
+    return false;
+  }
+  if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
+    ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
+                  schema_name.c_str(), table_name.c_str());
+    error_msg = "Definition of table has changed in NDB Dictionary";
     return false;
   }
   if (ndbcluster_binlog_setup_table(thd, ndb, schema_name.c_str(),

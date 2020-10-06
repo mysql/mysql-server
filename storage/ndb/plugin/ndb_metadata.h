@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,8 @@ namespace dd {
 class Table;
 }
 
+class THD;
+
 /*
   Translate metadata from NDB dictionary to Data Dictionary(DD)
 */
@@ -46,9 +48,9 @@ class Ndb_metadata {
 
     @brief Return the partition expression
 
-    @return string containing the partition expression for the table
+    @return String containing the partition expression for the table
   */
-  dd::String_type partition_expression();
+  dd::String_type partition_expression() const;
 
   /*
     @brief Create DD table definition
@@ -61,61 +63,63 @@ class Ndb_metadata {
   bool create_table_def(dd::Table *table_def);
 
   /*
-    @brief lookup tablespace_id from DD
+    @brief Lookup tablespace_id from DD
 
-    @thd                Thread context
-    @table_def[out]     DD table definition
+    @param thd                Thread context
+    @param dd_table_def [out] DD table definition
+
+    @return true if the id could be successfully looked up, false if not
   */
-  bool lookup_tablespace_id(class THD *thd, dd::Table *table_def);
+  bool lookup_tablespace_id(THD *thd, dd::Table *dd_table_def);
 
   /*
     @brief Compare two DD table definitions
 
-    @t1             table definition
-    @t2             table definition
+    @param t1    DD table definition created from the NdbApi table
+    @param t2    DD table definition sent by the caller
 
     @return true if the two table definitions are identical
 
-    @note Only compares the properties which can be stored in NDB dictionary
+    @note Only compares the properties which can be stored in NDB Dictionary
   */
-  bool compare_table_def(const dd::Table *t1, const dd::Table *t2);
+  bool compare_table_def(const dd::Table *t1, const dd::Table *t2) const;
 
   /*
     @brief Check partition information in DD table definition
 
-    @t1             table definition
+    @param dd_table_def  DD table definition
 
     @return true if the table's partition information is as expected
-
   */
-  bool check_partition_info(const dd::Table *t1);
+  bool check_partition_info(const dd::Table *dd_table_def) const;
 
  public:
   /*
     @brief Compare the NdbApi table with the DD table definition
 
-    @param thd              Thread context
-    @param ndbtab           NdbApi table
-    @param table_def        DD table definition
+    @param thd           Thread context
+    @param ndbtab        NdbApi table
+    @param dd_table_def  DD table definition
 
     @return true if the NdbApi table is identical to the DD table def.
   */
-  static bool compare(class THD *thd, const NdbDictionary::Table *ndbtab,
-                      const dd::Table *table_def);
+  static bool compare(THD *thd, const NdbDictionary::Table *ndbtab,
+                      const dd::Table *dd_table_def);
 
   /*
     @brief Compare the NdbApi table with the DD table definition to see if the
            number of indexes match
 
-    @param dict      NDB Dictionary object
-    @param ndbtab    NdbApi table
-    @param table_def DD table definition
+    @param dict          NDB Dictionary object
+    @param ndbtab        NdbApi table
+    @param dd_table_def  DD table definition
 
-    @return true if the number of indexes in both definitions match
+    @return true if the number of indexes in both definitions match, false if
+            not
   */
   static bool compare_indexes(const NdbDictionary::Dictionary *dict,
                               const NdbDictionary::Table *ndbtab,
-                              const dd::Table *table_def);
+                              const dd::Table *dd_table_def);
 };
 
 #endif
