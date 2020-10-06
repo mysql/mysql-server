@@ -40,9 +40,11 @@ class THD;
 */
 class Ndb_metadata {
   bool m_compare_tablespace_id{true};
+  const char *const m_dbname;
   const NdbDictionary::Table *m_ndbtab;
 
-  Ndb_metadata(const NdbDictionary::Table *ndbtab) : m_ndbtab(ndbtab) {}
+  Ndb_metadata(const char *dbname, const NdbDictionary::Table *ndbtab)
+      : m_dbname(dbname), m_ndbtab(ndbtab) {}
 
   /*
 
@@ -130,12 +132,14 @@ class Ndb_metadata {
 
     @param thd           Thread context
     @param ndb           Ndb object
+    @param dbname        Name of database for the NdbApi table
     @param ndbtab        NdbApi table
     @param dd_table_def  DD table definition
 
     @return true if the NdbApi table is identical to the DD table def.
   */
-  static bool compare(THD *thd, Ndb *ndb, const NdbDictionary::Table *ndbtab,
+  static bool compare(THD *thd, Ndb *ndb, const char *dbname,
+                      const NdbDictionary::Table *ndbtab,
                       const dd::Table *dd_table_def);
 
   /*

@@ -910,29 +910,19 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     drop_ndb_share(schema_name.c_str(), table_name.c_str());
     ndb_tdc_close_cached_table(thd, schema_name.c_str(), table_name.c_str());
 
-    // Invalidate the table in NdbApi
-    if (ndb->setDatabaseName(schema_name.c_str())) {
-      ndb_log_error("Failed to set database name of NDB object");
-      error_msg = "Failed to set database name of NDB object";
-      return false;
-    }
     dd_client.commit();
     ndb_log_info("Table '%s.%s' dropped from DD", schema_name.c_str(),
                  table_name.c_str());
-    Ndb_table_guard ndbtab_guard(dict, table_name.c_str());
+
+    // Invalidate the table in NdbApi
+    Ndb_table_guard ndbtab_guard(ndb, schema_name.c_str(), table_name.c_str());
     ndbtab_guard.invalidate();
     return true;
   }
 
   // Table exists in NDB but not in DD. Correct this by installing the table in
   // the DD
-  if (ndb->setDatabaseName(schema_name.c_str())) {
-    ndb_log_error("Failed to set database name of NDB object");
-    error_msg = "Failed to set database name of NDB object";
-    return false;
-  }
-
-  Ndb_table_guard ndbtab_guard(dict, table_name.c_str());
+  Ndb_table_guard ndbtab_guard(ndb, schema_name.c_str(), table_name.c_str());
   const NdbDictionary::Table *ndbtab = ndbtab_guard.get_table();
   if (ndbtab == nullptr) {
     // Mismatch doesn't exist any more, return success
@@ -988,7 +978,8 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       temp_error = true;
       return false;
     }
-    if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
+    if (!Ndb_metadata::compare(thd, ndb, schema_name.c_str(), ndbtab,
+                               dd_table)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                     schema_name.c_str(), table_name.c_str());
@@ -1107,7 +1098,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     temp_error = true;
     return false;
   }
-  if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
+  if (!Ndb_metadata::compare(thd, ndb, schema_name.c_str(), ndbtab, dd_table)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                   schema_name.c_str(), table_name.c_str());

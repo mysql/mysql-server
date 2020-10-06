@@ -516,19 +516,16 @@ static int check_slave_state(THD *thd) {
       Uint64 highestAppliedEpoch = 0;
       do {
         Ndb *ndb = check_ndb_in_thd(thd);
-        NDBDICT *dict = ndb->getDictionary();
-        NdbTransaction *trans = NULL;
-        ndb->setDatabaseName(Ndb_apply_status_table::DB_NAME.c_str());
-        Ndb_table_guard ndbtab_g(dict,
+        Ndb_table_guard ndbtab_g(ndb, Ndb_apply_status_table::DB_NAME.c_str(),
                                  Ndb_apply_status_table::TABLE_NAME.c_str());
 
         const NDBTAB *ndbtab = ndbtab_g.get_table();
         if (unlikely(ndbtab == NULL)) {
-          ndb_error = dict->getNdbError();
+          ndb_error = ndbtab_g.getNdbError();
           break;
         }
 
-        trans = ndb->startTransaction();
+        NdbTransaction *trans = ndb->startTransaction();
         if (unlikely(trans == NULL)) {
           ndb_error = ndb->getNdbError();
           break;
@@ -1937,7 +1934,6 @@ bool ha_ndbcluster::check_default_values() const {
 #endif
 
 int ha_ndbcluster::get_metadata(Ndb *ndb, const dd::Table *table_def) {
-  NDBDICT *dict = ndb->getDictionary();
   DBUG_TRACE;
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
@@ -1953,11 +1949,10 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const dd::Table *table_def) {
     return 1;
   }
 
-  ndb->setDatabaseName(m_dbname);
-  Ndb_table_guard ndbtab_g(dict, m_tabname);
+  Ndb_table_guard ndbtab_g(ndb, m_dbname, m_tabname);
   const NDBTAB *tab = ndbtab_g.get_table();
   if (tab == nullptr) {
-    ERR_RETURN(dict->getNdbError());
+    ERR_RETURN(ndbtab_g.getNdbError());
   }
 
   // Check that the id and version from DD
@@ -2007,6 +2002,7 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const dd::Table *table_def) {
 
   ndb_bitmap_init(m_bitmap, m_bitmap_buf, table_share->fields);
 
+  NDBDICT *dict = ndb->getDictionary();
   int error = 0;
   if (table_share->primary_key == MAX_KEY) {
     /* Hidden primary key. */
@@ -7206,15 +7202,15 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd, THR_LOCK_DATA **to,
 
 static int ndbcluster_update_apply_status(THD *thd, int do_update) {
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  Ndb *ndb = thd_ndb->ndb;
-  NDBDICT *dict = ndb->getDictionary();
-  const NDBTAB *ndbtab;
-  NdbTransaction *trans = thd_ndb->trans;
-  ndb->setDatabaseName(Ndb_apply_status_table::DB_NAME.c_str());
-  Ndb_table_guard ndbtab_g(dict, Ndb_apply_status_table::TABLE_NAME.c_str());
-  if (!(ndbtab = ndbtab_g.get_table())) {
+
+  Ndb_table_guard ndbtab_g(thd_ndb->ndb,
+                           Ndb_apply_status_table::DB_NAME.c_str(),
+                           Ndb_apply_status_table::TABLE_NAME.c_str());
+  const NDBTAB *ndbtab = ndbtab_g.get_table();
+  if (!ndbtab) {
     return -1;
   }
+  NdbTransaction *trans = thd_ndb->trans;
   NdbOperation *op = 0;
   int r = 0;
   r |= (op = trans->getNdbOperation(ndbtab)) == 0;
@@ -9210,6 +9206,7 @@ void ha_ndbcluster::append_create_info(String *) {
 
 static bool drop_table_and_related(THD *thd, Ndb *ndb,
                                    NdbDictionary::Dictionary *dict,
+                                   const char *dbname,
                                    const NdbDictionary::Table *table,
                                    int drop_flags, bool skip_related);
 
@@ -9339,6 +9336,12 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     return HA_ERR_NO_CONNECTION;
   }
 
+  // Set database name to use while creating the table in NDB
+  const Ndb_dbname_guard dbname_guard(ndb, m_dbname);
+  if (dbname_guard.change_database_failed()) {
+    return create.failed_in_NDB(ndb->getNdbError());
+  }
+
   if (thd_ndb->check_option(Thd_ndb::CREATE_UTIL_TABLE)) {
     // Creating ndbcluster util table. This is done in order to install the
     // table definition in DD using SQL. Apply special settings for the table
@@ -9352,7 +9355,7 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
 
     // Table already created in NDB, check that it exist and fail create
     // otherwise
-    Ndb_table_guard ndbtab_g(dict, m_tabname);
+    Ndb_table_guard ndbtab_g(ndb, m_dbname, m_tabname);
     if (!ndbtab_g.get_table()) {
       return create.failed_internal_error(
           "The util table does not already exist in NDB");
@@ -9387,8 +9390,8 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
   }
 
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
-    Ndb_table_guard ndbtab_g(dict, m_tabname);
-    if (!ndbtab_g.get_table()) ERR_RETURN(dict->getNdbError());
+    Ndb_table_guard ndbtab_g(ndb, m_dbname, m_tabname);
+    if (!ndbtab_g.get_table()) ERR_RETURN(ndbtab_g.getNdbError());
 
     /* save the foreign key information in fk_list */
     if (!retrieve_foreign_key_list_from_ndb(dict, ndbtab_g.get_table(),
@@ -9489,9 +9492,6 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
                                           &num_args)) {
     return HA_WRONG_CREATE_OPTION;
   }
-
-  /* Reset database name */
-  ndb->setDatabaseName(m_dbname);
 
   // Use mysql.ndb_replication settings when creating table
   if (conflict_fn != NULL) {
@@ -9925,7 +9925,7 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
   }
 
   if (thd_sql_command(thd) != SQLCOM_TRUNCATE) {
-    const int create_fks_result = create_fks(thd, ndb);
+    const int create_fks_result = create_fks(thd, ndb, m_dbname, m_tabname);
     if (create_fks_result != 0) {
       return create_fks_result;
     }
@@ -9935,7 +9935,8 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
       thd->lex->sql_command == SQLCOM_DROP_INDEX ||
       thd->lex->sql_command == SQLCOM_CREATE_INDEX) {
     // Copy foreign keys from the old NDB table (which still exists)
-    const int copy_fk_result = copy_fk_for_offline_alter(thd, ndb, m_tabname);
+    const int copy_fk_result =
+        copy_fk_for_offline_alter(thd, ndb, m_dbname, m_tabname);
     if (copy_fk_result != 0) {
       return copy_fk_result;
     }
@@ -9965,20 +9966,20 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
   if (DBUG_EVALUATE_IF("ndb_create_open_fail", true, false)) {
     // The table has been sucessfully created in NDB, emulate
     // failure to open the table by dropping the table from NDB
-    Ndb_table_guard ndbtab_g(dict, m_tabname);
-    (void)drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(),
+    Ndb_table_guard ndbtab_g(ndb, m_dbname, m_tabname);
+    (void)drop_table_and_related(thd, ndb, dict, m_dbname, ndbtab_g.get_table(),
                                  0,       // drop_flags
                                  false);  // skip_related
   }
 
-  Ndb_table_guard ndbtab_g(dict, m_tabname);
+  Ndb_table_guard ndbtab_g(ndb, m_dbname, m_tabname);
   const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
   if (ndbtab == nullptr) {
     // Failed to open the newly created table from NDB, since the
     // table is apparently not in NDB it cant be dropped.
     // However an NDB error must have occurred since the table can't
     // be opened and as such the NDB error can be returned here
-    return create.failed_in_NDB(dict->getNdbError());
+    return create.failed_in_NDB(ndbtab_g.getNdbError());
   }
 
   // Check if the DD table object has the correct number of partitions.
@@ -10007,7 +10008,7 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
   }
 
   // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, ndb, ndbtab, table_def));
+  DBUG_ASSERT(Ndb_metadata::compare(thd, ndb, m_dbname, ndbtab, table_def));
 
   // Apply the mysql.ndb_replication settings
   if (binlog_client.apply_replication_info(ndb, share, ndbtab, conflict_fn,
@@ -10265,8 +10266,7 @@ void ha_ndbcluster::prepare_inplace__drop_index(uint index_num) {
   }
 }
 
-extern void ndb_fk_util_resolve_mock_tables(THD *thd,
-                                            NdbDictionary::Dictionary *dict,
+extern void ndb_fk_util_resolve_mock_tables(THD *thd, Ndb *ndb,
                                             const char *new_parent_db,
                                             const char *new_parent_name);
 
@@ -10335,7 +10335,8 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   }
 
   // Change current database to that of target table
-  if (ndb->setDatabaseName(new_dbname)) {
+  const Ndb_dbname_guard dbname_guard(ndb, new_dbname);
+  if (dbname_guard.change_database_failed()) {
     ERR_RETURN(ndb->getNdbError());
   }
 
@@ -10440,7 +10441,7 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   NDB_SHARE::free_key(old_key);
 
   // Load the altered table
-  Ndb_table_guard ndbtab_g(dict, new_tabname);
+  Ndb_table_guard ndbtab_g(ndb, new_dbname, new_tabname);
   const NDBTAB *ndbtab = ndbtab_g.get_table();
 
   if (!rollback_in_progress) {
@@ -10462,8 +10463,7 @@ int rename_table_impl(THD *thd, Ndb *ndb,
                               from, to, orig_sdi);
   }
 
-  ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(), new_dbname,
-                                  new_tabname);
+  ndb_fk_util_resolve_mock_tables(thd, ndb, new_dbname, new_tabname);
 
   /* handle old table */
   if (drop_events) {
@@ -10473,7 +10473,7 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   Ndb_binlog_client binlog_client(thd, new_dbname, new_tabname);
 
   if (create_events) {
-    Ndb_table_guard ndbtab_g2(dict, new_tabname);
+    Ndb_table_guard ndbtab_g2(ndb, new_dbname, new_tabname);
     const NDBTAB *ndbtab = ndbtab_g2.get_table();
 
     // NOTE! Should check error and fail the rename
@@ -10517,7 +10517,6 @@ int rename_table_impl(THD *thd, Ndb *ndb,
       of foreign keys has to be renamed.
      */
     int error;
-    NdbDictionary::Dictionary *dict = ndb->getDictionary();
     if ((error = ndb_fk_util_rename_foreign_keys(
              thd, dict, ndbtab, real_rename_name, new_dbname, new_tabname))) {
       return error;
@@ -10569,8 +10568,9 @@ int rename_table_impl(THD *thd, Ndb *ndb,
     // Final phase of offline alter table.
 
     // Check that NDB and DD metadata matches if this isn't a rollback
-    DBUG_ASSERT(rollback_in_progress ||
-                Ndb_metadata::compare(thd, ndb, ndbtab, to_table_def));
+    DBUG_ASSERT(
+        rollback_in_progress ||
+        Ndb_metadata::compare(thd, ndb, new_dbname, ndbtab, to_table_def));
 
     /* Skip logging on participant if this is a rollback.
        Note : Regardless of the outcome, during rollback, we always have to
@@ -10595,7 +10595,6 @@ int rename_table_impl(THD *thd, Ndb *ndb,
     if (my_strcasecmp(system_charset_info, index_el.database,
                       NDB_SYSTEM_DATABASE)) {
       // Get old index
-      ndb->setDatabaseName(old_dbname);
       const NdbDictionary::Index *index =
           dict->getIndexGlobal(index_el.name, *orig_tab);
       if (!index) {
@@ -10612,7 +10611,6 @@ int rename_table_impl(THD *thd, Ndb *ndb,
         DBUG_PRINT("info", ("Dropping index %s/%s", index_el.database,
                             index->getName()));
         // Drop old index
-        ndb->setDatabaseName(old_dbname);
         dict->dropIndexGlobal(*index);
       }
     }
@@ -10709,11 +10707,11 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 
   // Open the table which is to be renamed(aka. the old)
   Ndb *ndb = get_thd_ndb(thd)->ndb;
-  ndb->setDatabaseName(old_dbname);
-  NDBDICT *dict = ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, m_tabname);
-  const NDBTAB *orig_tab;
-  if (!(orig_tab = ndbtab_g.get_table())) ERR_RETURN(dict->getNdbError());
+  Ndb_table_guard ndbtab_g(ndb, old_dbname, m_tabname);
+  const NDBTAB *orig_tab = ndbtab_g.get_table();
+  if (orig_tab == nullptr) {
+    ERR_RETURN(ndbtab_g.getNdbError());
+  }
   DBUG_PRINT("info", ("NDB table name: '%s'", orig_tab->getName()));
 
   // Check that id and version of the table to be renamed
@@ -10897,7 +10895,7 @@ extern bool ndb_fk_util_build_list(THD *, NdbDictionary::Dictionary *,
                                    const NdbDictionary::Table *, List<char> &);
 extern void ndb_fk_util_drop_list(THD *, Ndb *ndb, NdbDictionary::Dictionary *,
                                   List<char> &);
-extern bool ndb_fk_util_drop_table(THD *, Ndb *ndb, NdbDictionary::Dictionary *,
+extern bool ndb_fk_util_drop_table(THD *, Ndb *ndb, const char *db_name,
                                    const NdbDictionary::Table *);
 extern bool ndb_fk_util_is_mock_name(const char *table_name);
 
@@ -10907,6 +10905,7 @@ extern bool ndb_fk_util_is_mock_name(const char *table_name);
 
 static bool drop_table_and_related(THD *thd, Ndb *ndb,
                                    NdbDictionary::Dictionary *dict,
+                                   const char *dbname,
                                    const NdbDictionary::Table *table,
                                    int drop_flags, bool skip_related) {
   DBUG_TRACE;
@@ -10939,7 +10938,7 @@ static bool drop_table_and_related(THD *thd, Ndb *ndb,
         key(s) to point at the mock table and finally dropping
         the requested table.
       */
-      if (!ndb_fk_util_drop_table(thd, ndb, dict, table)) {
+      if (!ndb_fk_util_drop_table(thd, ndb, dbname, table)) {
         return false;
       }
     } else {
@@ -10988,16 +10987,15 @@ int drop_table_impl(THD *thd, Ndb *ndb,
   int ndb_table_id = 0;
   int ndb_table_version = 0;
   uint retries = 100;
-  ndb->setDatabaseName(db);
   while (true) {
-    Ndb_table_guard ndbtab_g(dict, table_name);
+    Ndb_table_guard ndbtab_g(ndb, db, table_name);
     const NDBTAB *ndbtab = ndbtab_g.get_table();
     if (ndbtab == nullptr) {
       // Table not found
       break;
     }
 
-    if (drop_table_and_related(thd, ndb, dict, ndbtab, drop_flags,
+    if (drop_table_and_related(thd, ndb, dict, db, ndbtab, drop_flags,
                                skip_related)) {
       // Table successfully dropped from NDB
       ndb_table_id = ndbtab->getObjectId();
@@ -11068,12 +11066,16 @@ int drop_table_impl(THD *thd, Ndb *ndb,
   return 0;
 }
 
-static void clear_table_from_dictionary_cache(Ndb *ndb, const char *db,
-                                              const char *table_name) {
-  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  ndb->setDatabaseName(db);
-  const NdbDictionary::Table *tab = dict->getTableGlobal(table_name);
+// This function is only used in the special case where a legacy distributed
+// privilege table has been altered from NDB to another engine
+static void clear_legacy_privilege_table_from_dictionary_cache(
+    Ndb *ndb, const char *db, const char *table_name) {
+  Ndb_table_guard ndb_tab_g(ndb, db, table_name);
+  const NdbDictionary::Table *tab = ndb_tab_g.get_table();
   if (tab) {
+    ndb_tab_g.invalidate();
+
+    const NdbDictionary::Dictionary *dict = ndb->getDictionary();
     NdbDictionary::Dictionary::List index_list;
     dict->listIndexes(index_list, *tab);
     for (unsigned i = 0; i < index_list.count; i++) {
@@ -11081,7 +11083,6 @@ static void clear_table_from_dictionary_cache(Ndb *ndb, const char *db,
           dict->getIndexGlobal(index_list.elements[i].name, *tab);
       dict->removeIndexGlobal(*index, 1 /*invalidate=true*/);
     }
-    dict->removeTableGlobal(*tab, 1 /*invalidate=true*/);
   }
 }
 
@@ -11102,6 +11103,12 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *) {
   }
 
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  // Set database name to use while dropping table from NDB
+  const Ndb_dbname_guard dbname_guard(thd_ndb->ndb, m_dbname);
+  if (dbname_guard.change_database_failed()) {
+    thd_ndb->push_ndb_error_warning(thd_ndb->ndb->getNdbError());
+    return HA_ERR_NO_CONNECTION;
+  }
 
   if (ndb_name_is_temp(m_tabname)) {
     const char *orig_table_name =
@@ -11118,8 +11125,8 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *) {
       NDB_SHARE *share =
           NDB_SHARE::acquire_reference(path, "delete_local_shadow");
       NDB_SHARE::mark_share_dropped_and_release(share, "delete_local_shadow");
-      clear_table_from_dictionary_cache(thd_ndb->ndb, m_dbname,
-                                        orig_table_name);
+      clear_legacy_privilege_table_from_dictionary_cache(thd_ndb->ndb, m_dbname,
+                                                         orig_table_name);
       return 0;
     }
 
@@ -11303,6 +11310,14 @@ int ha_ndbcluster::open(const char *name, int, uint,
     return res;
   }
 
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  // Set database name to use while opening table from NDB
+  const Ndb_dbname_guard dbname_guard(thd_ndb->ndb, m_dbname);
+  if (dbname_guard.change_database_failed()) {
+    thd_ndb->push_ndb_error_warning(thd_ndb->ndb->getNdbError());
+    return HA_ERR_NO_CONNECTION;
+  }
+
   if (open_table_set_key_fields()) {
     release_key_fields();
     return HA_ERR_OUT_OF_MEM;
@@ -11314,8 +11329,8 @@ int ha_ndbcluster::open(const char *name, int, uint,
     m_share = NDB_SHARE::acquire_for_handler(name, this);
 
   if (m_share == nullptr) {
-    // The NDB_SHARE should have been created by CREATE TABLE, or during
-    // schema synchronization, or by auto discovery. Push warning explaining
+    // The NDB_SHARE should have been created by CREATE TABLE, during
+    // schema synchronization or by auto discovery. Push warning explaining
     // the problem and return a sensible error.
     get_thd_ndb(thd)->push_warning("Could not open NDB_SHARE for '%s'", name);
     release_key_fields();
@@ -11325,7 +11340,6 @@ int ha_ndbcluster::open(const char *name, int, uint,
   // Init table lock structure
   thr_lock_data_init(&m_share->lock, &m_lock, (void *)0);
 
-  Thd_ndb *thd_ndb = get_thd_ndb(thd);
   if ((res = get_metadata(thd_ndb->ndb, table_def))) {
     release_key_fields();
     release_ndb_share();
@@ -11659,13 +11673,9 @@ int ha_ndbcluster::close(void) {
 }
 
 int ha_ndbcluster::check_ndb_connection(THD *thd) const {
-  Ndb *ndb;
   DBUG_TRACE;
-
-  if (!(ndb = check_ndb_in_thd(thd, true))) return HA_ERR_NO_CONNECTION;
-  if (ndb->setDatabaseName(m_dbname)) {
-    ERR_RETURN(ndb->getNdbError());
-  }
+  if (!check_ndb_in_thd(thd, true /* allow_recycle */))
+    return HA_ERR_NO_CONNECTION;
   return 0;
 }
 
@@ -11734,18 +11744,11 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     return 1;
   }
 
-  if (ndb->setDatabaseName(db)) {
-    thd_ndb->push_ndb_error_warning(ndb->getNdbError());
-    thd_ndb->push_warning("Failed to discover table '%s' from NDB", name);
-    return 1;
-  }
-
-  NDBDICT *dict = ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, name);
+  Ndb_table_guard ndbtab_g(ndb, db, name);
   const NDBTAB *ndbtab = ndbtab_g.get_table();
   if (ndbtab == nullptr) {
     // Could not open the table from NDB
-    const NdbError err = dict->getNdbError();
+    const NdbError &err = ndbtab_g.getNdbError();
     if (err.code == 709 || err.code == 723) {
       // Got the normal 'No such table existed'
       DBUG_PRINT("info", ("No such table, error: %u", err.code));
@@ -11846,7 +11849,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       dd::sdi_t sdi;
       sdi.assign(static_cast<const char *>(unpacked_data), unpacked_len);
       const std::string tablespace_name =
-          ndb_table_tablespace_name(dict, ndbtab);
+          ndb_table_tablespace_name(ndb->getDictionary(), ndbtab);
       if (!tablespace_name.empty()) {
         // Acquire IX MDL on tablespace
         if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
@@ -11883,7 +11886,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     if (thd_sql_command(thd) != SQLCOM_DROP_TABLE) {
       const dd::Table *dd_table;
       DBUG_ASSERT(dd_client.get_table(db, name, &dd_table) &&
-                  Ndb_metadata::compare(thd, ndb, ndbtab, dd_table));
+                  Ndb_metadata::compare(thd, ndb, db, ndbtab, dd_table));
     }
 #endif
 
@@ -11943,16 +11946,14 @@ static int ndbcluster_table_exists_in_engine(handlerton *, THD *thd,
 */
 
 static int ndbcluster_drop_database_impl(
-    THD *thd, Ndb_schema_dist_client &schema_dist_client, const char *path) {
+    THD *thd, Ndb_schema_dist_client &schema_dist_client, const char *dbname) {
   DBUG_TRACE;
-  char dbname[FN_HEADLEN];
   Ndb *ndb;
   NdbDictionary::Dictionary::List list;
   uint i;
   char *tabname;
   List<char> drop_list;
   int ret = 0;
-  ha_ndbcluster::set_dbname(path, (char *)&dbname);
   DBUG_PRINT("enter", ("db: %s", dbname));
 
   if (!(ndb = check_ndb_in_thd(thd))) return -1;
@@ -11980,13 +11981,11 @@ static int ndbcluster_drop_database_impl(
     DBUG_PRINT("info", ("%s must be dropped", elmt.name));
     drop_list.push_back(thd->mem_strdup(elmt.name));
   }
+
   // Drop any tables belonging to database
   char full_path[FN_REFLEN + 1];
   char *tmp = full_path + build_table_filename(full_path, sizeof(full_path) - 1,
                                                dbname, "", "", 0);
-  if (ndb->setDatabaseName(dbname)) {
-    ERR_RETURN(ndb->getNdbError());
-  }
   List_iterator_fast<char> it(drop_list);
   while ((tabname = it++)) {
     tablename_to_filename(tabname, tmp,
@@ -12000,6 +11999,7 @@ static int ndbcluster_drop_database_impl(
     }
   }
 
+  // Invalidate all table definitions in NdbApi for the dropped database
   dict->invalidateDbGlobal(dbname);
   return ret;
 }
@@ -12018,7 +12018,7 @@ static void ndbcluster_drop_database(handlerton *, char *path) {
     return;
   }
 
-  if (ndbcluster_drop_database_impl(thd, schema_dist_client, path) != 0) {
+  if (ndbcluster_drop_database_impl(thd, schema_dist_client, db) != 0) {
     return;
   }
 
@@ -12893,11 +12893,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
     }
 
     /* Request statistics from datanodes */
-    Ndb *ndb = thd_ndb->ndb;
-    if (ndb->setDatabaseName(m_dbname)) {
-      return HA_ERR_OUT_OF_MEM;
-    }
-    if (int err = ndb_get_table_statistics(thd, this, ndb, m_table,
+    if (int err = ndb_get_table_statistics(thd, this, thd_ndb->ndb, m_table,
                                            m_ndb_record, &stat, part_id)) {
       return err;
     }
@@ -14813,21 +14809,25 @@ static int create_table_set_up_partition_info(partition_info *part_info,
 
 class NDB_ALTER_DATA : public inplace_alter_handler_ctx {
  public:
-  NDB_ALTER_DATA(THD *thd, NdbDictionary::Dictionary *dict,
+  NDB_ALTER_DATA(THD *thd, Ndb *ndb, const char *dbname,
                  const NdbDictionary::Table *table)
-      : dictionary(dict),
+      : dictionary(ndb->getDictionary()),
         old_table(table),
         new_table(new NdbDictionary::Table(*table)),
         table_id(table->getObjectId()),
         old_table_version(table->getObjectVersion()),
-        schema_dist_client(thd) {}
+        schema_dist_client(thd),
+        dbname_guard(ndb, dbname) {}
   ~NDB_ALTER_DATA() { delete new_table; }
-  NdbDictionary::Dictionary *dictionary;
+  NdbDictionary::Dictionary *const dictionary;
   const NdbDictionary::Table *old_table;
   NdbDictionary::Table *new_table;
   const Uint32 table_id;
   const Uint32 old_table_version;
   Ndb_schema_dist_client schema_dist_client;
+  // The dbname_guard will set database used by the Ndb object for the
+  // lifetime of NDB_ALTER_DATA
+  const Ndb_dbname_guard dbname_guard;
 };
 
 /*
@@ -15366,7 +15366,6 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
 
   Ndb *ndb = get_thd_ndb(thd)->ndb;
   NDBDICT *dict = ndb->getDictionary();
-  ndb->setDatabaseName(m_dbname);
   NdbDictionary::Table new_tab = *old_tab;
 
   /**
@@ -15806,8 +15805,6 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb *ndb = thd_ndb->ndb;
   NDBDICT *dict = ndb->getDictionary();
-  ndb->setDatabaseName(m_dbname);
-
   HA_CREATE_INFO *create_info = ha_alter_info->create_info;
 
   const Alter_inplace_info::HA_ALTER_FLAGS alter_flags =
@@ -15823,8 +15820,15 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
     return true;
 
   NDB_ALTER_DATA *alter_data =
-      new (*THR_MALLOC) NDB_ALTER_DATA(thd, dict, m_table);
+      new (*THR_MALLOC) NDB_ALTER_DATA(thd, ndb, m_dbname, m_table);
   if (!alter_data) return true;
+
+  if (alter_data->dbname_guard.change_database_failed()) {
+    thd_ndb->set_ndb_error(ndb->getNdbError(), "Failed to change database");
+    destroy(alter_data);
+    return true;
+  }
+
   ha_alter_info->handler_ctx = alter_data;
 
   const NDBTAB *const old_tab = alter_data->old_table;
@@ -16007,7 +16011,7 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
   }
 
   if (alter_flags & Alter_inplace_info::ADD_FOREIGN_KEY) {
-    const int create_fks_result = create_fks(thd, ndb);
+    const int create_fks_result = create_fks(thd, ndb, m_dbname, m_tabname);
     if (create_fks_result != 0) {
       table->file->print_error(create_fks_result, MYF(0));
       goto abort;
@@ -16030,6 +16034,9 @@ static int inplace__set_sdi_and_alter_in_ndb(THD *thd,
                                              dd::Table *new_table_def,
                                              const char *schema_name) {
   DBUG_TRACE;
+
+  // Function alters table in NDB, requires database to be set
+  assert(Ndb_dbname_guard::check_dbname(get_thd_ndb(thd)->ndb, schema_name));
 
   ndb_dd_fix_inplace_alter_table_def(new_table_def,
                                      alter_data->old_table->getName());
@@ -16104,8 +16111,9 @@ bool ha_ndbcluster::inplace_alter_table(TABLE *,
   }
 
   if (alter_flags & Alter_inplace_info::DROP_FOREIGN_KEY) {
-    const NDBTAB *tab = alter_data->old_table;
-    if ((error = inplace__drop_fks(thd, thd_ndb->ndb, dict, tab)) != 0) {
+    if ((error = inplace__drop_fks(thd, thd_ndb->ndb, m_dbname,
+                                   // NOTE! Using name of old table
+                                   alter_data->old_table->getName())) != 0) {
       print_error(error, MYF(0));
       goto abort;
     }
@@ -16186,7 +16194,7 @@ bool ha_ndbcluster::commit_inplace_alter_table(
   // Fetch the new table version and write it to the table definition.
   // The caller will then save it into DD
   {
-    Ndb_table_guard ndbtab_g(alter_data->dictionary, name);
+    Ndb_table_guard ndbtab_g(thd_ndb->ndb, db, name);
     const NDBTAB *ndbtab = ndbtab_g.get_table();
 
     if (DBUG_EVALUATE_IF("ndb_missing_table_in_inplace_alter", true, false)) {
@@ -16198,7 +16206,7 @@ bool ha_ndbcluster::commit_inplace_alter_table(
       // point we cannot properly abort (Bug#30302405),
       // but write an error in the log instead.
       // Local DD will need to be synchronised with new schema in cluster
-      const NdbError &err = alter_data->dictionary->getNdbError();
+      const NdbError &err = ndbtab_g.getNdbError();
       ndb_log_error(
           "Failed to complete inplace alter table commit for '%s', "
           "table not found, error %u: %s",
@@ -16227,7 +16235,7 @@ bool ha_ndbcluster::commit_inplace_alter_table(
 
       // Check that NDB and DD metadata matches
       DBUG_ASSERT(
-          Ndb_metadata::compare(thd, thd_ndb->ndb, ndbtab, new_table_def));
+          Ndb_metadata::compare(thd, thd_ndb->ndb, db, ndbtab, new_table_def));
     }
   }
 
@@ -16323,15 +16331,13 @@ static int ndbcluster_get_tablespace(THD *thd, LEX_CSTRING db_name,
   Ndb *ndb = check_ndb_in_thd(thd);
   if (ndb == NULL) return HA_ERR_NO_CONNECTION;
 
-  NDBDICT *dict = ndb->getDictionary();
-  const NDBTAB *tab = NULL;
-
-  ndb->setDatabaseName(db_name.str);
-  Ndb_table_guard ndbtab_g(dict, table_name.str);
-  if (!(tab = ndbtab_g.get_table())) ERR_RETURN(dict->getNdbError());
+  Ndb_table_guard ndbtab_g(ndb, db_name.str, table_name.str);
+  const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
+  if (ndbtab == nullptr) ERR_RETURN(ndbtab_g.getNdbError());
 
   Uint32 id;
-  if (tab->getTablespace(&id)) {
+  if (ndbtab->getTablespace(&id)) {
+    NDBDICT *dict = ndb->getDictionary();
     NdbDictionary::Tablespace ts = dict->getTablespace(id);
     if (ndb_dict_check_NDB_error(dict)) {
       const char *tablespace = ts.getName();
@@ -17134,12 +17140,10 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts) {
       }
 
       // Open the table from NDB
-      ndb->setDatabaseName(db_name);
-      NdbDictionary::Dictionary *dict = ndb->getDictionary();
-      Ndb_table_guard ndbtab_g(dict, table_name);
+      Ndb_table_guard ndbtab_g(ndb, db_name, table_name);
       if (!ndbtab_g.get_table()) {
         // Could not open table from NDB
-        ERR_RETURN(dict->getNdbError());
+        ERR_RETURN(ndbtab_g.getNdbError());
       }
 
       // Return number of partitions used in the table
@@ -17168,8 +17172,7 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts) {
   @return false on success, true on failure
 */
 
-bool ha_ndbcluster::upgrade_table(THD *thd,
-                                  const char *db_name MY_ATTRIBUTE((unused)),
+bool ha_ndbcluster::upgrade_table(THD *thd, const char *db_name,
                                   const char *table_name, dd::Table *dd_table) {
   Ndb *ndb = check_ndb_in_thd(thd);
 
@@ -17179,10 +17182,8 @@ bool ha_ndbcluster::upgrade_table(THD *thd,
     return true;
   }
 
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict, table_name);
+  Ndb_table_guard ndbtab_g(ndb, db_name, table_name);
   const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
-
   if (ndbtab == nullptr) {
     return true;
   }
@@ -17203,7 +17204,7 @@ bool ha_ndbcluster::upgrade_table(THD *thd,
   ndb_dd_table_set_previous_mysql_version(dd_table, table->s->mysql_version);
 
   // Set foreign key information in the table
-  if (!ndb_dd_upgrade_foreign_keys(dd_table, ndb, ndbtab)) {
+  if (!ndb_dd_upgrade_foreign_keys(dd_table, ndb, db_name, ndbtab)) {
     return true;
   }
 

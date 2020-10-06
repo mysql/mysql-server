@@ -79,3 +79,16 @@ CREATE TABLE `test_\_ö`.t_special (
 --source show_name_of_special_table.inc
 
 DROP DATABASE `test_\_ö`;
+
+--echo #
+--echo # Create table in database with forward slash is not
+--echo # supported (by NdbApi) since the slash is used as separator
+--echo # in the NDB tables internal name.
+CREATE DATABASE `d/1`;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE `d/1`.`t1` (a int) ENGINE=NDB;
+# The failure should also have pushed some warnings which
+# further explains the problem. These includes also the warnings from
+# discover phase where the same error is triggered.
+SHOW WARNINGS;
+DROP DATABASE `d/1`;

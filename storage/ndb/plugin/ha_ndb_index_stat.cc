@@ -2022,7 +2022,7 @@ int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
 
   Ndb *ndb = NULL;
   do {
-    ndb = new (std::nothrow) Ndb(connection, "");
+    ndb = new (std::nothrow) Ndb(connection, NDB_INDEX_STAT_DB);
     if (ndb == nullptr) {
       log_error("failed to create Ndb object");
       break;
@@ -2036,12 +2036,6 @@ int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
 
     if (ndb->init() != 0) {
       log_error("failed to init Ndb, error: %d", ndb->getNdbError().code);
-      break;
-    }
-
-    if (ndb->setDatabaseName(NDB_INDEX_STAT_DB) != 0) {
-      log_error("failed to set database '%s', error: %d", NDB_INDEX_STAT_DB,
-                ndb->getNdbError().code);
       break;
     }
 

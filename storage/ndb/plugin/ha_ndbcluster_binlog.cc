@@ -2383,7 +2383,7 @@ class Ndb_schema_event_handler {
     const NDBTAB *ndbtab = ndbtab_g.get_table();
     if (!ndbtab) {
       // Could not open the table from NDB, very unusual
-      log_NDB_error(ndb->getDictionary()->getNdbError());
+      log_NDB_error(ndbtab_g.getNdbError());
       ndb_log_error("Failed to open table '%s.%s' from NDB", schema_name,
                     table_name);
       return false;
@@ -2629,12 +2629,11 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
 
     // Read table definition from NDB, it might not exist in DD on this Server
-    Ndb *ndb = m_thd_ndb->ndb;
-    Ndb_table_guard ndbtab_g(ndb, schema_name, table_name);
+    Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, schema_name, table_name);
     const NDBTAB *ndbtab = ndbtab_g.get_table();
     if (!ndbtab) {
       // Could not open the table from NDB, very unusual
-      log_NDB_error(ndb->getDictionary()->getNdbError());
+      log_NDB_error(ndbtab_g.getNdbError());
       ndb_log_error("Failed to open table '%s.%s' from NDB", schema_name,
                     table_name);
       return nullptr;
@@ -3038,7 +3037,7 @@ class Ndb_schema_event_handler {
     const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
     if (!ndbtab) {
       // Could not open the table from NDB, very unusual
-      log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
+      log_NDB_error(ndbtab_g.getNdbError());
       ndb_log_error("Failed to rename, could not open table '%s.%s' from NDB",
                     new_db_name, new_table_name);
       m_schema_op_result.set_result(
@@ -5092,8 +5091,7 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
   std::string event_name =
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
 
-  ndb->setDatabaseName(share->db);
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  // Define the event
   NDBEVENT my_event(event_name.c_str());
   my_event.setTable(*ndbtab);
   my_event.addTableEvent(NDBEVENT::TE_ALL);
@@ -5134,6 +5132,7 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
   const int n_cols = ndbtab->getNoOfColumns();
   for (int a = 0; a < n_cols; a++) my_event.addEventColumn(a);
 
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
   if (dict->createEvent(my_event))  // Add event to database
   {
     if (dict->getNdbError().classification != NdbError::SchemaObjectExists) {
@@ -5253,17 +5252,7 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
 
     if (ndb == NULL) return -1;
 
-    NdbEventOperation *op;
-    if (is_schema_dist_setup)
-      op = ndb->createEventOperation(event_name.c_str());
-    else {
-      // set injector_ndb database/schema from table internal name
-      int ret = ndb->setDatabaseAndSchemaName(ndbtab);
-      ndbcluster::ndbrequire(ret == 0);
-      op = ndb->createEventOperation(event_name.c_str());
-      // reset to catch errors
-      ndb->setDatabaseName("");
-    }
+    NdbEventOperation *op = ndb->createEventOperation(event_name.c_str());
     if (!op) {
       const NdbError &ndb_err = ndb->getNdbError();
       if (ndb_err.code == 4710) {

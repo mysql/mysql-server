@@ -46,8 +46,7 @@
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
 
 bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
-                       const char *schema_name_str, dd::sdi_t &sdi) {
-  const dd::String_type schema_name(schema_name_str);
+                       const char *schema_name, dd::sdi_t &sdi) {
   // Require the table to be visible, hidden by SE(like mysql.ndb_schema)
   // or else have temporary name
   DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
@@ -244,6 +243,7 @@ bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid) {
   @param[out] dd_table_def    The DD table object on which the foreign keys
                               are to be defined.
   @param ndb                  The Ndb object.
+  @param schema_name          The schema name of the NDB table
   @param ndb_table            The NDB table object from which the foreign key
                               definitions are to be extracted.
 
@@ -251,6 +251,7 @@ bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid) {
   @return false       On failure
 */
 bool ndb_dd_upgrade_foreign_keys(dd::Table *dd_table_def, Ndb *ndb,
+                                 const char *schema_name,
                                  const NdbDictionary::Table *ndb_table) {
   DBUG_TRACE;
 
@@ -266,7 +267,7 @@ bool ndb_dd_upgrade_foreign_keys(dd::Table *dd_table_def, Ndb *ndb,
     char child_schema_name[FN_REFLEN + 1];
     const char *child_table_name =
         fk_split_name(child_schema_name, ndb_fk.getChildTable());
-    if (strcmp(child_schema_name, ndb->getDatabaseName()) != 0 ||
+    if (strcmp(child_schema_name, schema_name) != 0 ||
         strcmp(child_table_name, ndb_table->getName())) {
       // The FK is just referencing the table. Skip it.
       // It will be handled by the table on which it exists.

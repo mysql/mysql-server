@@ -1170,15 +1170,13 @@ bool Ndb_dd_sync::install_table(const char *schema_name, const char *table_name,
 
 bool Ndb_dd_sync::synchronize_table(const char *schema_name,
                                     const char *table_name) const {
-  Ndb *ndb = m_thd_ndb->ndb;
-
   ndb_log_verbose(1, "Synchronizing table '%s.%s'", schema_name, table_name);
 
-  Ndb_table_guard ndbtab_g(ndb, schema_name, table_name);
+  Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, schema_name, table_name);
   const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
   if (!ndbtab) {
     // Failed to open the table from NDB
-    log_NDB_error(ndb->getDictionary()->getNdbError());
+    log_NDB_error(ndbtab_g.getNdbError());
     ndb_log_error("Failed to setup table '%s.%s'", schema_name, table_name);
 
     // Failed, table was listed but could not be opened, retry
@@ -1285,8 +1283,8 @@ bool Ndb_dd_sync::synchronize_table(const char *schema_name,
     return false;
   }
 
-  if (ndbcluster_binlog_setup_table(m_thd, ndb, schema_name, table_name,
-                                    table_def) != 0) {
+  if (ndbcluster_binlog_setup_table(m_thd, m_thd_ndb->ndb, schema_name,
+                                    table_name, table_def) != 0) {
     ndb_log_error("Failed to setup binlog for table '%s.%s'", schema_name,
                   table_name);
     return false;

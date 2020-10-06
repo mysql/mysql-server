@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,25 +29,9 @@
 #include <string>
 #include <vector>
 
-#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
 using Ndb_fk_list = std::vector<NdbDictionary::ForeignKey>;
-
-// Database name guard for Ndb objects
-struct Ndb_db_guard {
-  Ndb_db_guard(class Ndb *ndb) {
-    this->ndb = ndb;
-    save_db = ndb->getDatabaseName();
-  }
-
-  void restore() { ndb->setDatabaseName(save_db.c_str()); }
-
-  ~Ndb_db_guard() { ndb->setDatabaseName(save_db.c_str()); }
-
- private:
-  Ndb *ndb;
-  std::string save_db;
-};
 
 const char *fk_split_name(char dst[], const char *src, bool index = false);
 bool fetch_referenced_tables_from_ndb_dictionary(

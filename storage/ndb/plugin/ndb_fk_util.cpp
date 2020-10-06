@@ -121,24 +121,17 @@ bool fetch_referenced_tables_from_ndb_dictionary(
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb *ndb = thd_ndb->ndb;
 
-  // save db
-  Ndb_db_guard db_guard(ndb);
-  if (ndb->setDatabaseName(schema_name) != 0) {
-    DBUG_PRINT("error", ("Error setting database '%s'. Error : %s", schema_name,
-                         ndb->getNdbError().message));
-    DBUG_RETURN(false);
-  }
-
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  Ndb_table_guard tab_guard(dict, table_name);
+  Ndb_table_guard tab_guard(ndb, schema_name, table_name);
   const NdbDictionary::Table *table = tab_guard.get_table();
   if (table == NULL) {
-    DBUG_PRINT("error", ("Unable to load table '%s.%s' from ndb. Error : %s",
-                         schema_name, table_name, dict->getNdbError().message));
+    DBUG_PRINT("error",
+               ("Unable to load table '%s.%s' from NDB. Error : %s",
+                schema_name, table_name, tab_guard.getNdbError().message));
     DBUG_RETURN(false);
   }
 
   NdbDictionary::Dictionary::List obj_list;
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
   if (dict->listDependentObjects(obj_list, *table) != 0) {
     DBUG_PRINT("error", ("Unable to list dependents of '%s.%s'. Error : %s",
                          schema_name, table_name, dict->getNdbError().message));

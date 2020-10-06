@@ -282,7 +282,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def) override;
   int delete_table(const char *name, const dd::Table *table_def) override;
-  bool upgrade_table(THD *thd, const char *, const char *table_name,
+  bool upgrade_table(THD *thd, const char *db_name, const char *table_name,
                      dd::Table *dd_table) override;
 
   row_type get_real_row_type(const HA_CREATE_INFO *create_info) const override {
@@ -499,11 +499,14 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int open_index_ndb_record(NdbDictionary::Dictionary *dict,
                             const KEY *key_info, uint index_no);
-  int create_fks(THD *thd, Ndb *ndb);
-  int copy_fk_for_offline_alter(THD *thd, Ndb *, const char *tabname);
-  int inplace__drop_fks(THD *, Ndb *, NdbDictionary::Dictionary *,
-                        const NdbDictionary::Table *);
-  static int recreate_fk_for_truncate(THD *, Ndb *, const char *, const char *,
+  static int create_fks(THD *thd, Ndb *ndb, const char *dbname,
+                        const char *tabname);
+  static int copy_fk_for_offline_alter(THD *thd, Ndb *ndb, const char *dbname,
+                                       const char *tabname);
+  static int inplace__drop_fks(THD *thd, Ndb *ndb, const char *dbname,
+                               const char *tabname);
+  static int recreate_fk_for_truncate(THD *thd, Ndb *ndb, const char *dbname,
+                                      const char *tabname,
                                       std::vector<NdbDictionary::ForeignKey> *);
   bool has_fk_dependency(NdbDictionary::Dictionary *dict,
                          const NdbDictionary::Column *) const;

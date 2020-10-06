@@ -472,7 +472,7 @@ bool Ndb_metadata::create_foreign_keys(Ndb *ndb, dd::Table *table_def) const {
     char child_db[FN_LEN + 1];
     const char *child_name = fk_split_name(child_db, ndb_fk.getChildTable());
     // Skip creating FKs for parent tables if it's not a self referential FK
-    if (strcmp(child_db, ndb->getDatabaseName()) != 0 ||
+    if (strcmp(child_db, m_dbname) != 0 ||
         strcmp(child_name, m_ndbtab->getName()) != 0)
       continue;
 
@@ -1831,10 +1831,10 @@ bool Ndb_metadata::check_index_count(const NdbDictionary::Dictionary *dict,
   return ndb_index_count == dd_index_count;
 }
 
-bool Ndb_metadata::compare(THD *thd, Ndb *ndb,
+bool Ndb_metadata::compare(THD *thd, Ndb *ndb, const char *dbname,
                            const NdbDictionary::Table *ndbtab,
                            const dd::Table *dd_table_def) {
-  Ndb_metadata ndb_metadata(ndbtab);
+  Ndb_metadata ndb_metadata(dbname, ndbtab);
 
   // Allow DBUG keyword to disable the comparison
   if (DBUG_EVALUATE_IF("ndb_metadata_compare_skip", true, false)) {

@@ -2220,7 +2220,6 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
                                 uint8 flags) {
   DBUG_TRACE;
 
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
   NDB_CONFLICT_FN_SHARE *cfn_share = *ppcfn_share;
   const char *ex_suffix = NDB_EXCEPTIONS_TABLE_SUFFIX;
   if (cfn_share == NULL) {
@@ -2246,8 +2245,7 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
     /* get exceptions table */
     char ex_tab_name[FN_REFLEN];
     strxnmov(ex_tab_name, sizeof(ex_tab_name), tabName, ex_suffix, NullS);
-    ndb->setDatabaseName(dbName);
-    Ndb_table_guard ndbtab_g(dict, ex_tab_name);
+    Ndb_table_guard ndbtab_g(ndb, dbName, ex_tab_name);
     const NDBTAB *ex_tab = ndbtab_g.get_table();
     if (ex_tab) {
       char msgBuf[FN_REFLEN];

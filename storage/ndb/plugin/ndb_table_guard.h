@@ -30,39 +30,49 @@
 #include "my_dbug.h"
 #include "storage/ndb/include/ndbapi/Ndb.hpp"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+#include "storage/ndb/plugin/ndb_dbname_guard.h"
 
+/*
+   @brief This class maintains the reference to a NDB table definition retrieved
+   from NdbApi's global dictionary cache. To avoid stale table definitions in
+   the global cache the reference is released when the class goes out of scope
+   unless the user takes ownership of the reference by calling release().
+
+   The class also encapculates the function calls which need to be done to
+   properly indicate which database the table to load should be fetched from.
+   The database name is not passed as a parameter to getTableGlobal() but rather
+   passed using a global database name parameter of the Ndb object, which is
+   then used when the NdbApi formats the full name of the table.
+
+   @note When the table definition is retrieved it may be loaded from NDB, this
+   causes one roundtrip and network related errors may occur. The use cases
+   where this need to be distinguished from the case where table does not
+   exist need to examine the NDB error saved by the class.
+
+*/
 class Ndb_table_guard {
-  NdbDictionary::Dictionary *const m_dict;
+  Ndb *const m_ndb;
   const NdbDictionary::Table *m_ndbtab{nullptr};
   int m_invalidate{0};
+  NdbError m_ndberror;
 
   void deinit() {
-    DBUG_PRINT("info",
-               ("m_ndbtab: %p  m_invalidate: %d", m_ndbtab, m_invalidate));
-    m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
+    DBUG_TRACE;
+    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
+    DBUG_PRINT("info", ("m_invalidate: %d", m_invalidate));
+    // Ignore return code since function can't fail
+    (void)m_ndb->getDictionary()->removeTableGlobal(*m_ndbtab, m_invalidate);
     m_ndbtab = nullptr;
     m_invalidate = 0;
   }
 
  public:
-  Ndb_table_guard(NdbDictionary::Dictionary *dict) : m_dict(dict) {}
-  Ndb_table_guard(NdbDictionary::Dictionary *dict, const char *tabname)
-      : m_dict(dict) {
-    DBUG_TRACE;
-    init(tabname);
-    return;
-  }
+  Ndb_table_guard(Ndb *ndb) : m_ndb(ndb) {}
   Ndb_table_guard(Ndb *ndb, const char *dbname, const char *tabname)
-      : m_dict(ndb->getDictionary()) {
-    const std::string save_dbname(ndb->getDatabaseName());
-    if (ndb->setDatabaseName(dbname) != 0) {
-      // Failed to set databasname, indicate error by returning
-      // without initializing the table pointer
-      return;
-    }
-    init(tabname);
-    (void)ndb->setDatabaseName(save_dbname.c_str());
+      : m_ndb(ndb) {
+    init(dbname, tabname);
   }
+
   ~Ndb_table_guard() {
     DBUG_TRACE;
     if (m_ndbtab) {
@@ -70,25 +80,66 @@ class Ndb_table_guard {
     }
     return;
   }
-  void init(const char *tabname) {
+
+  void init(const char *dbname, const char *tabname) {
     DBUG_TRACE;
     /* Don't allow init() if already initialized */
     DBUG_ASSERT(m_ndbtab == nullptr);
-    m_ndbtab = m_dict->getTableGlobal(tabname);
-    m_invalidate = 0;
-    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
+
+    // Change to the database where the table should be found
+    Ndb_dbname_guard dbname_guard(m_ndb, dbname);
+    if (dbname_guard.change_database_failed()) {
+      // Failed to change database, indicate error by returning
+      // without initializing the table pointer. Save NDB error to
+      // allow caller to handle different errors.
+      m_ndberror = m_ndb->getNdbError();
+      DBUG_PRINT("error", ("change database, code: %d, message: %s",
+                           m_ndberror.code, m_ndberror.message));
+      return;
+    }
+
+    NdbDictionary::Dictionary *dict = m_ndb->getDictionary();
+    m_ndbtab = dict->getTableGlobal(tabname);
+    if (!m_ndbtab) {
+      // Failed to retrive table definition, error will be indicated by
+      // unintialized table pointer. Save NDB error to allow caller to handle
+      // different errors.
+      m_ndberror = dict->getNdbError();
+      DBUG_PRINT("error", ("getTableGlobal, code: %d, message: %s",
+                           m_ndberror.code, m_ndberror.message));
+      return;
+    }
+
+    DBUG_PRINT("info", ("ndbtab: %p", m_ndbtab));
+    DBUG_ASSERT(m_invalidate == 0);
     return;
   }
-  void reinit() {
+
+  void reinit(const char *dbname, const char *table_name) {
     DBUG_TRACE;
     /* Don't allow reinit() if not initialized already */
     DBUG_ASSERT(m_ndbtab != nullptr);
-    std::string table_name(m_ndbtab->getName());
+    // Table name argument of reinit must match already loaded table
+    DBUG_ASSERT(strcmp(m_ndbtab->getName(), table_name) == 0);
     deinit();
-    init(table_name.c_str());
+    init(dbname, table_name);
   }
+
+  /**
+     @brief Return pointer to table definition. Nullptr will be returned
+     both when table does not exists and when an error has occured. If there is
+     a need to distinguish between the two cases the user need to examine the
+     NDB error.
+
+     @return pointer to the NdbApi table defintion or nullptr when table doesn't
+     exist or error occurs
+   */
   const NdbDictionary::Table *get_table() const { return m_ndbtab; }
+
+  // Invalidate table definition in NdbApi cache when class goes out of scope
   void invalidate() { m_invalidate = 1; }
+
+  // Release ownership of the loaded NdbApi table definition reference
   const NdbDictionary::Table *release() {
     DBUG_TRACE;
     const NdbDictionary::Table *tmp = m_ndbtab;
@@ -97,7 +148,7 @@ class Ndb_table_guard {
     return tmp;
   }
 
-  const struct NdbError &getNdbError() const { return m_dict->getNdbError(); }
+  const NdbError &getNdbError() const { return m_ndberror; }
 };
 
 #endif
