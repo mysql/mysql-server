@@ -30,7 +30,7 @@
 # using '>=' since $remaining_delay is obtained before $sql_remaining_delay.
 
 --let $assert_text= Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.
---let $assert_cond= "$remaining_delay" >= "$sql_remaining_delay"
+--let $assert_cond= $remaining_delay >= $sql_remaining_delay
 --source include/assert.inc
 
 --source include/rpl_connection_master.inc
