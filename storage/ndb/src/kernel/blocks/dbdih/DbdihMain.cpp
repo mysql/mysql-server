@@ -1605,6 +1605,14 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   initData();
 
+  cnoReplicas = 1;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
+  if (cnoReplicas > MAX_REPLICAS)
+  {
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
+	      "Only up to four replicas are supported. Check NoOfReplicas.");
+  }
+
   cconnectFileSize = 256; // Only used for DDL
 
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
@@ -1644,12 +1652,13 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
       c_fragments_per_node_ = 1;
       ndbout_c("Using %u fragments per node", c_fragments_per_node_);
     }
-    if (c_fragments_per_node_ * cnoReplicas /
-        globalData.ndbMtLqhWorkers > MAX_FRAG_PER_LQH)
+    if ((c_fragments_per_node_ * cnoReplicas) /
+         globalData.ndbMtLqhWorkers > MAX_FRAG_PER_LQH)
     {
       progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
-        "PartitionsPerNode * NoOfReplicas / Number of LDM threads must"
-        " be smaller than 16, increase number of LDMs in configuration");
+        "PartitionsPerNode * NoOfReplicas divided by Number of LDM threads"
+        " must not be larger than 16, increase number of LDMs in"
+        " configuration");
     }
   }
   ndb_mgm_get_int_parameter(p, CFG_DB_LCP_TRY_LOCK_TIMEOUT, 
@@ -24831,14 +24840,6 @@ void Dbdih::initCommonData()
   ndb_mgm_get_int_parameter(p, CFG_DB_LCP_INTERVAL, &c_lcpState.clcpDelay);
   c_lcpState.clcpDelay = c_lcpState.clcpDelay > 31 ? 31 : c_lcpState.clcpDelay;
   
-  cnoReplicas = 1;
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
-  if (cnoReplicas > MAX_REPLICAS)
-  {
-    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
-	      "Only up to four replicas are supported. Check NoOfReplicas.");
-  }
-
   init_next_replica_node(&c_next_replica_node, cnoReplicas);
   bzero(&m_gcp_save, sizeof(m_gcp_save));
   bzero(&m_micro_gcp, sizeof(m_micro_gcp));
