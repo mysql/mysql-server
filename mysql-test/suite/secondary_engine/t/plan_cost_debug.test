@@ -1,5 +1,6 @@
 --source include/have_debug.inc
---source include/not_hypergraph.inc  # Secondary engine not supported.
+# Offloading planning to a secondary engine is not yet supported by hypergraph.
+--source include/not_hypergraph.inc
 
 --disable_query_log
 eval INSTALL PLUGIN MOCK SONAME '$MOCK_PLUGIN';

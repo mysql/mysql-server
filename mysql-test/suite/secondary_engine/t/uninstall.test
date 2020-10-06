@@ -1,6 +1,3 @@
-# Secondary engine not supported, so it won't lock the plugin.
---source include/not_hypergraph.inc
-
 --echo #
 --echo # Bug#28624707: MYSQL TRYING TO OFFLOAD QUERIES TO SECONDARY ENGINE
 --echo #               AFTER PLUGIN UNINSTALL

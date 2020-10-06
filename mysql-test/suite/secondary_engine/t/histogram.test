@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc  # Secondary engine not supported.
-
 --echo #
 --echo # Test that histograms are used for optimizing queries that are
 --echo # offloaded to a secondary storage engine.

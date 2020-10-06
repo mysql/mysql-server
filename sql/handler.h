@@ -2570,6 +2570,13 @@ struct handlerton {
 constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
     1 << 17};
 
+/**
+  The engine supports use of the hypergraph join optimizer. The flag is only
+  used by secondary storage engines.
+ */
+constexpr decltype(handlerton::flags) HTON_SECONDARY_ENGINE_SUPPORTS_HYPERGRAPH{
+    1 << 18};
+
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }

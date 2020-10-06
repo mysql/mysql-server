@@ -1,7 +1,9 @@
 # Test that a secondary engine can use statistics from indexes in the
 # primary engine.
 
---source include/not_hypergraph.inc   # Does not support secondary engine.
+# Using index dives for estimating selectivity is not yet supported by
+# the hypergraph join optimizer.
+--source include/not_hypergraph.inc
 
 --disable_query_log
 eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';

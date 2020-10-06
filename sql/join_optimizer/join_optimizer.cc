@@ -483,8 +483,11 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "recursive CTEs");
     return true;
   }
-  if (thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "secondary engine");
+  const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
+  if (secondary_engine != nullptr &&
+      !(secondary_engine->flags & HTON_SECONDARY_ENGINE_SUPPORTS_HYPERGRAPH)) {
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "the secondary engine in use");
     return true;
   }
   if (join->select_lex->has_windows()) {

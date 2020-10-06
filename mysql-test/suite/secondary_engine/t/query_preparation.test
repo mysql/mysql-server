@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc  # Secondary engine not supported.
-
 --echo #
 --echo # Test that query preparation is able to make plans for executing
 --echo # a query on a secondary storage engine.
