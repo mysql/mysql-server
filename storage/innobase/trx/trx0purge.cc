@@ -72,7 +72,11 @@ ulong srv_max_purge_lag_delay = 0;
 trx_purge_t *purge_sys = nullptr;
 
 /** Wait for a short delay between checks. */
+#ifdef UNIV_DEBUG
+static constexpr int64_t PURGE_CHECK_UNDO_TRUNCATE_DELAY_IN_MS = 10;
+#else
 static constexpr int64_t PURGE_CHECK_UNDO_TRUNCATE_DELAY_IN_MS = 1000;
+#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_DEBUG
 bool srv_purge_view_update_only_debug;
@@ -1307,11 +1311,6 @@ void undo::Truncate::mark(Tablespace *undo_space) {
   undo_space->set_inactive_implicit(&m_space_id_marked);
 
   m_marked_space_is_empty = false;
-
-  /* We found an UNDO-tablespace to truncate so set the
-  local purge rseg truncate frequency to 3. This will help
-  accelerate the purge action and in turn truncate. */
-  set_rseg_truncate_frequency(3);
 
   ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_FOR_TRUNCATE, undo_space->file_name()));
 }
