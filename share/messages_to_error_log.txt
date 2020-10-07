@@ -4913,7 +4913,7 @@ OBSOLETE_ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE
 OBSOLETE_ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED
   eng "Failed to reinit group replication commit cache for write on session %u"
 
-ER_GRP_RPL_PREV_REC_SESSION_RUNNING
+OBSOLETE_ER_GRP_RPL_PREV_REC_SESSION_RUNNING
   eng "A previous recovery session is still running. Please stop the group replication plugin and wait for it to stop"
 
 ER_GRP_RPL_FATAL_REC_PROCESS

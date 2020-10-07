@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Error leaving the group");
@@ -49,6 +50,7 @@ END//
 # 2. Add error suppressions.
 [connection server2]
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
@@ -60,6 +62,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 SET SESSION sql_log_bin= 1;
 [connection server3]
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");

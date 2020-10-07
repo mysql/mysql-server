@@ -1078,6 +1078,7 @@ int plugin_group_replication_stop(char **error_message) {
 
   unregister_gr_message_service_send();
 
+  lv.recovery_timeout_issue_on_stop = false;
   int error = leave_group_and_terminate_plugin_modules(gr_modules::all_modules,
                                                        error_message);
   /* Delete of credentials is safe now from recovery thread. */
@@ -1118,6 +1119,9 @@ int plugin_group_replication_stop(char **error_message) {
   */
   transaction_consistency_manager->unregister_transaction_observer();
   transaction_consistency_manager->clear();
+
+  if (!error && lv.recovery_timeout_issue_on_stop)
+    error = GROUP_REPLICATION_STOP_WITH_RECOVERY_TIMEOUT;
 
   return error;
 }
@@ -1298,12 +1302,10 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
   */
   if (modules_to_terminate[gr_modules::RECOVERY_MODULE]) {
     if (terminate_recovery_module()) {
-      // Do not throw an error since recovery is not vital, but warn either way
-      /* purecov: begin inspected */
+      lv.recovery_timeout_issue_on_stop = true;
       LogPluginErr(
           WARNING_LEVEL,
           ER_GRP_RPL_RECOVERY_MODULE_TERMINATION_TIMED_OUT_ON_SHUTDOWN);
-      /* purecov: end */
     }
   }
 
@@ -1489,6 +1491,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
   modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
+  modules_mask.set(gr_modules::RECOVERY_MODULE, true);
   /*
     The first step is to issue a GCS leave() operation. This is done because
     the join() operation will assume that the GCS layer is not initiated and
@@ -2243,8 +2246,7 @@ int initialize_recovery_module() {
   recovery_module = new Recovery_module(
       applier_module,
       channel_observation_manager_list->get_channel_observation_manager(
-          GROUP_CHANNEL_OBSERVATION_MANAGER_POS),
-      ov.components_stop_timeout_var);
+          GROUP_CHANNEL_OBSERVATION_MANAGER_POS));
 
   recovery_module->set_recovery_ssl_options(
       ov.recovery_use_ssl_var, ov.recovery_ssl_ca_var,
@@ -2267,7 +2269,13 @@ int initialize_recovery_module() {
   recovery_module->set_recovery_zstd_compression_level(
       ov.recovery_zstd_compression_level_var);
 
-  return 0;
+  // on case of the threads is locked and not able to terminate, change timeout
+  // to fail faster
+  recovery_module->set_stop_wait_timeout(1);
+  int error = recovery_module->check_recovery_thread_status();
+  recovery_module->set_stop_wait_timeout(get_components_stop_timeout_var());
+
+  return error;
 }
 
 int terminate_recovery_module() {

@@ -1,0 +1,48 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap the group on server1
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Set a lower components timeout and lock tables on server2.
+#    Start group replication that will block when applying VCLE
+[connection server2]
+SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
+SET GLOBAL group_replication_components_stop_timeout = 30;
+[connection server_2]
+SET GLOBAL super_read_only= 1;
+FLUSH TABLES WITH READ LOCK;
+[connection server2]
+include/start_group_replication.inc
+
+# 3. Wait recovery is on hold due lock on tables and Stop Group
+#    Replication.
+include/stop_group_replication.inc
+Warnings:
+Warning	4022	The group_replication_recovery channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools.
+
+# 4. Starting server2 will fail, recovery module fail to stop, as it is
+#    blocked
+START GROUP_REPLICATION;
+ERROR HY000: The group_replication_recovery channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools.
+
+# 5. UNLOCK tables on server2 and recovery module shall stop. Now Group
+#    Replication is able to start
+[connection server_2]
+UNLOCK TABLES;
+include/start_group_replication.inc
+# 6. Assert that even stop command returns a warning is thrown as
+#    recovery fails to stop
+include/assert_grep.inc [STOP GROUP REPLICATION return timeout on stopping recovery module]
+
+# 7. Cleanup
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error when stopping the group replication incremental recovery's donor connection");
+call mtr.add_suppression('On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details');
+SET SESSION sql_log_bin= 1;
+SET @@GLOBAl.group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
+include/group_replication_end.inc

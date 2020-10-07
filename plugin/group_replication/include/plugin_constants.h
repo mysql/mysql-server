@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@
 #define GROUP_REPLICATION_MAX_GROUP_SIZE 7
 #define GROUP_REPLICATION_COMMAND_FAILURE 8
 #define GROUP_REPLICATION_SERVICE_MESSAGE_INIT_FAILURE 9
+#define GROUP_REPLICATION_RECOVERY_CHANNEL_STILL_RUNNING 10
+#define GROUP_REPLICATION_STOP_WITH_RECOVERY_TIMEOUT 11
 
 /* View timeout (seconds) */
 #define VIEW_MODIFICATION_TIMEOUT 60

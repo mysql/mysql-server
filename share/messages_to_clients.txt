@@ -9478,6 +9478,9 @@ ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
 ER_CANT_USE_SAME_UUID_AS_GROUP_NAME
   eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_group_name."
 
+ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING
+  eng "The group_replication_recovery channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
