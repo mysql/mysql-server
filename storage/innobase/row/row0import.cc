@@ -2092,7 +2092,8 @@ dberr_t PageConverter::update_page(buf_block_t *block,
     }
 
     case FIL_PAGE_TYPE_ZLOB_INDEX: {
-      lob::z_index_page_t ipage(block);
+      lob::z_index_page_t ipage(
+          block, const_cast<dict_index_t *>(m_index->m_srv_index));
       ipage.import(m_trx->id);
       byte *ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
       mach_write_to_4(ptr, get_space_id());
