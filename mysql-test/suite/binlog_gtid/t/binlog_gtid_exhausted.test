@@ -129,26 +129,25 @@ RESET MASTER;
 --enable_query_log
 CREATE TABLE t1(i INT);
 
-# Assert that a warning was logged to the server error log.
---let $assert_count = 2
---let $assert_text = ER_WARN_GTID_THRESHOLD_BREACH found in server error log
---source include/assert_grep.inc
-
 # Cleanup
 DROP TABLE t1;
 
+# Assert that a warning was logged to the server error log.
+--let $assert_count = 3
+--let $assert_text = ER_WARN_GTID_THRESHOLD_BREACH found in server error log
+--source include/assert_grep.inc
+
 # Test case 4:
 # Test scenario set GTID < Threshold.
---exec echo "" > $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
 RESET MASTER;
 --disable_query_log
 --eval SET GLOBAL gtid_purged = CONCAT('$server_uuid:1-', (1 << 63) - (1 << 57));
 --enable_query_log
 CREATE TABLE t1(i INT);
 
-# Assert that no GTID_THRESHOLD_BREACH warning was logged to the server error log.
---let $assert_count= 0
---let $assert_text = No ER_WARN_GTID_THRESHOLD_BREACH found in server error log
+# Assert that no new GTID_THRESHOLD_BREACH warning was logged to the server error log.
+--let $assert_count= 3
+--let $assert_text = No new ER_WARN_GTID_THRESHOLD_BREACH found in server error log
 --source include/assert_grep.inc
 
 # Cleanup
