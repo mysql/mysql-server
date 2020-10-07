@@ -3,7 +3,6 @@
 --echo #
 
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
---source include/not_hypergraph.inc  # Gets confused by the extra logging.
 
 SET sql_mode = 'PIPES_AS_CONCAT';
 CALL mtr.add_suppression("Plugin rewriter reported: " ||

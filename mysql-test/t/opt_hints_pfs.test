@@ -1,6 +1,5 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
---source include/not_hypergraph.inc  # Optimizer hints are not supported.
 
 --echo #
 --echo # Bug #21286261: QUERY DIGEST DOES NOT REFLECT NEW OPTIMIZER HINTS

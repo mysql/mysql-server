@@ -11,7 +11,6 @@ PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1, "1"), (2, "2"), (3, "3"), (4, "Four"), (5, "Five"),
 (6, "Six"), (7, "Seven"), (8, "Eight"), (9, "Nine");
 SET SESSION debug="+d,partition_fail_index_init";
---skip_if_hypergraph  # Depends on using indexes, which the hypergraph optimizer does not support.
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 SELECT * FROM t1 WHERE b = "Seven";
 SET SESSION debug="-d,partition_fail_index_init";

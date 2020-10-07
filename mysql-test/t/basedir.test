@@ -1,7 +1,6 @@
 # Stariting the server with an --init-file which does shutdown does
 # not appear to be working on windows
 --source include/not_windows.inc
---source include/not_hypergraph.inc  # Test gets confused by different logging.
 
 --echo #
 --echo # Testing wl#10441: Add mysqld_safe-functionality to server

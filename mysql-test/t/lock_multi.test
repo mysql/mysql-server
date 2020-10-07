@@ -4,7 +4,6 @@
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/not_hypergraph.inc  # Appears to depend on query plans.
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

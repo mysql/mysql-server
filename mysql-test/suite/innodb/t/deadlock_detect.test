@@ -3,7 +3,6 @@
 #
 
 --source include/count_sessions.inc
---source include/not_hypergraph.inc  # Depends on choosing very specific query plans.
 
 
 SET GLOBAL innodb_deadlock_detect=OFF;
