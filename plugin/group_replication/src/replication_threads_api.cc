@@ -22,6 +22,7 @@
 
 #include <sstream>
 
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
 #include <mysql/components/services/log_builtins.h>
@@ -29,6 +30,14 @@
 #include "mysqld_error.h"
 
 using std::string;
+
+Replication_thread_api::Replication_thread_api(const char *channel_interface)
+    : stop_wait_timeout(get_components_stop_timeout_var()),
+      interface_channel(channel_interface) {}
+
+Replication_thread_api::Replication_thread_api()
+    : stop_wait_timeout(get_components_stop_timeout_var()),
+      interface_channel(nullptr) {}
 
 int Replication_thread_api::initialize_channel(
     char *hostname, uint port, char *user, char *password, bool use_ssl,

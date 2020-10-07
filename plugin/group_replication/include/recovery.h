@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,12 +50,9 @@ class Recovery_module {
               reference to the applier
     @param channel_obsr_mngr
               reference to the channel hooks observation manager
-    @param components_stop_timeout
-              timeout value for the recovery module during shutdown.
    */
   Recovery_module(Applier_module_interface *applier,
-                  Channel_observation_manager *channel_obsr_mngr,
-                  ulong components_stop_timeout);
+                  Channel_observation_manager *channel_obsr_mngr);
 
   ~Recovery_module();
 
@@ -270,7 +267,6 @@ class Recovery_module {
     @param[in]  timeout      the timeout
   */
   void set_stop_wait_timeout(ulong timeout) {
-    stop_wait_timeout = timeout;
     recovery_state_transfer.set_stop_wait_timeout(timeout);
   }
 
@@ -314,6 +310,18 @@ class Recovery_module {
       @retval false  the id doesn't match any thread
   */
   bool is_own_event_channel(my_thread_id id);
+
+  /**
+   Checks to see if the recovery IO/SQL thread is still running, probably caused
+   by an timeout on shutdown.
+   If the threads are still running, we try to stop them again.
+   If not possible, an error is reported.
+
+   @return are the threads stopped
+      @retval 0      All is stopped.
+      @retval !=0    Threads are still running
+  */
+  int check_recovery_thread_status();
 
  private:
   /** Sets the thread context */
@@ -368,8 +376,8 @@ class Recovery_module {
   /* Recovery strategy when waiting for the cache transaction handling*/
   enum_recovery_completion_policies recovery_completion_policy;
 
-  /* Recovery module's timeout on shutdown */
-  ulong stop_wait_timeout;
+  /* The return value from state transfer operation*/
+  State_transfer_status m_state_transfer_return;
 };
 
 #endif /* RECOVERY_INCLUDE */

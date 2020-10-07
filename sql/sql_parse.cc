@@ -3266,6 +3266,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
         case 9:  // GROUP_REPLICATION_SERVICE_MESSAGE_INIT_FAILURE
           my_error(ER_GRP_RPL_MESSAGE_SERVICE_INIT_FAILURE, MYF(0));
           goto error;
+        case 10:  // GROUP_REPLICATION_RECOVERY_CHANNEL_STILL_RUNNING
+          my_error(ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING, MYF(0));
+          goto error;
       }
       my_ok(thd);
       res = 0;
@@ -3318,6 +3321,11 @@ int mysql_execute_command(THD *thd, bool first_level) {
         }
         goto error;
       }
+      if (res == 11)  // GROUP_REPLICATION_STOP_WITH_RECOVERY_TIMEOUT
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING,
+                     ER_THD(thd, ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING));
+
       my_ok(thd);
       res = 0;
       break;

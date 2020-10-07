@@ -34,6 +34,13 @@
 #include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
+typedef enum st_state_transfer_status {
+  STATE_TRANSFER_OK,            // OK
+  STATE_TRANSFER_STOP,          // Fail to stop replica threads
+  STATE_TRANSFER_PURGE,         // Fail to purge replica threads
+  STATE_TRANSFER_NO_CONNECTION  // No connection to donor
+} State_transfer_status;
+
 class Recovery_state_transfer {
  public:
   /**
@@ -286,7 +293,8 @@ class Recovery_state_transfer {
       @retval 0      OK
       @retval !=0    Recovery state transfer failed
    */
-  int state_transfer(Plugin_stage_monitor_handler &stage_handler);
+  State_transfer_status state_transfer(
+      Plugin_stage_monitor_handler &stage_handler);
 
  private:
   /**
@@ -351,10 +359,11 @@ class Recovery_state_transfer {
     @param purge_logs  purge recovery logs
 
     @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
+      @retval STATE_TRANSFER_OK      OK
+      @retval !=STATE_TRANSFER_OK    Error
   */
-  int terminate_recovery_slave_threads(bool purge_logs = true);
+  State_transfer_status terminate_recovery_slave_threads(
+      bool purge_logs = true);
 
   /**
     Purges relay logs and the master info object
