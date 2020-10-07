@@ -117,9 +117,9 @@ SELECT VARIABLE_VALUE
 FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='slave_allow_batching'
 into @tmp;
-SELECT @@global.slave_allow_batching = @tmp;
-@@global.slave_allow_batching = @tmp
-0
+SELECT IF(@@global.slave_allow_batching,'ON','OFF') = @tmp;
+IF(@@global.slave_allow_batching,'ON','OFF') = @tmp
+1
 SELECT @@global.slave_allow_batching;
 @@global.slave_allow_batching
 1

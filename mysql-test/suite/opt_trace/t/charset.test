@@ -23,7 +23,9 @@ set names latin1;
 # utf8 in the trace; sends back the trace but re-encodes it in latin1
 # (as this is how we want it, see "set names latin1".
 explain select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1;
+--disable_warnings
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
+--enable_warnings
 select @query, @trace;
 # The trace above is not valid JSON because the client asked to
 # receive it encoded in latin1, whereas JSON wants it in utf8.
@@ -36,7 +38,9 @@ select @query, @trace;
 set names latin1;
 create view v1 as select 'ÁÂÃÄÅ' as col from t1 limit 1;
 select * from v1 where v1.col = 'ÁÂÃÄÅ';
+--disable_warnings
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
+--enable_warnings
 set names utf8;
 select @query, @trace;
 
@@ -49,7 +53,9 @@ set names latin1;
 create table t1(c char(4) primary key) charset latin1;
 insert into t1 values ('aaa'), ('ÁÂÃÄ');
 select * from t1 where c < 'ÁÂÃÄÅ';
+--disable_warnings
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
+--enable_warnings
 set names utf8;
 select @query, @trace;
 drop table t1;

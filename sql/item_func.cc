@@ -6019,7 +6019,8 @@ double user_var_entry::val_real(bool *null_value) const {
       return result;
     }
     case STRING_RESULT:
-      return my_atof(m_ptr);  // This is null terminated
+      return double_from_string_with_check(collation.collation, m_ptr,
+                                           m_ptr + m_length);
     case ROW_RESULT:
     case INVALID_RESULT:
       DBUG_ASSERT(false);  // Impossible

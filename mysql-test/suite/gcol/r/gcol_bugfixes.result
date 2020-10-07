@@ -625,9 +625,13 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 DO (SELECT (@c2:= c) - a FROM t);
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
 SELECT @c2 - @c1;
 @c2 - @c1
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
+Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
 DROP TABLE t;
 #
 # Bug#22133710 GCOLS: READ UNCOMMITTED: ASSERT !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TA

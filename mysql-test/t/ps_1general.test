@@ -306,7 +306,9 @@ execute stmt4 using @arg00;
 SET @arg00="b";
 execute stmt4 using @arg00;
 SET @arg00=1;
+--disable_warnings
 execute stmt4 using @arg00;
+--enable_warnings
 
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
