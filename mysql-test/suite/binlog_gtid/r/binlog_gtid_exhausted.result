@@ -26,10 +26,10 @@ include/assert_grep.inc [ER_GNO_EXHAUSTED server is being stopped found in serve
 # restart
 RESET MASTER;
 CREATE TABLE t1(i INT);
-include/assert_grep.inc [ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
 DROP TABLE t1;
+include/assert_grep.inc [ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
 RESET MASTER;
 CREATE TABLE t1(i INT);
-include/assert_grep.inc [No ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
+include/assert_grep.inc [No new ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
 DROP TABLE t1;
 # restart
