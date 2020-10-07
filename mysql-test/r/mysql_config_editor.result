@@ -319,4 +319,11 @@ DROP USER user_name_len_25_01234567@localhost,user_name_len_26_012345678@localho
 # Restarting the server. Should work
 # restart
 # Cleanup
+#
+# Bug#29861961: MYSQL_CONFIG_EDITOR CAN NOT DEAL PASSWORD WITH "#"
+#
+CREATE USER 'test#user1'@'localhost';
+mysqld is alive
+# Cleanup
+DROP USER 'test#user1'@'localhost';
 # End of 5.6 tests
