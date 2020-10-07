@@ -18,7 +18,7 @@
 # The PLUGVAR variable is not quoted, so you must remember to quote it
 # when using it in an INSTALL PLUGIN command.
 #
-# The envorinment variables can be used in tests. If adding a new plugin,
+# The environment variables can be used in tests. If adding a new plugin,
 # you are free to pick your variable name, but please keep it upper
 # case for consistency.
 #
@@ -28,6 +28,7 @@
 #
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
+
 auth_test_plugin                        plugin_output_directory PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
 mysql_clone                             plugin_output_directory CLONE_PLUGIN    clone
 qa_auth_interface                       plugin_output_directory PLUGIN_AUTH_INTERFACE qa_auth_interface
@@ -151,3 +152,6 @@ component_query_attributes      plugin_output_directory  QUERY_ATTRIBUTES_COMPON
 
 # component_reference_cache
 component_reference_cache      plugin_output_directory REFERENCE_CACHE_COMPONENT
+
+# cloud
+component_health_monitor        plugin_output_directory  HEALTH_MONITOR_COMPONENT

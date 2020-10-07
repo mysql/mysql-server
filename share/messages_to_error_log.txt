@@ -11154,6 +11154,24 @@ ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID
 ER_WARN_GTID_THRESHOLD_BREACH
   eng "The integer component of the GTID number is high. Suggest restarting the server with a new server_uuid to prevent it from reaching the maximum number 2^63-1, which will make it impossible to write the binary log and invoke the behavior specified by binlog_error_action."
 
+ER_HEALTH_INFO
+  eng "%s"
+
+ER_HEALTH_WARNING
+  eng "%s"
+
+ER_HEALTH_ERROR
+  eng "%s"
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_1
+  eng "Disk usage on '%s' is %.2f%%. Warning level 1 (%d%%) exceeded."
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_2
+  eng "Disk usage on '%s' is %.2f%%. Warning level 2 (%d%%) exceeded."
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_3
+  eng "Disk usage on '%s' is %.2f%%. Warning level 3 (%d%%) exceeded."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
