@@ -311,7 +311,7 @@ void Ndb_metadata::create_columns(dd::Table *table_def) const {
     }
 
     if (ndb_column->getPrimaryKey())
-      dd_column->set_column_key(dd::Column::enum_column_key::CK_PRIMARY);
+      dd_column->set_column_key(dd::Column::CK_PRIMARY);
 
     // Column storage is set only for disk storage
     if (ndb_column->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
@@ -358,7 +358,13 @@ bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
   for (unsigned int i = 0; i < list.count; i++) {
     NdbDictionary::Dictionary::List::Element &element = list.elements[i];
     const NdbDictionary::Index *ndb_index =
-        dict->getIndexGlobal(element.name, m_ndbtab->getName());
+        dict->getIndexGlobal(element.name, *m_ndbtab);
+    if (!ndb_index) {
+      ndb_log_error("Failed to open index %s from NDB due to error %u: %s",
+                    element.name, dict->getNdbError().code,
+                    dict->getNdbError().message);
+      return false;
+    }
     std::string index_name = ndb_index->getName();
     for (std::string::size_type n = index_name.find("@0047");
          n != std::string::npos; n = index_name.find("@0047")) {
@@ -381,17 +387,17 @@ bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
       dd_index->set_name(real_name.c_str());
       // PKs using HASH aren't created in NDB Dictionary so the type can only
       // be IT_UNIQUE
-      dd_index->set_type(dd::Index::enum_index_type::IT_UNIQUE);
+      dd_index->set_type(dd::Index::IT_UNIQUE);
       if (ordered_indexes.find(real_name) == ordered_indexes.end()) {
-        dd_index->set_algorithm(dd::Index::enum_index_algorithm::IA_HASH);
+        dd_index->set_algorithm(dd::Index::IA_HASH);
         dd_index->set_algorithm_explicit(true);
       }
     } else if (ndb_index->getType() == NdbDictionary::Index::OrderedIndex) {
       dd_index->set_name(index_name.c_str());
       if (index_name == "PRIMARY") {
-        dd_index->set_type(dd::Index::enum_index_type::IT_PRIMARY);
+        dd_index->set_type(dd::Index::IT_PRIMARY);
       } else {
-        dd_index->set_type(dd::Index::enum_index_type::IT_MULTIPLE);
+        dd_index->set_type(dd::Index::IT_MULTIPLE);
       }
     } else {
       // Unexpected object type
@@ -478,19 +484,19 @@ bool Ndb_metadata::create_foreign_keys(Ndb *ndb, dd::Table *table_def) const {
 
     switch (ndb_fk.getOnUpdateAction()) {
       case NdbDictionary::ForeignKey::FkAction::NoAction:
-        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_NO_ACTION);
+        dd_fk->set_update_rule(dd::Foreign_key::RULE_NO_ACTION);
         break;
       case NdbDictionary::ForeignKey::FkAction::Restrict:
-        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_RESTRICT);
+        dd_fk->set_update_rule(dd::Foreign_key::RULE_RESTRICT);
         break;
       case NdbDictionary::ForeignKey::FkAction::Cascade:
-        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_CASCADE);
+        dd_fk->set_update_rule(dd::Foreign_key::RULE_CASCADE);
         break;
       case NdbDictionary::ForeignKey::FkAction::SetNull:
-        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_SET_NULL);
+        dd_fk->set_update_rule(dd::Foreign_key::RULE_SET_NULL);
         break;
       case NdbDictionary::ForeignKey::FkAction::SetDefault:
-        dd_fk->set_update_rule(dd::Foreign_key::enum_rule::RULE_SET_DEFAULT);
+        dd_fk->set_update_rule(dd::Foreign_key::RULE_SET_DEFAULT);
         break;
       default:
         DBUG_ASSERT(false);
@@ -499,19 +505,19 @@ bool Ndb_metadata::create_foreign_keys(Ndb *ndb, dd::Table *table_def) const {
 
     switch (ndb_fk.getOnDeleteAction()) {
       case NdbDictionary::ForeignKey::FkAction::NoAction:
-        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_NO_ACTION);
+        dd_fk->set_delete_rule(dd::Foreign_key::RULE_NO_ACTION);
         break;
       case NdbDictionary::ForeignKey::FkAction::Restrict:
-        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_RESTRICT);
+        dd_fk->set_delete_rule(dd::Foreign_key::RULE_RESTRICT);
         break;
       case NdbDictionary::ForeignKey::FkAction::Cascade:
-        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_CASCADE);
+        dd_fk->set_delete_rule(dd::Foreign_key::RULE_CASCADE);
         break;
       case NdbDictionary::ForeignKey::FkAction::SetNull:
-        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_SET_NULL);
+        dd_fk->set_delete_rule(dd::Foreign_key::RULE_SET_NULL);
         break;
       case NdbDictionary::ForeignKey::FkAction::SetDefault:
-        dd_fk->set_delete_rule(dd::Foreign_key::enum_rule::RULE_SET_DEFAULT);
+        dd_fk->set_delete_rule(dd::Foreign_key::RULE_SET_DEFAULT);
         break;
       default:
         DBUG_ASSERT(false);
@@ -1768,14 +1774,14 @@ bool Ndb_metadata::compare_indexes(const NdbDictionary::Dictionary *dict,
   size_t dd_index_count = dd_table_def->indexes().size();
   for (size_t i = 0; i < dd_table_def->indexes().size(); i++) {
     const dd::Index *index = dd_table_def->indexes().at(i);
-    if (index->type() == dd::Index::enum_index_type::IT_PRIMARY &&
-        index->algorithm() == dd::Index::enum_index_algorithm::IA_HASH) {
+    if (index->type() == dd::Index::IT_PRIMARY &&
+        index->algorithm() == dd::Index::IA_HASH) {
       // PKs using hash are a special case since there's no separate index
       // created in NDB
       dd_index_count--;
     }
-    if (index->type() == dd::Index::enum_index_type::IT_UNIQUE &&
-        index->algorithm() == dd::Index::enum_index_algorithm::IA_HASH) {
+    if (index->type() == dd::Index::IT_UNIQUE &&
+        index->algorithm() == dd::Index::IA_HASH) {
       // In case the table is not created with a primary key, unique keys
       // using hash could be mapped to being a primary key which will once
       // again lead to no separate index created in NDB

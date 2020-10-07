@@ -11909,7 +11909,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       if (!dd_client.get_table(db, name, &dd_table)) {
         thd_ndb->push_warning(
             "Failed to discover table '%s' from NDB, could "
-            "not get table from DD after it was created",
+            "not open table from DD after it was created",
             name);
         my_error(ER_NO_SUCH_TABLE, MYF(0), db, name);
         ndbtab_g.invalidate();
@@ -11918,8 +11918,8 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       }
       if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
         thd_ndb->push_warning(
-            "Failed to discover table '%s' from NDB, table "
-            "definition changed",
+            "Failed to discover table '%s' from NDB, mismatch between DD and "
+            "NDB Dictionary definitions. See error log for more details",
             name);
         my_error(HA_ERR_TABLE_DEF_CHANGED, MYF(0), db, name);
         ndbtab_g.invalidate();
