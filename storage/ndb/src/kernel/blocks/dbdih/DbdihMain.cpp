@@ -1637,7 +1637,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   if (m_use_classic_fragmentation && use_auto_thread_config)
   {
     jam();
-    m_use_classic_fragmentation = 1;
+    m_use_classic_fragmentation = 0;
   }
 
   c_fragments_per_node_ = 0;
