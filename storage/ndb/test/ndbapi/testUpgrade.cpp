@@ -187,7 +187,7 @@ determineMaxFragCount(NDBT_Context* ctx, NDBT_Step* step)
   return fc;
 }
 
-static const Uint32 defaultManyTableCount = 70;
+static const Uint32 defaultManyTableCount = 35;
 
 int 
 createManyTables(NDBT_Context* ctx, NDBT_Step* step)
