@@ -30,7 +30,6 @@
 #include "sql/mysqld.h"  // global_system_variables table_alias_charset ...
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_table.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ndb_dbname_guard.h"
 #include "storage/ndb/plugin/ndb_fk_util.h"

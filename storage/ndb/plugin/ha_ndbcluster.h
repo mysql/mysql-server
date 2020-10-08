@@ -33,8 +33,6 @@
 #include <array>
 
 #include "sql/partitioning/partition_handler.h"
-#include "sql/sql_base.h"
-#include "sql/table.h"
 #include "storage/ndb/include/kernel/ndb_limits.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/ndbapi/ndbapi_limits.h"
@@ -168,7 +166,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   std::string explain_extra() const override;
 
-  int open(const char *name, int mode, uint test_if_locked,
+  int open(const char *path, int mode, uint test_if_locked,
            const dd::Table *table_def) override;
 
   int close(void) override;
@@ -281,7 +279,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int rename_table(const char *from, const char *to,
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def) override;
-  int delete_table(const char *name, const dd::Table *table_def) override;
+  int delete_table(const char *path, const dd::Table *table_def) override;
   bool upgrade_table(THD *thd, const char *db_name, const char *table_name,
                      dd::Table *dd_table) override;
 
@@ -293,7 +291,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
     // All other values uses DYNAMIC
     return ROW_TYPE_DYNAMIC;
   }
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
+  int create(const char *path, TABLE *table, HA_CREATE_INFO *info,
              dd::Table *table_def) override;
   int truncate(dd::Table *table_def) override;
   bool is_ignorable_error(int error) override {
@@ -333,8 +331,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
                      int is_bulk_update);
 
  public:
-  static void set_dbname(const char *pathname, char *dbname);
-  static void set_tabname(const char *pathname, char *tabname);
   /*
     static member function as it needs to access private
     NdbTransaction methods
@@ -449,7 +445,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool open_table_set_key_fields();
   void release_key_fields();
   void release_ndb_share();
-  NDB_SHARE *open_table_before_schema_sync(THD *, const char *) const;
+  NDB_SHARE *open_share_before_schema_sync(THD *thd, const char *dbname,
+                                           const char *tabname) const;
   void prepare_inplace__drop_index(uint index_num);
 
   enum_alter_inplace_result supported_inplace_field_change(Alter_inplace_info *,
@@ -513,7 +510,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
 #ifndef DBUG_OFF
   bool check_default_values() const;
 #endif
-  int get_metadata(Ndb *ndb, const dd::Table *table_def);
+  int get_metadata(Ndb *ndb, const char *dbname, const char *tabname,
+                   const dd::Table *table_def);
   void release_metadata(Ndb *ndb, bool invalidate_objects);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_num) const;
@@ -562,8 +560,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int unpack_record(uchar *dst_row, const uchar *src_row);
   int unpack_record_and_set_generated_fields(uchar *dst_row,
                                              const uchar *src_row);
-  void set_dbname(const char *pathname);
-  void set_tabname(const char *pathname);
 
   const NdbDictionary::Column *get_hidden_key_column() {
     return m_table->getColumn(m_table_map->get_hidden_key_column());
@@ -692,9 +688,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
                       (8 * sizeof(my_bitmap_map))];  // Buffer for m_pk_bitmap
   struct Ndb_local_table_statistics *m_table_info;
   struct Ndb_local_table_statistics m_table_info_instance;
-  char m_dbname[FN_HEADLEN];
-  // char m_schemaname[FN_HEADLEN];
-  char m_tabname[FN_HEADLEN];
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;
   NDB_SHARE *m_share{nullptr};
@@ -772,7 +765,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   int update_stats(THD *thd, bool do_read_stat, uint part_id = ~(uint)0);
   int add_handler_to_open_tables(THD *, Thd_ndb *, ha_ndbcluster *handler);
-  uint get_field_index(KEY_PART_INFO *key_part_info, uint inx);
 };
 
 // Global handler synchronization

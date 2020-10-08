@@ -28,7 +28,6 @@
 #include <sstream>
 
 #include "sql/sql_class.h"                            // THD
-#include "sql/sql_table.h"                            // build_table_filename
 #include "storage/ndb/include/ndbapi/Ndb.hpp"         // Ndb
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_setup_table
 #include "storage/ndb/plugin/ndb_dd.h"                // ndb_dd_fs_name_case
@@ -807,9 +806,8 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
 
 void Ndb_metadata_sync::drop_ndb_share(const char *schema_name,
                                        const char *table_name) const {
-  char key[FN_REFLEN + 1];
-  build_table_filename(key, sizeof(key) - 1, schema_name, table_name, "", 0);
-  NDB_SHARE *share = NDB_SHARE::acquire_reference(key, "table_sync");
+  NDB_SHARE *share =
+      NDB_SHARE::acquire_reference(schema_name, table_name, "table_sync");
   if (share) {
     NDB_SHARE::mark_share_dropped_and_release(share, "table_sync");
   }

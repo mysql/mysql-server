@@ -30,6 +30,7 @@
 
 #include "m_string.h"
 #include "sql/sql_class.h"
+#include "sql/sql_table.h"
 #include "sql/strfunc.h"
 #include "sql/table.h"
 #include "storage/ndb/include/ndbapi/NdbEventOperation.hpp"
@@ -53,6 +54,19 @@ static std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
 // List of NDB_SHARE's which have been dropped, they are kept in this list
 // until all references to them have been released.
 static std::unordered_set<NDB_SHARE *> dropped_shares;
+
+// Format the key used for storing NDB_SHARE's in the list of open tables
+static inline void format_key(char *buf, size_t buf_size, const char *db_name,
+                              const char *table_name) {
+  // Format key in filesystem format, detect temporary named tables and use
+  // FN_IS_TMP since those doesn't need to be prefixed with db name or
+  // translated to filesystem format.
+  // NOTE! This function is still using filesystem format in order to be
+  // compatible with the NDB_SHARE_KEY format that's used as key in the list of
+  // open NDB_SHARE's.
+  build_table_filename(buf, buf_size, db_name, table_name, "",
+                       ndb_name_is_temp(table_name) ? FN_IS_TMP : 0);
+}
 
 NDB_SHARE *NDB_SHARE::create(const char *key) {
   if (DBUG_EVALUATE_IF("ndb_share_create_fail1", true, false)) {
@@ -231,9 +245,14 @@ void NDB_SHARE::free_share(NDB_SHARE **share) {
   }
 }
 
-NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *key,
+NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *db_name,
+                                                  const char *table_name,
                                                   const char *reference) {
   DBUG_TRACE;
+
+  char key[FN_REFLEN + 1];
+  format_key(key, sizeof(key) - 1, db_name, table_name);
+
   DBUG_PRINT("enter", ("key: '%s'", key));
 
   mysql_mutex_lock(&shares_mutex);
@@ -272,8 +291,12 @@ NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *key,
   return share;
 }
 
-NDB_SHARE *NDB_SHARE::create_for_handler(const char *key,
-                                         const class ha_ndbcluster *reference) {
+NDB_SHARE *NDB_SHARE::create_for_handler(const char *db_name,
+                                         const char *table_name,
+                                         const ha_ndbcluster *reference) {
+  char key[FN_REFLEN + 1];
+  format_key(key, sizeof(key) - 1, db_name, table_name);
+
   mysql_mutex_lock(&shares_mutex);
 
   NDB_SHARE *share = NDB_SHARE::create(key);
@@ -296,9 +319,13 @@ NDB_SHARE *NDB_SHARE::create_for_handler(const char *key,
   return share;
 }
 
-NDB_SHARE *NDB_SHARE::acquire_for_handler(
-    const char *key, const class ha_ndbcluster *reference) {
+NDB_SHARE *NDB_SHARE::acquire_for_handler(const char *db_name,
+                                          const char *table_name,
+                                          const ha_ndbcluster *reference) {
   DBUG_TRACE;
+
+  char key[FN_REFLEN + 1];
+  format_key(key, sizeof(key) - 1, db_name, table_name);
 
   mysql_mutex_lock(&shares_mutex);
   NDB_SHARE *share = acquire_reference_impl(key);
@@ -353,11 +380,14 @@ NDB_SHARE *NDB_SHARE::acquire_reference_on_existing(NDB_SHARE *share,
 }
 
 /*
-  Acquire reference using key.
+  Acquire reference using db and table name
 */
-
-NDB_SHARE *NDB_SHARE::acquire_reference(const char *key,
+NDB_SHARE *NDB_SHARE::acquire_reference(const char *db_name,
+                                        const char *table_name,
                                         const char *reference) {
+  char key[FN_REFLEN + 1];
+  format_key(key, sizeof(key) - 1, db_name, table_name);
+
   mysql_mutex_lock(&shares_mutex);
 
   NDB_SHARE *share = acquire_reference_impl(key);

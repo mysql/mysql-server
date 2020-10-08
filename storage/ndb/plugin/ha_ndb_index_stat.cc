@@ -29,8 +29,10 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_dbug.h"
+#include "sql/field.h"
 #include "sql/mysqld.h"  // LOCK_global_system_variables
 #include "sql/partition_info.h"
+#include "sql/table.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ndb_require.h"
@@ -2546,7 +2548,7 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
      * Thus it might not correctly represent the table contents if
      * the number of rows sampled is too small.
      */
-    Uint32 rows = 0;
+    Uint32 rows;
     NdbIndexStat::get_numrows(stat, &rows);
     if (rows <= 2) {  // '2' is just picked as some very small number
       /**
@@ -2558,12 +2560,13 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
       return 0;
     }
     KEY *key_info = table->key_info + inx;
-    KEY_PART_INFO *key_part_info = key_info->key_part;
-    uint num_part_fields = bitmap_bits_set(&m_part_info->full_part_field_set);
+    const KEY_PART_INFO *key_part_info = key_info->key_part;
+    const uint num_part_fields =
+        bitmap_bits_set(&m_part_info->full_part_field_set);
     uint num_part_fields_found = 0;
     for (uint k = 0; k < key_info->user_defined_key_parts; k++) {
       double rpk = REC_PER_KEY_UNKNOWN;  // unknown -> -1.0
-      uint field_index = get_field_index(key_part_info, k);
+      const uint field_index = key_part_info[k].field->field_index();
       if (bitmap_is_set(&m_part_info->full_part_field_set, field_index)) {
         num_part_fields_found++;
       }

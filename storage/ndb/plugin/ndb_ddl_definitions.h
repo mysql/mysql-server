@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,6 @@ int rename_table_impl(class THD *thd, class Ndb *ndb,
 
 int drop_table_impl(class THD *thd, class Ndb *ndb,
                     class Ndb_schema_dist_client *schema_dist_client,
-                    const char *path, const char *db, const char *table_name);
+                    const char *db, const char *table_name);
 
 #endif /* NDB_DDL_DEFINITIONS_H */

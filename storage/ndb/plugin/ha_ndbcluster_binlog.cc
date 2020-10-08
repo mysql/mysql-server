@@ -39,9 +39,9 @@
 #include "sql/mysqld_thd_manager.h"       // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/rpl_injector.h"
+#include "sql/sql_base.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_rewrite.h"
-#include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_thd_internal_api.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
@@ -2301,9 +2301,7 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
     DBUG_PRINT("enter", ("db: '%s', name: '%s'", db, name));
 
-    char key[FN_REFLEN + 1];
-    build_table_filename(key, sizeof(key) - 1, db, name, "", 0);
-    return NDB_SHARE::acquire_reference(key, reference);
+    return NDB_SHARE::acquire_reference(db, name, reference);
   }
 
   bool has_shadow_table(Ndb_dd_client &dd_client, const char *schema_name,
@@ -5014,17 +5012,9 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb, const char *db,
 
   DBUG_ASSERT(!ndb_name_is_blob_prefix(table_name));
 
-  // Create key for ndbcluster_open_tables
-  char key[FN_REFLEN + 1];
-  {
-    char *end = key + build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
-    end += tablename_to_filename(table_name, end,
-                                 (uint)(sizeof(key) - (end - key)));
-  }
-
   // Acquire or create reference to NDB_SHARE
-  NDB_SHARE *share =
-      NDB_SHARE::acquire_or_create_reference(key, "create_binlog_setup");
+  NDB_SHARE *share = NDB_SHARE::acquire_or_create_reference(
+      db, table_name, "create_binlog_setup");
   if (share == nullptr) {
     // Could not create the NDB_SHARE. Unlikely, catch in debug
     DBUG_ASSERT(false);

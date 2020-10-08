@@ -36,8 +36,9 @@
 #include "storage/ndb/plugin/ndb_table_guard.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
-void Ndb_DDL_transaction_ctx::log_create_table(const std::string &path_name) {
-  log_ddl_stmt(Ndb_DDL_stmt::CREATE_TABLE, path_name);
+void Ndb_DDL_transaction_ctx::log_create_table(const std::string &db_name,
+                                               const std::string &table_name) {
+  log_ddl_stmt(Ndb_DDL_stmt::CREATE_TABLE, db_name, table_name);
 }
 
 bool Ndb_DDL_transaction_ctx::rollback_create_table(
@@ -46,12 +47,9 @@ bool Ndb_DDL_transaction_ctx::rollback_create_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 1);
-  const char *path_name = ddl_info[0].c_str();
-  char db_name[FN_HEADLEN];
-  char table_name[FN_HEADLEN];
-  ndb_set_dbname(path_name, db_name);
-  ndb_set_tabname(path_name, table_name);
+  DBUG_ASSERT(ddl_info.size() == 2);
+  const char *db_name = ddl_info[0].c_str();
+  const char *table_name = ddl_info[1].c_str();
 
   /* Prepare schema client for rollback if required */
   Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
@@ -76,7 +74,7 @@ bool Ndb_DDL_transaction_ctx::rollback_create_table(
   Ndb *ndb = thd_ndb->ndb;
   if (drop_table_impl(m_thd, ndb,
                       schema_dist_prepared ? &schema_dist_client : nullptr,
-                      path_name, db_name, table_name)) {
+                      db_name, table_name)) {
     thd_ndb->push_warning("Failed to rollback after CREATE TABLE failure.");
     return false;
   }
@@ -292,8 +290,8 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
 }
 
 void Ndb_DDL_transaction_ctx::log_drop_temp_table(
-    const std::string &path_name) {
-  log_ddl_stmt(Ndb_DDL_stmt::DROP_TABLE, path_name);
+    const std::string &db_name, const std::string &table_name) {
+  log_ddl_stmt(Ndb_DDL_stmt::DROP_TABLE, db_name, table_name);
 }
 
 bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
@@ -311,14 +309,11 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 1);
-  const char *path_name = ddl_info[0].c_str();
-  char db_name[FN_HEADLEN];
-  char table_name[FN_HEADLEN];
-  ndb_set_dbname(path_name, db_name);
-  ndb_set_tabname(path_name, table_name);
+  DBUG_ASSERT(ddl_info.size() == 2);
+  const char *db_name = ddl_info[0].c_str();
+  const char *table_name = ddl_info[1].c_str();
 
-  /* Verify that the table is a temp table. */
+  /* Verify that the table is a table with temporary name. */
   if (!ndb_name_is_temp(table_name)) {
     DBUG_ASSERT(false);
     return false;
@@ -327,8 +322,7 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
   DBUG_PRINT("info", ("Dropping table '%s.%s'", db_name, table_name));
 
   /* Finally drop the temp table as the DDL has been committed  */
-  if (drop_table_impl(m_thd, ndb, nullptr, path_name, db_name, table_name) !=
-      0) {
+  if (drop_table_impl(m_thd, ndb, nullptr, db_name, table_name) != 0) {
     thd_ndb->push_warning("Failed to drop a temp table.");
     return false;
   }

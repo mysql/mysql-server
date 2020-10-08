@@ -45,14 +45,6 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
 
-// Temporarily use a fixed string on the form "./mysql/ndb_schema" as key
-// for retrieving the NDB_SHARE for mysql.ndb_schema. This will subsequently
-// be removed when a NDB_SHARE can be acquired using db+table_name and the
-// key is formatted behind the curtains in NDB_SHARE without using
-// build_table_filename() etc.
-static constexpr const char *NDB_SCHEMA_TABLE_KEY =
-    IF_WIN(".\\mysql\\ndb_schema", "./mysql/ndb_schema");
-
 bool Ndb_schema_dist::is_ready(void *requestor) {
   DBUG_TRACE;
 
@@ -60,8 +52,10 @@ bool Ndb_schema_dist::is_ready(void *requestor) {
   ss << "is_ready_" << std::hex << requestor;
   const std::string reference = ss.str();
 
-  NDB_SHARE *schema_share =
-      NDB_SHARE::acquire_reference(NDB_SCHEMA_TABLE_KEY, reference.c_str());
+  // Acquire reference on mysql.ndb_schema
+  NDB_SHARE *schema_share = NDB_SHARE::acquire_reference(
+      Ndb_schema_dist_table::DB_NAME.c_str(),
+      Ndb_schema_dist_table::TABLE_NAME.c_str(), reference.c_str());
   if (schema_share == nullptr) return false;  // Not ready
 
   if (!schema_share->have_event_operation()) {
@@ -123,8 +117,9 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
   DBUG_TRACE;
 
   // Acquire reference on mysql.ndb_schema
-  m_share = NDB_SHARE::acquire_reference(NDB_SCHEMA_TABLE_KEY,
-                                         m_share_reference.c_str());
+  m_share = NDB_SHARE::acquire_reference(
+      Ndb_schema_dist_table::DB_NAME.c_str(),
+      Ndb_schema_dist_table::TABLE_NAME.c_str(), m_share_reference.c_str());
 
   if (m_share == nullptr || m_share->have_event_operation() == false ||
       DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false)) {
@@ -466,6 +461,10 @@ bool Ndb_schema_dist_client::rename_table_prepare(
   // pass the "new key"(i.e db/table_name) for the table to be renamed,
   // that's since there isn't enough placeholders in the subsequent rename
   // table phase.
+  // NOTE2! The "new key" is sent in filesystem format where multibyte or
+  // characters who are deemed not suitable as filenames have been encoded. This
+  // differs from the db and tablename parameters in the schema dist
+  // protocol who are just passed as they are.
   return log_schema_op(new_key_for_table, strlen(new_key_for_table), db,
                        table_name, id, version, SOT_RENAME_TABLE_PREPARE);
 }
