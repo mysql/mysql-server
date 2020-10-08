@@ -181,7 +181,7 @@ disconnect con6;
 --echo # default connection
 connection default;
 # wait for all the connections to go away and release the temporary tablespaces
-let $wait_timeout= 20;
+let $wait_timeout= 60;
 let $wait_condition= SELECT COUNT(*) = 1 from INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = 'ACTIVE';
 --source include/wait_condition.inc
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
