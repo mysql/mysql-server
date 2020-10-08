@@ -1125,7 +1125,11 @@ bool TemptableAggregateIterator::Init() {
       /* See comment on copy_funcs above. */
       if (copy_funcs(m_temp_table_param, thd())) return true;
     }
+    assert(!thd()->is_error());
     init_tmptable_sum_functions(m_join->sum_funcs);
+    if (thd()->is_error()) {
+      return true;
+    }
     int error = table()->file->ha_write_row(table()->record[0]);
     if (error != 0) {
       /*
