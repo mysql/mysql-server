@@ -302,8 +302,8 @@ end|
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 PARAMETER_STYLE	SQL_DATA_ACCESS	DTD_IDENTIFIER
-SQL	CONTAINS SQL	int
 SQL	CONTAINS SQL	NULL
+SQL	CONTAINS SQL	int
 show procedure status where db='test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	sel2	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
