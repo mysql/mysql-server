@@ -1141,14 +1141,12 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     rlb.append(STRING_WITH_LEN("PROXY"));
   else if (lex->all_privileges)
     rlb.append(STRING_WITH_LEN("ALL PRIVILEGES"));
-  else if (lex->grant_privilege)
-    rlb.append(STRING_WITH_LEN("GRANT OPTION"));
   else {
     bool comma = false;
     ulong priv;
 
     for (c = 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1) {
-      if (priv == GRANT_ACL) continue;
+      if (priv == GRANT_ACL && !lex->grant_privilege) continue;
 
       bool comma_inner = false;
 
@@ -1179,8 +1177,11 @@ bool Rewriter_grant::rewrite(String &rlb) const {
       if (comma_inner || (lex->grant & priv))  // show privilege name
       {
         comma_maybe(&rlb, &comma);
-        rlb.append(global_acls_vector[c].c_str(),
-                   global_acls_vector[c].length());
+        if (priv == GRANT_ACL)
+          rlb.append(STRING_WITH_LEN("GRANT OPTION"));
+        else
+          rlb.append(global_acls_vector[c].c_str(),
+                     global_acls_vector[c].length());
         if (!(lex->grant & priv))  // general outranks specific
           rlb.append(cols);
       }

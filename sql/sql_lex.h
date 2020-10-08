@@ -3837,6 +3837,12 @@ struct LEX : public Query_tables_list {
   my_thread_id show_profile_query_id;
   uint profile_options;
   uint grant, grant_tot_col;
+  /**
+   Set to true when GRANT ... GRANT OPTION ... TO ...
+   is used (vs. GRANT ... WITH GRANT OPTION).
+   The flag is used by @ref mysql_grant to grant GRANT OPTION (@ref GRANT_ACL)
+   to all dynamic privileges.
+  */
   bool grant_privilege;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;  ///< Number of query block (by EXPLAIN)
