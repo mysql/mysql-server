@@ -173,7 +173,8 @@ THRConfig::setLockIoThreadsToCPU(unsigned val)
 
 void
 THRConfig::reorganize_ldm_bindings(bool with_thread_config,
-                                   Uint32 & num_rr_groups)
+                                   Uint32 & num_rr_groups,
+                                   bool check)
 {
   T_Type t_ldm = T_LDM;
   T_Type t_query = T_QUERY;
@@ -206,7 +207,7 @@ THRConfig::reorganize_ldm_bindings(bool with_thread_config,
     return;
   }
   struct ndb_hwinfo *hwinfo = Ndb_GetHWInfo(false);
-  if (!hwinfo->is_cpuinfo_available)
+  if (!hwinfo->is_cpuinfo_available || check)
   {
     return;
   }
@@ -1248,7 +1249,8 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
                     unsigned __ndbmt_classic,
                     unsigned realtime,
                     unsigned spintime,
-                    unsigned &num_rr_groups)
+                    unsigned &num_rr_groups,
+                    bool check)
 {
   /**
    * This is old ndbd.cpp : get_multithreaded_config
@@ -1329,7 +1331,7 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
   {
     return res;
   }
-  reorganize_ldm_bindings(false, num_rr_groups);
+  reorganize_ldm_bindings(false, num_rr_groups, check);
   return do_validate();
 }
 
@@ -1993,7 +1995,8 @@ int
 THRConfig::do_parse(const char * ThreadConfig,
                     unsigned realtime,
                     unsigned spintime,
-                    unsigned &num_rr_groups)
+                    unsigned &num_rr_groups,
+                    bool check)
 {
   BaseString str(ThreadConfig);
   char * ptr = (char*)str.c_str();
@@ -2020,7 +2023,7 @@ THRConfig::do_parse(const char * ThreadConfig,
   {
     return res;
   }
-  reorganize_ldm_bindings(true, num_rr_groups);
+  reorganize_ldm_bindings(true, num_rr_groups, check);
   return do_validate();
 }
 
@@ -2584,7 +2587,7 @@ TAPTEST(mt_thr_config)
   {
     THRConfig tmp;
     Uint32 dummy;
-    OK(tmp.do_parse(8, 0, 0, 0, 0, dummy) == 0);
+    OK(tmp.do_parse(8, 0, 0, 0, 0, dummy, false) == 0);
   }
 
   /**
@@ -2664,7 +2667,7 @@ TAPTEST(mt_thr_config)
     for (Uint32 i = 0; ok[i]; i++)
     {
       THRConfig tmp;
-      int res = tmp.do_parse(ok[i], 0, 0, dummy);
+      int res = tmp.do_parse(ok[i], 0, 0, dummy, false);
       printf("do_parse(%s) => %s - %s\n", ok[i],
              res == 0 ? "OK" : "FAIL",
              res == 0 ? 
@@ -2674,7 +2677,7 @@ TAPTEST(mt_thr_config)
       {
         BaseString out(tmp.getConfigString());
         THRConfig check;
-        OK(check.do_parse(out.c_str(), 0, 0, dummy) == 0);
+        OK(check.do_parse(out.c_str(), 0, 0, dummy, false) == 0);
         OK(strcmp(out.c_str(), check.getConfigString()) == 0);
       }
     }
@@ -2682,7 +2685,7 @@ TAPTEST(mt_thr_config)
     for (Uint32 i = 0; fail[i]; i++)
     {
       THRConfig tmp;
-      int res = tmp.do_parse(fail[i], 0, 0, dummy);
+      int res = tmp.do_parse(fail[i], 0, 0, dummy, false);
       printf("do_parse(%s) => %s - %s\n", fail[i],
              res == 0 ? "OK" : "FAIL",
              res == 0 ? "" : tmp.getErrorMessage());
@@ -2823,7 +2826,7 @@ TAPTEST(mt_thr_config)
       THRConfig tmp;
       Uint32 dummy;
       tmp.setLockExecuteThreadToCPU(t[i+0]);
-      const int _res = tmp.do_parse(t[i+1], 0, 0, dummy);
+      const int _res = tmp.do_parse(t[i+1], 0, 0, dummy, false);
       const int expect_res = strcmp(t[i+2], "OK") == 0 ? 0 : -1;
       const int res = _res == expect_res ? 0 : -1;
       int ok = expect_res == 0 ?

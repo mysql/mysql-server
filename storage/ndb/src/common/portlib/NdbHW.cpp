@@ -365,10 +365,16 @@ swap_virt_l3_caches(Uint32 largest_id, Uint32 curr_pos)
 static void
 sort_virt_l3_caches(struct ndb_hwinfo *hwinfo)
 {
-  for (Uint32 i = 0; i < hwinfo->num_virt_l3_caches; i++)
+  if (hwinfo->num_virt_l3_caches > 1)
   {
-    Uint32 largest_id = find_largest_virt_l3_group(hwinfo, i);
-    swap_virt_l3_caches(largest_id, i);
+    for (Uint32 i = 0; i < hwinfo->num_virt_l3_caches - 1; i++)
+    {
+      Uint32 largest_id = find_largest_virt_l3_group(hwinfo, i);
+      if (largest_id != i && largest_id != RNIL)
+      {
+        swap_virt_l3_caches(largest_id, i);
+      }
+    }
   }
 }
 
@@ -395,7 +401,7 @@ static void create_init_virt_l3_cache_list(struct ndb_hwinfo *hwinfo)
         else
         {
           found = true;
-          g_first_virt_l3_cache[i] = next_cpu;
+          g_first_virt_l3_cache[virt_l3_cache_index] = next_cpu;
         }
         hwinfo->cpu_info[next_cpu].next_virt_l3_cpu_map = RNIL;
         prev_cpu = next_cpu;

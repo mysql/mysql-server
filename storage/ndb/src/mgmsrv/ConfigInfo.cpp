@@ -5769,6 +5769,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   Uint32 ndbLogParts = 0;
   Uint32 realtimeScheduler = 0;
   Uint32 spinTimer = 0;
+  Uint32 auto_thread_config = 0;
   const char * thrconfig = 0;
   const char * locktocpu = 0;
 
@@ -5778,6 +5779,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
     tmp.setLockExecuteThreadToCPU(locktocpu);
   }
 
+  ctx.m_currentSection->get("AutomaticThreadConfig", &auto_thread_config);
   ctx.m_currentSection->get("MaxNoOfExecutionThreads", &maxExecuteThreads);
   ctx.m_currentSection->get("__ndbmt_lqh_threads", &lqhThreads);
   ctx.m_currentSection->get("__ndbmt_classic", &classic);
@@ -5797,9 +5799,17 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
     return false;
   }
   Uint32 dummy;
-  if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
+  if (auto_thread_config)
   {
-    int ret = tmp.do_parse(thrconfig, realtimeScheduler, spinTimer, dummy);
+    ;
+  }
+  else if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
+  {
+    int ret = tmp.do_parse(thrconfig,
+                           realtimeScheduler,
+                           spinTimer,
+                           dummy,
+                           true);
     if (ret)
     {
       ctx.reportError("Unable to parse ThreadConfig: %s",
@@ -5829,7 +5839,8 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
                            classic,
                            realtimeScheduler,
                            spinTimer,
-                           dummy);
+                           dummy,
+                           true);
     if (ret)
     {
       ctx.reportError("Unable to set thread configuration: %s",
@@ -5843,7 +5854,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
     ctx.reportWarning("%s", tmp.getInfoMessage());
   }
 
-  if (thrconfig == 0)
+  if (auto_thread_config == 0 && thrconfig == 0)
   {
     ctx.m_currentSection->put("ThreadConfig", tmp.getConfigString());
   }

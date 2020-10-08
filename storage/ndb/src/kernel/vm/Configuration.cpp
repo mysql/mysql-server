@@ -474,7 +474,8 @@ Configuration::setupConfiguration(){
     int res = m_thr_config.do_parse(thrconfigstring,
                                     _realtimeScheduler,
                                     _schedulerSpinTimer,
-                                    globalData.ndbRRGroups);
+                                    globalData.ndbRRGroups,
+                                    false);
     if (res != 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -513,7 +514,8 @@ Configuration::setupConfiguration(){
                                       classic,
                                       _realtimeScheduler,
                                       _schedulerSpinTimer,
-                                      globalData.ndbRRGroups);
+                                      globalData.ndbRRGroups,
+                                      false);
       if (res != 0)
       {
         ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
