@@ -34,3 +34,29 @@ let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 
 DROP DATABASE abc_def2;
+
+--echo #
+--echo # Bug #31773368 AUXILIARY TABLES FOR ALL FTS INDEX
+--echo # FOR A TABLE WITHOUT RENAMING
+--echo #
+
+let $MYSQLD_DATADIR= `SELECT @@global.datadir`;
+CREATE DATABASE test1;
+CREATE TABLE t1(a int, t1_new_col varchar(100));
+ALTER TABLE t1 ADD fulltext index full_t2_idx(t1_new_col);
+ALTER TABLE t1 DROP index full_t2_idx;
+
+--echo "List files under test"
+--list_files $MYSQLD_DATADIR/test
+
+RENAME TABLE t1 TO test1.t2;
+
+--echo "List files under test"
+--list_files $MYSQLD_DATADIR/test
+
+--echo "List files under test1"
+--list_files $MYSQLD_DATADIR/test1
+
+# cleanup
+DROP TABLE test1.t2;
+DROP DATABASE test1;
