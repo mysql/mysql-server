@@ -4251,7 +4251,8 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
 
   err = DB_SUCCESS;
 
-  if (dict_table_has_fts_index(table) &&
+  if ((dict_table_has_fts_index(table) ||
+       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) &&
       !dict_tables_have_same_db(old_name, new_name)) {
     err = fts_rename_aux_tables(table, new_name, trx, replay);
   }
