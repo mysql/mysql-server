@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,12 +83,12 @@ int main(int argc, char** argv)
   char * mysqld_sock  = argv[1];
   const char *connectstring = argv[2];
   ndb_init();
-  MYSQL mysql;
 
   /**************************************************************
    * Connect to mysql server and create table                   *
    **************************************************************/
   {
+    MYSQL mysql;
     if ( !mysql_init(&mysql) ) {
       std::cout << "mysql_init failed\n";
       exit(-1);
@@ -117,6 +117,7 @@ int main(int argc, char** argv)
       }
       else MYSQLERROR(mysql);
     }
+    mysql_close(&mysql);
   }
  
   /**************************************************************

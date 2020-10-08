@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,6 +111,7 @@ int main(int argc, char** argv)
   mysql_query(&mysql, "CREATE DATABASE ndb_examples");
   if (mysql_query(&mysql, "USE ndb_examples") != 0) MYSQLERROR(mysql);
   create_table(mysql);
+  mysql_close(&mysql);
 
   Ndb* myNdb = new Ndb( cluster_connection,
 			"ndb_examples" );  // Object representing the database

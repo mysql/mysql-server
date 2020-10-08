@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,7 @@ int main(int argc, char** argv)
     
     // run the application code
     run_application(mysql, cluster_connection);
+    mysql_close(&mysql);
   }
 
   ndb_end(0);
