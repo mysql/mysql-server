@@ -1842,16 +1842,11 @@ void JOIN::destroy() {
       free_tmp_table(cleanup.table);
       ::destroy(cleanup.temp_table_param);
     }
-    for (AccessPath *sorting_path : sorting_paths) {
-      if (sorting_path->iterator != nullptr) {
-        SortingIterator *iterator = down_cast<SortingIterator *>(
-            sorting_path->iterator->real_iterator());
-        ::destroy(iterator->filesort());
-        ::destroy(iterator);
-      }
+    for (Filesort *filesort : filesorts_to_cleanup) {
+      ::destroy(filesort);
     }
     temp_tables.clear();
-    sorting_paths.clear();
+    filesorts_to_cleanup.clear();
   }
   if (join_tab || best_ref) {
     for (uint i = 0; i < tables; i++) {

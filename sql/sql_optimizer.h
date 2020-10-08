@@ -177,9 +177,9 @@ class JOIN {
   Prealloced_array<TemporaryTableToCleanup, 1> temp_tables{
       PSI_NOT_INSTRUMENTED};
 
-  // Similarly, sorting iterators that need to be cleaned up after the query.
+  // Similarly, filesorts that need to be cleaned up after the query.
   // Only used for the hypergraph optimizer, for the same reason as above.
-  Prealloced_array<AccessPath *, 1> sorting_paths{PSI_NOT_INSTRUMENTED};
+  Prealloced_array<Filesort *, 1> filesorts_to_cleanup{PSI_NOT_INSTRUMENTED};
 
   /**
     Before plan has been created, "tables" denote number of input tables in the

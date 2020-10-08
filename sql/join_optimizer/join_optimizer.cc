@@ -676,7 +676,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   if (CheckSupportedQuery(thd, join)) return nullptr;
 
   assert(join->temp_tables.empty());
-  assert(join->sorting_paths.empty());
+  assert(join->filesorts_to_cleanup.empty());
 
   // Convert the join structures into a hypergraph.
   JoinHypergraph graph(thd->mem_root);
@@ -822,6 +822,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
                  /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
                  /*remove_duplicates=*/false, /*force_sort_positions=*/false,
                  /*unwrap_rollup=*/false);
+    join->filesorts_to_cleanup.push_back(filesort);
 
     if (temp_table != nullptr) {
       root_path = CreateMaterializationPathForSortingAggregates(
@@ -855,16 +856,6 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
 
   join->best_rowcount = lrint(root_path->num_output_rows);
   join->best_read = root_path->cost;
-
-  // Find any sorts that may have been added, and add them so that we are
-  // sure to clean up their buffers after execution.
-  WalkAccessPaths(root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-                  [join](AccessPath *path, const JOIN *) {
-                    if (path->type == AccessPath::SORT) {
-                      join->sorting_paths.push_back(path);
-                    }
-                    return false;
-                  });
 
   // 0 or 1 rows has a special meaning; it means a _guarantee_ we have no more
   // than one (so-called “const tables”). Make sure we don't give that guarantee
