@@ -154,7 +154,7 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
            path->materialize().param->query_blocks) {
         if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_TREE ||
             (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK &&
-             path->stream().join == join)) {
+             query_block.join == join)) {
           WalkAccessPaths(query_block.subquery_path, query_block.join,
                           cross_query_blocks, std::forward<Func &&>(func),
                           post_order_traversal);
