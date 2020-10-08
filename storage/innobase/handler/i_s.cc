@@ -6164,7 +6164,7 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
       v_name = table_rec->v_col_names;
     }
 
-    for (int32_t i = 0, v_i = 0;
+    for (size_t i = 0, v_i = 0;
          i < table_rec->n_cols || v_i < table_rec->n_v_cols;) {
       if (i < table_rec->n_cols &&
           (!has_virtual_cols || v_i == table_rec->n_v_cols ||
@@ -6601,13 +6601,13 @@ static ST_FIELD_INFO innodb_tablespaces_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_SERVER_VESION 10
+#define INNODB_TABLESPACES_SERVER_VERSION 10
     {STRUCT_FLD(field_name, "SERVER_VERSION"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_SPACE_VESION 11
+#define INNODB_TABLESPACES_SPACE_VERSION 11
     {STRUCT_FLD(field_name, "SPACE_VERSION"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
@@ -6708,25 +6708,17 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(field_store_string(fields[INNODB_TABLESPACES_SPACE_TYPE], space_type));
 
-  OK(field_store_string(fields[INNODB_TABLESPACES_SERVER_VESION], version_str));
+  OK(field_store_string(fields[INNODB_TABLESPACES_SERVER_VERSION],
+                        version_str));
 
-  OK(fields[INNODB_TABLESPACES_SPACE_VESION]->store(space_version, true));
+  OK(fields[INNODB_TABLESPACES_SPACE_VERSION]->store(space_version, true));
 
-  char *filepath = nullptr;
-  if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags)) {
-    mutex_enter(&dict_sys->mutex);
-    filepath = fil_space_get_first_path(space_id);
-    mutex_exit(&dict_sys->mutex);
-  }
+  mutex_enter(&dict_sys->mutex);
+  char *filepath = fil_space_get_first_path(space_id);
+  mutex_exit(&dict_sys->mutex);
 
   if (filepath == nullptr) {
-    if (strstr(name, dict_sys_t::s_file_per_table_name) != nullptr) {
-      mutex_enter(&dict_sys->mutex);
-      filepath = fil_space_get_first_path(space_id);
-      mutex_exit(&dict_sys->mutex);
-    } else {
-      filepath = Fil_path::make_ibd_from_table_name(name);
-    }
+    filepath = Fil_path::make_ibd_from_table_name(name);
   }
 
   os_file_stat_t stat;
@@ -6736,8 +6728,6 @@ static int i_s_dict_fill_innodb_tablespaces(
   memset(&stat, 0x0, sizeof(stat));
 
   if (filepath != nullptr) {
-    file = os_file_get_size(filepath);
-
     /* Get the file system (or Volume) block size. */
     dberr_t err = os_file_get_status(filepath, &stat, false, false);
 
@@ -6748,6 +6738,9 @@ static int i_s_dict_fill_innodb_tablespaces(
         break;
 
       case DB_SUCCESS:
+        file = os_file_get_size(filepath);
+        break;
+
       case DB_NOT_FOUND:
         break;
 

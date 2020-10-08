@@ -27,11 +27,11 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/Known_Dir/ts1.ibd';
 # restart: --innodb-directories='MYSQL_TMP_DIR/known_dir;MYSQL_TMP_DIR/Known_Dir;MYSQL_TMP_DIR/KNOWN_DIR'
 # Show these tablespaces in information_schema.
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -58,15 +58,15 @@ CREATE TABLESPACE ts2 ADD DATAFILE 'MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd';
 CREATE TABLESPACE ts3 ADD DATAFILE 'MYSQL_TMP_DIR/known_dir/ts3.ibd';
 # Show these tablespaces in information_schema.
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
-test/t2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/KNOWN_DIR/test/t2.ibd
-test/t3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/known_dir/test/t3.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
-ts2	General	DEFAULT	0	Any	MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd
-ts3	General	DEFAULT	0	Any	MYSQL_TMP_DIR/known_dir/ts3.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/Known_Dir/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/KNOWN_DIR/test/t2.ibd
+test/t3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/known_dir/test/t3.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/Known_Dir/ts1.ibd
+ts2	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd
+ts3	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/known_dir/ts3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
