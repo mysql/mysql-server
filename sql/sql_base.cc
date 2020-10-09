@@ -5966,10 +5966,17 @@ restart:
       Access to ACL table in a SELECT ... LOCK IN SHARE MODE are required
       to skip acquiring row locks. So, we use TL_READ_DEFAULT lock on ACL
       tables. This allows concurrent ACL DDL's.
+
+      Do not request SE to skip row lock if 'flags' has
+      MYSQL_OPEN_FORCE_SHARED_MDL, which indicates that this is PREPARE
+      phase. It is OK to do so since during this phase no rows will be read
+      anyway. And by doing this we avoid generation of extra warnings.
+      EXECUTION phase will request SE to skip row locks if necessary.
     */
     bool issue_warning_on_skipping_row_lock = false;
-    if (is_acl_table_in_non_LTM(tables, thd->locked_tables_mode) &&
-        tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS) {
+    if (tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS &&
+        !(flags & MYSQL_OPEN_FORCE_SHARED_MDL) &&
+        is_acl_table_in_non_LTM(tables, thd->locked_tables_mode)) {
       tables->set_lock({TL_READ_DEFAULT, THR_DEFAULT});
       issue_warning_on_skipping_row_lock = true;
     }
@@ -6005,8 +6012,17 @@ restart:
       goto err;
     }
 
-    // Setup lock type for read requests for ACL table in SQL statements.
-    if (set_non_locking_read_for_ACL_table(
+    /**
+      Setup lock type for read requests for ACL table in SQL statements.
+
+      Do not request SE to skip row lock if 'flags' has
+      MYSQL_OPEN_FORCE_SHARED_MDL, which indicates that this is PREPARE
+      phase. It is OK to do so since during this phase no rows will be read
+      anyway. And by doing this we avoid generation of extra warnings.
+      EXECUTION phase will request SE to skip row locks if necessary.
+    */
+    if (!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) &&
+        set_non_locking_read_for_ACL_table(
             thd, tables, issue_warning_on_skipping_row_lock)) {
       error = true;
       goto err;

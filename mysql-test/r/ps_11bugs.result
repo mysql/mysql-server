@@ -234,4 +234,51 @@ execute s using @a;
 a<cast(? as signed)
 0
 drop table t6;
+#
+# Bug#31769242 DUPLICATE WARNING WITH PS-PROTOCOL FOR
+#              CREATE TABLE ... SELECT READING ACL TABLE
+#
+# This test uses ACL table for read purpose in SELECT, DDL and DML's
+# in prepared statement and make sure we do not see warning during
+# PREPARE.
+#
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+PREPARE stmt FROM "SELECT * FROM mysql.user LIMIT 0";
+EXECUTE stmt;
+Host	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired	password_last_changed	password_lifetime	account_locked	Create_role_priv	Drop_role_priv	Password_reuse_history	Password_reuse_time	Password_require_current	User_attributes
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM "CREATE TABLE t1 AS SELECT * FROM mysql.user LIMIT 0";
+EXECUTE stmt;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM "INSERT INTO t1 SELECT * FROM mysql.user LIMIT 1";
+EXECUTE stmt;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM "UPDATE t1 SET user='mno'
+                   WHERE EXISTS (SELECT * FROM mysql.user LIMIT 1)";
+EXECUTE stmt;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM "DELETE FROM t1
+                   WHERE EXISTS (SELECT * FROM mysql.user LIMIT 1)";
+EXECUTE stmt;
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+# Make sure that we do not get warning during PREPARE phase even with
+# SELECT ... LOCK IN SHARE MODE.
+PREPARE stmt FROM "SELECT * FROM mysql.user LIMIT 0 LOCK IN SHARE MODE";
+EXECUTE stmt;
+Host	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired	password_last_changed	password_lifetime	account_locked	Create_role_priv	Drop_role_priv	Password_reuse_history	Password_reuse_time	Password_require_current	User_attributes
+Warnings:
+Warning	4009	Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables.
+DEALLOCATE PREPARE stmt;
 End of 8.0 tests.

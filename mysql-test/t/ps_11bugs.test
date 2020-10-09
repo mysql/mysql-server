@@ -261,4 +261,44 @@ set @a=5;
 execute s using @a;
 drop table t6;
 
+--echo #
+--echo # Bug#31769242 DUPLICATE WARNING WITH PS-PROTOCOL FOR
+--echo #              CREATE TABLE ... SELECT READING ACL TABLE
+--echo #
+--echo # This test uses ACL table for read purpose in SELECT, DDL and DML's
+--echo # in prepared statement and make sure we do not see warning during
+--echo # PREPARE.
+--echo #
+
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+PREPARE stmt FROM "SELECT * FROM mysql.user LIMIT 0";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM "CREATE TABLE t1 AS SELECT * FROM mysql.user LIMIT 0";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM "INSERT INTO t1 SELECT * FROM mysql.user LIMIT 1";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM "UPDATE t1 SET user='mno'
+                   WHERE EXISTS (SELECT * FROM mysql.user LIMIT 1)";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM "DELETE FROM t1
+                   WHERE EXISTS (SELECT * FROM mysql.user LIMIT 1)";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+--echo # Make sure that we do not get warning during PREPARE phase even with
+--echo # SELECT ... LOCK IN SHARE MODE.
+PREPARE stmt FROM "SELECT * FROM mysql.user LIMIT 0 LOCK IN SHARE MODE";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 --echo End of 8.0 tests.
