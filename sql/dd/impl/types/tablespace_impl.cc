@@ -87,7 +87,8 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
-static const std::set<String_type> default_valid_option_keys = {"encryption"};
+static const std::set<String_type> default_valid_option_keys = {
+    "encryption", "autoextend_size", "max_size"};
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_impl implementation.

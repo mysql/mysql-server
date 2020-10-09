@@ -1037,6 +1037,8 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   space->size_in_header = size;
   space->free_len = 0;
   space->free_limit = 0;
+  space->autoextend_size_in_bytes = 0;
+  space->max_size_in_bytes = 0;
 
   /* The prior contents of the file page should be ignored */
 
@@ -1309,18 +1311,46 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
     size_increase = srv_tmp_space.get_increment();
 
   } else {
-    page_no_t extent_pages = fsp_get_extent_size_in_pages(page_size);
-    if (size < extent_pages) {
-      /* Let us first extend the file to extent_size */
-      if (!fsp_try_extend_data_file_with_pages(space, extent_pages - 1, header,
-                                               mtr)) {
-        return false;
+    /* Check if the tablespace supports autoextend_size */
+    page_no_t autoextend_size_pages =
+        space->autoextend_size_in_bytes / page_size.physical();
+    if (autoextend_size_pages > 0) {
+      ut_ad((autoextend_size_pages % fsp_get_extent_size_in_pages(page_size)) ==
+            0);
+
+      /* If the current size is not a multiple of autoextend_size, allocate just
+      enough to make the file size a multiple of autoextend_size. */
+      if ((size % autoextend_size_pages) > 0) {
+        size_increase = autoextend_size_pages - (size % autoextend_size_pages);
+      } else {
+        size_increase = autoextend_size_pages;
+      }
+    } else {
+      page_no_t extent_pages = fsp_get_extent_size_in_pages(page_size);
+      if (size < extent_pages) {
+        /* Let us first extend the file to extent_size */
+        if (!fsp_try_extend_data_file_with_pages(space, extent_pages - 1,
+                                                 header, mtr)) {
+          return false;
+        }
+
+        size = extent_pages;
       }
 
-      size = extent_pages;
+      size_increase = fsp_get_pages_to_extend_ibd(page_size, size);
     }
 
-    size_increase = fsp_get_pages_to_extend_ibd(page_size, size);
+    /* Get the max size of the tablespace */
+    page_no_t max_size_pages = space->max_size_in_bytes / page_size.physical();
+
+    /* Ensure that the size of the tablespace does not cross the max_size */
+    if (max_size_pages > 0) {
+      /* Limit the space extend to max_size */
+      if (size + size_increase > max_size_pages) {
+        ib::error(ER_IB_INNODB_TBSP_OUT_OF_SPACE, space->name);
+        return false;
+      }
+    }
   }
 
   if (size_increase == 0) {
@@ -3039,7 +3069,12 @@ static bool fsp_reserve_free_pages(fil_space_t *space,
 
   ut_a(!fsp_is_system_tablespace(space->id));
   ut_a(!fsp_is_global_temporary(space->id));
-  ut_a(size < FSP_EXTENT_SIZE);
+
+  const page_size_t page_size(space->flags);
+
+  ut_a(size < FSP_EXTENT_SIZE ||
+       (space->autoextend_size_in_bytes > 0 &&
+        (size * page_size.physical()) <= space->autoextend_size_in_bytes));
 
   descr = xdes_get_descriptor_with_space_hdr(space_header, space->id, 0, mtr);
   page_no_t n_used = xdes_get_n_used(descr, mtr);
@@ -3117,7 +3152,28 @@ try_again:
   size = mach_read_from_4(space_header + FSP_SIZE);
   ut_ad(size == space->size_in_header);
 
-  if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
+  if (space->autoextend_size_in_bytes > 0) {
+    page_no_t autoextend_size_pages =
+        space->autoextend_size_in_bytes / page_size.physical();
+
+    /* If the tablespace is smaller than the autoextend_size, extend it first
+    to make the size same as autoextend_size. */
+    if (size < autoextend_size_pages) {
+      goto try_to_extend;
+    }
+
+    if (size == autoextend_size_pages) {
+      /* Get the number of used pages */
+      xdes_t *descr =
+          xdes_get_descriptor_with_space_hdr(space_header, space->id, 0, mtr);
+      page_no_t n_used = xdes_get_n_used(descr, mtr);
+      if (n_used < autoextend_size_pages &&
+          n_pages < (autoextend_size_pages - (FSP_EXTENT_SIZE / 2))) {
+        *n_reserved = 0;
+        return fsp_reserve_free_pages(space, space_header, size, mtr, n_pages);
+      }
+    }
+  } else if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
     /* Use different rules for small single-table tablespaces */
     *n_reserved = 0;
     bool success =

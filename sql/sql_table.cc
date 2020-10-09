@@ -8881,11 +8881,23 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
     return true;
   }
 
-  // Do not accept ENCRYPTION clause for temporary table.
-  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      create_info->encrypt_type.length) {
-    my_error(ER_CANNOT_USE_ENCRYPTION_CLAUSE, MYF(0), "temporary");
-    return true;
+  // Do not accept ENCRYPTION, AUTOEXTEND_SIZE and MAX_SIZE clauses for
+  // temporary table.
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+    if (create_info->encrypt_type.length) {
+      my_error(ER_CANNOT_USE_ENCRYPTION_CLAUSE, MYF(0), "temporary");
+      return true;
+    }
+
+    if (create_info->m_implicit_tablespace_autoextend_size > 0) {
+      my_error(ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE, MYF(0), "temporary");
+      return true;
+    }
+
+    if (create_info->m_implicit_tablespace_max_size > 0) {
+      my_error(ER_CANNOT_USE_MAX_SIZE_CLAUSE, MYF(0), "temporary");
+      return true;
+    }
   }
 
   // Determine table encryption type, and check if user is allowed to create.
@@ -14659,7 +14671,7 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
                                Alter_table_ctx *alter_ctx) {
   uint db_create_options =
       (table->s->db_create_options & ~(HA_OPTION_PACK_RECORD));
-  uint used_fields = create_info->used_fields;
+  uint64_t used_fields = create_info->used_fields;
 
   DBUG_TRACE;
 
@@ -14677,6 +14689,32 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
     return true;
 
   table->file->update_create_info(create_info);
+
+  /* Get the autoextend_size and max_size values for the old table if the user
+    did not specify them on the command line */
+  if (src_table && src_table->engine() == "InnoDB") {
+    ulonglong autoextend_size{};
+    ulonglong max_size{};
+
+    dd::get_implicit_tablespace_options(thd, src_table, &autoextend_size,
+                                        &max_size);
+
+    if (!create_info->m_implicit_tablespace_autoextend_size_change) {
+      create_info->m_implicit_tablespace_autoextend_size = autoextend_size;
+    }
+
+    if (!create_info->m_implicit_tablespace_max_size_change) {
+      create_info->m_implicit_tablespace_max_size = max_size;
+    }
+
+    /* Setting a non-zero MAX_SIZE value for a partitioned table is not allowed
+     */
+    if (src_table->partition_type() != dd::Table::PT_NONE &&
+        create_info->m_implicit_tablespace_max_size > 0) {
+      my_error(ER_INNODB_MAX_SIZE_NOT_ALLOWED, MYF(0));
+      return true;
+    }
+  }
 
   /*
     NDB storage engine misuses handler::update_create_info() to implement
@@ -15716,6 +15754,20 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
   }
 
+  /* Validate that AUTOEXTEND_SIZE and MAX_SIZE options are not specified for
+  temporary tables */
+  if (is_temporary_table(table_list)) {
+    if (create_info->m_implicit_tablespace_autoextend_size > 0) {
+      my_error(ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE, MYF(0), "temporary");
+      return true;
+    }
+
+    if (create_info->m_implicit_tablespace_max_size > 0) {
+      my_error(ER_CANNOT_USE_MAX_SIZE_CLAUSE, MYF(0), "temporary");
+      return true;
+    }
+  }
+
   /*
     Reject invalid tablespace name lengths specified for partitions.
     Names will be validated after the table has been opened.
@@ -16539,9 +16591,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_new_table_cleanup;
 
   // If we are changing the tablespace or the table encryption type.
-  if (old_table_def && (create_info->used_fields & HA_CREATE_USED_TABLESPACE ||
-                        create_info->used_fields & HA_CREATE_USED_ENCRYPT ||
-                        alter_ctx.is_database_changed())) {
+  if (old_table_def &&
+      (create_info->used_fields & HA_CREATE_USED_TABLESPACE ||
+       create_info->used_fields & HA_CREATE_USED_ENCRYPT ||
+       create_info->used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE ||
+       create_info->used_fields & HA_CREATE_USED_MAX_SIZE ||
+       alter_ctx.is_database_changed())) {
     bool source_is_general_tablespace{false};
     bool source_encrytion_type{false};
     bool destination_is_general_tablespace{false};

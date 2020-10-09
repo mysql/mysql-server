@@ -2348,7 +2348,7 @@ inline PT_create_table_option::~PT_create_table_option() {}
   also records if the option was explicitly set.
 */
 template <typename Option_type, Option_type HA_CREATE_INFO::*Property,
-          ulong Property_flag>
+          uint64_t Property_flag>
 class PT_traceable_create_table_option : public PT_create_table_option {
   typedef PT_create_table_option super;
 
@@ -2472,6 +2472,16 @@ typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::m_transactional_ddl),
     HA_CREATE_USED_START_TRANSACTION>
     PT_create_start_transaction_option;
+
+typedef PT_traceable_create_table_option<
+    TYPE_AND_REF(HA_CREATE_INFO::m_implicit_tablespace_autoextend_size),
+    HA_CREATE_USED_AUTOEXTEND_SIZE>
+    PT_create_ts_autoextend_size_option;
+
+typedef PT_traceable_create_table_option<
+    TYPE_AND_REF(HA_CREATE_INFO::m_implicit_tablespace_max_size),
+    HA_CREATE_USED_MAX_SIZE>
+    PT_create_ts_max_size_option;
 
 typedef decltype(HA_CREATE_INFO::table_options) table_options_t;
 

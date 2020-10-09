@@ -1464,6 +1464,8 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
+        option_autoextend_size
+        option_max_size
 
 %type <lock_type>
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
@@ -5702,18 +5704,26 @@ ts_option_initial_size:
         ;
 
 ts_option_autoextend_size:
-          AUTOEXTEND_SIZE_SYM opt_equal size_number
+          option_autoextend_size
           {
-            $$= NEW_PTN PT_alter_tablespace_option_autoextend_size($3);
+            $$ = NEW_PTN PT_alter_tablespace_option_autoextend_size($1);
           }
         ;
 
+option_autoextend_size:
+          AUTOEXTEND_SIZE_SYM opt_equal size_number { $$ = $3; }
+	;
+
 ts_option_max_size:
-          MAX_SIZE_SYM opt_equal size_number
+          option_max_size
           {
-            $$= NEW_PTN PT_alter_tablespace_option_max_size($3);
+            $$ = NEW_PTN PT_alter_tablespace_option_max_size($1);
           }
         ;
+
+option_max_size:
+          MAX_SIZE_SYM opt_equal size_number { $$ = $3; }
+	;
 
 ts_option_extent_size:
           EXTENT_SIZE_SYM opt_equal size_number
@@ -6484,6 +6494,14 @@ create_table_option:
         | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
           {
             $$ = make_table_secondary_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | option_autoextend_size
+          {
+            $$ = NEW_PTN PT_create_ts_autoextend_size_option($1);
+          }
+        | option_max_size
+          {
+            $$ = NEW_PTN PT_create_ts_max_size_option($1);
           }
         ;
 

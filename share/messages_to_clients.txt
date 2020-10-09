@@ -9481,6 +9481,36 @@ ER_CANT_USE_SAME_UUID_AS_GROUP_NAME
 ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING
   eng "The group_replication_recovery channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
 
+ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE
+  eng "AUTOEXTEND_SIZE cannot be greater than the MAX_SIZE"
+
+ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
+  eng "AUTOEXTEND_SIZE should be a multiple of %uM"
+
+ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
+  eng "InnoDB: \"%s\" not allowed with general tablespaces"
+
+ER_INNODB_TBSP_MAX_SIZE_LESS_THAN_FILE_SIZE
+  eng "InnoDB: MAX_SIZE should not be smaller than the tablespace size"
+
+ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+  eng "AUTOEXTEND_SIZE value should be between %uM and %uM"
+
+ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE
+  eng "AUTOEXTEND_SIZE clause is not valid for %s tablespace."
+
+ER_CANNOT_USE_MAX_SIZE_CLAUSE
+  eng "MAX_SIZE clause is not valid for %s tablespace."
+
+ER_INNODB_MAX_SIZE_OUT_OF_RANGE
+  eng "MAX_SIZE value should be greater than %uM"
+
+ER_INNODB_MAX_SIZE_NOT_ALLOWED
+  eng "Non-zero MAX_SIZE value is not allowed with paritioned tables"
+
+ER_IMPORT_TABLESPACE_LARGER_THAN_MAX_SIZE
+  eng "%s"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

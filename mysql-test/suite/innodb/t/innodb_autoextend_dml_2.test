@@ -1,0 +1,352 @@
+# Disable in valgrind because of timeout
+--source include/not_valgrind.inc
+--source include/have_innodb_16k.inc
+
+--echo #
+--echo # This test tests various DML operations and their effect on the tablespaces
+--echo #
+
+# Following messages are expected but need to be suppressed
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* InnoDB: Size of tablespace test/t1 is more than the maximum size allowed.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 't1' is full");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* InnoDB: Size of tablespace myspace is more than the maximum size allowed.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 'tsp' is full");
+--enable_query_log
+
+--echo #
+--echo # Test with tables using general tablespaces
+--echo #
+
+--echo #
+--echo # Scenario-1: Create a general tablespace without autoextend_size attribute and validate that the allocation
+--echo # happens using the old allocation logic
+--echo #
+
+CREATE TABLESPACE myspace;
+
+CREATE TABLE tsp(c1 INT, c2 TEXT) TABLESPACE myspace;
+let $row_count = 1;
+let $table_name = tsp;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+let $row_count = 1;
+let $table_name = tsp;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+
+DROP TABLESPACE myspace;
+
+--echo #
+--echo # Scenario-2: Create a general tablespace without autoextend_size attribute and validate
+--echo # that the allocation happens as per the old logic until autoextend_size attribute is
+--echo # changed for the tablespace
+--echo #
+CREATE TABLESPACE myspace;
+
+--echo # Without the autoextend_size attribute, the tablespace should extend by adding only
+--echo # a few pages
+CREATE TABLE tsp(c1 INT, c2 TEXT) TABLESPACE myspace;
+let $row_count = 1;
+let $table_name = tsp;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--echo # Tablespace should be extended to make it's size same as the autoextend_size
+let $row_count = 1;
+let $table_name = tsp;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--echo # Tablespace should extend by a multiple of autoextend_size
+let $row_count = 10;
+let $table_name = tsp;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+
+DROP TABLESPACE myspace;
+
+--echo #
+--echo # Scenario-3: Test with explicit tablespace as large as an extent
+--echo #
+
+DELIMITER |;
+CREATE PROCEDURE test_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO tsp VALUES(i, 'name');
+    COMMIT;
+    SET i = i + 1;
+  END WHILE;
+END
+|
+
+DELIMITER ;|
+
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' MAX_SIZE 4M;
+CREATE TABLE tsp(c1 INT, c2 VARCHAR(20)) TABLESPACE myspace;
+
+CALL test_insert();
+
+--error ER_RECORD_FILE_FULL
+CALL test_insert();
+
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--echo # Validate that the same error is returned on subsequent attempts and the size of the
+--echo # file does not change
+--error ER_RECORD_FILE_FULL
+CALL test_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--echo # Increase the max_size value and try again
+ALTER TABLESPACE myspace MAX_SIZE 10M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+INSERT INTO tsp VALUES(10000, 'name');
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+
+DROP TABLESPACE myspace;
+
+DROP PROCEDURE test_insert;
+
+--echo #
+--echo # Scenario-4: Test bulk inserts with different settings for max_size value for explicit
+--echo # tablespace
+--echo #
+DELIMITER |;
+CREATE PROCEDURE bulk_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO tsp VALUES(REPEAT('a', 65533));
+    SET i = i + 1;
+  END WHILE;
+END
+|
+DELIMITER ;|
+
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' MAX_SIZE 4M;
+CREATE TABLE tsp(c1 VARCHAR(65533) NOT NULL) ENGINE=InnoDB CHARACTER SET latin1 TABLESPACE myspace;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+# Increase the max_size limit of the tablespace and try again
+ALTER TABLESPACE myspace MAX_SIZE 10M;
+INSERT INTO tsp VALUES(REPEAT('a', 65533));
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+DROP TABLESPACE myspace;
+
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' MAX_SIZE 128M;
+CREATE TABLE tsp(c1 VARCHAR(65533) NOT NULL) ENGINE=InnoDB CHARACTER SET latin1 TABLESPACE myspace;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+DROP TABLESPACE myspace;
+
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 4M MAX_SIZE 8M;
+CREATE TABLE tsp(c1 VARCHAR(65533) NOT NULL) ENGINE=InnoDB CHARACTER SET latin1 TABLESPACE myspace;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+DROP TABLESPACE myspace;
+
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 4M MAX_SIZE 128M;
+CREATE TABLE tsp(c1 VARCHAR(65533) NOT NULL) ENGINE=InnoDB CHARACTER SET latin1 TABLESPACE myspace;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM tsp;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+DROP TABLESPACE myspace;
+
+DROP PROCEDURE bulk_insert;
+
+--echo # Test partitioned tables
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 0 PARTITION BY RANGE (c1) (
+  PARTITION p0 VALUES LESS THAN (20),
+  PARTITION p1 VALUES LESS THAN (50),
+  PARTITION p2 VALUES LESS THAN maxvalue);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+DELIMITER |;
+CREATE PROCEDURE bulk_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO tpart VALUES(i / 100, 'abcdefgh');
+    SET i = i + 1;
+  END WHILE;
+END
+|
+DELIMITER ;|
+
+call bulk_insert();
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+SELECT COUNT(*) FROM tpart;
+
+DROP TABLE tpart;
+
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+  PARTITION BY RANGE (c1)
+  SUBPARTITION BY HASH (c1)
+  SUBPARTITIONS 3 (
+    PARTITION p1 values less than (10),
+    PARTITION p2 values less than (20),
+    PARTITION p3 values less than maxvalue);
+
+call bulk_insert();
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+SELECT COUNT(*) FROM tpart;
+
+DROP TABLE tpart;
+
+DROP PROCEDURE bulk_insert;
+
+--echo # Test truncate table with non-partitioned table
+CREATE TABLE mytable (c1 INT) AUTOEXTEND_SIZE 4M MAX_SIZE 40M;
+INSERT INTO mytable VALUES(1);
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+TRUNCATE TABLE mytable;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+DROP TABLE mytable;
+
+--echo # Test truncate table with partitioned table
+CREATE TABLE tpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M
+  PARTITION BY RANGE (c1) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN maxvalue);
+
+INSERT INTO tpart VALUES (99, repeat('a', 10000)), (199, repeat('b', 10000)), (299, repeat('c', 10000));
+SELECT COUNT(*) FROM tpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+TRUNCATE TABLE tpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+DROP TABLE tpart;
+
+--echo # Test truncate table with sub-partitioned table
+CREATE TABLE tsubpart (c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M MAX_SIZE 0
+  PARTITION BY RANGE (c1)
+  SUBPARTITION BY HASH (c1)
+  SUBPARTITIONS 3 (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN maxvalue);
+
+INSERT INTO tsubpart VALUES (99, repeat('a', 10000)), (199, repeat('b', 10000)), (299, repeat('c', 10000));
+SELECT COUNT(*) FROM tsubpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+TRUNCATE TABLE tsubpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+DROP TABLE tsubpart;
+
+--echo # Test truncate table with explicit tablespace
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 4M MAX_SIZE 20M;
+
+CREATE TABLE mytable (c1 INT) TABLESPACE myspace;
+INSERT INTO mytable VALUES (1);
+SELECT COUNT(*) FROM mytable;
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+TRUNCATE TABLE mytable;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%myspace%';
+
+DROP TABLE mytable;
+DROP TABLESPACE myspace;

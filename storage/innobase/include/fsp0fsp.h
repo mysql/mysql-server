@@ -184,6 +184,9 @@ header slots are reserved */
     FSP_FREE_LIMIT at a time */
 /** @} */
 
+/* Maximum allowed value of AUTOEXTEND_SIZE attribue */
+#define FSP_MAX_AUTOEXTEND_SIZE (64 * 1024 * 1024)
+
 /** @defgroup File Segment Inode Constants (moved from fsp0fsp.c)
 @{ */
 

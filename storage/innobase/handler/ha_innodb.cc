@@ -3178,6 +3178,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     space_id_t space_id;
     uint32_t fsp_flags = 0;
     const auto &p = dd_tablespace->se_private_data();
+    const auto &o = dd_tablespace->options();
     const char *space_name = dd_tablespace->name().c_str();
     const auto se_key_value = dd_space_key_strings;
 
@@ -3404,8 +3405,25 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                      space_name, nullptr, filename, false, false);
 
     switch (err) {
-      case DB_SUCCESS:
+      case DB_SUCCESS: {
+        /* Set the autoextend_size and max_size attributes for the newly opened
+        space. */
+        uint64_t autoextend_size{};
+        uint64_t max_size{};
+
+        if (o.exists(autoextend_size_str) &&
+            !o.get(autoextend_size_str, &autoextend_size)) {
+          ut_d(dberr_t ret =)
+              fil_set_autoextend_size(space_id, autoextend_size);
+          ut_ad(ret == DB_SUCCESS);
+        }
+
+        if (o.exists(max_size_str) && !o.get(max_size_str, &max_size)) {
+          ut_d(dberr_t ret =) fil_set_max_size(space_id, max_size);
+          ut_ad(ret == DB_SUCCESS);
+        }
         break;
+      }
       case DB_CANNOT_OPEN_FILE:
       case DB_WRONG_FILE_NAME:
       default:
@@ -11113,7 +11131,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
       dict_table_assign_new_id(table, m_trx);
 
       /* Create temp tablespace if configured. */
-      err = dict_build_tablespace_for_table(table, m_trx);
+      err = dict_build_tablespace_for_table(table, m_create_info, m_trx);
 
       if (err == DB_SUCCESS) {
         /* Temp-table are maintained in memory and so
@@ -11194,7 +11212,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
     }
 
     if (err == DB_SUCCESS) {
-      err = row_create_table_for_mysql(table, algorithm, m_trx);
+      err = row_create_table_for_mysql(table, algorithm, m_create_info, m_trx);
     }
 
     if (err == DB_IO_NO_PUNCH_HOLE_FS) {
@@ -11739,7 +11757,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                       " with INNODB_STRICT_MODE=ON. This option is"
                       " deprecated and will be removed in a future release",
                       MYF(0), m_create_info->tablespace);
-      return (false);
+      return false;
     }
 
     /* STRICT mode turned off. Proceed with the execution with
@@ -11750,6 +11768,30 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
         " are created in a session temporary tablespace. This option"
         " is deprecated and will be removed in a future release.",
         m_create_info->tablespace);
+  }
+
+  /* Validate max_size attribute value. */
+  if (validate_max_size_value(m_create_info->m_implicit_tablespace_max_size) !=
+      DB_SUCCESS) {
+    return false;
+  }
+
+  /* Validate autoextend_size attribute value. */
+  if (m_create_info->m_implicit_tablespace_autoextend_size > 0) {
+    /* Validate autoextend_size value. */
+    if (validate_autoextend_size_value(
+            m_create_info->m_implicit_tablespace_autoextend_size) !=
+        DB_SUCCESS) {
+      return false;
+    }
+
+    /* Check that the autoextend_size is not greater than max_size attribute. */
+    if (m_create_info->m_implicit_tablespace_max_size > 0 &&
+        m_create_info->m_implicit_tablespace_autoextend_size >
+            m_create_info->m_implicit_tablespace_max_size) {
+      my_error(ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE, MYF(0));
+      return false;
+    }
   }
 
   /* Check the encryption option validity. */
@@ -11771,8 +11813,26 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                         MYF(0));
         return false;
       }
+
+      if (m_create_info->m_implicit_tablespace_autoextend_size > 0) {
+        /* AUTOEXTEND_SIZE is not allowed for system tablespace. */
+        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                        "InnoDB : AUTOEXTEND_SIZE is not accepted"
+                        " for system tablespace.",
+                        MYF(0));
+        return false;
+      }
+
+      if (m_create_info->m_implicit_tablespace_max_size > 0) {
+        /* AUTOEXTEND_SIZE is not allowed for system tablespace. */
+        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                        "InnoDB : MAX_SIZE is not accepted"
+                        " for system tablespace.",
+                        MYF(0));
+        return false;
+      }
     }
-    return (true);
+    return true;
   }
 
   if (m_use_shared_space && !is_general_space) {
@@ -11784,6 +11844,37 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                       "InnoDB : ENCRYPTION=Y is not accepted"
                       " for system tablespace.",
                       MYF(0));
+      return false;
+    }
+
+    if (m_create_info->m_implicit_tablespace_autoextend_size > 0) {
+      /* AUTOEXTEND_SIZE is not allowed for system tablespace. */
+      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                      "InnoDB : AUTOEXTEND_SIZE is not accepted"
+                      " for system tablespace.",
+                      MYF(0));
+      return false;
+    }
+
+    if (m_create_info->m_implicit_tablespace_max_size > 0) {
+      /* AUTOEXTEND_SIZE is not allowed for system tablespace. */
+      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                      "InnoDB : MAX_SIZE is not accepted"
+                      " for system tablespace.",
+                      MYF(0));
+      return false;
+    }
+  }
+
+  if (!is_temp && m_use_shared_space) {
+    if (m_create_info->m_implicit_tablespace_autoextend_size > 0) {
+      my_error(ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE, MYF(0),
+               "AUTOEXTEND_SIZE");
+      return false;
+    }
+
+    if (m_create_info->m_implicit_tablespace_max_size > 0) {
+      my_error(ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE, MYF(0), "MAX_SIZE");
       return false;
     }
   }
@@ -11800,7 +11891,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                     "InnoDB: A general tablespace named"
                     " `%s` cannot be found.",
                     MYF(0), m_create_info->tablespace);
-    return (false);
+    return false;
   }
 
   if (fsp_is_undo_tablespace(space_id)) {
@@ -11808,7 +11899,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                     "InnoDB: An undo tablespace cannot contain tables.",
                     MYF(0));
 
-    return (false);
+    return false;
   }
 
   /* Cannot add a second table to a file-per-table tablespace. */
@@ -11818,7 +11909,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                     "InnoDB: Tablespace `%s` is file-per-table so no"
                     " other table can be added to it.",
                     MYF(0), m_create_info->tablespace);
-    return (false);
+    return false;
   }
 
   bool is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
@@ -11843,7 +11934,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                     "InnoDB: DATA DIRECTORY cannot be used"
                     " with a TABLESPACE assignment.",
                     MYF(0));
-    return (false);
+    return false;
   }
 
   /* Temp tables only belong in temp tablespaces. */
@@ -11853,7 +11944,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                       "InnoDB: Tablespace `%s` cannot contain"
                       " TEMPORARY tables.",
                       MYF(0), m_create_info->tablespace);
-      return (false);
+      return false;
     }
 
     /* Restrict Compressed Temporary General tablespaces. */
@@ -11863,14 +11954,14 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                       "InnoDB: Temporary tablespace `%s` cannot"
                       " contain COMPRESSED tables.",
                       MYF(0), m_create_info->tablespace);
-      return (false);
+      return false;
     }
   } else if (FSP_FLAGS_GET_TEMPORARY(fsp_flags)) {
     my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
                     "InnoDB: Tablespace `%s` can only contain"
                     " TEMPORARY tables.",
                     MYF(0), m_create_info->tablespace);
-    return (false);
+    return false;
   }
 
   /* Make sure the physical page size of the table matches the
@@ -11901,7 +11992,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                     "InnoDB: Tablespace `%s` cannot contain a"
                     " COMPRESSED table",
                     MYF(0), m_create_info->tablespace);
-    return (false);
+    return false;
   }
 
   if (block_size_needed != page_size.physical()) {
@@ -11911,10 +12002,10 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                     " page size " ULINTPF,
                     MYF(0), m_create_info->tablespace, page_size.physical(),
                     block_size_needed);
-    return (false);
+    return false;
   }
 
-  return (true);
+  return true;
 }
 
 /** Validate the COPMRESSION option.
@@ -13817,6 +13908,25 @@ int innobase_truncate<Table>::prepare() {
 
   update_create_info_from_table(&m_create_info, m_form);
 
+  dd::cache::Dictionary_client *client = dd::get_dd_client(m_thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  /* Get the autoextend_size and max_size attribute values for the
+  table being truncated. These values will be used to create the
+  new table as part of truncate. */
+  uint64_t autoextend_size{};
+  uint64_t max_size{};
+
+  dd::Object_id space_id = dd_first_index(m_dd_table)->tablespace_id();
+
+  if (m_file_per_table) {
+    dd_get_tablespace_size_option(client, space_id, &autoextend_size,
+                                  &max_size);
+  }
+
+  m_create_info.m_implicit_tablespace_autoextend_size = autoextend_size;
+  m_create_info.m_implicit_tablespace_max_size = max_size;
+
   m_create_info.tablespace = nullptr;
   if (m_table->is_temporary()) {
     m_create_info.options |= HA_LEX_CREATE_TMP_TABLE;
@@ -14685,6 +14795,29 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
     }
   }
 
+  /* Validate AUTOEXTEND_SIZE and MAX_SIZE clauses. */
+  if (alter_info->max_size.has_value()) {
+    if (validate_max_size_value(alter_info->max_size.value()) != DB_SUCCESS) {
+      error = HA_WRONG_CREATE_OPTION;
+    }
+  }
+
+  if (alter_info->autoextend_size.has_value() &&
+      alter_info->autoextend_size.value() > 0) {
+    /* Check that the autoextend_size is not greater than the max_size,
+    only if max_size is greater than 0. */
+    if (alter_info->max_size.has_value() && alter_info->max_size.value() > 0 &&
+        alter_info->autoextend_size.value() > alter_info->max_size.value()) {
+      my_error(ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE, MYF(0));
+      error = HA_WRONG_CREATE_OPTION;
+    }
+
+    if (validate_autoextend_size_value(alter_info->autoextend_size.value()) !=
+        DB_SUCCESS) {
+      error = HA_WRONG_CREATE_OPTION;
+    }
+  }
+
   /* Validate the ADD DATAFILE name. */
   std::string datafile_name(alter_info->data_file_name);
 
@@ -14867,6 +15000,13 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
     return convert_error_code_to_mysql(err, 0, nullptr);
   }
 
+  tablespace.set_autoextend_size(alter_info->autoextend_size.has_value()
+                                     ? alter_info->autoextend_size.value()
+                                     : 0);
+
+  tablespace.set_max_size(
+      alter_info->max_size.has_value() ? alter_info->max_size.value() : 0);
+
   /* Get the transaction associated with the current thd. */
   trx_t *trx = check_trx_exists(thd);
   TrxInInnoDB trx_in_innodb(trx);
@@ -14928,6 +15068,11 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
   err = dict_build_tablespace(trx, &tablespace);
 
   if (err == DB_SUCCESS) {
+    /* Update the fil_space_t with autoextend_size and max_size values. */
+    fil_set_autoextend_size(tablespace.space_id(),
+                            tablespace.get_autoextend_size());
+    fil_set_max_size(tablespace.space_id(), tablespace.get_max_size());
+
     err = btr_sdi_create_index(tablespace.space_id(), true);
     if (err == DB_SUCCESS) {
       fsp_flags_set_sdi(fsp_flags);
@@ -14947,6 +15092,181 @@ error_exit:
   row_mysql_unlock_data_dictionary(trx);
 
   return error;
+}
+
+/** Alter MAX_SIZE a tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in]	old_dd_space	Tablespace metadata
+@param[in,out]	new_dd_space	Tablespace metadata
+@return MySQL error code */
+static int innobase_alter_max_size_tablespace(
+    handlerton *hton, THD *thd, st_alter_tablespace *alter_info,
+    const dd::Tablespace *old_dd_space, dd::Tablespace *new_dd_space) {
+  space_id_t space_id = SPACE_UNKNOWN;
+
+  DBUG_TRACE;
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  DEBUG_SYNC(current_thd, "innodb_alter_max_size_tablespace");
+
+  ut_ad(alter_info->tablespace_name == old_dd_space->name());
+
+  if (srv_read_only_mode) {
+    return HA_ERR_INNODB_READ_ONLY;
+  }
+
+  /* Validate the name */
+  ut_ad(0 == validate_tablespace_name(alter_info->ts_cmd_type,
+                                      alter_info->tablespace_name));
+
+  /* Be sure that this tablespace is known and valid. */
+  if (old_dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                          &space_id) ||
+      space_id == SPACE_UNKNOWN) {
+    return HA_ERR_TABLESPACE_MISSING;
+  }
+
+  /* Make sure tablespace is loaded. */
+  fil_space_t *space = fil_space_acquire(space_id);
+  if (space == nullptr) {
+    return HA_ERR_TABLESPACE_MISSING;
+  }
+  ut_ad(fsp_flags_is_valid(space->flags));
+
+  /* Validate MAX_SIZE value. */
+  ut_ad(alter_info->max_size.has_value());
+
+  uint64_t max_size = alter_info->max_size.value();
+
+  /* Validate the max_size value is in a valid range */
+  int ret = validate_max_size_value(max_size);
+
+  if (ret != DB_SUCCESS) {
+    fil_space_release(space);
+    return ret;
+  }
+
+  /* Validate that max_size is not less than the autoextend_size. */
+
+  /* Get the current value of autoextend_size. */
+  uint64_t autoextend_size = 0;
+  if (old_dd_space->options().exists(autoextend_size_str)) {
+    old_dd_space->options().get(autoextend_size_str, &autoextend_size);
+  }
+
+  /* Consider the new value of autoextend_size if it is being modified
+  along with the max_size in the same statement. */
+  if (alter_info->autoextend_size.has_value()) {
+    autoextend_size = alter_info->autoextend_size.value();
+  }
+
+  /* No validation needed if either autoextend_size or max_size is zero. */
+  if (max_size > 0 && autoextend_size > 0 && autoextend_size > max_size) {
+    my_error(ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE, MYF(0));
+    fil_space_release(space);
+    return ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE;
+  }
+
+  /* Validate that the max_size is not less than the current tablespace size. */
+  page_size_t page_size(space->flags);
+  if (max_size > 0 && max_size < (space->size * page_size.physical())) {
+    my_error(ER_INNODB_TBSP_MAX_SIZE_LESS_THAN_FILE_SIZE, MYF(0));
+    fil_space_release(space);
+    return ER_INNODB_TBSP_MAX_SIZE_LESS_THAN_FILE_SIZE;
+  }
+
+  space->max_size_in_bytes = alter_info->max_size.value();
+
+  fil_space_release(space);
+
+  return 0;
+}
+
+/** Alter AUTOEXTEND_SIZE a tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in]	old_dd_space	Tablespace metadata
+@param[in,out]	new_dd_space	Tablespace metadata
+@return MySQL error code */
+static int innobase_alter_autoextend_size_tablespace(
+    handlerton *hton, THD *thd, st_alter_tablespace *alter_info,
+    const dd::Tablespace *old_dd_space, dd::Tablespace *new_dd_space) {
+  space_id_t space_id = SPACE_UNKNOWN;
+
+  DBUG_TRACE;
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  DEBUG_SYNC(current_thd, "innodb_alter_autoextend_size_tablespace");
+
+  ut_ad(alter_info->tablespace_name == old_dd_space->name());
+
+  if (srv_read_only_mode) {
+    return HA_ERR_INNODB_READ_ONLY;
+  }
+
+  /* Validate the name */
+  ut_ad(0 == validate_tablespace_name(alter_info->ts_cmd_type,
+                                      alter_info->tablespace_name));
+
+  /* Be sure that this tablespace is known and valid. */
+  if (old_dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                          &space_id) ||
+      space_id == SPACE_UNKNOWN) {
+    return HA_ERR_TABLESPACE_MISSING;
+  }
+
+  /* Make sure tablespace is loaded. */
+  fil_space_t *space = fil_space_acquire(space_id);
+  if (space == nullptr) {
+    return HA_ERR_TABLESPACE_MISSING;
+  }
+  ut_ad(fsp_flags_is_valid(space->flags));
+
+  /* Validate the autoextend_size value. */
+  ut_ad(alter_info->autoextend_size.has_value());
+
+  /* Get the current value of max_size. */
+  uint64_t max_size = 0;
+  if (old_dd_space->options().exists(max_size_str)) {
+    old_dd_space->options().get(max_size_str, &max_size);
+  }
+
+  uint64_t autoextend_size = alter_info->autoextend_size.value();
+
+  if (autoextend_size > 0) {
+    int ret = validate_autoextend_size_value(autoextend_size);
+
+    if (ret != DB_SUCCESS) {
+      fil_space_release(space);
+      return ret;
+    }
+
+    /* New autoextend_size should not be greater than the
+    max_size value. */
+
+    /* Consider the new max_size value if it is being modified
+    along with the autoextend_size in the same statement. */
+    if (alter_info->max_size.has_value()) {
+      max_size = alter_info->max_size.value();
+    }
+
+    /* No validation needed if either autoextend_size or max_size
+    value is 0. */
+    if (max_size > 0 && autoextend_size > max_size) {
+      my_error(ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE, MYF(0));
+      fil_space_release(space);
+      return ER_INNODB_AUTOEXTEND_GREATER_THAN_MAX_SIZE;
+    }
+  }
+
+  space->autoextend_size_in_bytes = alter_info->autoextend_size.value();
+
+  fil_space_release(space);
+
+  return 0;
 }
 
 /**
@@ -15113,13 +15433,33 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
 
   /* ALTER_TABLESPACE_OPTIONS */
   if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_OPTIONS) {
-    if (new_dd_space->options().exists("encryption")) {
-      return innobase_alter_encrypt_tablespace(hton, thd, alter_info,
-                                               old_dd_space, new_dd_space);
-    } else {
-      /* Ignore any other ALTER_TABLESPACE_OPTIONS */
-      return 0;
+    int err = 0;
+    /* Process the encryption option if specified with the
+    ALTER TABLESPACE statement. */
+    if (alter_info->encryption != nullptr &&
+        new_dd_space->options().exists("encryption")) {
+      err = innobase_alter_encrypt_tablespace(hton, thd, alter_info,
+                                              old_dd_space, new_dd_space);
     }
+
+    /* Process the AUTOEXTEND_SIZE clause if mentioned with
+    the ALTER TABLESPACE statement. */
+    if (!err && alter_info->autoextend_size.has_value() &&
+        new_dd_space->options().exists(autoextend_size_str)) {
+      err = innobase_alter_autoextend_size_tablespace(
+          hton, thd, alter_info, old_dd_space, new_dd_space);
+    }
+
+    /* Process the MAX_SIZE clause if mentioned with the
+    ALTER TABLESPACE statement. */
+    if (!err && alter_info->max_size.has_value() &&
+        new_dd_space->options().exists(max_size_str)) {
+      err = innobase_alter_max_size_tablespace(hton, thd, alter_info,
+                                               old_dd_space, new_dd_space);
+    }
+
+    /* Ignore any other ALTER TABLESPACE options. */
+    return err;
   }
 
   /* ALTER_TABLESPACE_RENAME */
@@ -17176,11 +17516,10 @@ static bool innobase_get_tablespace_statistics(
 
   stats->m_initial_size = file->init_size * page_size.physical();
 
-  /** Store maximum size */
-  if (file->max_size >= PAGE_NO_MAX) {
+  if (space->max_size_in_bytes == 0) {
     stats->m_maximum_size = -1;
   } else {
-    stats->m_maximum_size = file->max_size * page_size.physical();
+    stats->m_maximum_size = space->max_size_in_bytes;
   }
 
   /** Store autoextend size */
@@ -17192,6 +17531,8 @@ static bool innobase_get_tablespace_statistics(
   } else if (fsp_is_system_temporary(space->id)) {
     extend_pages = srv_tmp_space.get_increment();
 
+  } else if (space->autoextend_size_in_bytes > 0) {
+    extend_pages = space->autoextend_size_in_bytes / page_size.physical();
   } else {
     extend_pages = fsp_get_pages_to_extend_ibd(page_size, file->size);
   }
