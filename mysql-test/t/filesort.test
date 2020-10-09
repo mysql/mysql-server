@@ -93,6 +93,7 @@ ANALYZE TABLE t1;
 
 let $query = SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
 eval $query;
+--replace_regex /  \(cost=.*//
 eval EXPLAIN FORMAT=tree $query;
 
 DROP TABLE t1;

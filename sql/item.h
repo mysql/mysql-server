@@ -3910,6 +3910,15 @@ class Item_field : public Item_ident {
 
  protected:
   void set_field(Field *field);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select) override {
+    super::fix_after_pullout(parent_select, removed_select);
+
+    // Update nullability information, as the table may have taken over
+    // null_row status from the derived table it was part of.
+    maybe_null = field->is_nullable() || field->is_tmp_nullable() ||
+                 field->table->is_nullable();
+  }
   type_conversion_status save_in_field_inner(Field *field,
                                              bool no_conversions) override;
 

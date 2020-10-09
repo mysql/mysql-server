@@ -1013,13 +1013,16 @@ uint build_bitmap_for_nested_joins(mem_root_deque<TABLE_LIST *> *join_list,
 /**
   Create an order list that consists of all non-const fields and items.
   This is usable for e.g. converting DISTINCT into GROUP or ORDER BY.
+  Is ref_item_array is non-null (is_null() returns false), the items
+  will point into the slice given by it. Otherwise, it points directly
+  into *fields (this is the only reason why fields is not const).
 
   Try to put the items in "order_list" first, to allow one to optimize away
   a later ORDER BY.
  */
 ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
                                   ORDER *order_list,
-                                  const mem_root_deque<Item *> &fields,
+                                  mem_root_deque<Item *> *fields,
                                   bool skip_aggregates,
                                   bool convert_bit_fields_to_long,
                                   bool *all_order_by_fields_used);

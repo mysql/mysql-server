@@ -588,8 +588,9 @@ EXPLAIN
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)
         -> Materialize with deduplication  (cost=0.85..0.85 rows=3)
-            -> Filter: (t1.b > 2)  (cost=0.55 rows=3)
-                -> Table scan on t1  (cost=0.55 rows=3)
+            -> Filter: (t1.b is not null)  (cost=0.55 rows=3)
+                -> Filter: (t1.b > 2)  (cost=0.55 rows=3)
+                    -> Table scan on t1  (cost=0.55 rows=3)
 
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;

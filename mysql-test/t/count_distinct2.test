@@ -19,30 +19,39 @@ insert into t1 values (1,11, 'one','eleven', 'eleven'),
  (2,13, 'two',NULL, 'bar'),
  (2,13, 'two','thirteen', NULL);
 
+--sorted_result
 select distinct n1 from t1;
 select count(distinct n1) from t1;
 
+--sorted_result
 select distinct n2 from t1;
 select count(distinct n2) from t1;
 
+--sorted_result
 select distinct s from t1;
 select count(distinct s) from t1;
 
+--sorted_result
 select distinct vs from t1;
 select count(distinct vs) from t1;
 
+--sorted_result
 select distinct t from t1;
 select count(distinct t) from t1;
 
+--sorted_result
 select distinct n1,n2 from t1;
 select count(distinct n1,n2) from t1;
 
+--sorted_result
 select distinct n1,s from t1;
 select count(distinct n1,s) from t1;
 
+--sorted_result
 select distinct s,n1,vs from t1;
 select count(distinct s,n1,vs) from t1;
 
+--sorted_result
 select distinct s,t from t1;
 select count(distinct s,t) from t1;
 

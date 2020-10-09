@@ -65,7 +65,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # The row count estimate should be available (via the primary table).
 ANALYZE TABLE t1;
---replace_regex /cost=[0-9.]*/cost=X/
+--replace_regex /cost=[0-9.]*(\.\.\d+\.\d+)?/cost=X/
 EXPLAIN FORMAT=TREE SELECT * FROM t1;
 
 # Some queries that should use the secondary engine.
@@ -684,7 +684,7 @@ INSERT INTO t VALUES ();
 ANALYZE TABLE t;
 # Verify that a IS NULL is rewritten to a = last_insert_id().
 # Filter out differences between the old optimizer and the hypergraph optimizer.
---replace_regex /cost=[0-9.]*/cost=X/ /.*last_insert_id.*/Found last_insert_id() in the plan./
+--replace_regex /cost=[0-9.]*(\.\.\d+\.\d+)?/cost=X/ /.*last_insert_id.*/Found last_insert_id() in the plan./
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE a IS NULL;
 DROP TABLE t;
 # Restore regular handling of IS NULL.

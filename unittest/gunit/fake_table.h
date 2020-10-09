@@ -117,7 +117,7 @@ class Fake_TABLE : public TABLE {
   uint32 write_set_buf;
   MY_BITMAP read_set_struct;
   uint32 read_set_buf;
-  Field *m_field_array[MAX_TABLE_COLUMNS];
+  Field *m_field_array[MAX_TABLE_COLUMNS]{};
   Mock_field_long *m_mock_field_array[MAX_TABLE_COLUMNS];
 
   // Counter for creating unique index id's. See create_index().

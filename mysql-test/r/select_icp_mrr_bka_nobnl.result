@@ -268,16 +268,16 @@ fld1	fld3
 select distinct companynr from t2;
 companynr
 00
-37
-36
-50
-58
 29
-40
-53
-65
-41
 34
+36
+37
+40
+41
+50
+53
+58
+65
 68
 select distinct companynr from t2 order by companynr;
 companynr

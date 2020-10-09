@@ -1069,10 +1069,6 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "fulltext search");
     return true;
   }
-  if (join->select_distinct) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "DISTINCT");
-    return true;
-  }
   if (join->select_lex->is_recursive()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "recursive CTEs");
     return true;
@@ -1106,13 +1102,21 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
   return false;
 }
 
-double EstimateSortCost(double num_rows) {
+void EstimateSortCost(AccessPath *path) {
+  AccessPath *child = path->sort().child;
+  const double num_rows = child->num_output_rows;
+  double sort_cost;
   if (num_rows <= 1.0) {
     // Avoid NaNs from log2().
-    return kSortOneRowCost;
+    sort_cost = kSortOneRowCost;
   } else {
-    return kSortOneRowCost * num_rows * std::max(log2(num_rows), 1.0);
+    sort_cost = kSortOneRowCost * num_rows * std::max(log2(num_rows), 1.0);
   }
+
+  path->num_output_rows = num_rows;
+  path->cost = path->init_cost = child->cost + sort_cost;
+  path->num_output_rows_before_filter = path->num_output_rows;
+  path->cost_before_filter = path->cost;
 }
 
 /**
@@ -1219,8 +1223,8 @@ TABLE *CreateTemporaryTableForSortingAggregates(
  */
 AccessPath *CreateMaterializationPathForSortingAggregates(
     THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table,
-    Temp_table_param *temp_table_param, Filesort *filesort) {
-  if (filesort->using_addon_fields()) {
+    Temp_table_param *temp_table_param, bool using_addon_fields) {
+  if (using_addon_fields) {
     // The common case; we can use streaming.
     AccessPath *stream_path =
         NewStreamingAccessPath(thd, path, join, temp_table_param, temp_table,
@@ -1293,6 +1297,174 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
     }
   }
   return nullptr;
+}
+
+Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
+    THD *thd, SELECT_LEX *select_lex,
+    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
+  JOIN *join = select_lex->join;
+  assert(join->select_distinct || select_lex->is_ordered());
+
+  TABLE *temp_table = nullptr;
+  Temp_table_param *temp_table_param = nullptr;
+
+  Mem_root_array<TABLE *> tables = CollectTables(
+      select_lex,
+      GetUsedTables(root_candidates[0]));  // Should be same for all paths.
+
+  // If we have grouping followed by a sort, we need to bounce via
+  // the buffers of a temporary table. See the comments on
+  // CreateTemporaryTableForSortingAggregates().
+  if (select_lex->is_grouped()) {
+    temp_table = CreateTemporaryTableForSortingAggregates(thd, select_lex,
+                                                          &temp_table_param);
+    // Filesort now only needs to worry about one input -- this temporary
+    // table. This holds whether we are actually materializing or just
+    // using streaming.
+    tables.clear();
+    tables.push_back(temp_table);
+  }
+
+  // Set up the filesort objects. They have some interactions
+  // around addon fields vs. sort by row ID, so we need to do this
+  // before we decide on iterators.
+  bool need_rowid = false;
+  Filesort *filesort = nullptr;
+  if (select_lex->is_ordered()) {
+    Mem_root_array<TABLE *> table_copy(thd->mem_root, tables.begin(),
+                                       tables.end());
+    filesort = new (thd->mem_root)
+        Filesort(thd, std::move(table_copy), /*keep_buffers=*/false,
+                 select_lex->order_list.first,
+                 /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
+                 /*remove_duplicates=*/false, /*force_sort_positions=*/false,
+                 /*unwrap_rollup=*/false);
+    join->filesorts_to_cleanup.push_back(filesort);
+    need_rowid = !filesort->using_addon_fields();
+  }
+  Filesort *filesort_for_distinct = nullptr;
+  bool order_by_subsumed_by_distinct = false;
+  if (join->select_distinct) {
+    bool force_sort_positions = false;
+    if (filesort != nullptr && !filesort->using_addon_fields()) {
+      // We have the rather unusual situation here that we have two sorts
+      // directly after each other, with no temporary table in-between,
+      // and filesort expects to be able to refer to rows by their position.
+      // Usually, the sort for DISTINCT would be a superset of the sort for
+      // ORDER BY, but not always (e.g. when sorting by some expression),
+      // so we could end up in a situation where the first sort is by addon
+      // fields and the second one is by positions.
+      //
+      // Thus, in this case, we force the first sort to be by positions,
+      // so that the result comes from SortFileIndirectIterator or
+      // SortBufferIndirectIterator. These will both position the cursor
+      // on the underlying temporary table correctly before returning it,
+      // so that the successive filesort will save the right position
+      // for the row.
+      if (trace != nullptr) {
+        *trace +=
+            "Forcing DISTINCT to sort row IDs, since ORDER BY sort does\n";
+      }
+      force_sort_positions = true;
+    }
+
+    // If there's an ORDER BY on the query, it needs to be heeded in the
+    // re-sort for DISTINCT.
+    ORDER *desired_order =
+        select_lex->is_ordered() ? select_lex->order_list.first : nullptr;
+
+    ORDER *order = create_order_from_distinct(
+        thd, Ref_item_array(), desired_order, join->fields,
+        /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
+        &order_by_subsumed_by_distinct);
+
+    if (order != nullptr) {
+      filesort_for_distinct = new (thd->mem_root)
+          Filesort(thd, std::move(tables),
+                   /*keep_buffers=*/false, order, HA_POS_ERROR,
+                   /*force_stable_sort=*/false,
+                   /*remove_duplicates=*/true, force_sort_positions,
+                   /*unwrap_rollup=*/false);
+      join->filesorts_to_cleanup.push_back(filesort_for_distinct);
+      if (!filesort_for_distinct->using_addon_fields()) {
+        need_rowid = true;
+      }
+    }
+  }
+
+  // Apply streaming between grouping and us, if needed (see above).
+  if (temp_table != nullptr) {
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      root_path = CreateMaterializationPathForSortingAggregates(
+          thd, join, root_path, temp_table, temp_table_param,
+          /*using_addon_fields=*/!need_rowid);
+      ProposeAccessPath(thd, *root_path, &new_root_candidates, "", trace);
+    }
+    root_candidates = std::move(new_root_candidates);
+  }
+
+  // Now create iterators for DISTINCT, if applicable.
+  if (join->select_distinct) {
+    if (trace != nullptr) {
+      *trace += "Applying sort for DISTINCT\n";
+    }
+
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      if (filesort_for_distinct == nullptr) {
+        // Only const fields.
+        AccessPath *limit_path = NewLimitOffsetAccessPath(
+            thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
+            /*reject_multiple_rows=*/false,
+            /*send_records_override=*/nullptr);
+        ProposeAccessPath(thd, *limit_path, &new_root_candidates, "", trace);
+      } else {
+        AccessPath *sort_path =
+            NewSortAccessPath(thd, root_path, filesort_for_distinct,
+                              /*count_examined_rows=*/false);
+        EstimateSortCost(sort_path);
+
+        if (!filesort_for_distinct->using_addon_fields()) {
+          FindTablesToGetRowidFor(sort_path);
+        }
+        ProposeAccessPath(thd, *sort_path, &new_root_candidates, "", trace);
+      }
+    }
+    root_candidates = std::move(new_root_candidates);
+  }
+
+  // Apply ORDER BY, if applicable.
+  if (select_lex->is_ordered() && order_by_subsumed_by_distinct) {
+    // The ordering for DISTINCT already gave us the right sort order,
+    // so no need to sort again.
+    //
+    // TODO(sgunders): If there are elements in desired_order that are not
+    // in fields_list, consider whether it would be cheaper to add them on
+    // the end to avoid the second sort, even though it would make the
+    // first one more expensive. See e.g. main.distinct for a case.
+    if (trace != nullptr) {
+      *trace += "ORDER BY subsumed by sort for DISTINCT, ignoring\n";
+    }
+  } else if (select_lex->is_ordered() && !order_by_subsumed_by_distinct) {
+    if (trace != nullptr) {
+      *trace += "Applying sort for ORDER BY\n";
+    }
+
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      AccessPath *sort_path = NewSortAccessPath(thd, root_path, filesort,
+                                                /*count_examined_rows=*/false);
+      EstimateSortCost(sort_path);
+
+      if (!filesort->using_addon_fields()) {
+        FindTablesToGetRowidFor(sort_path);
+      }
+      ProposeAccessPath(thd, *sort_path, &new_root_candidates, "", trace);
+    }
+    root_candidates = std::move(new_root_candidates);
+  }
+  return root_candidates;
 }
 
 AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
@@ -1444,12 +1616,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
         AccessPath *sort_path =
             NewSortAccessPath(thd, root_path, filesort,
                               /*count_examined_rows=*/false);
-
-        sort_path->num_output_rows = root_path->num_output_rows;
-        sort_path->cost = sort_path->init_cost =
-            root_path->cost + EstimateSortCost(root_path->num_output_rows);
-        sort_path->num_output_rows_before_filter = sort_path->num_output_rows;
-        sort_path->cost_before_filter = sort_path->cost;
+        EstimateSortCost(sort_path);
 
         root_path = sort_path;
 
@@ -1520,58 +1687,9 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
     root_candidates = std::move(new_root_candidates);
   }
 
-  // Apply ORDER BY, if applicable.
-  if (select_lex->is_ordered()) {
-    if (trace != nullptr) {
-      *trace += "Applying sort for ORDER BY\n";
-    }
-
-    Mem_root_array<TABLE *> tables = CollectTables(
-        select_lex,
-        GetUsedTables(root_candidates[0]));  // Should be same for all paths.
-    Temp_table_param *temp_table_param = nullptr;
-    TABLE *temp_table = nullptr;
-
-    if (select_lex->is_grouped()) {
-      temp_table = CreateTemporaryTableForSortingAggregates(thd, select_lex,
-                                                            &temp_table_param);
-      // Filesort now only needs to worry about one input -- this temporary
-      // table. This holds whether we are actually materializing or just
-      // using streaming.
-      tables.clear();
-      tables.push_back(temp_table);
-    }
-
-    Filesort *filesort = new (thd->mem_root)
-        Filesort(thd, std::move(tables), /*keep_buffers=*/false,
-                 select_lex->order_list.first,
-                 /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
-                 /*remove_duplicates=*/false, /*force_sort_positions=*/false,
-                 /*unwrap_rollup=*/false);
-    join->filesorts_to_cleanup.push_back(filesort);
-
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    for (AccessPath *root_path : root_candidates) {
-      if (temp_table != nullptr) {
-        root_path = CreateMaterializationPathForSortingAggregates(
-            thd, join, root_path, temp_table, temp_table_param, filesort);
-      }
-
-      AccessPath *sort_path = NewSortAccessPath(thd, root_path, filesort,
-                                                /*count_examined_rows=*/false);
-      sort_path->num_output_rows = root_path->num_output_rows;
-      sort_path->cost = sort_path->init_cost =
-          root_path->cost +
-          kSortOneRowCost * EstimateSortCost(root_path->num_output_rows);
-      sort_path->num_output_rows_before_filter = sort_path->num_output_rows;
-      sort_path->cost_before_filter = sort_path->cost;
-
-      if (!filesort->using_addon_fields()) {
-        FindTablesToGetRowidFor(sort_path);
-      }
-      ProposeAccessPath(thd, *sort_path, &new_root_candidates, "", trace);
-    }
-    root_candidates = std::move(new_root_candidates);
+  if (join->select_distinct || select_lex->is_ordered()) {
+    root_candidates = ApplyDistinctAndOrder(thd, select_lex,
+                                            std::move(root_candidates), trace);
   }
 
   // Apply LIMIT, if applicable.

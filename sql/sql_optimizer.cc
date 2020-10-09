@@ -1365,7 +1365,7 @@ bool JOIN::optimize_distinct_group_order() {
     ORDER *o;
     bool all_order_fields_used;
     if ((o = create_order_from_distinct(
-             thd, ref_items[REF_SLICE_ACTIVE], order.order, *fields,
+             thd, ref_items[REF_SLICE_ACTIVE], order.order, fields,
              /*skip_aggregates=*/true,
              /*convert_bit_fields_to_long=*/true, &all_order_fields_used))) {
       group_list = ORDER_with_src(o, ESC_DISTINCT);
@@ -10286,7 +10286,7 @@ static bool find_field_in_item_list(Field *field, void *data) {
 
 ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
                                   ORDER *order_list,
-                                  const mem_root_deque<Item *> &fields,
+                                  mem_root_deque<Item *> *fields,
                                   bool skip_aggregates,
                                   bool convert_bit_fields_to_long,
                                   bool *all_order_by_fields_used) {
@@ -10307,7 +10307,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
 
   Mem_root_array<std::pair<Item *, ORDER *>> bit_fields_to_add(thd->mem_root);
 
-  for (Item *const &item : VisibleFields(fields)) {
+  for (Item *&item : VisibleFields(*fields)) {
     if (!item->const_item() && (!skip_aggregates || !item->has_aggregation()) &&
         item->marker != Item::MARKER_DISTINCT_GROUP) {
       /*
@@ -10333,9 +10333,11 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
             or we will invalidate the iterator to “fields”.
         */
         Item_field *new_item = new Item_field(thd, (Item_field *)item);
-        ord->item = const_cast<Item **>(
-            &item);  // Temporary; for the duplicate check above.
+        ord->item = &item;  // Temporary; for the duplicate check above.
         bit_fields_to_add.push_back(std::make_pair(new_item, ord));
+      } else if (ref_item_array.is_null()) {
+        // No slices are in use, so just use the field from the list.
+        ord->item = &item;
       } else {
         /*
           We have here only visible fields, so we can use simple indexing
@@ -10348,7 +10350,9 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
       prev = &ord->next;
     }
   next_item:
-    ref_item_array.pop_front();
+    if (!ref_item_array.is_null()) {
+      ref_item_array.pop_front();
+    }
   }
   for (const auto &item_and_order : bit_fields_to_add) {
     item_and_order.second->item =

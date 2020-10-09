@@ -1347,6 +1347,7 @@ select fld1,fld3 from t2 where fld1 like "25050_";
 # it will be sorted first before the distinct table is created.
 #
 
+--sorted_result
 select distinct companynr from t2;
 select distinct companynr from t2 order by companynr;
 select distinct companynr from t2 order by companynr desc;
@@ -1355,6 +1356,7 @@ select distinct t2.fld3,period from t2,t1  where companynr=37 and fld3 like "O%"
 select distinct fld3 from t2 where companynr = 34 order by fld3;
 select distinct fld3 from t2 limit 10;
 select distinct fld3 from t2 having fld3 like "A%" limit 10;
+--replace_result ann Ann
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%";
 select distinct substring(fld3,1,3) as a from t2 having a like "A%" order by a limit 10;
 select distinct substring(fld3,1,3) from t2 where fld3 like "A%" limit 10;
@@ -1419,6 +1421,7 @@ SET BIG_TABLES=0;
 --source include/turn_off_only_full_group_by.inc
 select distinct concat(fld3," ",fld3) from t2,t3 where t2.fld1=t3.t2nr order by fld3 limit 10;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+--skip_if_hypergraph   # Nondeterministic (depends on which rows DISTINCT outputs first).
 select distinct fld5 from t2 limit 10;
 
 #

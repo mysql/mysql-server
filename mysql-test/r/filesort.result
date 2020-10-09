@@ -103,8 +103,8 @@ EXPLAIN
     -> Sort with duplicate removal: `JSON_ARRAYAGG(char_field)`, `JSON_ARRAYAGG(2)`
         -> Stream results
             -> Group aggregate: json_arrayagg(t1.char_field), json_arrayagg(2)
-                -> Sort: t1.id  (cost=0.65 rows=4)
-                    -> Table scan on t1  (cost=0.65 rows=4)
+                -> Sort: t1.id
+                    -> Table scan on t1
 
 DROP TABLE t1;
 SET sql_mode=DEFAULT;

@@ -1502,8 +1502,8 @@ yyy
 aa
 SELECT DISTINCT id FROM t1;
 id
-xxx
 aa
+xxx
 yyy
 SELECT DISTINCT id FROM t1 ORDER BY id;
 id

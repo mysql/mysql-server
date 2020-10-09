@@ -179,6 +179,7 @@ DROP TABLE t1;
 CREATE TABLE t (x char(3));
 INSERT INTO t VALUES ('foo'), ('bar'); 
 CREATE VIEW v AS SELECT 'x' AS x FROM t;
+--sorted_result
 SELECT DISTINCT x FROM v;
 
 DROP TABLE t;
@@ -203,9 +204,11 @@ VALUES (1,1,1),(1,2,1),(1,3,0),
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 
+--sorted_result
 SELECT DISTINCT a, b
 FROM (SELECT * FROM t1 ORDER BY a, b) AS f
 GROUP BY a,c;
+--sorted_result
 SELECT DISTINCT a, b, 0
 FROM (SELECT * FROM t1 ORDER BY a, b) AS f
 GROUP BY a,c;

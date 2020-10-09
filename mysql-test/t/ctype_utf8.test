@@ -1232,6 +1232,7 @@ CREATE TABLE t1(id varchar(20) NOT NULL) DEFAULT CHARSET=utf8;
 INSERT INTO t1 VALUES ('xxx'), ('aa'), ('yyy'), ('aa');
 
 SELECT id FROM t1;
+--sorted_result
 SELECT DISTINCT id FROM t1;
 SELECT DISTINCT id FROM t1 ORDER BY id;
 

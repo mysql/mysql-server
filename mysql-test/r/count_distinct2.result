@@ -32,28 +32,28 @@ count(distinct n2)
 3
 select distinct s from t1;
 s
+NULL
 one
 two
-NULL
 select count(distinct s) from t1;
 count(distinct s)
 2
 select distinct vs from t1;
 vs
-eleven
-twevle
-thirteen
 NULL
+eleven
+thirteen
+twevle
 select count(distinct vs) from t1;
 count(distinct vs)
 3
 select distinct t from t1;
 t
-eleven
-twelve
-foo
-bar
 NULL
+bar
+eleven
+foo
+twelve
 select count(distinct t) from t1;
 count(distinct t)
 4
@@ -63,41 +63,41 @@ n1	n2
 2	11
 2	12
 2	13
-NULL	13
 2	NULL
+NULL	13
 select count(distinct n1,n2) from t1;
 count(distinct n1,n2)
 4
 select distinct n1,s from t1;
 n1	s
 1	one
+2	NULL
 2	two
 NULL	two
-2	NULL
 select count(distinct n1,s) from t1;
 count(distinct n1,s)
 2
 select distinct s,n1,vs from t1;
 s	n1	vs
-one	1	eleven
-two	2	eleven
-two	2	twevle
-two	2	thirteen
-two	NULL	thirteen
 NULL	2	thirteen
+one	1	eleven
 two	2	NULL
+two	2	eleven
+two	2	thirteen
+two	2	twevle
+two	NULL	thirteen
 select count(distinct s,n1,vs) from t1;
 count(distinct s,n1,vs)
 4
 select distinct s,t from t1;
 s	t
-one	eleven
-two	eleven
-two	twelve
-two	foo
-two	bar
 NULL	bar
+one	eleven
 two	NULL
+two	bar
+two	eleven
+two	foo
+two	twelve
 select count(distinct s,t) from t1;
 count(distinct s,t)
 5

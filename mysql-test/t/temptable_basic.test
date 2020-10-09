@@ -120,6 +120,7 @@ SELECT DISTINCT * FROM
     t_blob AS t1,
     t_blob AS t2;
 
+--skip_if_hypergraph  # Different warnings.
 --sorted_result
 SELECT DISTINCT * FROM
     t_json AS t1,

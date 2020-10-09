@@ -1908,12 +1908,12 @@ d	d
 select distinct a2,a1,a2,a1 from t1;
 a2	a1	a2	a1
 a	a	a	a
-b	a	b	a
 a	b	a	b
-b	b	b	b
 a	c	a	c
-b	c	b	c
 a	d	a	d
+b	a	b	a
+b	b	b	b
+b	c	b	c
 b	d	b	d
 select distinct t1.a1,t2.a1 from t1,t2;
 a1	a1

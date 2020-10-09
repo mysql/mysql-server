@@ -31,6 +31,7 @@
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "sql/field.h"
+#include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
@@ -111,12 +112,27 @@ SELECT_LEX *MakeHypergraphTest::ParseAndResolve(const char *query,
     });
   }
 
+  // And in the SELECT, GROUP BY and ORDER BY lists.
+  for (Item *item : select_lex->fields) {
+    ResolveFieldToFakeTable(item);
+  }
+  for (ORDER *cur_group = select_lex->group_list.first; cur_group != nullptr;
+       cur_group = cur_group->next) {
+    ResolveFieldToFakeTable(*cur_group->item);
+  }
+  for (ORDER *cur_group = select_lex->order_list.first; cur_group != nullptr;
+       cur_group = cur_group->next) {
+    ResolveFieldToFakeTable(*cur_group->item);
+  }
+
   select_lex->prepare(m_thd, nullptr);
 
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
   select_lex->join = new JOIN(m_thd, select_lex);
   select_lex->join->where_cond = select_lex->where_cond();
   select_lex->join->having_cond = nullptr;
+  select_lex->join->fields = &select_lex->fields;
+  select_lex->join->alloc_func_list();
 
   return select_lex;
 }
@@ -665,4 +681,99 @@ TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   //
   // t1, t2, t3, t1-t2, t2-t3, t1-{t2,t3}, {t1,t2}-t3
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 6);
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {
+  SELECT_LEX *select_lex =
+      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1", /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[1].item));
+  EXPECT_TRUE(sort->m_remove_duplicates);
+
+  EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctIsSubsumedByGroup) {
+  SELECT_LEX *select_lex = ParseAndResolve(
+      "SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
+      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
+  AccessPath *child = root->aggregate().child;
+
+  EXPECT_EQ(AccessPath::SORT, child->type);
+  EXPECT_FALSE(child->sort().filesort->m_remove_duplicates);
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
+  m_initializer.thd()->variables.sql_mode &= ~MODE_ONLY_FULL_GROUP_BY;
+  SELECT_LEX *select_lex =
+      ParseAndResolve("SELECT DISTINCT t1.y FROM t1 ORDER BY t1.x, t1.y",
+                      /*nullable=*/true);
+  m_initializer.thd()->variables.sql_mode |= MODE_ONLY_FULL_GROUP_BY;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[1].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  // We can't coalesce the two sorts, due to the deduplication in this step.
+  AccessPath *child = root->sort().child;
+  ASSERT_EQ(AccessPath::SORT, child->type);
+  Filesort *sort2 = child->sort().filesort;
+  ASSERT_EQ(1, sort2->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(sort2->sortorder[0].item));
+  EXPECT_TRUE(sort2->m_remove_duplicates);
+
+  EXPECT_EQ(AccessPath::TABLE_SCAN, child->sort().child->type);
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
+  SELECT_LEX *select_lex =
+      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1 ORDER BY t1.x",
+                      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[1].item));
+  EXPECT_TRUE(sort->m_remove_duplicates);
+
+  // No separate sort for ORDER BY.
+  EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
 }
