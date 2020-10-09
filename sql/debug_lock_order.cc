@@ -1598,6 +1598,8 @@ stack when the second lock was acquired:
       p_x -> m_x [style=dashed];
       p_sx -> m_sx [style=dashed];
       p_x -> m_sx [style=dashed];
+      p_s -> m_s [style=dashed];
+      p_sx -> m_s [style=dashed];
       p_x -> m_s [style=dashed];
     }
   }
@@ -1625,6 +1627,8 @@ stack when the second lock was acquired:
       B_p_x -> B_m_x [style=dashed];
       B_p_sx -> B_m_sx [style=dashed];
       B_p_x -> B_m_sx [style=dashed];
+      B_p_s -> B_m_s [style=dashed];
+      B_p_sx -> B_m_s [style=dashed];
       B_p_x -> B_m_s [style=dashed];
     }
 
@@ -1642,6 +1646,8 @@ stack when the second lock was acquired:
       C_p_x -> C_m_x [style=dashed];
       C_p_sx -> C_m_sx [style=dashed];
       C_p_x -> C_m_sx [style=dashed, penwidth=3];
+      C_p_s -> C_m_s [style=dashed];
+      C_p_sx -> C_m_s [style=dashed];
       C_p_x -> C_m_s [style=dashed];
     }
 
@@ -5225,11 +5231,42 @@ void LO_rwlock_class_sx::add_to_graph(LO_graph *g) const {
   g->add_node(m_node_m_sx);
   g->add_node(m_node_p_x);
   g->add_node(m_node_m_x);
+
   g->add_arc(m_node_p_s, m_node_m_x, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_arc(m_node_p_sx, m_node_m_x, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_arc(m_node_p_x, m_node_m_x, false, LO_FLAG_MICRO, nullptr, nullptr);
+
   g->add_arc(m_node_p_sx, m_node_m_sx, false, LO_FLAG_MICRO, nullptr, nullptr);
+
+  /*
+    Note that the is no arc defined for +S -> -SX.
+    SX is INTENTION exclusive,
+    so a SX lock can be obtained even on a latch already locked
+    in shared mode.
+  */
+
   g->add_arc(m_node_p_x, m_node_m_sx, false, LO_FLAG_MICRO, nullptr, nullptr);
+
+  /*
+    +S -> -S arc.
+    A granted shared lock can block (indirectly) another shared lock request.
+
+    This is due to the innodb implementation of rw_lock_x_lock_low().
+    When an exclusive (X) lock request starts,
+    the latch is marked with X_LOCK_HALF_DECR,
+    to block any new shared (S) lock request.
+
+    As a result, if an X lock request is present (but not yet granted),
+    a granted S lock can block another S lock request.
+  */
+  g->add_arc(m_node_p_s, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
+
+  /*
+    +SX -> -S arc.
+    Once an intention exclusive lock is granted,
+    new lock request in shared mode are blocked.
+  */
+  g->add_arc(m_node_p_sx, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_arc(m_node_p_x, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_class(get_qname());
 }
