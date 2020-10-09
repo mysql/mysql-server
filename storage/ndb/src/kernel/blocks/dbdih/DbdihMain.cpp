@@ -1644,7 +1644,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   if (!m_use_classic_fragmentation)
   {
     jam();
-    c_fragments_per_node_ = 4;
+    c_fragments_per_node_ = 2;
     ndb_mgm_get_int_parameter(p, CFG_DB_PARTITIONS_PER_NODE,
                               &c_fragments_per_node_);
     // try to get some LQH workers which initially handle no fragments
