@@ -5694,6 +5694,17 @@ sub check_warnings ($) {
     if (defined $mysqld->{'proc'}) {
       my $proc = start_check_warnings($tinfo, $mysqld);
       $started{ $proc->pid() } = $proc;
+      if ($opt_valgrind_mysqld and clusters()) {
+        # In an ndbcluster enabled mysqld, calling mtr.check_warnings()
+        # involves acquiring the global schema lock(GSL) during execution.
+        # And when running with valgrind, if multiple check warnings are run
+        # in parallel, there is a chance that few of them might timeout
+        # without acquiring the GSL and thus failing the test. To avoid that,
+        # run them one by one if the mysqld is running with valgrind and
+        # ndbcluster.
+        my $res = wait_for_check_warnings(\%started, $tinfo);
+        return $res if $res;
+      }
     }
   }
 

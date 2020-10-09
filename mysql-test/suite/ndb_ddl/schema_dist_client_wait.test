@@ -1,0 +1,25 @@
+--source include/have_ndb.inc
+--source include/have_debug.inc
+
+set @save_debug= @@global.debug;
+
+--echo # Test that the schema dist client waits properly
+--echo # for the coordinator to complete the distribution
+--echo # and release all references to the schema object
+
+# Note : Previously a variant of this testcase was used to test
+# how the mysqld handled a particular race condition between the
+# coordinator and the client(Bug#25557263). There is no such race
+# in the new schema distribution protocol and now this test is
+# used to confirm that fact.
+
+--echo # Delay release of ndb_schema_object after coordinator has completed
+set global debug='+d,ndb_delay_schema_obj_release_after_coord_complete';
+
+--echo # Run DDLs on the same schema objects and verify that they succeed.
+CREATE DATABASE IF NOT EXISTS tmp_db;
+CREATE DATABASE IF NOT EXISTS tmp_db;
+
+--echo # Cleanup
+set global debug= @save_debug;
+DROP DATABASE IF EXISTS tmp_db;

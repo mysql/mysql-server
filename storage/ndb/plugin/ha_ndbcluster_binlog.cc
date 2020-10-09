@@ -1110,18 +1110,6 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
                                                ndb_table_version, true),
                         NDB_SCHEMA_OBJECT::release);
 
-  if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false)) {
-    /**
-     * Try to trigger a race between late incomming slock ack for
-     * schema operations having its coordinator on another node,
-     * which we would otherwise have discarded as no matching
-     * ndb_schema_object existed, and another schema op with same 'key',
-     * coordinated by this node. Thus causing a mixup betweeen these,
-     * and the schema distribution getting totally out of synch.
-     */
-    ndb_milli_sleep(50);
-  }
-
   // Format string to use in log printouts
   const std::string op_name = db + std::string(".") + table_name + "(" +
                               std::to_string(ndb_table_id) + "/" +
@@ -2448,21 +2436,6 @@ class Ndb_schema_event_handler {
 
     assert(is_post_epoch());
 
-    if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false)) {
-      // Try to create a race between SLOCK acks handled after another
-      // schema operation on same object could have been started.
-
-      // Get temporary NDB_SCHEMA_OBJECT, sleep if one does not exist
-      std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
-          tmp_ndb_schema_obj(
-              NDB_SCHEMA_OBJECT::get(schema->db, schema->name, schema->id,
-                                     schema->version),
-              NDB_SCHEMA_OBJECT::release);
-      if (tmp_ndb_schema_obj == nullptr) {
-        ndb_milli_sleep(10);
-      }
-    }
-
     // Get NDB_SCHEMA_OBJECT
     std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
         ndb_schema_object(NDB_SCHEMA_OBJECT::get(schema->db, schema->name,
@@ -2514,20 +2487,14 @@ class Ndb_schema_event_handler {
       m_schema_dist_data.remove_active_schema_op(ndb_schema_object.get());
     }
 
-    /**
-     * There is a possible race condition between this binlog-thread,
-     * which has not yet released its schema_object, and the
-     * coordinator which possibly release its reference
-     * to the same schema_object when signaled above.
-     *
-     * If the coordinator then starts yet another schema operation
-     * on the same schema / table, it will need a schema_object with
-     * the same key as the one already completed, and which this
-     * thread still referrs. Thus, it will get this schema_object,
-     * instead of creating a new one as normally expected.
-     */
-    if (DBUG_EVALUATE_IF("ndb_binlog_schema_object_race", true, false)) {
-      ndb_milli_sleep(10);
+    if (DBUG_EVALUATE_IF("ndb_delay_schema_obj_release_after_coord_complete",
+                         true, false)) {
+      /**
+       * Simulate a delay in release of the ndb_schema_object by delaying the
+       * return from this method and test that the client waits for it, despite
+       * finding out that the coordinator has completed.
+       */
+      ndb_milli_sleep(1000);
     }
   }
 
