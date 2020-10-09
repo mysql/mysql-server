@@ -98,13 +98,16 @@ include/assert.inc ['There is one row in performance_schema.replication_asynchro
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, 100);
 ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_source'; Wrong arguments: You need to specify correct value for network_namespace.
 include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+#
+# 13. Add existing credentials. Delete non existing credentials.
+#
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', 3100, '');
+ERROR HY000: asynchronous_connection_failover_add_source UDF failed; Error inserting row to the table.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, '');
 asynchronous_connection_failover_delete_source('', '127.0.0.1', 3100, '')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
-#
-# 13. Delete non existing credentials.
-#
 SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 77100);
 ERROR HY000: asynchronous_connection_failover_delete_source UDF failed; Error no matching row was found to be deleted.
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table is empty']
