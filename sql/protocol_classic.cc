@@ -341,7 +341,7 @@
       <td>One of ::enum_mysql_set_option</td></tr>
   </table>
 
-  @sa ::mysql_set_server_option, ::mysql_parse
+  @sa ::mysql_set_server_option, ::dispatch_sql_command
 */
 
 /**
@@ -1525,7 +1525,7 @@ int Protocol_classic::read_packet() {
   @ref sect_protocol_binary_resultset_row just that it has a bit_offset of 0.
 
   @sa @ref Protocol_classic::parse_packet, @ref dispatch_command,
-    @ref mysql_parse, @ref alloc_query, @ref THD::set_query
+    @ref dispatch_sql_command, @ref alloc_query, @ref THD::set_query
 */
 
 

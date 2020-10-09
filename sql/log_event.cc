@@ -4833,7 +4833,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
         */
         thd->reset_rewritten_query();
-        mysql_parse(thd, &parser_state);
+        dispatch_sql_command(thd, &parser_state);
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -4891,7 +4891,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         We need to reset it back to the opt_log_slow_slave_statements
         value after the statement execution (and slow logging
         is done). It might have changed if the statement was an
-        admin statement (in which case, down in mysql_parse execution
+        admin statement (in which case, down in dispatch_sql_command execution
         thd->enable_slow_log is set to the value of
         opt_log_slow_admin_statements).
       */
@@ -5065,7 +5065,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       to ignore it you would use --slave-skip-errors...
 
       To do the comparison we need to know the value of "affected" which the
-      above mysql_parse() computed. And we need to know the value of
+      above dispatch_sql_command() computed. And we need to know the value of
       "affected" in the master's binlog. Both will be implemented later. The
       important thing is that we now have the format ready to log the values
       of "affected" in the binlog. So we can release 5.0.0 before effectively
@@ -7053,8 +7053,8 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli) {
   slave_load_file_stem(fname, file_id, server_id, ".data");
   if (get_create_or_append()) {
     /*
-      Usually lex_start() is called by mysql_parse(), but we need it here
-      as the present method does not call mysql_parse().
+      Usually lex_start() is called by dispatch_sql_command(), but we need it
+      here as the present method does not call mysql_parse().
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);

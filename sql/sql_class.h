@@ -857,7 +857,7 @@ class THD : public MDL_context_owner,
     The lex to hold the parsed tree of conventional (non-prepared) queries.
     Whereas for prepared and stored procedure statements we use an own lex
     instance for each new query, for conventional statements we reuse
-    the same lex. (@see mysql_parse for details).
+    the same lex. (@see dispatch_sql_command for details).
   */
   std::unique_ptr<LEX> main_lex;
 
@@ -3255,7 +3255,7 @@ class THD : public MDL_context_owner,
           In this case, the slave sets GTID_NEXT=ANONYMOUS and
           acquires anonymous ownership when executing a
           Query_log_event (Query_log_event::do_apply_event calls
-          mysql_parse which calls gtid_pre_statement_checks which
+          dispatch_sql_command which calls gtid_pre_statement_checks which
           calls gtid_reacquire_ownership_if_anonymous).
 
     Ownership is released in the following ways:

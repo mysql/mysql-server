@@ -1108,7 +1108,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   mysql_audit_release(&thd);
 
   /*
-    The server does it for COM_QUERY in mysql_parse() but not for
+    The server does it for COM_QUERY in dispatch_sql_command() but not for
     COM_INIT_DB, for example
   */
   if (command != COM_QUERY) thd.reset_for_next_command();
