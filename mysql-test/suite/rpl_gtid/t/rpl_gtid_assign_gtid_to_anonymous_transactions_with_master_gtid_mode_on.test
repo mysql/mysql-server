@@ -29,6 +29,10 @@
 --let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
+
+# sql_slave_skip_counter is not supported with compression
+--source include/not_binlog_transaction_compression_on.inc
+
 CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology");
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
