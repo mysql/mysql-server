@@ -13,7 +13,6 @@
 # 4. Verify the UUID being used for converting Gtid event from
 #    anonymous_gtid event.
 #
---source include/not_windows.inc
 --source include/big_test.inc
 --let $rpl_gtid_utils= 1
 --source include/have_mysqld_monitoring_process.inc
