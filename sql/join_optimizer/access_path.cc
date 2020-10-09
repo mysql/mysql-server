@@ -493,6 +493,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           join_type = JoinType::SEMI;
           break;
         case RelationalExpression::TABLE:
+        default:
           assert(false);
       }
       iterator = NewIterator<HashJoinIterator>(
