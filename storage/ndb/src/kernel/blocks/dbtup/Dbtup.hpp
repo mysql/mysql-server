@@ -45,6 +45,7 @@
 #include "Undo_buffer.hpp"
 #include "tuppage.hpp"
 #include <DynArr256.hpp>
+#include "../dbacc/Dbacc.hpp"
 #include "../pgman.hpp"
 #include "../tsman.hpp"
 #include <EventLogger.hpp>
@@ -260,6 +261,8 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 
 #endif
 
+class Dbtux;
+
 class Dbtup: public SimulatedBlock {
 friend class DbtupProxy;
 friend class Suma;
@@ -299,6 +302,8 @@ public:
   Tsman* c_tsman;
   Lgman* c_lgman;
   Pgman* c_pgman;
+  Dbacc* c_acc;
+  Dbtux* c_tux;
 
   enum CallbackIndex {
     // lgman

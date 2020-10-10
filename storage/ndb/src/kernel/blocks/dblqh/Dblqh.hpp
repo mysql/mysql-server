@@ -2995,6 +2995,9 @@ private:
 public:
   void execLQH_WRITELOG_REQ(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
+  void execREAD_PSEUDO_REQ(Signal* signal);
+  void execCHECK_LCP_STOP(Signal* signal);
+  void execTUP_DEALLOCREQ(Signal* signal);
 private:
   void execPACKED_SIGNAL(Signal* signal);
   void execDEBUG_SIG(Signal* signal);
@@ -3014,14 +3017,12 @@ private:
   void execSTART_EXEC_SR(Signal* signal);
   void execEXEC_SRREQ(Signal* signal);
   void execEXEC_SRCONF(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
   void execSIGNAL_DROPPED_REP(Signal* signal);
 
   void execDBINFO_SCANREQ(Signal* signal); 
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
-  void execCHECK_LCP_STOP(Signal* signal);
   void execSEND_PACKED(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
 
@@ -3112,8 +3113,6 @@ private:
   void execDROP_TAB_REF(Signal*);
   void execDROP_TAB_CONF(Signal*);
   void dropTable_nextStep(Signal*, AddFragRecordPtr);
-
-  void execTUP_DEALLOCREQ(Signal* signal);
 
   void execTUXFRAGCONF(Signal* signal);
   void execTUXFRAGREF(Signal* signal);

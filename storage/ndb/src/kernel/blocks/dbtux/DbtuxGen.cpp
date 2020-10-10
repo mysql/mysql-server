@@ -39,6 +39,7 @@ Dbtux::Dbtux(Block_context& ctx,
   SimulatedBlock(blockNo, ctx, instanceNumber),
   c_tup(0),
   c_lqh(0),
+  c_acc(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
@@ -280,6 +281,8 @@ Dbtux::execSTTOR(Signal* signal)
       ndbrequire(c_tup != 0);
       c_lqh = (Dblqh*)globalData.getBlock(DBQLQH, instance());
       ndbrequire(c_lqh != 0);
+      c_acc = (Dbacc*)globalData.getBlock(DBQACC, instance());
+      ndbrequire(c_acc != 0);
     }
     else
     {
@@ -287,6 +290,8 @@ Dbtux::execSTTOR(Signal* signal)
       ndbrequire(c_tup != 0);
       c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
       ndbrequire(c_lqh != 0);
+      c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
+      ndbrequire(c_acc != 0);
     }
     c_signal_bug32040 = signal;
     break;

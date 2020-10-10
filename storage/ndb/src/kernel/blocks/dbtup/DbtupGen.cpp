@@ -86,6 +86,7 @@ Dbtup::Dbtup(Block_context& ctx,
     c_tsman(0),
     c_lgman(0),
     c_pgman(0),
+    c_acc(0),
     c_extent_hash(c_extent_pool),
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),
@@ -523,6 +524,8 @@ void Dbtup::execSTTOR(Signal* signal)
     c_started = false;
     if (m_is_query_block)
     {
+      ndbrequire((c_acc = (Dbacc*)globalData.getBlock(DBQACC,
+                                                      instance())) != 0);
       ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBQLQH,
                                                       instance())) != 0);
       ndbrequire((c_backup =
@@ -530,6 +533,8 @@ void Dbtup::execSTTOR(Signal* signal)
     }
     else
     {
+      ndbrequire((c_acc = (Dbacc*)globalData.getBlock(DBACC,
+                                                      instance())) != 0);
       ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH,
                                                       instance())) != 0);
       ndbrequire((c_backup =

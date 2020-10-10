@@ -306,20 +306,21 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     // Fall through
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
-    if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0) {
+    if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0)
+    {
       jam();
       ndbassert(!m_is_query_block);
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Unlock;
       lockReq->accOpPtr = req->accOperationPtr;
-      EXECUTE_DIRECT(getDBACC(), GSN_ACC_LOCKREQ,
-                     signal, AccLockReq::UndoSignalLength);
-      jamEntry();
+      c_acc->execACC_LOCKREQ(signal);
+      jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       removeAccLockOp(scan, req->accOperationPtr);
     }
-    if (req->scanFlag == NextScanReq::ZSCAN_COMMIT) {
+    if (req->scanFlag == NextScanReq::ZSCAN_COMMIT)
+    {
       signal->theData[0] = 0; /* Success */
       /**
        * signal->theData[0] = 0 means return signal
@@ -339,9 +340,8 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::AbortWithConf;
       lockReq->accOpPtr = scan.m_accLockOp;
-      EXECUTE_DIRECT(getDBACC(), GSN_ACC_LOCKREQ,
-		     signal, AccLockReq::UndoSignalLength);
-      jamEntry();
+      c_acc->execACC_LOCKREQ(signal);
+      jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_last_seen = __LINE__;
       scan.m_state = ScanOp::Aborting;
@@ -355,9 +355,8 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Abort;
       lockReq->accOpPtr = scan.m_accLockOp;
-      EXECUTE_DIRECT(getDBACC(), GSN_ACC_LOCKREQ,
-		     signal, AccLockReq::UndoSignalLength);
-      jamEntry();
+      c_acc->execACC_LOCKREQ(signal);
+      jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_accLockOp = RNIL;
     }
@@ -374,10 +373,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
   AccCheckScan* checkReq = (AccCheckScan*)signal->getDataPtrSend();
   checkReq->accPtr = scanPtr.i;
   checkReq->checkLcpStop = AccCheckScan::ZNOT_CHECK_LCP_STOP;
-  EXECUTE_DIRECT(getDBTUP(),
-                 GSN_ACC_CHECK_SCAN,
-                 signal,
-                 AccCheckScan::SignalLength);
+  execACC_CHECK_SCAN(signal);
   jamEntryDebug();
 }
 
@@ -448,16 +444,16 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
       jam();
       cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
     }
-    EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+    c_lqh->execCHECK_LCP_STOP(signal);
     if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
     {
-      jamEntry();
+      jamEntryDebug();
       ndbassert(!m_is_query_block);
       release_c_free_scan_lock();
       /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
       return;
     }
-    jamEntry();
+    jamEntryDebug();
     ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
     /* Fall through, we will send NEXT_SCANCONF, this will detect close */
   }
@@ -580,13 +576,12 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
       lockReq->isCopyFragScan = ((scan.m_bits & ScanOp::SCAN_COPY_FRAG) != 0);
-      EXECUTE_DIRECT(getDBACC(), GSN_ACC_LOCKREQ,
-                     signal, AccLockReq::LockSignalLength);
+      c_acc->execACC_LOCKREQ(signal);
       jamEntryDebug();
       switch (lockReq->returnCode) {
       case AccLockReq::Success:
       {
-        jam();
+        jamDebug();
         scan.m_state = ScanOp::Locked;
         scan.m_accLockOp = lockReq->accOpPtr;
         break;
@@ -602,16 +597,16 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
-        EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+        c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
-          jamEntry();
+          jamEntryDebug();
           /* Normal path */
           release_c_free_scan_lock();
           /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
           return;
         }
-        jamEntry();
+        jamEntryDebug();
         /* DBTC has most likely aborted due to timeout */
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
@@ -628,15 +623,15 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
-        EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+        c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
-          jamEntry();
+          jamEntryDebug();
           release_c_free_scan_lock();
           /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
           return;
         }
-        jamEntry();
+        jamEntryDebug();
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
         scan.m_state = ScanOp::Last;
@@ -651,15 +646,15 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
-        EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+        c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
-          jamEntry();
+          jamEntryDebug();
           release_c_free_scan_lock();
           /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
           return;
         }
-        jamEntry();
+        jamEntryDebug();
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
         scan.m_state = ScanOp::Last;
@@ -810,11 +805,8 @@ Dbtup::execACCKEYCONF(Signal* signal)
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
-    EXECUTE_DIRECT(getDBACC(),
-                   GSN_ACC_LOCKREQ,
-                   signal,
-                   AccLockReq::UndoSignalLength);
-    jamEntry();
+    c_acc->execACC_LOCKREQ(signal);
+    jamEntryDebug();
     ndbrequire(lockReq->returnCode == AccLockReq::Success);
     scan.m_accLockOp = RNIL;
     // LQH has the ball
@@ -846,15 +838,13 @@ Dbtup::execACCKEYREF(Signal* signal)
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
-    EXECUTE_DIRECT(getDBACC(),
-                   GSN_ACC_LOCKREQ,
-                   signal,
-                   AccLockReq::UndoSignalLength);
-    jamEntry();
+    c_acc->execACC_LOCKREQ(signal);
+    jamEntryDebug();
     ndbrequire(lockReq->returnCode == AccLockReq::Success);
     scan.m_accLockOp = RNIL;
     // scan position should already have been moved (assert only)
-    if (scan.m_state == ScanOp::Blocked) {
+    if (scan.m_state == ScanOp::Blocked)
+    {
       jam();
       //ndbassert(false);
       if (scan.m_bits & ScanOp::SCAN_NR)
@@ -3452,11 +3442,8 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Abort;
       lockReq->accOpPtr = lockPtr.p->m_accLockOp;
-      EXECUTE_DIRECT(getDBACC(),
-                     GSN_ACC_LOCKREQ,
-                     signal,
-                     AccLockReq::UndoSignalLength);
-      jamEntry();
+      c_acc->execACC_LOCKREQ(signal);
+      jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       list.remove(lockPtr);
       release_scan_lock(lockPtr);

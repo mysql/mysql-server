@@ -897,6 +897,10 @@ public:
 private:
   BLOCK_DEFINES(Dbacc);
 
+public:
+  void execACC_LOCKREQ(Signal* signal);
+
+private:
   // Transit signals
   void execDEBUG_SIG(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -913,7 +917,6 @@ private:
   void execNEXT_SCANREQ(Signal* signal);
   void execACC_SCANREQ(Signal* signal);
   void execACC_TO_REQ(Signal* signal);
-  void execACC_LOCKREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);

@@ -17169,12 +17169,12 @@ void Dblqh::execCHECK_LCP_STOP(Signal* signal)
 {
   const CheckLcpStop* cls = (const CheckLcpStop*) signal->theData;
   const Uint32 scanPtrI = cls->scanPtrI;
-  jamEntry();
+  jamEntryDebug();
   switch(cls->scanState)
   {
   case CheckLcpStop::ZSCAN_RUNNABLE:
   {
-    jam();
+    jamDebug();
     return;
   }
   case CheckLcpStop::ZSCAN_RESOURCE_WAIT:

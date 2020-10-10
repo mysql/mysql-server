@@ -2752,13 +2752,14 @@ void Dbacc::execACC_ABORTREQ(Signal* signal,
  */
 void Dbacc::execACC_LOCKREQ(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   AccLockReq* sig = (AccLockReq*)signal->getDataPtrSend();
   AccLockReq reqCopy = *sig;
   AccLockReq* const req = &reqCopy;
   Uint32 lockOp = (req->requestInfo & 0xFF);
   if (lockOp == AccLockReq::LockShared ||
-      lockOp == AccLockReq::LockExclusive) {
+      lockOp == AccLockReq::LockExclusive)
+  {
     jam();
     // find table
     tabptr.i = req->tableId;
@@ -2798,7 +2799,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     }
     if (likely(succ))
     {
-      jam();
+      jamDebug();
       // init as in ACCSEIZEREQ
       operationRecPtr.p->userptr = req->userPtr;
       operationRecPtr.p->userblockref = req->userRef;
@@ -2833,15 +2834,20 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
                     operationRecPtr.p);
         /* keyreq invalid, signal now contains return value */
       // translate the result
-      if (signal->theData[0] < RNIL) {
-        jam();
+      if (signal->theData[0] < RNIL)
+      {
+        jamDebug();
         req->returnCode = AccLockReq::Success;
         req->accOpPtr = operationRecPtr.i;
-      } else if (signal->theData[0] == RNIL) {
+      }
+      else if (signal->theData[0] == RNIL)
+      {
         jam();
         req->returnCode = AccLockReq::IsBlocked;
         req->accOpPtr = operationRecPtr.i;
-      } else {
+      }
+      else
+      {
         ndbrequire(signal->theData[0] == (UintR)-1);
         releaseOpRec();
         req->returnCode = AccLockReq::Refused;
@@ -2859,7 +2865,8 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
   }
   operationRecPtr.i = req->accOpPtr;
   ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
-  if (lockOp == AccLockReq::Unlock) {
+  if (lockOp == AccLockReq::Unlock)
+  {
     jam();
     // do unlock via ACC_COMMITREQ (immediate)
     execACC_COMMITREQ(signal,
@@ -4152,8 +4159,8 @@ Dbacc::report_pending_dealloc(Signal* signal,
     signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = countOpPtrP->userptr;
-    EXECUTE_DIRECT(getDBLQH(), GSN_TUP_DEALLOCREQ, signal, 6);
-    jamEntry();
+    c_lqh->execTUP_DEALLOCREQ(signal);
+    jamEntryDebug();
   }
 }
 
@@ -4194,8 +4201,8 @@ Dbacc::trigger_dealloc(Signal* signal, const Operationrec* opPtrP)
     signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = RNIL;
-    EXECUTE_DIRECT(getDBLQH(), GSN_TUP_DEALLOCREQ, signal, 6);
-    jamEntry();
+    c_lqh->execTUP_DEALLOCREQ(signal);
+    jamEntryDebug();
   }
 }
 
@@ -8205,10 +8212,10 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
        CheckLcpStop::ZSCAN_RESOURCE_WAIT:
        CheckLcpStop::ZSCAN_RUNNABLE);
 
-    EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
-    jamEntry();
+    c_lqh->execCHECK_LCP_STOP(signal);
+    jamEntryDebug();
     if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
-      jam();
+      jamDebug();
       scanPtr.p->scan_lastSeen = __LINE__;
       /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
       return;
@@ -8233,15 +8240,15 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     {
       signal->theData[0] = scanPtr.p->scanUserptr;
       signal->theData[1] = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
-      EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+      c_lqh->execCHECK_LCP_STOP(signal);
       if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
       {
-        jamEntry();
+        jamEntryDebug();
         scanPtr.p->scan_lastSeen = __LINE__;
         /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
         return;
       }
-      jamEntry();
+      jamEntryDebug();
       ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
       /*
        * Fall through, cfreeOpRec == RNIL will lead to NEXT_SCANCONF
