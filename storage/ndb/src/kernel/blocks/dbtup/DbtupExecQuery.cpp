@@ -787,31 +787,6 @@ Dbtup::disk_page_load_scan_callback(Signal* signal,
   See DblqhMain.cpp for more documentation of prepare_* methods.
 */
 
-void Dbtup::prepare_tab_pointers(Uint32 frag_id)
-{
-  /**
-   * A real-time break occurred in scanning, we setup the
-   * fragment and table pointers in preparation for calls to
-   * execTUPKEYREQ.
-   */
-  jamDebug();
-  FragrecordPtr fragptr;
-  TablerecPtr tabptr;
-
-  fragptr.i = frag_id;
-  const Uint32 RnoOfFragrec= cnoOfFragrec;
-  const Uint32 RnoOfTablerec= cnoOfTablerec;
-  Fragrecord * Rfragrecord = fragrecord;
-  Tablerec * Rtablerec = tablerec;
-  ndbrequire(fragptr.i < RnoOfFragrec);
-  ptrAss(fragptr, Rfragrecord);
-  tabptr.i = fragptr.p->fragTableId;
-  ndbrequire(tabptr.i < RnoOfTablerec);
-  prepare_fragptr = fragptr;
-  ptrAss(tabptr, Rtablerec);
-  prepare_tabptr = tabptr;
-}
-
 void Dbtup::prepare_tab_pointers_acc(Uint32 table_id, Uint32 frag_id)
 {
   TablerecPtr tablePtr;

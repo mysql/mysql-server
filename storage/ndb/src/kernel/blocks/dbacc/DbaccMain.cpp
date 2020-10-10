@@ -8133,7 +8133,7 @@ void Dbacc::releaseAndAbortLockedOps(Signal* signal) {
 void Dbacc::execACC_CHECK_SCAN(Signal* signal) 
 {
   Uint32 TcheckLcpStop;
-  jamEntry();
+  jamEntryDebug();
   scanPtr.i = signal->theData[0];
   ndbrequire(scanRec_pool.getUncheckedPtrRW(scanPtr));
   TcheckLcpStop = signal->theData[1];
@@ -8141,7 +8141,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
   ndbrequire(Magic::check_ptr(scanPtr.p));
   while (firstQueuedOp != RNIL)
   {
-    jam();
+    jamDebug();
     //---------------------------------------------------------------------
     // An operation has been released from the lock queue. 
     // We are in the parallel queue of this tuple. We are 

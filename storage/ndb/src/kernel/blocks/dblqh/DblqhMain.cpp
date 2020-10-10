@@ -931,7 +931,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
   case ZSTART_QUEUED_SCAN:
   {
     jamDebug();
-    ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+    ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
     restart_queued_scan(signal, data0);
     return;
   }
@@ -947,7 +947,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
   {
     LogPartRecordPtr logPartPtr;
 
-    ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+    ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
     logPartPtr.i = data0;
     ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
     queued_log_write(signal, logPartPtr.p);
@@ -1005,7 +1005,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
   case ZLQH_TRANS_NEXT:
   {
     jam();
-    ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+    ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
     TcNodeFailRecordPtr tcNodeFailPtr;
     tcNodeFailPtr.i = data0;
     ptrCheckGuard(tcNodeFailPtr, ctcNodeFailrecFileSize, tcNodeFailRecord);
@@ -1015,7 +1015,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
   }
   case ZSCAN_TC_CONNECT:
     jam();
-    ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+    ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
     tabptr.i = data1;
     ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
     scanTcConnectLab(signal, data0, data2);
@@ -1063,7 +1063,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     break;
   case ZDROP_TABLE_WAIT_USAGE:
     jam();
-    ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+    ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
     dropTab_wait_usage(signal);
     return;
     break;
@@ -12390,7 +12390,7 @@ void Dblqh::execCOMMITREQ(Signal* signal)
     partial_fit_ok = true;
   }
   TcConnectionrecPtr tcConnectptr;
-  ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   if (findTransaction(transid1,
                       transid2,
                       tcOprec,
@@ -12579,7 +12579,7 @@ void Dblqh::execCOMPLETEREQ(Signal* signal)
     partial_fit_ok = true;
   }
   TcConnectionrecPtr tcConnectptr;
-  ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   if (findTransaction(transid1,
                       transid2,
                       tcOprec,
@@ -13463,7 +13463,7 @@ void Dblqh::execABORT(Signal* signal)
     sendSignalWithDelay(cownref, GSN_ABORT, signal, 2000, 4);
     return;
   }//if
-  ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   TcConnectionrecPtr tcConnectptr;
   if (findTransaction(transid1,
                       transid2,
@@ -13564,7 +13564,7 @@ void Dblqh::execABORTREQ(Signal* signal)
     sendSignalWithDelay(cownref, GSN_ABORTREQ, signal, 2000, 6);
     return;
   }//if
-  ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   bool partial_fit_ok;
   if (reqBlockref == old_blockref)
   {
@@ -14595,7 +14595,7 @@ void Dblqh::lqhTransNextLab(Signal* signal,
 	      jam();
 	      tcConnectptr.p->tcNodeFailrec = tcNodeFailPtr.i;
 	      tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
-              ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+              ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
               ndbassert(!m_is_query_block);
               setup_scan_pointers_from_tc_con(tcConnectptr, __LINE__);
 	      closeScanRequestLab(signal, tcConnectptr);
@@ -15035,7 +15035,7 @@ void Dblqh::setup_key_pointers(Uint32 tcIndex, bool acquire_lock)
    * for calling TUP and ACC and the pointers internally in LQH.
    */
   jamDebug();
-  ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   TcConnectionrecPtr tcConnectptr;
   FragrecordPtr fragPtr;
   tcConnectptr.i = tcIndex;
@@ -15161,14 +15161,13 @@ void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr,
   FragrecordPtr loc_fragptr;
   FragrecordPtr loc_prim_tab_fragptr;
   ScanRecordPtr loc_scanptr;
-  ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   loc_scanptr.i = tcConnectptr.p->tcScanRec;
   loc_fragptr.i = tcConnectptr.p->fragmentptr;
-  if (m_is_query_block)
+  if (qt_likely(m_is_query_block))
   {
     setup_query_thread_for_scan_access(tcConnectptr.p->ldmInstance);
   }
-  jamLine(Uint16(loc_scanptr.i));
   ndbrequire(c_scanRecordPool.getUncheckedPtrRW(loc_scanptr));
   loc_prim_tab_fragptr.i = loc_scanptr.p->fragPtrI;
   c_fragment_pool.getPtr(loc_fragptr);
@@ -15219,7 +15218,7 @@ void Dblqh::setup_scan_pointers(Uint32 scanPtrI, Uint32 line)
    * direct signals.
    */
   jamDebug();
-  ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
+  ndbassert(m_fragment_lock_status == FRAGMENT_UNLOCKED);
   FragrecordPtr loc_fragptr;
   FragrecordPtr loc_prim_tab_fragptr;
   ScanRecordPtr loc_scanptr;
@@ -15229,7 +15228,7 @@ void Dblqh::setup_scan_pointers(Uint32 scanPtrI, Uint32 line)
   loc_tcConnectptr.i = loc_scanptr.p->scanTcrec;
   loc_prim_tab_fragptr.i = loc_scanptr.p->fragPtrI;
   ndbrequire(tcConnect_pool.getUncheckedPtrRW(loc_tcConnectptr));
-  if (m_is_query_block)
+  if (qt_likely(m_is_query_block))
   {
     setup_query_thread_for_scan_access(loc_tcConnectptr.p->ldmInstance);
   }
@@ -15275,17 +15274,15 @@ void Dblqh::checkLcpStopBlockedLab(Signal* signal, Uint32 scanPtrI)
    * off the execution.
    */
   setup_scan_pointers(scanPtrI, __LINE__);
-  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
   ScanRecord * const scanPtr = scanptr.p;
-  BlockReference blockRef = scanPtr->scanBlockref;
+  SimulatedBlock *block = scanPtr->scanBlock;
+  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
+  ExecFunction f = block->getExecuteFunction(GSN_ACC_CHECK_SCAN);
   scanPtr->scan_lastSeen = __LINE__;
   signal->theData[0] = scanPtr->scanAccPtr;
   signal->theData[1] = AccCheckScan::ZNOT_CHECK_LCP_STOP;
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
-  EXECUTE_DIRECT(refToMain(blockRef),
-                 GSN_ACC_CHECK_SCAN,
-                 signal,
-                 2);
+  block->EXECUTE_DIRECT_FN(f, signal);
   release_frag_access(prim_tab_fragptr.p);
 }//Dblqh::checkLcpStopBlockedLab()
 
@@ -15306,28 +15303,24 @@ void Dblqh::execACC_CHECK_SCAN(Signal *signal)
   setup_scan_pointers(scanPtrI, __LINE__);
   Uint32 sig_number = signal->theData[1];
   ScanRecord *scanPtr = scanptr.p;
-  BlockReference ref = scanPtr->scanBlockref;
+  SimulatedBlock *block = scanPtr->scanBlock;
   if (sig_number == GSN_NEXT_SCANREQ)
   {
     jamDebug();
+    ExecFunction f = block->getExecuteFunction(GSN_NEXT_SCANREQ);
     signal->theData[0] = scanPtr->scanAccPtr;
     signal->theData[1] = signal->theData[2];
     signal->theData[2] = signal->theData[3];
-    EXECUTE_DIRECT(refToMain(ref),
-                   GSN_NEXT_SCANREQ,
-                   signal,
-                   3);
+    block->EXECUTE_DIRECT_FN(f, signal);
   }
   else
   {
     jamDebug();
+    ExecFunction f = block->getExecuteFunction(GSN_ACC_CHECK_SCAN);
     ndbrequire(sig_number == GSN_ACC_CHECK_SCAN);
     signal->theData[0] = scanPtr->scanAccPtr;
     signal->theData[1] = signal->theData[2];
-    EXECUTE_DIRECT(refToMain(ref),
-                   GSN_ACC_CHECK_SCAN,
-                   signal,
-                   2);
+    block->EXECUTE_DIRECT_FN(f, signal);
   }
   release_frag_access(prim_tab_fragptr.p);
 }
@@ -17451,16 +17444,14 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
     }
     else
     {
-      scanPtr->scan_lastSeen = __LINE__;
+      SimulatedBlock *block = scanPtr->scanBlock;
       Uint32 sig0 = scanPtr->scanAccPtr;
-      BlockReference blockRef = scanPtr->scanBlockref;
-      jam();
+      jamDebug();
       signal->theData[0] = sig0;
       signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-      EXECUTE_DIRECT(refToMain(blockRef),
-                     GSN_ACC_CHECK_SCAN,
-                     signal,
-                     2);
+      scanPtr->scan_lastSeen = __LINE__;
+      ExecFunction f = block->getExecuteFunction(GSN_ACC_CHECK_SCAN);
+      block->EXECUTE_DIRECT_FN(f, signal);
       return;
     }
   }
