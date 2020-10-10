@@ -187,7 +187,7 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   Uint32 gci_hi = signal->theData[1];
   Uint32 gci_lo = signal->theData[2];
   ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   while (loopOpPtr.p->prevActiveOp != RNIL)
   {
     jam();

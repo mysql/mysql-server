@@ -1597,7 +1597,7 @@ Dblqh::define_backup(Signal* signal)
   NdbNodeBitmask nodes;
   nodes.set(getOwnNodeId());
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   Uint32 packed_length = nodes.getPackedLengthInWords();
 
@@ -2105,7 +2105,7 @@ void Dblqh::startphase6Lab(Signal* signal)
 void Dblqh::sendNdbSttorryLab(Signal* signal) 
 {
   signal->theData[0] = cownref;
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
   sendSignal(cntrRef, GSN_NDB_STTORRY, signal, 1, JBB);
   return;
@@ -2601,7 +2601,7 @@ Dblqh::sendCreateTabReq(Signal* signal, AddFragRecordPtr addfragptr)
   tabPtr.i = addfragptr.p->m_createTabReq.tableId;
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   CreateTabReq* req = (CreateTabReq*)signal->getDataPtrSend();
   * req = addfragptr.p->m_createTabReq;
 
@@ -2898,7 +2898,7 @@ Dblqh::sendAddAttrReq(Signal* signal)
   LqhAddAttrReq::Entry& entry =
     addfragptr.p->m_addAttrReq.attributes[addfragptr.p->attrSentToTup];
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   const Uint32 attrId = entry.attrId & 0xffff;
   const Uint32 primaryAttrId = entry.attrId >> 16;
 
@@ -3754,7 +3754,7 @@ Dblqh::execDROP_FRAG_REQ(Signal* signal)
 
   deleteFragrec(req->fragId);
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   Uint32 ref = calcInstanceBlockRef(DBACC);
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType))
   {
@@ -3779,7 +3779,7 @@ Dblqh::execDROP_FRAG_CONF(Signal* signal)
   DropFragConf* conf = (DropFragConf*)signal->getDataPtr();
   addfragptr.i = conf->senderData;
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
 
   Uint32 ref = RNIL;
   switch(refToMain(conf->senderRef)){
@@ -3979,7 +3979,7 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   tabPtr.i = signal->theData[1];
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   Uint32 senderRef = signal->theData[2];
   Uint32 senderData = signal->theData[3];
   
@@ -4342,7 +4342,7 @@ Dblqh::dropTable_nextStep(Signal* signal, Ptr<AddFragRecord> addFragPtr)
   TablerecPtr tabPtr;
   tabPtr.i = addFragPtr.p->m_dropTabReq.tableId;
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
 
   Uint32 ref = 0;
   if (tabPtr.p->tableStatus == Tablerec::DROP_TABLE_WAIT_DONE)
@@ -4470,7 +4470,7 @@ void Dblqh::removeTable(Uint32 tableId)
 bool
 Dblqh::handleLCPSurfacing(Signal *signal)
 {
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   if (!c_wait_lcp_surfacing)
   {
     jam();
@@ -4528,7 +4528,7 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   if(!assembleFragments(signal))
     return;
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   AlterTabReq copy = *(AlterTabReq*)signal->getDataPtr();
   const AlterTabReq* req = &copy;
   const Uint32 senderRef = req->senderRef;
@@ -7370,7 +7370,7 @@ Dblqh::downgrade_exclusive_to_scan()
   }
   NdbMutex_Lock(&fragPtrP->frag_mutex);
   DEB_FRAGMENT_LOCK(fragPtrP);
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   ndbrequire(fragPtrP->m_exclusive_locked == true);
   ndbrequire(fragPtrP->m_cond_exclusive_waiters == 0);
   ndbrequire(fragPtrP->m_cond_write_key_waiters == 0);
@@ -7928,7 +7928,7 @@ Dblqh::handle_upgrade_to_exclusive_frag_access(Fragrecord *fragPtrP)
   else if (m_fragment_lock_status == FRAGMENT_LOCKED_IN_SCAN_MODE)
   {
     jamDebug();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     NdbMutex_Lock(&fragPtrP->frag_mutex);
     DEB_FRAGMENT_LOCK(fragPtrP);
     ndbrequire(fragPtrP->m_concurrent_scan_count > 0);
@@ -9104,7 +9104,7 @@ void Dblqh::prepareContinueAfterBlockedLab(
   if (regTcPtr->indTakeOver == ZTRUE)
   {
     jam();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     ttcScanOp = KeyInfo20::getScanOp(regTcPtr->tcScanInfo);
     scanptr.i = RNIL;
     {
@@ -9281,7 +9281,7 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
   }
   else if (signal->theData[0] == RNIL)
   {
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     return;
   }
   else
@@ -9290,7 +9290,7 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
     /* Dbacc scan take over error */
     if (signal->theData[1] == ZTO_OP_STATE_ERROR)
     {
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       execACC_TO_REF(signal, regTcPtr);
     }
     else
@@ -10434,7 +10434,7 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
 void Dblqh::execACCKEYCONF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   if (ERROR_INSERTED(5095))
   {
     jam();
@@ -10550,7 +10550,7 @@ Dblqh::continueACCKEYCONF(Signal * signal,
   else
   {
     jamDebug();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     acckeyconf_load_diskpage(signal,
                              tcConnectptr,
                              regFragptr,
@@ -10734,7 +10734,7 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
 					 Uint32 disk_page)
 {
   jamEntry();
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   setup_key_pointers(callbackData);
   TcConnectionrecPtr tcConnectptr = m_tc_connect_ptr;
   FragrecordPtr fragPtr = fragptr;
@@ -11430,7 +11430,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
     }//if
     return;
   }//if
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
 /* ------------------------------------------------------------------------- */
 /* -------            SEND LQHKEYREQ                                 ------- */
 /*                                                                           */
@@ -13974,7 +13974,7 @@ void Dblqh::abortContinueAfterBlockedLab(Signal* signal,
   if (signal->theData[1] == RNIL)
   {
     jam();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     /* ------------------------------------------------------------------------
      * We need to insert a real-time break by sending ACC_ABORTCONF through the
      * job buffer to ensure that we catch any ACCKEYCONF or TUPKEYCONF or
@@ -14005,7 +14005,7 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
   setup_key_pointers(signal->theData[0], false);
   TcConnectionrec * const regTcPtr = m_tc_connect_ptr.p;
   ndbrequire(regTcPtr->transactionState == TcConnectionrec::WAIT_ACC_ABORT);
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
 
   TRACE_OP(regTcPtr, "ACC_ABORTCONF");
   signal->theData[0] = regTcPtr->tupConnectrec;
@@ -14038,7 +14038,7 @@ void Dblqh::continueAbortLab(Signal* signal,
     LogPageRecordPtr logPagePtr;
     LogFileRecordPtr logFilePtr;
     LogPartRecordPtr logPartPtr;
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     lock_log_part(regTcPtr->m_log_part_ptr_p);
     initLogPointers(signal,
                     tcConnectptr,
@@ -14162,12 +14162,12 @@ void Dblqh::continueAfterLogAbortWriteLab(
   else if (regTcPtr->abortState == TcConnectionrec::NEW_FROM_TC)
   {
     jam();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     sendLqhTransconf(signal, LqhTransConf::Aborted, tcConnectptr);
   }
   else
   {
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     ndbrequire(regTcPtr->abortState == TcConnectionrec::REQ_FROM_TC);
     jam();
     signal->theData[0] = regTcPtr->reqRef;
@@ -14582,7 +14582,7 @@ void Dblqh::lqhTransNextLab(Signal* signal,
 	      if (0) ndbout_c("close copy");
               tcConnectptr.p->tcNodeFailrec = tcNodeFailPtr.i;
               tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
-              ndbrequire(!m_is_query_block);
+              ndbassert(!m_is_query_block);
               setup_scan_pointers_from_tc_con(tcConnectptr, __LINE__);
               closeCopyRequestLab(signal, tcConnectptr);
               release_frag_access(prim_tab_fragptr.p);
@@ -14599,7 +14599,7 @@ void Dblqh::lqhTransNextLab(Signal* signal,
 	      tcConnectptr.p->tcNodeFailrec = tcNodeFailPtr.i;
 	      tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
               ndbrequire(m_fragment_lock_status == FRAGMENT_UNLOCKED);
-              ndbrequire(!m_is_query_block);
+              ndbassert(!m_is_query_block);
               setup_scan_pointers_from_tc_con(tcConnectptr, __LINE__);
 	      closeScanRequestLab(signal, tcConnectptr);
               release_frag_access(prim_tab_fragptr.p);
@@ -15042,7 +15042,7 @@ void Dblqh::setup_key_pointers(Uint32 tcIndex, bool acquire_lock)
   TcConnectionrecPtr tcConnectptr;
   FragrecordPtr fragPtr;
   tcConnectptr.i = tcIndex;
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   ndbrequire(tcConnect_pool.getUncheckedPtrRW(tcConnectptr));
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec,
                             tcConnectptr.p->tupConnectPtrP);
@@ -15413,7 +15413,7 @@ void Dblqh::continue_next_scan_conf(Signal *signal,
   }
   case ScanRecord::WAIT_NEXT_SCAN_COPY:
     jamDebug();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     nextScanConfCopyLab(signal, m_tc_connect_ptr);
     return;
   case ScanRecord::WAIT_CLOSE_SCAN:
@@ -15422,7 +15422,7 @@ void Dblqh::continue_next_scan_conf(Signal *signal,
     return;
   case ScanRecord::WAIT_CLOSE_COPY:
     jamDebug();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     accCopyCloseConfLab(signal, m_tc_connect_ptr);
     return;
   default:
@@ -15750,7 +15750,7 @@ void Dblqh::scanLockReleasedLab(Signal* signal,
        * receiving SCAN_NEXTREQ from TC. We only come here 
        * when scanLockHold == ZTRUE
        */
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       scanPtr->m_curr_batch_size_rows = 0;
       scanPtr->m_curr_batch_size_bytes = 0;
       continueScanNextReqLab(signal, regTcPtr);
@@ -17313,7 +17313,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
        * We return with accOpPtr set to RNIL in this case to avoid
        * complications when releasing locks.
        */
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
       Uint32 gci = nextScanConf->gci;
       Uint32 readLength;
@@ -17609,7 +17609,7 @@ Dblqh::next_scanconf_load_diskpage_callback(Signal* signal,
   jamEntry();
   Ptr<TcConnectionrec> regTcPtr;
   regTcPtr.i= callbackData;
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
   /**
    * We have returned from a real-time break, we need to set up
@@ -18050,7 +18050,7 @@ void Dblqh::handle_finish_scan(Signal* signal,
      * Until this has arrived we cannot release the scan record.
      */
     jam();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     scanptr.p->scanState = ScanRecord::QUIT_START_QUEUE_SCAN;
   }
   deleteTransidHash(signal, tcConnectptr);
@@ -18071,7 +18071,7 @@ void Dblqh::restart_queued_scan(Signal* signal, Uint32 scanPtrI)
 {
   ScanRecordPtr loc_scanptr;
   loc_scanptr.i = scanPtrI;
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   ndbrequire(c_scanRecordPool.getValidPtr(loc_scanptr));
   if (loc_scanptr.p->scanState == ScanRecord::QUIT_START_QUEUE_SCAN)
   {
@@ -18321,7 +18321,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
        */
       return ZOK;
     }
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     ndbassert(!lcpScan);
     /*
       This error insert causes an SPJ index scan to be queued (see ndbinfo.test).
@@ -18473,7 +18473,7 @@ bool Dblqh::finishScanrec(Signal* signal,
   
   if (scanPtr->scanState == ScanRecord::IN_QUEUE)
   {
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     Local_ScanRecord_fifo queue(c_scanRecordPool,
                                        rangeScan != 0 ?
                                        fragptr.p->m_queuedScans :
@@ -18531,7 +18531,7 @@ bool Dblqh::finishScanrec(Signal* signal,
      */
     return false;
   }
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   ndbrequire(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
   ScanRecordPtr restart;
 
@@ -22765,7 +22765,7 @@ template class Vector<TraceLCP::Sig>;
 
 void Dblqh::perform_fragment_checkpoint(Signal *signal)
 {
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   lcpPtr.p->lcpRunState = LcpRecord::LCP_CHECKPOINTING;
 
   fragptr.i = lcpPtr.p->currentRunFragment.fragPtrI;
@@ -27293,7 +27293,7 @@ Dblqh::instance_completed_restore(Uint32 instance)
 void
 Dblqh::send_restore_lcp(Signal * signal)
 {
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   while (true)
   {
     DEB_LCP_RESTORE(("(%u) send_restore_lcp", instance()));
@@ -28413,7 +28413,7 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
                    tabptr.p->primaryTableId,
                    tableId));
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BuildIndxImplReq* const req = (BuildIndxImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = tableId;
@@ -36948,7 +36948,7 @@ Dblqh::execCREATE_TRIG_IMPL_REQ(Signal* signal)
     return;
   }
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
   SectionHandle handle(this, signal);
   req->senderRef = reference();
@@ -36962,7 +36962,7 @@ Dblqh::execCREATE_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
   sendSignal(dictRef, GSN_CREATE_TRIG_IMPL_CONF, signal,
              CreateTrigImplConf::SignalLength, JBB);
@@ -36973,7 +36973,7 @@ Dblqh::execCREATE_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
   sendSignal(dictRef, GSN_CREATE_TRIG_IMPL_REF, signal,
              CreateTrigImplRef::SignalLength, JBB);
@@ -36984,7 +36984,7 @@ Dblqh::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   DropTrigImplReq* req = (DropTrigImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   BlockReference tupRef = calcInstanceBlockRef(DBTUP);
@@ -36997,7 +36997,7 @@ Dblqh::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
   sendSignal(dictRef, GSN_DROP_TRIG_IMPL_CONF, signal,
              DropTrigImplConf::SignalLength, JBB);
@@ -37008,7 +37008,7 @@ Dblqh::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BlockReference dictRef = !isNdbMtLqh() ? DBDICT_REF : DBLQH_REF;
   sendSignal(dictRef, GSN_DROP_TRIG_IMPL_REF, signal,
              DropTrigImplRef::SignalLength, JBB);
@@ -37514,7 +37514,7 @@ Dblqh::handle_check_system_scans(Signal *signal)
           /* Ignore delays smaller than 10 seconds */
           continue;
         }
-        ndbrequire(!m_is_query_block);
+        ndbassert(!m_is_query_block);
         if (i == ZLCP_CHECK_INDEX)
         {
           jam();

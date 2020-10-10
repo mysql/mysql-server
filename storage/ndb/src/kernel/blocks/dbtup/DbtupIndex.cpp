@@ -588,7 +588,7 @@ void
 Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
 #ifdef TIME_MEASUREMENT
   time_events= 0;
   tot_time_passed= 0;
@@ -942,7 +942,7 @@ void
 Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
 {
   jam();
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   /**
    * We need to make table read-only...as mtoib does not work otherwise
    */
@@ -999,7 +999,7 @@ void
 Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
 {
   // get build record
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   BuildIndexPtr buildPtr;
   buildPtr.i= buildPtrI;
   c_buildIndexList.getPtr(buildPtr);

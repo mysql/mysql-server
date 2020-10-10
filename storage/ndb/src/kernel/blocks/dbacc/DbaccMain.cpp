@@ -613,7 +613,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
     return;
   }//if
   Page8Ptr spPageptr;
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   Uint32 result = seizePage(spPageptr,
                             Page32Lists::ANY_SUB_PAGE,
                             c_allow_use_of_spare_pages,
@@ -1171,7 +1171,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
      */
     jamDebug();
     OperationrecPtr lockOpPtr;
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     lockOpPtr.i = req->lockConnectPtr;
     bool is_valid = oprec_pool.getValidPtr(lockOpPtr);
     if (lockOwnerPtr.i == RNIL ||
@@ -2717,7 +2717,7 @@ void Dbacc::execACC_ABORTREQ(Signal* signal,
 	   opstate == Operationrec::OP_STATE_RUNNING)
   {
     jam();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
     abortOperation(signal);
   }

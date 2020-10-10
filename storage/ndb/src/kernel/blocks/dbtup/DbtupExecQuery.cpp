@@ -1177,7 +1177,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
         * Only LCP reads a copy-tuple "directly"
         */
        ndbassert(disk_page == RNIL);
-       ndbrequire(!m_is_query_block);
+       ndbassert(!m_is_query_block);
        setup_lcp_read_copy_tuple(&req_struct, regOperPtr, regTabPtr);
      }
      else
@@ -3606,7 +3606,7 @@ int Dbtup::sendLogAttrinfo(Signal* signal,
    * to LQH
    */
   ndbrequire( TlogSize > 0 );
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   Uint32 longSectionIVal= RNIL;
   bool ok= appendToSection(longSectionIVal, 
                            &clogMemBuffer[0],

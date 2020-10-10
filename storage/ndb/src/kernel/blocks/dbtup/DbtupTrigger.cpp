@@ -254,7 +254,7 @@ void
 Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;

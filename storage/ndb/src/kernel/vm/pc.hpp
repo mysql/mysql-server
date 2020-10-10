@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -290,7 +290,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
  *
  * NOTE these may only be used within blocks
  */
-#if defined VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
 #define ndbassert(check) \
   if(likely(check)){ \
   } else {     \

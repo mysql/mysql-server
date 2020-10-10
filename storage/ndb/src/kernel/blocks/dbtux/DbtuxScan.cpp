@@ -651,7 +651,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (! scan.m_readCommitted)
     {
       jam();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       Uint32 accOperationPtr = req->accOperationPtr;
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
@@ -689,7 +689,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (unlikely(scan.m_lockwait))
     {
       jam();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       ndbrequire(scan.m_accLockOp != RNIL);
       // use ACC_ABORTCONF to flush out any reply in job buffer
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
@@ -706,7 +706,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (scan.m_state == ScanOp::Locked)
     {
       jam();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       ndbrequire(scan.m_accLockOp != RNIL);
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
@@ -818,7 +818,7 @@ Dbtux::continue_scan(Signal *signal,
     if (unlikely(! scan.m_readCommitted))
     {
       jamDebug();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       const TreeEnt ent = scan.m_scanEnt;
       // read tuple key
       readTablePk(ent, pkData, pkSize);

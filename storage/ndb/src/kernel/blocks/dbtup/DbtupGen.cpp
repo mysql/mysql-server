@@ -947,7 +947,7 @@ void Dbtup::execNDB_STTOR(Signal* signal)
   switch (startPhase) {
   case ZSTARTPHASE1:
     jam();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     initializeDefaultValuesFrag();
     break;
   case ZSTARTPHASE2:
