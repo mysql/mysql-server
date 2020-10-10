@@ -332,8 +332,8 @@ Dbtup::prepareActiveOpList(OperationrecPtr regOperPtr,
     prevOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
   regOperPtr.p->prevActiveOp= prevOpPtr.i;
   regOperPtr.p->m_undo_buffer_space= 0;
-  ndbrequire(!m_is_in_query_thread);
-  if (prevOpPtr.i == RNIL)
+  ndbassert(!m_is_in_query_thread);
+  if (likely(prevOpPtr.i == RNIL))
   {
     return true;
   }
@@ -420,10 +420,10 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
    * that inserting us in the list happens after performing the changes
    * related to the operation.
    */
-  jam();
+  jamDebug();
   regOperPtr.p->op_struct.bit_field.in_active_list = true;
   tuple_ptr->m_operation_ptr_i = regOperPtr.i;
-  if (req_struct->prevOpPtr.i != RNIL)
+  if (unlikely(req_struct->prevOpPtr.i != RNIL))
   {
     jam();
     req_struct->prevOpPtr.p->nextActiveOp = regOperPtr.i;
@@ -1197,7 +1197,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
         * and these are all exclusive access that first will ensure that no
         * query threads are executing on the fragment before proceeding.
         */
-       jamDebug();
        acquire_frag_mutex_read(regFragPtr, pageid);
        if (unlikely(req_struct.m_tuple_ptr->m_header_bits &
                     Tuple_header::FREE))
@@ -1253,7 +1252,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
     * DBQTUP can come here when executing restore, but query thread should
     * not arrive here.
     */
-   ndbrequire(!m_is_in_query_thread);
+   ndbassert(!m_is_in_query_thread);
    req_struct.changeMask.clear();
    Tuple_header *tuple_ptr = nullptr;
 
@@ -1859,7 +1858,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
   Tuple_header *dst;
   Tuple_header *base= req_struct->m_tuple_ptr, *org;
   ChangeMask * change_mask_ptr;
-  if ((dst= alloc_copy_tuple(regTabPtr, &operPtrP->m_copy_tuple_location))== 0)
+  if (unlikely((dst= alloc_copy_tuple(regTabPtr,
+                                      &operPtrP->m_copy_tuple_location)) == 0))
   {
     terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
     goto error;
@@ -1867,7 +1867,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
 
   Uint32 tup_version;
   change_mask_ptr = get_change_mask_ptr(regTabPtr, dst);
-  if(operPtrP->is_first_operation())
+  if (likely(operPtrP->is_first_operation()))
   {
     jamDebug();
     org= req_struct->m_tuple_ptr;
@@ -1892,8 +1892,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
    * thread and thus protected by being in the same thread.
    */
   req_struct->m_tuple_ptr= org;
-  if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
-      (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) 
+  if (unlikely((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+               (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)))
   {
     jam();
     return corruptedTupleDetected(req_struct, regTabPtr);
@@ -1911,7 +1911,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   {
     jamDebug();
     expand_tuple(req_struct, sizes, org, regTabPtr, disk);
-    if(disk && operPtrP->m_undo_buffer_space == 0)
+    if (disk && operPtrP->m_undo_buffer_space == 0)
     {
       jam();
       operPtrP->op_struct.bit_field.m_wait_log_buffer = 1;
@@ -1954,7 +1954,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
   {
     jamDebug();
 
-    if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+    if (unlikely(regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits))
     {
       jam();
       Uint32 attrId =
@@ -2027,7 +2027,6 @@ int Dbtup::handleUpdateReq(Signal* signal,
    * to protect this change.
    */
   setChecksum(req_struct->m_tuple_ptr, regTabPtr);
-
   set_tuple_state(operPtrP, TUPLE_PREPARED);
 
   return 0;
@@ -2459,7 +2458,7 @@ int Dbtup::handleInsertReq(Signal* signal,
 
   if(mem_insert)
   {
-    jam();
+    jamDebug();
     prepare_initial_insert(req_struct, regOperPtr.p, regTabPtr, is_refresh);
   }
   else
@@ -2468,7 +2467,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     ndbassert(prevOp->op_type == ZDELETE);
     tup_version= prevOp->op_struct.bit_field.tupVersion + 1;
     
-    if(!prevOp->is_first_operation())
+    if(unlikely(!prevOp->is_first_operation()))
     {
       jam();
       org= get_copy_tuple(&prevOp->m_copy_tuple_location);
@@ -2508,7 +2507,7 @@ int Dbtup::handleInsertReq(Signal* signal,
   int res;
   if (disk_insert)
   {
-    jam();
+    jamDebug();
     if (ERROR_INSERTED(4015))
     {
       terrorCode = 1501;
@@ -2527,7 +2526,7 @@ int Dbtup::handleInsertReq(Signal* signal,
                                  !req_struct->m_nr_copy_or_redo,
                                  jamBuffer());
     }
-    if(unlikely(res))
+    if (unlikely(res))
     {
       jam();
       terrorCode= res;
@@ -2557,7 +2556,7 @@ int Dbtup::handleInsertReq(Signal* signal,
   if (!(is_refresh ||
         regTabPtr->m_default_value_location.isNull()))
   {
-    jam();
+    jamDebug();
     Uint32 default_values_len;
     /* Get default values ptr + len for this table */
     Uint32* default_values = get_default_ptr(regTabPtr, default_values_len);
@@ -2575,9 +2574,10 @@ int Dbtup::handleInsertReq(Signal* signal,
     }
   }
   
-  if(unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
-                                      req_struct->attrinfo_len)) < 0))
+  if (unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
+                                       req_struct->attrinfo_len)) < 0))
   {
+    jam();
     terrorCode = Uint32(-res);
     goto update_error;
   }
@@ -2714,7 +2714,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     base = (Tuple_header*)ptr;
     regOperPtr.p->op_struct.bit_field.in_active_list = true;
     base->m_operation_ptr_i= regOperPtr.i;
-    ndbrequire(!m_is_in_query_thread);
+    ndbassert(!m_is_in_query_thread);
 
 #ifdef DEBUG_DELETE
     char *insert_str;
@@ -2748,7 +2748,7 @@ int Dbtup::handleInsertReq(Signal* signal,
       old_header_keep;
     if (disk_insert)
     {
-      jam();
+      jamDebug();
       Local_key tmp;
       Uint32 size= regTabPtr->m_attributes[DD].m_no_of_varsize == 0 ? 
         1 : sizes[2+DD];
@@ -2864,7 +2864,7 @@ int Dbtup::handleInsertReq(Signal* signal,
      * TUP scans, thus no need to protect it here. The row becomes visible
      * when inserted into the active list after returning from this call.
      */
-    jam();
+    jamDebug();
     setChecksum(req_struct->m_tuple_ptr, regTabPtr);
   }
   set_tuple_state(regOperPtr.p, TUPLE_PREPARED);
@@ -2941,13 +2941,15 @@ int Dbtup::handleDeleteReq(Signal* signal,
 {
   Tuple_header* dst = alloc_copy_tuple(regTabPtr,
                                        &regOperPtr->m_copy_tuple_location);
-  if (dst == 0) {
+  if (unlikely(dst == 0))
+  {
+    jam();
     terrorCode = ZNO_COPY_TUPLE_MEMORY_ERROR;
     goto error;
   }
 
   // delete must set but not increment tupVersion
-  if (!regOperPtr->is_first_operation())
+  if (unlikely(!regOperPtr->is_first_operation()))
   {
     jam();
     Operationrec* prevOp= req_struct->prevOpPtr.p;
@@ -2976,7 +2978,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
   req_struct->changeMask.set();
   set_change_mask_info(regTabPtr, get_change_mask_ptr(regTabPtr, dst));
 
-  if(disk && regOperPtr->m_undo_buffer_space == 0)
+  if (disk && regOperPtr->m_undo_buffer_space == 0)
   {
     jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer = 1;
@@ -3064,7 +3066,7 @@ Dbtup::handleRefreshReq(Signal* signal,
    * a refresh.
    */
   Uint32 refresh_case;
-  if (regOperPtr.p->is_first_operation())
+  if (likely(regOperPtr.p->is_first_operation()))
   {
     jam();
     if (Local_key::isInvalid(req_struct->frag_page_id,
@@ -3100,6 +3102,7 @@ Dbtup::handleRefreshReq(Signal* signal,
 
        if (unlikely(res == -1))
        {
+         jam();
          return -1;
        }
 
@@ -3156,8 +3159,11 @@ Dbtup::handleRefreshReq(Signal* signal,
         updateChecksum(origTuple, regTabPtr, old_header, new_header);
         m_base_header_bits = origTuple->m_header_bits;
       }
-      if (res == -1)
+      if (unlikely(res == -1))
+      {
+        jam();
         return -1;
+      }
     }
   }
   else
@@ -3201,6 +3207,7 @@ Dbtup::handleRefreshReq(Signal* signal,
 
       if (unlikely(res == -1))
       {
+        jam();
         return -1;
       }
 
@@ -3218,8 +3225,11 @@ Dbtup::handleRefreshReq(Signal* signal,
                             regTabPtr, req_struct, disk);
     }
     req_struct->prevOpPtr.p->op_struct.bit_field.tupVersion = tup_version_save;
-    if (res == -1)
+    if (unlikely(res == -1))
+    {
+      jam();
       return -1;
+    }
   }
 
   /* Store the refresh scenario in the copy tuple location */
@@ -3476,7 +3486,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
       Tablerec* regTabPtr = req_struct->tablePtrP;
       Tuple_header* dst = req_struct->m_tuple_ptr;
 
-      if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+      if (unlikely(regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits))
       {
         Uint32 attrId =
           regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
@@ -3627,10 +3637,7 @@ int Dbtup::sendLogAttrinfo(Signal* signal,
   signal->theData[1]= TlogSize;
   signal->theData[2]= longSectionIVal;
 
-  EXECUTE_DIRECT(getDBLQH(), 
-                 GSN_TUP_ATTRINFO, 
-                 signal, 
-                 3);
+  c_lqh->execTUP_ATTRINFO(signal);
   return 0;
 }
 

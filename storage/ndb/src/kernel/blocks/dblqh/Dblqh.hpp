@@ -2992,6 +2992,10 @@ private:
     return false;
   }
 
+public:
+  void execLQH_WRITELOG_REQ(Signal* signal);
+  void execTUP_ATTRINFO(Signal* signal);
+private:
   void execPACKED_SIGNAL(Signal* signal);
   void execDEBUG_SIG(Signal* signal);
   void execLQHKEYREQ(Signal* signal);
@@ -3019,7 +3023,6 @@ private:
   void execNODE_FAILREP(Signal* signal);
   void execCHECK_LCP_STOP(Signal* signal);
   void execSEND_PACKED(Signal* signal);
-  void execTUP_ATTRINFO(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
 
   void execCREATE_TAB_REQ(Signal* signal);
@@ -3111,7 +3114,6 @@ private:
   void dropTable_nextStep(Signal*, AddFragRecordPtr);
 
   void execTUP_DEALLOCREQ(Signal* signal);
-  void execLQH_WRITELOG_REQ(Signal* signal);
 
   void execTUXFRAGCONF(Signal* signal);
   void execTUXFRAGREF(Signal* signal);
@@ -5349,49 +5351,46 @@ inline void
 Dblqh::acquire_frag_prepare_key_access(Fragrecord *fragPtrP,
                                        TcConnectionrec *regTcPtr)
 {
-  if (qt_likely(globalData.ndbMtQueryThreads > 0))
+  if (is_write_key_frag_access(regTcPtr))
   {
-    if (is_write_key_frag_access(regTcPtr))
-    {
-      /**
-       * Prepare for upgrade to write key fragment access, this will
-       * happen when we come to the point where we need to update the
-       * TUX index. Setting those variables ensures that no new scans
-       * can start, but those already running can run to completion
-       * and we don't wait for those until we upgrade the lock.
-       */
-      jamDebug();
-      NdbMutex_Lock(&fragPtrP->frag_mutex);
+    /**
+     * Prepare for upgrade to write key fragment access, this will
+     * happen when we come to the point where we need to update the
+     * TUX index. Setting those variables ensures that no new scans
+     * can start, but those already running can run to completion
+     * and we don't wait for those until we upgrade the lock.
+     */
+    jamDebug();
+    NdbMutex_Lock(&fragPtrP->frag_mutex);
 #ifdef DEBUG_FRAGMENT_LOCK
-      fragPtrP->lock_line_index = (fragPtrP->lock_line_index + 1) &
-        LOCK_LINE_MASK;
-      fragPtrP->lock_line[fragPtrP->lock_line_index] = __LINE__;
+    fragPtrP->lock_line_index = (fragPtrP->lock_line_index + 1) &
+      LOCK_LINE_MASK;
+    fragPtrP->lock_line[fragPtrP->lock_line_index] = __LINE__;
 #endif
-      fragPtrP->m_cond_write_key_waiters = 1;
-      fragPtrP->m_spin_write_key_waiters = 1;
-      handle_acquire_read_key_frag_access(fragPtrP, true, false);
-      m_fragment_lock_status = FRAGMENT_LOCKED_IN_RK_WK_MODE;
-    }
-    else if (is_refresh_frag_access(regTcPtr))
-    {
-      /* Refresh requires exclusive access, prepare for this */
-      jamDebug();
-      NdbMutex_Lock(&fragPtrP->frag_mutex);
+    fragPtrP->m_cond_write_key_waiters = 1;
+    fragPtrP->m_spin_write_key_waiters = 1;
+    handle_acquire_read_key_frag_access(fragPtrP, true, false);
+    m_fragment_lock_status = FRAGMENT_LOCKED_IN_RK_WK_MODE;
+  }
+  else if (is_refresh_frag_access(regTcPtr))
+  {
+    /* Refresh requires exclusive access, prepare for this */
+    jamDebug();
+    NdbMutex_Lock(&fragPtrP->frag_mutex);
 #ifdef DEBUG_FRAGMENT_LOCK
-      fragPtrP->lock_line_index = (fragPtrP->lock_line_index + 1) &
-        LOCK_LINE_MASK;
-      fragPtrP->lock_line[fragPtrP->lock_line_index] = __LINE__;
+    fragPtrP->lock_line_index = (fragPtrP->lock_line_index + 1) &
+      LOCK_LINE_MASK;
+    fragPtrP->lock_line[fragPtrP->lock_line_index] = __LINE__;
 #endif
-      fragPtrP->m_cond_exclusive_waiters = 1;
-      fragPtrP->m_spin_exclusive_waiters = 1;
-      handle_acquire_read_key_frag_access(fragPtrP, true, false);
-      m_fragment_lock_status = FRAGMENT_LOCKED_IN_RK_REFRESH_MODE;
-    }
-    else
-    {
-      handle_acquire_read_key_frag_access(fragPtrP, false, true);
-      m_fragment_lock_status = FRAGMENT_LOCKED_IN_READ_KEY_MODE;
-    }
+    fragPtrP->m_cond_exclusive_waiters = 1;
+    fragPtrP->m_spin_exclusive_waiters = 1;
+    handle_acquire_read_key_frag_access(fragPtrP, true, false);
+    m_fragment_lock_status = FRAGMENT_LOCKED_IN_RK_REFRESH_MODE;
+  }
+  else
+  {
+    handle_acquire_read_key_frag_access(fragPtrP, false, true);
+    m_fragment_lock_status = FRAGMENT_LOCKED_IN_READ_KEY_MODE;
   }
 }
 
@@ -5457,6 +5456,25 @@ inline void
 Dblqh::unlock_index_fragment()
 {
   NdbMutex_Unlock(&fragptr.p->frag_mutex);
+}
+
+inline void
+Dblqh::lock_log_part(LogPartRecord *logPartPtrP)
+{
+  if (qt_likely(m_use_mutex_for_log_parts))
+  {
+    jamDebug();
+    NdbMutex_Lock(&logPartPtrP->m_log_part_mutex);
+  }
+}
+
+inline void Dblqh::unlock_log_part(LogPartRecord *logPartPtrP)
+{
+  if (qt_likely(m_use_mutex_for_log_parts))
+  {
+    jamDebug();
+    NdbMutex_Unlock(&logPartPtrP->m_log_part_mutex);
+  }
 }
 #endif
 

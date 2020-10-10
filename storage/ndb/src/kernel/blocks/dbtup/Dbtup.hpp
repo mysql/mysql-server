@@ -2234,6 +2234,12 @@ public:
 private:
   BLOCK_DEFINES(Dbtup);
 
+public:
+  void execTUP_ABORTREQ(Signal* signal);
+  void execTUP_WRITELOG_REQ(Signal* signal);
+  void execTUP_DEALLOCREQ(Signal* signal);
+  void do_tup_abortreq(Signal*, Uint32 flags);
+private:
   // Transit signals
   void execDEBUG_SIG(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -2252,13 +2258,10 @@ private:
   void execTUP_ADD_ATTRREQ(Signal* signal);
   void execTUPFRAGREQ(Signal* signal);
   void execTUP_COMMITREQ(Signal* signal);
-  void execTUP_ABORTREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);
-  void execTUP_DEALLOCREQ(Signal* signal);
-  void execTUP_WRITELOG_REQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
 
   void execDROP_FRAG_REQ(Signal*);
@@ -3358,7 +3361,6 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void tupkeyErrorLab(KeyReqStruct*);
-  void do_tup_abortreq(Signal*, Uint32 flags);
   void do_tup_abort_operation(Signal*, Tuple_header *,
                               Operationrec*,
                               Fragrecord*,

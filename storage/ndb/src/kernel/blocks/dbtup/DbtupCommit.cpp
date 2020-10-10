@@ -181,7 +181,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
 
 void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   OperationrecPtr loopOpPtr;
   loopOpPtr.i= signal->theData[0];
   Uint32 gci_hi = signal->theData[1];
@@ -190,7 +190,7 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   ndbassert(!m_is_query_block);
   while (loopOpPtr.p->prevActiveOp != RNIL)
   {
-    jam();
+    jamDebug();
     loopOpPtr.i= loopOpPtr.p->prevActiveOp;
     ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   }
@@ -202,13 +202,13 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
     signal->theData[2] = gci_lo;
     if (loopOpPtr.p->nextActiveOp == RNIL)
     {
-      jam();
-      EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
+      jamDebug();
+      c_lqh->execLQH_WRITELOG_REQ(signal);
       return;
     }
-    jam();
-    EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
-    jamEntry();
+    jamDebug();
+    c_lqh->execLQH_WRITELOG_REQ(signal);
+    jamEntryDebug();
     loopOpPtr.i= loopOpPtr.p->nextActiveOp;
     ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   } while (true);

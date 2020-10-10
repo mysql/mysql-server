@@ -1574,7 +1574,7 @@ Dbtux::relinkScan(ScanOp& scan,
    */
   if (scan.m_scanLinkedPos == scan.m_scanPos.m_loc)
   {
-    jam();
+    jamDebug();
     ndbrequire(scan.m_is_linked_scan ||
                scan.m_scanLinkedPos == NullTupLoc);
     scan.m_scanLinkedPos = NullTupLoc;
@@ -1590,12 +1590,12 @@ Dbtux::relinkScan(ScanOp& scan,
   const TupLoc new_loc = scan.m_scanPos.m_loc;
   if (scan.m_scanLinkedPos != NullTupLoc)
   {
-    jam();
+    jamDebug();
     selectNode(c_ctx, old_node, old_loc);
   }
   if (scan.m_scanPos.m_loc != NullTupLoc)
   {
-    jam();
+    jamDebug();
     selectNode(c_ctx, new_node, new_loc);
   }
   if (qt_likely(need_lock))
@@ -1604,18 +1604,18 @@ Dbtux::relinkScan(ScanOp& scan,
   }
   if (scan.m_scanLinkedPos != NullTupLoc)
   {
-    jam();
+    jamDebug();
     unlinkScan(old_node, c_ctx.scanPtr, m_my_scan_instance);
   }
   if (scan.m_scanPos.m_loc != NullTupLoc)
   {
-    jam();
+    jamDebug();
     scan.m_is_linked_scan = true;
     linkScan(new_node, c_ctx.scanPtr, m_my_scan_instance);
   }
   else
   {
-    jam();
+    jamDebug();
     scan.m_is_linked_scan = false;
   }
   if (qt_likely(need_lock))
