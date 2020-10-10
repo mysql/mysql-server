@@ -1580,7 +1580,7 @@ Dbtux::relinkScan(ScanOp& scan,
     scan.m_scanLinkedPos = NullTupLoc;
     return;
   }
-  if (globalData.ndbMtQueryThreads == 0)
+  if (qt_unlikely(globalData.ndbMtQueryThreads == 0))
   {
     need_lock = false;
   }
@@ -1598,7 +1598,7 @@ Dbtux::relinkScan(ScanOp& scan,
     jam();
     selectNode(c_ctx, new_node, new_loc);
   }
-  if (need_lock)
+  if (qt_likely(need_lock))
   {
     c_lqh->lock_index_fragment();
   }
@@ -1618,7 +1618,7 @@ Dbtux::relinkScan(ScanOp& scan,
     jam();
     scan.m_is_linked_scan = false;
   }
-  if (need_lock)
+  if (qt_likely(need_lock))
   {
     c_lqh->unlock_index_fragment();
   }

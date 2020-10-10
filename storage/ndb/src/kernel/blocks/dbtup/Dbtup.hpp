@@ -823,7 +823,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
 
   void acquire_frag_page_map_mutex(Fragrecord *fragPtrP)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       ndbrequire(!m_is_in_query_thread);
       NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
@@ -831,7 +831,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   }
   void release_frag_page_map_mutex(Fragrecord *fragPtrP)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
     }
@@ -846,24 +846,22 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   }
   void acquire_frag_page_map_mutex_read(Fragrecord *fragPtrP)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
     }
   }
   void release_frag_page_map_mutex_read(Fragrecord *fragPtrP)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
     }
   }
-
-
   void acquire_frag_mutex(Fragrecord *fragPtrP,
                           Uint32 logicalPageId)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       ndbrequire(!m_is_in_query_thread);
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
@@ -873,7 +871,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   void release_frag_mutex(Fragrecord *fragPtrP,
                           Uint32 logicalPageId)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
       NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
@@ -882,7 +880,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   void acquire_frag_mutex_read(Fragrecord *fragPtrP,
                                Uint32 logicalPageId)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
       NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
@@ -891,7 +889,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   void release_frag_mutex_read(Fragrecord *fragPtrP,
                                Uint32 logicalPageId)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
       NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);

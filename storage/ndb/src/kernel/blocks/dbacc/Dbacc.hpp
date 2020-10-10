@@ -1273,7 +1273,7 @@ public:
   bool acquire_frag_mutex_get(Fragmentrec *fragPtrP,
                               OperationrecPtr opPtr)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1285,7 +1285,7 @@ public:
   void release_frag_mutex_get(Fragmentrec *fragPtrP,
                               OperationrecPtr opPtr)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1295,7 +1295,7 @@ public:
   bool acquire_frag_mutex_hash(Fragmentrec *fragPtrP,
                                OperationrecPtr opPtr)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1307,7 +1307,7 @@ public:
   void release_frag_mutex_hash(Fragmentrec *fragPtrP,
                                OperationrecPtr opPtr)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1317,7 +1317,7 @@ public:
   void acquire_frag_mutex_bucket(Fragmentrec *fragPtrP,
                                  Uint32 bucket)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       Uint32 inx = bucket & (NUM_ACC_FRAGMENT_MUTEXES - 1);
       NdbMutex_Lock(&fragPtrP->acc_frag_mutex[inx]);
@@ -1325,7 +1325,7 @@ public:
   }
   void release_frag_mutex_bucket(Fragmentrec *fragPtrP, Uint32 bucket)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       Uint32 inx = bucket & (NUM_ACC_FRAGMENT_MUTEXES - 1);
       NdbMutex_Unlock(&fragPtrP->acc_frag_mutex[inx]);

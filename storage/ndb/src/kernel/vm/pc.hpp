@@ -41,6 +41,9 @@ extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
 struct thr_data;
 extern thread_local thr_data* NDB_THREAD_TLS_THREAD;
 
+#define qt_likely unlikely
+#define qt_unlikely likely
+
 #ifdef NDB_DEBUG_RES_OWNERSHIP
 
 /* (Debug only) Shared resource owner. */
