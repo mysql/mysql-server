@@ -2452,6 +2452,13 @@ int ha_innopart::create(const char *name, TABLE *form,
     return HA_ERR_INTERNAL_ERROR;
   }
 
+  /* A non-zero max_size value is not allowed with partitioned
+  tables. */
+  if (create_info->m_implicit_tablespace_max_size > 0) {
+    my_error(ER_INNODB_MAX_SIZE_NOT_ALLOWED, MYF(0));
+    return ER_INNODB_MAX_SIZE_NOT_ALLOWED;
+  }
+
   innobase_register_trx(ht, thd, trx);
 
   if (form->found_next_number_field) {

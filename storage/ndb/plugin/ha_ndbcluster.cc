@@ -16600,7 +16600,8 @@ static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
         return 1;
       }
 
-      if (alter_info->max_size > 0) {
+      if (alter_info->max_size.has_value() &&
+          alter_info->max_size.value() > 0) {
         thd_ndb->push_warning(
             "MAX_SIZE cannot be set to a value greater than 0");
         my_error(ER_WRONG_SIZE_NUMBER, MYF(0));
@@ -16655,7 +16656,8 @@ static int ndbcluster_alter_tablespace(handlerton *, THD *thd,
 
       switch (alter_info->ts_alter_tablespace_type) {
         case ALTER_TABLESPACE_ADD_FILE: {
-          if (alter_info->max_size > 0) {
+          if (alter_info->max_size.has_value() &&
+              alter_info->max_size.value() > 0) {
             thd_ndb->push_warning(
                 "MAX_SIZE cannot be set to a value greater than "
                 "0");

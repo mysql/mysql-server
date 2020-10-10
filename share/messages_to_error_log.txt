@@ -11172,6 +11172,9 @@ ER_HEALTH_WARNING_DISK_USAGE_LEVEL_2
 ER_HEALTH_WARNING_DISK_USAGE_LEVEL_3
   eng "Disk usage on '%s' is %.2f%%. Warning level 3 (%d%%) exceeded."
 
+ER_IB_INNODB_TBSP_OUT_OF_SPACE
+  eng "InnoDB: Size of tablespace %s is more than the maximum size allowed."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

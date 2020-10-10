@@ -2594,7 +2594,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
 // Prepare HA_CREATE_INFO to be used by ALTER as well as upgrade code.
 void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
-                                                    uint used_fields) {
+                                                    uint64_t used_fields) {
   if (!(used_fields & HA_CREATE_USED_MIN_ROWS)) min_rows = share->min_rows;
 
   if (!(used_fields & HA_CREATE_USED_MAX_ROWS)) max_rows = share->max_rows;
@@ -2645,6 +2645,20 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
   if (!(used_fields & HA_CREATE_USED_SECONDARY_ENGINE)) {
     DBUG_ASSERT(secondary_engine.str == nullptr);
     secondary_engine = share->secondary_engine;
+  }
+
+  if (!(used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE)) {
+    /* m_implicit_tablespace_autoextend_size = 0 is a valid value. Hence,
+    we need a mechanism to indicate the value change. */
+    m_implicit_tablespace_autoextend_size = share->autoextend_size;
+    m_implicit_tablespace_autoextend_size_change = false;
+  }
+
+  if (!(used_fields & HA_CREATE_USED_MAX_SIZE)) {
+    /* m_implicit_tablespace_max_size = 0 is a valid value. Hence,
+    we need a mechanism to indicate the value change. */
+    m_implicit_tablespace_max_size = share->max_size;
+    m_implicit_tablespace_max_size_change = false;
   }
 
   if (engine_attribute.str == nullptr)

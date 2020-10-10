@@ -422,10 +422,22 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_page_alloc_low(
 
   /* Parameter TRUE below states that the caller has made the
   reservation for free extents, and thus we know that a page can
-  be allocated: */
+  be allocated. However, for the cases where the file size is
+  either smaller than an extent or same as the initial size,
+  the fsp_reserve_free_extents returns reserved extents as 0.
+  This can be true even if the initial allocation is about
+  to be completely filled up. The function below is a point
+  of no return and expects that enough space is already allocated.
+  However, the callers of this function rely on the success/failure
+  return by fsp_reserve_free_extents, which does not really guarantee
+  that a whole extent has been reserved.
+  The function fseg_alloc_free_page_general should attempt to ensure
+  enough space is reserved before proceeding ahead. */
+  uint64_t reserved_ext = fil_space_get_n_reserved_extents(
+      page_get_space_id(page_align(seg_header)));
 
   return (fseg_alloc_free_page_general(seg_header, hint_page_no, file_direction,
-                                       TRUE, mtr, init_mtr));
+                                       reserved_ext > 0, mtr, init_mtr));
 }
 
 /** Allocates a new file page to be used in an index tree. NOTE: we assume
@@ -2413,6 +2425,11 @@ func_start:
   /* 2. Allocate a new page to the index */
   new_block = btr_page_alloc(cursor->index, hint_page_no, direction,
                              btr_page_get_level(page, mtr), mtr, mtr);
+
+  /* New page could not be allocated */
+  if (!new_block) {
+    return nullptr;
+  }
 
   new_page = buf_block_get_frame(new_block);
   new_page_zip = buf_block_get_page_zip(new_block);

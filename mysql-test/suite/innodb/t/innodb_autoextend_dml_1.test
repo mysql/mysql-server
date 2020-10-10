@@ -1,0 +1,334 @@
+# Disable in valgrind because of timeout
+--source include/not_valgrind.inc
+--source include/have_innodb_16k.inc
+
+--echo #
+--echo # This test tests various DML operations and their effect on the tablespaces
+--echo #
+
+# Following messages are expected but need to be suppressed
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* InnoDB: Size of tablespace test/t1 is more than the maximum size allowed.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 't1' is full");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* InnoDB: Size of tablespace myspace is more than the maximum size allowed.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 'tsp' is full");
+--enable_query_log
+
+--echo # Test tables with file_per_table tablespace
+
+--echo #
+--echo # Scenario-1: Create a table without autoextend_size and validate that the allocation
+--echo # happens as per the old logic
+--echo #
+
+CREATE TABLE t1 (c1 INT, c2 TEXT);
+
+--echo # Verify the initial size of the file
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--echo # This is a smaller tablespace. The tablespace should extend by adding smaller number
+--echo # of pages initially
+
+--echo # Add few rows to the table and check the size of the file
+let $row_count = 1;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+let $row_count = 1;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+let $row_count = 1;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--echo # Once the tablespace size is more than half of the extent size, tablespace is extended with
+--echo # 4 extents at a time
+let $row_count = 7;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+drop table t1;
+
+--echo #
+--echo # Scenario-2: Create table with autoextend_size clause and validate that the allocation happens as per the
+--echo # new logic and the initial size of the tablespace file is the value of AUTOEXTEND_SIZE
+--echo #
+CREATE TABLE t2(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+let $row_count = 10;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+ALTER TABLE t2 MAX_SIZE 1000M;
+let $row_count = 10;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+let $row_count = 1000;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+--error ER_INNODB_TBSP_MAX_SIZE_LESS_THAN_FILE_SIZE
+ALTER TABLE t2 MAX_SIZE 8M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+ALTER TABLE t2 MAX_SIZE 1000M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+let $row_count = 1000;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+DROP TABLE t2;
+
+--echo #
+--echo # Scenario-3: Create a table without autoextend_size and alter it later on to add autoextend_size property
+--echo # Validate that the allocation is done with the old logic until autoextend_size is introduced to the table
+--echo #
+CREATE TABLE t3(c1 INT, c2 TEXT);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t3%';
+
+let $row_count = 1;
+let $table_name = t3;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM t3;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t3%';
+
+ALTER TABLE t3 AUTOEXTEND_SIZE 4M;
+let $row_count = 1;
+let $table_name = t3;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM t3;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t3%';
+
+DROP TABLE t3;
+
+--echo #
+--echo # Scenario-4: Validate that the server gracefully handles the out of space error
+--echo # when AUTOEXTEND_SIZE is 0 and MAX_SIZE is set to the minimum size allowed
+--echo #
+
+DELIMITER |;
+CREATE PROCEDURE test_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO t1 VALUES(i, 'name');
+    COMMIT;
+    SET i = i + 1;
+  END WHILE;
+END
+|
+
+DELIMITER ;|
+
+CREATE TABLE t1(c1 INT, c2 VARCHAR(20)) MAX_SIZE = 4M;
+
+call test_insert();
+SELECT COUNT(*) FROM t1;
+
+--error ER_RECORD_FILE_FULL
+CALL test_insert();
+
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--echo # Validate that the same error is returned on subsequent attempts and the size of the
+--echo # file does not change
+--error ER_RECORD_FILE_FULL
+CALL test_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--echo # Increase the max_size value and try again
+ALTER TABLE t1 MAX_SIZE 10M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+INSERT INTO t1 VALUES(10000, 'name');
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+DROP TABLE t1;
+
+DROP PROCEDURE test_insert;
+
+--echo # Verify Bug#31929822 with LOB and non-LOB datatypes
+DELIMITER |;
+CREATE PROCEDURE bulk_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO t1 VALUE(i, REPEAT('a', 9000));
+    SET i = i + 1;
+  END WHILE;
+END
+|
+DELIMITER ;|
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 VARCHAR(10000))
+  AUTOEXTEND_SIZE 4M MAX_SIZE 5M;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+
+SELECT COUNT(*) FROM t1;
+
+--error ER_RECORD_FILE_FULL
+INSERT INTO t1 VALUES(10000, REPEAT('a', 9000));
+
+DROP TABLE t1;
+
+DROP PROCEDURE bulk_insert;
+
+DELIMITER |;
+CREATE PROCEDURE bulk_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 1000000 DO
+    INSERT INTO t1 VALUE(i, i);
+    SET i = i + 1;
+  END WHILE;
+END
+|
+DELIMITER ;|
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT)
+  AUTOEXTEND_SIZE 4M MAX_SIZE 5M;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+
+SELECT COUNT(*) FROM t1;
+
+--error ER_RECORD_FILE_FULL
+INSERT INTO t1 VALUES(1000000, 1000000);
+
+DROP TABLE t1;
+
+DROP PROCEDURE bulk_insert;
+--echo #
+--echo # Scenario-5: Test bulk inserts with different settings for max_size
+--echo #
+DELIMITER |;
+CREATE PROCEDURE bulk_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO t1 VALUES(REPEAT('a', 65533));
+    SET i = i + 1;
+  END WHILE;
+END
+|
+DELIMITER ;|
+
+CREATE TABLE t1(c1 VARCHAR(65533) NOT NULL) MAX_SIZE 4M ENGINE=InnoDB CHARACTER SET latin1;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+# Increase the max_size limit of the tablespace and try again
+ALTER TABLE t1 MAX_SIZE 10M;
+INSERT INTO t1 VALUES(REPEAT('a', 65533));
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 VARCHAR(65533) NOT NULL) MAX_SIZE 128M ENGINE=InnoDB CHARACTER SET latin1;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 VARCHAR(65533) NOT NULL) AUTOEXTEND_SIZE 4M MAX_SIZE 8M ENGINE=InnoDB CHARACTER SET latin1;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 VARCHAR(65533) NOT NULL) AUTOEXTEND_SIZE 4M MAX_SIZE 128M ENGINE=InnoDB CHARACTER SET latin1;
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--error ER_RECORD_FILE_FULL
+call bulk_insert();
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE, MAX_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+DROP TABLE t1;
+
+DROP PROCEDURE bulk_insert;

@@ -436,7 +436,7 @@
     "dd_object": {
         "name": "test/t10",
         "comment": "",
-        "options": "encryption=N;",
+        "options": "autoextend_size=0;encryption=N;max_size=0;",
         "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
         "engine_attribute": "",

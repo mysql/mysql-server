@@ -3035,4 +3035,80 @@ void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
   }
 }
 
+bool get_implicit_tablespace_options(THD *thd, const Table *table,
+                                     ulonglong *autoextend_size,
+                                     ulonglong *max_size) {
+  DBUG_ASSERT(table->engine() == "InnoDB");
+
+  if (table->is_explicit_tablespace()) {
+    return false;
+  }
+
+  // AUTOEXTEND_SIZE and MAX_SIZE are tablespace attributes. In order to find
+  // these attributes, first find the tablespace associated with the table
+  Object_id space_id{};
+  Tablespace *tbsp{};
+
+  if (table->partition_type() == Table::PT_NONE) {
+    // If this is a non-partitioned tables, find out the space id from the first
+    // index
+    const Index *index = *table->indexes().begin();
+
+    if (index) {
+      space_id = index->tablespace_id();
+    }
+  } else {
+    // Find out the space_id from the first index on the first partition in case
+    // of partitioned tables or from the first index on the first sub-partition
+    // if the table has sub-partitions. The implicit tablespace for each
+    // partition or sub-partition will have the same AUTOEXTEND_SIZE and
+    // MAX_SIZE values
+    const Partition *part = *table->partitions().begin();
+
+    if (part) {
+      const Partition_index *index{};
+      if (table->subpartition_type() == Table::ST_NONE) {
+        // First index from the partition
+        index = *part->indexes().begin();
+      } else {
+        // This is a sub-partitioned table. Get the first indexes from the first
+        // sub-partition
+        const Partition *subpart = *part->subpartitions().begin();
+
+        if (subpart) {
+          index = *subpart->indexes().begin();
+        }
+      }
+
+      space_id = index->tablespace_id();
+    }
+  }
+
+  DBUG_ASSERT(space_id != INVALID_OBJECT_ID);
+
+  // Find the tablespace with the given space_id
+  if (space_id != INVALID_OBJECT_ID &&
+      !thd->dd_client()->acquire_uncached_uncommitted<Tablespace>(space_id,
+                                                                  &tbsp) &&
+      tbsp != nullptr) {
+    const Properties &p = tbsp->options();
+
+    if (p.exists("autoextend_size")) {
+      p.get("autoextend_size", autoextend_size);
+    }
+
+    if (p.exists("max_size")) {
+      p.get("max_size", max_size);
+    }
+  } else {
+    /* purecov: begin deadcode */
+    // Could not find the implicit tablespace for this table
+    DBUG_ASSERT(false);
+
+    return true;
+    /* purecov: end */
+  }
+
+  return false;
+}
 }  // namespace dd

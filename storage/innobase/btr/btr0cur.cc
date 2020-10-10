@@ -3020,6 +3020,10 @@ dberr_t btr_cur_pessimistic_insert(
     *rec = btr_page_split_and_insert(flags, cursor, offsets, heap, entry, mtr);
   }
 
+  if (!*rec) {
+    return DB_OUT_OF_FILE_SPACE;
+  }
+
   ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec ||
         dict_index_is_spatial(index));
 
@@ -4697,7 +4701,7 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
     }
   }
 
-  if (!has_reserved_extents) {
+  if (!has_reserved_extents && !rollback) {
     /* First reserve enough free space for the file segments
     of the index tree, so that the node pointer updates will
     not fail because of lack of space */

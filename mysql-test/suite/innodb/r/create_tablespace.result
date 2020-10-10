@@ -921,11 +921,9 @@ DROP TABLESPACE s_bad;
 #
 # Try the syntax that MySQL docs say is ignored.
 #
-CREATE TABLESPACE s_ignore1 ADD DATAFILE 's_ignore1.ibd' AUTOEXTEND_SIZE = 10M;
-CREATE TABLESPACE s_ignore2 ADD DATAFILE 's_ignore2.ibd' MAX_SIZE = 1G;
-CREATE TABLESPACE s_ignore3 ADD DATAFILE 's_ignore3.ibd' NODEGROUP = 5;
-CREATE TABLESPACE s_ignore4 ADD DATAFILE 's_ignore4.ibd' WAIT;
-CREATE TABLESPACE s_ignore5 ADD DATAFILE 's_ignore5.ibd' COMMENT = 'This comment is ignored';
+CREATE TABLESPACE s_ignore1 ADD DATAFILE 's_ignore1.ibd' NODEGROUP = 5;
+CREATE TABLESPACE s_ignore2 ADD DATAFILE 's_ignore2.ibd' WAIT;
+CREATE TABLESPACE s_ignore3 ADD DATAFILE 's_ignore3.ibd' COMMENT = 'This comment is ignored';
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
 mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -934,8 +932,6 @@ s_def	General	DEFAULT	0	1	1	Any	s_def.ibd
 s_ignore1	General	DEFAULT	0	1	1	Any	s_ignore1.ibd
 s_ignore2	General	DEFAULT	0	1	1	Any	s_ignore2.ibd
 s_ignore3	General	DEFAULT	0	1	1	Any	s_ignore3.ibd
-s_ignore4	General	DEFAULT	0	1	1	Any	s_ignore4.ibd
-s_ignore5	General	DEFAULT	0	1	1	Any	s_ignore5.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -944,13 +940,9 @@ s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
 s_ignore1	TABLESPACE	InnoDB	NORMAL	s_ignore1	MYSQLD_DATADIR/s_ignore1.ibd
 s_ignore2	TABLESPACE	InnoDB	NORMAL	s_ignore2	MYSQLD_DATADIR/s_ignore2.ibd
 s_ignore3	TABLESPACE	InnoDB	NORMAL	s_ignore3	MYSQLD_DATADIR/s_ignore3.ibd
-s_ignore4	TABLESPACE	InnoDB	NORMAL	s_ignore4	MYSQLD_DATADIR/s_ignore4.ibd
-s_ignore5	TABLESPACE	InnoDB	NORMAL	s_ignore5	MYSQLD_DATADIR/s_ignore5.ibd
 DROP TABLESPACE s_ignore1;
 DROP TABLESPACE s_ignore2;
 DROP TABLESPACE s_ignore3;
-DROP TABLESPACE s_ignore4;
-DROP TABLESPACE s_ignore5;
 #
 # Try various ALTER TABLE statements.
 #

@@ -2756,9 +2756,11 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	table		table definition(will be freed, or on
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
+@param[in]	create_info     HA_CREATE_INFO object
 @param[in,out]	trx		transaction
 @return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
+                                   const HA_CREATE_INFO *create_info,
                                    trx_t *trx) {
   mem_heap_t *heap;
   dberr_t err;
@@ -2788,7 +2790,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
   }
 
   /* Assign table id and build table space. */
-  err = dict_build_table_def(table, trx);
+  err = dict_build_table_def(table, create_info, trx);
   if (err != DB_SUCCESS) {
     trx->error_state = err;
     goto error_handling;

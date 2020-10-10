@@ -3709,6 +3709,13 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
       return (row_import_cleanup(prebuilt, trx, err));
     }
+    if (err == DB_INNODB_IMPORT_FILE_LARGER_THAN_MAX_SIZE) {
+      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+              ER_IMPORT_TABLESPACE_LARGER_THAN_MAX_SIZE,
+              "Tablespace being imported is larger than the MAX_SIZE size on "
+              "the target table");
+      return (row_import_cleanup(prebuilt, trx, err));
+    }
     return (row_import_error(prebuilt, trx, err));
   }
 
@@ -3737,6 +3744,14 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
             "Encryption attribute in the file does not match the dictionary.");
 
+    return (row_import_cleanup(prebuilt, trx, err));
+  }
+
+  if (err == DB_INNODB_IMPORT_FILE_LARGER_THAN_MAX_SIZE) {
+    ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+            ER_IMPORT_TABLESPACE_LARGER_THAN_MAX_SIZE,
+            "Tablespace being imported is larger than the MAX_SIZE size on the "
+            "target table");
     return (row_import_cleanup(prebuilt, trx, err));
   }
 
@@ -3821,6 +3836,23 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   }
 
   row_mysql_unlock_data_dictionary(trx);
+
+  /* Set the autoextend_size and max_size attributes. */
+  {
+    auto dc = dd::get_dd_client(trx->mysql_thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+    uint64_t autoextend_size{};
+    uint64_t max_size{};
+    if (!dd_get_tablespace_size_option(dc, table->dd_space_id, &autoextend_size,
+                                       &max_size)) {
+      ut_d(dberr_t ret =)
+          fil_set_autoextend_size(table->space, autoextend_size);
+      ut_ad(ret == DB_SUCCESS);
+
+      ut_d(ret =) fil_set_max_size(table->space, max_size);
+      ut_ad(ret == DB_SUCCESS);
+    }
+  }
 
   ut_free(filepath);
 
