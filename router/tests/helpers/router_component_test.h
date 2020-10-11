@@ -101,7 +101,8 @@ class RouterComponentBootstrapTest : public RouterComponentTest {
       const std::vector<std::string> &expected_output_regex = {},
       std::chrono::milliseconds wait_for_exit_timeout =
           std::chrono::seconds(10),
-      const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 0, 3});
+      const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 0, 3},
+      const std::vector<std::string> &extra_router_options = {});
 
   friend std::ostream &operator<<(
       std::ostream &os,

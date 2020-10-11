@@ -102,8 +102,8 @@ void RouterComponentBootstrapTest::bootstrap_failover(
     const std::vector<std::string> &router_options, int expected_exitcode,
     const std::vector<std::string> &expected_output_regex,
     std::chrono::milliseconds wait_for_exit_timeout,
-
-    const mysqlrouter::MetadataSchemaVersion &metadata_version) {
+    const mysqlrouter::MetadataSchemaVersion &metadata_version,
+    const std::vector<std::string> &extra_router_options) {
   std::string cluster_name("mycluster");
 
   std::vector<std::pair<std::string, unsigned>> gr_members;
@@ -152,6 +152,10 @@ void RouterComponentBootstrapTest::bootstrap_failover(
     // not relevant so we use it for VALGRIND testing as it saves huge amount of
     // time that generating the certificates takes
     router_cmdline.emplace_back("--disable-rest");
+  }
+
+  for (const auto &opt : extra_router_options) {
+    router_cmdline.push_back(opt);
   }
 
   // launch the router
