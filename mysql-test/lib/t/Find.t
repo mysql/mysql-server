@@ -30,16 +30,14 @@ use lib "lib";
 BEGIN { use_ok ("My::Find");}
 my $bindir= $ENV{MYSQL_BIN_PATH} || ".";
 my $mtrdir = $ENV{MYSQL_BASEDIR} || ".";
-
+my $client_bindir = $ENV{MYSQL_CLIENT_BIN_PATH};
 print "=" x 40, "\n";
 my $mysqld_exe= my_find_bin($bindir,
 			    [ "runtime_output_directory", "libexec", "sbin", "bin" ],
                             ["mysqld", "mysqld-debug"]);
 print "mysqld_exe found\n";
 print "=" x 40, "\n";
-my $mysql_exe= my_find_bin($bindir,
-			    [ "runtime_output_directory", "libexec", "sbin", "bin" ],
-                           "mysql");
+my $mysql_exe= my_find_bin($client_bindir, [ "" ], "mysql");
 print "mysql_exe found\n";
 print "=" x 40, "\n";
 
