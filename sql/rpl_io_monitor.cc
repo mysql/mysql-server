@@ -152,11 +152,7 @@ bool Source_IO_monitor::is_monitor_killed(THD *thd, Master_info *) {
   return m_abort_monitor || connection_events_loop_aborted() || thd->killed;
 }
 
-bool Source_IO_monitor::launch_monitoring_process(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_thread_key thread_key
-#endif
-) {
+bool Source_IO_monitor::launch_monitoring_process(PSI_thread_key thread_key) {
   DBUG_TRACE;
 
   if (!m_monitor_thd_initiated) init_mutex();
