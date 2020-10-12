@@ -5249,7 +5249,8 @@ void LO_rwlock_class_sx::add_to_graph(LO_graph *g) const {
 
   /*
     +S -> -S arc.
-    A granted shared lock can block (indirectly) another shared lock request.
+    A granted shared lock (-S) can block (indirectly)
+    another shared lock request (+S).
 
     This is due to the innodb implementation of rw_lock_x_lock_low().
     When an exclusive (X) lock request starts,
@@ -5263,8 +5264,12 @@ void LO_rwlock_class_sx::add_to_graph(LO_graph *g) const {
 
   /*
     +SX -> -S arc.
-    Once an intention exclusive lock is granted,
-    new lock request in shared mode are blocked.
+    Case similar to the +S -> -S arc.
+    Once a lock in S mode is granted,
+    a thread requesting an X lock announce itself in the latch,
+    then wait for previous granted S locks to be released.
+    Another thread requesting an SX lock will detect an X request is pending,
+    and will be indirectly blocked, waiting on the S lock.
   */
   g->add_arc(m_node_p_sx, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_arc(m_node_p_x, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
