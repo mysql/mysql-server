@@ -29,6 +29,8 @@
 
 #include <openssl/ssl.h>
 
+#include "mysql/harness/tls_export.h"
+
 static_assert(SSL_ERROR_WANT_READ != 0, "");
 
 enum class TlsErrc {
@@ -54,17 +56,17 @@ struct is_error_code_enum<TlsCertErrc> : std::true_type {};
 /**
  * make std::error_code from TlsCertErrc.
  */
-std::error_code make_error_code(TlsCertErrc ec);
+HARNESS_TLS_EXPORT std::error_code make_error_code(TlsCertErrc ec);
 
 /**
  * make std::error_code from TlsErrc.
  */
-std::error_code make_error_code(TlsErrc ec);
+HARNESS_TLS_EXPORT std::error_code make_error_code(TlsErrc ec);
 
 /**
  * make a std::error_code from ERR_get_error().
  */
-std::error_code make_tls_error();
+HARNESS_TLS_EXPORT std::error_code make_tls_error();
 
 /**
  * make a std::error_code from SSL_get_error().
@@ -72,6 +74,6 @@ std::error_code make_tls_error();
  * @param ssl a SSL connection
  * @param res result of a SSL_ function.
  */
-std::error_code make_tls_ssl_error(SSL *ssl, int res);
+HARNESS_TLS_EXPORT std::error_code make_tls_ssl_error(SSL *ssl, int res);
 
 #endif

@@ -27,9 +27,6 @@
 #include <sstream>
 #include <stdexcept>
 
-#include <openssl/err.h>
-#include <openssl/ssl.h>
-
 #include "dim.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/loader.h"
