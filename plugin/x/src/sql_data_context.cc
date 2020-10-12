@@ -517,7 +517,12 @@ void Sql_data_context::default_completion_handler(void *ctx,
 }
 
 bool Sql_data_context::is_killed() const {
-  return srv_session_info_killed(m_mysql_session);
+  const auto kill = thd_killed(get_thd());
+  DBUG_LOG("debug", "is_killed:" << kill);
+
+  if (0 == kill) return false;
+
+  return ER_QUERY_INTERRUPTED != kill;
 }
 
 bool Sql_data_context::is_api_ready() {
