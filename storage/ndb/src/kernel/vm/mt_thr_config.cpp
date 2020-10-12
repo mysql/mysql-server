@@ -828,7 +828,7 @@ THRConfig::compute_automatic_thread_config(
     Uint32 recv_threads;
   } table[] = {
     { 0, 0, 0, 0, 0, 0, 0, 1 }, // 1 CPU
-    { 1, 0, 0, 1, 0, 0, 0, 1 }, // 2-3 CPUs
+    { 1, 1, 0, 0, 0, 0, 0, 1 }, // 2-3 CPUs
     { 2, 1, 0, 1, 1, 0, 0, 1 }, // 4-5 CPUs
     { 3, 1, 0, 2, 2, 0, 0, 1 }, // 6-7 CPUs
     { 4, 1, 0, 2, 2, 1, 1, 1 }, // 8-9 CPUs
@@ -1036,6 +1036,10 @@ THRConfig::compute_automatic_thread_config(
   if (cpu_cnt == 1)
   {
     recover_threads = 0;
+  }
+  else if (cpu_cnt == 2)
+  {
+    recover_threads = 1;
   }
 
   Uint32 tot_threads = main_threads;
