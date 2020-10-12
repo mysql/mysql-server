@@ -10688,6 +10688,10 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
   std::vector<dd::Partition_index *>::iterator p_iter;
   std::vector<dd::Index *> swap_indexes;
   std::vector<dd::Index *>::iterator s_iter;
+#ifdef UNIV_DEBUG
+  std::vector<dd::Index *> part_table_indexes;
+  std::vector<dd::Index *>::iterator pt_iter;
+#endif
 
   if (high_level_read_only) {
     my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -10736,8 +10740,13 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
   ut_ad(swap != nullptr);
   ut_ad(swap->n_ref_count == 1);
 
-  /* Declare earlier before 'goto' */
-  ut_d(auto part_table_i = part_table->indexes()->begin());
+#ifdef UNIV_DEBUG
+  /* Store and sort part_table indexes */
+  std::copy(part_table->indexes()->begin(), part_table->indexes()->end(),
+            std::back_inserter(part_table_indexes));
+  std::sort(part_table_indexes.begin(), part_table_indexes.end(),
+            [](dd::Index *a, dd::Index *b) { return (a->name() < b->name()); });
+#endif
   dd::Object_id p_se_id = dd_part->se_private_id();
 
   /* Try to rename files. Tablespace checking ensures that
@@ -10821,14 +10830,18 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
       swap_index->se_private_data().clear();
       swap_index->set_se_private_data(*p_se_data);
     }
+  }
+#ifdef UNIV_DEBUG
+  for (s_iter = swap_indexes.begin(), pt_iter = part_table_indexes.begin();
+       s_iter < swap_indexes.end() && pt_iter < part_table_indexes.end();
+       pt_iter++, s_iter++) {
+    auto part_table_index = *pt_iter;
+    auto swap_index = *s_iter;
 
-    ut_ad(part_table_i != part_table->indexes()->end());
-    ut_d(auto part_table_index = *part_table_i);
-    ut_d(++part_table_i);
     ut_ad(part_table_index->options().raw_string() ==
           swap_index->options().raw_string());
   }
-  ut_ad(part_table_i == part_table->indexes()->end());
+#endif
 
   /* Swap the se_private_data and options of the two tables.
   Only the max autoinc should be set to both tables */
