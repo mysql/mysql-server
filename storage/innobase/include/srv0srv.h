@@ -414,8 +414,18 @@ extern bool srv_undo_log_truncate;
 /** Enable or disable Encrypt of UNDO tablespace. */
 extern bool srv_undo_log_encrypt;
 
-/** Default size of UNDO tablespace while it is created new. */
-extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
+/** Initial size of an UNDO tablespace when it is created new
+or truncated under low load.
+page size | FSP_EXTENT_SIZE  | Initial Size | Pages
+----------+------------------+--------------+-------
+    4 KB  | 256 pages = 1 MB |   16 MB      | 4096
+    8 KB  | 128 pages = 1 MB |   16 MB      | 2048
+   16 KB  |  64 pages = 1 MB |   16 MB      | 1024
+   32 KB  |  64 pages = 2 MB |   16 MB      |  512
+   64 KB  |  64 pages = 4 MB |   16 MB      |  256  */
+#define INITIAL_UNDO_SPACE_SIZE (16 * 1024 * 1024)
+#define INITIAL_UNDO_SPACE_SIZE_IN_PAGES \
+  static_cast<os_offset_t>(INITIAL_UNDO_SPACE_SIZE / UNIV_PAGE_SIZE)
 
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */

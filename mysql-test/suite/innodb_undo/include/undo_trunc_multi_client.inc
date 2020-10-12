@@ -22,7 +22,7 @@ delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
         DECLARE i INT DEFAULT 1;
-        while (i <= 40000) DO
+        while (i <= 50000) DO
                 insert into t1 values (i, 'a', 'b');
                 SET i = i + 1;
         END WHILE;
@@ -33,7 +33,7 @@ delimiter |;
 CREATE PROCEDURE populate_t2()
 BEGIN
         DECLARE i INT DEFAULT 1;
-        while (i <= 40000) DO
+        while (i <= 50000) DO
                 insert into t2 values (i, 'a', 'b');
                 SET i = i + 1;
         END WHILE;
