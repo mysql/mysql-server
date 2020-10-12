@@ -326,7 +326,6 @@ inline bool is_integer_type(enum_field_types type) {
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_YEAR:
       return true;
     default:
       return false;
@@ -347,7 +346,6 @@ inline bool is_numeric_type(enum_field_types type) {
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_DECIMAL:
@@ -385,7 +383,7 @@ inline bool is_string_type(enum_field_types type) {
 
 /**
   Tests if field type is temporal, i.e. represents
-  DATE, TIME, DATETIME or TIMESTAMP types in SQL.
+  DATE, TIME, DATETIME, TIMESTAMP or YEAR types in SQL.
 
   @param type    Field type, as returned by field->type().
   @retval true   If field type is temporal
@@ -398,6 +396,7 @@ inline bool is_temporal_type(enum_field_types type) {
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_YEAR:
       return true;
     default:
       return false;

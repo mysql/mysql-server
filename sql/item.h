@@ -629,7 +629,7 @@ class Type_properties {
         m_unsigned_flag(false),
         m_max_length(0),
         m_collation(&my_charset_numeric, DERIVATION_NUMERIC) {
-    DBUG_ASSERT(type_arg != MYSQL_TYPE_VARCHAR && type_arg != MYSQL_TYPE_JSON);
+    assert(type_arg != MYSQL_TYPE_VARCHAR && type_arg != MYSQL_TYPE_JSON);
   }
   /// Constructor for any numeric type, with explicit signedness
   Type_properties(enum_field_types type_arg, bool unsigned_arg)
@@ -637,7 +637,8 @@ class Type_properties {
         m_unsigned_flag(unsigned_arg),
         m_max_length(0),
         m_collation(&my_charset_numeric, DERIVATION_NUMERIC) {
-    DBUG_ASSERT(is_numeric_type(type_arg) || type_arg == MYSQL_TYPE_BIT);
+    assert(is_numeric_type(type_arg) || type_arg == MYSQL_TYPE_BIT ||
+           type_arg == MYSQL_TYPE_YEAR);
   }
   /// Constructor for character type, with explicit character set.
   /// Default length/max length is provided.

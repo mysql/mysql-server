@@ -6134,7 +6134,7 @@ type_conversion_status Item::save_in_field_inner(Field *field,
         }
 
         const enum_field_types field_type = field->type();
-        if (is_temporal_type(field_type)) {
+        if (is_temporal_type(field_type) && field_type != MYSQL_TYPE_YEAR) {
           MYSQL_TIME t;
           bool res = true;
           switch (field_type) {
@@ -6147,8 +6147,10 @@ type_conversion_status Item::save_in_field_inner(Field *field,
             case MYSQL_TYPE_NEWDATE:
               res = get_date(&t, 0);
               break;
+            case MYSQL_TYPE_YEAR:
+              assert(false);
             default:
-              DBUG_ASSERT(0);
+              assert(false);
           }
           if (res) {
             null_value = true;

@@ -831,7 +831,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
     return to->store_decimal(from->val_decimal(&tmp));
   } else if (is_temporal_type(from_type) && is_temporal_type(to_type)) {
     return copy_time_to_time(from, to);
-  } else if (from_type == MYSQL_TYPE_JSON && is_integer_type(to_type)) {
+  } else if (from_type == MYSQL_TYPE_JSON &&
+             (is_integer_type(to_type) || to_type == MYSQL_TYPE_YEAR)) {
     return to->store(from->val_int(), from->is_flag_set(UNSIGNED_FLAG));
   } else if (from_type == MYSQL_TYPE_JSON && to_type == MYSQL_TYPE_NEWDECIMAL) {
     my_decimal buff;
@@ -852,8 +853,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       case MYSQL_TYPE_NEWDATE:
         res = from->get_date(&ltime, 0);
         break;
-      default:
-        DBUG_ASSERT(0);
+      default:  // MYSQL_TYPE_YEAR is handled as an integer above
+        assert(false);
     }
     /*
       Field_json::get_time and get_date set ltime to zero, and we store it in
