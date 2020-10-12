@@ -1033,7 +1033,6 @@ private:
   void execSTART_COPYREF(Signal *);
   void execUPDATE_FRAG_STATEREQ(Signal *);
   void execUPDATE_FRAG_STATECONF(Signal *);
-  void execDIVERIFYREQ(Signal *);
   void execGCP_SAVEREQ(Signal *);
   void execGCP_SAVECONF(Signal *);
   void execGCP_PREPARECONF(Signal *);
@@ -1263,9 +1262,12 @@ private:
   void execPREPARE_COPY_FRAG_REF(Signal*);
   void execPREPARE_COPY_FRAG_CONF(Signal*);
   void execDIADDTABREQ(Signal *);
+public:
   void execDIGETNODESREQ(Signal *);
-  void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_REQ(Signal *);
+  void execDIVERIFYREQ(Signal *);
+private:
+  void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_COMPLETE_REP(Signal*);
   void execGCP_SAVEREF(Signal *);
   void execGCP_TCFINISHED(Signal *);

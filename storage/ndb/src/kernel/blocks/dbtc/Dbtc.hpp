@@ -171,6 +171,8 @@
 #define ZLQHKEY_PROTOCOL_ERROR 1237
 #endif
 
+class Dbdih;
+
 class Dbtc
 #ifndef DBTC_STATE_EXTRACT
   : public SimulatedBlock
@@ -307,7 +309,8 @@ public:
     ITAS_ALL_RECEIVED  = 3,     // All TransIdAI info received
     ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
-  
+
+  class Dbdih* c_dih;
   /**--------------------------------------------------------------------------
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
