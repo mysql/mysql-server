@@ -496,14 +496,11 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
   inside the start_lock section, but at the same time we want a
   mysql_cond_wait() on start_cond, start_lock
 */
-bool start_slave_thread(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_thread_key thread_key,
-#endif
-    my_start_routine h_func, mysql_mutex_t *start_lock,
-    mysql_mutex_t *cond_lock, mysql_cond_t *start_cond,
-    std::atomic<uint> *slave_running, std::atomic<ulong> *slave_run_id,
-    Master_info *mi);
+bool start_slave_thread(PSI_thread_key thread_key, my_start_routine h_func,
+                        mysql_mutex_t *start_lock, mysql_mutex_t *cond_lock,
+                        mysql_cond_t *start_cond,
+                        std::atomic<uint> *slave_running,
+                        std::atomic<ulong> *slave_run_id, Master_info *mi);
 
 bool show_slave_status(THD *thd, Master_info *mi);
 bool show_slave_status(THD *thd);

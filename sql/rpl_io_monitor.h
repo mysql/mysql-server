@@ -148,11 +148,7 @@ class Source_IO_monitor {
 
     @returns false in case of success, or true otherwise.
   */
-  bool launch_monitoring_process(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-      PSI_thread_key thread_key
-#endif
-  );
+  bool launch_monitoring_process(PSI_thread_key thread_key);
 
   /**
     Terminate the Monitor IO thread.
