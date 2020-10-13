@@ -1209,11 +1209,8 @@ static inline int fill_mts_gaps_and_recover(Master_info *mi) {
                                  : MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
   LogErr(INFORMATION_LEVEL, ER_RPL_MTS_RECOVERY_STARTING_COORDINATOR);
   recovery_error = start_slave_thread(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-      key_thread_slave_sql,
-#endif
-      handle_slave_sql, &rli->run_lock, &rli->run_lock, &rli->start_cond,
-      &rli->slave_running, &rli->slave_run_id, mi);
+      key_thread_slave_sql, handle_slave_sql, &rli->run_lock, &rli->run_lock,
+      &rli->start_cond, &rli->slave_running, &rli->slave_run_id, mi);
 
   if (recovery_error) {
     LogErr(WARNING_LEVEL, ER_RPL_MTS_RECOVERY_FAILED_TO_START_COORDINATOR);
@@ -1934,14 +1931,11 @@ static int terminate_slave_thread(THD *thd, mysql_mutex_t *term_lock,
   return 0;
 }
 
-bool start_slave_thread(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_thread_key thread_key,
-#endif
-    my_start_routine h_func, mysql_mutex_t *start_lock,
-    mysql_mutex_t *cond_lock, mysql_cond_t *start_cond,
-    std::atomic<uint> *slave_running, std::atomic<ulong> *slave_run_id,
-    Master_info *mi) {
+bool start_slave_thread(PSI_thread_key thread_key, my_start_routine h_func,
+                        mysql_mutex_t *start_lock, mysql_mutex_t *cond_lock,
+                        mysql_cond_t *start_cond,
+                        std::atomic<uint> *slave_running,
+                        std::atomic<ulong> *slave_run_id, Master_info *mi) {
   bool is_error = false;
   my_thread_handle th;
   ulong start_id;
@@ -2087,12 +2081,9 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   }
 
   if (thread_mask & SLAVE_IO)
-    is_error = start_slave_thread(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-        key_thread_slave_io,
-#endif
-        handle_slave_io, lock_io, lock_cond_io, cond_io, &mi->slave_running,
-        &mi->slave_run_id, mi);
+    is_error = start_slave_thread(key_thread_slave_io, handle_slave_io, lock_io,
+                                  lock_cond_io, cond_io, &mi->slave_running,
+                                  &mi->slave_run_id, mi);
 
   if (!is_error && (thread_mask & (SLAVE_IO | SLAVE_MONITOR)) &&
       mi->is_source_connection_auto_failover() &&
@@ -2118,11 +2109,8 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     }
     if (!is_error)
       is_error = start_slave_thread(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-          key_thread_slave_sql,
-#endif
-          handle_slave_sql, lock_sql, lock_cond_sql, cond_sql,
-          &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
+          key_thread_slave_sql, handle_slave_sql, lock_sql, lock_cond_sql,
+          cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
     if (is_error)
       terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
                               rpl_stop_slave_timeout, need_lock_slave);

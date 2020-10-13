@@ -2576,7 +2576,7 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership(bool claim) {
+void THD::claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   /*
     Ownership of the THD object is transfered to this thread.

@@ -1961,9 +1961,11 @@ dberr_t srv_start(bool create_new_db) {
 
   srv_is_being_started = true;
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
   /* Register performance schema stages before any real work has been
   started which may need to be instrumented. */
   mysql_stage_register("innodb", srv_stages, UT_ARR_SIZE(srv_stages));
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
   /* Switch latching order checks on in sync0debug.cc, if
   --innodb-sync-debug=false (default) */

@@ -84,77 +84,62 @@
   @param P3 my_thread_create parameter 3
   @param P4 my_thread_create parameter 4
 */
-#ifdef HAVE_PSI_THREAD_INTERFACE
 #define mysql_thread_create(K, P1, P2, P3, P4) \
   inline_mysql_thread_create(K, P1, P2, P3, P4)
-#else
-#define mysql_thread_create(K, P1, P2, P3, P4) my_thread_create(P1, P2, P3, P4)
-#endif
 
 /**
   @def mysql_thread_set_psi_id(I)
   Set the thread identifier for the instrumentation.
   @param I The thread identifier
 */
-#ifdef HAVE_PSI_THREAD_INTERFACE
 #define mysql_thread_set_psi_id(I) inline_mysql_thread_set_psi_id(I)
-#else
-#define mysql_thread_set_psi_id(I) \
-  do {                             \
-  } while (0)
-#endif
 
 /**
   @def mysql_thread_set_psi_THD(T)
   Set the thread sql session for the instrumentation.
   @param T The thread sql session
 */
-#ifdef HAVE_PSI_THREAD_INTERFACE
 #define mysql_thread_set_psi_THD(T) inline_mysql_thread_set_psi_THD(T)
-#else
-#define mysql_thread_set_psi_THD(T) \
-  do {                              \
-  } while (0)
-#endif
 
 static inline void inline_mysql_thread_register(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    const char *category, PSI_thread_info *info, int count
-#else
     const char *category MY_ATTRIBUTE((unused)),
-    void *info MY_ATTRIBUTE((unused)), int count MY_ATTRIBUTE((unused))
-#endif
-) {
+    PSI_thread_info *info MY_ATTRIBUTE((unused)),
+    int count MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(register_thread)(category, info, count);
 #endif
 }
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-static inline int inline_mysql_thread_create(PSI_thread_key key,
-                                             my_thread_handle *thread,
-                                             const my_thread_attr_t *attr,
-                                             my_start_routine start_routine,
-                                             void *arg) {
+static inline int inline_mysql_thread_create(
+    PSI_thread_key key MY_ATTRIBUTE((unused)), my_thread_handle *thread,
+    const my_thread_attr_t *attr, my_start_routine start_routine, void *arg) {
   int result;
+#ifdef HAVE_PSI_THREAD_INTERFACE
   result = PSI_THREAD_CALL(spawn_thread)(key, thread, attr, start_routine, arg);
+#else
+  result = my_thread_create(thread, attr, start_routine, arg);
+#endif
   return result;
 }
 
-static inline void inline_mysql_thread_set_psi_id(my_thread_id id) {
+static inline void inline_mysql_thread_set_psi_id(
+    my_thread_id id MY_ATTRIBUTE((unused))) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_id)(psi, id);
+#endif
 }
 
 #ifdef __cplusplus
 class THD;
-static inline void inline_mysql_thread_set_psi_THD(THD *thd) {
+static inline void inline_mysql_thread_set_psi_THD(
+    THD *thd MY_ATTRIBUTE((unused))) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+#endif
 }
 #endif /* __cplusplus */
-
-#endif
 
 /**
   @def mysql_thread_set_peer_port()
@@ -162,12 +147,7 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd) {
   @param port peer port number
 */
 static inline void mysql_thread_set_peer_port(
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    uint port
-#else
-    uint port MY_ATTRIBUTE((unused))
-#endif
-) {
+    uint port MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   struct PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
   PSI_THREAD_CALL(set_thread_peer_port)(psi, port);
