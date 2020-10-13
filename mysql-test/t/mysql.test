@@ -656,6 +656,11 @@ DROP USER bug21464621;
 --source include/assert_grep.inc
 --remove_file $file
 
+--echo #
+--echo # Bug #31549724: MYSQL --BINARY-AS-HEX PRINTS NULL AS EMPTY STRING
+--echo # Bug #31638968: SELECT ON AN UNDEFINED VARIABLE RETURNS 0X NOT NULL
+--echo #
+--exec $MYSQL --binary-as-hex -e "SELECT SUBSTR(NULL, 0, 0), @novar" 2>&1
 
 --echo
 --echo End of tests
