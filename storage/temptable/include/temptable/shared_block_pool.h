@@ -133,7 +133,14 @@ class Lock_free_shared_block_pool {
     auto slot_idx = thd_id & MODULO_MASK;
     if (m_slot.load(slot_idx) == thd_id) {
       auto &block = m_shared_block[slot_idx].block;
-      if (!block.is_empty()) block.destroy();
+      if (!block.is_empty()) {
+        if (block.type() == Source::RAM) {
+          MemoryMonitor::RAM::decrease(block.size());
+        } else if (block.type() == Source::MMAP_FILE) {
+          MemoryMonitor::MMAP::decrease(block.size());
+        }
+        block.destroy();
+      }
       m_slot.store(slot_idx, FREE_SLOT);
       return true;
     }

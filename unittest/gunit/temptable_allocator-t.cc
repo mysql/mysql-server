@@ -105,6 +105,10 @@ struct MemoryMonitorHijackProbe : public MemoryMonitorReadOnlyProbe {
     auto current_consumption = temptable::MemoryMonitor::RAM::consumption();
     return temptable::MemoryMonitor::RAM::decrease(current_consumption);
   }
+  static size_t ram_consumption_set(size_t consumption) {
+    MemoryMonitorHijackProbe::ram_consumption_reset();
+    return temptable::MemoryMonitor::RAM::increase(consumption);
+  }
   static size_t mmap_consumption_reset() {
     auto current_consumption = temptable::MemoryMonitor::MMAP::consumption();
     return temptable::MemoryMonitor::MMAP::decrease(current_consumption);
@@ -256,7 +260,8 @@ TEST_F(TempTableAllocator, rightmost_chunk_deallocated_reused_for_allocation) {
   EXPECT_TRUE(shared_block.is_empty());
 }
 
-TEST_F(TempTableAllocator, ram_consumption_is_not_monitored_for_shared_blocks) {
+TEST_F(TempTableAllocator,
+       will_increment_ram_consumption_when_shared_block_is_allocated) {
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
   temptable::Allocator<uint8_t> allocator(&shared_block);
@@ -269,8 +274,10 @@ TEST_F(TempTableAllocator, ram_consumption_is_not_monitored_for_shared_blocks) {
   uint8_t *shared_block_ptr = allocator.allocate(shared_block_n_elements);
   EXPECT_FALSE(shared_block.is_empty());
 
-  // RAM consumption is still 0
-  EXPECT_EQ(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
+  // RAM consumption should be greater or equal than
+  // shared_block_n_elements bytes at this point
+  EXPECT_GE(MemoryMonitorReadOnlyProbe::ram_consumption(),
+            shared_block_n_elements);
 
   // Deallocate the shared-block
   allocator.deallocate(shared_block_ptr, shared_block_n_elements);
@@ -283,12 +290,47 @@ TEST_F(TempTableAllocator, ram_consumption_is_not_monitored_for_shared_blocks) {
 }
 
 TEST_F(TempTableAllocator,
-       ram_consumption_drops_to_zero_when_non_shared_block_is_destroyed) {
+       will_not_decrement_ram_consumption_when_shared_block_is_deallocated) {
   temptable::Block shared_block;
   EXPECT_TRUE(shared_block.is_empty());
   temptable::Allocator<uint8_t> allocator(&shared_block);
 
   // RAM consumption is 0 at the start
+  EXPECT_EQ(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
+
+  // First allocation is fed from shared-block
+  size_t shared_block_n_elements = 1024 * 1024;
+  uint8_t *shared_block_ptr = allocator.allocate(shared_block_n_elements);
+  EXPECT_FALSE(shared_block.is_empty());
+
+  // RAM consumption should be greater or equal than
+  // shared_block_n_elements bytes at this point
+  EXPECT_GE(MemoryMonitorReadOnlyProbe::ram_consumption(),
+            shared_block_n_elements);
+
+  // Deallocate the shared-block
+  allocator.deallocate(shared_block_ptr, shared_block_n_elements);
+
+  // Physically deallocate the shared-block (allocator keeps it alive
+  // intentionally)
+  EXPECT_FALSE(shared_block.is_empty());
+  shared_block.destroy();
+  EXPECT_TRUE(shared_block.is_empty());
+
+  // RAM consumption is not decremented to 0 (it's done elsewhere and not inside
+  // the allocator)
+  EXPECT_NE(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
+}
+
+TEST_F(
+    TempTableAllocator,
+    ram_consumption_does_not_drop_to_zero_when_last_non_shared_block_is_destroyed) {
+  temptable::Block shared_block;
+  EXPECT_TRUE(shared_block.is_empty());
+  temptable::Allocator<uint8_t> allocator(&shared_block);
+
+  // RAM consumption should be greater or equal than
+  // shared_block_n_elements bytes at this point
   EXPECT_EQ(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
 
   // Make sure we fill up the shared_block first
@@ -317,8 +359,80 @@ TEST_F(TempTableAllocator,
   // Deallocate the non-shared block
   allocator.deallocate(non_shared_block_ptr, non_shared_block_n_elements);
 
-  // RAM consumption must drop to 0
+  // RAM consumption should be greater or equal than
+  // shared_block_n_elements bytes at this point
+  EXPECT_GE(MemoryMonitorReadOnlyProbe::ram_consumption(),
+            shared_block_n_elements);
+
+  // Deallocate the shared-block
+  allocator.deallocate(shared_block_ptr, shared_block_n_elements);
+
+  // Physically deallocate the shared-block (allocator keeps it alive
+  // intentionally)
+  EXPECT_FALSE(shared_block.is_empty());
+  shared_block.destroy();
+  EXPECT_TRUE(shared_block.is_empty());
+}
+
+TEST_F(
+    TempTableAllocator,
+    shared_block_allocated_from_ram_when_ram_threshold_is_not_hit_for_given_block_size) {
+  temptable::Block shared_block;
+  EXPECT_TRUE(shared_block.is_empty());
+  temptable::Allocator<uint8_t> allocator(&shared_block);
+
+  // Size of the shared_block we will request must fit (not hit the
+  // threshold)
+  size_t shared_block_n_elements = 1024;
+  EXPECT_LE(MemoryMonitorReadOnlyProbe::ram_consumption() +
+                temptable::Block::size_hint(shared_block_n_elements),
+            MemoryMonitorReadOnlyProbe::ram_threshold());
+
+  // First allocation is fed from shared-block
+  uint8_t *shared_block_ptr = allocator.allocate(shared_block_n_elements);
+  EXPECT_FALSE(shared_block.is_empty());
+
+  // RAM consumption should be greater or equal than
+  // shared_block_n_elements bytes at this point
+  EXPECT_GE(MemoryMonitorReadOnlyProbe::ram_consumption(),
+            shared_block_n_elements);
+
+  // Deallocate the shared-block
+  allocator.deallocate(shared_block_ptr, shared_block_n_elements);
+
+  // Physically deallocate the shared-block (allocator keeps it alive
+  // intentionally)
+  EXPECT_FALSE(shared_block.is_empty());
+  shared_block.destroy();
+  EXPECT_TRUE(shared_block.is_empty());
+}
+
+TEST_F(
+    TempTableAllocator,
+    shared_block_allocated_from_mmap_when_ram_threshold_is_hit_for_given_block_size) {
+  temptable::Block shared_block;
+  EXPECT_TRUE(shared_block.is_empty());
+  temptable::Allocator<uint8_t> allocator(&shared_block);
+
+  // Set some artificially low RAM threshold
+  MemoryMonitorHijackProbe::max_ram_set(128);
+
+  // Size of the shared_block we will request must exceed the RAM threshold
+  size_t shared_block_n_elements = 1024;
+  EXPECT_GT(MemoryMonitorReadOnlyProbe::ram_consumption() +
+                temptable::Block::size_hint(shared_block_n_elements),
+            MemoryMonitorReadOnlyProbe::ram_threshold());
+
+  // First allocation is fed from shared-block
+  uint8_t *shared_block_ptr = allocator.allocate(shared_block_n_elements);
+  EXPECT_FALSE(shared_block.is_empty());
+
+  // As we have no means to track MMAP consumption yet, we will have to deduce
+  // information that shared_block was allocated from MMAP by checking if
+  // RAM consumption remained the same (zero)
   EXPECT_EQ(MemoryMonitorReadOnlyProbe::ram_consumption(), 0);
+  // Similarly we can check that we didn't get nullptr block
+  EXPECT_TRUE(shared_block_ptr != nullptr);
 
   // Deallocate the shared-block
   allocator.deallocate(shared_block_ptr, shared_block_n_elements);
@@ -495,5 +609,169 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(1_MiB, 1_MiB, true, 2_KiB, true, false),
         // ram threshold reached, mmap threshold not reached, mmap enabled
         std::make_tuple(1_MiB, 4_MiB, true, 2_MiB, false, true)));
+
+// Create some aliases to make our life easier when generating the test-cases
+// down below.
+using block_size_expected = size_t;
+using block_size = uint32_t;
+using number_of_blocks = size_t;
+using n_bytes_requested = size_t;
+using ram_consumption = uint32_t;
+using ram_threshold = uint32_t;
+using mmap_threshold = uint32_t;
+using exception_will_be_thrown = bool;
+using expected_source = temptable::Source;
+
+// Parameterized test for testing Exponential_policy behavior in cases when
+// requested block size is smaller than the power to the two number which
+// will be internally picked up by the policy.
+class ExponentialPolicyReturnsPowerToTheTwoBlockSize
+    : public TempTableAllocator,
+      public ::testing::WithParamInterface<std::tuple<
+          number_of_blocks, n_bytes_requested, block_size_expected>> {};
+
+// Implementation of parameterized test-cases which test for correct block sizes
+// returned by policy.
+TEST_P(ExponentialPolicyReturnsPowerToTheTwoBlockSize,
+       when_actual_block_size_is_smaller_than_that_power_to_the_two_number) {
+  auto number_of_blocks = std::get<0>(GetParam());
+  auto n_bytes_requested = std::get<1>(GetParam());
+  auto block_size_expected = std::get<2>(GetParam());
+
+  EXPECT_EQ(block_size_expected, temptable::Exponential_policy::block_size(
+                                     number_of_blocks, n_bytes_requested));
+}
+
+// Generate the test-case scenarios.
+INSTANTIATE_TEST_SUITE_P(
+    TempTableBlockSizePolicy1, ExponentialPolicyReturnsPowerToTheTwoBlockSize,
+    ::testing::Values(
+        // First and smallest block size returned is always 1 MiB
+        // (unless requested size is larger than 1 MiB)
+        std::make_tuple(0, 1_KiB, 1_MiB),
+        // ...
+        std::make_tuple(0, 5_KiB, 1_MiB),
+        // ...
+        std::make_tuple(0, 128_KiB, 1_MiB),
+        // ...
+        std::make_tuple(0, 512_KiB, 1_MiB),
+        // ...
+        std::make_tuple(0, 786_KiB, 1_MiB),
+        // Block size returned will grow exponentially if we continue
+        // increasing number of blocks (first) parameter
+        std::make_tuple(1, 1_KiB, 2_MiB),
+        // ...
+        std::make_tuple(2, 1_KiB, 4_MiB),
+        // ...
+        std::make_tuple(3, 1_KiB, 8_MiB),
+        // ...
+        std::make_tuple(4, 1_KiB, 16_MiB),
+        // ...
+        std::make_tuple(5, 1_KiB, 32_MiB),
+        // ...
+        std::make_tuple(6, 1_KiB, 64_MiB),
+        // ...
+        std::make_tuple(7, 1_KiB, 128_MiB),
+        // ...
+        std::make_tuple(8, 1_KiB, 256_MiB),
+        // Once number of blocks hits the
+        // temptable::ALLOCATOR_MAX_BLOCK_MB_EXP threshold, block size of
+        // temptable::ALLOCATOR_MAX_BLOCK_BYTES will be returned if
+        // requested size is not bigger than that
+        std::make_tuple(temptable::ALLOCATOR_MAX_BLOCK_MB_EXP, 1_MiB,
+                        temptable::ALLOCATOR_MAX_BLOCK_BYTES)));
+
+// Parameterized test for testing Exponential_policy behavior in cases when
+// requested block size is larger than the power to the two number which
+// would be otherwise internally picked up by the policy.
+class ExponentialPolicyReturnsExactBlockSize
+    : public TempTableAllocator,
+      public ::testing::WithParamInterface<std::tuple<
+          number_of_blocks, n_bytes_requested, block_size_expected>> {};
+
+// Implementation of parameterized test-cases which test for correct block sizes
+// returned by policy.
+TEST_P(
+    ExponentialPolicyReturnsExactBlockSize,
+    when_actual_block_size_is_larger_than_the_power_to_the_two_number_which_would_be_otherwise_used) {
+  auto number_of_blocks = std::get<0>(GetParam());
+  auto n_bytes_requested = std::get<1>(GetParam());
+  auto block_size_expected = std::get<2>(GetParam());
+
+  EXPECT_EQ(block_size_expected, temptable::Exponential_policy::block_size(
+                                     number_of_blocks, n_bytes_requested));
+}
+
+// Generate the test-case scenarios.
+INSTANTIATE_TEST_SUITE_P(
+    TempTableBlockSizePolicy2, ExponentialPolicyReturnsExactBlockSize,
+    ::testing::Values(
+        // If requested size is larger than 1 MiB, then returned size must match
+        // the expected size and not the number which is power to the 2
+        std::make_tuple(0, 1_MiB, temptable::Block::size_hint(1_MiB)),
+        // Same for any other combination of number of blocks input
+        std::make_tuple(4, 32_MiB, temptable::Block::size_hint(32_MiB)),
+        // ...
+        std::make_tuple(6, 256_MiB, temptable::Block::size_hint(256_MiB)),
+        // Once number of blocks hits the
+        // temptable::ALLOCATOR_MAX_BLOCK_MB_EXP threshold, and requested
+        // block size is larger than temptable::ALLOCATOR_MAX_BLOCK_BYTES,
+        // big enough block size shall be returned.
+        std::make_tuple(temptable::ALLOCATOR_MAX_BLOCK_MB_EXP,
+                        temptable::ALLOCATOR_MAX_BLOCK_BYTES,
+                        temptable::Block::size_hint(
+                            temptable::ALLOCATOR_MAX_BLOCK_BYTES))));
+
+// Parameterized test for testing Prefer_RAM_over_MMAP_policy behavior.
+class PreferRamOverMmapPolicy
+    : public TempTableAllocator,
+      public ::testing::WithParamInterface<
+          std::tuple<block_size, ram_consumption, ram_threshold, mmap_threshold,
+                     exception_will_be_thrown, expected_source>> {};
+
+// Implementation of parameterized test-cases which test for correct block
+// source returned by policy.
+TEST_P(
+    PreferRamOverMmapPolicy,
+    selects_ram_or_mmap_when_requested_block_size_fits_otherwise_throws_an_exception) {
+  auto block_size = std::get<0>(GetParam());
+  auto ram_consumption = std::get<1>(GetParam());
+  auto ram_threshold = std::get<2>(GetParam());
+  auto mmap_threshold = std::get<3>(GetParam());
+  auto exception_will_be_thrown = std::get<4>(GetParam());
+  auto source_expected = std::get<5>(GetParam());
+
+  MemoryMonitorHijackProbe::max_ram_set(ram_threshold);
+  MemoryMonitorHijackProbe::max_mmap_set(mmap_threshold);
+  MemoryMonitorHijackProbe::ram_consumption_set(ram_consumption);
+
+  if (exception_will_be_thrown) {
+    EXPECT_THROW_WITH_VALUE(
+        temptable::Prefer_RAM_over_MMAP_policy::block_source(block_size),
+        temptable::Result, temptable::Result::RECORD_FILE_FULL);
+  } else {
+    EXPECT_EQ(source_expected,
+              temptable::Prefer_RAM_over_MMAP_policy::block_source(block_size));
+  }
+}
+
+// Generate the test-case scenarios.
+INSTANTIATE_TEST_SUITE_P(
+    TempTableBlockSourcePolicy, PreferRamOverMmapPolicy,
+    ::testing::Values(
+        // RAM threshold not reached, block size will fit, source is RAM
+        std::make_tuple(1_MiB, 1_MiB, 2_MiB, 2_MiB, false,
+                        temptable::Source::RAM),
+        // RAM threshold not reached, block size will hit the threshold (by only
+        // 1 byte), source is MMAP
+        std::make_tuple(1_MiB + 1, 1_MiB, 2_MiB, 2_MiB, false,
+                        temptable::Source::MMAP_FILE),
+        // RAM threshold not reached, block size will hit the threshold (by
+        // 1 MiB), source is MMAP
+        std::make_tuple(2_MiB, 1_MiB, 2_MiB, 2_MiB, false,
+                        temptable::Source::MMAP_FILE),
+        // block does not fit nor in RAM or MMAP, exception will be thrown
+        std::make_tuple(3_MiB, 1_MiB, 2_MiB, 2_MiB, true,
+                        temptable::Source::MMAP_FILE)));
 
 } /* namespace temptable_allocator_unittest */
