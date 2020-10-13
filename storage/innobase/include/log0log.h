@@ -888,6 +888,13 @@ bool log_rotate_encryption();
 /** Rotate default master key for redo log encryption. */
 void redo_rotate_default_master_key();
 
+/** Computes lsn up to which sync flush should be done or returns 0
+if there is no need to execute sync flush now.
+@param[in,out]  log  redo log
+@return lsn for which we want to have oldest_lsn >= lsn in each BP,
+        or 0 if there is no need for sync flush */
+lsn_t log_sync_flush_lsn(log_t &log);
+
 /** Requests a sharp checkpoint write for provided or greater lsn.
 @param[in,out]	log	redo log
 @param[in]	sync	true -> wait until it is finished

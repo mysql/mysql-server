@@ -896,9 +896,6 @@ int mtr_t::Logging::disable(THD *) {
 
   clone_mark_active();
 
-  /* Reset sync LSN if beyond current system LSN. */
-  reset_buf_flush_sync_lsn();
-
   return (0);
 }
 

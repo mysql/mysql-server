@@ -79,10 +79,9 @@ static ulint buf_lru_flush_page_count = 0;
 
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
-static ulint buf_flush_lsn_scan_factor = 3;
+static uint buf_flush_lsn_scan_factor = 3;
 
 /** Target oldest LSN for the requested flush_sync */
-
 static lsn_t buf_flush_sync_lsn = 0;
 
 #ifdef UNIV_DEBUG
@@ -2539,8 +2538,11 @@ ulint get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 }
 
 /** Set page flush target based on LSN change and checkpoint age.
-@param[in]	sync_flush	true iff this is sync flush mode */
-ulint set_flush_target_by_lsn(bool sync_flush) {
+@param[in]  sync_flush            true iff this is sync flush mode
+@param[in]  sync_flush_limit_lsn  low limit for oldest_modification
+                                  if sync_flush is true
+@return number of pages requested to flush */
+ulint set_flush_target_by_lsn(bool sync_flush, lsn_t sync_flush_limit_lsn) {
   lsn_t oldest_lsn = buf_pool_get_oldest_modification_approx();
   ut_ad(oldest_lsn <= log_get_lsn(*log_sys));
 
@@ -2553,7 +2555,19 @@ ulint set_flush_target_by_lsn(bool sync_flush) {
   /* Estimate pages to be flushed for the lsn progress */
   ulint sum_pages_for_lsn = 0;
 
-  lsn_t target_lsn = oldest_lsn + lsn_avg_rate * buf_flush_lsn_scan_factor;
+  lsn_t target_lsn;
+  uint scan_factor;
+
+  if (sync_flush) {
+    target_lsn = sync_flush_limit_lsn;
+    ut_a(target_lsn < LSN_MAX);
+    scan_factor = 1;
+    buf_flush_sync_lsn = target_lsn;
+  } else {
+    target_lsn = oldest_lsn + lsn_avg_rate * buf_flush_lsn_scan_factor;
+    scan_factor = buf_flush_lsn_scan_factor;
+    buf_flush_sync_lsn = 0;
+  }
 
   /* Cap the maximum IO capacity that we are going to use by
   max_io_capacity. Limit the value to avoid too quick increase */
@@ -2561,7 +2575,7 @@ ulint set_flush_target_by_lsn(bool sync_flush) {
 
   /* Limit individual BP scan based on overall capacity. */
   const ulint pages_for_lsn_max =
-      (sum_pages_max / srv_buf_pool_instances) * buf_flush_lsn_scan_factor * 2;
+      (sum_pages_max / srv_buf_pool_instances) * scan_factor * 2;
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
@@ -2584,12 +2598,11 @@ ulint set_flush_target_by_lsn(bool sync_flush) {
 
     mutex_enter(&page_cleaner->mutex);
     ut_ad(page_cleaner->slots[i].state == PAGE_CLEANER_STATE_NONE);
-    page_cleaner->slots[i].n_pages_requested =
-        pages_for_lsn / buf_flush_lsn_scan_factor + 1;
+    page_cleaner->slots[i].n_pages_requested = pages_for_lsn / scan_factor + 1;
     mutex_exit(&page_cleaner->mutex);
   }
 
-  sum_pages_for_lsn /= buf_flush_lsn_scan_factor;
+  sum_pages_for_lsn /= scan_factor;
   if (sum_pages_for_lsn < 1) {
     sum_pages_for_lsn = 1;
   }
@@ -2599,12 +2612,14 @@ ulint set_flush_target_by_lsn(bool sync_flush) {
   ulint pages_for_lsn = std::min<ulint>(sum_pages_for_lsn, sum_pages_max);
 
   /* Estimate based on LSN and dirty pages. */
-  ulint n_pages = (PCT_IO(pct_total) + page_avg_rate + pages_for_lsn) / 3;
-
-  if (n_pages > srv_max_io_capacity) {
-    n_pages = srv_max_io_capacity;
-  } else if (sync_flush && n_pages < srv_io_capacity) {
-    n_pages = srv_io_capacity;
+  ulint n_pages;
+  if (sync_flush) {
+    n_pages = pages_for_lsn;
+  } else {
+    n_pages = (PCT_IO(pct_total) + page_avg_rate + pages_for_lsn) / 3;
+    if (n_pages > srv_max_io_capacity) {
+      n_pages = srv_max_io_capacity;
+    }
   }
 
   /* Normalize request for each instance */
@@ -2723,11 +2738,14 @@ ulint set_flush_target_by_page(ulint n_pages_lsn) {
 page_cleaner thread, unless it is sync flushing mode, in which case
 it is called every small round. Based on various factors it decides
 if there is a need to do flushing.
-@param  last_pages_in  the number of pages flushed by the last flush_list
-                       flushing.
-@param  is_sync_flush  true iff this is sync flush mode
+@param  last_pages_in         the number of pages flushed by the last
+                              flush_list flushing
+@param  is_sync_flush         true iff this is sync flush mode
+@param  sync_flush_limit_lsn  low limit for oldest_modification
+                              if is_sync_flush is true
 @return number of pages recommended to be flushed */
-ulint page_recommendation(ulint last_pages_in, bool is_sync_flush) {
+ulint page_recommendation(ulint last_pages_in, bool is_sync_flush,
+                          lsn_t sync_flush_limit_lsn) {
   if (initialize(last_pages_in)) {
     /* First time around. */
     return (0);
@@ -2741,7 +2759,9 @@ ulint page_recommendation(ulint last_pages_in, bool is_sync_flush) {
   set_average();
 
   /* Set page flush target based on LSN. */
-  auto n_pages = skip_lsn ? 0 : set_flush_target_by_lsn(is_sync_flush);
+  auto n_pages =
+      skip_lsn ? 0
+               : set_flush_target_by_lsn(is_sync_flush, sync_flush_limit_lsn);
 
   /* Estimate based on only dirty pages. We don't want to flush at lesser rate
   as LSN based estimate may not represent the right picture for modifications
@@ -3300,18 +3320,23 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
       last_activity = srv_get_activity_count();
     }
 
-    mutex_enter(&page_cleaner->mutex);
-    /* lsn_limit!=0 means there are requests. needs to check the lsn. */
-    lsn_t lsn_limit = buf_flush_sync_lsn;
-    buf_flush_sync_lsn = 0;
-    mutex_exit(&page_cleaner->mutex);
-
-    if (srv_read_only_mode) {
-      is_sync_flush = false;
+    lsn_t lsn_limit;
+    if (srv_flush_sync && !srv_read_only_mode) {
+      /* lsn_limit!=0 means there are requests. needs to check the lsn. */
+      lsn_limit = log_sync_flush_lsn(*log_sys);
+      if (lsn_limit != 0) {
+        /* Avoid aggressive sync flush beyond limit when redo is disabled. */
+        if (mtr_t::s_logging.is_enabled()) {
+          lsn_limit += Adaptive_flush::lsn_avg_rate * buf_flush_lsn_scan_factor;
+        }
+        is_sync_flush = true;
+      } else {
+        /* Stop the sync flush. */
+        is_sync_flush = false;
+      }
     } else {
-      ut_a(log_sys != nullptr);
-
-      is_sync_flush = srv_flush_sync && lsn_limit > 0;
+      is_sync_flush = false;
+      lsn_limit = LSN_MAX;
     }
 
     if (is_sync_flush || is_server_active) {
@@ -3319,16 +3344,17 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
       /* Estimate pages from flush_list to be flushed */
       if (is_sync_flush) {
-        n_to_flush = Adaptive_flush::page_recommendation(last_pages, true);
-        last_pages = 0;
-        /* Flush n_to_flush pages or stop if you reach lsn_limit earlier,
-        which was the buf_flush_sync_lsn requested before we started.
-        This is because in sync-flush mode we want finer granularity of
-        flushes through all BP instances. */
         ut_a(lsn_limit > 0);
         ut_a(lsn_limit < LSN_MAX);
+        n_to_flush =
+            Adaptive_flush::page_recommendation(last_pages, true, lsn_limit);
+        last_pages = 0;
+        /* Flush n_to_flush pages or stop if you reach lsn_limit earlier.
+        This is because in sync-flush mode we want finer granularity of
+        flushes through all BP instances. */
       } else if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
-        n_to_flush = Adaptive_flush::page_recommendation(last_pages, false);
+        n_to_flush =
+            Adaptive_flush::page_recommendation(last_pages, false, LSN_MAX);
         lsn_limit = LSN_MAX;
         last_pages = 0;
       } else {
@@ -3582,47 +3608,6 @@ void buf_flush_sync_all_buf_pools(void) {
   ut_a(success);
 }
 
-void reset_buf_flush_sync_lsn() {
-  const auto curr_lsn = log_get_lsn(*log_sys);
-
-  /* Currently sync LSN might be set beyond current system LSN. Need to
-  adjust it when redo logging is disabled as LSN is no longer moving. */
-  mutex_enter(&page_cleaner->mutex);
-  if (buf_flush_sync_lsn > curr_lsn) {
-    buf_flush_sync_lsn = curr_lsn;
-  }
-  mutex_exit(&page_cleaner->mutex);
-}
-
-/** Request IO burst and wake page_cleaner up.
-@param[in]	lsn_limit	upper limit of LSN to be flushed
-@return true if we requested higher lsn than ever requested so far */
-bool buf_flush_request_force(lsn_t lsn_limit) {
-  ut_a(buf_flush_page_cleaner_is_active());
-
-  lsn_t lsn_target = lsn_limit;
-
-  /* Avoid aggressive sync flush beyond limit when redo is disabled. */
-  if (mtr_t::s_logging.is_enabled()) {
-    /* adjust based on lsn_avg_rate not to get old */
-    lsn_target += Adaptive_flush::lsn_avg_rate * 3;
-  }
-
-  bool result;
-
-  mutex_enter(&page_cleaner->mutex);
-  if (lsn_target > buf_flush_sync_lsn) {
-    buf_flush_sync_lsn = lsn_target;
-    result = true;
-  } else {
-    result = false;
-  }
-  mutex_exit(&page_cleaner->mutex);
-
-  os_event_set(buf_flush_event);
-
-  return (result);
-}
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 
 /** Functor to validate the flush list. */

@@ -818,23 +818,22 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
   } else if (srv_flush_sync) {
     /* Wake up page cleaner asking to perform sync flush
     (unless user explicitly disabled sync-flushes). */
-    new_oldest += log_buffer_flush_order_lag(log);
 
     int64_t sig_count = os_event_reset(buf_flush_tick_event);
 
-    bool result = buf_flush_request_force(new_oldest);
+    os_event_set(buf_flush_event);
 
     os_event_wait_time_low(buf_flush_tick_event, 1000000, sig_count);
 
-    return (result);
+    return (true);
 
   } else {
     return (false);
   }
 }
 
-static void log_consider_sync_flush(log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
+lsn_t log_sync_flush_lsn(log_t &log) {
+  log_update_available_for_checkpoint_lsn(log);
 
   /* We acquire limits mutex only for a short period. Afterwards these
   values might be changed (advanced to higher values). However, in the
@@ -857,7 +856,7 @@ static void log_consider_sync_flush(log_t &log) {
   ut_a(flush_up_to <= current_lsn);
 
   if (current_lsn == flush_up_to) {
-    return;
+    return 0;
   }
 
   const lsn_t margin = log_free_check_margin(log);
@@ -877,6 +876,20 @@ static void log_consider_sync_flush(log_t &log) {
   }
 
   if (flush_up_to > oldest_lsn) {
+    flush_up_to += log_buffer_flush_order_lag(log);
+
+    return flush_up_to;
+  }
+
+  return 0;
+}
+
+static void log_consider_sync_flush(log_t &log) {
+  ut_ad(log_checkpointer_mutex_own(log));
+
+  const auto flush_up_to = log_sync_flush_lsn(log);
+
+  if (flush_up_to != 0) {
     log_checkpointer_mutex_exit(log);
 
     log_request_sync_flush(log, flush_up_to);
@@ -1043,13 +1056,6 @@ void log_checkpointer(log_t *log_ptr) {
             log.last_checkpoint_lsn.load(std::memory_order_acquire) ||
         log_checkpoint_time_elapsed(log) >=
             log_busy_checkpoint_interval * srv_log_checkpoint_every * 1000ULL) {
-      /* We will base our next decisions on maximum lsn
-      available for creating a new checkpoint. It would
-      be great to have it updated beforehand. Also, this
-      is the only thread that relies on that value, so we
-      don't need to update it in other threads. */
-      log_update_available_for_checkpoint_lsn(log);
-
       /* Consider flushing some dirty pages. */
       log_consider_sync_flush(log);
 
