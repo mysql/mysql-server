@@ -32,6 +32,7 @@ FOREACH(test_file
     test_bootstrap.cc
     test_bootstrap_account.cc
     test_bootstrap_system_deployment.cc
+    test_bootstrap_tls_endpoint.cc
     test_component_test_framework.cc
     test_config.cc
     test_gr_notifications.cc
