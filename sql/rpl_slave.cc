@@ -5262,7 +5262,6 @@ extern "C" void *handle_slave_io(void *arg) {
   uint retry_count;
   bool suppress_warnings;
   int ret;
-  bool successfully_connected;
 #ifndef DBUG_OFF
   uint retry_count_reg = 0, retry_count_dump = 0, retry_count_event = 0;
 #endif
@@ -5338,29 +5337,7 @@ extern "C" void *handle_slave_io(void *arg) {
 
     THD_STAGE_INFO(thd, stage_connecting_to_master);
 
-    if (mi->is_set_network_namespace()) {
-#ifdef HAVE_SETNS
-      if (set_network_namespace(mi->network_namespace)) goto err;
-#else
-      // Network namespace not supported by the platform. Report error.
-      LogErr(ERROR_LEVEL, ER_NETWORK_NAMESPACES_NOT_SUPPORTED);
-      goto err;
-#endif
-      // Save default value of network namespace
-      // Set network namespace before sockets be created
-    }
-    successfully_connected = !safe_connect(thd, mysql, mi);
-    // we can get killed during safe_connect
-#ifdef HAVE_SETNS
-    if (mi->is_set_network_namespace()) {
-      // Restore original network namespace used to be before connection has
-      // been created
-      successfully_connected =
-          restore_original_network_namespace() | successfully_connected;
-    }
-#endif
-
-    if (successfully_connected) {
+    if (!safe_connect(thd, mysql, mi)) {
       LogErr(SYSTEM_LEVEL, ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_STARTED,
              mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
              mi->get_io_rpl_log_name(),
@@ -8136,6 +8113,48 @@ void slave_io_thread_detach_vio() {
 }
 
 /*
+  Set network namespace if channel is using network namespace and connect
+  to master.
+
+  @param  thd                THD context
+  @param  mysql              MYSQL connection handler
+  @param  mi                 Master info corresponding to this channel.
+  @param  reconnect          Reconnect if true
+  @param  suppress_warnings  suppress warnings if required.
+
+  @retval 0   ok.
+  @retval 1   not ok.
+*/
+static int connect_to_master_via_namespace(THD *thd, MYSQL *mysql,
+                                           Master_info *mi, bool reconnect,
+                                           bool suppress_warnings,
+                                           const std::string &host,
+                                           const uint port) {
+  if (mi->is_set_network_namespace()) {
+#ifdef HAVE_SETNS
+    if (set_network_namespace(mi->network_namespace)) return 1;
+#else
+    // Network namespace not supported by the platform. Report error.
+    LogErr(ERROR_LEVEL, ER_NETWORK_NAMESPACES_NOT_SUPPORTED);
+    return 1;
+#endif
+    // Save default value of network namespace
+    // Set network namespace before sockets be created
+  }
+  int connect_res = connect_to_master(thd, mysql, mi, reconnect,
+                                      suppress_warnings, host, port);
+  // we can get killed during safe_connect
+#ifdef HAVE_SETNS
+  if (mi->is_set_network_namespace()) {
+    // Restore original network namespace used to be before connection has
+    // been created
+    (void)restore_original_network_namespace();
+  }
+#endif
+  return connect_res;
+}
+
+/*
   Try to connect until successful or slave killed
 
   SYNPOSIS
@@ -8148,12 +8167,14 @@ void slave_io_thread_detach_vio() {
     0   ok
     #   Error
 */
-
 static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi,
                         const std::string &host, const uint port) {
   DBUG_TRACE;
 
-  return connect_to_master(thd, mysql, mi, false, false, host, port);
+  return connect_to_master_via_namespace(thd, mysql, mi,
+                                         /*reconnect=*/false,
+                                         /*suppress_warnings=*/false, host,
+                                         port);
 }
 
 int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
@@ -8363,7 +8384,9 @@ static int safe_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
                           bool suppress_warnings, const std::string &host,
                           const uint port) {
   DBUG_TRACE;
-  return connect_to_master(thd, mysql, mi, true, suppress_warnings, host, port);
+  return connect_to_master_via_namespace(thd, mysql, mi,
+                                         /*reconnect=*/true, suppress_warnings,
+                                         host, port);
 }
 
 /*
