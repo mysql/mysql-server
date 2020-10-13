@@ -1,25 +1,25 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 // mysql command tool
@@ -3540,11 +3540,19 @@ static void print_as_hex(FILE *output_file, const char *str, ulong len,
                          ulong total_bytes_to_send) {
   const char *ptr = str, *end = ptr + len;
   ulong i;
-  fprintf(output_file, "0x");
-  for (; ptr < end; ptr++)
-    fprintf(output_file, "%02X", *(pointer_cast<const uchar *>(ptr)));
-  for (i = 2 * len + 2; i < total_bytes_to_send; i++)
-    tee_putc((int)' ', output_file);
+
+  if (len > 0) {
+    fprintf(output_file, "0x");
+    for (; ptr < end; ptr++)
+      fprintf(output_file, "%02X",
+              *(static_cast<const uchar *>(static_cast<const void *>(ptr))));
+    /* Printed string length: two chars "0x" + two chars for each byte. */
+    i = 2 + len * 2;
+  } else {
+    i = fprintf(output_file, "NULL");
+  }
+  for (; i < total_bytes_to_send; i++)
+    tee_putc(static_cast<int>(' '), output_file);
 }
 
 static void print_table_data(MYSQL_RES *result) {
