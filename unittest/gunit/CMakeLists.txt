@@ -149,6 +149,7 @@ SET(TESTS
   mysys_base64
   mysys_lf
   mysys_my_b_vprintf
+  mysys_my_checksum
   mysys_my_getopt
   mysys_my_getpw
   mysys_my_loadpath
