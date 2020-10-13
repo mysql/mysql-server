@@ -32,6 +32,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace temptable_allocator_unittest {
 
+// Needed for making it possible to use user-defined literals (e.g. 1_MiB) when
+// instantiating (generating) test-cases below
+using temptable::operator"" _KiB;
+using temptable::operator"" _MiB;
+
 /** GoogleTest macros for testing exceptions (EXPECT_THROW, EXPECT_NO_THROW,
  * EXPECT_ANY_THROW, etc.) do not provide direct means to inspect the value of
  * exception that has been thrown.
@@ -477,6 +482,93 @@ TEST_F(TempTableAllocator, block_size_cap) {
   EXPECT_TRUE(shared_block.is_empty());
 }
 
+TEST_F(TempTableAllocator,
+       shared_block_utilization_shall_not_impact_the_block_size_growth_policy) {
+  temptable::Block shared_block;
+  temptable::Allocator<uint8_t> a1(&shared_block);
+  temptable::Allocator<uint8_t> a2(&shared_block);
+  auto r11 = a1.allocate(512_KiB);
+  temptable::Block b11 = temptable::Block(temptable::Chunk(r11));
+  EXPECT_EQ(b11, shared_block);
+  EXPECT_EQ(b11.size(), shared_block.size());
+  EXPECT_EQ(b11.size(), 1_MiB);
+  // ^^
+  // 1. Allocator detects that shared_block is empty
+  // 2. It uses the block-size growth policy to compute the block-size
+  // 3. It allocates the block of 1MiB of size. Our shared_block is now 1MiB of
+  // size big.
+  // 4. Returns a pointer from shared_block.
+
+  auto r12 = a1.allocate(256_KiB);
+  temptable::Block b12 = temptable::Block(temptable::Chunk(r12));
+  EXPECT_EQ(b12, shared_block);
+  EXPECT_EQ(b12.size(), shared_block.size());
+  // ^^
+  // 1. Allocator detects that shared_block is not empty
+  // 2. It detects that shared_block has enough space left (1MiB - 512KiB =
+  // 512KiB) to accomodate the 256KiB request.
+  // 3. Returns a pointer from shared_block.
+
+  auto r13 = a1.allocate(512_KiB);
+  temptable::Block b13 = temptable::Block(temptable::Chunk(r13));
+  EXPECT_NE(b13, shared_block);
+  EXPECT_NE(b13, b12);
+  EXPECT_EQ(b13.size(), 1_MiB);
+  // ^^
+  // 1. Allocator detects that shared_block is not empty
+  // 2. It detects that shared_block does not have enough space left (1MiB -
+  // 512KiB - 256KiB = 256KiB) to accomodate the 512KiB request.
+  // 3. It uses the block-size growth policy to compute the block-size.
+  // 4. It allocates the block of 2MiB of size.
+  // 5. Returns a pointer from new block.
+
+  auto r21 = a2.allocate(512_KiB);
+  temptable::Block b21 = temptable::Block(temptable::Chunk(r21));
+  EXPECT_NE(b21, shared_block);
+  EXPECT_EQ(b21.size(), 1_MiB);
+  // ^^^^
+  // 1. Allocator detects that shared_block is not empty.
+  // 2. It detects that shared_block does not have enough space left (1MiB -
+  // 512KiB - 256KiB = 256KiB) to accomodate the 512KiB request.
+  // 3. It uses the block-size growth policy to compute the block-size.
+  // 4. It allocates the block of 1MiB of size.
+  // 5. Returns a pointer from new block.
+
+  auto r14 = a1.allocate(128_KiB);
+  temptable::Block b14 = temptable::Block(temptable::Chunk(r14));
+  EXPECT_EQ(b14, shared_block);
+  EXPECT_EQ(b14.size(), shared_block.size());
+  // ^^
+  // 1. Allocator detects that shared_block is not empty
+  // 2. It detects that shared_block has enough space left (1MiB - 512KiB -
+  // 256KiB = 256KiB) to accomodate the 128KiB request.
+  // 3. Returns a pointer from shared_block.
+
+  auto r15 = a1.allocate(1_MiB - 512_KiB);
+  temptable::Block b15 = temptable::Block(temptable::Chunk(r15));
+  EXPECT_NE(b15, shared_block);
+  EXPECT_EQ(b15.size(), 2_MiB);
+  // ^^
+  // 1. Allocator detects that shared_block is not empty.
+  // 2. It detects that shared_block does not have enough space left (1MiB -
+  // 512KiB - 256KiB - 128KiB = 128KiB) to accomodate the 1.5MiB request.
+  // 3. It also checks if there is enough space left in secondly instantiated
+  // 1MiB block (see (B)) to accomodate the 1.5MiB. It does not.
+  // 4. It allocates the block of 2MiB of size.
+  // 3. Returns a pointer from new block.
+
+  auto r22 = a2.allocate(1_MiB);
+  temptable::Block b22 = temptable::Block(temptable::Chunk(r22));
+  EXPECT_NE(b22, shared_block);
+  EXPECT_EQ(b22.size(), 2_MiB);
+  // 1. Allocator detects that shared_block is not empty.
+  // 2. It detects that shared_block does not have enough space left (1MiB -
+  // 512KiB - 256KiB - 128KiB = 128KiB) to accomodate the 1MiB request.
+  // 3. It uses the block-size growth policy to compute the block-size.
+  // 4. It allocates the block of 2MiB of size.
+  // 5. Returns a pointer from new block.
+}
+
 // Create some aliases to make our life easier when generating the test-cases
 // down below.
 using max_ram = decltype(temptable_max_ram);
@@ -568,11 +660,6 @@ TEST_P(ThrowsRecordFileFull,
   // Ditto for MMAP
   EXPECT_EQ(MemoryMonitorReadOnlyProbe::mmap_consumption(), 0);
 }
-
-// Needed for making it possible to use user-defined literals (e.g. 1_MiB) when
-// instantiating (generating) test-cases below
-using temptable::operator"" _KiB;
-using temptable::operator"" _MiB;
 
 // Generate tests for all of the test-case scenarios which should yield
 // RecordFileFull exception

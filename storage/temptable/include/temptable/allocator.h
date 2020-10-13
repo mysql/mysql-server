@@ -476,12 +476,11 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
   Block *block;
 
   if (m_shared_block && m_shared_block->is_empty()) {
-    const size_t block_size = AllocationScheme::block_size(
-        m_state->number_of_blocks, n_bytes_requested);
+    const size_t block_size =
+        AllocationScheme::block_size(0, n_bytes_requested);
     *m_shared_block =
         Block(block_size, AllocationScheme::block_source(block_size));
     block = m_shared_block;
-    ++m_state->number_of_blocks;
   } else if (m_shared_block &&
              m_shared_block->can_accommodate(n_bytes_requested)) {
     block = m_shared_block;
