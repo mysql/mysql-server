@@ -2650,7 +2650,7 @@ TAPTEST(mt_thr_config)
         "main={ cpuset=1;3 }, ldm={cpubind=4}", /* ; not allowed separator */
         "main={ cpuset=1,,3 }, ldm={cpubind=2}", /* empty between , */
         "io={ spintime = 0 }", /* Spintime on IO thread is not settable */
-        "tc,tc,tc={count=131}", /* More than 129 TCs not allowed */
+        "tc,tc,tc={count=161}", /* More than 160 TCs not allowed */
         "tc,tc,tc={count=3", /* Missing } at end */
         "tc,tc,tc={count=3,count=3}", /* count specified twice */
         "tc,tc,tc={count=3,cpuset;3}", /* ; instead of = */
