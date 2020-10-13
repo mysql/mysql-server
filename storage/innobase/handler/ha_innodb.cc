@@ -5151,11 +5151,6 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   }
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
-  /* Currently, monitor counter information are not persistent. */
-  memset(monitor_set_tbl, 0, sizeof monitor_set_tbl);
-
-  memset(innodb_counter_value, 0, sizeof innodb_counter_value);
-
   /* Do this as late as possible so server is fully starts up,
   since  we might get some initial stats if user choose to turn
   on some counters from start up */
