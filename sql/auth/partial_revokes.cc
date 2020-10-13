@@ -45,9 +45,6 @@ const std::string Restrictions("Restrictions");
 
 /**
   Abstract restriction constructor
-
-  @param [in] mem_root MEM_ROOT handle to be used to store restrictions.
-                       Can be nullptr.
 */
 Abstract_restrictions::Abstract_restrictions() {}
 
@@ -56,9 +53,6 @@ Abstract_restrictions::~Abstract_restrictions() {}
 
 /**
   DB Restrictions constructor
-
-  @param [in] mem_root MEM_ROOT handle. Can be nullptr.
-
 */
 DB_restrictions::DB_restrictions()
     : Abstract_restrictions(), m_restrictions() {}
@@ -66,7 +60,7 @@ DB_restrictions::DB_restrictions()
 /**
   Copy constructor for DB Restrictions
 
-  @param [in] restrictions Source DB restrictions
+  @param [in] other Source DB restrictions
 */
 DB_restrictions::DB_restrictions(const DB_restrictions &other)
     : m_restrictions(other.m_restrictions) {}
@@ -77,7 +71,7 @@ DB_restrictions::~DB_restrictions() { m_restrictions.clear(); }
 /**
   Assignment operator
 
-  @param [in] restrictions Source DB restrictions
+  @param [in] other Source DB restrictions
 */
 DB_restrictions &DB_restrictions::operator=(const DB_restrictions &other) {
   if (this != &other) {
