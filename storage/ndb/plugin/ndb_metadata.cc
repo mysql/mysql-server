@@ -1366,9 +1366,13 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     different kinds of look-up queries. The additional ordered index is not
     created when "using HASH" is explicitly specified which leads to the below
     mismatch.
+
+    There's also a long standing issue with metadata restore using the
+    ndb_restore tool where the indexes are not created at the same time as
+    tables. This makes the below check prone to failure with restore and
+    auto sync/discovery
   */
-  if (t1->indexes().size() == t2->indexes().size())
-    ctx.compare("index_count", t1->indexes().size(), t2->indexes().size());
+  // ctx.compare("index_count", t1->indexes().size(), t2->indexes().size());
 
   dd::Table::Index_collection::const_iterator index_it1(t1->indexes().begin());
   for (; index_it1 != t1->indexes().end(); ++index_it1) {
@@ -1613,7 +1617,14 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
   }
 
   // Foreign key count
-  ctx.compare("fk_count", t1->foreign_keys().size(), t2->foreign_keys().size());
+  /*
+    There's also a long standing issue with metadata restore using the
+    ndb_restore tool where the indexes are not created at the same time as
+    tables. This makes the below check prone to failure with restore and
+    auto sync/discovery
+  */
+  // ctx.compare("fk_count", t1->foreign_keys().size(),
+  // t2->foreign_keys().size());
 
   dd::Table::Foreign_key_collection::const_iterator fk_it1(
       t1->foreign_keys().begin());
