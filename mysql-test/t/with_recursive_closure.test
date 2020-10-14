@@ -48,6 +48,7 @@ with recursive closure as (select @start_node as n union select case when s=clos
 
 with recursive closure as (select @start_node as n union select e from edges, closure where s=closure.n union select s from edges, closure where e=closure.n) select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
 
+--skip_if_hypergraph
 show status like 'Created_tmp_disk_tables';
 
 # uni-directional edges, again, just to test overflow-to-disk: we
@@ -59,6 +60,7 @@ with recursive closure as
 (select @start_node as n union select e from edges, closure where s=closure.n)
 select count(*),sum(n),sum(floor(n/20)*(n%20)) from closure;
 
+--skip_if_hypergraph
 show status like 'Created_tmp_disk_tables';
 
 set session internal_tmp_mem_storage_engine=default;

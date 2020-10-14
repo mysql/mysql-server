@@ -115,7 +115,7 @@ GRANT EXECUTE ON FUNCTION test.func1 TO writer2;
 # based on its statistics study. This would cause in-stability
 # when checking kind of locks acquired using
 # 'performance_schema.data_locks.lock_data'. Hence we disable it.
-let original_optimizer_switch=`SELECT @@optimizer_switch`;
+let $original_optimizer_switch=`SELECT @@global.optimizer_switch`;
 SET GLOBAL optimizer_switch = "skip_scan=off";
 
 --echo # Connections used for testing.

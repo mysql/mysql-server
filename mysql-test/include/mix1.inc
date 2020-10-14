@@ -973,6 +973,7 @@ SELECT * FROM t1 WHERE b=20 FOR UPDATE;
 # This statement gives a "failed: 1205: Lock wait timeout exceeded; try
 # restarting transaction" message when the bug is present.
 START TRANSACTION;
+--skip_if_hypergraph
 SELECT * FROM t1 WHERE b=10 ORDER BY A FOR UPDATE;
 ROLLBACK;
 
@@ -1652,6 +1653,7 @@ analyze table t2;
 -- enable_query_log
 
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+--sorted_result
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 
 drop table t1,t2;
