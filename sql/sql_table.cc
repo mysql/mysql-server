@@ -17950,6 +17950,9 @@ static int copy_data_between_tables(
 
   iterator = CreateIteratorFromAccessPath(thd, path, /*join=*/nullptr,
                                           /*eligible_for_batch_mode=*/true);
+  // Prevent cleanup in QEP_shared_owner::qs_cleanup(),
+  // to avoid double-destroy of the SortingIterator.
+  from->sorting_iterator = nullptr;
   if (iterator == nullptr || iterator->Init()) {
     error = 1;
     goto err;

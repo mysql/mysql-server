@@ -620,6 +620,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                                  /*count_examined_rows=*/false);
         iterator = CreateIteratorFromAccessPath(
             thd, path, &join, /*eligible_for_batch_mode=*/true);
+        // Prevent cleanup in JOIN::destroy() and
+        // QEP_shared_owner::qs_cleanup(), to avoid double-destroy of the
+        // SortingIterator.
+        table->sorting_iterator = nullptr;
+
         if (iterator == nullptr || iterator->Init()) return true;
         thd->inc_examined_row_count(join.examined_rows);
 
@@ -681,6 +686,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         iterator = CreateIteratorFromAccessPath(
             thd, path, /*join=*/nullptr, /*eligible_for_batch_mode=*/true);
+        // Prevent cleanup in JOIN::destroy() and
+        // QEP_shared_owner::qs_cleanup(), to avoid double-destroy of the
+        // SortingIterator.
+        table->sorting_iterator = nullptr;
+
         if (iterator == nullptr || iterator->Init()) {
           return true;
         }
@@ -1053,9 +1063,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         Transaction_ctx::STMT);
 
   iterator.reset();
-
-  // Prevent cleanup in JOIN::destroy, since the MEM_ROOT will be freed by then.
-  table->sorting_iterator = nullptr;
 
   /*
     error < 0 means really no error at all: we processed all rows until the

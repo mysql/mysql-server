@@ -460,6 +460,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
                                /*count_examined_rows=*/false);
       iterator = CreateIteratorFromAccessPath(thd, path, &join,
                                               /*eligible_for_batch_mode=*/true);
+      // Prevent cleanup in JOIN::destroy() and QEP_shared_owner::qs_cleanup(),
+      // to avoid double-destroy of the SortingIterator.
+      table->sorting_iterator = nullptr;
       if (iterator == nullptr || iterator->Init()) return true;
       thd->inc_examined_row_count(join.examined_rows);
 
@@ -471,12 +474,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     } else {
       iterator = CreateIteratorFromAccessPath(thd, path, &join,
                                               /*eligible_for_batch_mode=*/true);
+      // Prevent cleanup in JOIN::destroy() and QEP_shared_owner::qs_cleanup(),
+      // to avoid double-destroy of the SortingIterator.
+      table->sorting_iterator = nullptr;
       if (iterator->Init()) return true;
     }
-
-    // Prevent cleanup in JOIN::destroy, since the MEM_ROOT will be freed by
-    // then.
-    table->sorting_iterator = nullptr;
 
     if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
       return true; /* purecov: inspected */
