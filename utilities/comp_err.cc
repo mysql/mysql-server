@@ -94,8 +94,6 @@ static const char *default_dbug_option = "d:t:O,/tmp/comp_err.trace";
     from 2 bytes to 4 bytes.
 */
 uchar file_head[] = {254, 254, ERRMSG_VERSION, 1};
-/* Store positions to each error message row to store in errmsg.sys header */
-std::vector<uint> file_pos;
 
 const char *empty_string = ""; /* For empty states */
 /*
@@ -234,7 +232,8 @@ static void usage(void);
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument);
 static char *parse_text_line(char *pos);
-static int copy_rows(FILE *to, char *row, int row_nr, long start_pos);
+static int copy_rows(FILE *to, char *row, long start_pos,
+                     std::vector<uint> *file_pos);
 static char *parse_default_language(char *str);
 static uint parse_error_offset(char *str);
 static bool parse_reserved_error_section(char *str);
@@ -558,7 +557,7 @@ static int create_header_files(struct errors *error_head) {
 static int create_sys_files(struct languages *lang_head,
                             struct errors *error_head, uint row_count) {
   FILE *to;
-  uint csnum = 0, length, i, row_nr;
+  uint csnum = 0, length;
   uchar head[32];
   char outfile[FN_REFLEN], *outfile_end;
   long start_pos;
@@ -597,7 +596,8 @@ static int create_sys_files(struct languages *lang_head,
     /* 4 is for 4 bytes to store row position / error message */
     start_pos = (long)(HEADER_LENGTH + row_count * 4);
     fseek(to, start_pos, 0);
-    row_nr = 0;
+    // Store positions to each error message row to store in errmsg.sys header
+    std::vector<uint> file_pos;
     for (tmp_error = error_head; tmp_error; tmp_error = tmp_error->next_error) {
       /* dealing with messages */
       tmp = find_message(tmp_error, tmp_lang->lang_short_name, false);
@@ -609,11 +609,10 @@ static int create_sys_files(struct languages *lang_head,
                 tmp_error->er_name, tmp_lang->lang_short_name);
         goto err;
       }
-      if (copy_rows(to, tmp->text, row_nr, start_pos)) {
+      if (copy_rows(to, tmp->text, start_pos, &file_pos)) {
         fprintf(stderr, "Failed to copy rows to %s\n", outfile);
         goto err;
       }
-      row_nr++;
     }
 
     /* continue with header of the errmsg.sys file */
@@ -629,8 +628,8 @@ static int create_sys_files(struct languages *lang_head,
     if (my_fwrite(to, (uchar *)head, HEADER_LENGTH, MYF(MY_WME | MY_FNABP)))
       goto err;
 
-    for (i = 0; i < row_count; i++) {
-      int4store(head, file_pos.at(i));
+    for (uint pos : file_pos) {
+      int4store(head, pos);
       if (my_fwrite(to, (uchar *)head, 4, MYF(MY_WME | MY_FNABP))) goto err;
     }
     my_fclose(to, MYF(0));
@@ -1458,11 +1457,11 @@ static char *parse_text_line(char *pos) {
 
 /* Copy rows from memory to file and remember position */
 
-static int copy_rows(FILE *to, char *row, int row_nr, long start_pos) {
+static int copy_rows(FILE *to, char *row, long start_pos,
+                     std::vector<uint> *file_pos) {
   DBUG_TRACE;
 
-  file_pos.insert(file_pos.begin() + row_nr,
-                  static_cast<uint>(ftell(to) - start_pos));
+  file_pos->push_back(static_cast<uint>(ftell(to) - start_pos));
   if (fputs(row, to) == EOF || fputc('\0', to) == EOF) {
     fprintf(stderr, "Can't write to outputfile\n");
     return 1;
