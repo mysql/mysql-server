@@ -279,6 +279,7 @@ int AggregateIterator::Read() {
           m_tables, pointer_cast<const uchar *>(m_first_row_this_group.ptr()));
 
       for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
+        assert(!thd()->is_error());
         if (m_rollup) {
           if (down_cast<Item_rollup_sum_switcher *>(*item)
                   ->reset_and_add_for_rollup(m_last_unchanged_group_item_idx))
@@ -286,6 +287,7 @@ int AggregateIterator::Read() {
         } else {
           if ((*item)->reset_and_add()) return true;
         }
+        assert(!thd()->is_error());
       }
 
       // Keep reading rows as long as they are part of the existing group.
