@@ -1,4 +1,6 @@
 --source include/have_ndb.inc
+CALL mtr.add_suppression("NDB: Failed to setup events for 'mysql.ndb_schema' table");
+CALL mtr.add_suppression("NDB: Failed to setup binlogging for table 'mysql.ndb_schema'");
 
 #
 # Setup
