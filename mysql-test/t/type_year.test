@@ -245,3 +245,30 @@ DROP PROCEDURE p1;
 CREATE TABLE t1(a YEAR UNSIGNED);
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+--echo # Bug#31994744: Year should not be part of property functions
+--echo #               is_numeric_type() and is_integer_type()
+
+CREATE TABLE t1
+(y YEAR,
+ d DATE,
+ i INTEGER,
+ v VARCHAR(10));
+INSERT INTO t1 VALUES(1901, DATE'1901-01-01', 1, 'one');
+SELECT LEAST(d, y) FROM t1;
+SELECT LEAST(y, d) FROM t1;
+SELECT LEAST(i, y, v) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1
+(pk INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ year_field YEAR
+);
+INSERT INTO t1 VALUES(NULL, 1901), (NULL, 1902), (NULL, 1903), (NULL, 1904);
+--sorted_result
+SELECT pk FROM t1 WHERE year_field IN (1901, 1903);
+--sorted_result
+SELECT pk FROM t1 WHERE year_field IN ('1901', '1903');
+--sorted_result
+SELECT pk FROM t1 WHERE year_field IN (1901, '1903');
+DROP TABLE t1;

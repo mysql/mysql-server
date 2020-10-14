@@ -380,3 +380,41 @@ t1	CREATE TABLE `t1` (
   `a` year DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
+# Bug#31994744: Year should not be part of property functions
+#               is_numeric_type() and is_integer_type()
+CREATE TABLE t1
+(y YEAR,
+d DATE,
+i INTEGER,
+v VARCHAR(10));
+INSERT INTO t1 VALUES(1901, DATE'1901-01-01', 1, 'one');
+SELECT LEAST(d, y) FROM t1;
+LEAST(d, y)
+1901
+Warnings:
+Warning	1292	Incorrect date value: '1901' for column 'd' at row 1
+SELECT LEAST(y, d) FROM t1;
+LEAST(y, d)
+1901
+SELECT LEAST(i, y, v) FROM t1;
+LEAST(i, y, v)
+1
+DROP TABLE t1;
+CREATE TABLE t1
+(pk INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+year_field YEAR
+);
+INSERT INTO t1 VALUES(NULL, 1901), (NULL, 1902), (NULL, 1903), (NULL, 1904);
+SELECT pk FROM t1 WHERE year_field IN (1901, 1903);
+pk
+1
+3
+SELECT pk FROM t1 WHERE year_field IN ('1901', '1903');
+pk
+1
+3
+SELECT pk FROM t1 WHERE year_field IN (1901, '1903');
+pk
+1
+3
+DROP TABLE t1;

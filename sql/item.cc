@@ -7098,8 +7098,12 @@ void Item::aggregate_temporal_properties(Item **item, uint nitems) {
       set_data_type_time(decimal_cnt);
       break;
 
+    case MYSQL_TYPE_YEAR:
+      set_data_type_year();
+      break;
+
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 

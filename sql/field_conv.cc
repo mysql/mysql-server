@@ -651,8 +651,10 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
     if (m_to_field->result_type() == DECIMAL_RESULT) return do_field_decimal;
     // Check if identical fields
     if (m_from_field->result_type() == STRING_RESULT) {
-      if (is_temporal_type(m_from_field->type())) {
-        if (is_temporal_type(m_to_field->type())) {
+      if (is_temporal_type(m_from_field->type()) &&
+          m_from_field->type() != MYSQL_TYPE_YEAR) {
+        if (is_temporal_type(m_to_field->type()) &&
+            m_to_field->type() != MYSQL_TYPE_YEAR) {
           return do_field_time;
         } else {
           if (m_to_field->result_type() == INT_RESULT) return do_field_int;
@@ -799,7 +801,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       to->real_type() == MYSQL_TYPE_ENUM && from->val_int() == 0) {
     ((Field_enum *)(to))->store_type(0);
     return TYPE_OK;
-  } else if (is_temporal_type(from_type) && to->result_type() == INT_RESULT) {
+  } else if (is_temporal_type(from_type) && from_type != MYSQL_TYPE_YEAR &&
+             to->result_type() == INT_RESULT) {
     MYSQL_TIME ltime;
     longlong nr;
     if (from_type == MYSQL_TYPE_TIME) {
@@ -819,7 +822,7 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       }
     }
     return to->store(ltime.neg ? -nr : nr, false);
-  } else if (is_temporal_type(from_type) &&
+  } else if (is_temporal_type(from_type) && from_type != MYSQL_TYPE_YEAR &&
              (to->result_type() == REAL_RESULT ||
               to->result_type() == DECIMAL_RESULT ||
               to->result_type() == INT_RESULT)) {
@@ -829,7 +832,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       double supports only 15 digits, which is not enough for DATETIME(6).
     */
     return to->store_decimal(from->val_decimal(&tmp));
-  } else if (is_temporal_type(from_type) && is_temporal_type(to_type)) {
+  } else if (is_temporal_type(from_type) && from_type != MYSQL_TYPE_YEAR &&
+             is_temporal_type(to_type) && to_type != MYSQL_TYPE_YEAR) {
     return copy_time_to_time(from, to);
   } else if (from_type == MYSQL_TYPE_JSON &&
              (is_integer_type(to_type) || to_type == MYSQL_TYPE_YEAR)) {

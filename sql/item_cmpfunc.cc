@@ -1464,7 +1464,7 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **,
   String buf, *str = nullptr;
 
   Item *item = **item_arg;
-  if (item->is_temporal()) {
+  if (item->is_temporal() && item->data_type() != MYSQL_TYPE_YEAR) {
     value = item->val_date_temporal();
     *is_null = item->null_value;
   } else {
@@ -5019,7 +5019,8 @@ bool Item_func_in::resolve_type(THD *thd) {
           }
           if (all_converted) {
             cmp_type = INT_RESULT;
-            datetime_as_longlong = field_item->is_temporal();
+            datetime_as_longlong = field_item->is_temporal() &&
+                                   field_item->data_type() != MYSQL_TYPE_YEAR;
           }
         }
       }
