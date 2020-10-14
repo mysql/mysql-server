@@ -52,7 +52,7 @@ namespace ngs {
 class Client : public xpl::iface::Client {
  public:
   Client(std::shared_ptr<xpl::iface::Vio> connection,
-         xpl::iface::Server &server, Client_id client_id,
+         xpl::iface::Server *server, Client_id client_id,
          xpl::iface::Protocol_monitor *pmon);
   ~Client() override;
 
@@ -73,7 +73,7 @@ class Client : public xpl::iface::Client {
   void on_server_shutdown() override;
   void kill() override;
 
-  xpl::iface::Server &server() const override { return m_server; }
+  xpl::iface::Server &server() const override { return *m_server; }
   xpl::iface::Protocol_encoder &protocol() const override { return *m_encoder; }
   xpl::iface::Vio &connection() const override { return *m_connection; }
 
@@ -110,7 +110,7 @@ class Client : public xpl::iface::Client {
   void set_read_timeout(const uint32_t) override;
   void set_write_timeout(const uint32_t) override;
 
-  bool handle_session_connect_attr_set(ngs::Message_request &command);
+  bool handle_session_connect_attr_set(const ngs::Message_request &command);
 
   void configure_compression_opts(
       const Compression_algorithm algo, const int64_t max_msg,
@@ -138,7 +138,7 @@ class Client : public xpl::iface::Client {
  protected:
   char m_id[2 + sizeof(Client_id) * 2 + 1];  // 64bits in hex, plus 0x plus \0
   Client_id m_client_id;
-  xpl::iface::Server &m_server;
+  xpl::iface::Server *m_server;
 
   std::unique_ptr<xpl::iface::Waiting_for_io> m_idle_reporting;
   std::shared_ptr<xpl::iface::Vio> m_connection;
@@ -156,6 +156,7 @@ class Client : public xpl::iface::Client {
   std::string m_client_host;
   uint16_t m_client_port;
   std::atomic<Client::State> m_state;
+  std::atomic<Client::State> m_state_when_reason_changed;
   std::atomic<bool> m_removed;
 
   std::shared_ptr<xpl::iface::Session> m_session;
@@ -170,27 +171,29 @@ class Client : public xpl::iface::Client {
     k_error,
     k_reject,
     k_normal,
+    k_server_shutdown,
+    k_kill,
     k_connect_timeout,
     k_write_timeout,
     k_read_timeout
   };
 
-  Close_reason m_close_reason{Close_reason::k_none};
+  std::atomic<Close_reason> m_close_reason{Close_reason::k_none};
 
-  char *m_msg_buffer;
-  size_t m_msg_buffer_size;
-  bool m_supports_expired_passwords;
-  bool m_is_interactive = false;
-  bool m_is_compression_encoder_injected = false;
+  char *m_msg_buffer{nullptr};
+  size_t m_msg_buffer_size{0};
+  bool m_supports_expired_passwords{false};
+  bool m_is_interactive{false};
+  bool m_is_compression_encoder_injected{false};
 
-  uint32_t m_read_timeout;
-  uint32_t m_write_timeout;
+  uint32_t m_read_timeout{0};
+  uint32_t m_write_timeout{0};
 
-  Compression_algorithm m_cached_compression_algorithm =
-      Compression_algorithm::k_none;
-  int64_t m_cached_max_msg = -1;
-  bool m_cached_combine_msg = false;
-  int32_t m_cached_compression_level = 3;
+  Compression_algorithm m_cached_compression_algorithm{
+      Compression_algorithm::k_none};
+  int64_t m_cached_max_msg{-1};
+  bool m_cached_combine_msg{false};
+  int32_t m_cached_compression_level{3};
 
   int32_t get_adjusted_compression_level(
       const Compression_algorithm algo,
@@ -224,6 +227,7 @@ class Client : public xpl::iface::Client {
   void set_close_reason_if_non_fatal(const Close_reason reason);
   void update_counters();
   void queue_up_disconnection_notice(const Error_code &error);
+  void queue_up_disconnection_notice_if_necessary();
 
   void on_client_addr();
   void on_accept();

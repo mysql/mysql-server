@@ -39,7 +39,6 @@ namespace ngs {
   event, where notice is the report.
 */
 enum class Notice_type {
-  k_first_element = 0,
   k_warning = 0,
   k_group_replication_quorum_loss,
   k_group_replication_view_changed,

@@ -36,7 +36,7 @@ Server_factory::Client_interface_ptr Server_factory::create_client(
   std::shared_ptr<xpl::iface::Client> result;
 
   result = ngs::allocate_shared<xpl::Client>(
-      connection, *server, ++m_client_id,
+      connection, server, ++m_client_id,
       ngs::allocate_object<xpl::Protocol_monitor>());
 
   return result;

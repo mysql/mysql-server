@@ -52,7 +52,7 @@
 
 namespace xpl {
 
-Client::Client(std::shared_ptr<iface::Vio> connection, iface::Server &server,
+Client::Client(std::shared_ptr<iface::Vio> connection, iface::Server *server,
                Client_id client_id, Protocol_monitor *pmon)
     : ngs::Client(connection, server, client_id, pmon) {
   if (pmon) pmon->init(this);
@@ -211,6 +211,12 @@ inline void update_status(iface::Session *session) {
   ++(Global_status_variables::instance().*variable);
 }
 
+template <ngs::Session_status_variables::Variable
+              ngs::Session_status_variables::*variable>
+inline void update_session_status(iface::Session *session) {
+  if (session) ++(session->get_status_variables().*variable);
+}
+
 template <ngs::Common_status_variables::Variable ngs::Common_status_variables::*
               variable>
 inline void update_status(iface::Session *session, const uint32_t value) {
@@ -241,6 +247,8 @@ void Protocol_monitor::on_error_send() {
 }
 
 void Protocol_monitor::on_fatal_error_send() {
+  update_session_status<&ngs::Session_status_variables::m_fatal_errors_sent>(
+      m_client->session());
   ++Global_status_variables::instance().m_sessions_fatal_errors_count;
 }
 

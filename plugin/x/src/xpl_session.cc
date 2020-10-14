@@ -117,7 +117,6 @@ void Session::on_kill() {
       log_debug("%s: Could not interrupt client session",
                 m_client->client_id());
   }
-
   on_close(Close_flags::k_update_old_state);
 }
 
