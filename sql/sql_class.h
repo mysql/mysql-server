@@ -829,8 +829,8 @@ class THD : public MDL_context_owner,
  public:
   MDL_context mdl_context;
 
-  /*
-    MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
+  /**
+    MARK_COLUMNS_NONE:  Means mark_used_columns is not set and no indicator to
                         handler of fields used is set
     MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
                         that the field is to be read. Update covering_keys

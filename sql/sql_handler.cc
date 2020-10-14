@@ -580,10 +580,14 @@ retry:
   }
 
   {
+    // Mark all visible columns for read.
+    const enum_mark_columns save_mark_columns = thd->mark_used_columns;
+    thd->mark_used_columns = MARK_COLUMNS_READ;
     auto list_it = list.begin();
     if (insert_fields(thd, select_lex, tables->db, tables->alias, &list,
                       &list_it, false))
       goto err;
+    thd->mark_used_columns = save_mark_columns;
   }
 
   DBUG_EXECUTE_IF("simulate_handler_read_failure",
