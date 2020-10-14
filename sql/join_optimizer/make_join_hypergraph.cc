@@ -210,13 +210,33 @@ void MakeCartesianProducts(RelationalExpression *expr) {
   after expr (...=false).
 
   Returns false if cond was pushed down and stored as a join condition on some
-  lower place than it started.
+  lower place than it started, ie., the caller no longer needs to worry about
+  it.
+
+  In addition to regular pushdown, PushDownCondition() will do partial pushdown
+  if appropriate. Some expressions cannot be fully pushed down, but we can
+  push down necessary-but-not-sufficient conditions to get earlier filtering.
+  (This is a performance win for e.g. hash join and the left side of a
+  nested loop join, but not for the right side of a nested loop join. Note that
+  we currently do not compensate for the errors in selectivity estimation
+  this may incur.) An example would be
+
+    (t1.x = 1 AND t2.y=2) OR (t1.x = 3 AND t2.y=4);
+
+  we could push down the conditions (t1.x = 1 OR t1.x = 3) to t1 and similarly
+  for t2, but we could not delete the original condition. This does not affect
+  the return value. Since PushDownAsMuchAsPossible() only calls us for join
+  conditions, this is the only way we can push down something onto a single
+  table (which naturally has no concept of “join condition”). If this happens,
+  we push the resulting condition(s) onto “extra_where_conditions”.
  */
 bool PushDownCondition(Item *cond, RelationalExpression *expr,
-                       bool is_join_condition_for_expr) {
-  // PushDownAsMuchAsPossible() only calls us for join conditions,
-  // so we should never hit a single table.
-  assert(expr->type != RelationalExpression::TABLE);
+                       bool is_join_condition_for_expr,
+                       Mem_root_array<Item *> *extra_where_conditions) {
+  if (expr->type == RelationalExpression::TABLE) {
+    extra_where_conditions->push_back(cond);
+    return true;
+  }
 
   assert(
       !Overlaps(expr->left->tables_in_subtree, expr->right->tables_in_subtree));
@@ -239,7 +259,8 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       return true;
     }
     return PushDownCondition(cond, expr->left,
-                             /*is_join_condition_for_expr=*/false);
+                             /*is_join_condition_for_expr=*/false,
+                             extra_where_conditions);
   }
 
   // See if we can push down into the right side. For inner joins,
@@ -255,19 +276,48 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // no choice but to just trust that these conditions are pushable.
   // (The user cannot cannot specify semijoins directly, so all such conditions
   // come from ourselves.)
+  bool can_push_into_right = (expr->type == RelationalExpression::INNER_JOIN ||
+                              expr->type == RelationalExpression::SEMIJOIN ||
+                              is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->right->tables_in_subtree)) {
-    if (expr->type != RelationalExpression::INNER_JOIN &&
-        expr->type != RelationalExpression::SEMIJOIN &&
-        !is_join_condition_for_expr) {
+    if (!can_push_into_right) {
       return true;
     }
     return PushDownCondition(cond, expr->right,
-                             /*is_join_condition_for_expr=*/false);
+                             /*is_join_condition_for_expr=*/false,
+                             extra_where_conditions);
   }
 
-  // It's not a subset of left, it's not a subset of right,
-  // so it's a filter that must either stay after this join,
-  // or it can be promoted to a join condition for it.
+  // It's not a subset of left, it's not a subset of right, so it's a
+  // filter that must either stay after this join, or it can be promoted
+  // to a join condition for it.
+
+  // Try partial pushdown into the left side (see function comment).
+  {
+    Item *partial_cond = make_cond_for_table(
+        current_thd, cond, expr->left->tables_in_subtree, /*used_table=*/0,
+        /*exclude_expensive_cond=*/true);
+    if (partial_cond != nullptr) {
+      PushDownCondition(partial_cond, expr->left,
+                        /*is_join_condition_for_expr=*/false,
+                        extra_where_conditions);
+    }
+  }
+
+  // Then the right side, if it's allowed.
+  if (can_push_into_right) {
+    Item *partial_cond = make_cond_for_table(
+        current_thd, cond, expr->right->tables_in_subtree, /*used_table=*/0,
+        /*exclude_expensive_cond=*/true);
+    if (partial_cond != nullptr) {
+      PushDownCondition(partial_cond, expr->right,
+                        /*is_join_condition_for_expr=*/false,
+                        extra_where_conditions);
+    }
+  }
+
+  // Now that any partial pushdown has been done, see if we can promote
+  // the original filter to a join condition.
   if (is_join_condition_for_expr) {
     // We were already a join condition on this join, so there's nothing to do.
     return true;
@@ -301,7 +351,8 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
  */
 Mem_root_array<Item *> PushDownAsMuchAsPossible(
     THD *thd, Mem_root_array<Item *> conditions, RelationalExpression *expr,
-    bool is_join_condition_for_expr) {
+    bool is_join_condition_for_expr,
+    Mem_root_array<Item *> *extra_where_conditions) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
     if (IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS)) {
@@ -310,7 +361,8 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // FoundSubgraphPair().
       remaining_parts.push_back(item);
     } else {
-      if (PushDownCondition(item, expr, is_join_condition_for_expr)) {
+      if (PushDownCondition(item, expr, is_join_condition_for_expr,
+                            extra_where_conditions)) {
         // Pushdown failed.
         remaining_parts.push_back(item);
       }
@@ -340,19 +392,20 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
   the WHERE. When this function is called on the said join, it will push the
   join condition down again.
  */
-void PushDownJoinConditions(THD *thd, RelationalExpression *expr) {
+void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
+                            Mem_root_array<Item *> *where_conditions) {
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }
   assert(expr->equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
   if (!expr->join_conditions.empty()) {
-    expr->join_conditions =
-        PushDownAsMuchAsPossible(thd, std::move(expr->join_conditions), expr,
-                                 /*is_join_condition_for_expr=*/true);
+    expr->join_conditions = PushDownAsMuchAsPossible(
+        thd, std::move(expr->join_conditions), expr,
+        /*is_join_condition_for_expr=*/true, where_conditions);
   }
-  PushDownJoinConditions(thd, expr->left);
-  PushDownJoinConditions(thd, expr->right);
+  PushDownJoinConditions(thd, expr->left, where_conditions);
+  PushDownJoinConditions(thd, expr->right, where_conditions);
 }
 
 /**
@@ -441,7 +494,8 @@ bool ConcretizeMultipleEquals(THD *thd, Mem_root_array<Item *> *conditions) {
   Convert all multi-equalities in join conditions under “expr” into simple
   equalities. See ConcretizeMultipleEquals() for more information.
  */
-bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr) {
+bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr,
+                                 Mem_root_array<Item *> *where_conditions) {
   if (expr->type == RelationalExpression::TABLE) {
     return false;
   }
@@ -450,8 +504,8 @@ bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr) {
   if (ConcretizeMultipleEquals(thd, &expr->join_conditions)) {
     return true;
   }
-  PushDownJoinConditions(thd, expr->left);
-  PushDownJoinConditions(thd, expr->right);
+  PushDownJoinConditions(thd, expr->left, where_conditions);
+  PushDownJoinConditions(thd, expr->right, where_conditions);
   return false;
 }
 
@@ -753,23 +807,32 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
     *trace += "\n";
   }
 
+  Mem_root_array<Item *> extra_where_conditions(thd->mem_root);
+  if (ConcretizeAllMultipleEquals(thd, root, &extra_where_conditions)) {
+    return true;
+  }
+  PushDownJoinConditions(thd, root, &extra_where_conditions);
+
   // Split up WHERE conditions, and push them down into the tree as much as
   // we can. (They have earlier been hoisted up as far as possible; see
   // comments on PushDownAsMuchAsPossible() and PushDownJoinConditions().)
+  // Note that we do this after pushing down join conditions, so that we
+  // don't push down WHERE conditions to join conditions and then re-process
+  // them later.
   Mem_root_array<Item *> where_conditions(thd->mem_root);
   if (join->where_cond != nullptr) {
     ExtractConditions(join->where_cond, &where_conditions);
     if (ConcretizeMultipleEquals(thd, &where_conditions)) {
       return true;
     }
-    where_conditions =
-        PushDownAsMuchAsPossible(thd, std::move(where_conditions), root,
-                                 /*is_join_condition_for_expr=*/false);
+    where_conditions = PushDownAsMuchAsPossible(
+        thd, std::move(where_conditions), root,
+        /*is_join_condition_for_expr=*/false, &extra_where_conditions);
   }
-  if (ConcretizeAllMultipleEquals(thd, root)) {
-    return true;
+
+  for (Item *cond : extra_where_conditions) {
+    where_conditions.push_back(cond);
   }
-  PushDownJoinConditions(thd, root);
 
   MakeHashJoinConditions(thd, root);
   MakeCartesianProducts(root);
