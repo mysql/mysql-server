@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,11 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 
+// This is the "global Ndb object", it's main purpose is to open the connection
+// to NDB and keep it open. It also serves as a "factory" for releasing
+// resources
 Ndb *g_ndb = NULL;
+
 Ndb_cluster_connection *g_ndb_cluster_connection = NULL;
 static Ndb_cluster_connection **g_pool = NULL;
 static uint g_pool_alloc = 0;

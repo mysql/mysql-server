@@ -1939,8 +1939,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
   return (defaults_aligned ? 0 : -1);
 }
 
-int ha_ndbcluster::get_metadata(THD *thd, const dd::Table *table_def) {
-  Ndb *ndb = get_thd_ndb(thd)->ndb;
+int ha_ndbcluster::get_metadata(Ndb *ndb, const dd::Table *table_def) {
   NDBDICT *dict = ndb->getDictionary();
   DBUG_TRACE;
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
@@ -2697,22 +2696,19 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint index_num,
               : ORDERED_INDEX);
 }
 
-void ha_ndbcluster::release_metadata(THD *thd) {
+void ha_ndbcluster::release_metadata(Ndb *ndb, bool invalidate) {
   DBUG_TRACE;
-  Ndb *ndb = thd ? check_ndb_in_thd(thd) : g_ndb;
+  DBUG_PRINT("enter", ("invalidate: %d", invalidate));
 
   if (m_table == NULL) {
     return;  // table already released
   }
 
-  bool invalidate_indexes = false;
-  if (thd && thd->lex && thd->lex->sql_command == SQLCOM_FLUSH) {
-    DBUG_PRINT("info", ("FLUSH TABLES -> invalidate"));
-    invalidate_indexes = true;
-  }
-  if (m_table->getObjectStatus() == NdbDictionary::Object::Invalid) {
-    DBUG_PRINT("info", ("table status invalid -> invalidate indexes"));
-    invalidate_indexes = true;
+  if (invalidate == false &&
+      m_table->getObjectStatus() == NdbDictionary::Object::Invalid) {
+    DBUG_PRINT("info", ("table status invalid -> invalidate both table and "
+                        "indexes in 'global dict cache'"));
+    invalidate = true;
   }
 
   NDBDICT *dict = ndb->getDictionary();
@@ -2724,8 +2720,8 @@ void ha_ndbcluster::release_metadata(THD *thd) {
     dict->releaseRecord(m_ndb_hidden_key_record);
     m_ndb_hidden_key_record = NULL;
   }
-  dict->removeTableGlobal(*m_table, invalidate_indexes);
-  release_indexes(dict, invalidate_indexes);
+  dict->removeTableGlobal(*m_table, invalidate);
+  release_indexes(dict, invalidate);
 
   m_table_info = NULL;
 
@@ -11202,7 +11198,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
       m_ndb_record(0),
       m_ndb_hidden_key_record(0),
       m_table_info(NULL),
-      m_share(0),
       m_key_fields(NULL),
       m_part_info(NULL),
       m_user_defined_partitioning(false),
@@ -11243,23 +11238,17 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
 }
 
 ha_ndbcluster::~ha_ndbcluster() {
-  THD *thd = current_thd;
   DBUG_TRACE;
 
-  if (m_share) {
-    // NOTE! Release the m_share acquired in create(), this
-    // violates the normal flow which acquires in open() and
-    // releases in close(). Code path seems unused.
-    DBUG_ASSERT(false);
+  // Double check that the share has been released already. It should be
+  // acquired in open() and released in close().
+  DBUG_ASSERT(m_share == nullptr);
 
-    NDB_SHARE::release_for_handler(m_share, this);
-  }
-
-  // NOTE! The metadata is loaded in open() and released in close(), thus there
-  // should be no need to call release_metadata() here. Verify this assumption
-  // by checking that m_table is empty
+  // Double check that the NDB table's metadata has been released already. It
+  // should be loaded in open() and released in close(). NOTE! The m_table
+  // pointer serves as an indicator wheter the table is open or closed.
   DBUG_ASSERT(m_table == nullptr);
-  release_metadata(thd);
+
   release_blobs_buffer();
 
   // Check for open cursor/transaction
@@ -11341,7 +11330,8 @@ int ha_ndbcluster::open(const char *name, int, uint,
   // Init table lock structure
   thr_lock_data_init(&m_share->lock, &m_lock, (void *)0);
 
-  if ((res = get_metadata(thd, table_def))) {
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  if ((res = get_metadata(thd_ndb->ndb, table_def))) {
     release_key_fields();
     release_ndb_share();
     return res;
@@ -11350,7 +11340,7 @@ int ha_ndbcluster::open(const char *name, int, uint,
   if ((res = update_stats(thd, 1)) || (res = info(HA_STATUS_CONST))) {
     release_key_fields();
     release_ndb_share();
-    release_metadata(thd);
+    release_metadata(thd_ndb->ndb, false);
     return res;
   }
 
@@ -11636,10 +11626,40 @@ inline void ha_ndbcluster::release_key_fields() {
 
 int ha_ndbcluster::close(void) {
   DBUG_TRACE;
-  THD *thd = table->in_use;
+
   release_key_fields();
   release_ndb_share();
-  release_metadata(thd);
+
+  /*
+    In most cases the open ha_ndbcluster instance is closed by a THD which has
+    used NDB before and thus it already have a Thd_ndb object allocated.
+
+    But there are also cases where the ha_ndbcluster instance is closed by a
+    THD which hasn't used NDB previously, an example of this is when open
+    ha_ndbcluster instances that have been cached in the table definition cache
+    are closed by FLUSH TABLES or RESET MASTER command. Normally this would
+    mean that a new Thd_ndb and it's related Ndb object would need to be
+    allocated at this point. Since allocating Thd_ndb is quite costly, may
+    fail and in particular since release_metadata() just need a Ndb object for
+    releasing memory and removing references to the "global dict cache" it's
+    enough to use the global Ndb object for performing these release actions.
+    The g_ndb then acts as a facade for calling things which are kind of static
+    "factory functions", no communication with NDB takes place.
+  */
+
+  // Select Ndb object to use for releasing resources, use the global Ndb object
+  // unless thread has Thd_ndb
+  const THD *thd = current_thd;
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  Ndb *release_ndb = thd_ndb ? thd_ndb->ndb : g_ndb;
+
+  // During a FLUSH TABLE the NDB table definitions in the "global dict cache"
+  // should be invalidated.
+  const bool invalidate_dict_cache = (thd_sql_command(thd) == SQLCOM_FLUSH);
+
+  // Release NDB table definition and related
+  release_metadata(release_ndb, invalidate_dict_cache);
+
   return 0;
 }
 

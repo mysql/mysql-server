@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 extern handlerton *ndbcluster_hton;
 
 /* Get Thd_ndb pointer from THD */
-static inline class Thd_ndb *get_thd_ndb(THD *thd) {
+static inline class Thd_ndb *get_thd_ndb(const THD *thd) {
   return (class Thd_ndb *)thd_get_ha_data(thd, ndbcluster_hton);
 }
 

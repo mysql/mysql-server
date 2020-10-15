@@ -508,8 +508,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool has_fk_dependency(NdbDictionary::Dictionary *dict,
                          const NdbDictionary::Column *) const;
   int check_default_values(const NdbDictionary::Table *ndbtab);
-  int get_metadata(THD *thd, const dd::Table *table_def);
-  void release_metadata(THD *thd);
+  int get_metadata(Ndb *ndb, const dd::Table *table_def);
+  void release_metadata(Ndb *ndb, bool invalidate_objects);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_num) const;
   NDB_INDEX_TYPE get_index_type_from_key(uint index_num, KEY *key_info,
@@ -690,7 +690,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   char m_tabname[FN_HEADLEN];
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;
-  NDB_SHARE *m_share;
+  NDB_SHARE *m_share{nullptr};
 
   std::array<NDB_INDEX_DATA, MAX_INDEXES> m_index;
   // Cached metadata variable, indicating if the open table have any unique
