@@ -21,12 +21,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#include "tls_error.h"
+#include "mysql/harness/tls_error.h"
 
 #include <array>
 #include <system_error>
-
-#include <iostream>
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>

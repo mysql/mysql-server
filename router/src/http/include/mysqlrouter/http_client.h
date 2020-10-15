@@ -25,8 +25,6 @@
 #ifndef MYSQLROUTER_HTTP_CLIENT_INCLUDED
 #define MYSQLROUTER_HTTP_CLIENT_INCLUDED
 
-#include <openssl/ssl.h>
-
 #include "mysql/harness/tls_client_context.h"
 #include "mysqlrouter/http_client_export.h"
 #include "mysqlrouter/http_common.h"

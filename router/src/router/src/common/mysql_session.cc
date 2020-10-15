@@ -857,3 +857,7 @@ const char *MySQLSession::last_error() {
 unsigned int MySQLSession::last_errno() {
   return connection_ ? mysql_errno(connection_) : 0;
 }
+
+const char *MySQLSession::ssl_cipher() {
+  return connection_ ? mysql_get_ssl_cipher(connection_) : nullptr;
+}

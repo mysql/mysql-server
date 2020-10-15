@@ -27,8 +27,8 @@
 #include <openssl/ssl.h>
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_error.h"
 #include "openssl_version.h"
-#include "tls_error.h"
 
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
 #define TLS_CLIENT_METHOD() TLS_client_method()

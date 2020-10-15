@@ -32,8 +32,8 @@
 #include <openssl/ssl.h>
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_error.h"
 #include "openssl_version.h"
-#include "tls_error.h"
 
 TlsLibraryContext::TlsLibraryContext() {
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)

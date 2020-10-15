@@ -262,7 +262,11 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   }
 
   std::deque<std::thread> worker_threads;
-  for (size_t ndx = 0; ndx < 4; ndx++) {
+  // open enough worker threads to handle the needs of the tests:
+  //
+  // e.g. routertest_component_rest_routing keeps 4 connections open
+  // and tries to open another 3.
+  for (size_t ndx = 0; ndx < 8; ndx++) {
     worker_threads.emplace_back(connection_handler);
   }
 

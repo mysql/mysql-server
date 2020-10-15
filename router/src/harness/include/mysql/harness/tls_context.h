@@ -32,6 +32,13 @@
 #include <system_error>
 #include <vector>
 
+#ifdef _WIN32
+// include windows headers before openssl/ssl.h
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #include <openssl/ssl.h>  // SSL_METHOD
 
 #include "mysql/harness/stdx/expected.h"
