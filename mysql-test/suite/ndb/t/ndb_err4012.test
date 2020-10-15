@@ -5,6 +5,16 @@
 call mtr.add_suppression("NDB: Failed to drop fk");
 call mtr.add_suppression("NDB: Failed to list dependent objects for table");
 
+# Magically turn off metadata compare since it causes tables and indexes to
+# be loaded from NDB in an order which is not expected by this test.
+# For example the test assumes that GET_TABINFOREQ should fail during drop
+# of table t2, but since t2 table def has already been loaded when comparing
+# metadata there is no GET_TABINFOREQ signal sent during the drop. This means
+# there is no timeout and MySQL Server continues with committing the schema
+# transaction and a hang occurs in NDB since GET_TABINFOREQ is still delayed
+# endlessly
+SET SESSION debug="+d,ndb_metadata_compare_skip";
+
 --echo # bulk delete with timeout error 4012
 create table t4(id int primary key, val int) engine=ndb;
 insert into t4 values (1,1), (2,2), (3,3), (4,4), (5,5);
