@@ -1936,6 +1936,14 @@ int configure_and_start_applier_module() {
 
   int error = 0;
 
+  Replication_thread_api applier_channel(applier_module_channel_name);
+  applier_channel.set_stop_wait_timeout(1);
+  if (applier_channel.is_applier_thread_running() &&
+      applier_channel.stop_threads(false, true)) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_CHANNEL_STILL_RUNNING);
+    return 1;
+  }
+
   // The applier did not stop properly or suffered a configuration error
   if (applier_module != nullptr) {
     if ((error = applier_module->is_running()))  // it is still running?
