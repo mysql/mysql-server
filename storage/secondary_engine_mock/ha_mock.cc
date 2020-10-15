@@ -24,6 +24,7 @@
 
 #include <stddef.h>
 #include <algorithm>
+#include <cassert>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -41,6 +42,8 @@
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
@@ -196,7 +199,7 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
 }
 
 int ha_mock::load_table(const TABLE &table_arg) {
-  DBUG_ASSERT(table_arg.file != nullptr);
+  assert(table_arg.file != nullptr);
   loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
   if (loaded_tables->get(table_arg.s->db.str, table_arg.s->table_name.str) ==
       nullptr) {
@@ -243,7 +246,7 @@ static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
 static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
                                     LEX *lex MY_ATTRIBUTE((unused))) {
   // The context should have been set by PrepareSecondaryEngine.
-  DBUG_ASSERT(lex->secondary_engine_execution_context() != nullptr);
+  assert(lex->secondary_engine_execution_context() != nullptr);
 
   DBUG_EXECUTE_IF("secondary_engine_mock_optimize_error", {
     my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
@@ -251,6 +254,33 @@ static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
   });
 
   DEBUG_SYNC(thd, "before_mock_optimize");
+
+#ifndef DBUG_OFF
+  if (lex->using_hypergraph_optimizer) {
+    WalkAccessPaths(
+        lex->unit->root_access_path(), nullptr,
+        WalkAccessPathPolicy::ENTIRE_TREE, [](AccessPath *path, const JOIN *) {
+          // The only supported join type is hash join. Other join
+          // types are disabled in
+          // handlerton::secondary_engine_supported_access_paths.
+          assert(path->type != AccessPath::NESTED_LOOP_JOIN);
+          assert(path->type !=
+                 AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL);
+          assert(path->type != AccessPath::BKA_JOIN);
+
+          // Index access is disabled in ha_mock::table_flags(), so we
+          // should see none of these access types.
+          assert(path->type != AccessPath::INDEX_SCAN);
+          assert(path->type != AccessPath::REF);
+          assert(path->type != AccessPath::REF_OR_NULL);
+          assert(path->type != AccessPath::EQ_REF);
+          assert(path->type != AccessPath::PUSHED_JOIN_REF);
+          assert(path->type != AccessPath::INDEX_RANGE_SCAN);
+          assert(path->type != AccessPath::DYNAMIC_INDEX_RANGE_SCAN);
+          return false;
+        });
+  }
+#endif
 
   return false;
 }
@@ -306,12 +336,13 @@ static int Init(MYSQL_PLUGIN p) {
   handlerton *hton = static_cast<handlerton *>(p);
   hton->create = Create;
   hton->state = SHOW_OPTION_YES;
-  hton->flags =
-      HTON_IS_SECONDARY_ENGINE | HTON_SECONDARY_ENGINE_SUPPORTS_HYPERGRAPH;
+  hton->flags = HTON_IS_SECONDARY_ENGINE;
   hton->db_type = DB_TYPE_UNKNOWN;
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
   hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   hton->compare_secondary_engine_cost = CompareJoinCost;
+  hton->secondary_engine_supported_access_paths =
+      AccessPathTypeBitmap(AccessPath::HASH_JOIN);
   return 0;
 }
 

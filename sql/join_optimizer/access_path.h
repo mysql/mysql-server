@@ -1216,4 +1216,14 @@ table_map GetUsedTables(const AccessPath *path);
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
                              const Mem_root_array<Predicate> &predicates);
 
+/// Creates an empty bitmap of access path types. This is the base
+/// case for the function template with the same name below.
+inline constexpr uint64_t AccessPathTypeBitmap() { return 0; }
+
+/// Creates a bitmap representing a set of access path types.
+template <typename... Args>
+constexpr uint64_t AccessPathTypeBitmap(AccessPath::Type type1, Args... rest) {
+  return (uint64_t{1} << type1) | AccessPathTypeBitmap(rest...);
+}
+
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

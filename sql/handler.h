@@ -2504,6 +2504,16 @@ struct handlerton {
   */
   compare_secondary_engine_cost_t compare_secondary_engine_cost;
 
+  /// Bitmap which contains the supported access path types for a
+  /// secondary storage engine when used with the hypergraph join
+  /// optimizer. If it is empty, it means that the secondary engine
+  /// does not support the hypergraph join optimizer.
+  ///
+  /// It is currently only used to limit which join types the join
+  /// optimizer can choose from. Bits that represent access path types
+  /// that are not joins, are currently ignored.
+  uint64_t secondary_engine_supported_access_paths;
+
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;
   se_before_rollback_t se_before_rollback;
@@ -2579,13 +2589,6 @@ struct handlerton {
 
 constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
     1 << 17};
-
-/**
-  The engine supports use of the hypergraph join optimizer. The flag is only
-  used by secondary storage engines.
- */
-constexpr decltype(handlerton::flags) HTON_SECONDARY_ENGINE_SUPPORTS_HYPERGRAPH{
-    1 << 18};
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;

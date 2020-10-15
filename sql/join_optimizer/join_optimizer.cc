@@ -107,8 +107,17 @@ constexpr double kMaterializeOneRowCost = 0.01;
  */
 class CostingReceiver {
  public:
-  CostingReceiver(THD *thd, const JoinHypergraph &graph, string *trace)
-      : m_thd(thd), m_graph(graph), m_trace(trace) {}
+  CostingReceiver(THD *thd, const JoinHypergraph &graph,
+                  uint64_t supported_access_path_types, string *trace)
+      : m_thd(thd),
+        m_graph(graph),
+        m_supported_access_path_types(supported_access_path_types),
+        m_trace(trace) {
+    // At least one join type must be supported.
+    assert(Overlaps(supported_access_path_types,
+                    AccessPathTypeBitmap(AccessPath::HASH_JOIN,
+                                         AccessPath::NESTED_LOOP_JOIN)));
+  }
 
   bool HasSeen(NodeMap subgraph) const {
     return m_access_paths.count(subgraph) != 0;
@@ -142,6 +151,12 @@ class CostingReceiver {
   /// The graph we are running over.
   const JoinHypergraph &m_graph;
 
+  /// The supported access path types. Access paths of types not in
+  /// this set should not be created. It is currently only used to
+  /// limit which join types to use, so any bit that does not
+  /// represent a join access path, is ignored for now.
+  uint64_t m_supported_access_path_types;
+
   /// If not nullptr, we store human-readable optimizer trace information here.
   string *m_trace;
 
@@ -159,6 +174,11 @@ class CostingReceiver {
     return ret + "}";
   }
 
+  /// Is the given access path type supported?
+  bool SupportedAccessPathType(AccessPath::Type type) const {
+    return Overlaps(AccessPathTypeBitmap(type), m_supported_access_path_types);
+  }
+
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge);
   void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
@@ -166,6 +186,17 @@ class CostingReceiver {
                                        const AccessPath *right_path,
                                        AccessPath *join_path);
 };
+
+/// Finds the set of supported access path types.
+uint64_t SupportedAccessPathTypes(const THD *thd) {
+  const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
+  if (secondary_engine != nullptr) {
+    return secondary_engine->secondary_engine_supported_access_paths;
+  }
+
+  // Outside of secondary storage engines, all access path types are supported.
+  return ~uint64_t{0};
+}
 
 /**
   Called for each table in the query block, at some arbitrary point before we
@@ -359,6 +390,8 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
                                       AccessPath *left_path,
                                       AccessPath *right_path,
                                       const JoinPredicate *edge) {
+  if (!SupportedAccessPathType(AccessPath::HASH_JOIN)) return;
+
   AccessPath join_path;
   join_path.type = AccessPath::HASH_JOIN;
   join_path.hash_join().outer = left_path;
@@ -483,9 +516,8 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "recursive CTEs");
     return true;
   }
-  const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
-  if (secondary_engine != nullptr &&
-      !(secondary_engine->flags & HTON_SECONDARY_ENGINE_SUPPORTS_HYPERGRAPH)) {
+  if (thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
+      SupportedAccessPathTypes(thd) == 0) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "the secondary engine in use");
     return true;
@@ -693,7 +725,7 @@ AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex, string *trace) {
   for (TABLE *table : graph.nodes) {
     table->init_cost_model(thd->cost_model());
   }
-  CostingReceiver receiver(thd, graph, trace);
+  CostingReceiver receiver(thd, graph, SupportedAccessPathTypes(thd), trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver)) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");
     return nullptr;
