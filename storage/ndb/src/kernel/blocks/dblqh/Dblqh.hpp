@@ -280,14 +280,13 @@ class Lgman;
 #define ZLQH_SHRINK_TRANSIENT_POOLS 31
 #define ZLQH_TRANSIENT_POOL_STAT 32
 #define ZPGMAN_PREP_LCP_ACTIVE_CHECK 33
-#define ZSET_JOB_BUFFER_LEVEL 34
-#define ZCONTINUE_SR_GCI_LIMITS 35
-#define ZCONTINUE_REDO_LOG_EXEC_COMPLETED 36
-#define ZCONTINUE_SR_FOURTH_COMP 37
-#define ZCONTINUE_PHASE3_START 38
-#define ZCONTINUE_WRITE_LOG 39
-#define ZSTART_SEND_EXEC_CONF 40
-#define ZPRINT_MUTEX_STATS 41
+#define ZCONTINUE_SR_GCI_LIMITS 34
+#define ZCONTINUE_REDO_LOG_EXEC_COMPLETED 35
+#define ZCONTINUE_SR_FOURTH_COMP 36
+#define ZCONTINUE_PHASE3_START 37
+#define ZCONTINUE_WRITE_LOG 38
+#define ZSTART_SEND_EXEC_CONF 39
+#define ZPRINT_MUTEX_STATS 40
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -2864,24 +2863,6 @@ public:
   alignas(NDB_CL) TcConnectionrecPtr m_tc_connect_ptr;
   UintR cfirstfreeTcConrec;
   Uint32 ctcNumFree;
-
-  /**
-   * Statistical counters to assess how much load is coming from
-   * DBTC and how much comes from DBSPJ. DBTC is considered more
-   * real-time.
-   */
-  Uint32 m_num_lqhkeyreq_read[2];
-  Uint32 m_num_scan_frag_next_req[2];
-  Uint32 m_num_tc_lqhkeyreq_write;
-
-  Uint64 m_num_tc_spj_scanned_rows;
-
-  Uint32 m_jbb_scan_level;
-  Uint32 m_jbb_scan_level_divisor;
-
-  void jobBufferLevelChanged();
-  void initJobBufferLevels();
-  void setJobBufferLevels();
 
   struct TcNodeFailRecord {
     enum TcFailStatus {

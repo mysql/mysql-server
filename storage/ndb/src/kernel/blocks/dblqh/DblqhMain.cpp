@@ -817,12 +817,6 @@ void Dblqh::execCONTINUEB(Signal* signal)
     print_fragment_mutex_stats(signal);
     return;
   }
-  case ZSET_JOB_BUFFER_LEVEL:
-  {
-    setJobBufferLevels();
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
-    return;
-  }
   case ZSTART_SEND_EXEC_CONF:
   {
     jam();
@@ -1495,8 +1489,6 @@ void Dblqh::execSTTOR(Signal* signal)
   case 6:
     c_elapsed_time_millis = 0;
     init_elapsed_time(signal, c_latestTIME_SIGNAL);
-    signal->theData[0] = ZSET_JOB_BUFFER_LEVEL;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
     sendsttorryLab(signal);
     break;
   case 9:
@@ -8831,20 +8823,10 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   
   if (op == ZREAD || op == ZREAD_EX || op == ZUNLOCK)
   {
-    /**
-     * We use a trick here to distinguish between DBTC and DBSPJ
-     * key lookups. DBTC has blocknumber 245 which is odd and DBSPJ
-     * has block number 264 which is even, thus we get 0 for DBSPJ
-     * and 1 for DBTC here. Other sender blocks are so rare that
-     * they are ignored here and will thus add to any of those two.
-     */
-    Uint32 inx = senderBlockNo & 1;
-    m_num_lqhkeyreq_read[inx]++;
     tabptr.p->usageCountR++;
   }
   else
   {
-    m_num_tc_lqhkeyreq_write++;
     tabptr.p->usageCountW++;
   }
   
@@ -15530,11 +15512,6 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     release_frag_access(prim_tab_fragptr.p);
     return;
   }//if
-
-  /* Trick to distinguish between DBTC and DBSPJ scans, see other comment */
-  Uint32 inx = refToMain(senderBlockRef) & 1;
-  m_num_scan_frag_next_req[inx]++;
-
   scanptr.p->prioAFlag = ScanFragNextReq::getPrioAFlag(nextReq->requestInfo);
   scanptr.p->m_exec_direct_batch_size_words = 0;
 
@@ -16448,14 +16425,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     }
     jamEntry();
   }//if
-  /* Trick to distinguish between DBTC and DBSPJ scans, see other comment */
-  Uint32 inx = senderBlockNo & 1;
-  m_num_scan_frag_next_req[inx]++;
-
-  if (unlikely(isEstimatedJobBufferLevelChanged()))
-  {
-    jobBufferLevelChanged();
-  }
   jamLineDebug(Uint16(tcConnectptr.i));
   regTcPtr = tcConnectptr.p;
   const Uint32 savePointId = scanFragReq->savePointId;
@@ -18766,161 +18735,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   return keyLen;
 }
 
-void
-Dblqh::jobBufferLevelChanged()
-{
-  Uint32 jbb_level = getEstimatedJobBufferLevel();
-  jbb_level = ((2 * jbb_level) + m_jbb_scan_level) / 3;
-  m_jbb_scan_level = jbb_level / m_jbb_scan_level_divisor;
-}
-
-void
-Dblqh::initJobBufferLevels()
-{
-  m_num_lqhkeyreq_read[0] = 0;
-  m_num_lqhkeyreq_read[1] = 0;
-  m_num_tc_lqhkeyreq_write = 0;
-  m_num_scan_frag_next_req[0] = 0;
-  m_num_scan_frag_next_req[1] = 0;
-  m_num_tc_spj_scanned_rows = 0;
-}
-
-void
-Dblqh::setJobBufferLevels()
-{
-  /**
-   * We use m_jbb_scan_level as a means of controlling the number of
-   * rows that scans are allowed to process per real-time break. In
-   * a highly loaded thread it is a good idea to decrease the amount
-   * of rows processed per real-time break to ensure that we retain
-   * good real-time properties even at high load.
-   *
-   * This method tries to adjust this setting for special situations.
-   * If there is only a few scans performing work, then they should
-   * not cause any problems for real-time properties since the
-   * majority of the events are key lookups.
-   *
-   * We also have smaller requirements on real-time properties for
-   * work done through DBSPJ. DBSPJ mostly handles a bit more
-   * throughput-oriented workload where massive amount of CPU
-   * processing can be performed on behalf of one query. This query
-   * doesn't require real-time properties, it only needs to avoid
-   * messing up real-time properties for other parts of the system.
-   *
-   * Thus if the majority of the work stems from DBSPJ, then we will
-   * accept a bit longer processing by scans. It is quite common
-   * that DBSPJ will generate high loads of work in a thread for a
-   * short time even when the system is otherwise fairly idle.
-   *
-   * Finally we could have a situation where only a few scans are
-   * active, but these scans process a large amount of rows. If
-   * the majority of the processing comes from scans, then it is
-   * a good idea to let those scans execute in an efficient manner.
-   *
-   * This method is called at reception of SCAN_FRAGREQ and only when
-   * the multi-threaded scheduler has updated the CPU load level. This
-   * happens around once per millisecond.
-   *
-   * We gather statistics about usage of LQHKEYREQ and SCAN_FRAGREQ
-   * and SCAN_NEXTREQ and how many rows are processed by scans. These
-   * statistics are checked every time we discover a new job buffer
-   * level change when starting a new scan.
-   *
-   * After this method is executed we clear the counters and the next
-   * period is reevaluated on its own.
-   *
-   * We use a bit of hysteresis here, the job level gets two thirds of
-   * its value from the current value and one third from the previous
-   * value.
-   */
-  m_jbb_scan_level_divisor = 1;
-  do
-  {
-    Uint64 tot_events = 0;
-    Uint64 tot_tc_events = 0;
-    Uint64 tot_spj_events = 0;
-    Uint64 tot_key_events = 0;
-    Uint64 tot_scan_events = 0;
-    /**
-     * Writes also do a COMMIT and a COMPLETE, so counted as 3 events
-     * Index 0 is SPJ and index 1 is TC through bitwise OR with 1 since
-     * DBSPJ is an even number and DBTC is an odd number.
-     */
-    tot_events += (3 * m_num_tc_lqhkeyreq_write);
-    tot_events += m_num_lqhkeyreq_read[0];
-    tot_events += m_num_lqhkeyreq_read[1];
-    tot_events += m_num_scan_frag_next_req[0];
-    tot_events += m_num_scan_frag_next_req[1];
-
-    tot_tc_events += m_num_lqhkeyreq_read[1];
-    tot_tc_events += m_num_tc_lqhkeyreq_write;
-    tot_tc_events += m_num_scan_frag_next_req[1];
-
-    tot_spj_events += m_num_lqhkeyreq_read[0];
-    tot_spj_events += m_num_scan_frag_next_req[0];
-
-    tot_key_events += m_num_lqhkeyreq_read[0];
-    tot_key_events += m_num_lqhkeyreq_read[1];
-    tot_key_events += m_num_tc_lqhkeyreq_write;
-
-    tot_scan_events += m_num_scan_frag_next_req[0];
-    tot_scan_events += m_num_scan_frag_next_req[1];
-
-    if ((100 * tot_scan_events) < tot_key_events)
-    {
-      /**
-       * The amount of scan events are rare, the scans can still
-       * take a large amount of the CPU time, but there is no
-       * particularly high risk that we risk real-time properties
-       * by allowing the few scans to use a full real-time break.
-       *
-       * We reflect this by decreasing job buffer levels to 25%
-       * of the real number.
-       */
-      m_jbb_scan_level_divisor = 4;
-      break;
-    }
-    if ((100 * tot_tc_events) < tot_spj_events)
-    {
-      /**
-       * Almost all events comes from DBSPJ, thus we are running
-       * complex queries for the moment. DBSPJ queries will be more
-       * efficient if they are allowed to use more time per
-       * real-time break.
-       *
-       * We reflect this by decreasing job buffer levels to 25%
-       * of the real number.
-       */
-      m_jbb_scan_level_divisor = 4;
-      break;
-    }
-    Uint64 num_scanned_rows = m_num_tc_spj_scanned_rows;
-    num_scanned_rows += tot_scan_events;
-
-    if (num_scanned_rows > (500 * tot_key_events))
-    {
-      /**
-       * We have a bit of Key Lookups going on in the thread.
-       * But compared to the amount of scan activity we still
-       * do not a lot of work for key lookups.
-       *
-       * Since the load is so scan focused we should not set
-       * the job buffer level too high to make scans inefficient.
-       *
-       * We reflect this by decreasing job buffer levels to 25%
-       * of the real number.
-       */
-      m_jbb_scan_level_divisor = 4;
-      break;
-    }
-  } while (false);
-  /**
-   * A mix of things going in the thread. Let the normal job buffer
-   * level estimate handle that.
-   */
-  initJobBufferLevels();
-}
-
 /**
  * Function used to send NEXT_SCANREQ, we need to decide whether to
  * continue in the same signal or sending a new signal and if sending
@@ -19057,15 +18871,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
        * by number of rows executed per microsecond which we estimate to
        * 2.
        */
-      Uint32 jbb_level;
-      if (isNdbMtLqh())
-      {
-        jbb_level = m_jbb_scan_level;
-      }
-      else
-      {
-        jbb_level = getEstimatedJobBufferLevel();
-      }
+      Uint32 jbb_level = getEstimatedJobBufferLevel();
       Uint32 tot_scan_direct_count = m_tot_scan_direct_count +
                                        scan_direct_count;
       Uint32 tot_scan_limit = ZABS_MAX_SCAN_DIRECT_COUNT;
@@ -19075,7 +18881,6 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
         tot_scan_limit = (ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN *
                           ZROWS_PER_MICRO) / jbb_level;
       }
-      m_num_tc_spj_scanned_rows += scan_direct_count;
       if (!max_words_reached &&
           tot_scan_direct_count < tot_scan_limit &&
           prim_tab_fragptr.p->m_cond_write_key_waiters == 0 &&

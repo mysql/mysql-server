@@ -101,9 +101,6 @@ void Dblqh::initData()
   m_fragment_lock_status = FRAGMENT_UNLOCKED;
   m_old_fragment_lock_status = FRAGMENT_UNLOCKED;
 
-  initJobBufferLevels();
-  m_jbb_scan_level = 0;
-  m_jbb_scan_level_divisor = 1;
   if (m_is_query_block)
   {
     caddfragrecFileSize = 0;
