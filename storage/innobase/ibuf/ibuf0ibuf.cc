@@ -578,9 +578,6 @@ byte *ibuf_parse_bitmap_init(byte *ptr, /*!< in: buffer */
                              buf_block_t *block, /*!< in: block or NULL */
                              mtr_t *mtr)         /*!< in: mtr or NULL */
 {
-  ut_ad(ptr != nullptr);
-  ut_ad(end_ptr != nullptr);
-
   if (block) {
     ibuf_bitmap_page_init(block, mtr);
   }
