@@ -869,7 +869,7 @@ class Fil_shard {
   buffer pool page. This is no longer required to be done during checkpoint -
   this is done here for historical reasons - it has to be done periodically
   somewhere. */
-  void checkpoint() {
+  void purge() {
     /* Avoid cleaning up old undo files while this is on. */
     DBUG_EXECUTE_IF("ib_undo_trunc_checkpoint_off", return;);
 
@@ -1502,9 +1502,9 @@ class Fil_system {
 
 #ifndef UNIV_HOTBACKUP
   /** Clean up the shards. */
-  void checkpoint() {
+  void purge() {
     for (auto shard : m_shards) {
-      shard->checkpoint();
+      shard->purge();
     }
   }
 
@@ -4651,7 +4651,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 
 #ifdef UNIV_HOTBACKUP
     /* For usage inside MEB we don't support lazy stale page eviction, we just
-     do what fil_shard::checkpoint() does directly here. */
+     do what fil_shard::purge() does directly here. */
     space_free_low(space);
 #endif /* UNIV_HOTBACKUP */
 
@@ -12053,7 +12053,7 @@ void Fil_path::convert_to_lower_case(std::string &path) {
   path.assign(lc_path);
 }
 
-void fil_checkpoint() { fil_system->checkpoint(); }
+void fil_purge() { fil_system->purge(); }
 
 size_t fil_count_undo_deleted(space_id_t undo_num) {
   return fil_system->count_undo_deleted(undo_num);

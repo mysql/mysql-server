@@ -1023,8 +1023,6 @@ static void log_consider_checkpoint(log_t &log) {
   }
 
   log_checkpoint(log);
-
-  fil_checkpoint();
 }
 
 void log_checkpointer(log_t *log_ptr) {

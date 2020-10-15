@@ -1979,9 +1979,19 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   auto new_space_id = undo::use_next_space_id(space_num);
 
-  const auto n_pages = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
+  auto space = fil_space_get(old_space_id);
 
-  fil_space_t *space = fil_space_get(old_space_id);
+  auto n_pages = INITIAL_UNDO_SPACE_SIZE_IN_PAGES;
+
+  /* If the default extend amount has been increased greater than the default
+  and it has been less than 1 second since the last time the file was extended,
+  then we consider the undo tablespace to be growing aggressively. */
+  if (space->m_undo_extend > INITIAL_UNDO_SPACE_SIZE_IN_PAGES &&
+      space->m_last_extended.elapsed() < 1000) {
+    /* UNDO is beeing extended aggressively, dont' reduce size to default. */
+    n_pages = fil_space_get_size(old_space_id) / 4;
+  }
+
   bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
 
   /* Step-1: Truncate tablespace by replacement with a new space_id. */

@@ -290,6 +290,12 @@ struct fil_space_t {
   using Observer = FlushObserver;
   using FlushObservers = std::vector<Observer *, ut_allocator<Observer *>>;
 
+  /** When the tablespace was extended last. */
+  ib::Timer m_last_extended{};
+
+  /** Extend undo tablespaces by so many pages. */
+  size_t m_undo_extend{};
+
   /** Tablespace name */
   char *name{};
 
@@ -298,7 +304,8 @@ struct fil_space_t {
 
   /** Initializes fields. This could be replaced by a constructor if SunPro is
   compiling it correctly. */
-  void initialize() {
+  void initialize() noexcept {
+    new (&m_last_extended) ib::Timer;
     new (&files) fil_space_t::Files();
 
 #ifndef UNIV_HOTBACKUP
@@ -306,6 +313,11 @@ struct fil_space_t {
     new (&m_n_ref_count) std::atomic_size_t;
     new (&m_deleted) std::atomic<bool>;
 #endif /* !UNIV_HOTBACKUP */
+
+    /** This is the number of pages needed extend an undo tablespace by 16 MB.
+    It is increased during aggressive growth and decreased when the growth
+    is slower. */
+    m_undo_extend = (16 * 1024 * 1024) / UNIV_PAGE_SIZE;
   }
 
  private:
@@ -2281,7 +2293,7 @@ void fil_adjust_name_import(dict_table_t *table, const char *path,
 #ifndef UNIV_HOTBACKUP
 
 /** Allows fil system to do periodical cleanup. */
-void fil_checkpoint();
+void fil_purge();
 
 /** Count how many truncated undo space IDs are still tracked in
 the buffer pool and the file_system cache.

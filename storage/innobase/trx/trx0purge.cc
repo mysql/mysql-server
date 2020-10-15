@@ -737,9 +737,9 @@ bool Tablespace::needs_truncation() {
     return (false);
   }
 
-  page_no_t trunc_size = ut_max(
+  page_no_t trunc_size = std::max(
       static_cast<page_no_t>(srv_max_undo_tablespace_size / srv_page_size),
-      static_cast<page_no_t>(SRV_UNDO_TABLESPACE_SIZE_IN_PAGES));
+      static_cast<page_no_t>(INITIAL_UNDO_SPACE_SIZE_IN_PAGES));
 
   if (fil_space_get_size(id()) > trunc_size) {
     return (true);

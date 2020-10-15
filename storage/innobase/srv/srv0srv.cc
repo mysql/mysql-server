@@ -173,10 +173,6 @@ bool srv_undo_log_encrypt = FALSE;
 /** Maximum size of undo tablespace. */
 unsigned long long srv_max_undo_tablespace_size;
 
-/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
-const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-    ((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
-
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT =
@@ -2776,6 +2772,9 @@ static void srv_master_main_loop(srv_slot_t *slot) {
 
     /* Allow any blocking clone to progress. */
     clone_mark_free();
+
+    /* Purge any deleted tablespace pages. */
+    fil_purge();
   }
 }
 
