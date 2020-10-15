@@ -38,6 +38,10 @@ WHERE name = 'test/t1' INTO @space_id;
 --echo # Wait for purge to complete
 --source include/wait_innodb_all_purged.inc
 
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = CONCAT('make_page_dirty ', @space_id, ' 0');
+SET SESSION innodb_interpreter = 'destroy';
+
 --echo # Ensure that dirty pages of table t1 is flushed.
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;

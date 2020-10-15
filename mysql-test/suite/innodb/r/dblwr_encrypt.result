@@ -18,6 +18,9 @@ COMMIT WORK;
 SELECT space from INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE name = 'test/t1' INTO @space_id;
 # Wait for purge to complete
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = CONCAT('make_page_dirty ', @space_id, ' 0');
+SET SESSION innodb_interpreter = 'destroy';
 # Ensure that dirty pages of table t1 is flushed.
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
