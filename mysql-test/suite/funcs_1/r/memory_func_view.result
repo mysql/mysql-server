@@ -4095,12 +4095,13 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 SHOW CREATE VIEW v1;
@@ -4113,13 +4114,13 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'CAST(my_double AS DATETIME)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4134,12 +4135,13 @@ CAST(my_bigint AS DATETIME)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	18
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 SHOW CREATE VIEW v1;
@@ -4152,13 +4154,13 @@ CAST(my_bigint AS DATETIME)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00 00:00:00	0	4
+NULL	0	4
 NULL	-1	5
 NULL	200506271758	18
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'CAST(my_bigint AS DATETIME)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
 DROP VIEW v1;
@@ -4467,12 +4469,13 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4484,13 +4487,13 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e308	2
 NULL	1.7976931348623e308	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
 Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '1.7976931348623e308'
-Warning	1292	Incorrect date value: '0000-00-00' for column 'CAST(my_double AS DATE)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 
@@ -4504,12 +4507,13 @@ CAST(my_bigint AS DATE)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	12
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -4521,13 +4525,13 @@ CAST(my_bigint AS DATE)	my_bigint	id
 NULL	NULL	1
 NULL	-9223372036854775808	2
 NULL	9223372036854775807	3
-0000-00-00	0	4
+NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	12
 Warnings:
 Warning	1292	Incorrect datetime value: '-9223372036854775808'
 Warning	1292	Incorrect datetime value: '9223372036854775807'
-Warning	1292	Incorrect date value: '0000-00-00' for column 'CAST(my_bigint AS DATE)' at row 1
+Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
 

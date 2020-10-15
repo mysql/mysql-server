@@ -2702,8 +2702,14 @@ void Item_typecast_datetime::print(const THD *thd, String *str,
 
 bool Item_typecast_datetime::get_date(MYSQL_TIME *ltime,
                                       my_time_flags_t fuzzy_date) {
+  THD *const thd = current_thd;
+
   my_time_flags_t flags = fuzzy_date | TIME_NO_DATE_FRAC_WARN;
-  if (current_thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags |= TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
+  if (thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
 
   if (get_arg0_date(ltime, flags)) {
     ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
@@ -2717,9 +2723,9 @@ bool Item_typecast_datetime::get_date(MYSQL_TIME *ltime,
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;  // In case it was DATE
   int warnings = 0;
   return (null_value = propagate_datetime_overflow(
-              current_thd, &warnings,
+              thd, &warnings,
               my_datetime_adjust_frac(ltime, decimals, &warnings,
-                                      current_thd->is_fsp_truncate_mode())));
+                                      thd->is_fsp_truncate_mode())));
 }
 
 void Item_typecast_time::print(const THD *thd, String *str,
@@ -2755,7 +2761,15 @@ void Item_typecast_date::print(const THD *thd, String *str,
 
 bool Item_typecast_date::get_date(MYSQL_TIME *ltime,
                                   my_time_flags_t fuzzy_date) {
-  if (get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN)) {
+  THD *const thd = current_thd;
+
+  my_time_flags_t flags = fuzzy_date | TIME_NO_DATE_FRAC_WARN;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags |= TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
+
+  if (get_arg0_date(ltime, flags)) {
     if (args[0]->null_value || m_explicit_cast) return true;
     // The implicit cast to DATE returns 0-date instead of NULL
     null_value = false;

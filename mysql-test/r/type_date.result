@@ -461,10 +461,14 @@ CAST(LEAST(20010101,20020202) AS DATE)
 #
 SELECT CAST(SUM(0) AS DATETIME);
 CAST(SUM(0) AS DATETIME)
-0000-00-00 00:00:00
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
 SELECT CAST(SUM(0 + 0e0) AS DATETIME);
 CAST(SUM(0 + 0e0) AS DATETIME)
-0000-00-00 00:00:00
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
 SET timestamp=1322115004;
 SELECT CAST(UNIX_TIMESTAMP() AS DATE);
 CAST(UNIX_TIMESTAMP() AS DATE)
@@ -483,7 +487,9 @@ DATE(20110512154559.6 + 0e0)
 #
 SELECT DATE(NAME_CONST('a', 0));
 DATE(NAME_CONST('a', 0))
-0000-00-00
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
 #
 # Item_cache_datetime::get_date
 #
