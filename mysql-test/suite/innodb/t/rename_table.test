@@ -47,14 +47,17 @@ ALTER TABLE t1 ADD fulltext index full_t2_idx(t1_new_col);
 ALTER TABLE t1 DROP index full_t2_idx;
 
 --echo "List files under test"
+--replace_regex /fts_[0-9a-f]*_/fts_tableId_/
 --list_files $MYSQLD_DATADIR/test
 
 RENAME TABLE t1 TO test1.t2;
 
 --echo "List files under test"
+--replace_regex /fts_[0-9a-f]*_/fts_tableId_/
 --list_files $MYSQLD_DATADIR/test
 
 --echo "List files under test1"
+--replace_regex /fts_[0-9a-f]*_/fts_tableId_/
 --list_files $MYSQLD_DATADIR/test1
 
 # cleanup
