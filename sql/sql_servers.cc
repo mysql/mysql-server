@@ -154,7 +154,7 @@ static PSI_rwlock_info all_servers_cache_rwlocks[] = {
 
 static PSI_memory_info all_servers_cache_memory[] = {
     {&key_memory_servers, "servers_cache", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME}};
+     "Cache infrastructure and mem root for servers cache."}};
 
 static void init_servers_cache_psi_keys(void) {
   const char *category = "sql";

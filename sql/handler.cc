@@ -620,9 +620,9 @@ int ha_init_errors(void) {
 
   /* Allocate a pointer array for the error message strings. */
   /* Zerofill it to avoid uninitialized gaps. */
-  if (!(handler_errmsgs = (const char **)my_malloc(
-            key_memory_handler_errmsgs, HA_ERR_ERRORS * sizeof(char *),
-            MYF(MY_WME | MY_ZEROFILL))))
+  if (!(handler_errmsgs = static_cast<const char **>(my_malloc(
+            key_memory_errmsgs_handler, HA_ERR_ERRORS * sizeof(char *),
+            MYF(MY_WME | MY_ZEROFILL)))))
     return 1;
 
   /* Set the dedicated error messages. */
@@ -755,8 +755,9 @@ int ha_initialize_handlerton(st_plugin_int *plugin) {
   DBUG_TRACE;
   DBUG_PRINT("plugin", ("initialize plugin: '%s'", plugin->name.str));
 
-  hton = (handlerton *)my_malloc(key_memory_handlerton, sizeof(handlerton),
-                                 MYF(MY_WME | MY_ZEROFILL));
+  hton = static_cast<handlerton *>(my_malloc(key_memory_handlerton_objects,
+                                             sizeof(handlerton),
+                                             MYF(MY_WME | MY_ZEROFILL)));
 
   if (hton == nullptr) {
     LogErr(ERROR_LEVEL, ER_HANDLERTON_OOM, plugin->name.str);

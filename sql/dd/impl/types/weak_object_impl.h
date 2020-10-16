@@ -23,8 +23,11 @@
 #ifndef DD__WEAK_OBJECT_IMPL_INCLUDED
 #define DD__WEAK_OBJECT_IMPL_INCLUDED
 
-#include "sql/dd/object_id.h"          // Object_id
-#include "sql/dd/types/weak_object.h"  // dd::Weak_object
+#include "my_sys.h"                     // MY_WME
+#include "mysql/service_mysql_alloc.h"  // my_malloc
+#include "sql/dd/object_id.h"           // Object_id
+#include "sql/dd/types/weak_object.h"   // dd::Weak_object
+#include "sql/psi_memory_key.h"         // key_memory_DD_objects
 
 namespace dd {
 
@@ -40,11 +43,37 @@ class Raw_record;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Weak_object_impl : virtual public Weak_object {
+template <bool use_pfs>
+class Weak_object_impl_ : virtual public Weak_object {
  public:
-  Weak_object_impl() {}
+  Weak_object_impl_() {}
 
-  ~Weak_object_impl() override {}
+  ~Weak_object_impl_() override {}
+
+  void *operator new(size_t size, const std::nothrow_t &nt) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    if (use_pfs) return my_malloc(key_memory_DD_objects, size, MYF(MY_WME));
+    return ::operator new(size, nt);
+  }
+
+  void *operator new(size_t size) noexcept {
+    /*
+      Call my_malloc() with the MY_WME flag to make sure that it will
+      write an error message if the memory could not be allocated.
+    */
+    if (use_pfs) return my_malloc(key_memory_DD_objects, size, MYF(MY_WME));
+    return ::operator new(size);
+  }
+
+  void operator delete(void *ptr) noexcept {
+    if (use_pfs)
+      my_free(ptr);
+    else
+      ::operator delete(ptr);
+  }
 
  public:
   virtual const Object_table &object_table() const = 0;
@@ -115,6 +144,13 @@ class Weak_object_impl : virtual public Weak_object {
   bool check_parent_consistency(Entity_object_impl *parent,
                                 Object_id parent_id) const;
 };
+
+/*
+  Provide a type alias to be used elsewhere in the server source code.
+  The template instance without PFS instrumentation is only used in
+  unit tests to compare allocation performance.
+*/
+using Weak_object_impl = Weak_object_impl_<true>;
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -33,9 +33,11 @@
   MAINTAINER: Please keep this list in order, to limit merge collisions.
 */
 
+PSI_memory_key key_memory_DD_cache_infrastructure;
 PSI_memory_key key_memory_DD_column_statistics;
 PSI_memory_key key_memory_DD_default_values;
 PSI_memory_key key_memory_DD_import;
+PSI_memory_key key_memory_DD_objects;
 PSI_memory_key key_memory_DD_String_type;
 PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
@@ -68,7 +70,7 @@ PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
 PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_READ_INFO;
 PSI_memory_key key_memory_READ_RECORD_cache;
-PSI_memory_key key_memory_Recovered_xa_transactions;
+PSI_memory_key key_memory_xa_recovered_transactions;
 PSI_memory_key key_memory_Row_data_memory_memory;
 PSI_memory_key key_memory_Rpl_info_file_buffer;
 PSI_memory_key key_memory_Rpl_info_table;
@@ -89,7 +91,7 @@ PSI_memory_key key_memory_THD_variables;
 PSI_memory_key key_memory_Unique_merge_buffer;
 PSI_memory_key key_memory_Unique_sort_buffer;
 PSI_memory_key key_memory_User_level_lock;
-PSI_memory_key key_memory_XID;
+PSI_memory_key key_memory_xa_transaction_contexts;
 PSI_memory_key key_memory_acl_mem;
 PSI_memory_key key_memory_acl_memex;
 PSI_memory_key key_memory_acl_cache;
@@ -102,10 +104,10 @@ PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_blob_mem_storage;
 PSI_memory_key key_memory_db_worker_hash_entry;
 PSI_memory_key key_memory_delegate;
-PSI_memory_key key_memory_errmsgs;
+PSI_memory_key key_memory_errmsgs_server;
 PSI_memory_key key_memory_global_system_variables;
-PSI_memory_key key_memory_handler_errmsgs;
-PSI_memory_key key_memory_handlerton;
+PSI_memory_key key_memory_errmsgs_handler;
+PSI_memory_key key_memory_handlerton_objects;
 PSI_memory_key key_memory_hash_index_key_buffer;
 PSI_memory_key key_memory_hash_join;
 PSI_memory_key key_memory_help;
@@ -117,9 +119,9 @@ PSI_memory_key key_memory_my_bitmap_map;
 PSI_memory_key key_memory_my_str_malloc;
 PSI_memory_key key_memory_opt_bin_logname;
 PSI_memory_key key_memory_partition_syntax_buffer;
-PSI_memory_key key_memory_prepared_statement_map;
+PSI_memory_key key_memory_prepared_statement_infrastructure;
 PSI_memory_key key_memory_prepared_statement_main_mem_root;
-PSI_memory_key key_memory_prune_partitions_exec;
+PSI_memory_key key_memory_partitions_prune_exec;
 PSI_memory_key key_memory_queue_item;
 PSI_memory_key key_memory_quick_group_min_max_select_root;
 PSI_memory_key key_memory_quick_index_merge_root;
@@ -150,11 +152,11 @@ PSI_memory_key key_memory_write_set_extraction;
 
 static PSI_memory_info all_server_memory[] = {
     {&key_memory_locked_table_list, "Locked_tables_list::m_locked_tables_root",
-     0, 0, PSI_DOCUMENT_ME},
+     0, 0, "Memroot for list of locked tables."},
     {&key_memory_locked_thread_list, "display_table_locks", PSI_FLAG_THREAD, 0,
-     PSI_DOCUMENT_ME},
+     "Debug utility."},
     {&key_memory_thd_transactions, "THD::transactions::mem_root",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
+     PSI_FLAG_THREAD, 0, "Transaction context information per session."},
     {&key_memory_delegate, "Delegate::memroot", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
@@ -164,23 +166,28 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_acl_map_cache, "acl_map_cache", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_help, "help", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_thd_main_mem_root, "THD::main_mem_root", PSI_FLAG_THREAD, 0,
+     "Main mem root used for e.g. the query arena."},
+    {&key_memory_help, "help", 0, 0,
+     "Temporary memroot used to print help texts as part of usage "
+     "description."},
     {&key_memory_table_share, "TABLE_SHARE::mem_root",
-     PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
-    {&key_memory_servers, "servers", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_prepared_statement_map, "Prepared_statement_map",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
+     PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     "Cache infrastructure and individual table shares."},
+    {&key_memory_prepared_statement_infrastructure,
+     "Prepared_statement::infrastructure", PSI_FLAG_THREAD, 0,
+     "Map infrastructure for prepared statements per session."},
     {&key_memory_prepared_statement_main_mem_root,
-     "Prepared_statement::main_mem_root", PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
-    {&key_memory_sp_cache, "THD::sp_cache", 0, 0, PSI_DOCUMENT_ME},
+     "Prepared_statement::main_mem_root", PSI_FLAG_THREAD, 0,
+     "Mem root for each prepared statement for items etc."},
+    {&key_memory_sp_cache, "THD::sp_cache", 0, 0,
+     "Per session cache for stored programs."},
     {&key_memory_sp_head_main_root, "sp_head::main_mem_root", 0, 0,
-     PSI_DOCUMENT_ME},
+     "Mem root for parsing and representation of stored programs."},
     {&key_memory_sp_head_execute_root, "sp_head::execute_mem_root",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
+     PSI_FLAG_THREAD, 0, "Mem root per instruction."},
     {&key_memory_sp_head_call_root, "sp_head::call_mem_root", PSI_FLAG_THREAD,
-     0, PSI_DOCUMENT_ME},
+     0, "Mem root for objects with same life time as stored program call."},
     {&key_memory_table_mapping_root, "table_mapping::m_mem_root", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_quick_range_select_root, "QUICK_RANGE_SELECT::alloc",
@@ -195,19 +202,20 @@ static PSI_memory_info all_server_memory[] = {
      "QUICK_GROUP_MIN_MAX_SELECT::alloc", PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
     {&key_memory_test_quick_select_exec, "test_quick_select", PSI_FLAG_THREAD,
      0, PSI_DOCUMENT_ME},
-    {&key_memory_prune_partitions_exec, "prune_partitions::exec", 0, 0,
-     PSI_DOCUMENT_ME},
+    {&key_memory_partitions_prune_exec, "Partition::prune_exec", 0, 0,
+     "Mem root used temporarily while pruning partitions."},
     {&key_memory_binlog_recover_exec, "MYSQL_BIN_LOG::recover", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_blob_mem_storage, "Blob_mem_storage::storage", 0, 0,
      PSI_DOCUMENT_ME},
 
-    {&key_memory_NAMED_ILINK_name, "NAMED_ILINK::name", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_NAMED_ILINK_name, "NAMED_ILINK::name", 0, 0,
+     "Names in the MyISAM key cache."},
     {&key_memory_String_value, "String::value", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Sys_var_charptr_value, "Sys_var_charptr::value", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_queue_item, "Queue::queue_item", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_THD_db, "THD::db", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_THD_db, "THD::db", 0, 0, "Name of currently used schema."},
     {&key_memory_user_var_entry, "user_var_entry", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Slave_job_group_group_relay_log_name,
      "Slave_job_group::group_relay_log_name", 0, 0, PSI_DOCUMENT_ME},
@@ -229,25 +237,28 @@ static PSI_memory_info all_server_memory[] = {
      "Filesort_info::record_pointers", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Filesort_buffer_sort_keys, "Filesort_buffer::sort_keys", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_handler_errmsgs, "handler::errmsgs", PSI_FLAG_ONLY_GLOBAL_STAT,
-     0, PSI_DOCUMENT_ME},
-    {&key_memory_handlerton, "handlerton", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_XID, "XID", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_errmsgs_handler, "errmsgs::handler", PSI_FLAG_ONLY_GLOBAL_STAT,
+     0, "Handler error messages (HA_ERR_...)."},
+    {&key_memory_handlerton_objects, "handlerton::objects",
+     PSI_FLAG_ONLY_GLOBAL_STAT, 0, "Handlerton objects."},
+    {&key_memory_xa_transaction_contexts, "XA::transaction_contexts", 0, 0,
+     "Shared cache of XA transaction contexts."},
     {&key_memory_host_cache_hostname, "host_cache::hostname",
-     PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
+     PSI_FLAG_ONLY_GLOBAL_STAT, 0, "Hostname keys in the host_cache map."},
     {&key_memory_user_var_entry_value, "user_var_entry::value", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_User_level_lock, "User_level_lock", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_User_level_lock, "User_level_lock", 0, 0,
+     "Per session storage of user level locks."},
     {&key_memory_MYSQL_LOG_name, "MYSQL_LOG::name", PSI_FLAG_ONLY_GLOBAL_STAT,
      0, PSI_DOCUMENT_ME},
     {&key_memory_TC_LOG_MMAP_pages, "TC_LOG_MMAP::pages", 0, 0,
-     PSI_DOCUMENT_ME},
+     "In-memory transaction coordinator log."},
     {&key_memory_my_bitmap_map, "my_bitmap_map", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_QUICK_RANGE_SELECT_mrr_buf_desc,
      "QUICK_RANGE_SELECT::mrr_buf_desc", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Event_queue_element_for_exec_names,
-     "Event_queue_element_for_exec::names", 0, 0, PSI_DOCUMENT_ME},
+     "Event_queue_element_for_exec::names", 0, 0,
+     "Copy of schema- and event name in exec queue element."},
     {&key_memory_my_str_malloc, "my_str_malloc", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_MYSQL_BIN_LOG_basename, "MYSQL_BIN_LOG::basename",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
@@ -258,19 +269,20 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_MYSQL_RELAY_LOG_index, "MYSQL_RELAY_LOG::index",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
     {&key_memory_rpl_filter, "rpl_filter memory", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_errmsgs, "errmsgs", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME},
+    {&key_memory_errmsgs_server, "errmsgs::server", PSI_FLAG_ONLY_GLOBAL_STAT,
+     0, "In-memory representation of server error messages."},
     {&key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_Geometry_objects_data, "Geometry::ptr_and_wkb_data", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_MYSQL_LOCK, "MYSQL_LOCK", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_NET_buff, "NET::buff", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_MYSQL_LOCK, "MYSQL_LOCK", 0, 0, "Table locks per session."},
+    {&key_memory_NET_buff, "NET::buff", 0, 0,
+     "Buffer in the client protocol communications layer."},
     {&key_memory_NET_compress_packet, "NET::compress_packet", 0, 0,
-     PSI_DOCUMENT_ME},
+     "Buffer used when compressing a packet."},
     {&key_memory_Event_scheduler_scheduler_param,
      "Event_scheduler::scheduler_param", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME},
+     "Infrastructure of the priority queue of events."},
     {&key_memory_Gtid_set_Interval_chunk, "Gtid_set::Interval_chunk", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_Owned_gtids_sidno_to_hash, "Owned_gtids::sidno_to_hash", 0, 0,
@@ -294,50 +306,61 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_HASH_ROW_ENTRY, "HASH_ROW_ENTRY", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_binlog_statement_buffer, "binlog_statement_buffer", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_partition_syntax_buffer, "partition_syntax_buffer", 0, 0,
-     PSI_DOCUMENT_ME},
+    {&key_memory_partition_syntax_buffer, "Partition::syntax_buffer", 0, 0,
+     "Buffer used for formatting the partition expression."},
     {&key_memory_READ_INFO, "READ_INFO", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_JOIN_CACHE, "JOIN_CACHE", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_TABLE_sort_io_cache, "TABLE::sort_io_cache", 0, 0,
      PSI_DOCUMENT_ME},
+    {&key_memory_DD_cache_infrastructure, "dd::infrastructure", 0, 0,
+     "Infrastructure of the data dictionary structures."},
     {&key_memory_DD_column_statistics, "dd::column_statistics", 0, 0,
-     PSI_DOCUMENT_ME},
+     "Column statistics histograms allocated."},
     {&key_memory_DD_default_values, "dd::default_values", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_DD_import, "dd::import", 0, 0, PSI_DOCUMENT_ME},
+     "Temporary buffer for preparing column default values."},
+    {&key_memory_DD_import, "dd::import", 0, 0,
+     "File name handling while importing MyISAM tables."},
+    {&key_memory_DD_objects, "dd::objects", 0, 0,
+     "Memory occupied by the data dictionary objects."},
     {&key_memory_Unique_sort_buffer, "Unique::sort_buffer", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_TABLE, "TABLE", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
-    {&key_memory_LOG_name, "LOG_name", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_DD_String_type, "dd::String_type", PSI_FLAG_ONLY_GLOBAL_STAT,
-     0, PSI_DOCUMENT_ME},
-    {&key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_TABLE, "TABLE", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     "Memory used by TABLE objects and their mem root."},
+    {&key_memory_LOG_name, "LOG::file_name", 0, 0,
+     "File name of slow log and general log."},
+    {&key_memory_DD_String_type, "dd::String_type", 0, 0,
+     "Character strings used by data dictionary objects."},
+    {&key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0, 0,
+     "Structure describing an information schema table implemented by a "
+     "plugin."},
     {&key_memory_PROFILE, "PROFILE", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_global_system_variables, "global_system_variables",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
-    {&key_memory_THD_variables, "THD::variables", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_THD_variables, "THD::variables", 0, 0,
+     "Per session copy of global dynamic variables."},
     {&key_memory_shared_memory_name, "Shared_memory_name", 0, 0,
-     PSI_DOCUMENT_ME},
+     "Communication through shared memory (windows)."},
     {&key_memory_bison_stack, "bison_stack", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_THD_handler_tables_hash, "THD::handler_tables_hash", 0, 0,
-     PSI_DOCUMENT_ME},
+     "Hash map of tables used by HANDLER statements."},
     {&key_memory_hash_index_key_buffer, "hash_index_key_buffer", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_user_conn, "user_conn", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_user_conn, "user_conn", 0, 0,
+     "Objects describing user connections."},
     {&key_memory_LOG_POS_COORD, "LOG_POS_COORD", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_MPVIO_EXT_auth_info, "MPVIO_EXT::auth_info", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_opt_bin_logname, "opt_bin_logname", PSI_FLAG_ONLY_GLOBAL_STAT,
      0, PSI_DOCUMENT_ME},
     {&key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_Recovered_xa_transactions, "Recovered_xa_transactions", 0, 0,
-     PSI_DOCUMENT_ME},
+    {&key_memory_xa_recovered_transactions, "XA::recovered_transactions", 0, 0,
+     "List infrastructure for recovered XA transactions."},
     {&key_memory_Quick_ranges, "Quick_ranges", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_File_query_log_name, "File_query_log::name",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
-    {&key_memory_thd_timer, "thd_timer", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_thd_timer, "thd_timer", 0, 0, "Thread timer object."},
     {&key_memory_THD_Session_tracker, "THD::Session_tracker", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_THD_Session_sysvar_resource_manager,
@@ -347,10 +370,10 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_write_set_extraction, "write_set_extraction", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_JSON, "JSON", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_log_error_loaded_services, "log_error_loaded_services", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_log_error_stack, "log_error_stack", PSI_FLAG_ONLY_GLOBAL_STAT,
-     0, PSI_DOCUMENT_ME},
+    {&key_memory_log_error_loaded_services, "log_error::loaded_services", 0, 0,
+     "Memory allocated for duplicate log events."},
+    {&key_memory_log_error_stack, "log_error::stack", PSI_FLAG_ONLY_GLOBAL_STAT,
+     0, "Log events for the error log."},
     {&key_memory_log_sink_pfs, "log_sink_pfs", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME},

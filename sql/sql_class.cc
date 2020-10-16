@@ -1698,8 +1698,9 @@ void THD::end_statement() {
 }
 
 Prepared_statement_map::Prepared_statement_map()
-    : st_hash(key_memory_prepared_statement_map),
-      names_hash(system_charset_info, key_memory_prepared_statement_map),
+    : st_hash(key_memory_prepared_statement_infrastructure),
+      names_hash(system_charset_info,
+                 key_memory_prepared_statement_infrastructure),
       m_last_found_statement(nullptr) {}
 
 int Prepared_statement_map::insert(Prepared_statement *statement) {

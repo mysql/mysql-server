@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,9 +271,9 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
 
   // Free old language and allocate for the new one
   my_free(errmsgs);
-  if (!(errmsgs = (const char **)my_malloc(
-            key_memory_errmsgs, length + no_of_errmsgs * sizeof(char *),
-            MYF(0)))) {
+  if (!(errmsgs = static_cast<const char **>(
+            my_malloc(key_memory_errmsgs_server,
+                      length + no_of_errmsgs * sizeof(char *), MYF(0))))) {
     LogErr(ERROR_LEVEL, ER_ERRMSG_OOM, name);
     (void)mysql_file_close(file, MYF(MY_WME));
     return true;
@@ -332,8 +332,9 @@ open_err:
       as one contiguous memory block, this will still be released correctly
       at shutdown.
     */
-    if ((errmsgs = (const char **)my_malloc(
-             key_memory_errmsgs, error_messages * sizeof(char *), MYF(0)))) {
+    if ((errmsgs = static_cast<const char **>(
+             my_malloc(key_memory_errmsgs_server,
+                       error_messages * sizeof(char *), MYF(0))))) {
       server_error *sqlstate_map = &error_names_array[1];
 
       for (uint i = 0; i < error_messages; ++i)

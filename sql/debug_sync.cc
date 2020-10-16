@@ -507,7 +507,7 @@ static void debug_sync_C_callback(const char *sync_point_name,
 }
 
 static PSI_memory_key key_debug_THD_debug_sync_control;
-static PSI_memory_key key_debug_sync_action;
+static PSI_memory_key key_debug_THD_debug_sync_action;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_debug_sync_globals_ds_mutex;
@@ -524,9 +524,9 @@ static PSI_cond_info all_debug_sync_conds[] = {
 
 static PSI_memory_info all_debug_sync_memory[] = {
     {&key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&key_debug_sync_action, "debug_sync_control::debug_sync_action", 0, 0,
-     PSI_DOCUMENT_ME}};
+     "Structure to control debug sync per thread."},
+    {&key_debug_THD_debug_sync_action, "THD::debug_sync_action", 0, 0,
+     "Debug sync actions to perform per thread."}};
 
 static void init_debug_sync_psi_keys(void) {
   const char *category = "sql";
@@ -1017,7 +1017,7 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
     if (ds_control->ds_active > ds_control->ds_allocated) {
       uint new_alloc = ds_control->ds_active + 3;
       void *new_action =
-          my_malloc(key_debug_sync_action,
+          my_malloc(key_debug_THD_debug_sync_action,
                     new_alloc * sizeof(st_debug_sync_action), MYF(MY_WME));
       if (!new_action) {
         /* Error is reported by my_malloc(). */

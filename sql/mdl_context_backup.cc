@@ -96,10 +96,10 @@ static PSI_mutex_info mdl_context_backup_manager_mutexes[] = {
     {&key_LOCK_mdl_context_backup_manager, "LOCK_mdl_context_backup_manager",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
-static PSI_memory_key key_memory_mdl_context_backup_manager;
+static PSI_memory_key key_memory_MDL_context_backup_manager;
 static PSI_memory_info mdl_context_backup_manager_memory[] = {
-    {&key_memory_mdl_context_backup_manager, "MDL_context_backup_manager", 0, 0,
-     PSI_DOCUMENT_ME}};
+    {&key_memory_MDL_context_backup_manager, "MDL_context::backup_manager", 0,
+     0, "MDL for prepared XA trans with disconnected client."}};
 
 void MDL_context_backup_manager::init_psi_keys(void) {
   const char *category = "sql";
@@ -127,7 +127,7 @@ MDL_context_backup_manager::MDL_context_backup_manager(PSI_memory_key key)
 bool MDL_context_backup_manager::init() {
   DBUG_TRACE;
   m_single = new (std::nothrow)
-      MDL_context_backup_manager(key_memory_mdl_context_backup_manager);
+      MDL_context_backup_manager(key_memory_MDL_context_backup_manager);
   return m_single == nullptr;
 }
 

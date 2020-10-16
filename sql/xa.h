@@ -34,7 +34,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/malloc_allocator.h"  // Malloc_allocator
-#include "sql/psi_memory_key.h"    // key_memory_Recovered_xa_transactions
+#include "sql/psi_memory_key.h"    // key_memory_xa_recovered_transactions
 #include "sql/sql_cmd.h"           // Sql_cmd
 #include "sql/sql_list.h"          // List
 #include "sql/sql_plugin_ref.h"    // plugin_ref

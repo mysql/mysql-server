@@ -5222,8 +5222,8 @@ void append_row_to_str(String &str, const uchar *row, TABLE *table) {
     rec = row;
 
   /* Create a new array of all read fields. */
-  fields = (Field **)my_malloc(key_memory_handler_errmsgs,
-                               sizeof(void *) * (num_fields + 1), MYF(0));
+  fields = static_cast<Field **>(my_malloc(
+      key_memory_errmsgs_handler, sizeof(void *) * (num_fields + 1), MYF(0)));
   if (!fields) return;
   fields[num_fields] = nullptr;
   for (field_ptr = table->field; *field_ptr; field_ptr++) {

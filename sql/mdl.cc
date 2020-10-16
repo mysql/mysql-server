@@ -81,7 +81,7 @@ static PSI_cond_info all_mdl_conds[] = {{&key_MDL_wait_COND_wait_status,
 
 static PSI_memory_info all_mdl_memory[] = {
     {&key_memory_MDL_context_acquire_locks, "MDL_context::acquire_locks", 0, 0,
-     PSI_DOCUMENT_ME}};
+     "Buffer for sorting lock requests."}};
 
 /**
   Initialise all the performance schema instrumentation points

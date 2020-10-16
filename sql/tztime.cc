@@ -1104,7 +1104,7 @@ static PSI_mutex_info all_tz_mutexes[] = {
 
 static PSI_memory_info all_tz_memory[] = {{&key_memory_tz_storage, "tz_storage",
                                            PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-                                           PSI_DOCUMENT_ME}};
+                                           "Shared time zone data."}};
 
 class Tz_names_entry;
 

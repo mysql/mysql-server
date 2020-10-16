@@ -204,6 +204,7 @@ SET(SERVER_TESTS
   dd_cache
   dd_column_statistics
   dd_info_schema_native_func
+  dd_pfs
   dd_properties
   dd_schema
   dd_sdi

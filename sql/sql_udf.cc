@@ -170,7 +170,7 @@ static PSI_rwlock_info all_udf_rwlocks[] = {{&key_rwlock_THR_LOCK_udf,
 
 static PSI_memory_info all_udf_memory[] = {{&key_memory_udf_mem, "udf_mem",
                                             PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-                                            PSI_DOCUMENT_ME}};
+                                            "Shared structure of UDFs."}};
 
 static void init_udf_psi_keys(void) {
   const char *category = "sql";

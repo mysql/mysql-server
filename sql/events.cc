@@ -1030,7 +1030,8 @@ PSI_stage_info *all_events_stages[] = {&stage_waiting_on_empty_queue,
 
 static PSI_memory_info all_events_memory[] = {
     {&key_memory_event_basic_root, "Event_basic::mem_root",
-     PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}};
+     PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     "Event base class with root used for definiton etc."}};
 
 static void init_events_psi_keys(void) {
   const char *category = "sql";

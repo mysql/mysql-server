@@ -57,7 +57,7 @@
 #include "sql/mdl_context_backup.h"  // MDL_context_backup_manager
 #include "sql/mysqld.h"              // server_id
 #include "sql/protocol.h"
-#include "sql/psi_memory_key.h"  // key_memory_XID
+#include "sql/psi_memory_key.h"  // key_memory_xa_transaction_contexts
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"
 #include "sql/rpl_gtid.h"
@@ -90,7 +90,7 @@ struct transaction_free_hash {
 static bool inited = false;
 static mysql_mutex_t LOCK_transaction_cache;
 static malloc_unordered_map<std::string, std::shared_ptr<Transaction_ctx>>
-    transaction_cache{key_memory_XID};
+    transaction_cache{key_memory_xa_transaction_contexts};
 
 static const uint MYSQL_XID_PREFIX_LEN = 8;  // must be a multiple of 8
 static const uint MYSQL_XID_OFFSET = MYSQL_XID_PREFIX_LEN + sizeof(server_id);
@@ -197,7 +197,7 @@ Recovered_xa_transactions *Recovered_xa_transactions::m_instance = nullptr;
 
 Recovered_xa_transactions::Recovered_xa_transactions()
     : m_prepared_xa_trans(Malloc_allocator<XA_recover_txn *>(
-          key_memory_Recovered_xa_transactions)),
+          key_memory_xa_recovered_transactions)),
       m_mem_root_inited(false) {}
 
 Recovered_xa_transactions &Recovered_xa_transactions::instance() {
@@ -234,7 +234,8 @@ bool Recovered_xa_transactions::add_prepared_xa_transaction(
 
 MEM_ROOT *Recovered_xa_transactions::get_allocated_memroot() {
   if (!m_mem_root_inited) {
-    init_sql_alloc(key_memory_XID, &m_mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_xa_transaction_contexts, &m_mem_root,
+                   TABLE_ALLOC_BLOCK_SIZE, 0);
     m_mem_root_inited = true;
   }
   return &m_mem_root;

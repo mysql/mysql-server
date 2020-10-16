@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "my_dbug.h"
 #include "sql/malloc_allocator.h"  // Malloc_allocator.
+#include "sql/psi_memory_key.h"    // key_memory_DD_cache_infrastructure
 
 namespace dd {
 namespace cache {
@@ -84,9 +85,10 @@ class Element_map {
 
  public:
   Element_map()
-      : m_map(std::less<K>(),
-              Malloc_allocator<std::pair<const K, E *>>(PSI_INSTRUMENT_ME)),
-        m_missed(std::less<K>(), Malloc_allocator<K>(PSI_INSTRUMENT_ME)) {
+      : m_map(std::less<K>(), Malloc_allocator<std::pair<const K, E *>>(
+                                  key_memory_DD_cache_infrastructure)),
+        m_missed(std::less<K>(),
+                 Malloc_allocator<K>(key_memory_DD_cache_infrastructure)) {
   } /* purecov: tested */
 
   /**

@@ -3751,7 +3751,7 @@ bool prune_partitions(THD *thd, TABLE *table, SELECT_LEX *select_lex,
   my_bitmap_map *old_sets[2];
 
   prune_param.part_info = part_info;
-  init_sql_alloc(key_memory_prune_partitions_exec, &alloc,
+  init_sql_alloc(key_memory_partitions_prune_exec, &alloc,
                  thd->variables.range_alloc_block_size, 0);
   alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
   alloc.set_error_for_capacity_exceeded(true);
