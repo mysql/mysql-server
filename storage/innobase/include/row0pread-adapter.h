@@ -94,9 +94,10 @@ class Parallel_reader_adapter {
  private:
   /** Each parallel reader thread's init function.
   @param[in]  reader_thread_ctx  context info related to the current thread
+  @param[in]  prebuilt           prebuilt cache
   @return DB_SUCCESS or error code. */
-  dberr_t init(Parallel_reader::Thread_ctx *reader_thread_ctx)
-      MY_ATTRIBUTE((warn_unused_result));
+  dberr_t init(Parallel_reader::Thread_ctx *reader_thread_ctx,
+               row_prebuilt_t *prebuilt) MY_ATTRIBUTE((warn_unused_result));
 
   /** Each parallel reader thread's end function.
   @param[in]  reader_thread_ctx  context info related to the current thread

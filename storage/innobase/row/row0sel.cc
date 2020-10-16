@@ -2974,7 +2974,9 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
   ut_ad(rec_clust || rec_index == prebuilt_index);
   ut_ad(!rec_clust || rec_index->is_clustered());
 
-  if (blob_heap != nullptr) {
+  /* If blob_heap provided by the caller is not that of prebuilt's blob heap
+  then the onus would be on the caller to empty the blob heap if required. */
+  if (blob_heap != nullptr && blob_heap == prebuilt->blob_heap) {
     mem_heap_empty(blob_heap);
   }
 
