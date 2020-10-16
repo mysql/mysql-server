@@ -228,13 +228,13 @@ void MakeCartesianProducts(RelationalExpression *expr) {
   the return value. Since PushDownAsMuchAsPossible() only calls us for join
   conditions, this is the only way we can push down something onto a single
   table (which naturally has no concept of “join condition”). If this happens,
-  we push the resulting condition(s) onto “extra_where_conditions”.
+  we push the resulting condition(s) onto “table_filters”.
  */
 bool PushDownCondition(Item *cond, RelationalExpression *expr,
                        bool is_join_condition_for_expr,
-                       Mem_root_array<Item *> *extra_where_conditions) {
+                       Mem_root_array<Item *> *table_filters) {
   if (expr->type == RelationalExpression::TABLE) {
-    extra_where_conditions->push_back(cond);
+    table_filters->push_back(cond);
     return true;
   }
 
@@ -252,15 +252,17 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // condition for this join, we cannot push it for outer joins and
   // antijoins, since that would remove rows that should otherwise
   // be output (as NULL-complemented ones in the case if outer joins).
+  const bool can_push_into_left =
+      (expr->type == RelationalExpression::INNER_JOIN ||
+       expr->type == RelationalExpression::SEMIJOIN ||
+       !is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->left->tables_in_subtree)) {
-    if (expr->type != RelationalExpression::INNER_JOIN &&
-        expr->type != RelationalExpression::SEMIJOIN &&
-        is_join_condition_for_expr) {
+    if (!can_push_into_left) {
       return true;
     }
     return PushDownCondition(cond, expr->left,
                              /*is_join_condition_for_expr=*/false,
-                             extra_where_conditions);
+                             table_filters);
   }
 
   // See if we can push down into the right side. For inner joins,
@@ -276,16 +278,17 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // no choice but to just trust that these conditions are pushable.
   // (The user cannot cannot specify semijoins directly, so all such conditions
   // come from ourselves.)
-  bool can_push_into_right = (expr->type == RelationalExpression::INNER_JOIN ||
-                              expr->type == RelationalExpression::SEMIJOIN ||
-                              is_join_condition_for_expr);
+  const bool can_push_into_right =
+      (expr->type == RelationalExpression::INNER_JOIN ||
+       expr->type == RelationalExpression::SEMIJOIN ||
+       is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->right->tables_in_subtree)) {
     if (!can_push_into_right) {
       return true;
     }
     return PushDownCondition(cond, expr->right,
                              /*is_join_condition_for_expr=*/false,
-                             extra_where_conditions);
+                             table_filters);
   }
 
   // It's not a subset of left, it's not a subset of right, so it's a
@@ -293,14 +296,13 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // to a join condition for it.
 
   // Try partial pushdown into the left side (see function comment).
-  {
+  if (can_push_into_left) {
     Item *partial_cond = make_cond_for_table(
         current_thd, cond, expr->left->tables_in_subtree, /*used_table=*/0,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->left,
-                        /*is_join_condition_for_expr=*/false,
-                        extra_where_conditions);
+                        /*is_join_condition_for_expr=*/false, table_filters);
     }
   }
 
@@ -311,8 +313,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->right,
-                        /*is_join_condition_for_expr=*/false,
-                        extra_where_conditions);
+                        /*is_join_condition_for_expr=*/false, table_filters);
     }
   }
 
@@ -351,8 +352,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
  */
 Mem_root_array<Item *> PushDownAsMuchAsPossible(
     THD *thd, Mem_root_array<Item *> conditions, RelationalExpression *expr,
-    bool is_join_condition_for_expr,
-    Mem_root_array<Item *> *extra_where_conditions) {
+    bool is_join_condition_for_expr, Mem_root_array<Item *> *table_filters) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
     if (IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS)) {
@@ -362,7 +362,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       remaining_parts.push_back(item);
     } else {
       if (PushDownCondition(item, expr, is_join_condition_for_expr,
-                            extra_where_conditions)) {
+                            table_filters)) {
         // Pushdown failed.
         remaining_parts.push_back(item);
       }
@@ -393,7 +393,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
   join condition down again.
  */
 void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
-                            Mem_root_array<Item *> *where_conditions) {
+                            Mem_root_array<Item *> *table_filters) {
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }
@@ -402,10 +402,10 @@ void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
   if (!expr->join_conditions.empty()) {
     expr->join_conditions = PushDownAsMuchAsPossible(
         thd, std::move(expr->join_conditions), expr,
-        /*is_join_condition_for_expr=*/true, where_conditions);
+        /*is_join_condition_for_expr=*/true, table_filters);
   }
-  PushDownJoinConditions(thd, expr->left, where_conditions);
-  PushDownJoinConditions(thd, expr->right, where_conditions);
+  PushDownJoinConditions(thd, expr->left, table_filters);
+  PushDownJoinConditions(thd, expr->right, table_filters);
 }
 
 /**
@@ -807,11 +807,11 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
     *trace += "\n";
   }
 
-  Mem_root_array<Item *> extra_where_conditions(thd->mem_root);
-  if (ConcretizeAllMultipleEquals(thd, root, &extra_where_conditions)) {
+  Mem_root_array<Item *> table_filters(thd->mem_root);
+  if (ConcretizeAllMultipleEquals(thd, root, &table_filters)) {
     return true;
   }
-  PushDownJoinConditions(thd, root, &extra_where_conditions);
+  PushDownJoinConditions(thd, root, &table_filters);
 
   // Split up WHERE conditions, and push them down into the tree as much as
   // we can. (They have earlier been hoisted up as far as possible; see
@@ -827,20 +827,18 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
     }
     where_conditions = PushDownAsMuchAsPossible(
         thd, std::move(where_conditions), root,
-        /*is_join_condition_for_expr=*/false, &extra_where_conditions);
-  }
-
-  for (Item *cond : extra_where_conditions) {
-    where_conditions.push_back(cond);
+        /*is_join_condition_for_expr=*/false, &table_filters);
   }
 
   MakeHashJoinConditions(thd, root);
   MakeCartesianProducts(root);
 
   if (trace != nullptr) {
-    *trace +=
-        StringPrintf("After pushdown; remaining WHERE conditions are %s:\n",
-                     ItemsToString(where_conditions).c_str());
+    *trace += StringPrintf(
+        "After pushdown; remaining WHERE conditions are %s, "
+        "table filters are %s:\n",
+        ItemsToString(where_conditions).c_str(),
+        ItemsToString(table_filters).c_str());
     *trace += PrintRelationalExpression(root, 0);
     *trace += '\n';
   }
@@ -897,6 +895,18 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
       *trace += "}\n";
     }
   }
+
+  // Table filters should be applied at the bottom, without extending the TES.
+  for (Item *condition : table_filters) {
+    Predicate pred;
+    pred.condition = condition;
+    pred.total_eligibility_set =
+        condition->used_tables() & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT);
+    assert(IsSingleBitSet(pred.total_eligibility_set));
+    pred.selectivity = EstimateSelectivity(thd, condition, trace);
+    graph->predicates.push_back(pred);
+  }
+
   if (graph->predicates.size() > sizeof(table_map) * CHAR_BIT) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "more than 64 WHERE/ON predicates");

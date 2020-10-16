@@ -503,6 +503,49 @@ TEST_F(HypergraphOptimizerTest, PartialPredicatePushdown) {
   EXPECT_EQ(m_fake_tables["t2"], inner_child->table_scan().table);
 }
 
+TEST_F(HypergraphOptimizerTest, PartialPredicatePushdownOuterJoin) {
+  SELECT_LEX *select_lex = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN t2 ON "
+      "(t1.x=1 AND t2.y=2) OR (t1.x=3 AND t2.y=4)",
+      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 200;
+  m_fake_tables["t2"]->file->stats.records = 30;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, select_lex->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN,
+            root->hash_join().join_predicate->expr->type);
+
+  // The join condition should still be there.
+  const Mem_root_array<Item *> &join_conditions =
+      root->hash_join().join_predicate->expr->join_conditions;
+  ASSERT_EQ(1, join_conditions.size());
+  EXPECT_EQ("(((t1.x = 1) and (t2.y = 2)) or ((t1.x = 3) and (t2.y = 4)))",
+            ItemToString(join_conditions[0]));
+
+  // t1 should _not_ have a partial condition, as it would
+  // cause NULL-complemented rows to be eaten.
+  AccessPath *outer = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
+
+  // t2 should have a partial condition.
+  AccessPath *inner = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, inner->type);
+  EXPECT_EQ("((t2.y = 2) or (t2.y = 4))",
+            ItemToString(inner->filter().condition));
+
+  AccessPath *inner_child = inner->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
+  EXPECT_EQ(m_fake_tables["t2"], inner_child->table_scan().table);
+}
+
 TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   SELECT_LEX *select_lex = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
