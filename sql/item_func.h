@@ -1049,7 +1049,9 @@ class Item_typecast_real final : public Item_func {
   bool get_time(MYSQL_TIME *ltime) override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;
   enum Item_result result_type() const override { return REAL_RESULT; }
-  bool resolve_type(THD *) override { return false; }
+  bool resolve_type(THD *thd) override {
+    return args[0]->propagate_type(thd, MYSQL_TYPE_DOUBLE, false, true);
+  }
   const char *func_name() const override { return "cast_as_real"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   void print(const THD *thd, String *str,

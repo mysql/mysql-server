@@ -257,10 +257,19 @@ Com_stmt_reprepare	2
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["LONGLONG"]]
+set @s='abc';
+set @d='2000-01-01';
+set @t='23:59:59.999999';
+set @dt='2000-01-01 23:59:59.999999';
+set @y='2000';
+set @j='{"pi":3.14159}';
 prepare s from 'select cast(? as unsigned)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["LONGLONG"]]
+execute s using @y;
+cast(? as unsigned)
+2000
 set @a=3.5;
 execute s using @a;
 cast(? as unsigned)
@@ -275,26 +284,72 @@ prepare s from 'select cast(? as char(10))';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR"]]
-prepare s from 'select cast(? as binary(10))';
+execute s using @s;
+cast(? as char(10))
+abc
+prepare s from 'select cast(? as binary(3))';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR"]]
+execute s using @s;
+cast(? as binary(3))
+abc
 prepare s from 'select cast(? as date)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["DATE"]]
-prepare s from 'select cast(? as time)';
+execute s using @d;
+cast(? as date)
+2000-01-01
+prepare s from 'select cast(? as time(6))';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["DATETIME decimals=6"]]
+execute s using @t;
+cast(? as time(6))
+23:59:59.999999
+prepare s from 'select cast(? as datetime(6))';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DATETIME decimals=6"]]
+execute s using @dt;
+cast(? as datetime(6))
+2000-01-01 23:59:59.999999
+prepare s from 'select cast(? as year)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["YEAR"]]
+execute s using @y;
+cast(? as year)
+2000
+prepare s from 'select cast(? as float)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+execute s using @y;
+cast(? as float)
+2000
+prepare s from 'select cast(? as double)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["DOUBLE"]]
+execute s using @y;
+cast(? as double)
+2000
 prepare s from 'select cast(? as decimal(10))';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["NEWDECIMAL decimals=30"]]
+execute s using @y;
+cast(? as decimal(10))
+2000
 prepare s from 'select cast(? as json)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["JSON"]]
+execute s using @j;
+cast(? as json)
+{"pi": 3.14159}
 prepare s from 'select convert(?, decimal(10))';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")

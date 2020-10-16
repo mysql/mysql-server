@@ -1378,7 +1378,7 @@ longlong Item_typecast_year::val_int() {
   null_value = false;
 
   // For temporal values, the YEAR value is extracted directly
-  if (args[0]->is_temporal()) {
+  if (args[0]->is_temporal() && args[0]->data_type() != MYSQL_TYPE_YEAR) {
     MYSQL_TIME ltime;
     if (!get_arg0_date(&ltime, TIME_FUZZY_DATE))
       value = static_cast<longlong>(ltime.year);
