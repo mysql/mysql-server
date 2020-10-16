@@ -63,8 +63,10 @@ struct TABLE_REF;
   they represent the joins in the query block more or less directly,
   without any reordering. (The parser should largely have output a
   structure like this instead of TABLE_LIST, but we are not there yet.)
-  The only real manipulation we do on them is pushing down conditions
-  and identifying equijoin conditions from other join conditions.
+  The only real manipulation we do on them is pushing down conditions,
+  identifying equijoin conditions from other join conditions,
+  and identifying join conditions that touch given tables (also a form
+  of pushdown).
  */
 struct RelationalExpression {
   explicit RelationalExpression(THD *thd)
@@ -82,6 +84,7 @@ struct RelationalExpression {
 
   // If type == TABLE.
   const TABLE_LIST *table;
+  Mem_root_array<Item *> join_conditions_pushable_to_this;
 
   // If type != TABLE. Note that equijoin_conditions will be split off
   // from join_conditions fairly late (at CreateHashJoinConditions()),
@@ -231,34 +234,78 @@ struct AccessPath {
   /// init_cost is always the same (filters have zero initialization cost).
   double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
 
-  /// Bitmap of WHERE predicates that we are including on this access path,
-  /// referring to the “predicates” array internal to the join optimizer.
-  /// Since bit masks are much cheaper to deal with than creating Item objects,
-  /// and we don't invent new conditions during join optimization (all of them
-  /// are known when we begin optimization), we stick to manipulating bit masks
-  /// during optimization, saying which filters will be applied at this node
-  /// (a 1-bit means the filter will be applied here; if there are multiple
-  /// ones, they are ANDed together).
-  ///
-  /// This is used during join optimization only; before iterators are
-  /// created, we will add FILTER access paths to represent these instead,
-  /// removing the dependency on the array.
-  ///
-  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
-  /// having more than 64 predicates. (For now, we refuse queries that have
-  /// more.)
-  uint64_t filter_predicates{0};
+  union {
+    /// Bitmap of WHERE predicates that we are including on this access path,
+    /// referring to the “predicates” array internal to the join optimizer.
+    /// Since bit masks are much cheaper to deal with than creating Item
+    /// objects, and we don't invent new conditions during join optimization
+    /// (all of them are known when we begin optimization), we stick to
+    /// manipulating bit masks during optimization, saying which filters will be
+    /// applied at this node (a 1-bit means the filter will be applied here; if
+    /// there are multiple ones, they are ANDed together).
+    ///
+    /// This is used during join optimization only; before iterators are
+    /// created, we will add FILTER access paths to represent these instead,
+    /// removing the dependency on the array.
+    ///
+    /// TODO(sgunders): Add some technique for “overflow bitset” to allow
+    /// having more than 64 predicates. (For now, we refuse queries that have
+    /// more.)
+    uint64_t filter_predicates{0};
 
-  /// Bitmap of WHERE predicates that we touch tables we have joined in,
-  /// but that we could not apply yet (for instance because they reference
-  /// other tables, or because because we could not push them down into
-  /// the nullable side of outer joins). Used during planning only
-  /// (see filter_predicates).
+    /// Bitmap of sargable join predicates that have already been applied
+    /// in this access path by means of an index lookup (ref access),
+    /// again referring to “predicates”, and thus should not be counted again
+    /// for selectivity. Note that the filter may need to be applied
+    /// nevertheless (especially in case of type conversions); see
+    /// subsumed_sargable_join_predicates.
+    ///
+    /// Since these refer to the same array as filter_predicates, they will
+    /// never overlap with filter_predicates, and so we can reuse the same
+    /// memory using an union, even though the meaning is entirely separate.
+    /// If N = num_where_predictes in the hypergraph, then bits 0..(N-1)
+    /// belong to filter_predicates, and the rest to
+    /// applied_sargable_join_predicates.
+    uint64_t applied_sargable_join_predicates;
+  };
+
+  union {
+    /// Bitmap of WHERE predicates that we touch tables we have joined in,
+    /// but that we could not apply yet (for instance because they reference
+    /// other tables, or because because we could not push them down into
+    /// the nullable side of outer joins). Used during planning only
+    /// (see filter_predicates).
+    ///
+    /// TODO(sgunders): Add some technique for “overflow bitset” to allow
+    /// having more than 64 predicates. (For now, we refuse queries that have
+    /// more.)
+    uint64_t delayed_predicates{0};
+
+    /// Similar to applied_sargable_join_predicates, bitmap of sargable
+    /// join predicates that have been applied and will subsume the join
+    /// predicate entirely, ie., not only should the selectivity not be
+    /// double-counted, but the predicate itself is redundant and need not
+    /// be applied as a filter. (It is an error to have a bit set here but not
+    /// in applied_sargable_join_predicates.)
+    uint64_t subsumed_sargable_join_predicates;
+  };
+
+  /// If nonzero, a bitmap of other tables whose joined-in rows must already be
+  /// loaded when rows from this access path are evaluated; that is, this
+  /// access path must be put on the inner side of a nested-loop join (or
+  /// multiple such joins) where the outer side includes all of the given
+  /// tables.
   ///
-  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
-  /// having more than 64 predicates. (For now, we refuse queries that have
-  /// more.)
-  uint64_t delayed_predicates{0};
+  /// The most obvious case for this is dependent tables in LATERAL, but a more
+  /// common case is when we have pushed join conditions referring to those
+  /// tables; e.g., if this access path represents t1 and we have a condition
+  /// t1.x=t2.x that is pushed down into an index lookup (ref access), t2 will
+  /// be set in this bitmap. We can still join in other tables, deferring t2,
+  /// but the bit(s) will then propagate, and we cannot be on the right side of
+  /// a hash join until parameter_tables is zero again.
+  ///
+  /// This is a NodeMap (we just don't want to pull in the typedef here).
+  uint64_t parameter_tables{0};
 
   /// Auxiliary data used by a secondary storage engine while processing the
   /// access path during optimization and execution. The secondary storage
@@ -768,15 +815,16 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 120,
+static_assert(sizeof(AccessPath) <= 128,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(80 bytes for the base, 40 bytes for the variant.)");
+              "(88 bytes for the base, 40 bytes for the variant.)");
 
 inline void CopyCosts(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
   to->cost = from.cost;
   to->init_cost = from.init_cost;
+  to->parameter_tables = from.parameter_tables;
 }
 
 // Trivial factory functions for all of the types of access paths above.
@@ -1255,7 +1303,8 @@ table_map GetUsedTables(const AccessPath *path);
   “join” is the join that “path” is part of.
  */
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
-                             const Mem_root_array<Predicate> &predicates);
+                             const Mem_root_array<Predicate> &predicates,
+                             unsigned num_where_predicates);
 
 /// Creates an empty bitmap of access path types. This is the base
 /// case for the function template with the same name below.

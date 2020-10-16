@@ -713,6 +713,66 @@ TEST_F(HypergraphOptimizerTest, MultiPartPredicatePushdownToRef) {
   EXPECT_EQ(2, root->eq_ref().ref->key_parts);
 }
 
+TEST_F(HypergraphOptimizerTest, JoinConditionToRef) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.y=t3.y) ON t1.x=t3.x",
+      /*nullable=*/true);
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+  t2->create_index(t2->field[1], /*column2=*/nullptr, /*unique=*/false);
+  t3->create_index(t3->field[0], t3->field[1], /*unique=*/true);
+
+  // Hash join between t2/t3 is attractive, but hash join between t1 and t2/t3
+  // should not be.
+  m_fake_tables["t1"]->file->stats.records = 1000000;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t3"]->file->stats.records = 1000;
+  m_fake_tables["t3"]->file->stats.data_file_length = 1e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The optimal plan consists of only nested-loop joins.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::OUTER, root->nested_loop_join().join_type);
+
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
+  EXPECT_FLOAT_EQ(1000000.0, outer->num_output_rows);
+
+  // The inner part should also be nested-loop.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, inner->type);
+  EXPECT_EQ(JoinType::INNER, inner->nested_loop_join().join_type);
+
+  // We should have t2 on the left, and t3 on the right
+  // (or we couldn't use the entire unique index).
+  AccessPath *t2_path = inner->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t2_path->type);
+  EXPECT_EQ(m_fake_tables["t2"], t2_path->table_scan().table);
+  EXPECT_FLOAT_EQ(100.0, t2_path->num_output_rows);
+
+  // t3 should use the unique index, and thus be capped at one row.
+  AccessPath *t3_path = inner->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::EQ_REF, t3_path->type);
+  EXPECT_EQ(m_fake_tables["t3"], t3_path->eq_ref().table);
+  EXPECT_FLOAT_EQ(1.0, t3_path->num_output_rows);
+
+  // t2/t3 is 100 * 1, obviously.
+  EXPECT_FLOAT_EQ(100.0, inner->num_output_rows);
+
+  // The root should have t1 multiplied by t2/t3;
+  // since the join predicate is already applied (and subsumed),
+  // we should have no further reduction from it.
+  EXPECT_FLOAT_EQ(outer->num_output_rows * inner->num_output_rows,
+                  root->num_output_rows);
+}
+
 TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",

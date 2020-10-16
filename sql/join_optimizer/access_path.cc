@@ -801,13 +801,16 @@ static Item *ConditionFromFilterPredicates(
 }
 
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
-                             const Mem_root_array<Predicate> &predicates) {
+                             const Mem_root_array<Predicate> &predicates,
+                             unsigned num_where_predicates) {
   WalkAccessPaths(
       path_arg, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, &predicates](AccessPath *path, const JOIN *) {
-        if (path->filter_predicates != 0) {
-          Item *condition = ConditionFromFilterPredicates(
-              predicates, path->filter_predicates);
+      [thd, &predicates, num_where_predicates](AccessPath *path, const JOIN *) {
+        uint64_t filter_predicates =
+            path->filter_predicates & TablesBetween(0, num_where_predicates);
+        if (filter_predicates != 0) {
+          Item *condition =
+              ConditionFromFilterPredicates(predicates, filter_predicates);
           AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
           new_path->filter_predicates = 0;
           new_path->num_output_rows = path->num_output_rows_before_filter;

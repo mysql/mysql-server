@@ -80,6 +80,7 @@ ALTER TABLE t2 CHANGE f2 f2 CHAR(100);
 SET @view='v2';
 EXECUTE check_view_columns USING @view;
 SET @view='v3';
+--sorted_result
 EXECUTE check_view_columns USING @view;
 --echo #
 --echo #

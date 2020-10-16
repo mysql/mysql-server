@@ -177,12 +177,17 @@ class NonzeroSubsetsOf {
 };
 
 // Returns a bitmap representing a single table.
-static inline uint64_t TableBitmap(unsigned x) { return uint64_t{1} << x; }
+inline uint64_t TableBitmap(unsigned x) { return uint64_t{1} << x; }
 
 // Returns a bitmap representing the semi-open interval [start, end).
-static inline uint64_t TablesBetween(unsigned start, unsigned end) {
+inline uint64_t BitsBetween(unsigned start, unsigned end) {
   assert(end >= start);
   return (uint64_t{1} << end) - (uint64_t{1} << start);
+}
+
+// The same, just with a different name for clarity.
+inline uint64_t TablesBetween(unsigned start, unsigned end) {
+  return BitsBetween(start, end);
 }
 
 // Isolates the LSB of x. Ie., if x = 0b110001010, returns 0b000000010.

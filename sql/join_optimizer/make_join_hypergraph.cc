@@ -75,6 +75,7 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const TABLE_LIST *tl) {
     ret->type = RelationalExpression::TABLE;
     ret->table = tl;
     ret->tables_in_subtree = tl->map();
+    ret->join_conditions_pushable_to_this.init(thd->mem_root);
     return ret;
   } else {
     // A join or multijoin.
@@ -213,6 +214,29 @@ void MakeCartesianProducts(RelationalExpression *expr) {
   lower place than it started, ie., the caller no longer needs to worry about
   it.
 
+  Since PushDownAsMuchAsPossible() only calls us for join conditions, there are
+  only two ways we can push down something onto a single table (which naturally
+  has no concept of “join condition”). Neither of them affect the return
+  condition. These are:
+
+  1. Sargable join conditions.
+
+  Equijoin conditions can often be pushed down into indexes; e.g. t1.x = t2.x
+  could be pushed down into an index on t1.x. When we have pushed such a
+  condition all the way down onto the t1/t2 join, we are ostensibly done
+  (and would return true), but before that, we push down the condition down
+  onto both sides if possible. (E.g.: If the join was a left join, we could
+  push it down to t2, but not to t1.) When we hit a table in such a push,
+  we store the conditions in “join_conditions_pushable_to_this“ for the table
+  to signal that it should be investigated when we consider the table during
+  join optimization. This push happens with parameter_tables set to a bitmap
+  of the table(s) on the other side of the join, e.g. the push to t1 happens
+  with t2 in the bitmap. A push with nonzero parameter_tables is not subject
+  to being left as a join condition as would usually be the case; if it is
+  not pushable all the way down to a table, it is simply discarded.
+
+  2. Partial pushdown.
+
   In addition to regular pushdown, PushDownCondition() will do partial pushdown
   if appropriate. Some expressions cannot be fully pushed down, but we can
   push down necessary-but-not-sufficient conditions to get earlier filtering.
@@ -224,17 +248,21 @@ void MakeCartesianProducts(RelationalExpression *expr) {
     (t1.x = 1 AND t2.y=2) OR (t1.x = 3 AND t2.y=4);
 
   we could push down the conditions (t1.x = 1 OR t1.x = 3) to t1 and similarly
-  for t2, but we could not delete the original condition. This does not affect
-  the return value. Since PushDownAsMuchAsPossible() only calls us for join
-  conditions, this is the only way we can push down something onto a single
-  table (which naturally has no concept of “join condition”). If this happens,
-  we push the resulting condition(s) onto “table_filters”.
+  for t2, but we could not delete the original condition. If we get all the way
+  down to a table, we store the condition in “table_filters”. These are
+  conditions that can be evaluated directly on the given table, without any
+  concern for what is joined in before (ie., TES = SES).
  */
 bool PushDownCondition(Item *cond, RelationalExpression *expr,
                        bool is_join_condition_for_expr,
+                       table_map parameter_tables,
                        Mem_root_array<Item *> *table_filters) {
   if (expr->type == RelationalExpression::TABLE) {
-    table_filters->push_back(cond);
+    if (parameter_tables == 0) {
+      table_filters->push_back(cond);
+    } else {
+      expr->join_conditions_pushable_to_this.push_back(cond);
+    }
     return true;
   }
 
@@ -256,13 +284,13 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       (expr->type == RelationalExpression::INNER_JOIN ||
        expr->type == RelationalExpression::SEMIJOIN ||
        !is_join_condition_for_expr);
-  if (IsSubset(used_tables, expr->left->tables_in_subtree)) {
+  if (IsSubset(used_tables, expr->left->tables_in_subtree | parameter_tables)) {
     if (!can_push_into_left) {
       return true;
     }
     return PushDownCondition(cond, expr->left,
                              /*is_join_condition_for_expr=*/false,
-                             table_filters);
+                             parameter_tables, table_filters);
   }
 
   // See if we can push down into the right side. For inner joins,
@@ -282,13 +310,14 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       (expr->type == RelationalExpression::INNER_JOIN ||
        expr->type == RelationalExpression::SEMIJOIN ||
        is_join_condition_for_expr);
-  if (IsSubset(used_tables, expr->right->tables_in_subtree)) {
+  if (IsSubset(used_tables,
+               expr->right->tables_in_subtree | parameter_tables)) {
     if (!can_push_into_right) {
       return true;
     }
     return PushDownCondition(cond, expr->right,
                              /*is_join_condition_for_expr=*/false,
-                             table_filters);
+                             parameter_tables, table_filters);
   }
 
   // It's not a subset of left, it's not a subset of right, so it's a
@@ -302,7 +331,8 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->left,
-                        /*is_join_condition_for_expr=*/false, table_filters);
+                        /*is_join_condition_for_expr=*/false, parameter_tables,
+                        table_filters);
     }
   }
 
@@ -313,8 +343,40 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->right,
-                        /*is_join_condition_for_expr=*/false, table_filters);
+                        /*is_join_condition_for_expr=*/false, parameter_tables,
+                        table_filters);
     }
+  }
+
+  // Push join conditions further down each side to see if they are sargable
+  // (see the function comment).
+  if (can_push_into_left) {
+    table_map left_tables = cond->used_tables() & expr->left->tables_in_subtree;
+    if (left_tables == 0) {
+      // Degenerate condition, so add everything just to be safe.
+      left_tables = expr->left->tables_in_subtree;
+    }
+    PushDownCondition(cond, expr->left,
+                      /*is_join_condition_for_expr=*/false,
+                      parameter_tables | left_tables, table_filters);
+  }
+  if (can_push_into_right) {
+    table_map right_tables =
+        cond->used_tables() & expr->right->tables_in_subtree;
+    if (right_tables == 0) {
+      // Degenerate condition, so add everything just to be safe.
+      right_tables = expr->right->tables_in_subtree;
+    }
+    PushDownCondition(cond, expr->right,
+                      /*is_join_condition_for_expr=*/false,
+                      parameter_tables | right_tables, table_filters);
+  }
+
+  if (parameter_tables != 0) {
+    // If this is pushdown for a sargable condition, we need to stop
+    // here, or we'd add extra join conditions. The return value
+    // doesn't matter much.
+    return false;
   }
 
   // Now that any partial pushdown has been done, see if we can promote
@@ -362,7 +424,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       remaining_parts.push_back(item);
     } else {
       if (PushDownCondition(item, expr, is_join_condition_for_expr,
-                            table_filters)) {
+                            /*parameter_tables=*/0, table_filters)) {
         // Pushdown failed.
         remaining_parts.push_back(item);
       }
@@ -559,16 +621,6 @@ string PrintJoinList(const mem_root_deque<TABLE_LIST *> &join_list, int level) {
   return str;
 }
 
-NodeMap GetNodeMapFromTableMap(
-    table_map table_map, const array<int, MAX_TABLES> &table_num_to_node_num) {
-  NodeMap ret = 0;
-  for (int table_num : BitsSetIn(table_map)) {
-    assert(table_num_to_node_num[table_num] != -1);
-    ret |= TableBitmap(table_num_to_node_num[table_num]);
-  }
-  return ret;
-}
-
 /**
   For a condition with the SES (Syntactic Eligibility Set) “used_tables”,
   find all relations in or under “expr” that are part of the condition's TES
@@ -734,7 +786,10 @@ void MakeJoinGraphFromRelationalExpression(THD *thd,
   if (expr->type == RelationalExpression::TABLE) {
     graph->graph.AddNode();
     graph->nodes.push_back(JoinHypergraph::Node{
-        expr->table->table, Mem_root_array<SargablePredicate>{thd->mem_root}});
+        expr->table->table,
+        Mem_root_array<Item *>{thd->mem_root,
+                               expr->join_conditions_pushable_to_this},
+        Mem_root_array<SargablePredicate>{thd->mem_root}});
     assert(expr->table->tableno() < MAX_TABLES);
     graph->table_num_to_node_num[expr->table->tableno()] =
         graph->graph.nodes.size() - 1;
@@ -813,11 +868,22 @@ void MakeJoinGraphFromRelationalExpression(THD *thd,
 
 }  // namespace
 
+NodeMap GetNodeMapFromTableMap(
+    table_map table_map, const array<int, MAX_TABLES> &table_num_to_node_num) {
+  NodeMap ret = 0;
+  for (int table_num : BitsSetIn(table_map)) {
+    assert(table_num_to_node_num[table_num] != -1);
+    ret |= TableBitmap(table_num_to_node_num[table_num]);
+  }
+  return ret;
+}
+
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
 
 bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   const Query_block *query_block = graph->query_block();
   const JOIN *join = graph->join();
+
   if (trace != nullptr) {
     // TODO(sgunders): Do we want to keep this in the trace indefinitely?
     // It's only useful for debugging, not as much for understanding what's
@@ -965,6 +1031,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
              "more than 64 WHERE/ON predicates");
     return true;
   }
+  graph->num_where_predicates = graph->predicates.size();
 
   return false;
 }
