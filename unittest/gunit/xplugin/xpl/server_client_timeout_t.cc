@@ -23,7 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/server_client_timeout.h"
+#include "plugin/x/src/ngs/server_client_timeout.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {

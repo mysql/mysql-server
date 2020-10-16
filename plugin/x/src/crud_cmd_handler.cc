@@ -26,7 +26,6 @@
 
 #include "plugin/x/src/crud_cmd_handler.h"
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
@@ -35,6 +34,7 @@
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/update_statement_builder.h"

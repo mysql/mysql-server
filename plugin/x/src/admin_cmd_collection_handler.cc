@@ -27,7 +27,6 @@
 #include <algorithm>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/admin_cmd_arguments.h"
 #include "plugin/x/src/get_detailed_validation_error.h"
@@ -37,6 +36,7 @@
 #include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/meta_schema_validator.h"
 #include "plugin/x/src/mysql_function_names.h"
+#include "plugin/x/src/ngs/protocol/column_info_builder.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"

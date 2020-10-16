@@ -26,7 +26,7 @@
 #include <list>
 #include <stdexcept>
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/src/ngs/error_code.h"
 #include "plugin/x/src/query_string_builder.h"
 
 namespace xpl {
@@ -40,7 +40,7 @@ class Assign_list {
   typedef std::string Value_type;
   typedef std::list<Value_type> Container_type;
 
-  Assign_list(const Value_type &value) { (*this)(value); }
+  explicit Assign_list(const Value_type &value) { (*this)(value); }
 
   Assign_list &operator()(const Value_type &value) {
     m_values.push_back(value);

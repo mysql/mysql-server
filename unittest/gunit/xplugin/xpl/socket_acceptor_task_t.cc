@@ -24,8 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 #include "plugin/x/src/interface/listener_factory.h"
+#include "plugin/x/src/ngs/socket_acceptors_task.h"
 #include "plugin/x/src/variables/system_variables.h"
 #include "unittest/gunit/xplugin/xpl/mock/component_sys_variable_register.h"
 #include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"

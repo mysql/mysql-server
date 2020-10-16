@@ -25,23 +25,23 @@
 #ifndef PLUGIN_X_SRC_ADMIN_CMD_HANDLER_H_
 #define PLUGIN_X_SRC_ADMIN_CMD_HANDLER_H_
 
-#include "my_compiler.h"
-MY_COMPILER_DIAGNOSTIC_PUSH()
-// Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
-// to be used by clients of class 'type2'
-MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
-#include <google/protobuf/repeated_field.h>
-MY_COMPILER_DIAGNOSTIC_POP()
-
 #include <initializer_list>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "my_compiler.h"  // NOLINT(build/include_subdir)
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
+// to be used by clients of class 'type2'
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
+#include <google/protobuf/repeated_field.h>  // NOLINT(build/include_order)
+MY_COMPILER_DIAGNOSTIC_POP()
+
 #include "plugin/x/src/admin_cmd_collection_handler.h"
 #include "plugin/x/src/interface/admin_command_arguments.h"
 #include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/ngs/error_code.h"
 
 namespace xpl {
 
@@ -245,7 +245,6 @@ class Admin_command_handler {
     ngs::Error_code execute(Admin_command_handler *admin,
                             const std::string &command,
                             Command_arguments *args) const;
-
   } m_command_handler;
 
   iface::Session *m_session;

@@ -30,12 +30,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/command_delegate.h"
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/ngs/command_delegate.h"
+#include "plugin/x/src/ngs/protocol/message.h"
+#include "plugin/x/src/ngs/protocol/metadata_builder.h"
 #include "plugin/x/src/notices.h"
 
 namespace xpl {

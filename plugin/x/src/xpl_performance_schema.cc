@@ -24,7 +24,7 @@
 
 #include "plugin/x/src/xpl_performance_schema.h"
 
-#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/src/ngs/memory.h"
 
 #ifdef HAVE_PSI_INTERFACE
 

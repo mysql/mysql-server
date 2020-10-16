@@ -23,7 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/src/ngs/protocol_encoder.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/variables/system_variables_defaults.h"

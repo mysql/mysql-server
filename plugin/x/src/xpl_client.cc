@@ -36,13 +36,13 @@
 #include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
 
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/capabilities/configurator.h"
 #include "plugin/x/src/capabilities/handler_expired_passwords.h"
 #include "plugin/x/src/capabilities/handler_readonly_value.h"
 #include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/ngs/thread.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/ssl_session_options.h"
 #include "plugin/x/src/variables/system_variables.h"
