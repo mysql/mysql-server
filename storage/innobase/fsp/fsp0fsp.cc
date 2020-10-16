@@ -1310,19 +1310,6 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
   } else if (fsp_is_global_temporary(space->id)) {
     size_increase = srv_tmp_space.get_increment();
 
-  } else if (fsp_is_undo_tablespace(space->id)) {
-    if (space->m_last_extended.elapsed() < 100) {
-      if (space->m_undo_extend < (16 * INITIAL_UNDO_SPACE_SIZE_IN_PAGES)) {
-        space->m_undo_extend *= 2;
-      }
-    } else if (space->m_undo_extend > INITIAL_UNDO_SPACE_SIZE_IN_PAGES) {
-      space->m_undo_extend /= 2;
-    }
-
-    space->m_last_extended.reset();
-
-    size_increase = space->m_undo_extend;
-
   } else {
     /* Check if the tablespace supports autoextend_size */
     page_no_t autoextend_size_pages =
@@ -1351,6 +1338,24 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
       }
 
       size_increase = fsp_get_pages_to_extend_ibd(page_size, size);
+    }
+
+    /* There is an additional algorithm for extending an undo tablespace. */
+    if (fsp_is_undo_tablespace(space->id)) {
+      if (space->m_last_extended.elapsed() < 100) {
+        /* Aggressive Growth: increase the extend amount. */
+        if (space->m_undo_extend < (16 * INITIAL_UNDO_SPACE_SIZE_IN_PAGES)) {
+          space->m_undo_extend *= 2;
+        }
+      } else if (space->m_undo_extend > INITIAL_UNDO_SPACE_SIZE_IN_PAGES) {
+        /* No longer Aggressive Growth: decrease the extend amount. */
+        space->m_undo_extend /= 2;
+      }
+
+      space->m_last_extended.reset();
+
+      /* Use whichever increases the file size the most. */
+      size_increase = std::max(size_increase, space->m_undo_extend);
     }
 
     /* Get the max size of the tablespace */
