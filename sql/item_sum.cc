@@ -5093,9 +5093,9 @@ bool Item_first_last_value::get_time(MYSQL_TIME *ltime) {
 }
 
 bool Item_first_last_value::val_json(Json_wrapper *jw) {
-  if (wf_common_init()) return true;
+  if (wf_common_init()) return false;
 
-  if (compute()) return null_value ? false : true;
+  if (compute()) return current_thd->is_error();
 
   return m_value->val_json(jw);
 }
@@ -5307,9 +5307,9 @@ bool Item_nth_value::get_time(MYSQL_TIME *ltime) {
 }
 
 bool Item_nth_value::val_json(Json_wrapper *jw) {
-  if (wf_common_init()) return true;
+  if (wf_common_init()) return false;
 
-  if (compute()) return null_value ? false : true;
+  if (compute()) return current_thd->is_error();
 
   return m_value->val_json(jw);
 }
@@ -5504,9 +5504,9 @@ bool Item_lead_lag::get_time(MYSQL_TIME *ltime) {
 }
 
 bool Item_lead_lag::val_json(Json_wrapper *jw) {
-  if (wf_common_init()) return true;
+  if (wf_common_init()) return false;
 
-  if (compute()) return null_value ? false : true;
+  if (compute()) return current_thd->is_error();
 
   return (m_has_value ? (m_use_default ? m_default->val_json(jw)
                                        : m_value->val_json(jw))
@@ -5631,15 +5631,19 @@ String *Item_sum_json::val_str(String *str) {
 
 bool Item_sum_json::val_json(Json_wrapper *wr) {
   if (m_is_window_function) {
-    if (wf_common_init()) return true;
+    if (wf_common_init()) return false;
     /*
       For a group aggregate function, add() is called by Aggregator* classes;
       for window functions, which does not use Aggregator, it has to be called
       here.
     */
-    add();
+    if (add()) return error_json();
   }
-  if (null_value || m_wrapper->empty()) return true;
+
+  assert(!current_thd->is_error());
+  assert(!m_wrapper->empty());
+
+  if (null_value) return false;
 
   /*
     val_* functions are called more than once in aggregates and

@@ -1081,3 +1081,14 @@ num	cnt_named	cnt_direct
 3	3	3
 2	4	4
 1	5	5
+#
+# Bug#32028154: INCORRECT ERROR PROPAGATION FROM WINDOW FUNCTIONS
+#
+SELECT JSON_ARRAY(FIRST_VALUE(CAST('' AS JSON)) OVER (), '');
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(NTH_VALUE(CAST('' AS JSON), 1) OVER (), '');
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(LEAD(CAST('true' AS JSON), 2, CAST('' AS JSON)) OVER (), '');
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(JSON_ARRAYAGG(CAST('' AS JSON)) OVER (), '');
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
