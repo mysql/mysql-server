@@ -136,7 +136,7 @@ if (!$crash_rollback)
 --source include/rpl_connection_slave.inc
 # First, a regular error
 CREATE USER user1;
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno=convert_error(ER_CANNOT_USER)
 --source include/wait_for_slave_sql_error.inc
 DROP USER user1;
@@ -145,7 +145,7 @@ DROP USER user1;
 # Simulated error in pre_commit hook stops the slave applier.
 #
 SET @@GLOBAL.debug="+d,rli_pre_commit_error";
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno=convert_error(ER_UNKNOWN_ERROR)
 --source include/wait_for_slave_sql_error.inc
 #
@@ -188,7 +188,7 @@ while ($loops)
   # Memorizing execution status right before "scheduled" failure
   --source include/gtid_step_reset.inc
   --error 0,2013
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
 
   # Server wait for stop and restart
   --enable_reconnect
@@ -219,7 +219,7 @@ while ($loops)
   --eval SET @@GLOBAL.debug=$crash_commit
   --source include/gtid_step_reset.inc
   --error 0,2013
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
 
   # Server wait for stop and restart
   --enable_reconnect
