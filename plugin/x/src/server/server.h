@@ -35,9 +35,6 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/ngs/include/ngs/socket_events.h"
-#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
@@ -52,6 +49,9 @@
 #include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/interface/timeout_callback.h"
+#include "plugin/x/src/ngs/protocol/protocol_config.h"
+#include "plugin/x/src/ngs/socket_events.h"
+#include "plugin/x/src/ngs/thread.h"
 #include "plugin/x/src/server/authentication_container.h"
 #include "plugin/x/src/server/server_factory.h"
 

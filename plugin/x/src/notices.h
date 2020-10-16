@@ -29,9 +29,9 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/ngs/error_code.h"
 
 namespace xpl {
 

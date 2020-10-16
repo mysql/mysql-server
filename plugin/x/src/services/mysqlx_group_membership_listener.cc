@@ -24,8 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/service_implementation.h>
 
-#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/module_mysqlx.h"
+#include "plugin/x/src/ngs/notice_descriptor.h"
 
 DEFINE_BOOL_METHOD(notify_view_change, (const char *view_id)) {
   auto queue = modules::Module_mysqlx::get_instance_notice_queue();

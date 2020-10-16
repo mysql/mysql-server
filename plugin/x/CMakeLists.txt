@@ -43,7 +43,8 @@ ENDIF()
 
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="mysqlx")
 
-INCLUDE(source_files.cmake)
+INCLUDE(src/source_files.cmake)
+LIST(TRANSFORM XPL_SRC PREPEND "src/")
 
 SET(XPLUGIN_LOG_PROTOBUF 1 CACHE STRING "Enable logging of protobuf messages")
 
@@ -88,13 +89,13 @@ INCLUDE_DIRECTORIES(
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 
-ADD_COMPILE_FLAGS(${xplugin_SRC}
+ADD_COMPILE_FLAGS(${XPL_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
 # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
 IF(MY_COMPILER_IS_SUNPRO)
-  ADD_COMPILE_FLAGS(${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
+  ADD_COMPILE_FLAGS(${MYSQLX_PROJECT_DIR}/src/ngs/client.cc
     COMPILE_FLAGS "-xO2"
   )
 ENDIF()
@@ -102,7 +103,7 @@ ENDIF()
 # MYSQL_ADD_PLUGIN may have disabled the plugin.
 IF(WITH_MYSQLX)
   MYSQL_ADD_PLUGIN(${MYSQLX_PLUGIN_NAME}
-    ${xplugin_SRC}
+    ${XPL_SRC}
     DEFAULT
     DEPENDENCIES xprotocol_tags
     LINK_LIBRARIES
@@ -135,10 +136,3 @@ IF(WIN32)
   ADD_DEFINITIONS(-DU_STATIC_IMPLEMENTATION)
 ENDIF()
 
-IF(WITH_MYSQLX)
-  MYSQL_ADD_COMPONENT("${MYSQLX_PLUGIN_NAME}_global_reset"
-    ${xplugin_global_reset_SRC}
-    MODULE_ONLY
-    TEST_ONLY
-    )
-ENDIF()
