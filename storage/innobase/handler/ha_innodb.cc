@@ -3035,11 +3035,6 @@ bool apply_dd_undo_state(space_id_t space_id, const dd::Tablespace *dd_space) {
       break;
     case DD_SPACE_STATE_INACTIVE:
       undo_space->set_inactive_explicit();
-      /* It is the responsibility of the purge thread to empty this undo
-      tablespace, truncate it, and then mark it empty. Set the rseg truncate
-      frequency to 1 and wake up the purge thread so that it gets started
-      immediately and continues until it is done. */
-      purge_sys->undo_trunc.set_rseg_truncate_frequency(1);
       srv_wake_purge_thread_if_not_active();
 
       break;
@@ -15750,11 +15745,6 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
   undo_space->set_inactive_explicit();
   ut_d(ib::info(ER_IB_MSG_UNDO_ALTERED_INACTIVE, undo_space->file_name()));
 
-  /* It is the responsibility of the purge thread to empty this undo
-  tablespace, truncate it, and then mark it empty. Set the rseg truncate
-  frequency to 1 and wake up the purge thread so that it gets started
-  immediately and continues until it is done. */
-  purge_sys->undo_trunc.set_rseg_truncate_frequency(1);
   srv_wake_purge_thread_if_not_active();
 
   return (0);

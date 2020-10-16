@@ -117,17 +117,20 @@ struct purge_iter_t {
     // Do nothing
   }
 
-  trx_id_t trx_no;   /*!< Purge has advanced past all
-                     transactions whose number is less
-                     than this */
-  undo_no_t undo_no; /*!< Purge has advanced past all records
-                     whose undo number is less than this */
+  /** Purge has advanced past all transactions whose number
+  is less than this */
+  trx_id_t trx_no;
+
+  /** Purge has advanced past all records whose undo number
+  is less than this. */
+  undo_no_t undo_no;
+
+  /** The last undo record resided in this space id */
   space_id_t undo_rseg_space;
-  /*!< Last undo record resided in this
-  space id. */
+
+  /** The transaction that created the undo log record,
+  the Modifier trx id */
   trx_id_t modifier_trx_id;
-  /*!< the transaction that created the
-  undo log record. Modifier trx id.*/
 };
 
 /* Namespace to hold all the related functions and variables needed
@@ -837,13 +840,11 @@ constexpr ulint TRUNCATE_FREQUENCY = 128;
 /** Track an UNDO tablespace marked for truncate. */
 class Truncate {
  public:
-  Truncate()
-      : m_space_id_marked(SPACE_UNKNOWN),
-        m_purge_rseg_truncate_frequency(
-            static_cast<ulint>(srv_purge_rseg_truncate_frequency)),
-        m_timer() {
-    /* Do Nothing. */
-  }
+  /** Constructor. */
+  Truncate() : m_space_id_marked(SPACE_UNKNOWN), m_timer() {}
+
+  /** Destructor. */
+  ~Truncate() = default;
 
   /** Is tablespace selected for truncate.
   @return true if undo tablespace is marked for truncate */
@@ -869,10 +870,6 @@ class Truncate {
 
   /** Reset for next rseg truncate. */
   void reset() {
-    /* Sync with global value as we are done with truncate now. */
-    set_rseg_truncate_frequency(
-        static_cast<ulint>(srv_purge_rseg_truncate_frequency));
-
     reset_timer();
     m_marked_space_is_empty = false;
     m_space_id_marked = SPACE_UNKNOWN;
@@ -901,17 +898,6 @@ class Truncate {
     return (get_scan_space_num());
   }
 
-  /** Get local rseg purge truncate frequency
-  @return rseg purge truncate frequency. */
-  ulint get_rseg_truncate_frequency() const {
-    return (m_purge_rseg_truncate_frequency);
-  }
-
-  /** Set local rseg purge truncate frequency */
-  void set_rseg_truncate_frequency(ulint frequency) {
-    m_purge_rseg_truncate_frequency = frequency;
-  }
-
   /** Check if the given space id is equal to the space ID that is marked for
   truncation.
   @return true if they are equal, false otherwise. */
@@ -934,12 +920,6 @@ class Truncate {
   truncated and rebuilt.  This allow the code to do the check for undo
   logs only once. */
   bool m_marked_space_is_empty;
-
-  /** Rollback segment(s) purge frequency. This is a local value maintained
-  along with the global value. It is set to the global value before each
-  truncate.  But when a tablespace is marked for truncate it is updated
-  to 1 and then minimum value among 2 is used by the purge action. */
-  ulint m_purge_rseg_truncate_frequency;
 
   /** Elapsed time since last truncate check. */
   ib::Timer m_timer;

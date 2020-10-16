@@ -12,6 +12,9 @@ SET GLOBAL innodb_fast_shutdown = 0;
 --let $shutdown_server_timeout = 300
 --source include/restart_mysqld.inc
 
+SET @old_truncate_frequency = @@innodb_purge_rseg_truncate_frequency;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=5;
+
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Failed to truncate undo tablespace");
 call mtr.add_suppression("\\[Warning\\] .* Purge reached the head of the history list");
@@ -147,4 +150,4 @@ DROP UNDO TABLESPACE undo_003;
 DROP UNDO TABLESPACE undo_004;
 DROP UNDO TABLESPACE undo_005;
 
-
+SET GLOBAL innodb_purge_rseg_truncate_frequency=@old_truncate_frequency;

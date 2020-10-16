@@ -3020,13 +3020,13 @@ static ulint srv_do_purge(
       break;
     }
 
-    ulint undo_trunc_freq = purge_sys->undo_trunc.get_rseg_truncate_frequency();
+    bool do_truncate =
+        (srv_shutdown_state.load() == SRV_SHUTDOWN_PURGE
+             ? true
+             : (++count % srv_purge_rseg_truncate_frequency) == 0);
 
-    ulint rseg_truncate_frequency = ut_min(
-        static_cast<ulint>(srv_purge_rseg_truncate_frequency), undo_trunc_freq);
-
-    n_pages_purged = trx_purge(n_use_threads, srv_purge_batch_size,
-                               (++count % rseg_truncate_frequency) == 0);
+    n_pages_purged =
+        trx_purge(n_use_threads, srv_purge_batch_size, do_truncate);
 
     *n_total_purged += n_pages_purged;
 
@@ -3224,7 +3224,7 @@ void srv_purge_coordinator_thread() {
   /* This trx_purge is called to remove any undo records (added by
   background threads) after completion of the above loop. When
   srv_fast_shutdown != 0, a large batch size can cause significant
-  delay in shutdown ,so reducing the batch size to magic number 20
+  delay in shutdown, so reducing the batch size to magic number 20
   (which was default in 5.5), which we hope will be sufficient to
   remove all the undo records */
   const uint temp_batch_size = 20;
