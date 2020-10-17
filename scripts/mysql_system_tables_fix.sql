@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -1075,6 +1075,34 @@ SET @firewall_whitelist_id_column =
      WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND column_name = 'ID');
 SET @cmd="ALTER TABLE mysql.firewall_whitelist ADD ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY";
 SET @str = IF(@had_firewall_whitelist > 0 AND @firewall_whitelist_id_column = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- Add Firewall tables for group profiles
+--
+
+SET @had_user_allowlist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND
+           table_type = 'BASE TABLE');
+SET @had_group_allowlist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_group_allowlistX' AND
+           table_type = 'BASE TABLE');
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_group_allowlist(NAME VARCHAR(288) NOT NULL, RULE text NOT NULL, ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_groups(NAME VARCHAR(288) PRIMARY KEY, MODE ENUM ('OFF', 'RECORDING', 'PROTECTING', 'DETECTING') DEFAULT 'OFF', USERHOST VARCHAR(288)) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_membership(GROUP_ID VARCHAR(288), MEMBER_ID VARCHAR(288)) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
