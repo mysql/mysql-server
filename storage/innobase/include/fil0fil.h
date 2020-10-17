@@ -294,7 +294,7 @@ struct fil_space_t {
   ib::Timer m_last_extended{};
 
   /** Extend undo tablespaces by so many pages. */
-  size_t m_undo_extend{};
+  page_no_t m_undo_extend{};
 
   /** Tablespace name */
   char *name{};
