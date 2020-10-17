@@ -569,6 +569,7 @@ INCLUDE(mysql_add_executable)
 INCLUDE(curl)
 INCLUDE(rapidjson)
 INCLUDE(fprofile)
+INCLUDE(gloves)
 
 
 IF(UNIX)
