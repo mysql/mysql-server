@@ -617,7 +617,8 @@ int ha_archive::create(const char *name, TABLE *table_arg,
       Field *field = key_part->field;
 
       if (!field->is_flag_set(AUTO_INCREMENT_FLAG)) {
-        error = -1;
+        // Archive Engine does not support command without AUTO_INCREMENT_FLAG
+        error = 200;
         DBUG_PRINT("ha_archive", ("Index error in creating archive table"));
         goto error;
       }
