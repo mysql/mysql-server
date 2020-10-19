@@ -531,9 +531,7 @@ class HttpServerFactory {
       {
         const auto res = tls_ctx.init_tmp_dh(config.ssl_dh_params);
         if (!res) {
-          throw std::system_error(
-              res.error(),
-              " failed to parse dh-param file '" + config.ssl_dh_params + "'");
+          throw std::system_error(res.error(), "setting ssl_dh_params failed");
         }
       }
 

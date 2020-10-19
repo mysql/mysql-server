@@ -1384,7 +1384,7 @@ const HttpServerSecureParams http_server_secure_params[] {
            {"ssl_dh_param", "does-not-exist"},
        },
        false,
-       "failed to open dh-param"},
+       "setting ssl_dh_params failed"},
       {"dh_param file is no PEM",
        "WL12524::TS_CR_08",
        {
@@ -1398,7 +1398,7 @@ const HttpServerSecureParams http_server_secure_params[] {
             kPlaceholderDatadir + std::string("/") + "my_port.js"},
        },
        false,
-       "failed to parse dh-param file"},
+       "setting ssl_dh_params failed"},
       {"dh ciphers, default dh-params",
        "WL12524::TS_CR_09",
        {
