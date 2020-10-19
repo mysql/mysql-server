@@ -2059,8 +2059,8 @@ INSERT INTO t2 VALUES (1);
 EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 EXPLAIN
 -> Append
-    -> Stream results
-        -> Aggregate: sum(t2.a)
+    -> Stream results  (cost=0.45 rows=1)
+        -> Aggregate: sum(t2.a)  (cost=0.45 rows=1)
             -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
     -> Stream results  (cost=0.00..0.00 rows=1)
         -> Zero input rows (No matching min/max row), aggregated into one output row  (cost=0.00..0.00 rows=1)

@@ -940,6 +940,8 @@ StreamingIterator::StreamingIterator(
 }
 
 bool StreamingIterator::Init() {
+  if (m_join->query_expression()->clear_correlated_query_blocks()) return true;
+
   if (m_provide_rowid) {
     memset(table()->file->ref, 0, table()->file->ref_length);
   }

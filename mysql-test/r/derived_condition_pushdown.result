@@ -349,7 +349,7 @@ WHERE f1 > 3;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
-        -> Group aggregate: sum(t1.f2)
+        -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
             -> Filter: (t1.f1 > 3)  (cost=*** rows=***)
                 -> Index range scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -362,7 +362,7 @@ WHERE f1+f2 > 30;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
-        -> Group aggregate: sum(t1.f3)
+        -> Group aggregate: sum(t1.f3)  (cost=*** rows=***)
             -> Filter: ((t1.f1 + t1.f2) > 30)  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -378,7 +378,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (rollup_group_item(t1.f1,0) is null)
-            -> Group aggregate with rollup: sum(t1.f2)
+            -> Group aggregate with rollup: sum(t1.f2)  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
 SELECT f1
@@ -395,7 +395,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))
-            -> Group aggregate with rollup: sum(t1.f2)
+            -> Group aggregate with rollup: sum(t1.f2)  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
 SELECT *
@@ -416,7 +416,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)))
-            -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)
+            -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
 SELECT *
@@ -724,7 +724,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (t1.f1 > (3 * rand()))
-            -> Group aggregate: sum(t1.f2)
+            -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
                 -> Filter: (t1.f1 < 10)  (cost=*** rows=***)
                     -> Index range scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -806,7 +806,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (p() = 1)
-            -> Group aggregate: sum(t1.f2)
+            -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
@@ -824,7 +824,7 @@ WHERE p() = 1;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
-        -> Group aggregate: sum(t1.f2)
+        -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
             -> Filter: <cache>((p() = 1))  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -842,7 +842,7 @@ SELECT AVG(f1) FROM (SELECT * FROM t1) as dt WHERE f2 > val;
 END|
 CALL p();
 EXPLAIN
--> Aggregate: avg(dt.f1)
+-> Aggregate: avg(dt.f1)  (cost=*** rows=***)
     -> Table scan on dt  (cost=*** rows=***)
         -> Materialize  (cost=*** rows=***)
             -> Filter: (t1.f2 > <cache>(val@0))  (cost=*** rows=***)
@@ -1022,7 +1022,7 @@ EXPLAIN
 -> Table scan on dt1  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (sum(t1.f2) > 10)
-            -> Group aggregate: sum(t1.f2)
+            -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
                 -> Filter: (t1.f1 > 10)  (cost=*** rows=***)
                     -> Index range scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -1037,7 +1037,7 @@ EXPLAIN
 -> Table scan on dt2  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (sum(t1.f2) > 10)
-            -> Group aggregate: sum(t1.f2)
+            -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
                 -> Filter: (t1.f1 > 10)  (cost=*** rows=***)
                     -> Index range scan on t1 using f1_2  (cost=*** rows=***)
 

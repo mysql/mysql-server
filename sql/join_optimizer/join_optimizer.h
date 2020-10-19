@@ -38,8 +38,7 @@
   and a large number of limitations: The most notable ones are that
   we do not support:
 
-    - Many SQL features: DISTINCT, recursive CTE, windowing functions,
-      LATERAL, JSON_TABLE.
+    - Many SQL features: recursive CTE, window functions, JSON_TABLE.
     - Secondary engine.
     - Hints.
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
@@ -97,6 +96,7 @@ class Query_block;
 AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               std::string *trace);
 
+void EstimateAggregateCost(AccessPath *path);
 void EstimateMaterializeCost(AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_JOIN_OPTIMIZER_H

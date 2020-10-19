@@ -4480,7 +4480,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)
             -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))
-                -> Aggregate: max(t1.b)
+                -> Aggregate: max(t1.b)  (cost=0.10..0.10 rows=1)
                     -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
 
 Warnings:

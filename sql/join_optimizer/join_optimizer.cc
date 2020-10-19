@@ -692,12 +692,16 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
     } else {
       bool rematerialize = tl->derived_query_expression()->uncacheable != 0;
       if (tl->common_table_expr()) {
-        // Handled in clear_corr_something_something, not here
+        // Handled in clear_corr_derived_tmp_tables(), not here.
         rematerialize = false;
       }
       materialize_path = GetAccessPathForDerivedTable(
           m_thd, tl, table, rematerialize,
           /*invalidators=*/nullptr, m_need_rowid, path);
+      // Handle LATERAL.
+      materialize_path->parameter_tables =
+          GetNodeMapFromTableMap(tl->derived_query_expression()->m_lateral_deps,
+                                 m_graph.table_num_to_node_num);
     }
 
     // TODO(sgunders): Take rematerialization cost into account,
@@ -1351,10 +1355,6 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
   }
   for (TABLE_LIST *tl = join->query_block->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
-    if (tl->is_derived() && tl->derived_query_expression()->m_lateral_deps) {
-      my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "LATERAL");
-      return true;
-    }
     // We actually support table functions, but not joins against them.
     if (tl->is_table_function()) {
       my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "table functions");
@@ -1551,6 +1551,18 @@ void EstimateMaterializeCost(AccessPath *path) {
 
   path->init_cost = path->cost + std::max(table_path->init_cost, 0.0);
   path->cost = path->cost + std::max(table_path->cost, 0.0);
+}
+
+void EstimateAggregateCost(AccessPath *path) {
+  AccessPath *child = path->aggregate().child;
+
+  // TODO(sgunders): How do we estimate how many rows aggregation
+  // will be reducing the output by?
+  path->num_output_rows = child->num_output_rows;
+  path->init_cost = child->init_cost;
+  path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows;
+  path->num_output_rows_before_filter = path->num_output_rows;
+  path->cost_before_filter = path->cost;
 }
 
 JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
@@ -1984,16 +1996,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
       AccessPath *aggregate_path =
           NewAggregateAccessPath(thd, root_path, /*rollup=*/false);
-
-      // TODO(sgunders): How do we estimate how many rows aggregation
-      // will be reducing the output by?
-      aggregate_path->num_output_rows = root_path->num_output_rows;
-      aggregate_path->init_cost = root_path->init_cost;
-      aggregate_path->cost =
-          root_path->cost + kAggregateOneRowCost * root_path->num_output_rows;
-      aggregate_path->num_output_rows_before_filter =
-          aggregate_path->num_output_rows;
-      aggregate_path->cost_before_filter = aggregate_path->cost;
+      EstimateAggregateCost(aggregate_path);
 
       receiver.ProposeAccessPath(aggregate_path, &new_root_candidates, "");
     }

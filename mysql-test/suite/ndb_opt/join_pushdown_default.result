@@ -1951,8 +1951,8 @@ group by t1.b
 order by t1.b, cnt;
 EXPLAIN
 -> Sort: t1.b, cnt
-    -> Stream results
-        -> Group aggregate: count(distinct t2.b)
+    -> Stream results  (cost=4012.80 rows=16)
+        -> Group aggregate: count(distinct t2.b)  (cost=4012.80 rows=16)
             -> Nested loop inner join  (cost=4011.20 rows=16)
                 -> Sort: t1.b  (cost=4001.60 rows=16)
                     -> Table scan on t1  (cost=4001.60 rows=16)

@@ -1120,7 +1120,7 @@ GROUP BY table_user.id
 EXPLAIN
 -> Index scan on table_city using PRIMARY  (cost=0.85 rows=6)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: group_concat(d.id separator ',')
+    -> Aggregate: group_concat(d.id separator ',')  (cost=5.95..8.40 rows=5)
         -> Table scan on d  (cost=0.51..2.56 rows=5)
             -> Materialize  (cost=5.85..7.90 rows=5)
                 -> Table scan on <temporary>  (cost=0.51..2.56 rows=5)

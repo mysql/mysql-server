@@ -1822,7 +1822,7 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)
+    -> Aggregate: count(0)  (cost=1.75 rows=4)
         -> Nested loop left join  (cost=1.35 rows=4)
             -> Table scan on t2  (cost=0.45 rows=2)
             -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1849,7 +1849,7 @@ EXPLAIN
     -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)
+    -> Aggregate: count(0)  (cost=1.75 rows=4)
         -> Nested loop left join  (cost=1.35 rows=4)
             -> Table scan on t2  (cost=0.45 rows=2)
             -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1875,7 +1875,7 @@ from v1;
 EXPLAIN
 -> Table scan on t  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)
+    -> Aggregate: count(0)  (cost=1.75 rows=4)
         -> Nested loop left join  (cost=1.35 rows=4)
             -> Table scan on t2  (cost=0.45 rows=2)
             -> Filter: (t3.a > (t2.a - t.a))  (cost=0.35 rows=2)
@@ -1901,9 +1901,9 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=0.64..2.55 rows=4)
+        -> Materialize  (cost=2.79..4.70 rows=4)
+            -> Aggregate: count(0)  (cost=1.75 rows=4)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1935,12 +1935,12 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join  (cost=7.05 rows=0)
+-> Nested loop inner join  (cost=7.85 rows=8)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=0.64..2.55 rows=4)
+        -> Materialize (invalidate on row from t1)  (cost=2.79..4.70 rows=4)
+            -> Aggregate: count(0)  (cost=1.75 rows=4)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1964,12 +1964,12 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join  (cost=7.05 rows=0)
+-> Nested loop inner join  (cost=7.85 rows=8)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=0.64..2.55 rows=4)
+        -> Materialize (invalidate on row from t1)  (cost=2.79..4.70 rows=4)
+            -> Aggregate: count(0)  (cost=1.75 rows=4)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
@@ -1994,12 +1994,12 @@ from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt
 on true;
 EXPLAIN
--> Nested loop inner join  (cost=7.05 rows=0)
+-> Nested loop inner join  (cost=7.85 rows=8)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=2.50..2.50 rows=0)
-        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
-            -> Aggregate: count(0)
+    -> Table scan on dt  (cost=0.64..2.55 rows=4)
+        -> Materialize (invalidate on row from t1)  (cost=2.79..4.70 rows=4)
+            -> Aggregate: count(0)  (cost=1.75 rows=4)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
                     -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)

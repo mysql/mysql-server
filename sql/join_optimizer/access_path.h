@@ -92,9 +92,6 @@ struct RelationalExpression {
   RelationalExpression *left, *right;
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
-
-  // TODO(sgunders): When we support LATERAL, add a bit to signal
-  // a dependent join.
 };
 
 /**

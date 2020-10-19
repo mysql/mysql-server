@@ -51,7 +51,7 @@ EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3
 EXPLAIN
 -> Table scan on t1  (cost=0.55 rows=3)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: min(i.f1)
+    -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
         -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
             -> Table scan on i  (cost=0.35 rows=3)
 
@@ -79,22 +79,22 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
 EXPLAIN
--> Aggregate: sum(t1.f1)
+-> Aggregate: sum(t1.f1)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN
--> Group (no aggregates)
+-> Group (no aggregates)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
 EXPLAIN
--> Group aggregate: count(0)
+-> Group aggregate: count(0)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
 EXPLAIN
--> Group aggregate with rollup: count(0)
+-> Group aggregate with rollup: count(0)  (cost=0.85 rows=3)
     -> Index scan on t1 using f1  (cost=0.55 rows=3)
 
 DROP TABLE t1;
@@ -294,11 +294,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 EXPLAIN
--> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
-    -> Temporary table with deduplication  (cost=5.00..5.00 rows=0)
-        -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
-            -> Temporary table  (cost=2.50..2.50 rows=0)
-                -> Group aggregate: count(distinct t1.b)
+-> Table scan on <temporary>  (cost=0.24..2.64 rows=11)
+    -> Temporary table with deduplication  (cost=7.53..9.93 rows=11)
+        -> Table scan on <temporary>  (cost=0.24..2.64 rows=11)
+            -> Temporary table  (cost=3.79..6.19 rows=11)
+                -> Group aggregate: count(distinct t1.b)  (cost=2.45 rows=11)
                     -> Sort: t1.a  (cost=1.35 rows=11)
                         -> Table scan on t1  (cost=1.35 rows=11)
 
@@ -315,7 +315,7 @@ EXPLAIN
 -> Filter: (t1.f1 = (select #2))  (cost=0.55 rows=3)
     -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
     -> Select #2 (subquery in condition; dependent)
-        -> Aggregate: min(i.f1)
+        -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
             -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
                 -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
 
@@ -344,7 +344,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Index scan on i using PRIMARY  (cost=0.55 rows=3)
         -> Select #3 (subquery in projection; dependent)
-            -> Aggregate: min(ii.f1)
+            -> Aggregate: min(ii.f1)  (cost=0.45 rows=1)
                 -> Filter: (ii.f1 > t1.f1)  (cost=0.35 rows=1)
                     -> Index range scan on ii (re-planned for each iteration)  (cost=0.35 rows=3)
 
@@ -362,7 +362,7 @@ EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.
 EXPLAIN
 -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 -> Select #4 (subquery in projection; dependent)
-    -> Aggregate: min(i.f1)
+    -> Aggregate: min(i.f1)  (cost=0.45 rows=1)
         -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
             -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
 
@@ -608,7 +608,7 @@ EXPLAIN
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)
             -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.a)))
-                -> Aggregate: max(t1.a)
+                -> Aggregate: max(t1.a)  (cost=0.65 rows=1)
                     -> Filter: (t1.b = 2)  (cost=0.55 rows=1)
                         -> Table scan on t1  (cost=0.55 rows=3)
 
@@ -772,7 +772,7 @@ EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.
 EXPLAIN
 -> Table scan on t1  (cost=1.25 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=1)
 -> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)  (actual time=N.NNN..N.NNN rows=1 loops=10)
+    -> Aggregate: count(0)  (cost=0.92 rows=3) (actual time=N.NNN..N.NNN rows=1 loops=10)
         -> Filter: (inner_t1.f1 < t1.f1)  (cost=0.58 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=10)
             -> Table scan on inner_t1  (cost=0.58 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=10)
 
