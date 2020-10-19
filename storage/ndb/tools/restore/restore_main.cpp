@@ -81,7 +81,7 @@ static unsigned opt_nodegroup_map_len= 0;
 static NODE_GROUP_MAP opt_nodegroup_map[MAX_NODE_GROUP_MAPS];
 #define OPT_NDB_NODEGROUP_MAP 'z'
 
-static int opt_decrypt = 0;
+static bool opt_decrypt = false;
 
 // g_backup_password global, directly accessed in Restore.cpp.
 char* g_backup_password = nullptr;
@@ -861,7 +861,7 @@ readArguments(Ndb_opts & opts, char*** pargv)
   {
     exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
   }
-  if (opt_decrypt == 0)
+  if (!opt_decrypt)
   {
     if (g_backup_password != nullptr)
     {
@@ -871,18 +871,13 @@ readArguments(Ndb_opts & opts, char*** pargv)
       exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
     }
   }
-  else if (opt_decrypt == 1)
+  else
   {
     if (g_backup_password == nullptr)
     {
       err << "Decrypting backup (--decrypt) requires password (--backup-password)." << endl;
       exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
     }
-  }
-  else
-  {
-    // Should be impossible for boolean option.
-    abort();
   }
 
   if (ga_nodeId == 0)
