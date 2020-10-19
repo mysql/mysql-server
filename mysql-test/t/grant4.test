@@ -115,10 +115,8 @@ GRANT SHOW VIEW, SELECT ON v3 to mysqltest_u1@localhost;
 connection con1;
 use mysqltest_db1;
 --echo ** Connect as restricted user mysqltest_u1.
---echo ** SELECT FROM INFORMATION_SCHEMA.STATISTICS will succeed because any privileges will do (authentication is enough).
-#
-# this result is wrong. reported as bug#34104
-#
+--echo # The user does not have table level grants on table t5. Hence cannot get
+--echo # information about it from INFORMATION_SCHEMA.STATISTICS
 SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE table_name='t5';
 #
 # Bug27145 EXTRA_ACL trouble
