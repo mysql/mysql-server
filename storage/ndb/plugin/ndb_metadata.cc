@@ -1811,6 +1811,11 @@ bool Ndb_metadata::compare(THD *thd, Ndb *ndb,
                            const dd::Table *dd_table_def) {
   Ndb_metadata ndb_metadata(ndbtab);
 
+  // Allow DBUG keyword to disable the comparison
+  if (DBUG_EVALUATE_IF("ndb_metadata_compare_skip", true, false)) {
+    return true;  // Compare disabled
+  }
+
   // Transform NDB table to DD table def
   std::unique_ptr<dd::Table> ndb_table_def{dd::create_object<dd::Table>()};
   if (!ndb_metadata.create_table_def(ndb, ndb_table_def.get())) {
