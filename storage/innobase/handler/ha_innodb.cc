@@ -2358,6 +2358,22 @@ dberr_t Compression::validate(const char *algorithm) {
   return (check(algorithm, &compression));
 }
 
+bool Compression::validate(const Compression::Type type) {
+  bool ret = true;
+
+  switch (type) {
+    case NONE:
+    case ZLIB:
+    case LZ4:
+      break;
+    default:
+      ret = false;
+      break;
+  }
+
+  return ret;
+}
+
 #ifndef UNIV_HOTBACKUP
 bool Encryption::is_none(const char *algorithm) noexcept {
   /* NULL is the same as NONE */
@@ -7119,7 +7135,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
-  dberr_t err = dict_set_compression(m_prebuilt->table, table->s->compress.str);
+  dberr_t err =
+      dict_set_compression(m_prebuilt->table, table->s->compress.str, false);
 
   switch (err) {
     case DB_NOT_FOUND:

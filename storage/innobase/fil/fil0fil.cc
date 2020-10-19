@@ -8717,7 +8717,7 @@ struct Fil_page_iterator {
   size_t block_size;
 
   /** Compression algorithm to be used if the table needs to be compressed. */
-  Compression::Type m_compression_type{Compression::NONE};
+  Compression::Type m_compression_type{};
 };
 
 /** TODO: This can be made parallel trivially by chunking up the file
