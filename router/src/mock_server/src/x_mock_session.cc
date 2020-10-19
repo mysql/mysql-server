@@ -256,7 +256,7 @@ bool MySQLServerMockSessionX::process_handshake() {
       }
       case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START: {
         Mysqlx::Session::AuthenticateContinue msg_auth_cont;
-        msg_auth_cont.set_auth_data("abcd");
+        msg_auth_cont.set_auth_data("01234567890123456789");
         protocol_->send_message(
             Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, msg_auth_cont);
         break;
