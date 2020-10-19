@@ -38,7 +38,7 @@
   and a large number of limitations: The most notable ones are that
   we do not support:
 
-    - Many SQL features: recursive CTE, window functions, JSON_TABLE.
+    - Some SQL features: recursive CTE, window functions.
     - Secondary engine.
     - Hints.
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).

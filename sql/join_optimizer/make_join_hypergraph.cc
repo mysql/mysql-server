@@ -872,6 +872,7 @@ NodeMap GetNodeMapFromTableMap(
     table_map table_map, const array<int, MAX_TABLES> &table_num_to_node_num) {
   NodeMap ret = 0;
   for (int table_num : BitsSetIn(table_map)) {
+    assert(table_num < int(MAX_TABLES));
     assert(table_num_to_node_num[table_num] != -1);
     ret |= TableBitmap(table_num_to_node_num[table_num]);
   }

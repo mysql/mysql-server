@@ -302,6 +302,11 @@ struct AccessPath {
   /// a hash join until parameter_tables is zero again.
   ///
   /// This is a NodeMap (we just don't want to pull in the typedef here).
+  /// As a special case, we allow setting RAND_TABLE_BIT, even though it
+  /// is normally part of a table_map, not a NodeMap. In this case, it specifies
+  /// that the access path is entirely noncachable, because it depends on
+  /// something nondeterministic or an outer reference, and thus can never be on
+  /// the right side of a hash join, ever.
   uint64_t parameter_tables{0};
 
   /// Auxiliary data used by a secondary storage engine while processing the

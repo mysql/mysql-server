@@ -69,6 +69,7 @@
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/table.h"
+#include "sql/table_function.h"
 
 using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
@@ -681,14 +682,22 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx) {
     // MEM_ROOT.
     AccessPath *materialize_path;
     if (tl->is_table_function()) {
-      // TODO(sgunders): Queries with these are currently disabled,
-      // since they may depend on fields from other tables (and then
-      // hash join is not possible). When we support parametrized paths,
-      // add the correct parameters here, compute some cost
-      // and open up for the queries.
-      assert(false);
       materialize_path = NewMaterializedTableFunctionAccessPath(
           m_thd, table, tl->table_function, path);
+      CopyCosts(table_path, materialize_path);
+      materialize_path->cost_before_filter = materialize_path->init_cost =
+          materialize_path->cost;
+      materialize_path->num_output_rows_before_filter =
+          materialize_path->num_output_rows;
+
+      materialize_path->parameter_tables = GetNodeMapFromTableMap(
+          tl->table_function->used_tables() & ~PSEUDO_TABLE_BITS,
+          m_graph.table_num_to_node_num);
+      if (Overlaps(tl->table_function->used_tables(),
+                   OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) {
+        // Make sure the table function is never hashed, ever.
+        materialize_path->parameter_tables |= RAND_TABLE_BIT;
+      }
     } else {
       bool rematerialize = tl->derived_query_expression()->uncacheable != 0;
       if (tl->common_table_expr()) {
@@ -1139,7 +1148,11 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
       if (!first) {
         str += ", ";
       }
-      str += graph.nodes[node_idx].table->alias;
+      if ((uint64_t{1} << node_idx) == RAND_TABLE_BIT) {
+        str += "<random>";
+      } else {
+        str += graph.nodes[node_idx].table->alias;
+      }
       first = false;
     }
     str += "}";
@@ -1352,14 +1365,6 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
   if (join->query_block->active_options() & OPTION_BUFFER_RESULT) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "SQL_BUFFER_RESULT");
     return true;
-  }
-  for (TABLE_LIST *tl = join->query_block->leaf_tables; tl != nullptr;
-       tl = tl->next_leaf) {
-    // We actually support table functions, but not joins against them.
-    if (tl->is_table_function()) {
-      my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "table functions");
-      return true;
-    }
   }
   return false;
 }
