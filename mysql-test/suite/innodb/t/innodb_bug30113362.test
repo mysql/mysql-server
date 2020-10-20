@@ -154,9 +154,7 @@ SET DEBUG_SYNC = "now WAIT_FOR pessimistic_row_purge_clust_pause";
 # level 0: ...(asq,asr,ass) [(ast,asu,asv)...(dyt,dyu,dyv)] (dyw,dyx,dyy)...
 
 # Not blocked searches
---skip_if_hypergraph  # Only not blocked if a primary key lookup.
 SELECT a00 FROM t1 WHERE a00 = 'ass';
---skip_if_hypergraph  # Only not blocked if a primary key lookup.
 SELECT a00 FROM t1 WHERE a00 = 'dyx';
 
 --connection con1
