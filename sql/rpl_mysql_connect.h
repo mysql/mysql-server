@@ -35,16 +35,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 using MYSQL_RES_VAL = std::vector<std::vector<std::string>>;
 
 /**
-  std::tuple<error status, result>
+  std::tuple<error number, result>
   where
     first element of tuple is function return value and determines:
-    false  Successful
-    true   Error
+    0   Successful
+    !0  Error
 
     second element of tuple is result of executed query in rows<cols<value>>
     format where rows and cols both are std::vector and value is std::string.
 */
-using MYSQL_RES_TUPLE = std::tuple<bool, std::vector<std::vector<std::string>>>;
+using MYSQL_RES_TUPLE = std::tuple<uint, std::vector<std::vector<std::string>>>;
 
 /**
   @class Mysql_connection

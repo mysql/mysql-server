@@ -52,6 +52,7 @@ enum class enum_sql_query_tag : uint {
   CONFIG_MODE_QUORUM_MONITOR = 0,
   CONFIG_MODE_QUORUM_IO,
   GR_MEMBER_ALL_DETAILS,
+  GR_MEMBER_ALL_DETAILS_FETCH_FOR_57
 };
 
 /* Configuration mode quorum status */

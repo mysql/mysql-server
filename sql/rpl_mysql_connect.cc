@@ -118,7 +118,7 @@ Mysql_connection::execute_query(std::string query) const {
 
   if (m_conn) error = mysql_real_query(m_conn, query.c_str(), query.length());
 
-  if (error) return make_pair(error, rs);
+  if (error) return make_pair(mysql_errno(m_conn), rs);
 
   if (m_conn->field_count > 0) {
     MYSQL_RES *result = mysql_store_result(m_conn);
