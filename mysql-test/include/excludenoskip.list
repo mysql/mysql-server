@@ -282,4 +282,4 @@ no_checkpoint_cleanup.inc
 # 28. This file is used by test scenarios which should be skipped when
 # PARTIAL_REVOKES feature is set to ON. Setting this variables to ON
 # disables wildcard grants at database level.
-no_partial_revokes.inc
+not_partial_revokes.inc
