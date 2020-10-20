@@ -25,7 +25,7 @@
 #ifndef DBACC_H
 #define DBACC_H
 
-#if defined (VM_TRACE) && !defined(ACC_SAFE_QUEUE)
+#if (defined (VM_TRACE) || defined(ERROR_INSERT)) && !defined(ACC_SAFE_QUEUE)
 #define ACC_SAFE_QUEUE
 #endif
 

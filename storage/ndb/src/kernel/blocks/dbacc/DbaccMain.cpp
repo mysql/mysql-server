@@ -2617,7 +2617,7 @@ void Dbacc::execACC_COMMITREQ(Signal* signal,
   jamEntry();
   operationRecPtr.i = opPtrI;
   operationRecPtr.p = opPtrP;
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   Uint32 tmp = operationRecPtr.i;
   void* ptr = operationRecPtr.p;
 #endif
