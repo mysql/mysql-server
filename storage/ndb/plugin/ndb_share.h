@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -201,34 +201,31 @@ struct NDB_SHARE {
   // Acquire NDB_SHARE reference for use by ha_ndbcluster
   static NDB_SHARE *acquire_for_handler(const char *key,
                                         const class ha_ndbcluster *reference);
+  // Create NDB_SHARE reference for use by ha_ndbcluster
+  // NOTE! Used only in a few special cases to allow opening table before
+  // connection to NDB has been initialized
+  static NDB_SHARE *create_for_handler(const char *key,
+                                       const class ha_ndbcluster *);
   // Release NDB_SHARE reference acquired by ha_ndbcluster
   static void release_for_handler(NDB_SHARE *share,
                                   const class ha_ndbcluster *reference);
-  // Create NDB_SHARE and acquire reference
-  static NDB_SHARE *create_and_acquire_reference(const char *key,
-                                                 const char *reference);
-  static NDB_SHARE *create_and_acquire_reference(const char *key,
-                                                 const class ha_ndbcluster *);
-  // Acquire reference by key
-  static NDB_SHARE *acquire_reference_by_key(const char *key,
-                                             const char *reference);
-  static NDB_SHARE *acquire_reference_by_key_have_lock(const char *key,
-                                                       const char *reference);
+
+  // Acquire or create NDB_SHARE
+  // - used when table has just been created or discovered/synced/installed
+  static NDB_SHARE *acquire_or_create_reference(const char *key,
+                                                const char *reference);
+  // Acquire NDB_SHARE reference
+  static NDB_SHARE *acquire_reference(const char *key, const char *reference);
+
   // Acquire reference to existing NDB_SHARE
   static NDB_SHARE *acquire_reference_on_existing(NDB_SHARE *share,
                                                   const char *reference);
   // Release NDB_SHARE reference
   static void release_reference(NDB_SHARE *share, const char *reference);
-  static void release_reference_have_lock(NDB_SHARE *share,
-                                          const char *reference);
 
-  /**
-    @brief Mark NDB_SHARE as dropped, remove from list of open shares and
-    put in list of dropped shares if the NDB_SHARE is still referenced.
-
-    @param share_ptr Pointer to the NDB_SHARE pointer
-   */
-  static void mark_share_dropped(NDB_SHARE **share_ptr);
+  // Mark NDB_SHARE as dropped and release reference
+  static void mark_share_dropped_and_release(NDB_SHARE *share,
+                                             const char *reference);
 
   // Rename share, rename in list of tables
   static int rename_share(NDB_SHARE *share, struct NDB_SHARE_KEY *new_key);
@@ -272,6 +269,14 @@ struct NDB_SHARE {
   static void free_share(NDB_SHARE **share);
 
   static NDB_SHARE *acquire_reference_impl(const char *key);
+
+  /**
+    @brief Mark NDB_SHARE as dropped, remove from list of open shares and
+    put in list of dropped shares if the NDB_SHARE is still referenced.
+
+    @param share_ptr Pointer to the NDB_SHARE pointer
+  */
+  static void mark_share_dropped_impl(NDB_SHARE **share_ptr);
 
 #ifndef DBUG_OFF
   // Lists of the different "users" who have acquired a reference to
@@ -376,12 +381,13 @@ class Ndb_share_temp_ref {
   NDB_SHARE *m_share;
   const std::string m_reference;
 
-  Ndb_share_temp_ref(const Ndb_share_temp_ref &);             // prevent
-  Ndb_share_temp_ref &operator=(const Ndb_share_temp_ref &);  // prevent
+  Ndb_share_temp_ref(const Ndb_share_temp_ref &) = delete;
+  Ndb_share_temp_ref &operator=(const Ndb_share_temp_ref &) = delete;
+
  public:
   Ndb_share_temp_ref(const char *key, const char *reference)
       : m_reference(reference) {
-    m_share = NDB_SHARE::acquire_reference_by_key(key, m_reference.c_str());
+    m_share = NDB_SHARE::acquire_reference(key, m_reference.c_str());
     // Should always exist
     assert(m_share);
   }

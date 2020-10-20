@@ -805,32 +805,13 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
   return true;
 }
 
-class Mutex_guard {
- public:
-  Mutex_guard(mysql_mutex_t &mutex) : m_mutex(mutex) {
-    mysql_mutex_lock(&m_mutex);
-  }
-  Mutex_guard(const Mutex_guard &) = delete;
-  ~Mutex_guard() { mysql_mutex_unlock(&m_mutex); }
-
- private:
-  mysql_mutex_t &m_mutex;
-};
-
-extern mysql_mutex_t ndbcluster_mutex;
 void Ndb_metadata_sync::drop_ndb_share(const char *schema_name,
                                        const char *table_name) const {
   char key[FN_REFLEN + 1];
   build_table_filename(key, sizeof(key) - 1, schema_name, table_name, "", 0);
-  NDB_SHARE *share =
-      NDB_SHARE::acquire_reference_by_key(key,
-                                          "table_sync");  // temporary ref
+  NDB_SHARE *share = NDB_SHARE::acquire_reference(key, "table_sync");
   if (share) {
-    Mutex_guard ndbcluster_mutex_guard(ndbcluster_mutex);
-    NDB_SHARE::mark_share_dropped(&share);
-    DBUG_ASSERT(share);
-    NDB_SHARE::release_reference_have_lock(share,
-                                           "table_sync");  // temporary ref
+    NDB_SHARE::mark_share_dropped_and_release(share, "table_sync");
   }
 }
 

@@ -60,8 +60,8 @@ bool Ndb_schema_dist::is_ready(void *requestor) {
   ss << "is_ready_" << std::hex << requestor;
   const std::string reference = ss.str();
 
-  NDB_SHARE *schema_share = NDB_SHARE::acquire_reference_by_key(
-      NDB_SCHEMA_TABLE_KEY, reference.c_str());
+  NDB_SHARE *schema_share =
+      NDB_SHARE::acquire_reference(NDB_SCHEMA_TABLE_KEY, reference.c_str());
   if (schema_share == nullptr) return false;  // Not ready
 
   if (!schema_share->have_event_operation()) {
@@ -123,8 +123,8 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
   DBUG_TRACE;
 
   // Acquire reference on mysql.ndb_schema
-  m_share = NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
-                                                m_share_reference.c_str());
+  m_share = NDB_SHARE::acquire_reference(NDB_SCHEMA_TABLE_KEY,
+                                         m_share_reference.c_str());
 
   if (m_share == nullptr || m_share->have_event_operation() == false ||
       DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false)) {

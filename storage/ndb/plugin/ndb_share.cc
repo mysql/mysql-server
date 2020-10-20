@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ extern Ndb *g_ndb;
 extern mysql_mutex_t ndbcluster_mutex;
 
 // List of NDB_SHARE's which correspond to an open table.
-std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
+static std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
     ndbcluster_open_tables;
 
 // List of NDB_SHARE's which have been dropped, they are kept in this list
@@ -228,19 +228,28 @@ void NDB_SHARE::free_share(NDB_SHARE **share) {
   }
 }
 
-NDB_SHARE *NDB_SHARE::create_and_acquire_reference(const char *key,
-                                                   const char *reference) {
+NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *key,
+                                                  const char *reference) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
 
-  // Make sure that the SHARE does not already exist
-  DBUG_ASSERT(!acquire_reference_impl(key));
+  NDB_SHARE *share = acquire_reference_impl(key);
+  if (share) {
+    share->refs_insert(reference);
+    DBUG_PRINT("NDB_SHARE",
+               ("'%s', reference: '%s', use_count: %u", share->key_string(),
+                reference, share->use_count()));
+    mysql_mutex_unlock(&ndbcluster_mutex);
+    return share;
+  }
 
-  NDB_SHARE *share = NDB_SHARE::create(key);
+  // No NDB_SHARE existed, create one
+  share = NDB_SHARE::create(key);
   if (share == nullptr) {
     DBUG_PRINT("error", ("failed to create NDB_SHARE"));
+    mysql_mutex_unlock(&ndbcluster_mutex);
     return nullptr;
   }
 
@@ -255,11 +264,13 @@ NDB_SHARE *NDB_SHARE::create_and_acquire_reference(const char *key,
   share->increment_use_count();
   share->refs_insert(reference);
 
+  mysql_mutex_unlock(&ndbcluster_mutex);
+
   return share;
 }
 
-NDB_SHARE *NDB_SHARE::create_and_acquire_reference(
-    const char *key, const class ha_ndbcluster *reference) {
+NDB_SHARE *NDB_SHARE::create_for_handler(const char *key,
+                                         const class ha_ndbcluster *reference) {
   mysql_mutex_lock(&ndbcluster_mutex);
 
   NDB_SHARE *share = NDB_SHARE::create(key);
@@ -342,8 +353,8 @@ NDB_SHARE *NDB_SHARE::acquire_reference_on_existing(NDB_SHARE *share,
   Acquire reference using key.
 */
 
-NDB_SHARE *NDB_SHARE::acquire_reference_by_key(const char *key,
-                                               const char *reference) {
+NDB_SHARE *NDB_SHARE::acquire_reference(const char *key,
+                                        const char *reference) {
   mysql_mutex_lock(&ndbcluster_mutex);
 
   NDB_SHARE *share = acquire_reference_impl(key);
@@ -355,21 +366,6 @@ NDB_SHARE *NDB_SHARE::acquire_reference_by_key(const char *key,
   }
 
   mysql_mutex_unlock(&ndbcluster_mutex);
-  return share;
-}
-
-NDB_SHARE *NDB_SHARE::acquire_reference_by_key_have_lock(
-    const char *key, const char *reference) {
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
-
-  NDB_SHARE *share = acquire_reference_impl(key);
-  if (share) {
-    share->refs_insert(reference);
-    DBUG_PRINT("NDB_SHARE",
-               ("'%s', reference: '%s', use_count: %u", share->key_string(),
-                reference, share->use_count()));
-  }
-
   return share;
 }
 
@@ -383,17 +379,6 @@ void NDB_SHARE::release_reference(NDB_SHARE *share, const char *reference) {
   NDB_SHARE::free_share(&share);
 
   mysql_mutex_unlock(&ndbcluster_mutex);
-}
-
-void NDB_SHARE::release_reference_have_lock(NDB_SHARE *share,
-                                            const char *reference) {
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
-
-  DBUG_PRINT("NDB_SHARE", ("release '%s', reference: '%s', use_count: %u",
-                           share->key_string(), reference, share->use_count()));
-
-  share->refs_erase(reference);
-  NDB_SHARE::free_share(&share);
 }
 
 #ifndef DBUG_OFF
@@ -632,7 +617,7 @@ void NDB_SHARE::deinitialize(void) {
                   share->share_state_string());
     // If last ref, share is destroyed immediately, else moved to list of
     // dropped shares
-    NDB_SHARE::mark_share_dropped(&share);
+    NDB_SHARE::mark_share_dropped_impl(&share);
   }
 
   // Release remaining dropped shares, release one NDB_SHARE after the other
@@ -658,7 +643,7 @@ void NDB_SHARE::release_extra_share_references(void) {
     */
     DBUG_ASSERT(share->use_count() > 0);
     DBUG_ASSERT(share->state != NSS_DROPPED);
-    NDB_SHARE::mark_share_dropped(&share);
+    NDB_SHARE::mark_share_dropped_impl(&share);
   }
   mysql_mutex_unlock(&ndbcluster_mutex);
 }
@@ -685,7 +670,7 @@ void NDB_SHARE::real_free_share(NDB_SHARE **share_ptr) {
 
 extern void ndb_index_stat_free(NDB_SHARE *);
 
-void NDB_SHARE::mark_share_dropped(NDB_SHARE **share_ptr) {
+void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   NDB_SHARE *share = *share_ptr;
   DBUG_TRACE;
   mysql_mutex_assert_owner(&ndbcluster_mutex);
@@ -734,6 +719,24 @@ void NDB_SHARE::mark_share_dropped(NDB_SHARE **share_ptr) {
   // Share is referenced by 'dropped_shares'
   share->refs_insert("dropped_shares");
   // NOTE! The refcount has not been incremented
+}
+
+void NDB_SHARE::mark_share_dropped_and_release(NDB_SHARE *share,
+                                               const char *reference) {
+  mysql_mutex_lock(&ndbcluster_mutex);
+  mark_share_dropped_impl(&share);
+
+  DBUG_PRINT("NDB_SHARE", ("release '%s', reference: '%s', use_count: %u",
+                           share->key_string(), reference, share->use_count()));
+
+  share->refs_erase(reference);
+  NDB_SHARE::free_share(&share);
+
+  // If this was the last share ref, it is now deleted. If there are more
+  // references, the share will remain in the list of dropped until
+  // remaining references are released.
+
+  mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 #ifndef DBUG_OFF

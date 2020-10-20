@@ -2303,8 +2303,7 @@ class Ndb_schema_event_handler {
 
     char key[FN_REFLEN + 1];
     build_table_filename(key, sizeof(key) - 1, db, name, "", 0);
-    NDB_SHARE *share = NDB_SHARE::acquire_reference_by_key(key, reference);
-    return share;
+    return NDB_SHARE::acquire_reference(key, reference);
   }
 
   bool has_shadow_table(Ndb_dd_client &dd_client, const char *schema_name,
@@ -2537,14 +2536,8 @@ class Ndb_schema_event_handler {
       }
       mysql_mutex_unlock(&share->mutex);
 
-      mysql_mutex_lock(&ndbcluster_mutex);
-      NDB_SHARE::mark_share_dropped(&share);
-      NDB_SHARE::release_reference_have_lock(share,
-                                             "offline_alter_table_commit");
-      // If this was the last share ref, it is now deleted. If there are more
-      // references, the share will remain in the list of dropped until
-      // remaining references are released.
-      mysql_mutex_unlock(&ndbcluster_mutex);
+      NDB_SHARE::mark_share_dropped_and_release(share,
+                                                "offline_alter_table_commit");
     }
 
     // Install table from NDB, overwrite the existing table
@@ -2850,19 +2843,14 @@ class Ndb_schema_event_handler {
               std::string(schema->name) + std::string(1, '\'') + " failed");
     }
 
-    NDB_SHARE *share = acquire_reference(schema->db, schema->name,
-                                         "drop_table");  // temporary ref.
+    NDB_SHARE *share =
+        acquire_reference(schema->db, schema->name, "drop_table");
     if (!share || !share->op) {
       ndbapi_invalidate_table(schema->db, schema->name);
       ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
     }
     if (share) {
-      mysql_mutex_lock(&ndbcluster_mutex);
-      NDB_SHARE::mark_share_dropped(&share);  // server ref.
-      DBUG_ASSERT(share);                     // Should still be ref'ed
-      NDB_SHARE::release_reference_have_lock(share,
-                                             "drop_table");  // temporary ref.
-      mysql_mutex_unlock(&ndbcluster_mutex);
+      NDB_SHARE::mark_share_dropped_and_release(share, "drop_table");
     }
 
     ndbapi_invalidate_table(schema->db, schema->name);
@@ -3178,12 +3166,7 @@ class Ndb_schema_event_handler {
         ndb_tdc_close_cached_table(m_thd, schema->db, ndb_table_name.c_str());
       }
       if (share) {
-        mysql_mutex_lock(&ndbcluster_mutex);
-        NDB_SHARE::mark_share_dropped(&share);  // server ref.
-        DBUG_ASSERT(share);                     // Should still be ref'ed
-        NDB_SHARE::release_reference_have_lock(share,
-                                               "drop_db");  // temporary ref.
-        mysql_mutex_unlock(&ndbcluster_mutex);
+        NDB_SHARE::mark_share_dropped_and_release(share, "drop_db");
       }
 
       ndbapi_invalidate_table(schema->db, ndb_table_name.c_str());
@@ -5040,21 +5023,14 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb, const char *db,
                                  (uint)(sizeof(key) - (end - key)));
   }
 
-  mysql_mutex_lock(&ndbcluster_mutex);
-
-  // Check if NDB_SHARE for this table already exist
+  // Acquire or create reference to NDB_SHARE
   NDB_SHARE *share =
-      NDB_SHARE::acquire_reference_by_key_have_lock(key, "create_binlog_setup");
+      NDB_SHARE::acquire_or_create_reference(key, "create_binlog_setup");
   if (share == nullptr) {
-    // NDB_SHARE didn't exist, the normal case, try to create it
-    share = NDB_SHARE::create_and_acquire_reference(key, "create_binlog_setup");
-    if (share == nullptr) {
-      // Could not create the NDB_SHARE. Unlikely, catch in debug
-      DBUG_ASSERT(false);
-      return -1;
-    }
+    // Could not create the NDB_SHARE. Unlikely, catch in debug
+    DBUG_ASSERT(false);
+    return -1;
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
 
   // Before 'schema_dist_is_ready', Thd_ndb::ALLOW_BINLOG_SETUP is required
   int ret = 0;

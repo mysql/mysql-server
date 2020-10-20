@@ -449,7 +449,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool open_table_set_key_fields();
   void release_key_fields();
   void release_ndb_share();
-  NDB_SHARE *open_table_before_schema_sync(THD *, const char *);
+  NDB_SHARE *open_table_before_schema_sync(THD *, const char *) const;
   void prepare_inplace__drop_index(uint index_num);
 
   enum_alter_inplace_result supported_inplace_field_change(Alter_inplace_info *,

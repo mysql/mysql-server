@@ -9990,13 +9990,8 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     ndb_dd_table_fix_partition_count(table_def, ndbtab->getPartitionCount());
   }
 
-  mysql_mutex_lock(&ndbcluster_mutex);
-
-  // Create NDB_SHARE for the new table
-  NDB_SHARE *share = NDB_SHARE::create_and_acquire_reference(name, "create");
-
-  mysql_mutex_unlock(&ndbcluster_mutex);
-
+  // Acquire or create reference to NDB_SHARE
+  NDB_SHARE *share = NDB_SHARE::acquire_or_create_reference(name, "create");
   if (!share) {
     // Failed to create the NDB_SHARE instance for this table, most likely OOM.
     return create.failed_oom("Failed to acquire NDB_SHARE");
@@ -10963,7 +10958,7 @@ int drop_table_impl(THD *thd, Ndb *ndb,
                     const char *path, const char *db, const char *table_name) {
   DBUG_TRACE;
 
-  NDB_SHARE *share = NDB_SHARE::acquire_reference_by_key(path, "delete_table");
+  NDB_SHARE *share = NDB_SHARE::acquire_reference(path, "delete_table");
 
   bool skip_related = false;
   int drop_flags = 0;
@@ -11067,10 +11062,7 @@ int drop_table_impl(THD *thd, Ndb *ndb,
   }
 
   if (share) {
-    mysql_mutex_lock(&ndbcluster_mutex);
-    NDB_SHARE::mark_share_dropped(&share);
-    NDB_SHARE::release_reference_have_lock(share, "delete_table");
-    mysql_mutex_unlock(&ndbcluster_mutex);
+    NDB_SHARE::mark_share_dropped_and_release(share, "delete_table");
   }
 
   return 0;
@@ -11123,13 +11115,9 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *) {
       // NdbDictionary or publish this change via schema distribution.
       // Mark the share as dropped, then clear the table from the dictionary
       // cache.
-      mysql_mutex_lock(&ndbcluster_mutex);
-      NDB_SHARE *share = NDB_SHARE::acquire_reference_by_key_have_lock(
-          path, "delete_table__for_local_shadow");
-      NDB_SHARE::mark_share_dropped(&share);
-      NDB_SHARE::release_reference_have_lock(share,
-                                             "delete_table__for_local_shadow");
-      mysql_mutex_unlock(&ndbcluster_mutex);
+      NDB_SHARE *share =
+          NDB_SHARE::acquire_reference(path, "delete_local_shadow");
+      NDB_SHARE::mark_share_dropped_and_release(share, "delete_local_shadow");
       clear_table_from_dictionary_cache(thd_ndb->ndb, m_dbname,
                                         orig_table_name);
       return 0;
@@ -11419,19 +11407,19 @@ bool ha_ndbcluster::open_table_set_key_fields() {
    has completed. As a rule, the user who wants to use the table will have
    to wait, but there are some exceptions.
 */
-NDB_SHARE *ha_ndbcluster::open_table_before_schema_sync(THD *thd,
-                                                        const char *name) {
+NDB_SHARE *ha_ndbcluster::open_table_before_schema_sync(
+    THD *thd, const char *name) const {
   /* Migrating distributed privilege tables. Create the NDB_SHARE. It will be
-     opened, renamed, and then dropped, as the table is migrated to InnoDB.
+     opened, renamed, and then dropped, as the table is migrated.
   */
   if (Ndb_dist_priv_util::is_privilege_table(m_dbname, m_tabname)) {
-    return NDB_SHARE::create_and_acquire_reference(name, this);
+    return NDB_SHARE::create_for_handler(name, this);
   }
 
   /* Running CHECK TABLE FOR UPGRADE in a server upgrade thread.
    */
   if (thd->system_thread == SYSTEM_THREAD_SERVER_UPGRADE)
-    return NDB_SHARE::create_and_acquire_reference(name, this);
+    return NDB_SHARE::create_for_handler(name, this);
 
   /* User must wait until schema distribution is ready.
    */
