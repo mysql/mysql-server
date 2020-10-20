@@ -766,8 +766,9 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   const double build_cost =
       right_path->cost + right_path->num_output_rows * kHashBuildOneRowCost;
-  double cost = left_path->cost + build_cost +
-                left_path->num_output_rows * kHashProbeOneRowCost;
+  double cost =
+      left_path->cost + build_cost +
+      (left_path->num_output_rows + num_output_rows) * kHashProbeOneRowCost;
 
   // Note: This isn't strictly correct if the non-equijoin conditions
   // have selectivities far from 1.0; the cost should be calculated
