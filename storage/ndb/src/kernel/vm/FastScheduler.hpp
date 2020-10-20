@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ public:
   /**
    * Used when dumping to trace file
    */
-  void retrieveDump(Signal *signal, Uint32 myRptr);
+  void retrieveDump(Signal25 *signal, Uint32 myRptr);
   
   void clear();
   Uint32 getOccupancy() const;
@@ -331,7 +331,7 @@ APZJobBuffer::retrieve(Signal* signal, Uint32 myRptr)
 
 inline
 void
-APZJobBuffer::retrieveDump(Signal* signal, Uint32 myRptr)
+APZJobBuffer::retrieveDump(Signal25* signal, Uint32 myRptr)
 {              
   /**
    * Note that signal id is not taken from global data
