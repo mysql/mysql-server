@@ -5581,17 +5581,17 @@ Dblqh::updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId)
 }//Dblqh::updatePackedList()
 
 void
-Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
+Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out)
 {
   jamEntryDebug();
   TcConnectionrecPtr regTcPtr;
-  regTcPtr.i = signal->theData[0];
+  regTcPtr.i = opPtrI;
   ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
   
-  switch(signal->theData[1])
+  switch (attrId)
   {
   case AttributeHeader::RANGE_NO:
-    signal->theData[0] = regTcPtr.p->m_scan_curr_range_no;
+    out[0] = regTcPtr.p->m_scan_curr_range_no;
     break;
   case AttributeHeader::RECORDS_IN_RANGE:
   case AttributeHeader::INDEX_STAT_KEY:
@@ -5602,8 +5602,7 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
     ScanRecordPtr tmp;
     tmp.i = regTcPtr.p->tcScanRec;
     ndbrequire(c_scanRecordPool.getValidPtr(tmp));
-    signal->theData[0] = tmp.p->scanAccPtr;
-    c_tux->execREAD_PSEUDO_REQ(signal);
+    c_tux->execREAD_PSEUDO_REQ(tmp.p->scanAccPtr, attrId, out);
     break;
   }
   case AttributeHeader::LOCK_REF:
@@ -5614,15 +5613,15 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
      *  - Bottom 32-bits of LQH-local key-request id (for uniqueness)
      */
     jam();
-    signal->theData[0] = (getOwnNodeId() << 16) | regTcPtr.p->fragmentid; 
-    signal->theData[1] = regTcPtr.p->tcOprec;
-    signal->theData[2] = (Uint32) regTcPtr.p->lqhKeyReqId;
+    out[0] = (getOwnNodeId() << 16) | regTcPtr.p->fragmentid;
+    out[1] = regTcPtr.p->tcOprec;
+    out[2] = (Uint32) regTcPtr.p->lqhKeyReqId;
     break;
   }
   case AttributeHeader::OP_ID:
   {
     jam();
-    memcpy(signal->theData, &regTcPtr.p->lqhKeyReqId, 8);
+    memcpy(out, &regTcPtr.p->lqhKeyReqId, 8);
     break;
   }
   case AttributeHeader::CORR_FACTOR64:
@@ -5636,8 +5635,8 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
       add = tmp.p->m_curr_batch_size_rows;
     }
 
-    signal->theData[0] = regTcPtr.p->m_corrFactorLo + add;
-    signal->theData[1] = regTcPtr.p->m_corrFactorHi;
+    out[0] = regTcPtr.p->m_corrFactorLo + add;
+    out[1] = regTcPtr.p->m_corrFactorHi;
     break;
   }
   default:

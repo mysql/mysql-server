@@ -977,7 +977,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_BOUND_INFO		710
 
 #define GSN_ACC_LOCKREQ			711
-#define GSN_READ_PSEUDO_REQ             712
+// #define GSN_READ_PSEUDO_REQ             712 /* Not a signal since 8.0.24 */
 
 /**
  * Filegroup 

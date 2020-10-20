@@ -96,7 +96,6 @@ Dbtux::Dbtux(Block_context& ctx,
     /*
      * DbtuxStat.cpp
      */
-    addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
     addRecSignal(GSN_INDEX_STAT_REP, &Dbtux::execINDEX_STAT_REP);
     addRecSignal(GSN_INDEX_STAT_IMPL_REQ, &Dbtux::execINDEX_STAT_IMPL_REQ);
     /*
@@ -130,7 +129,6 @@ Dbtux::Dbtux(Block_context& ctx,
     addRecSignal(GSN_ACCKEYCONF, &Dbtux::execACCKEYCONF);
     addRecSignal(GSN_ACCKEYREF, &Dbtux::execACCKEYREF);
     addRecSignal(GSN_ACC_ABORTCONF, &Dbtux::execACC_ABORTCONF);
-    addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
     addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
     addRecSignal(GSN_DBINFO_SCANREQ, &Dbtux::execDBINFO_SCANREQ);
     addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);

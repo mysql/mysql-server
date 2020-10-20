@@ -660,8 +660,6 @@ Dblqh::Dblqh(Block_context& ctx,
     addRecSignal(GSN_TUX_ADD_ATTRCONF, &Dblqh::execTUX_ADD_ATTRCONF);
     addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
 
-    addRecSignal(GSN_READ_PSEUDO_REQ, &Dblqh::execREAD_PSEUDO_REQ);
-
     addRecSignal(GSN_DEFINE_BACKUP_REF, &Dblqh::execDEFINE_BACKUP_REF);
     addRecSignal(GSN_DEFINE_BACKUP_CONF, &Dblqh::execDEFINE_BACKUP_CONF);
 
@@ -748,7 +746,6 @@ Dblqh::Dblqh(Block_context& ctx,
     addRecSignal(GSN_LQHKEYREF, &Dblqh::execLQHKEYREF);
     addRecSignal(GSN_LQHKEYCONF, &Dblqh::execLQHKEYCONF);
     addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
-    addRecSignal(GSN_READ_PSEUDO_REQ, &Dblqh::execREAD_PSEUDO_REQ);
     addRecSignal(GSN_CONTINUEB, &Dblqh::execCONTINUEB);
     addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dblqh::execSIGNAL_DROPPED_REP, true);
     addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);

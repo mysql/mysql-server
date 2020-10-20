@@ -95,7 +95,7 @@ class Dbtux : public SimulatedBlock {
   Dblqh* c_lqh;
   Dbacc* c_acc;
   void execTUX_BOUND_INFO(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
+  void execREAD_PSEUDO_REQ(Uint32 scanPtrI, Uint32 attrId, Uint32* out);
 
 private:
   // sizes are in words (Uint32)

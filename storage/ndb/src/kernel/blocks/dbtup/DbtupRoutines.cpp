@@ -2762,15 +2762,9 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::RANGE_NO:
   {
-    const Uint32 DataSz = 2;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = attrId;
-
-    c_lqh->execREAD_PSEUDO_REQ(signal);
-    outBuffer[1] = signal->theData[0];
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
+                               attrId,
+                               outBuffer + 1);
     sz = 1;
     break;
   }
@@ -2784,34 +2778,19 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::RECORDS_IN_RANGE:
   {
-    const Uint32 DataSz = 4;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = attrId;
-    
-    c_lqh->execREAD_PSEUDO_REQ(signal);
-    outBuffer[1] = signal->theData[0];
-    outBuffer[2] = signal->theData[1];
-    outBuffer[3] = signal->theData[2];
-    outBuffer[4] = signal->theData[3];
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
+                               attrId,
+                               outBuffer + 1);
     sz = 4;
     break;
   }
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
-    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
+    Uint32 out[MAX_INDEX_STAT_KEY_SIZE];
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer, attrId, out);
 
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = attrId;
-
-    c_lqh->execREAD_PSEUDO_REQ(signal);
-
-    const Uint8* src = (Uint8*)&signal->theData[0];
+    const Uint8* src = (Uint8*)&out[0];
     Uint32 byte_sz = 2 + src[0] + (src[1] << 8);
     Uint8* dst = (Uint8*)&outBuffer[1];
     memcpy(dst, src, byte_sz);
@@ -2914,31 +2893,20 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::CORR_FACTOR32:
   {
-    const Uint32 DataSz = 2;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
     thrjam(req_struct->jamBuffer);
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
-    c_lqh->execREAD_PSEUDO_REQ(signal);
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
+                               AttributeHeader::CORR_FACTOR64,
+                               outBuffer + 1);
     sz = 1;
-    outBuffer[1] = signal->theData[0];
     break;
   }
   case AttributeHeader::CORR_FACTOR64:
   {
-    const Uint32 DataSz = 2;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
     thrjam(req_struct->jamBuffer);
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
-    c_lqh->execREAD_PSEUDO_REQ(signal);
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
+                               AttributeHeader::CORR_FACTOR64,
+                               outBuffer + 1);
     sz = 2;
-    outBuffer[1] = signal->theData[0];
-    outBuffer[2] = signal->theData[1];
     break;
   }
   case AttributeHeader::FRAGMENT_EXTENT_SPACE:
@@ -2959,32 +2927,17 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::LOCK_REF:
   {
-    const Uint32 DataSz = 3;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = attrId;
-    
-    c_lqh->execREAD_PSEUDO_REQ(signal);
-    outBuffer[1] = signal->theData[0];
-    outBuffer[2] = signal->theData[1];
-    outBuffer[3] = signal->theData[2];
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
+                               attrId,
+                               outBuffer + 1);
     sz = 3;
     break;
   }
   case AttributeHeader::OP_ID:
   {
-    const Uint32 DataSz = 2;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = attrId;
-
-    c_lqh->execREAD_PSEUDO_REQ(signal);
-    outBuffer[1] = signal->theData[0];
-    outBuffer[2] = signal->theData[1];
+    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
+                               attrId,
+                               outBuffer + 1);
     sz = 2;
     break;
   }
