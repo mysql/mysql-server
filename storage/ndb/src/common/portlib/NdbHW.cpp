@@ -1417,7 +1417,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
   mem_status.dwLength = sizeof (mem_status);
   GlobalMemoryStatusEx(&mem_status);
 
-  hwinfo->is_cpuinfo_available = 1;
+  hwinfo->is_cpuinfo_available = 0;
   hwinfo->is_cpudata_available = 0;
   hwinfo->num_cpu_cores = core_id;
   hwinfo->num_cpu_sockets = socket_id;
@@ -1427,8 +1427,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
   hwinfo->hw_memory_size = mem_status.ullTotalPhys;
   if (hwinfo->cpu_cnt_max < hwinfo->cpu_cnt)
   {
-    perror("Too many CPUs");
-    abort();
+    hwinfo->cpu_cnt = hwinfo->cpu_cnt_max;
   }
   return 0;
 }
