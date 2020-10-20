@@ -2597,7 +2597,7 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
 
   operationRecPtr.p->m_op_bits = opbits;
 
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   ndbrequire(operationRecPtr.p->localdata.m_page_no == key->m_page_no);
   ndbrequire(operationRecPtr.p->localdata.m_page_idx == key->m_page_idx);
@@ -3817,7 +3817,7 @@ Dbacc::readTablePk(Uint32 localkey1,
                    bool xfrm)
 {
   int ret = -ZTUPLE_DELETED_ERROR;
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   const int xfrm_multiply = (xfrm) ? MAX_XFRM_MULTIPLY : 1;
   memset(keys, 0x1f, (fragrecptr.p->keyLength * xfrm_multiply) << 2);
 #endif
@@ -4321,7 +4321,7 @@ void Dbacc::commitdelete(Signal* signal)
      * are no scans in progress in the last elements container, otherwise
      * the delete container should have an extra scan bit set.
      */
-#ifdef VM_TRACE
+#if defined (VM_TRACE) || defined(ERROR_INSERT)
     ContainerHeader conhead(lastPageptr.p->word32[tlastContainerptr]);
     ndbassert(!conhead.isInUse() || !conhead.isScanInProgress());
     conhead = ContainerHeader(delPageptr.p->word32[delConptr]);
@@ -4369,7 +4369,7 @@ void Dbacc::commitdelete(Signal* signal)
   /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
   /*  DELETED ELEMENT.                                                                 */
   /* --------------------------------------------------------------------------------- */
-#if defined(VM_TRACE) || !defined(NDEBUG)
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
   jamDebug();
   jamLineDebug(Uint16(delPageptr.i));
   jamLineDebug(Uint16(delElemptr));
@@ -5007,7 +5007,7 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
     ndbrequire(oprec_pool.getValidPtr(nextP));
   }
 
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   loPtr.i = nextP.p->m_lock_owner_ptr_i;
   ndbrequire(oprec_pool.getValidPtr(loPtr));
   ndbassert(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
@@ -6268,9 +6268,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   else
   {
     expPageptr.i = getPagePtr(fragrecptr.p->directory, expDirInd);
-#ifdef VM_TRACE
-    require(expPageptr.i != RNIL);
-#endif
+    ndbassert(expPageptr.i != RNIL);
   }
   if (expPageptr.i == RNIL) {
     jam();
@@ -6310,9 +6308,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   Uint32 conidx = fragrecptr.p->getPageIndex(splitBucket);
   expDirInd = fragrecptr.p->getPageNumber(splitBucket);
   pageptr.i = getPagePtr(fragrecptr.p->directory, expDirInd);
-#ifdef VM_TRACE
-  require(pageptr.i != RNIL);
-#endif
+  ndbassert(pageptr.i != RNIL);
   fragrecptr.p->expSenderIndex = conidx;
   fragrecptr.p->expSenderPageptr = pageptr.i;
   if (pageptr.i == RNIL) {
@@ -6602,7 +6598,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   {
     ndbrequire(fragrecptr.p->localkeylen == 1);
     const Uint32 localkey = pageptr.p->word32[elemptr + 1];
-#if defined(VM_TRACE) || !defined(NDEBUG)
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
     jamDebug();
     jamLineDebug(Uint16(pageptr.i));
     jamLineDebug(Uint16(elemptr));
@@ -7196,13 +7192,13 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       DynArr256 dir(directoryPoolPtr, fragrecptr.p->directory);
       DynArr256::ReleaseIterator iter;
       Uint32 relcode;
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
       Uint32 count = 0;
 #endif
       dir.init(iter);
       while ((relcode = dir.trim(fragrecptr.p->expSenderDirIndex, iter)) != 0)
       {
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
         count++;
         ndbrequire(count <= 256);
 #endif
@@ -8501,9 +8497,7 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
     OperationrecPtr oprec;
     oprec.i = ElementHeader::getOpPtrI(pageptr.p->word32[elemptr]);
     ndbrequire(oprec_pool.getValidPtr(oprec));
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
-    ndbrequire(oprec.p->localdata.m_page_no == pageptr.p->word32[tisoLocalPtr]);
-#endif
+    ndbassert(oprec.p->localdata.m_page_no == pageptr.p->word32[tisoLocalPtr]);
     operationRecPtr.p->localdata = oprec.p->localdata;
   }
   tisoLocalPtr = tisoLocalPtr + 1;
