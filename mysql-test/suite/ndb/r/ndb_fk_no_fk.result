@@ -1,13 +1,3 @@
-# Init for ndb_show_tables result
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-id INT,
-type VARCHAR(20),
-state VARCHAR(20),
-logging VARCHAR(20),
-_database VARCHAR(255),
-_schema VARCHAR(20),
-name VARCHAR(255)
-);
 #
 # Create child tables before parents
 # by turning off foreign_key_checks for this session
@@ -30,9 +20,6 @@ foreign key (b, c) references t4(pk1, pk2),
 foreign key (d, e, f) references t5(uk1, uk2, uk3),
 foreign key (g, h, i, j) references t6(oi1, oi2, oi3, oi4)
 ) engine=ndb;
-
-ndb_show_tables completed.....
-
 # There should be 4 mock tables created
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -41,18 +28,15 @@ count(*)
 select type, name from ndb_show_tables_results
 where name like "'NDB$FKM_<id>%'";
 type	name
-'UserTable'	'NDB$FKM_<id>_0_t2'
+UserTable	'NDB$FKM_<id>_0_t2'
 # There should be 3 mock tables created for t3
 select type, name from ndb_show_tables_results
 where name like "'NDB$FKM_<id>%'" order by name;
 type	name
-'UserTable'	'NDB$FKM_<id>_0_t4'
-'UserTable'	'NDB$FKM_<id>_1_t5'
-'UserTable'	'NDB$FKM_<id>_2_t6'
+UserTable	'NDB$FKM_<id>_0_t4'
+UserTable	'NDB$FKM_<id>_1_t5'
+UserTable	'NDB$FKM_<id>_2_t6'
 drop table t3;
-
-ndb_show_tables completed.....
-
 # There should be 1 mock table
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -61,12 +45,12 @@ count(*)
 select type, name from ndb_show_tables_results
 where name like "'NDB$FKM_<id>%'";
 type	name
-'UserTable'	'NDB$FKM_<id>_0_t2'
+UserTable	'NDB$FKM_<id>_0_t2'
 drop table t1;
 # There should be 0 mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
-1
+0
 #
 # Create child table before parent
 # by turning off foreign_key_checks for this session
@@ -80,9 +64,6 @@ create table t2 (
 pk1 int not null primary key,
 c int
 ) engine=ndb;
-
-ndb_show_tables completed.....
-
 # There should be 0 mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -200,9 +181,6 @@ pk2 int not null primary key,
 c int
 ) engine=ndb;
 ERROR HY000: Failed to add the foreign key constraint. Missing column 'pk1' for constraint 't1_fk_1' in the referenced table 't2'
-
-ndb_show_tables completed.....
-
 # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -222,9 +200,6 @@ pk1 int not null primary key,
 c int
 ) engine=ndb;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_fk_1' in the referenced table 't2'
-
-ndb_show_tables completed.....
-
 # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -267,9 +242,6 @@ m varchar(55)
 ) engine=ndb;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t4' - resolved by 't4'
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -316,9 +288,6 @@ unique(k, l, m)
 ) engine=ndb;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t4' - resolved by 't4'
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -355,9 +324,6 @@ Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -379,9 +345,6 @@ b datetime
 ) engine=ndb;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -389,20 +352,14 @@ count(*)
 drop table t2;
 Warnings:
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
-
-ndb_show_tables completed.....
-
 # There should be 1 mock table created for t1
 select type, name from ndb_show_tables_results
 where name like "'NDB$FKM_<id>%'";
 type	name
-'UserTable'	'NDB$FKM_<id>_0_t2'
+UserTable	'NDB$FKM_<id>_0_t2'
 drop table t1;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -421,20 +378,14 @@ constraint fk1 foreign key(a) references mydb0.t2(a)
 ) engine = ndb;
 Warnings:
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
-
-ndb_show_tables completed.....
-
 # There should be 1 mock table created for t1
 select type, _database, name from ndb_show_tables_results
 where name like "'NDB$FKM_<id>%'";
 type	_database	name
-'UserTable'	'mydb0'	'NDB$FKM_<id>_0_t2'
+UserTable	'mydb0'	'NDB$FKM_<id>_0_t2'
 drop table mydb1.t1;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -450,9 +401,6 @@ a int primary key
 ) engine = ndb;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -471,9 +419,6 @@ a int primary key
 ) engine = ndb;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - resolved by 't2'
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -485,9 +430,6 @@ Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
 drop table mydb1.t1;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t2' - referencing table dropped
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -572,36 +514,24 @@ Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t1' - resolved by 't1'
 set @@ndb_show_foreign_key_mock_tables= 0;
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 0
 # Drop the database mydb0 with all tables still there
 drop database mydb0;
-
-ndb_show_tables completed.....
-
 # There should be 4 mock tables created by dropping mydb0
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 4
 # Drop also database mydb1
 drop database mydb1;
-
-ndb_show_tables completed.....
-
 # There should be 5 mock tables all referenced by test.t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 5
 # Drop t1 and the 5 remaining mocks
 drop table t1;
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -614,9 +544,6 @@ pk int not null primary key,
 b int,
 foreign key (b) references t2(pk1)
 ) engine=ndb;
-
-ndb_show_tables completed.....
-
 # There should be one mock table in place of t2
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 name
@@ -624,25 +551,16 @@ name
 alter table t1 add column c int;
 Warnings:
 Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
-
-ndb_show_tables completed.....
-
 # There should be one mock table still
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 name
 'NDB$FKM_<child_id>_<id>_t2'
 alter table t1 algorithm = copy, add column d int not null;
-
-ndb_show_tables completed.....
-
 # There should be one mock table still
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 name
 'NDB$FKM_<child_id>_<id>_t2'
 drop table t1;
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -665,9 +583,6 @@ alter table child algorithm=inplace,
 add constraint fk4 foreign key (c) references parent(col3),
 add constraint fk5 foreign key (c) references parent(col4),
 add constraint fk6 foreign key (c) references parent(col5);
-
-ndb_show_tables completed.....
-
 # There should be 6 mock tables
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 name
@@ -678,9 +593,6 @@ name
 'NDB$FKM_<child_id>_<id>_parent'
 'NDB$FKM_<child_id>_<id>_parent'
 alter table child algorithm=inplace, drop foreign key fk1;
-
-ndb_show_tables completed.....
-
 # There should be 5 mock tables
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 name
@@ -693,18 +605,12 @@ alter table child algorithm=inplace,
 drop foreign key fk3,
 drop foreign key fk4,
 drop foreign key fk6;
-
-ndb_show_tables completed.....
-
 # There should be 2 mock tables left
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 name
 'NDB$FKM_<child_id>_<id>_parent'
 'NDB$FKM_<child_id>_<id>_parent'
 drop table child;
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -722,9 +628,6 @@ create table t3 (
 pk2 int not null primary key,
 b int
 ) engine=ndb;
-
-ndb_show_tables completed.....
-
 # There should be one mock table for t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -749,9 +652,6 @@ create table t2 (
 pk2 int not null primary key,
 b int
 ) engine=ndb;
-
-ndb_show_tables completed.....
-
 # There should be one mock table for t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -761,9 +661,6 @@ alter table t2 algorithm=inplace, rename t3;
 Warnings:
 Warning	1003	Dropped mock table 'NDB$FKM_<child_id>_<id>_t3' - resolved by 't3'
 set @@ndb_show_foreign_key_mock_tables= 0;
-
-ndb_show_tables completed.....
-
 # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
@@ -1006,3 +903,4 @@ count(*)
 0
 set foreign_key_checks=0;
 drop table address, customer;
+DROP VIEW ndb_show_tables_results;
