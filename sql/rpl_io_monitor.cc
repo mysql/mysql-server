@@ -58,6 +58,14 @@ bool Source_IO_monitor::m_monitor_thd_initiated = false;
   3. GR_MEMBER_ALL_DETAILS:
     Its used by Monitor IO thread to get following member details:
       group_name, host, port, member state and member role.
+
+  4. GR_MEMBER_ALL_DETAILS_FETCH_FOR_57:
+    Its used by Monitor IO thread for mysql-5.7 servers to get following
+      member details:
+      group_name, host, port, member state and member role.
+    In mysql-5.7 performance_schema.replication_group_members do not have
+    member role column but its fetched from group_replication_primary_member
+    status variable, when group is on single-primary mode.
 */
 static const char *SQL_QUERIES[] = {
     "SELECT * FROM ( "
@@ -74,8 +82,6 @@ static const char *SQL_QUERIES[] = {
     "            >= ((SELECT COUNT(*) FROM "
     "                 performance_schema.replication_group_members)/2)=0),1,0) "
     "       FROM performance_schema.replication_group_members "
-    "       JOIN performance_schema.replication_group_member_stats "
-    "       USING(member_id) "
     "       WHERE member_id=@@global.server_uuid) = 1) "
     "    THEN (SELECT 1) "
     "    ELSE (SELECT 2) "
@@ -94,8 +100,6 @@ static const char *SQL_QUERIES[] = {
     "            >= ((SELECT COUNT(*) FROM "
     "                 performance_schema.replication_group_members)/2)=0),1,0) "
     "       FROM performance_schema.replication_group_members "
-    "       JOIN performance_schema.replication_group_member_stats "
-    "       USING(member_id) "
     "       WHERE member_id=@@global.server_uuid) = 1) "
     "    THEN (SELECT 1) "
     "    ELSE (SELECT 2) "
@@ -103,6 +107,22 @@ static const char *SQL_QUERIES[] = {
     ") Q ",
     "SELECT @@global.group_replication_group_name, PRGM.MEMBER_HOST, "
     "       PRGM.MEMBER_PORT, PRGM.MEMBER_STATE, PRGM.MEMBER_ROLE "
+    "FROM performance_schema.replication_group_members PRGM",
+    "SELECT @@global.group_replication_group_name, PRGM.MEMBER_HOST, "
+    "       PRGM.MEMBER_PORT, PRGM.MEMBER_STATE, "
+    "       (SELECT IF(GR_SINGLE_PRIMARY_MODE.VARIABLE_VALUE = 'OFF', "
+    "                  'PRIMARY', "
+    "                  IF(PRGM.MEMBER_ID = GR_PRIMARY_MEMBER.VARIABLE_VALUE, "
+    "                     'PRIMARY', 'SECONDARY')) "
+    "        FROM (SELECT VARIABLE_VALUE FROM performance_schema.global_status "
+    "              WHERE VARIABLE_NAME = 'group_replication_primary_member') "
+    "              GR_PRIMARY_MEMBER,"
+    "             (SELECT VARIABLE_VALUE FROM "
+    "                performance_schema.global_variables "
+    "              WHERE "
+    "                VARIABLE_NAME='group_replication_single_primary_mode') "
+    "                GR_SINGLE_PRIMARY_MODE "
+    "       ) MEMBER_ROLE "
     "FROM performance_schema.replication_group_members PRGM"};
 
 MYSQL_RES_TUPLE execute_query(const Mysql_connection *conn,
@@ -711,7 +731,7 @@ Source_IO_monitor::get_online_members(
     std::vector<RPL_FAILOVER_SOURCE_TUPLE> &group_membership_list,
     uint &curr_highest_group_weight, uint &curr_conn_weight) {
   channel_map.assert_some_lock();
-  bool error{false};
+  uint error{0};
   std::string err_msg;
   bool conn_member_needs_to_change{false}, conn_member_quorum_lost{false};
 
@@ -734,7 +754,7 @@ Source_IO_monitor::get_online_members(
   MYSQL_RES_VAL quorum_list{};
   auto qtag{enum_sql_query_tag::CONFIG_MODE_QUORUM_MONITOR};
   std::tie(error, quorum_list) = execute_query(conn, qtag);
-  if (error) {
+  if (error != 0) {
     LogErr(WARNING_LEVEL, ER_RPL_ASYNC_EXECUTING_QUERY,
            "The Monitor IO thread failed to detect if the source belongs to "
            "the group majority",
@@ -756,7 +776,15 @@ Source_IO_monitor::get_online_members(
     qtag = enum_sql_query_tag::GR_MEMBER_ALL_DETAILS;
     MYSQL_RES_VAL sender_membership_res{};
     std::tie(error, sender_membership_res) = execute_query(conn, qtag);
-    if (error) {
+
+    /* Simulate that sources are 5.7 servers. */
+    DBUG_EXECUTE_IF("rpl_acf_simulate_57_source", error = ER_BAD_FIELD_ERROR;);
+    if (error == ER_BAD_FIELD_ERROR) {
+      qtag = enum_sql_query_tag::GR_MEMBER_ALL_DETAILS_FETCH_FOR_57;
+      std::tie(error, sender_membership_res) = execute_query(conn, qtag);
+    }
+
+    if (error != 0) {
       LogErr(WARNING_LEVEL, ER_RPL_ASYNC_EXECUTING_QUERY,
              "The Monitor IO thread failed to get group membership details",
              host.c_str(), port, "", channel.c_str());
