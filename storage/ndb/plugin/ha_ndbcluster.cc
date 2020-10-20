@@ -44,7 +44,12 @@
 #include "sql/mysqld.h"  // global_system_variables table_alias_charset ...
 #include "sql/partition_info.h"
 #include "sql/sql_alter.h"
+#include "sql/sql_class.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_table.h"  // build_table_filename
+#ifndef DBUG_OFF
+#include "sql/sql_test.h"  // print_where
+#endif
 #include "sql/strfunc.h"
 #include "storage/ndb/include/ndb_global.h"
 #include "storage/ndb/include/ndb_version.h"
@@ -63,9 +68,14 @@
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_create_helper.h"
+#include "storage/ndb/plugin/ndb_dd.h"
+#include "storage/ndb/plugin/ndb_dd_client.h"
+#include "storage/ndb/plugin/ndb_dd_disk_data.h"
+#include "storage/ndb/plugin/ndb_dd_table.h"
 #include "storage/ndb/plugin/ndb_ddl_definitions.h"
 #include "storage/ndb/plugin/ndb_ddl_transaction_ctx.h"
 #include "storage/ndb/plugin/ndb_dist_priv_util.h"
+#include "storage/ndb/plugin/ndb_dummy_ts.h"
 #include "storage/ndb/plugin/ndb_event_data.h"
 #include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock.h"
@@ -82,6 +92,7 @@
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_schema_dist.h"
 #include "storage/ndb/plugin/ndb_schema_trans_guard.h"
+#include "storage/ndb/plugin/ndb_server_hooks.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
@@ -90,19 +101,6 @@
 #include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "template_utils.h"
-
-#ifndef DBUG_OFF
-#include "sql/sql_test.h"  // print_where
-#endif
-// tablename_to_filename
-#include "sql/sql_class.h"
-#include "sql/sql_table.h"  // build_table_filename,
-#include "storage/ndb/plugin/ndb_dd.h"
-#include "storage/ndb/plugin/ndb_dd_client.h"
-#include "storage/ndb/plugin/ndb_dd_disk_data.h"
-#include "storage/ndb/plugin/ndb_dd_table.h"
-#include "storage/ndb/plugin/ndb_dummy_ts.h"
-#include "storage/ndb/plugin/ndb_server_hooks.h"
 
 typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Table NDBTAB;
@@ -398,13 +396,6 @@ static constexpr uint NDB_AUTO_INCREMENT_RETRIES = 100;
   {                                  \
     const NdbError &tmp = err;       \
     return ndb_to_mysql_error(&tmp); \
-  }
-
-#define ERR_BREAK(err, code)         \
-  {                                  \
-    const NdbError &tmp = err;       \
-    code = ndb_to_mysql_error(&tmp); \
-    break;                           \
   }
 
 #define ERR_SET(err, code)           \
@@ -1842,115 +1833,116 @@ static bool type_supports_default_value(enum_field_types mysql_type) {
   return ret;
 }
 
+#ifndef DBUG_OFF
 /**
-   Check that Ndb data dictionary has the same default values
-   as MySQLD for the current table.
-   Called as part of a DBUG check as part of table open
 
-   Returns
-     0  - Defaults are ok
-     -1 - Some default(s) are bad
+   Check that NDB table has the same default values
+   as the MySQL table def.
+   Called as part of a DBUG check when opening table.
+
+   @return true Defaults are ok
 */
-int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
-  /* Debug only method for checking table defaults aligned
-     between MySQLD and Ndb
-  */
-  bool defaults_aligned = true;
-
-  if (ndbtab->hasDefaultValues()) {
-    /* Ndb supports native defaults for non-pk columns */
-    my_bitmap_map *old_map = tmp_use_all_columns(table, table->read_set);
-
-    for (uint f = 0; f < table_share->fields; f++) {
-      Field *field = table->field[f];  // Use Field struct from MySQLD table rep
-      if (!field->stored_in_db) continue;
-
-      const NdbDictionary::Column *ndbCol =
-          m_table_map->getColumn(field->field_index());
-
-      if ((!(field->is_flag_set(PRI_KEY_FLAG) ||
-             field->is_flag_set(NO_DEFAULT_VALUE_FLAG))) &&
-          type_supports_default_value(field->real_type())) {
-        /* We expect Ndb to have a native default for this
-         * column
-         */
-        ptrdiff_t src_offset =
-            table_share->default_values - field->table->record[0];
-
-        /* Move field by offset to refer to default value */
-        field->move_field_offset(src_offset);
-
-        const uchar *ndb_default = (const uchar *)ndbCol->getDefaultValue();
-
-        if (ndb_default == NULL) /* MySQLD default must also be NULL */
-          defaults_aligned = field->is_null();
-        else {
-          if (field->type() != MYSQL_TYPE_BIT) {
-            defaults_aligned = (0 == field->cmp(ndb_default));
-          } else {
-            longlong value = (static_cast<Field_bit *>(field))->val_int();
-            /* Map to NdbApi format - two Uint32s */
-            Uint32 out[2];
-            out[0] = 0;
-            out[1] = 0;
-            for (int b = 0; b < 64; b++) {
-              out[b >> 5] |= (value & 1) << (b & 31);
-
-              value = value >> 1;
-            }
-            Uint32 defaultLen = field_used_length(field);
-            defaultLen = ((defaultLen + 3) & ~(Uint32)0x7);
-            defaults_aligned = (0 == memcmp(ndb_default, out, defaultLen));
-          }
-        }
-
-        field->move_field_offset(-src_offset);
-
-        if (unlikely(!defaults_aligned)) {
-          ndb_log_error(
-              "Internal error, Default values differ "
-              "for column %u, ndb_default: %d",
-              field->field_index(), ndb_default != NULL);
-        }
-      } else {
-        /* We don't expect Ndb to have a native default for this column */
-        if (unlikely(ndbCol->getDefaultValue() != NULL)) {
-          /* Didn't expect that */
-          ndb_log_error(
-              "Internal error, Column %u has native "
-              "default, but shouldn't. Flags=%u, type=%u",
-              field->field_index(), field->all_flags(), field->real_type());
-          defaults_aligned = false;
-        }
-      }
-      if (unlikely(!defaults_aligned)) {
-        // Dump field
-        ndb_log_error(
-            "field[ name: '%s', type: %u, real_type: %u, "
-            "flags: 0x%x, is_null: %d]",
-            field->field_name, field->type(), field->real_type(),
-            field->all_flags(), field->is_null());
-        // Dump ndbCol
-        ndb_log_error(
-            "ndbCol[name: '%s', type: %u, column_no: %d, "
-            "nullable: %d]",
-            ndbCol->getName(), ndbCol->getType(), ndbCol->getColumnNo(),
-            ndbCol->getNullable());
-        break;
-      }
-    }
-    tmp_restore_column_map(table->read_set, old_map);
+bool ha_ndbcluster::check_default_values() const {
+  if (!m_table->hasDefaultValues()) {
+    // There are no default values in the NDB table
+    return true;
   }
 
-  return (defaults_aligned ? 0 : -1);
+  bool defaults_aligned = true;
+
+  /* NDB supports native defaults for non-pk columns */
+  my_bitmap_map *old_map = tmp_use_all_columns(table, table->read_set);
+
+  for (uint f = 0; f < table_share->fields; f++) {
+    Field *field = table->field[f];
+    if (!field->stored_in_db) continue;
+
+    const NdbDictionary::Column *ndbCol =
+        m_table_map->getColumn(field->field_index());
+
+    if ((!(field->is_flag_set(PRI_KEY_FLAG) ||
+           field->is_flag_set(NO_DEFAULT_VALUE_FLAG))) &&
+        type_supports_default_value(field->real_type())) {
+      // Expect NDB to have a native default for this column
+      ptrdiff_t src_offset =
+          table_share->default_values - field->table->record[0];
+
+      /* Move field by offset to refer to default value */
+      field->move_field_offset(src_offset);
+
+      const uchar *ndb_default = (const uchar *)ndbCol->getDefaultValue();
+
+      if (ndb_default == NULL) {
+        /* MySQL default must also be NULL */
+        defaults_aligned = field->is_null();
+      } else {
+        if (field->type() != MYSQL_TYPE_BIT) {
+          defaults_aligned = (0 == field->cmp(ndb_default));
+        } else {
+          longlong value = (static_cast<Field_bit *>(field))->val_int();
+          /* Map to NdbApi format - two Uint32s */
+          Uint32 out[2];
+          out[0] = 0;
+          out[1] = 0;
+          for (int b = 0; b < 64; b++) {
+            out[b >> 5] |= (value & 1) << (b & 31);
+
+            value = value >> 1;
+          }
+          Uint32 defaultLen = field_used_length(field);
+          defaultLen = ((defaultLen + 3) & ~(Uint32)0x7);
+          defaults_aligned = (0 == memcmp(ndb_default, out, defaultLen));
+        }
+      }
+
+      field->move_field_offset(-src_offset);
+
+      if (unlikely(!defaults_aligned)) {
+        ndb_log_error(
+            "Internal error, Default values differ "
+            "for column %u, ndb_default: %d",
+            field->field_index(), ndb_default != NULL);
+      }
+    } else {
+      /* Don't expect Ndb to have a native default for this column */
+      if (unlikely(ndbCol->getDefaultValue() != NULL)) {
+        /* Didn't expect that */
+        ndb_log_error(
+            "Internal error, Column %u has native "
+            "default, but shouldn't. Flags=%u, type=%u",
+            field->field_index(), field->all_flags(), field->real_type());
+        defaults_aligned = false;
+      }
+    }
+    if (unlikely(!defaults_aligned)) {
+      // Dump field
+      ndb_log_error(
+          "field[ name: '%s', type: %u, real_type: %u, "
+          "flags: 0x%x, is_null: %d]",
+          field->field_name, field->type(), field->real_type(),
+          field->all_flags(), field->is_null());
+      // Dump ndbCol
+      ndb_log_error(
+          "ndbCol[name: '%s', type: %u, column_no: %d, "
+          "nullable: %d]",
+          ndbCol->getName(), ndbCol->getType(), ndbCol->getColumnNo(),
+          ndbCol->getNullable());
+      break;
+    }
+  }
+  tmp_restore_column_map(table->read_set, old_map);
+
+  return defaults_aligned;
 }
+#endif
 
 int ha_ndbcluster::get_metadata(Ndb *ndb, const dd::Table *table_def) {
   NDBDICT *dict = ndb->getDictionary();
   DBUG_TRACE;
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
-  DBUG_ASSERT(m_table == NULL);
+  // The NDB table should not be open
+  DBUG_ASSERT(m_table == nullptr);
   DBUG_ASSERT(m_table_info == NULL);
 
   int object_id, object_version;
@@ -2002,16 +1994,16 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const dd::Table *table_def) {
     return HA_ERR_TABLE_DEF_CHANGED;
   }
 
-  // Create field to column map when table is opened
-  m_table_map = new Ndb_table_map(table, tab);
-
-  /* Now check that any Ndb native defaults are aligned
-     with MySQLD defaults
-  */
-  DBUG_ASSERT(check_default_values(tab) == 0);
-
   DBUG_PRINT("info", ("fetched table %s", tab->getName()));
+
+  // Remember the opened NDB table
   m_table = tab;
+
+  // Create field to column map for table
+  m_table_map = new Ndb_table_map(table, m_table);
+
+  // Check that NDB default values match those in MySQL table def.
+  DBUG_ASSERT(check_default_values());
 
   ndb_bitmap_init(m_bitmap, m_bitmap_buf, table_share->fields);
 
@@ -2052,6 +2044,8 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const dd::Table *table_def) {
     }
   }
 
+  // Tell the Ndb_table_guard to release ownership of the NDB table def since
+  // it's now owned by this ha_ndbcluster instance
   ndbtab_g.release();
 
   return 0;
@@ -2077,7 +2071,7 @@ err:
   }
 
   ndbtab_g.invalidate();
-  m_table = NULL;
+  m_table = nullptr;
   return error;
 }
 
@@ -2317,16 +2311,16 @@ static void ndb_protect_char(const char *from, char *to, uint to_length,
   Associate a direct reference to an index handle
   with an index (for faster access)
  */
-int ha_ndbcluster::add_index_handle(NDBDICT *dict, const KEY *key_info,
-                                    const char *key_name, uint index_no) {
-  char index_name[FN_LEN + 1];
-  int error = 0;
+int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
+                              const KEY *key_info, const char *key_name,
+                              uint index_no) {
+  DBUG_TRACE;
 
   const NDB_INDEX_TYPE idx_type = get_index_type_from_table(index_no);
   m_index[index_no].type = idx_type;
-  DBUG_TRACE;
   DBUG_PRINT("enter", ("table %s", m_tabname));
 
+  char index_name[FN_LEN + 1];
   ndb_protect_char(key_name, index_name, sizeof(index_name) - 1, '/');
   if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX) {
     DBUG_PRINT("info", ("Get handle to index %s", index_name));
@@ -2366,9 +2360,7 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, const KEY *key_info,
     m_index[index_no].create_attrid_map(key_info, m_table);
   }
 
-  if (!error) error = add_index_ndb_record(dict, key_info, index_no);
-
-  return error;
+  return open_index_ndb_record(dict, key_info, index_no);
 }
 
 /*
@@ -2437,7 +2429,7 @@ static void ndb_set_record_specification(
               (8 * spec->nullbit_byte_offset) + spec->nullbit_bit_in_byte));
 }
 
-int ha_ndbcluster::add_table_ndb_record(NDBDICT *dict) {
+int ha_ndbcluster::add_table_ndb_record(NdbDictionary::Dictionary *dict) {
   DBUG_TRACE;
   NdbDictionary::RecordSpecification spec[NDB_MAX_ATTRIBUTES_IN_TABLE + 2];
   NdbRecord *rec;
@@ -2461,7 +2453,7 @@ int ha_ndbcluster::add_table_ndb_record(NDBDICT *dict) {
 }
 
 /* Create NdbRecord for setting hidden primary key from Uint64. */
-int ha_ndbcluster::add_hidden_pk_ndb_record(NDBDICT *dict) {
+int ha_ndbcluster::add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict) {
   DBUG_TRACE;
   NdbDictionary::RecordSpecification spec[1];
   NdbRecord *rec;
@@ -2478,8 +2470,8 @@ int ha_ndbcluster::add_hidden_pk_ndb_record(NDBDICT *dict) {
   return 0;
 }
 
-int ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, const KEY *key_info,
-                                        uint index_no) {
+int ha_ndbcluster::open_index_ndb_record(NdbDictionary::Dictionary *dict,
+                                         const KEY *key_info, uint index_no) {
   DBUG_TRACE;
   NdbDictionary::RecordSpecification spec[NDB_MAX_ATTRIBUTES_IN_TABLE + 2];
   NdbRecord *rec;
@@ -2599,7 +2591,7 @@ int ha_ndbcluster::open_indexes(NdbDictionary::Dictionary *dict) {
   const KEY *key_info = table->key_info;
   const char **key_name = table->s->keynames.type_names;
   for (uint i = 0; i < table->s->keys; i++, key_info++, key_name++) {
-    const int error = add_index_handle(dict, key_info, *key_name, i);
+    const int error = open_index(dict, key_info, *key_name, i);
     if (error) {
       return error;
     }
@@ -2726,16 +2718,17 @@ void ha_ndbcluster::release_metadata(Ndb *ndb, bool invalidate) {
     dict->releaseRecord(m_ndb_hidden_key_record);
     m_ndb_hidden_key_record = NULL;
   }
+
   dict->removeTableGlobal(*m_table, invalidate);
+  m_table = nullptr;
+
   release_indexes(dict, invalidate);
 
   m_table_info = NULL;
 
   //  Release field to column map
   delete m_table_map;
-  m_table_map = NULL;
-
-  m_table = NULL;
+  m_table_map = nullptr;
 }
 
 /*
@@ -6693,8 +6686,7 @@ void ha_ndbcluster::position(const uchar *record) {
       key_length = ref_length;
 #ifndef DBUG_OFF
     const int hidden_no = Ndb_table_map::num_stored_fields(table);
-    const NDBTAB *tab = m_table;
-    const NDBCOL *hidden_col = tab->getColumn(hidden_no);
+    const NDBCOL *hidden_col = m_table->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && hidden_col->getAutoIncrement() &&
                 key_length == NDB_HIDDEN_PRIMARY_KEY_LENGTH);
 #endif
@@ -11208,10 +11200,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
 
 ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
-      m_table_map(NULL),
       m_thd_ndb(NULL),
       m_active_cursor(NULL),
-      m_table(NULL),
       m_ndb_record(0),
       m_ndb_hidden_key_record(0),
       m_table_info(NULL),

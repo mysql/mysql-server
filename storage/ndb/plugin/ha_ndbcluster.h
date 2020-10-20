@@ -493,12 +493,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int open_indexes(NdbDictionary::Dictionary *dict);
   void release_indexes(NdbDictionary::Dictionary *dict, bool invalidate);
   int inplace__drop_index(NdbDictionary::Dictionary *dict, uint index_num);
-  int add_index_handle(NdbDictionary::Dictionary *dict, const KEY *key_info,
-                       const char *key_name, uint index_no);
+  int open_index(NdbDictionary::Dictionary *dict, const KEY *key_info,
+                 const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
-  int add_index_ndb_record(NdbDictionary::Dictionary *dict, const KEY *key_info,
-                           uint index_no);
+  int open_index_ndb_record(NdbDictionary::Dictionary *dict,
+                            const KEY *key_info, uint index_no);
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD *thd, Ndb *, const char *tabname);
   int inplace__drop_fks(THD *, Ndb *, NdbDictionary::Dictionary *,
@@ -507,7 +507,9 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                       std::vector<NdbDictionary::ForeignKey> *);
   bool has_fk_dependency(NdbDictionary::Dictionary *dict,
                          const NdbDictionary::Column *) const;
-  int check_default_values(const NdbDictionary::Table *ndbtab);
+#ifndef DBUG_OFF
+  bool check_default_values() const;
+#endif
   int get_metadata(Ndb *ndb, const dd::Table *table_def);
   void release_metadata(Ndb *ndb, bool invalidate_objects);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
@@ -659,10 +661,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void set_part_info(partition_info *part_info, bool early) override;
   /* End of Partition_handler API */
 
-  Ndb_table_map *m_table_map;
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
-  const NdbDictionary::Table *m_table;
+  // NDB table definition
+  const NdbDictionary::Table *m_table{nullptr};
+  // Mapping from MySQL table to NDB table
+  Ndb_table_map *m_table_map{nullptr};
   /*
     Normal NdbRecord for accessing rows, with all fields including hidden
     fields (hidden primary key, user-defined partitioning function value).
