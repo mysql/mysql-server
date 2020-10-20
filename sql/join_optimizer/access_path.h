@@ -250,6 +250,15 @@ struct AccessPath {
   /// more.)
   uint64_t delayed_predicates{0};
 
+  /// Auxiliary data used by a secondary storage engine while processing the
+  /// access path during optimization and execution. The secondary storage
+  /// engine is free to store any useful information in this member, for example
+  /// extra statistics or cost estimates. The data pointed to is fully owned by
+  /// the secondary storage engine, and it is the responsibility of the
+  /// secondary engine to manage the memory and make sure it is properly
+  /// destroyed.
+  void *secondary_engine_data{nullptr};
+
   // Accessors for the union below.
   auto &table_scan() {
     assert(type == TABLE_SCAN);
@@ -750,10 +759,10 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 104,
+static_assert(sizeof(AccessPath) <= 112,
               "We are creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(64 bytes for the base, 40 bytes for the variant.)");
+              "(72 bytes for the base, 40 bytes for the variant.)");
 
 inline void CopyCosts(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;

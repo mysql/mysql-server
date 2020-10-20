@@ -277,6 +277,10 @@ static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
           assert(path->type != AccessPath::PUSHED_JOIN_REF);
           assert(path->type != AccessPath::INDEX_RANGE_SCAN);
           assert(path->type != AccessPath::DYNAMIC_INDEX_RANGE_SCAN);
+
+          // This secondary storage engine does not yet store anything in the
+          // auxiliary data member of AccessPath.
+          assert(path->secondary_engine_data == nullptr);
           return false;
         });
   }
