@@ -680,8 +680,6 @@ Dblqh::Dblqh(Block_context& ctx,
     addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
 
     addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
-    addRecSignal(GSN_FSWRITEREQ,
-                 &Dblqh::execFSWRITEREQ);
     addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
 
     addRecSignal(GSN_FIRE_TRIG_REQ, &Dblqh::execFIRE_TRIG_REQ);

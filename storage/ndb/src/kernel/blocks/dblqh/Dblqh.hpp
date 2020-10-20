@@ -61,6 +61,9 @@ class Dbacc;
 class Dbtup;
 class Dbtux;
 class Lgman;
+
+class FsReadWriteReq;
+
 #endif // DBLQH_STATE_EXTRACT
 
 #define JAM_FILE_ID 450
@@ -2974,6 +2977,7 @@ private:
   }
 
 public:
+  void execFSWRITEREQ(const FsReadWriteReq*) const /* called direct cross threads from Ndbfs */;
   void execLQH_WRITELOG_REQ(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
   void execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out);
@@ -3074,7 +3078,6 @@ private:
   void execFSWRITEREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
-  void execFSWRITEREQ(Signal*);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
 
@@ -3510,7 +3513,7 @@ private:
                            LogFileRecord::LogFileStatus status);
   void exitFromInvalidate(Signal* signal,
                           LogPartRecord *logPartPtrP);
-  Uint32 calcPageCheckSum(LogPageRecordPtr logP);
+  Uint32 calcPageCheckSum(LogPageRecordPtr logP) const;
   Uint32 handleLongTupKey(Signal* signal,
                           Uint32* dataPtr,
                           Uint32 len,

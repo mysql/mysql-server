@@ -39,7 +39,7 @@ class PosixAsyncFile : public AsyncFile
 {
   friend class Ndbfs;
 public:
-  PosixAsyncFile(SimulatedBlock& fs);
+  PosixAsyncFile(Ndbfs& fs);
 
   void removeReq(Request *request) override;
   void rmrfReq(Request *request, const char * path, bool removePath) override;

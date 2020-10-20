@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,8 +118,6 @@ Tsman::Tsman(Block_context& ctx) :
 
   addRecSignal(GSN_DROP_FILE_IMPL_REQ, &Tsman::execDROP_FILE_IMPL_REQ);
   addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ, &Tsman::execDROP_FILEGROUP_IMPL_REQ);
-
-  addRecSignal(GSN_FSWRITEREQ, &Tsman::execFSWRITEREQ);
 
   addRecSignal(GSN_FSOPENREF, &Tsman::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Tsman::execFSOPENCONF);
@@ -1076,7 +1074,7 @@ Tsman::open_file(Signal* signal,
 }
 
 void
-Tsman::execFSWRITEREQ(Signal* signal)
+Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */
 {
   /**
    * This is currently run in other thread -> no jam
@@ -1101,7 +1099,6 @@ Tsman::execFSWRITEREQ(Signal* signal)
   //jamEntry();
   Ptr<Datafile> ptr;
   Ptr<GlobalPage> page_ptr;
-  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   
   m_file_pool.getPtr(ptr, req->userPointer);
   m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
@@ -3381,7 +3378,7 @@ void Tsman::sendGET_TABINFOREF(Signal* signal,
  * we protect for any future changes.
  */
 void
-Tsman::client_lock(Uint32 instance)
+Tsman::client_lock(Uint32 instance) const
 {
   (void)instance;
   if (isNdbMtLqh())
@@ -3392,7 +3389,7 @@ Tsman::client_lock(Uint32 instance)
 }
 
 void
-Tsman::client_unlock(Uint32 instance)
+Tsman::client_unlock(Uint32 instance) const
 {
   (void)instance;
   if (isNdbMtLqh())
@@ -3403,7 +3400,7 @@ Tsman::client_unlock(Uint32 instance)
 }
 
 void
-Tsman::client_lock()
+Tsman::client_lock() const
 {
   if (isNdbMtLqh())
   {
@@ -3416,7 +3413,7 @@ Tsman::client_lock()
 }
 
 void
-Tsman::client_unlock()
+Tsman::client_unlock() const
 {
   if (isNdbMtLqh())
   {

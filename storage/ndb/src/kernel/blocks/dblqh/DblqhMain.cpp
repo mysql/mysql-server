@@ -25725,7 +25725,7 @@ void Dblqh::openLogfileInit(Signal* signal, LogFileRecordPtr logFilePtr)
 }//Dblqh::openLogfileInit()
 
 void
-Dblqh::execFSWRITEREQ(Signal* signal)
+Dblqh::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */
 {
   /**
    * This is currently run in other thread -> no jam
@@ -25738,7 +25738,6 @@ Dblqh::execFSWRITEREQ(Signal* signal)
    * be written to safely since they are owned by the file system thread.
    */
   Ptr<GlobalPage> page_ptr;
-  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
 
   LogFileRecordPtr currLogFilePtr;
@@ -36745,7 +36744,8 @@ Dblqh::execDROP_TRIG_IMPL_REF(Signal* signal)
              DropTrigImplRef::SignalLength, JBB);
 }
 
-Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP){
+Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP) const
+{
     Uint32 checkSum = 37;
 #ifdef VM_TRACE
     checkSum = computeXorChecksum(

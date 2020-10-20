@@ -49,7 +49,7 @@
 //#define DUMMY_PASSWORD
 //#define DEBUG_ODIRECT
 
-AsyncFile::AsyncFile(SimulatedBlock& fs) :
+AsyncFile::AsyncFile(Ndbfs& fs) :
   theFileName(),
   m_thread_bound(false),
   use_gz(0),
@@ -272,14 +272,9 @@ require(!"m_file.extend");
 
     // Initialise blocks
     ndb_file::off_t off = 0;
-    SignalT<25> tmp;
-    Signal * signal = new (&tmp) Signal(0);
-    bzero(signal, sizeof(tmp));
-    FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
+    FsReadWriteReq req[1];
 
     Uint32 index = 0;
-    Uint32 block = refToMain(request->theUserReference);
-    Uint32 instance = refToInstance(request->theUserReference);
 
 #ifdef VM_TRACE
 #define TRACE_INIT
@@ -302,9 +297,7 @@ require(!"m_file.extend");
         req->varIndex = index++;
         req->data.pageData[0] = m_page_ptr.i + cnt;
 
-        m_fs.EXECUTE_DIRECT_MT(block, GSN_FSWRITEREQ, signal,
-                               FsReadWriteReq::FixedLength + 1,
-                               instance);
+        m_fs.callFSWRITEREQ(request->theUserReference, req);
 
         cnt++;
         size += request->par.open.page_size;

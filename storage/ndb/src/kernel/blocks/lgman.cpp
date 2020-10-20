@@ -652,7 +652,6 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ,
                &Lgman::execDROP_FILEGROUP_IMPL_REQ);
 
-  addRecSignal(GSN_FSWRITEREQ, &Lgman::execFSWRITEREQ);
   addRecSignal(GSN_FSWRITEREF, &Lgman::execFSWRITEREF, true);
   addRecSignal(GSN_FSWRITECONF, &Lgman::execFSWRITECONF);
 
@@ -1635,12 +1634,11 @@ Lgman::open_file(Signal* signal,
  * change since they are owned at this moment by the NDB file system thread.
  */
 void
-Lgman::execFSWRITEREQ(Signal* signal)
+Lgman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */
 {
   jamNoBlock();
   Ptr<Undofile> ptr;
   Ptr<GlobalPage> page_ptr;
-  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   
   m_file_pool.getPtr(ptr, req->userPointer);
   m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);

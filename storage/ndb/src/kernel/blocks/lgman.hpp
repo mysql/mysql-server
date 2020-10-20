@@ -39,6 +39,7 @@
 
 #define JAM_FILE_ID 339
 
+class FsReadWriteReq;
 
 class Lgman : public SimulatedBlock
 {
@@ -47,8 +48,9 @@ public:
   ~Lgman() override;
   BLOCK_DEFINES(Lgman);
   
+public:
+  void execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */;
 protected:
-  
   void execSTTOR(Signal* signal);
   void sendSTTORRY(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
@@ -62,7 +64,6 @@ protected:
   void execDROP_FILE_IMPL_REQ(Signal* signal);
   void execDROP_FILEGROUP_IMPL_REQ(Signal* signal);
   
-  void execFSWRITEREQ(Signal*);
   void execFSWRITEREF(Signal*);
   void execFSWRITECONF(Signal*);
 

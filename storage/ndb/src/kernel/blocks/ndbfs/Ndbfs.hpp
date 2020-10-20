@@ -36,6 +36,7 @@
 
 
 class AsyncIoThread;
+class FsReadWriteReq;
 
 // Because one NDB Signal request can result in multiple requests to
 // AsyncFile one class must be made responsible to keep track
@@ -52,6 +53,7 @@ public:
 
   static Uint32 translateErrno(int aErrno);
 
+  void callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const;
 protected:
   BLOCK_DEFINES(Ndbfs);
 

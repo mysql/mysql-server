@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,10 @@
 #else
 #include "PosixAsyncFile.hpp"
 #endif
+
+#include "../dblqh/Dblqh.hpp"
+#include "../lgman.hpp"
+#include "../tsman.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
@@ -1917,6 +1921,31 @@ Ndbfs::get_filename(Uint32 fd) const
   return "";
 }
 
+void Ndbfs::callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const
+{
+  Uint32 block = refToMain(ref);
+  Uint32 instance = refToInstance(ref);
+
+  SimulatedBlock* main_block = globalData.getBlock(block);
+  ndbrequire(main_block != nullptr);
+  ndbrequire(instance < NDBMT_MAX_BLOCK_INSTANCES);
+  SimulatedBlock* rec_block = main_block->getInstance(instance);
+  ndbrequire(rec_block != nullptr);
+  switch (block)
+  {
+  case DBLQH:
+    static_cast<Dblqh*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  case TSMAN:
+    static_cast<Tsman*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  case LGMAN:
+    static_cast<Lgman*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  default:
+    ndbabort();
+  }
+}
 
 BLOCK_FUNCTIONS(Ndbfs)
 
