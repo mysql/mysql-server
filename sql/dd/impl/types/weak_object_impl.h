@@ -59,6 +59,13 @@ class Weak_object_impl_ : virtual public Weak_object {
     return ::operator new(size, nt);
   }
 
+  void operator delete(void *ptr, const std::nothrow_t &nt) noexcept {
+    if (use_pfs)
+      my_free(ptr);
+    else
+      ::operator delete(ptr, nt);
+  }
+
   void *operator new(size_t size) noexcept {
     /*
       Call my_malloc() with the MY_WME flag to make sure that it will
