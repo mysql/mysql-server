@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -7270,8 +7270,9 @@ sub debugger_arguments {
     # Set exe to debuggername
     $$exe = $debugger;
 
-  } elsif ($debugger =~ /windbg/) {
+  } elsif ($debugger =~ /windbg|vsjitdebugger/) {
     # windbg exe arg1 .. argn, add name of the exe before args
+    # the same applies for the VS JIT debugger.
     unshift(@$$args, "$$exe");
 
     # Set exe to debuggername
