@@ -3806,8 +3806,6 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
 
   rw_lock_x_lock_inline(&block->lock, 0, m_file, m_line);
 
-  UNIV_MEM_INVALID(bpage, sizeof *bpage);
-
   rw_lock_x_unlock(m_hash_lock);
 
   mutex_exit(&m_buf_pool->zip_mutex);
