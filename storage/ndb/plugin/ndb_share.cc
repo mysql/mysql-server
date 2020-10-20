@@ -41,7 +41,10 @@
 #include "storage/ndb/plugin/ndb_table_map.h"
 
 extern Ndb *g_ndb;
-extern mysql_mutex_t ndbcluster_mutex;
+
+// Protecting the list of NDB_SHARE's as well as each shares refcount and list
+// of references
+static mysql_mutex_t shares_mutex;
 
 // List of NDB_SHARE's which correspond to an open table.
 static std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
@@ -220,7 +223,7 @@ const char *NDB_SHARE::share_state_string(void) const {
 
 void NDB_SHARE::free_share(NDB_SHARE **share) {
   DBUG_TRACE;
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
+  mysql_mutex_assert_owner(&shares_mutex);
 
   if (!(*share)->decrement_use_count()) {
     // Noone is using the NDB_SHARE anymore, release it
@@ -233,7 +236,7 @@ NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *key,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   NDB_SHARE *share = acquire_reference_impl(key);
   if (share) {
@@ -241,7 +244,7 @@ NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *key,
     DBUG_PRINT("NDB_SHARE",
                ("'%s', reference: '%s', use_count: %u", share->key_string(),
                 reference, share->use_count()));
-    mysql_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&shares_mutex);
     return share;
   }
 
@@ -249,7 +252,7 @@ NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *key,
   share = NDB_SHARE::create(key);
   if (share == nullptr) {
     DBUG_PRINT("error", ("failed to create NDB_SHARE"));
-    mysql_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&shares_mutex);
     return nullptr;
   }
 
@@ -264,14 +267,14 @@ NDB_SHARE *NDB_SHARE::acquire_or_create_reference(const char *key,
   share->increment_use_count();
   share->refs_insert(reference);
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
 
   return share;
 }
 
 NDB_SHARE *NDB_SHARE::create_for_handler(const char *key,
                                          const class ha_ndbcluster *reference) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   NDB_SHARE *share = NDB_SHARE::create(key);
   if (share == nullptr)
@@ -289,7 +292,7 @@ NDB_SHARE *NDB_SHARE::create_for_handler(const char *key,
     share->refs_insert(reference);
   }
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
   return share;
 }
 
@@ -297,7 +300,7 @@ NDB_SHARE *NDB_SHARE::acquire_for_handler(
     const char *key, const class ha_ndbcluster *reference) {
   DBUG_TRACE;
 
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
   NDB_SHARE *share = acquire_reference_impl(key);
   if (share) {
     share->refs_insert(reference);
@@ -306,7 +309,7 @@ NDB_SHARE *NDB_SHARE::acquire_for_handler(
                 "use_count: %u",
                 share->key_string(), reference, share->use_count()));
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
 
   return share;
 }
@@ -315,7 +318,7 @@ void NDB_SHARE::release_for_handler(NDB_SHARE *share,
                                     const ha_ndbcluster *reference) {
   DBUG_TRACE;
 
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   DBUG_PRINT("NDB_SHARE", ("release '%s', reference: 'ha_ndbcluster(%p)', "
                            "use_count: %u",
@@ -323,7 +326,7 @@ void NDB_SHARE::release_for_handler(NDB_SHARE *share,
 
   share->refs_erase(reference);
   NDB_SHARE::free_share(&share);
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
 }
 
 /*
@@ -332,7 +335,7 @@ void NDB_SHARE::release_for_handler(NDB_SHARE *share,
 
 NDB_SHARE *NDB_SHARE::acquire_reference_on_existing(NDB_SHARE *share,
                                                     const char *reference) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   // Should already be referenced
   DBUG_ASSERT(share->use_count() > 0);
@@ -345,7 +348,7 @@ NDB_SHARE *NDB_SHARE::acquire_reference_on_existing(NDB_SHARE *share,
   DBUG_PRINT("NDB_SHARE", ("'%s', reference: '%s', use_count: %u",
                            share->key_string(), reference, share->use_count()));
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
   return share;
 }
 
@@ -355,7 +358,7 @@ NDB_SHARE *NDB_SHARE::acquire_reference_on_existing(NDB_SHARE *share,
 
 NDB_SHARE *NDB_SHARE::acquire_reference(const char *key,
                                         const char *reference) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   NDB_SHARE *share = acquire_reference_impl(key);
   if (share) {
@@ -365,12 +368,12 @@ NDB_SHARE *NDB_SHARE::acquire_reference(const char *key,
                 reference, share->use_count()));
   }
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
   return share;
 }
 
 void NDB_SHARE::release_reference(NDB_SHARE *share, const char *reference) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   DBUG_PRINT("NDB_SHARE", ("release '%s', reference: '%s', use_count: %u",
                            share->key_string(), reference, share->use_count()));
@@ -378,7 +381,7 @@ void NDB_SHARE::release_reference(NDB_SHARE *share, const char *reference) {
   share->refs_erase(reference);
   NDB_SHARE::free_share(&share);
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
 }
 
 #ifndef DBUG_OFF
@@ -481,13 +484,13 @@ uint NDB_SHARE::decrement_use_count() {
 }
 
 void NDB_SHARE::print_remaining_open_tables(void) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
   if (!ndbcluster_open_tables->empty()) {
     std::string s;
     NDB_SHARE::debug_print_shares(s);
     std::cerr << s << std::endl;
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
 }
 
 int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
@@ -496,7 +499,7 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
   DBUG_PRINT("enter",
              ("new_key: '%s'", NDB_SHARE::key_get_key(new_key).c_str()));
 
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   // Make sure that no NDB_SHARE with new_key already exists
   if (find_or_nullptr(*ndbcluster_open_tables,
@@ -553,7 +556,7 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
       }
     }
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
   return 0;
 }
 
@@ -574,7 +577,7 @@ NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
     return nullptr;
   }
 
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
+  mysql_mutex_assert_owner(&shares_mutex);
 
   auto it = ndbcluster_open_tables->find(key);
   if (it == ndbcluster_open_tables->end()) {
@@ -591,13 +594,14 @@ NDB_SHARE *NDB_SHARE::acquire_reference_impl(const char *key) {
 }
 
 void NDB_SHARE::initialize(CHARSET_INFO *charset) {
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &shares_mutex, MY_MUTEX_INIT_FAST);
   ndbcluster_open_tables.reset(
       new collation_unordered_map<std::string, NDB_SHARE *>(charset,
                                                             PSI_INSTRUMENT_ME));
 }
 
 void NDB_SHARE::deinitialize(void) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
 
   // There should not be any NDB_SHARE's left -> crash after logging in debug
   const class Debug_require {
@@ -630,11 +634,13 @@ void NDB_SHARE::deinitialize(void) {
     NDB_SHARE::real_free_share(&share);
   }
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
+
+  mysql_mutex_destroy(&shares_mutex);
 }
 
 void NDB_SHARE::release_extra_share_references(void) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
   while (!ndbcluster_open_tables->empty()) {
     NDB_SHARE *share = ndbcluster_open_tables->begin()->second;
     /*
@@ -645,13 +651,13 @@ void NDB_SHARE::release_extra_share_references(void) {
     DBUG_ASSERT(share->state != NSS_DROPPED);
     NDB_SHARE::mark_share_dropped_impl(&share);
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
 }
 
 void NDB_SHARE::real_free_share(NDB_SHARE **share_ptr) {
   NDB_SHARE *share = *share_ptr;
   DBUG_TRACE;
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
+  mysql_mutex_assert_owner(&shares_mutex);
 
   // Share must already be marked as dropped
   ndbcluster::ndbrequire(share->state == NSS_DROPPED);
@@ -673,7 +679,7 @@ extern void ndb_index_stat_free(NDB_SHARE *);
 void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   NDB_SHARE *share = *share_ptr;
   DBUG_TRACE;
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
+  mysql_mutex_assert_owner(&shares_mutex);
 
   // The NDB_SHARE should not have any event operations, those
   // should have been removed already _before_ marking the NDB_SHARE
@@ -723,7 +729,7 @@ void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
 
 void NDB_SHARE::mark_share_dropped_and_release(NDB_SHARE *share,
                                                const char *reference) {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&shares_mutex);
   mark_share_dropped_impl(&share);
 
   DBUG_PRINT("NDB_SHARE", ("release '%s', reference: '%s', use_count: %u",
@@ -736,7 +742,7 @@ void NDB_SHARE::mark_share_dropped_and_release(NDB_SHARE *share,
   // references, the share will remain in the list of dropped until
   // remaining references are released.
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&shares_mutex);
 }
 
 #ifndef DBUG_OFF

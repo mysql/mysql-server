@@ -282,7 +282,7 @@ struct NDB_SHARE {
   // Lists of the different "users" who have acquired a reference to
   // this NDB_SHARE, used for checking the reference counter "m_use_count"
   // in a programmatic way.
-  // Protected by "ndbcluster_mutex" in the same way as "m_use_count".
+  // Protected by "shares_mutex" in the same way as "m_use_count".
   struct Ndb_share_references {
     std::unordered_set<const class ha_ndbcluster *> handlers;
     std::unordered_set<std::string> strings;
