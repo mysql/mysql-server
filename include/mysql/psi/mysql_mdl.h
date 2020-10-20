@@ -28,7 +28,15 @@
   Instrumentation helpers for metadata locks.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_mdl.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_METADATA_CALL() as direct call. */
+#include "pfs_metadata_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_METADATA_CALL
 #define PSI_METADATA_CALL(M) psi_mdl_service->M

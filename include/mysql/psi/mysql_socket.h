@@ -32,6 +32,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* For strlen() */
 #include <string.h>
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 /* For MY_STAT */
 #include "my_compiler.h"
 #include "my_dir.h"
@@ -53,7 +56,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "my_macros.h"
 #include "mysql/components/services/mysql_socket_bits.h"
-#include "pfs_socket_provider.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_SOCKET_CALL() as direct call. */
+#include "pfs_socket_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_SOCKET_CALL
 #define PSI_SOCKET_CALL(M) psi_socket_service->M

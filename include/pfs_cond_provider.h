@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,11 @@
 
 #include <sys/types.h>
 
-#include "my_psi_config.h"
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
 
 #ifdef HAVE_PSI_COND_INTERFACE
-#ifdef MYSQL_SERVER
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
 #ifndef MYSQL_DYNAMIC_PLUGIN
 #ifndef WITH_LOCK_ORDER
 
@@ -63,7 +64,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int rc);
 
 #endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* MYSQL_SERVER */
+#endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #endif

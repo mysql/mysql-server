@@ -40,14 +40,16 @@
   the dependency on my_thread and safemutex already exists.
 */
 
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_thread.h"
-#ifdef MYSQL_SERVER
-#ifndef MYSQL_DYNAMIC_PLUGIN
-#include "pfs_thread_provider.h"
-#endif
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_THREAD_CALL() as direct call. */
+#include "pfs_thread_provider.h"  // IWYU pragma: keep
 #endif
 
 #ifndef PSI_THREAD_CALL

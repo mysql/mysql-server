@@ -30,6 +30,11 @@
 
 #include "mysql/psi/psi_table.h"
 
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_TABLE_CALL() as direct call. */
+#include "pfs_table_provider.h"  // IWYU pragma: keep
+#endif
+
 #ifndef PSI_TABLE_CALL
 #define PSI_TABLE_CALL(M) psi_table_service->M
 #endif

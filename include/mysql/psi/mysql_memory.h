@@ -29,7 +29,16 @@
 */
 
 #include "my_compiler.h"
+
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_memory.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_MEMORY_CALL() as direct call. */
+#include "pfs_memory_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_MEMORY_CALL
 #define PSI_MEMORY_CALL(M) psi_memory_service->M
