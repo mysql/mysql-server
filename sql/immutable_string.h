@@ -45,6 +45,7 @@
 MY_COMPILER_DIAGNOSTIC_PUSH()
 MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wsuggest-override")
 MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-dynamic-exception-spec")
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
 #include <google/protobuf/io/coded_stream.h>
 MY_COMPILER_DIAGNOSTIC_POP()
 
