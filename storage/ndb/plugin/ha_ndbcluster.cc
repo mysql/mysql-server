@@ -9534,41 +9534,6 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     return create.failed_warning_already_pushed();
   }
 
-  // Guard class which will invalidate the table in NdbApi global dict
-  // cache when class goes out of scope or at a specific place in the code
-  class Ndb_table_invalidator_guard {
-    NdbDictionary::Dictionary *const m_dict;
-    const char *const m_name;
-    bool m_have_invalidated{false};
-    void invalidate() {
-      assert(!m_have_invalidated);
-      const NdbDictionary::Table *ndbtab = m_dict->getTableGlobal(m_name);
-      if (ndbtab) {
-        const int invalidate = 1;
-        (void)m_dict->removeTableGlobal(*ndbtab, invalidate);
-      }
-      m_have_invalidated = true;
-    }
-
-   public:
-    Ndb_table_invalidator_guard(NdbDictionary::Dictionary *dict,
-                                const char *tabname)
-        : m_dict(dict), m_name(tabname) {}
-    Ndb_table_invalidator_guard(const Ndb_table_invalidator_guard &) = delete;
-    ~Ndb_table_invalidator_guard() {
-      if (!m_have_invalidated) {
-        invalidate();
-      }
-    }
-    void invalidate_after_sucessfully_created_table() {
-      // NOTE! This function invalidates the table after table has
-      // been created sucessfully in NDB. The reason why it need to be
-      // invalidated is unknown and no test curently fails if this
-      // function is removed.
-      invalidate();
-    }
-  } table_invalidator(dict, m_tabname);
-
   if (tab.setName(m_tabname)) {
     return create.failed_oom("Failed to set table name");
   }
@@ -10004,9 +9969,6 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     ddl_ctx = thd_ndb->get_ddl_transaction_ctx(true);
     ddl_ctx->log_create_table(name);
   }
-
-  // Invalidate the sucessfully created table in NdbApi global dict cache
-  table_invalidator.invalidate_after_sucessfully_created_table();
 
   if (DBUG_EVALUATE_IF("ndb_create_open_fail", true, false)) {
     // The table has been sucessfully created in NDB, emulate
