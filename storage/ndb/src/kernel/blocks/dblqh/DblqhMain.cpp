@@ -12944,7 +12944,6 @@ void Dblqh::commitContinueAfterBlockedLab(
         tupCommitReq->gci_lo = regTcPtr.p->gci_lo;
         tupCommitReq->transId1 = regTcPtr.p->transid[0];
         tupCommitReq->transId2 = regTcPtr.p->transid[1];
-        Uint32 commit_result = c_tup->exec_tup_commit(signal);
         if (TRACENR_FLAG)
         {
 	  TRACENR("COMMIT: ");
@@ -12965,12 +12964,15 @@ void Dblqh::commitContinueAfterBlockedLab(
 	  if (LqhKeyReq::getRowidFlag(regTcPtr.p->reqinfo))
 	    TRACENR(" rowid: " << regTcPtr.p->m_row_id);
 	  TRACENR(" key: " << getKeyInfoWordOrZero(regTcPtr.p, 0));
-
+        }
+        /* Further processing of the commit is controlled from DBTUP. */
+        Uint32 commit_result = c_tup->exec_tup_commit(signal);
+        if (TRACENR_FLAG)
+        {
           if (commit_result == ZTUP_WAIT_COMMIT)
             TRACENR(" TIMESLICE");
 	  TRACENR(endl);
         }
-        /* Further processing of the commit is controlled from DBTUP. */
         return;
       }
       else if (ret_code == ZTUP_WAIT_COMMIT)
