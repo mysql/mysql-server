@@ -523,10 +523,6 @@ const char *ut_strerr(dberr_t num) {
       return ("Too many nested sub-expressions in a full-text search");
     case DB_PAGE_IS_STALE:
       return "Page was discarded, was not written to storage.";
-    case DB_INNODB_IMPORT_FILE_LARGER_THAN_MAX_SIZE:
-      return (
-          "Tablespace being imported is larger than the MAX_SIZE attribute on "
-          "the target tablespace");
     case DB_ERROR_UNSET:;
       /* Fall through. */
 

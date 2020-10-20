@@ -179,6 +179,9 @@ struct fil_node_t {
   FIL_IBD_FILE_INITIAL_SIZE by default */
   page_no_t init_size;
 
+  /** maximum size of the file in database pages */
+  page_no_t max_size;
+
   /** count of pending i/o's; is_open must be true if nonzero */
   size_t n_pending;
 
@@ -433,10 +436,7 @@ struct fil_space_t {
   page_no_t size_in_header{};
 
   /** Autoextend size */
-  uint64_t autoextend_size_in_bytes;
-
-  /** Maximum tablespace size */
-  uint64_t max_size_in_bytes;
+  uint64_t autoextend_size_in_bytes{};
 
   /** Length of the FSP_FREE list */
   uint32_t free_len{};
@@ -2044,12 +2044,6 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
 @param[in] autoextend_size	Value of autoextend_size attribute
 @return DB_SUCCESS or error code */
 dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size);
-
-/** Set the max_size attribute for the tablespace
-@param[in] space_id		Space ID of tablespace for which to set
-@param[in] max_size		Value of max_size attribute
-@return DB_SUCCESS or error code */
-dberr_t fil_set_max_size(space_id_t space_id, uint64_t max_size);
 
 /** Reset the encryption type for the tablespace
 @param[in] space_id		Space ID of tablespace for which to set

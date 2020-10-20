@@ -103,6 +103,7 @@ st_alter_tablespace::st_alter_tablespace(
       undo_buffer_size{opts.undo_buffer_size},
       redo_buffer_size{opts.redo_buffer_size},
       initial_size{opts.initial_size},
+      max_size{opts.max_size},
       file_block_size{opts.file_block_size},
       nodegroup_id{opts.nodegroup_id},
       wait_until_completed{opts.wait_until_completed},
@@ -110,10 +111,6 @@ st_alter_tablespace::st_alter_tablespace(
       encryption{opts.encryption.str} {
   if (opts.autoextend_size.has_value()) {
     autoextend_size = opts.autoextend_size.value();
-  }
-
-  if (opts.max_size.has_value()) {
-    max_size = opts.max_size.value();
   }
 }
 
@@ -568,10 +565,6 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
                                 ? m_options->autoextend_size.value()
                                 : 0);
 
-  tablespace->options().set("max_size", m_options->max_size.has_value()
-                                            ? m_options->max_size.value()
-                                            : 0);
-
   // Write changes to dictionary.
   if (dc.store(tablespace.get())) {
     return true;
@@ -973,10 +966,6 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
   if (m_options->autoextend_size.has_value()) {
     tsmp.second->options().set("autoextend_size",
                                m_options->autoextend_size.value());
-  }
-
-  if (m_options->max_size.has_value()) {
-    tsmp.second->options().set("max_size", m_options->max_size.value());
   }
 
   /*

@@ -3849,15 +3849,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   uint64_t autoextend_size{};
-  uint64_t max_size{};
 
   if (dict_table_is_file_per_table(old_table)) {
     dd::Object_id old_space_id = dd_first_index(old_dd_tab)->tablespace_id();
 
-    /* Copy the autoextend_size and max_size attributes for the tablespace being
-    dropped. These values will be copied to the new tablespace created later. */
-    if (dd_get_tablespace_size_option(client, old_space_id, &autoextend_size,
-                                      &max_size)) {
+    /* Copy the autoextend_size attribute value for the tablespace being
+    dropped. This value will be copied to the new tablespace created later. */
+    if (dd_get_tablespace_size_option(client, old_space_id, &autoextend_size)) {
       return true;
     }
 
@@ -3891,12 +3889,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
     }
 
     new_table->dd_space_id = dd_space_id;
-
-    /* Set the autoextend_size and max_size attributes to the new tablespace. */
-    if (dd_set_tablespace_size_option(client, dd_space_id, autoextend_size,
-                                      max_size)) {
-      return true;
-    }
   }
 
   return false;
@@ -4316,9 +4308,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
   if ((ha_alter_info->handler_flags &
        Alter_inplace_info::CHANGE_CREATE_OPTION) &&
-      (ha_alter_info->create_info
-           ->m_implicit_tablespace_autoextend_size_change ||
-       ha_alter_info->create_info->m_implicit_tablespace_max_size_change)) {
+      !(ha_alter_info->create_info->used_fields & HA_CREATE_USED_TABLESPACE) &&
+      ha_alter_info->create_info
+          ->m_implicit_tablespace_autoextend_size_change) {
+    /* Update the autoextend_size value in the data dictionary. Do not update
+    if the table is being moved to a new tablespace. The autoextend_size value
+    for the new tablespace will be updated later. */
     if (prepare_inplace_change_implicit_tablespace_option(
             ctx->prebuilt->trx->mysql_thd, ha_alter_info, ctx->old_table)) {
       return true;
@@ -5824,9 +5819,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
           static_cast<ha_innobase_inplace_ctx *>(ha_alter_info->handler_ctx);
       if ((ha_alter_info->handler_flags &
            Alter_inplace_info::CHANGE_CREATE_OPTION) &&
-          (ha_alter_info->create_info
-               ->m_implicit_tablespace_autoextend_size_change ||
-           ha_alter_info->create_info->m_implicit_tablespace_max_size_change) &&
+          ha_alter_info->create_info
+              ->m_implicit_tablespace_autoextend_size_change &&
           prepare_inplace_change_implicit_tablespace_option(
               m_user_thd, ha_alter_info, ctx->old_table)) {
         return true;
@@ -8187,11 +8181,10 @@ class alter_part {
   @param[in]	file_per_table	Current value of innodb_file_per_table
   @param[in]	autoinc		Next AUTOINC value to use
   @param[in]	autoextend_size Value of AUTOEXTEND_SIZE for this tablespace
-  @param[in]	max_size	Value of MAX_SIZE for this tablespace
   @return 0 or error number */
   int create(const char *part_name, dd::Partition *dd_part, TABLE *table,
              const char *tablespace, bool file_per_table, ib_uint64_t autoinc,
-             ib_uint64_t autoextend_size, ib_uint64_t max_size);
+             ib_uint64_t autoextend_size);
 
  protected:
   /** InnoDB transaction, nullptr if not used */
@@ -8253,15 +8246,12 @@ bool alter_part::build_partition_name(const dd::Partition *dd_part, bool temp,
 @param[in]	file_per_table	Current value of innodb_file_per_table
 @param[in]	autoinc		Next AUTOINC value to use
 @param[in]	autoextend_size Value of AUTOEXTEND_SIZE for this tablespace
-@param[in]	max_size	Value of MAX_SIZE for this tablespace
 @return 0 or error number */
 int alter_part::create(const char *part_name, dd::Partition *dd_part,
                        TABLE *table, const char *tablespace,
                        bool file_per_table, ib_uint64_t autoinc,
-                       ib_uint64_t autoextend_size, ib_uint64_t max_size) {
+                       ib_uint64_t autoextend_size) {
   ut_ad(m_state == PART_TO_BE_ADDED || m_state == PART_CHANGED);
-
-  ut_ad(max_size == 0);
 
   dd::Table &dd_table = dd_part->table();
   dd::Properties &options = dd_table.options();
@@ -8292,7 +8282,6 @@ int alter_part::create(const char *part_name, dd::Partition *dd_part,
   create_info.data_file_name = data_file_name.empty() ? nullptr : full_path;
   create_info.tablespace = tablespace[0] == '\0' ? nullptr : tablespace;
   create_info.m_implicit_tablespace_autoextend_size = autoextend_size;
-  create_info.m_implicit_tablespace_max_size = max_size;
 
   /* The below check is the same as for CREATE TABLE, but since we are
   doing an alter here it will not trigger the check in
@@ -8665,20 +8654,17 @@ class alter_part_add : public alter_part {
       return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
     }
 
-    /* Get the autoextend_size and max_size values from the old partition
-    and set these values to the partition being added. */
+    /* Get the autoextend_size value from the old partition
+    and set this value to the partition being added. */
     const dd::Table &part_table = old_part->table();
 
     ulonglong autoextend_size{};
-    ulonglong max_size{};
 
     dd::get_implicit_tablespace_options(current_thd, &part_table,
-                                        &autoextend_size, &max_size);
-
-    ut_ad(max_size == 0);
+                                        &autoextend_size);
 
     int error = create(part_name, new_part, altered_table, m_tablespace,
-                       m_file_per_table, m_autoinc, autoextend_size, max_size);
+                       m_file_per_table, m_autoinc, autoextend_size);
 
     if (error == 0 && alter_parts::need_copy(m_ha_alter_info)) {
       mutex_enter(&dict_sys->mutex);
@@ -8984,18 +8970,17 @@ int alter_part_change::prepare(TABLE *altered_table,
     return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
   }
 
-  /* Copy the autoextend_size and max_size attributes for the partition being
+  /* Copy the autoextend_size attribute for the partition being
   created. */
   const dd::Table &part_table = old_part->table();
 
   ulonglong autoextend_size{};
-  ulonglong max_size{};
 
   dd::get_implicit_tablespace_options(current_thd, &part_table,
-                                      &autoextend_size, &max_size);
+                                      &autoextend_size);
 
   int error = create(part_name, new_part, altered_table, m_tablespace,
-                     m_file_per_table, m_autoinc, autoextend_size, max_size);
+                     m_file_per_table, m_autoinc, autoextend_size);
 
   if (error == 0) {
     mutex_enter(&dict_sys->mutex);

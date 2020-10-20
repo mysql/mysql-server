@@ -771,7 +771,6 @@ struct TABLE_SHARE {
   ulong stored_rec_length{0};       /* Stored record length
                                     (no generated-only generated fields) */
   ulonglong autoextend_size{0};
-  ulonglong max_size{0};
 
   plugin_ref db_plugin{nullptr};     /* storage engine plugin */
   inline handlerton *db_type() const /* table_type for handler */

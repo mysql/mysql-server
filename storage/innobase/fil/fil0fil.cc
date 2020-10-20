@@ -2469,6 +2469,8 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
 
   file.init_size = size;
 
+  file.max_size = max_pages;
+
   file.space = space;
 
   os_file_stat_t stat_info;
@@ -9010,23 +9012,6 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   os_offset_t file_size = os_file_get_size(file);
   ut_a(file_size != (os_offset_t)-1);
 
-  /* Check if the file_size is less than or equal to the max_size attribute
-  value on the target tablespace */
-  auto dc = dd::get_dd_client(current_thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
-  uint64_t autoextend_size{};
-  uint64_t max_size{};
-  dd_get_tablespace_size_option(dc, table->dd_space_id, &autoextend_size,
-                                &max_size);
-
-  if (max_size > 0 && file_size > max_size) {
-    os_file_close(file);
-
-    ut_free(filepath);
-
-    return DB_INNODB_IMPORT_FILE_LARGER_THAN_MAX_SIZE;
-  }
-
   /* The block we will use for every physical page */
   buf_block_t *block;
 
@@ -9341,27 +9326,11 @@ dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size) {
     return DB_NOT_FOUND;
   }
 
+  rw_lock_x_lock(&space->latch);
+
   space->autoextend_size_in_bytes = autoextend_size;
 
-  fil_space_release(space);
-
-  return DB_SUCCESS;
-}
-
-/** Set the autoextend_size attribute for the tablespace
-@param[in] space_id		Space ID of tablespace for which to set
-@param[in] max_size		Value of autoextend_size attribute
-@return DB_SUCCESS or error code */
-dberr_t fil_set_max_size(space_id_t space_id, uint64_t max_size) {
-  ut_ad(space_id != TRX_SYS_SPACE);
-
-  fil_space_t *space = fil_space_acquire(space_id);
-
-  if (space == nullptr) {
-    return DB_NOT_FOUND;
-  }
-
-  space->max_size_in_bytes = max_size;
+  rw_lock_x_unlock(&space->latch);
 
   fil_space_release(space);
 

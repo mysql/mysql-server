@@ -74,9 +74,8 @@ static constexpr char handler_name[] = "InnoDB";
 
 static const char innobase_hton_name[] = "InnoDB";
 
-/** String constants for AUTOEXTEND_SIZE and MAX_SIZE option strings */
+/** String constant for AUTOEXTEND_SIZE option string */
 static constexpr char autoextend_size_str[] = "autoextend_size";
-static constexpr char max_size_str[] = "max_size";
 
 /** Maximum hardcoded data dictionary tables. */
 #define DICT_MAX_DD_TABLES 1024
@@ -852,7 +851,6 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 @param[in,out]  space_version   space version
 @param[in]      is_encrypted    true if tablespace is encrypted
 @param[in]      autoextend_size autoextend_size attribute value
-@param[in]      max_size        max_size attribute value
 @param[in,out]  state           space state
 @param[in]      dd_spaces       dict_table_t obj of mysql.tablespaces
 @return true if data is retrived */
@@ -861,7 +859,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    uint32_t *flags, uint32 *server_version,
                                    uint32 *space_version, bool *is_encrypted,
                                    uint64_t *autoextend_size,
-                                   uint64_t *max_size, dd::String_type *state,
+                                   dd::String_type *state,
                                    dict_table_t *dd_spaces);
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
@@ -1098,28 +1096,15 @@ bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
                                    const char *space_name, const char *filename,
                                    bool discarded, dd::Object_id &dd_space_id);
 
-/** Get the autoextend_size and max_size attributes for a tablespace.
+/** Get the autoextend_size attribute for a tablespace.
 @param[in]      dd_client       Data dictionary client
 @param[in]      dd_space_id     Tablespace ID
 @param[out]     autoextend_size Value of autoextend_size attribute
-@param[out]     max_size        Value of max_size attribute
 @retval false   On success
 @retval true    On failure */
 bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
                                    const dd::Object_id dd_space_id,
-                                   uint64_t *autoextend_size,
-                                   uint64_t *max_size);
-
-/** Set tablespace attributes autoextend_size and max_size for a tablespace
-@param[in]      dd_client       Data dictionary client
-@param[in]      dd_space_id     Tablespace ID
-@param[in]      autoextend_size Value of autoextend_size attribute
-@param[in]      max_size        Value of max_size attribute
-@return false   On success
-@return true    On failure */
-bool dd_set_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
-                                   const dd::Object_id dd_space_id,
-                                   uint64_t autoextend_size, uint64_t max_size);
+                                   uint64_t *autoextend_size);
 
 /** Drop a tablespace
 @param[in,out]	dd_client	data dictionary client
@@ -1303,7 +1288,7 @@ dd_space_states dd_tablespace_get_state_enum(
 @param[in]	dd_space	dd::Tablespace object */
 bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space);
 
-/** Set the autoextend_size and max_size attributes for an implicit tablespace
+/** Set the autoextend_size attribute for an implicit tablespace
 @param[in,out]  dd_client       Data dictionary client
 @param[in,out]  thd             THD object
 @param[in]      dd_space_id     DD tablespace id

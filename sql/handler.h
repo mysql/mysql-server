@@ -787,11 +787,10 @@ constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
 constexpr const uint64_t HA_CREATE_USED_READ_ONLY{1ULL << 34};
 
 /**
-  These flags convey that the options AUTOEXTEND_SIZE and MAX_SIZE
-  have been specified in the CREATE TABLE statement
+  These flags convey that the options AUTOEXTEND_SIZE has been
+  specified in the CREATE TABLE statement
 */
 constexpr const uint64_t HA_CREATE_USED_AUTOEXTEND_SIZE{1ULL << 35};
-constexpr const uint64_t HA_CREATE_USED_MAX_SIZE{1ULL << 36};
 
 /*
   End of bits used in used_fields
@@ -863,8 +862,7 @@ class st_alter_tablespace {
   ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
   Mysql::Nullable<ulonglong> autoextend_size;    // No autoextension as default
-  Mysql::Nullable<ulonglong>
-      max_size;                   // Max size == initial size => no extension
+  ulonglong max_size = 0;         // Max size == initial size => no extension
   ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;
@@ -2748,10 +2746,8 @@ struct HA_CREATE_INFO {
   LEX_CSTRING secondary_engine_attribute = NULL_CSTR;
 
   ulonglong m_implicit_tablespace_autoextend_size{0};
-  ulonglong m_implicit_tablespace_max_size{0};
 
   bool m_implicit_tablespace_autoextend_size_change{true};
-  bool m_implicit_tablespace_max_size_change{true};
 
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.

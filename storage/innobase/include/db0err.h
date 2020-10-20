@@ -220,9 +220,6 @@ enum dberr_t {
   /** Request the caller to cache records. */
   DB_CACHE_RECORDS,
   /* Too many nested sub expression in full-text search string */
-  DB_FTS_TOO_MANY_NESTED_EXP,
-  /* Tablespace being imported is larger than the max_size attribute on the
-  target tablespace */
-  DB_INNODB_IMPORT_FILE_LARGER_THAN_MAX_SIZE
+  DB_FTS_TOO_MANY_NESTED_EXP
 };
 #endif

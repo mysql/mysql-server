@@ -1038,7 +1038,6 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   space->free_len = 0;
   space->free_limit = 0;
   space->autoextend_size_in_bytes = 0;
-  space->max_size_in_bytes = 0;
 
   /* The prior contents of the file page should be ignored */
 
@@ -1358,17 +1357,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
       size_increase = std::max(size_increase, space->m_undo_extend);
     }
 
-    /* Get the max size of the tablespace */
-    page_no_t max_size_pages = space->max_size_in_bytes / page_size.physical();
-
-    /* Ensure that the size of the tablespace does not cross the max_size */
-    if (max_size_pages > 0) {
-      /* Limit the space extend to max_size */
-      if (size + size_increase > max_size_pages) {
-        ib::error(ER_IB_INNODB_TBSP_OUT_OF_SPACE, space->name);
-        return false;
-      }
-    }
+    DBUG_EXECUTE_IF("fsp_crash_before_space_extend", DBUG_SUICIDE(););
   }
 
   if (size_increase == 0) {

@@ -2229,11 +2229,9 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" */"));
     }
 
-    /* Get autoextend_size and max_size attributes for file_per_table
-    tablespaces */
+    /* Get Autoextend_size attribute for file_per_table tablespaces. */
 
     ulonglong autoextend_size{};
-    ulonglong max_size{};
 
     if (create_info_arg != nullptr) {
       if ((create_info_arg->used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE) !=
@@ -2241,17 +2239,10 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         autoextend_size =
             create_info_arg->m_implicit_tablespace_autoextend_size;
       }
-
-      if ((create_info_arg->used_fields & HA_CREATE_USED_MAX_SIZE) != 0) {
-        max_size = create_info_arg->m_implicit_tablespace_max_size;
-      }
     } else if (!share->tmp_table && table_obj &&
-               table_obj->engine() == "InnoDB" &&
-               !table_obj->is_explicit_tablespace()) {
-      /* Get the AUTOEXTEND_SIZE and MAX_SIZE if the tablespace is an implicit
-      tablespace */
-      dd::get_implicit_tablespace_options(thd, table_obj, &autoextend_size,
-                                          &max_size);
+               table_obj->engine() == "InnoDB") {
+      /* Get the AUTOEXTEND_SIZE if the tablespace is an implicit tablespace. */
+      dd::get_implicit_tablespace_options(thd, table_obj, &autoextend_size);
     }
 
     /* Print autoextend_size attribute if it is set to a non-zero value */
@@ -2260,16 +2251,6 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       int len = snprintf(buf, sizeof(buf), "%llu", autoextend_size);
       DBUG_ASSERT(len < static_cast<int>(sizeof(buf)));
       packet->append(STRING_WITH_LEN(" /*!80023 AUTOEXTEND_SIZE="));
-      packet->append(buf, len);
-      packet->append(STRING_WITH_LEN(" */"));
-    }
-
-    /* Print max_size attribute if it is set to a non-zero value */
-    if (max_size > 0) {
-      char buf[std::numeric_limits<decltype(max_size)>::digits10 + 2];
-      int len = snprintf(buf, sizeof(buf), "%llu", max_size);
-      DBUG_ASSERT(len < static_cast<int>(sizeof(buf)));
-      packet->append(STRING_WITH_LEN(" /*!80023 MAX_SIZE="));
       packet->append(buf, len);
       packet->append(STRING_WITH_LEN(" */"));
     }

@@ -1548,6 +1548,11 @@ rec_t *btr_root_raise_and_insert(
 
   new_block = btr_page_alloc(index, 0, FSP_NO_DIR, level, mtr, mtr);
 
+  /* New page could not be allocated */
+  if (!new_block) {
+    return nullptr;
+  }
+
   new_page = buf_block_get_frame(new_block);
   new_page_zip = buf_block_get_page_zip(new_block);
   ut_a(!new_page_zip == !root_page_zip);
