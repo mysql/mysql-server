@@ -613,7 +613,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
     return;
   }//if
   Page8Ptr spPageptr;
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   Uint32 result = seizePage(spPageptr,
                             Page32Lists::ANY_SUB_PAGE,
                             c_allow_use_of_spare_pages,
@@ -1164,14 +1164,14 @@ void Dbacc::execACCKEYREQ(Signal* signal,
 
   Uint32 opbits = operationRecPtr.p->m_op_bits;
 
-  if (AccKeyReq::getTakeOver(req->requestInfo))
+  if (unlikely(AccKeyReq::getTakeOver(req->requestInfo)))
   {
     /* Verify that lock taken over and operation are on same
      * element by checking that lockOwner match.
      */
     jamDebug();
     OperationrecPtr lockOpPtr;
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     lockOpPtr.i = req->lockConnectPtr;
     bool is_valid = oprec_pool.getValidPtr(lockOpPtr);
     if (lockOwnerPtr.i == RNIL ||
@@ -1182,7 +1182,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
       signal->theData[0] = Uint32(-1);
       signal->theData[1] = ZTO_OP_STATE_ERROR;
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
-      ndbrequire(!m_is_in_query_thread);
+      ndbassert(!m_is_in_query_thread);
       return; /* Take over failed */
     }
 
@@ -1190,11 +1190,11 @@ void Dbacc::execACCKEYREQ(Signal* signal,
     signal->theData[2] = operationRecPtr.p->transId1;
     signal->theData[3] = operationRecPtr.p->transId2;
     execACC_TO_REQ(signal);
-    if (signal->theData[0] == Uint32(-1))
+    if (unlikely(signal->theData[0] == Uint32(-1)))
     {
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
       ndbassert(signal->theData[1] == ZTO_OP_STATE_ERROR);
-      ndbrequire(!m_is_in_query_thread);
+      ndbassert(!m_is_in_query_thread);
       return; /* Take over failed */
     }
   }
@@ -1208,9 +1208,9 @@ void Dbacc::execACCKEYREQ(Signal* signal,
     case ZDELETE:
     case ZWRITE:
     case ZSCAN_OP:
-      if (!lockOwnerPtr.p)
+      if (likely(!lockOwnerPtr.p))
       {
-	if(op == ZWRITE)
+	if(unlikely(op == ZWRITE))
 	{
 	  jam();
 	  opbits &= ~(Uint32)Operationrec::OP_MASK;
@@ -1230,7 +1230,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
 	  // the operation.
 	  /*---------------------------------------------------------------*/
           jamDebug();
-          ndbrequire(!m_is_in_query_thread);
+          ndbassert(!m_is_in_query_thread);
           Uint32 eh = elemPageptr.p->word32[elemptr];
           operationRecPtr.p->reducedHashValue =
             ElementHeader::getReducedHashValue(eh);
@@ -1258,7 +1258,6 @@ void Dbacc::execACCKEYREQ(Signal* signal,
                                          operationRecPtr.p->m_lockTime,
                                          getHighResTimer());
           
-          ndbrequire(!m_is_in_query_thread);
           return;
         }
         else
@@ -1283,7 +1282,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
       }//if
     case ZINSERT:
       jam();
-      ndbrequire(!m_is_in_query_thread);
+      ndbassert(!m_is_in_query_thread);
       insertExistElemLab(signal, lockOwnerPtr);
       return;
     default:
@@ -1304,7 +1303,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
       opbits |= Operationrec::OP_RUN_QUEUE;
       operationRecPtr.p->m_op_bits = opbits;
       insertelementLab(signal, bucketPageptr, bucketConidx);
-      ndbrequire(!m_is_in_query_thread);
+      ndbassert(!m_is_in_query_thread);
       return;
     case ZREAD:
     case ZUPDATE:
@@ -1317,7 +1316,9 @@ void Dbacc::execACCKEYREQ(Signal* signal,
     default:
       ndbabort();
     }//switch
-  } else {
+  }
+  else
+  {
     jam();
     release_frag_mutex_get(fragrecptr.p, operationRecPtr);
     acckeyref1Lab(signal, found);
@@ -1706,13 +1707,13 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
       return;
     }//if
     ndbabort();
-  } 
+  }
   else 
   {
     if (! (lockOwnerPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED) &&
 	! lockOwnerPtr.p->localdata.isInvalid())
     {
-      jam();
+      jamDebug();
       /* ---------------------------------------------------------------
        * It is a dirty read. We do not lock anything. Set state to
        * OP_EXECUTED_DIRTY_READ to prepare for COMMIT/ABORT call.
@@ -1765,7 +1766,7 @@ void Dbacc::insertelementLab(Signal* signal,
     acckeyref1Lab(signal, ZDIR_RANGE_FULL_ERROR);
     return;
   }
-  if (fragrecptr.p->sparsepages.isEmpty())
+  if (unlikely(fragrecptr.p->sparsepages.isEmpty()))
   {
     jam();
     Uint32 result = allocOverflowPage();
@@ -1775,7 +1776,7 @@ void Dbacc::insertelementLab(Signal* signal,
       return;
     }//if
   }//if
-  ndbrequire(operationRecPtr.p->tupkeylen <= fragrecptr.p->keyLength);
+  ndbassert(operationRecPtr.p->tupkeylen <= fragrecptr.p->keyLength);
   ndbassert(!(operationRecPtr.p->m_op_bits & Operationrec::OP_LOCK_REQ));
 
   /**
@@ -1788,13 +1789,14 @@ void Dbacc::insertelementLab(Signal* signal,
   acquire_frag_mutex_hash(fragrecptr.p, operationRecPtr);
   insertLockOwnersList(operationRecPtr);
 
-  operationRecPtr.p->reducedHashValue = fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
+  operationRecPtr.p->reducedHashValue =
+    fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
   const Uint32 tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
   Page8Ptr idrPageptr;
   idrPageptr = bucketPageptr;
   Uint32 tidrPageindex = bucketConidx;
   bool isforward = true;
-  ndbrequire(fragrecptr.p->localkeylen == 1);
+  ndbassert(fragrecptr.p->localkeylen == 1);
   /* ----------------------------------------------------------------------- */
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
@@ -1814,7 +1816,9 @@ void Dbacc::insertelementLab(Signal* signal,
   fragrecptr.p->m_lockStats.req_start_imm_ok(true /* Exclusive */,
                                              operationRecPtr.p->m_lockTime,
                                              getHighResTimer());
-  c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
+  c_tup->prepareTUPKEYREQ(localKey.m_page_no,
+                          localKey.m_page_idx,
+                          fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
 }//Dbacc::insertelementLab()
@@ -2593,7 +2597,7 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
 
   operationRecPtr.p->m_op_bits = opbits;
 
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   ndbrequire(operationRecPtr.p->localdata.m_page_no == key->m_page_no);
   ndbrequire(operationRecPtr.p->localdata.m_page_idx == key->m_page_idx);
@@ -2717,7 +2721,7 @@ void Dbacc::execACC_ABORTREQ(Signal* signal,
 	   opstate == Operationrec::OP_STATE_RUNNING)
   {
     jam();
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
     abortOperation(signal);
   }
@@ -2748,13 +2752,14 @@ void Dbacc::execACC_ABORTREQ(Signal* signal,
  */
 void Dbacc::execACC_LOCKREQ(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   AccLockReq* sig = (AccLockReq*)signal->getDataPtrSend();
   AccLockReq reqCopy = *sig;
   AccLockReq* const req = &reqCopy;
   Uint32 lockOp = (req->requestInfo & 0xFF);
   if (lockOp == AccLockReq::LockShared ||
-      lockOp == AccLockReq::LockExclusive) {
+      lockOp == AccLockReq::LockExclusive)
+  {
     jam();
     // find table
     tabptr.i = req->tableId;
@@ -2794,7 +2799,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     }
     if (likely(succ))
     {
-      jam();
+      jamDebug();
       // init as in ACCSEIZEREQ
       operationRecPtr.p->userptr = req->userPtr;
       operationRecPtr.p->userblockref = req->userRef;
@@ -2829,15 +2834,20 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
                     operationRecPtr.p);
         /* keyreq invalid, signal now contains return value */
       // translate the result
-      if (signal->theData[0] < RNIL) {
-        jam();
+      if (signal->theData[0] < RNIL)
+      {
+        jamDebug();
         req->returnCode = AccLockReq::Success;
         req->accOpPtr = operationRecPtr.i;
-      } else if (signal->theData[0] == RNIL) {
+      }
+      else if (signal->theData[0] == RNIL)
+      {
         jam();
         req->returnCode = AccLockReq::IsBlocked;
         req->accOpPtr = operationRecPtr.i;
-      } else {
+      }
+      else
+      {
         ndbrequire(signal->theData[0] == (UintR)-1);
         releaseOpRec();
         req->returnCode = AccLockReq::Refused;
@@ -2855,7 +2865,8 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
   }
   operationRecPtr.i = req->accOpPtr;
   ndbrequire(oprec_pool.getValidPtr(operationRecPtr));
-  if (lockOp == AccLockReq::Unlock) {
+  if (lockOp == AccLockReq::Unlock)
+  {
     jam();
     // do unlock via ACC_COMMITREQ (immediate)
     execACC_COMMITREQ(signal,
@@ -3806,7 +3817,7 @@ Dbacc::readTablePk(Uint32 localkey1,
                    bool xfrm)
 {
   int ret = -ZTUPLE_DELETED_ERROR;
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   const int xfrm_multiply = (xfrm) ? MAX_XFRM_MULTIPLY : 1;
   memset(keys, 0x1f, (fragrecptr.p->keyLength * xfrm_multiply) << 2);
 #endif
@@ -4079,7 +4090,7 @@ Dbacc::getElement(const AccKeyReq* signal,
     tgeNextptrtype = containerhead.getNextEnd();
     if (tgeNextptrtype == 0)
     {
-      jam();
+      jamDebug();
       return ZFALSE;	/* NO MORE CONTAINER */
     }//if
     /* NEXT CONTAINER PAGE INDEX 7 BITS */
@@ -4087,7 +4098,7 @@ Dbacc::getElement(const AccKeyReq* signal,
     ndbrequire(tgePageindex <= Container::NO_CONTAINER_INDEX);
     if (!containerhead.isNextOnSamePage())
     {
-      jam();
+      jamDebug();
       elemPageptr.i = elemPageptr.p->word32[elemConptr + 1]; /* NEXT PAGE ID */
       c_page8_pool.getPtr(elemPageptr);
     }//if
@@ -4148,8 +4159,8 @@ Dbacc::report_pending_dealloc(Signal* signal,
     signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = countOpPtrP->userptr;
-    EXECUTE_DIRECT(getDBLQH(), GSN_TUP_DEALLOCREQ, signal, 6);
-    jamEntry();
+    c_lqh->execTUP_DEALLOCREQ(signal);
+    jamEntryDebug();
   }
 }
 
@@ -4190,8 +4201,8 @@ Dbacc::trigger_dealloc(Signal* signal, const Operationrec* opPtrP)
     signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = RNIL;
-    EXECUTE_DIRECT(getDBLQH(), GSN_TUP_DEALLOCREQ, signal, 6);
-    jamEntry();
+    c_lqh->execTUP_DEALLOCREQ(signal);
+    jamEntryDebug();
   }
 }
 
@@ -4310,7 +4321,7 @@ void Dbacc::commitdelete(Signal* signal)
      * are no scans in progress in the last elements container, otherwise
      * the delete container should have an extra scan bit set.
      */
-#ifdef VM_TRACE
+#if defined (VM_TRACE) || defined(ERROR_INSERT)
     ContainerHeader conhead(lastPageptr.p->word32[tlastContainerptr]);
     ndbassert(!conhead.isInUse() || !conhead.isScanInProgress());
     conhead = ContainerHeader(delPageptr.p->word32[delConptr]);
@@ -4358,7 +4369,7 @@ void Dbacc::commitdelete(Signal* signal)
   /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
   /*  DELETED ELEMENT.                                                                 */
   /* --------------------------------------------------------------------------------- */
-#if defined(VM_TRACE) || !defined(NDEBUG)
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
   jamDebug();
   jamLineDebug(Uint16(delPageptr.i));
   jamLineDebug(Uint16(delElemptr));
@@ -4996,7 +5007,7 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
     ndbrequire(oprec_pool.getValidPtr(nextP));
   }
 
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   loPtr.i = nextP.p->m_lock_owner_ptr_i;
   ndbrequire(oprec_pool.getValidPtr(loPtr));
   ndbassert(loPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER);
@@ -5958,9 +5969,12 @@ void Dbacc::insertLockOwnersList(const OperationrecPtr& insOperPtr) const
   insOperPtr.p->nextLockOwnerOp = tmpOperPtr.i;
   
   fragrecptr.p->lockOwnersList = insOperPtr.i;
-  if (tmpOperPtr.i == RNIL) {
+  if (likely(tmpOperPtr.i == RNIL))
+  {
     return;
-  } else {
+  }
+  else
+  {
     jam();
     ndbrequire(oprec_pool.getValidPtr(tmpOperPtr));
     tmpOperPtr.p->prevLockOwnerOp = insOperPtr.i;
@@ -6254,9 +6268,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   else
   {
     expPageptr.i = getPagePtr(fragrecptr.p->directory, expDirInd);
-#ifdef VM_TRACE
-    require(expPageptr.i != RNIL);
-#endif
+    ndbassert(expPageptr.i != RNIL);
   }
   if (expPageptr.i == RNIL) {
     jam();
@@ -6296,9 +6308,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   Uint32 conidx = fragrecptr.p->getPageIndex(splitBucket);
   expDirInd = fragrecptr.p->getPageNumber(splitBucket);
   pageptr.i = getPagePtr(fragrecptr.p->directory, expDirInd);
-#ifdef VM_TRACE
-  require(pageptr.i != RNIL);
-#endif
+  ndbassert(pageptr.i != RNIL);
   fragrecptr.p->expSenderIndex = conidx;
   fragrecptr.p->expSenderPageptr = pageptr.i;
   if (pageptr.i == RNIL) {
@@ -6588,7 +6598,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   {
     ndbrequire(fragrecptr.p->localkeylen == 1);
     const Uint32 localkey = pageptr.p->word32[elemptr + 1];
-#if defined(VM_TRACE) || !defined(NDEBUG)
+#if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
     jamDebug();
     jamLineDebug(Uint16(pageptr.i));
     jamLineDebug(Uint16(elemptr));
@@ -7182,13 +7192,13 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       DynArr256 dir(directoryPoolPtr, fragrecptr.p->directory);
       DynArr256::ReleaseIterator iter;
       Uint32 relcode;
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
       Uint32 count = 0;
 #endif
       dir.init(iter);
       while ((relcode = dir.trim(fragrecptr.p->expSenderDirIndex, iter)) != 0)
       {
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
         count++;
         ndbrequire(count <= 256);
 #endif
@@ -8119,7 +8129,7 @@ void Dbacc::releaseAndAbortLockedOps(Signal* signal) {
 void Dbacc::execACC_CHECK_SCAN(Signal* signal) 
 {
   Uint32 TcheckLcpStop;
-  jamEntry();
+  jamEntryDebug();
   scanPtr.i = signal->theData[0];
   ndbrequire(scanRec_pool.getUncheckedPtrRW(scanPtr));
   TcheckLcpStop = signal->theData[1];
@@ -8127,7 +8137,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
   ndbrequire(Magic::check_ptr(scanPtr.p));
   while (firstQueuedOp != RNIL)
   {
-    jam();
+    jamDebug();
     //---------------------------------------------------------------------
     // An operation has been released from the lock queue. 
     // We are in the parallel queue of this tuple. We are 
@@ -8198,10 +8208,10 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
        CheckLcpStop::ZSCAN_RESOURCE_WAIT:
        CheckLcpStop::ZSCAN_RUNNABLE);
 
-    EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
-    jamEntry();
+    c_lqh->execCHECK_LCP_STOP(signal);
+    jamEntryDebug();
     if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
-      jam();
+      jamDebug();
       scanPtr.p->scan_lastSeen = __LINE__;
       /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
       return;
@@ -8226,15 +8236,15 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     {
       signal->theData[0] = scanPtr.p->scanUserptr;
       signal->theData[1] = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
-      EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+      c_lqh->execCHECK_LCP_STOP(signal);
       if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
       {
-        jamEntry();
+        jamEntryDebug();
         scanPtr.p->scan_lastSeen = __LINE__;
         /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
         return;
       }
-      jamEntry();
+      jamEntryDebug();
       ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
       /*
        * Fall through, cfreeOpRec == RNIL will lead to NEXT_SCANCONF
@@ -8487,9 +8497,7 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
     OperationrecPtr oprec;
     oprec.i = ElementHeader::getOpPtrI(pageptr.p->word32[elemptr]);
     ndbrequire(oprec_pool.getValidPtr(oprec));
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
-    ndbrequire(oprec.p->localdata.m_page_no == pageptr.p->word32[tisoLocalPtr]);
-#endif
+    ndbassert(oprec.p->localdata.m_page_no == pageptr.p->word32[tisoLocalPtr]);
     operationRecPtr.p->localdata = oprec.p->localdata;
   }
   tisoLocalPtr = tisoLocalPtr + 1;

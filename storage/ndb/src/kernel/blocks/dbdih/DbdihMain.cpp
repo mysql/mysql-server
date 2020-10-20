@@ -1637,14 +1637,14 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   if (m_use_classic_fragmentation && use_auto_thread_config)
   {
     jam();
-    m_use_classic_fragmentation = 1;
+    m_use_classic_fragmentation = 0;
   }
 
   c_fragments_per_node_ = 0;
   if (!m_use_classic_fragmentation)
   {
     jam();
-    c_fragments_per_node_ = 4;
+    c_fragments_per_node_ = 2;
     ndb_mgm_get_int_parameter(p, CFG_DB_PARTITIONS_PER_NODE,
                               &c_fragments_per_node_);
     // try to get some LQH workers which initially handle no fragments
@@ -16079,7 +16079,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
    */
   if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
   {
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     tabPtr.i = tabPtr.p->primaryTableId;
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
@@ -16104,7 +16104,7 @@ loop:
      * The requester is interested in getting the next copy fragment.
      * This should only happen for Fully replicated tables atm.
      */
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     fragId = hashValue;
     ndbassert((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0);
     getFragstoreCanFail(tabPtr.p, fragId, fragPtr);
@@ -16123,7 +16123,7 @@ loop:
    */
   if (distr_key_indicator)
   {
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     fragId = hashValue;
     /**
      * This check isn't valid for scans, if we ever implement the possibility
@@ -16153,7 +16153,7 @@ loop:
   {
     if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
     {
-      thrjam(jambuf);
+      thrjamDebug(jambuf);
       g_hash_map.getPtr(ptr, map_ptr_i, false);
       if (unlikely(ptr.p == nullptr))
       {
@@ -16262,7 +16262,7 @@ loop:
     thrjam(jambuf);
     goto crash_check_exit;
   }
-  if (anyNode == 1)
+  if (unlikely(anyNode == 1))
   {
     thrjam(jambuf);
 
@@ -17247,7 +17247,7 @@ loop:
   Uint32 blocked = getBlockCommit() == true ? 1 : 0;
   if (blocked == 0)
   {
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     /*-----------------------------------------------------------------------*/
     // We are not blocked so we can simply reply back to TC immediately. The
     // method was called with EXECUTE_DIRECT so we reply back by setting signal
@@ -17276,14 +17276,13 @@ void Dbdih::execDIH_SCAN_TAB_REQ(Signal* signal)
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtr();
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
 
-  thrjamEntry(jambuf);
+  thrjamEntryDebug(jambuf);
 
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   start_scan_on_table(tabPtr, signal, req->schemaTransId, jambuf);
-  return;
 }//Dbdih::execDIH_SCAN_TAB_REQ()
 
 void

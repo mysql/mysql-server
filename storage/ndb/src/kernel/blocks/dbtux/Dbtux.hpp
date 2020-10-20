@@ -37,6 +37,7 @@
 // big brother
 #include <dbtup/Dbtup.hpp>
 #include <dblqh/Dblqh.hpp>
+#include <dbacc/Dbacc.hpp>
 
 // packed index keys and bounds
 #include <NdbPack.hpp>
@@ -92,6 +93,7 @@ class Dbtux : public SimulatedBlock {
   // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
   Dblqh* c_lqh;
+  Dbacc* c_acc;
   void execTUX_BOUND_INFO(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
 
@@ -671,11 +673,13 @@ private:
   void abortAddFragOp(Signal* signal);
   void dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData);
 
+public:
   /*
    * DbtuxMaint.cpp
    */
   void execTUX_MAINT_REQ(Signal* signal);
-  
+
+private:
   /*
    * DbtuxNode.cpp
    */

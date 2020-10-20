@@ -265,16 +265,16 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       jam();
       cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
     }
-    EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+    c_lqh->execCHECK_LCP_STOP(signal);
     if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
     {
-      jamEntry();
+      jamEntryDebug();
       release_c_free_scan_lock();
       relinkScan(scan, frag, true, __LINE__);
       /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
       return;
     }
-    jamEntry();
+    jamEntryDebug();
     ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
     /* Fall through, we will send NEXT_SCANCONF, this will detect close */
   }
@@ -651,16 +651,13 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (! scan.m_readCommitted)
     {
       jam();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       Uint32 accOperationPtr = req->accOperationPtr;
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Unlock;
       lockReq->accOpPtr = accOperationPtr;
-      EXECUTE_DIRECT(getDBACC(),
-                     GSN_ACC_LOCKREQ,
-                     signal,
-                     AccLockReq::UndoSignalLength);
+      c_acc->execACC_LOCKREQ(signal);
       jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       removeAccLockOp(c_ctx.scanPtr, accOperationPtr);
@@ -689,16 +686,15 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (unlikely(scan.m_lockwait))
     {
       jam();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       ndbrequire(scan.m_accLockOp != RNIL);
       // use ACC_ABORTCONF to flush out any reply in job buffer
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::AbortWithConf;
       lockReq->accOpPtr = scan.m_accLockOp;
-      EXECUTE_DIRECT(getDBACC(), GSN_ACC_LOCKREQ, signal,
-		     AccLockReq::UndoSignalLength);
-      jamEntry();
+      c_acc->execACC_LOCKREQ(signal);
+      jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_state = ScanOp::Aborting;
       return;
@@ -706,15 +702,14 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (scan.m_state == ScanOp::Locked)
     {
       jam();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       ndbrequire(scan.m_accLockOp != RNIL);
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Abort;
       lockReq->accOpPtr = scan.m_accLockOp;
-      EXECUTE_DIRECT(getDBACC(), GSN_ACC_LOCKREQ, signal,
-		     AccLockReq::UndoSignalLength);
-      jamEntry();
+      c_acc->execACC_LOCKREQ(signal);
+      jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_accLockOp = RNIL;
     }
@@ -818,7 +813,7 @@ Dbtux::continue_scan(Signal *signal,
     if (unlikely(! scan.m_readCommitted))
     {
       jamDebug();
-      ndbrequire(!m_is_query_block);
+      ndbassert(!m_is_query_block);
       const TreeEnt ent = scan.m_scanEnt;
       // read tuple key
       readTablePk(ent, pkData, pkSize);
@@ -844,16 +839,12 @@ Dbtux::continue_scan(Signal *signal,
       lockReq->transId2 = scan.m_transId2;
       lockReq->isCopyFragScan = ZFALSE;
       // execute
-      EXECUTE_DIRECT(getDBACC(),
-                     GSN_ACC_LOCKREQ,
-                     signal,
-                     AccLockReq::LockSignalLength);
+      c_acc->execACC_LOCKREQ(signal);
       jamEntryDebug();
       switch (lockReq->returnCode)
       {
       case AccLockReq::Success:
       {
-        jam();
         scan.m_state = ScanOp::Locked;
         scan.m_accLockOp = lockReq->accOpPtr;
 #ifdef VM_TRACE
@@ -882,17 +873,17 @@ Dbtux::continue_scan(Signal *signal,
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
-        EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+        c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
-          jamEntry();
+          jamEntryDebug();
           /* Normal path */
           release_c_free_scan_lock();
           relinkScan(scan, frag, true, __LINE__);
           /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
           return; // stop for a while
         }
-        jamEntry();
+        jamEntryDebug();
         /* DBTC has most likely aborted due to timeout */
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
@@ -915,17 +906,17 @@ Dbtux::continue_scan(Signal *signal,
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
-        EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+        c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
-          jamEntry();
+          jamEntryDebug();
           /* Normal path */
           release_c_free_scan_lock();
           relinkScan(scan, frag, true, __LINE__);
           /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
           return; // stop for a while
         }
-        jamEntry();
+        jamEntryDebug();
         /* DBTC has most likely aborted due to timeout */
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
@@ -940,17 +931,17 @@ Dbtux::continue_scan(Signal *signal,
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT_STOPPABLE;
-        EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
+        c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
-          jamEntry();
+          jamEntryDebug();
           /* Normal path */
           release_c_free_scan_lock();
           relinkScan(scan, frag, true, __LINE__);
           /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
           return; // stop for a while
         }
-        jamEntry();
+        jamEntryDebug();
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
         scan.m_state = ScanOp::Last;
@@ -973,8 +964,8 @@ Dbtux::continue_scan(Signal *signal,
     CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
     cls->scanPtrI = scan.m_userPtr;
     cls->scanState = CheckLcpStop::ZSCAN_RUNNABLE_YIELD;
-    EXECUTE_DIRECT(getDBLQH(), GSN_CHECK_LCP_STOP, signal, 2);
-    jam();
+    c_lqh->execCHECK_LCP_STOP(signal);
+    jamEntryDebug();
     ndbrequire(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
     relinkScan(scan, frag, true, __LINE__);
     /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
@@ -1079,11 +1070,8 @@ Dbtux::execACCKEYCONF(Signal* signal)
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
-    EXECUTE_DIRECT(getDBACC(),
-                   GSN_ACC_LOCKREQ,
-                   signal,
-                   AccLockReq::UndoSignalLength);
-    jamEntry();
+    c_acc->execACC_LOCKREQ(signal);
+    jamEntryDebug();
     ndbrequire(lockReq->returnCode == AccLockReq::Success);
     scan.m_accLockOp = RNIL;
     // LQH has the ball
@@ -1120,15 +1108,13 @@ Dbtux::execACCKEYREF(Signal* signal)
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = scan.m_accLockOp;
-    EXECUTE_DIRECT(getDBACC(),
-                   GSN_ACC_LOCKREQ,
-                   signal,
-                   AccLockReq::UndoSignalLength);
-    jamEntry();
+    c_acc->execACC_LOCKREQ(signal);
+    jamEntryDebug();
     ndbrequire(lockReq->returnCode == AccLockReq::Success);
     scan.m_accLockOp = RNIL;
     // scan position should already have been moved (assert only)
-    if (scan.m_state == ScanOp::Blocked) {
+    if (scan.m_state == ScanOp::Blocked)
+    {
       jam();
       // can happen when Dropping
 #ifdef VM_TRACE
@@ -1368,11 +1354,8 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Abort;
       lockReq->accOpPtr = scan.m_accLockOp;
-      EXECUTE_DIRECT(getDBACC(),
-                     GSN_ACC_LOCKREQ,
-                     signal,
-                     AccLockReq::UndoSignalLength);
-      jamEntry();
+      c_acc->execACC_LOCKREQ(signal);
+      jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_accLockOp = RNIL;
       scan.m_lockwait = false;
@@ -1574,13 +1557,13 @@ Dbtux::relinkScan(ScanOp& scan,
    */
   if (scan.m_scanLinkedPos == scan.m_scanPos.m_loc)
   {
-    jam();
+    jamDebug();
     ndbrequire(scan.m_is_linked_scan ||
                scan.m_scanLinkedPos == NullTupLoc);
     scan.m_scanLinkedPos = NullTupLoc;
     return;
   }
-  if (globalData.ndbMtQueryThreads == 0)
+  if (qt_unlikely(globalData.ndbMtQueryThreads == 0))
   {
     need_lock = false;
   }
@@ -1590,35 +1573,35 @@ Dbtux::relinkScan(ScanOp& scan,
   const TupLoc new_loc = scan.m_scanPos.m_loc;
   if (scan.m_scanLinkedPos != NullTupLoc)
   {
-    jam();
+    jamDebug();
     selectNode(c_ctx, old_node, old_loc);
   }
   if (scan.m_scanPos.m_loc != NullTupLoc)
   {
-    jam();
+    jamDebug();
     selectNode(c_ctx, new_node, new_loc);
   }
-  if (need_lock)
+  if (qt_likely(need_lock))
   {
     c_lqh->lock_index_fragment();
   }
   if (scan.m_scanLinkedPos != NullTupLoc)
   {
-    jam();
+    jamDebug();
     unlinkScan(old_node, c_ctx.scanPtr, m_my_scan_instance);
   }
   if (scan.m_scanPos.m_loc != NullTupLoc)
   {
-    jam();
+    jamDebug();
     scan.m_is_linked_scan = true;
     linkScan(new_node, c_ctx.scanPtr, m_my_scan_instance);
   }
   else
   {
-    jam();
+    jamDebug();
     scan.m_is_linked_scan = false;
   }
-  if (need_lock)
+  if (qt_likely(need_lock))
   {
     c_lqh->unlock_index_fragment();
   }
@@ -1768,11 +1751,8 @@ Dbtux::abortAccLockOps(Signal* signal, ScanOpPtr scanPtr)
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Abort;
     lockReq->accOpPtr = lockPtr.p->m_accLockOp;
-    EXECUTE_DIRECT(getDBACC(),
-                   GSN_ACC_LOCKREQ,
-                   signal,
-                   AccLockReq::UndoSignalLength);
-    jamEntry();
+    c_acc->execACC_LOCKREQ(signal);
+    jamEntryDebug();
     ndbrequire(lockReq->returnCode == AccLockReq::Success);
     list.remove(lockPtr);
     c_scanLockPool.release(lockPtr);

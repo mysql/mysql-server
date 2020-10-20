@@ -474,7 +474,8 @@ Configuration::setupConfiguration(){
     int res = m_thr_config.do_parse(thrconfigstring,
                                     _realtimeScheduler,
                                     _schedulerSpinTimer,
-                                    globalData.ndbRRGroups);
+                                    globalData.ndbRRGroups,
+                                    false);
     if (res != 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -513,7 +514,8 @@ Configuration::setupConfiguration(){
                                       classic,
                                       _realtimeScheduler,
                                       _schedulerSpinTimer,
-                                      globalData.ndbRRGroups);
+                                      globalData.ndbRRGroups,
+                                      false);
       if (res != 0)
       {
         ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -618,15 +620,20 @@ Configuration::setupConfiguration(){
     globalData.ndbMtLqhThreads = threads;
     if (threads == 0)
     {
-      if (globalData.ndbMtTcThreads != 0 ||
-          globalData.ndbMtMainThreads != 0 ||
-          globalData.ndbMtReceiveThreads != 1 ||
-          globalData.ndbMtQueryThreads != 0)
+      if (!((globalData.ndbMtTcThreads == 0 &&
+             globalData.ndbMtMainThreads == 0 &&
+             globalData.ndbMtReceiveThreads == 1 &&
+             globalData.ndbMtQueryThreads == 0) ||
+            (globalData.ndbMtTcThreads == 0 &&
+             globalData.ndbMtMainThreads == 1 &&
+             globalData.ndbMtReceiveThreads == 1 &&
+             globalData.ndbMtQueryThreads == 0)))
       {
         ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
                   "Invalid configuration fetched. ",
                   "Setting number of ldm threads to 0 must be combined"
-                  " with 0 query, tc, rep and main threads and 1 recv thread");
+                  " with 0 query, tc, rep thread and 0/1 main thread"
+                  " and 1 recv thread");
       }
     }
     Uint32 query_threads_per_ldm = globalData.ndbMtQueryThreads / workers;

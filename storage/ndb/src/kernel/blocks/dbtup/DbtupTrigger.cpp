@@ -40,6 +40,7 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include "../dblqh/Dblqh.hpp"
+#include "../dbtux/Dbtux.hpp"
 
 #define JAM_FILE_ID 423
 
@@ -254,7 +255,7 @@ void
 Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
@@ -2242,10 +2243,10 @@ Dbtup::addTuxEntries(Signal* signal,
       failPtrI = triggerPtr.i;
       goto fail;
     }
-    EXECUTE_DIRECT(getDBTUX(), GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
+    c_tux->execTUX_MAINT_REQ(signal);
     jamEntryDebug();
-    if (req->errorCode != 0) {
+    if (unlikely(req->errorCode != 0))
+    {
       jam();
       terrorCode = req->errorCode;
       failPtrI = triggerPtr.i;
@@ -2258,12 +2259,11 @@ fail:
   req->opInfo = TuxMaintReq::OpRemove;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != failPtrI) {
-    jam();
+    jamDebug();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
-    EXECUTE_DIRECT(getDBTUX(), GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
-    jamEntry();
+    c_tux->execTUX_MAINT_REQ(signal);
+    jamEntryDebug();
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);
   }
@@ -2365,13 +2365,13 @@ Dbtup::removeTuxEntries(Signal* signal,
   const TupTriggerData_list& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
-  while (triggerPtr.i != RNIL) {
-    jam();
+  while (triggerPtr.i != RNIL)
+  {
+    jamDebug();
     req->indexId = triggerPtr.p->indexId;
-    req->errorCode = RNIL,
-    EXECUTE_DIRECT(getDBTUX(), GSN_TUX_MAINT_REQ,
-        signal, TuxMaintReq::SignalLength);
-    jamEntry();
+    req->errorCode = RNIL;
+    c_tux->execTUX_MAINT_REQ(signal); 
+    jamEntryDebug();
     // must succeed
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);

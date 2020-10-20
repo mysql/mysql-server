@@ -897,6 +897,10 @@ public:
 private:
   BLOCK_DEFINES(Dbacc);
 
+public:
+  void execACC_LOCKREQ(Signal* signal);
+
+private:
   // Transit signals
   void execDEBUG_SIG(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -913,7 +917,6 @@ private:
   void execNEXT_SCANREQ(Signal* signal);
   void execACC_SCANREQ(Signal* signal);
   void execACC_TO_REQ(Signal* signal);
-  void execACC_LOCKREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
@@ -1273,7 +1276,7 @@ public:
   bool acquire_frag_mutex_get(Fragmentrec *fragPtrP,
                               OperationrecPtr opPtr)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1285,7 +1288,7 @@ public:
   void release_frag_mutex_get(Fragmentrec *fragPtrP,
                               OperationrecPtr opPtr)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1295,7 +1298,7 @@ public:
   bool acquire_frag_mutex_hash(Fragmentrec *fragPtrP,
                                OperationrecPtr opPtr)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1307,7 +1310,7 @@ public:
   void release_frag_mutex_hash(Fragmentrec *fragPtrP,
                                OperationrecPtr opPtr)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       LHBits32 hashVal = getElementHash(opPtr);
       Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
@@ -1317,7 +1320,7 @@ public:
   void acquire_frag_mutex_bucket(Fragmentrec *fragPtrP,
                                  Uint32 bucket)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       Uint32 inx = bucket & (NUM_ACC_FRAGMENT_MUTEXES - 1);
       NdbMutex_Lock(&fragPtrP->acc_frag_mutex[inx]);
@@ -1325,7 +1328,7 @@ public:
   }
   void release_frag_mutex_bucket(Fragmentrec *fragPtrP, Uint32 bucket)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       Uint32 inx = bucket & (NUM_ACC_FRAGMENT_MUTEXES - 1);
       NdbMutex_Unlock(&fragPtrP->acc_frag_mutex[inx]);

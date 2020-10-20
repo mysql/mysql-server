@@ -405,7 +405,7 @@ Dbtup::set_last_lcp_state(Fragrecord *regFragPtr,
                           Uint32 logicalPageId,
                           bool is_new_state_D)
 {
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 *ptr = map.set(2 * logicalPageId + 1);
   ndbrequire(ptr != (Uint32*)0);
@@ -451,7 +451,7 @@ Dbtup::get_lcp_scanned_bit(Uint32 *next_ptr)
 bool
 Dbtup::get_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
 {
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 *ptr = map.set(2 * logicalPageId);
   return get_lcp_scanned_bit(ptr);

@@ -1955,6 +1955,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata,
       {
         if (unlikely(recvdata.checkJobBuffer()))
         {
+          recvdata.m_last_trp_id = trp_id;  //Resume from node after 'last_node'
           return 1;     // Full, can't unpack more
         }
         if (unlikely(recvdata.m_handled_transporters.get(trp_id)))

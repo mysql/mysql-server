@@ -76,13 +76,15 @@ public:
   int do_parse(const char * ThreadConfig,
                unsigned realtime,
                unsigned spintime,
-               unsigned &num_rr_groups);
+               unsigned &num_rr_groups,
+               bool check);
   int do_parse(unsigned MaxNoOfExecutionThreads,
                unsigned __ndbmt_lqh_threads,
                unsigned __ndbmt_classic,
                unsigned realtime,
                unsigned spintime,
-               unsigned &num_rr_groups);
+               unsigned &num_rr_groups,
+               bool check);
 
   const char * getConfigString();
   void append_name(const char *name,
@@ -148,7 +150,7 @@ protected:
     Uint32 & rep_threads,
     Uint32 & send_threads,
     Uint32 & recv_threads);
-  void reorganize_ldm_bindings(bool, unsigned&);
+  void reorganize_ldm_bindings(bool, unsigned&, bool);
 
 public:
   struct Entries

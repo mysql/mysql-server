@@ -45,6 +45,7 @@
 #include "Undo_buffer.hpp"
 #include "tuppage.hpp"
 #include <DynArr256.hpp>
+#include "../dbacc/Dbacc.hpp"
 #include "../pgman.hpp"
 #include "../tsman.hpp"
 #include <EventLogger.hpp>
@@ -260,6 +261,8 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 
 #endif
 
+class Dbtux;
+
 class Dbtup: public SimulatedBlock {
 friend class DbtupProxy;
 friend class Suma;
@@ -299,6 +302,8 @@ public:
   Tsman* c_tsman;
   Lgman* c_lgman;
   Pgman* c_pgman;
+  Dbacc* c_acc;
+  Dbtux* c_tux;
 
   enum CallbackIndex {
     // lgman
@@ -823,7 +828,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
 
   void acquire_frag_page_map_mutex(Fragrecord *fragPtrP)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       ndbrequire(!m_is_in_query_thread);
       NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
@@ -831,7 +836,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   }
   void release_frag_page_map_mutex(Fragrecord *fragPtrP)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
     }
@@ -846,24 +851,22 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   }
   void acquire_frag_page_map_mutex_read(Fragrecord *fragPtrP)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
     }
   }
   void release_frag_page_map_mutex_read(Fragrecord *fragPtrP)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
     }
   }
-
-
   void acquire_frag_mutex(Fragrecord *fragPtrP,
                           Uint32 logicalPageId)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       ndbrequire(!m_is_in_query_thread);
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
@@ -873,7 +876,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   void release_frag_mutex(Fragrecord *fragPtrP,
                           Uint32 logicalPageId)
   {
-    if (globalData.ndbMtQueryThreads > 0)
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
     {
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
       NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
@@ -882,7 +885,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   void acquire_frag_mutex_read(Fragrecord *fragPtrP,
                                Uint32 logicalPageId)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
       NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
@@ -891,7 +894,7 @@ typedef Ptr<Fragrecord> FragrecordPtr;
   void release_frag_mutex_read(Fragrecord *fragPtrP,
                                Uint32 logicalPageId)
   {
-    if (m_is_in_query_thread)
+    if (unlikely(m_is_in_query_thread))
     {
       Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
       NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
@@ -2236,6 +2239,12 @@ public:
 private:
   BLOCK_DEFINES(Dbtup);
 
+public:
+  void execTUP_ABORTREQ(Signal* signal);
+  void execTUP_WRITELOG_REQ(Signal* signal);
+  void execTUP_DEALLOCREQ(Signal* signal);
+  void do_tup_abortreq(Signal*, Uint32 flags);
+private:
   // Transit signals
   void execDEBUG_SIG(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -2254,13 +2263,10 @@ private:
   void execTUP_ADD_ATTRREQ(Signal* signal);
   void execTUPFRAGREQ(Signal* signal);
   void execTUP_COMMITREQ(Signal* signal);
-  void execTUP_ABORTREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);
-  void execTUP_DEALLOCREQ(Signal* signal);
-  void execTUP_WRITELOG_REQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
 
   void execDROP_FRAG_REQ(Signal*);
@@ -3360,7 +3366,6 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void tupkeyErrorLab(KeyReqStruct*);
-  void do_tup_abortreq(Signal*, Uint32 flags);
   void do_tup_abort_operation(Signal*, Tuple_header *,
                               Operationrec*,
                               Fragrecord*,
@@ -4760,6 +4765,32 @@ Dbtup::getOperationPtrP(Uint32 opPtrI)
   opPtr.i = opPtrI;
   ndbrequire(c_operation_pool.getValidPtr(opPtr));
   return (Dbtup::Operationrec*)opPtr.p;
+}
+
+inline void
+Dbtup::prepare_tab_pointers(Uint32 frag_id)
+{
+  /**
+   * A real-time break occurred in scanning, we setup the
+   * fragment and table pointers in preparation for calls to
+   * execTUPKEYREQ.
+   */
+  jamDebug();
+  FragrecordPtr fragptr;
+  TablerecPtr tabptr;
+
+  fragptr.i = frag_id;
+  const Uint32 RnoOfFragrec= cnoOfFragrec;
+  const Uint32 RnoOfTablerec= cnoOfTablerec;
+  Fragrecord * Rfragrecord = fragrecord;
+  Tablerec * Rtablerec = tablerec;
+  ndbrequire(fragptr.i < RnoOfFragrec);
+  ptrAss(fragptr, Rfragrecord);
+  tabptr.i = fragptr.p->fragTableId;
+  ndbrequire(tabptr.i < RnoOfTablerec);
+  prepare_fragptr = fragptr;
+  ptrAss(tabptr, Rtablerec);
+  prepare_tabptr = tabptr;
 }
 #undef JAM_FILE_ID
 

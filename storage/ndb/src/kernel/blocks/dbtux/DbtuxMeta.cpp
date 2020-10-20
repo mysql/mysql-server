@@ -447,7 +447,7 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
   IndexPtr indexPtr;
   c_indexPool.getPtr(indexPtr, req->indexId);
 
-  ndbrequire(!m_is_query_block);
+  ndbassert(!m_is_query_block);
   //Uint32 save = indexPtr.p->m_state;
   if (! (refToBlock(req->senderRef) == DBDICT) &&
       ! (isNdbMt() && refToMain(req->senderRef) == DBTUX && 

@@ -552,7 +552,7 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
      * Could also be an initial INSERT operation or a REFRESH that inserts
      * the record.
      */
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     nextOperPtr.i = regOperPtr->nextActiveOp;
     prevOperPtr.i = regOperPtr->prevActiveOp;
     regOperPtr->op_struct.bit_field.in_active_list= false;
@@ -577,7 +577,7 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
      * role to our operation and this needs a reversal, ensure also that the
      * update of nextActiveOp in the previous operation record is reverted.
      */
-    ndbrequire(!m_is_query_block);
+    ndbassert(!m_is_query_block);
     ndbrequire(tuple_ptr->m_operation_ptr_i == prevOperPtr.i);
   }
   if (prevOperPtr.i != RNIL)

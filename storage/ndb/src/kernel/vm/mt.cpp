@@ -7023,17 +7023,33 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
     globalData.ndbMtQueryThreads +
     globalData.ndbMtRecoverThreads;
 
-  if (num_lqh_threads == 0)
+  if (num_lqh_threads == 0 && globalData.ndbMtMainThreads == 0)
   {
     /**
      * ndbd emulation, all blocks are in the receive thread.
      */
     thr_no = 0;
     require(num_tc_threads == 0);
+    require(num_query_threads == 0);
     require(globalData.ndbMtMainThreads == 0);
     require(globalData.ndbMtReceiveThreads == 1);
     add_thr_map(block, instance, thr_no);
     return;
+  }
+  else if (num_lqh_threads == 0)
+  {
+    /**
+     * Configuration optimised for 1 CPU core with 2 CPUs.
+     * This has a receive thread + 1 thread for main, rep, ldm and tc
+     */
+    thr_no = 0;
+    require(num_tc_threads == 0);
+    require(globalData.ndbMtQueryThreads == 0);
+    require(globalData.ndbMtRecoverThreads == 0 ||
+            globalData.ndbMtRecoverThreads == 1);
+    require(globalData.ndbMtMainThreads == 1);
+    require(globalData.ndbMtReceiveThreads == 1);
+    num_lqh_threads = 1;
   }
   require(instance != 0);
   switch(block){
