@@ -4,11 +4,13 @@ ADD UNDOFILE 'undofile.dat'
   INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
-id    type                 state    logging database     schema   name
-logfilegroup_objectid    LogfileGroup         Online   -                             lg_1
+SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 21;
+id	fq_name
+logfilegroup_objectid	lg_1
 
-id    type                 state    logging database     schema   name
-undofile_objectid    Undofile             Online   -                             undofile.dat
+SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 23;
+id	fq_name
+undofile_objectid	undofile.dat
 
 ALTER LOGFILE GROUP lg_1
 ADD UNDOFILE 'undofile1.dat'
@@ -41,8 +43,9 @@ ADD DATAFILE 'datafile.dat'
   USE LOGFILE GROUP lg_1
 INITIAL_SIZE 2M
 ENGINE NDB;
-id    type                 state    logging database     schema   name
-datafile_objectid    Datafile             Online   -                             datafile.dat
+SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 22;
+id	datafile_objectid
+fq_name	datafile.dat
 
 ALTER TABLESPACE ts_1
 ADD DATAFILE 'datafile2.dat'
