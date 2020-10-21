@@ -3936,3 +3936,8 @@ DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) OR ST_ASGEOJSON(POINT(-10946,-1634
 ERROR HY000: Incorrect string value: '3\x9E\xD3%' for function uuid_to_bin
 DO NULLIF(FROM_BASE64(JSON_STORAGE_FREE('') XOR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
 ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "The document is empty." at position 0.
+#
+# Bug#32047630: MISSING ERROR PROPAGATION IN JSON FUNCTIONS
+#
+SELECT JSON_ARRAY(CAST('' AS JSON) = 1, 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.

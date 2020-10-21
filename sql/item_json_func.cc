@@ -1595,50 +1595,6 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
   return false;
 }
 
-/**
-  Try to determine whether an argument has a boolean (as opposed
-  to an int) type, and if so, return its boolean value.
-
-  @param[in] arg The argument to inspect.
-  @param[in,out] result Fill in the result if this is a boolean arg.
-
-  @return True if the arg can be determined to have a boolean type.
-*/
-static bool extract_boolean(Item *arg, bool *result) {
-  if (arg->is_bool_func()) {
-    *result = arg->val_int();
-    return true;
-  }
-
-  if (arg->type() == Item::SUBSELECT_ITEM) {
-    // EXISTS, IN, ALL, ANY subqueries have boolean type
-    Item_subselect *subs = down_cast<Item_subselect *>(arg);
-    switch (subs->substype()) {
-      case Item_subselect::EXISTS_SUBS:
-      case Item_subselect::IN_SUBS:
-      case Item_subselect::ALL_SUBS:
-      case Item_subselect::ANY_SUBS:
-        *result = arg->val_int();
-        return true;
-      default:
-        break;
-    }
-  }
-
-  if (arg->type() == Item::INT_ITEM) {
-    const Name_string *const name = &arg->item_name;
-    const bool is_literal_false = name->is_set() && name->eq("FALSE");
-    const bool is_literal_true = name->is_set() && name->eq("TRUE");
-    if (is_literal_false || is_literal_true) {
-      *result = is_literal_true;
-      return true;
-    }
-  }
-
-  // doesn't fit any of the checks we perform
-  return false;
-}
-
 // see the contract for this function in item_json_func.h
 bool get_json_atom_wrapper(Item **args, uint arg_idx,
                            const char *calling_function, String *value,
@@ -1659,8 +1615,9 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 
   try {
     // boolean operators should produce boolean values
-    bool boolean_value;
-    if (extract_boolean(arg, &boolean_value)) {
+    if (arg->is_bool_func()) {
+      const bool boolean_value = arg->val_int() != 0;
+      if (current_thd->is_error()) return true;
       Json_dom_ptr boolean_dom;
       if (create_scalar<Json_boolean>(scalar, &boolean_dom, boolean_value))
         return true; /* purecov: inspected */
