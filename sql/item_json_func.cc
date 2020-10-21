@@ -593,13 +593,15 @@ Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
 Item_func_json_schema_valid::~Item_func_json_schema_valid() = default;
 
 static bool do_json_schema_validation(
-    Item *json_schema, Item *json_document, const char *func_name,
-    const Json_schema_validator *cached_schema_validator, bool *null_value,
-    bool *validation_result, Json_schema_validation_report *validation_report) {
+    const THD *thd, Item *json_schema, Item *json_document,
+    const char *func_name, const Json_schema_validator *cached_schema_validator,
+    bool *null_value, bool *validation_result,
+    Json_schema_validation_report *validation_report) {
   DBUG_ASSERT(is_convertible_to_json(json_document));
 
   String document_buffer;
   String *document_string = json_document->val_str(&document_buffer);
+  if (thd->is_error()) return true;
   if (json_document->null_value) {
     *null_value = true;
     return false;
@@ -627,6 +629,7 @@ static bool do_json_schema_validation(
 
     String schema_buffer;
     String *schema_string = json_schema->val_str(&schema_buffer);
+    if (thd->is_error()) return true;
     if (json_schema->null_value) {
       *null_value = true;
       return false;
@@ -649,7 +652,7 @@ bool Item_func_json_schema_valid::val_bool() {
 
   if (m_in_check_constraint_exec_ctx) {
     Json_schema_validation_report validation_report;
-    if (do_json_schema_validation(args[0], args[1], func_name(),
+    if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
                                   m_cached_schema_validator.get(), &null_value,
                                   &validation_result, &validation_report)) {
       return error_bool();
@@ -660,7 +663,7 @@ bool Item_func_json_schema_valid::val_bool() {
                validation_report.human_readable_reason().c_str());
     }
   } else {
-    if (do_json_schema_validation(args[0], args[1], func_name(),
+    if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
                                   m_cached_schema_validator.get(), &null_value,
                                   &validation_result, nullptr)) {
       return error_bool();
@@ -698,7 +701,7 @@ bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed);
   bool validation_result = false;
   Json_schema_validation_report validation_report;
-  if (do_json_schema_validation(args[0], args[1], func_name(),
+  if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
                                 m_cached_schema_validator.get(), &null_value,
                                 &validation_result, &validation_report)) {
     return error_json();
