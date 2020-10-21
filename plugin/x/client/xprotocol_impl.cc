@@ -325,14 +325,10 @@ XError Protocol_impl::authenticate_mysql41(const std::string &user,
     XError operator()(
         const std::string &user, const std::string &pass, const std::string &db,
         const Mysqlx::Session::AuthenticateContinue &auth_continue) {
-      std::string data;
       std::string password_hash;
-
-      Mysqlx::Session::AuthenticateContinue auth_continue_response;
-
       if (pass.length()) {
-        password_hash = password_hasher::scramble(
-            auth_continue.auth_data().c_str(), pass.c_str());
+        password_hash =
+            password_hasher::scramble(auth_continue.auth_data(), pass);
         password_hash = password_hasher::get_password_from_salt(password_hash);
 
         if (password_hash.empty()) {
@@ -340,9 +336,12 @@ XError Protocol_impl::authenticate_mysql41(const std::string &user,
         }
       }
 
+      std::string data;
       data.append(db).push_back('\0');    // authz
       data.append(user).push_back('\0');  // authc
       data.append(password_hash);         // pass
+
+      Mysqlx::Session::AuthenticateContinue auth_continue_response;
       auth_continue_response.set_auth_data(data);
 
       return m_protocol->send(auth_continue_response);
