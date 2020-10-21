@@ -1,29 +1,13 @@
-DROP TABLE IF EXISTS t1;
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-id INT,
-type VARCHAR(20),
-state VARCHAR(20),
-logging VARCHAR(20),
-_database VARCHAR(255),
-_schema VARCHAR(20),
-name VARCHAR(255)
-);
 *******************************
 * online alter column tests
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED, e INT UNIQUE, f TEXT) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1,1,"One");
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ***************************************
 * Alter Table online change column name
 ***************************************
 ALTER TABLE t1 CHANGE b c INT UNSIGNED ;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -212,9 +196,6 @@ a	c	e	f
 1	1	1	One
 2	2	2	Two
 ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE c D INT UNSIGNED;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 name
 't1'
@@ -404,9 +385,6 @@ a	D	e	f
 2	2	2	Two
 3	3	3	Three
 ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE D d INT UNSIGNED;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 name
 't1'
@@ -597,9 +575,6 @@ a	d	e	f
 3	3	3	Three
 4	4	4	Four
 ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE f t TEXT;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 name
 't1'

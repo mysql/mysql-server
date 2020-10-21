@@ -1,20 +1,8 @@
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-id INT,
-type VARCHAR(20),
-state VARCHAR(20),
-logging VARCHAR(20),
-_database VARCHAR(255),
-_schema VARCHAR(20),
-name VARCHAR(255)
-);
 *******************************
 * basic online alter tests
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 *******************************
 * Alter Table online add column
@@ -22,9 +10,6 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 * Add column c as CHAR
 *******************************
 ALTER TABLE t1 ADD c CHAR(19);
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -46,16 +31,10 @@ DROP TABLE t1;
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
 INSERT INTO t1 values (1,"a");
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 ADD c INT;
 Warnings:
 Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -77,16 +56,10 @@ DROP TABLE t1;
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
 INSERT INTO t1 values (1,1);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 ADD c INT;
 Warnings:
 Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -104,9 +77,6 @@ a	b	c
 * Create online Index ci
 *******************************
 CREATE INDEX ci on t1(c) algorithm=inplace;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -116,9 +86,6 @@ name
 CREATE INDEX ci2 on t1(c) algorithm=copy;
 Warnings:
 Warning	1831	Duplicate index 'ci2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
@@ -126,9 +93,6 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 * Drop online Index ci
 *******************************
 DROP INDEX ci on t1 algorithm=inplace;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -136,9 +100,6 @@ name
 * Drop offline Index ci2
 *******************************
 DROP INDEX ci2 on t1 algorithm=copy;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 DROP TABLE t1;
@@ -147,14 +108,8 @@ DROP TABLE t1;
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD c TIMESTAMP;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -176,15 +131,9 @@ DROP TABLE t1;
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=FIXED ENGINE NDB;
 INSERT INTO t1 values (1,1);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19);
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -205,15 +154,9 @@ DROP TABLE t1;
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19) DEFAULT 17;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -231,22 +174,13 @@ a	b	c
 *******************************
 * Not supported Test#3
 *******************************
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD d INT AFTER b;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering column order. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
 ALTER TABLE t1 ADD d INT AFTER b;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 INSERT INTO t1 VALUES(3,1,1,'b');
@@ -264,15 +198,9 @@ a	b	d	c
 *******************************
 * Not supported Test#4
 *******************************
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ENGINE MYISAM;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -282,15 +210,9 @@ DROP TABLE t1;
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19) NOT NULL;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -311,15 +233,9 @@ DROP TABLE t1;
 *******************************
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19) COLUMN_FORMAT FIXED;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -383,15 +299,9 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 alter table t1 algorithm=inplace, change tiny new_tiny tinyint(4) DEFAULT '0';
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering if field is nullable is not supported. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -403,9 +313,6 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 alter table t1 algorithm=inplace, change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
@@ -416,9 +323,6 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 create index i1 on t1(medium);
 alter table t1 add index i2(new_tiny);
 drop index i1 on t1;
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 DROP TABLE t1;
@@ -480,31 +384,19 @@ DROP TABLE t1;
 * Add column c as nullable TEXT and BLOB
 ****************************************
 CREATE TABLE t1 (a INT UNSIGNED  AUTO_INCREMENT KEY, b INT DEFAULT 2 COLUMN_FORMAT DYNAMIC) ENGINE NDB;
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD c TEXT;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
 ALTER TABLE t1 algorithm=inplace, ADD d BLOB;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
 DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
-
-ndb_show_tables completed.....
-
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 *******************************
 * Add column c as nullable FLOAT
@@ -537,9 +429,6 @@ Warning	1478	Converted FIXED field 'f' to DYNAMIC to enable online ADD COLUMN
 ALTER TABLE t1 ADD g BINARY(4);
 Warnings:
 Warning	1478	Converted FIXED field 'g' to DYNAMIC to enable online ADD COLUMN
-
-ndb_show_tables completed.....
-
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'

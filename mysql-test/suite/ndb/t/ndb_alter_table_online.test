@@ -10,16 +10,19 @@
 --source include/have_multi_ndb.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
-# Create utiltity table used to hold the output from ndb_show_table
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
+# Create view which displays all user tables.
+# NOTE! Uses a format which is backward compatible with the output
+# from "ndb_show_tables" previously used by this test - for example names
+# have surrounding quotes.
+--disable_query_log ONCE
+CREATE VIEW ndb_show_tables_results AS
+  SELECT
+    id,
+    /* Hardcoded since only user tables are selected */
+    'UserTable' AS type,
+    /* Table name is last part of fq_name */
+    CONCAT("'", CONCAT(SUBSTRING_INDEX(fq_name, "/", -1), "'")) AS name
+  FROM ndbinfo.dict_obj_info WHERE type = 2 /* User table */;
 
 ######################################
 # basic online alter tests
@@ -31,7 +34,6 @@ CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --echo *******************************
@@ -42,7 +44,6 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 
 ALTER TABLE t1 ADD c CHAR(19);
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 INSERT INTO t1 values (2,1,"a");
@@ -60,12 +61,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
 INSERT INTO t1 values (1,"a");
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 ALTER TABLE t1 ADD c INT;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 INSERT INTO t1 values (2,"a",1);
@@ -83,12 +82,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 ALTER TABLE t1 ADD c INT;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 INSERT INTO t1 values (2,1,1);
@@ -102,7 +99,6 @@ SELECT * FROM t1 ORDER BY a;
 
 CREATE INDEX ci on t1(c) algorithm=inplace;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 --echo *******************************
@@ -111,7 +107,6 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
  
 CREATE INDEX ci2 on t1(c) algorithm=copy;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
@@ -121,7 +116,6 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
  
 DROP INDEX ci on t1 algorithm=inplace;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 --echo *******************************
@@ -130,7 +124,6 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 
 DROP INDEX ci2 on t1 algorithm=copy;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 DROP TABLE t1;
@@ -142,11 +135,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 ALTER TABLE t1 algorithm=inplace, ADD c TIMESTAMP;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
@@ -164,12 +155,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=FIXED ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19);
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 ALTER TABLE t1 ADD c CHAR(19);
@@ -187,12 +176,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19) DEFAULT 17;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
@@ -205,16 +192,13 @@ SELECT * FROM t1 ORDER BY a;
 --echo * Not supported Test#3
 --echo *******************************
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD d INT AFTER b;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 ALTER TABLE t1 ADD d INT AFTER b;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 INSERT INTO t1 VALUES(3,1,1,'b');
@@ -226,12 +210,10 @@ SELECT * FROM t1 ORDER BY a;
 --echo * Not supported Test#4
 --echo *******************************
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER TABLE t1 algorithm=inplace, ENGINE MYISAM;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 DROP TABLE t1;
@@ -243,12 +225,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19) NOT NULL;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
@@ -266,12 +246,10 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1);
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19) COLUMN_FORMAT FIXED;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
@@ -317,12 +295,10 @@ CREATE TABLE t1 (
   PRIMARY KEY (auto)
 ) engine=ndb;
                                                                                                    
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1 algorithm=inplace, change tiny new_tiny tinyint(4) DEFAULT '0';
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 alter table t1 change tiny tiny2 tinyint(4) DEFAULT '0' NOT NULL;
@@ -330,7 +306,6 @@ alter table t1 algorithm=inplace, change tiny2 new_tiny tinyint(4) DEFAULT '0' N
 # Changing default value is not supported online
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1 algorithm=inplace, change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
@@ -340,7 +315,6 @@ create index i1 on t1(medium);
 alter table t1 add index i2(new_tiny);
 drop index i1 on t1;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 DROP TABLE t1;
@@ -393,7 +367,6 @@ DROP TABLE t1;
 --echo * Add column c as nullable TEXT and BLOB
 --echo ****************************************
 CREATE TABLE t1 (a INT UNSIGNED  AUTO_INCREMENT KEY, b INT DEFAULT 2 COLUMN_FORMAT DYNAMIC) ENGINE NDB;
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 let $v=5;
@@ -406,12 +379,10 @@ while ($v)
 enable_query_log;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD c TEXT;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD d BLOB;
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 DROP TABLE t1;
@@ -431,7 +402,6 @@ while ($v)
 }
 enable_query_log;
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --echo *******************************
@@ -505,7 +475,6 @@ while ($v)
 enable_query_log;
 
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 SELECT COUNT(*) FROM t1 WHERE c IS NULL;
@@ -752,3 +721,6 @@ DROP TABLE categorylinks;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+
+--disable_query_log ONCE
+DROP VIEW ndb_show_tables_results;
