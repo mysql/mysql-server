@@ -3941,3 +3941,8 @@ ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "The
 #
 SELECT JSON_ARRAY(CAST('' AS JSON) = 1, 1);
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_OBJECT(CAST('' AS JSON), '');
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SHOW ERRORS;
+Level	Code	Message
+Error	3141	Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.

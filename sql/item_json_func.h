@@ -1221,9 +1221,11 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
                            String *tmp, Json_wrapper *wr);
 
 /**
-  Helper method for Item_func_json_* methods. Check whether an argument
-  can be converted to a utf8mb4 string.
+  Gets a JSON object member name from an Item. An error is raised if
+  the Item evaluates to NULL, or if it cannot be converted to a
+  utf8mb4 string.
 
+  @param[in]  thd         THD handle
   @param[in]  arg_item    An argument Item
   @param[out] value       Where to materialize the arg_item's string value
   @param[out] utf8_res    Buffer for use by ensure_utf8mb4.
@@ -1232,8 +1234,9 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 
   @returns true if the Item is not a utf8mb4 string
 */
-bool get_json_string(Item *arg_item, String *value, String *utf8_res,
-                     const char **safep, size_t *safe_length);
+bool get_json_object_member_name(const THD *thd, Item *arg_item, String *value,
+                                 String *utf8_res, const char **safep,
+                                 size_t *safe_length);
 using Json_dom_ptr = std::unique_ptr<Json_dom>;
 
 bool parse_json(const String &res, uint arg_idx, const char *func_name,

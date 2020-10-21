@@ -228,11 +228,14 @@ static enum_field_types get_normalized_field_type(const Item *arg) {
   return ft;
 }
 
-bool get_json_string(Item *arg_item, String *value, String *utf8_res,
-                     const char **safep, size_t *safe_length) {
+bool get_json_object_member_name(const THD *thd, Item *arg_item, String *value,
+                                 String *utf8_res, const char **safep,
+                                 size_t *safe_length) {
   String *const res = arg_item->val_str(value);
+  if (thd->is_error()) return true;
 
-  if (!res) {
+  if (arg_item->null_value) {
+    my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
     return true;
   }
 
@@ -2644,11 +2647,9 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
       const char *safep;   // contents of key_item, possibly converted
       size_t safe_length;  // length of safep
 
-      if (get_json_string(key_item, &tmp_key_value, &utf8_res, &safep,
-                          &safe_length)) {
-        my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
+      if (get_json_object_member_name(thd, key_item, &tmp_key_value, &utf8_res,
+                                      &safep, &safe_length))
         return error_json();
-      }
 
       std::string key(safep, safe_length);
 

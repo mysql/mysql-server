@@ -5906,11 +5906,9 @@ bool Item_sum_json_object::add() {
     const char *safep;   // contents of key_item, possibly converted
     size_t safe_length;  // length of safep
 
-    if (get_json_string(key_item, &m_tmp_key_value, &m_conversion_buffer,
-                        &safep, &safe_length)) {
-      my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
+    if (get_json_object_member_name(thd, key_item, &m_tmp_key_value,
+                                    &m_conversion_buffer, &safep, &safe_length))
       return error_json();
-    }
 
     std::string key(safep, safe_length);
 
