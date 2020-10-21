@@ -341,6 +341,14 @@ bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
   std::unordered_set<std::string> hash_indexes;
   for (unsigned int i = 0; i < list.count; i++) {
     NdbDictionary::Dictionary::List::Element &element = list.elements[i];
+    if (element.state != NdbDictionary::Object::StateOnline) {
+      // listIndexes() returns indexes in all states while this function is
+      // only interested in indexes that are online and usable. Filtering out
+      // indexes in other states is particularly important when metadata is
+      // being restored as they may be in StateBuilding indicating that all
+      // metadata related to the table hasn't been restored yet.
+      continue;
+    }
     switch (element.type) {
       case NdbDictionary::Object::UniqueHashIndex:
         hash_indexes.insert(element.name);
@@ -357,6 +365,17 @@ bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
 
   for (unsigned int i = 0; i < list.count; i++) {
     NdbDictionary::Dictionary::List::Element &element = list.elements[i];
+    if (element.state != NdbDictionary::Object::StateOnline) {
+      // listIndexes() returns indexes in all states while this function is
+      // only interested in indexes that are online and usable. Filtering out
+      // indexes in other states is particularly important when metadata is
+      // being restored as they may be in StateBuilding indicating that all
+      // metadata related to the table hasn't been restored yet. The
+      // getIndexGlobal() call below returns an "Index not found" error if
+      // the index's state is StateBuilding. This is dealt with by skipping
+      // the index altogether in the comparison.
+      continue;
+    }
     const NdbDictionary::Index *ndb_index =
         dict->getIndexGlobal(element.name, *m_ndbtab);
     if (!ndb_index) {
@@ -374,7 +393,8 @@ bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
         hash_indexes.find(index_name + "$unique") != hash_indexes.end()) {
       // Unless "USING HASH" is specified, creation of a unique index results in
       // the creation of both an ordered index and a hash index in NDB. Discount
-      // the extra ordered index since DD has no notion of it
+      // the extra ordered index since DD has no notion of it.
+      dict->removeIndexGlobal(*ndb_index, 0);
       continue;
     }
 
@@ -402,6 +422,7 @@ bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
     } else {
       // Unexpected object type
       DBUG_ASSERT(false);
+      dict->removeIndexGlobal(*ndb_index, 0);
       return false;
     }
 
@@ -415,6 +436,7 @@ bool Ndb_metadata::create_indexes(const NdbDictionary::Dictionary *dict,
       DBUG_ASSERT(column != nullptr);
       (void)dd_index->add_element(const_cast<dd::Column *>(column));
     }
+    dict->removeIndexGlobal(*ndb_index, 0);
   }
   return true;
 }
@@ -1771,9 +1793,9 @@ bool Ndb_metadata::check_partition_info(const dd::Table *dd_table_def) const {
   return ctx.equal();
 }
 
-bool Ndb_metadata::compare_indexes(const NdbDictionary::Dictionary *dict,
-                                   const NdbDictionary::Table *ndbtab,
-                                   const dd::Table *dd_table_def) {
+bool Ndb_metadata::check_index_count(const NdbDictionary::Dictionary *dict,
+                                     const NdbDictionary::Table *ndbtab,
+                                     const dd::Table *dd_table_def) {
   DBUG_TRACE;
   DBUG_ASSERT(dict != nullptr);
   unsigned int ndb_index_count;
@@ -1801,9 +1823,7 @@ bool Ndb_metadata::compare_indexes(const NdbDictionary::Dictionary *dict,
       }
     }
   }
-  Compare_context ctx;
-  ctx.compare("index_count", ndb_index_count, dd_index_count);
-  return ctx.equal();
+  return ndb_index_count == dd_index_count;
 }
 
 bool Ndb_metadata::compare(THD *thd, Ndb *ndb,

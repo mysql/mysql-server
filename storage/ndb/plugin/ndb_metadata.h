@@ -149,9 +149,9 @@ class Ndb_metadata {
     @return true if the number of indexes in both definitions match, false if
             not
   */
-  static bool compare_indexes(const NdbDictionary::Dictionary *dict,
-                              const NdbDictionary::Table *ndbtab,
-                              const dd::Table *dd_table_def);
+  static bool check_index_count(const NdbDictionary::Dictionary *dict,
+                                const NdbDictionary::Table *ndbtab,
+                                const dd::Table *dd_table_def);
 };
 
 #endif

@@ -994,7 +994,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       error_msg = "Failed to get object from DD";
       return false;
     }
-    if (!Ndb_metadata::compare_indexes(dict, ndbtab, dd_table)) {
+    if (!Ndb_metadata::check_index_count(dict, ndbtab, dd_table)) {
       // Mismatch in terms of number of indexes in NDB Dictionary and DD. This
       // is likely due to the fact that a table has been created in NDB
       // Dictionary but the indexes haven't been created yet. The expectation is
@@ -1113,7 +1113,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     error_msg = "Failed to get object from DD";
     return false;
   }
-  if (!Ndb_metadata::compare_indexes(dict, ndbtab, dd_table)) {
+  if (!Ndb_metadata::check_index_count(dict, ndbtab, dd_table)) {
     // Mismatch in terms of number of indexes in NDB Dictionary and DD. This is
     // likely due to the fact that a table has been created in NDB Dictionary
     // but the indexes haven't been created yet. The expectation is that the
