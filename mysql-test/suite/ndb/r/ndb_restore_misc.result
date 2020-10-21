@@ -636,28 +636,6 @@ a	b	c
 2	2	2
 3	3	3
 drop table t1;
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-id INT,
-type VARCHAR(20),
-state VARCHAR(20),
-logging VARCHAR(20),
-_database VARCHAR(255),
-_schema VARCHAR(20),
-name VARCHAR(255)
-);
-
-ndb_show_tables completed.....
-
-select id into @tmp1 from ndb_show_tables_results
-where name like '%ndb_index_stat_sample_x1%';
-select * from ndb_show_tables_results
-where type like '%Index%'
-and _database = 'test'
-and name not like '%ndb_index_stat_sample_x1%'
-and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
-order by 1,2,3,4,5,6,7;
-id	type	state	logging	_database	_schema	name
-drop table ndb_show_tables_results;
 create table t1 (a int primary key) engine = ndb;
 drop table t1;
 create table t1 ( c499 int, c498 int, c497 int, c496 int, c495 int, c494 int, c493 int, c492 int, c491 int, c490 int, c489 int, c488 int, c487 int, c486 int, c485 int, c484 int, c483 int, c482 int, c481 int, c480 int, c479 int, c478 int, c477 int, c476 int, c475 int, c474 int, c473 int, c472 int, c471 int, c470 int, c469 int, c468 int, c467 int, c466 int, c465 int, c464 int, c463 int, c462 int, c461 int, c460 int, c459 int, c458 int, c457 int, c456 int, c455 int, c454 int, c453 int, c452 int, c451 int, c450 int, c449 int, c448 int, c447 int, c446 int, c445 int, c444 int, c443 int, c442 int, c441 int, c440 int, c439 int, c438 int, c437 int, c436 int, c435 int, c434 int, c433 int, c432 int, c431 int, c430 int, c429 int, c428 int, c427 int, c426 int, c425 int, c424 int, c423 int, c422 int, c421 int, c420 int, c419 int, c418 int, c417 int, c416 int, c415 int, c414 int, c413 int, c412 int, c411 int, c410 int, c409 int, c408 int, c407 int, c406 int, c405 int, c404 int, c403 int, c402 int, c401 int, c400 int, c399 int, c398 int, c397 int, c396 int, c395 int, c394 int, c393 int, c392 int, c391 int, c390 int, c389 int, c388 int, c387 int, c386 int, c385 int, c384 int, c383 int, c382 int, c381 int, c380 int, c379 int, c378 int, c377 int, c376 int, c375 int, c374 int, c373 int, c372 int, c371 int, c370 int, c369 int, c368 int, c367 int, c366 int, c365 int, c364 int, c363 int, c362 int, c361 int, c360 int, c359 int, c358 int, c357 int, c356 int, c355 int, c354 int, c353 int, c352 int, c351 int, c350 int, c349 int, c348 int, c347 int, c346 int, c345 int, c344 int, c343 int, c342 int, c341 int, c340 int, c339 int, c338 int, c337 int, c336 int, c335 int, c334 int, c333 int, c332 int, c331 int, c330 int, c329 int, c328 int, c327 int, c326 int, c325 int, c324 int, c323 int, c322 int, c321 int, c320 int, c319 int, c318 int, c317 int, c316 int, c315 int, c314 int, c313 int, c312 int, c311 int, c310 int, c309 int, c308 int, c307 int, c306 int, c305 int, c304 int, c303 int, c302 int, c301 int, c300 int, c299 int, c298 int, c297 int, c296 int, c295 int, c294 int, c293 int, c292 int, c291 int, c290 int, c289 int, c288 int, c287 int, c286 int, c285 int, c284 int, c283 int, c282 int, c281 int, c280 int, c279 int, c278 int, c277 int, c276 int, c275 int, c274 int, c273 int, c272 int, c271 int, c270 int, c269 int, c268 int, c267 int, c266 int, c265 int, c264 int, c263 int, c262 int, c261 int, c260 int, c259 int, c258 int, c257 int, c256 int, c255 int, c254 int, c253 int, c252 int, c251 int, c250 int, c249 int, c248 int, c247 int, c246 int, c245 int, c244 int, c243 int, c242 int, c241 int, c240 int, c239 int, c238 int, c237 int, c236 int, c235 int, c234 int, c233 int, c232 int, c231 int, c230 int, c229 int, c228 int, c227 int, c226 int, c225 int, c224 int, c223 int, c222 int, c221 int, c220 int, c219 int, c218 int, c217 int, c216 int, c215 int, c214 int, c213 int, c212 int, c211 int, c210 int, c209 int, c208 int, c207 int, c206 int, c205 int, c204 int, c203 int, c202 int, c201 int, c200 int, c199 int, c198 int, c197 int, c196 int, c195 int, c194 int, c193 int, c192 int, c191 int, c190 int, c189 int, c188 int, c187 int, c186 int, c185 int, c184 int, c183 int, c182 int, c181 int, c180 int, c179 int, c178 int, c177 int, c176 int, c175 int, c174 int, c173 int, c172 int, c171 int, c170 int, c169 int, c168 int, c167 int, c166 int, c165 int, c164 int, c163 int, c162 int, c161 int, c160 int, c159 int, c158 int, c157 int, c156 int, c155 int, c154 int, c153 int, c152 int, c151 int, c150 int, c149 int, c148 int, c147 int, c146 int, c145 int, c144 int, c143 int, c142 int, c141 int, c140 int, c139 int, c138 int, c137 int, c136 int, c135 int, c134 int, c133 int, c132 int, c131 int, c130 int, c129 int, c128 int, c127 int, c126 int, c125 int, c124 int, c123 int, c122 int, c121 int, c120 int, c119 int, c118 int, c117 int, c116 int, c115 int, c114 int, c113 int, c112 int, c111 int, c110 int, c109 int, c108 int, c107 int, c106 int, c105 int, c104 int, c103 int, c102 int, c101 int, c100 int, c99 int, c98 int, c97 int, c96 int, c95 int, c94 int, c93 int, c92 int, c91 int, c90 int, c89 int, c88 int, c87 int, c86 int, c85 int, c84 int, c83 int, c82 int, c81 int, c80 int, c79 int, c78 int, c77 int, c76 int, c75 int, c74 int, c73 int, c72 int, c71 int, c70 int, c69 int, c68 int, c67 int, c66 int, c65 int, c64 int, c63 int, c62 int, c61 int, c60 int, c59 int, c58 int, c57 int, c56 int, c55 int, c54 int, c53 int, c52 int, c51 int, c50 int, c49 int, c48 int, c47 int, c46 int, c45 int, c44 int, c43 int, c42 int, c41 int, c40 int, c39 int, c38 int, c37 int, c36 int, c35 int, c34 int, c33 int, c32 int, c31 int, c30 int, c29 int, c28 int, c27 int, c26 int, c25 int, c24 int, c23 int, c22 int, c21 int, c20 int, c19 int, c18 int, c17 int, c16 int, c15 int, c14 int, c13 int, c12 int, c11 int, c10 int, c9 int, c8 int, c7 int, c6 int, c5 int, c4 int, c3 int, c2 int, c1 int, c500 varchar(11000) CHARACTER SET latin1, primary key using hash(c1)) engine=ndb;
