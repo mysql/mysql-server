@@ -751,9 +751,8 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
 /** Advances log.buf_ready_for_write_lsn using links in the recent written
 buffer. It's used by the log writer thread only.
-@param[in]	log	redo log
-@return true if and only if the lsn has been advanced */
-bool log_advance_ready_for_write_lsn(log_t &log);
+@param[in,out]	log	redo log */
+void log_advance_ready_for_write_lsn(log_t &log);
 
 /** Validates that all slots in log recent written buffer for lsn values
 in range between begin and end, are empty. Used during tests, crashes the

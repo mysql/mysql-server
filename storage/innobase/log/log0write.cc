@@ -1935,7 +1935,7 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
     }
 
     if (!log.writer_threads_paused.load(std::memory_order_acquire)) {
-      (void)log_advance_ready_for_write_lsn(log);
+      log_advance_ready_for_write_lsn(log);
     }
 
     const int32_t ATTEMPTS_UNTIL_ERROR =
@@ -2001,7 +2001,7 @@ static void log_writer_wait_on_archiver(log_t &log, lsn_t last_write_lsn,
     }
 
     if (!log.writer_threads_paused.load(std::memory_order_acquire)) {
-      (void)log_advance_ready_for_write_lsn(log);
+      log_advance_ready_for_write_lsn(log);
     }
 
     const int32_t ATTEMPTS_UNTIL_ERROR =
@@ -2151,7 +2151,7 @@ void log_writer(log_t *log_ptr) {
       }
 
       /* Advance lsn up to which data is ready in log buffer. */
-      (void)log_advance_ready_for_write_lsn(log);
+      log_advance_ready_for_write_lsn(log);
 
       ready_lsn = log_buffer_ready_for_write_lsn(log);
 
@@ -2213,11 +2213,13 @@ void log_writer(log_t *log_ptr) {
         finished and only then we are allowed to set
         the should_stop_threads to true. */
 
-        if (!log_advance_ready_for_write_lsn(log)) {
-          break;
-        }
+        log_advance_ready_for_write_lsn(log);
 
         ready_lsn = log_buffer_ready_for_write_lsn(log);
+
+        if (log.write_lsn.load() == ready_lsn) {
+          break;
+        }
       }
     }
   }
