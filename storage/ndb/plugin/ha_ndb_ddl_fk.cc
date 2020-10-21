@@ -167,12 +167,6 @@ static void setDbName(Ndb *ndb, const char *name) {
   }
 }
 
-template <size_t buf_size>
-const char *lex2str(const LEX_CSTRING &str, char (&buf)[buf_size]) {
-  snprintf(buf, buf_size, "%.*s", (int)str.length, str.str);
-  return buf;
-}
-
 inline static int ndb_fk_casecmp(const char *name1, const char *name2) {
   return my_strcasecmp(files_charset_info, name1, name2);
 }
@@ -1449,19 +1443,16 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb) {
       }
     }
 
-    NdbDictionary::ForeignKey ndbfk;
-    char fk_name[FN_REFLEN];
-
     /*
       In 8.0 we rely on SQL-layer to always provide foreign key name, either
-      by using the name provided by the user, or by generating an unique name.
-      In either case, the name has already been prepared at this point.
+      by using the name provided by the user, or by generating a unique name.
+      In either case, the name has already been prepared at this point, just
+      convert the potentially unterminated string to zero terminated.
     */
-    DBUG_ASSERT(fk->name.str && fk->name.length);
+    const std::string fk_name(fk->name.str, fk->name.length);
 
-    lex2str(fk->name, fk_name);
-
-    ndbfk.setName(fk_name);
+    NdbDictionary::ForeignKey ndbfk;
+    ndbfk.setName(fk_name.c_str());
     ndbfk.setParent(*parent_tab.get_table(), parent_index, parentcols);
     ndbfk.setChild(*child_tab.get_table(), child_index, childcols);
 
