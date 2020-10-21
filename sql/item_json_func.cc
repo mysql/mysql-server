@@ -701,7 +701,7 @@ bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
   if (do_json_schema_validation(args[0], args[1], func_name(),
                                 m_cached_schema_validator.get(), &null_value,
                                 &validation_result, &validation_report)) {
-    return error_bool();
+    return error_json();
   }
 
   DBUG_ASSERT(maybe_null || !null_value);
