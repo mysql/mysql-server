@@ -1438,6 +1438,7 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_TIME: {
       longlong dt = arg->val_temporal_by_field_type();
+      if (current_thd->is_error()) return true;
       if (arg->null_value) return false;
 
       MYSQL_TIME t;

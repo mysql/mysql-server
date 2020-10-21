@@ -3946,3 +3946,5 @@ ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The docu
 SHOW ERRORS;
 Level	Code	Message
 Error	3141	Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(CAST(CAST('' AS JSON) AS DATE), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.

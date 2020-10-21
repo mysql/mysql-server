@@ -2653,3 +2653,6 @@ SELECT JSON_OBJECT(CAST('' AS JSON), '');
 # Used to contain the misleading error:
 # JSON documents may not contain NULL member names.
 SHOW ERRORS;
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(CAST(CAST('' AS JSON) AS DATE), 1);
