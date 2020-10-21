@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -44,14 +44,14 @@ namespace {
 
 const char *_dig_vec_upper = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-void compute_two_stage_mysql41_hash(const char *password, size_t pass_len,
+void compute_two_stage_mysql41_hash(const std::string &password,
                                     uint8_t *hash_stage1,
                                     uint8_t *hash_stage2) {
   /* Stage 1: hash pwd */
-  compute_mysql41_hash(hash_stage1, password, static_cast<unsigned>(pass_len));
+  compute_mysql41_hash(hash_stage1, password.c_str(), password.size());
 
   /* Stage 2 : hash first stage's output. */
-  compute_mysql41_hash(hash_stage2, (const char *)hash_stage1,
+  compute_mysql41_hash(hash_stage2, reinterpret_cast<const char *>(hash_stage1),
                        MYSQL41_HASH_SIZE);
 }
 
@@ -108,7 +108,7 @@ std::string generate_user_salt() {
   char *buffer = &result[0];
   char *end = buffer + result.length() - 1;
 
-  RAND_bytes((unsigned char *)buffer, SCRAMBLE_LENGTH);
+  RAND_bytes(reinterpret_cast<unsigned char *>(buffer), SCRAMBLE_LENGTH);
 
   /* Sequence must be a legal UTF8 string */
   for (; buffer < end; buffer++) {
@@ -119,29 +119,31 @@ std::string generate_user_salt() {
   return result;
 }
 
-bool check_scramble_mysql41_hash(const char *scramble_arg, const char *message,
+bool check_scramble_mysql41_hash(const std::string &scramble_arg,
+                                 const std::string &message,
                                  const uint8_t *hash_stage2) {
   char buf[MYSQL41_HASH_SIZE];
   uint8_t hash_stage2_reassured[MYSQL41_HASH_SIZE];
 
   DBUG_ASSERT(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
   /* create key to encrypt scramble */
-  compute_mysql41_hash_multi(reinterpret_cast<uint8_t *>(buf), message,
-                             SCRAMBLE_LENGTH, (const char *)hash_stage2,
-                             MYSQL41_HASH_SIZE);
+  compute_mysql41_hash_multi(
+      reinterpret_cast<uint8_t *>(buf), message.c_str(), message.size(),
+      reinterpret_cast<const char *>(hash_stage2), MYSQL41_HASH_SIZE);
 
   /* encrypt scramble */
-  my_crypt(buf, (const uint8_t *)buf, (const uint8_t *)scramble_arg,
+  my_crypt(buf, reinterpret_cast<const uint8_t *>(buf),
+           reinterpret_cast<const uint8_t *>(scramble_arg.c_str()),
            SCRAMBLE_LENGTH);
 
   /* now buf supposedly contains hash_stage1: so we can get hash_stage2 */
   compute_mysql41_hash(reinterpret_cast<uint8_t *>(hash_stage2_reassured),
-                       (const char *)buf, MYSQL41_HASH_SIZE);
+                       reinterpret_cast<const char *>(buf), MYSQL41_HASH_SIZE);
 
   return 0 == memcmp(hash_stage2, hash_stage2_reassured, MYSQL41_HASH_SIZE);
 }
 
-std::string scramble(const char *message, const char *password) {
+std::string scramble(const std::string &message, const std::string &password) {
   uint8_t hash_stage1[MYSQL41_HASH_SIZE];
   uint8_t hash_stage2[MYSQL41_HASH_SIZE];
   std::string result(SCRAMBLE_LENGTH, '\0');
@@ -151,16 +153,16 @@ std::string scramble(const char *message, const char *password) {
   DBUG_ASSERT(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
 
   /* Two stage SHA1 hash of the pwd */
-  compute_two_stage_mysql41_hash(password, strlen(password),
+  compute_two_stage_mysql41_hash(password,
                                  reinterpret_cast<uint8_t *>(hash_stage1),
                                  reinterpret_cast<uint8_t *>(hash_stage2));
 
   /* create crypt string as sha1(message, hash_stage2) */
-  compute_mysql41_hash_multi(reinterpret_cast<uint8_t *>(&result[0]), message,
-                             SCRAMBLE_LENGTH, (const char *)hash_stage2,
-                             MYSQL41_HASH_SIZE);
-  my_crypt(&result[0], (const uint8_t *)&result[0], hash_stage1,
-           SCRAMBLE_LENGTH);
+  compute_mysql41_hash_multi(
+      reinterpret_cast<uint8_t *>(&result[0]), message.c_str(), message.size(),
+      reinterpret_cast<const char *>(hash_stage2), MYSQL41_HASH_SIZE);
+  my_crypt(&result[0], reinterpret_cast<const uint8_t *>(&result[0]),
+           hash_stage1, SCRAMBLE_LENGTH);
 
   return result;
 }
