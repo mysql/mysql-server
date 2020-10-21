@@ -103,8 +103,6 @@ static string HashJoinTypeToString(RelationalExpression::Type join_type) {
       return "Hash antijoin";
     case RelationalExpression::SEMIJOIN:
       return "Hash semijoin";
-    case RelationalExpression::CARTESIAN_PRODUCT:
-      return "Hash cartesian product";
     default:
       assert(false);
       return "<error>";

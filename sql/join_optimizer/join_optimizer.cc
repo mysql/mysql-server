@@ -790,15 +790,14 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   for (AccessPath *left_path : left_it->second) {
     for (AccessPath *right_path : right_it->second) {
-      // For inner joins and Cartesian products, the order does not matter.
+      // For inner joins, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes
       // the fewest amount of rows. (This has lower initial cost, and the same
       // cost.) When cost estimates are supplied by the secondary engine,
       // explore both orders, since the secondary engine might unilaterally
       // decide to prefer or reject one particular order.
       const bool operator_is_commutative =
-          edge->expr->type == RelationalExpression::INNER_JOIN ||
-          edge->expr->type == RelationalExpression::CARTESIAN_PRODUCT;
+          edge->expr->type == RelationalExpression::INNER_JOIN;
       if (operator_is_commutative && m_secondary_engine_cost_hook == nullptr) {
         if (left_path->num_output_rows < right_path->num_output_rows) {
           ProposeHashJoin(right, left, right_path, left_path, edge,
@@ -965,12 +964,8 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       ~(left | right);
   join_path.nested_loop_join().outer = left_path;
   join_path.nested_loop_join().inner = right_path;
-  if (edge->expr->type == RelationalExpression::CARTESIAN_PRODUCT) {
-    join_path.nested_loop_join().join_type = JoinType::INNER;
-  } else {
-    join_path.nested_loop_join().join_type =
-        static_cast<JoinType>(edge->expr->type);
-  }
+  join_path.nested_loop_join().join_type =
+      static_cast<JoinType>(edge->expr->type);
   join_path.nested_loop_join().pfs_batch_mode = false;
 
   const uint64_t applied_sargable_join_predicates =

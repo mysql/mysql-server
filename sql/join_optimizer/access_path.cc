@@ -481,7 +481,6 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       JoinType join_type{JoinType::INNER};
       switch (join_predicate->expr->type) {
         case RelationalExpression::INNER_JOIN:
-        case RelationalExpression::CARTESIAN_PRODUCT:
           join_type = JoinType::INNER;
           break;
         case RelationalExpression::LEFT_JOIN:

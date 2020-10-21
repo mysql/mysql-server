@@ -135,9 +135,6 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
       result += StringPrintf("* %s\n", expr->table->alias);
       // Do not try to descend further.
       return result;
-    case RelationalExpression::CARTESIAN_PRODUCT:
-      result += "* Cartesian product";
-      break;
     case RelationalExpression::INNER_JOIN:
       result += "* Inner join";
       break;
@@ -151,57 +148,24 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
       result += "* Antijoin";
       break;
   }
-  if (expr->type != RelationalExpression::CARTESIAN_PRODUCT) {
-    if (expr->equijoin_conditions.empty() && expr->join_conditions.empty()) {
-      result += " (no join conditions)";
-    } else if (!expr->equijoin_conditions.empty()) {
-      result += StringPrintf(" (equijoin condition = %s)",
-                             ItemsToString(expr->equijoin_conditions).c_str());
-    } else if (!expr->join_conditions.empty()) {
-      result += StringPrintf(" (extra join condition = %s)",
-                             ItemsToString(expr->join_conditions).c_str());
-    } else {
-      result += StringPrintf(" (equijoin condition = %s, extra = %s)",
-                             ItemsToString(expr->equijoin_conditions).c_str(),
-                             ItemsToString(expr->join_conditions).c_str());
-    }
+  if (expr->equijoin_conditions.empty() && expr->join_conditions.empty()) {
+    result += " (no join conditions)";
+  } else if (!expr->equijoin_conditions.empty()) {
+    result += StringPrintf(" (equijoin condition = %s)",
+                           ItemsToString(expr->equijoin_conditions).c_str());
+  } else if (!expr->join_conditions.empty()) {
+    result += StringPrintf(" (extra join condition = %s)",
+                           ItemsToString(expr->join_conditions).c_str());
+  } else {
+    result += StringPrintf(" (equijoin condition = %s, extra = %s)",
+                           ItemsToString(expr->equijoin_conditions).c_str(),
+                           ItemsToString(expr->join_conditions).c_str());
   }
   result += '\n';
 
   result += PrintRelationalExpression(expr->left, level + 1);
   result += PrintRelationalExpression(expr->right, level + 1);
   return result;
-}
-
-/**
-  Go through all inner joins that have no (non-degenerate) join conditions,
-  and mark them as Cartesian products. This is currently mostly for display
-  purposes, but it will be important for proper conflict detection later.
- */
-void MakeCartesianProducts(RelationalExpression *expr) {
-  if (expr->type == RelationalExpression::TABLE) {
-    return;
-  }
-
-  if (expr->type == RelationalExpression::INNER_JOIN &&
-      expr->equijoin_conditions.empty()) {
-    // See if any of the non-equijoin conditions are non-degenerate.
-    bool any_join_condition = false;
-    for (Item *cond : expr->join_conditions) {
-      if (Overlaps(cond->used_tables(), expr->left->tables_in_subtree) &&
-          Overlaps(cond->used_tables(), expr->right->tables_in_subtree)) {
-        any_join_condition = true;
-        break;
-      }
-    }
-    if (!any_join_condition) {
-      expr->type = RelationalExpression::CARTESIAN_PRODUCT;
-    }
-  }
-
-  // Recurse further down into the tree.
-  MakeCartesianProducts(expr->left);
-  MakeCartesianProducts(expr->right);
 }
 
 /**
@@ -696,8 +660,7 @@ bool ConsistsOfInnerJoinsOnly(const RelationalExpression *expr) {
   if (expr->type == RelationalExpression::TABLE) {
     return true;
   }
-  if (expr->type != RelationalExpression::INNER_JOIN &&
-      expr->type != RelationalExpression::CARTESIAN_PRODUCT) {
+  if (expr->type != RelationalExpression::INNER_JOIN) {
     return false;
   }
   return ConsistsOfInnerJoinsOnly(expr->left) &&
@@ -934,7 +897,6 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     return true;
   }
   MakeHashJoinConditions(thd, root);
-  MakeCartesianProducts(root);
 
   if (trace != nullptr) {
     *trace += StringPrintf(

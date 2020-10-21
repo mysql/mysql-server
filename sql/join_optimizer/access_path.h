@@ -77,8 +77,7 @@ struct RelationalExpression {
     LEFT_JOIN = static_cast<int>(JoinType::OUTER),
     SEMIJOIN = static_cast<int>(JoinType::SEMI),
     ANTIJOIN = static_cast<int>(JoinType::ANTI),
-    TABLE = 100,
-    CARTESIAN_PRODUCT = 101,
+    TABLE = 100
   } type;
   table_map tables_in_subtree;
 

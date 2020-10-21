@@ -71,9 +71,6 @@ std::string GenerateExpressionLabel(const RelationalExpression *expr) {
   switch (expr->type) {
     case RelationalExpression::TABLE:
       assert(false);
-    case RelationalExpression::CARTESIAN_PRODUCT:
-      label = "[cartesian product]";
-      break;
     case RelationalExpression::INNER_JOIN:
       break;
     case RelationalExpression::LEFT_JOIN:
