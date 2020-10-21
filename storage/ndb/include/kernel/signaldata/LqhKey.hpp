@@ -43,6 +43,11 @@ class LqhKeyReq {
   friend class Dbspj;
   friend class Dbtc;      
   friend class Restore;
+
+  /**
+   * Users
+   */
+  friend class Dbtup;
   
   /**
    * For printing

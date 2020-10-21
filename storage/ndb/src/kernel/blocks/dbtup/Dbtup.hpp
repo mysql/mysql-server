@@ -2527,7 +2527,9 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 public:
-  bool execTUPKEYREQ(Signal* signal);
+  bool execTUPKEYREQ(Signal* signal,
+                     void *_lqhOpPtrP,
+                     void *_lqhScanPtrP);
   /**
    * Prepare for execTUPKEYREQ by prefetching row and preparing
    * some variables as part of row address calculation.

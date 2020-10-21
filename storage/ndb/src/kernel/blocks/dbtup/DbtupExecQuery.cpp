@@ -38,9 +38,11 @@
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include <signaldata/LqhKey.hpp>
 #include <NdbSqlUtil.hpp>
 #include <Checksum.hpp>
 #include <portlib/ndb_prefetch.h>
+#include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 422
 
@@ -887,8 +889,13 @@ void Dbtup::prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx)
   }
 }
 
-bool Dbtup::execTUPKEYREQ(Signal* signal)
+bool Dbtup::execTUPKEYREQ(Signal* signal,
+                          void *_lqhOpPtrP,
+                          void *_lqhScanPtrP)
 {
+   Dblqh::TcConnectionrec *lqhOpPtrP = (Dblqh::TcConnectionrec*)_lqhOpPtrP;
+   Dblqh::ScanRecord *lqhScanPtrP = (Dblqh::ScanRecord*)_lqhScanPtrP;
+
    TupKeyReq * tupKeyReq= (TupKeyReq *)signal->getDataPtr();
    Ptr<Operationrec> operPtr = prepare_oper_ptr;
    KeyReqStruct req_struct(this);
@@ -989,32 +996,92 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
  /* ----------------------------------------------------------------- */
  /* -----------    INITIATE THE OPERATION RECORD       -------------- */
  /* ----------------------------------------------------------------- */
+   Uint32 disable_fk_checks = 0;
+   Uint32 deferred_constraints = 0;
+   Uint32 flags = lqhOpPtrP->m_flags;
+   if (lqhScanPtrP != nullptr)
+   {
+     Uint32 attrBufLen = lqhScanPtrP->scanAiLength;
+     Uint32 dirtyOp = (lqhScanPtrP->scanLockHold == ZFALSE);
+     Uint32 prioAFlag = lqhScanPtrP->prioAFlag;
+     Uint32 opRef = lqhScanPtrP->scanApiOpPtr;
+     Uint32 applRef = lqhScanPtrP->scanApiBlockref;
+     Uint32 interpreted_exec = lqhOpPtrP->opExec;
+
+     req_struct.log_size = attrBufLen;
+     req_struct.attrinfo_len = attrBufLen;
+     req_struct.dirty_op = dirtyOp;
+     req_struct.m_prio_a_flag = prioAFlag;
+     req_struct.tc_operation_ptr = opRef;
+     req_struct.rec_blockref= applRef;
+     req_struct.interpreted_exec = interpreted_exec;
+     req_struct.m_nr_copy_or_redo = 0;
+     req_struct.m_use_rowid = 0;
+#ifdef ERROR_INSERT
+     /* Insert garbage into rowid, should not be used */
+     req_struct.m_row_id.m_page_no = RNIL;
+     req_struct.m_row_id.m_page_idx = ZNIL;
+#endif
+   }
+   else
+   {
+     Uint32 attrBufLen = lqhOpPtrP->totReclenAi;
+     Uint32 dirtyOp = lqhOpPtrP->dirtyOp;
+     Uint32 row_id = TupKeyReq::getRowidFlag(tupKeyReq->request);
+     Uint32 interpreted_exec =
+       TupKeyReq::getInterpretedFlag(tupKeyReq->request);
+     Uint32 opRef = lqhOpPtrP->applOprec;
+     Uint32 applRef = lqhOpPtrP->applRef;
+
+     req_struct.dirty_op = dirtyOp;
+     req_struct.m_use_rowid = row_id;
+     req_struct.log_size = attrBufLen;
+     req_struct.attrinfo_len = attrBufLen;
+     req_struct.tc_operation_ptr = opRef;
+     req_struct.rec_blockref= applRef;
+     req_struct.interpreted_exec = interpreted_exec;
+
+     req_struct.m_prio_a_flag = 0;
+     req_struct.m_nr_copy_or_redo =
+       ((LqhKeyReq::getNrCopyFlag(lqhOpPtrP->reqinfo) |
+         c_lqh->c_executing_redo_log) != 0);
+     disable_fk_checks =
+       ((flags & Dblqh::TcConnectionrec::OP_DISABLE_FK) != 0);
+     deferred_constraints =
+       ((flags & Dblqh::TcConnectionrec::OP_DEFERRED_CONSTRAINTS) != 0);
+     const Uint32 row_id_page_no = tupKeyReq->m_row_id_page_no;
+     const Uint32 row_id_page_idx = tupKeyReq->m_row_id_page_idx;
+     req_struct.m_row_id.m_page_no = row_id_page_no;
+     req_struct.m_row_id.m_page_idx = row_id_page_idx;
+   }
+   req_struct.m_deferred_constraints = deferred_constraints;
+   req_struct.m_disable_fk_checks = disable_fk_checks;
    {
      Operationrec::OpStruct op_struct;
      op_struct.op_bit_fields = regOperPtr->op_struct.op_bit_fields;
-     const Uint32 TrequestInfo= tupKeyReq->request;
-     const Uint32 disable_fk_checks = tupKeyReq->disable_fk_checks;
-     const Uint32 deferred_constraints = tupKeyReq->deferred_constraints;
-     const Uint32 triggers = tupKeyReq->triggers;
-
-     regOperPtr->m_copy_tuple_location.setNull();
-     op_struct.bit_field.delete_insert_flag = false;
-     op_struct.bit_field.m_gci_written = 0;
-     op_struct.bit_field.m_triggers = triggers;
      op_struct.bit_field.m_disable_fk_checks = disable_fk_checks;
      op_struct.bit_field.m_deferred_constraints = deferred_constraints;
-     op_struct.bit_field.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
-     op_struct.bit_field.tupVersion= ZNIL;
 
-     req_struct.m_prio_a_flag = TupKeyReq::getPrioAFlag(TrequestInfo);
-     req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
+     const Uint32 triggers =
+       (flags & Dblqh::TcConnectionrec::OP_NO_TRIGGERS) ?
+          TupKeyReq::OP_NO_TRIGGERS :
+         (lqhOpPtrP->seqNoReplica == 0) ?
+          TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
+     op_struct.bit_field.delete_insert_flag = false;
+     op_struct.bit_field.m_gci_written = 0;
+     op_struct.bit_field.m_reorg = lqhOpPtrP->m_reorg;
+     op_struct.bit_field.tupVersion= ZNIL;
+     op_struct.bit_field.m_triggers = triggers;
+
+     regOperPtr->m_copy_tuple_location.setNull();
      regOperPtr->op_struct.op_bit_fields = op_struct.op_bit_fields;
-     regOperPtr->op_type= TupKeyReq::getOperation(TrequestInfo);
-     req_struct.m_disable_fk_checks = disable_fk_checks;
-     req_struct.m_use_rowid = TupKeyReq::getRowidFlag(TrequestInfo);
-     req_struct.m_nr_copy_or_redo = TupKeyReq::getNrCopyFlag(TrequestInfo);
-     req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
-     req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
+   }
+   {
+     Uint32 reorg = lqhOpPtrP->m_reorg;
+     Uint32 op = lqhOpPtrP->operation;
+
+     req_struct.m_reorg = reorg;
+     regOperPtr->op_type = op;
    }
    {
      /**
@@ -1082,33 +1149,20 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
       * source code. As can be seen in code below this rule is
       * however not followed if it will remove other possibilities.
       */
-     const Uint32 savePointId= tupKeyReq->savePointId;
-     const Uint32 attrBufLen = tupKeyReq->attrBufLen;
-     const Uint32 opRef = tupKeyReq->opRef;
-     const Uint32 tcOpIndex = tupKeyReq->tcOpIndex;
-     const Uint32 coordinatorTC= tupKeyReq->coordinatorTC;
-     const Uint32 applRef = tupKeyReq->applRef;
+     const Uint32 savePointId = lqhOpPtrP->savePointId;
+     const Uint32 tcOpIndex = lqhOpPtrP->tcOprec;
+     const Uint32 coordinatorTC = lqhOpPtrP->tcBlockref;
 
-     regOperPtr->savepointId= savePointId;
-     req_struct.log_size= attrBufLen;
-     req_struct.attrinfo_len= attrBufLen;
-     req_struct.tc_operation_ptr= opRef;
-     req_struct.TC_index= tcOpIndex;
-     req_struct.TC_ref= coordinatorTC;
-     req_struct.rec_blockref= applRef;
+     regOperPtr->savepointId = savePointId;
+     req_struct.TC_index = tcOpIndex;
+     req_struct.TC_ref = coordinatorTC;
    }
 
-   const Uint32 disk_page= tupKeyReq->disk_page;
-   const Uint32 row_id_page_no = tupKeyReq->m_row_id_page_no;
-   const Uint32 row_id_page_idx = tupKeyReq->m_row_id_page_idx;
-   const Uint32 deferred_constraints = tupKeyReq->deferred_constraints;
-   const Uint32 keyRef1= tupKeyReq->keyRef1;
+   const Uint32 disk_page = tupKeyReq->disk_page;
+   const Uint32 keyRef1 = tupKeyReq->keyRef1;
    const Uint32 keyRef2 = tupKeyReq->keyRef2;
 
    req_struct.m_disk_page_ptr.i= disk_page;
-   req_struct.m_row_id.m_page_no = row_id_page_no;
-   req_struct.m_row_id.m_page_idx = row_id_page_idx;
-   req_struct.m_deferred_constraints = deferred_constraints;
    /**
     * The pageid here is a page id of a row id except when we are
     * reading from an ordered index scan, in this case it is a
@@ -1117,23 +1171,23 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
     * for TUX scans.
     */
    Uint32 pageid = regOperPtr->fragPageId = req_struct.frag_page_id = keyRef1;
-   Uint32 pageidx = regOperPtr->m_tuple_location.m_page_idx= keyRef2;
+   Uint32 pageidx = regOperPtr->m_tuple_location.m_page_idx = keyRef2;
 
-   const Uint32 transId1 = tupKeyReq->transId1;
-   const Uint32 transId2 = tupKeyReq->transId2;
+   const Uint32 transId1 = lqhOpPtrP->transid[0];
+   const Uint32 transId2 = lqhOpPtrP->transid[1];
    Tablerec * const regTabPtr = prepare_tabptr.p;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
    Fragrecord *regFragPtr = prepare_fragptr.p;
    
-   req_struct.trans_id1= transId1;
-   req_struct.trans_id2= transId2;
+   req_struct.trans_id1 = transId1;
+   req_struct.trans_id2 = transId2;
    req_struct.tablePtrP = regTabPtr;
    req_struct.fragPtrP = regFragPtr;
 
    const Uint32 Roptype = regOperPtr->op_type;
 
-   regOperPtr->m_any_value= 0;
+   regOperPtr->m_any_value = 0;
 
    const Uint32 loc_prepare_page_id = prepare_page_no;
    /**

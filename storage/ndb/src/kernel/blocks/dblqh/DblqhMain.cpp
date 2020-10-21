@@ -10558,11 +10558,11 @@ Dblqh::continueACCKEYCONF(Signal * signal,
 void
 Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
 			    Fragrecord* regFragptrP,
-			    Uint32 lkey1, Uint32 lkey2,
+			    Uint32 page_no,
+                            Uint32 page_idx,
 			    Uint32 disk_page)
 {
-  Uint32 op = regTcPtr->operation;
-  regTcPtr->transactionState = TcConnectionrec::WAIT_TUP;
+
   /* ------------------------------------------------------------------------
    * IT IS NOW TIME TO CONTACT THE TUPLE MANAGER. THE TUPLE MANAGER NEEDS THE
    * INFORMATION ON WHICH TABLE AND FRAGMENT, THE LOCAL KEY AND IT NEEDS TO
@@ -10571,96 +10571,55 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
    * IS NEEDED SINCE TWO SCHEMA VERSIONS CAN BE ACTIVE SIMULTANEOUSLY ON A 
    * TABLE.
    * ----------------------------------------------------------------------- */
-  Uint32 page_idx = lkey2;
-  Uint32 page_no = lkey1;
+  TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend();
   Uint32 Ttupreq = 0;
-  Uint32 flags = regTcPtr->m_flags;
-  TupKeyReq::setDirtyFlag(Ttupreq, regTcPtr->dirtyOp);
-  TupKeyReq::setSimpleFlag(Ttupreq, regTcPtr->opSimple);
-  TupKeyReq::setOperation(Ttupreq, op);
-  TupKeyReq::setInterpretedFlag(Ttupreq, regTcPtr->opExec);
-  TupKeyReq::setRowidFlag(Ttupreq, regTcPtr->m_use_rowid);
-  TupKeyReq::setReorgFlag(Ttupreq, regTcPtr->m_reorg);
-  TupKeyReq::setNrCopyFlag(Ttupreq,
-                           (LqhKeyReq::getNrCopyFlag(regTcPtr->reqinfo) |
-                           c_executing_redo_log));
-#ifdef ERROR_INSERT
-  /* Ensure c_executing_redo_log isn't set when a read happens */
-  ndbrequire(op != ZREAD || c_executing_redo_log == 0);
-#endif
+  Uint32 row_page_no = regTcPtr->m_row_id.m_page_no;
+  Uint32 row_page_idx = regTcPtr->m_row_id.m_page_idx;
+  Uint32 use_rowid = regTcPtr->m_use_rowid;
+  Uint32 interpreted_exec = regTcPtr->opExec;
 
+  tupKeyReq->keyRef1 = page_no;
+  tupKeyReq->keyRef2 = page_idx;
+  tupKeyReq->disk_page= disk_page;
+  tupKeyReq->m_row_id_page_no = row_page_no;
+  tupKeyReq->m_row_id_page_idx = row_page_idx;
+  TupKeyReq::setRowidFlag(Ttupreq, use_rowid);
+  TupKeyReq::setInterpretedFlag(Ttupreq, interpreted_exec);
+  tupKeyReq->request = Ttupreq;
+
+  TRACE_OP(regTcPtr, "TUPKEYREQ");
+
+  const Uint32 totReclenAi = regTcPtr->totReclenAi;
+  const Uint32 attrInfoIVal = regTcPtr->attrInfoIVal;
+  const Uint32 op = regTcPtr->operation;
+  regTcPtr->m_row_id.m_page_no = page_no;
+  regTcPtr->m_row_id.m_page_idx = page_idx;
+  regTcPtr->transactionState = TcConnectionrec::WAIT_TUP;
+  regTcPtr->m_use_rowid |= (op == ZINSERT || op == ZREFRESH);
   /* --------------------------------------------------------------------- 
    * Clear interpreted mode bit since we do not want the next replica to
    * use interpreted mode. The next replica will receive a normal write.
    * --------------------------------------------------------------------- */
   regTcPtr->opExec = 0;
-  /* ************< */
-  /*  TUPKEYREQ  < */
-  /* ************< */
-  Uint32 sig0, sig1, sig2, sig3, sig4;
 
-  TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend();
-  tupKeyReq->request = Ttupreq;
-  tupKeyReq->keyRef1 = page_no;
-  tupKeyReq->keyRef2 = page_idx;
-  tupKeyReq->disk_page= disk_page;
-  
-  sig0 = regTcPtr->transid[0];
-  sig1 = regTcPtr->transid[1];
-  sig2 = regTcPtr->m_row_id.m_page_no;
-  sig3 = regTcPtr->m_row_id.m_page_idx;
-  sig4 = regTcPtr->applOprec;
-
-  tupKeyReq->transId1 = sig0;
-  tupKeyReq->transId2 = sig1;
-  tupKeyReq->m_row_id_page_no = sig2;
-  tupKeyReq->m_row_id_page_idx = sig3;
-  tupKeyReq->opRef = sig4;
-
-  sig0 = regTcPtr->tcBlockref;
-  sig1 = regTcPtr->tcOprec;
-  sig2 = regTcPtr->savePointId;
-  sig3 = regTcPtr->applRef;
-  sig4 = regTcPtr->totReclenAi;
-
-  tupKeyReq->coordinatorTC = sig0;
-  tupKeyReq->tcOpIndex = sig1;
-  tupKeyReq->savePointId = sig2;
-  tupKeyReq->applRef = sig3;
-  tupKeyReq->attrBufLen = sig4;
-
-  tupKeyReq->triggers =
-    (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
-    TupKeyReq::OP_NO_TRIGGERS :
-    (regTcPtr->seqNoReplica == 0) ?
-    TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
-  
-  TRACE_OP(regTcPtr, "TUPKEYREQ");
-  
-  regTcPtr->m_use_rowid |= (op == ZINSERT || op == ZREFRESH);
-  regTcPtr->m_row_id.m_page_no = page_no;
-  regTcPtr->m_row_id.m_page_idx = page_idx;
-  
-  tupKeyReq->deferred_constraints =
-    (flags & TcConnectionrec::OP_DEFERRED_CONSTRAINTS) != 0;
-  tupKeyReq->disable_fk_checks =
-    (flags & TcConnectionrec::OP_DISABLE_FK) != 0;
-
-
+#ifdef ERROR_INSERT
+  /* Ensure c_executing_redo_log isn't set when a read happens */
+  ndbrequire((op != ZREAD && op != ZREAD_EX) || c_executing_redo_log == 0);
+#endif
   /* Pass AttrInfo section if available in the TupKeyReq signal
    * We are still responsible for releasing it, TUP is just
    * borrowing it
    */
-  if (tupKeyReq->attrBufLen > 0)
+  if (totReclenAi > 0)
   {
-    ndbassert( regTcPtr->attrInfoIVal != RNIL );
-    c_tup->copyAttrinfo(regTcPtr->totReclenAi,
-                        regTcPtr->attrInfoIVal);
+    ndbassert(attrInfoIVal != RNIL );
+    c_tup->copyAttrinfo(totReclenAi,
+                        attrInfoIVal);
   }
 #ifdef VM_TRACE
   tupKeyReq->fragPtr = regFragptrP->tupFragptr;
 #endif
-  if (likely(c_tup->execTUPKEYREQ(signal)))
+  if (likely(c_tup->execTUPKEYREQ(signal, regTcPtr, nullptr)))
   {
     execTUPKEYCONF(signal);
     return;
@@ -17435,19 +17394,9 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
 			       Fragrecord * fragPtrP,
 			       Uint32 disk_page)
 {
-  TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend(); 
-  Uint32 reqinfo = 0;
-  TupKeyReq::setDirtyFlag(reqinfo, (scanPtr->scanLockHold == ZFALSE));
-  TupKeyReq::setPrioAFlag(reqinfo, scanPtr->prioAFlag);
-  TupKeyReq::setOperation(reqinfo, regTcPtr->operation);
-  TupKeyReq::setInterpretedFlag(reqinfo, regTcPtr->opExec);
-  TupKeyReq::setReorgFlag(reqinfo, regTcPtr->m_reorg);
-  TupKeyReq::setNrCopyFlag(reqinfo, ZFALSE);
-  tupKeyReq->disk_page= disk_page;
   jamDebug();
-
-  tupKeyReq->request = reqinfo;
   /* No AttrInfo sent to TUP, it uses a stored procedure */
+  TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend(); 
   {
     /**
      * The row id here depends on if we are scanning in TUX
@@ -17457,43 +17406,14 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
      */
     const Uint32 keyRef1 = scanPtr->m_row_id.m_page_no;
     const Uint32 keyRef2 = scanPtr->m_row_id.m_page_idx;
-    const Uint32 opRef = scanPtr->scanApiOpPtr; 
-    const Uint32 applRef = scanPtr->scanApiBlockref;
-    const Uint32 aiLen = scanPtr->scanAiLength;
+    tupKeyReq->disk_page = disk_page;
     tupKeyReq->keyRef1 = keyRef1;
     tupKeyReq->keyRef2 = keyRef2;
-    tupKeyReq->opRef = opRef; 
-    tupKeyReq->applRef = applRef;
-    tupKeyReq->attrBufLen = aiLen;
   }
-  {
-    const Uint32 coordinatorTC = regTcPtr->tcBlockref;
-    const Uint32 tcOpIndex = regTcPtr->tcOprec;
-    const Uint32 savePointId = regTcPtr->savePointId;
-    tupKeyReq->coordinatorTC = coordinatorTC;
-    tupKeyReq->tcOpIndex = tcOpIndex;
-    tupKeyReq->savePointId = savePointId;
-  }
-  {
-    const Uint32 seqNoReplica = regTcPtr->seqNoReplica;
-    const Uint32 transId1 = regTcPtr->transid[0];
-    const Uint32 transId2 = regTcPtr->transid[1];
-
-    tupKeyReq->deferred_constraints = 0;
-    tupKeyReq->disable_fk_checks = 0;
-    const Uint32 flags = regTcPtr->m_flags;
-    tupKeyReq->transId1 = transId1;
-    tupKeyReq->transId2 = transId2;
-    tupKeyReq->triggers =
-      (flags & TcConnectionrec::OP_NO_TRIGGERS) ?
-      TupKeyReq::OP_NO_TRIGGERS :
-      (seqNoReplica == 0) ?
-      TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
 #ifdef VM_TRACE
-    tupKeyReq->fragPtr = fragPtrP->tupFragptr;
+  tupKeyReq->fragPtr = fragPtrP->tupFragptr;
 #endif
-  }
-  if (c_tup->execTUPKEYREQ(signal))
+  if (c_tup->execTUPKEYREQ(signal, regTcPtr, scanPtr))
   {
     execTUPKEYCONF(signal);
     return;
