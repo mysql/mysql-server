@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ class Shared_mem_listener {
   HANDLE m_event_connect_answer;
   SECURITY_ATTRIBUTES *m_sa_event;
   SECURITY_ATTRIBUTES *m_sa_mapping;
+  SECURITY_ATTRIBUTES *m_sa_mutex;
   int m_connect_number;
   char *m_suffix_pos;
   char *m_temp_buffer;
@@ -73,6 +74,7 @@ class Shared_mem_listener {
         m_event_connect_answer(0),
         m_sa_event(0),
         m_sa_mapping(0),
+        m_sa_mutex(0),
         m_temp_buffer(0),
         m_connect_number(1),
         m_handle_client_file_map(0),
