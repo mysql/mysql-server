@@ -148,6 +148,11 @@ struct JoinHypergraph {
  */
 bool MakeJoinHypergraph(THD *thd, std::string *trace, JoinHypergraph *graph);
 
+// Exposed for testing only.
+void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
+                                           std::string *trace,
+                                           JoinHypergraph *graph);
+
 hypergraph::NodeMap GetNodeMapFromTableMap(
     table_map table_map,
     const std::array<int, MAX_TABLES> &table_num_to_node_num);

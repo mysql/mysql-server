@@ -45,6 +45,7 @@
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
@@ -63,6 +64,10 @@
 #include "unittest/gunit/handler-t.h"
 #include "unittest/gunit/parsertest.h"
 #include "unittest/gunit/test_utils.h"
+
+using hypergraph::NodeMap;
+using std::unordered_map;
+using testing::Pair;
 
 // Base class for the hypergraph unit tests. Its parent class is a type
 // parameter, so that it can be used as a base class for both non-parametrized
@@ -333,8 +338,46 @@ TEST_F(MakeHypergraphTest, OuterJoin) {
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
   EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
 
-  // t1/{t2,t3}. (This is strictly too conservative; it should be t1/t2.
-  // But we don't distinguish between null-rejecting and other conditions yet.)
+  // t1/t2; since the predicate is null-rejecting on t2, we can rewrite.
+  EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  EXPECT_EQ(0x02, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[1].expr->type);
+  EXPECT_FLOAT_EQ(0.1, graph.edges[1].selectivity);
+
+  EXPECT_EQ(0, graph.predicates.size());
+}
+
+TEST_F(MakeHypergraphTest, OuterJoinNonNullRejecting) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.y=t3.y OR t2.y "
+      "IS NULL) ON t1.x=t2.x",
+      /*nullable=*/true);
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // Hyperedges. Order doesn't matter.
+  ASSERT_EQ(2, graph.edges.size());
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
+  EXPECT_FLOAT_EQ(1.0 - (0.9 * 0.9),
+                  graph.edges[0].selectivity);  // OR of two conditions.
+
+  // t1/{t2,t3}; the predicate is not null-rejecting (unlike the previous test),
+  // so we need the full hyperedge.
   EXPECT_EQ(0x01, graph.graph.edges[2].left);
   EXPECT_EQ(0x06, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[1].expr->type);
@@ -1182,3 +1225,314 @@ INSTANTIATE_TEST_SUITE_P(
          {"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::SORT, false},
          {"SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
           AccessPath::SORT, false}})));
+
+/*
+  A hypergraph receiver that doesn't actually cost any plans;
+  it only counts the number of possible plans that would be
+  considered.
+ */
+struct CountingReceiver {
+  CountingReceiver(const JoinHypergraph &graph, size_t num_relations)
+      : m_graph(graph), m_num_subplans(new size_t[1llu << num_relations]) {
+    std::fill(m_num_subplans.get(),
+              m_num_subplans.get() + (1llu << num_relations), 0);
+  }
+
+  bool HasSeen(NodeMap subgraph) { return m_num_subplans[subgraph] != 0; }
+
+  bool FoundSingleNode(int node_idx) {
+    NodeMap map = TableBitmap(node_idx);
+    ++m_num_subplans[map];
+    return false;
+  }
+
+  bool FoundSubgraphPair(NodeMap left, NodeMap right, int edge_idx) {
+    const JoinPredicate *edge = &m_graph.edges[edge_idx];
+    if (!PassesConflictRules(left | right, edge->expr)) {
+      return false;
+    }
+    size_t n = m_num_subplans[left] * m_num_subplans[right];
+    if (OperatorIsCommutative(*edge->expr)) {
+      m_num_subplans[left | right] += 2 * n;
+    } else {
+      m_num_subplans[left | right] += n;
+    }
+    return false;
+  }
+
+  size_t count(NodeMap map) const { return m_num_subplans[map]; }
+
+  const JoinHypergraph &m_graph;
+  std::unique_ptr<size_t[]> m_num_subplans;
+};
+
+RelationalExpression *CloneRelationalExpr(THD *thd,
+                                          const RelationalExpression *expr) {
+  RelationalExpression *new_expr =
+      new (thd->mem_root) RelationalExpression(thd);
+  new_expr->type = expr->type;
+  new_expr->tables_in_subtree = expr->tables_in_subtree;
+  if (new_expr->type == RelationalExpression::TABLE) {
+    new_expr->table = expr->table;
+  } else {
+    new_expr->left = CloneRelationalExpr(thd, expr->left);
+    new_expr->right = CloneRelationalExpr(thd, expr->right);
+  }
+  return new_expr;
+}
+
+// Generate all possible complete binary trees of (exactly) the given size,
+// consisting only of inner joins, and with fake tables at the leaves.
+vector<RelationalExpression *> GenerateAllCompleteBinaryTrees(
+    THD *thd, size_t num_relations, size_t start_idx) {
+  assert(num_relations != 0);
+
+  vector<RelationalExpression *> ret;
+  if (num_relations == 1) {
+    TABLE *table =
+        new (thd->mem_root) Fake_TABLE(/*num_columns=*/1, /*nullable=*/true);
+    table->pos_in_table_list->set_tableno(start_idx);
+
+    // For debugging only.
+    char name[16];
+    snprintf(name, sizeof(name), "t%zu", start_idx + 1);
+    table->alias = sql_strdup(name);
+    table->pos_in_table_list->alias = table->alias;
+
+    RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
+    expr->type = RelationalExpression::TABLE;
+    expr->table = table->pos_in_table_list;
+    expr->tables_in_subtree = table->pos_in_table_list->map();
+
+    ret.push_back(expr);
+    return ret;
+  }
+
+  for (size_t num_left = 1; num_left <= num_relations - 1; ++num_left) {
+    size_t num_right = num_relations - num_left;
+    vector<RelationalExpression *> left =
+        GenerateAllCompleteBinaryTrees(thd, num_left, start_idx);
+    vector<RelationalExpression *> right =
+        GenerateAllCompleteBinaryTrees(thd, num_right, start_idx + num_left);
+
+    // Generate all pairs of trees, cloning as we go.
+    for (size_t i = 0; i < left.size(); ++i) {
+      for (size_t j = 0; j < right.size(); ++j) {
+        RelationalExpression *expr =
+            new (thd->mem_root) RelationalExpression(thd);
+        expr->type = RelationalExpression::INNER_JOIN;
+        expr->left = CloneRelationalExpr(thd, left[i]);
+        expr->right = CloneRelationalExpr(thd, right[j]);
+        expr->tables_in_subtree =
+            expr->left->tables_in_subtree | expr->right->tables_in_subtree;
+        ret.push_back(expr);
+      }
+    }
+  }
+  return ret;
+}
+
+// For each join operation (starting from idx), try all join types
+// and all possible simple, non-degenerate predicaes, calling func()
+// for each combination.
+template <class Func>
+void TryAllPredicates(
+    const vector<RelationalExpression *> &join_ops,
+    const vector<Item_field *> &fields,
+    const vector<RelationalExpression::Type> &join_types,
+    unordered_map<RelationalExpression *, table_map> *generated_nulls,
+    size_t idx, const Func &func) {
+  if (idx == join_ops.size()) {
+    func();
+    return;
+  }
+
+  RelationalExpression *expr = join_ops[idx];
+  for (RelationalExpression::Type join_type : join_types) {
+    expr->type = join_type;
+
+    // Check which tables are visible after this join
+    // (you can't have a predicate pointing into the right side
+    // of an antijoin).
+    const table_map left_map = expr->left->tables_in_subtree;
+    const table_map right_map = expr->right->tables_in_subtree;
+    if (join_type == RelationalExpression::ANTIJOIN ||
+        join_type == RelationalExpression::SEMIJOIN) {
+      expr->tables_in_subtree = left_map;
+    } else {
+      expr->tables_in_subtree = left_map | right_map;
+    }
+
+    (*generated_nulls)[expr] =
+        (*generated_nulls)[expr->left] | (*generated_nulls)[expr->right];
+    if (join_type == RelationalExpression::LEFT_JOIN) {
+      (*generated_nulls)[expr] |= right_map;
+    } else if (join_type == RelationalExpression::FULL_OUTER_JOIN) {
+      (*generated_nulls)[expr] |= left_map | right_map;
+    }
+
+    // Find all pairs of tables under this operation, and construct an equijoin
+    // predicate for them.
+    for (Item_field *field1 : fields) {
+      if (!IsSubset(field1->used_tables(), left_map)) {
+        continue;
+      }
+      if ((join_type == RelationalExpression::INNER_JOIN ||
+           join_type == RelationalExpression::SEMIJOIN) &&
+          IsSubset(field1->used_tables(), (*generated_nulls)[expr->left])) {
+        // Should have be simplified away. (See test comment.)
+        continue;
+      }
+      for (Item_field *field2 : fields) {
+        if (!IsSubset(field2->used_tables(), right_map)) {
+          continue;
+        }
+        if ((join_type == RelationalExpression::INNER_JOIN ||
+             join_type == RelationalExpression::SEMIJOIN ||
+             join_type == RelationalExpression::LEFT_JOIN ||
+             join_type == RelationalExpression::ANTIJOIN) &&
+            IsSubset(field2->used_tables(), (*generated_nulls)[expr->right])) {
+          // Should have be simplified away. (See test comment.)
+          continue;
+        }
+
+        Item_func_eq *pred = new Item_func_eq(field1, field2);
+        pred->update_used_tables();
+        pred->quick_fix_field();
+        expr->equijoin_conditions[0] = pred;
+        expr->conditions_used_tables =
+            field1->used_tables() | field2->used_tables();
+
+        TryAllPredicates(join_ops, fields, join_types, generated_nulls, idx + 1,
+                         func);
+      }
+    }
+  }
+}
+
+std::pair<size_t, size_t> CountTreesAndPlans(
+    THD *thd, int num_relations,
+    const std::vector<RelationalExpression::Type> &join_types) {
+  size_t num_trees = 0, num_plans = 0;
+
+  vector<RelationalExpression *> roots =
+      GenerateAllCompleteBinaryTrees(thd, num_relations, /*start_idx=*/0);
+  for (RelationalExpression *expr : roots) {
+    vector<RelationalExpression *> join_ops;
+    vector<Item_field *> fields;
+
+    // Which tables can get NULL-complemented rows due to outer joins.
+    // We use this to reject inner joins against them, on the basis
+    // that they would be simplified away and thus don't count.
+    unordered_map<RelationalExpression *, table_map> generated_nulls;
+
+    // Collect lists of all ops, and create tables where needed.
+    ForEachOperator(
+        expr, [&join_ops, &fields, &generated_nulls](RelationalExpression *op) {
+          if (op->type == RelationalExpression::TABLE) {
+            Item_field *field = new Item_field(op->table->table->field[0]);
+            field->quick_fix_field();
+            fields.push_back(field);
+            op->tables_in_subtree = op->table->map();
+            generated_nulls.emplace(op, 0);
+          } else {
+            join_ops.push_back(op);
+            op->equijoin_conditions.clear();
+            op->equijoin_conditions.push_back(nullptr);
+          }
+        });
+
+    TryAllPredicates(
+        join_ops, fields, join_types, &generated_nulls, /*idx=*/0, [&] {
+          JoinHypergraph graph(thd->mem_root, /*query_block=*/nullptr);
+          for (RelationalExpression *op : join_ops) {
+            op->conflict_rules.clear();
+          }
+          MakeJoinGraphFromRelationalExpression(thd, expr, /*trace=*/nullptr,
+                                                &graph);
+          CountingReceiver receiver(graph, num_relations);
+          ASSERT_FALSE(EnumerateAllConnectedPartitions(graph.graph, &receiver));
+          ++num_trees;
+          num_plans += receiver.count(TablesBetween(0, num_relations));
+        });
+  }
+
+  return {num_trees, num_plans};
+}
+
+/*
+  Reproduces tables 4 and 5 from [Moe13]; builds all possible complete
+  binary trees, fills them with all possible join operators from a given
+  set, adds a simple (non-degenerate) equality predicate for each,
+  and counts the number of plans. By getting numbers that match exactly,
+  we can say with a fairly high degree of certainty that we've managed to
+  get all the associativity etc. tables correct.
+
+  The paper makes a few unspoken assumptions that are worth noting:
+
+  1. After an antijoin or semijoin, the right side “disappears” and
+     can not be used for further join predicates. This is consistent
+     with the typical EXISTS / NOT EXISTS formulation in SQL.
+  2. Outer joins are assumed simplified away wherever possible, so
+     queries like (a JOIN (b LEFT JOIN c ON ...) a.x=c.x) are discarded
+     as meaningless -- since the join predicate would discard any NULLs
+     generated for c, the LEFT JOIN could just as well be an inner join.
+  3. All predicates are assumed to be NULL-rejecting.
+
+  Together, these explain why we have e.g. 26 queries with n=3 and the
+  small operator set, instead of 36 (which would be logical for two shapes
+  of binary trees, three operators for the top node, three for the bottom node
+  and two possible top join predicates) or even more (if including non-nullable
+  outer join predicates).
+
+  We don't match the number of empty and nonempty rule sets given, but ours
+  are correct and the paper's have a bug that prevents some simplification
+  (Moerkotte, personal communication).
+ */
+TEST(ConflictDetectorTest, CountPlansSmallOperatorSet) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  THD *thd = initializer.thd();
+  current_thd = thd;
+
+  vector<RelationalExpression::Type> join_types{
+      RelationalExpression::INNER_JOIN, RelationalExpression::LEFT_JOIN,
+      RelationalExpression::ANTIJOIN};
+  EXPECT_THAT(CountTreesAndPlans(thd, 3, join_types), Pair(26, 88));
+  EXPECT_THAT(CountTreesAndPlans(thd, 4, join_types), Pair(344, 4059));
+  EXPECT_THAT(CountTreesAndPlans(thd, 5, join_types), Pair(5834, 301898));
+
+  // This takes too long to run for a normal unit test run (~10s in optimized
+  // mode).
+  if (false) {
+    EXPECT_THAT(CountTreesAndPlans(thd, 6, join_types), Pair(117604, 32175460));
+    EXPECT_THAT(CountTreesAndPlans(thd, 7, join_types),
+                Pair(2708892, 4598129499));
+  }
+  initializer.TearDown();
+}
+
+TEST(ConflictDetectorTest, CountPlansLargeOperatorSet) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  THD *thd = initializer.thd();
+  current_thd = thd;
+
+  vector<RelationalExpression::Type> join_types{
+      RelationalExpression::INNER_JOIN, RelationalExpression::LEFT_JOIN,
+      RelationalExpression::FULL_OUTER_JOIN, RelationalExpression::SEMIJOIN,
+      RelationalExpression::ANTIJOIN};
+  EXPECT_THAT(CountTreesAndPlans(thd, 3, join_types), Pair(62, 203));
+  EXPECT_THAT(CountTreesAndPlans(thd, 4, join_types), Pair(1114, 11148));
+
+  // These take too long to run for a normal unit test run (~80s in optimized
+  // mode).
+  if (false) {
+    EXPECT_THAT(CountTreesAndPlans(thd, 5, join_types), Pair(25056, 934229));
+    EXPECT_THAT(CountTreesAndPlans(thd, 6, join_types),
+                Pair(661811, 108294798));
+    EXPECT_THAT(CountTreesAndPlans(thd, 7, join_types),
+                Pair(19846278, 16448441514));
+  }
+  initializer.TearDown();
+}

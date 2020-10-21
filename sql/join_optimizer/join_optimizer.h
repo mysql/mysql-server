@@ -49,8 +49,6 @@
   There are also have many optimization features it does not yet support;
   among them:
 
-    - Reordering of non-inner joins; outer joins work as an optimization
-      barrier, pretty much like the existing join optimizer.
     - Multiple equalities; they are simplified to simple equalities
       before optimization (so some legal join orderings will be missed).
     - Aggregation through a temporary table.

@@ -25,11 +25,23 @@
 
 #include <stdint.h>
 
+#include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/node_map.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
 
 class Item_func_eq;
+
+// Describes a rule disallowing specific joins; if any tables from
+// needed_to_activate_rule is part of the join, then _all_ tables from
+// required_nodes must also be present.
+//
+// See FindHyperedgeAndJoinConflicts() for details.
+struct ConflictRule {
+  hypergraph::NodeMap needed_to_activate_rule;
+  hypergraph::NodeMap required_nodes;
+};
 
 /**
   Represents an expression tree in the relational algebra of joins.
@@ -67,6 +79,11 @@ struct RelationalExpression {
   } type;
   table_map tables_in_subtree;
 
+  // Exactly the same as tables_in_subtree, just with node indexes instead of
+  // table indexes. This is stored alongside tables_in_subtree to save the cost
+  // and convenience of doing repeated translation between the two.
+  hypergraph::NodeMap nodes_in_subtree;
+
   // If type == TABLE.
   const TABLE_LIST *table;
   Mem_root_array<Item *> join_conditions_pushable_to_this;
@@ -77,6 +94,54 @@ struct RelationalExpression {
   RelationalExpression *left, *right;
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
+  table_map conditions_used_tables{0};
+
+  // Conflict rules that must be checked before making a subgraph
+  // out of this join; this is in addition to the regular connectivity
+  // check. See FindHyperedgeAndJoinConflicts() for more details.
+  Mem_root_array<ConflictRule> conflict_rules;
 };
+
+// Check conflict rules; usually, they will be empty, but the hyperedges are
+// not able to encode every single combination of disallowed joins.
+inline bool PassesConflictRules(hypergraph::NodeMap joined_tables,
+                                const RelationalExpression *expr) {
+  for (const ConflictRule &rule : expr->conflict_rules) {
+    if (Overlaps(joined_tables, rule.needed_to_activate_rule) &&
+        !IsSubset(rule.required_nodes, joined_tables)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Whether (a <expr> b) === (b <expr> a). See also OperatorIsAssociative(),
+// OperatorsAreAssociative() // and OperatorsAre{Left,Right}Asscom()
+// in make_join_hypergraph.cc.
+inline bool OperatorIsCommutative(const RelationalExpression &expr) {
+  return expr.type == RelationalExpression::INNER_JOIN ||
+         expr.type == RelationalExpression::FULL_OUTER_JOIN;
+}
+
+// Call the given functor on each non-table operator in the tree below expr,
+// including expr itself, in post-traversal order.
+template <class Func>
+void ForEachJoinOperator(RelationalExpression *expr, Func &&func) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return;
+  }
+  ForEachJoinOperator(expr->left, std::forward<Func &&>(func));
+  ForEachJoinOperator(expr->right, std::forward<Func &&>(func));
+  func(expr);
+}
+
+template <class Func>
+void ForEachOperator(RelationalExpression *expr, Func &&func) {
+  if (expr->type != RelationalExpression::TABLE) {
+    ForEachOperator(expr->left, std::forward<Func &&>(func));
+    ForEachOperator(expr->right, std::forward<Func &&>(func));
+  }
+  func(expr);
+}
 
 #endif  // SQL_JOIN_OPTIMIZER_RELATIONAL_EXPRESSION_H
