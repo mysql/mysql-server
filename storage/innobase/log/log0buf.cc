@@ -1254,7 +1254,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
 /** @{ */
 
-bool log_advance_ready_for_write_lsn(log_t &log) {
+void log_advance_ready_for_write_lsn(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
   ut_d(log_writer_thread_active_validate(log));
 
@@ -1297,11 +1297,6 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
     ut_a(log_buffer_ready_for_write_lsn(log) > previous_lsn);
 
     std::atomic_thread_fence(std::memory_order_acquire);
-
-    return (true);
-
-  } else {
-    return (false);
   }
 }
 
