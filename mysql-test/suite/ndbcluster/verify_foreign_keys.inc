@@ -27,36 +27,34 @@ if (!$ndb_db_name) {
 # Print foreign key definitions using show create table
 eval SHOW CREATE TABLE $ndb_db_name.$ndb_table_name;
 
-let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_show_tables_dump.txt;
-
-# Build the string used for executing ndb_show_tables
-let $show_cmd = $NDB_SHOW_TABLES;
-let $show_cmd = $show_cmd -p;  # parsable format
-
-# Run ndb_show_tables and dump output to file
---exec $show_cmd > $dump_file
-
 --disable_query_log
---disable_warnings ER_TABLE_EXISTS_ERROR ONCE
-CREATE TABLE test.ndb_object_list (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(512)
-);
 
-eval LOAD DATA INFILE '$dump_file' INTO TABLE test.ndb_object_list;
---remove_file $dump_file
+# Create view which displays all user tables and foreign keys.
+# NOTE! Uses a format which is backward compatible with the output
+# from "ndb_show_tables" previously used by this test
+CREATE VIEW test.ndb_object_list AS
+  SELECT
+    id,
+    /* Hardcoded names for the types selected */
+    CASE type
+      WHEN 2 THEN "UserTable"
+      WHEN 25 THEN "ForeignKey"
+      ELSE "UnexpectedType"
+    END AS type,
 
-# Clean the column "name" from any windows line endings
-UPDATE test.ndb_object_list SET name = TRIM(TRAILING '\r' FROM name);
-# Trim surrounding quotation marks from type, _database and name
-UPDATE test.ndb_object_list SET type = TRIM(BOTH '\'' FROM type);
-UPDATE test.ndb_object_list SET _database = TRIM(BOTH '\'' FROM _database);
-UPDATE test.ndb_object_list SET name = TRIM(BOTH '\'' FROM name);
+    /* Database is first part of fq_name for user tables */
+    CASE type
+      WHEN 2 THEN SUBSTRING_INDEX(fq_name, "/", 1)
+      ELSE ""
+    END AS _database,
+
+    /* Table name is last part of fq_name for user tables and fq_name for fk */
+    CASE type
+      WHEN 2 THEN SUBSTRING_INDEX(fq_name, "/", -1)
+      ELSE fq_name
+    END AS name
+  FROM ndbinfo.dict_obj_info WHERE type IN ( 2 /* User table */,
+                                             25 /* Foreign key definition */);
 
 # Find the object id of the table whose FKs we have to list and verify
 let $ndb_table_id= `SELECT id FROM ndb_object_list
@@ -121,10 +119,13 @@ if ($ndb_fk_count > 0) {
   --echo Foreign keys consistent across NDB and DD
 }
 
-# Drop the info table
-DROP TABLE test.ndb_fk_info, test.ndb_object_list;
+# Drop the info table and the view
+DROP TABLE test.ndb_fk_info;
+DROP VIEW test.ndb_object_list;
+
+--enable_query_log
+
 # Reset input parameters
 --let $ndb_db_name=
 --let $ndb_table_name=
 
---enable_query_log
