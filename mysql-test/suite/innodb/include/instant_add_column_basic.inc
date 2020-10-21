@@ -1,4 +1,3 @@
-
 --echo #
 --echo # Scenario 1:
 --echo # Create a small table, and add all kinds of new columns and verify
@@ -503,6 +502,7 @@ UPDATE t1 SET e = 'Hello MySQL!!' WHERE a > 20;
 SELECT distinct(e) FROM t1;
 
 UPDATE t1 SET c = 500 WHERE e LIKE '%world%';
+--sorted_result
 SELECT c, e FROM t1 GROUP BY c, e;
 
 INSERT INTO t1(b, c, e) SELECT b, c, e FROM t1;
@@ -757,9 +757,11 @@ ALTER TABLE t1 ADD KEY(c);
 ALTER TABLE t2 ADD FOREIGN KEY (c) REFERENCES t1(c) ON UPDATE CASCADE, ALGORITHM = COPY;
 
 UPDATE t1 SET c = 10 WHERE a = 1;
+--sorted_result
 SELECT c FROM t2;
 
 UPDATE t1 SET c = 10;
+--sorted_result
 SELECT c FROM t2;
 
 CHECK TABLE t1;

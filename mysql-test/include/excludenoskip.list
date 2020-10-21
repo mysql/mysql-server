@@ -283,3 +283,7 @@ no_checkpoint_cleanup.inc
 # PARTIAL_REVOKES feature is set to ON. Setting this variables to ON
 # disables wildcard grants at database level.
 not_partial_revokes.inc
+
+# 29. This file is used for skipping tests which cannot be run successfully
+# with the hypergraph optimizer yet.
+not_hypergraph.inc
