@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "sql/item_cmpfunc.h"
-#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/mem_root_array.h"
 
 using std::string;

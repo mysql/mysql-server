@@ -39,7 +39,6 @@
 class Common_table_expr;
 class Filesort;
 class Item;
-class Item_func_eq;
 class JOIN;
 class KEY;
 class RowIterator;
@@ -51,48 +50,9 @@ class Temp_table_param;
 struct AccessPath;
 struct ORDER;
 struct POSITION;
+struct RelationalExpression;
 struct TABLE;
 struct TABLE_REF;
-
-/**
-  Represents an expression tree in the relational algebra of joins.
-  Expressions are either tables, or joins of two expressions.
-  (Joins can have join conditions, but more general filters are
-  not represented in this structure.)
-
-  These are used as an abstract precursor to the join hypergraph;
-  they represent the joins in the query block more or less directly,
-  without any reordering. (The parser should largely have output a
-  structure like this instead of TABLE_LIST, but we are not there yet.)
-  The only real manipulation we do on them is pushing down conditions,
-  identifying equijoin conditions from other join conditions,
-  and identifying join conditions that touch given tables (also a form
-  of pushdown).
- */
-struct RelationalExpression {
-  explicit RelationalExpression(THD *thd)
-      : join_conditions(thd->mem_root), equijoin_conditions(thd->mem_root) {}
-
-  enum Type {
-    INNER_JOIN = static_cast<int>(JoinType::INNER),
-    LEFT_JOIN = static_cast<int>(JoinType::OUTER),
-    SEMIJOIN = static_cast<int>(JoinType::SEMI),
-    ANTIJOIN = static_cast<int>(JoinType::ANTI),
-    TABLE = 100
-  } type;
-  table_map tables_in_subtree;
-
-  // If type == TABLE.
-  const TABLE_LIST *table;
-  Mem_root_array<Item *> join_conditions_pushable_to_this;
-
-  // If type != TABLE. Note that equijoin_conditions will be split off
-  // from join_conditions fairly late (at CreateHashJoinConditions()),
-  // so often, you will see equijoin conditions in join_condition..
-  RelationalExpression *left, *right;
-  Mem_root_array<Item *> join_conditions;
-  Mem_root_array<Item_func_eq *> equijoin_conditions;
-};
 
 /**
   A specification that two specific relational expressions

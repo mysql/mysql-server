@@ -47,6 +47,7 @@
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/print_utils.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/nested_join.h"
 #include "sql/sql_class.h"

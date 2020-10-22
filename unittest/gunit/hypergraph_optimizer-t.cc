@@ -44,6 +44,7 @@
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
