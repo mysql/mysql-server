@@ -16319,7 +16319,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
    * Section 1 : Optional KEYINFO section
    */
   const Uint32 numSections= signal->getNoOfSections();
-  const bool isLongReq= ( numSections != 0 );
   
   SectionHandle handle(this, signal);
 
@@ -16327,7 +16326,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   Uint32 aiLen= 0;
   Uint32 keyLen= 0;
 
-  ndbassert(isLongReq);
+  ndbassert(numSections != 0);
   {
     /* Long request, get Attr + Key len from section sizes */
     handle.getSection(attrInfoPtr, ScanFragReq::AttrInfoSectionNum);
