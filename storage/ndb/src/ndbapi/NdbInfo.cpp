@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -359,7 +359,7 @@ int NdbInfo::createScanOperation(const Table* table,
     max_nodes = 1;
   }
 
-  NdbInfoScanNodes* scan_op = new NdbInfoScanNodes(*this, m_connection,
+  NdbInfoScanNodes* scan_op = new NdbInfoScanNodes(m_connection,
                                                    table, max_rows,
                                                    max_bytes,
                                                    max_nodes);
