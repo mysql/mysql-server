@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "sql/join_optimizer/materialize_path_parameters.h"
+#include "sql/join_optimizer/node_map.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
@@ -117,10 +118,9 @@ struct Predicate {
   // at least one of those tables will still be present on the
   // left-hand side of the outer join, so this is sufficient.)
   //
-  // This is a NodeMap (we just don't want to pull in the typedef here).
   // As a special case, we allow setting RAND_TABLE_BIT, even though it
   // is normally part of a table_map, not a NodeMap.
-  uint64_t total_eligibility_set;
+  hypergraph::NodeMap total_eligibility_set;
 
   double selectivity;
 };
@@ -300,13 +300,12 @@ struct AccessPath {
   /// but the bit(s) will then propagate, and we cannot be on the right side of
   /// a hash join until parameter_tables is zero again.
   ///
-  /// This is a NodeMap (we just don't want to pull in the typedef here).
   /// As a special case, we allow setting RAND_TABLE_BIT, even though it
   /// is normally part of a table_map, not a NodeMap. In this case, it specifies
   /// that the access path is entirely noncachable, because it depends on
   /// something nondeterministic or an outer reference, and thus can never be on
   /// the right side of a hash join, ever.
-  uint64_t parameter_tables{0};
+  hypergraph::NodeMap parameter_tables{0};
 
   /// Auxiliary data used by a secondary storage engine while processing the
   /// access path during optimization and execution. The secondary storage
