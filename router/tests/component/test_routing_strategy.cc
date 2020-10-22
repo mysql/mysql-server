@@ -26,6 +26,7 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -608,13 +609,16 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
   EXPECT_EQ("", node_port);
 
-  // bring back 1st server
+  SCOPED_TRACE("// bring back 1st server on port " +
+               std::to_string(server_ports[0]));
   server_instances.emplace_back(
       &launch_standalone_server(server_ports[0], get_data_dir().str()));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
-  // we should now succesfully connect to this server
-  connect_client_and_query_port(router_port, node_port);
+  SCOPED_TRACE("// we should now succesfully connect to server on port " +
+               std::to_string(server_ports[0]));
+  ASSERT_NO_FATAL_FAILURE(
+      connect_client_and_query_port(router_port, node_port));
   EXPECT_EQ(std::to_string(server_ports[0]), node_port);
 }
 
