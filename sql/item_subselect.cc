@@ -1012,14 +1012,16 @@ bool Query_result_max_min_subquery::cmp_decimal() {
   @see Query_result_max_min_subquery::cmp_real()
 */
 bool Query_result_max_min_subquery::cmp_str() {
-  String *val1, *val2, buf1, buf2;
-  Item *maxmin = ((Item_singlerow_subselect *)item)->element_index(0);
+  Item *maxmin = down_cast<Item_singlerow_subselect *>(item)->element_index(0);
   /*
     as far as both operand is Item_cache buf1 & buf2 will not be used,
     but added for safety
   */
-  val1 = cache->val_str(&buf1);
-  val2 = maxmin->val_str(&buf1);
+  String buf1;
+  const String *val1 = cache->val_str(&buf1);
+  if (current_thd->is_error()) return false;
+  String buf2;
+  const String *val2 = maxmin->val_str(&buf2);
   if (cache->null_value || maxmin->null_value)
     return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
   return (fmax) ? (sortcmp(val1, val2, cache->collation.collation) > 0)

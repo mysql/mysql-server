@@ -1061,6 +1061,8 @@ longlong Item_func_json_contains_path::val_int() {
 }
 
 bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
+  assert(!current_thd->is_error());
+
   if (arg->data_type() == MYSQL_TYPE_NULL) {
     if (arg->update_null_value()) return true;
     DBUG_ASSERT(arg->null_value);
@@ -1075,7 +1077,10 @@ bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
   }
 
   *has_value = true;
-  return arg->val_json(result);
+
+  const bool error = arg->val_json(result);
+  assert(error == current_thd->is_error());
+  return error;
 }
 
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
