@@ -2347,17 +2347,20 @@ bool geometry_to_json(Json_wrapper *wr, String *swkb,
 }
 
 /**
-  Create a GeoJSON object, according to GeoJSON specification revison 1.0.
+  Create a GeoJSON object, according to GeoJSON specification revision 1.0.
 */
 bool Item_func_as_geojson::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed == true);
+  assert(!current_thd->is_error());
 
-  if ((arg_count > 1 && parse_maxdecimaldigits_argument()) ||
-      (arg_count > 2 && parse_options_argument())) {
-    if (null_value && !current_thd->is_error())
-      return false;
-    else
-      return error_json();
+  if (arg_count > 1) {
+    if (parse_maxdecimaldigits_argument()) return error_json();
+    if (null_value) return false;
+  }
+
+  if (arg_count > 2) {
+    if (parse_options_argument()) return error_json();
+    if (null_value) return false;
   }
 
   /*
@@ -2367,17 +2370,18 @@ bool Item_func_as_geojson::val_json(Json_wrapper *wr) {
   if (arg_count < 2) m_max_decimal_digits = INT_MAX32;
 
   String tmp, *val = args[0]->val_str(&tmp);
-  if (!args[0]->null_value &&
-      geometry_to_json(wr, val, func_name(), m_max_decimal_digits,
+  if (current_thd->is_error()) return error_json();
+  null_value = args[0]->null_value;
+  if (null_value) return false;
+
+  if (geometry_to_json(wr, val, func_name(), m_max_decimal_digits,
                        m_add_bounding_box, m_add_short_crs_urn,
                        m_add_long_crs_urn, &m_geometry_srid)) {
-    if (null_value && !current_thd->is_error())
-      return false;
-    else
-      return error_json();
+    return error_json();
   }
 
-  null_value = args[0]->null_value;
+  assert(!null_value);
+  assert(!current_thd->is_error());
   return false;
 }
 
@@ -2403,7 +2407,9 @@ bool Item_func_as_geojson::val_json(Json_wrapper *wr) {
 bool Item_func_as_geojson::parse_options_argument() {
   DBUG_ASSERT(arg_count > 2);
   longlong options_argument = args[2]->val_int();
-  if ((null_value = args[2]->null_value)) return true;
+  if (current_thd->is_error()) return true;
+  null_value = args[2]->null_value;
+  if (null_value) return false;
 
   if (options_argument < 0 || options_argument > 7) {
     char options_string[MAX_BIGINT_WIDTH + 1];
@@ -2438,7 +2444,9 @@ bool Item_func_as_geojson::parse_options_argument() {
 bool Item_func_as_geojson::parse_maxdecimaldigits_argument() {
   DBUG_ASSERT(arg_count > 1);
   longlong max_decimal_digits_argument = args[1]->val_int();
-  if ((null_value = args[1]->null_value)) return true;
+  if (current_thd->is_error()) return true;
+  null_value = args[1]->null_value;
+  if (null_value) return false;
 
   if (max_decimal_digits_argument < 0 ||
       max_decimal_digits_argument > INT_MAX32) {

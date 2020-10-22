@@ -4260,3 +4260,10 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "    ]                                                  "
 "  }")) AS srid;
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Member 'crs' must be specified in the top level object.
+#
+# Bug#32047630: MISSING ERROR PROPAGATION IN JSON FUNCTIONS
+#
+SELECT JSON_ARRAY(ST_ASGEOJSON(ST_GEOMFROMTEXT('')), 1);
+ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
+SELECT JSON_ARRAY(ST_ASGEOJSON(0x00), 1);
+ERROR 22023: Invalid GIS data provided to function st_asgeojson.
