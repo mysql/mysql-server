@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,13 @@
 namespace xpl {
 namespace iface {
 
+class Client;
+
 class Protocol_monitor {
  public:
   virtual ~Protocol_monitor() = default;
 
+  virtual void init(iface::Client *client) = 0;
   virtual void on_notice_warning_send() = 0;
   virtual void on_notice_other_send() = 0;
   virtual void on_notice_global_send() = 0;

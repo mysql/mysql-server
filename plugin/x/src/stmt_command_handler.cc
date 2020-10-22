@@ -27,13 +27,13 @@
 #include <string>
 
 #include "plugin/x/src/admin_cmd_arguments.h"
+#include "plugin/x/src/client.h"
 #include "plugin/x/src/notices.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/sql_statement_builder.h"
-#include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_resultset.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 

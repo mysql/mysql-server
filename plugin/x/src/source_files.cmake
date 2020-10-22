@@ -37,6 +37,7 @@ SET(XPL_SRC
   capabilities/handler_connection_attributes.cc
   capabilities/handler_tls.cc
   challenge_response_verification.cc
+  client.cc
   crud_cmd_handler.cc
   custom_command_delegates.cc
   delete_statement_builder.cc
@@ -72,9 +73,7 @@ SET(XPL_SRC
   mysql_variables.cc
   native_plain_verification.cc
   native_verification.cc
-  ngs/client.cc
   ngs/client_list.cc
-  ngs/client_session.cc
   ngs/document_id_generator.cc
   ngs/message_cache.cc
   ngs/message_decoder.cc
@@ -96,6 +95,7 @@ SET(XPL_SRC
   prepare_command_handler.cc
   prepared_statement_builder.cc
   prepare_param_handler.cc
+  protocol_monitor.cc
   query_formatter.cc
   query_string_builder.cc
   server/authentication_container.cc
@@ -113,6 +113,7 @@ SET(XPL_SRC
   services/services.cc
   services/service_sys_variables.cc
   services/service_udf_registration.cc
+  session.cc
   sha256_password_cache.cc
   sha256_plain_verification.cc
   sha2_plain_verification.cc
@@ -135,12 +136,10 @@ SET(XPL_SRC
   variables/status_variables.cc
   variables/system_variables.cc
   view_statement_builder.cc
-  xpl_client.cc
   xpl_dispatcher.cc
   xpl_log.cc
   xpl_performance_schema.cc
   xpl_plugin.cc
   xpl_regex.cc
-  xpl_session.cc
 )
 

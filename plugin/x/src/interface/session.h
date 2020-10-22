@@ -94,8 +94,10 @@ class Session {
   virtual void set_proto(Protocol_encoder *encode) = 0;
   virtual bool get_prepared_statement_id(const uint32_t client_stmt_id,
                                          uint32_t *stmt_id) const = 0;
-  virtual void update_status(ngs::Common_status_variables::Variable
-                                 ngs::Common_status_variables::*variable) = 0;
+  using Common_status_variable =
+      ngs::Common_status_variables::Variable ngs::Common_status_variables::*;
+
+  virtual void update_status(Common_status_variable variable) = 0;
 
   virtual Document_id_aggregator &get_document_id_aggregator() = 0;
 };

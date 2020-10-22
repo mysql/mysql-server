@@ -35,9 +35,9 @@ namespace xpl {
 bool Capability_auth_mech::is_supported_impl() const { return true; }
 
 void Capability_auth_mech::get_impl(::Mysqlx::Datatypes::Any *any) {
-  auto &auth_container = m_client.server().get_authentications();
+  auto &auth_container = m_client->server().get_authentications();
   const std::vector<std::string> auth_mechs =
-      auth_container.get_authentication_mechanisms(&m_client);
+      auth_container.get_authentication_mechanisms(m_client);
 
   ngs::Setter_any::set_array(any, auth_mechs);
 }

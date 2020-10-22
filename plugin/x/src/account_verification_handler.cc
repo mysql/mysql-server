@@ -26,11 +26,11 @@
 
 #include "my_sys.h"  // NOLINT(build/include_subdir)
 
+#include "plugin/x/src/client.h"
 #include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/ssl_session_options.h"
-#include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {

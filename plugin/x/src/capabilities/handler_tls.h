@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ namespace xpl {
 
 class Capability_tls : public Capability_handler {
  public:
-  Capability_tls(iface::Client &client)
+  explicit Capability_tls(iface::Client *client)
       : m_client(client), tls_should_be_enabled(false) {}
 
   std::string name() const override { return "tls"; }
@@ -46,7 +46,7 @@ class Capability_tls : public Capability_handler {
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override;
 
-  iface::Client &m_client;
+  iface::Client *m_client;
   bool tls_should_be_enabled;
 };
 

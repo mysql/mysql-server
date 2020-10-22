@@ -90,6 +90,7 @@ class Client {
   virtual chrono::Time_point get_accept_time() const = 0;
   virtual State get_state() const = 0;
   virtual bool supports_expired_passwords() const = 0;
+  virtual void set_supports_expired_passwords(bool flag) = 0;
 
   virtual bool is_interactive() const = 0;
   virtual void set_is_interactive(const bool is_interactive) = 0;

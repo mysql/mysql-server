@@ -20,10 +20,10 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_config.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include "my_config.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/capabilities/handler_auth_mech.h"
@@ -52,7 +52,7 @@ using xpl::test::Mock_authentication_container;
 
 class CapabilityHanderTlsTestSuite : public Test {
  public:
-  CapabilityHanderTlsTestSuite() : sut(mock_client) {
+  CapabilityHanderTlsTestSuite() : sut(&mock_client) {
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(mock_server));
@@ -213,7 +213,7 @@ INSTANTIATE_TEST_CASE_P(FaildInstantiationAlreadyDisabled,
 
 class CapabilityHanderAuthMechTestSuite : public Test {
  public:
-  CapabilityHanderAuthMechTestSuite() : sut(mock_client) {
+  CapabilityHanderAuthMechTestSuite() : sut(&mock_client) {
     mock_server = std::make_shared<StrictMock<Mock_server>>();
 
     EXPECT_CALL(mock_client, connection())
@@ -296,7 +296,7 @@ class Capability_hander_client_interactive_test_suite : public Test {
 
   void SetUp() override {
     EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(false));
-    sut.reset(new Capability_client_interactive(mock_client));
+    sut.reset(new Capability_client_interactive(&mock_client));
   }
 
   std::unique_ptr<Capability_client_interactive> sut;
@@ -316,7 +316,7 @@ TEST_F(Capability_hander_client_interactive_test_suite,
 TEST_F(Capability_hander_client_interactive_test_suite,
        get_when_client_is_interactive) {
   EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(true));
-  sut.reset(new Capability_client_interactive(mock_client));
+  sut.reset(new Capability_client_interactive(&mock_client));
 
   const bool expected_result = true;
   ::Mysqlx::Datatypes::Any any;
@@ -331,7 +331,7 @@ TEST_F(Capability_hander_client_interactive_test_suite,
 TEST_F(Capability_hander_client_interactive_test_suite,
        get_when_client_is_not_interactive) {
   EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(false));
-  sut.reset(new Capability_client_interactive(mock_client));
+  sut.reset(new Capability_client_interactive(&mock_client));
 
   const bool expected_result = false;
   ::Mysqlx::Datatypes::Any any;

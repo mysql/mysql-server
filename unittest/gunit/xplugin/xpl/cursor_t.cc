@@ -23,8 +23,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "plugin/x/src/client.h"
 #include "plugin/x/src/prepare_command_handler.h"
-#include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
