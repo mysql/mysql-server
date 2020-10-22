@@ -1,6 +1,4 @@
 CALL mtr.add_suppression("Incorrect information in file");
-CALL mtr.add_suppression("NDB: Failed to setup events for 'mysql.ndb_schema' table");
-CALL mtr.add_suppression("NDB: Failed to setup binlogging for table 'mysql.ndb_schema'");
 CREATE TABLE t1(a int primary key, b varchar(255), c int) engine=ndb;
 select * from t1;
 a	b	c

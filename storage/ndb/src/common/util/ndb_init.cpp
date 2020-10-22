@@ -121,7 +121,8 @@ ndb_init_internal(Uint32 caller)
       (void)res;
       exit(1);
     }
-    NdbHW_Init();
+    if (caller != MYSQLD_USER)
+      NdbHW_Init();
   }
 }
 
@@ -183,7 +184,8 @@ ndb_end_internal(Uint32 caller)
     NdbLockCpu_End();
     NdbThread_End();
     NdbMutex_SysEnd();
-    NdbHW_End();
+    if (caller != MYSQLD_USER)
+      NdbHW_End();
   }
 }
 
