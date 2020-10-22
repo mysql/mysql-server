@@ -4656,6 +4656,9 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
       return true;
 
     w->m_frame_buffer_positions[first_in_partition].m_rowno = 1;
+    /* Update the partition offset if we are starting a new partition */
+    if (rowno == 1)
+      w->set_frame_buffer_partition_offset(w->frame_buffer_total_rows());
     /*
       The auto-generated primary key of the first row is 1. Our offset is
       also one-based, so we can use w->frame_buffer_partition_offset() "as is"
