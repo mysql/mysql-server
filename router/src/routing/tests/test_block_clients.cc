@@ -39,7 +39,6 @@
 
 #include "../../router/src/router_app.h"
 #include "../../routing/src/mysql_routing.h"
-#include "../../routing/src/utils.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/net_ts/internet.h"

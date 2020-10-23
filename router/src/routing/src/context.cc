@@ -33,7 +33,6 @@
 #include "mysql/harness/net_ts/local.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/base_protocol.h"
-#include "utils.h"
 
 IMPORT_LOG_FUNCTIONS()
 
