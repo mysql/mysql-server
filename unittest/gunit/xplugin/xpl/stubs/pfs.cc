@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,14 @@
 #include "include/config.h"
 
 #include "include/pfs_cond_provider.h"
+#include "include/pfs_memory_provider.h"
 #include "include/pfs_mutex_provider.h"
 #include "include/pfs_rwlock_provider.h"
 #include "include/pfs_socket_provider.h"
 #include "include/pfs_thread_provider.h"
 #include "my_inttypes.h"
 #include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/components/services/psi_socket_bits.h"
@@ -51,6 +53,16 @@ PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *, PSI_cond *,
   return nullptr;
 }
 #endif  // HAVE_PSI_COND_INTERFACE
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+void pfs_register_memory_vc(const char *, struct PSI_memory_info_v1 *, int) {}
+
+PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key, size_t, PSI_thread **) {
+  return 0;
+}
+
+void pfs_memory_free_vc(PSI_memory_key, size_t, PSI_thread *) {}
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 void pfs_destroy_mutex_v1(PSI_mutex *) {}

@@ -28,7 +28,15 @@
   Instrumentation helpers for errors.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_error.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_ERROR_CALL() as direct call. */
+#include "pfs_error_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_ERROR_CALL
 #define PSI_ERROR_CALL(M) psi_error_service->M

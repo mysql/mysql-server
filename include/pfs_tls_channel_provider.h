@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -20,39 +20,36 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PFS_STAGE_PROVIDER_H
-#define PFS_STAGE_PROVIDER_H
-
-/**
-  @file include/pfs_stage_provider.h
-  Performance schema instrumentation (declarations).
-*/
+#ifndef PFS_TLS_CHANNEL_PROVIDER_H
+#define PFS_TLS_CHANNEL_PROVIDER_H
 
 /* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
 
-#ifdef HAVE_PSI_STAGE_INTERFACE
+/**
+  @file include/pfs_tls_channel_provider.h
+  Performance schema instrumentation (declarations).
+*/
+
+#ifdef HAVE_PSI_TLS_CHANNEL_INTERFACE
 #if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
 #ifndef MYSQL_DYNAMIC_PLUGIN
 #ifndef WITH_LOCK_ORDER
 
+#include <stddef.h>
+
 #include "my_macros.h"
-#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/mysql_tls_channel.h"
 
-#define PSI_STAGE_CALL(M) pfs_##M##_v1
+#define PSI_TLS_CHANNEL_CALL(M) pfs_##M##_v1
 
-void pfs_register_stage_v1(const char *category, PSI_stage_info_v1 **info_array,
-                           int count);
+void pfs_register_tls_channel_v1(TLS_channel_property_iterator *provider);
 
-PSI_stage_progress_v1 *pfs_start_stage_v1(PSI_stage_key key,
-                                          const char *src_file, int src_line);
-PSI_stage_progress_v1 *pfs_get_current_stage_progress_v1();
-
-void pfs_end_stage_v1();
+void pfs_unregister_tls_channel_v1(TLS_channel_property_iterator *provider);
 
 #endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
-#endif /* HAVE_PSI_STAGE_INTERFACE */
+#endif /* HAVE_PSI_TLS_CHANNEL_INTERFACE */
 
 #endif

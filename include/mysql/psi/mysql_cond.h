@@ -28,14 +28,17 @@
   Instrumentation helpers for conditions.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_cond.h"
 #include "thr_cond.h"
-#ifdef MYSQL_SERVER
-#ifndef MYSQL_DYNAMIC_PLUGIN
-#include "pfs_cond_provider.h"
-#endif
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_COND_CALL() as direct call. */
+#include "pfs_cond_provider.h"  // IWYU pragma: keep
 #endif
 
 #ifndef PSI_COND_CALL

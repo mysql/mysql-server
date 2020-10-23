@@ -28,7 +28,15 @@
   Instrumentation helpers for TLS channel info.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_tls_channel.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_TLS_CHANNEL_CALL() as direct call. */
+#include "pfs_tls_channel_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_TLS_CHANNEL_CALL
 #define PSI_TLS_CHANNEL_CALL(M) psi_tls_channel_service->M

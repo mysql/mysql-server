@@ -7253,10 +7253,12 @@ void pfs_digest_end_v2(PSI_digest_locker *locker,
   }
 }
 
-static PSI_prepared_stmt *pfs_create_prepared_stmt_v2(
-    void *identity, uint stmt_id, PSI_statement_locker *locker,
-    const char *stmt_name, size_t stmt_name_length, const char *sql_text,
-    size_t sql_text_length) {
+PSI_prepared_stmt *pfs_create_prepared_stmt_v2(void *identity, uint stmt_id,
+                                               PSI_statement_locker *locker,
+                                               const char *stmt_name,
+                                               size_t stmt_name_length,
+                                               const char *sql_text,
+                                               size_t sql_text_length) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   PFS_events_statements *pfs_stmt =
@@ -7283,8 +7285,8 @@ static PSI_prepared_stmt *pfs_create_prepared_stmt_v2(
   return reinterpret_cast<PSI_prepared_stmt *>(pfs);
 }
 
-static void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
-                                         PSI_prepared_stmt *ps) {
+void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
+                                  PSI_prepared_stmt *ps) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   DBUG_ASSERT(state != nullptr);
@@ -7293,14 +7295,14 @@ static void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
   state->m_in_prepare = false;
 }
 
-static void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   delete_prepared_stmt(pfs_prepared_stmt);
   return;
 }
 
-static void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   PFS_single_stat *prepared_stmt_stat = &pfs_prepared_stmt->m_reprepare_stat;

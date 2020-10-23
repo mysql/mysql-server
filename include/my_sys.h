@@ -56,7 +56,10 @@
 #include "my_compress.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h" /* IWYU pragma: keep */
+
 #include "my_sharedlib.h"
 #include "mysql/components/services/my_io_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"

@@ -28,11 +28,13 @@
   Performance schema instrumentation (declarations).
 */
 
-#include "my_psi_config.h"
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
 
-#if defined(HAVE_PSI_THREAD_INTERFACE) && defined(MYSQL_SERVER) && \
-    !defined(MYSQL_DYNAMIC_PLUGIN) && !defined(WITH_LOCK_ORDER) && \
-    defined(__cplusplus)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+#ifndef MYSQL_DYNAMIC_PLUGIN
+#ifndef WITH_LOCK_ORDER
 
 #include <sys/types.h>
 #include <time.h>
@@ -41,7 +43,9 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_thread.h"
 
+#ifdef __cplusplus
 class THD;
+#endif /* __cplusplus */
 
 /*
   Naming current apis as _vc (version 'current'),
@@ -69,7 +73,10 @@ ulonglong pfs_get_thread_internal_id_vc(PSI_thread *thread);
 
 PSI_thread *pfs_get_thread_by_id_vc(ulonglong processlist_id);
 
+#ifdef __cplusplus
 void pfs_set_thread_THD_vc(PSI_thread *thread, THD *thd);
+#endif /* __cplusplus */
+
 void pfs_set_thread_os_id_vc(PSI_thread *thread);
 
 PSI_thread *pfs_get_thread_vc(void);
@@ -136,6 +143,9 @@ void pfs_notify_session_disconnect_vc(PSI_thread *thread);
 
 void pfs_notify_session_change_user_vc(PSI_thread *thread);
 
+#endif /* WITH_LOCK_ORDER */
+#endif /* MYSQL_DYNAMIC_PLUGIN */
+#endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #endif

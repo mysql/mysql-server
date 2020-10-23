@@ -28,11 +28,19 @@
   Instrumentation helpers for stages.
 */
 
+#include "my_compiler.h"
+
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_stage.h"
 
-#include "my_compiler.h"
 #include "my_inttypes.h"
-#include "pfs_stage_provider.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_STAGE_CALL() as direct call. */
+#include "pfs_stage_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_STAGE_CALL
 #define PSI_STAGE_CALL(M) psi_stage_service->M

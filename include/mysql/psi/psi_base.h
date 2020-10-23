@@ -23,7 +23,8 @@
 #ifndef MYSQL_PSI_BASE_H
 #define MYSQL_PSI_BASE_H
 
-#include "my_psi_config.h"
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
 
 /**
   @file include/mysql/psi/psi_base.h
