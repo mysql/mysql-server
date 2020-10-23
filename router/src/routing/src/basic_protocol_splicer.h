@@ -293,6 +293,9 @@ class BasicSplicer {
 
   virtual State splice_to_client() = 0;
 
+  virtual stdx::expected<size_t, std::error_code> on_block_client_host(
+      std::vector<uint8_t> &buf) = 0;
+
   template <bool to_server>
   State splice() {
     return to_server ? splice_to_server() : splice_to_client();

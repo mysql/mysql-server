@@ -23,6 +23,7 @@
 */
 
 #include "mysql_routing.h"
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -34,25 +35,7 @@
 #include <thread>
 #include <type_traits>
 
-#ifndef _WIN32
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
 #include <sys/types.h>
-
-#if defined(__sun)
-#include <ucred.h>
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/ucred.h>
-#endif
 
 #include "common.h"  // rename_thread
 #include "connection.h"
@@ -96,6 +79,26 @@ static const int kListenQueueSize{1024};
 
 static const char *kDefaultReplicaSetName = "default";
 
+/**
+ * encode a initial error-msg into a buffer.
+ *
+ * Assumes that no capability exchange happened yet. For classic-protocol that
+ * means Error messages will be encoded in 3.23 format.
+ *
+ * works for error-packets that are encoded by the Acceptor.
+ */
+static stdx::expected<size_t, std::error_code> encode_initial_error_packet(
+    BaseProtocol::Type protocol, std::vector<uint8_t> &error_frame,
+    uint32_t error_code, const std::string &msg, const std::string &sql_state) {
+  if (protocol == BaseProtocol::Type::kClassicProtocol) {
+    return ClassicProtocolSplicer::encode_error_packet(
+        error_frame, 0, {}, error_code, msg, sql_state);
+  } else {
+    return XProtocolSplicer::encode_error_packet(error_frame, error_code, msg,
+                                                 sql_state);
+  }
+}
+
 MySQLRouting::MySQLRouting(
     net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
     uint16_t port, const Protocol::Type protocol,
@@ -108,9 +111,8 @@ MySQLRouting::MySQLRouting(
     mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size,
     SslMode client_ssl_mode, TlsServerContext *client_ssl_ctx,
     SslMode server_ssl_mode, DestinationTlsContext *dest_ssl_ctx)
-    : context_(Protocol::create(protocol, sock_ops), sock_ops, route_name,
-               net_buffer_length, destination_connect_timeout,
-               client_connect_timeout,
+    : context_(protocol, route_name, net_buffer_length,
+               destination_connect_timeout, client_connect_timeout,
                mysql_harness::TCPAddress(bind_address, port), named_socket,
                max_connect_errors, thread_stack_size, client_ssl_mode,
                client_ssl_ctx, server_ssl_mode, dest_ssl_ctx),
@@ -639,11 +641,26 @@ class Connector : public ConnectorBase {
   }
 
   State error() {
-    r_->get_context().get_protocol().send_error(
-        client_sock_.native_handle(), 2003,
+    std::vector<uint8_t> error_frame;
+
+    const auto encode_res = encode_initial_error_packet(
+        r_->get_context().get_protocol(), error_frame, 2003,
         "Can't connect to remote MySQL server for client connected to '" +
             r_->get_context().get_bind_address().str() + "'",
-        "HY000", r_->get_context().get_name());
+        "HY000");
+
+    if (!encode_res) {
+      log_debug(
+          "[%s] fd=%d encode error: %s", r_->get_context().get_name().c_str(),
+          client_sock_.native_handle(), encode_res.error().message().c_str());
+    } else {
+      auto write_res = net::write(client_sock_, net::buffer(error_frame));
+      if (!write_res) {
+        log_debug(
+            "[%s] fd=%d write error: %s", r_->get_context().get_name().c_str(),
+            client_sock_.native_handle(), write_res.error().message().c_str());
+      }
+    }
 
     // note: tests as checking for this message
     log_warning(
@@ -854,18 +871,51 @@ class Acceptor {
           if (r_->get_context().is_blocked<protocol_type>(client_endpoint)) {
             const std::string msg = "Too many connection errors from " +
                                     mysqlrouter::to_string(client_endpoint);
-            r_->get_context().get_protocol().send_error(
-                sock.native_handle(), 1129, msg, "HY000",
-                r_->get_context().get_name());
+
+            std::vector<uint8_t> error_frame;
+            const auto encode_res =
+                encode_initial_error_packet(r_->get_context().get_protocol(),
+                                            error_frame, 1129, msg, "HY000");
+
+            if (!encode_res) {
+              log_debug("[%s] fd=%d encode error: %s",
+                        r_->get_context().get_name().c_str(),
+                        sock.native_handle(),
+                        encode_res.error().message().c_str());
+            } else {
+              auto write_res = net::write(sock, net::buffer(error_frame));
+              if (!write_res) {
+                log_debug("[%s] fd=%d write error: %s",
+                          r_->get_context().get_name().c_str(),
+                          sock.native_handle(),
+                          write_res.error().message().c_str());
+              }
+            }
+
             // log_info("%s", msg.c_str());
             sock.close();
           } else if (r_->get_context().info_active_routes_.load(
                          std::memory_order_relaxed) >=
                      r_->get_max_connections()) {
-            r_->get_context().get_protocol().send_error(
-                sock.native_handle(), 1040,
-                "Too many connections to MySQL Router", "08004",
-                r_->get_context().get_name());
+            std::vector<uint8_t> error_frame;
+            const auto encode_res = encode_initial_error_packet(
+                r_->get_context().get_protocol(), error_frame, 1040,
+                "Too many connections to MySQL Router", "08004");
+
+            if (!encode_res) {
+              log_debug("[%s] fd=%d encode error: %s",
+                        r_->get_context().get_name().c_str(),
+                        sock.native_handle(),
+                        encode_res.error().message().c_str());
+            } else {
+              auto write_res = net::write(sock, net::buffer(error_frame));
+              if (!write_res) {
+                log_debug("[%s] fd=%d write error: %s",
+                          r_->get_context().get_name().c_str(),
+                          sock.native_handle(),
+                          write_res.error().message().c_str());
+              }
+            }
 
             sock.close();  // no shutdown() before close()
 
@@ -1248,7 +1298,7 @@ void MySQLRouting::set_destinations_from_uri(const mysqlrouter::URI &uri) {
 
     destination_.reset(new DestMetadataCacheGroup(
         uri.host, replicaset_name, routing_strategy_, uri.query,
-        context_.get_protocol().get_type(), access_mode_));
+        context_.get_protocol(), access_mode_));
   } else {
     throw std::runtime_error(string_format(
         "Invalid URI scheme; expecting: 'metadata-cache' is: '%s'",
@@ -1304,15 +1354,14 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   }
 
   destination_.reset(create_standalone_destination(
-      routing_strategy_, context_.get_protocol().get_type(), sock_ops_,
+      routing_strategy_, context_.get_protocol(), sock_ops_,
       context_.get_thread_stack_size()));
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
     info = mysqlrouter::split_addr_port(part);
     if (info.second == 0) {
-      info.second =
-          Protocol::get_default_port(context_.get_protocol().get_type());
+      info.second = Protocol::get_default_port(context_.get_protocol());
     }
     mysql_harness::TCPAddress addr(info.first, info.second);
     if (addr.is_valid()) {

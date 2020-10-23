@@ -47,13 +47,6 @@
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-namespace routing {
-class RoutingSockOpsInterface;
-}
-namespace mysql_harness {
-class SocketOperationsBase;
-}
-
 /**
  * @brief MySQLRoutingContext holds data used by MySQLRouting (1 per plugin
  * instances) and MySQLRoutingConnection instances (many instances). It is
@@ -62,9 +55,8 @@ class SocketOperationsBase;
  */
 class MySQLRoutingContext {
  public:
-  MySQLRoutingContext(BaseProtocol *protocol,
-                      mysql_harness::SocketOperationsBase *socket_operations,
-                      std::string name, unsigned int net_buffer_length,
+  MySQLRoutingContext(BaseProtocol::Type protocol, std::string name,
+                      unsigned int net_buffer_length,
                       std::chrono::milliseconds destination_connect_timeout,
                       std::chrono::milliseconds client_connect_timeout,
                       mysql_harness::TCPAddress bind_address,
@@ -74,7 +66,6 @@ class MySQLRoutingContext {
                       TlsServerContext *client_ssl_ctx, SslMode server_ssl_mode,
                       DestinationTlsContext *dest_tls_context)
       : protocol_(protocol),
-        socket_operations_(socket_operations),
         name_(std::move(name)),
         net_buffer_length_(net_buffer_length),
         destination_connect_timeout_(destination_connect_timeout),
@@ -99,13 +90,10 @@ class MySQLRoutingContext {
    * otherwise false.
    *
    * @param endpoint IP address as array[16] of uint8_t
-   * @param server Server file descriptor to wish to send
-   *               fake handshake reply (default is not to send anything)
    * @return bool
    */
   template <class Protocol>
-  bool block_client_host(const typename Protocol::endpoint &endpoint,
-                         int server = -1);
+  bool block_client_host(const typename Protocol::endpoint &endpoint);
 
   /** @brief Clears error counter (if needed) for particular host
    *
@@ -136,11 +124,7 @@ class MySQLRoutingContext {
   uint64_t get_handled_routes() { return info_handled_routes_; }
   uint64_t get_max_connect_errors() { return max_connect_errors_; }
 
-  mysql_harness::SocketOperationsBase *get_socket_operations() {
-    return socket_operations_;
-  }
-
-  BaseProtocol &get_protocol() { return *protocol_; }
+  BaseProtocol::Type get_protocol() { return protocol_; }
 
   const std::string &get_name() const { return name_; }
 
@@ -187,11 +171,8 @@ class MySQLRoutingContext {
   }
 
  private:
-  /** @brief object to handle protocol specific stuff */
-  std::unique_ptr<BaseProtocol> protocol_;
-
-  /** @brief object handling the operations on network sockets */
-  mysql_harness::SocketOperationsBase *socket_operations_;
+  /** protocol type. */
+  BaseProtocol::Type protocol_;
 
   /** @brief Descriptive name of the connection routing */
   const std::string name_;

@@ -33,6 +33,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/classic_protocol_codec_base.h"
+#include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_wire.h"
 #include "ssl_mode.h"
@@ -691,14 +692,25 @@ BasicSplicer::State ClassicProtocolSplicer::tls_client_greeting_response() {
 }
 
 stdx::expected<size_t, std::error_code>
-ClassicProtocolSplicer::write_error_packet(std::vector<uint8_t> &error_frame,
-                                           uint16_t error_code,
-                                           const std::string &msg,
-                                           const std::string &sql_state) {
+ClassicProtocolSplicer::encode_error_packet(
+    std::vector<uint8_t> &error_frame, const uint8_t seq_id,
+    const classic_protocol::capabilities::value_type caps,
+    const uint16_t error_code, const std::string &msg,
+    const std::string &sql_state) {
   return classic_protocol::encode(
       classic_protocol::frame::Frame<classic_protocol::message::server::Error>(
-          ++client_protocol_->seq_id(), {error_code, msg, sql_state}),
-      {}, net::dynamic_buffer(error_frame));
+          seq_id, {error_code, msg, sql_state}),
+      caps, net::dynamic_buffer(error_frame));
+}
+
+stdx::expected<size_t, std::error_code>
+ClassicProtocolSplicer::encode_error_packet(std::vector<uint8_t> &error_frame,
+                                            const uint16_t error_code,
+                                            const std::string &msg,
+                                            const std::string &sql_state) {
+  return encode_error_packet(error_frame, ++client_protocol()->seq_id(),
+                             client_protocol()->shared_capabilities(),
+                             error_code, msg, sql_state);
 }
 
 BasicSplicer::State ClassicProtocolSplicer::tls_connect() {
@@ -749,7 +761,7 @@ BasicSplicer::State ClassicProtocolSplicer::tls_connect() {
         // - no shared cipher
         std::vector<uint8_t> error_frame;
 
-        auto encode_res = write_error_packet(
+        auto encode_res = encode_error_packet(
             error_frame, 2026,
             "connecting to destination failed with TLS error: " +
                 res.error().message());
@@ -972,4 +984,27 @@ BasicSplicer::State ClassicProtocolSplicer::splice_int(
   src_channel->want_recv(1);
 
   return state();
+}
+
+stdx::expected<size_t, std::error_code>
+ClassicProtocolSplicer::on_block_client_host(std::vector<uint8_t> &buf) {
+  // the client didn't send a Greeting before closing the connection.
+  //
+  // Generate a Greeting to be sent to the server, to ensure the router's IP
+  // isn't blocked due to the server's max_connect_errors.
+  return classic_protocol::encode(
+      classic_protocol::frame::Frame<
+          classic_protocol::message::client::Greeting>(
+          1,
+          {
+              {},                                            // caps
+              16 * 1024 * 1024,                              // max-packet-size
+              classic_protocol::collation::Latin1SwedishCi,  // collation
+              "ROUTER",                                      // username
+              "",                                            // auth data
+              "fake_router_login",                           // schema
+              "mysql_native_password",                       // auth method
+              ""                                             // attributes
+          }),
+      client_protocol()->shared_capabilities(), net::dynamic_buffer(buf));
 }

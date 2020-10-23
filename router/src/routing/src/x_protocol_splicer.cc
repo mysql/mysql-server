@@ -355,7 +355,7 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
   return state();
 }
 
-stdx::expected<size_t, std::error_code> XProtocolSplicer::write_error_packet(
+stdx::expected<size_t, std::error_code> XProtocolSplicer::encode_error_packet(
     std::vector<uint8_t> &error_frame, uint16_t error_code,
     const std::string &msg, const std::string &sql_state) {
   auto err_msg = Mysqlx::Error();
@@ -430,7 +430,7 @@ BasicSplicer::State XProtocolSplicer::tls_connect() {
         // - no shared cipher
         std::vector<uint8_t> error_frame;
 
-        auto encode_res = write_error_packet(
+        const auto encode_res = encode_error_packet(
             error_frame, 2026,
             "connecting to destination failed with TLS error: " +
                 res.error().message());
@@ -936,4 +936,20 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
   log_debug("%d: << %s", __LINE__, state_to_string(state()));
 #endif
   return state();
+}
+
+stdx::expected<size_t, std::error_code> XProtocolSplicer::on_block_client_host(
+    std::vector<uint8_t> &buf) {
+  // currently the MySQL Server (X-Plugin) does not have the feature of blocking
+  // the client after reaching certain threshold of unsuccesfull connection
+  // attemps (max_connect_errors) When this is done, the code here needs to be
+  // revised to check if it prevents the server from considering the connection
+  // as an error and blaming the router for it.
+
+  // at the moment we send CapabilitiesGet message to the server assuming this
+  // will prevent the MySQL Server from considering the connection as an error
+  // and incrementing the counter.
+  Mysqlx::Connection::CapabilitiesGet capabilities_get;
+
+  return xproto_frame_encode(capabilities_get, buf);
 }

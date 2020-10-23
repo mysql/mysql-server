@@ -24,16 +24,7 @@
 
 #include <array>
 #include <stdexcept>
-
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#endif
+#include <system_error>
 
 #include <gmock/gmock.h>  // EXPECT_THAT
 #include <gtest/gtest.h>
@@ -41,10 +32,12 @@
 
 #include "common.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
@@ -56,9 +49,6 @@
 #include "mysqlrouter/io_backend.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing.h"
-#include "protocol/classic_protocol.h"
-#include "routing_mocks.h"
-#include "socket_operations.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"  // init_test_logger
 
@@ -72,7 +62,6 @@ using ::testing::StrEq;
 
 class RoutingTests : public ::testing::Test {
  protected:
-  MockSocketOperations sock_ops;
   net::io_context io_ctx_;
 };
 
@@ -103,95 +92,6 @@ TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultNetBufferLength, 16384U);
   ASSERT_EQ(routing::kDefaultMaxConnectErrors, 100ULL);
   ASSERT_EQ(routing::kDefaultClientConnectTimeout, std::chrono::seconds(9));
-}
-
-#ifndef _WIN32
-// No way to read nonblocking status in Windows
-TEST_F(RoutingTests, SetSocketBlocking) {
-  int s = socket(PF_INET, SOCK_STREAM, 6);
-  auto so = mysql_harness::SocketOperations::instance();
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0);
-  so->set_socket_blocking(s, false);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
-  so->set_socket_blocking(s, true);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0) << std::endl;
-
-  fcntl(s, F_SETFL, O_RDONLY);
-  so->set_socket_blocking(s, false);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
-  ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_RDONLY, O_RDONLY);
-}
-#endif
-
-TEST_F(RoutingTests, CopyPacketsSingleWrite) {
-  int sender_socket = 1, receiver_socket = 2;
-  RoutingProtocolBuffer buffer(500);
-  int curr_pktnr = 100;
-  bool handshake_done = true;
-
-  EXPECT_CALL(sock_ops, read(sender_socket, &buffer[0], buffer.size()))
-      .WillOnce(Return(200));
-  EXPECT_CALL(sock_ops, write(receiver_socket, &buffer[0], 200))
-      .WillOnce(Return(200));
-
-  ClassicProtocol cp(&sock_ops);
-  const auto copy_res = cp.copy_packets(sender_socket, receiver_socket,
-                                        true /* sender is writable */, buffer,
-                                        &curr_pktnr, handshake_done, false);
-
-  ASSERT_TRUE(copy_res);
-  EXPECT_EQ(200u, copy_res.value());
-}
-
-TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
-  int sender_socket = 1, receiver_socket = 2;
-  RoutingProtocolBuffer buffer(500);
-  int curr_pktnr = 100;
-  bool handshake_done = true;
-
-  ::testing::InSequence seq;
-
-  EXPECT_CALL(sock_ops, read(sender_socket, &buffer[0], buffer.size()))
-      .WillOnce(Return(200));
-
-  // first write does not write everything
-  EXPECT_CALL(sock_ops, write(receiver_socket, &buffer[0], 200))
-      .WillOnce(Return(100));
-  // second does not do anything (which is not treated as an error
-  EXPECT_CALL(sock_ops, write(receiver_socket, &buffer[100], 100))
-      .WillOnce(Return(0));
-  // third writes the remaining chunk
-  EXPECT_CALL(sock_ops, write(receiver_socket, &buffer[100], 100))
-      .WillOnce(Return(100));
-
-  ClassicProtocol cp(&sock_ops);
-  const auto copy_res =
-      cp.copy_packets(sender_socket, receiver_socket, true, buffer, &curr_pktnr,
-                      handshake_done, false);
-
-  ASSERT_TRUE(copy_res);
-  EXPECT_EQ(200u, copy_res.value());
-}
-
-TEST_F(RoutingTests, CopyPacketsWriteError) {
-  int sender_socket = 1, receiver_socket = 2;
-  RoutingProtocolBuffer buffer(500);
-  int curr_pktnr = 100;
-  bool handshake_done = true;
-
-  EXPECT_CALL(sock_ops, read(sender_socket, &buffer[0], buffer.size()))
-      .WillOnce(Return(200));
-  EXPECT_CALL(sock_ops, write(receiver_socket, &buffer[0], 200))
-      .WillOnce(Return(
-          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
-
-  ClassicProtocol cp(&sock_ops);
-  // will log "Write error: ..." as we don't mock an errno
-  const auto copy_res =
-      cp.copy_packets(sender_socket, receiver_socket, true, buffer, &curr_pktnr,
-                      handshake_done, false);
-
-  ASSERT_FALSE(copy_res);
 }
 
 // a valid Connection::Close xprotocol message
@@ -348,54 +248,61 @@ class MockServer {
   std::atomic_bool stop_;
 };
 
-static stdx::expected<mysql_harness::socket_t, std::error_code> connect_tcp(
-    mysql_harness::SocketOperationsBase *so, const std::string &host,
-    uint16_t port, std::chrono::milliseconds connect_timeout) {
-  struct addrinfo hints {};
+// sunpro tries to invoke the disabled copy-constructor of sock.
+// while GCC complains about "redundant move in return statement".
+#if defined(__SUNPRO_CC)
+#define WORKAROUND_RETURN_NON_COPYABLE_EXPECTED(x) std::move(x)
+#else
+#define WORKAROUND_RETURN_NON_COPYABLE_EXPECTED(x) (x)
+#endif
 
-  // ensure we only get TCP sockets
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
+static stdx::expected<net::ip::tcp::socket, std::error_code> connect_tcp(
+    net::io_context &io_ctx, const std::string &host, uint16_t port,
+    std::chrono::milliseconds connect_timeout) {
+  net::ip::tcp::resolver resolver(io_ctx);
 
-  const auto resolve_res = net::impl::resolver::getaddrinfo(
-      host.c_str(), std::to_string(port).c_str(), &hints);
+  const auto resolve_res = resolver.resolve(host, std::to_string(port));
   if (!resolve_res) {
-    return stdx::make_unexpected(resolve_res.error());
+    return resolve_res.get_unexpected();
   }
 
-  std::error_code last_ec{};
+  std::error_code last_ec{make_error_code(std::errc::address_not_available)};
 
   // try all known addresses of the hostname
-  for (auto const *ai = resolve_res.value().get(); ai != nullptr;
-       ai = ai->ai_next) {
-    const auto socket_res = so->socket(ai->ai_family, ai->ai_socktype, 0);
-    if (!socket_res) {
-      return stdx::make_unexpected(socket_res.error());
+  for (const auto &resolved : resolve_res.value()) {
+    net::ip::tcp::socket sock(io_ctx);
+    const auto open_res = sock.open(resolved.endpoint().protocol());
+    if (!open_res) {
+      continue;
     }
 
-    const auto sock = socket_res.value();
+    sock.native_non_blocking(true);
+    const auto connect_res = sock.connect(resolved.endpoint());
 
-    so->set_socket_blocking(sock, false);
-
-    const auto connect_res = so->connect(sock, ai->ai_addr, ai->ai_addrlen);
     if (!connect_res) {
       if (connect_res.error() ==
               make_error_condition(std::errc::operation_in_progress) ||
           connect_res.error() ==
               make_error_condition(std::errc::operation_would_block)) {
+        std::array<pollfd, 1> fds = {{{sock.native_handle(), POLLOUT, 0}}};
         const auto wait_res =
-            so->connect_non_blocking_wait(sock, connect_timeout);
+            net::impl::poll::poll(fds.data(), fds.size(), connect_timeout);
 
         if (!wait_res) {
           last_ec = wait_res.error();
         } else {
-          const auto status_res = so->connect_non_blocking_status(sock);
-          if (status_res) {
-            // success, we can continue
-            so->set_socket_blocking(sock, true);
-            return sock;
-          } else {
+          net::socket_base::error sock_err;
+          const auto status_res = sock.get_option(sock_err);
+          if (!status_res) {
             last_ec = status_res.error();
+
+          } else if (sock_err.value() != 0) {
+            last_ec = net::impl::socket::make_error_code(sock_err.value());
+
+          } else {
+            // success, we can continue
+            sock.native_non_blocking(false);
+            return WORKAROUND_RETURN_NON_COPYABLE_EXPECTED(sock);
           }
         }
       } else {
@@ -403,12 +310,12 @@ static stdx::expected<mysql_harness::socket_t, std::error_code> connect_tcp(
       }
     } else {
       // everything is fine, we are connected
-      so->set_socket_blocking(sock, true);
-      return sock;
+      sock.native_non_blocking(false);
+
+      return WORKAROUND_RETURN_NON_COPYABLE_EXPECTED(sock);
     }
 
     // it failed, try the next address
-    so->close(sock);
   }
 
   return stdx::make_unexpected(last_ec);
@@ -416,53 +323,48 @@ static stdx::expected<mysql_harness::socket_t, std::error_code> connect_tcp(
 
 #ifndef _WIN32  // [_HERE_]
 
-static stdx::expected<mysql_harness::socket_t, std::error_code> connect_local(
-    uint16_t port) {
-  return connect_tcp(mysql_harness::SocketOperations::instance(), "127.0.0.1",
-                     port, 100ms);
+static stdx::expected<net::ip::tcp::socket, std::error_code> connect_local(
+    net::io_context &io_ctx, uint16_t port) {
+  return connect_tcp(io_ctx, "127.0.0.1", port, 100ms);
 }
 
-static void disconnect(int sock) {
-  const auto write_res =
-      net::impl::socket::write(sock, kByeMessage.data(), kByeMessage.size());
+template <class SyncSocketType>
+static void disconnect(SyncSocketType &sock) {
+  const auto write_res = net::write(sock, net::buffer(kByeMessage));
   if (!write_res) {
     std::cout << "write(xproto-connection-close) returned error: "
               << write_res.error().message() << "\n";
   }
 
-  net::impl::socket::shutdown(sock, SHUT_WR);
+  sock.shutdown(net::socket_base::shutdown_both);
 
   // wait until the shutdown is acknowledged.
   std::array<uint8_t, 16> read_buf;
-  const auto read_res =
-      net::impl::socket::read(sock, read_buf.data(), read_buf.size());
-  if (!read_res) {
+  const auto read_res = net::read(sock, net::buffer(read_buf));
+  if (!read_res && read_res.error() != make_error_code(net::stream_errc::eof)) {
     std::cout << "read::linger(xproto-connection-close) returned error: "
               << read_res.error().message() << "\n";
   }
 
-  net::impl::socket::close(sock);
+  sock.close();
 }
 
 #ifndef _WIN32
-static stdx::expected<mysql_harness::socket_t, std::error_code> connect_socket(
-    const local::stream_protocol::endpoint &ep) {
-  auto protocol = ep.protocol();
-  const auto socket_res = net::impl::socket::socket(
-      protocol.family(), protocol.type(), protocol.protocol());
+static stdx::expected<local::stream_protocol::socket, std::error_code>
+connect_socket(net::io_context &io_ctx,
+               const local::stream_protocol::endpoint &ep) {
+  local::stream_protocol::socket sock(io_ctx);
+  const auto socket_res = sock.open();
   if (!socket_res) {
     return stdx::make_unexpected(socket_res.error());
   }
 
-  const auto sock = socket_res.value();
-
-  const auto connect_res = net::impl::socket::connect(
-      sock, reinterpret_cast<const struct sockaddr *>(ep.data()), ep.size());
+  const auto connect_res = sock.connect(ep);
   if (!connect_res) {
     return stdx::make_unexpected(socket_res.error());
   }
 
-  return sock;
+  return WORKAROUND_RETURN_NON_COPYABLE_EXPECTED(sock);
 }
 #endif
 
@@ -486,8 +388,7 @@ TEST_F(RoutingTests, bug_24841281) {
 
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t router_port = port_pool_.get_next_available();
-  using socket_res_type =
-      stdx::expected<mysql_harness::socket_t, std::error_code>;
+  using socket_res_type = stdx::expected<net::ip::tcp::socket, std::error_code>;
 
   const net::ip::tcp::endpoint server_endpoint(net::ip::tcp::v4(), server_port);
 
@@ -568,19 +469,20 @@ TEST_F(RoutingTests, bug_24841281) {
   // open connections to the socket and see if we get a matching outgoing
   // socket connection attempt to our mock server
 
-  socket_res_type sock1_res;
+  socket_res_type sock1_res{
+      stdx::make_unexpected(make_error_code(std::errc::not_a_socket))};
   // router is running in a thread, so we need to sync it
   EXPECT_TRUE(call_until([&]() -> bool {
-    sock1_res = connect_local(router_port);
+    sock1_res = connect_local(io_ctx, router_port);
     return sock1_res.has_value();
   })) << "timed out connecting to router_port";
-  auto sock2_res = connect_local(router_port);
+  auto sock2_res = connect_local(io_ctx, router_port);
 
   ASSERT_TRUE(sock1_res);
   ASSERT_TRUE(sock2_res);
 
-  auto sock1 = sock1_res.value();
-  auto sock2 = sock2_res.value();
+  auto sock1 = std::move(sock1_res.value());
+  auto sock2 = std::move(sock2_res.value());
 
   EXPECT_TRUE(call_until([&server]() -> bool {
     return server.num_connections_.load() == 2;
@@ -599,14 +501,14 @@ TEST_F(RoutingTests, bug_24841281) {
       << routing.get_context().info_active_routes_.load() << " active routes";
 
   {
-    auto sock11_res = connect_local(router_port);
-    auto sock12_res = connect_local(router_port);
+    auto sock11_res = connect_local(io_ctx, router_port);
+    auto sock12_res = connect_local(io_ctx, router_port);
 
     ASSERT_TRUE(sock11_res);
     ASSERT_TRUE(sock12_res);
 
-    auto sock11 = sock11_res.value();
-    auto sock12 = sock12_res.value();
+    auto sock11 = std::move(sock11_res.value());
+    auto sock12 = std::move(sock12_res.value());
 
     EXPECT_TRUE(call_until([&server]() -> bool {
       return server.num_connections_.load() == 3;
@@ -645,14 +547,14 @@ TEST_F(RoutingTests, bug_24841281) {
   SCOPED_TRACE("// open/close two unix-socket connections and check counters");
   // now try the same with unix sockets
   const auto unix_sock_ep = local::stream_protocol::endpoint(sock_path.str());
-  auto sock3_res = connect_socket(unix_sock_ep);
-  auto sock4_res = connect_socket(unix_sock_ep);
+  auto sock3_res = connect_socket(io_ctx, unix_sock_ep);
+  auto sock4_res = connect_socket(io_ctx, unix_sock_ep);
 
   ASSERT_TRUE(sock3_res);
   ASSERT_TRUE(sock4_res);
 
-  auto sock3 = sock3_res.value();
-  auto sock4 = sock4_res.value();
+  auto sock3 = std::move(sock3_res.value());
+  auto sock4 = std::move(sock4_res.value());
 
   call_until(
       [&server]() -> bool { return server.num_connections_.load() == 2; });
@@ -835,11 +737,11 @@ TEST_F(RoutingTests, get_routing_thread_name) {
  */
 TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
   const std::chrono::seconds TIMEOUT{4};
+  net::io_context io_ctx;
 
   // wrong port number
   {
-    auto server_res = connect_tcp(mysql_harness::SocketOperations::instance(),
-                                  "127.0.0.1", 10888, TIMEOUT);
+    auto server_res = connect_tcp(io_ctx, "127.0.0.1", 10888, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when
     // connecting with the wrong port
     ASSERT_FALSE(server_res);
@@ -850,8 +752,7 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
 #if !defined(__APPLE__) && !defined(__sun)
   // wrong port number and IP
   {
-    auto server_res = connect_tcp(mysql_harness::SocketOperations::instance(),
-                                  "127.0.0.11", 10888, TIMEOUT);
+    auto server_res = connect_tcp(io_ctx, "127.0.0.11", 10888, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when
     // connecting with the wrong port
     ASSERT_FALSE(server_res);

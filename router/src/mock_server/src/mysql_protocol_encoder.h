@@ -37,7 +37,7 @@ const uint16_t MYSQL_PARSE_ERROR = 1064;
 
 class MySQLProtocolEncoder {
  public:
-  using MsgBuffer = std::vector<byte>;
+  using MsgBuffer = std::vector<uint8_t>;
 
   /** @brief Encodes MySQL OK message
    *
@@ -170,13 +170,13 @@ class MySQLProtocolEncoder {
  protected:
   void encode_msg_begin(MsgBuffer &out_buffer);
   void encode_msg_end(MsgBuffer &out_buffer, uint8_t seq_no);
-  void append_byte(MsgBuffer &buffer, byte value);
+  void append_byte(MsgBuffer &buffer, uint8_t value);
 
   template <class T, typename = std::enable_if<std::is_integral<T>::value>>
   void append_int(MsgBuffer &buffer, T value, size_t len = sizeof(T)) {
     buffer.reserve(buffer.size() + len);
     while (len-- > 0) {
-      byte b = static_cast<byte>(value);
+      auto b = static_cast<uint8_t>(value);
       buffer.push_back(b);
       value = static_cast<T>(value >> 8);
     }
