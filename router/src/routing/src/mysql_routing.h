@@ -228,7 +228,6 @@ class MySQLRouting {
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
-   * @param sock_ops object handling the operations on network sockets
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    * @param client_ssl_mode SSL mode of the client side
    * @param client_ssl_ctx SSL context of the client side
@@ -249,8 +248,6 @@ class MySQLRouting {
       std::chrono::milliseconds connect_timeout =
           routing::kDefaultClientConnectTimeout,
       unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-      mysql_harness::SocketOperationsBase *sock_ops =
-          mysql_harness::SocketOperations::instance(),
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       SslMode client_ssl_mode = SslMode::kDisabled,
       TlsServerContext *client_ssl_ctx = nullptr,
@@ -386,9 +383,6 @@ class MySQLRouting {
 
   /** @brief wrapper for data used by all connections */
   MySQLRoutingContext context_;
-
-  /** @brief object handling the operations on network sockets */
-  mysql_harness::SocketOperationsBase *sock_ops_;
 
   net::io_context &io_ctx_;
 

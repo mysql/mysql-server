@@ -29,6 +29,7 @@
 
 #include <array>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -42,14 +43,18 @@
 #include <winsock2.h>
 #endif
 
+#include <gmock/gmock-actions.h>
 #include <gmock/gmock.h>
 
 #include "dest_round_robin.h"
 #include "destination.h"
+#include "mock_io_service.h"
+#include "mock_socket_service.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/type_traits.h"
 #include "mysqlrouter/routing.h"
@@ -97,7 +102,7 @@ class Bug21962350 : public ::testing::Test {
     }
   }
 
-  std::array<mysql_harness::TCPAddress, 3> servers = {{
+  std::array<std::pair<std::string, uint16_t>, 3> servers = {{
       {"127.0.0.1", 3306},
       {"127.0.0.2", 3306},
       {"127.0.0.3", 3306},
@@ -110,35 +115,43 @@ class Bug21962350 : public ::testing::Test {
 };
 
 TEST_F(Bug21962350, AddToQuarantine) {
-  MockRouteDestination d;
-  d.add(servers[0]);
-  d.add(servers[1]);
-  d.add(servers[2]);
+  net::io_context io_ctx;
+  MockRouteDestination d(io_ctx);
+  for (auto const &p : servers) {
+    d.add(p.first, p.second);
+  }
 
   EXPECT_EQ(0, d.size_quarantine());
 
   d.add_to_quarantine(0);
-  ASSERT_THAT(sslog.str(), HasSubstr("Quarantine destination server " +
-                                     servers.at(0).str()));
   EXPECT_EQ(1, d.size_quarantine());
 
   d.add_to_quarantine(1);
-  EXPECT_THAT(sslog.str(), HasSubstr(servers.at(1).str()));
   EXPECT_EQ(2, d.size_quarantine());
 
   d.add_to_quarantine(2);
-  EXPECT_THAT(sslog.str(), HasSubstr(servers.at(2).str()));
   EXPECT_EQ(3, d.size_quarantine());
 }
 
 TEST_F(Bug21962350, CleanupQuarantine) {
-  MockSocketOperations sock_ops;
-  ::testing::NiceMock<MockRouteDestination> d(Protocol::get_default(),
-                                              &sock_ops);
+  auto io_service = std::make_unique<MockIoService>();
+
+  // succeed the open
+  EXPECT_CALL(*io_service, open);
+  EXPECT_CALL(*io_service, notify).Times(4);
+  EXPECT_CALL(*io_service, remove_fd).Times(4);
+
+  net::io_context io_ctx{std::make_unique<MockSocketService>(),
+                         std::move(io_service)};
+
+  ASSERT_TRUE(io_ctx.open_res());
+
+  ::testing::NiceMock<MockRouteDestination> d(io_ctx, Protocol::get_default());
+
   // add 3 servers to the Route
-  d.add(servers[0]);
-  d.add(servers[1]);
-  d.add(servers[2]);
+  for (auto const &p : servers) {
+    d.add(p.first, p.second);
+  }
 
   // add all 3 ndxes to the quarantine
   d.add_to_quarantine(0);
@@ -146,8 +159,13 @@ TEST_F(Bug21962350, CleanupQuarantine) {
   d.add_to_quarantine(2);
   ASSERT_EQ(3, d.size_quarantine());
 
-  auto mock_addrinfo = [](const mysql_harness::TCPAddress addr)
-      -> mysql_harness::SocketOperations::addrinfo_result {
+  auto sock_service =
+      reinterpret_cast<MockSocketService *>(io_ctx.socket_service());
+
+  auto mock_addrinfo = [](const std::string &host, uint16_t port)
+      -> stdx::expected<
+          std::unique_ptr<struct addrinfo, void (*)(struct addrinfo *)>,
+          std::error_code> {
     auto mock_free_addrinfo = [](addrinfo *ai) {
       while (ai) {
         delete ai->ai_addr;
@@ -163,8 +181,8 @@ TEST_F(Bug21962350, CleanupQuarantine) {
     auto *ai = new addrinfo{};
     auto *addr_in = new sockaddr_in;
     addr_in->sin_family = AF_INET;
-    addr_in->sin_port = htons(addr.port);
-    ::inet_pton(addr_in->sin_family, addr.addr.c_str(), &addr_in->sin_addr);
+    addr_in->sin_port = htons(port);
+    ::inet_pton(addr_in->sin_family, host.c_str(), &addr_in->sin_addr);
 
     ai->ai_socktype = SOCK_STREAM;
     ai->ai_family = addr_in->sin_family;
@@ -175,24 +193,27 @@ TEST_F(Bug21962350, CleanupQuarantine) {
     return {stdx::in_place, ai, mock_free_addrinfo};
   };
 
-  EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
+  EXPECT_CALL(*sock_service, getaddrinfo(_, _, _))
       .Times(4)
-      .WillOnce(Return(ByMove(mock_addrinfo(servers[0]))))
-      .WillOnce(Return(ByMove(mock_addrinfo(servers[1]))))
-      .WillOnce(Return(ByMove(mock_addrinfo(servers[2]))))
-      .WillOnce(Return(ByMove(mock_addrinfo(servers[1]))));
-
-  EXPECT_CALL(sock_ops, socket(_, _, _)).Times(4);
-  EXPECT_CALL(sock_ops, set_socket_blocking(_, _)).Times(4);
+      .WillOnce(
+          Return(ByMove(mock_addrinfo(servers[0].first, servers[0].second))))
+      .WillOnce(
+          Return(ByMove(mock_addrinfo(servers[1].first, servers[1].second))))
+      .WillOnce(
+          Return(ByMove(mock_addrinfo(servers[2].first, servers[2].second))))
+      .WillOnce(
+          Return(ByMove(mock_addrinfo(servers[1].first, servers[1].second))));
+  EXPECT_CALL(*sock_service, socket(_, _, _)).Times(4);
+  EXPECT_CALL(*sock_service, native_non_blocking(_, _)).Times(4);
   // try to connect() 4 times, but at one of them fail
-  EXPECT_CALL(sock_ops, connect(_, _, _))
+  EXPECT_CALL(*sock_service, connect(_, _, _))
       .Times(4)
       .WillOnce(Return(stdx::expected<void, std::error_code>()))
       .WillOnce(Return(stdx::make_unexpected(
           make_error_code(std::errc::connection_refused))))
       .WillOnce(Return(stdx::expected<void, std::error_code>()))
       .WillOnce(Return(stdx::expected<void, std::error_code>()));
-  EXPECT_CALL(sock_ops, close(_)).Times(4);
+  EXPECT_CALL(*sock_service, close(_)).Times(4);
 
   // 1st round: 3 connect().
   //
@@ -206,56 +227,35 @@ TEST_F(Bug21962350, CleanupQuarantine) {
   // - success
   d.cleanup_quarantine();
   EXPECT_EQ(0, d.size_quarantine());
-
-  EXPECT_THAT(sslog.str(),
-              HasSubstr("Unquarantine destination server " + servers[1].str()));
 }
 
 TEST_F(Bug21962350, QuarantineServerMultipleTimes) {
-  size_t exp;
-  MockRouteDestination d;
-  d.add(servers[0]);
-  d.add(servers[1]);
-  d.add(servers[2]);
+  net::io_context io_ctx;
+  MockRouteDestination d(io_ctx);
+
+  for (auto const &p : servers) {
+    d.add(p.first, p.second);
+  }
 
   d.add_to_quarantine(static_cast<size_t>(0));
   d.add_to_quarantine(static_cast<size_t>(0));
   d.add_to_quarantine(static_cast<size_t>(2));
   d.add_to_quarantine(static_cast<size_t>(1));
 
-  exp = 3;
-  ASSERT_EQ(exp, d.size_quarantine());
+  ASSERT_EQ(3, d.size_quarantine());
 }
-
-#if !defined(_WIN32) && !defined(__FreeBSD__) && !defined(NDEBUG)
-// This test doesn't work in Windows or FreeBSD, because of how ASSERT_DEATH
-// works It also fails on release version But this test is gone in newer
-// branches anyway, so disabling for now
-TEST_F(Bug21962350, QuarantineServerNonExisting) {
-  size_t exp;
-  MockRouteDestination d;
-  d.add(servers[0]);
-  d.add(servers[1]);
-  d.add(servers[2]);
-
-  ASSERT_DEBUG_DEATH(d.add_to_quarantine(static_cast<size_t>(999)),
-                     ".*(index < size()).*");
-  exp = 0;
-  ASSERT_EQ(exp, d.size_quarantine());
-}
-#endif
 
 TEST_F(Bug21962350, AlreadyQuarantinedServer) {
-  size_t exp;
-  MockRouteDestination d;
-  d.add(servers[0]);
-  d.add(servers[1]);
-  d.add(servers[2]);
+  net::io_context io_ctx;
+  MockRouteDestination d(io_ctx);
+
+  for (auto const &p : servers) {
+    d.add(p.first, p.second);
+  }
 
   d.add_to_quarantine(static_cast<size_t>(1));
   d.add_to_quarantine(static_cast<size_t>(1));
-  exp = 1;
-  ASSERT_EQ(exp, d.size_quarantine());
+  ASSERT_EQ(1, d.size_quarantine());
 }
 
 int main(int argc, char **argv) {

@@ -34,7 +34,6 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/uri.h"
-#include "socket_operations.h"
 #include "tcp_address.h"
 
 class DestMetadataCacheGroup final
@@ -45,14 +44,13 @@ class DestMetadataCacheGroup final
 
   /** @brief Constructor */
   DestMetadataCacheGroup(
-      const std::string &metadata_cache, const std::string &replicaset,
+      net::io_context &io_ctx_, const std::string &metadata_cache,
+      const std::string &replicaset,
       const routing::RoutingStrategy routing_strategy,
       const mysqlrouter::URIQuery &query, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
       metadata_cache::MetadataCacheAPIBase *cache_api =
-          metadata_cache::MetadataCacheAPI::instance(),
-      mysql_harness::SocketOperationsBase *sock_ops =
-          mysql_harness::SocketOperations::instance());
+          metadata_cache::MetadataCacheAPI::instance());
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;

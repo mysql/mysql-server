@@ -405,8 +405,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.named_socket, name, config.max_connections,
         destination_connect_timeout, config.max_connect_errors,
         client_connect_timeout, config.net_buffer_length,
-        mysql_harness::SocketOperations::instance(), config.thread_stack_size,
-        config.source_ssl_mode,
+        config.thread_stack_size, config.source_ssl_mode,
         config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
                                                      : nullptr,
         config.dest_ssl_mode,

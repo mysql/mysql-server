@@ -63,6 +63,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
+#include "protocol/base_protocol.h"
 #include "protocol/protocol.h"
 #include "socket_operations.h"
 #include "ssl_mode.h"
@@ -107,8 +108,7 @@ MySQLRouting::MySQLRouting(
     int max_connections, std::chrono::milliseconds destination_connect_timeout,
     unsigned long long max_connect_errors,
     std::chrono::milliseconds client_connect_timeout,
-    unsigned int net_buffer_length,
-    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size,
+    unsigned int net_buffer_length, size_t thread_stack_size,
     SslMode client_ssl_mode, TlsServerContext *client_ssl_ctx,
     SslMode server_ssl_mode, DestinationTlsContext *dest_ssl_ctx)
     : context_(protocol, route_name, net_buffer_length,
@@ -116,7 +116,6 @@ MySQLRouting::MySQLRouting(
                mysql_harness::TCPAddress(bind_address, port), named_socket,
                max_connect_errors, thread_stack_size, client_ssl_mode,
                client_ssl_ctx, server_ssl_mode, dest_ssl_ctx),
-      sock_ops_(sock_ops),
       io_ctx_{io_ctx},
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
@@ -128,8 +127,6 @@ MySQLRouting::MySQLRouting(
 #endif
 {
   validate_destination_connect_timeout(destination_connect_timeout);
-
-  assert(sock_ops_ != nullptr);
 
 #ifdef _WIN32
   if (named_socket.is_set()) {
@@ -1296,9 +1293,9 @@ void MySQLRouting::set_destinations_from_uri(const mysqlrouter::URI &uri) {
     if (uri.path.size() > 0 && !uri.path[0].empty())
       replicaset_name = uri.path[0];
 
-    destination_.reset(new DestMetadataCacheGroup(
-        uri.host, replicaset_name, routing_strategy_, uri.query,
-        context_.get_protocol(), access_mode_));
+    destination_ = std::make_unique<DestMetadataCacheGroup>(
+        io_ctx_, uri.host, replicaset_name, routing_strategy_, uri.query,
+        context_.get_protocol(), access_mode_);
   } else {
     throw std::runtime_error(string_format(
         "Invalid URI scheme; expecting: 'metadata-cache' is: '%s'",
@@ -1322,16 +1319,17 @@ routing::RoutingStrategy get_default_routing_strategy(
   return routing::RoutingStrategy::kFirstAvailable;
 }
 
-RouteDestination *create_standalone_destination(
-    const routing::RoutingStrategy strategy, const Protocol::Type protocol,
-    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size) {
+std::unique_ptr<RouteDestination> create_standalone_destination(
+    net::io_context &io_ctx, const routing::RoutingStrategy strategy,
+    const Protocol::Type protocol, size_t thread_stack_size) {
   switch (strategy) {
     case RoutingStrategy::kFirstAvailable:
-      return new DestFirstAvailable(protocol, sock_ops);
+      return std::make_unique<DestFirstAvailable>(io_ctx, protocol);
     case RoutingStrategy::kNextAvailable:
-      return new DestNextAvailable(protocol, sock_ops);
+      return std::make_unique<DestNextAvailable>(io_ctx, protocol);
     case RoutingStrategy::kRoundRobin:
-      return new DestRoundRobin(protocol, sock_ops, thread_stack_size);
+      return std::make_unique<DestRoundRobin>(io_ctx, protocol,
+                                              thread_stack_size);
     case RoutingStrategy::kUndefined:
     case RoutingStrategy::kRoundRobinWithFallback:;  // unsupported, fall
                                                      // through
@@ -1353,9 +1351,9 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
     routing_strategy_ = get_default_routing_strategy(access_mode_);
   }
 
-  destination_.reset(create_standalone_destination(
-      routing_strategy_, context_.get_protocol(), sock_ops_,
-      context_.get_thread_stack_size()));
+  destination_ = create_standalone_destination(
+      io_ctx_, routing_strategy_, context_.get_protocol(),
+      context_.get_thread_stack_size());
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {

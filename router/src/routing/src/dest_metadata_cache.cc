@@ -38,7 +38,6 @@
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
-#include "socket_operations.h"
 #include "tcp_address.h"
 
 using namespace std::chrono_literals;
@@ -183,13 +182,13 @@ bool get_disconnect_on_metadata_unavailable(const mysqlrouter::URIQuery &uri) {
 // doxygen confuses 'const mysqlrouter::URIQuery &query' with
 // 'std::map<std::string, std::string>'
 DestMetadataCacheGroup::DestMetadataCacheGroup(
-    const std::string &metadata_cache, const std::string &replicaset,
+    net::io_context &io_ctx, const std::string &metadata_cache,
+    const std::string &replicaset,
     const routing::RoutingStrategy routing_strategy,
     const mysqlrouter::URIQuery &query, const Protocol::Type protocol,
     const routing::AccessMode access_mode,
-    metadata_cache::MetadataCacheAPIBase *cache_api,
-    mysql_harness::SocketOperationsBase *sock_ops)
-    : RouteDestination(protocol, sock_ops),
+    metadata_cache::MetadataCacheAPIBase *cache_api)
+    : RouteDestination(io_ctx, protocol),
       cache_name_(metadata_cache),
       ha_replicaset_(replicaset),
       uri_query_(query),

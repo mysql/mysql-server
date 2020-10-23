@@ -36,8 +36,6 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysqlrouter/routing.h"
-#include "routing_mocks.h"
-#include "socket_operations.h"
 #include "test/helpers.h"  // init_test_loggers
 
 using ::testing::_;
@@ -54,7 +52,7 @@ std::ostream &operator<<(std::ostream &os, const std::pair<int, int> &v) {
 class TestSetupTcpService : public ::testing::Test {
  protected:
   template <class T>
-  using result = mysql_harness::SocketOperations::result<T>;
+  using result = stdx::expected<T, std::error_code>;
 
   // create some linked list of the addresses that getaddrinfo returns
   std::unique_ptr<addrinfo, void (*)(addrinfo *)> get_test_addresses_list(
@@ -85,7 +83,6 @@ class TestSetupTcpService : public ::testing::Test {
   }
 
  protected:
-  MockSocketOperations sock_ops_;
   net::io_context io_ctx_{std::make_unique<MockSocketService>(),
                           std::make_unique<MockIoService>()};
 };
@@ -98,7 +95,7 @@ TEST_F(TestSetupTcpService, single_addr_ok) {
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &sock_ops_);
+                 routing::kDefaultNetBufferLength);
 
   EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(1))));
@@ -127,7 +124,7 @@ TEST_F(TestSetupTcpService, getaddrinfo_fails) {
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &sock_ops_);
+                 routing::kDefaultNetBufferLength);
 
   EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(stdx::make_unexpected(
@@ -146,7 +143,7 @@ TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &sock_ops_);
+                 routing::kDefaultNetBufferLength);
 
   EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -171,7 +168,7 @@ TEST_F(TestSetupTcpService, socket_fails) {
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &sock_ops_);
+                 routing::kDefaultNetBufferLength);
 
   EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -205,7 +202,7 @@ TEST_F(TestSetupTcpService, setsockopt_fails) {
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &sock_ops_);
+                 routing::kDefaultNetBufferLength);
 
   EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -240,7 +237,7 @@ TEST_F(TestSetupTcpService, bind_fails) {
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &sock_ops_);
+                 routing::kDefaultNetBufferLength);
 
   EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -277,7 +274,7 @@ TEST_F(TestSetupTcpService, listen_fails) {
                  routing::AccessMode::kReadWrite, "127.0.0.1",
                  mysql_harness::Path(), "routing-name", 1,
                  std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength, &sock_ops_);
+                 routing::kDefaultNetBufferLength);
 
   EXPECT_CALL(sock_ops, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
