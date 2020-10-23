@@ -90,6 +90,7 @@ struct System_status_var;
 namespace dd {
 class Properties;
 }  // namespace dd
+struct AccessPath;
 struct KEY_CACHE;
 struct LEX;
 struct MY_BITMAP;
@@ -2179,6 +2180,54 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
                                                  bool *cheaper,
                                                  double *secondary_engine_cost);
 
+/**
+  Evaluates the cost of executing the given access path in this secondary
+  storage engine, and potentially modifies the cost estimates that are in the
+  access path. This function is only called from the hypergraph join optimizer.
+
+  The function is called on every access path that the join optimizer might
+  compare to an alternative access path. This includes both paths that represent
+  complete execution plans and paths that represent partial plans. It is not
+  guaranteed to be called on every child path. For example, if GROUP BY is done
+  by sorting first and then aggregating the sorted results, the function will
+  only be called on the aggregation path, and not on the sort path, because only
+  the aggregation path will be compared to other paths.
+
+  The secondary engine is allowed to modify the estimates in the access path to
+  better match the costs of the access path in the secondary engine. It can
+  change any of the following AccessPath members:
+
+  - init_cost
+  - cost
+  - cost_before_filter
+  - num_output_rows
+  - num_output_rows_before_filter
+  - secondary_engine_data
+
+  Any other members should be left unchanged. The AccessPath must be in an
+  internally consistent state when the function returns, and satisfy invariants
+  expected by the hypergraph join optimizer, such as init_cost <= cost <=
+  cost_before_filter and num_output_rows <= num_output_rows_before_filter.
+
+  The secondary engine can also reject an access path altogether, by returning
+  true, in which case the join optimizer will not use that path in the final
+  plan. Since the secondary engine can reject any partial or complete plan, it
+  is possible that the join optimizer does not find any valid plan that is
+  accepted. In this case, the join optimizer will raise an error.
+
+  If the secondary encounters an error when evaluating the cost of the path, it
+  can signal an error by calling my_error() and return true, in which case the
+  join optimizer will not suggest any plan for the query.
+
+  @param thd The thread context.
+  @param[in,out] access_path The AccessPath to evaluate.
+
+  @retval false on success.
+  @retval true if the plan is to be rejected, or if an error was raised.
+*/
+using secondary_engine_modify_access_path_cost_t =
+    bool (*)(THD *thd, AccessPath *access_path);
+
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
 typedef void (*se_before_commit_t)(void *arg);
@@ -2512,6 +2561,13 @@ struct handlerton {
   /// optimizer can choose from. Bits that represent access path types
   /// that are not joins, are currently ignored.
   uint64_t secondary_engine_supported_access_paths;
+
+  /// Pointer to a function that evaluates the cost of executing an access path
+  /// in a secondary storage engine.
+  ///
+  /// @see secondary_engine_modify_access_path_cost_t for function signature.
+  secondary_engine_modify_access_path_cost_t
+      secondary_engine_modify_access_path_cost;
 
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;

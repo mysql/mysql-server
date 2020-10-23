@@ -243,8 +243,34 @@ static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
   return false;
 }
 
-static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
-                                    LEX *lex MY_ATTRIBUTE((unused))) {
+static void AssertSupportedPath(const AccessPath *path) {
+  switch (path->type) {
+    // The only supported join type is hash join. Other join types are disabled
+    // in handlerton::secondary_engine_supported_access_paths.
+    case AccessPath::NESTED_LOOP_JOIN: /* purecov: deadcode */
+    case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
+    case AccessPath::BKA_JOIN:
+    // Index access is disabled in ha_mock::table_flags(), so we should see none
+    // of these access types.
+    case AccessPath::INDEX_SCAN:
+    case AccessPath::REF:
+    case AccessPath::REF_OR_NULL:
+    case AccessPath::EQ_REF:
+    case AccessPath::PUSHED_JOIN_REF:
+    case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
+      assert(false); /* purecov: deadcode */
+      break;
+    default:
+      break;
+  }
+
+  // This secondary storage engine does not yet store anything in the auxiliary
+  // data member of AccessPath.
+  assert(path->secondary_engine_data == nullptr);
+}
+
+static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)), LEX *lex) {
   // The context should have been set by PrepareSecondaryEngine.
   assert(lex->secondary_engine_execution_context() != nullptr);
 
@@ -255,36 +281,14 @@ static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
 
   DEBUG_SYNC(thd, "before_mock_optimize");
 
-#ifndef DBUG_OFF
   if (lex->using_hypergraph_optimizer) {
-    WalkAccessPaths(
-        lex->unit->root_access_path(), nullptr,
-        WalkAccessPathPolicy::ENTIRE_TREE, [](AccessPath *path, const JOIN *) {
-          // The only supported join type is hash join. Other join
-          // types are disabled in
-          // handlerton::secondary_engine_supported_access_paths.
-          assert(path->type != AccessPath::NESTED_LOOP_JOIN);
-          assert(path->type !=
-                 AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL);
-          assert(path->type != AccessPath::BKA_JOIN);
-
-          // Index access is disabled in ha_mock::table_flags(), so we
-          // should see none of these access types.
-          assert(path->type != AccessPath::INDEX_SCAN);
-          assert(path->type != AccessPath::REF);
-          assert(path->type != AccessPath::REF_OR_NULL);
-          assert(path->type != AccessPath::EQ_REF);
-          assert(path->type != AccessPath::PUSHED_JOIN_REF);
-          assert(path->type != AccessPath::INDEX_RANGE_SCAN);
-          assert(path->type != AccessPath::DYNAMIC_INDEX_RANGE_SCAN);
-
-          // This secondary storage engine does not yet store anything in the
-          // auxiliary data member of AccessPath.
-          assert(path->secondary_engine_data == nullptr);
-          return false;
-        });
+    WalkAccessPaths(lex->unit->root_access_path(), nullptr,
+                    WalkAccessPathPolicy::ENTIRE_TREE,
+                    [](AccessPath *path, const JOIN *) {
+                      AssertSupportedPath(path);
+                      return false;
+                    });
   }
-#endif
 
   return false;
 }
@@ -329,6 +333,13 @@ static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
   return false;
 }
 
+static bool ModifyAccessPathCost(THD *thd MY_ATTRIBUTE((unused)),
+                                 AccessPath *path) {
+  assert(!thd->is_error());
+  AssertSupportedPath(path);
+  return false;
+}
+
 static handler *Create(handlerton *hton, TABLE_SHARE *table_share, bool,
                        MEM_ROOT *mem_root) {
   return new (mem_root) mock::ha_mock(hton, table_share);
@@ -347,6 +358,7 @@ static int Init(MYSQL_PLUGIN p) {
   hton->compare_secondary_engine_cost = CompareJoinCost;
   hton->secondary_engine_supported_access_paths =
       AccessPathTypeBitmap(AccessPath::HASH_JOIN);
+  hton->secondary_engine_modify_access_path_cost = ModifyAccessPathCost;
   return 0;
 }
 
