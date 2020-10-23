@@ -2823,7 +2823,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
 
       ut_ad(Compression::validate(compression) == DB_SUCCESS);
 
-      err = dict_set_compression(table, compression);
+      err = dict_set_compression(table, compression, false);
 
       switch (err) {
         case DB_SUCCESS:

@@ -6004,15 +6004,19 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
   return (path);
 }
 
-dberr_t dict_set_compression(dict_table_t *table, const char *algorithm) {
+dberr_t dict_set_compression(dict_table_t *table, const char *algorithm,
+                             bool is_import_op) {
   ut_ad(table != nullptr);
 
-  /* We don't support Page Compression for the system tablespace,
-  the temporary tablespace, or any general tablespace because
-  COMPRESSION is set by TABLE DDL, not TABLESPACE DDL. There is
-  no other technical reason.  Also, do not use it for missing
-  tables or tables with compressed row_format. */
-  if (table->ibd_file_missing ||
+  /* We don't support Page Compression for the system tablespace, the temporary
+  tablespace, or any general tablespace because COMPRESSION is set by TABLE
+  DDL, not TABLESPACE DDL (there is no other technical reason). And neither do
+  we support it for tables with compressed row_format.
+
+  Also, do not use it for missing tables, unless it's an import operation as in
+  the case of import we would still be importing the tablespace at this stage
+  and would need to set the compression option for further processing. */
+  if ((table->ibd_file_missing && !is_import_op) ||
       !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE) ||
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY) ||
       page_size_t(table->flags).is_compressed()) {
