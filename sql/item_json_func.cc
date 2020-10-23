@@ -1458,13 +1458,8 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
       my_decimal m;
       my_decimal *r = arg->val_decimal(&m);
       if (current_thd->is_error()) return true;
-
       if (arg->null_value) return false;
-
-      if (!r) {
-        my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
-        return true;
-      }
+      assert(r != nullptr);
 
       if (create_scalar<Json_decimal>(scalar, &dom, *r))
         return true; /* purecov: inspected */
@@ -3927,7 +3922,7 @@ longlong Item_func_member_of::val_int() {
       Item_cache_json *cache = down_cast<Item_cache_json *>(args[1]);
       if (!(is_doc_b_sorted = cache->is_sorted())) {
         cache->sort();
-        cache->val_json(&doc_b);
+        if (cache->val_json(&doc_b)) return error_int();
         is_doc_b_sorted = true;
       }
     }

@@ -2620,18 +2620,10 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
     if (m_const_key) m_inited = true;
   }
 
-  store_key_result res;
-  /*
-   get_json_atom_wrapper() may call Item::val_xxx(). And if this is a subquery
-   we need to check for errors executing it and react accordingly
-  */
-  if (table->in_use->is_error())
-    res = STORE_KEY_FATAL;
-  else
-    res = STORE_KEY_OK;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   null_key = to_field->is_null() || item->null_value;
-  return res;
+  assert(!table->in_use->is_error());
+  return STORE_KEY_OK;
 }
 
 }  // namespace
