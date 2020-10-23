@@ -333,7 +333,7 @@ static const size_t MAX_PAGES_TO_READ = 1;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of shards supported. */
-static const size_t MAX_SHARDS = 64;
+static const size_t MAX_SHARDS = 69;
 
 /** The redo log is in its own shard. */
 static const size_t REDO_SHARD = MAX_SHARDS - 1;
@@ -342,7 +342,7 @@ static const size_t REDO_SHARD = MAX_SHARDS - 1;
 static const size_t UNDO_SHARDS = 4;
 
 /** The UNDO logs have their own shards (4). */
-static const size_t UNDO_SHARDS_START = REDO_SHARD - (UNDO_SHARDS + 1);
+static const size_t UNDO_SHARDS_START = REDO_SHARD - UNDO_SHARDS;
 #else  /* !UNIV_HOTBACKUP */
 
 /** Maximum number of shards supported. */
