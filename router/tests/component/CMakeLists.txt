@@ -27,11 +27,13 @@ MYSQL_ADD_EXECUTABLE(master_key_test_writer
   )
 
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
+ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
     test_async_replicaset.cc
     test_bootstrap.cc
     test_bootstrap_account.cc
     test_bootstrap_system_deployment.cc
+    test_bootstrap_tls_endpoint.cc
     test_component_test_framework.cc
     test_config.cc
     test_gr_notifications.cc
@@ -69,6 +71,36 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_client
   http_common
   mock_server_rest_client
+
+  DEPENDS
+  http_auth_backend
+  http_auth_realm
+  http_server
+  master_key_test_writer
+  metadata_cache
+  mock_server
+  mysql_server_mock
+  mysqlrouter
+  rest_api
+  rest_metadata_cache
+  rest_router
+  rest_routing
+  routing
+  )
+ENDFOREACH()
+
+FOREACH(test_file
+    test_routing_splicer.cc
+    )
+add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+  MODULE "component"
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
+                      ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
+  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/plugin/x/client/
+  LIB_DEPENDS
+  mysqlxclient_lite
+  mysqlxmessages_lite
+  ${PROTOBUF_LITE_LIBRARY}
 
   DEPENDS
   http_auth_backend

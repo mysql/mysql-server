@@ -44,6 +44,10 @@ SET(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql_routing_common.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/connection_container.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing_component.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/channel.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/basic_protocol_splicer.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/classic_protocol_splicer.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/x_protocol_splicer.cc
   ${ROUTING_SOURCE_FILES_X_PROTOCOL}
 )
 
@@ -67,7 +71,7 @@ SET(system_include_dirs
 # The Plugin
 add_harness_plugin(routing
  SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}
- REQUIRES mysql_protocol metadata_cache
+ REQUIRES mysql_protocol metadata_cache harness_tls
  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
  )
 TARGET_INCLUDE_DIRECTORIES(routing

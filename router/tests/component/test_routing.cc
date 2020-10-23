@@ -392,8 +392,11 @@ TEST_F(RouterRoutingTest, error_counters) {
     // good connection, followed by 2 bad ones. Good one should reset the error
     // counter
     mysqlrouter::MySQLSession client;
-    EXPECT_NO_THROW(
-        client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""));
+    try {
+      client.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
+    } catch (const std::exception &e) {
+      FAIL() << e.what();
+    }
     make_bad_connection(router_port);
     make_bad_connection(router_port);
   }

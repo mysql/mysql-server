@@ -23,7 +23,6 @@
 */
 
 #include "mysql_routing.h"
-
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -33,6 +32,7 @@
 #include <stdexcept>
 #include <system_error>  // error_code
 #include <thread>
+#include <type_traits>
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -60,6 +60,7 @@
 #include "dest_metadata_cache.h"
 #include "dest_next_available.h"
 #include "dest_round_robin.h"
+#include "destination_ssl_context.h"
 #include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -72,6 +73,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
 #include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -80,6 +82,7 @@
 #include "plugin_config.h"
 #include "protocol/protocol.h"
 #include "socket_operations.h"
+#include "ssl_mode.h"
 #include "tcp_address.h"
 
 using mysqlrouter::string_format;
@@ -102,12 +105,15 @@ MySQLRouting::MySQLRouting(
     unsigned long long max_connect_errors,
     std::chrono::milliseconds client_connect_timeout,
     unsigned int net_buffer_length,
-    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size)
+    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size,
+    SslMode client_ssl_mode, TlsServerContext *client_ssl_ctx,
+    SslMode server_ssl_mode, DestinationTlsContext *dest_ssl_ctx)
     : context_(Protocol::create(protocol, sock_ops), sock_ops, route_name,
                net_buffer_length, destination_connect_timeout,
                client_connect_timeout,
                mysql_harness::TCPAddress(bind_address, port), named_socket,
-               max_connect_errors, thread_stack_size),
+               max_connect_errors, thread_stack_size, client_ssl_mode,
+               client_ssl_ctx, server_ssl_mode, dest_ssl_ctx),
       sock_ops_(sock_ops),
       io_ctx_{io_ctx},
       routing_strategy_(routing_strategy),
@@ -342,8 +348,12 @@ class Connector : public ConnectorBase {
     }
 
     while (true) {
-      // log_debug("fd=%d state: %s", client_sock_.native_handle(),
-      //           mysqlrouter::to_string(state()).c_str());
+#if 0
+      if (client_sock_still_owned_) {
+        log_debug("fd=%d state: %s", client_sock_.native_handle(),
+                  mysqlrouter::to_string(state()).c_str());
+      }
+#endif
       switch (state()) {
         case State::INIT:
           state(init());
@@ -390,7 +400,9 @@ class Connector : public ConnectorBase {
  private:
   State init() {
     client_sock_.native_non_blocking(true);
-    client_sock_.set_option(net::ip::tcp::no_delay{true});
+    if (std::is_same<client_protocol_type, net::ip::tcp>::value) {
+      client_sock_.set_option(net::ip::tcp::no_delay{true});
+    }
 
     return State::INIT_DESTINATION;
   }

@@ -37,26 +37,6 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-MySQLRoutingContext ::MySQLRoutingContext(
-    BaseProtocol *protocol,
-    mysql_harness::SocketOperationsBase *socket_operations,
-    const std::string &name, unsigned int net_buffer_length,
-    std::chrono::milliseconds destination_connect_timeout,
-    std::chrono::milliseconds client_connect_timeout,
-    const mysql_harness::TCPAddress &bind_address,
-    const mysql_harness::Path &bind_named_socket,
-    unsigned long long max_connect_errors, size_t thread_stack_size)
-    : protocol_(protocol),
-      socket_operations_(socket_operations),
-      name_(name),
-      net_buffer_length_(net_buffer_length),
-      destination_connect_timeout_(destination_connect_timeout),
-      client_connect_timeout_(client_connect_timeout),
-      bind_address_(bind_address),
-      bind_named_socket_(bind_named_socket),
-      thread_stack_size_(thread_stack_size),
-      max_connect_errors_(max_connect_errors) {}
-
 #ifdef NET_TS_HAS_UNIX_SOCKET
 template <>
 bool MySQLRoutingContext::is_blocked<local::stream_protocol>(

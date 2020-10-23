@@ -199,6 +199,22 @@ class ConfigGenerator {
 
     bool disable_rest{false};
     std::string https_port_str;
+
+    std::string client_ssl_cert;
+    std::string client_ssl_cipher;
+    std::string client_ssl_curves;
+    std::string client_ssl_mode;
+    std::string client_ssl_key;
+    std::string client_ssl_dh_params;
+
+    std::string server_ssl_cipher;
+    std::string server_ssl_curves;
+    std::string server_ssl_mode;
+    std::string server_ssl_ca;
+    std::string server_ssl_capath;
+    std::string server_ssl_crl;
+    std::string server_ssl_crlpath;
+    std::string server_ssl_verify;
   };
 
   void set_file_owner(
@@ -261,7 +277,8 @@ class ConfigGenerator {
    */
   void init_gr_data(const URI &u, const std::string &bootstrap_socket);
 
-  Options fill_options(const std::map<std::string, std::string> &user_options);
+  Options fill_options(const std::map<std::string, std::string> &user_options,
+                       const std::map<std::string, std::string> &default_paths);
 
   void create_start_script(const std::string &directory,
                            bool interactive_master_key,
@@ -528,7 +545,7 @@ class ConfigGenerator {
    * @throws std::runtime_error Data directory contains some certificate files
    * but Router certificate and/or key is missing.
    */
-  void prepare_web_service_certificate_files(
+  void prepare_ssl_certificate_files(
       const std::map<std::string, std::string> &user_options,
       const std::map<std::string, std::string> &default_paths,
       AutoCleaner *auto_cleaner) const;

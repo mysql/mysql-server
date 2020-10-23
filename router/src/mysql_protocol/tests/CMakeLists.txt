@@ -37,5 +37,18 @@ FOREACH(test_file
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 ENDFOREACH()
 
+FOREACH(test_file
+    test_classic_protocol_frame.cc
+    test_classic_protocol_message.cc
+    test_classic_protocol_session_track.cc
+    test_classic_protocol_wire.cc
+    test_classic_protocol.cc
+  )
+  add_test_file(${test_file}
+    MODULE ${TEST_MODULE}
+    SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+    INCLUDE_DIRS ../include/)
+ENDFOREACH()
+
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
 STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

@@ -29,6 +29,8 @@ INCLUDE_DIRECTORIES(
   ../../../tests/helpers
 )
 
+ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
+
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
 STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
@@ -70,7 +72,7 @@ SET(test_files
   test_block_clients.cc
   test_classic_protocol.cc
   test_config.cc
-  test_connection.cc
+  # test_connection.cc
   test_connection_container.cc
   test_first_available.cc
   test_metadata_cache_group.cc
@@ -141,3 +143,19 @@ TARGET_LINK_LIBRARIES(${test_target}
 ROUTERTEST_GET_TARGET(test_target "test_x_protocol.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+
+ADD_ROUTER_TEST_FILE(
+  test_classic_protocol_splicer.cc
+  MODULE routing
+  LIB_DEPENDS
+    mysql_protocol
+    test-helpers
+    mysqlxclient_lite
+    mysqlxmessages_lite
+    ${PROTOBUF_LITE_LIBRARY}
+
+  EXTRA_SOURCES
+    ../src/channel.cc
+    ../src/classic_protocol_splicer.cc
+    ../src/basic_protocol_splicer.cc
+  )

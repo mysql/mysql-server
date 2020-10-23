@@ -30,14 +30,18 @@
 
 #include "dim.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysql_routing.h"
+#include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
 #include "plugin_config.h"
+#include "ssl_mode.h"
 #include "utils.h"
 
 using mysql_harness::AppInfo;
@@ -224,6 +228,23 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
+static void ensure_readable_directory(const std::string &opt_name,
+                                      const std::string &opt_value) {
+  const auto p = mysql_harness::Path(opt_value);
+
+  // if it is set, check it exists.
+  if (!p.exists()) {
+    throw std::runtime_error(opt_name + "=" + opt_value + " does not exist");
+  }
+  if (!p.is_directory()) {
+    throw std::runtime_error(opt_name + "=" + opt_value +
+                             " is not a directory");
+  }
+  if (!p.is_readable()) {
+    throw std::runtime_error(opt_name + "=" + opt_value + " is not readable");
+  }
+}
+
 static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
@@ -244,6 +265,128 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     std::chrono::milliseconds client_connect_timeout(
         config.client_connect_timeout * 1000);
 
+    // client side TlsContext.
+    TlsServerContext source_tls_ctx;
+
+    if (config.source_ssl_mode != SslMode::kDisabled &&
+        config.source_ssl_mode != SslMode::kPassthrough) {
+      if (config.source_ssl_cert.empty()) {
+        throw std::invalid_argument(
+            "client_ssl_cert must be set, if client_ssl_mode is enabled.");
+      }
+      if (config.source_ssl_key.empty()) {
+        throw std::invalid_argument(
+            "client_ssl_key must be set, if client_ssl_mode is enabled.");
+      }
+
+      const auto res = source_tls_ctx.load_key_and_cert(config.source_ssl_key,
+                                                        config.source_ssl_cert);
+      if (!res) {
+        throw std::system_error(
+            res.error(), "loading client_ssl_cert '" + config.source_ssl_key +
+                             "' and client_ssl_key '" + config.source_ssl_cert +
+                             "' failed");
+      }
+
+      if (!config.source_ssl_curves.empty()) {
+        if (source_tls_ctx.has_set_curves_list()) {
+          const auto res = source_tls_ctx.curves_list(config.source_ssl_curves);
+          if (!res) {
+            throw std::system_error(res.error(), "setting client_ssl_curves=" +
+                                                     config.source_ssl_curves +
+                                                     " failed");
+          }
+
+        } else {
+          throw std::invalid_argument(
+              "setting client_ssl_curves is not supported by the ssl library, "
+              "it "
+              "should stay unset");
+        }
+      }
+
+      {
+        const auto res =
+            source_tls_ctx.init_tmp_dh(config.source_ssl_dh_params);
+        if (!res) {
+          throw std::system_error(res.error(),
+                                  "setting client_ssl_dh_params failed");
+        }
+      }
+
+      if (!config.source_ssl_cipher.empty()) {
+        const auto res = source_tls_ctx.cipher_list(config.source_ssl_cipher);
+        if (!res) {
+          throw std::system_error(res.error(), "setting client_ssl_cipher=" +
+                                                   config.source_ssl_cipher +
+                                                   " failed");
+        }
+      }
+    }
+
+    DestinationTlsContext dest_tls_ctx;
+    if (config.dest_ssl_mode != SslMode::kDisabled) {
+      // validate the config-values one time
+      TlsServerContext tls_server_ctx;
+
+      if (!config.dest_ssl_cipher.empty()) {
+        const auto res = tls_server_ctx.cipher_list(config.dest_ssl_cipher);
+        if (!res) {
+          throw std::system_error(res.error(), "setting server_ssl_cipher=" +
+                                                   config.dest_ssl_cipher +
+                                                   " failed");
+        }
+      }
+      if (!config.dest_ssl_curves.empty()) {
+        const auto res = tls_server_ctx.curves_list(config.dest_ssl_curves);
+        if (!res) {
+          throw std::system_error(res.error(), "setting server_ssl_curves=" +
+                                                   config.dest_ssl_curves +
+                                                   " failed");
+        }
+      }
+      if (!config.dest_ssl_ca_file.empty() || !config.dest_ssl_ca_dir.empty()) {
+        if (!config.dest_ssl_ca_dir.empty()) {
+          // throws on error
+          ensure_readable_directory("server_ssl_capath",
+                                    config.dest_ssl_ca_dir);
+        }
+        const auto res = tls_server_ctx.ssl_ca(config.dest_ssl_ca_file,
+                                               config.dest_ssl_ca_dir);
+        if (!res) {
+          throw std::system_error(
+              res.error(), "setting server_ssl_ca=" + config.dest_ssl_ca_file +
+                               " and server_ssl_capath=" +
+                               config.dest_ssl_ca_dir + " failed");
+        }
+      }
+      if (!config.dest_ssl_crl_file.empty() ||
+          !config.dest_ssl_crl_dir.empty()) {
+        if (!config.dest_ssl_crl_dir.empty()) {
+          // throws on error
+          ensure_readable_directory("server_ssl_crlpath",
+                                    config.dest_ssl_crl_dir);
+        }
+        const auto res = tls_server_ctx.crl(config.dest_ssl_crl_file,
+                                            config.dest_ssl_crl_dir);
+        if (!res) {
+          throw std::system_error(
+              res.error(),
+              "setting server_ssl_crl=" + config.dest_ssl_crl_file +
+                  " and server_ssl_crlpath=" + config.dest_ssl_crl_dir +
+                  " failed");
+        }
+      }
+
+      dest_tls_ctx.ca_file(config.dest_ssl_ca_file);
+      dest_tls_ctx.ca_path(config.dest_ssl_ca_dir);
+      dest_tls_ctx.crl_file(config.dest_ssl_crl_file);
+      dest_tls_ctx.crl_path(config.dest_ssl_crl_dir);
+      dest_tls_ctx.verify(config.dest_ssl_verify);
+      dest_tls_ctx.curves(config.dest_ssl_curves);
+      dest_tls_ctx.ciphers(config.dest_ssl_cipher);
+    }
+
     net::io_context &io_ctx = IoComponent::get_instance().io_context();
     auto r = std::make_shared<MySQLRouting>(
         io_ctx, config.routing_strategy, config.bind_address.port,
@@ -251,13 +394,18 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.named_socket, name, config.max_connections,
         destination_connect_timeout, config.max_connect_errors,
         client_connect_timeout, config.net_buffer_length,
-        mysql_harness::SocketOperations::instance(), config.thread_stack_size);
+        mysql_harness::SocketOperations::instance(), config.thread_stack_size,
+        config.source_ssl_mode,
+        config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
+                                                     : nullptr,
+        config.dest_ssl_mode,
+        config.dest_ssl_mode != SslMode::kDisabled ? &dest_tls_ctx : nullptr);
 
     try {
       // don't allow rootless URIs as we did already in the
       // get_option_destinations()
       r->set_destinations_from_uri(URI(config.destinations, false));
-    } catch (URIError &) {
+    } catch (const URIError &) {
       r->set_destinations_from_csv(config.destinations);
     }
     MySQLRoutingComponent::get_instance().init(section->key, r);

@@ -144,8 +144,7 @@ stdx::expected<void, std::error_code> TlsServerContext::init_tmp_dh(
     std::unique_ptr<BIO, decltype(&BIO_free)> pem_bio(
         BIO_new_file(dh_params.c_str(), "r"), &BIO_free);
     if (!pem_bio) {
-      throw std::runtime_error("failed to open dh-param file '" + dh_params +
-                               "'");
+      return stdx::make_unexpected(make_tls_error());
     }
     dh2048.reset(
         PEM_read_bio_DHparams(pem_bio.get(), nullptr, nullptr, nullptr));
