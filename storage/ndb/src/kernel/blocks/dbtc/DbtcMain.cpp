@@ -3081,12 +3081,10 @@ Dbtc::sendPoolShrink(const Uint32 pool_index)
   c_transient_pools_shrinking.set(pool_index);
   if (need_send)
   {
-    SignalT<2> signal2[1];
-    Signal* signal = new (&signal2[0]) Signal(0);
-    bzero(signal2, sizeof(signal2));
+    Signal25 signal[1] = {};
     signal->theData[0] = TcContinueB::ZSHRINK_TRANSIENT_POOLS;
     signal->theData[1] = pool_index;
-    sendSignal(cownref, GSN_CONTINUEB, (Signal*)signal, 2, JBB);
+    sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
   }
 }
 
