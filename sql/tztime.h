@@ -48,6 +48,11 @@ class THD;
 class Time_zone {
  public:
   /**
+    Enum to identify the type of the timezone
+  */
+  enum tz_type { TZ_DB = 1, TZ_OFFSET = 2, TZ_SYSTEM = 3, TZ_UTC = 4 };
+
+  /**
     Converts local time in broken down MYSQL_TIME representation to
     my_time_t (UTC seconds since Epoch) represenation.
     Returns 0 in case of error. Sets in_dst_time_gap to true if date provided
@@ -74,7 +79,15 @@ class Time_zone {
     of c_ptr().
   */
   virtual const String *get_name() const = 0;
-
+  /**
+   *Returns the timezone type set.
+   */
+  virtual tz_type get_timezone_type() const = 0;
+  /**
+    Returns the offset set for a Timezone offset.
+    This function has to be invoked ONLY when TZ_OFFSET is set.
+  */
+  virtual long get_timezone_offset() const = 0;
   /**
     We need this only for surpressing warnings, objects of this type are
     allocated on MEM_ROOT and should not require destruction.

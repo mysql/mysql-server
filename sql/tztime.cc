@@ -654,6 +654,11 @@ class Time_zone_system : public Time_zone {
                             bool *in_dst_time_gap) const override;
   void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
   const String *get_name() const override;
+  tz_type get_timezone_type() const override { return TZ_SYSTEM; }
+  long get_timezone_offset() const override {
+    DBUG_ASSERT(0);
+    return 0;
+  }
 };
 
 /*
@@ -740,6 +745,12 @@ class Time_zone_utc : public Time_zone {
                             bool *in_dst_time_gap) const override;
   void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
   const String *get_name() const override;
+
+  tz_type get_timezone_type() const override { return TZ_UTC; }
+  long get_timezone_offset() const override {
+    DBUG_ASSERT(0);
+    return 0;
+  }
 };
 
 /*
@@ -814,6 +825,11 @@ class Time_zone_db : public Time_zone {
                             bool *in_dst_time_gap) const override;
   void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
   const String *get_name() const override;
+  tz_type get_timezone_type() const override { return TZ_DB; }
+  long get_timezone_offset() const override {
+    DBUG_ASSERT(0);
+    return 0;
+  }
 
  private:
   TIME_ZONE_INFO *tz_info;
@@ -897,6 +913,9 @@ class Time_zone_offset : public Time_zone {
                             bool *in_dst_time_gap) const override;
   void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
   const String *get_name() const override;
+
+  tz_type get_timezone_type() const override { return TZ_OFFSET; }
+  long get_timezone_offset() const override { return offset; }
 
  private:
   /* Extra reserve because of snprintf */
