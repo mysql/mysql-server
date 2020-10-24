@@ -67,10 +67,9 @@ public:
 
   void newBuffer(int size);
   
-  void insert(Signal* signal, BlockNumber bnr, GlobalSignalNumber gsn);   
+  void insert(Signal* signal);
   void insert(const SignalHeader * const sh, const Uint32 * const theData, const Uint32 secPtrI[3]);
-  void insert(Signal* signal, BlockNumber bnr, GlobalSignalNumber gsn, 
-	      Uint32 myWPtr);   
+  void insert(Signal* signal, Uint32 myWPtr);
   
   Uint32 retrieve(Signal *signal);
   void retrieve(Signal *signal, Uint32 myRptr);
@@ -88,8 +87,7 @@ public:
   Uint32 getBufSize() const;
   
 private:
-  void signal2buffer(Signal* signal, BlockNumber bnr,
-		     GlobalSignalNumber gsn, BufferEntry& buf);
+  void signal2buffer(Signal* signal, BufferEntry& buf);
   Uint32 rPtr;
   Uint32 wPtr;
   Uint32 theOccupancy;
@@ -111,10 +109,7 @@ public:
 
   void activateSendPacked();
   
-  void execute(Signal* signal, 
-	       Priority prio,
-	       BlockNumber bnr, 
-	       GlobalSignalNumber gsn);
+  void execute(Signal* signal, Priority prio);
   
   void execute(const SignalHeader * const sh, 
 	       Uint8 prio, const Uint32 * const theData, const Uint32 secPtr[3]);
@@ -126,8 +121,7 @@ public:
   Uint32 getBOccupancy() const;
   void sendPacked();
   
-  void insertTimeQueue(Signal* aSignal, BlockNumber bnr,
-		       GlobalSignalNumber gsn, Uint32 aIndex);
+  void insertTimeQueue(Signal* aSignal, Uint32 aIndex);
   void scheduleTimeQueue(Uint32 aIndex);
   
   /*
@@ -246,24 +240,22 @@ FastScheduler::execute(const SignalHeader * const sh, Uint8 prio,
 
 inline 
 void 
-FastScheduler::execute(Signal* signal, Priority prio,
-		       BlockNumber bnr, GlobalSignalNumber gsn)
+FastScheduler::execute(Signal* signal, Priority prio)
 {
 #ifdef VM_TRACE
   if (prio >= LEVEL_IDLE)
     prio_level_error();
 #endif
-  theJobBuffers[prio].insert(signal, bnr, gsn);
+  theJobBuffers[prio].insert(signal);
   if (prio < highestAvailablePrio())
     highestAvailablePrio(prio);
 }
 
 inline 
 void 
-FastScheduler::insertTimeQueue(Signal* signal, BlockNumber bnr,
-			       GlobalSignalNumber gsn, Uint32 aIndex)
+FastScheduler::insertTimeQueue(Signal* signal, Uint32 aIndex)
 {
-  theJobBuffers[3].insert(signal, bnr, gsn, aIndex);
+  theJobBuffers[3].insert(signal, aIndex);
 }
 
 inline 
@@ -272,10 +264,7 @@ FastScheduler::scheduleTimeQueue(Uint32 aIndex)
 {
   Signal* signal = getVMSignals();
   theJobBuffers[3].retrieve(signal, aIndex);
-  theJobBuffers[0].insert
-    (signal,
-     (BlockNumber)signal->header.theReceiversBlockNumber,
-     (GlobalSignalNumber)signal->header.theVerId_signalNumber);
+  theJobBuffers[0].insert(signal);
   if (highestAvailablePrio() > JBA)
     highestAvailablePrio(JBA);
 
@@ -350,8 +339,7 @@ APZJobBuffer::retrieveDump(Signal25* signal, Uint32 myRptr)
 
 inline
 void 
-APZJobBuffer::insert(Signal* signal,
-		     BlockNumber bnr, GlobalSignalNumber gsn)
+APZJobBuffer::insert(Signal* signal)
 {
   Uint32 tOccupancy = theOccupancy + 1;
   Uint32 myWPtr = wPtr;
@@ -360,7 +348,7 @@ APZJobBuffer::insert(Signal* signal,
     Uint32 cond =  (++myWPtr == bufSize) - 1;
     wPtr = myWPtr & cond;
     theOccupancy = tOccupancy;
-    signal2buffer(signal, bnr, gsn, buf);
+    signal2buffer(signal, buf);
     //---------------------------------------------------------
     // Prefetch of buffer[wPtr] is done here. We prefetch for
     // write both the first cache line and the next 64 byte
@@ -376,11 +364,10 @@ APZJobBuffer::insert(Signal* signal,
 
 inline
 void
-APZJobBuffer::insert(Signal* signal, BlockNumber bnr,
-		     GlobalSignalNumber gsn, Uint32 myWPtr)
+APZJobBuffer::insert(Signal* signal, Uint32 myWPtr)
 {
   BufferEntry& buf = buffer[myWPtr];
-  signal2buffer(signal, bnr, gsn, buf);
+  signal2buffer(signal, buf);
 }
 
 

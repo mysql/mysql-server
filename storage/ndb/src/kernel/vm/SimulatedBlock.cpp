@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -945,8 +945,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
     else
       sendprioa(m_threadId, &signal->header, signal->theData, NULL);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock,
-			    gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
     return;
   } else { 
@@ -1052,7 +1051,7 @@ ndbrequire(noOfSections == 0);
     else
       sendprioa(m_threadId, &signal->header, signal->theData, NULL);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
     
     rg.m_nodes.clear((Uint32)0);
@@ -1177,8 +1176,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
       sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData+length);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock,
-			    gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
     signal->header.m_noOfSections = 0;
     return;
@@ -1307,7 +1305,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
       sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
     
     rg.m_nodes.clear((Uint32)0);
@@ -1428,7 +1426,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
       sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
   } else {
     // send distributed Signal
@@ -1552,7 +1550,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
       sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
 
     rg.m_nodes.clear((Uint32)0);
@@ -1693,7 +1691,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
       sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
   } else {
     // send distributed Signal
@@ -1827,7 +1825,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
       sendprioa(m_threadId, &signal->header, signal->theData,
                 signal->theData + length);
 #else
-    globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+    globalScheduler.execute(signal, jobBuffer);
 #endif
 
     rg.m_nodes.clear((Uint32)0);
@@ -1920,7 +1918,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 #ifdef NDBD_MULTITHREADED
   senddelay(m_threadId, &signal->header, delayInMilliSeconds);
 #else
-  globalTimeQueue.insert(signal, bnr, gsn, delayInMilliSeconds);
+  globalTimeQueue.insert(signal, delayInMilliSeconds);
 #endif
 
   // befor 2nd parameter to globalTimeQueue.insert
@@ -1975,7 +1973,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
 #ifdef NDBD_MULTITHREADED
   senddelay(m_threadId, &signal->header, delayInMilliSeconds);
 #else
-  globalTimeQueue.insert(signal, bnr, gsn, delayInMilliSeconds);
+  globalTimeQueue.insert(signal, delayInMilliSeconds);
 #endif
 
   signal->header.m_noOfSections = 0;

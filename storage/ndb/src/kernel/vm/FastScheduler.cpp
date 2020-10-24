@@ -302,17 +302,13 @@ APZJobBuffer::retrieve(Signal* signal)
 }//APZJobBuffer::retrieve()
 
 void 
-APZJobBuffer::signal2buffer(Signal* signal,
-			    BlockNumber bnr, GlobalSignalNumber gsn,
-			    BufferEntry& buf)
+APZJobBuffer::signal2buffer(Signal* signal, BufferEntry& buf)
 {
   Uint32 tSignalId = globalData.theSignalId;
   Uint32 tLength = signal->header.theLength + signal->header.m_noOfSections;
   Uint32 tSigId  = buf.header.theSignalId;
   
   buf.header = signal->header;
-  buf.header.theVerId_signalNumber = gsn;
-  buf.header.theReceiversBlockNumber = bnr;
   buf.header.theSendersSignalId = tSignalId - 1;
   buf.header.theSignalId = tSigId;
   
