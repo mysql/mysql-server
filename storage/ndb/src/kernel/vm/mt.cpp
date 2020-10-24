@@ -4605,9 +4605,9 @@ dumpJobQueues(void)
 void
 trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 {
-  SignalT<3> signalT;
-  Signal &signal = * new (&signalT) Signal(0);
-  memset(&signal.header, 0, sizeof(signal.header));
+#ifdef RONM_TODO
+  SignalT<3> signal[1] = {};
+#endif
 
   if (g_send_threads)
   {
